@@ -25,6 +25,7 @@ from unittest import mock
 
 from django.test import SimpleTestCase, TestCase
 from django.urls import resolve
+from rest_framework.test import APIRequestFactory
 
 from apps.iam import ActionEnum
 from apps.iam.handlers.drf import InstanceActionPermission
@@ -192,6 +193,16 @@ class CollectorArchiveHandlerTests(TestCase):
 
         self.assert_no_archive()
 
+    def test_upsert_rejects_deleted_collector(self):
+        self.collector.delete()
+
+        with self.patch_metadata() as transfer_api:
+            with self.assertRaises(CollectorConfigNotExistException):
+                ArchiveHandler.upsert_collector_archive(self.collector_config_id, REPOSITORY_NAME, 30)
+
+        transfer_api.create_result_table_snapshot.assert_not_called()
+        self.assert_no_archive()
+
     def test_get_collector_archive_returns_none_when_absent(self):
         self.assertIsNone(ArchiveHandler.get_collector_archive(self.collector_config_id))
 
@@ -277,6 +288,20 @@ class CollectorArchiveViewTests(SimpleTestCase):
 
         mock_get_archive.assert_called_once_with(7)
         self.assertIsNone(response.data)
+
+    @mock.patch.object(CollectorViewSet, "get_permissions", return_value=[])
+    @mock.patch("apps.log_databus.views.collector_views.ArchiveHandler")
+    def test_archive_head_reads_without_modifying(self, mock_archive_handler, _mock_get_permissions):
+        mock_archive_handler.get_collector_archive.return_value = None
+        resolved = resolve(ARCHIVE_PATH)
+
+        with mock.patch.dict(resolved.func.actions):
+            response = resolved.func(APIRequestFactory().head(ARCHIVE_PATH), **resolved.kwargs)
+
+        self.assertEqual(response.status_code, 200)
+        mock_archive_handler.get_collector_archive.assert_called_once_with("1")
+        mock_archive_handler.upsert_collector_archive.assert_not_called()
+        mock_archive_handler.delete_collector_archive.assert_not_called()
 
     @mock.patch(
         "apps.log_databus.views.collector_views.ArchiveHandler.upsert_collector_archive",

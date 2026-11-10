@@ -26,6 +26,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext as _
 from rest_framework import serializers
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.response import Response
 
 from apps.api import NodeApi
@@ -2570,7 +2571,7 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
-        if request.method == "GET":
+        if request.method in ("GET", "HEAD"):
             return Response(ArchiveHandler.get_collector_archive(collector_config_id))
         if request.method == "PUT":
             data = self.params_valid(CollectorArchivePutSerializer)
@@ -2581,7 +2582,9 @@ class CollectorViewSet(ModelViewSet):
                     snapshot_days=data["snapshot_days"],
                 )
             )
-        return Response(ArchiveHandler.delete_collector_archive(collector_config_id))
+        if request.method == "DELETE":
+            return Response(ArchiveHandler.delete_collector_archive(collector_config_id))
+        raise MethodNotAllowed(request.method)
 
     @list_route(methods=["POST"], url_path="container_configs_to_yaml")
     def container_configs_to_yaml(self, request):

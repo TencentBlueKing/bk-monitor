@@ -272,7 +272,10 @@ class ArchiveHandler:
     @staticmethod
     def _get_active_collector(collector_config_id: int) -> CollectorConfig:
         try:
-            collector = CollectorConfig.objects.get(collector_config_id=collector_config_id)
+            # 首次归档尚无记录，锁住采集项才能串行处理并发 PUT。
+            collector = (
+                CollectorConfig.objects.filter(collector_config_id=collector_config_id).select_for_update().get()
+            )
         except CollectorConfig.DoesNotExist:
             raise CollectorConfigNotExistException
         if not collector.is_active:
@@ -639,7 +642,7 @@ class ArchiveHandler:
         if restore.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
             restore_objs = RestoreConfig.objects.filter(index_set_id=restore.index_set_id)
             restore_objs.update(expired_time=expired_time)
-            meta_restore_ids = list(restore_objs.values_list("meta_restore_ids", flat=True))
+            meta_restore_ids = list(restore_objs.values_list("meta_restore_id", flat=True))
             multi_execute_func = MultiExecuteFunc()
             for meta_restore_id in meta_restore_ids:
                 params = {"restore_id": meta_restore_id, "expired_time": expired_time}

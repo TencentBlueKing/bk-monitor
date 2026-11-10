@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,11 +18,17 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from rest_framework.response import Response
 
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import insert_permission_field, InstanceActionForDataPermission, ViewBusinessPermission
+from apps.iam.handlers.drf import (
+    IAMPermission,
+    insert_permission_field,
+    InstanceActionForDataPermission,
+    ViewBusinessPermission,
+)
 from apps.log_databus.handlers.archive import ArchiveHandler
 from apps.log_databus.models import RestoreConfig, ArchiveConfig
 from apps.log_databus.serializers import (
@@ -70,21 +75,18 @@ class RestoreViewSet(ModelViewSet):
             restore_obj = RestoreConfig.objects.filter(restore_config_id=int(self.kwargs[self.lookup_field])).first()
             if not restore_obj:
                 raise RestoreNotFound
-            if restore_obj.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
+            archive_obj = restore_obj.archive
+            if archive_obj.instance_type == ArchiveInstanceType.INDEX_SET.value:
                 return [
-                    InstanceActionForDataPermission(
-                        "restore_config_id",
-                        [ActionEnum.MANAGE_COLLECTION],
-                        ResourceEnum.COLLECTION,
-                        get_instance_id=RestoreConfig.get_index_set_id,
+                    IAMPermission(
+                        [ActionEnum.MANAGE_INDICES],
+                        [ResourceEnum.INDICES.create_instance(archive_obj.instance_id)],
                     )
                 ]
             return [
-                InstanceActionForDataPermission(
-                    "restore_config_id",
+                IAMPermission(
                     [ActionEnum.MANAGE_COLLECTION],
-                    ResourceEnum.COLLECTION,
-                    get_instance_id=RestoreConfig.get_collector_config_id,
+                    [ResourceEnum.COLLECTION.create_instance(archive_obj.collector_config_id)],
                 )
             ]
         return [ViewBusinessPermission()]
