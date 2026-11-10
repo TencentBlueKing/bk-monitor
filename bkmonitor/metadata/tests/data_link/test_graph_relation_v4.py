@@ -3,6 +3,7 @@ import json
 import pydantic
 import pytest
 
+from core.errors.api import BKAPIError
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.component_reuse import ExistingComponentContext
@@ -379,6 +380,67 @@ def test_apply_graph_relation_v4_deletes_components_absent_from_compose(mocker, 
         ).storage_type
         == models.ClusterInfo.TYPE_VM
     )
+
+
+@pytest.mark.parametrize(
+    ("delete_error_result", "expect_local_deleted"),
+    [
+        # BKBase V4 删除一个远端已不存在的组件时的实际返回
+        ({"result": False, "code": "1558025", "data": "Resource not found.", "message": "资源不存在."}, True),
+        ({"result": False, "code": "1500500", "data": None, "message": "服务内部错误"}, False),
+    ],
+)
+def test_apply_graph_relation_v4_cleanup_drops_local_records_only_when_bkbase_reports_not_found(
+    mocker, graph_relation_v4_records, delete_error_result, expect_local_deleted
+):
+    ctx = graph_relation_v4_records
+    option_record = models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
+        value=json.dumps({"write_targets": ["vm", "surrealdb"]}),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="system",
+    )
+    ctx["data_link"].compose_graph_relation_v4_time_series_configs(
+        bk_biz_id=2,
+        data_source=ctx["data_source"],
+        table_id=ctx["table_id"],
+        storage_cluster_name=ctx["vm_cluster"].cluster_name,
+        existing_context=ExistingComponentContext.from_datalink(ctx["data_link"]),
+    )
+    option_record.value = json.dumps({"write_targets": ["vm"]})
+    option_record.save(update_fields=["value"])
+
+    mocker.patch.object(DataLink, "merge_existing_component_configs", side_effect=lambda configs: configs)
+    mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={})
+    mock_delete = mocker.patch(
+        "metadata.models.data_link.data_link_configs.api.bkdata.delete_data_link",
+        side_effect=BKAPIError(
+            system_name="bkdata",
+            url="/v4/namespaces/{namespace}/{kind}/{name}/",
+            result=delete_error_result,
+        ),
+    )
+
+    ctx["data_link"].apply_data_link(
+        bk_biz_id=2,
+        data_source=ctx["data_source"],
+        table_id=ctx["table_id"],
+        storage_cluster_name=ctx["vm_cluster"].cluster_name,
+    )
+
+    link_name = ctx["data_link"].data_link_name
+    assert mock_delete.call_count == 3
+    surrealdb_records = [
+        ResultTableConfig.objects.filter(data_link_name=link_name, data_type="graph").exists(),
+        SurrealDBBindingConfig.objects.filter(data_link_name=link_name).exists(),
+        DataBusConfig.objects.filter(data_link_name=link_name, sink_names__icontains="SurrealDBBinding:").exists(),
+    ]
+    assert surrealdb_records == [not expect_local_deleted] * 3
+    assert ResultTableConfig.objects.filter(data_link_name=link_name, data_type="metric").exists()
+    assert VMStorageBindingConfig.objects.filter(data_link_name=link_name).exists()
+    assert DataBusConfig.objects.filter(data_link_name=link_name, sink_names__icontains="VmStorageBinding:").exists()
 
 
 def test_switch_from_surrealdb_only_to_standard_vm_reuses_datalink_and_cleans_graph(

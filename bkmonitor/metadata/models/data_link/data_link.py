@@ -3215,10 +3215,7 @@ class DataLink(models.Model):
         except BKAPIError as error:
             # 这里必须直接区分 not found 与其它 API 异常：资源不存在可以继续 apply，
             # 权限、网关或服务异常则要抛出，避免误判为“无旧配置”后覆盖 BKBase 侧真实状态。
-            error_data = error.data if isinstance(error.data, dict) else {}
-            is_bkbase_v4_not_found = str(error_data.get("code")) == "1558025"
-            is_legacy_not_found = f"resource {name} of kind {kind} not found".lower() in error.message.lower()
-            if is_bkbase_v4_not_found or is_legacy_not_found:
+            if self._is_bkbase_component_not_found(error, kind=kind, name=name):
                 return None
             logger.error(
                 "get_existing_component_config: bkbase api error,kind->[%s],name->[%s],namespace->[%s],error->[%s]",
@@ -3355,12 +3352,23 @@ class DataLink(models.Model):
         return sorted(components_to_delete, key=lambda component: delete_priority.get(component.kind, 1))
 
     @staticmethod
-    def _is_remote_component_not_found(error: Exception) -> bool:
-        if isinstance(error, BKAPIError):
-            code = str(error.data.get("code", "")).lower()
-            message = str(error.data.get("message", "")).lower()
-            return code in {"404", "not_found", "resource_not_found"} or "not found" in message
-        return False
+    def _is_bkbase_component_not_found(error: BKAPIError, kind: str, name: str) -> bool:
+        """BKBase V4 组件不存在：错误码 1558025，或旧版消息 ``resource {name} of kind {kind} not found``。"""
+        error_data = error.data if isinstance(error.data, dict) else {}
+        if str(error_data.get("code")) == "1558025":
+            return True
+        return f"resource {name} of kind {kind} not found".lower() in error.message.lower()
+
+    @classmethod
+    def _is_remote_component_not_found(cls, error: Exception, component: "DataLinkResourceConfigBase") -> bool:
+        if not isinstance(error, BKAPIError):
+            return False
+        if cls._is_bkbase_component_not_found(error, kind=component.kind, name=component.name):
+            return True
+        error_data = error.data if isinstance(error.data, dict) else {}
+        code = str(error_data.get("code", "")).lower()
+        message = str(error_data.get("message", "")).lower()
+        return code in {"404", "not_found", "resource_not_found"} or "not found" in message
 
     def _cleanup_absent_components(self, components: list["DataLinkResourceConfigBase"]) -> None:
         """BKBase apply 成功后尽力清理不再属于期望状态的组件。"""
@@ -3368,7 +3376,7 @@ class DataLink(models.Model):
             try:
                 component.delete_config()
             except Exception as error:  # pylint: disable=broad-except
-                if self._is_remote_component_not_found(error):
+                if self._is_remote_component_not_found(error, component):
                     logger.info(
                         "cleanup_absent_components: remote component already absent, delete local record, "
                         "data_link_name->[%s],kind->[%s],name->[%s]",
