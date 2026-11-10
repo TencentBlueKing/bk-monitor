@@ -102,6 +102,7 @@ class BkCollectorDeployPolicy(models.Model):
         目标主机为空时与 V2 一致直接跳过，不清空已下发配置，避免主机查询抖动导致配置被删除。
         已下发过的主机本轮在节点管理中查不到时（如主机同步延迟），保留上次下发范围不变更，
         避免节点管理删除这些主机上的子配置；业务明确移除的主机仍正常收缩。
+        「已下发」以节点管理中该策略的实际范围为准，覆盖本地绑定丢失、上次执行失败未记录范围的情况。
         失败直接抛出，由调用方记录日志，不回退 V2。
         """
         host_ids = sorted({int(host_id) for host_id in bk_host_ids if host_id})
@@ -133,7 +134,7 @@ class BkCollectorDeployPolicy(models.Model):
         missing_host_ids = sorted(set(host_ids) - set(resolved_host_ids))
         if missing_host_ids:
             # 仍期望但本轮查不到的已下发主机：缩小范围会删除其子配置，保留上次有效范围，待下一轮查到后再更新
-            lost_host_ids = sorted(set(missing_host_ids) & set(record.bk_host_ids or []))
+            lost_host_ids = sorted(set(missing_host_ids) & record._get_deployed_host_ids())
             if record.deploy_policy_id and lost_host_ids:
                 logger.warning(
                     "[bk-collector-v3] keep last scopes of %s(%s), deployed hosts not found in nodeman: %s",
@@ -240,8 +241,35 @@ class BkCollectorDeployPolicy(models.Model):
     def _description(self) -> str:
         return f"bkmonitor bk-collector {self.scene} sub config: {self.resource_key}"
 
+    def _get_deployed_host_ids(self) -> set[int]:
+        """已下发主机：本地记录与节点管理中该策略的实际范围取并集
+
+        本地记录可能不可信：绑定丢失时需按名称找回策略；上次更新范围后执行失败时 bk_host_ids 未更新，
+        而节点管理的每小时自动执行可能已按新范围下发。找回的策略 ID 同时写回本地绑定。
+        """
+        deployed_host_ids = {int(host_id) for host_id in self.bk_host_ids or []}
+        remote_policy = self._find_remote_policy()
+        if not remote_policy:
+            return deployed_host_ids
+
+        remote_policy_id = int(remote_policy["deploy_policy_id"])
+        if self.deploy_policy_id and self.deploy_policy_id != remote_policy_id:
+            # 本地绑定与同名远端策略不一致时不混用范围，以本地绑定为准
+            return deployed_host_ids
+        if not self.deploy_policy_id:
+            self.deploy_policy_id = remote_policy_id
+            self.save(update_fields=["deploy_policy_id", "bk_biz_id", "bk_cloud_id", "update_time"])
+
+        for scope in remote_policy.get("scopes") or []:
+            deployed_host_ids.update(int(host_id) for host_id in (scope.get("scope") or {}).get("instance_ids") or [])
+        return deployed_host_ids
+
     def _find_policy_id(self) -> int | None:
-        matches: set[int] = set()
+        remote_policy = self._find_remote_policy()
+        return int(remote_policy["deploy_policy_id"]) if remote_policy else None
+
+    def _find_remote_policy(self) -> dict[str, Any] | None:
+        matches: dict[int, dict[str, Any]] = {}
         offset = 0
         while True:
             data = api.node_man_v3.list_deploy_policies(
@@ -254,14 +282,14 @@ class BkCollectorDeployPolicy(models.Model):
                 name = (item.get("meta") or {}).get("name") or item.get("name")
                 deploy_policy_id = int(item.get("deploy_policy_id") or 0)
                 if name == self.policy_name and deploy_policy_id:
-                    matches.add(deploy_policy_id)
+                    matches[deploy_policy_id] = item
             if len(items) < self.PAGE_SIZE:
                 break
             offset += self.PAGE_SIZE
 
         if len(matches) > 1:
             raise ValueError(f"found multiple deploy policies named {self.policy_name}: {sorted(matches)}")
-        return matches.pop() if matches else None
+        return next(iter(matches.values())) if matches else None
 
     @classmethod
     def _build_specs(cls, template_name: str, context: dict[str, Any]) -> list[dict]:

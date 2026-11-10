@@ -157,6 +157,71 @@ def test_deploy_keeps_last_scopes_when_deployed_host_temporarily_missing(nodeman
     assert policy["specs"][0]["param"]["custom_config_context"] == {"token": "y"}
 
 
+def _remote_policy(deploy_policy_id, instance_ids):
+    return {
+        "total": 1,
+        "items": [
+            {
+                "deploy_policy_id": deploy_policy_id,
+                "meta": {"name": "bkmonitor-collector-apm_platform-platform"},
+                "scopes": [
+                    {
+                        "type": "instance",
+                        "scope": {"granularity": "host", "bk_biz_id": 2, "instance_ids": list(instance_ids)},
+                    }
+                ],
+            }
+        ],
+    }
+
+
+def test_deploy_keeps_remote_scopes_when_binding_lost_and_host_missing(nodeman_v3):
+    """本地绑定丢失、按名称找回既有策略时，本轮目标未解析完整也不能缩小远端范围"""
+    nodeman_v3["list_deploy_policies"].return_value = _remote_policy(7, [101, 102])
+
+    with mock.patch.dict(HOST_BIZ):
+        del HOST_BIZ[102]
+        assert _deploy(host_ids=(101, 102)) == 7
+
+    nodeman_v3["update_deploy_policy"].assert_not_called()
+    nodeman_v3["create_deploy_policy"].assert_not_called()
+    nodeman_v3["execute_deploy_policy"].assert_not_called()
+    record = BkCollectorDeployPolicy.objects.get(scene=BkCollectorDeployScene.APM_PLATFORM)
+    assert record.deploy_policy_id == 7  # 找回的策略 ID 写回本地绑定
+
+    # 下一轮两台都可解析：复用同一策略 ID 正常同步
+    BkCollectorDeployPolicy._host_biz_cache.clear()
+    assert _deploy(host_ids=(101, 102)) == 7
+    nodeman_v3["create_deploy_policy"].assert_not_called()
+    policy = nodeman_v3["update_deploy_policy"].call_args.kwargs["deploy_policies"][0]
+    assert policy["deploy_policy_id"] == 7
+    assert policy["scopes"] == [
+        {"type": "instance", "scope": {"granularity": "host", "bk_biz_id": 2, "instance_ids": [101, 102]}}
+    ]
+    nodeman_v3["execute_deploy_policy"].assert_called_once_with(bk_tenant_id=TENANT, deploy_policy_id=7)
+    record.refresh_from_db()
+    assert record.bk_host_ids == [101, 102]
+
+
+def test_deploy_keeps_remote_scopes_after_previous_execute_failed(nodeman_v3):
+    """上次更新范围后执行失败、本地 bk_host_ids 未记录新范围时，以远端范围判断已下发主机"""
+    nodeman_v3["execute_deploy_policy"].side_effect = ValueError("boom")
+    with pytest.raises(ValueError):
+        _deploy(host_ids=(101, 102))
+    nodeman_v3["execute_deploy_policy"].side_effect = None
+    record = BkCollectorDeployPolicy.objects.get(scene=BkCollectorDeployScene.APM_PLATFORM)
+    assert record.bk_host_ids == []
+
+    # 远端策略已是 [101, 102]（节点管理每小时自动执行可能已按此范围下发）
+    nodeman_v3["list_deploy_policies"].return_value = _remote_policy(9001, [101, 102])
+    BkCollectorDeployPolicy._host_biz_cache.clear()
+    with mock.patch.dict(HOST_BIZ):
+        del HOST_BIZ[102]
+        assert _deploy(host_ids=(101, 102)) == 9001
+
+    nodeman_v3["update_deploy_policy"].assert_not_called()
+
+
 def test_deploy_shrinks_when_target_hosts_explicitly_reduced(nodeman_v3):
     """业务明确把目标从两台减为一台：正常收缩范围"""
     _deploy(host_ids=(101, 102))
