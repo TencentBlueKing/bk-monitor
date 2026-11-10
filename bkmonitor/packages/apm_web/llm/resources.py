@@ -79,9 +79,18 @@ class ListTracesResource(Resource):
         try:
             return QueryHandler.process_query_string(SpanQueryTransformer(bk_biz_id, app_name), keyword) or ""
         except QueryStringParseError:
-            # 消息文本中的 JSON、括号等可能不是合法 Lucene 表达式，按字面短语检索。
-            escaped_keyword: str = keyword.replace("\\", "\\\\").replace('"', '\\"')
-            return f'"{escaped_keyword}"'
+            # 消息可能存为 JSON 字符串；短语查询无法命中其中的片段，改为字面包含查询。
+            reserved_chars: str = "\\+-=&|><!(){}[]^\"'~*?:/"
+            terms: list[str] = []
+            # Lucene 单词不能包含换行，多行输入要求每个非空行都命中。
+            for line in keyword.splitlines():
+                if not line.strip():
+                    continue
+                escaped_line: str = "".join(
+                    f"\\{char}" if char in reserved_chars or char.isspace() else char for char in line
+                )
+                terms.append(f"*{escaped_line}*")
+            return " AND ".join(terms)
 
     @staticmethod
     def iter_trace_items(
