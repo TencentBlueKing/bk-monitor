@@ -1,0 +1,17 @@
+{
+  "id": "action.mutate-resource",
+  "title": "新增或更新资源",
+  "inputs": [
+    "name",
+    "status"
+  ],
+  "preconditions": [
+    "name after trim is unique"
+  ],
+  "permission": "manage.write",
+  "idempotent": false,
+  "sideEffects": [
+    "update resource catalog"
+  ],
+  "failure": "duplicate or empty name sets error"
+}

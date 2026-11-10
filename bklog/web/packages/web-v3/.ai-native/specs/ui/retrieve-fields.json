@@ -1,0 +1,8 @@
+{
+  "id": "ui.retrieve-fields",
+  "component": "RetrievePage",
+  "states": ["idle", "error"],
+  "transitions": [
+    { "from": "idle", "event": "HIDE_LAST", "to": "error" }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "impact.retrieve-favorite",
+  "feature": "feature.retrieve-favorite",
+  "nodes": [
+    { "type": "feature", "id": "feature.retrieve-favorite" },
+    { "type": "state", "id": "state.retrieve-favorite" },
+    { "type": "data", "id": "data.favorite-item" },
+    { "type": "ui", "id": "ui.retrieve-favorite" },
+    { "type": "action", "id": "action.apply-favorite" },
+    { "type": "action", "id": "action.save-favorite" },
+    { "type": "module", "id": "FavoriteController" },
+    { "type": "file", "id": "src/features/retrieve/favorite-controller.ts" },
+    { "type": "file", "id": "src/features/retrieve/retrieve-favorite-panel.vue" },
+    { "type": "file", "id": "src/features/retrieve/retrieve-page.vue" },
+    { "type": "test", "id": "test.retrieve-favorite" }
+  ],
+  "edges": [
+    ["feature.retrieve-favorite", "state.retrieve-favorite"],
+    ["feature.retrieve-favorite", "data.favorite-item"],
+    ["feature.retrieve-favorite", "ui.retrieve-favorite"],
+    ["state.retrieve-favorite", "FavoriteController"],
+    ["FavoriteController", "src/features/retrieve/favorite-controller.ts"],
+    ["ui.retrieve-favorite", "src/features/retrieve/retrieve-favorite-panel.vue"],
+    ["feature.retrieve-favorite", "test.retrieve-favorite"]
+  ]
+}

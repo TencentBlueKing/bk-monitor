@@ -1,0 +1,10 @@
+{
+  "id": "action.bucket-graph",
+  "title": "时间桶聚合",
+  "inputs": ["records", "intervalMs"],
+  "preconditions": ["records is an array"],
+  "permission": "retrieve.search",
+  "idempotent": true,
+  "sideEffects": ["derive graph buckets"],
+  "failure": "empty records yield empty buckets"
+}

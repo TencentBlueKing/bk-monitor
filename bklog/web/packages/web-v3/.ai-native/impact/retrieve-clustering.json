@@ -1,0 +1,18 @@
+{
+  "id": "impact.retrieve-clustering",
+  "feature": "feature.retrieve-clustering",
+  "nodes": [
+    { "type": "feature", "id": "feature.retrieve-clustering" },
+    { "type": "state", "id": "state.retrieve-clustering" },
+    { "type": "module", "id": "ClusteringController" },
+    { "type": "file", "id": "src/features/retrieve/clustering-controller.ts" },
+    { "type": "file", "id": "src/features/retrieve/clustering-page.vue" },
+    { "type": "test", "id": "test.retrieve-clustering" }
+  ],
+  "edges": [
+    ["feature.retrieve-clustering", "state.retrieve-clustering"],
+    ["state.retrieve-clustering", "ClusteringController"],
+    ["ClusteringController", "src/features/retrieve/clustering-controller.ts"],
+    ["feature.retrieve-clustering", "test.retrieve-clustering"]
+  ]
+}

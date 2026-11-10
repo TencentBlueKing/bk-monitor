@@ -1,0 +1,17 @@
+{
+  "id": "action.group-clusters",
+  "title": "按模式聚类",
+  "inputs": [
+    "records",
+    "query"
+  ],
+  "preconditions": [
+    "records is an array"
+  ],
+  "permission": "retrieve.search",
+  "idempotent": true,
+  "sideEffects": [
+    "derive cluster groups"
+  ],
+  "failure": "empty records yield empty groups"
+}

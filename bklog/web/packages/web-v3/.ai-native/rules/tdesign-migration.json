@@ -1,0 +1,46 @@
+{
+  "id": "rule.tdesign-migration",
+  "source": "tdesign-mcp-server vue-next",
+  "theme": {
+    "method": "css-variables",
+    "doc": "https://tdesign.tencent.com/vue-next/custom-theme",
+    "forbidden": ["deep selector override of .t- internals", "fork tdesign-vue-next source"]
+  },
+  "overlay": {
+    "dialog": "t-dialog",
+    "drawer": "t-drawer",
+    "popup": "t-popup",
+    "tooltip": "t-tooltip",
+    "popconfirm": "t-popconfirm",
+    "message": "MessagePlugin"
+  },
+  "map": {
+    "bk-button": "t-button",
+    "bk-input": "t-input",
+    "bk-select": "t-select",
+    "bk-option": "t-option",
+    "bk-form": "t-form",
+    "bk-form-item": "t-form-item",
+    "bk-dialog": "t-dialog",
+    "bk-sideslider": "t-drawer",
+    "bk-popover": "t-popup",
+    "bk-tooltips": "t-tooltip",
+    "bk-popconfirm": "t-popconfirm",
+    "bk-table": "t-table",
+    "bk-tag": "t-tag",
+    "bk-tag-input": "t-tag-input",
+    "bk-checkbox": "t-checkbox",
+    "bk-radio": "t-radio",
+    "bk-radio-group": "t-radio-group",
+    "bk-alert": "t-alert",
+    "bk-exception": "t-empty",
+    "bk-date-picker": "t-date-picker",
+    "bk-switcher": "t-switch",
+    "bk-dropdown-menu": "t-dropdown",
+    "bk-icon": "t-icon",
+    "bk-progress": "t-progress",
+    "bk-slider": "t-slider",
+    "bk-transfer": "t-transfer",
+    "bk-loading": "t-loading"
+  }
+}

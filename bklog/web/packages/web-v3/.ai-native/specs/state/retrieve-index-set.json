@@ -1,0 +1,13 @@
+{
+  "id": "state.retrieve-index-set",
+  "owner": "IndexSetController",
+  "readers": ["RetrievePage"],
+  "writers": ["IndexSetController"],
+  "initial": "idle",
+  "cleanup": "none",
+  "concurrency": "single writer",
+  "transitions": [
+    { "from": "idle", "event": "FILTER", "to": "filtered" },
+    { "from": "idle", "event": "MISS", "to": "error" }
+  ]
+}

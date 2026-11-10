@@ -1,0 +1,17 @@
+{
+  "id": "state.retrieve-grep",
+  "owner": "GrepController",
+  "readers": ["RetrieveGrepPanel"],
+  "writers": ["GrepController"],
+  "initial": "idle",
+  "cleanup": "drop in-flight requestId on newer search",
+  "concurrency": "latest requestId wins",
+  "transitions": [
+    { "from": "idle", "event": "SEARCHING", "to": "waiting" },
+    { "from": "idle", "event": "RUN", "to": "loading" },
+    { "from": "waiting", "event": "SEARCH_DONE", "to": "loading" },
+    { "from": "loading", "event": "RESOLVE_WITH_RESULTS", "to": "success" },
+    { "from": "loading", "event": "RESOLVE_EMPTY", "to": "empty" },
+    { "from": "loading", "event": "REJECT", "to": "error" }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "backend": "local-json",
+  "nextBackend": "TencentDB-Agent-Memory",
+  "items": [
+    {
+      "id": "memory.vue3-not-copy",
+      "type": "decision",
+      "status": "active",
+      "summary": "Vue3 retrieve is a new architecture, not a Vue2 file copy",
+      "hitCount": 0
+    },
+    {
+      "id": "memory.tdesign-token-only",
+      "type": "rule",
+      "status": "active",
+      "summary": "Theme only through TDesign CSS variables",
+      "hitCount": 0
+    }
+  ]
+}

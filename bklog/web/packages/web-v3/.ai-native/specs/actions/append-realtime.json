@@ -1,0 +1,16 @@
+{
+  "id": "action.append-realtime",
+  "title": "追加实时日志",
+  "inputs": [
+    "record"
+  ],
+  "preconditions": [
+    "controller is streaming"
+  ],
+  "permission": "retrieve.search",
+  "idempotent": false,
+  "sideEffects": [
+    "append and cap buffer"
+  ],
+  "failure": "append before start is ignored"
+}

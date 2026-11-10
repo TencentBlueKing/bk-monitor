@@ -1,0 +1,17 @@
+{
+  "id": "feature.retrieve-fields",
+  "version": "0.1.0",
+  "title": "检索显示字段",
+  "status": "approved",
+  "goal": "控制原始日志表格可见列，至少保留一列。",
+  "inputs": [
+    { "name": "name", "type": "string", "required": true },
+    { "name": "visible", "type": "boolean", "required": false }
+  ],
+  "rules": ["未知字段进入 error", "不能隐藏最后一列"],
+  "dependencies": ["state.retrieve-fields", "ui.retrieve-fields", "action.toggle-field"],
+  "acceptance": [
+    { "id": "AC-001", "given": "默认三列可见", "when": "隐藏 id", "then": "可见列为时间和日志" },
+    { "id": "AC-002", "given": "只剩一列可见", "when": "再隐藏该列", "then": "进入 error 且该列仍可见" }
+  ]
+}

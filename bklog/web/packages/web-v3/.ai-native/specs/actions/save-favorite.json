@@ -1,0 +1,10 @@
+{
+  "id": "action.save-favorite",
+  "title": "保存当前检索为收藏",
+  "inputs": ["name", "keyword", "groupId", "indexSetId"],
+  "preconditions": ["name after trim is not empty", "keyword after trim is not empty", "name is unique in group"],
+  "permission": "retrieve.favorite.save",
+  "idempotent": false,
+  "sideEffects": ["append favorite to group"],
+  "failure": "keep list unchanged and record error"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "state.manage-collection-ops",
+  "owner": "CollectionController",
+  "readers": ["CollectionPage"],
+  "writers": ["CollectionController"],
+  "initial": "idle",
+  "cleanup": "close wizard on leave",
+  "concurrency": "single writer",
+  "transitions": [
+    { "from": "idle", "event": "FILTER", "to": "filtered" },
+    { "from": "idle", "event": "OPEN_WIZARD", "to": "wizard" },
+    { "from": "wizard", "event": "INVALID", "to": "error" },
+    { "from": "wizard", "event": "SUBMIT", "to": "idle" }
+  ]
+}

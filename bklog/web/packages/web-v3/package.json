@@ -1,0 +1,33 @@
+{
+  "name": "@bklog/web-v3",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BKLog Vue3 AI-Native frontend package",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port ${AAFE_E2E_PORT:-41001}",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port ${AAFE_E2E_PORT:-41001}",
+    "test": "node --test --experimental-strip-types src/features/retrieve/retrieve-search-controller.test.mjs src/features/retrieve/retrieve-workbench-controller.test.mjs src/features/retrieve/retrieve-data-adapter.test.mjs src/features/retrieve/favorite-controller.test.mjs src/features/retrieve/toolbar-controller.test.mjs src/features/retrieve/grep-controller.test.mjs src/features/retrieve/clustering-controller.test.mjs src/features/retrieve/context-controller.test.mjs src/features/retrieve/realtime-controller.test.mjs src/features/retrieve/index-set-controller.test.mjs src/features/retrieve/field-controller.test.mjs src/features/retrieve/workspace-controller.test.mjs src/features/retrieve/graph-controller.test.mjs src/features/retrieve/search-query.test.mjs src/features/retrieve/scene-controller.test.mjs src/features/manage/collection-controller.test.mjs src/features/manage/manage-nav.test.mjs src/features/manage/manage-module.test.mjs src/shared/resource/resource-list-controller.test.mjs src/shared/overlay/overlay-manager.test.mjs src/shared/memory/memory-store.test.mjs scripts/anative.test.mjs",
+    "test:ui": "node --test scripts/ui-shot-compare.test.mjs",
+    "ui:compiled": "node scripts/ui-compiled.mjs",
+    "ui:v2": "node scripts/capture-v2.mjs",
+    "ui:v2-mock": "node scripts/v2-local-mock.mjs",
+    "anative": "node scripts/anative.mjs",
+    "anative:spec": "node scripts/anative.mjs spec validate",
+    "anative:contract": "node scripts/anative.mjs contract check",
+    "anative:impact": "node scripts/anative.mjs impact analyze",
+    "ui:align": "node scripts/ui-align.mjs"
+  },
+  "dependencies": {
+    "tdesign-icons-vue-next": "^0.4.1",
+    "tdesign-vue-next": "^1.18.0",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  }
+}

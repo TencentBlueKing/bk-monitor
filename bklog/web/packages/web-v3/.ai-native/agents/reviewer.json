@@ -1,0 +1,7 @@
+{
+  "id": "agent.reviewer",
+  "role": "reviewer",
+  "inputs": ["source-files", "rules", "impact-graph"],
+  "outputs": ["review-result"],
+  "permissions": ["read"]
+}

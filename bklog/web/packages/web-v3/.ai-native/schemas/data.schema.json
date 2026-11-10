@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "data.schema.json",
+  "title": "Data Contract",
+  "type": "object",
+  "required": ["id", "version", "title", "fields"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^data\\.[a-z0-9-]+$" },
+    "version": { "type": "string" },
+    "title": { "type": "string" },
+    "source": { "type": "string" },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "required"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "required": { "type": "boolean" },
+          "nullable": { "type": "boolean" },
+          "meaning": { "type": "string" }
+        }
+      }
+    }
+  }
+}

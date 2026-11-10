@@ -1,0 +1,24 @@
+{
+  "id": "feature.retrieve-grep",
+  "version": "0.1.0",
+  "title": "日志 Grep",
+  "status": "approved",
+  "goal": "在当前检索结果上按字段和模式二次过滤，主检索进行中不抢跑。",
+  "inputs": [
+    { "name": "field", "type": "string", "required": true },
+    { "name": "pattern", "type": "string", "required": false }
+  ],
+  "rules": [
+    "主检索 loading 时 Grep 进入 waiting，不发过滤",
+    "字段为空时保持 idle，不展示假结果",
+    "模式按正则匹配；非法正则进入 error",
+    "空模式匹配当前字段的全部记录"
+  ],
+  "dependencies": ["data.log-record", "state.retrieve-grep", "ui.retrieve-grep", "action.run-grep"],
+  "acceptance": [
+    { "id": "AC-001", "given": "主检索仍在 loading", "when": "Grep 尝试执行", "then": "状态为 waiting 且没有匹配结果" },
+    { "id": "AC-002", "given": "字段为空", "when": "Grep 执行", "then": "保持 idle" },
+    { "id": "AC-003", "given": "存在多条日志", "when": "提交合法正则", "then": "只保留字段匹配的记录" },
+    { "id": "AC-004", "given": "模式不是合法正则", "when": "提交 Grep", "then": "进入 error 且不抛出未捕获异常" }
+  ]
+}
