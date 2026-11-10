@@ -31,17 +31,14 @@ def summary(
 ) -> dict[str, Any]:
     """规范会话或 View 的时间范围，再计算时长和状态。"""
     start: int | float = start_time if start_time is not None else min(span["start_time"] for span in spans)
-    end: int | float
+    end: int | float = end_time if end_time is not None else max(span["end_time"] for span in spans)
     status: str
     if end_time is not None:
         status = "ended"
-        end = end_time
     elif time.time() * 1_000_000 - start >= MAX_DURATION_US:
         status = "expired"
-        end = start + MAX_DURATION_US
     else:
         status = "active"
-        end = max(span["end_time"] for span in spans)
     return {"start_time": start / 1000, "end_time": end / 1000, "duration": (end - start) / 1000, "status": status}
 
 

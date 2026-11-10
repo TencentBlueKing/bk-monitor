@@ -444,10 +444,10 @@ class TestTimelineSummary:
         [
             (100, 1600, 0, 2000, 5 * 3600, "ended", 1600, 1.5),
             (100, None, 0, 2000, 4 * 3600 - 1, "active", 2000, 1.9),
-            (100, None, 0, 2000, 4 * 3600, "expired", 14_400_000_100, 14_400_000),
-            (None, None, 100, 2100, 4 * 3600, "expired", 14_400_000_100, 14_400_000),
+            (100, None, 0, 2000, 4 * 3600, "expired", 2000, 1.9),
+            (None, None, 100, 2100, 4 * 3600, "expired", 2100, 2),
             (None, 1600, 0, 2000, 3600, "ended", 1600, 1.6),
-            (100, None, 500, 2000, 5 * 3600, "expired", 14_400_000_100, 14_400_000),
+            (100, None, 500, 2000, 5 * 3600, "expired", 2000, 1.9),
             (None, None, 100, 2100, 3600, "active", 2100, 2),
             (0, 0, 0, 0, 0, "ended", 0, 0),
         ],
@@ -507,17 +507,28 @@ class TestTimelineSummary:
         assert result["end_time"] == (1600 if ended else 1500)
 
     @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
-    def test_expiration_fills_four_hour_end_for_both_scopes(self, mocker, scope):
+    @pytest.mark.parametrize("ended", [False, True])
+    def test_lifecycle_end_precedes_observed_end_after_expiration(self, mocker, scope, ended):
         handler = _handler()
         mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=1 + 4 * 3600)
-        mocker.patch.object(handler.query, "query_list", return_value=[_view()])
+        view = _view(end_time=1_100_000)
+        spans = [view, _span("resource", "resource", 1_200_000, end_time=1_300_000)]
+        expected_end = 1300
+        if ended:
+            if "session_id" in scope:
+                spans.append(_span("session-end", "session", 1_150_000, None, {"session.phase": "end"}))
+                expected_end = 1150
+            else:
+                view["attributes"]["view.phase"] = "end"
+                expected_end = 1100
+        mocker.patch.object(handler.query, "query_list", return_value=spans)
 
         result = handler.timeline(**scope)
 
         assert result["start_time"] == 1000
-        assert result["end_time"] == 1000 + 4 * 3600 * 1000
-        assert result["duration"] == 4 * 3600 * 1000
-        assert result["status"] == "expired"
+        assert result["end_time"] == expected_end
+        assert result["duration"] == expected_end - 1000
+        assert result["status"] == ("ended" if ended else "expired")
 
 
 class TestTimelineQuery:

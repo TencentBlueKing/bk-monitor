@@ -1639,7 +1639,7 @@ POST /rum/search/timeline/
 | 参数名称       | 类型             | 描述                                                                                                                    |
 | ---------- | -------------- | --------------------------------------------------------------------------------------------------------------------- |
 | start_time | Number | 会话或 View 的开始时间，Unix 毫秒级时间戳 |
-| end_time   | Number | 会话或 View 的结束、过期或观测截止时间，Unix 毫秒级时间戳 |
+| end_time   | Number | 会话或 View 的结束或观测截止时间，Unix 毫秒级时间戳 |
 | duration | Number | 会话或 View 的持续时长，单位毫秒 |
 | status | String | 会话或 View 的状态，见下表 |
 | tree       | Array[Node]    | 节点树，顶层为 View 节点，按开始时间升序，按 `view_id` 查询时只有一个 View 节点，见 Node |
