@@ -56,6 +56,7 @@ ADOPTED_STATUS = {
             "source_type": "es",
             "cluster_id": 7,
             "query_index": "shared-patterns",
+            "need_add_time": True,
         },
     },
 }
@@ -227,6 +228,7 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual((pattern["space_type"], pattern["space_id"]), ("bkcc", "2"))
         self.assertEqual(pattern["table_info"][0]["index_set"], "shared-patterns")
         self.assertEqual(pattern["table_info"][0]["origin_table_id"], "bklog.pattern")
+        self.assertEqual(pattern["table_info"][0]["options"][0]["value"], "true")
         self.transfer.set_log_clustering_config.assert_called_once()
 
     def test_append_routes_clustered_label_to_independent_result(self):

@@ -30,7 +30,6 @@ export default {
   链路就绪后展示聚类结果: 'Clustering results appear once the data link is ready',
   聚类接入失败: 'Clustering setup failed',
   正在开启聚类: 'Enabling clustering',
-  聚类已开启: 'Clustering is enabled',
   正在更新聚类配置: 'Updating clustering configuration',
   正在关闭聚类: 'Stopping clustering',
   聚类已关闭: 'Clustering is stopped',

@@ -32,7 +32,6 @@ export const quixPage: InjectionKey<{ status: ComputedRef<QuixStatus | undefined
 
 const phaseText = {
   enabling: '正在开启聚类',
-  running: '聚类已开启',
   updating: '正在更新聚类配置',
   disabling: '正在关闭聚类',
   stopped: '聚类已关闭',
@@ -58,9 +57,19 @@ export default defineComponent({
       const { phase, operation, bkfara } = props.status;
       const retryable = operation?.status === 'failed';
       const failed = retryable || (operation?.status === 'canceled' && !!operation.last_error);
-      const canClose =
-        phase === 'running' ||
-        ((failed || operation?.status === 'awaiting_receipt') && phase !== 'disabling' && phase !== 'stopped');
+      const awaitingReceipt = operation?.status === 'awaiting_receipt';
+      const canClose = (failed || awaitingReceipt) && !['running', 'disabling', 'stopped'].includes(phase);
+      const operationError = (failed || operation?.status === 'running') && operation?.last_error;
+      if (
+        phase === 'running' &&
+        !failed &&
+        !awaitingReceipt &&
+        !operationError &&
+        !bkfara?.error &&
+        !bkfara?.pending_result_count
+      ) {
+        return null;
+      }
       if (
         props.showProgress &&
         !failed &&
@@ -76,11 +85,15 @@ export default defineComponent({
           class='quix-status'
           aria-live='polite'
         >
-          <strong>{t(failed && phase !== 'stopped' ? failureText[operation.operation_type] : phaseText[phase])}</strong>
-          {operation?.status === 'awaiting_receipt' && (
+          {failed && phase !== 'stopped' ? (
+            <strong>{t(failureText[operation.operation_type])}</strong>
+          ) : phase !== 'running' && (
+            <strong>{t(phaseText[phase])}</strong>
+          )}
+          {awaitingReceipt && (
             <span>{t(operation.operation_type === 'disable' ? '等待后台资源收尾' : '配置已下发，等待采用确认')}</span>
           )}
-          {operation?.last_error && (failed || operation.status === 'running') && <span>{operation.last_error}</span>}
+          {operationError && <span>{operationError}</span>}
           {bkfara?.error && <span>{bkfara.error}</span>}
           {!!bkfara?.pending_result_count && (
             <span>

@@ -105,6 +105,25 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
                 ],
                 bk_tenant_id=tenant,
             )
+        if suffix == "pattern":
+            mapped = set(
+                models.ResultTableFieldOption.objects.filter(
+                    table_id=table_id, bk_tenant_id=tenant, name="es_type"
+                ).values_list("field_name", flat=True)
+            )
+            missing_options = [
+                {
+                    "table_id": table_id,
+                    "field_name": field,
+                    "name": "es_type",
+                    "value": "long" if kind == "long" else "keyword",
+                    "creator": "system",
+                }
+                for field, kind in fields.items()
+                if field not in mapped
+            ]
+            if missing_options:
+                models.ResultTableFieldOption.bulk_create_options(table_id, missing_options, bk_tenant_id=tenant)
         if suffix == "clustered":
             # 独立日志表复用原字段及 ES 字段选项，保留分词、时间与对象字段语义。
             source_fields = list(models.ResultTableField.objects.filter(table_id=sink.table_id, bk_tenant_id=tenant))
@@ -186,33 +205,34 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
         physical_name = f"{rt_config['spec']['bizId']}_{rt.name}"
         storage = models.ESStorage.objects.filter(bk_tenant_id=tenant, table_id=table_id).first()
         is_moving_cluster = storage is None or storage.storage_cluster_id != cluster.cluster_id
-        storage_options = {}
+        storage_options = {
+            key: getattr(source, key)
+            for key in ("date_format", "slice_size", "slice_gap", "retention", "warm_phase_days", "time_zone")
+        }
+        storage_options.update(
+            index_settings=json.loads(source.index_settings or "{}"),
+            warm_phase_settings=source.warm_phase_settings,
+        )
         if suffix == "clustered":
-            storage_options = {
-                key: getattr(source, key)
-                for key in ("date_format", "slice_size", "slice_gap", "retention", "warm_phase_days", "time_zone")
-            }
-            storage_options.update(
-                index_settings=json.loads(source.index_settings or "{}"),
-                mapping_settings=json.loads(source.mapping_settings or "{}"),
-                warm_phase_settings=source.warm_phase_settings,
-            )
+            storage_options["mapping_settings"] = json.loads(source.mapping_settings or "{}")
         if storage is None:
             storage = models.ESStorage.create_table(
                 bk_tenant_id=tenant,
                 table_id=table_id,
                 cluster_id=cluster.cluster_id,
-                source_type="es" if suffix == "pattern" else source.source_type,
+                source_type="log" if suffix == "pattern" else source.source_type,
                 index_set=physical_name,
-                need_create_index=suffix == "clustered",
+                need_create_index=True,
                 enable_create_index=False,
                 is_sync_db=False,
                 **storage_options,
             )
         else:
-            if suffix == "clustered":
-                for key, value in storage_options.items():
-                    setattr(storage, key, json.dumps(value) if key in ("index_settings", "mapping_settings") else value)
+            if suffix == "pattern":
+                storage.source_type = "log"
+            storage.need_create_index = True
+            for key, value in storage_options.items():
+                setattr(storage, key, json.dumps(value) if key in ("index_settings", "mapping_settings") else value)
             # 与源日志使用相同的切存储时间边界。关闭、重开和重试不产生重复分段。
             source_record = (
                 models.StorageClusterRecord.objects.filter(
@@ -237,13 +257,8 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
             )
             storage.storage_cluster_id = cluster.cluster_id
             storage.save()
-        if suffix == "clustered":
-            # 重试也准备当前目标集群的索引/别名，未准备完成时不能下发写入引用。
-            if (
-                storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster, strict=True)
-                is False
-            ):
-                raise RuntimeError("独立聚类结果表 ES 索引或写别名未准备完成")
+        if storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster, strict=True) is False:
+            raise RuntimeError(f"{table_id} ES 索引或写别名未准备完成")
         binding_ref = binding.reference
         if settings.ENABLE_MULTI_TENANT_MODE:
             binding_ref["tenant"] = tenant
@@ -254,7 +269,7 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
 
     binding_config = binding.compose_config(
         storage_cluster_name=cluster.cluster_name,
-        write_alias_format=None if suffix == "pattern" else f"write_%Y%m%d_{physical_name}",
+        write_alias_format=f"write_%Y%m%d_{physical_name}",
         unique_field_list=PATTERN_KEYS,
         rt_name=rt.name,
     )

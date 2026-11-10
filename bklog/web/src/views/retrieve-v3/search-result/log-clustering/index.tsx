@@ -451,7 +451,13 @@ export default defineComponent({
                 on-handle-finger-operate={handleFingerOperate}
                 on-close-group-tag={handleCloseGroupTag}
                 on-close-year-tag={handleCloseYearTag}
-              />
+              >
+                {quix.value?.phase === 'running' && !window.IS_EXTERNAL && (
+                  <bk-button text disabled={submitting.value || !!statusError.value} on-click={confirmClose}>
+                    {t('关闭聚类')}
+                  </bk-button>
+                )}
+              </TopOperation>
             )}
             {exhibitAll.value ? (
               (() => {

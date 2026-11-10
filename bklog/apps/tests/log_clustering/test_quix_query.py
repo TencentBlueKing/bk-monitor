@@ -194,6 +194,35 @@ class TestQuixPatternQuery(TestCase):
         self.assertEqual(retry["limit"], 1)
         self.assertEqual(retry["query_list"][0]["conditions"]["field_list"][-1]["value"], ["b"])
 
+    def test_page_deduplicates_patterns_across_rollover_and_recovers_missing_signature(self):
+        self.start_patch(
+            MODULE + ".QuixPatternHandler._multi_query",
+            return_value={"pattern_aggs": [{"key": "a", "doc_count": 3}, {"key": "b", "doc_count": 2}]},
+        )
+        self.start_patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle", return_value=None)
+        # 轮转前后的两个索引各返回一条 a，第一批的两个名额都被占满。
+        raw = self.start_patch(
+            MODULE + ".UnifyQueryApi.query_ts_raw",
+            side_effect=[
+                {"list": [{"signature": "a", "pattern": "A"}, {"signature": "a", "pattern": "A"}]},
+                {"list": [{"signature": "b", "pattern": "B"}]},
+            ],
+        )
+
+        rows = self.handler.pattern_search()
+
+        self.assertCountEqual(
+            [(row["signature"], row["pattern"], row["count"]) for row in rows],
+            [("a", "A", 3), ("b", "B", 2)],
+        )
+        first, retry = [call.args[0] for call in raw.call_args_list]
+        for request, signatures in [(first, ["a", "b"]), (retry, ["b"])]:
+            query = request["query_list"][0]
+            self.assertEqual(query["table_id"], "bklog_index_set_42_pattern")
+            self.assertEqual(request["limit"], len(signatures))
+            fields = {f["field_name"]: f["value"] for f in query["conditions"]["field_list"]}
+            self.assertCountEqual(fields["signature"], signatures)
+
     def test_missing_pattern_after_duplicate_hits_finishes_without_more_retries(self):
         raw = self.start_patch(
             MODULE + ".UnifyQueryApi.query_ts_raw",

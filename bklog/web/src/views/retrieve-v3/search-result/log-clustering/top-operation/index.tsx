@@ -79,7 +79,7 @@ export default defineComponent({
       default: null,
     },
   },
-  setup(props, { emit, expose }) {
+  setup(props, { emit, expose, slots }) {
     const { t } = useLocale();
     const store = useStore();
 
@@ -183,6 +183,7 @@ export default defineComponent({
                 isExternal={isExternal}
               />
             )}
+            {slots.default?.()}
           </div>
         </div>
         {isShowGroupTag.value && (

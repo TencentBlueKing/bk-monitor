@@ -334,13 +334,6 @@ class QuixClusteringOperationRunner:
                 "origin_table_id": result["table_id"],
                 "storage_type": result["storage_type"],
                 "source_type": result["source_type"],
-                "options": [
-                    {
-                        "name": "need_add_time",
-                        "value_type": "bool",
-                        "value": "true" if result["need_add_time"] else "false",
-                    }
-                ],
                 "cluster_id": result["cluster_id"],
                 "index_set": result["query_index"],
                 "query_alias_settings": [{"field_name": QUIX_SIGNATURE_FIELD, "query_alias": SIGNATURE_FIELD}],
@@ -354,6 +347,14 @@ class QuixClusteringOperationRunner:
             },
         }
         for label, table in routes.items():
+            target = result if label == clustered_label else pattern
+            table["options"] = [
+                {
+                    "name": "need_add_time",
+                    "value_type": "bool",
+                    "value": "true" if target.get("need_add_time") else "false",
+                }
+            ]
             TransferApi.bulk_create_or_update_log_router(
                 {
                     "space_type": space_type,
