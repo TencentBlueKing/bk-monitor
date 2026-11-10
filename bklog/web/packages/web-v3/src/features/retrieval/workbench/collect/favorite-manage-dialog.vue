@@ -30,7 +30,7 @@
     width="100%"
     :top="0"
     attach="body"
-    dialog-class-name="favorite-management-dialog"
+    :dialog-class-name="`favorite-management-dialog${store.state.showAlert ? ' is-show-notice' : ''}`"
     :header="false"
     :close-btn="false"
     :footer="false"
@@ -810,8 +810,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
 
 <style lang="scss" scoped>
 :global(.t-dialog__ctx:has(.favorite-management-dialog)) {
-  top: 50px;
-  height: calc(100% - 50px);
+  top: 52px;
+  height: calc(100% - 52px);
+}
+:global(.t-dialog__ctx:has(.favorite-management-dialog.is-show-notice)) {
+  top: 92px;
+  height: calc(100% - 92px);
 }
 :global(.t-dialog__ctx:has(.favorite-management-dialog) .t-dialog__mask),
 :global(.t-dialog__ctx:has(.favorite-management-dialog) .t-dialog__wrap) {
