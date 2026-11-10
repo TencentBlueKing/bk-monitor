@@ -1425,7 +1425,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             >
               {t('确认解除')}
             </TButton>
-            <TButton
+            <TButton theme="default"
               size='small'
               onClick={() => unbindPopoverRef.value?.hide()}
             >
@@ -2695,7 +2695,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               {t('重置')}
             </TButton>
           )}
-          <TButton
+          <TButton theme="default"
             onClick={() => {
               emit('cancel');
             }}

@@ -403,7 +403,7 @@ export default defineComponent({
                         >
                           {t('提交')}
                         </TButton>
-                        <TButton
+                        <TButton theme="default"
                           {...({ title: '取消' } satisfies import('vue').HTMLAttributes)}
                           onClick={handleCancel}
                         >

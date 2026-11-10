@@ -131,7 +131,7 @@ export default defineComponent({
               >
                 {t('全选已采集')}
               </TButton>
-              <TButton
+              <TButton theme="default"
                 size='small'
                 onClick={() => emit('clear')}
               >

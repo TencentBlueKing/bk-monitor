@@ -591,7 +591,7 @@ export default defineComponent({
           >
             {t('预览并下发')}
           </TButton>
-          <TButton
+          <TButton theme="default"
             class='cancel-button'
             data-test-id='addNewExtraction_button_cancel'
             onClick={goToHome}

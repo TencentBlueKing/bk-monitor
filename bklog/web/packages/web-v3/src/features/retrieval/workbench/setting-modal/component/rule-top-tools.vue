@@ -204,7 +204,7 @@
             >
               {{ isRuleCorrect ? $t('保存') : $t('检测语法') }}</t-button
             >
-            <t-button @click="isShowAddRule = false">{{ $t('取消') }}</t-button>
+            <t-button theme="default" @click="isShowAddRule = false">{{ $t('取消') }}</t-button>
           </div>
         </div>
       </template>

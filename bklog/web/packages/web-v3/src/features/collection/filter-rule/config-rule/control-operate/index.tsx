@@ -131,7 +131,7 @@ export default defineComponent({
           >
             {t('确定')} {getOsCommandLabel()} + Enter
           </TButton>
-          <TButton
+          <TButton theme="default"
             class='cancel-btn'
             onClick={handleClickCancel}
           >

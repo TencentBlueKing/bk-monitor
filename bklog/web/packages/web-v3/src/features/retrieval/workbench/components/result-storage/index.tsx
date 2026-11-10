@@ -237,7 +237,7 @@ export default defineComponent({
                     >
                       {$t('确定')}
                     </Button>
-                    <Button
+                    <Button theme="default"
                       size='small'
                       onClick={handleCancel}
                     >

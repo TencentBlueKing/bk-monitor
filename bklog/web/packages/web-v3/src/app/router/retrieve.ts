@@ -35,6 +35,7 @@ import {
 } from '@/app/bootstrap/shell-gate';
 import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
+import { acquireRetrieveLoading } from '@/features/retrieval/loading-queue';
 import RetrieveHelper from '@/features/retrieval/retrieve-helper';
 import useStore from '@/shared/composables/use-store';
 
@@ -49,11 +50,13 @@ const Retrieve = defineComponent({
     const shellReady = ref(false);
     let contentReady = false;
     let menuReady = false;
+    const releasePageLoading = acquireRetrieveLoading('page');
     const revealShell = () => {
       if (shellReady.value || !contentReady || !menuReady) {
         return;
       }
       shellReady.value = true;
+      releasePageLoading();
       nextTick(() => releaseBootstrapShell());
     };
     const markContentReady = () => {
@@ -61,7 +64,10 @@ const Retrieve = defineComponent({
       revealShell();
     };
     bindRetrieveShellSettle(markContentReady);
-    onBeforeUnmount(() => unbindRetrieveShellSettle(markContentReady));
+    onBeforeUnmount(() => {
+      releasePageLoading();
+      unbindRetrieveShellSettle(markContentReady);
+    });
     whenTopMenuSettled(() => {
       menuReady = true;
       revealShell();

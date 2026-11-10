@@ -277,7 +277,7 @@ export default defineComponent({
                     {t('提交')}
                   </TButton>
                 </span>
-                <TButton onClick={() => (isShowDialog.value = false)}>{t('取消')}</TButton>
+                <TButton theme="default" onClick={() => (isShowDialog.value = false)}>{t('取消')}</TButton>
               </div>
             </div>
           ),

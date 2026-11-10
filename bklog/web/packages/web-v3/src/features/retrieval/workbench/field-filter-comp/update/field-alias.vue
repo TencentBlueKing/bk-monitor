@@ -336,7 +336,7 @@ defineExpose({
           <TButton class="king-button mr10" :loading="confirmLoading" theme="primary" @click.stop.prevent="submit">{{
             t('保存')
           }}</TButton>
-          <TButton @click="handleCancel">{{ t('取消') }}</TButton>
+          <TButton theme="default" @click="handleCancel">{{ t('取消') }}</TButton>
         </div>
       </template>
     </TDrawer>

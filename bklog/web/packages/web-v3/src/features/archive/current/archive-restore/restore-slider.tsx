@@ -444,7 +444,7 @@ export default defineComponent({
                         >
                           {t('提交')}
                         </TButton>
-                        <TButton
+                        <TButton theme="default"
                           data-test-id='addNewRestore_button_cancel'
                           onClick={handleCancel}
                         >

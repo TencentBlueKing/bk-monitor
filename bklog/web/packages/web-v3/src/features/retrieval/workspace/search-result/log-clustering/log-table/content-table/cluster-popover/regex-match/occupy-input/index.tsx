@@ -118,7 +118,7 @@ export default defineComponent({
               >
                 {t('确认提取')}
               </TButton>
-              <TButton
+              <TButton theme="default"
                 size='small'
                 onClick={handleCancelOccupy}
               >

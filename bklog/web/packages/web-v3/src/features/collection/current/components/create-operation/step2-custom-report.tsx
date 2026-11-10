@@ -528,7 +528,7 @@ export default defineComponent({
                 {t('提交')}
               </TButton>
             )}
-            <TButton
+            <TButton theme="default"
               onClick={() => {
                 emit('cancel');
               }}
