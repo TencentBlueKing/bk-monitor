@@ -1,14 +1,7 @@
 import { request } from '../base';
 
 export const getScene = request('GET', 'rest/v2/scene_view/get_scene/');
-const getSceneViewRequest = request('GET', 'rest/v2/scene_view/get_scene_view/');
-/** @type {typeof getSceneViewRequest} */
-export const getSceneView = (...args) => {
-  if (args[0] && typeof args[0] === 'object' && args[0].scene_id === 'kubernetes') {
-    args[0] = { ...args[0], supports_pod_memory_promql: true };
-  }
-  return getSceneViewRequest(...args);
-};
+export const getSceneView = request('GET', 'rest/v2/scene_view/get_scene_view/');
 export const getSceneViewList = request('GET', 'rest/v2/scene_view/get_scene_view_list/');
 export const updateSceneView = request('POST', 'rest/v2/scene_view/update_scene_view/');
 export const deleteSceneView = request('POST', 'rest/v2/scene_view/delete_scene_view/');

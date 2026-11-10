@@ -412,6 +412,7 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
 
     def test_old_clients_keep_structured_detail_and_overview_queries(self):
         view = self.view(supports_pod_memory_promql=False)
+        self.assertEqual(view["order"], self.view(supports_pod_memory_promql=True)["order"])
         for panels in (view["panels"], view["overview_panels"]):
             queries = panel_queries({"panels": panels})
             for metric in ("container_memory_working_set_bytes", "container_memory_rss"):
