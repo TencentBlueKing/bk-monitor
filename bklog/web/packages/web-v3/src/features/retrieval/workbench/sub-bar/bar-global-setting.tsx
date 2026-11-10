@@ -24,11 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { Button as TButton } from 'tdesign-vue-next';
-import { defineComponent, nextTick, onMounted, ref } from 'vue';
-import Vue from '@/platform/compat/vue-runtime.mjs';
-
-import { Instance } from 'tippy.js';
+import { Button as TButton, Popup as TPopup } from 'tdesign-vue-next';
+import { defineComponent, onMounted, ref } from 'vue';
 
 import useLocale from '../../../../shared/composables/use-locale';
 import useStore from '../../../../shared/composables/use-store';
@@ -73,15 +70,11 @@ export default defineComponent({
   },
   setup(_, ctx) {
     const { emit } = ctx;
-    const { $bkPopover } = Vue.prototype;
     const { $t } = useLocale();
     const store = useStore();
 
-    /** popover 弹出显示内容容器 */
-    const containerRef = ref<Element | null>(null);
-
-    /** popover 弹窗实例 */
-    const popoverInstance = ref<Instance>(null);
+    /** popover 弹窗显隐 */
+    const popoverVisible = ref(false);
     /** 显示配置 */
     const showFieldAlias = ref(true);
     // 文本省略方向
@@ -123,34 +116,12 @@ export default defineComponent({
     }
 
     /**
-     * @description 打开 menu下拉菜单 popover 弹窗
+     * @description 更新 popover 弹窗显隐
      *
      */
-    function handleSettingPopoverShow(e: Event) {
-      if (popoverInstance.value) {
-        handlePopoverHide();
-        return;
-      }
-      popoverInstance.value = $bkPopover(e.currentTarget, {
-        content: containerRef.value,
-        animateFill: false,
-        trigger: 'click',
-        placement: 'bottom',
-        theme: 'light bk-select-dropdown bk-select-dropdown-expand bar-global-setting-popover',
-        arrow: false,
-        followCursor: false,
-        boundary: 'viewport',
-        interactive: true,
-        distance: -4,
-        onHidden: () => {
-          popoverInstance.value?.destroy?.();
-          popoverInstance.value = null;
-          initDefaultSettings();
-        },
-      });
-      nextTick(() => {
-        popoverInstance.value?.show();
-      });
+    function handleVisibleChange(visible: boolean) {
+      popoverVisible.value = visible;
+      if (!visible) initDefaultSettings();
     }
 
     /**
@@ -158,9 +129,7 @@ export default defineComponent({
      *
      */
     function handlePopoverHide() {
-      popoverInstance.value?.hide?.();
-      popoverInstance.value?.destroy?.();
-      popoverInstance.value = null;
+      handleVisibleChange(false);
     }
 
     /**
@@ -200,6 +169,7 @@ export default defineComponent({
               key={String(item.value)}
               class={`setting-checkbox ${item.value === activeValue ? 'is-selected' : ''}`}
               size='small'
+              theme='default'
               onClick={() => clickCallback(item.value)}
             >
               {item.name}
@@ -215,10 +185,7 @@ export default defineComponent({
      */
     function settingContainerRender() {
       return (
-        <div
-          ref={vm => (containerRef.value = vm as Element)}
-          class='setting-container'
-        >
+        <div class='setting-container'>
           <div class='setting-content'>
             <div class='setting-item'>
               <div class='item-label'>{$t('字段名称设置')}</div>
@@ -260,6 +227,7 @@ export default defineComponent({
             </TButton>
             <TButton theme="default"
               size='small'
+              theme='default'
               onClick={handlePopoverHide}
             >
               {$t('取消')}
@@ -269,24 +237,33 @@ export default defineComponent({
       );
     }
 
-    return { popoverInstance, settingContainerRender, handleSettingPopoverShow, t: $t };
+    return { popoverVisible, settingContainerRender, handleVisibleChange, t: $t };
   },
   render() {
-    const { popoverInstance, settingContainerRender, handleSettingPopoverShow, t } = this;
+    const { popoverVisible, settingContainerRender, handleVisibleChange, t } = this;
 
     return (
       <div class='bar-global-setting'>
-        <div
-          class={`popover-trigger ${popoverInstance ? 'is-active' : ''}`}
-          onClick={handleSettingPopoverShow}
+        <TPopup
+          visible={popoverVisible}
+          trigger='click'
+          placement='bottom'
+          showArrow={false}
+          attach='body'
+          overlayInnerClassName='bar-global-setting-popover-theme'
+          overlayInnerStyle={{ margin: 0 }}
+          popperOptions={{ modifiers: [{ name: 'offset', options: { offset: [0, -4] } }] }}
+          onVisibleChange={handleVisibleChange}
+          v-slots={{ content: settingContainerRender }}
         >
-          <i
-            class='bklog-icon bklog-setting-line'
-            v-log-tooltip={t('全局设置')}
-          />
-          <span class='trigger-label'>{t('全局设置')}</span>
-        </div>
-        <div style='display: none'>{settingContainerRender()}</div>
+          <div class={`popover-trigger ${popoverVisible ? 'is-active' : ''}`}>
+            <i
+              class='bklog-icon bklog-setting-line'
+              v-log-tooltip={t('全局设置')}
+            />
+            <span class='trigger-label'>{t('全局设置')}</span>
+          </div>
+        </TPopup>
       </div>
     );
   },

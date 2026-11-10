@@ -119,6 +119,9 @@
 
 .favorite-group-extension {
   height: 40px;
+  padding: 0 16px;
+  background: #fafbfd;
+  border-top: 1px solid #dcdee5;
 
   .select-add-new-group {
     line-height: 40px;
@@ -187,7 +190,7 @@
 
 // Native TDesign structure; retain V2's 400px panel and 48px action footer.
 .collection-favorite-popover {
-  .t-popup__content {
+  > .t-popup__content {
     position: relative;
     box-sizing: border-box;
     width: 400px;
@@ -233,5 +236,12 @@
 
   .t-popup__content {
     padding: 0;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .t-select__dropdown-inner {
+    max-height: 216px;
+    overflow-y: auto;
   }
 }

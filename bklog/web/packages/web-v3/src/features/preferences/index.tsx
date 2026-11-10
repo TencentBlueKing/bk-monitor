@@ -75,7 +75,8 @@ render() {
       <Dialog
         width='100%'
         dialogClassName='masking-dialog'
-        top={this.showAlert ? '90px' : '50px'}
+        top={0}
+        header={false}
         closeBtn={false}
         draggable={false}
         destroyOnClose={true}

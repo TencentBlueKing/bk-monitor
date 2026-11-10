@@ -14,7 +14,7 @@
       v-model:is-show="showSlider"
       :quick-close="true"
       :title="$t('索引配置')"
-      :transfer="true"
+      attach="body"
       :width="800"
       @animation-end="closeSlider"
     >

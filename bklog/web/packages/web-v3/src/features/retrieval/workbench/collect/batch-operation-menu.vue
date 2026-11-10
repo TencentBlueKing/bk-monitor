@@ -340,6 +340,14 @@ watch(moveToGroupAddGroup, (val) => {
 </script>
 
 <style lang="scss" scoped>
+.batch-operation-menu-container {
+  .icon-angle-down {
+    font-size: 22px;
+    line-height: 16px;
+    align-self: center;
+  }
+}
+
 .batch-operation-menu-content {
   .operation-item {
     display: flex;
