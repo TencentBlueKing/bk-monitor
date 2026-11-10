@@ -42,7 +42,7 @@ def summary(
     else:
         status = "active"
         end = max(span["end_time"] for span in spans)
-    return {"start_time": start, "end_time": end, "duration": (end - start) / 1000, "status": status}
+    return {"start_time": start / 1000, "end_time": end / 1000, "duration": (end - start) / 1000, "status": status}
 
 
 @dataclass

@@ -398,8 +398,8 @@ class TestTimelineHandler:
 
         result = handler.timeline(view_id="view-1")
 
-        assert result["start_time"] == 1_234_000
-        assert result["end_time"] == 1_800_000
+        assert result["start_time"] == 1234
+        assert result["end_time"] == 1800
         assert result["duration"] == 566
         assert result["status"] == ("ended" if ended else "active")
         assert result["tree"] == [{"span_id": "view-span-1"}]
@@ -434,8 +434,8 @@ class TestTimelineHandler:
 
         result = handler.timeline(view_id="view-1")
 
-        assert result["start_time"] == expected_start
-        assert result["end_time"] == 2_000_000
+        assert result["start_time"] == expected_start / 1000
+        assert result["end_time"] == 2000
 
 
 class TestTimelineSummary:
@@ -461,8 +461,8 @@ class TestTimelineSummary:
         result = build_timeline_summary([{"start_time": observed_start, "end_time": observed_end}], start, end)
 
         assert result == {
-            "start_time": start if start is not None else observed_start,
-            "end_time": expected_end,
+            "start_time": (start if start is not None else observed_start) / 1000,
+            "end_time": expected_end / 1000,
             "duration": duration,
             "status": status,
         }
@@ -482,7 +482,8 @@ class TestTimelineSummary:
         query.assert_called_once()
         assert result["duration"] == 50
         assert result["status"] == "active"
-        assert result["end_time"] == 1_050_000
+        assert result["start_time"] == 1000
+        assert result["end_time"] == 1050
         assert [record["span_id"] for record in result["records"]] == ["view-span-1"]
 
     @pytest.mark.parametrize("ended", [False, True])
@@ -502,7 +503,8 @@ class TestTimelineSummary:
 
         assert result["duration"] == (600 if ended else 500)
         assert result["status"] == ("ended" if ended else "active")
-        assert result["end_time"] == (1_600_000 if ended else 1_500_000)
+        assert result["start_time"] == 1000
+        assert result["end_time"] == (1600 if ended else 1500)
 
     @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
     def test_expiration_fills_four_hour_end_for_both_scopes(self, mocker, scope):
@@ -512,8 +514,8 @@ class TestTimelineSummary:
 
         result = handler.timeline(**scope)
 
-        assert result["start_time"] == 1_000_000
-        assert result["end_time"] == 1_000_000 + 4 * 3600 * 1_000_000
+        assert result["start_time"] == 1000
+        assert result["end_time"] == 1000 + 4 * 3600 * 1000
         assert result["duration"] == 4 * 3600 * 1000
         assert result["status"] == "expired"
 
