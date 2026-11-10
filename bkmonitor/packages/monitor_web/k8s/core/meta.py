@@ -29,6 +29,7 @@ from bkmonitor.utils.time_tools import hms_string
 from core.drf_resource import api, resource
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.gpu_compat import gpu_or
+from monitor_web.k8s.core.pod_memory import POD_MEMORY_METRICS, pod_memory_usage
 
 
 class FilterCollection:
@@ -583,6 +584,33 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     column_mapping = {"workload_kind": "workload_type", "pod_name": "name"}
     only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
+    def pod_memory_quota_filters(self):
+        empty_containers = tuple(
+            filter_id
+            for filter_id, resource_filter in self.filter.filters.items()
+            if filter_id.startswith("container")
+            and not filter_id.startswith("container_exclude")
+            and not any(resource_filter.value)
+        )
+        return self.filter.filter_string(exclude=("workload", *empty_containers))
+
+    def pod_memory_usage(self, metric_name, exclude=""):
+        if any(
+            filter_id.startswith("container")
+            and not filter_id.startswith("container_exclude")
+            and any(resource_filter.value)
+            for filter_id, resource_filter in self.filter.filters.items()
+        ):
+            filters = self.filter.filter_string(exclude=exclude)
+            return (
+                "sum by (bcs_cluster_id, workload_kind, workload_name, namespace, pod_name) "
+                f'({metric_name}{{{filters},container_name!="",container_name!="POD"}})'
+            )
+        # Empty container filters carry no selection; the shared builder adds the
+        # child-only exclusions while leaving the parent cgroup eligible.
+        filters = self.filter.filter_string(exclude=(exclude, "container") if exclude else "container")
+        return pod_memory_usage(metric_name, filters)
+
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
@@ -614,6 +642,15 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
         )
 
     def tpl_prom_with_nothing(self, metric_name, exclude=""):
+        if metric_name in POD_MEMORY_METRICS and self.method != "count":
+            # Select the instantaneous Pod total before computing time statistics.
+            usage = (
+                "sum by (workload_kind, workload_name, namespace, pod_name) "
+                f"({self.pod_memory_usage(metric_name, exclude)})"
+            )
+            if self.agg_interval:
+                return f"{self.agg_method}_over_time(({usage})[{self.agg_interval}:])"
+            return usage
         if self.agg_interval:
             return (
                 f"sum by (workload_kind, workload_name, namespace, pod_name) "
@@ -697,12 +734,12 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
             + "/ "
             + f"""(sum by (workload_kind, workload_name, namespace,pod_name)
     ((count by (workload_kind, workload_name, pod_name, namespace) (
-        container_memory_working_set_bytes{{{self.filter.filter_string()}}}
+        {self.pod_memory_usage("container_memory_working_set_bytes")}
     ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      {self.pod_limits_with_sidecar_expr(self.filter.filter_string(exclude="workload"), "memory")}
+      {self.pod_limits_with_sidecar_expr(self.pod_memory_quota_filters(), "memory")}
     )))"""
         )
         return promql
@@ -711,12 +748,12 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     def meta_prom_with_kube_pod_container_resource_requests_memory_bytes(self):
         promql = f"""(sum by (workload_kind, workload_name, namespace,pod_name)
     ((count by (workload_kind, workload_name, pod_name, namespace) (
-        container_memory_working_set_bytes{{{self.filter.filter_string()}}}
+        {self.pod_memory_usage("container_memory_working_set_bytes")}
     ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      kube_pod_container_resource_requests_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
+      kube_pod_container_resource_requests_memory_bytes{{{self.pod_memory_quota_filters()}}}
     )))"""
         return promql
 
