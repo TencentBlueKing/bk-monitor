@@ -460,8 +460,7 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
             raise ValidationError(f"ES binding storage {storage['name']} is not a metadata elasticsearch cluster")
         alias = binding["spec"].get("write_alias")
         if pattern:
-            # PatternWriter 固定写入 physical_table_name 或 ResultTable.result_table_id。
-            # 其写入不经过普通日志日期别名，查询来源沿用固定 ES 索引语义。
+            # 兼容历史固定目标，日期别名使用下方共用的查询路由解析。
             table = datalink.get_existing_component_config(data["kind"], data["name"], data["namespace"])
             if table is None:
                 raise ValidationError(f"Pattern result table {data['name']} not found")
@@ -477,7 +476,7 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
             table_id = models.ResultTableConfig.objects.get(
                 bk_tenant_id=tenant, namespace=data["namespace"], name=data["name"]
             ).table_id
-            source_type = EsSourceType.ES.value
+            source_type = EsSourceType.LOG.value if alias and "TimeBased" in alias else EsSourceType.ES.value
         else:
             table_id = models.ResultTableConfig.objects.get(
                 bk_tenant_id=tenant,
@@ -488,7 +487,7 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
             if not source_type:
                 raise ValidationError("missing query source type for clustering result table")
         need_add_time = False
-        if pattern or alias is None:
+        if (pattern and "TimeBased" not in (alias or {})) or alias is None:
             query_index = binding["metadata"].get("annotations", {}).get("physical_table_name")
             if not query_index:
                 rt = (
@@ -518,6 +517,8 @@ def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id:
             if alias["TimeBased"].get("timezone", 0) != query_timezone:
                 raise ValidationError(f"time-based ES binding timezone differs from {source_type} query timezone")
             query_index = alias_format[len(prefix) :]
+            if pattern and query_index != binding["metadata"].get("annotations", {}).get("physical_table_name"):
+                raise ValidationError("Pattern binding must use its registered write target")
             need_add_time = True
         if not query_index or any(c in query_index for c in "*,?"):
             raise ValidationError("invalid clustering query index")

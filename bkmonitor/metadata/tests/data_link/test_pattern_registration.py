@@ -133,7 +133,7 @@ def test_append_registers_original_fields_and_separate_targets(log_datalink, moc
     assert targets["clustered"]["query_index"] == storage.index_name
     assert targets["clustered"]["need_add_time"] is True
     assert targets["pattern"]["query_index"] == f"2_bklog_{BINDING['index_id']}_pattern"
-    assert targets["pattern"]["need_add_time"] is False
+    assert targets["pattern"]["need_add_time"] is True
     assert set(fields) == {"message", "__log_signature", "__log_cluster_publish_revision"}
     # 旧表重新生成时补齐系统字段，保留原日志中与旧系统字段同名的业务列。
     models.ResultTableField.objects.filter(table_id=rt_model.table_id, field_name__in=RESULT_FIELDS).delete()
@@ -200,14 +200,16 @@ def test_append_publish_keeps_both_tables_history(log_datalink, mocker):
 def test_append_index_preparation_failure_retries_before_apply(log_datalink, mocker):
     datalink, _ = log_datalink
     sink = create_clustering_sink(result={"mode": "append"})
-    prepare_index = mocker.patch.object(models.ESStorage, "update_index_and_aliases", side_effect=[False, True])
+    prepare_index = mocker.patch.object(
+        models.ESStorage, "update_index_and_aliases", side_effect=[True, False, True, True]
+    )
     apply = mocker.patch.object(datalink, "apply_data_link_with_retry")
     mocker.patch.object(datalink, "get_existing_component_config", return_value=None)
     with pytest.raises(RuntimeError, match="索引或写别名未准备完成"):
         apply_log_clustering_sink_only(datalink, sink, RAW_SINK)
     apply.assert_not_called()
     apply_log_clustering_sink_only(datalink, sink, RAW_SINK)
-    assert prepare_index.call_count == 2
+    assert prepare_index.call_count == 4
     assert prepare_index.call_args.kwargs["strict"] is True
     configs = apply.call_args.args[0]
     assert len(configs) == 5
@@ -252,7 +254,9 @@ def switch_source(cluster_id, when):
     )
 
 
-def test_register_fixed_pattern_once_per_index(log_datalink):
+def test_register_managed_pattern_once_per_index(log_datalink):
+    settings = {"index.routing.allocation.include.rack": "test-rack", "number_of_shards": 3}
+    models.ESStorage.objects.filter(table_id=LOG_TABLE_ID).update(index_settings=json.dumps(settings), retention=7)
     sink = create_clustering_sink()
     first = prepare_clustering_stores(sink)
     assert prepare_clustering_stores(sink) == first
@@ -265,13 +269,22 @@ def test_register_fixed_pattern_once_per_index(log_datalink):
     assert binding["metadata"]["annotations"]["physical_table_name"] == expected_index
     assert {field["field_name"]: field["field_type"] for field in rt["spec"]["fields"]} == PATTERN_FIELDS
     assert binding["spec"]["data"] == sink.pattern_store["result_table"]
-    assert "write_alias" not in binding["spec"]
+    assert binding["spec"]["write_alias"]["TimeBased"]["format"] == f"write_%Y%m%d_{expected_index}"
     assert binding["spec"]["doc_value_fields"] == PATTERN_KEYS
     assert binding["spec"]["unique_field_list"] == PATTERN_KEYS
     storage = pattern_storage(sink)
     assert storage.index_set == binding["metadata"]["annotations"]["physical_table_name"]
     assert storage.storage_cluster_id == models.ESStorage.objects.get(table_id=LOG_TABLE_ID).storage_cluster_id
-    assert storage.need_create_index is False
+    assert storage.need_create_index is True
+    assert storage.index_body["settings"] == settings
+    assert storage.retention == 7
+    assert storage.source_type == "log"
+    assert storage.index_name == expected_index
+    assert storage.index_body["mappings"]["properties"]["signature"]["type"] == "keyword"
+    models.ESStorage.objects.filter(pk=storage.pk).update(need_create_index=False)
+    assert prepare_clustering_stores(sink) == first
+    storage.refresh_from_db()
+    assert storage.need_create_index is True
     assert models.StorageClusterRecord.objects.filter(table_id=storage.table_id).count() == 1
     assert not models.DataSourceResultTable.objects.filter(table_id=storage.table_id).exists()
     other = create_clustering_sink(
@@ -279,6 +292,31 @@ def test_register_fixed_pattern_once_per_index(log_datalink):
     )
     prepare_clustering_stores(other)
     assert pattern_storage(other).table_id != storage.table_id
+
+
+@pytest.mark.parametrize("reapply", [False, True], ids=["register", "reapply"])
+def test_pattern_daily_alias_with_hourly_source(log_datalink, reapply):
+    hourly = "%Y%m%d%H"
+    source = models.ESStorage.objects.get(table_id=LOG_TABLE_ID)
+    source.date_format = hourly
+    source.save(update_fields=["date_format"])
+    sink = create_clustering_sink(result={"mode": "append"})
+    if reapply:
+        prepare_clustering_stores(sink)
+        # 模拟此前沿用了源表小时格式的 Pattern 登记。
+        models.ESStorage.objects.filter(pk=pattern_storage(sink).pk).update(date_format=hourly)
+
+    _, binding, clustered_rt, _ = prepare_clustering_stores(sink)
+
+    pattern = pattern_storage(sink)
+    assert pattern.date_format == "%Y%m%d"
+    at = datetime.datetime(2026, 1, 2, 13)
+    alias = f"write_{at.strftime(pattern.date_format)}_{pattern.index_name}"
+    assert alias == at.strftime(binding["spec"]["write_alias"]["TimeBased"]["format"])
+    source.refresh_from_db()
+    assert source.date_format == hourly
+    table = models.ResultTableConfig.objects.get(name=clustered_rt["metadata"]["name"])
+    assert models.ESStorage.objects.get(table_id=table.table_id).date_format == hourly
 
 
 def test_switch_storage_keeps_fixed_name_and_all_history(log_datalink):

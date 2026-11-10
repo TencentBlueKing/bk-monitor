@@ -30,7 +30,6 @@ export default {
   链路就绪后展示聚类结果: 'Clustering results appear once the data link is ready',
   聚类接入失败: 'Clustering setup failed',
   正在开启聚类: 'Enabling clustering',
-  聚类已开启: 'Clustering is enabled',
   正在更新聚类配置: 'Updating clustering configuration',
   正在关闭聚类: 'Stopping clustering',
   聚类已关闭: 'Clustering is stopped',
@@ -50,10 +49,6 @@ export default {
     'Historical results are available. Resource release is confirmed separately.',
   待处理结果数: 'Pending results',
   重新开启聚类: 'Restart clustering',
-  关闭聚类: 'Stop clustering',
-  '原始日志会继续写入，历史聚类结果仍可查询。':
-    'Original logs will continue to be stored. Historical results remain available.',
-  '确认关闭聚类？': 'Stop clustering?',
   获取聚类状态失败: 'Could not retrieve clustering status',
   重新获取状态: 'Refresh status',
   '配置已提交，等待生效': 'Configuration submitted and pending activation',
