@@ -2029,6 +2029,7 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+BK_ADMIN_USERNAME = os.getenv("BK_ADMIN_USERNAME", "bk_admin")
 # 自定义格式 VM 链路使用的 inner KafkaChannel，key 为 "<tenant>:<namespace>"。
 BKBASE_INNER_KAFKA_CHANNEL_MAP = json.loads(os.getenv("BKBASE_INNER_KAFKA_CHANNEL_MAP", "{}"))
 # 是否启用全局租户（blueapps依赖）

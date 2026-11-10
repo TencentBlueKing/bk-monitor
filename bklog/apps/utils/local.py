@@ -193,7 +193,12 @@ def get_admin_username(bk_tenant_id: str) -> str | None:
         return getattr(settings, "COMMON_USERNAME", None)
 
     result = BKLoginApi.batch_lookup_virtual_user(
-        {"bk_tenant_id": bk_tenant_id, "lookup_field": "login_name", "lookups": "bk_admin", "bk_username": "admin"},
+        {
+            "bk_tenant_id": bk_tenant_id,
+            "lookup_field": "login_name",
+            "lookups": settings.BK_ADMIN_USERNAME,
+            "bk_username": "admin",
+        },
         bk_tenant_id=bk_tenant_id,
     )
     if result:
