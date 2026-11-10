@@ -42,6 +42,7 @@ import { useAppStore } from '../../../store/modules/app';
 import { useHostStore } from '../../../store/modules/host';
 import { HostSelectAllModeEnum } from '../constants/enum';
 import { HOST_FILTER_FIELDS, HOST_LIST_COLUMNS, HOST_LIST_DEFAULT_PAGE_SIZE } from '../constants/host-list';
+import { sortRows } from '../utils/host-list';
 import { hostTargetKey, resolveHostRequestScope } from '../utils/share-scope';
 import { useHostListData } from './use-host-list-data';
 import { useHostListWorker } from './use-host-list-worker';
@@ -502,7 +503,8 @@ export const useHostList = (options: IUseHostListOptions) => {
     if (rowKeys.length < 2) return;
     const { rows } = await hostListWorker.getSelectedRows(rowKeys);
     if (rows.length < 2) return;
-    const [current, ...targets] = rows;
+    // Worker 只按原始数据顺序返回选中行，这里按列表实际顺序（置顶优先 + 列排序）重排后再拆分
+    const [current, ...targets] = sortRows(rows, sortInfo.value, stickyValue.value);
     if (current.bk_host_id == null) return;
     hostStore.metricAggregationState.compareType = 'target';
     hostStore.metricAggregationState.compareTargets = targets.map(row => ({
