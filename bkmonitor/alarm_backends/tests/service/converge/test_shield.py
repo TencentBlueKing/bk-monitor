@@ -220,6 +220,14 @@ def event_data():
     yield event
 
 
+def assert_host_enriched(alert, bk_host_id, ip, bk_cloud_id):
+    """目标类型写在 assign_tags，主机信息补充到维度"""
+    assign_tags = {tag["key"]: tag["value"] for tag in alert.assign_tags}
+    dimensions = {dimension["key"]: dimension["value"] for dimension in alert.dimensions}
+    assert assign_tags["target_type"] == "pod"
+    assert (dimensions["bk_host_id"], dimensions["ip"], dimensions["bk_cloud_id"]) == (bk_host_id, ip, bk_cloud_id)
+
+
 class TestKubernetesCMDBEnricher:
     def test_k8s_enricher__increment(
         self,
@@ -238,10 +246,7 @@ class TestKubernetesCMDBEnricher:
         mock_get_kubernetes_relation.assert_called_once()
         mock_get_host_without_biz_v2.assert_not_called()
 
-        assert alert.dimensions[4]["key"] == "target_type" and alert.dimensions[4]["value"] == "pod"
-        assert alert.dimensions[5]["key"] == "bk_host_id" and alert.dimensions[5]["value"] == 100
-        assert alert.dimensions[6]["key"] == "ip" and alert.dimensions[6]["value"] == "127.0.0.1"
-        assert alert.dimensions[7]["key"] == "bk_cloud_id" and alert.dimensions[7]["value"] == 0
+        assert_host_enriched(alert, bk_host_id=100, ip=POD__IP_MAP["backend-test-1"], bk_cloud_id=0)
 
     def test_k8s_enricher__multi_biz_increment(
         self,
@@ -267,15 +272,9 @@ class TestKubernetesCMDBEnricher:
 
         KubernetesCMDBEnricher([alert1, alert2]).enrich()
 
-        assert alert1.dimensions[4]["key"] == "target_type" and alert1.dimensions[4]["value"] == "pod"
-        assert alert1.dimensions[5]["key"] == "bk_host_id" and alert1.dimensions[5]["value"] == 100
-        assert alert1.dimensions[6]["key"] == "ip" and alert1.dimensions[6]["value"] == "127.0.0.1"
-        assert alert1.dimensions[7]["key"] == "bk_cloud_id" and alert1.dimensions[7]["value"] == 0
+        assert_host_enriched(alert1, bk_host_id=100, ip=POD__IP_MAP["backend-test-1"], bk_cloud_id=0)
 
-        assert alert2.dimensions[4]["key"] == "target_type" and alert2.dimensions[4]["value"] == "pod"
-        assert alert2.dimensions[5]["key"] == "bk_host_id" and alert2.dimensions[5]["value"] == 200
-        assert alert2.dimensions[6]["key"] == "ip" and alert2.dimensions[6]["value"] == "127.0.0.2"
-        assert alert2.dimensions[7]["key"] == "bk_cloud_id" and alert2.dimensions[7]["value"] == 0
+        assert_host_enriched(alert2, bk_host_id=200, ip=POD__IP_MAP["backend-test-2"], bk_cloud_id=0)
 
     def test_k8s_enricher__host_exists(
         self,
@@ -297,10 +296,7 @@ class TestKubernetesCMDBEnricher:
         mock_get_host_by_ip.assert_not_called()
         mock_get_host_without_biz_v2.assert_not_called()
 
-        assert alert.dimensions[4]["key"] == "target_type" and alert.dimensions[4]["value"] == "pod"
-        assert alert.dimensions[5]["key"] == "bk_host_id" and alert.dimensions[5]["value"] == 1
-        assert alert.dimensions[6]["key"] == "ip" and alert.dimensions[6]["value"] == "10.0.0.1"
-        assert alert.dimensions[7]["key"] == "bk_cloud_id" and alert.dimensions[7]["value"] == 1
+        assert_host_enriched(alert, bk_host_id=1, ip=POD__IP_MAP["backend-test-3"], bk_cloud_id=1)
 
     @staticmethod
     def _event_without_namespace(event_data: dict, additional_dimensions: dict | None) -> dict:
@@ -341,8 +337,7 @@ class TestKubernetesCMDBEnricher:
             "container": "backend-test-operator",
             "bcs_cluster_id": "TEST-K8S-1",
         }
-        dimensions = {dimension["key"]: dimension["value"] for dimension in alert.dimensions}
-        assert dimensions["bk_host_id"] == 100 and dimensions["ip"] == "127.0.0.1"
+        assert_host_enriched(alert, bk_host_id=100, ip=POD__IP_MAP["backend-test-1"], bk_cloud_id=0)
 
     def test_k8s_enricher__namespace_unknown(
         self,
