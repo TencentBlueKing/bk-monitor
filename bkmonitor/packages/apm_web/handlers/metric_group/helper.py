@@ -50,8 +50,8 @@ class MetricHelper:
 
     TIME_FIELD: str = "time"
 
-    def __init__(self, bk_biz_id: int, app_name: str):
-        self.table_id: str = Application.get_metric_table_id(bk_biz_id, app_name)
+    def __init__(self, bk_biz_id: int, app_name: str, *, table_id: str | None = None) -> None:
+        self.table_id: str = table_id if table_id is not None else Application.get_metric_table_id(bk_biz_id, app_name)
 
     @property
     def q(self) -> QueryConfigBuilder:

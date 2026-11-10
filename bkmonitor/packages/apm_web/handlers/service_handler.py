@@ -39,7 +39,7 @@ from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomS
 from bkmonitor.utils.cache import CacheType, lru_cache_with_ttl, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
-from core.drf_resource import api
+from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
@@ -545,66 +545,91 @@ class ServiceHandler:
     @classmethod
     def get_service_metric_range_mapping(
         cls,
-        metric,
-        application,
-        start_time,
-        end_time,
-        ignore_keys=None,
-        extra_params=None,
-    ):
-        """获取服务的指标数据(range查询)（兼容自定义服务、组件类服务名称）"""
-        if not extra_params:
-            extra_params = {}
+        calculation_type: str,
+        application: Application,
+        start_time: int,
+        end_time: int,
+        service_names: list[str],
+        interval: int,
+    ) -> dict[str, list]:
+        """查询列表目标的指标趋势，按普通、DB、消息、远程服务的顺序合并。"""
+        service_names = list(dict.fromkeys(service_names))
+        service_group = ("service_name",)
+        db_group = ("service_name", "db_system")
+        messaging_group = ("service_name", "messaging_system")
+        remote_group = ("peer_service",)
+        filters_by_group: dict[tuple[str, ...], dict[str, list[str]]] = {
+            service_group: {"service_name__eq": service_names}
+        }
 
-        # 查询普通服务
-        response = metric(
-            **{
-                "application": application,
-                "start_time": start_time,
-                "end_time": end_time,
-                # index: 0
-                "group_by": ["service_name"],
-                **extra_params,
+        # 枚举所有分隔位置，覆盖服务名和组件类型均可能包含连字符的候选配对。
+        candidate_services = sorted(
+            {name[:index] for name in service_names for index, char in enumerate(name) if char == "-" and index > 0}
+        )
+        if candidate_services:
+            filters_by_group[db_group] = {"service_name__eq": candidate_services, "db_system__neq": [""]}
+            filters_by_group[messaging_group] = {
+                "service_name__eq": candidate_services,
+                "messaging_system__neq": [""],
             }
-        ).get_range_calculate_values_mapping(ignore_keys)
-        # 查询组件类服务: DB
-        component_db_service_response = metric(
-            **{
-                "application": application,
-                "start_time": start_time,
-                "end_time": end_time,
-                # index: 0, 1, 2
-                "group_by": ["service_name", "db_system"],
-                **extra_params,
-            }
-        ).get_range_calculate_values_mapping(ignore_keys)
-        # 查询组件类服务: MESSAGING
-        component_messaging_service_response = metric(
-            **{
-                "application": application,
-                "start_time": start_time,
-                "end_time": end_time,
-                # index: 0, 1, 2
-                "group_by": ["service_name", "messaging_system"],
-                **extra_params,
-            }
-        ).get_range_calculate_values_mapping(ignore_keys)
-        # 单独查询自定义服务指标 (因为不同service_name可以访问同一个自定义服务)
-        remote_service_response = metric(
-            **{
-                "application": application,
-                "start_time": start_time,
-                "end_time": end_time,
-                # index: 0
-                "group_by": ["peer_service"],
-                **extra_params,
-            }
-        ).get_range_calculate_values_mapping(ignore_keys)
+
+        remote_prefix = cls.generate_remote_service_name("")
+        remote_names = [
+            cls.get_remote_service_origin_name(name)
+            for name in service_names
+            if name.startswith(remote_prefix) and name != remote_prefix
+        ]
+        if remote_names:
+            filters_by_group[remote_group] = {"peer_service__eq": remote_names}
+
+        database_name, _ = application.metric_result_table_id.split(".")
+        metric_helper = metric_group.MetricHelper(
+            application.bk_biz_id, application.app_name, table_id=f"{database_name}.__default__"
+        )
+        metric_infos = None
+        if calculation_type in (
+            metric_group.CalculationType.REQUEST_TOTAL.value,
+            metric_group.CalculationType.EXCEPTION_RATE.value,
+        ):
+            config = metric_group.SpanMetricGroup(
+                application.bk_biz_id, application.app_name, metric_helper=metric_helper
+            ).query_config(metric_group.CalculationType.REQUEST_TOTAL.value, raw=True)
+            # 两列均读取 bk_apm_count。在请求线程预读，避免分支线程为相同元数据重复建连。
+            metric_infos = resource.grafana.graph_unify_query.get_metric_info(
+                {**config, "bk_biz_id": application.bk_biz_id}
+            )
+
+        def query_group(group_by: tuple[str, ...], filters: dict[str, list[str]]) -> dict[tuple[str | None, ...], list]:
+            series = metric_group.SpanMetricGroup(
+                application.bk_biz_id,
+                application.app_name,
+                group_by=list(group_by),
+                filter_dict=filters,
+                interval=interval,
+                metric_helper=metric_helper,
+            ).handle(calculation_type, start_time=start_time, end_time=end_time, metric_infos=metric_infos)
+            points_by_group = {}
+            for item in series:
+                key = tuple(item["dimensions"].get(field) for field in group_by)
+                points_by_group.setdefault(key, item["datapoints"])
+            return points_by_group
+
+        results: dict[tuple[str, ...], dict[tuple[str | None, ...], list]]
+        if len(filters_by_group) == 1:
+            results = {service_group: query_group(service_group, filters_by_group[service_group])}
+        else:
+            with ThreadPool(processes=2) as pool:
+                futures = {
+                    group: pool.apply_async(query_group, args=(group, filters))
+                    for group, filters in filters_by_group.items()
+                }
+                results = {group: future.get() for group, future in futures.items()}
+
         return cls._combine_metric_data(
-            response,
-            component_db_service_response,
-            component_messaging_service_response,
-            remote_service_response,
+            results[service_group],
+            results.get(db_group, {}),
+            results.get(messaging_group, {}),
+            results.get(remote_group, {}),
         )
 
     @classmethod
