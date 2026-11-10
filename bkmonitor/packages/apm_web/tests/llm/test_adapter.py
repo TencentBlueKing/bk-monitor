@@ -406,7 +406,7 @@ class AdapterTests(TestCase):
         self.assertEqual(attributes["gen_ai.request.model"], "standard-model")
         self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "standard")
 
-    def test_default_adapter_keeps_standard_fields_without_operation(self) -> None:
+    def test_default_conversion_keeps_fields_but_observation_requires_operation(self) -> None:
         cases = {
             "gen_ai.agent.id": "agent-1",
             "gen_ai.agent.name": "math-agent",
@@ -420,9 +420,10 @@ class AdapterTests(TestCase):
                 span = agentlens_span(f"{index:016x}")
                 span["span_name"] = "generic-span"
                 span["attributes"] = {field: value}
-                spans = adapt_spans([span], "default")
-                self.assertEqual(len(spans), 1)
-                self.assertEqual(spans[0]["attributes"], {field: value})
+                from apm_web.llm.adapter import adapter_default
+
+                self.assertEqual(adapter_default.convert([span])[0]["attributes"], {field: value})
+                self.assertEqual(adapt_spans([span], "default"), [])
 
     def test_adapters_do_not_invent_tool_type(self) -> None:
         default = agentlens_span("1" * 16)

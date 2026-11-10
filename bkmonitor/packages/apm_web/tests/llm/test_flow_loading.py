@@ -1,6 +1,7 @@
 """执行线渐进加载与大正文预览回归。"""
 
 import json
+from copy import deepcopy
 from unittest import TestCase, mock
 
 from django.test import override_settings
@@ -44,6 +45,56 @@ class FlowLoadingTests(TestCase):
         return ListFlowsResource().request(
             {"bk_biz_id": 11, "app_name": "demo", "group_field": "trace_id", "group_id": "trace-1", **parameters}
         )
+
+    def test_content_request_returns_matrix_without_another_query_and_structure_does_not_count(self):
+        with mock.patch("apm_web.llm.tokens.TokenCounter", side_effect=AssertionError("should not count")):
+            structure = self.request(include_input_output=False)
+        self.assertNotIn("token_matrix", structure["traces"][0])
+        self.query.query_by_group_ids.reset_mock()
+        self.source["attributes"]["gen_ai.tool.definitions"] = [{"type": "function", "name": "search"}]
+        result = self.request(include_input_output=True, input_output_preview=True)
+        self.query.query_by_group_ids.assert_called_once()
+        self.assertEqual(self.query.query_by_group_ids.call_args.kwargs["fields"], ())
+        trace = result["traces"][0]
+        self.assertEqual(trace["token_matrix"]["nodes"][0]["tokens"], 37)
+        definitions = trace["token_matrix"]["nodes"][0]["children"][1]
+        self.assertGreater(definitions["tokens"], 0)
+        self.assertNotIn("gen_ai.tool.definitions", trace["flow"][0]["attributes"])
+        self.assertNotIn("token_estimates", trace["flow"][0])
+
+    def test_missing_usage_is_filled_and_source_is_exposed_on_span_trace_and_summary(self):
+        self.source["attributes"].pop("gen_ai.usage.input_tokens")
+        result = self.request(input_output_preview=True)
+        trace = result["traces"][0]
+        model = trace["flow"][0]
+        for item in (result, trace, model):
+            self.assertEqual(item["estimated_token_fields"], ["input_tokens"])
+        self.assertEqual(trace["input_tokens"], model["attributes"]["gen_ai.usage.input_tokens"])
+        self.assertEqual(trace["input_tokens"], trace["token_matrix"]["nodes"][0]["tokens"])
+        self.assertGreater(trace["input_tokens"], 0)
+        self.assertNotIn("gen_ai.usage.input_tokens", self.source["attributes"])
+
+    def test_agent_estimation_source_passes_through_tool_and_respects_reported_fields(self):
+        model = deepcopy(self.source)
+        model["parent_span_id"] = "tool"
+        model["attributes"].pop("gen_ai.usage.input_tokens")
+        tool = {**deepcopy(model), "span_id": "tool", "parent_span_id": "agent"}
+        tool["attributes"] = {"gen_ai.operation.name": "execute_tool"}
+        agent = {**deepcopy(model), "span_id": "agent", "parent_span_id": ""}
+        agent["attributes"] = {"gen_ai.operation.name": "invoke_agent"}
+        self.query.query_by_group_ids.side_effect = lambda **kwargs: [agent, tool, model]
+        for reported in (None, 0):
+            with self.subTest(reported=reported):
+                if reported is not None:
+                    agent["attributes"]["gen_ai.usage.input_tokens"] = reported
+                result = self.request(input_output_preview=True)["traces"][0]["flow"][0]
+                self.assertEqual("estimated_token_fields" in result, reported is None)
+                self.assertNotIn("estimated_token_fields", result["childs"][0])
+                if reported is None:
+                    self.assertEqual(result["estimated_token_fields"], ["input_tokens"])
+                    self.assertGreater(result["attributes"]["gen_ai.usage.input_tokens"], 0)
+                else:
+                    self.assertEqual(result["attributes"]["gen_ai.usage.input_tokens"], reported)
 
     def test_default_and_explicit_full_mode_preserve_complete_content(self):
         content = "完整正文" * 1000

@@ -15,6 +15,8 @@ import json
 import re
 from typing import Any
 
+from pydantic_core import from_json
+
 CONTENT_FIELDS = (
     "gen_ai.system_instructions",
     "gen_ai.input.messages",
@@ -49,7 +51,7 @@ def put(target: dict[str, Any], key: str, value: Any) -> None:
 
 
 def safe_parse(value: Any) -> Any:
-    """解析 JSON/Python 字面量；无法解析时保留原值。"""
+    """解析 JSON/Python 字面量并恢复截断 JSON；无法解析时保留原值。"""
     if not isinstance(value, str):
         return value
     for parser in (json.loads, ast.literal_eval):
@@ -58,7 +60,7 @@ def safe_parse(value: Any) -> Any:
             return parsed if isinstance(parsed, dict | list) else value
         except (ValueError, SyntaxError):
             continue
-    return value
+    return repair_json(value)[0]
 
 
 def indexed(attrs: dict[str, Any], prefix: str) -> list[dict[str, Any]]:
@@ -99,7 +101,9 @@ def text_message(role: str, content: Any) -> dict[str, Any]:
 
 
 def tool_call_part(call: dict[str, Any]) -> dict[str, Any]:
-    function = call.get("function") if isinstance(call.get("function"), dict) else call
+    function: dict[str, Any] = call
+    if isinstance(nested := call.get("function"), dict):
+        function = nested
     name = function.get("name", call.get("function.name", ""))
     arguments = function.get("arguments", function.get("args", call.get("function.arguments", {})))
     part = {"type": "tool_call", "name": str(name), "arguments": safe_parse(arguments)}
@@ -124,3 +128,57 @@ def normalize_schema(value: Any) -> Any:
             for key, item in value.items()
         }
     return value
+
+
+def repair_json(value: Any) -> tuple[Any, bool]:
+    """只恢复截断的 JSON 容器；普通文本、有效 JSON 和无法解析的内容保持原样。"""
+    if not isinstance(value, str) or not value.lstrip().startswith(("[", "{")):
+        return value, False
+    try:
+        json.loads(value)
+    except json.JSONDecodeError as error:
+        if error.msg == "Extra data":
+            return value, False
+        try:
+            partial = re.sub(r"\.\.\.\[truncated \d+ chars\]$", "", value)
+            # 不完整转义会让解析器丢弃整段字符串，只移除尚未收全的尾部转义。
+            escape = re.search(r"(\\+)(?:u[0-9a-fA-F]{0,3})?$", partial)
+            if escape and len(escape[1]) % 2:
+                partial = partial[: escape.start() + len(escape[1]) - 1]
+            repaired = from_json(partial, allow_partial="trailing-strings", cache_strings=False)
+        except ValueError:
+            return value, False
+        if isinstance(repaired, dict | list) and repaired:
+            return repaired, True
+    return value, False
+
+
+def repair_span_content(span: dict[str, Any]) -> dict[str, Any]:
+    """复制被修复的字段，保留 origin_data；不把正文中的普通 JSON 文本当成协议解析。"""
+    attributes: dict[str, Any] = dict(span.get("attributes") or {})
+    for field in CONTENT_FIELDS:
+        if field not in attributes:
+            continue
+        value, repaired = repair_json(attributes[field])
+        if isinstance(value, list):
+            items: list[Any] = []
+            for item in value:
+                if not isinstance(item, dict) or not isinstance(item.get("parts"), list):
+                    items.append(item)
+                    continue
+                parts: list[Any] = []
+                for part in item["parts"]:
+                    if not isinstance(part, dict):
+                        parts.append(part)
+                        continue
+                    part = dict(part)
+                    for key in ("arguments", "response", "result"):
+                        if key in part:
+                            part[key], changed = repair_json(part[key])
+                            repaired |= changed
+                    parts.append(part)
+                items.append({**item, "parts": parts})
+            value = items
+        if repaired:
+            attributes[field] = value
+    return {**span, "attributes": attributes}

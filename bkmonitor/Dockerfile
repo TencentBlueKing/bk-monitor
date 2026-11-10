@@ -42,6 +42,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     && uv sync --locked --no-install-project --no-dev --active \
         --no-binary-package pillow --config-settings-package pillow:freetype=enable
 
+# 预热 LLM 正文计数使用的编码，线上请求无需访问外网。
+ENV TIKTOKEN_CACHE_DIR=/app/tiktoken-cache
+RUN /app/venv/bin/python -c "import tiktoken; [tiktoken.get_encoding(name) for name in ('cl100k_base', 'o200k_base')]"
+
 # build frontend
 FROM node:24.22.2-bookworm-slim AS node-builder
 
@@ -65,6 +69,8 @@ RUN groupadd -r ${username}  \
     && chown -R ${username}:${username} /data/ /app/ /home/${username}
 
 # move code and python packages
+ENV TIKTOKEN_CACHE_DIR=/app/tiktoken-cache
+COPY --from=python-builder --chown=${username}:${username} /app/tiktoken-cache /app/tiktoken-cache
 COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
 COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/static/
 COPY --chown=${username}:${username} bkmonitor/ /app/code/
