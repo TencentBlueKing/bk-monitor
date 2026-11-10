@@ -1364,6 +1364,7 @@ LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+BK_ADMIN_USERNAME = os.getenv("BK_ADMIN_USERNAME", "bk_admin")
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
 # 为了统一多租户和非多租户场景的逻辑，默认使用system租户
