@@ -933,23 +933,16 @@ class UnifyQueryHandler:
         nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
         return self.update_nested_dict(log, nested_dict)
 
-    def accepts_partial_page_results(self, request):
-        """仅普通单索引集检索页可按索引集归属业务灰度。"""
-        if (
-            len(self.index_set_ids) != 1
-            or request.headers.get("X-Requested-With") != "XMLHttpRequest"
-            or getattr(request, "jwt", None)
-            or request.headers.get("X-Bkapi-JWT")
-            or request.headers.get("X-Source-App-Code")
-            or not request.user.is_authenticated
-        ):
-            return False
-        index_set = self.index_set["index_set_obj"]
-        if index_set.is_platform_index:
-            return False
-        return FeatureToggleObject.switch(
-            "retrieve_partial_es_results", biz_id=space_uid_to_bk_biz_id(index_set.space_uid)
-        )
+    def allow_partial_es_results(self):
+        """一次 UQ 请求共用一个开关，跨业务查询不启用。"""
+        biz_ids = set()
+        for info in self.index_info_list:
+            index_set = info["index_set_obj"]
+            biz_id, space_uid = LogIndexSet.resolve_search_scope(index_set, self.bk_biz_id)
+            if not biz_id or not LogIndexSet.is_platform_index_visible_to_space(index_set, space_uid):
+                return False
+            biz_ids.add(biz_id)
+        return len(biz_ids) == 1 and FeatureToggleObject.switch("retrieve_partial_es_results", biz_id=biz_ids.pop())
 
     def search(self, search_type="default", is_export=False, allow_partial_es_results=False):
         """

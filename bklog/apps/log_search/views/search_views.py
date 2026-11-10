@@ -113,7 +113,7 @@ from apps.log_search.serializers import (
     SearchLogForCodeSerializer,
     SearchFieldsSerializer,
 )
-from apps.log_search.utils import create_download_response, get_search_request_scope, is_log_stream_request
+from apps.log_search.utils import create_download_response, get_search_request_scope
 from apps.log_unifyquery.builder.context import build_context_params
 from apps.log_unifyquery.builder.tail import build_tail_params
 from apps.log_unifyquery.handler.async_export_handlers import (
@@ -425,8 +425,7 @@ class SearchViewSet(APIViewSet):
 
         data["index_set_ids"] = [index_set_id]
         query_handler = UnifyQueryHandler(data)
-        allow_partial = is_log_stream_request(request) and query_handler.accepts_partial_page_results(request)
-        return Response(query_handler.search(allow_partial_es_results=allow_partial))
+        return Response(query_handler.search(allow_partial_es_results=query_handler.allow_partial_es_results()))
 
     @detail_route(methods=["POST"], url_path="search/original")
     def original_search(self, request, index_set_id=None):

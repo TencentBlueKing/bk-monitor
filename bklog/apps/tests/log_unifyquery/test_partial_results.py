@@ -12,7 +12,6 @@ See the License for the specific language governing permissions and limitations 
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory, SimpleTestCase, override_settings
 
 from apps.log_search.views.search_views import SearchViewSet
@@ -91,60 +90,39 @@ class PartialResultsTests(SimpleTestCase):
         with self.assertRaises(TimeoutError):
             handler.date_histogram(allow_partial_es_results=True)
 
-    def test_rollout_requires_local_page_and_listed_index_owner(self):
+    @patch("apps.log_unifyquery.handler.base.FeatureToggleObject.switch", return_value=True)
+    def test_rollout_uses_one_resolved_business(self, switch):
         handler = self.handler()
-        page = RequestFactory().post("/api/v1/search/", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        page.user = SimpleNamespace(is_authenticated=True)
-        handler.index_set_ids = [10]
-        index = SimpleNamespace(is_platform_index=False, space_uid="bkcc__123")
-        handler.index_set = {"index_set_obj": index}
-        load_toggle = self.enterContext(patch("apps.feature_toggle.handlers.toggle.FeatureToggleObject.toggle"))
-        for status, businesses, expected in (
-            ("debug", [123], True),
-            ("debug", [124], False),
-            ("off", [123], False),
-            ("on", [], True),
-        ):
-            with self.subTest(status=status, businesses=businesses):
-                load_toggle.return_value = SimpleNamespace(status=status, biz_id_white_list=businesses)
-                self.assertEqual(handler.accepts_partial_page_results(page), expected)
-        load_toggle.return_value = None
-        self.assertFalse(handler.accepts_partial_page_results(page))
-        load_toggle.return_value = SimpleNamespace(status="on")
-        for headers in (
-            {},
-            {"HTTP_X_BKAPI_JWT": "gateway", "HTTP_X_REQUESTED_WITH": "XMLHttpRequest"},
-            {"HTTP_X_SOURCE_APP_CODE": "monitor", "HTTP_X_REQUESTED_WITH": "XMLHttpRequest"},
-        ):
-            caller = RequestFactory().post("/", {"allow_partial_es_results": True}, **headers)
-            caller.user = page.user
-            self.assertFalse(handler.accepts_partial_page_results(caller))
-        page.jwt = object()
-        self.assertFalse(handler.accepts_partial_page_results(page))
-        del page.jwt
-        page.user = AnonymousUser()
-        self.assertFalse(handler.accepts_partial_page_results(page))
-        page.user = SimpleNamespace(is_authenticated=True)
-        index.is_platform_index = True
-        self.assertFalse(handler.accepts_partial_page_results(page))
-        index.is_platform_index = False
-        handler.index_set_ids.append(11)
-        self.assertFalse(handler.accepts_partial_page_results(page))
+        handler.bk_biz_id = 456
+        owner = SimpleNamespace(space_uid="bkcc__123", is_platform_index=False)
+        handler.index_info_list = [{"index_set_obj": owner}, {"index_set_obj": owner}]
+        self.assertTrue(handler.allow_partial_es_results())
+        switch.assert_called_once_with("retrieve_partial_es_results", biz_id=123)
+        shared = SimpleNamespace(space_uid="bkcc__123", is_platform_index=True)
+        handler.index_info_list = [{"index_set_obj": shared}]
+        with patch("apps.log_search.models.LogIndexSet.is_platform_index_visible_to_space") as visible:
+            visible.return_value = False
+            self.assertFalse(handler.allow_partial_es_results())
+            visible.return_value = True
+            self.assertTrue(handler.allow_partial_es_results())
+            switch.assert_called_with("retrieve_partial_es_results", biz_id=456)
+            handler.index_info_list.append({"index_set_obj": owner})
+            self.assertFalse(handler.allow_partial_es_results())
 
     @patch("apps.log_search.views.search_views.UnifyQueryHandler")
     @patch("apps.log_search.views.search_views._apply_index_set_search_bk_biz_id")
-    def test_only_page_stream_enables_raw_search(self, _apply_scope, handler_cls):
+    def test_json_and_stream_search_use_same_rollout(self, _apply_scope, handler_cls):
         view = SearchViewSet()
         view.get_object = Mock()
         view.params_valid = Mock(side_effect=lambda *_: {})
         handler = handler_cls.return_value
-        handler.accepts_partial_page_results.return_value = True
+        handler.allow_partial_es_results.return_value = True
         handler.search.side_effect = lambda **_: {"list": [], "total": 0}
-        for query, enabled in (("", False), ("?stream=true", True)):
+        for query, streaming in (("", False), ("?stream=true", True)):
             request = RequestFactory().post(f"/api/v1/search/index_set/10/search/{query}")
             response = view.search(request, index_set_id=10)
-            handler.search.assert_called_with(allow_partial_es_results=enabled)
-            self.assertEqual(response.streaming, enabled)
+            handler.search.assert_called_with(allow_partial_es_results=True)
+            self.assertEqual(response.streaming, streaming)
 
     def test_shared_calls_omit_opt_in(self):
         handler = self.handler()
