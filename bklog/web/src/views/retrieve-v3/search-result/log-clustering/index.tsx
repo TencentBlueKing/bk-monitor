@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, provide, ref, watch, onMounted, onBeforeUnmount } from 'vue';
-import { bkInfoBox } from 'bk-magic-vue';
 import useLocale from '@/hooks/use-locale';
 import QuixStatusBanner, { quixPage } from './quix-status';
 import ClusteringLoader from '@/skeleton/clustering-loader.vue';
@@ -283,7 +282,7 @@ export default defineComponent({
       }
     };
 
-    const submitAction = async (action: 'retry' | 'reopen' | 'close') => {
+    const submitAction = async (action: 'retry' | 'reopen') => {
       if (submitting.value || !quix.value) return;
       const id = indexSetId.value;
       submitting.value = true;
@@ -291,7 +290,6 @@ export default defineComponent({
         const api = {
           retry: 'retryClusteringAccess',
           reopen: 'reopenClusteringAccess',
-          close: 'closeClusteringAccess',
         }[action];
         await $http.request(`retrieve/${api}`, {
           params: {
@@ -305,15 +303,6 @@ export default defineComponent({
           await clusterPolling();
         }
       }
-    };
-
-    const confirmClose = () => {
-      const id = indexSetId.value;
-      bkInfoBox({
-        title: t('确认关闭聚类？'),
-        subTitle: t('原始日志会继续写入，历史聚类结果仍可查询。'),
-        confirmFn: () => id === indexSetId.value && submitAction('close'),
-      });
     };
 
     // 数据指纹操作
@@ -432,7 +421,6 @@ export default defineComponent({
                 showProgress={exhibitAll.value && !statusError.value && showQuixProgress.value}
                 busy={submitting.value || !!statusError.value}
                 on-retry={() => submitAction('retry')}
-                on-close={confirmClose}
                 on-reopen={() => submitAction('reopen')}
               />
             )}
@@ -451,13 +439,7 @@ export default defineComponent({
                 on-handle-finger-operate={handleFingerOperate}
                 on-close-group-tag={handleCloseGroupTag}
                 on-close-year-tag={handleCloseYearTag}
-              >
-                {quix.value?.phase === 'running' && !window.IS_EXTERNAL && (
-                  <bk-button text disabled={submitting.value || !!statusError.value} on-click={confirmClose}>
-                    {t('关闭聚类')}
-                  </bk-button>
-                )}
-              </TopOperation>
+              />
             )}
             {exhibitAll.value ? (
               (() => {

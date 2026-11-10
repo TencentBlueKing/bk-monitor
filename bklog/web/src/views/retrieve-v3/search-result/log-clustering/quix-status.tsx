@@ -58,7 +58,6 @@ export default defineComponent({
       const retryable = operation?.status === 'failed';
       const failed = retryable || (operation?.status === 'canceled' && !!operation.last_error);
       const awaitingReceipt = operation?.status === 'awaiting_receipt';
-      const canClose = (failed || awaitingReceipt) && !['running', 'disabling', 'stopped'].includes(phase);
       const operationError = (failed || operation?.status === 'running') && operation?.last_error;
       if (
         phase === 'running' &&
@@ -73,7 +72,7 @@ export default defineComponent({
       if (
         props.showProgress &&
         !failed &&
-        !canClose &&
+        !awaitingReceipt &&
         !operation?.last_error &&
         !bkfara?.error &&
         !bkfara?.pending_result_count
@@ -105,7 +104,7 @@ export default defineComponent({
           )}
           {!window.IS_EXTERNAL && (
             <span class='quix-actions'>
-              {retryable && (
+              {retryable && operation.operation_type !== 'disable' && (
                 <bk-button
                   text
                   disabled={props.busy}
@@ -121,15 +120,6 @@ export default defineComponent({
                   on-click={() => emit('reopen')}
                 >
                   {t('重新开启聚类')}
-                </bk-button>
-              )}
-              {canClose && (
-                <bk-button
-                  text
-                  disabled={props.busy}
-                  on-click={() => emit('close')}
-                >
-                  {t('关闭聚类')}
                 </bk-button>
               )}
             </span>

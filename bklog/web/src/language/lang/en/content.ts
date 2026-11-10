@@ -49,10 +49,6 @@ export default {
     'Historical results are available. Resource release is confirmed separately.',
   待处理结果数: 'Pending results',
   重新开启聚类: 'Restart clustering',
-  关闭聚类: 'Stop clustering',
-  '原始日志会继续写入，历史聚类结果仍可查询。':
-    'Original logs will continue to be stored. Historical results remain available.',
-  '确认关闭聚类？': 'Stop clustering?',
   获取聚类状态失败: 'Could not retrieve clustering status',
   重新获取状态: 'Refresh status',
   '配置已提交，等待生效': 'Configuration submitted and pending activation',
