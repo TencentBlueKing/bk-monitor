@@ -213,7 +213,10 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
             index_settings=json.loads(source.index_settings or "{}"),
             warm_phase_settings=source.warm_phase_settings,
         )
-        if suffix == "clustered":
+        if suffix == "pattern":
+            # Pattern Binding 使用按日写别名，与原表的日期格式独立。
+            storage_options["date_format"] = "%Y%m%d"
+        else:
             storage_options["mapping_settings"] = json.loads(source.mapping_settings or "{}")
         if storage is None:
             storage = models.ESStorage.create_table(

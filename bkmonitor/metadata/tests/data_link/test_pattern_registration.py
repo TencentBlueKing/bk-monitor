@@ -294,6 +294,31 @@ def test_register_managed_pattern_once_per_index(log_datalink):
     assert pattern_storage(other).table_id != storage.table_id
 
 
+@pytest.mark.parametrize("reapply", [False, True], ids=["register", "reapply"])
+def test_pattern_daily_alias_with_hourly_source(log_datalink, reapply):
+    hourly = "%Y%m%d%H"
+    source = models.ESStorage.objects.get(table_id=LOG_TABLE_ID)
+    source.date_format = hourly
+    source.save(update_fields=["date_format"])
+    sink = create_clustering_sink(result={"mode": "append"})
+    if reapply:
+        prepare_clustering_stores(sink)
+        # 模拟此前沿用了源表小时格式的 Pattern 登记。
+        models.ESStorage.objects.filter(pk=pattern_storage(sink).pk).update(date_format=hourly)
+
+    _, binding, clustered_rt, _ = prepare_clustering_stores(sink)
+
+    pattern = pattern_storage(sink)
+    assert pattern.date_format == "%Y%m%d"
+    at = datetime.datetime(2026, 1, 2, 13)
+    alias = f"write_{at.strftime(pattern.date_format)}_{pattern.index_name}"
+    assert alias == at.strftime(binding["spec"]["write_alias"]["TimeBased"]["format"])
+    source.refresh_from_db()
+    assert source.date_format == hourly
+    table = models.ResultTableConfig.objects.get(name=clustered_rt["metadata"]["name"])
+    assert models.ESStorage.objects.get(table_id=table.table_id).date_format == hourly
+
+
 def test_switch_storage_keeps_fixed_name_and_all_history(log_datalink):
     sink = create_clustering_sink()
     first = prepare_clustering_stores(sink)
