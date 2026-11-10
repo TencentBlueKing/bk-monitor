@@ -156,7 +156,8 @@ class QuixClusteringHandler:
         return self._access_response(operation)
 
     def update(self, params: dict) -> str | None:
-        """分别下发过滤配置和已有模型参数；相同目标的在途请求可续跑。"""
+        """分别下发输入映射、过滤配置和已有模型参数；相同目标的在途请求可续跑。"""
+        from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
         from apps.log_clustering.tasks.quix import run_quix_clustering_operation
 
         with transaction.atomic():
@@ -173,8 +174,11 @@ class QuixClusteringHandler:
             if "result_mode" in runtime.active_config:
                 clustering_config["result_mode"] = runtime.active_config["result_mode"]
             if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
-                raise QuixClusteringParamsInvalidException(
-                    QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("首版不支持修改聚类字段"))
+                collector = CollectorConfig.objects.get(collector_config_id=runtime.collector_config_id)
+                ClusteringConfigHandler.pre_check_fields(
+                    fields=collector.get_etl_config()["fields"],
+                    etl_config=collector.etl_config,
+                    clustering_fields=clustering_fields,
                 )
             business_fields = {field: params[field] for field in BUSINESS_UPDATE_FIELDS if field in params}
             previous_fields = {field: getattr(business_config, field) for field in business_fields}
@@ -189,6 +193,8 @@ class QuixClusteringHandler:
                 if (
                     operation.operation_type
                     not in (ClusteringOperationTypeEnum.UPDATE.value, ClusteringOperationTypeEnum.UPDATE_MODEL.value)
+                    or (runtime.pending_config or runtime.active_config)["input_mapping"]
+                    != clustering_config["input_mapping"]
                     or operation.request_snapshot.get("filter_rules") != filter_rules
                     or operation.request_snapshot.get("model_parameters") != model_parameters
                     or (
@@ -208,13 +214,13 @@ class QuixClusteringHandler:
                 if operation.status == ClusteringOperationStatusEnum.FAILED.value:
                     operation = self._resume_failed_operation(operation.operation_type)
             else:
-                filter_changed = clustering_config != runtime.active_config
+                binding_changed = clustering_config != runtime.active_config
                 model_changed = model_parameters != original_model
-                if filter_changed or model_changed:
+                if binding_changed or model_changed:
                     runtime, operation = LogClusteringRuntime.start_operation(
                         self.index_set_id,
                         ClusteringOperationTypeEnum.UPDATE.value
-                        if filter_changed
+                        if binding_changed
                         else ClusteringOperationTypeEnum.UPDATE_MODEL.value,
                         {
                             "filter_rules": filter_rules,
@@ -224,7 +230,7 @@ class QuixClusteringHandler:
                         },
                         allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
                     )
-                    runtime.pending_config = clustering_config if filter_changed else None
+                    runtime.pending_config = clustering_config if binding_changed else None
                     runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
                     runtime.save(update_fields=["pending_config", "phase", "updated_at", "updated_by"])
             if not operation:

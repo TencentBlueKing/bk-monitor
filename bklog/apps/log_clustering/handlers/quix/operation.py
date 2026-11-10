@@ -419,7 +419,8 @@ class QuixClusteringOperationRunner:
 
     def _finish_update(self):
         ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(
-            filter_rules=self.operation.request_snapshot["filter_rules"]
+            clustering_fields=(self.runtime.pending_config or self.runtime.active_config)["input_mapping"]["log"],
+            filter_rules=self.operation.request_snapshot["filter_rules"],
         )
         self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
 

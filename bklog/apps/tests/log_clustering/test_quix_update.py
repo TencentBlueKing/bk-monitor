@@ -484,9 +484,46 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         )
         mock_delay.assert_not_called()
 
-    def test_clustering_field_change_is_rejected(self, mock_delay):
+    @patch("apps.log_clustering.handlers.quix.handler.CollectorConfig.objects.get")
+    @patch("apps.log_clustering.handlers.quix.operation.TransferApi")
+    @patch("apps.log_clustering.handlers.quix.operation.BkFaraApi")
+    def test_field_update_is_applied_to_existing_binding(self, bkfara, transfer, collector_get, mock_delay):
+        collector_get.return_value.get_etl_config.return_value = {"fields": [{"field_name": "message"}]}
+        self.index_set.save()
+        handler = QuixClusteringHandler(self.index_set)
+        operation_id = handler.update({"clustering_fields": "message"})
+        self.assertEqual(handler.update({"clustering_fields": "message"}), operation_id)
         with self.assertRaises(QuixClusteringParamsInvalidException):
-            QuixClusteringHandler(self.index_set).update({"clustering_fields": "message", "filter_rules": WARN_RULES})
+            handler.update({"clustering_fields": "log"})
+
+        transfer.set_log_clustering_config.return_value = {"sink": {"name": "sink"}}
+        transfer.get_log_clustering_status.return_value = {**ADOPTED, "sink_referenced": False}
+        runner = QuixClusteringOperationRunner(operation_id)
+        with patch("apps.log_clustering.handlers.quix.operation.get_quix_config", return_value=QUIX_CONFIG):
+            self.assertEqual(runner.run(), POLL_INTERVAL_SECONDS)
+        binding = transfer.set_log_clustering_config.call_args.args[0]["binding"]
+        self.assertEqual(binding["input_mapping"], {"log": "message", "timestamp": "dtEventTimeStamp"})
+        self.assertEqual(binding["task_id"], self.runtime.bkfara_task_id)
+        config = ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual(config.clustering_fields, "log")
+
+        transfer.get_log_clustering_status.return_value = ADOPTED
+        self.assertIsNone(QuixClusteringOperationRunner(operation_id).run())
+        self.runtime.refresh_from_db()
+        config.refresh_from_db()
+        self.assertEqual(config.clustering_fields, "message")
+        self.assertEqual(self.runtime.active_config["input_mapping"]["log"], "message")
+        self.assertIsNone(handler.update({"clustering_fields": "message"}))
+        transfer.set_log_clustering_config.assert_called_once()
+        self.assertEqual(bkfara.mock_calls, [])
+
+    @patch("apps.log_clustering.handlers.quix.handler.CollectorConfig.objects.get")
+    def test_unknown_field_rejected_before_update(self, collector_get, mock_delay):
+        collector_get.return_value.get_etl_config.return_value = {"fields": [{"field_name": "message"}]}
+        with self.assertRaises(ValueError):
+            QuixClusteringHandler(self.index_set).update({"clustering_fields": "missing"})
+        self.runtime.refresh_from_db()
+        self.assertIsNone(self.runtime.pending_config)
         mock_delay.assert_not_called()
 
     def test_stopped_runtime_rejects_update(self, mock_delay):

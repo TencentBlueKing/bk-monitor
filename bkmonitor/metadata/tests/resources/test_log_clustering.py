@@ -248,6 +248,7 @@ def test_set_on_attached_sink_only_applies_sink(clustering_datalink, bkbase):
     binding = copy.deepcopy(BINDING)
     binding["log_filter"] = [{"key": "level", "method": "eq", "value": ["INFO"], "condition": ""}]
 
+    binding["input_mapping"]["log"] = "message"
     result = set_config(binding=binding)
 
     assert result["applied_scope"] == "sink_only"
@@ -255,6 +256,7 @@ def test_set_on_attached_sink_only_applies_sink(clustering_datalink, bkbase):
     (configs,), _ = bkbase["apply_data_link"].call_args
     assert [config["kind"] for config in configs] == ["LogClusteringSink"]
     assert configs[0]["spec"]["clustering"]["binding"]["log_filter"] == binding["log_filter"]
+    assert configs[0]["spec"]["clustering"]["binding"]["input_mapping"] == binding["input_mapping"]
     assert configs[0]["spec"]["raw_sink"] == ES_BINDING_REF
 
 
