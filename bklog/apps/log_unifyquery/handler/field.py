@@ -32,16 +32,16 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             logger.exception("query ts reference error code: %s, message: %s", error_code, error_message)
         return 0
 
-    def get_total_count(self, allow_partial_es_results=False):
+    def get_total_count(self):
         """
         获取日志聚合总条数
         """
         search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "count"}]
-        if allow_partial_es_results:
+        if self.allow_partial_es_results:
             search_dict["allow_partial_es_results"] = True
-        data = self.query_ts_reference(search_dict, raise_exception=allow_partial_es_results)
+        data = self.query_ts_reference(search_dict, raise_exception=self.allow_partial_es_results)
         return self.handle_count_data(data)
 
     def get_field_count(self):

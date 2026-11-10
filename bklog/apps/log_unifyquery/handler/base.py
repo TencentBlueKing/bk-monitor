@@ -105,7 +105,9 @@ def fields_config(name: str, is_active: bool = False):
 
 
 class UnifyQueryHandler:
-    def __init__(self, params):
+    allow_partial_es_results = False
+
+    def __init__(self, params, *, partial_results_biz_id=None, resolve_partial_results_biz=False):
         self.search_params: dict[str, Any] = params
 
         # 必需参数，索引集id列表
@@ -120,6 +122,13 @@ class UnifyQueryHandler:
 
         # 必需参数，业务id
         self.bk_biz_id = self.search_params["bk_biz_id"]
+
+        if resolve_partial_results_biz:
+            partial_results_biz_id = self._resolve_partial_results_biz_id()
+        if partial_results_biz_id:
+            self.allow_partial_es_results = FeatureToggleObject.switch(
+                "retrieve_partial_es_results", biz_id=partial_results_biz_id
+            )
 
         # 查询语句
         self.query_string = self.search_params.get("keyword", "")
@@ -933,7 +942,7 @@ class UnifyQueryHandler:
         nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
         return self.update_nested_dict(log, nested_dict)
 
-    def allow_partial_es_results(self):
+    def _resolve_partial_results_biz_id(self) -> int | None:
         """一次 UQ 请求共用一个开关，跨业务查询不启用。"""
         biz_ids = set()
         try:
@@ -941,16 +950,16 @@ class UnifyQueryHandler:
                 index_set = info["index_set_obj"]
                 biz_id, space_uid = LogIndexSet.resolve_search_scope(index_set, self.bk_biz_id)
                 if not biz_id or not LogIndexSet.is_platform_index_visible_to_space(index_set, space_uid):
-                    return False
+                    return None
                 biz_ids.add(biz_id)
         except Exception:  # 灰度所需的空间信息不可用时，继续按原方式查询。
             logger.warning(
                 "Failed to resolve business for partial ES results, index sets: %s", self.index_set_ids, exc_info=True
             )
-            return False
-        return len(biz_ids) == 1 and FeatureToggleObject.switch("retrieve_partial_es_results", biz_id=biz_ids.pop())
+            return None
+        return biz_ids.pop() if len(biz_ids) == 1 else None
 
-    def search(self, search_type="default", is_export=False, allow_partial_es_results=False):
+    def search(self, search_type="default", is_export=False):
         """
         search
         原始日志查询
@@ -983,13 +992,13 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
-        if allow_partial_es_results and not is_export:
+        if self.allow_partial_es_results and not is_export:
             search_dict["allow_partial_es_results"] = True
 
         # 预查询
         result = self.query_ts_raw(search_dict, pre_search=pre_search)
         if pre_search and (
-            len(result["list"]) != once_size or (allow_partial_es_results and is_partial_result(result))
+            len(result["list"]) != once_size or (self.allow_partial_es_results and is_partial_result(result))
         ):
             # 全量查询
             result = self.query_ts_raw(search_dict)
@@ -1011,15 +1020,13 @@ class UnifyQueryHandler:
 
         return result
 
-    def date_histogram(self, allow_partial_es_results=False):
+    def date_histogram(self):
         params = copy.deepcopy(self.base_dict)
         interval = self.search_params["interval"]
         group_field = self.search_params["group_field"]
 
         # 请求 unify-query
-        response = self._date_histogram_unify_query(
-            interval, group_field, params, allow_partial_es_results=allow_partial_es_results
-        )
+        response = self._date_histogram_unify_query(interval, group_field, params)
 
         if not response.get("series"):
             return {"aggs": {}}
@@ -1102,7 +1109,7 @@ class UnifyQueryHandler:
 
         return bcs_cluster_name
 
-    def _date_histogram_unify_query(self, interval, group_field, params, allow_partial_es_results=False):
+    def _date_histogram_unify_query(self, interval, group_field, params):
         """
         unify_query 查询 date_histogram
         """
@@ -1121,10 +1128,10 @@ class UnifyQueryHandler:
         params["metric_merge"] = "a"
         params["step"] = interval
         params["order_by"] = []
-        if allow_partial_es_results:
+        if self.allow_partial_es_results:
             params["allow_partial_es_results"] = True
 
-        response = self.query_ts_reference(params, raise_exception=allow_partial_es_results)
+        response = self.query_ts_reference(params, raise_exception=self.allow_partial_es_results)
 
         return response
 
