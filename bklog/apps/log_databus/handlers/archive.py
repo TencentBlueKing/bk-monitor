@@ -302,6 +302,8 @@ class ArchiveHandler:
         """
         按采集项幂等地创建或更新归档配置
         """
+        # 路由参数是字符串，统一转成 int 后再写入和返回
+        collector_config_id = int(collector_config_id)
         collector = cls._get_active_collector(collector_config_id)
         cls._check_collector_archive_repository(collector, target_snapshot_repository_name)
 

@@ -101,6 +101,13 @@ class CollectorArchiveHandlerTests(TestCase):
             }
         )
 
+    def test_upsert_with_string_collector_config_id_returns_int(self):
+        with self.patch_metadata():
+            result = ArchiveHandler.upsert_collector_archive(str(self.collector_config_id), REPOSITORY_NAME, 30)
+
+        self.assertEqual(result["collector_config_id"], self.collector_config_id)
+        self.assertIsInstance(result["collector_config_id"], int)
+
     def test_repeat_upsert_keeps_single_archive(self):
         with self.patch_metadata() as transfer_api:
             ArchiveHandler.upsert_collector_archive(self.collector_config_id, REPOSITORY_NAME, 30)
