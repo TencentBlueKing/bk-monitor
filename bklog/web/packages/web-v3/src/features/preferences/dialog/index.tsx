@@ -48,7 +48,7 @@ setup(props, { slots, emit }) {
     const store = useStore();
     return () => props.value ? (
       <Dialog
-        style='z-index: 1000;'
+        style='z-index: var(--bklog-z-dialog);'
         width='100%'
         dialogClassName='global-dialog'
         top={0}

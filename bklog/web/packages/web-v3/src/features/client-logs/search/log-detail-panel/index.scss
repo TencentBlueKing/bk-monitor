@@ -14,7 +14,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 9999;
+    z-index: var(--bklog-z-message);
     border-radius: 0;
     border: none;
 
@@ -37,7 +37,7 @@
     border-radius: 50%;
     cursor: pointer;
     transform: rotate(180deg);
-    z-index: 10;
+    z-index: var(--bklog-z-page);
   }
 
   .log-detail-content {
@@ -376,7 +376,7 @@
         background: #4E4E4E;
         box-shadow: 0 2px 8px 0 #1919290a;
         cursor: pointer;
-        z-index: 10;
+        z-index: var(--bklog-z-page);
 
         .bklog-icon {
           color: #fff;

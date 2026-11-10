@@ -1208,7 +1208,7 @@ export default {
     width: 100%;
 
     .view-history-btn {
-      z-index: 10;
+      z-index: var(--bklog-z-page);
       padding-left: 12px;
       margin-left: 16px;
       font-size: 14px;

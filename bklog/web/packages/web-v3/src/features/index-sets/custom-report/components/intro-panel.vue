@@ -144,7 +144,7 @@
 
     .right-window {
       position: absolute;
-      z-index: 99;
+      z-index: var(--bklog-z-nav);
       width: 100%;
       height: 100%;
       padding: 16px 0 0 24px;
@@ -209,7 +209,7 @@
 
     .create-btn {
       position: absolute;
-      z-index: 999;
+      z-index: var(--bklog-z-dropdown);
       width: 24px;
       height: 24px;
 

@@ -2145,7 +2145,7 @@ import { ServicesInstance } from '@/platform/services';
 
     .is-selected {
       /* stylelint-disable-next-line declaration-no-important */
-      z-index: 2 !important;
+      z-index: var(--bklog-z-raised) !important;
     }
 
     .rulesColor {

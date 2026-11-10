@@ -1245,7 +1245,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                   content: `${t('{n} 个采集项同步失败', { n: failures.length })}\n${failures
                     .map((item: { collector_config_name?: string; status?: string }) => item.collector_config_name || item.status || '')
                     .join('\n')}`,
-                  zIndex: 9999,
+                  zIndex: window.__bk_zIndex_manager?.nextMessageZIndex?.(),
                 });
               }
             }

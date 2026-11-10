@@ -1332,7 +1332,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     .top-operate {
       position: absolute;
       top: 42px;
-      z-index: 3;
+      z-index: var(--bklog-z-local);
       width: 100%;
       height: 32px;
       font-size: 12px;

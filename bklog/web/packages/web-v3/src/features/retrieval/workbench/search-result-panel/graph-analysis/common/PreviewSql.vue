@@ -93,7 +93,7 @@
     display: flex;
 
     .sql-line-number {
-      z-index: 1;
+      z-index: var(--bklog-z-base);
       display: inline-block;
       width: 35px;
       padding-right: 12px;

@@ -104,7 +104,7 @@
         cursor: pointer;
         font-size: 18px;
         position: absolute;
-        z-index: 99;
+        z-index: var(--bklog-z-nav);
         bottom: 14px;
       }
 
@@ -153,7 +153,7 @@
       line-height: 16px;
       background-color: white;
       position: absolute;
-      z-index: 99;
+      z-index: var(--bklog-z-nav);
       text-align: center;
     }
 
@@ -186,7 +186,7 @@
         top: 16px;
         color: #ea3636;
         font-size: 16px;
-        z-index: 10;
+        z-index: var(--bklog-z-page);
       }
     }
 

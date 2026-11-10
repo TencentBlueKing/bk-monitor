@@ -36,7 +36,7 @@
     }
   }
   .classify-btns-fixed {
-    z-index: 101 !important;
+    z-index: var(--bklog-z-nav-top) !important;
   }
 }
 

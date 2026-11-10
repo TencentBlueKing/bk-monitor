@@ -179,7 +179,7 @@ input[disabled='disabled'] {
   right: 0;
   bottom: 0;
   left: 0;
-  z-index: 10000;
+  z-index: var(--bklog-z-message);
 
   /* stylelint-disable-next-line declaration-no-important */
   width: 100% !important;

@@ -188,7 +188,7 @@
     .bklog-skeleton-loading {
       position: absolute;
       top: 0;
-      z-index: 10;
+      z-index: var(--bklog-z-page);
     }
   }
 </style>

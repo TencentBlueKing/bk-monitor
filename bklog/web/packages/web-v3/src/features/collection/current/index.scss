@@ -30,7 +30,7 @@
       top: 50%;
       transform: translateY(-50%);
       cursor: pointer;
-      z-index: 100;
+      z-index: var(--bklog-z-nav-top);
       border: none;
       padding: 0;
       outline: none;

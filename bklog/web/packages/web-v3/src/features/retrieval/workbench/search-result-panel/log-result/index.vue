@@ -177,7 +177,6 @@
           popperOptions: {
             strategy: 'fixed',
           },
-          zIndex: window.__bk_zIndex_manager?.nextZIndex?.() ?? 2500,
           onShow: () => {
             this.showFieldsSetting = true;
           },
@@ -372,7 +371,7 @@
     .original-log-panel-tools {
       position: sticky;
       top: var(--bklog-result-tools-sticky-top, var(--offset-search-bar, var(--top-searchbar-height, 0)));
-      z-index: 6;
+      z-index: var(--bklog-z-sticky, 6);
       display: flex;
       justify-content: space-between;
       padding: 0 6px 0 0;
@@ -584,6 +583,6 @@
   }
 
   .bklog-v3-select-dropdown {
-    z-index: 2500;
+    z-index: var(--bklog-z-drawer);
   }
 </style>

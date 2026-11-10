@@ -87,8 +87,8 @@ export default class FieldAnalysis extends Vue {
   seriesData: any[] = [];
   currentPageNum = 1;
   legendMaxPageNum = 1;
-  infoLoading = false;
-  chartLoading = false;
+  infoLoading = true;
+  chartLoading = true;
   isShowEmpty = false;
   isShowPageIcon = false;
   emptyTipsStr = '';
@@ -128,6 +128,11 @@ export default class FieldAnalysis extends Vue {
 
   get pillarChartHeight() {
     return store.getters.isEnLanguage ? CHART_HEIGHTS.PILLAR_EN_BASE : CHART_HEIGHTS.PILLAR_BASE;
+  }
+
+  /** 图表区固定高度。骨架和正式图共用，避免渲染过程中把弹层撑高再缩回去。 */
+  get chartSlotHeight() {
+    return this.isPillarChart ? this.pillarChartHeight : CHART_HEIGHTS.LINE_BASE;
   }
 
   /** 获取数值类型查询时间段 */
@@ -178,10 +183,13 @@ export default class FieldAnalysis extends Vue {
       this.setFormatStr(startTime, endTime);
     }
 
+    this.height = this.chartSlotHeight;
+
     // 优化：并行执行数据请求
     await Promise.all([this.queryStatisticsInfo(), this.loadEChartsLibrary()]);
 
     await this.queryStatisticsGraph();
+    await this.$nextTick();
     this.initFieldChart();
     this.showMore(false);
   }
@@ -462,8 +470,7 @@ export default class FieldAnalysis extends Vue {
       const echarts = this.echarts || (await this.loadEChartsLibrary());
 
       this.chart = echarts.init(this.chartRef, null, {
-        height: `${this.height}px`,
-        renderer: 'canvas', // 明确指定渲染器
+        renderer: 'canvas',
       });
 
       const getInitChartOption = this.isPillarChart ? this.pillarOption : this.lineOptions;
@@ -641,7 +648,7 @@ export default class FieldAnalysis extends Vue {
     this.legendData = [];
     this.lineOptions = {};
     this.pillarOption = {};
-    this.height = 0;
+    this.height = this.chartSlotHeight;
 
     // 重置状态
     this.isShowEmpty = false;
@@ -702,7 +709,6 @@ export default class FieldAnalysis extends Vue {
       emptyTipsStr,
       emptyStr,
       totalConfig,
-      height,
       legendData,
       currentPageNum,
       legendMaxPageNum,
@@ -742,9 +748,9 @@ export default class FieldAnalysis extends Vue {
           </div>
 
           {isPillarChart && (
-            <div>
+            <div class='number-num-slot'>
               {infoLoading ? (
-                <ItemSkeleton columns={2} rowHeight={'22px'} rows={2} widths={['50%', '50%']} />
+                <ItemSkeleton columns={2} rowHeight={'32px'} rows={2} widths={['48%', '48%']} />
               ) : (
                 <div class='number-num-container'>
                   {totalConfig.map((item) => (
@@ -789,11 +795,12 @@ export default class FieldAnalysis extends Vue {
                 <span class='chart-title-time'>{pillarQueryTime}</span>
               </div>
 
-              {chartLoading ? (
-                <ChartSkeleton type={isPillarChart ? 'bar' : 'line'} />
-              ) : (
-                <div ref='fieldChart' style={{ width: '100%', height: `${height}px` }} />
-              )}
+              <div class='field-chart-slot' style={{ height: `${this.chartSlotHeight}px` }}>
+                {!isShowEmpty && <div ref='fieldChart' class='field-chart-canvas' />}
+                {chartLoading && (
+                  <ChartSkeleton height={this.chartSlotHeight} type={isPillarChart ? 'bar' : 'line'} />
+                )}
+              </div>
 
               {!(chartLoading || isPillarChart) && (
                 <div style={{ height: `${CHART_HEIGHTS.LEGEND_BOX}px` }} class='legend-box'>

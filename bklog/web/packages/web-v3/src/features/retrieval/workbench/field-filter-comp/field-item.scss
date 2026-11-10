@@ -155,7 +155,7 @@
       position: absolute;
       top: 0px;
       right: 0;
-      z-index: 999;
+      z-index: var(--bklog-z-dropdown);
 
       /* stylelint-disable-next-line declaration-no-important */
       display: none !important;

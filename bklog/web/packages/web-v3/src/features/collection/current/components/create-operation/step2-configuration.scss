@@ -109,7 +109,7 @@
           cursor: pointer;
           &.is-selected {
             position: relative;
-            z-index: 1;
+            z-index: var(--bklog-z-base);
             background: #fff;
             border-color: #3a84ff;
             color: #3a84ff;

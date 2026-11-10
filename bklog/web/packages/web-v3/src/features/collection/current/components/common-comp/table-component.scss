@@ -5,7 +5,7 @@
   .table-set {
     position: absolute;
     right: 8px;
-    z-index: 60;
+    z-index: var(--bklog-z-float);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -30,7 +30,7 @@
     width: calc(100% - 10px);
     position: absolute;
     top: 80px;
-    z-index: 3;
+    z-index: var(--bklog-z-local);
     height: 400px;
     background:#fff;
   }
@@ -45,7 +45,7 @@
       position: absolute;
       top: 40px;
       left: 0px;
-      z-index: 6;
+      z-index: var(--bklog-z-sticky);
     }
     .table-empty-content {
       width: 100%;

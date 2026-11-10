@@ -449,7 +449,7 @@
       position: fixed;
       bottom: 0;
       left: 0;
-      z-index: 999;
+      z-index: var(--bklog-z-dropdown);
       width: 100%;
       min-width: 1460px;
       height: 460px;

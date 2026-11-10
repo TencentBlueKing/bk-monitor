@@ -127,7 +127,7 @@
           right: 0;
           bottom: 0;
           left: 0;
-          z-index: 100;
+          z-index: var(--bklog-z-nav-top);
           height: 1px;
           content: '';
           border-bottom: dashed 1px #3a84ff;
@@ -151,7 +151,7 @@
           top: 0;
           bottom: 0;
           left: 0;
-          z-index: 100;
+          z-index: var(--bklog-z-nav-top);
           width: 1px;
           content: '';
           border-left: dashed 1px #3a84ff;

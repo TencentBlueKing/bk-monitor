@@ -10,6 +10,8 @@
 import { computed, defineComponent, type CSSProperties } from 'vue';
 import { Loading as TLoading } from 'tdesign-vue-next';
 
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
+
 import './index.scss';
 
 const toOverlayColor = (color: string, opacity: number) => {
@@ -52,7 +54,7 @@ export default defineComponent({
     },
     zIndex: {
       type: Number,
-      default: 1000,
+      default: Z_INDEX_LAYERS.PAGE,
     },
   },
   setup(props, { attrs, slots }) {

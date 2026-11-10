@@ -141,7 +141,7 @@
 
 <style lang="scss">
   .bklog-api-error-message {
-    z-index: 9999;
+    z-index: var(--bklog-z-message);
     max-width: 560px;
 
     .bk-message-content {

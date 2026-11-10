@@ -79,7 +79,7 @@
     }
 
     .above {
-      z-index: 999;
+      z-index: var(--bklog-z-dropdown);
     }
 
     .is-not-error {

@@ -29,7 +29,7 @@
       color: #fff;
       background-color: #3a84ff;
       border-color: #3a84ff;
-      z-index: 1;
+      z-index: var(--bklog-z-base);
     }
 
     &:not(.active) {

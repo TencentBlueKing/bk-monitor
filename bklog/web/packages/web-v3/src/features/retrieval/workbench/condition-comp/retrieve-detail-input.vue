@@ -721,7 +721,7 @@
 
     .retrieve-dropdown {
       position: absolute;
-      z-index: 99;
+      z-index: var(--bklog-z-nav);
       width: 100%;
       max-height: 360px;
       margin-top: 4px;

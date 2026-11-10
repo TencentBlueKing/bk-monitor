@@ -45,7 +45,7 @@
       position: fixed;
       top: 100px;
       left: 0;
-      z-index: 3000;
+      z-index: var(--bklog-z-dialog);
       display: flex;
       flex-direction: column;
       overflow: auto;

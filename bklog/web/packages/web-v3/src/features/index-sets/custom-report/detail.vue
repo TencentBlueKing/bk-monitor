@@ -240,7 +240,7 @@
     position: fixed;
     top: 99px;
     right: 0;
-    z-index: 999;
+    z-index: var(--bklog-z-dropdown);
     height: calc(100vh - 99px);
     overflow: hidden;
 
@@ -248,7 +248,7 @@
       position: absolute;
       top: 48%;
       right: 304px;
-      z-index: 100;
+      z-index: var(--bklog-z-nav-top);
       display: inline-block;
       width: 20px;
       height: 40px;
