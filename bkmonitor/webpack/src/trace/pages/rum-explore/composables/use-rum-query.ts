@@ -142,16 +142,19 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   }
 
   /**
-   * 从 URL 还原时间范围：优先分享组件通用的 from / to（裸值，数字串按毫秒时间戳还原，
-   * 其余按相对表达式 / 日期串原样透传），兼容早期把整个数组存在 timeRange 里的旧链接。
+   * 从 URL 还原时间范围：优先早期把整个数组存在 timeRange 里的旧参数，没有时再用分享组件通用的 from / to
+   * （裸值，数字串按毫秒时间戳还原，其余按相对表达式 / 日期串原样透传）。
+   * 旧分享 token 会同时带上页面真实的 timeRange 与弹窗按缺省近 1 小时写入的 from / to，此时 timeRange 才是原页面范围。
    */
   function parseUrlTimeRange(query: Record<string, string>): TimeRangeType | undefined {
-    // from / to 是通用约定，重复参数（?from=a&from=b）会解析成数组，非字符串一律忽略并走旧参数回退
+    const legacy = tryURLDecodeParse<TimeRangeType>(query.timeRange, undefined);
+    if (Array.isArray(legacy) && legacy[0] && legacy[1]) return legacy;
+    // from / to 是通用约定，重复参数（?from=a&from=b）会解析成数组，非字符串一律忽略
     const { from, to } = query as Record<string, unknown>;
     if (typeof from === 'string' && typeof to === 'string' && from && to) {
-      return [intTimestampStr(from) ?? '', intTimestampStr(to) ?? ''];
+      return [intTimestampStr(from) ?? from, intTimestampStr(to) ?? to];
     }
-    return tryURLDecodeParse<TimeRangeType>(query.timeRange, undefined);
+    return undefined;
   }
 
   /** 从 URL 恢复查询状态，在应用列表就绪前调用 */
