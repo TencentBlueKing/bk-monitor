@@ -219,7 +219,7 @@ class QueryRawResource(UnifyQueryAPIResource):
 
     class RequestSerializer(serializers.Serializer):
         query_list = serializers.ListField()
-        metric_merge = serializers.CharField()
+        metric_merge = serializers.CharField(required=False)
         start_time = serializers.CharField()
         end_time = serializers.CharField()
         step = serializers.CharField()
