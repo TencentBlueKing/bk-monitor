@@ -9,31 +9,31 @@
       {
         "id": "input", "name": "输入", "value": 1000,
         "children": [
-          {"id": "system", "name": "系统提示词", "value": 100, "children": []},
-          {"id": "definitions", "name": "可用工具", "value": 250, "children": []},
+          {"id": "system", "name": "系统提示词", "value": 81, "children": []},
+          {"id": "definitions", "name": "可用工具", "value": 203, "children": []},
           {
-            "id": "context", "name": "会话上下文", "value": 650,
+            "id": "context", "name": "会话上下文", "value": 716,
             "children": [
               {
-                "id": "tool_calls", "name": "工具调用", "value": 517,
+                "id": "tool_calls", "name": "工具调用", "value": 608,
                 "children": [
-                  {"id": "tool_calls/tool/search", "name": "search", "value": 150, "children": []},
-                  {"id": "tool_calls/tool/write", "name": "write", "value": 117, "children": []},
-                  {"id": "tool_calls/tool/read", "name": "read", "value": 100, "children": []},
-                  {"id": "tool_calls/other", "name": "其他工具", "value": 150, "children": []}
+                  {"id": "tool_calls/tool/search", "name": "search", "value": 311, "call_count": 3, "children": []},
+                  {"id": "tool_calls/tool/write", "name": "write", "value": 95, "call_count": 1, "children": []},
+                  {"id": "tool_calls/tool/read", "name": "read", "value": 81, "call_count": 1, "children": []},
+                  {"id": "tool_calls/other", "name": "其他工具", "value": 121, "call_count": 2, "children": []}
                 ]
               },
               {
-                "id": "conversation", "name": "会话内容", "value": 133,
+                "id": "conversation", "name": "会话内容", "value": 108,
                 "children": [
-                  {"id": "model", "name": "模型消息", "value": 58, "children": []},
-                  {"id": "user", "name": "用户消息", "value": 75, "children": []}
+                  {"id": "model", "name": "模型消息", "value": 47, "children": []},
+                  {"id": "user", "name": "用户消息", "value": 61, "children": []}
                 ]
               }
             ]
           }
         ],
-        "estimated_to_reported_ratio": 0.12
+        "estimated_to_reported_ratio": 0.148
       },
       {
         "id": "output", "name": "输出", "value": 200,
@@ -43,34 +43,12 @@
         ],
         "estimated_to_reported_ratio": 0.32
       }
-    ],
-    "tools": [
-      {
-        "trace_id": "trace-1", "name": "search", "label": "search",
-        "span_ids": ["model-1"], "call_count": 1, "tokens": 150
-      },
-      {
-        "trace_id": "trace-1", "name": "write", "label": "write",
-        "span_ids": ["model-1"], "call_count": 1, "tokens": 117
-      },
-      {
-        "trace_id": "trace-1", "name": "read", "label": "read",
-        "span_ids": ["model-1"], "call_count": 1, "tokens": 100
-      },
-      {
-        "trace_id": "trace-1", "name": "query", "label": "query",
-        "span_ids": ["model-1"], "call_count": 1, "tokens": 83
-      },
-      {
-        "trace_id": "trace-1", "name": "exec", "label": "exec",
-        "span_ids": ["model-1"], "call_count": 1, "tokens": 67
-      }
     ]
   },
   "token_categories": [
-    {"key": "gen_ai.system_instructions", "label": "系统提示词", "tokens": 100},
-    {"key": "gen_ai.tool.definitions", "label": "可用工具", "tokens": 250},
-    {"key": "gen_ai.input.messages", "label": "输入", "tokens": 650},
+    {"key": "gen_ai.system_instructions", "label": "系统提示词", "tokens": 81},
+    {"key": "gen_ai.tool.definitions", "label": "可用工具", "tokens": 203},
+    {"key": "gen_ai.input.messages", "label": "输入", "tokens": 716},
     {"key": "gen_ai.output.messages", "label": "输出", "tokens": 200}
   ]
 }
@@ -112,32 +90,19 @@
 
 ### b. 工具调用节点
 
-| 节点 ID | `name` | `value` | `children` |
-| --- | --- | --- | --- |
-| `tool_calls` | 工具调用 | 全部工具的输入占用 | Top3 工具及其他工具 *[1]* |
-| `tool_calls/tool/<编码后的工具名>` | 工具名或“未知工具” | 该工具的输入占用 | `[]` *[2]* |
-| `tool_calls/other` | 其他工具 | Top3 之外的合计 | `[]` *[3]* |
+| 节点 ID | `name` | `value` | `call_count` | `children` |
+| --- | --- | --- | --- | --- |
+| `tool_calls` | 工具调用 | 全部工具的输入占用 | 不返回 | Top3 工具及其他工具 *[1]* |
+| `tool_calls/tool/<编码后的工具名>` | 工具名或“未知工具” | 该工具的输入占用 | 该工具的调用次数 *[2]* | `[]` |
+| `tool_calls/other` | 其他工具 | Top3 之外的 Token 合计 | Top3 之外的调用次数合计 | `[]` *[5]* |
 
-- *[1] 同名工具汇总后按 Token 数降序取前三，数量相同时按原名排序，工具参数与结果合并统计。*
-- *[2] ID 使用工具原名的 URL 百分号编码，名称缺失时编码部分为空，调用次数与 Span 关联见 `token_matrix.tools`。*
-- *[3] 其余工具合计非零时追加“其他工具”，与会话内容的 `other` 含义不同。*
+- *[1] 按工具原名汇总 Token 和调用次数，再按 Token 数降序取前三，Token 数相同时按原名排序。*
+- *[2] 仅工具叶子（含“其他工具”）必填 `int` 类型的 `call_count`，统计输入中已出现的调用，输出中新生成的调用计入 `output.content`。*
+- *[3] 按 `(trace_id, call_id)` 去重，同一调用的参数、结果和重复上下文只计 `1` 次，Token 累计消耗，无调用 ID 时按出现位置计数。*
+- *[4] 工具 ID 使用原名的 URL 百分号编码，名称缺失时编码部分为空。*
+- *[5] 存在 Top3 之外的工具时追加“其他工具”，即使 Token 为 `0` 也保留调用次数。*
 
-### c. 工具占用
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `token_matrix.tools[].trace_id` | `string` | 是 | 所属 Trace |
-| `token_matrix.tools[].name` | `string` | 是 | 工具名，无法关联时为空字符串 |
-| `token_matrix.tools[].label` | `string` | 是 | 工具名或“未知工具” |
-| `token_matrix.tools[].span_ids` | `array<string>` | 是 | 输入上下文包含该调用的模型 Span |
-| `token_matrix.tools[].call_count` | `int` | 是 | 按调用 ID 去重的次数 *[1]* |
-| `token_matrix.tools[].tokens` | `int` | 是 | 输入中工具参数与结果的合计 *[2]* |
-
-- *[1] 无调用 ID 时按出现位置计数。*
-- *[2] 同一调用被多次携带时累计重复消耗，输出中新生成的工具调用计入 `output.content`。*
-- *[3] 返回全部工具，按 Token 数降序排列。*
-
-### d. 分类与来源
+### c. 分类与来源
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |

@@ -141,7 +141,7 @@ class TokenUsageBuilder:
         self.counts: dict[str, int] = defaultdict(int)
         self.estimated_totals: dict[str, int | None] = {"input": 0, "output": 0}
         self.estimated_token_fields: set[str] = set()
-        self.tool_calls: dict[tuple[str, str], dict[str, Any]] = {}
+        self.tool_calls: dict[tuple[str, str], int] = defaultdict(int)
         self.tool_names: dict[tuple[str, str], str] = {}
         self.counters: dict[str, TokenCounter] = {}
 
@@ -190,9 +190,7 @@ class TokenUsageBuilder:
                 self.counts[count.category] += count.tokens
                 category_totals[count.section] += count.tokens
                 if count.category == "tool_calls":
-                    call = self.tool_calls.setdefault((trace_id, count.call_id), {"span_ids": set(), "tokens": 0})
-                    call["span_ids"].add(span["span_id"])
-                    call["tokens"] += count.tokens
+                    self.tool_calls[trace_id, count.call_id] += count.tokens
         span["token_categories"] = [
             {"key": field, "label": _(label), "tokens": category_totals[section]}
             for section, (field, label) in CONTENT_CATEGORIES.items()
@@ -207,42 +205,34 @@ class TokenUsageBuilder:
                 "children": list(children),
             }
 
-        tools: dict[tuple[str, str], dict[str, Any]] = {}
-        for call_key, call in self.tool_calls.items():
-            trace_id, _call_id = call_key
+        tools: dict[str, dict[str, Any]] = {}
+        for call_key, tokens in self.tool_calls.items():
             name: str = self.tool_names.get(call_key, "")
             tool = tools.setdefault(
-                (trace_id, name),
+                name,
                 {
-                    "trace_id": trace_id,
-                    "name": name,
-                    "label": name or _("未知工具"),
-                    "span_ids": set(),
+                    "id": f"tool_calls/tool/{quote(name, safe='')}",
+                    "name": name or _("未知工具"),
+                    "value": 0,
                     "call_count": 0,
-                    "tokens": 0,
+                    "children": [],
                 },
             )
-            tool["span_ids"].update(call["span_ids"])
+            tool["value"] += tokens
             tool["call_count"] += 1
-            tool["tokens"] += call["tokens"]
-        rows = [{**tool, "span_ids": sorted(tool["span_ids"])} for tool in tools.values()]
-        rows.sort(key=lambda row: (-row["tokens"], row["trace_id"], row["name"]))
-        tool_totals: dict[str, int] = defaultdict(int)
-        for row in rows:
-            tool_totals[row["name"]] += row["tokens"]
-        ranked_tools: list[tuple[str, int]] = sorted(tool_totals.items(), key=lambda item: (-item[1], item[0]))
-        tool_nodes: list[dict[str, Any]] = [
-            {
-                "id": f"tool_calls/tool/{quote(name, safe='')}",
-                "name": name or _("未知工具"),
-                "value": tokens,
-                "children": [],
-            }
-            for name, tokens in ranked_tools[:3]
-        ]
-        remaining: int = sum(tokens for _name, tokens in ranked_tools[3:])
+        ranked_names: list[str] = sorted(tools, key=lambda name: (-tools[name]["value"], name))
+        tool_nodes: list[dict[str, Any]] = [tools[name] for name in ranked_names[:3]]
+        remaining: list[dict[str, Any]] = [tools[name] for name in ranked_names[3:]]
         if remaining:
-            tool_nodes.append({"id": "tool_calls/other", "name": _("其他工具"), "value": remaining, "children": []})
+            tool_nodes.append(
+                {
+                    "id": "tool_calls/other",
+                    "name": _("其他工具"),
+                    "value": sum(tool["value"] for tool in remaining),
+                    "call_count": sum(tool["call_count"] for tool in remaining),
+                    "children": [],
+                }
+            )
         conversation: list[dict[str, Any]] = [node("model", "模型消息"), node("user", "用户消息")]
         if self.counts["other"]:
             conversation.append(node("other", "其他"))
@@ -266,7 +256,7 @@ class TokenUsageBuilder:
             root["estimated_to_reported_ratio"] = (
                 estimated / root["value"] if estimated is not None and root["value"] else None
             )
-        return {"nodes": nodes, "tools": rows}
+        return {"nodes": nodes}
 
 
 def build_token_matrix(spans: Iterable[dict[str, Any]]) -> dict[str, Any]:
