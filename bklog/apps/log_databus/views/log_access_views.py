@@ -32,28 +32,37 @@ from apps.log_databus.serializers import (
 
 from apps.utils.drf import list_route
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
+from apps.log_databus.models import CollectorConfig
 
-from apps.iam.handlers.drf import IAMPermission, ViewBusinessPermission, insert_permission_field
+from apps.iam.handlers.drf import IAMPermission, insert_permission_field
 from apps.iam import ActionEnum, ResourceEnum
 
 
 class LogAccessViewSet(APIViewSet):
     def get_permissions(self):
         if self.action == "get_collector_status":
-            return [ViewBusinessPermission()]
-
-        # 列表按 space_uid 查询，鉴权也须基于该空间，避免伪造 bk_biz_id 绕过校验。
-        params = self.request.query_params if self.request.method == "GET" else self.request.data
-        space_uid = SpaceUIDField().run_validation(params.get("space_uid"))
-        bk_biz_id = space_uid_to_bk_biz_id(space_uid)
-        if not bk_biz_id:
-            raise ValidationError("无效的空间")
+            data = self.params_valid(GetCollectorStatusSerializer)
+            # 状态查询可能跨业务，须按采集项实际归属分别鉴权。
+            bk_biz_ids = set(
+                CollectorConfig.objects.filter(collector_config_id__in=data["collector_config_id_list"]).values_list(
+                    "bk_biz_id", flat=True
+                )
+            )
+        else:
+            # 列表按 space_uid 查询，鉴权也须基于该空间，避免伪造 bk_biz_id 绕过校验。
+            params = self.request.query_params if self.request.method == "GET" else self.request.data
+            space_uid = SpaceUIDField().run_validation(params.get("space_uid"))
+            bk_biz_id = space_uid_to_bk_biz_id(space_uid)
+            if not bk_biz_id:
+                raise ValidationError("无效的空间")
+            bk_biz_ids = {bk_biz_id}
 
         return [
             IAMPermission(
                 [ActionEnum.VIEW_BUSINESS],
                 [ResourceEnum.BUSINESS.create_instance(bk_biz_id)],
             )
+            for bk_biz_id in sorted(bk_biz_ids)
         ]
 
     @insert_permission_field(
