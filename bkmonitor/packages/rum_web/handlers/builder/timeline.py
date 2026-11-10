@@ -21,17 +21,15 @@ from rum_web.handlers.builder.span.session import session_time_range
 from rum_web.handlers.builder.utils import get_safe_number
 
 
-SESSION_MAX_DURATION_US = 4 * 60 * 60 * 1_000_000
+MAX_DURATION_US = 4 * 60 * 60 * 1_000_000
 
 
 def summary(
     spans: Sequence[dict[str, Any]],
     start_time: int | float | None,
     end_time: int | float | None,
-    *,
-    is_session: bool,
 ) -> dict[str, Any]:
-    """从已查询的原始 Span 计算当前会话或 View 的时长和状态。"""
+    """规范会话或 View 的时间范围，再计算时长和状态。"""
     starts: list[int | float] = []
     ends: list[int | float] = []
     for span in spans:
@@ -41,23 +39,21 @@ def summary(
             ends.append(end)
     observed_start: int | float | None = min(starts, default=None)
     observed_end: int | float | None = max(ends, default=None)
-    duration_start: int | float | None = start_time
-    duration_end: int | float | None = end_time
-    if start_time is None or end_time is None:
-        duration_start, duration_end = observed_start, observed_end
-        if not is_session and start_time is not None:
-            duration_start = start_time
-    duration: int | float | None = None
-    if duration_start is not None and duration_end is not None and duration_end >= duration_start:
-        duration = (duration_end - duration_start) / 1000
-
-    origin: int | float | None = start_time if start_time is not None else observed_start
+    if start_time is None:
+        start_time = observed_start
     status: str | None = None
     if end_time is not None:
         status = "ended"
-    elif origin is not None:
-        status = "expired" if is_session and time.time() * 1_000_000 - origin >= SESSION_MAX_DURATION_US else "active"
-    return {"duration": duration, "status": status}
+    elif start_time is not None and time.time() * 1_000_000 - start_time >= MAX_DURATION_US:
+        status = "expired"
+        end_time = start_time + MAX_DURATION_US
+    else:
+        status = "active" if start_time is not None else None
+        end_time = observed_end
+    duration: int | float | None = None
+    if start_time is not None and end_time is not None and end_time >= start_time:
+        duration = (end_time - start_time) / 1000
+    return {"start_time": start_time, "end_time": end_time, "duration": duration, "status": status}
 
 
 @dataclass

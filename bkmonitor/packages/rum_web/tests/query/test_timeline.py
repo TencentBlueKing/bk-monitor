@@ -389,6 +389,7 @@ class TestTimelineHandler:
     )
     def test_single_view_uses_navigation_start_and_end_snapshot(self, mocker, ended, started_at):
         handler = _handler()
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=2)
         first = _view(started_at=started_at[0], start_time=1_500_000)
         middle = _view("middle", started_at=started_at[1], version=2, start_time=1_650_000)
         latest = _view("latest", started_at=started_at[2], version=3, start_time=1_800_000, end_time=1_800_000)
@@ -398,7 +399,7 @@ class TestTimelineHandler:
         result = handler.timeline(view_id="view-1")
 
         assert result["start_time"] == 1_234_000
-        assert result["end_time"] == (1_800_000 if ended else None)
+        assert result["end_time"] == 1_800_000
         assert result["duration"] == 566
         assert result["status"] == ("ended" if ended else "active")
         assert result["tree"] == [{"span_id": "view-span-1"}]
@@ -422,15 +423,16 @@ class TestTimelineHandler:
     @pytest.mark.parametrize(
         "started_at,end_time,expected_start,expected_end",
         [
-            (None, None, None, None),
+            (None, None, 1_000_000, None),
             (0, 0, 0, 0),
-            ("invalid", "invalid", None, None),
-            ("nan", "nan", None, None),
-            (float("inf"), float("-inf"), None, None),
+            ("invalid", "invalid", 1_000_000, None),
+            ("nan", "nan", 1_000_000, None),
+            (float("inf"), float("-inf"), 1_000_000, None),
         ],
     )
     def test_missing_zero_and_invalid_view_boundaries(self, mocker, started_at, end_time, expected_start, expected_end):
         handler = _handler()
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=2)
         view = _view(started_at=started_at, end_time=end_time)
         view["attributes"]["view.phase"] = "end"
         mocker.patch.object(handler.query, "query_list", return_value=[view])
@@ -443,42 +445,43 @@ class TestTimelineHandler:
 
 class TestTimelineSummary:
     @pytest.mark.parametrize(
-        "is_session,start,end,observed_start,observed_end,age,status,duration",
+        "start,end,observed_start,observed_end,age,status,expected_end,duration",
         [
-            (True, 100, 1600, 0, 2000, 5 * 3600, "ended", 1.5),
-            (True, 100, None, 0, 2000, 4 * 3600 - 1, "active", 2),
-            (True, 100, None, 0, 2000, 4 * 3600, "expired", 2),
-            (True, None, None, 100, 2100, 4 * 3600, "expired", 2),
-            (True, None, 1600, 0, 2000, 3600, "ended", 2),
-            (False, 100, 1600, 500, 2000, 5 * 3600, "ended", 1.5),
-            (False, 100, None, 500, 2000, 5 * 3600, "active", 1.9),
-            (False, None, None, 100, 2100, 3600, "active", 2),
-            (False, 0, 0, 0, 0, 0, "ended", 0),
-            (True, 0, 0, 0, 0, 0, "ended", 0),
-            (True, 100, 99, 0, 2000, 3600, "ended", None),
-            (False, 100, 99, 0, 2000, 3600, "ended", None),
-            (True, None, None, None, None, 3600, None, None),
-            (False, None, None, None, None, 3600, None, None),
+            (100, 1600, 0, 2000, 5 * 3600, "ended", 1600, 1.5),
+            (100, None, 0, 2000, 4 * 3600 - 1, "active", 2000, 1.9),
+            (100, None, 0, 2000, 4 * 3600, "expired", 14_400_000_100, 14_400_000),
+            (None, None, 100, 2100, 4 * 3600, "expired", 14_400_000_100, 14_400_000),
+            (None, 1600, 0, 2000, 3600, "ended", 1600, 1.6),
+            (100, None, 500, 2000, 5 * 3600, "expired", 14_400_000_100, 14_400_000),
+            (None, None, 100, 2100, 3600, "active", 2100, 2),
+            (0, 0, 0, 0, 0, "ended", 0, 0),
+            (100, 99, 0, 2000, 3600, "ended", 99, None),
+            (None, None, None, None, 3600, None, None, None),
         ],
     )
     def test_duration_and_status(
-        self, mocker, is_session, start, end, observed_start, observed_end, age, status, duration
+        self, mocker, start, end, observed_start, observed_end, age, status, expected_end, duration
     ):
         origin = start if start is not None else observed_start or 0
         mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=origin / 1_000_000 + age)
 
-        result = build_timeline_summary(
-            [{"start_time": observed_start, "end_time": observed_end}], start, end, is_session=is_session
-        )
+        result = build_timeline_summary([{"start_time": observed_start, "end_time": observed_end}], start, end)
 
-        assert result == {"duration": duration, "status": status}
+        assert result == {
+            "start_time": start if start is not None else observed_start,
+            "end_time": expected_end,
+            "duration": duration,
+            "status": status,
+        }
 
-    @pytest.mark.parametrize("is_session", [False, True])
     @pytest.mark.parametrize("value", [None, "invalid", "nan", float("inf")])
-    def test_invalid_observation(self, is_session, value):
-        assert build_timeline_summary(
-            [{"start_time": value, "end_time": value}], None, None, is_session=is_session
-        ) == {"duration": None, "status": None}
+    def test_invalid_observation(self, value):
+        assert build_timeline_summary([{"start_time": value, "end_time": value}], None, None) == {
+            "start_time": None,
+            "end_time": None,
+            "duration": None,
+            "status": None,
+        }
 
     @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
     def test_handler_uses_raw_spans_including_records_outside_tree(self, mocker, scope):
@@ -495,7 +498,7 @@ class TestTimelineSummary:
         query.assert_called_once()
         assert result["duration"] == 50
         assert result["status"] == "active"
-        assert result["end_time"] is None
+        assert result["end_time"] == 1_050_000
         assert [record["span_id"] for record in result["records"]] == ["view-span-1"]
 
     @pytest.mark.parametrize("ended", [False, True])
@@ -515,7 +518,20 @@ class TestTimelineSummary:
 
         assert result["duration"] == (600 if ended else 500)
         assert result["status"] == ("ended" if ended else "active")
-        assert result["end_time"] == (1_600_000 if ended else None)
+        assert result["end_time"] == (1_600_000 if ended else 1_500_000)
+
+    @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
+    def test_expiration_fills_four_hour_end_for_both_scopes(self, mocker, scope):
+        handler = _handler()
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=1 + 4 * 3600)
+        mocker.patch.object(handler.query, "query_list", return_value=[_view()])
+
+        result = handler.timeline(**scope)
+
+        assert result["start_time"] == 1_000_000
+        assert result["end_time"] == 1_000_000 + 4 * 3600 * 1_000_000
+        assert result["duration"] == 4 * 3600 * 1000
+        assert result["status"] == "expired"
 
 
 class TestTimelineQuery:

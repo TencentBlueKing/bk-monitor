@@ -100,9 +100,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         timeline = build_timeline(spans)
         if view_id:
             timeline["start_time"], timeline["end_time"] = self._view_time_range(spans)
-        timeline.update(
-            build_timeline_summary(spans, timeline["start_time"], timeline["end_time"], is_session=bool(session_id))
-        )
+        timeline.update(build_timeline_summary(spans, timeline["start_time"], timeline["end_time"]))
         return timeline
 
     @staticmethod
