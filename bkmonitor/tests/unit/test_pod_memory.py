@@ -112,6 +112,7 @@ def builders():
             "resource_class",
             "column_mapping",
             "only_fields",
+            "pod_memory_quota_filters",
             "pod_memory_usage",
             "tpl_prom_with_nothing",
             "meta_prom_with_kube_pod_memory_requests_ratio",
@@ -139,6 +140,7 @@ def builders():
             "pod_memory_panel_target",
             "copy_replace_panels_with_where",
             "get_pod_view_config",
+            "get_view_config",
             "get_order",
             "get_order_groups",
             "get_order_item_hidden_by_default",
@@ -243,9 +245,21 @@ class TestPodMemoryQueries(unittest.TestCase):
 
     def test_empty_container_selection_does_not_disable_parent(self):
         self.meta.add_filter(self.ns["load_resource_filter"]("container", []))
-        query = self.meta.meta_prom_with_container_memory_working_set_bytes
-        self.assertIn("pod_memory_working_set_bytes", query)
-        self.assertNotIn('container_name=~"^()$"', query)
+        for metric in (
+            "container_memory_working_set_bytes",
+            "kube_pod_memory_requests_ratio",
+            "kube_pod_memory_limits_ratio",
+        ):
+            query = getattr(self.meta, f"meta_prom_with_{metric}")
+            self.assertIn("pod_memory_working_set_bytes", query)
+            self.assertNotIn('container_name=~"^()$"', query)
+
+    def test_nonempty_container_selection_is_kept_in_ratio_quota(self):
+        self.meta.add_filter(self.ns["load_resource_filter"]("container", ["main"]))
+        for kind in ("requests", "limits"):
+            query = getattr(self.meta, f"meta_prom_with_kube_pod_memory_{kind}_ratio")
+            self.assertNotIn("pod_memory_working_set_bytes", query)
+            self.assertGreaterEqual(query.count('container_name="main"'), 3)
 
     def test_ratio_identity_anchor_uses_selected_usage_and_keeps_denominator(self):
         for kind in ("requests", "limits"):
@@ -389,10 +403,44 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
         self.processor = self.ns["KubernetesBuiltinProcessor"]
         self.processor.get_metrics_list = Mock(return_value=list(self.ns["POD_MEMORY_METRICS"]))
 
-    def view(self, order=None):
+    def view(self, order=None, supports_pod_memory_promql=True):
         return self.processor.get_pod_view_config(
-            SimpleNamespace(id="pod", bk_biz_id=2, order=order or []), {"id": "pod"}
+            SimpleNamespace(id="pod", bk_biz_id=2, order=order or []),
+            {"id": "pod"},
+            supports_pod_memory_promql=supports_pod_memory_promql,
         )
+
+    def test_old_clients_keep_structured_detail_and_overview_queries(self):
+        view = self.view(supports_pod_memory_promql=False)
+        for panels in (view["panels"], view["overview_panels"]):
+            queries = panel_queries({"panels": panels})
+            for metric in ("container_memory_working_set_bytes", "container_memory_rss"):
+                data = queries[metric]
+                self.assertEqual(data["expression"], "A")
+                self.assertEqual(data["query_configs"][0]["data_source_label"], "bk_monitor")
+                self.assertNotIn("promql", data["query_configs"][0])
+                self.assertEqual(data["query_configs"][0]["metrics"][0]["field"], metric)
+            for kind in ("requests", "limits"):
+                data = queries[f"kube_pod_memory_{kind}_ratio"]
+                self.assertEqual(data["expression"], "A/B*100")
+                self.assertEqual(len(data["query_configs"]), 2)
+                self.assertTrue(all(query["data_source_label"] == "bk_monitor" for query in data["query_configs"]))
+
+    def test_scene_processor_uses_only_explicit_client_capability(self):
+        self.processor.load_builtin_views = Mock()
+        self.processor.get_view_id = Mock(return_value="kubernetes-pod")
+        self.processor.builtin_views = {"kubernetes-pod": {"id": "pod"}}
+        self.processor.get_pod_view_config = Mock(side_effect=lambda _view, config, **_kwargs: config)
+        for params, supported in (
+            (None, False),
+            ({}, False),
+            ({"supports_pod_memory_promql": False}, False),
+            ({"supports_pod_memory_promql": True}, True),
+        ):
+            self.processor.get_view_config(SimpleNamespace(id="pod"), params)
+            self.assertEqual(
+                self.processor.get_pod_view_config.call_args.kwargs["supports_pod_memory_promql"], supported
+            )
 
     def test_default_fields_ids_and_rss_ratio_meaning_are_preserved(self):
         queries = panel_queries(self.view())
@@ -405,6 +453,7 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
             self.assertIn(metric.replace("container_", "pod_"), config["pod_promql"])
             self.assertNotIn("pod_memory_", config["promql"])
             self.assertEqual(config["metrics"][0]["field"], metric)
+            self.assertEqual(config["related_metric_ids"], [f"bk_monitor..{metric}"])
             self.assertEqual(config["data_source_label"], "prometheus")
             self.assertEqual(config["interval"], "$interval")
             self.assertIn("$method by ($group_by)", config["promql"])
@@ -423,6 +472,10 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
             self.assertIn("group_right(workload_kind, workload_name)", ratio)
             self.assertIn("* 0 + 1", ratio)
             self.assertEqual(queries[f"kube_pod_memory_{kind}_ratio"]["expression"], "A")
+            self.assertEqual(
+                data["query_configs"][0]["related_metric_ids"],
+                ["bk_monitor..container_memory_rss", f"bk_monitor..kube_pod_container_resource_{kind}_memory_bytes"],
+            )
             unit = self.ns["GraphUnifyQueryResource"]().get_unit([{"unit": "bytes"}], data)
             self.assertEqual(unit, "none")
 

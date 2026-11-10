@@ -343,7 +343,9 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
         elif view.id == "workload":
             view_config = cls.get_workload_view_config(view, view_config)
         if view.id == "pod":
-            view_config = cls.get_pod_view_config(view, view_config)
+            view_config = cls.get_pod_view_config(
+                view, view_config, supports_pod_memory_promql=(params or {}).get("supports_pod_memory_promql", False)
+            )
         elif view.id == "container":
             view_config = cls.get_container_view_config(view, view_config)
         elif view.id == "service":
@@ -380,7 +382,13 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
         return view_config
 
     @classmethod
-    def get_pod_view_config(cls, view: SceneViewModel, view_config: Dict, view_position: str = None):
+    def get_pod_view_config(
+        cls,
+        view: SceneViewModel,
+        view_config: Dict,
+        view_position: str = None,
+        supports_pod_memory_promql: bool = False,
+    ):
         view_config["panels"] = []
         default_detail_config = copy.deepcopy(DEFAULT_POD_DETAIL)
         default_where = [
@@ -416,7 +424,7 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
         else:
             view_config["order"] = cls.get_order(view, default_detail_config)
         # 根据面板位置配置，添加前端显示的面板配置
-        cls.patch_group_panels(default_detail_config, default_where, view_config)
+        cls.patch_group_panels(default_detail_config, default_where, view_config, supports_pod_memory_promql)
         # 设置概览视图的面板
         overview_where = []
         overview_panels = cls.copy_replace_panels_with_where(view_config["panels"], overview_where)
@@ -1028,7 +1036,7 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
         }
 
     @classmethod
-    def patch_group_panels(cls, default_detail_config, default_where, view_config):
+    def patch_group_panels(cls, default_detail_config, default_where, view_config, supports_pod_memory_promql=False):
         """给面板配置添加unify query参数 ."""
         # 格式化默认配置
         default_detail_config_map = {}
@@ -1058,7 +1066,11 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                 }
                 target = panel_param["target"]
                 if target:
-                    if view_config["id"] == "pod" and target["query_configs"][0]["field"] in POD_MEMORY_METRICS:
+                    if (
+                        supports_pod_memory_promql
+                        and view_config["id"] == "pod"
+                        and target["query_configs"][0]["field"] in POD_MEMORY_METRICS
+                    ):
                         panel["targets"].append(cls.pod_memory_panel_target(target, default_where))
                         panels_to_show.append(panel)
                         continue
@@ -1178,6 +1190,8 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                 {"field": qc["field"], "alias": qc.get("alias", "A"), "method": "$method"}
                 for qc in target["query_configs"]
             ],
+            # These are the original structured metrics used by the alert link.
+            "related_metric_ids": [f"bk_monitor.{qc.get('table', '')}.{qc['field']}" for qc in target["query_configs"]],
             "where": where,
             "functions": [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}],
         }

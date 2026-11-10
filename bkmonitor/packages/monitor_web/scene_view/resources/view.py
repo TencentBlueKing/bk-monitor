@@ -245,6 +245,8 @@ class GetSceneViewResource(ApiAuthResource):
         # ---
         # view场景开关
         view_switches = serializers.DictField(label="view场景开关", required=False, default={})
+        # 新客户端可处理 Pod 内存图的原生 PromQL 模板；旧客户端继续接收原有查询配置。
+        supports_pod_memory_promql = serializers.BooleanField(required=False, default=False)
         # ---
 
         def validate(self, params):

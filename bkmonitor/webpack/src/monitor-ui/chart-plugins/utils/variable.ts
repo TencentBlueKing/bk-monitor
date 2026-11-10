@@ -151,7 +151,7 @@ export class VariablesService {
         if (typeof val === 'string') {
           if (this.hasVariables(val)) {
             const v =
-              key === 'promql'
+              key === 'promql' || key === 'related_promql'
                 ? this.replacePromql(val, mergeVars, keepPromqlVariables)
                 : this.replaceString(val.toString(), mergeVars);
             data[key] = v ?? undefined;

@@ -1158,16 +1158,18 @@ export class LineChart
       case 'drill-down': // 下钻 默认主机
         this.handleDrillDown(menuItem.childValue);
         break;
-      case 'relate-alert':
-        for (const target of this.panel?.targets || []) {
+      case 'relate-alert': {
+        const copyPanel = { ...this.panel, targets: deepClone(this.panel?.targets || []) };
+        for (const target of copyPanel.targets) {
           if (target.data?.query_configs?.length) {
             let queryConfig = deepClone(target.data.query_configs);
             queryConfig = variablesService.transformVariables(queryConfig);
             target.data.query_configs = queryConfig;
           }
         }
-        handleRelateAlert(this.panel, this.timeRange);
+        handleRelateAlert(copyPanel as PanelModel, this.timeRange);
         break;
+      }
       default:
         break;
     }

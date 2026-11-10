@@ -87,6 +87,7 @@ test('Pod WS target keeps the existing API and selects parent or child total bef
         data_source_label: 'prometheus',
         data_type_label: 'time_series',
         promql: `$method by(namespace,pod_name)(${selectedUsage})`,
+        related_promql: `$method by(namespace,pod_name)(container_memory_working_set_bytes{${childFilter}} $time_shift)`,
         interval: '$interval_second',
         alias: 'a',
         filter_dict: {},
@@ -216,6 +217,40 @@ test('Pod Request/Limit denominators aggregate container totals before every dis
         const grouping = total.getChild('AggregateModifier').getChild('GroupingLabels');
         assert.equal(promql.slice(grouping.from, grouping.to), '(bcs_cluster_id,namespace,pod_name)');
       }
+    }
+  }
+});
+
+test('Single-Pod WS auxiliary lines use the same selected quota totals as the ratio denominators', () => {
+  for (const filters of [{}, { container: [] }, { container: ['api'] }, { container: ['api', 'sidecar'] }]) {
+    const input = context(fields.POD, filters);
+    const panels = targets.createTargetsPanelList(SceneEnum.Performance, metrics[0], input, true);
+    assert.equal(panels.length, 3);
+    const byAlias = new Map(panels.slice(1).map(panel => [panel.data.query_configs[0].alias, panel.data.query_configs[0].promql]));
+    for (const [alias, metric] of [['request', metrics[1]], ['limit', metrics[2]]]) {
+      const ratio = generator.generate(metric, input);
+      const denominator = ratio.slice(ratio.indexOf(' / ') + 3).replaceAll(' $time_shift', '');
+      assert.equal(byAlias.get(alias), denominator);
+      for (const method of ['sum', 'max', 'avg', 'min', 'count']) parsed(denominator, method);
+      if (filters.container?.length) assert.ok(denominator.includes(`container_name=~"^(${filters.container.join('|')})$"`));
+    }
+    assert.ok(byAlias.get('limit').includes('kube_pod_init_container_status_running'));
+  }
+});
+
+test('Pod memory alert queries preserve the preexisting PromQL for metric identification', () => {
+  for (const filters of [{}, { container: ['api'] }, { container: ['api', 'sidecar'] }]) {
+    const input = context(fields.POD, filters);
+    for (const metric of metrics) {
+      const query = targets.createNodesTarget(SceneEnum.Performance, metric, input).data.query_configs[0];
+      assert.equal(query.related_promql, generator.scenePrivatePromqlGenerateMain(metric, input, true));
+      parsed(query.related_promql, 'sum', 'offset 1h');
+    }
+    const auxiliary = targets.createTargetsPanelList(SceneEnum.Performance, metrics[0], input, true).slice(1);
+    for (const panel of auxiliary) {
+      const query = panel.data.query_configs[0];
+      assert.ok(query.related_promql);
+      parsed(query.related_promql, 'sum');
     }
   }
 });

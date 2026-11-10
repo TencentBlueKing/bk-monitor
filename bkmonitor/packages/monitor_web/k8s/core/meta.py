@@ -584,6 +584,16 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     column_mapping = {"workload_kind": "workload_type", "pod_name": "name"}
     only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
+    def pod_memory_quota_filters(self):
+        empty_containers = tuple(
+            filter_id
+            for filter_id, resource_filter in self.filter.filters.items()
+            if filter_id.startswith("container")
+            and not filter_id.startswith("container_exclude")
+            and not any(resource_filter.value)
+        )
+        return self.filter.filter_string(exclude=("workload", *empty_containers))
+
     def pod_memory_usage(self, metric_name, exclude=""):
         if any(
             filter_id.startswith("container")
@@ -729,7 +739,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      {self.pod_limits_with_sidecar_expr(self.filter.filter_string(exclude="workload"), "memory")}
+      {self.pod_limits_with_sidecar_expr(self.pod_memory_quota_filters(), "memory")}
     )))"""
         )
         return promql
@@ -743,7 +753,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      kube_pod_container_resource_requests_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
+      kube_pod_container_resource_requests_memory_bytes{{{self.pod_memory_quota_filters()}}}
     )))"""
         return promql
 
