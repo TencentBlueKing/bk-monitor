@@ -21,6 +21,7 @@ from rest_framework import serializers
 from constants.apm import LLMProduct, OtlpKey
 from constants.otel_query import OperatorEnum
 from core.drf_resource import Resource, api
+from core.errors.alert import QueryStringParseError
 
 from apm_web.handlers.metric_group import GroupEnum, MetricGroupRegistry
 from apm_web.handlers.trace_handler.query import QueryHandler, QueryStringBuilder, SpanQueryTransformer
@@ -75,7 +76,12 @@ class ListTracesResource(Resource):
             fields = dict.fromkeys((OtlpKey.TRACE_ID, conversation_field))
             return " OR ".join(f'{field}: "{hex32}"' for field in fields)
 
-        return QueryHandler.process_query_string(SpanQueryTransformer(bk_biz_id, app_name), keyword) or ""
+        try:
+            return QueryHandler.process_query_string(SpanQueryTransformer(bk_biz_id, app_name), keyword) or ""
+        except QueryStringParseError:
+            # 消息文本中的 JSON、括号等可能不是合法 Lucene 表达式，按字面短语检索。
+            escaped_keyword: str = keyword.replace("\\", "\\\\").replace('"', '\\"')
+            return f'"{escaped_keyword}"'
 
     @staticmethod
     def iter_trace_items(

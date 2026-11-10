@@ -5,6 +5,8 @@ from unittest import TestCase, mock
 
 from django.db.models import Q
 from django.test import override_settings
+from luqum.parser import lexer, parser
+from luqum.tree import Phrase
 
 from apm_web.handlers.metric_group.define import CalculationType as MetricCalculationType
 from apm_web.llm.adapter import adapt_spans
@@ -32,6 +34,64 @@ from apm_web.llm.resources import (
 
 
 class ListTracesResourceTestCase(TestCase):
+    def test_invalid_lucene_keyword_searches_literal_message(self):
+        keywords: list[str] = [
+            "review 线程全部标记为 resolved，当前未解决数为 0。仅修改状态，未改代码。 [#13018]",
+            '读取 JSON: {"status": "ok"}',
+            '检查 "未闭合引号',
+            "修复 (超时",
+            "请查询 C:\\tmp\\logs\\",
+            '第一行\n第二行 "未闭合',
+            '读取 JSON: {"query": "* ? AND OR NOT", "path": "C:\\tmp\\"}',
+        ]
+        for keyword in keywords:
+            with self.subTest(keyword=keyword):
+                query_string = ListTracesResource._build_keyword_query("default", 11, "demo", keyword)
+                query_tree = parser.parse(query_string, lexer=lexer.clone())
+
+                self.assertIsInstance(query_tree, Phrase)
+                self.assertEqual(query_tree.unescaped_value[1:-1], keyword)
+
+    def test_valid_lucene_keyword_keeps_search_semantics(self):
+        keywords: dict[str, str] = {
+            "": "",
+            "订单": "*订单*",
+            "demo-user": "demo-user",
+            "*": "*",
+            'attributes.user.id: "demo-user" AND status.code: 2': 'attributes.user.id: "demo-user"  AND status.code: 2',
+            'trace_id: "0123456789abcdef0123456789abcdef"': 'trace_id: "0123456789abcdef0123456789abcdef"',
+            'span_id: "0123456789abcdef"': 'span_id: "0123456789abcdef"',
+        }
+        for keyword, expected_query in keywords.items():
+            with self.subTest(keyword=keyword):
+                self.assertEqual(
+                    ListTracesResource._build_keyword_query("default", 11, "demo", keyword),
+                    expected_query,
+                )
+
+    def test_invalid_lucene_keyword_returns_empty_list_in_both_group_modes(self):
+        keyword = '读取 JSON: {"status": "ok"}'
+        for group_field in ("trace_id", "attributes.gen_ai.conversation.id"):
+            with self.subTest(group_field=group_field):
+                span_query = mock.Mock()
+                span_query.query_group_list.return_value = []
+                entity_set = mock.Mock(service_names=["agent-service"])
+                entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
+                with (
+                    mock.patch("apm_web.llm.resources.Application.objects.get"),
+                    mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+                    mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+                ):
+                    result = ListTracesResource().request(
+                        {**LLM_METRIC_REQUEST, "keyword": keyword, "group_field": group_field}
+                    )
+
+                self.assertEqual(result["items"], [])
+                self.assertEqual(
+                    span_query.query_group_list.call_args.kwargs["query_string"],
+                    '"读取 JSON: {\\"status\\": \\"ok\\"}"',
+                )
+
     def test_empty_keyword_does_not_add_span_field_filters(self):
         application = mock.Mock()
         span_query = mock.Mock()
