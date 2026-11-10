@@ -19,7 +19,9 @@ from apm.models import DataLink
 from apm_web.models import Application, UserVisitRecord
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
-from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
+from bkmonitor.data_source.data_source import BkApmTraceDataSource
+from bkmonitor.data_source.unify_query.builder import UnifyQuerySet
+from bkmonitor.data_source.unify_query.query import UnifyQuery
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import Permission
@@ -31,7 +33,6 @@ from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import OtlpKey, PreCalculateSpecificField
-from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from core.errors.alert import AlertNotFoundError
 from monitor.models import UserConfig
@@ -253,9 +254,11 @@ class TraceSearchItem(SearchItem):
     """
 
     RE_TRACE_ID = re.compile(r"^[0-9a-z]{32}$")
+    MAX_TRACE_IDS = 20
 
     _RAW_QUERY_TOP_N = 25
     _TRACE_TOP_K = 3
+    _PRECALC_LIMIT_PER_TRACE = 5
     _TRACE_SEARCH_TIMEOUT = 10
     _CURRENT_BIZ_WEIGHT = 1  # 当前业务基础分
     _DEFAULT_BIZ_WEIGHT = 1  # 默认业务基础分
@@ -264,8 +267,16 @@ class TraceSearchItem(SearchItem):
     _CURRENT_APP_WEIGHT = _CURRENT_BIZ_WEIGHT + _DEFAULT_BIZ_WEIGHT + _HAS_SERVICE_APP_WEIGHT
 
     @classmethod
+    def parse_trace_ids(cls, query: str) -> list[str]:
+        """解析英文逗号分隔的 TraceID，按输入顺序去重。"""
+        trace_ids = list(dict.fromkeys(trace_id.strip() for trace_id in query.split(",")))
+        if not all(cls.RE_TRACE_ID.fullmatch(trace_id) for trace_id in trace_ids):
+            return []
+        return trace_ids
+
+    @classmethod
     def match(cls, query: str) -> bool:
-        return bool(cls.RE_TRACE_ID.match(query))
+        return bool(cls.parse_trace_ids(query))
 
     @staticmethod
     def _should_stop(
@@ -344,28 +355,19 @@ class TraceSearchItem(SearchItem):
     @classmethod
     def _fetch_data(
         cls,
-        trace_id: str,
-        target: TraceDatasourceTarget | None,
-        table_id: str,
+        trace_ids: list[str],
+        target: TraceDatasourceTarget,
         time_field: str,
         fields: list[str],
         limit: int,
     ) -> list[dict[str, Any]]:
-        """统一查询入口
-        target 不为 None 时走 TraceQueryGuard 识别共享表并按需追加隔离；
-        target 为 None 时仅用 table_id 直接构造 q，适用于预计算 / 独占 / 历史表等无需应用隔离的场景
-        """
+        """原始表查询，复用共享表隔离并按 TraceID 折叠。"""
         now: int = int(time.time())
-        if target is None:
-            q: QueryConfigBuilder = QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_APM)).table(table_id)
-        else:
-            q: QueryConfigBuilder = TraceQueryGuard.get_q([target])
-        qs: UnifyQuerySet = UnifyQuerySet()
-        if target is not None:
-            # 适配多租户场景，严格传入 scope，用于推导租户。
-            qs = qs.scope(target.app.bk_biz_id)
+        q = TraceQueryGuard.get_q([target]).distinct(OtlpKey.TRACE_ID)
         qs = (
-            qs.add_query(q.filter(trace_id__eq=trace_id).time_field(time_field).values(*fields))
+            UnifyQuerySet()
+            .scope(target.app.bk_biz_id)
+            .add_query(q.filter(trace_id__eq=trace_ids).time_field(time_field).values(*fields))
             .time_align(False)
             .start_time(int((now - timedelta(days=7).total_seconds()) * 1000))
             .end_time(now * 1000)
@@ -376,17 +378,29 @@ class TraceSearchItem(SearchItem):
     # ---------- Path A: 预计算 ----------
 
     @classmethod
-    def _query_precalc_apps_by_trace_id(cls, trace_id: str, table_id: str, limit: int = 5) -> list[dict[str, Any]]:
-        """单 cluster 预计算表查询，返回 ``[{bk_biz_id, app_name}, ...]``。
-        预计算表无需追加 bk_biz_id / app_name 隔离条件，因此 target 传 None
-        """
-        return cls._fetch_data(
-            trace_id,
-            None,
-            table_id,
-            PreCalculateSpecificField.MIN_START_TIME,
-            [PreCalculateSpecificField.BIZ_ID, PreCalculateSpecificField.APP_NAME],
-            limit,
+    def _query_precalc_apps_by_trace_ids(
+        cls, bk_tenant_id: str, trace_ids: list[str], table_id: str
+    ) -> list[dict[str, Any]]:
+        """每张预计算表批量聚合应用，TraceID 放在最外层分桶以保留独立覆盖。"""
+        datasource = BkApmTraceDataSource(
+            bk_tenant_id=bk_tenant_id,
+            table=table_id,
+            filter_dict={f"{OtlpKey.TRACE_ID}__eq": trace_ids},
+            time_field=PreCalculateSpecificField.MIN_START_TIME,
+            group_by=[PreCalculateSpecificField.BIZ_ID, PreCalculateSpecificField.APP_NAME, OtlpKey.TRACE_ID],
+            metrics=[{"field": OtlpKey.TRACE_ID, "method": "COUNT", "alias": "count"}],
+            is_time_agg=False,
+            use_full_index_names=True,
+        )
+        query = UnifyQuery(bk_biz_id=None, bk_tenant_id=bk_tenant_id, data_sources=[datasource], expression="")
+        # UQ ES 的 limit 限制各级分桶；旧 ES 回退路径还会全局截断结果，需交由调用方按 TraceID 截取。
+        limit: int | None = max(len(trace_ids), cls._PRECALC_LIMIT_PER_TRACE) if query.use_unify_query() else None
+        now = int(time.time())
+        return query.query_reference(
+            start_time=int((now - timedelta(days=7).total_seconds()) * 1000),
+            end_time=now * 1000,
+            limit=limit,
+            time_alignment=False,
         )
 
     @classmethod
@@ -405,12 +419,12 @@ class TraceSearchItem(SearchItem):
     def _path_precalc(
         cls,
         bk_tenant_id: str,
-        trace_id: str,
+        trace_ids: list[str],
         stop_event: threading.Event,
         trace_stop: threading.Event,
         deadline: float,
-    ) -> Generator[Application, None, None]:
-        """Path A：使用滑动窗口持续产出各预计算表命中的应用。"""
+    ) -> Generator[tuple[str, Application], None, None]:
+        """使用同一滑动窗口查询预计算表，每个 TraceID 保留独立的候选上限。"""
         if cls._should_stop(stop_event, trace_stop, deadline):
             return
         table_ids: list[str] = cls._load_precalc_table_ids()
@@ -421,15 +435,16 @@ class TraceSearchItem(SearchItem):
             if cls._should_stop(stop_event, trace_stop, deadline):
                 return []
             try:
-                return cls._query_precalc_apps_by_trace_id(trace_id, table_id)
+                return cls._query_precalc_apps_by_trace_ids(bk_tenant_id, trace_ids, table_id)
             except Exception:  # pylint: disable=broad-except
                 logger.exception(
-                    "[TraceSearch] precalc query failed, trace_id=%s table=%s",
-                    trace_id,
+                    "[TraceSearch] precalc query failed, trace_ids=%s table=%s",
+                    trace_ids,
                     table_id,
                 )
                 return []
 
+        apps: dict[tuple[int, str], Application | None] = {}
         for app_infos in cls._iter_probe_results(
             table_ids,
             _probe_table,
@@ -438,46 +453,58 @@ class TraceSearchItem(SearchItem):
             trace_stop=trace_stop,
             deadline=deadline,
         ):
+            per_trace_count: dict[str, int] = {}
             for info in app_infos:
                 if cls._should_stop(stop_event, trace_stop, deadline):
                     return
+                trace_id: str = info[OtlpKey.TRACE_ID]
+                count = per_trace_count.get(trace_id, 0)
+                if count >= cls._PRECALC_LIMIT_PER_TRACE:
+                    continue
+                per_trace_count[trace_id] = count + 1
                 try:
-                    bk_biz_id = int(info["bk_biz_id"])
+                    bk_biz_id = int(info[PreCalculateSpecificField.BIZ_ID])
                 except (TypeError, ValueError, KeyError):
                     continue
                 app_name: str | None = info.get("app_name")
                 if not app_name:
                     continue
-                app = (
-                    Application.objects.filter(
-                        bk_tenant_id=bk_tenant_id,
-                        bk_biz_id=bk_biz_id,
-                        app_name=app_name,
+                app_key = (bk_biz_id, app_name)
+                if app_key not in apps:
+                    apps[app_key] = (
+                        Application.objects.filter(
+                            bk_tenant_id=bk_tenant_id,
+                            bk_biz_id=bk_biz_id,
+                            app_name=app_name,
+                        )
+                        .only(
+                            "application_id",
+                            "bk_biz_id",
+                            "app_name",
+                            "app_alias",
+                        )
+                        .first()
                     )
-                    .only(
-                        "application_id",
-                        "bk_biz_id",
-                        "app_name",
-                        "app_alias",
-                    )
-                    .first()
-                )
+                app = apps[app_key]
                 if app:
-                    yield app
+                    yield trace_id, app
 
     # ---------- Path B: 直查 ----------
 
     @classmethod
-    def _query_raw_apps_by_trace_id(cls, trace_id: str, app: Application) -> bool:
-        """直查单应用原始 Trace 表，仅判断 trace_id 是否存在（``limit=1``）
-        共享 Trace 结果表场景下，TraceQueryGuard 会自动追加 bk_biz_id / app_name 隔离条件；独占表走原有行为，不追加过滤。
-        """
+    def _query_raw_apps_by_trace_ids(cls, trace_ids: list[str], app: Application) -> list[str]:
+        """批量探测单应用原始表，按 TraceID 折叠避免多个 Span 占用其他 Trace 的名额。"""
         target: TraceDatasourceTarget = TraceDatasourceTarget.build(
             app.bk_biz_id, app.app_name, app.trace_result_table_id
         )
-        return bool(
-            cls._fetch_data(trace_id, target, app.trace_result_table_id, OtlpKey.END_TIME, [OtlpKey.TRACE_ID], limit=1)
+        records = cls._fetch_data(
+            trace_ids,
+            target,
+            OtlpKey.END_TIME,
+            [OtlpKey.TRACE_ID],
+            limit=len(trace_ids),
         )
+        return [record[OtlpKey.TRACE_ID] for record in records]
 
     @classmethod
     def _get_user_config(cls, username: str, key: str) -> Any:
@@ -561,13 +588,13 @@ class TraceSearchItem(SearchItem):
         cls,
         bk_tenant_id: str,
         username: str,
-        trace_id: str,
+        trace_ids: list[str],
         bk_biz_id: int | None,
         stop_event: threading.Event,
         trace_stop: threading.Event,
         deadline: float,
-    ) -> Generator[Application, None, None]:
-        """Path B：使用滑动窗口持续产出原始 Trace 表命中的应用。"""
+    ) -> Generator[tuple[str, Application], None, None]:
+        """使用滑动窗口批量探测候选应用，逐应用返回命中的 TraceID。"""
         if cls._should_stop(stop_event, trace_stop, deadline):
             return
         apps = cls._collect_candidate_apps(bk_tenant_id, username, bk_biz_id)
@@ -575,35 +602,34 @@ class TraceSearchItem(SearchItem):
             return
 
         logger.info(
-            "[TraceSearch] raw path candidate apps, trace_id=%s, bk_biz_id=%s, candidates=%s",
-            trace_id,
+            "[TraceSearch] raw path candidate apps, trace_ids=%s, bk_biz_id=%s, candidates=%s",
+            trace_ids,
             bk_biz_id,
             ",".join(f"{app.bk_biz_id}-{app.app_name}" for app in apps),
         )
 
-        def _probe_app(app: Application) -> Application | None:
-            """探测单应用原始 Trace 表是否命中 trace_id；异常按 miss 处理"""
+        def _probe_app(app: Application) -> list[tuple[str, Application]]:
             if cls._should_stop(stop_event, trace_stop, deadline):
-                return None
+                return []
             try:
-                if cls._query_raw_apps_by_trace_id(trace_id, app):
-                    return app
+                return [(trace_id, app) for trace_id in cls._query_raw_apps_by_trace_ids(trace_ids, app)]
             except Exception:  # pylint: disable=broad-except
                 logger.exception(
                     "[TraceSearch] raw query failed, app=%s table=%s",
                     app.application_id,
                     app.trace_result_table_id,
                 )
-            return None
+            return []
 
-        yield from cls._iter_probe_results(
+        for hits in cls._iter_probe_results(
             apps,
             _probe_app,
             max_workers=8,
             stop_event=stop_event,
             trace_stop=trace_stop,
             deadline=deadline,
-        )
+        ):
+            yield from hits
 
     @classmethod
     def search(
@@ -615,10 +641,10 @@ class TraceSearchItem(SearchItem):
         current_bk_biz_id: int | None = None,
         stop_event: threading.Event | None = None,
     ) -> Generator[dict[str, Any], None, None]:
-        """
-        Search the trace by trace id, yielding a complete snapshot for every new application hit.
-        """
-        trace_id = query
+        """批量检索 TraceID，合并已就绪命中后返回累计快照。"""
+        trace_ids = cls.parse_trace_ids(query)
+        if not trace_ids:
+            return
         request_stop = stop_event if stop_event is not None else threading.Event()
         if request_stop.is_set():
             return
@@ -627,12 +653,12 @@ class TraceSearchItem(SearchItem):
         trace_stop = threading.Event()
         app_queue: queue.Queue[Any] = queue.Queue()
         path_done = object()
-        paths: list[tuple[str, Iterable[Application]]] = [
+        paths: list[tuple[str, Iterable[tuple[str, Application]]]] = [
             (
                 "precalc",
                 cls._path_precalc(
                     bk_tenant_id,
-                    trace_id,
+                    trace_ids,
                     stop_event=request_stop,
                     trace_stop=trace_stop,
                     deadline=deadline,
@@ -643,7 +669,7 @@ class TraceSearchItem(SearchItem):
                 cls._path_raw(
                     bk_tenant_id,
                     username,
-                    trace_id,
+                    trace_ids,
                     current_bk_biz_id,
                     stop_event=request_stop,
                     trace_stop=trace_stop,
@@ -652,17 +678,17 @@ class TraceSearchItem(SearchItem):
             ),
         ]
 
-        def _drain_path(path_name: str, path: Iterable[Application]) -> None:
+        def _drain_path(path_name: str, path: Iterable[tuple[str, Application]]) -> None:
             try:
-                for app in path:
+                for hit in path:
                     if cls._should_stop(request_stop, trace_stop, deadline):
                         break
-                    app_queue.put(app)
+                    app_queue.put(hit)
             except Exception:  # pylint: disable=broad-except
                 logger.exception(
-                    "[TraceSearch] %s path failed, trace_id=%s",
+                    "[TraceSearch] %s path failed, trace_ids=%s",
                     path_name,
-                    trace_id,
+                    trace_ids,
                 )
             finally:
                 close = getattr(path, "close", None)
@@ -671,23 +697,23 @@ class TraceSearchItem(SearchItem):
                         close()
                 except Exception:  # pylint: disable=broad-except
                     logger.exception(
-                        "[TraceSearch] %s path close failed, trace_id=%s",
+                        "[TraceSearch] %s path close failed, trace_ids=%s",
                         path_name,
-                        trace_id,
+                        trace_ids,
                     )
                 finally:
                     app_queue.put(path_done)
 
         path_pool = ThreadPool(len(paths))
         unfinished_paths = len(paths)
-        seen_apps: dict[int, Application] = {}
-        checked_app_ids: set[int] = set()
+        seen_items: dict[tuple[str, int], dict[str, Any]] = {}
+        application_permissions: dict[int, bool] = {}
         try:
             for path_name, path in paths:
                 path_pool.apply_async(_drain_path, (path_name, path))
 
             while (
-                len(seen_apps) < cls._TRACE_TOP_K
+                len(seen_items) < len(trace_ids) * cls._TRACE_TOP_K
                 and unfinished_paths
                 and not cls._should_stop(request_stop, trace_stop, deadline)
             ):
@@ -695,44 +721,64 @@ class TraceSearchItem(SearchItem):
                 if remaining <= 0:
                     break
                 try:
-                    app = app_queue.get(timeout=min(0.2, remaining))
+                    hits = [app_queue.get(timeout=min(0.2, remaining))]
                 except queue.Empty:
                     continue
-                if app is path_done:
-                    unfinished_paths -= 1
-                    continue
-                if app.application_id in checked_app_ids:
-                    continue
-                checked_app_ids.add(app.application_id)
+                while True:
+                    try:
+                        hits.append(app_queue.get_nowait())
+                    except queue.Empty:
+                        break
 
-                # 两条路径统一校验应用查看权限，无权限命中不进入快照，也不占用 TopK。
-                allowed_items: list[dict] = filter_data_by_permission(
-                    bk_tenant_id=bk_tenant_id,
-                    data=[
-                        {
-                            "application_id": app.application_id,
-                            "bk_biz_id": app.bk_biz_id,
-                            "app_name": app.app_name,
+                previous_count = len(seen_items)
+                try:
+                    for hit in hits:
+                        if cls._should_stop(request_stop, trace_stop, deadline):
+                            break
+                        if hit is path_done:
+                            unfinished_paths -= 1
+                            continue
+                        trace_id, app = hit
+                        hit_key = (trace_id, app.application_id)
+                        if hit_key in seen_items:
+                            continue
+                        if sum(hit_trace_id == trace_id for hit_trace_id, _ in seen_items) >= cls._TRACE_TOP_K:
+                            continue
+
+                        # 两条路径统一校验应用查看权限，无权限命中不进入快照，也不占用 TopK。
+                        if app.application_id not in application_permissions:
+                            allowed_items: list[dict[str, Any]] = filter_data_by_permission(
+                                bk_tenant_id=bk_tenant_id,
+                                data=[
+                                    {
+                                        "application_id": app.application_id,
+                                        "bk_biz_id": app.bk_biz_id,
+                                        "app_name": app.app_name,
+                                    }
+                                ],
+                                actions=[ActionEnum.VIEW_APM_APPLICATION],
+                                resource_meta=ResourceEnum.APM_APPLICATION,
+                                id_field=lambda item: item["application_id"],
+                                instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
+                                mode="any",
+                                username=username,
+                            )
+                            application_permissions[app.application_id] = bool(allowed_items)
+                        if not application_permissions[app.application_id]:
+                            continue
+
+                        seen_items[hit_key] = cls._build_item(trace_id, app)
+                        if len(seen_items) >= len(trace_ids) * cls._TRACE_TOP_K:
+                            trace_stop.set()
+                            break
+                finally:
+                    # 异常前返回本批已确认的结果，恢复迭代后继续传播原异常。
+                    if len(seen_items) > previous_count:
+                        yield {
+                            "type": "trace",
+                            "name": "Trace",
+                            "items": list(seen_items.values()),
                         }
-                    ],
-                    actions=[ActionEnum.VIEW_APM_APPLICATION],
-                    resource_meta=ResourceEnum.APM_APPLICATION,
-                    id_field=lambda item: item["application_id"],
-                    instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
-                    mode="any",
-                    username=username,
-                )
-                if not allowed_items:
-                    continue
-
-                seen_apps[app.application_id] = app
-                if len(seen_apps) >= cls._TRACE_TOP_K:
-                    trace_stop.set()
-                yield {
-                    "type": "trace",
-                    "name": "Trace",
-                    "items": [cls._build_item(trace_id, hit_app) for hit_app in seen_apps.values()],
-                }
         finally:
             trace_stop.set()
             path_pool.terminate()
@@ -750,7 +796,7 @@ class ApmApplicationSearchItem(SearchItem):
         """
         1-50字符，由小写字母、数字、下划线、中划线、点组成
         """
-        return not AlertSearchItem.RE_ALERT_ID.match(query) and not TraceSearchItem.RE_TRACE_ID.match(query)
+        return not AlertSearchItem.RE_ALERT_ID.match(query) and not TraceSearchItem.match(query)
 
     @classmethod
     def search(

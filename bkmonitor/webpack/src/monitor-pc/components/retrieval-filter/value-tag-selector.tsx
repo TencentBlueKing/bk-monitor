@@ -134,6 +134,7 @@ export default class ValueTagSelector extends tsc<IProps> {
   beforeDestroy() {
     this.handleSelectorBlur();
     this.onClickOutsideFn?.();
+    this.isShowDropDown = false;
     this.destroyPopoverInstance();
   }
 
@@ -313,14 +314,18 @@ export default class ValueTagSelector extends tsc<IProps> {
 
   showPopoverInstance() {
     this.$nextTick(() => {
+      /* 等待期间下拉已关闭或组件已卸载时，不再创建弹层 */
+      if (!this.isShowDropDown) {
+        return;
+      }
       const target = this.$el?.querySelector?.('.value-tag-selector-component-wrap') as HTMLElement;
       if (!target || !this.selectorRef) {
         return;
       }
 
       this.optionsWidth = Math.ceil(target.getBoundingClientRect().width);
-      this.destroyPopoverInstance();
-      this.popoverInstance = this.$bkPopover(target, {
+      this.releasePopoverInstance();
+      const instance = this.$bkPopover(target, {
         content: this.selectorRef,
         trigger: 'manual',
         placement: 'bottom-start',
@@ -332,13 +337,19 @@ export default class ValueTagSelector extends tsc<IProps> {
         zIndex: 99999,
         appendTo: () => document.body,
         onHidden: () => {
-          this.popoverInstance = null;
+          /* 只响应当前实例的隐藏；旧实例销毁时同步触发的回调不能关闭新弹层。
+           * 此处保留实例引用，交由 isShowDropDown 的 watcher 走 destroy，
+           * 否则 reference 上残留 _tippy，后续 $bkPopover 无法再创建弹层 */
+          if (this.popoverInstance !== instance) {
+            return;
+          }
           this.showSelector = false;
           this.isShowDropDown = false;
         },
       });
+      this.popoverInstance = instance;
       this.showSelector = true;
-      this.popoverInstance?.show?.();
+      instance?.show?.();
     });
   }
 
@@ -346,9 +357,17 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.onClickOutsideFn?.();
     this.onClickOutsideFn = () => {};
     this.showSelector = false;
-    this.popoverInstance?.hide?.();
-    this.popoverInstance?.destroy?.();
+    this.releasePopoverInstance();
+  }
+
+  /**
+   * @description 先解除引用再销毁实例，避免销毁过程中触发的 onHidden 干扰引用状态
+   */
+  releasePopoverInstance() {
+    const instance = this.popoverInstance;
     this.popoverInstance = null;
+    instance?.hide?.();
+    instance?.destroy?.();
   }
 
   /**

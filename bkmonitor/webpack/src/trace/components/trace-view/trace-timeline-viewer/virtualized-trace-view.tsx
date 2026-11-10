@@ -445,6 +445,13 @@ export default defineComponent({
       }
     };
 
+    const handleChangeSpan = (span: Partial<Span>) => {
+      const spanId = String(span.span_id || span.spanID || '').trim();
+      const found = store.traceTree.spans.find(item => item.span_id === spanId || item.spanID === spanId);
+      spanDetails.value = (found || span) as Span;
+      showSpanDetails.value = true;
+    };
+
     return {
       virtualizedTraceViewElm,
       listViewElm,
@@ -458,6 +465,7 @@ export default defineComponent({
       traceTree,
       spans,
       handlePrevNextClicked,
+      handleChangeSpan,
       handleToggleCollapse,
       activeTab,
       spanDetailDefaultExpand,
@@ -495,6 +503,7 @@ export default defineComponent({
           isShowPrevNextButtons={true}
           show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
+          onChangeSpan={this.handleChangeSpan}
           onPrevNextClicked={flag => {
             this.handlePrevNextClicked(flag);
           }}

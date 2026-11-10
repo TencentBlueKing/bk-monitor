@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onUnmounted, shallowRef } from 'vue';
+import { type PropType, defineComponent, onUnmounted, shallowRef } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
@@ -35,10 +35,16 @@ import './segment-pop.scss';
 
 export default defineComponent({
   name: 'SegmentPop',
+  props: {
+    allowedMenuTypes: {
+      type: Array as PropType<EClickMenuType[]>,
+      default: () => [EClickMenuType.Copy, EClickMenuType.Include, EClickMenuType.Exclude, EClickMenuType.Link],
+    },
+  },
   emits: {
     clickMenu: (_value: { type: EClickMenuType; value: string }) => true,
   },
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     const curValue = shallowRef('');
@@ -63,75 +69,85 @@ export default defineComponent({
       tipInstance.value?.show();
     };
 
+    const isAllowed = (type: EClickMenuType) => props.allowedMenuTypes.includes(type);
+
     const contextMenuComponent = {
       render: () => {
         return (
           <div class='log-cell-segment-pop-content-menu'>
-            <div
-              class='log-cell-segment-pop-content-menu-item'
-              onClick={(_e: MouseEvent) => handleClickMenu(_e, EClickMenuType.Copy)}
-            >
-              <span class='menu-item-icon icon-monitor icon-mc-copy' />
-              <span>{t('复制')}</span>
-            </div>
-            <div
-              class='log-cell-segment-pop-content-menu-item'
-              onClick={(_e: MouseEvent) => handleClickMenu(_e, EClickMenuType.Include)}
-            >
-              <span class='menu-item-icon icon-monitor icon-jia' />
-              <span>{t('添加到本次检索')}</span>
+            {isAllowed(EClickMenuType.Copy) && (
+              <div
+                class='log-cell-segment-pop-content-menu-item'
+                onClick={(_e: MouseEvent) => handleClickMenu(_e, EClickMenuType.Copy)}
+              >
+                <span class='menu-item-icon icon-monitor icon-mc-copy' />
+                <span>{t('复制')}</span>
+              </div>
+            )}
+            {isAllowed(EClickMenuType.Include) && (
+              <div
+                class='log-cell-segment-pop-content-menu-item'
+                onClick={(_e: MouseEvent) => handleClickMenu(_e, EClickMenuType.Include)}
+              >
+                <span class='menu-item-icon icon-monitor icon-jia' />
+                <span>{t('添加到本次检索')}</span>
 
-              <span
-                class='link-btn'
-                onMouseenter={handleMouseEnter}
-              >
                 <span
-                  class='icon-monitor icon-mc-goto'
-                  onClick={(_e: MouseEvent) => {
-                    _e.stopPropagation();
-                    handleClickMenu(_e, EClickMenuType.IncludeLink);
-                  }}
-                />
-              </span>
-            </div>
-            <div
-              class='log-cell-segment-pop-content-menu-item'
-              onClick={(_e: MouseEvent) => handleClickMenu(_e, EClickMenuType.Exclude)}
-            >
-              <span class='menu-item-icon icon-monitor icon-jian' />
-              <span>{t('从本次检索中排除')}</span>
-              <span
-                class='link-btn'
-                onMouseenter={handleMouseEnter}
+                  class='link-btn'
+                  onMouseenter={handleMouseEnter}
+                >
+                  <span
+                    class='icon-monitor icon-mc-goto'
+                    onClick={(_e: MouseEvent) => {
+                      _e.stopPropagation();
+                      handleClickMenu(_e, EClickMenuType.IncludeLink);
+                    }}
+                  />
+                </span>
+              </div>
+            )}
+            {isAllowed(EClickMenuType.Exclude) && (
+              <div
+                class='log-cell-segment-pop-content-menu-item'
+                onClick={(_e: MouseEvent) => handleClickMenu(_e, EClickMenuType.Exclude)}
               >
+                <span class='menu-item-icon icon-monitor icon-jian' />
+                <span>{t('从本次检索中排除')}</span>
                 <span
-                  class='icon-monitor icon-mc-goto'
-                  onClick={(_e: MouseEvent) => {
-                    _e.stopPropagation();
-                    handleClickMenu(_e, EClickMenuType.ExcludeLink);
-                  }}
-                />
-              </span>
-            </div>
-            <div
-              class='log-cell-segment-pop-content-menu-item'
-              onClick={(_e: MouseEvent) => handleClickMenu(_e, EClickMenuType.Link)}
-            >
-              <span class='menu-item-icon icon-monitor icon-jia' />
-              <span>{t('新建检索')}</span>
-              <span
-                class='link-btn'
-                onMouseenter={handleMouseEnter}
+                  class='link-btn'
+                  onMouseenter={handleMouseEnter}
+                >
+                  <span
+                    class='icon-monitor icon-mc-goto'
+                    onClick={(_e: MouseEvent) => {
+                      _e.stopPropagation();
+                      handleClickMenu(_e, EClickMenuType.ExcludeLink);
+                    }}
+                  />
+                </span>
+              </div>
+            )}
+            {isAllowed(EClickMenuType.Link) && (
+              <div
+                class='log-cell-segment-pop-content-menu-item'
+                onClick={(_e: MouseEvent) => handleClickMenu(_e, EClickMenuType.Link)}
               >
+                <span class='menu-item-icon icon-monitor icon-jia' />
+                <span>{t('新建检索')}</span>
                 <span
-                  class='icon-monitor icon-mc-goto'
-                  onClick={(_e: MouseEvent) => {
-                    _e.stopPropagation();
-                    handleClickMenu(_e, EClickMenuType.Link);
-                  }}
-                />
-              </span>
-            </div>
+                  class='link-btn'
+                  onMouseenter={handleMouseEnter}
+                >
+                  <span
+                    class='icon-monitor icon-mc-goto'
+                    onClick={(_e: MouseEvent) => {
+                      _e.stopPropagation();
+                      handleClickMenu(_e, EClickMenuType.Link);
+                    }}
+                  />
+                </span>
+              </div>
+            )}
           </div>
         );
       },

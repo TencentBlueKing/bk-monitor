@@ -131,25 +131,41 @@ TIME_SERIES_COUNT_QUERY = {
 GTE_0 = [[{"method": "gte", "threshold": 0}]]
 GTE_1 = [[{"method": "gte", "threshold": 1}]]
 GTE_5 = [[{"method": "gte", "threshold": 5}]]
+GTE_10 = [[{"method": "gte", "threshold": 10}]]
 LT_1 = [[{"method": "lt", "threshold": 1}]]
 # 重复读到的 0 不再送检，迟到日志使计数变为非零后仍会被检测
 LATE = ([0, 0, 1, 1], [1, 0, 1, 0])
 DEDUPED = ([0, 1, 1], [1, 0, 0])
+# 日志计数按取值去重：同一取值不重复送检，不同取值都会送检
+CROSSED = ([0, 2, 7, 7], [1, 1, 1, 0])
+VALUE_CHANGE = ([0, 1, 1], [1, 1, 0])
+LOG_TS_COUNT_QUERY = {
+    "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
+    "data_type_label": DataTypeLabel.TIME_SERIES,
+    "alias": "a",
+    "index_set_id": 1,
+    "result_table_id": "",
+    "metric_field": "_index",
+    "agg_method": "COUNT",
+    "agg_interval": 60,
+    "agg_dimension": [],
+    "agg_condition": [],
+}
 
 
 @pytest.mark.parametrize(
     "query_config,item_thresholds,connector,reads",
     [
         (LOG_COUNT_QUERY, [[GTE_1]], "and", LATE),
-        # 非零值照常去重，同一时间点最多写入两条检测结果
-        (LOG_COUNT_QUERY, [[GTE_5]], "and", ([0, 2, 7, 7], [1, 1, 0, 0])),
-        # 异常点照常去重，否则同一时间点会重复产生异常
-        (LOG_COUNT_QUERY, [[LT_1]], "and", DEDUPED),
-        # 同一拉取组共用去重缓存，任一监控项判为异常都需去重
-        (LOG_COUNT_QUERY, [[GTE_1], [LT_1]], "and", DEDUPED),
+        # 同一取值不重复送检；计数继续增大（例如再跨过更高阈值）仍会送检
+        (LOG_COUNT_QUERY, [[GTE_5]], "and", CROSSED),
+        (LOG_TS_COUNT_QUERY, [[GTE_10]], "and", ([1, 11, 150, 150], [1, 1, 1, 0])),
+        # 0 与 1 是不同取值，后一个不再被前一个挡住
+        (LOG_COUNT_QUERY, [[LT_1]], "and", VALUE_CHANGE),
+        (LOG_COUNT_QUERY, [[GTE_1], [LT_1]], "and", VALUE_CHANGE),
         # 同级别多个算法按连接符组合后判断是否异常
         (LOG_COUNT_QUERY, [[GTE_0, GTE_1]], "and", LATE),
-        (LOG_COUNT_QUERY, [[GTE_0, GTE_1]], "or", DEDUPED),
+        (LOG_COUNT_QUERY, [[GTE_0, GTE_1]], "or", VALUE_CHANGE),
         (COLLECTOR_LOG_COUNT_QUERY, [[GTE_1]], "and", LATE),
         ({**COLLECTOR_LOG_COUNT_QUERY, "agg_method": "AVG"}, [[GTE_1]], "and", DEDUPED),
         (TIME_SERIES_COUNT_QUERY, [[GTE_1]], "and", DEDUPED),
@@ -205,3 +221,214 @@ def test_log_count_zero_point_stays_retryable_within_lookback(mocker, query_conf
     # 同一时间点在回看窗口内依次读到的计数，及每轮进入检测的点数
     values, detected = reads
     assert [pull(value) for value in values] == detected
+
+
+def test_log_count_threshold_cross_replaces_same_timestamp(mocker):
+    client = redis.StrictRedis(
+        connection_pool=redis.ConnectionPool(
+            connection_class=fakeredis.FakeConnection, server=fakeredis.FakeServer(), decode_responses=True
+        )
+    )
+
+    def new_duplicate(*args, **kwargs):
+        duplicate = Duplicate(*args, **kwargs)
+        duplicate.client = client
+        return duplicate
+
+    mocker.patch("alarm_backends.service.access.data.processor.Duplicate", side_effect=new_duplicate)
+    strategy = SimpleNamespace(
+        id=1,
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        config={"detects": [{"level": 2, "connector": "and"}]},
+        priority=None,
+        priority_group_key=None,
+        scenario="os",
+    )
+    item = Item(
+        {
+            "id": 1,
+            "name": "COUNT",
+            "expression": "a",
+            "query_configs": [copy.deepcopy(LOG_TS_COUNT_QUERY)],
+            "algorithms": [{"type": "Threshold", "level": 2, "config": GTE_10, "unit_prefix": ""}],
+        },
+        strategy,
+    )
+
+    def pull(value):
+        process = AccessDataProcess("log-count-group")
+        process.items = [item]
+        process.from_timestamp = process.until_timestamp = 0
+        process.filter_duplicates([{"_time_": 3600, "_result_": value}])
+        process.dup_obj.refresh_cache()
+        return process.record_list
+
+    below = pull(1)
+    assert len(below) == 1
+    assert getattr(below[0], "replaces_check_result", False) is False
+
+    crossed = pull(11)
+    assert len(crossed) == 1
+    assert crossed[0].replaces_check_result is True
+    assert crossed[0].clean().data["replaces_check_result"] is True
+
+    higher = pull(150)
+    assert len(higher) == 1
+    assert higher[0].replaces_check_result is True
+    assert pull(150) == []
+
+
+def test_mixed_algorithm_group_only_sends_rewritten_values_to_threshold_items(mocker):
+    client = redis.StrictRedis(
+        connection_pool=redis.ConnectionPool(
+            connection_class=fakeredis.FakeConnection, server=fakeredis.FakeServer(), decode_responses=True
+        )
+    )
+
+    def new_duplicate(*args, **kwargs):
+        duplicate = Duplicate(*args, **kwargs)
+        duplicate.client = client
+        return duplicate
+
+    mocker.patch("alarm_backends.service.access.data.processor.Duplicate", side_effect=new_duplicate)
+    strategy = SimpleNamespace(
+        id=1,
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        config={"detects": [{"level": 2, "connector": "and"}]},
+        priority=None,
+        priority_group_key=None,
+        scenario="os",
+    )
+    threshold, new_series = (
+        Item(
+            {
+                "id": item_id,
+                "name": "COUNT",
+                "expression": "a",
+                "query_configs": [copy.deepcopy(LOG_TS_COUNT_QUERY)],
+                "algorithms": [algorithm],
+            },
+            strategy,
+        )
+        for item_id, algorithm in (
+            (1, {"type": "Threshold", "level": 2, "config": GTE_10, "unit_prefix": ""}),
+            (2, {"type": "NewSeries", "level": 2, "config": {}, "unit_prefix": ""}),
+        )
+    )
+
+    def pull(value):
+        process = AccessDataProcess("log-count-group")
+        process.items = [threshold, new_series]
+        process.from_timestamp = process.until_timestamp = 0
+        process.filter_duplicates([{"_time_": 3600, "_result_": value}])
+        process.dup_obj.refresh_cache()
+        return [[r.value for r in process.record_list if r.is_retains[item.id]] for item in (threshold, new_series)]
+
+    assert pull(1) == [[1], [1]]
+    assert pull(10) == [[10], []]
+    assert pull(10) == [[], []]
+
+
+def test_partial_log_count_does_not_overwrite_a_complete_value(mocker):
+    client = redis.StrictRedis(
+        connection_pool=redis.ConnectionPool(
+            connection_class=fakeredis.FakeConnection, server=fakeredis.FakeServer(), decode_responses=True
+        )
+    )
+
+    def new_duplicate(*args, **kwargs):
+        duplicate = Duplicate(*args, **kwargs)
+        duplicate.client = client
+        return duplicate
+
+    mocker.patch("alarm_backends.service.access.data.processor.Duplicate", side_effect=new_duplicate)
+    strategy = SimpleNamespace(
+        id=1,
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        config={"detects": [{"level": 2, "connector": "and"}]},
+        priority=None,
+        priority_group_key=None,
+        scenario="os",
+    )
+    item = Item(
+        {
+            "id": 1,
+            "name": "COUNT",
+            "expression": "a",
+            "query_configs": [copy.deepcopy(LOG_TS_COUNT_QUERY)],
+            "algorithms": [{"type": "Threshold", "level": 2, "config": GTE_10, "unit_prefix": ""}],
+        },
+        strategy,
+    )
+
+    def pull(value, partial=False):
+        item.query.is_partial = partial
+        process = AccessDataProcess("log-count-group")
+        process.items = [item]
+        process.from_timestamp = process.until_timestamp = 0
+        process.filter_duplicates([{"_time_": 3600, "_result_": value}])
+        process.dup_obj.refresh_cache()
+        return process.record_list
+
+    assert len(pull(11)) == 1
+    assert pull(1, partial=True) == []
+    assert pull(11) == []
+
+    # 异步分批：子任务重建 UnifyQuery，不完整标记须随批次恢复。
+    from alarm_backends.core.cache import key
+    from alarm_backends.service.access.data.processor import AccessBatchDataProcess
+
+    mocker.patch("alarm_backends.service.access.tasks.run_access_batch_data")
+    mocker.patch.object(
+        type(key.ACCESS_BATCH_DATA_KEY), "client", new_callable=mocker.PropertyMock, return_value=client
+    )
+    points = [{"_time_": t, "_result_": 1} for t in (3540, 3600, 3660)]
+    item.query.is_partial = True
+    parent = AccessDataProcess("log-count-group")
+    parent.items = [item]
+    assert parent.send_batch_data(points, batch_threshold=1) == points[:1]
+    item.query.is_partial = False
+    child = AccessBatchDataProcess("log-count-group", sub_task_id=f"{parent.batch_timestamp}.2")
+    child.items = [item]
+    child.from_timestamp = child.until_timestamp = 0
+    child.pull()
+    assert item.query.is_partial is True
+    assert [r.time for r in child.record_list] == [3660]
+    assert child.record_list[0].clean().data["is_partial"] is True
+
+
+def test_detect_keeps_only_the_latest_value_per_record_id(mocker):
+    from alarm_backends.service.detect import DataPoint
+
+    strategy = SimpleNamespace(
+        id=1,
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        config={"detects": [{"level": 2, "connector": "and"}]},
+        priority=None,
+        priority_group_key=None,
+        scenario="os",
+    )
+    item = Item(
+        {
+            "id": 1,
+            "name": "COUNT",
+            "expression": "a",
+            "query_configs": [copy.deepcopy(LOG_TS_COUNT_QUERY)],
+            "algorithms": [{"type": "Threshold", "level": 2, "config": GTE_10, "unit_prefix": ""}],
+        },
+        strategy,
+    )
+    checkpoint = mocker.patch.object(Item, "_update_monitor_d_checkpoint")
+
+    def point(value):
+        data = {"value": value, "values": {"_result_": value}, "time": 3600, "record_id": "md5.3600", "dimensions": {}}
+        return DataPoint(accessed_data=data, item=item)
+
+    latest = point(1)
+    assert item.detect([point(11), latest]) == []
+    records, anomaly_records, _ = checkpoint.call_args.args
+    assert records == [latest] and anomaly_records == []

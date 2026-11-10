@@ -30,6 +30,7 @@ import { Button } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
+import MessageTooltip from '../../../../../components/message-tooltip/message-tooltip';
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
 import { formatCompactToken, LLM_KIND_CLASS } from '../utils/transform';
 import SpanIoKvs, { sliceTooltipContent } from './span-io-kvs';
@@ -58,6 +59,10 @@ export default defineComponent({
   name: 'LlmSpanRow',
   props: {
     expanded: {
+      type: Boolean,
+      default: false,
+    },
+    highlighted: {
       type: Boolean,
       default: false,
     },
@@ -91,8 +96,7 @@ export default defineComponent({
       return sliceTooltipContent(parts.join(' · '));
     };
 
-    const renderIoPiece = (piece: LlmIoPiece, tooltip: string) => {
-      const tips = { content: tooltip, placement: 'top' as const };
+    const renderIoPiece = (piece: LlmIoPiece) => {
       if (piece.type === 'tools') {
         return (
           <SpanIoKvs
@@ -105,12 +109,14 @@ export default defineComponent({
         return <SpanIoKvs pairs={piece.pairs} />;
       }
       return (
-        <span
-          class='llm-span-io-text'
-          v-overflow-tips={tips}
+        <MessageTooltip
+          title={t('详细信息')}
+          detail={piece.text}
+          placement='top'
+          onlyOnOverflow
         >
-          {piece.text}
-        </span>
+          <span class='llm-span-io-text'>{piece.text}</span>
+        </MessageTooltip>
       );
     };
 
@@ -124,7 +130,7 @@ export default defineComponent({
           class='llm-span-io-pieces'
           v-overflow-tips={{ content: tooltip, disabled: preview.type === 'tools', placement: 'top' }}
         >
-          {renderIoPiece(preview, tooltip)}
+          {renderIoPiece(preview)}
         </div>
       );
     };
@@ -142,7 +148,10 @@ export default defineComponent({
       };
 
       return (
-        <div class='llm-span-item'>
+        <div
+          id={`llm-span-${row.spanId}`}
+          class={['llm-span-item', { 'is-highlighted': props.highlighted }]}
+        >
           <div
             class={['llm-span-row', { 'is-error': row.isError }]}
             onClick={() => {
@@ -195,10 +204,12 @@ export default defineComponent({
               ) : null}
               <span class='llm-span-title'>
                 {row.isError ? (
-                  <i
-                    class='icon-monitor icon-yichang llm-span-error-icon'
-                    // v-bk-tooltips={{ content: row.errorMessage || '--', placement: 'top' }}
-                  />
+                  <MessageTooltip
+                    detail={row.errorMessage}
+                    placement='top'
+                  >
+                    <i class='icon-monitor icon-yichang llm-span-error-icon' />
+                  </MessageTooltip>
                 ) : null}
                 <span
                   class='llm-span-name'

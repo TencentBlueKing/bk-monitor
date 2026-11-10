@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkm_space.utils import bk_biz_id_to_space_uid
+from core.drf_resource import api
 from metadata import config as metadata_config
 from metadata.models import Space
 from metadata.models.record_rule.v4.as_code import build_export_entries, dump_rule, parse_config, parse_group
@@ -70,9 +71,12 @@ def save_declaration(
     source: str = "api",
     app: str | None = None,
     path: str = "",
-) -> RecordRuleV4:
+) -> tuple[RecordRuleV4, bool]:
+    """保存声明，并在同一行锁内判定是否需要异步执行。"""
     fields = {key: value for key, value in declaration.items() if key != "source_path"}
     operator = get_request_username(default=source)
+    change_fields = ("current_spec_id", "description", "data_label", "desired_status", "auto_refresh")
+    previous = None
     with transaction.atomic(using=metadata_config.DATABASE_CONNECTION_NAME):
         if rule is None:
             rule = RecordRuleV4Operator.declare(
@@ -88,6 +92,7 @@ def save_declaration(
                 rule = active_rules(space).select_related(None).select_for_update().get(pk=rule.pk)
             except RecordRuleV4.DoesNotExist as error:
                 raise ValidationError("RecordingRule 不存在") from error
+            previous = tuple(getattr(rule, field) for field in change_fields)
             if fields.pop("name") != rule.name:
                 raise ValidationError("规则组名称不可修改")
             rule = RecordRuleV4Operator(rule, source=source, operator=operator).update_declaration(**fields)
@@ -95,14 +100,15 @@ def save_declaration(
             rule.app = app
             rule.path = path
             rule.save(update_fields=["app", "path", "updated_at"])
-    return rule
+        changed = previous != tuple(getattr(rule, field) for field in change_fields)
+    return rule, changed
 
 
-def execute_rule(rule: RecordRuleV4, *, source: str = "api") -> dict[str, Any]:
+def execute_rule(rule: RecordRuleV4, *, source: str = "api", operator: str | None = None) -> dict[str, Any]:
     """执行失败仍保留声明，把执行结果与配置保存结果分开返回。"""
     try:
         succeeded = RecordRuleV4Operator(
-            rule, source=source, operator=get_request_username(default=source)
+            rule, source=source, operator=operator if operator is not None else get_request_username(default=source)
         ).execute_declaration(auto_apply=True)
     except Exception as error:
         logger.exception("RecordingRule execute failed, id: %s", rule.pk)
@@ -124,12 +130,14 @@ def execute_rule(rule: RecordRuleV4, *, source: str = "api") -> dict[str, Any]:
     return {"succeeded": False, "error": error or "解析或下发失败"}
 
 
-def soft_delete_rule(rule: RecordRuleV4, *, source: str = "api") -> dict[str, Any]:
+def soft_delete_rule(rule: RecordRuleV4, *, source: str = "api", execute: bool = True) -> dict[str, Any]:
     with transaction.atomic(using=metadata_config.DATABASE_CONNECTION_NAME):
         rule.is_deleted = True
         rule.save(update_fields=["is_deleted", "updated_at"])
         RecordRuleV4Operator(rule, source=source, operator=get_request_username(default=source)).delete_declaration()
     # 调度器不按 is_deleted 过滤，外部删除失败后仍能继续重试。
+    if not execute:
+        return {"succeeded": True, "error": ""}
     return execute_rule(rule, source=source)
 
 
@@ -180,9 +188,10 @@ def prepare_import(
 def import_recording_rules(space: Space, app: str, records: list[dict], *, incremental: bool) -> dict[str, str]:
     errors = {}
     saved_ids = []
+    changed_ids = []
     for record in records:
         try:
-            rule = save_declaration(
+            rule, changed = save_declaration(
                 space,
                 record["declaration"],
                 rule=record["rule"],
@@ -191,23 +200,36 @@ def import_recording_rules(space: Space, app: str, records: list[dict], *, incre
                 path=record["path"],
             )
             saved_ids.append(rule.pk)
-            result = execute_rule(rule, source="as_code")
-            if not result["succeeded"]:
-                errors[record["key"]] = f"规则 {rule.pk} 已保存，下发失败: {result['error']}"
+            if changed:
+                changed_ids.append(rule.pk)
         except Exception as error:
             logger.exception("RecordingRule import failed, path: %s", record["key"])
             errors[record["key"]] = str(error)
-    if errors or incremental:
-        return errors
-    for rule in active_rules(space).filter(app=app).exclude(pk__in=saved_ids):
-        key = f"recording_rule/{rule.path}:{rule.name}"
-        try:
-            result = soft_delete_rule(rule, source="as_code")
-            if not result["succeeded"]:
-                errors[key] = f"规则 {rule.pk} 已软删除，Flow 删除失败: {result['error']}"
-        except Exception as error:
-            logger.exception("RecordingRule cleanup failed, id: %s", rule.pk)
-            errors[key] = f"规则 {rule.pk} 删除失败: {error}"
+    if not errors and not incremental:
+        for rule in active_rules(space).filter(app=app).exclude(pk__in=saved_ids):
+            key = f"recording_rule/{rule.path}:{rule.name}"
+            try:
+                soft_delete_rule(rule, source="as_code", execute=False)
+                changed_ids.append(rule.pk)
+            except Exception as error:
+                logger.exception("RecordingRule cleanup failed, id: %s", rule.pk)
+                errors[key] = f"规则 {rule.pk} 删除失败: {error}"
+
+    if changed_ids:
+        operator = get_request_username(default="as_code")
+
+        def enqueue():
+            try:
+                api.metadata.sync_as_code_recording_rules(rule_ids=changed_ids, operator=operator)
+            except Exception as error:
+                logger.exception("RecordingRule task enqueue failed, ids: %s", changed_ids)
+                return f"规则声明已保存，异步任务投递失败: {error}"
+
+        if transaction.get_connection(metadata_config.DATABASE_CONNECTION_NAME).in_atomic_block:
+            # 外层事务提交后才能投递；回调失败仅记录日志，不修改已经返回的 errors。
+            transaction.on_commit(enqueue, using=metadata_config.DATABASE_CONNECTION_NAME)
+        elif error := enqueue():
+            errors["recording_rule"] = error
     return errors
 
 

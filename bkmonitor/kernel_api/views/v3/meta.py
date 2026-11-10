@@ -24,6 +24,10 @@ class QueryResourceStorageViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.QueryResourceStorageResource)]
 
 
+class SyncAsCodeRecordingRulesViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.SyncAsCodeRecordingRulesResource)]
+
+
 class CreateDataIDViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateDataIDResource)]
 

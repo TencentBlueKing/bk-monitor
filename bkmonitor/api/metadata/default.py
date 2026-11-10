@@ -49,6 +49,13 @@ class QueryResourceStorageResource(MetaDataAPIGWResource):
     method = "POST"
 
 
+class SyncAsCodeRecordingRulesResource(MetaDataAPIGWResource):
+    """投递 AsCode 预计算规则异步执行任务（内部接口）。"""
+
+    action = "/app/metadata/sync_as_code_recording_rules/"
+    method = "POST"
+
+
 class GetLabelResource(MetaDataAPIGWResource):
     """
     获取分类标签（一二级标签）
@@ -768,6 +775,16 @@ class QueryTagValuesResource(MetaDataAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=False, label="结果表ID")
         tag_name = serializers.CharField(required=False, label="TAG名称")
+
+        start_time = serializers.IntegerField(required=False, label="开始时间（Unix秒）")
+        end_time = serializers.IntegerField(required=False, label="结束时间（Unix秒）")
+
+        def validate(self, attrs):
+            if ("start_time" in attrs) != ("end_time" in attrs):
+                raise serializers.ValidationError("start_time 和 end_time 必须同时提供")
+            if "start_time" in attrs and attrs["start_time"] > attrs["end_time"]:
+                raise serializers.ValidationError("start_time 不能大于 end_time")
+            return attrs
 
 
 class QueryClusterInfoResource(MetaDataAPIGWResource):

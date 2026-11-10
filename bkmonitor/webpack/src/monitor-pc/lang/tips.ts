@@ -558,6 +558,7 @@ export default {
   暂无关联Skill: 'No Skill associated',
   '可绑定本空间有使用权限的 Skill': 'You can bind Skills with usage permissions in this space',
   暂无关联智能体: 'No agent associated',
+  '暂无关联 Span': 'No related Span',
   可绑定本空间有使用权限的智能体: 'You can bind agents with usage permissions in this space',
   数据未变更: 'Data has not changed',
   '数据未就绪，请稍后重试': 'Data is not ready, please try again later',

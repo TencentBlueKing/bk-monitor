@@ -68,11 +68,17 @@ export function flattenKvPairs(value: unknown, max = 4): LlmKvPair[] {
     .slice(0, max)
     .map(([key, val]) => ({
       key,
-      value:
-        typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean'
-          ? String(val)
-          : stringifyContent(val),
+      value: toKvValue(val),
     }));
+}
+
+/** null / undefined / 空串保留字面量文本，避免在预览里被渲染成空串 */
+function toKvValue(val: unknown): string {
+  if (val === null) return 'null';
+  if (val === undefined) return 'undefined';
+  if (typeof val === 'string') return val === '' ? '""' : val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  return stringifyContent(val);
 }
 
 /**

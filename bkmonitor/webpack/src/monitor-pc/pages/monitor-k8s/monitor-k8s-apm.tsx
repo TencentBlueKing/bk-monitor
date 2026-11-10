@@ -302,8 +302,8 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   handleTableGroupChange(item: K8sTableGroupByEvent, showCancelDrill = false) {
     const cacheGroupBy = [...this.groupInstance.groupFilters];
     const cacheFilterBy = JSON.parse(JSON.stringify(this.filterBy));
-    const { filterById, id, dimension } = item;
-    this.handleDrillDown(filterById, id, dimension);
+    const { filterById, id, dimension, scopeFilters } = item;
+    this.handleDrillDown(filterById, id, dimension, scopeFilters);
     if (showCancelDrill) {
       // this.showCancelDrill = true;
       this.cacheGroupBy = cacheGroupBy;
@@ -318,8 +318,14 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
    * @param isSelect 是否选中
    */
   @Provide('onFilterChange')
-  filterByChange(id: string, dimensionId: string, isSelect: boolean) {
+  filterByChange(id: string, dimensionId: string, isSelect: boolean, scopeFilters?: Record<string, string[]>) {
     // this.showCancelDrill = false;
+    if (isSelect && scopeFilters) {
+      for (const [key, values] of Object.entries(scopeFilters)) {
+        if (!this.groupInstance.hasGroupFilter(key as K8sTableColumnResourceKey)) this.groupByChange(key, true);
+        this.$set(this.filterBy, key, [...values]);
+      }
+    }
     if (!this.filterBy[dimensionId]) {
       this.$set(this.filterBy, dimensionId, []);
     }
@@ -505,8 +511,13 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
    * @param filterByDimension  下钻数据所在维度
    * @param drillDownDimension 下钻维度
    */
-  handleDrillDown(filterById: string, filterByDimension: string, drillDownDimension: string) {
-    this.filterByChange(filterById, filterByDimension, true);
+  handleDrillDown(
+    filterById: string,
+    filterByDimension: string,
+    drillDownDimension: string,
+    scopeFilters?: Record<string, string[]>
+  ) {
+    this.filterByChange(filterById, filterByDimension, true, scopeFilters);
     this.groupByChange(drillDownDimension, true);
   }
 

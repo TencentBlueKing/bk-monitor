@@ -62,6 +62,7 @@ from apps.log_search.permission import Permission
 from apps.log_search.utils import handle_es_query_error
 from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
+from apps.log_unifyquery.partial import is_partial_result
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -104,7 +105,9 @@ def fields_config(name: str, is_active: bool = False):
 
 
 class UnifyQueryHandler:
-    def __init__(self, params):
+    allow_partial_es_results = False
+
+    def __init__(self, params, *, allow_partial_results=False):
         self.search_params: dict[str, Any] = params
 
         # 必需参数，索引集id列表
@@ -119,6 +122,11 @@ class UnifyQueryHandler:
 
         # 必需参数，业务id
         self.bk_biz_id = self.search_params["bk_biz_id"]
+
+        if allow_partial_results:
+            biz_id = self._resolve_partial_results_biz_id()
+            if biz_id:
+                self.allow_partial_es_results = FeatureToggleObject.switch("retrieve_partial_es_results", biz_id=biz_id)
 
         # 查询语句
         self.query_string = self.search_params.get("keyword", "")
@@ -835,8 +843,7 @@ class UnifyQueryHandler:
                 log_content_tmp = copy.deepcopy(log)
             except RecursionError:
                 logger.warning(
-                    "[desensitize] deepcopy failed due to deeply nested structure, "
-                    "falling back to shallow copy"
+                    "[desensitize] deepcopy failed due to deeply nested structure, falling back to shallow copy"
                 )
                 log_content_tmp = copy.copy(log)
 
@@ -889,9 +896,7 @@ class UnifyQueryHandler:
                         if original_value is None:
                             continue
 
-                    log[text_tuple] = log[text_tuple].replace(
-                        str(original_value), str(log[field_tuple])
-                    )
+                    log[text_tuple] = log[text_tuple].replace(str(original_value), str(log[field_tuple]))
 
             # 处理原文字段自身绑定的脱敏逻辑
             log = self.text_fields_desensitize_handler.transform_dict(log)
@@ -935,6 +940,9 @@ class UnifyQueryHandler:
         nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
         return self.update_nested_dict(log, nested_dict)
 
+    def _resolve_partial_results_biz_id(self) -> int | None:
+        return self.bk_biz_id
+
     def search(self, search_type="default", is_export=False):
         """
         search
@@ -968,10 +976,14 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
+        if self.allow_partial_es_results and not is_export:
+            search_dict["allow_partial_es_results"] = True
 
         # 预查询
         result = self.query_ts_raw(search_dict, pre_search=pre_search)
-        if pre_search and len(result["list"]) != once_size:
+        if pre_search and (
+            len(result["list"]) != once_size or (self.allow_partial_es_results and is_partial_result(result))
+        ):
             # 全量查询
             result = self.query_ts_raw(search_dict)
         result = self._deal_query_result(result)
@@ -1002,15 +1014,7 @@ class UnifyQueryHandler:
 
         if not response.get("series"):
             return {"aggs": {}}
-
-        # 组装结果
-        return_data = self.obtain_result_data(
-            interval,
-            group_field,
-            response,
-        )
-
-        return return_data
+        return self.obtain_result_data(interval, group_field, response)
 
     @staticmethod
     def obtain_result_data(interval, group_field, response):
@@ -1108,8 +1112,10 @@ class UnifyQueryHandler:
         params["metric_merge"] = "a"
         params["step"] = interval
         params["order_by"] = []
+        if self.allow_partial_es_results:
+            params["allow_partial_es_results"] = True
 
-        response = self.query_ts_reference(params)
+        response = self.query_ts_reference(params, raise_exception=self.allow_partial_es_results)
 
         return response
 

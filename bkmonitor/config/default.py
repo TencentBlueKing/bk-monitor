@@ -1838,11 +1838,8 @@ BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
-# Graph Relation V4 业务灰度白名单，同时控制双写链路自动 apply 和 v1beta3 查询切流
-_graph_relation_v4_biz_id_white_list_env = os.getenv("GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST", "")
-GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST = [
-    int(biz_id.strip()) for biz_id in _graph_relation_v4_biz_id_white_list_env.split(",") if biz_id.strip().isdigit()
-]
+# v1beta3 关联查询业务白名单，通过 GlobalConfig 管理，不改变存储写入链路。
+RELATION_V1BETA3_BIZ_ID_WHITE_LIST = []
 
 # 特殊的可以不被禁用的BCS集群ID
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
@@ -1965,6 +1962,9 @@ RUM_BIZ_LIST = []
 # Profiling 主动采集灰度列表，关闭灰度: [0] 或删除该配置
 ACTIVE_PROFILING_BIZ_LIST = []
 
+# Profiling 主动采集下发的 bkmonitorbeat 插件版本
+ACTIVE_PROFILING_PLUGIN_VERSION = "latest"
+
 # LLM 观测灰度业务列表，关闭灰度: [0] 或删除该配置
 LLM_BIZ_LIST = []
 
@@ -2037,6 +2037,7 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+BK_ADMIN_USERNAME = os.getenv("BK_ADMIN_USERNAME", "bk_admin")
 # 自定义格式 VM 链路使用的 inner KafkaChannel，key 为 "<tenant>:<namespace>"。
 BKBASE_INNER_KAFKA_CHANNEL_MAP = json.loads(os.getenv("BKBASE_INNER_KAFKA_CHANNEL_MAP", "{}"))
 # 是否启用全局租户（blueapps依赖）
