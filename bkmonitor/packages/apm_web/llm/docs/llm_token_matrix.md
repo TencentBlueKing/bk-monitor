@@ -7,56 +7,20 @@
   "token_matrix": {
     "nodes": [
       {
-        "key": "input",
-        "label": "输入",
-        "tokens": 1000,
+        "key": "input", "label": "输入", "tokens": 1000,
         "children": [
+          {"key": "system", "label": "系统提示词", "tokens": 158, "children": []},
+          {"key": "definitions", "label": "可用工具", "tokens": 395, "children": []},
           {
-            "key": "system",
-            "label": "系统提示词",
-            "tokens": 158,
-            "children": []
-          },
-          {
-            "key": "definitions",
-            "label": "可用工具",
-            "tokens": 395,
-            "children": []
-          },
-          {
-            "key": "context",
-            "label": "会话上下文",
-            "tokens": 447,
+            "key": "context", "label": "会话上下文", "tokens": 447,
             "children": [
+              {"key": "tool_calls", "label": "工具调用", "tokens": 237, "children": []},
               {
-                "key": "tool_calls",
-                "label": "工具调用",
-                "tokens": 237,
-                "children": []
-              },
-              {
-                "key": "conversation",
-                "label": "会话内容",
-                "tokens": 210,
+                "key": "conversation", "label": "会话内容", "tokens": 210,
                 "children": [
-                  {
-                    "key": "model",
-                    "label": "模型消息",
-                    "tokens": 92,
-                    "children": []
-                  },
-                  {
-                    "key": "user",
-                    "label": "用户消息",
-                    "tokens": 118,
-                    "children": []
-                  },
-                  {
-                    "key": "other",
-                    "label": "其他",
-                    "tokens": 0,
-                    "children": []
-                  }
+                  {"key": "model", "label": "模型消息", "tokens": 92, "children": []},
+                  {"key": "user", "label": "用户消息", "tokens": 118, "children": []},
+                  {"key": "other", "label": "其他", "tokens": 0, "children": []}
                 ]
               }
             ]
@@ -65,60 +29,26 @@
         "estimate_ratio": 0.076
       },
       {
-        "key": "output",
-        "label": "输出",
-        "tokens": 200,
+        "key": "output", "label": "输出", "tokens": 200,
         "children": [
-          {
-            "key": "content",
-            "label": "内容",
-            "tokens": 150,
-            "children": []
-          },
-          {
-            "key": "reasoning",
-            "label": "推理",
-            "tokens": 50,
-            "children": []
-          }
+          {"key": "content", "label": "内容", "tokens": 150, "children": []},
+          {"key": "reasoning", "label": "推理", "tokens": 50, "children": []}
         ],
         "estimate_ratio": 0.32
       }
     ],
     "tools": [
       {
-        "trace_id": "trace-1",
-        "name": "search",
-        "label": "search",
-        "span_ids": [
-          "model-1"
-        ],
-        "call_count": 1,
-        "tokens": 237
+        "trace_id": "trace-1", "name": "search", "label": "search",
+        "span_ids": ["model-1"], "call_count": 1, "tokens": 237
       }
     ]
   },
   "token_categories": [
-    {
-      "key": "gen_ai.system_instructions",
-      "label": "系统提示词",
-      "tokens": 158
-    },
-    {
-      "key": "gen_ai.tool.definitions",
-      "label": "可用工具",
-      "tokens": 395
-    },
-    {
-      "key": "gen_ai.input.messages",
-      "label": "输入",
-      "tokens": 447
-    },
-    {
-      "key": "gen_ai.output.messages",
-      "label": "输出",
-      "tokens": 200
-    }
+    {"key": "gen_ai.system_instructions", "label": "系统提示词", "tokens": 158},
+    {"key": "gen_ai.tool.definitions", "label": "可用工具", "tokens": 395},
+    {"key": "gen_ai.input.messages", "label": "输入", "tokens": 447},
+    {"key": "gen_ai.output.messages", "label": "输出", "tokens": 200}
   ]
 }
 ```
