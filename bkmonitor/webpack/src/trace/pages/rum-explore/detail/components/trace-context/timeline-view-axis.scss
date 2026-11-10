@@ -1,0 +1,69 @@
+.timeline-view-axis {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 6px;
+  align-items: center;
+  width: 31px;
+
+  .axis-connector {
+    flex-shrink: 0;
+    width: 1px;
+    background: #c1cde5;
+
+    &.is-top {
+      height: 7px;
+    }
+
+    /* 下连线随行高伸展，跨过卡片间距与下一张卡片相接 */
+    &.is-bottom {
+      flex: 1;
+      min-height: 19px;
+    }
+  }
+
+  &.is-collapsed .axis-connector.is-top {
+    height: 4px;
+  }
+
+  .axis-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+  }
+
+  .axis-time {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    line-height: 14px;
+    color: #8f9fbd;
+  }
+
+  .axis-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    color: #4e5e7a;
+    background: #f0f4fa;
+    border-radius: 999px;
+
+    &.is-error {
+      color: #fff;
+      background: #ea3636;
+    }
+  }
+
+  .axis-count {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 22px;
+    color: #4e5e7a;
+  }
+}

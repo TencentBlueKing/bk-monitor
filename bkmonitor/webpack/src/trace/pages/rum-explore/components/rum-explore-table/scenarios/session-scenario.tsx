@@ -58,7 +58,7 @@ export class SessionScenario extends BaseScenario {
   readonly rowKey = SESSION_ID_FIELD;
 
   protected columnOverrides: Record<string, BaseTableColumn> = {
-    /** 会话 ID：按设计稿蓝色链接展示；专属详情未开发前点击由页面占位处理 */
+    /** 会话 ID：按设计稿蓝色链接展示，点击打开会话详情抽屉 */
     [SESSION_ID_FIELD]: {
       renderType: ExploreTableColumnTypeEnum.CLICK,
       clickCallback: (row, _column, event) => {
@@ -82,7 +82,7 @@ export class SessionScenario extends BaseScenario {
     protected readonly context: {
       /** 点击数量统计列：回传已解析的目标视角与检索条件 */
       onCountClick: (payload: IRumCountDrillDown) => void;
-      /** 点击会话 ID：由页面决定打开详情或占位 */
+      /** 点击会话 ID：打开该行的详情抽屉 */
       onOpenDetail: (row: Record<string, unknown>) => void;
     } & BaseScenario['context']
   ) {

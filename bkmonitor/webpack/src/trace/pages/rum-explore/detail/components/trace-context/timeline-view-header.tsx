@@ -35,7 +35,7 @@ import type { IRumTimelineViewVM } from '../../typings';
 
 import './timeline-view-header.scss';
 
-/** 链路上下文顶部的 View 头部：路由标题、路由类型、Web Vitals 指标、请求数、操作数与停留时长 */
+/** 链路上下文顶部的 View 头部：路由标题、路由类型、Web Vitals 指标、请求数、操作数、停留时长与异常数 */
 export default defineComponent({
   name: 'TimelineViewHeader',
   props: {
@@ -65,11 +65,12 @@ export default defineComponent({
     /** hover 指标时展示 hover-info 卡片，无 hover 数据的元素不加事件 */
     const { hoverBindings, hoverData } = useHoverInfo();
 
-    /** 数字加粗的统计项，如「42 个请求」 */
-    function renderMetric(key: string, keypath: string, value: number | string) {
+    /** 数字加粗的统计项，如「42 个请求」；cls 用于给整项着色 */
+    function renderMetric(key: string, keypath: string, value: number | string, cls?: string) {
       return (
         <i18n-t
           key={key}
+          class={cls}
           keypath={keypath}
           tag='span'
         >
@@ -94,6 +95,7 @@ export default defineComponent({
         renderMetric('request', '{0} 个请求', data.requestCount),
         renderMetric('action', '{0} 个操作', data.actionCount),
         data.durationText ? renderMetric('duration', '停留 {0}', data.durationText) : null,
+        data.errorCount > 0 ? renderMetric('error', '{0} 个异常', data.errorCount, 'error-metric') : null,
       ].filter(Boolean);
 
       return (

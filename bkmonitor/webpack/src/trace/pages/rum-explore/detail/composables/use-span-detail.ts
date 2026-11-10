@@ -46,6 +46,9 @@ interface IUseSpanDetailOptions {
  *
  * 关联数据依赖主详情的区块内容（如 Error 需要文件行列号），因此在主详情返回后才发起；
  * 两次请求各自维护 loading，关联数据失败不影响主详情展示。
+ *
+ * Session 详情复用本 hook（mode 传 session）：该层级未注册关联数据与关联 Trace，
+ * 退化为主详情一条链路，不产生额外请求。
  */
 export function useSpanDetail({ context, mode, timeRange }: IUseSpanDetailOptions) {
   const detail = shallowRef<IRumRecordDetail | null>(null);

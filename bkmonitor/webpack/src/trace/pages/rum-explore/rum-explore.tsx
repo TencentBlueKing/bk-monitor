@@ -69,10 +69,11 @@ import {
   RUM_RECORD_ID_FIELD_MAP,
   RUM_RESIDENT_SETTING_KEY,
   RumModeEnum,
+  SESSION_ID_FIELD,
   SPAN_TYPE_FIELD,
   VIEW_ID_FIELD,
 } from './constants';
-import RumSpanDetailSlider from './detail';
+import RumSpanDetailSlider, { RumSessionDetailSlider } from './detail';
 import { OVERVIEW_ISOLATED_LINK_FIELDS } from './detail/constants';
 import { getApplicationList } from './services/rum-application';
 import EmptyStatus from '@/components/empty-status/empty-status';
@@ -431,21 +432,20 @@ export default defineComponent({
     /**
      * 打开详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
      * 不额外请求列表接口。
-     * View 视角的一行即一条 view span：记录 ID 取页面 ID、类型固定为 view（与 SPAN_TYPE_META 的 view 同源）。
+     * View / Session 视角的一行即一条 view / session 记录：记录 ID 分别取页面 ID 与会话 ID，
+     * 类型固定为 view / session；Span 视角取行内 span_id 与 span_type。
      */
     function handleOpenDetail(row: IRumSpanRecord) {
-      /** session 专属详情本期未做，下期开放后移除该分支并接入 mode=session 的 record_detail */
-      if (store.mode === RumModeEnum.SESSION) return;
       const isViewMode = store.mode === RumModeEnum.VIEW;
-      /** View 行常缺 end_time：end_time 回退 start_time，两者都缺再回退当前检索范围（秒），保证上下文时间始终为有限正数 */
+      const isSessionMode = store.mode === RumModeEnum.SESSION;
+      /** View / Session 行常缺 end_time：end_time 回退 start_time，两者都缺再回退当前检索范围（秒），保证上下文时间始终为有限正数 */
       const [queryStart, queryEnd] = handleTransformToTimestamp(store.timeRange);
       const startSeconds = microToUnixSeconds(row?.start_time);
       const endSeconds = microToUnixSeconds(row?.end_time) ?? startSeconds;
       detailContext.value = {
         app_name: store.appName,
-        /** 记录 ID 按当前检索视角取行上的唯一键（View → view.id，Span → span_id），详情标题与检索条件共用 */
         record_id: String(row?.[RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? ''),
-        span_type: isViewMode ? 'view' : String(row?.[SPAN_TYPE_FIELD] ?? ''),
+        span_type: isSessionMode ? 'session' : isViewMode ? 'view' : String(row?.[SPAN_TYPE_FIELD] ?? ''),
         start_time: startSeconds ?? queryStart,
         end_time: endSeconds ?? queryEnd,
       };
@@ -475,9 +475,10 @@ export default defineComponent({
     function handleStepDetail(step: -1 | 1) {
       const tableData = tableCtx.tableData.value;
       if (!tableData.length) return;
-      /** View 视角的行以页面 ID 为唯一键，且每条 view 行都可打开详情；Span 视角按 span_id 与详情可用类型过滤 */
+      /** View / Session 视角的行分别以页面 ID、会话 ID 为唯一键，且每行都可打开详情；Span 视角按 span_id 与详情可用类型过滤 */
       const isViewMode = store.mode === RumModeEnum.VIEW;
-      const rowKey = isViewMode ? VIEW_ID_FIELD : 'span_id';
+      const isSessionMode = store.mode === RumModeEnum.SESSION;
+      const rowKey = isSessionMode ? SESSION_ID_FIELD : isViewMode ? VIEW_ID_FIELD : 'span_id';
       const currentIndex = Math.max(
         0,
         tableData.findIndex(item => item[rowKey] === detailContext.value?.record_id)
@@ -486,7 +487,7 @@ export default defineComponent({
       for (let offset = 1; offset <= tableData.length; offset++) {
         const index = (currentIndex + step * offset + tableData.length) % tableData.length;
         if (index === currentIndex) return;
-        if (isViewMode || RUM_DETAIL_SPAN_TYPES.has(tableData[index][SPAN_TYPE_FIELD] ?? '')) {
+        if (isViewMode || isSessionMode || RUM_DETAIL_SPAN_TYPES.has(tableData[index][SPAN_TYPE_FIELD] ?? '')) {
           handleOpenDetail(tableData[index]);
           return;
         }
@@ -819,18 +820,32 @@ export default defineComponent({
           </div>
         </div>
 
-        <RumSpanDetailSlider
-          context={this.detailContext}
-          fields={viewConfigCtx.viewConfig.value.fields}
-          isShow={this.detailShow}
-          mode={this.store.mode}
-          onConditionAdd={(key, value) =>
-            this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
-          }
-          onNext={this.handleNextDetail}
-          onPrevious={this.handlePreviousDetail}
-          onUpdate:isShow={this.handleSpanDetailShowChange}
-        />
+        {this.store.mode === RumModeEnum.SESSION ? (
+          <RumSessionDetailSlider
+            context={this.detailContext}
+            fields={viewConfigCtx.viewConfig.value.fields}
+            isShow={this.detailShow}
+            onConditionAdd={(key, value) =>
+              this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
+            }
+            onNext={this.handleNextDetail}
+            onPrevious={this.handlePreviousDetail}
+            onUpdate:isShow={this.handleSpanDetailShowChange}
+          />
+        ) : (
+          <RumSpanDetailSlider
+            context={this.detailContext}
+            fields={viewConfigCtx.viewConfig.value.fields}
+            isShow={this.detailShow}
+            mode={this.store.mode}
+            onConditionAdd={(key, value) =>
+              this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
+            }
+            onNext={this.handleNextDetail}
+            onPrevious={this.handlePreviousDetail}
+            onUpdate:isShow={this.handleSpanDetailShowChange}
+          />
+        )}
 
         {/* events 抽屉：贴页面底部弹出，覆盖除平台导航外的整块内容区，不随表格滚动 */}
         {eventsRow ? (

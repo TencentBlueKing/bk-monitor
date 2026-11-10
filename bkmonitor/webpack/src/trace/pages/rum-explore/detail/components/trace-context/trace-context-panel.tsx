@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent, shallowRef, watch } from 'vue';
 import type { PropType } from 'vue';
 
 import { Exception } from 'bkui-vue';
@@ -68,6 +68,11 @@ export default defineComponent({
     spanType: {
       type: String,
     },
+    /** 卡片是否默认展开：筛选生效时展开，保证命中项可见 */
+    defaultExpanded: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     expandFold: (_key: string) => true,
@@ -80,7 +85,14 @@ export default defineComponent({
     const { t } = useI18n();
 
     /** 卡片展开状态：默认折叠，只展示 View 头部摘要 */
-    const expanded = shallowRef(false);
+    const expanded = shallowRef(props.defaultExpanded);
+
+    watch(
+      () => props.defaultExpanded,
+      value => {
+        expanded.value = value;
+      }
+    );
 
     function renderSkeleton() {
       return (

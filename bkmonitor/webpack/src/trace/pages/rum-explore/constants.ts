@@ -144,6 +144,7 @@ export const SPAN_TYPE_META: Record<string, ISpanTypeMeta> = {
 
 export const SPAN_TYPE_META_ICON = {
   view: { icon: 'icon-View', label: 'View' },
+  session: { icon: 'icon-Session', label: 'Session' },
   resource: { icon: 'icon-Resource', label: 'Resource' },
   error: { icon: 'icon-ERROR', label: 'Error' },
   vital: { icon: 'icon-a-WebVital', label: 'Vital' },

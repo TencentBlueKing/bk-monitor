@@ -35,7 +35,7 @@ import DetailSections from './components/detail-sections/detail-sections';
 import DetailSkeleton from './components/detail-skeleton/detail-skeleton';
 import OriginDataPanel from './components/origin-data-panel/origin-data-panel';
 import TimelineFilterBar from './components/trace-context/timeline-filter-bar';
-import TraceContextPanel from './components/trace-context/trace-context-panel';
+import TimelineViewList from './components/trace-context/timeline-view-list';
 import {
   useDetailFormatter,
   useDetailOverview,
@@ -169,8 +169,9 @@ export default defineComponent({
     const traceContext = useTraceContext({
       active: computed(() => activeTab.value === RumDetailTabEnum.TRACE_CONTEXT),
       appName: computed(() => props.context?.app_name || ''),
-      viewId,
+      dimension: viewId,
       currentSpanId: spanId,
+      scope: 'view',
       formatField,
     });
 
@@ -369,21 +370,36 @@ export default defineComponent({
         <div class='rum-detail-card'>
           <TimelineFilterBar
             category={traceContext.filterCategory.value}
+            collapseMiddle={traceContext.collapseMiddleView.value}
+            durationText={traceContext.durationText.value}
             keyword={traceContext.filterKeyword.value}
+            scope='view'
+            sort={traceContext.sortOrder.value}
             onUpdate:category={value => {
               traceContext.filterCategory.value = value;
+            }}
+            onUpdate:collapseMiddle={value => {
+              traceContext.collapseMiddleView.value = value;
             }}
             onUpdate:keyword={value => {
               traceContext.filterKeyword.value = value;
             }}
+            onUpdate:sort={value => {
+              traceContext.sortOrder.value = value;
+            }}
           />
-          <TraceContextPanel
+          <TimelineViewList
+            beginText={traceContext.beginDateText.value}
+            cardItems={traceContext.cardItems.value}
+            endText={traceContext.endDurationText.value}
             error={traceContext.error.value}
-            items={traceContext.items.value}
+            hasFilter={traceContext.hasFilter.value}
             loading={traceContext.loading.value}
+            scope='view'
+            sort={traceContext.sortOrder.value}
             spanType={spanType.value}
-            view={traceContext.viewVM.value}
             onExpandFold={traceContext.handleExpandFold}
+            onExpandHidden={traceContext.handleExpandHiddenViews}
             onSpanClick={handleTimelineSpanClick}
             onToggleNode={traceContext.handleToggleNode}
             onTraceClick={handleTimelineTraceClick}

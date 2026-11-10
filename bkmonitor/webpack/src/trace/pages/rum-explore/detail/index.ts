@@ -23,5 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+export { default as RumSessionDetailSlider } from './rum-session-detail-slider';
 export { default } from './rum-span-detail-slider';
 export * from './typings';

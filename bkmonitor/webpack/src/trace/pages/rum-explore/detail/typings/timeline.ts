@@ -24,7 +24,21 @@
  * IN THE SOFTWARE.
  */
 import type { IRumDetailOverview, IRumDetailSection, IRumHoverInfo } from './detail';
+import type { RumViewLoadingType } from './enum';
 import type { IRumWaterfallVM } from './view-model';
+
+/** 时间轴的展示项：View 卡片或折叠中间 View 时的一张隐藏卡片 */
+export type IRumTimelineCardItemVM = { card: IRumTimelineCardVM; kind: 'card' } | { count: number; kind: 'hidden' };
+
+/** 时间线的一张卡片：一个 View 及其 Span 列表 */
+export interface IRumTimelineCardVM {
+  items: IRumTimelineItemVM[];
+  /** 卡片标识，取 View 的 span_id */
+  key: string;
+  /** View 开始时间，HH:mm，用于卡片左侧的时间轴 */
+  timeText: string;
+  view: IRumTimelineViewVM;
+}
 
 /** 被折叠的一段连续同级 Span */
 export interface IRumTimelineFoldVM {
@@ -56,6 +70,8 @@ export interface IRumTimelineRecord {
 
 /** timeline 接口返回结构 */
 export interface IRumTimelineResponse {
+  /** 耗时（微秒） */
+  duration: number;
   /** 结束时间（微秒），未结束时为 null */
   end_time: null | number;
   records: IRumTimelineRecord[];
@@ -95,10 +111,14 @@ export interface IRumTimelineViewVM {
   actionCount: number;
   /** 停留时长，缺失时为空串 */
   durationText: string;
+  /** 子树中 Error 类型的 Span 数 */
+  errorCount: number;
   /** 当前详情的 Span 就是这个 View */
   isCurrent: boolean;
   /** 路由类型（loading_type 的枚举别名） */
   loadingType: string;
+  /** 路由类型原始枚举值，未登记的类型为空串；时间轴的类型图标按此取值 */
+  loadingTypeValue: '' | RumViewLoadingType;
   /** 子树中 xhr / fetch 请求数 */
   requestCount: number;
   spanId: string;
