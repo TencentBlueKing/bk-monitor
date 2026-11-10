@@ -936,12 +936,18 @@ class UnifyQueryHandler:
     def allow_partial_es_results(self):
         """一次 UQ 请求共用一个开关，跨业务查询不启用。"""
         biz_ids = set()
-        for info in self.index_info_list:
-            index_set = info["index_set_obj"]
-            biz_id, space_uid = LogIndexSet.resolve_search_scope(index_set, self.bk_biz_id)
-            if not biz_id or not LogIndexSet.is_platform_index_visible_to_space(index_set, space_uid):
-                return False
-            biz_ids.add(biz_id)
+        try:
+            for info in self.index_info_list:
+                index_set = info["index_set_obj"]
+                biz_id, space_uid = LogIndexSet.resolve_search_scope(index_set, self.bk_biz_id)
+                if not biz_id or not LogIndexSet.is_platform_index_visible_to_space(index_set, space_uid):
+                    return False
+                biz_ids.add(biz_id)
+        except Exception:  # 灰度所需的空间信息不可用时，继续按原方式查询。
+            logger.warning(
+                "Failed to resolve business for partial ES results, index sets: %s", self.index_set_ids, exc_info=True
+            )
+            return False
         return len(biz_ids) == 1 and FeatureToggleObject.switch("retrieve_partial_es_results", biz_id=biz_ids.pop())
 
     def search(self, search_type="default", is_export=False, allow_partial_es_results=False):

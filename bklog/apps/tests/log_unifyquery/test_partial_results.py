@@ -14,6 +14,8 @@ from unittest.mock import Mock, patch
 
 from django.test import RequestFactory, SimpleTestCase, override_settings
 
+from apps.log_search.views.aggs_views import AggsViewSet
+from apps.log_search.views.field_views import FieldViewSet
 from apps.log_search.views.search_views import SearchViewSet
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
@@ -110,19 +112,40 @@ class PartialResultsTests(SimpleTestCase):
             self.assertFalse(handler.allow_partial_es_results())
 
     @patch("apps.log_search.views.search_views.UnifyQueryHandler")
-    @patch("apps.log_search.views.search_views._apply_index_set_search_bk_biz_id")
-    def test_json_and_stream_search_use_same_rollout(self, _apply_scope, handler_cls):
+    @patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=True)
+    def test_json_and_stream_search_use_same_rollout(self, switch, handler_cls):
         view = SearchViewSet()
-        view.get_object = Mock()
-        view.params_valid = Mock(side_effect=lambda *_: {})
+        view.get_object = Mock(return_value=SimpleNamespace(space_uid="bkcc__123", is_platform_index=False))
+        view.params_valid = Mock(side_effect=lambda *_: {"bk_biz_id": 456})
         handler = handler_cls.return_value
-        handler.allow_partial_es_results.return_value = True
         handler.search.side_effect = lambda **_: {"list": [], "total": 0}
         for query, streaming in (("", False), ("?stream=true", True)):
             request = RequestFactory().post(f"/api/v1/search/index_set/10/search/{query}")
             response = view.search(request, index_set_id=10)
+            switch.assert_called_with("retrieve_partial_es_results", biz_id=123)
             handler.search.assert_called_with(allow_partial_es_results=True)
             self.assertEqual(response.streaming, streaming)
+
+    @patch("apps.log_search.models.LogIndexSet.resolve_search_scope", side_effect=TimeoutError)
+    def test_scope_lookup_failure_preserves_aggregation_queries(self, _scope):
+        handler = object.__new__(UnifyQueryFieldHandler)
+        handler.bk_biz_id = 123
+        handler.index_set_ids = [10]
+        handler.index_info_list = [{"index_set_obj": Mock()}]
+        handler.search_params = {"interval": "1m", "group_field": None}
+        handler.base_dict = handler.result_merge_base_dict = {"query_list": [{}]}
+        handler.query_ts_reference = Mock(side_effect=[{"series": []}, {"series": [{"values": [[1000, 7]]}]}])
+        with patch("apps.log_search.views.aggs_views.UnifyQueryHandler", return_value=handler):
+            view = AggsViewSet()
+            view.params_valid = Mock(return_value={})
+            self.assertEqual(view.date_histogram(RequestFactory().post("/"), 10).data, {"aggs": {}})
+        with patch("apps.log_search.views.field_views.UnifyQueryFieldHandler", return_value=handler):
+            view = FieldViewSet()
+            view.params_valid = Mock(return_value={})
+            self.assertEqual(view.fetch_statistics_total(RequestFactory().post("/")).data, {"total_count": 7})
+        for call in handler.query_ts_reference.call_args_list:
+            self.assertNotIn("allow_partial_es_results", call.args[0])
+            self.assertFalse(call.kwargs["raise_exception"])
 
     def test_shared_calls_omit_opt_in(self):
         handler = self.handler()

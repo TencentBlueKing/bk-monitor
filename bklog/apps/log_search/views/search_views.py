@@ -425,7 +425,9 @@ class SearchViewSet(APIViewSet):
 
         data["index_set_ids"] = [index_set_id]
         query_handler = UnifyQueryHandler(data)
-        return Response(query_handler.search(allow_partial_es_results=query_handler.allow_partial_es_results()))
+        biz_id = data["bk_biz_id"]
+        allow_partial = bool(biz_id) and FeatureToggleObject.switch("retrieve_partial_es_results", biz_id=biz_id)
+        return Response(query_handler.search(allow_partial_es_results=allow_partial))
 
     @detail_route(methods=["POST"], url_path="search/original")
     def original_search(self, request, index_set_id=None):
