@@ -302,6 +302,84 @@ class TestKubernetesCMDBEnricher:
         assert alert.dimensions[6]["key"] == "ip" and alert.dimensions[6]["value"] == "10.0.0.1"
         assert alert.dimensions[7]["key"] == "bk_cloud_id" and alert.dimensions[7]["value"] == 1
 
+    @staticmethod
+    def _event_without_namespace(event_data: dict, additional_dimensions: dict | None) -> dict:
+        """策略不按 namespace 聚合；接入时按 Pod 查到的维度放在 additional_dimensions"""
+        event_data = copy.deepcopy(event_data)
+        event_data["tags"] = [tag for tag in event_data["tags"] if tag["key"] != "namespace"]
+        event_data["dedupe_keys"].remove("tags.namespace")
+        event_data["extra_info"]["agg_dimensions"] = {"bcs_cluster_id", "container", "pod"}
+        event_data["extra_info"]["origin_alarm"]["data"]["dimensions"].pop("namespace")
+        if additional_dimensions is not None:
+            event_data["extra_info"]["additional_dimensions"] = additional_dimensions
+        return event_data
+
+    def test_k8s_enricher__namespace_from_additional_dimensions(
+        self,
+        init,
+        init_host_cache,
+        event_data: dict,
+        mock_get_kubernetes_relation,
+        mock_get_host_by_ip,
+        mock_get_host_without_biz_v2,
+    ):
+        event_data = self._event_without_namespace(
+            event_data,
+            {"workload_kind": "Deployment", "workload_name": "backend-test", "namespace": "bcs-system"},
+        )
+        alert = Alert.from_event(Event(event_data))
+        alert._is_new = True
+        KubernetesCMDBEnricher([alert]).enrich()
+
+        source_info = mock_get_kubernetes_relation.call_args.args[0]["source_info_list"][0]
+        assert source_info["namespace"] == "bcs-system"
+        # 只补 namespace，workload 不是资源主键
+        assert "workload_kind" not in source_info and "workload_name" not in source_info
+        # 原始告警维度保持原样
+        assert alert.get_origin_alarm_dimensions() == {
+            "pod": "backend-test-1",
+            "container": "backend-test-operator",
+            "bcs_cluster_id": "TEST-K8S-1",
+        }
+        dimensions = {dimension["key"]: dimension["value"] for dimension in alert.dimensions}
+        assert dimensions["bk_host_id"] == 100 and dimensions["ip"] == "127.0.0.1"
+
+    def test_k8s_enricher__namespace_unknown(
+        self,
+        init,
+        init_host_cache,
+        event_data: dict,
+        mock_get_kubernetes_relation,
+        mock_get_host_by_ip,
+        mock_get_host_without_biz_v2,
+    ):
+        # 接入时查不到 Pod，没有补充维度，按原始维度查询
+        event_data = self._event_without_namespace(event_data, None)
+        alert = Alert.from_event(Event(event_data))
+        alert._is_new = True
+        KubernetesCMDBEnricher([alert]).enrich()
+
+        source_info = mock_get_kubernetes_relation.call_args.args[0]["source_info_list"][0]
+        assert "namespace" not in source_info
+
+    def test_k8s_enricher__origin_namespace_kept(
+        self,
+        init,
+        init_host_cache,
+        event_data: dict,
+        mock_get_kubernetes_relation,
+        mock_get_host_by_ip,
+        mock_get_host_without_biz_v2,
+    ):
+        event_data = copy.deepcopy(event_data)
+        event_data["extra_info"]["additional_dimensions"] = {"namespace": "other"}
+        alert = Alert.from_event(Event(event_data))
+        alert._is_new = True
+        KubernetesCMDBEnricher([alert]).enrich()
+
+        source_info = mock_get_kubernetes_relation.call_args.args[0]["source_info_list"][0]
+        assert source_info["namespace"] == "bcs-system"
+
 
 class TestHostShielder:
     def test_is_matched__host_not_exists(
