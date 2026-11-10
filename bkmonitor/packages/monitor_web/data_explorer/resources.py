@@ -1090,6 +1090,7 @@ class SaveToDashboard(Resource):
 
                 expression = serializers.CharField(allow_blank=True)
                 alias = serializers.CharField(default="", allow_blank=True)
+                unit = serializers.CharField(required=False, allow_blank=True)
                 query_configs = serializers.ListField(child=QueryConfigSerializer())
                 function = serializers.DictField(default={})
                 functions = serializers.ListField(
@@ -1108,15 +1109,22 @@ class SaveToDashboard(Resource):
 
     @classmethod
     def add_target(
-        cls, panel: TimeSeriesPanel, functions: list, query_configs: list[dict], alias: str, expression: str
+        cls,
+        panel: TimeSeriesPanel,
+        functions: list,
+        query_configs: list[dict],
+        alias: str,
+        expression: str,
+        unit: str = "",
     ):
         """
         添加target配置
         """
         if query_configs[0]["data_source_label"] == DataSourceLabel.PROMETHEUS:
+            ref_id = chr(ord("A") + len(panel.targets))
             panel.targets.append(
                 {
-                    "refId": "A",
+                    "refId": ref_id,
                     "source": query_configs[0]["promql"],
                     "step": f"{query_configs[0]['interval']}s",
                     "format": "time_series",
@@ -1124,6 +1132,13 @@ class SaveToDashboard(Resource):
                     "mode": "code",
                 }
             )
+            if unit:
+                panel.field_overrides.append(
+                    {
+                        "matcher": {"id": "byFrameRefID", "options": ref_id},
+                        "properties": [{"id": "unit", "value": unit}],
+                    }
+                )
         else:
             new_query_configs = json.loads(json.dumps(query_configs))
             if len(new_query_configs) == 1 and not functions:
@@ -1232,12 +1247,21 @@ class SaveToDashboard(Resource):
                         )
 
                     alias = query["alias"].replace("$time_offset", offset_text)
-                    cls.add_target(panel, query.get("functions", []), query_configs, alias, query["expression"])
+                    cls.add_target(
+                        panel,
+                        query.get("functions", []),
+                        query_configs,
+                        alias,
+                        query["expression"],
+                        query.get("unit", ""),
+                    )
                 alias = query["alias"].replace("$time_offset", "current")
             else:
                 alias = query["alias"].replace("$time_offset - ", "").replace("$time_offset", "")
 
-            cls.add_target(panel, query.get("functions", []), query_configs, alias, query["expression"])
+            cls.add_target(
+                panel, query.get("functions", []), query_configs, alias, query["expression"], query.get("unit", "")
+            )
         return panel
 
     @classmethod

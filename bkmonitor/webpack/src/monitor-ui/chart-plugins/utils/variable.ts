@@ -45,10 +45,11 @@ export class VariablesService {
     return scopedVar;
   }
   /** 原生 PromQL 使用字符串分组、offset 与显式正则范围；结构化字段保留原变量类型。 */
-  private replacePromql(target: string, scopedVars?: ScopedVars): string {
+  private replacePromql(target: string, scopedVars?: ScopedVars, keepVariables: string[] = []): string {
     this.regex.lastIndex = 0;
-    return target.replace(this.regex, (_match, var1, var2, fmt2, var3, _path, fmt3) => {
+    return target.replace(this.regex, (match, var1, var2, fmt2, var3, _path, fmt3) => {
       const variableName = var1 || var2 || var3;
+      if (keepVariables.includes(variableName)) return match;
       let value = this.getVariableAtIndex(variableName);
       if (value === undefined && scopedVars) {
         value = this.getVariableValue(variableName, scopedVars);
@@ -117,9 +118,15 @@ export class VariablesService {
    * @description: 变量翻译
    * @param {Record} source 含有变量的一个元数据
    * @param {ScopedVars} scopedVars 自定义变量对应数据
+   * @param {string[]} keepPromqlVariables 仅保留原生 PromQL 变量，供大图延后替换方法与时间对比
    * @return {*}
    */
-  public transformVariables(source: Record<string, any> | string, scopedVars?: ScopedVars, noTransform = false) {
+  public transformVariables(
+    source: Record<string, any> | string,
+    scopedVars?: ScopedVars,
+    noTransform = false,
+    keepPromqlVariables: string[] = []
+  ) {
     if (noTransform) {
       return source;
     }
@@ -129,37 +136,50 @@ export class VariablesService {
     const newData = deepClone(source);
     const mergeVars = { ...this.index, ...scopedVars };
     const setVariables = (data: Record<string, any>) => {
+      if (typeof data.promql === 'string' && typeof data.pod_promql === 'string') {
+        let groupBy = this.index?.group_by;
+        if (groupBy === undefined) groupBy = this.getVariableValue('group_by', mergeVars);
+        const groups = Array.isArray(groupBy) ? groupBy : typeof groupBy === 'string' ? groupBy.split(',') : [];
+        if (!groups.some(group => ['container_name', 'container', 'image'].includes(group.trim()))) {
+          data.promql = data.pod_promql;
+        }
+        delete data.pod_promql;
+        delete data.overview_promql;
+        delete data.overview_pod_promql;
+      }
       for (const [key, val] of Object.entries(data)) {
         if (typeof val === 'string') {
           if (this.hasVariables(val)) {
             const v =
-              key === 'promql' ? this.replacePromql(val, mergeVars) : this.replaceString(val.toString(), mergeVars);
+              key === 'promql'
+                ? this.replacePromql(val, mergeVars, keepPromqlVariables)
+                : this.replaceString(val.toString(), mergeVars);
             data[key] = v ?? undefined;
           }
         } else if (Array.isArray(val)) {
-          if (this.hasVariables(val)) {
-            val.forEach((item, index) => {
-              if (typeof item === 'string') {
-                if (this.hasVariables(item)) {
-                  const v = this.replaceString(item, scopedVars);
-                  if (
-                    typeof v === 'undefined' ||
-                    v === 'undefined' ||
-                    (Object.prototype.toString.call(v) === '[object Object]' && Object.keys(v).length === 0)
-                  ) {
-                    val.splice(index, 1, undefined);
-                  } else {
-                    Array.isArray(v) ? val.splice(index, 1, ...v) : val.splice(index, 1, v);
-                  }
+          const hasVariables = this.hasVariables(val);
+          val.forEach((item, index) => {
+            if (typeof item === 'string') {
+              if (!hasVariables) return;
+              if (this.hasVariables(item)) {
+                const v = this.replaceString(item, scopedVars);
+                if (
+                  typeof v === 'undefined' ||
+                  v === 'undefined' ||
+                  (Object.prototype.toString.call(v) === '[object Object]' && Object.keys(v).length === 0)
+                ) {
+                  val.splice(index, 1, undefined);
+                } else {
+                  Array.isArray(v) ? val.splice(index, 1, ...v) : val.splice(index, 1, v);
                 }
-                data[key] = val.filter(v => typeof v !== 'undefined' && v !== null);
-              } else if (Object.prototype.toString.call(item) === '[object Object]') {
-                this.hasVariables(item) && setVariables(item);
               }
-            });
-          }
+              data[key] = val.filter(v => typeof v !== 'undefined' && v !== null);
+            } else if (Object.prototype.toString.call(item) === '[object Object]') {
+              setVariables(item);
+            }
+          });
         } else if (Object.prototype.toString.call(val) === '[object Object]') {
-          this.hasVariables(val) && setVariables(val);
+          setVariables(val);
         }
       }
     };
@@ -167,6 +187,17 @@ export class VariablesService {
     return newData;
   }
 }
+
+/** 只有实际使用 method 变量的原生 COUNT 查询需要覆盖单位。 */
+export const getPromqlUnitOverride = (queryData: { query_configs?: { promql?: string }[] }, method?: string) =>
+  method?.toLowerCase() === 'count' &&
+  queryData.query_configs?.some(
+    config =>
+      typeof config.promql === 'string' &&
+      [...config.promql.matchAll(variableRegex)].some(match => (match[1] || match[2] || match[4]) === 'method')
+  )
+    ? 'none'
+    : undefined;
 
 const singletonVariablesServiceInstance = new VariablesService({});
 

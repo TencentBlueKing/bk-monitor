@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/member-ordering */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -264,7 +263,7 @@ export default class ViewDetailNew extends tsc<IProps> {
   /* 原始数据排序 */
   handleTableSort(sort, index) {
     this.tableThArr.forEach((item, i) => {
-      i !== index && (item.sort = '');
+      if (i !== index) item.sort = '';
     });
     if (!sort) {
       this.tableData = [...this.tableTdArr];
@@ -307,7 +306,7 @@ export default class ViewDetailNew extends tsc<IProps> {
 
   handleChangeStatus(name) {
     const data = this.rightData.find(item => item.name === name);
-    data && (data.show = !data.show);
+    if (data) data.show = !data.show;
   }
   handleQueryChange(value, type, groupIndex) {
     if (type === 'method') {
@@ -318,6 +317,12 @@ export default class ViewDetailNew extends tsc<IProps> {
     }
     if (type === 'step') {
       this.queryconfig[groupIndex].data.query_configs[0].agg_interval = value;
+      if (this.queryconfig[groupIndex].data.query_configs[0].data_source_label === 'prometheus') {
+        this.queryconfig[groupIndex].data.query_configs[0].interval = value;
+      }
+    }
+    if (type === 'promql') {
+      this.queryconfig[groupIndex].data.query_configs[0].promql = value;
     }
     this.handleSetPanelParams();
   }
@@ -377,6 +382,9 @@ export default class ViewDetailNew extends tsc<IProps> {
         metrics,
         filter_dict,
         functions: tempFunctions,
+        ...(typeof queryConfigOfParams.promql === 'string'
+          ? { promql: queryConfigOfParams.promql, agg_interval: queryConfigOfParams.agg_interval }
+          : {}),
       };
       target.data.query_configs = target.data.query_configs.map(qc => ({
         ...qc,

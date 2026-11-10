@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import json
 import re
 import unittest
 from collections import defaultdict
@@ -147,6 +148,31 @@ def builders():
             "get_view_id",
             "add_event_panel",
         },
+    )
+    load(
+        "packages/monitor_web/scene_view/resources/view.py",
+        namespace,
+        "GetSceneViewDimensionsResource",
+        {"get_metrics", "perform_request"},
+        bases=[],
+    )
+    load(
+        "packages/monitor_web/grafana/resources/unify_query.py",
+        namespace,
+        "GraphUnifyQueryResource",
+        {"get_unit"},
+        bases=[],
+    )
+    load("packages/monitor_web/grafana/data_migrate.py", namespace, "BasePanel", bases=[])
+    load("packages/monitor_web/grafana/data_migrate.py", namespace, "TimeSeriesPanel")
+    namespace["json"] = json
+    namespace["DataSourceLabel"] = SimpleNamespace(PROMETHEUS="prometheus")
+    load(
+        "packages/monitor_web/data_explorer/resources.py",
+        namespace,
+        "SaveToDashboard",
+        {"BK_LOG_SEARCH_GRAFANA_DATA_SOURCE_NAME", "add_target", "get_panel"},
+        bases=[],
     )
     return namespace
 
@@ -376,7 +402,9 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
         for metric in ("container_memory_working_set_bytes", "container_memory_rss"):
             self.assertEqual(queries[metric]["unit"], "bytes")
             config = queries[metric]["query_configs"][0]
-            self.assertIn(metric.replace("container_", "pod_"), config["promql"])
+            self.assertIn(metric.replace("container_", "pod_"), config["pod_promql"])
+            self.assertNotIn("pod_memory_", config["promql"])
+            self.assertEqual(config["metrics"][0]["field"], metric)
             self.assertEqual(config["data_source_label"], "prometheus")
             self.assertEqual(config["interval"], "$interval")
             self.assertIn("$method by ($group_by)", config["promql"])
@@ -386,7 +414,8 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
                 {condition["key"] for condition in config["where"]}, {"bcs_cluster_id", "namespace", "pod_name"}
             )
         for kind in ("requests", "limits"):
-            ratio = queries[f"kube_pod_memory_{kind}_ratio"]["query_configs"][0]["promql"]
+            data = queries[f"kube_pod_memory_{kind}_ratio"]
+            ratio = data["query_configs"][0]["pod_promql"]
             self.assertIn("pod_memory_rss", ratio)
             self.assertNotIn("pod_memory_working_set_bytes", ratio)
             self.assertIn(f"kube_pod_container_resource_{kind}_memory_bytes", ratio)
@@ -394,6 +423,8 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
             self.assertIn("group_right(workload_kind, workload_name)", ratio)
             self.assertIn("* 0 + 1", ratio)
             self.assertEqual(queries[f"kube_pod_memory_{kind}_ratio"]["expression"], "A")
+            unit = self.ns["GraphUnifyQueryResource"]().get_unit([{"unit": "bytes"}], data)
+            self.assertEqual(unit, "none")
 
     def test_saved_optional_gauge_panels_are_adapted_without_new_defaults(self):
         order = [
@@ -408,7 +439,7 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
         ]
         queries = panel_queries(self.view(order))
         for metric in self.ns["POD_MEMORY_METRICS"]:
-            self.assertIn(metric.replace("container_", "pod_"), queries[metric]["query_configs"][0]["promql"])
+            self.assertIn(metric.replace("container_", "pod_"), queries[metric]["query_configs"][0]["pod_promql"])
 
     def test_overview_rebuilds_scope_and_share_where_is_retained(self):
         view = self.view()
@@ -417,8 +448,10 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
         self.assertEqual(len(detail["where"]), 3)
         self.assertEqual(overview["where"], [])
         self.assertNotIn("${namespace:regex}", overview["promql"])
-        self.assertIn('metrics_path="/metrics/cadvisor"', overview["promql"])
-        self.assertIn("pod_memory_working_set_bytes", overview["promql"])
+        self.assertNotIn("${namespace:regex}", overview["pod_promql"])
+        self.assertIn('metrics_path="/metrics/cadvisor"', overview["pod_promql"])
+        self.assertIn("pod_memory_working_set_bytes", overview["pod_promql"])
+        self.assertNotIn("pod_memory_", overview["promql"])
 
     def test_explicit_container_and_literal_scope_are_applied(self):
         target = {"query_configs": [{"field": METRIC}]}
@@ -430,6 +463,51 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
         self.assertNotIn("pod_memory_", config["promql"])
         self.assertIn('container_name=~"^(main)$"', config["promql"])
         self.assertIn('namespace=~"^(demo\\\\.v2)$"', config["promql"])
+        self.assertEqual(config["pod_promql"], config["promql"])
+
+    def test_container_specific_static_groups_and_filters_keep_children_in_both_variants(self):
+        for dimension in ("container_name", "container", "image"):
+            for group, where in (
+                (["namespace", dimension], []),
+                ([], [{"key": dimension, "method": "eq", "value": ["main"]}]),
+            ):
+                with self.subTest(dimension=dimension, group=group):
+                    target = {
+                        "query_configs": [
+                            {"field": "container_memory_rss", "group": group},
+                            {"field": "kube_pod_container_resource_requests_memory_bytes", "group": group},
+                        ]
+                    }
+                    config = self.processor.pod_memory_panel_target(target, where)["data"]["query_configs"][0]
+                    self.assertEqual(config["pod_promql"], config["promql"])
+                    self.assertNotIn("pod_memory_rss", config["promql"])
+                    self.assertIn("container_memory_rss", config["promql"])
+
+    def test_memory_only_saved_view_retains_container_dimension_candidates(self):
+        order = self.view()["order"]
+        for group in order:
+            for panel in group["panels"]:
+                panel["hidden"] = panel["title"] not in ("container_memory_rss", "kube_pod_memory_requests_ratio")
+        view = self.view(order)
+        self.ns["GetSceneViewResource"] = lambda: SimpleNamespace(request=lambda _: view)
+        self.ns["bk_biz_id_to_bk_tenant_id"] = lambda _: "default"
+        self.ns["get_process_extra_dimensions"] = lambda *_: {}
+        self.ns["addon_top_limit_attributes"] = lambda _: None
+        metric = SimpleNamespace(
+            result_table_id="",
+            dimensions=[{"id": key} for key in ("namespace", "container_name", "container", "image")],
+        )
+        lookup = Mock(return_value=[metric])
+        self.ns["MetricListCache"] = SimpleNamespace(objects=SimpleNamespace(filter=lookup))
+        dimensions = self.ns["GetSceneViewDimensionsResource"]().perform_request({"id": "pod", "bk_biz_id": 2})
+        self.assertEqual(
+            {dimension["id"] for dimension in dimensions}, {"namespace", "container_name", "container", "image"}
+        )
+        lookup.assert_called_once()
+        self.assertEqual(
+            set(lookup.call_args.kwargs["metric_field__in"]),
+            {"container_memory_rss", "kube_pod_container_resource_requests_memory_bytes"},
+        )
 
     def test_non_pod_builtin_views_keep_structured_targets(self):
         for view_id in ("container", "workload"):
@@ -468,6 +546,106 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
                 {"bcs_cluster_id", "namespace", "pod_name", "metrics_path", "node", "endpoint"}
                 <= {tag["field_name"] for tag in parent["tag_list"]}
             )
+
+
+class TestPodMemoryDashboard(unittest.TestCase):
+    def setUp(self):
+        self.ns = builders()
+
+    @staticmethod
+    def query(unit=None):
+        query = {
+            "expression": "A",
+            "alias": "",
+            "function": {},
+            "query_configs": [
+                {"data_source_label": "prometheus", "data_type_label": "time_series", "promql": METRIC, "interval": 60}
+            ],
+        }
+        if unit is not None:
+            query["unit"] = unit
+        return query
+
+    def panel(self, queries):
+        return (
+            self.ns["SaveToDashboard"]
+            .get_panel({"name": "Pod memory", "fill": False, "min_y_zero": False, "queries": queries})
+            .to_dict()
+        )
+
+    def test_native_units_are_preserved_per_query_without_cross_contamination(self):
+        queries = [self.query("bytes"), self.query("none"), self.query()]
+        original = copy.deepcopy(queries)
+        panel = self.panel(queries)
+        self.assertEqual([target["refId"] for target in panel["targets"]], ["A", "B", "C"])
+        self.assertEqual(
+            panel["fieldConfig"]["overrides"],
+            [
+                {"matcher": {"id": "byFrameRefID", "options": ref}, "properties": [{"id": "unit", "value": unit}]}
+                for ref, unit in (("A", "bytes"), ("B", "none"))
+            ],
+        )
+        self.assertNotIn("unit", panel["fieldConfig"]["defaults"])
+        self.assertEqual(queries, original)
+
+    def test_legacy_native_requests_without_unit_keep_their_panel_shape(self):
+        for unit in (None, ""):
+            panel = self.panel([self.query(unit)])
+            self.assertEqual(panel["fieldConfig"]["overrides"], [])
+            self.assertEqual(panel["targets"][0]["refId"], "A")
+
+    def test_structured_query_retains_metric_metadata_and_native_override_is_isolated(self):
+        query = self.query("bytes")
+        query["query_configs"] = [
+            {
+                "data_source_label": "bk_monitor",
+                "data_type_label": "time_series",
+                "metrics": [{"field": "container_memory_rss", "method": "SUM", "alias": "A"}],
+                "filter_dict": {},
+                "functions": [],
+                "group_by": ["container_name"],
+                "interval": 60,
+                "interval_unit": "s",
+                "table": "",
+                "where": [],
+            }
+        ]
+        panel = self.panel([query, self.query("none")])
+        self.assertEqual(panel["targets"][0]["query_configs"][0]["metric_field"], "container_memory_rss")
+        self.assertEqual(panel["fieldConfig"]["overrides"][0]["matcher"]["options"], "B")
+        self.assertEqual(len(panel["fieldConfig"]["overrides"]), 1)
+
+    def test_panel_override_lists_are_not_shared(self):
+        self.panel([self.query("bytes")])
+        self.assertEqual(self.panel([self.query()])["fieldConfig"]["overrides"], [])
+
+    def test_save_serializer_retains_explicit_unit_and_accepts_old_payloads(self):
+        from django.conf import settings
+        from rest_framework import serializers
+
+        if not settings.configured:
+            settings.configure(USE_I18N=False)
+        self.ns["serializers"] = serializers
+        save = load(
+            "packages/monitor_web/data_explorer/resources.py",
+            self.ns,
+            "SaveToDashboard",
+            {"BK_LOG_SEARCH_GRAFANA_DATA_SOURCE_NAME", "RequestSerializer", "add_target", "get_panel"},
+            bases=[],
+        )
+        for unit in (None, "bytes", "none"):
+            serializer = save.RequestSerializer(
+                data={
+                    "bk_biz_id": 2,
+                    "dashboard_uids": [],
+                    "panels": [{"name": "Pod memory", "queries": [self.query(unit)]}],
+                }
+            )
+            self.assertTrue(serializer.is_valid(), serializer.errors)
+            panel_config = serializer.validated_data["panels"][0]
+            self.assertEqual(panel_config["queries"][0].get("unit"), unit)
+            panel = save.get_panel(panel_config).to_dict()
+            self.assertEqual(len(panel["fieldConfig"]["overrides"]), int(unit is not None))
 
 
 if __name__ == "__main__":

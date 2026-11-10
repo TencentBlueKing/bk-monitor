@@ -510,6 +510,8 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                     query_config["where"] = where
                     if "overview_promql" in query_config:
                         query_config["promql"] = query_config.pop("overview_promql")
+                    if "overview_pod_promql" in query_config:
+                        query_config["pod_promql"] = query_config.pop("overview_pod_promql")
 
         return overview_panels
 
@@ -1111,7 +1113,7 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
     def pod_memory_panel_target(cls, target, where):
         """Adapt built-in Pod panels while retaining their field IDs and RSS/WS meaning."""
 
-        def expression(scope):
+        def expression(scope, prefer_parent=False):
             # These are the existing built-in equality filters. Keep `where` as well
             # for share authorization; the Prometheus source consumes inline matchers.
             filters = ",".join(
@@ -1130,7 +1132,12 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                 groups = [*qc.get("group", []), "$group_by"]
                 field = qc["field"]
                 if field in POD_MEMORY_METRICS:
-                    if any(condition["key"] == "container_name" and condition["value"] for condition in scope):
+                    container_dimensions = {"container_name", "container", "image"}
+                    if (
+                        not prefer_parent
+                        or container_dimensions.intersection(qc.get("group", []))
+                        or any(condition["key"] in container_dimensions and condition["value"] for condition in scope)
+                    ):
                         usage = f'{field}{{{filters},container_name!="",container_name!="POD"}} $time_shift'
                         usage = f"sum by ({', '.join(dict.fromkeys((*POD_MEMORY_DIMENSIONS, *groups)))}) ({usage})"
                     else:
@@ -1159,7 +1166,17 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
         query_config = {
             **DEFAULT_GRAPH_PROMQL_QUERY_CONFIG,
             "promql": promql,
+            # Keep the child query usable by older clients. The chart selects the
+            # parent variant only when its runtime grouping is at Pod level.
+            "pod_promql": expression(where, prefer_parent=True),
             "overview_promql": expression([]),
+            "overview_pod_promql": expression([], prefer_parent=True),
+            # Scene dimension discovery uses these original metric fields even
+            # though the Prometheus source executes the inline expression.
+            "metrics": [
+                {"field": qc["field"], "alias": qc.get("alias", "A"), "method": "$method"}
+                for qc in target["query_configs"]
+            ],
             "where": where,
             "functions": [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}],
         }
@@ -1167,7 +1184,7 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
             "data": {
                 "expression": "A",
                 "query_configs": [query_config],
-                "unit": "bytes" if len(target["query_configs"]) == 1 else "",
+                "unit": "bytes" if len(target["query_configs"]) == 1 else "none",
             },
             "datasource": "time_series",
             "data_type": "time_series",
