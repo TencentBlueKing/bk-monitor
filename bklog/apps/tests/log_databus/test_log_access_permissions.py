@@ -58,7 +58,7 @@ class LogAccessViewSetPermissionTests(TestCase):
 
         with (
             patch.object(ResourceEnum.BUSINESS, "create_instance") as create_instance,
-            patch("apps.iam.handlers.drf.Permission") as permission_class,
+            patch("apps.generic.Permission") as permission_class,
             patch("apps.log_databus.views.log_access_views.LogCollectorHandler") as handler,
         ):
             create_instance.side_effect = lambda bk_biz_id: Resource(
@@ -66,21 +66,28 @@ class LogAccessViewSetPermissionTests(TestCase):
             )
             client = permission_class.return_value
 
-            def check_permission(*, action, resources, raise_exception):
-                self.assertEqual(action, ActionEnum.VIEW_BUSINESS)
+            def check_permission(actions, resource_groups, *, raise_exception):
+                self.assertEqual(actions, [ActionEnum.VIEW_BUSINESS])
                 self.assertTrue(raise_exception)
-                self.assertEqual(len(resources), 1)
-                if allowed or int(resources[0].id) in allowed_biz_ids:
-                    return True
-                raise PermissionDeniedError(action_name=ActionEnum.VIEW_BUSINESS.name, permission={"actions": []})
+                self.assertTrue(resource_groups)
+                for group in resource_groups:
+                    self.assertEqual(len(group), 1)
+                result = {
+                    group[0].id: {ActionEnum.VIEW_BUSINESS.id: allowed or int(group[0].id) in allowed_biz_ids}
+                    for group in resource_groups
+                }
+                if not all(item[ActionEnum.VIEW_BUSINESS.id] for item in result.values()):
+                    raise PermissionDeniedError(action_name=ActionEnum.VIEW_BUSINESS.name, permission={"actions": []})
+                return result
 
-            client.is_allowed.side_effect = check_permission
+            client.batch_is_allowed.side_effect = check_permission
             handler.return_value.get_log_collectors.return_value = {"total": 0, "list": []}
             handler.return_value.get_collector_field_enums.return_value = {"created_by": []}
             handler.get_collector_status.return_value = []
 
             response = LogAccessViewSet.as_view({method.lower(): action})(request)
             payload = response.data if hasattr(response, "data") else json.loads(response.content)
+            client.is_allowed.assert_not_called()
 
         return payload, client, create_instance, handler
 
@@ -97,8 +104,8 @@ class LogAccessViewSetPermissionTests(TestCase):
 
                     self.assertFalse(payload["result"])
                     create_instance.assert_called_once_with(2)
-                    client.is_allowed.assert_called_once()
-                    self.assertEqual(client.is_allowed.call_args.kwargs["resources"][0].id, "2")
+                    client.batch_is_allowed.assert_called_once()
+                    self.assertEqual(client.batch_is_allowed.call_args.args[1][0][0].id, "2")
                     handler.assert_not_called()
 
     def test_authorized_space_can_be_queried(self):
@@ -110,7 +117,7 @@ class LogAccessViewSetPermissionTests(TestCase):
 
                 self.assertTrue(payload["result"])
                 create_instance.assert_called_once_with(2)
-                client.is_allowed.assert_called_once()
+                client.batch_is_allowed.assert_called_once()
                 handler.assert_called_once_with("bkcc__2")
 
     def test_get_permission_uses_query_space_instead_of_body(self):
@@ -120,7 +127,7 @@ class LogAccessViewSetPermissionTests(TestCase):
 
         self.assertFalse(payload["result"])
         create_instance.assert_called_once_with(2)
-        client.is_allowed.assert_called_once()
+        client.batch_is_allowed.assert_called_once()
         handler.assert_not_called()
 
     def test_invalid_space_is_rejected_before_permission_or_query(self):
@@ -131,7 +138,7 @@ class LogAccessViewSetPermissionTests(TestCase):
 
                     self.assertFalse(payload["result"])
                     create_instance.assert_not_called()
-                    client.is_allowed.assert_not_called()
+                    client.batch_is_allowed.assert_not_called()
                     handler.assert_not_called()
 
     @patch("bkm_space.api.SpaceApi.get_space_detail", return_value=SimpleNamespace(id=7))
@@ -142,7 +149,7 @@ class LogAccessViewSetPermissionTests(TestCase):
 
         self.assertTrue(payload["result"])
         create_instance.assert_called_once_with(-7)
-        client.is_allowed.assert_called_once()
+        client.batch_is_allowed.assert_called_once()
         handler.assert_called_once_with("bcs__project")
 
     @override_settings(IGNORE_IAM_PERMISSION=True)
@@ -150,7 +157,7 @@ class LogAccessViewSetPermissionTests(TestCase):
         payload, client, _create_instance, handler = self.call_view("POST", {"space_uid": "bkcc__2"})
 
         self.assertTrue(payload["result"])
-        client.is_allowed.assert_not_called()
+        client.batch_is_allowed.assert_not_called()
         handler.assert_called_once_with("bkcc__2")
 
     def test_collector_status_without_space_checks_actual_business(self):
@@ -160,7 +167,7 @@ class LogAccessViewSetPermissionTests(TestCase):
 
         self.assertFalse(payload["result"])
         create_instance.assert_called_once_with(2)
-        client.is_allowed.assert_called_once()
+        client.batch_is_allowed.assert_called_once()
         handler.get_collector_status.assert_not_called()
 
     def test_collector_status_rejects_batch_containing_denied_business(self):
@@ -173,7 +180,8 @@ class LogAccessViewSetPermissionTests(TestCase):
 
         self.assertFalse(payload["result"])
         self.assertEqual([call.args[0] for call in create_instance.call_args_list], [2, 3])
-        self.assertEqual([call.kwargs["resources"][0].id for call in client.is_allowed.call_args_list], ["2", "3"])
+        client.batch_is_allowed.assert_called_once()
+        self.assertEqual([group[0].id for group in client.batch_is_allowed.call_args.args[1]], ["2", "3"])
         handler.get_collector_status.assert_not_called()
 
     def test_collector_status_checks_each_business_once_before_query(self):
@@ -186,7 +194,8 @@ class LogAccessViewSetPermissionTests(TestCase):
 
         self.assertTrue(payload["result"])
         self.assertEqual([call.args[0] for call in create_instance.call_args_list], [2, 3])
-        self.assertEqual([call.kwargs["resources"][0].id for call in client.is_allowed.call_args_list], ["2", "3"])
+        client.batch_is_allowed.assert_called_once()
+        self.assertEqual([group[0].id for group in client.batch_is_allowed.call_args.args[1]], ["2", "3"])
         handler.get_collector_status.assert_called_once_with([90, 91, 92])
 
     def test_collector_status_does_not_trust_request_business(self):
@@ -199,7 +208,7 @@ class LogAccessViewSetPermissionTests(TestCase):
 
         self.assertFalse(payload["result"])
         create_instance.assert_called_once_with(2)
-        client.is_allowed.assert_called_once()
+        client.batch_is_allowed.assert_called_once()
         handler.get_collector_status.assert_not_called()
 
     def test_collector_status_supports_non_business_space(self):
@@ -209,7 +218,7 @@ class LogAccessViewSetPermissionTests(TestCase):
 
         self.assertTrue(payload["result"])
         create_instance.assert_called_once_with(-7)
-        client.is_allowed.assert_called_once()
+        client.batch_is_allowed.assert_called_once()
         handler.get_collector_status.assert_called_once_with([93])
 
     @override_settings(IGNORE_IAM_PERMISSION=True)
@@ -219,7 +228,7 @@ class LogAccessViewSetPermissionTests(TestCase):
         )
 
         self.assertTrue(payload["result"])
-        client.is_allowed.assert_not_called()
+        client.batch_is_allowed.assert_not_called()
         handler.get_collector_status.assert_called_once_with([90, 91])
 
     def test_collector_status_validates_ids_before_permission_or_query(self):
@@ -229,5 +238,17 @@ class LogAccessViewSetPermissionTests(TestCase):
 
         self.assertFalse(payload["result"])
         create_instance.assert_not_called()
-        client.is_allowed.assert_not_called()
+        client.batch_is_allowed.assert_not_called()
         handler.get_collector_status.assert_not_called()
+
+    def test_collector_status_without_matching_collectors_skips_batch_permission(self):
+        for collector_ids in ([], [9999]):
+            with self.subTest(collector_ids=collector_ids):
+                payload, client, create_instance, handler = self.call_view(
+                    "POST", {"collector_config_id_list": collector_ids}, action="get_collector_status"
+                )
+
+                self.assertTrue(payload["result"])
+                create_instance.assert_not_called()
+                client.batch_is_allowed.assert_not_called()
+                handler.get_collector_status.assert_called_once_with(collector_ids)

@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.conf import settings
+
 from apps.generic import APIViewSet
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -36,6 +38,20 @@ from apps.log_databus.models import CollectorConfig
 
 from apps.iam.handlers.drf import IAMPermission, insert_permission_field
 from apps.iam import ActionEnum, ResourceEnum
+
+
+class LogAccessBusinessPermission(IAMPermission):
+    """对服务端确定的业务资源批量鉴权。"""
+
+    def has_permission(self, request, view):
+        if settings.IGNORE_IAM_PERMISSION or not self.resources:
+            return True
+        view.iam_permission.batch_is_allowed(
+            self.actions,
+            [[resource] for resource in self.resources],
+            raise_exception=True,
+        )
+        return True
 
 
 class LogAccessViewSet(APIViewSet):
@@ -58,11 +74,10 @@ class LogAccessViewSet(APIViewSet):
             bk_biz_ids = {bk_biz_id}
 
         return [
-            IAMPermission(
+            LogAccessBusinessPermission(
                 [ActionEnum.VIEW_BUSINESS],
-                [ResourceEnum.BUSINESS.create_instance(bk_biz_id)],
+                [ResourceEnum.BUSINESS.create_instance(bk_biz_id) for bk_biz_id in sorted(bk_biz_ids)],
             )
-            for bk_biz_id in sorted(bk_biz_ids)
         ]
 
     @insert_permission_field(
