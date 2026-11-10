@@ -269,7 +269,14 @@ class MonitorEventAdapter:
 
         if pod:
             # pod 对象, 数据维度有pod 信息，直接查出 workload 和 namespace
-            pod_instance = BCSPod.get_instance_with_cache(name=pod, bcs_cluster_id=bcs_cluster_id, namespace=namespace)
+            try:
+                pod_instance = BCSPod.get_instance_with_cache(
+                    name=pod, bcs_cluster_id=bcs_cluster_id, namespace=namespace
+                )
+            except BCSPod.MultipleObjectsReturned:
+                # 没有 namespace 且不同命名空间有同名 Pod，确定不了是哪一个：仍按 Pod 处理，但不补充维度，
+                # 避免补错 namespace 和 workload，后续告警丰富也不会据此关联到别的 Pod 的主机
+                return K8STargetType.POD, pod, dimensions
             if pod_instance:
                 additional_dimensions = {}
                 # 补充维度信息
