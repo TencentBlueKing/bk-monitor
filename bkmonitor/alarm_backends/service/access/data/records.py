@@ -239,6 +239,9 @@ class DataRecord(base.BaseRecord):
         # partial 只在异常查询批次出现；按需透传，避免给正常大批量数据增加字段开销。
         if self._item.query.is_partial:
             self.data["is_partial"] = True
+        # 同一时间点的计数被回看改写时，检测侧覆盖旧结果，不追加成员。
+        if getattr(self, "replaces_check_result", False):
+            self.data["replaces_check_result"] = True
 
         # SLI(access) - 记录当前处理时间，用于 SLI 统计各模块间处理延迟场景
         self.data["access_time"] = time.time()
