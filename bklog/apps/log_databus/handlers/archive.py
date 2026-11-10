@@ -336,7 +336,14 @@ class ArchiveHandler:
         if archive.snapshot_days != snapshot_days:
             archive.snapshot_days = snapshot_days
             archive.save(update_fields=["snapshot_days", "updated_at", "updated_by"])
-            TransferApi.modify_result_table_snapshot({"table_id": collector.table_id, "snapshot_days": snapshot_days})
+            # 同一结果表可能存在多份快照配置，需指定仓库才能命中当前归档
+            TransferApi.modify_result_table_snapshot(
+                {
+                    "table_id": collector.table_id,
+                    "target_snapshot_repository_name": archive.target_snapshot_repository_name,
+                    "snapshot_days": snapshot_days,
+                }
+            )
         return cls._to_collector_archive_info(archive)
 
     @classmethod
@@ -352,8 +359,14 @@ class ArchiveHandler:
         if archive is None:
             return None
         table_id = archive.table_id
+        target_snapshot_repository_name = archive.target_snapshot_repository_name
         archive.delete()
-        TransferApi.delete_result_table_snapshot({"table_id": table_id})
+        TransferApi.delete_result_table_snapshot(
+            {
+                "table_id": table_id,
+                "target_snapshot_repository_name": target_snapshot_repository_name,
+            }
+        )
         return None
 
     @classmethod

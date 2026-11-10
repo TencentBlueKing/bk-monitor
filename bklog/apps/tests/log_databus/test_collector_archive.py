@@ -119,7 +119,13 @@ class CollectorArchiveHandlerTests(TestCase):
             result = ArchiveHandler.upsert_collector_archive(self.collector_config_id, REPOSITORY_NAME, 60)
 
         transfer_api.create_result_table_snapshot.assert_not_called()
-        transfer_api.modify_result_table_snapshot.assert_called_once_with({"table_id": TABLE_ID, "snapshot_days": 60})
+        transfer_api.modify_result_table_snapshot.assert_called_once_with(
+            {
+                "table_id": TABLE_ID,
+                "target_snapshot_repository_name": REPOSITORY_NAME,
+                "snapshot_days": 60,
+            }
+        )
         self.assertEqual(result["snapshot_days"], 60)
 
     def test_upsert_updates_snapshot_days_records_operator(self):
@@ -210,7 +216,27 @@ class CollectorArchiveHandlerTests(TestCase):
             transfer_api.reset_mock()
             self.assertIsNone(ArchiveHandler.delete_collector_archive(self.collector_config_id))
 
-        transfer_api.delete_result_table_snapshot.assert_called_once_with({"table_id": TABLE_ID})
+        transfer_api.delete_result_table_snapshot.assert_called_once_with(
+            {
+                "table_id": TABLE_ID,
+                "target_snapshot_repository_name": REPOSITORY_NAME,
+            }
+        )
+        self.assert_no_archive()
+
+    def test_delete_targets_repository_of_archive_config(self):
+        archive_repository_name = "2_bklog_another"
+        with self.patch_metadata(repositories=[archive_repository_name]) as transfer_api:
+            ArchiveHandler.upsert_collector_archive(self.collector_config_id, archive_repository_name, 30)
+            transfer_api.reset_mock()
+            ArchiveHandler.delete_collector_archive(self.collector_config_id)
+
+        transfer_api.delete_result_table_snapshot.assert_called_once_with(
+            {
+                "table_id": TABLE_ID,
+                "target_snapshot_repository_name": archive_repository_name,
+            }
+        )
         self.assert_no_archive()
 
 
