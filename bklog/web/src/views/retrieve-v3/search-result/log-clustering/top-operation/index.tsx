@@ -115,7 +115,7 @@ export default defineComponent({
     // 只授聚类配置不能隐式获得检索权；只授检索能看结果但看不到设置入口。
     // externalPermissions 在空间加载完成后才写入，不能在 setup 里取一次快照
     const isClusterConfigVisible = computed(() => {
-      if (quix?.status.value && quix.status.value.phase !== 'running') return false;
+      if (quix?.status.value && !['running', 'updating'].includes(quix.status.value.phase)) return false;
       if (!isExternal) {
         return true;
       }
