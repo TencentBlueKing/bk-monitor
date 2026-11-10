@@ -179,7 +179,7 @@ class AggsViewSet(APIViewSet):
         """
         data = self.params_valid(DateHistogramSerializer)
         data["index_set_ids"] = [index_set_id]
-        query_handler = UnifyQueryHandler(data, resolve_partial_results_biz=True)
+        query_handler = UnifyQueryHandler(data, allow_partial_results=True)
         return Response(query_handler.date_histogram())
 
     @list_route(methods=["POST"], url_path="aggs/union_search/date_histogram")

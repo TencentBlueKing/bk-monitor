@@ -119,7 +119,9 @@ class PartialResultsTests(SimpleTestCase):
         for query, streaming in (("", False), ("?stream=true", True)):
             request = RequestFactory().post(f"/api/v1/search/index_set/10/search/{query}")
             response = view.search(request, index_set_id=10)
-            self.assertEqual(handler_cls.call_args.kwargs, {"partial_results_biz_id": 123})
+            self.assertEqual(
+                handler_cls.call_args.kwargs, {"allow_partial_results": True, "partial_results_biz_id": 123}
+            )
             handler.search.assert_called_with()
             self.assertEqual(response.streaming, streaming)
 
@@ -144,10 +146,14 @@ class PartialResultsTests(SimpleTestCase):
             "interval": "1m",
             "group_field": None,
         }
-        handler = UnifyQueryFieldHandler(params, resolve_partial_results_biz=True)
+        handler = UnifyQueryFieldHandler(params, allow_partial_results=True)
         _scope.assert_called_once()
         with patch(f"{base}.FeatureToggleObject.switch", return_value=True) as switch:
-            self.assertTrue(UnifyQueryHandler(params, partial_results_biz_id=123).allow_partial_es_results)
+            self.assertTrue(
+                UnifyQueryHandler(
+                    params, allow_partial_results=True, partial_results_biz_id=123
+                ).allow_partial_es_results
+            )
             self.assertFalse(UnifyQueryHandler(params).allow_partial_es_results)
             switch.assert_called_once_with("retrieve_partial_es_results", biz_id=123)
             _scope.assert_called_once()

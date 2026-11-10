@@ -107,7 +107,7 @@ def fields_config(name: str, is_active: bool = False):
 class UnifyQueryHandler:
     allow_partial_es_results = False
 
-    def __init__(self, params, *, partial_results_biz_id=None, resolve_partial_results_biz=False):
+    def __init__(self, params, *, allow_partial_results=False, partial_results_biz_id=None):
         self.search_params: dict[str, Any] = params
 
         # 必需参数，索引集id列表
@@ -123,9 +123,9 @@ class UnifyQueryHandler:
         # 必需参数，业务id
         self.bk_biz_id = self.search_params["bk_biz_id"]
 
-        if resolve_partial_results_biz:
+        if allow_partial_results and partial_results_biz_id is None:
             partial_results_biz_id = self._resolve_partial_results_biz_id()
-        if partial_results_biz_id:
+        if allow_partial_results and partial_results_biz_id:
             self.allow_partial_es_results = FeatureToggleObject.switch(
                 "retrieve_partial_es_results", biz_id=partial_results_biz_id
             )

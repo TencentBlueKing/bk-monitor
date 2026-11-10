@@ -424,7 +424,7 @@ class SearchViewSet(APIViewSet):
             return Response(search_handler.scroll_search())
 
         data["index_set_ids"] = [index_set_id]
-        query_handler = UnifyQueryHandler(data, partial_results_biz_id=data["bk_biz_id"])
+        query_handler = UnifyQueryHandler(data, allow_partial_results=True, partial_results_biz_id=data["bk_biz_id"])
         return Response(query_handler.search())
 
     @detail_route(methods=["POST"], url_path="search/original")
