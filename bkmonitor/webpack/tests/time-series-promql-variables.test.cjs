@@ -107,7 +107,7 @@ const Harness = new Function('VariablesService', 'getPromqlUnitOverride', 'windo
   getPromqlUnitOverride,
   { i18n: { t: value => value } },
   () => [100, 200],
-  () => '1m',
+  interval => interval,
   class CancelToken {},
   { tz: value => ({ unix: () => Number(value) }) }
 );
@@ -450,6 +450,49 @@ test('Detail structured method and interval edits retain the existing query conf
     assert.equal('promql' in request.query_configs[0], false);
   }
   assert.equal(requests[1].query_configs[0].functions[0].params[0].value, '1h');
+});
+
+test('Native Step blur keeps the existing interval for untouched, empty and invalid input', async () => {
+  for (const interval of [60, '$interval', 'auto']) {
+    for (const value of [undefined, null, '', ' ', 'invalid', '30.5', '1e2', '30s', '-1', '0', 0, NaN, Infinity]) {
+      const original = { expression: 'A', unit: 'bytes', query_configs: [{
+        ...podConfig(), data_source_label: 'prometheus', interval,
+      }] };
+      const { detail, editor } = detailEditor({ targets: [{ data: original }] });
+      const before = structuredClone(detail.panel);
+      if (value !== undefined) editor.handleSourceStepChange(value);
+      editor.handleSourceStepBlur();
+      assert.deepEqual(detail.panel, before, `Step ${String(value)} changed interval ${interval}`);
+      assert.equal(detail.queryconfig[0].data.query_configs[0].interval, interval);
+      const { graph, requests } = graphHarness(detail.panel.targets[0].data);
+      graph.viewOptions.interval = 60;
+      await graph.queryPanelData();
+      assert.equal(requests.length, 2);
+      for (const request of requests) {
+        const serialized = JSON.parse(JSON.stringify(request));
+        assert.equal(serialized.query_configs[0].interval, interval === '$interval' ? '60' : interval);
+        parse(serialized.query_configs[0].promql);
+      }
+      assert.ok(requests[1].query_configs[0].promql.includes('offset 1h'));
+    }
+  }
+});
+
+test('Native Step values accept auto and positive integer seconds before current and comparison requests', async () => {
+  for (const [value, expected] of [[' 30 ', '30'], ['030', '030'], [90, '90'], ['auto', 'auto']]) {
+    const { detail, editor } = detailEditor({ targets: [{ data: {
+      expression: 'A', unit: 'bytes', query_configs: [{ ...podConfig(), data_source_label: 'prometheus', interval: 60 }],
+    } }] });
+    editor.handleSourceStepChange(value);
+    editor.handleSourceStepBlur();
+    assert.equal(detail.panel.targets[0].data.query_configs[0].interval, expected);
+    assert.equal(detail.panel.targets[0].data.query_configs[0].agg_interval, expected);
+    const { graph, requests } = graphHarness(detail.panel.targets[0].data);
+    await graph.queryPanelData();
+    assert.equal(requests.length, 2);
+    for (const request of requests) assert.equal(request.query_configs[0].interval, expected);
+    assert.ok(requests[1].query_configs[0].promql.includes('offset 1h'));
+  }
 });
 
 test('Native unit overrides use the same effective method as the actual query variables', async () => {

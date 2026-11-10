@@ -316,9 +316,16 @@ export default class ViewDetailNew extends tsc<IProps> {
       this.queryconfig[groupIndex].data.query_configs[0].interval = value;
     }
     if (type === 'step') {
-      this.queryconfig[groupIndex].data.query_configs[0].agg_interval = value;
-      if (this.queryconfig[groupIndex].data.query_configs[0].data_source_label === 'prometheus') {
-        this.queryconfig[groupIndex].data.query_configs[0].interval = value;
+      const queryConfig = this.queryconfig[groupIndex].data.query_configs[0];
+      if (queryConfig.data_source_label === 'prometheus') {
+        const step = String(value ?? '').trim();
+        if (step !== 'auto' && (!/^\d+$/.test(step) || !Number.isSafeInteger(Number(step)) || Number(step) <= 0)) {
+          return;
+        }
+        queryConfig.interval = step;
+        queryConfig.agg_interval = step;
+      } else {
+        queryConfig.agg_interval = value;
       }
     }
     if (type === 'promql') {
