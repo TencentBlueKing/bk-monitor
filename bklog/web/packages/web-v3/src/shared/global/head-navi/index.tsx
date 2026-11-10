@@ -562,6 +562,7 @@ export default defineComponent({
                   </ul>
                 ),
               }}
+              overlayInnerClassName='head-navi-dropdown'
               placement='bottom'
               trigger='hover'
               onVisibleChange={visible => (state.isShowGlobalDropdown = visible)}
@@ -600,6 +601,7 @@ export default defineComponent({
                 </ul>
               ),
             }}
+            overlayInnerClassName='head-navi-dropdown'
             placement='bottom'
             trigger='hover'
             onVisibleChange={visible => (state.isShowLanguageDropdown = visible)}
@@ -627,6 +629,7 @@ export default defineComponent({
                 </ul>
               ),
             }}
+            overlayInnerClassName='head-navi-dropdown'
             placement='bottom'
             trigger='hover'
             onVisibleChange={visible => (state.isShowHelpDropdown = visible)}

@@ -221,6 +221,7 @@
   };
   // 组选择事件
   const handleSelectGroup = nVal => {
+    favoriteData.value.group_id = nVal;
     if (collectGroupList.value.length > 0) {
       const visibleType = nVal === collectGroupList.value[0].group_id ? 'private' : 'public';
       Object.assign(favoriteData.value, { visibleType });
@@ -496,6 +497,7 @@
       v-log-tooltip="$t('收藏当前查询')"
       :style="{
         color: popoverShow ? '#3a84ff' : '',
+        cursor: 'pointer',
       }"
       class="bklog-icon bklog-star-line"
       @click="handleCollection"
@@ -563,10 +565,14 @@
           >
             <Select
               ref="favoriteGroupSelectRef"
-              v-model="favoriteData.group_id"
+              :value="favoriteData.group_id"
               v-model:popup-visible="groupPopupVisible"
               :placeholder="$t('未编组')"
-              :popup-props="{ attach: el => el.parentElement, overlayClassName: 'add-popover-new-page-container' }"
+              :popup-props="{
+                attach: el => el.parentElement,
+                overlayClassName: 'add-popover-new-page-container',
+                overlayInnerStyle: trigger => ({ width: `${trigger.offsetWidth}px` }),
+              }"
               :input-props="{ placeholder: $t('请输入关键字') }"
               filterable
               @change="handleSelectGroup"
@@ -609,8 +615,9 @@
                     >
                       <FormItem name="groupName">
                         <Input
-                          v-model="verifyData.groupName"
+                          :value="verifyData.groupName"
                           :placeholder="$t('{n}, （长度30个字符）', { n: $t('请输入组名') })"
+                          @change="verifyData.groupName = $event"
                         ></Input>
                       </FormItem>
                     </Form>

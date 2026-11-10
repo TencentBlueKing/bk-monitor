@@ -28,9 +28,9 @@
   <TDialog
     :visible="modelValue"
     width="100%"
-    top="50px"
+    :top="0"
     attach="body"
-    class="favorite-management-dialog"
+    :dialog-class-name="`favorite-management-dialog${store.state.showAlert ? ' is-show-notice' : ''}`"
     :header="false"
     :close-btn="false"
     :footer="false"
@@ -809,9 +809,31 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
 </script>
 
 <style lang="scss" scoped>
-:global(.favorite-management-dialog .t-dialog) {
-  height: calc(100vh - 50px);
+:global(.t-dialog__ctx:has(.favorite-management-dialog)) {
+  top: 52px;
+  height: calc(100% - 52px);
+}
+:global(.t-dialog__ctx:has(.favorite-management-dialog.is-show-notice)) {
+  top: 92px;
+  height: calc(100% - 92px);
+}
+:global(.t-dialog__ctx:has(.favorite-management-dialog) .t-dialog__mask),
+:global(.t-dialog__ctx:has(.favorite-management-dialog) .t-dialog__wrap) {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+:global(.t-dialog__ctx:has(.favorite-management-dialog) .t-dialog__wrap) {
+  overflow: hidden;
+}
+:global(.t-dialog__ctx:has(.favorite-management-dialog) .t-dialog__position) {
+  height: 100%;
   padding: 0;
+}
+:global(.t-dialog.favorite-management-dialog) {
+  height: 100%;
+  padding: 0;
+  border: none;
   border-radius: 0;
   overflow: hidden;
 }
@@ -820,10 +842,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
   padding: 0;
   overflow: hidden;
   background: #f5f6fa;
-}
-:global(.favorite-management-dialog .t-dialog__position) {
-  padding-bottom: 0;
-  overflow: hidden;
 }
 :global(.favorite-management-dialog .t-table__content) {
   border: 1px solid #dcdee5;

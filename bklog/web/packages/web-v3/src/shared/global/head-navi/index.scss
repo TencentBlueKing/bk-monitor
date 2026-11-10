@@ -216,19 +216,6 @@
       font-size: 16px;
       cursor: pointer;
     }
-
-    .bk-dropdown-list {
-      .language-btn {
-        a {
-          display: flex;
-          align-items: center;
-        }
-      }
-
-      .active {
-        color: #3c96ff;
-      }
-    }
   }
 
   .icon-chinese::before {
@@ -237,6 +224,40 @@
 
   .icon-english::before {
     content: '\e207';
+  }
+}
+
+.t-popup__content.head-navi-dropdown {
+  padding: 4px 0;
+  border: 1px solid #dcdee5;
+
+  .bk-dropdown-list {
+    > li > a {
+      display: block;
+      height: 32px;
+      padding: 0 16px;
+      line-height: 33px;
+      color: #63656e;
+      white-space: nowrap;
+
+      &:hover {
+        color: #3a84ff;
+        background-color: #f0f1f5;
+      }
+
+      &.active {
+        color: #3c96ff;
+      }
+    }
+
+    .language-btn a {
+      display: flex;
+      align-items: center;
+    }
+
+    .bk-icon {
+      margin-right: 5px;
+    }
   }
 }
 

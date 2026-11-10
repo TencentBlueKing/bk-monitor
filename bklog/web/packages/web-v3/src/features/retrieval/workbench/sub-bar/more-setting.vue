@@ -1,5 +1,6 @@
 <script setup>
   import { ref, computed, watch } from 'vue';
+  import { Popup as TPopup } from 'tdesign-vue-next';
   import useStore from '@/shared/composables/use-store';
   import useRouter from '@/shared/composables/use-router';
   import useLocale from '@/shared/composables/use-locale';
@@ -13,7 +14,6 @@
   const router = useRouter();
   const store = useStore();
 
-  const refTrigger = ref();
   const isExternal = computed(() => store.state.isExternal);
   const spaceUid = computed(() => store.state.spaceUid);
   const indexSetId = computed(() => store.state.indexId);
@@ -180,7 +180,7 @@
     }
 
     const { href } = router.resolve({ name: routeName, params, query });
-    refTrigger.value?.click?.();
+    isPopoverShow.value = false;
     openRouteWindow(href);
   };
 
@@ -200,22 +200,17 @@
   );
 </script>
 <template>
-  <bk-popover
+  <TPopup
     v-if="isShowRetrieveSetting"
-    :distance="11"
-    :offset="0"
-    :on-hide="() => handlePopShow(false)"
-    :on-show="() => handlePopShow(true)"
-    animation="slide-toggle"
-    placement="bottom-center"
-    theme="light bk-select-dropdown bk-select-dropdown-expand"
+    :visible="isPopoverShow"
+    :overlay-inner-style="{ padding: 0, margin: 0 }"
+    overlay-inner-class-name="bk-select-dropdown-expand-theme"
+    placement="bottom"
     trigger="click"
+    @visible-change="handlePopShow"
   >
     <slot name="trigger">
-      <div
-        ref="refTrigger"
-        class="more-operation"
-      >
+      <div class="more-operation">
         {{ $t('更多') }}
         <span
           class="bklog-icon bklog-arrow-down-filled"
@@ -240,7 +235,7 @@
         </ul>
       </div>
     </template>
-  </bk-popover>
+  </TPopup>
 </template>
 
 <style lang="scss" scoped>

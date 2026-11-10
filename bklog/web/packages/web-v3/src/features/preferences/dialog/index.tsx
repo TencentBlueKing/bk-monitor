@@ -27,6 +27,7 @@
 import { defineComponent, type PropType } from 'vue';
 
 import { Dialog } from 'tdesign-vue-next';
+import useStore from '@/shared/composables/use-store';
 
 import './index.scss';
 
@@ -43,38 +44,38 @@ title: { type: String, required: true, default: '' }},
 emits: ['change', 'menu-change', "menuChange"],
 computed: {},
 methods: {},
-render() {
-    if (!this.value) return null;
-    return (
+setup(props, { slots, emit }) {
+    const store = useStore();
+    return () => props.value ? (
       <Dialog
         style='z-index: var(--bklog-z-dialog);'
         width='100%'
         dialogClassName='global-dialog'
-        top='50px'
+        top={0}
+        header={false}
         closeBtn={false}
         draggable={false}
         destroyOnClose={true}
         footer={false}
-        lazy
         showOverlay={false}
-        visible={this.value}
+        visible={props.value}
       >
-        <div class='global-container'>
+        <div class={`global-container ${store.state.showAlert ? 'is-show-notice' : ''}`}>
           <div class='global-title'>
             <div />
-            <span>{this.title}</span>
+            <span>{props.title}</span>
             <div
               class='bk-icon icon-close'
               onClick={() => {
-                this.$emit('change', false);
+                emit('change', false);
               }}
             />
           </div>
           <div class='center-box'>
-            <div class='content-panel'>{this.$slots.default?.()}</div>
+            <div class='content-panel'>{slots.default?.()}</div>
           </div>
         </div>
       </Dialog>
-    );
+    ) : null;
   }
 });
