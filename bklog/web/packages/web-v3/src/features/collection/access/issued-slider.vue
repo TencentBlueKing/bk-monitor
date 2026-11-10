@@ -1075,7 +1075,7 @@ import { ServicesInstance } from '@/platform/services';
     position: fixed;
     right: 45px;
     bottom: 35px;
-    z-index: 10;
+    z-index: var(--bklog-z-page);
     width: 47px;
     height: 47px;
     padding: 12px;

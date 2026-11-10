@@ -188,7 +188,7 @@
 <style lang="scss" scoped>
   .bv-metric {
     &-select {
-      z-index: 1000;
+      z-index: var(--bklog-z-dropdown);
     }
 
     &-footer {

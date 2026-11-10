@@ -254,12 +254,6 @@ class FieldItem extends tsc<FieldItemProps> {
     if (!visible) this.instanceDestroy();
   }
 
-  /** 更新Popper位置 */
-  updatePopperInstance() {
-    setTimeout(() => {
-      this.analysisPopupRef?.update?.();
-    }, 100);
-  }
   instanceDestroy() {
     this.analysisActive = false;
   }
@@ -339,7 +333,6 @@ class FieldItem extends tsc<FieldItemProps> {
                   queryParams={this.queryParams}
                   onDownloadFieldStatistics={this.downloadFieldStatistics}
                   onShowMore={this.showMore}
-                  onStatisticsInfoFinish={this.updatePopperInstance}
                 />
               ) : null,
           }}

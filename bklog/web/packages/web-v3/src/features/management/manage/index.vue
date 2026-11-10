@@ -386,7 +386,7 @@ export default {
 
 .manage-sidebar {
   position: relative;
-  z-index: 101;
+  z-index: var(--bklog-z-nav-top);
   flex: 0 0 60px;
   width: 60px;
   min-width: 0;

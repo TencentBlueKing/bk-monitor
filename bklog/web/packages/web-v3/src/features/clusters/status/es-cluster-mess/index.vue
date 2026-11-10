@@ -258,7 +258,6 @@
           </template>
         </bk-table-column>
         <bk-table-column
-          :tippy-options="{ zIndex: 3000 }"
           type="setting"
         >
           <bk-table-setting-content
@@ -848,7 +847,7 @@
       position: absolute;
       top: 48%;
       right: 304px;
-      z-index: 99;
+      z-index: var(--bklog-z-nav);
       display: inline-block;
       width: 20px;
       height: 40px;

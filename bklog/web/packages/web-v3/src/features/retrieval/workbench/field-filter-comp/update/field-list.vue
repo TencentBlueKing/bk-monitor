@@ -105,7 +105,6 @@ const settingTippyOptions: Partial<TippyProps> = {
   hideOnClick: false,
   maxWidth: 1200,
   offset: [-16, -40],
-  zIndex: 3000,
   appendTo: document.body,
   // Keep the full panel usable when neither vertical placement fits a short
   // viewport. Popper otherwise preserves the preferred, clipped top position.

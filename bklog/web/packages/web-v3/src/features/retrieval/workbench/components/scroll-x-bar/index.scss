@@ -2,7 +2,7 @@
   position: fixed;
   right: var(--right);
   bottom: 0;
-  z-index: 4;
+  z-index: var(--bklog-z-local);
   height: 14px;
   overflow-x: auto;
   background-color: transparent;

@@ -102,7 +102,7 @@
     padding: 0 4px;
     display: flex;
     align-items: center;
-    z-index: 10;
+    z-index: var(--bklog-z-page);
     cursor: pointer;
 
     .status-icon-box {

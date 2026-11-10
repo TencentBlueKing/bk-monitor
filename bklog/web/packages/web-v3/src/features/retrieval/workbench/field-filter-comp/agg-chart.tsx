@@ -81,7 +81,8 @@ export default class AggChart extends tsc<AggChartProps> {
 
   // 状态变量
   showAllList = false;
-  listLoading = false;
+  listLoading = true;
+  fetchingTopList = false;
   limitSize = 5;
   route = window.mainComponent.$route;
   fieldValueData = {
@@ -171,9 +172,11 @@ export default class AggChart extends tsc<AggChartProps> {
   }
 
   mounted() {
-    if (!this.isFrontStatistics) {
-      this.queryFieldFetchTopList(this.limit);
+    if (this.isFrontStatistics) {
+      this.listLoading = false;
+      return;
     }
+    this.queryFieldFetchTopList(this.limit);
   }
 
   // 使用CSS变量优化样式处理
@@ -308,9 +311,10 @@ export default class AggChart extends tsc<AggChartProps> {
   };
   // 查询字段数据
   async queryFieldFetchTopList(limit = 5) {
-    if (this.listLoading) {
+    if (this.fetchingTopList) {
       return;
     }
+    this.fetchingTopList = true;
     this.limitSize = limit;
     this.listLoading = true;
     // 请求开始先清空旧列表，避免 loading 期间仍用旧 values 参与百分比计算
@@ -351,6 +355,7 @@ export default class AggChart extends tsc<AggChartProps> {
       console.error(error);
     } finally {
       this.listLoading = false;
+      this.fetchingTopList = false;
     }
   }
 
@@ -372,7 +377,9 @@ export default class AggChart extends tsc<AggChartProps> {
           </div>
         ) : null}
         {this.listLoading ? (
-          <ItemSkeleton columns={2} rows={this.limit > 6 ? Math.ceil(this.limit / 8) : 2} widths={['10%', '90%']} />
+          <div class='chart-list-placeholder'>
+            <ItemSkeleton columns={1} gap='9px' rowHeight={'28px'} rows={2} widths={['100%']} />
+          </div>
         ) : this.filterList.length ? (
           <ul class='chart-list'>
             {this.filterList.map((item, index) => {

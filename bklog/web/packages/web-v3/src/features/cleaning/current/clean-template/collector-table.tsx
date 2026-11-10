@@ -146,7 +146,6 @@ export default defineComponent({
             onShow: handleIndexSetPopoverShow,
             placement: 'bottom-start',
             theme: 'bklog-basic-light',
-            zIndex: 9999,
           }}
           trigger='hover'
           v-slots={{

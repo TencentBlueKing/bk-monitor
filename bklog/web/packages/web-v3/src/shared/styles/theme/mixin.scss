@@ -106,7 +106,7 @@ $statusNames: 'success' 'nodata' 'failed' 'warning';
 @mixin strategy-config-nav {
   .strategy-config-nav {
     position: relative;
-    z-index: 1;
+    z-index: var(--bklog-z-base);
     padding-left: 24px;
 
     .nav-append-wrap {

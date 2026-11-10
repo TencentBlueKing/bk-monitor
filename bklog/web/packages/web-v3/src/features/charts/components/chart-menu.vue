@@ -129,7 +129,7 @@
 <style lang="scss" scoped>
   .chart-menu {
     position: absolute;
-    z-index: 999;
+    z-index: var(--bklog-z-dropdown);
     display: flex;
     flex-direction: column;
     width: 182px;

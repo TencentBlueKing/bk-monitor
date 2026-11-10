@@ -60,7 +60,7 @@ export default function useFullscreenLoading() {
           ),
         showOverlay: false,
         text: options.title,
-        zIndex: 10000,
+        zIndex: window.__bk_zIndex_manager?.nextMessageZIndex?.(),
       },
       appContext,
     );

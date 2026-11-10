@@ -237,7 +237,7 @@
     position: absolute;
     top: 0;
     left: 0;
-    z-index: 9;
+    z-index: var(--bklog-z-page);
     display: flex;
     align-items: center;
     width: 100%;

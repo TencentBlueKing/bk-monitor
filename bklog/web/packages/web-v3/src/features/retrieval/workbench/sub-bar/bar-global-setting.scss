@@ -16,9 +16,18 @@
 }
 
 .bar-global-setting-popover-theme {
-  /* stylelint-disable-next-line declaration-no-important */
-  width: 238px !important;
-  padding: 16px 14px;
+  .tippy-box {
+    width: 238px;
+    color: #4d4f56;
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 0 6px 0 #dcdee5;
+  }
+
+  .tippy-content {
+    padding: 16px 14px;
+  }
 
   .setting-container {
     .setting-content {
@@ -34,12 +43,47 @@
 
         .item-main {
           .bk-button-group {
+            display: inline-block;
+            margin-left: 1px;
+            font-size: 0;
+
             .t-button.setting-checkbox {
               display: inline-flex;
               justify-content: center;
               width: 48px;
               min-width: 48px;
+              height: 26px;
+              margin: 0 0 0 -1px;
               padding: 0;
+              font-size: 12px;
+              line-height: 24px;
+              color: #63656e;
+              background-color: #fff;
+              border: 1px solid #c4c6cc;
+              border-radius: 0;
+              box-shadow: none;
+
+              &:first-child {
+                border-radius: 2px 0 0 2px;
+              }
+
+              &:last-child {
+                border-radius: 0 2px 2px 0;
+              }
+
+              &:hover {
+                z-index: var(--bklog-z-base);
+                color: #3a84ff;
+                border-color: #3a84ff;
+              }
+
+              &.is-selected {
+                position: relative;
+                z-index: var(--bklog-z-base);
+                color: #3a84ff;
+                background-color: #e1ecff;
+                border-color: #3a84ff;
+              }
             }
           }
 
@@ -64,6 +108,14 @@
     .setting-operation {
       display: flex;
       column-gap: 8px;
+
+      .t-button {
+        height: 26px;
+        min-width: 64px;
+        padding: 0 12px;
+        font-size: 12px;
+        border-radius: 2px;
+      }
     }
   }
 }

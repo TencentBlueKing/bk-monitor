@@ -200,6 +200,7 @@ export default defineComponent({
               key={String(item.value)}
               class={`setting-checkbox ${item.value === activeValue ? 'is-selected' : ''}`}
               size='small'
+              theme='default'
               onClick={() => clickCallback(item.value)}
             >
               {item.name}

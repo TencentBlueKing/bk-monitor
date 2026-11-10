@@ -722,7 +722,7 @@
 
         .is-focus {
           position: relative;
-          z-index: 999;
+          z-index: var(--bklog-z-dropdown);
         }
       }
 

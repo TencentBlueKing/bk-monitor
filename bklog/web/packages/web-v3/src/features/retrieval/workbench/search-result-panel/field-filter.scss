@@ -14,7 +14,7 @@
   &.is-close {
     /* stylelint-disable-next-line declaration-no-important */
     position: absolute !important;
-    z-index: 3;
+    z-index: var(--bklog-z-local);
     display: flex;
     align-items: center;
     width: auto;

@@ -517,7 +517,7 @@
 
     .label-tree {
       position: relative;
-      z-index: 99;
+      z-index: var(--bklog-z-nav);
       min-width: 290px;
       padding: 14px 24px;
       background: #fff;
@@ -648,7 +648,7 @@
     .bk-log-drag-simple {
       position: absolute;
       top: 50%;
-      z-index: 100;
+      z-index: var(--bklog-z-nav-top);
       display: flex;
       align-items: center;
       justify-items: center;

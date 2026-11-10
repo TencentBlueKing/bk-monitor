@@ -258,7 +258,6 @@ export const Select = Object.assign(
               if (typeof attrs.onToggle === 'function') attrs.onToggle(value);
             },
             popupProps: {
-              zIndex: 10020,
               overlayClassName:
                 [
                   datePickerPopup.value ? '__bk-date-picker-popper__' : '',

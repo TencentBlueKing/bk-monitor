@@ -874,7 +874,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
         arrow: true,
         boundary: 'viewport',
         placement: 'top-start',
-        zIndex: 9999,
+        zIndex: window.__bk_zIndex_manager?.nextZIndex?.(),
         onHidden: () => {
           this.destroyPopoverInstance();
         },

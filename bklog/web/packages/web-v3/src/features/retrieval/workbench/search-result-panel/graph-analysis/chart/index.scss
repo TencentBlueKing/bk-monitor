@@ -11,7 +11,7 @@
   .bklog-chart-result-table {
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: var(--bklog-z-base);
     display: flex;
     justify-content: space-between;
     width: 100%;

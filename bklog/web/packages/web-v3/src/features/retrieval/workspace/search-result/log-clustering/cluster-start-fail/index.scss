@@ -55,7 +55,7 @@
 
     .icon-error {
       position: relative;
-      z-index: 99;
+      z-index: var(--bklog-z-nav);
       margin-right: 15px;
       font-size: 42px;
       color: #ea3636;

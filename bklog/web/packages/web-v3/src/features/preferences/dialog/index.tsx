@@ -47,7 +47,7 @@ render() {
     if (!this.value) return null;
     return (
       <Dialog
-        style='z-index: 1000;'
+        style='z-index: var(--bklog-z-dialog);'
         width='100%'
         dialogClassName='global-dialog'
         top='50px'

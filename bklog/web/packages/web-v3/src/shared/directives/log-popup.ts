@@ -82,7 +82,7 @@ export function paintPopup(
     triggerElement: `[data-log-popup="${el._logPopupId}"]`,
     showArrow: true,
     delay: delayOf(binding.value, defaultDelay),
-    zIndex: 9999,
+    zIndex: window.__bk_zIndex_manager?.nextZIndex?.(),
   });
   vnode.appContext = binding.instance?.$?.appContext ?? null;
   render(vnode, el._logPopupRoot);

@@ -5,7 +5,7 @@
 
   .masking-title {
     position: relative;
-    z-index: 999;
+    z-index: var(--bklog-z-dropdown);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -29,14 +29,14 @@
 
       &::before {
         position: relative;
-        z-index: 999;
+        z-index: var(--bklog-z-dropdown);
       }
 
       &:hover::after {
         position: absolute;
         bottom: 5px;
         left: 50%;
-        z-index: 1;
+        z-index: var(--bklog-z-base);
         width: 24px;
         height: 24px;
         content: '';

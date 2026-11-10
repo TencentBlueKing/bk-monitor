@@ -19,7 +19,7 @@
         top: 8px;
         font-size: 12px;   
         right: 14px;
-        z-index: 1;
+        z-index: var(--bklog-z-base);
         .icon-check-circle-shape {
             margin-right: 4px;
             font-size: 14px;

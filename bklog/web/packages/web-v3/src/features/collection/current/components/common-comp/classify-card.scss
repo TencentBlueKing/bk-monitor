@@ -14,7 +14,7 @@
     right: 1px;
     top: 1px;
     color: #fff;
-    z-index: 1;
+    z-index: var(--bklog-z-base);
     display: none;
   }
   &:hover {

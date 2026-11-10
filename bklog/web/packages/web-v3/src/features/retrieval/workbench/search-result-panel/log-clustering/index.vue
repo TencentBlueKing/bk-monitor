@@ -791,7 +791,7 @@
     position: fixed;
     right: 14px;
     bottom: 24px;
-    z-index: 2100;
+    z-index: var(--bklog-z-dropdown);
     display: flex;
     align-items: center;
     justify-content: center;

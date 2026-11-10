@@ -478,7 +478,7 @@
     position: absolute;
     bottom: 0;
     // max-height: 500px;
-    z-index: 999;
+    z-index: var(--bklog-z-dropdown);
     width: 100%;
     padding: 6px 20px;
     overflow-y: auto;
@@ -518,7 +518,7 @@
   .problems-drag {
     position: sticky;
     left: calc(50% - 13px);
-    z-index: 100;
+    z-index: var(--bklog-z-nav-top);
     width: 26px;
     height: 6px;
     border-radius: 3px;
@@ -545,7 +545,7 @@
     position: absolute;
     top: 2px;
     left: 24px;
-    z-index: 999;
+    z-index: var(--bklog-z-dropdown);
     color: #fff;
   }
 
@@ -569,7 +569,7 @@
   .icon-un-full-screen {
     position: absolute;
     top: 10px;
-    z-index: 1;
+    z-index: var(--bklog-z-base);
     color: #fff;
   }
 

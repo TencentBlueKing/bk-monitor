@@ -101,7 +101,7 @@
     }
 
     &.active {
-      z-index: 10;
+      z-index: var(--bklog-z-page);
       color: #3a84ff;
       background: #e1ecff;
       border: 1px solid #3a84ff;
@@ -154,7 +154,7 @@
     height: 100%;
 
     .navigation-container {
-      z-index: 100;
+      z-index: var(--bklog-z-nav-top);
 
       /* stylelint-disable-next-line declaration-no-important */
       max-width: calc(100% - 60px) !important;
@@ -281,7 +281,7 @@
     // position: fixed;
     position: absolute;
     right: 0;
-    z-index: 999;
+    z-index: var(--bklog-z-dropdown);
     font-size: 12px;
 
     .icon-info {
@@ -432,7 +432,7 @@
   position: absolute;
   top: 50%;
   left: 242px;
-  z-index: 100;
+  z-index: var(--bklog-z-nav-top);
   display: flex;
   align-items: center;
   justify-items: center;
@@ -460,7 +460,7 @@
   position: absolute;
   top: 50%;
   right: -3px;
-  z-index: 100;
+  z-index: var(--bklog-z-nav-top);
   display: flex;
   align-items: center;
   justify-items: center;

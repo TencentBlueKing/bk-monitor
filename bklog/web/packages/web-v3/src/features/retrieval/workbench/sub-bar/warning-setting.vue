@@ -92,23 +92,38 @@
             </bk-alert> -->
             <t-table
               v-if="active === 'mission'"
-              :key="tableKey"
-              v-loading="{ loading: loading }"
+              :bordered="false"
               :columns="missionColumns"
-              :data="recordListshow"
-              :empty="$t('暂无内容')"
-              :pagination="{
-                theme: 'simple',
-                size: 'small',
-                showPageSize: false,
-                showJumper: false,
-                totalContent: false,
-                total: recordListshow.length,
-              }"
+              :data="missionLoading ? [] : recordListshow"
+              :hover="true"
+              :max-height="240"
               row-key="alert_id"
+              size="small"
               stripe
               @sort-change="handleSortChange"
             >
+              <template #empty>
+                <div
+                  v-if="missionLoading"
+                  class="warning-table-skeleton"
+                >
+                  <div
+                    v-for="index in 4"
+                    :key="index"
+                    class="warning-table-skeleton-row"
+                  >
+                    <span class="skeleton" style="width: 28%" />
+                    <span class="skeleton" style="width: 22%" />
+                    <span class="skeleton" style="width: 14%" />
+                    <span class="skeleton" style="width: 12%" />
+                    <span class="skeleton" style="width: 12%" />
+                  </div>
+                </div>
+                <span
+                  v-else
+                  class="warning-table-empty"
+                >{{ $t('暂无内容') }}</span>
+              </template>
               <template #alert_name="{ row }">
                 <div
                   v-log-overflow-tips="row.alert_name"
@@ -148,25 +163,38 @@
             </t-table>
             <t-table
               v-if="active === 'config'"
-              :key="tableKey"
-              v-loading="{ loading: loading }"
+              :bordered="false"
               :columns="configColumns"
-              :data="strategyList"
-              :empty="$t('暂无内容')"
-              :pagination="{
-                theme: 'simple',
-                size: 'small',
-                showPageSize: false,
-                showJumper: false,
-                totalContent: false,
-                total: strategyList.length,
-              }"
+              :data="strategyLoading ? [] : strategyList"
+              :hover="true"
+              :max-height="240"
               row-key="name"
+              size="small"
               stripe
             >
+              <template #empty>
+                <div
+                  v-if="strategyLoading"
+                  class="warning-table-skeleton"
+                >
+                  <div
+                    v-for="index in 4"
+                    :key="index"
+                    class="warning-table-skeleton-row"
+                  >
+                    <span class="skeleton" style="width: 32%" />
+                    <span class="skeleton" style="width: 28%" />
+                    <span class="skeleton" style="width: 22%" />
+                  </div>
+                </div>
+                <span
+                  v-else
+                  class="warning-table-empty"
+                >{{ $t('暂无内容') }}</span>
+              </template>
               <template #name="{ row }">
                 <div
-                  style="color: #3a84ff; cursor: pointer"
+                  class="strategy-name"
                   @click="handleStrategyInfoClick(row)"
                 >
                   {{ t(row.name) }}
@@ -247,7 +275,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
   // 本人待处理数量
   const ownPendingCount = ref(0);
 
-  const loading = ref(false);
+  const missionLoading = ref(false);
+  const strategyLoading = ref(false);
   const filterOwner = ref(true);
   const active = ref('mission');
   const typeMap = asDictionary({
@@ -262,7 +291,6 @@ import { asDictionary } from '@/shared/utils/typed-record';
     getAlertListData(type);
   };
 
-  const tableKey = ref(1);
   const recordList = ref([]);
   const originRecordList = ref([]);
   const strategyList = ref<(({ latest_time: string | number | Date; } & { latest_time_format: string; }))[]>([]);
@@ -329,21 +357,21 @@ import { asDictionary } from '@/shared/utils/typed-record';
 
   const handleTabChange = (value: string | number) => {
     active.value = value as string;
-    tableKey.value += 1;
   };
 
-  // TDesign 列定义（替换 bk-table-column 隐式列；单元格经同名插槽渲染）
+  // 固定布局下 col 的 minWidth 不生效，「首次发生时间」会被均分挤窄后换行。
+  // 给这一列明确宽度，表头再强制单行。
   const missionColumns = computed(() => [
     { colKey: 'alert_name', title: t('告警名称'), minWidth: 120 },
-    { colKey: 'first_anomaly_time', title: t('首次发生时间'), minWidth: 140, sorter: true },
-    { colKey: 'duration', title: t('持续时间'), align: 'right' },
-    { colKey: 'status', title: t('状态'), minWidth: 90 },
-    { colKey: 'operation', title: t('操作') },
+    { colKey: 'first_anomaly_time', title: t('首次发生时间'), width: 168, sorter: true },
+    { colKey: 'duration', title: t('持续时间'), width: 96, align: 'right' },
+    { colKey: 'status', title: t('状态'), width: 96 },
+    { colKey: 'operation', title: t('操作'), width: 88 },
   ]);
   const configColumns = computed(() => [
-    { colKey: 'name', title: t('策略') },
-    { colKey: 'query_string', title: t('监控项') },
-    { colKey: 'latest_time_format', title: t('最近告警时间') },
+    { colKey: 'name', title: t('策略'), ellipsis: true, minWidth: 180 },
+    { colKey: 'query_string', title: t('监控项'), ellipsis: true },
+    { colKey: 'latest_time_format', title: t('最近告警时间'), minWidth: 168, ellipsis: true },
   ]);
 
   // TDesign sort-change 归一为 V2 的 order 语义，保持原排序行为不变
@@ -484,32 +512,32 @@ import { asDictionary } from '@/shared/utils/typed-record';
    * ABNORMAL - 表示查询未恢复的告警记录，含已屏蔽;
    * MY_ASSIGNEE - 表示我收到的告警记录
    */
+  let missionRequestSeq = 0;
   const getAlertListData = async (val: string) => {
     const requestIndexId = indexId.value;
-    try {
-      if (!requestIndexId) {
-        return;
-      }
+    if (!requestIndexId) {
+      return;
+    }
 
-      recordList.value = [];
-      loading.value = true;
+    const requestSeq = ++missionRequestSeq;
+    recordList.value = [];
+    missionLoading.value = true;
+    try {
       const res = await requestAlertList(val, requestIndexId, ALERT_LIST_CANCEL_KEY);
-      if (!isCurrentIndexRequest(requestIndexId)) {
+      if (requestSeq !== missionRequestSeq || !isCurrentIndexRequest(requestIndexId)) {
         return;
       }
 
       recordList.value = res?.data || [];
       originRecordList.value = recordList.value;
-      // panels.value[0].count = res?.data.length || 0;
-      tableKey.value += 1;
     } catch (e) {
       if (axios.isCancel(e)) {
         return;
       }
       console.warn(e);
     } finally {
-      if (isCurrentIndexRequest(requestIndexId)) {
-        loading.value = false;
+      if (requestSeq === missionRequestSeq && isCurrentIndexRequest(requestIndexId)) {
+        missionLoading.value = false;
       }
     }
   };
@@ -517,16 +545,17 @@ import { asDictionary } from '@/shared/utils/typed-record';
   /**
    * 获取策略列表
    */
+  let strategyRequestSeq = 0;
   const getStrategyDate = async () => {
     const requestIndexId = indexId.value;
-    strategyList.value = [];
-
     if (!requestIndexId) {
       return;
     }
 
+    const requestSeq = ++strategyRequestSeq;
+    strategyList.value = [];
     RequestPool.execCanceToken(STRATEGY_LIST_CANCEL_KEY);
-    loading.value = true;
+    strategyLoading.value = true;
 
     try {
       const res = await ServicesInstance.alertStrategy.strategyList(
@@ -541,7 +570,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
         },
         { cancelToken: RequestPool.getCancelToken(STRATEGY_LIST_CANCEL_KEY) },
       );
-      if (!isCurrentIndexRequest(requestIndexId)) {
+      if (requestSeq !== strategyRequestSeq || !isCurrentIndexRequest(requestIndexId)) {
         return;
       }
 
@@ -554,15 +583,14 @@ import { asDictionary } from '@/shared/utils/typed-record';
       });
 
       panels.value[1].count = res?.data.length || 0;
-      tableKey.value += 1;
     } catch (e) {
       if (axios.isCancel(e)) {
         return;
       }
       console.warn(e);
     } finally {
-      if (isCurrentIndexRequest(requestIndexId)) {
-        loading.value = false;
+      if (requestSeq === strategyRequestSeq && isCurrentIndexRequest(requestIndexId)) {
+        strategyLoading.value = false;
       }
     }
   };
@@ -580,7 +608,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
     originRecordList.value = [];
     strategyList.value = [];
     panels.value[1].count = 0;
-    loading.value = false;
+    missionLoading.value = false;
+    strategyLoading.value = false;
   };
 
   const loadAlertPanelData = () => {
@@ -593,7 +622,6 @@ import { asDictionary } from '@/shared/utils/typed-record';
     const startTime = row.first_anomaly_time * 1000;
     const endTime = row.end_time * 1000 || Date.now();
 
-    loading.value = true;
     ServicesInstance.alertStrategy.getLogRelatedInfo({
         params: {
           index_set_id: indexId.value,
@@ -643,9 +671,6 @@ import { asDictionary } from '@/shared/utils/typed-record';
       })
       .catch(err => {
         TDesignMessage("error", { content: err.message });
-      })
-      .finally(() => {
-        loading.value = false;
       });
   };
 
@@ -701,78 +726,162 @@ import { asDictionary } from '@/shared/utils/typed-record';
     }
   }
 
-  .bklog-warning-wrapper {
-    .bk-tab-card {
-      background-color: #fafbfd;
+  .tippy-content:has(.bklog-warning-wrapper) {
+    padding: 0;
+  }
 
-      .bk-tab-section {
-        padding: 0px;
+  .bklog-warning-wrapper {
+    .t-tabs,
+    .t-tabs__content,
+    .t-tab-panel {
+      background-color: #fff;
+    }
+
+    .t-tabs__header,
+    .t-tabs__nav,
+    .t-tabs__operations,
+    .t-tabs__nav-container.t-tabs__nav--card {
+      height: 42px;
+      background-color: #f0f1f5;
+    }
+
+    .t-tabs__operations--right {
+      display: flex;
+      align-items: center;
+      height: 42px;
+    }
+
+    .t-tabs__nav-item.t-tabs__nav--card {
+      height: 42px;
+      padding: 0 16px;
+      color: #313238;
+      background-color: transparent;
+      border: none;
+
+      .t-tabs__nav-item-wrapper {
+        height: 42px;
+        margin: 0;
+        padding: 0;
+      }
+
+      .panel-name {
+        font-size: 13px;
+        line-height: 42px;
+        color: #313238;
+      }
+
+      &:hover:not(.t-is-active) {
+        background-color: transparent;
+      }
+
+      &.t-is-active {
+        color: #313238;
+        background-color: #fff;
+
+        &::before {
+          position: absolute;
+          top: 0;
+          left: 0;
+          z-index: var(--bklog-z-base);
+          width: 100%;
+          height: 5px;
+          content: '';
+          background-color: #3a84ff;
+        }
+      }
+    }
+
+    .active-box {
+      display: none;
+    }
+
+    .t-tabs__content {
+      padding: 0;
+    }
+
+    .t-table {
+      font-size: 12px;
+      color: #63656e;
+
+      .t-table__content {
         border: none;
       }
 
-      .bk-tab-header {
-        /* stylelint-disable-next-line declaration-no-important */
-        height: 42px !important;
+      th,
+      td {
+        height: 32px;
+        padding: 0 16px;
+        font-size: 12px;
+        line-height: 32px;
+        border-bottom: none;
+      }
 
-        .bk-tab-header-setting {
-          /* stylelint-disable-next-line declaration-no-important */
-          height: 42px !important;
+      thead th {
+        font-weight: 400;
+        color: #63656e;
+        white-space: nowrap;
+        overflow-wrap: normal;
+        background-color: #fff;
+        border-bottom: 1px solid #dcdee5;
 
-          /* stylelint-disable-next-line declaration-no-important */
-          line-height: 42px !important;
-        }
-
-        .bk-tab-label-wrapper {
-          color: #313238;
-          background-color: #f0f1f5;
-
-          .bk-tab-label-list {
-            /* stylelint-disable-next-line declaration-no-important */
-            height: 42px !important;
-          }
-
-          .bk-tab-label-item {
-            /* stylelint-disable-next-line declaration-no-important */
-            line-height: 42px !important;
-
-            .panel-name {
-              font-size: 13px;
-            }
-          }
-
-          .active-box {
-            position: absolute;
-            top: 0px;
-            left: 0px;
-            width: 100%;
-            height: 5px;
-            background-color: #3a84ff;
-          }
+        .t-table__th-cell-inner,
+        .t-table__cell--title {
+          white-space: nowrap;
         }
       }
 
-      .t-table {
-        th,
-        td {
-          height: 32px;
-        }
+      .t-table__empty {
+        padding: 0;
+      }
 
-        td {
-          border-bottom: none;
-        }
+      .warning-table-empty {
+        display: block;
+        padding: 48px 0;
+        color: #979ba5;
+      }
 
-        .t-table__empty {
-          padding: 20px 0;
-        }
+      .warning-table-skeleton-row {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        padding: 0 16px;
+        gap: 16px;
 
-        &.t-table--striped > .t-table__content > table > tbody > tr {
-          background-color: transparent;
-
-          &:nth-of-type(odd) {
-            background-color: #fafbfd;
-          }
+        .skeleton {
+          display: inline-block;
+          height: 12px;
+          background: linear-gradient(90deg, #f0f2f5 25%, #e6e9ed 50%, #f0f2f5 75%);
+          background-size: 400% 100%;
+          border-radius: 2px;
+          animation: warning-table-shimmer 1.4s infinite linear;
         }
       }
+
+      @keyframes warning-table-shimmer {
+        0% {
+          background-position: 200% 0;
+        }
+
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
+      &.t-table--striped > .t-table__content > table > tbody > tr {
+        background-color: #fff;
+
+        &:nth-of-type(odd) {
+          background-color: #fafbfd;
+        }
+      }
+    }
+
+    .strategy-name {
+      overflow: hidden;
+      color: #3a84ff;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
     }
 
     .bklog-table-col-alert-name {

@@ -88,8 +88,12 @@ const handlePopoverHide = () => {
 }
 
 .field-setting-popover {
-  .tippy-tooltip {
+  .t-popup__content {
+    width: 130px;
     padding: 7px 0;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px 0 #0000001a;
   }
 
   .dropdown-list {

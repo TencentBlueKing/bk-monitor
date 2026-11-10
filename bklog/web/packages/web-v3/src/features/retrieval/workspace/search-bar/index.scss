@@ -1,7 +1,7 @@
 .v3-search-bar-root {
   position: sticky;
   top: 0;
-  z-index: 4;
+  z-index: var(--bklog-z-local);
   margin: 0 8px;
   box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.0784313725);
 
