@@ -35,15 +35,15 @@ from apps.log_databus.serializers import (
 from apps.utils.drf import list_route
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
 from apps.log_databus.models import CollectorConfig
-from apps.log_search.utils import get_search_request_scope
 
 from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
 from apps.iam import ActionEnum, ResourceEnum
 
 
-def get_request_space_uid(request, data=None):
-    """获取请求所在空间：显式参数优先，其次请求头 X-Bk-Space-Uid"""
-    _, space_uid = get_search_request_scope(request, data)
+def get_request_space_uid(request):
+    """获取请求所在空间：GET 取 query、POST 取 body，都没有时回退请求头 X-Bk-Space-Uid"""
+    params = request.query_params if request.method == "GET" else request.data
+    space_uid = params.get("space_uid") or request.headers.get("X-Bk-Space-Uid")
     return space_uid.strip() if isinstance(space_uid, str) else space_uid
 
 
@@ -52,8 +52,7 @@ class LogAccessPermission(ViewBusinessPermission):
 
     @classmethod
     def fetch_biz_id_by_request(cls, request):
-        params = request.query_params if request.method == "GET" else request.data
-        space_uid = get_request_space_uid(request, params)
+        space_uid = get_request_space_uid(request)
         if not space_uid:
             raise ValidationError(_("缺少空间参数"))
         bk_biz_id = space_uid_to_bk_biz_id(space_uid)
@@ -100,7 +99,7 @@ class LogAccessViewSet(APIViewSet):
     def get_collector_status(self, request):
         data = self.params_valid(GetCollectorStatusSerializer)
         collector_config_id_list = data["collector_config_id_list"]
-        space_uid = get_request_space_uid(request, data)
+        space_uid = get_request_space_uid(request)
         if space_uid:
             # 只返回当前空间及其关联空间的采集项状态，关联空间无需再单独鉴权
             scope_bk_biz_ids = LogCollectorHandler(space_uid).all_related_bk_biz_ids
