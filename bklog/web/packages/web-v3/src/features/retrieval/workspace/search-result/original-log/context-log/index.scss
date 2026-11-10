@@ -1,0 +1,42 @@
+.log-context-dialog-main {
+  &.t-dialog__fullscreen {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-height: 100vh;
+  }
+
+  .t-dialog__body,
+  .bk-dialog-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+
+    .bk-resize-layout-aside-content {
+      overflow: visible !important;
+    }
+  }
+
+  .bk-resize-collapse {
+    background: #3a84ff !important;
+  }
+
+  .bk-resize-layout-aside {
+    position: relative;
+    z-index: var(--bklog-z-page);
+    box-shadow: 0 -2px 8px 0 rgba(0, 0, 0, .04);
+
+    &::after {
+      display: none;
+    }
+  }
+
+  .dialog-related-log-page {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+  }
+}

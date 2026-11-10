@@ -1,0 +1,118 @@
+[
+  {
+    "id": "app",
+    "descriptor": "ai-native/modules/app.json"
+  },
+  {
+    "id": "features/alerts",
+    "descriptor": "ai-native/modules/features-alerts.json"
+  },
+  {
+    "id": "features/archive",
+    "descriptor": "ai-native/modules/features-archive.json"
+  },
+  {
+    "id": "features/authorization",
+    "descriptor": "ai-native/modules/features-authorization.json"
+  },
+  {
+    "id": "features/charts",
+    "descriptor": "ai-native/modules/features-charts.json"
+  },
+  {
+    "id": "features/cleaning",
+    "descriptor": "ai-native/modules/features-cleaning.json"
+  },
+  {
+    "id": "features/client-logs",
+    "descriptor": "ai-native/modules/features-client-logs.json"
+  },
+  {
+    "id": "features/clusters",
+    "descriptor": "ai-native/modules/features-clusters.json"
+  },
+  {
+    "id": "features/collection",
+    "descriptor": "ai-native/modules/features-collection.json"
+  },
+  {
+    "id": "features/dashboards",
+    "descriptor": "ai-native/modules/features-dashboards.json"
+  },
+  {
+    "id": "features/data-id",
+    "descriptor": "ai-native/modules/features-data-id.json"
+  },
+  {
+    "id": "features/data-links",
+    "descriptor": "ai-native/modules/features-data-links.json"
+  },
+  {
+    "id": "features/extraction",
+    "descriptor": "ai-native/modules/features-extraction.json"
+  },
+  {
+    "id": "features/grok",
+    "descriptor": "ai-native/modules/features-grok.json"
+  },
+  {
+    "id": "features/index-sets",
+    "descriptor": "ai-native/modules/features-index-sets.json"
+  },
+  {
+    "id": "features/integrations",
+    "descriptor": "ai-native/modules/features-integrations.json"
+  },
+  {
+    "id": "features/management",
+    "descriptor": "ai-native/modules/features-management.json"
+  },
+  {
+    "id": "features/masking",
+    "descriptor": "ai-native/modules/features-masking.json"
+  },
+  {
+    "id": "features/migration",
+    "descriptor": "ai-native/modules/features-migration.json"
+  },
+  {
+    "id": "features/monitoring",
+    "descriptor": "ai-native/modules/features-monitoring.json"
+  },
+  {
+    "id": "features/navigation",
+    "descriptor": "ai-native/modules/features-navigation.json"
+  },
+  {
+    "id": "features/playground",
+    "descriptor": "ai-native/modules/features-playground.json"
+  },
+  {
+    "id": "features/preferences",
+    "descriptor": "ai-native/modules/features-preferences.json"
+  },
+  {
+    "id": "features/reporting",
+    "descriptor": "ai-native/modules/features-reporting.json"
+  },
+  {
+    "id": "features/retrieval",
+    "descriptor": "ai-native/modules/features-retrieval.json"
+  },
+  {
+    "id": "features/sharing",
+    "descriptor": "ai-native/modules/features-sharing.json"
+  },
+  {
+    "id": "features/tracing",
+    "descriptor": "ai-native/modules/features-tracing.json"
+  },
+  {
+    "id": "platform",
+    "descriptor": "ai-native/modules/platform.json"
+  },
+  {
+    "id": "shared",
+    "descriptor": "ai-native/modules/shared.json"
+  }
+]

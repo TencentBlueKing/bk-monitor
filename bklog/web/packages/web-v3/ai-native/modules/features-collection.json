@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "features/collection",
+  "purpose": "日志采集创建、编辑、详情与源节点选择",
+  "root": "src/features/collection",
+  "files": 167,
+  "entryPoints": [
+    "features/collection/access/components/index-import-modal/index.tsx",
+    "features/collection/access/components/log-filter/index.tsx",
+    "features/collection/access/index.vue",
+    "features/collection/current/components/create-operation/index.tsx",
+    "features/collection/current/components/list-main/table-list/index.tsx",
+    "features/collection/current/components/masking-operation/index.tsx",
+    "features/collection/current/index.tsx",
+    "features/collection/filter-rule/config-rule/control-operate/index.tsx",
+    "features/collection/filter-rule/config-rule/index.tsx",
+    "features/collection/filter-rule/config-rule/rule-trigger/index.tsx",
+    "features/collection/filter-rule/index.tsx"
+  ],
+  "services": [
+    "features/collection/services/collect.ts",
+    "features/collection/services/container.ts",
+    "features/collection/services/ip-chooser.ts"
+  ],
+  "dependsOn": [
+    "app",
+    "features/charts",
+    "features/cleaning",
+    "features/clusters",
+    "features/data-links",
+    "features/grok",
+    "features/index-sets",
+    "features/management",
+    "features/masking",
+    "features/retrieval",
+    "platform",
+    "shared"
+  ],
+  "tests": [],
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

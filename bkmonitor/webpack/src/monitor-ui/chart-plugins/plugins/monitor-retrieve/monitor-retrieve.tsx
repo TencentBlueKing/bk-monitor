@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+import * as MonitorLogPackage from '@blueking/monitor-apm-log/main';
 
 import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
@@ -41,6 +42,10 @@ import { serviceLogInfo, serviceRelationList } from 'monitor-api/modules/apm_log
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import ApmTraceSlider from '../apm-trace-slider';
+
+// New log packages own a Vue3 runtime behind the existing mount protocol.
+// Older published packages continue using the host's Vue2 constructor.
+const LogApplication = (MonitorLogPackage as unknown as { Vue2?: typeof Vue }).Vue2 || Vue;
 
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -71,12 +76,14 @@ export default class MonitorRetrieve extends tsc<void> {
   slideDetail: null | { appName: string; bizId?: number; traceId: string } = null;
   /** APM 日志 Vue 实例本地引用，避免被嵌套 monitor-trace-log 覆盖 window.mainComponent 后丢失 */
   apmLogInstance: any = null;
+  private unwatchLogProps?: () => void;
 
   async created() {
     initWindowState();
     this.init();
   }
   beforeDestroy() {
+    this.unwatchLogProps?.();
     if (!this.empty) {
       logStore.commit('resetState');
       const instance = this.apmLogInstance;
@@ -133,7 +140,7 @@ export default class MonitorRetrieve extends tsc<void> {
         spaceUid,
       });
       initGlobalComponents();
-      this.apmLogInstance = new Vue({
+      this.apmLogInstance = new LogApplication({
         store: logStore,
         router: this.$router,
         i18n,
@@ -151,6 +158,16 @@ export default class MonitorRetrieve extends tsc<void> {
             },
           }),
       });
+      this.unwatchLogProps?.();
+      if (LogApplication !== Vue) {
+        // Reactivity cannot be shared between the host's Vue2 and embedded Vue3.
+        this.unwatchLogProps = this.$watch(
+          () => [this.timeRange, this.timezone, this.refreshImmediate, this.viewOptions.filters.app_name,
+            this.viewOptions.filters.service_name, this.$route.query, this.$route.params],
+          () => this.apmLogInstance?.$forceUpdate(),
+          { deep: true }
+        );
+      }
       window.mainComponent = this.apmLogInstance;
       await this.$nextTick();
       this.apmLogInstance.$mount(this.$el.querySelector('#main'));

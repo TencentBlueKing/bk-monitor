@@ -1,0 +1,145 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { computed, onMounted, ref, type Ref } from 'vue';
+
+// import useResizeObserve from '@/shared/composables/use-resize-observe';
+import { debounce } from 'lodash-es';
+
+import useIntersectionObserver from '../../../../../shared/composables/use-intersection-observer';
+import RetrieveHelper from '../../../retrieve-helper';
+function deepQueryShadowSelector(selector: string) {
+  // 搜索当前根下的元素
+  const searchInRoot = (root: HTMLElement | ShadowRoot) => {
+    // 尝试直接查找
+    const el = root.querySelector(selector);
+    if (el) {
+      return el;
+    }
+
+    // 查找当前根下所有可能的 Shadow Host
+    const shadowHosts = Array.from(root.querySelectorAll('*')).filter(newEl => newEl.shadowRoot);
+
+    // 递归穿透每个 Shadow Host
+    for (const host of shadowHosts) {
+      const result = searchInRoot(host.shadowRoot);
+      if (result) {
+        return result;
+      }
+    }
+
+    return null;
+  };
+
+  // 从 document.body 开始搜索
+  return searchInRoot(document.body);
+}
+
+export default ({
+  loadMoreFn,
+  container,
+  refLoadMoreElement,
+}: {
+  rootElement?: Ref<HTMLElement | undefined>;
+  loadMoreFn?: () => void;
+  container: string;
+  refLoadMoreElement: Ref<HTMLElement | undefined>;
+}) => {
+  // const searchBarHeight = ref(0);
+  const offsetWidth = ref(0);
+  const scrollWidth = ref(0);
+  const scrollDirection = ref('down');
+  const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
+  let scrollElement: Element|null = null;
+
+  // let scrollElementOffset = 0;
+  let isComputingCalcOffset = false;
+
+  const getScrollElement = () => {
+    if (window.__IS_MONITOR_TRACE__) {
+      return deepQueryShadowSelector(GLOBAL_SCROLL_SELECTOR);
+    }
+
+    if (!scrollElement) {
+      scrollElement = document.body.querySelector(GLOBAL_SCROLL_SELECTOR);
+    }
+
+    return scrollElement;
+  };
+
+  const debounceStopComputing = debounce(() => {
+    isComputingCalcOffset = false;
+  }, 500);
+
+  const getCurrentElement = () => {
+    return document.querySelector(container) as HTMLElement;
+  };
+
+  const calculateOffsetTop = () => {
+    if (!isComputingCalcOffset) {
+      isComputingCalcOffset = true;
+      debounceStopComputing();
+    }
+  };
+
+  const scrollToTop = (top = 0, smooth = true) => {
+    getScrollElement()?.scrollTo({ left: 0, top, behavior: smooth ? 'smooth' : 'instant' });
+  };
+
+  const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);
+
+  const computeRect = (targetElement?: HTMLElement) => {
+    const current = targetElement ?? getCurrentElement();
+    scrollWidth.value = (current?.scrollWidth ?? 2) - 2;
+    offsetWidth.value = current?.offsetWidth ?? 0;
+  };
+
+  const debounceComputeRect = debounce(computeRect, 300);
+
+  useIntersectionObserver(refLoadMoreElement, inter => {
+    if (inter.isIntersecting) {
+      loadMoreFn?.();
+    }
+  });
+
+  onMounted(() => {
+    calculateOffsetTop();
+  });
+
+  return {
+    scrollToTop,
+    getScrollElement,
+    hasScrollX,
+    computeRect: debounceComputeRect,
+    /**
+     * 同步执行版 computeRect，供外部在需要立即刷新尺寸的场景调用（如字段设置展开/收起）。
+     * 注意：不要用于频繁 resize 场景，会失去防抖保护。
+     */
+    computeRectSync: computeRect,
+    scrollDirection,
+    offsetWidth,
+    scrollWidth,
+  };
+};

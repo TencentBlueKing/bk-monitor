@@ -1,0 +1,74 @@
+.remark-popover-main {
+  width: 338px;
+
+  .remark-list {
+    width: 100%;
+    max-height: 220px;
+    margin-bottom: 6px;
+    overflow-y: auto;
+    font-size: 12px;
+    color: #63656e;
+    border-bottom: 1px solid #eaebf0;
+    padding: 12px 12px 0 12px;
+
+    .remark-item {
+      width: 100%;
+      display: flex;
+      background: #f5f7fa;
+      border-radius: 4px;
+      padding: 6px 8px;
+      margin-bottom: 4px;
+
+      .remark-main {
+        flex: 1;
+        .content {
+          white-space: pre-wrap;
+          word-break: break-all;
+        }
+
+        .relate-info {
+          color: #979ba5;
+          font-weight: 400;
+          display: flex;
+
+          .split-line {
+            margin: 0 4px;
+          }
+        }
+      }
+
+      .operates {
+        font-size: 14px;
+        cursor: pointer;
+        color: #979ba5;
+        display: flex;
+        gap: 8px;
+
+        .icon-edit-line:hover {
+          color: #3a84ff;
+        }
+
+        .icon-delete:hover {
+          color: #ea3636;
+        }
+      }
+    }
+  }
+
+  .add-new-remark {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    button {
+      font-family: MicrosoftYaHei;
+    }
+  }
+}
+
+.tippy-box[data-theme~="remark-edit-tip-popover"] {
+  .tippy-content {
+    padding: 0 !important;
+  }
+}

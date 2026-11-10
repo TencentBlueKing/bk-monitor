@@ -164,7 +164,7 @@
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged --concurrent false",
-    "commit-msg": "node ./bklog/web/webpack/verify-commit.js $1"
+    "commit-msg": "node ./bklog/web/packages/web-v2/webpack/verify-commit.js $1"
   },
   "lint-staged": {
     "src/**/*.(js|ts|tsx)": [

@@ -1,0 +1,59 @@
+.pattern-line {
+  cursor: pointer;
+
+  mark {
+    color: #313238;
+    background: #f0f1f5;
+  }
+}
+
+.pattern-event-tippy {
+  .event-icons {
+    width: 240px;
+    font-size: 12px;
+  }
+
+  .event-box {
+    width: 100%;
+    height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    &.top-line {
+      border-top: 1px solid #eaebf0;
+    }
+
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+
+  .event-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: left;
+  }
+
+  .icon {
+    display: inline-block;
+    font-size: 14px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-right: 4px;
+  }
+
+  .copy-icon {
+    font-size: 24px;
+    margin-left: -4px;
+    margin-right: -2px;
+  }
+
+  .icon-plus-circle,
+  .icon-icon-help-document-fill {
+    margin-right: 4px;
+  }
+}

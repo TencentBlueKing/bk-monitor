@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "features/index-sets",
+  "purpose": "按源码职责归属的业务域；功能边界以实际组件和服务为准",
+  "root": "src/features/index-sets",
+  "files": 40,
+  "entryPoints": [
+    "features/index-sets/components/collection-report-view/index.vue",
+    "features/index-sets/components/index-set/create/index.vue",
+    "features/index-sets/components/index-set/list/index.vue",
+    "features/index-sets/components/index-set/manage/index.vue",
+    "features/index-sets/components/usage-details/index.vue",
+    "features/index-sets/import-from-other/index.tsx",
+    "features/index-sets/label-select/index.tsx",
+    "features/index-sets/log-collection/collection-item/index.vue",
+    "features/index-sets/log-collection/collection-item/manage-collection/data-status/index.vue",
+    "features/index-sets/log-collection/collection-item/manage-collection/index.vue"
+  ],
+  "services": [
+    "features/index-sets/services/custom.ts",
+    "features/index-sets/services/indexSet.ts",
+    "features/index-sets/services/result-tables.ts",
+    "features/index-sets/services/source.ts"
+  ],
+  "dependsOn": [
+    "app",
+    "features/authorization",
+    "features/clusters",
+    "features/collection",
+    "features/data-links",
+    "features/masking",
+    "features/retrieval",
+    "platform",
+    "shared"
+  ],
+  "tests": [],
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

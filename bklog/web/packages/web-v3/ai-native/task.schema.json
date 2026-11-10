@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Model-independent migration task",
+  "type": "object",
+  "required": [
+    "id",
+    "module",
+    "state",
+    "inputs",
+    "changes",
+    "verification",
+    "remainingDifferences"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "module": {
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "PENDING",
+        "ANALYZING",
+        "PLANNED",
+        "IMPLEMENTING",
+        "VERIFYING",
+        "ACCEPTED",
+        "BLOCKED",
+        "FAILED",
+        "NEEDS_REVIEW"
+      ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verification": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "command",
+          "result",
+          "evidence"
+        ],
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "PASSED",
+              "FAILED",
+              "PENDING",
+              "BLOCKED"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "remainingDifferences": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

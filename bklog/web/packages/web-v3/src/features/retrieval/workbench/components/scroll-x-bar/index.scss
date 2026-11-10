@@ -1,0 +1,14 @@
+.bklog-scroll-x {
+  position: fixed;
+  right: var(--right);
+  bottom: 0;
+  z-index: var(--bklog-z-local);
+  height: 14px;
+  overflow-x: auto;
+  background-color: transparent;
+
+  > div {
+    height: 1px;
+    background-color: transparent;
+  }
+}

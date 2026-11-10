@@ -1,0 +1,443 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { Input as TInput, Tooltip as TTooltip } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+import { asDictionary } from '@/shared/utils/typed-record';
+
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import ItemSkeleton from '@/app/skeleton/item-skeleton';
+import { RetrieveUrlResolver } from '@/app/state/url-resolver';
+import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
+import DOMPurify from 'dompurify';
+import { escape as _escape } from 'lodash-es';
+
+import store from '@/app/state/index';
+import { BK_LOG_STORAGE } from '../../../../app/state/store.type.ts';
+
+import './agg-chart.scss';
+
+// 缓存操作符映射
+const OPERATOR_MAPPING = asDictionary({
+  is: '=',
+  'is not': '!=',
+});
+
+interface AggChartProps {
+  fieldName: string;
+  fieldType: string;
+  parentExpand?: boolean;
+  retrieveParams: any;
+  isFrontStatistics?: boolean;
+  statisticalFieldData?: any;
+  limit?: number;
+  colorList?: string[];
+  showSearchKeyword?: boolean;
+  onDistinctCount?: (value: number, arg0: number) => void;
+  onAddCondition?: (
+    value: { operator: string; value: any; fieldName: string },
+    arg0: string,
+    arg1: any,
+    arg2: string,
+  ) => void;
+}
+
+@Component
+export default class AggChart extends tsc<AggChartProps> {
+  @Prop({ type: String, required: true }) fieldName!: string;
+  @Prop({ type: String, required: true }) fieldType!: string;
+  @Prop({ type: Boolean, default: false }) parentExpand!: boolean;
+  @Prop({ type: Object, required: true }) retrieveParams!: any;
+  @Prop({ type: Boolean, default: false }) isFrontStatistics!: boolean;
+  @Prop({ type: Object, default: () => ({}) }) statisticalFieldData!: any;
+  @Prop({ type: Number, default: 5 }) limit!: number;
+  @Prop({ type: Array }) colorList!: string[];
+  @Prop({ type: Boolean, default: false }) showSearchKeyword!: boolean;
+
+  // 状态变量
+  showAllList = false;
+  listLoading = true;
+  fetchingTopList = false;
+  limitSize = 5;
+  route = window.mainComponent.$route;
+  fieldValueData = {
+    name: '',
+    columns: [],
+    types: [],
+    limit: 5,
+    total_count: 0,
+    field_count: 0,
+    values: [],
+  };
+  // 获取翻译函数
+  t = window.mainComponent.$t.bind(window.mainComponent);
+  searchKeyword = '';
+
+  get unionIndexList() {
+    return store.getters.unionIndexList;
+  }
+
+  get isUnionSearch() {
+    return store.getters.isUnionSearch;
+  }
+
+  // Vue computed 会按依赖自动缓存；勿再套一层手动缓存，否则请求中途渲染会把旧 values 固化，导致过滤后百分比异常
+  get topFiveList() {
+    const totalList = Object.entries(this.statisticalFieldData)
+      .filter(([key]) => !['__validCount', '__totalCount'].includes(key))
+      .sort((a, b) => Number(b[1]) - Number(a[1]))
+      .map(([key, value]) => {
+        const markList = key.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
+        if (markList.length) {
+          return [markList.map((m) => m.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(','), value] as [
+            string,
+            unknown,
+          ];
+        }
+        return [key, value] as [string, unknown];
+      });
+
+    return this.showAllList ? totalList : totalList.slice(0, 5);
+  }
+
+  get showFiveList() {
+    return this.isFrontStatistics ? this.topFiveList : this.fieldValueData.values;
+  }
+
+  get showValidCount() {
+    return this.isFrontStatistics ? this.statisticalFieldData.__validCount || 0 : this.fieldValueData.field_count;
+  }
+
+  get showTotalCount() {
+    return this.isFrontStatistics ? this.statisticalFieldData.__totalCount || 0 : this.fieldValueData.total_count;
+  }
+
+  get watchQueryParams() {
+    const { datePickerValue, ip_chooser, addition, timezone, keyword } = store.state.indexItem;
+    return { datePickerValue, ip_chooser, addition, timezone, keyword };
+  }
+
+  /**
+   * 当前查询模式 0：ui，1:sql
+   */
+  get searchMode() {
+    return store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
+  }
+
+  get filterList() {
+    return this.showFiveList?.filter((item) => item[0]?.includes(this.searchKeyword)) || [];
+  }
+
+  @Watch('watchQueryParams', { deep: true })
+  watchPicker() {
+    if (this.isFrontStatistics) {
+      return;
+    }
+    this.queryFieldFetchTopList(this.limitSize);
+  }
+
+  @Emit('distinctCount')
+  emitDistinctCount(val: number) {
+    return val;
+  }
+
+  @Emit('addCondition')
+  emitAddCondition(operator: string, value: any, fieldName: string) {
+    return { operator, value, fieldName };
+  }
+
+  mounted() {
+    if (this.isFrontStatistics) {
+      this.listLoading = false;
+      return;
+    }
+    this.queryFieldFetchTopList(this.limit);
+  }
+
+  // 使用CSS变量优化样式处理
+  getCssVar(index: number) {
+    return {
+      '--bar-bg-color': this.colorList?.[index % this.colorList.length] || '#5AB8A8',
+      '--percent-text-color': this.colorList?.length ? '#979ba5' : '#5AB8A8',
+    };
+  }
+
+  getPercentValue(count: number) {
+    if (!this.showTotalCount) {
+      return '0%';
+    }
+    // 进度条宽度限制在 100%，避免异常数据撑破样式
+    const percentage = Math.min(100, (count / this.showTotalCount) * 100);
+    return `${percentage}%`;
+  }
+
+  // 百分比文案：>=1% 取整，<1% 显示 <1%
+  computePercent(count: number) {
+    if (!this.showTotalCount) {
+      return '0%';
+    }
+    const percentage = (count / this.showTotalCount) * 100;
+    return percentage >= 1 ? `${Math.round(percentage)}%` : '<1%';
+  }
+
+  // 添加查询条件
+  addCondition(operator: string, value: any, fieldName: string) {
+    if (this.fieldType === '__virtual__') {
+      return;
+    }
+
+    const router = this.$router;
+    const route = this.$route;
+    const mappedOperator = OPERATOR_MAPPING[operator] || operator;
+
+    store
+      .dispatch('setQueryCondition', {
+        field: fieldName,
+        operator: mappedOperator,
+        value: [value],
+      })
+      .then(() => {
+        const resolver = new RetrieveUrlResolver({
+          keyword: store.getters.retrieveParams.keyword,
+          addition: store.getters.retrieveParams.addition,
+        });
+
+        router
+          .replace({
+            query: {
+              ...route.query,
+              ...resolver.resolveParamsToUrl(),
+            },
+          })
+          .then(() => {
+            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+            RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+            this.emitAddCondition(operator, value, fieldName);
+          });
+      });
+  }
+
+  // 获取工具提示内容
+  getIconPopover = (operator: string, value: any, fieldName: string) => {
+    if (this.fieldType === '__virtual__') {
+      return this.t('该字段为平台补充 不可检索');
+    }
+    if (this.filterIsExist(operator, value, fieldName)) {
+      return this.t('已添加过滤条件');
+    }
+    return `${fieldName} ${operator} ${_escape(value)}`;
+  };
+
+  // 检查过滤条件是否已存在
+  filterIsExist = (operator: string, value: any, fieldName: string) => {
+    if (this.fieldType === '__virtual__') {
+      return true;
+    }
+
+    if (this.searchMode === 0) {
+      const mappedOperator = OPERATOR_MAPPING[operator] || operator;
+      return store.getters.retrieveParams?.addition?.some(
+        (addition: { field: string; operator: any; value: { toString: () => any } }) => {
+          return (
+            addition.field === fieldName &&
+            addition.operator === mappedOperator &&
+            addition.value.toString() === value.toString()
+          );
+        },
+      );
+    }
+
+    const formatJsonString = (formatResult: string | Node) => {
+      if (typeof formatResult === 'string') {
+        return DOMPurify.sanitize(formatResult);
+      }
+
+      return formatResult;
+    };
+
+    const getSqlAdditionMappingOperator = ({ operator, field }) => {
+      const textType = this.fieldType;
+
+      const formatValue = (value: unknown) => {
+        let formatResult = value;
+        if (['text', 'string', 'keyword'].includes(textType)) {
+          if (Array.isArray(formatResult)) {
+            formatResult = formatResult.map(formatJsonString);
+          } else {
+            formatResult = formatJsonString(formatResult);
+          }
+        }
+
+        return formatResult;
+      };
+
+      const mappingKey = {
+        // is is not 值映射
+        is: (val: unknown) => `${field}: "${formatValue(val)}"`,
+        'is not': (val: unknown) => `NOT ${field}: "${formatValue(val)}"`,
+        '=': (val: unknown) => `${field}: "${formatValue(val)}"`,
+        '!=': (val: unknown) => `NOT ${field}: "${formatValue(val)}"`,
+      };
+
+      return mappingKey[operator] ?? operator; // is is not 值映射
+    };
+    const keyword = getSqlAdditionMappingOperator({ operator, field: fieldName })?.(value) ?? value;
+    return store.getters.retrieveParams?.keyword.indexOf(keyword) >= 0;
+  };
+  // 查询字段数据
+  async queryFieldFetchTopList(limit = 5) {
+    if (this.fetchingTopList) {
+      return;
+    }
+    this.fetchingTopList = true;
+    this.limitSize = limit;
+    this.listLoading = true;
+    // 请求开始先清空旧列表，避免 loading 期间仍用旧 values 参与百分比计算
+    this.fieldValueData = {
+      ...this.fieldValueData,
+      values: [],
+      total_count: 0,
+      field_count: 0,
+    };
+    try {
+      const isScene = store.getters.isSceneMode;
+      const indexSetIDs = this.isUnionSearch
+        ? this.unionIndexList
+        : [window.__IS_MONITOR_COMPONENT__ ? this.route.query.indexId : this.route.params.indexId];
+      // watchQueryParams 直接订阅 store，可能早于 props 更新；覆盖关键查询条件保证过滤后统计一致
+      const latestRetrieveParams = store.getters.retrieveParams || {};
+      const data = {
+        ...this.retrieveParams,
+        ...latestRetrieveParams,
+        addition: store.getters.requestAddition ?? latestRetrieveParams.addition ?? this.retrieveParams.addition,
+        start_time: this.retrieveParams.start_time ?? latestRetrieveParams.start_time,
+        end_time: this.retrieveParams.end_time ?? latestRetrieveParams.end_time,
+        agg_field: this.fieldName,
+        limit,
+        ...(isScene ? {} : { index_set_ids: indexSetIDs }),
+      };
+
+      const urlStr = isScene
+        ? ServicesInstance.retrieve.getSceneFieldFetchTopList
+        : ServicesInstance.retrieve.fieldFetchTopList;
+      const res = await urlStr({ data });
+
+      if (res.code === 0) {
+        this.emitDistinctCount(res.data.distinct_count);
+        Object.assign(this.fieldValueData, res.data);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      this.listLoading = false;
+      this.fetchingTopList = false;
+    }
+  }
+
+  // 渲染函数
+  render() {
+    return (
+      <div class='retrieve-v2 field-data'>
+        {this.showSearchKeyword ? (
+          <div style={{ marginBottom: '10px' }}>
+            <TInput
+              value={this.searchKeyword}
+              onChange={(value) => {
+                this.searchKeyword = String(value ?? '');
+              }}
+              placeholder={this.$t('搜索')}
+              clearable
+              suffixIcon={() => <i class='bklog-icon bklog-search' />}
+            />
+          </div>
+        ) : null}
+        {this.listLoading ? (
+          <div class='chart-list-placeholder'>
+            <ItemSkeleton columns={1} gap='9px' rowHeight={'28px'} rows={2} widths={['100%']} />
+          </div>
+        ) : this.filterList.length ? (
+          <ul class='chart-list'>
+            {this.filterList.map((item, index) => {
+              const [value, count] = item as [string, number];
+              const percent = this.computePercent(count);
+              const percentValue = this.getPercentValue(count);
+              const isFiltered = this.filterIsExist('is', value, this.fieldName);
+              const isNotFiltered = this.filterIsExist('is not', value, this.fieldName);
+
+              return (
+                <li key={`${index}-${value}`} style={this.getCssVar(index)} class='chart-item'>
+                  <div class='operation-container'>
+                    <TTooltip
+                      content={() => (
+                        <span innerHTML={DOMPurify.sanitize(this.getIconPopover('=', value, this.fieldName))} />
+                      )}
+                    >
+                      <span
+                        class={['bk-icon icon-enlarge-line', { disable: isFiltered }]}
+                        onClick={() => !isFiltered && this.addCondition('is', value, this.fieldName)}
+                      />
+                    </TTooltip>
+                    <TTooltip
+                      content={() => (
+                        <span innerHTML={DOMPurify.sanitize(this.getIconPopover('!=', value, this.fieldName))} />
+                      )}
+                    >
+                      <span
+                        class={['bk-icon icon-narrow-line', { disable: isNotFiltered }]}
+                        onClick={() => !isNotFiltered && this.addCondition('is not', value, this.fieldName)}
+                      />
+                    </TTooltip>
+                  </div>
+                  <div class='chart-content'>
+                    <div class='text-container'>
+                      <TTooltip content={value}>
+                        <div class='text-value'>{value}</div>
+                      </TTooltip>
+                      <div class='percent-value'>
+                        <span>
+                          {count}
+                          {this.t('条')}
+                        </span>{' '}
+                        {percent}
+                      </div>
+                    </div>
+                    <div class='percent-bar-container'>
+                      <div style={{ width: percentValue }} class='percent-bar' />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div class='error-container'>{this.t('暂无字段数据')}</div>
+        )}
+      </div>
+    );
+  }
+}

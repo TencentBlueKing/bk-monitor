@@ -1,0 +1,48 @@
+.log-table-main {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  position: relative;
+
+  .display-type-main {
+    font-size: 12px;
+    display: flex;
+    gap: 14px;
+    margin: 0 0 8px 12px;
+
+    .t-radio {
+      color: #4d4f56;
+      font-family: MicrosoftYaHei;
+      font-weight: normal;
+    }
+  }
+
+  .cluster-table-loading {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+
+    .table-list-content {
+      flex: 1;
+    }
+
+    > .t-loading__overlay {
+      background-color: rgba(255, 255, 255, 0.9);
+    }
+  }
+
+  .global-scrollbar-wraper {
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 12px;
+    width: 100%;
+    overflow-x: auto;
+
+    .global-scrollbar {
+      width: 100%;
+    }
+  }
+}

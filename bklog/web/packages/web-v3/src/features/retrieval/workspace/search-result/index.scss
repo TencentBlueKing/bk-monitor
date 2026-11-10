@@ -1,0 +1,27 @@
+.v3-bklog-body {
+  width: calc(100vw - var(--left-collection-width) - 20px);
+  margin-right: 14px;
+  margin-left: 8px;
+  overflow: visible;
+  box-shadow: 0 2px 4px 0 #1919291f;
+}
+
+.v3-result-panel-skeleton {
+  min-height: calc(100vh - var(--header-height) - var(--top-searchbar-height) - 100px);
+  padding: 8px 16px;
+  background: #fff;
+}
+
+.v3-tab-pane-active {
+  animation: v3-result-tab-fade-in 0.18s ease-out;
+}
+
+@keyframes v3-result-tab-fade-in {
+  from {
+    opacity: 0.45;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

@@ -1,0 +1,387 @@
+[
+  {
+    "name": "bkAffix",
+    "file": "bk-magic-vue/lib/affix.js",
+    "props": 4
+  },
+  {
+    "name": "bkAlert",
+    "file": "bk-magic-vue/lib/alert.js",
+    "props": 5
+  },
+  {
+    "name": "bkAnimateNumber",
+    "file": "bk-magic-vue/lib/animate-number.js",
+    "props": 3
+  },
+  {
+    "name": "bkBackTop",
+    "file": "bk-magic-vue/lib/back-top.js",
+    "props": 4
+  },
+  {
+    "name": "bkBadge",
+    "file": "bk-magic-vue/lib/badge.js",
+    "props": 10
+  },
+  {
+    "name": "bkBigTree",
+    "file": "bk-magic-vue/lib/big-tree.js",
+    "props": 35
+  },
+  {
+    "name": "bkBreadcrumb",
+    "file": "bk-magic-vue/lib/breadcrumb.js",
+    "props": 4
+  },
+  {
+    "name": "bkBreadcrumbItem",
+    "file": "bk-magic-vue/lib/breadcrumb-item.js",
+    "props": 2
+  },
+  {
+    "name": "bkButton",
+    "file": "bk-magic-vue/lib/button.js",
+    "props": 12
+  },
+  {
+    "name": "bkCard",
+    "file": "bk-magic-vue/lib/card.js",
+    "props": 10
+  },
+  {
+    "name": "bkCascade",
+    "file": "bk-magic-vue/lib/cascade.js",
+    "props": 0
+  },
+  {
+    "name": "bkCheckbox",
+    "file": "bk-magic-vue/lib/checkbox.js",
+    "props": 10
+  },
+  {
+    "name": "bkCheckboxGroup",
+    "file": "bk-magic-vue/lib/checkbox-group.js",
+    "props": 2
+  },
+  {
+    "name": "bkCol",
+    "file": "bk-magic-vue/lib/col.js",
+    "props": 4
+  },
+  {
+    "name": "bkCollapse",
+    "file": "bk-magic-vue/lib/collapse.js",
+    "props": 3
+  },
+  {
+    "name": "bkCollapseItem",
+    "file": "bk-magic-vue/lib/collapse-item.js",
+    "props": 6
+  },
+  {
+    "name": "bkColorPicker",
+    "file": "bk-magic-vue/lib/color-picker.js",
+    "props": 8
+  },
+  {
+    "name": "bkComposeFormItem",
+    "file": "bk-magic-vue/lib/compose-form-item.js",
+    "props": 2
+  },
+  {
+    "name": "bkContainer",
+    "file": "bk-magic-vue/lib/container.js",
+    "props": 5
+  },
+  {
+    "name": "bkDatePicker",
+    "file": "bk-magic-vue/lib/date-picker.js",
+    "props": 30
+  },
+  {
+    "name": "bkDialog",
+    "file": "bk-magic-vue/lib/dialog.js",
+    "props": 32
+  },
+  {
+    "name": "bkDiff",
+    "file": "bk-magic-vue/lib/diff.js",
+    "props": 7
+  },
+  {
+    "name": "bkDivider",
+    "file": "bk-magic-vue/lib/divider.js",
+    "props": 5
+  },
+  {
+    "name": "bkDropdownMenu",
+    "file": "bk-magic-vue/lib/dropdown-menu.js",
+    "props": 8
+  },
+  {
+    "name": "bkException",
+    "file": "bk-magic-vue/lib/exception.js",
+    "props": 3
+  },
+  {
+    "name": "bkFixedNavbar",
+    "file": "bk-magic-vue/lib/fixed-navbar.js",
+    "props": 3
+  },
+  {
+    "name": "bkForm",
+    "file": "bk-magic-vue/lib/form.js",
+    "props": 5
+  },
+  {
+    "name": "bkFormItem",
+    "file": "bk-magic-vue/lib/form-item.js",
+    "props": 12
+  },
+  {
+    "name": "bkIcon",
+    "file": "bk-magic-vue/lib/icon.js",
+    "props": 0
+  },
+  {
+    "name": "bkImage",
+    "file": "bk-magic-vue/lib/image.js",
+    "props": 10
+  },
+  {
+    "name": "bkImageViewer",
+    "file": "bk-magic-vue/lib/image-viewer.js",
+    "props": 8
+  },
+  {
+    "name": "bkInput",
+    "file": "bk-magic-vue/lib/input.js",
+    "props": 30
+  },
+  {
+    "name": "bkLink",
+    "file": "bk-magic-vue/lib/link.js",
+    "props": 6
+  },
+  {
+    "name": "bkNavigation",
+    "file": "bk-magic-vue/lib/navigation.js",
+    "props": 12
+  },
+  {
+    "name": "bkNavigationMenu",
+    "file": "bk-magic-vue/lib/navigation-menu.js",
+    "props": 17
+  },
+  {
+    "name": "bkNavigationMenuGroup",
+    "file": "bk-magic-vue/lib/navigation-menu-group.js",
+    "props": 1
+  },
+  {
+    "name": "bkNavigationMenuItem",
+    "file": "bk-magic-vue/lib/navigation-menu-item.js",
+    "props": 6
+  },
+  {
+    "name": "bkOption",
+    "file": "bk-magic-vue/lib/option.js",
+    "props": 3
+  },
+  {
+    "name": "bkOptionGroup",
+    "file": "bk-magic-vue/lib/option-group.js",
+    "props": 6
+  },
+  {
+    "name": "bkPagination",
+    "file": "bk-magic-vue/lib/pagination.js",
+    "props": 16
+  },
+  {
+    "name": "bkPopconfirm",
+    "file": "bk-magic-vue/lib/popconfirm.js",
+    "props": 8
+  },
+  {
+    "name": "bkPopover",
+    "file": "bk-magic-vue/lib/popover.js",
+    "props": 26
+  },
+  {
+    "name": "bkProcess",
+    "file": "bk-magic-vue/lib/process.js",
+    "props": 6
+  },
+  {
+    "name": "bkProgress",
+    "file": "bk-magic-vue/lib/progress.js",
+    "props": 10
+  },
+  {
+    "name": "bkRadio",
+    "file": "bk-magic-vue/lib/radio.js",
+    "props": 8
+  },
+  {
+    "name": "bkRadioButton",
+    "file": "bk-magic-vue/lib/radio-button.js",
+    "props": 6
+  },
+  {
+    "name": "bkRadioGroup",
+    "file": "bk-magic-vue/lib/radio-group.js",
+    "props": 2
+  },
+  {
+    "name": "bkRate",
+    "file": "bk-magic-vue/lib/rate.js",
+    "props": 6
+  },
+  {
+    "name": "bkResizeLayout",
+    "file": "bk-magic-vue/lib/resize-layout.js",
+    "props": 12
+  },
+  {
+    "name": "bkRoundProgress",
+    "file": "bk-magic-vue/lib/round-progress.js",
+    "props": 11
+  },
+  {
+    "name": "bkRow",
+    "file": "bk-magic-vue/lib/row.js",
+    "props": 0
+  },
+  {
+    "name": "bkSearchSelect",
+    "file": "bk-magic-vue/lib/search-select.js",
+    "props": 33
+  },
+  {
+    "name": "bkSelect",
+    "file": "bk-magic-vue/lib/select.js",
+    "props": 43
+  },
+  {
+    "name": "bkSideslider",
+    "file": "bk-magic-vue/lib/sideslider.js",
+    "props": 11
+  },
+  {
+    "name": "bkSlider",
+    "file": "bk-magic-vue/lib/slider.js",
+    "props": 20
+  },
+  {
+    "name": "bkSpin",
+    "file": "bk-magic-vue/lib/spin.js",
+    "props": 6
+  },
+  {
+    "name": "bkStar",
+    "file": "bk-magic-vue/lib/star.js",
+    "props": 7
+  },
+  {
+    "name": "bkSteps",
+    "file": "bk-magic-vue/lib/steps.js",
+    "props": 10
+  },
+  {
+    "name": "bkSwiper",
+    "file": "bk-magic-vue/lib/swiper.js",
+    "props": 7
+  },
+  {
+    "name": "bkSwitcher",
+    "file": "bk-magic-vue/lib/switcher.js",
+    "props": 12
+  },
+  {
+    "name": "bkTab",
+    "file": "bk-magic-vue/lib/tab.js",
+    "props": 17
+  },
+  {
+    "name": "bkTabPanel",
+    "file": "bk-magic-vue/lib/tab-panel.js",
+    "props": 8
+  },
+  {
+    "name": "bkTable",
+    "file": "bk-magic-vue/lib/table.js",
+    "props": 49
+  },
+  {
+    "name": "bkTableColumn",
+    "file": "bk-magic-vue/lib/table-column.js",
+    "props": 36
+  },
+  {
+    "name": "bkTableSettingContent",
+    "file": "bk-magic-vue/lib/table-setting-content.js",
+    "props": 6
+  },
+  {
+    "name": "bkTag",
+    "file": "bk-magic-vue/lib/tag.js",
+    "props": 8
+  },
+  {
+    "name": "bkTagInput",
+    "file": "bk-magic-vue/lib/tag-input.js",
+    "props": 34
+  },
+  {
+    "name": "bkTimePicker",
+    "file": "bk-magic-vue/lib/time-picker.js",
+    "props": 36
+  },
+  {
+    "name": "bkTimeline",
+    "file": "bk-magic-vue/lib/timeline.js",
+    "props": 3
+  },
+  {
+    "name": "bkTransfer",
+    "file": "bk-magic-vue/lib/transfer.js",
+    "props": 13
+  },
+  {
+    "name": "bkTransition",
+    "file": "bk-magic-vue/lib/transition.js",
+    "props": 3
+  },
+  {
+    "name": "bkTree",
+    "file": "bk-magic-vue/lib/tree.js",
+    "props": 16
+  },
+  {
+    "name": "bkUpload",
+    "file": "bk-magic-vue/lib/upload.js",
+    "props": 21
+  },
+  {
+    "name": "bkVersionDetail",
+    "file": "bk-magic-vue/lib/version-detail.js",
+    "props": 14
+  },
+  {
+    "name": "bkVirtualRender",
+    "file": "bk-magic-vue/lib/virtual-render.js",
+    "props": 14
+  },
+  {
+    "name": "bkVirtualScroll",
+    "file": "bk-magic-vue/lib/virtual-scroll.js",
+    "props": 4
+  },
+  {
+    "name": "bkZoomImage",
+    "file": "bk-magic-vue/lib/zoom-image.js",
+    "props": 4
+  }
+]

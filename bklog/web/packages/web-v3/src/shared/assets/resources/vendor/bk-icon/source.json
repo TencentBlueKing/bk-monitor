@@ -1,0 +1,14 @@
+{
+  "sourcePackage": "bk-magic-vue",
+  "sourceVersion": "2.5.10-beta.15",
+  "sourcePath": "lib/ui/iconfont.css + lib/ui/fonts",
+  "purpose": "Business markup still uses the original bk-icon glyphs. Font assets only; no Vue2 component code or component CSS.",
+  "sha256": {
+    "License.txt": "1af3f67fd6d8d813a7b3fcacba3d31ff905044f2c28eff80dfebe8f616ed7200",
+    "iconfont.css": "e81b7361b24701ced43d35c37dba49d349f5b8415725a5be397847e7d63f58af",
+    "fonts/iconcool.eot": "f301b3cedad839535a3cac135ddad5e3784178071aab064fa13e1691c3f4fd08",
+    "fonts/iconcool.ttf": "aea3e24aaac1a62034fd7ae71d0305856161595d2da9d6787b72bc6d7c646515",
+    "fonts/iconcool.woff": "aa547d57f085a0d9d2e7cb4a3f9602efbe49bfe2ca7e654dd2af54c53bfcc89c",
+    "fonts/iconcool.svg": "e050b92bc2b85fe8fea76e2723acbd361d5e73d726291d38ee0651726272d744"
+  }
+}

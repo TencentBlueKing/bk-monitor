@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": "shared",
+  "purpose": "跨域共享组件、hooks、样式与资源",
+  "root": "src/shared",
+  "files": 301,
+  "entryPoints": [
+    "shared/composables/log-query-compiler/detectors/index.ts",
+    "shared/composables/log-query-compiler/index.ts",
+    "shared/constants/index.ts",
+    "shared/directives/index.ts",
+    "shared/global/ai-assitant/index.tsx",
+    "shared/global/bk-space-choice/index.tsx",
+    "shared/global/edit-input/index.ts",
+    "shared/global/edit-input/index.tsx",
+    "shared/global/head-navi/index.tsx",
+    "shared/global/json-view/index.ts",
+    "shared/global/match-mode/index.tsx",
+    "shared/global/overlay/index.ts",
+    "shared/ui/basic-tab/index.tsx",
+    "shared/ui/bklog-popover/index.tsx",
+    "shared/ui/ellipsis-tag-list/index.tsx",
+    "shared/ui/empty-status/index.vue",
+    "shared/ui/loading/index.tsx",
+    "shared/ui/log-button/index.vue",
+    "shared/ui/log-icon/index.tsx",
+    "shared/ui/step-box/index.vue",
+    "shared/ui/text-highlight/index.ts",
+    "shared/ui/user-selector/index.tsx",
+    "shared/utils/index.ts"
+  ],
+  "services": [],
+  "dependsOn": [
+    "app",
+    "features/cleaning",
+    "features/collection",
+    "features/preferences",
+    "features/retrieval",
+    "platform"
+  ],
+  "tests": [
+    "tests/bus-upgrade.test.mjs",
+    "tests/overlay-registry.test.mjs",
+    "tests/worker-message.test.mjs"
+  ],
+  "sourceMap": "ai-native/source-map.json",
+  "acceptance": "NEEDS_REVIEW",
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+}

@@ -1,0 +1,897 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { Switch as TSwitch } from 'tdesign-vue-next';
+
+import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { ServicesInstance } from '@/platform/services';
+
+import { computed, defineComponent, isRef, nextTick, onBeforeUnmount, onMounted, ref, type PropType } from 'vue';
+import TextHighlight from '@/shared/ui/text-highlight';
+
+import useLocale from '@/shared/composables/use-locale';
+import useStore from '@/shared/composables/use-store';
+// import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
+import BkUserSelector from '@blueking/user-selector';
+
+import { bkInfoBox as bkInfoBox } from '@/platform/compat/tdesign/info-box';
+import { createRawTippyOverlay } from '@/shared/global/overlay/index';
+
+import ClusterEventPopover from './cluster-popover/index';
+import RemarkEditTip from './remark-edit-tip/index';
+import PatternAnalysisSlider from './pattern-analysis-slider/index';
+import { getConditionRouterParams } from './utils';
+
+
+import type { ITableItem } from '../index';
+import type { LogPattern } from '@/features/retrieval/services/log-clustering';
+
+import RetrieveHelper from '@/features/retrieval/retrieve-helper';
+import './index.scss';
+import { ClusterPatternRow } from '../cluster-table-pipeline';
+
+export interface GroupListState {
+  [key: string]: {
+    isOpen: boolean;
+  };
+}
+
+/** 聚类配置响应数据 */
+export interface ClusteringConfigData {
+  index_set_id: number;
+  storage_type: string;
+  clustered_rt: string;
+  clustering_fields?: string;
+  placeholder_analysis_supported: boolean;
+}
+
+export interface IPagination {
+  current: number;
+  limit: number;
+
+  // 当前可用于渲染总行数
+  // 分组模式会计算为 groupCount + childCount
+  // 平铺模式计算为 childCount
+  count: number;
+
+  // 分组数量
+  groupCount: number;
+
+  // 所有非分组数据行数
+  // response.data.length
+  childCount: number;
+
+  // 可见行数据
+  visibleCount: number;
+}
+
+export default defineComponent({
+  emits: ["row-updated","rowUpdated","show-change","showChange","show-origin-log","showOriginLog","group-state-change","groupStateChange","open-cluster-config","openClusterConfig"],
+
+  name: 'ContentTable',
+  components: {
+    TextHighlight,
+    ClusterEventPopover,
+    BkUserSelector,
+    RemarkEditTip,
+    PatternAnalysisSlider,
+  },
+  props: {
+    tableColumnWidth: {
+      type: Object,
+      default: () => ({}),
+    },
+    requestData: {
+      type: Object,
+      require: true,
+    },
+    tableList: {
+      type: Array as PropType<ITableItem[]>,
+      default: () => [],
+    },
+    indexId: {
+      type: String,
+      require: true,
+    },
+    getPatternOriginLog: {
+      type: Function as PropType<(_row: LogPattern) => Promise<string>>,
+      default: null,
+    },
+
+    widthList: {
+      type: Object,
+      default: () => {},
+    },
+    displayMode: {
+      type: String,
+      default: 'group',
+    },
+    groupListState: {
+      type: Object as PropType<GroupListState>,
+      default: () => ({}),
+    },
+    pagination: {
+      type: Object as PropType<IPagination>,
+      default: () => ({
+        current: 1,
+        limit: 50,
+        count: 0,
+        groupCount: 0,
+        childCount: 0,
+      }),
+    },
+  },
+  setup(props, { emit }) {
+    const { t } = useLocale();
+    const getOwners = (row?: LogPattern | null) => {
+      const owners = row?.owners as any;
+      if (Array.isArray(owners)) return owners as string[];
+      if (owners && Array.isArray(owners.value)) return owners.value as string[];
+      return [] as string[];
+    };
+    const store = useStore();
+    let activeMarkElement: HTMLElement | null = null;
+    const isExternal = window.IS_EXTERNAL === true;
+
+    /** Pattern 分析侧栏状态 */
+    const showAnalysisSlider = ref(false);
+    const analysisMarkText = ref('');
+    const analysisMarkIndex = ref<(number) | null>(null);
+    const analysisRowData = ref<any>(null);
+
+    /** 聚类配置数据 */
+    const clusteringConfigData = ref<ClusteringConfigData | null>(null);
+
+    // 获取聚类配置（只调用一次）
+    onMounted(() => {
+      ServicesInstance.logClustering.getConfig({
+          params: {
+            index_set_id: props.indexId,
+          },
+        })
+        .then(res => {
+          clusteringConfigData.value = res.data as ClusteringConfigData;
+        });
+    });
+
+    onBeforeUnmount(() => {
+      clearTimeout(remarkPopoverTimer);
+      popoverInstance?.hide();
+      popoverInstance?.destroy?.();
+      popoverInstance = null;
+    });
+
+    const handleMarkClick = (markIndex: number, markText: string, row: ITableItem) => {
+      analysisMarkIndex.value = markIndex;
+      analysisMarkText.value = markText;
+      analysisRowData.value = row.data ?? null;
+      showAnalysisSlider.value = true;
+    };
+
+    const headRowRef = ref<HTMLElement>();
+    const remarkTipsRef = ref<any>(null);
+    const tableWraperRef = ref<HTMLElement>();
+    const currentRowId = ref(0);
+    const editingOwnerRowId = ref<number | null>(null);
+    /** 进入责任人编辑态时的 owners 快照，用于校验失败回滚与变更比较 */
+    const editingOwnerPrevOwners = ref<string[]>([]);
+    /** 当前挂载的责任人选择器实例（editingOwnerRowId 唯一，同时最多一个） */
+    let ownerSelectorRef: any = null;
+    // const cacheExpandStr = ref<any[]>([]); // 展示pattern按钮数组
+
+    const groupState = computed(() => props.groupListState);
+    const showYOY = computed(() => props.requestData?.year_on_year_hour >= 1);
+    // const isLimitExpandView = computed(
+    //   () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
+    // );
+
+    /** 获取当前编辑操作的数据 */
+    const currentRowValue = computed(() => props.tableList.find(item => item.data?.id === currentRowId.value));
+    const showGroupBy = computed(() => props.requestData?.group_by.length > 0 && props.displayMode === 'group');
+    const isFlattenMode = computed(() => props.requestData?.group_by.length > 0 && props.displayMode !== 'group');
+    const columnWidth = computed(() => Object.assign({}, props.tableColumnWidth ?? {}, props.widthList ?? {}));
+
+    /**
+     * 当前窗口数据由父组件 walkVisibleWindow 产出，这里不再对全量列表 filter。
+     */
+    const tablePageData = computed(() => props.tableList);
+
+    // 计算展示列数量
+    const columnLength = computed(() => {
+      // 固定列
+      const staticColumnLen = 6;
+
+      // 同比数量列 + 同比变化列
+      const showYOYLen = showYOY.value ? 2 : 0;
+
+      // groupBy 列数
+      const groupByLen = isFlattenMode.value ? (props.requestData.group_by?.length ?? 0) : 0;
+
+      // 创建告警策略列
+      const externalLen = isExternal ? 0 : 1;
+
+      return staticColumnLen + showYOYLen + groupByLen + externalLen;
+    });
+
+    let popoverInstance: any = null;
+    let remarkPopoverTimer: any;
+
+    /**
+     * 更新编辑行数据
+     * @param row
+     * @param key
+     * @param value
+     */
+    const updateTableRowData = (row: LogPattern, key: string, value: any) => {
+      if (row) {
+        if (isRef(row[key])) {
+          row[key].value = value;
+        } else {
+          row[key] = value;
+        }
+        emit('row-updated');
+      }
+    };
+
+    const getHeightLightList = (str: string) => str.match(/#.*?#/g) || [];
+
+    const handleMenuBatchClick = (row: ClusterPatternRow|undefined, isLink = true) => {
+      const additionList: any[] = [];
+      const groupBy = props.requestData?.group_by;
+      if (groupBy.length) {
+        groupBy.forEach((el: unknown, index: string|number) => {
+          additionList.push({
+            field: el,
+            operator: 'is',
+            value: [row.group?.[index] ?? ''],
+            isLink,
+          });
+        });
+      }
+      additionList.push({
+        field: `__dist_${props.requestData?.pattern_level}`,
+        operator: 'is',
+        value: [row.signature?.toString() ?? ''],
+        isLink,
+      });
+
+      // 聚类下钻只能使用ui模式
+      store.commit('updateIndexItem', { search_mode: 'ui' });
+      // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
+      store.commit('updateState', { key: 'clusterParams', value: null });
+      store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
+        if (isLink) {
+          const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
+          window.open(openUrl, '_blank', 'noopener,noreferrer');
+          // 新开页后当前页面回填聚类参数
+          store.commit('updateState', {
+            key: 'clusterParams',
+            value: props.requestData,
+          });
+          return;
+        }
+        emit('show-change', 'origin');
+      });
+    };
+
+    const handleMenuClick = (row: ClusterPatternRow|undefined, isLink = false) => {
+      handleMenuBatchClick(row, isLink);
+      emit('show-origin-log');
+    };
+
+    // const getLimitState = (index: number) => {
+    //   if (isLimitExpandView.value) return false;
+    //   return !cacheExpandStr.value.includes(index);
+    // };
+
+    /** 将分组的数组改成对像 */
+    const getGroupsValue = (group: string[]) => {
+      if (!props.requestData?.group_by.length) return {};
+      return props.requestData.group_by.reduce((acc: { [x: string]: any; }, cur: string|number, index: string|number) => {
+        acc[cur] = group?.[index] ?? '';
+        return acc;
+      }, {});
+    };
+
+    // 设置负责人
+    const handleChangePrincipal = (val: null | string[], row: LogPattern) => {
+      currentRowId.value = row.id;
+      // 当创建告警策略开启时，不允许删掉最后一个责任人
+      if (row.strategy_enabled && !val?.length) {
+        TDesignMessage("error", { content: t('删除失败，开启告警时，需要至少一个责任人') });
+        return;
+      }
+      ServicesInstance.logClustering.setOwner({
+          params: {
+            index_set_id: props.indexId,
+          },
+          data: {
+            signature: row.signature,
+            owners: val ?? getOwners(row),
+            origin_pattern: row.origin_pattern,
+            groups: getGroupsValue(row.group),
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            const { owners } = res.data;
+            updateTableRowData(row, 'owners', owners);
+            TDesignMessage("success", { content: t('操作成功') });
+          }
+        });
+    };
+
+    const revertStrategySwitcher = (row: LogPattern, enabled: boolean) => {
+      updateTableRowData(row, 'strategy_enabled', enabled);
+      nextTick(() => {
+        updateTableRowData(row, 'strategy_enabled', !enabled);
+      });
+    };
+
+    /** 责任人选择器失焦：校验（失败回滚）/有变更才提交，并退出编辑态 */
+    const handleOwnerEditorBlur = (row: LogPattern) => {
+      const owners = getOwners(row);
+      if (row.strategy_enabled && !owners.length) {
+        // 开启告警时需至少一个责任人：回滚本地改动，不发请求
+        updateTableRowData(row, 'owners', [...editingOwnerPrevOwners.value]);
+        TDesignMessage("error", { content: t('删除失败，开启告警时，需要至少一个责任人') });
+      } else if (owners.join(',') !== editingOwnerPrevOwners.value.join(',')) {
+        handleChangePrincipal(owners, row);
+      }
+      // 组件失焦时内部已先隐藏下拉浮层，nextTick 后再卸载双保险，避免浮层残留
+      nextTick(() => {
+        ownerSelectorRef?.clearOverflowTimer?.();
+        editingOwnerRowId.value = null;
+      });
+    };
+
+    const requestChangeStrategy = (enabled: boolean, row: LogPattern) => {
+      currentRowId.value = row.id;
+      ServicesInstance.logClustering.updatePatternStrategy({
+          params: {
+            index_set_id: props.indexId,
+          },
+          data: {
+            signature: row.signature,
+            origin_pattern: row.origin_pattern,
+            strategy_enabled: enabled,
+            groups: getGroupsValue(row.group),
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            const { strategy_id } = res.data;
+            TDesignMessage("success", { content: t('操作成功') });
+            updateTableRowData(row, 'strategy_id', strategy_id);
+            updateTableRowData(row, 'strategy_enabled', enabled);
+          }
+        });
+    };
+
+    const changeStrategy = (enabled: boolean, row: LogPattern) => {
+      currentRowId.value = row.id;
+      bkInfoBox({
+        title: enabled ? t('确认开启告警策略？') : t('确认关闭告警策略？'),
+        confirmFn: () => requestChangeStrategy(enabled, row),
+        cancelFn: () => revertStrategySwitcher(row, enabled),
+      });
+    };
+
+    const handleStrategyInfoClick = (row: ClusterPatternRow|undefined) => {
+      currentRowId.value = row.id;
+      window.open(
+        `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
+        '_blank',
+        'noopener,noreferrer',
+      );
+    };
+
+    const remarkContent = (remarkList: any[]|undefined) => {
+      if (!remarkList.length) return '--';
+      const maxTimestamp = remarkList.reduce((pre: { create_time: number; }, cur: { create_time: number; }) => {
+        return cur.create_time > pre.create_time ? cur : pre;
+      }, remarkList[0]);
+      return maxTimestamp.remark;
+    };
+
+    const handleHideRemarkTip = () => {
+      popoverInstance?.hide();
+    };
+
+    const handleHoverRemarkIcon = (e: Event, row: LogPattern) => {
+      currentRowId.value = row.id;
+      clearTimeout(remarkPopoverTimer);
+      activeMarkElement = e.target as HTMLElement;
+      remarkPopoverTimer = setTimeout(() => {
+        if (!popoverInstance) {
+          popoverInstance = createRawTippyOverlay(
+            activeMarkElement,
+            {
+              content: remarkTipsRef.value.tipRef,
+              allowHTML: true,
+              arrow: true,
+              theme: 'light remark-edit-tip-popover',
+              sticky: true,
+              maxWidth: 340,
+              offset: [0, 5],
+              interactive: true,
+              placement: 'top',
+              onHidden: () => {
+                popoverInstance?.destroy();
+                popoverInstance = null;
+              },
+            },
+            {
+              id: 'cluster-remark-tip',
+              type: 'popover',
+              group: 'cluster-remark',
+              rootSelector: '.remark-edit-tip-popover',
+            },
+          );
+        }
+        popoverInstance.show();
+      }, 500);
+    };
+
+    const handleUpdateRemark = (remark: LogPattern['remark']) => {
+      updateTableRowData(currentRowValue.value.data, 'remark', remark);
+      activeMarkElement.textContent = remarkContent(remark);
+    };
+
+    const handleAddSearch = (e: Event, row: ITableItem) => {
+      e.stopPropagation();
+      const addConditions = props.requestData?.group_by.map((item: unknown, index: string|number) => ({
+        field: item,
+        operator: '=',
+        value: [row.group[index]],
+        from: 'cluster',
+      }));
+      store.dispatch('setQueryCondition', addConditions);
+      RetrieveHelper.searchValueChange('cluster', addConditions);
+    };
+
+    /**
+     * 点击分组功能
+     * @param row
+     */
+    const handleGroupClick = (row: ITableItem) => {
+      emit('group-state-change', row);
+    };
+
+    /**
+     * 渲染分组行功能
+     * @param row
+     * @returns
+     */
+    const renderGroupItem = (row: ITableItem) => {
+      if (showGroupBy.value) {
+        return (
+          <div
+            class='collpase-main'
+            onClick={() => {
+              handleGroupClick(row);
+            }}
+          >
+            <div
+              class={{
+                'collapse-icon': true,
+                'is-open': groupState.value[row.hashKey]?.isOpen ?? false,
+              }}
+            >
+              <log-icon type='arrow-down-filled-2' />
+            </div>
+            <div
+              class='group-value-display'
+              v-log-overflow-tips={{
+                content: row.groupKey,
+              }}
+            >
+              <div class='value-item'>{row.groupKey}</div>
+            </div>
+            <div
+              class='add-search'
+              v-log-tooltip={t('添加为检索条件')}
+              onClick={e => handleAddSearch(e, row)}
+            >
+              <log-icon type='sousuo-' />
+            </div>
+            <div class='count-display'>（{t('共有 {0} 条数据', [row.childCount])}）</div>
+          </div>
+        );
+      }
+
+      return (
+        <div class='list-count-main'>
+          <i18n path='共有 {0} 条数据'>
+            <span style='font-weight:700'>{props.pagination.childCount}</span>
+          </i18n>
+        </div>
+      );
+    };
+
+    /**
+     * 渲染分组行
+     * @param row
+     * @returns
+     */
+    const renderGroupRow = (row: ITableItem) => {
+      // 平铺模式
+      if ((isFlattenMode.value || props.requestData?.group_by.length === 0) && row.index === 1) {
+        return (
+          <tr class='is-row-group is-flatten-count'>
+            <td colspan={columnLength.value}>{renderGroupItem(row)}</td>
+          </tr>
+        );
+      }
+
+      // 分组模式
+      if (showGroupBy.value) {
+        return (
+          <tr class='is-row-group'>
+            <td colspan={columnLength.value}>{renderGroupItem(row)}</td>
+          </tr>
+        );
+      }
+
+      return null;
+    };
+
+    /**
+     * 渲染数据行
+     * @param row
+     * @returns
+     */
+    const renderDataRow = (row: ITableItem) => {
+      return (
+        <tr>
+          <td>
+            <div class='signature-box'>
+              <div
+                class='signature'
+                v-log-overflow-tips
+              >
+                {row.data?.signature}
+              </div>
+              <div
+                class='new-finger'
+                v-show={row.data?.is_new_class}
+              >
+                New
+              </div>
+            </div>
+          </td>
+          <td>
+            <span
+              class='count-link'
+              onClick={() => handleMenuBatchClick(row.data)}
+            >
+              {row.data?.count}
+            </span>
+          </td>
+          <td>
+            <span
+              class='count-link'
+              onClick={() => handleMenuBatchClick(row.data)}
+            >
+              {`${row.data?.percentage.toFixed(2)}%`}
+            </span>
+          </td>
+          {showYOY.value && (
+            <td>
+              <span style='padding-left:6px'>{row.data?.year_on_year_count}</span>
+            </td>
+          )}
+          {showYOY.value && (
+            <td>
+              <div
+                style={{
+                  color:
+                    row.data?.year_on_year_percentage < 0
+                      ? '#2CAF5E'
+                      : row.data?.year_on_year_percentage === 0
+                        ? '#313238'
+                        : '#E71818',
+                }}
+                class='compared-change'
+              >
+                <span>{`${Math.abs(Number(row.data?.year_on_year_percentage.toFixed(2)))}%`}</span>
+                {row.data?.year_on_year_percentage !== 0 ? (
+                  <log-icon
+                    style='font-size: 16px;'
+                    type={row.data?.year_on_year_percentage < 0 ? 'down-4' : 'up-2'}
+                  />
+                ) : (
+                  <log-icon
+                    style='font-size: 16px;'
+                    type='--2'
+                  />
+                )}
+              </div>
+            </td>
+          )}
+          {isFlattenMode.value &&
+            props.requestData.group_by.map((_: any, index: number) => (
+              <td>
+                <div
+                  class='dynamic-column'
+                  v-log-overflow-tips
+                >
+                  {row.data?.group?.[index] || '--'}
+                </div>
+              </td>
+            ))}
+          <td>
+            <div class={['pattern-content']}>
+              <ClusterEventPopover
+                indexId={props.indexId}
+                rowData={row.data}
+                clusteringConfigData={clusteringConfigData.value}
+                getPatternOriginLog={props.getPatternOriginLog}
+                onEventClick={(isLink: boolean|undefined) => handleMenuClick(row.data, isLink)}
+                onOpenClusterConfig={() => emit('open-cluster-config')}
+                onMarkClick={(markIndex: number, markText: string) => handleMarkClick(markIndex, markText, row)}
+              >
+                <text-highlight
+                  style=''
+                  class='monospace-text'
+                  queries={getHeightLightList(row.data?.pattern)}
+                >
+                  {row.data?.pattern ? row.data?.pattern : t('未匹配')}
+                </text-highlight>
+              </ClusterEventPopover>
+              {/* {!isLimitExpandView.value && (
+            <div>
+              {!cacheExpandStr.value.includes(rowIndex) ? (
+                <p
+                  class='show-whole-btn'
+                  on-click={() => handleShowWhole(rowIndex)}
+                >
+                  {t('展开全部')}
+                </p>
+              ) : (
+                <p
+                  class='hide-whole-btn'
+                  on-click={() => handleHideWhole(rowIndex)}
+                >
+                  {t('收起')}
+                </p>
+              )}
+            </div>
+          )} */}
+            </div>
+          </td>
+          <td style='padding-left: 0px'>
+            <div
+              style={{ padding: isExternal && '5px 0' }}
+              class='principal-main'
+              v-log-tooltip={{
+                placement: 'top',
+                content: getOwners(row.data).join(', '),
+                delay: 300,
+                disabled: !getOwners(row.data).length || editingOwnerRowId.value === row.data?.id,
+              }}
+            >
+              {!isExternal ? (
+                editingOwnerRowId.value === row.data?.id ? (
+                  <bk-user-selector
+                    ref={(el: any) => {
+                      ownerSelectorRef = el;
+                    }}
+                    class='principal-input'
+                    api={window.BK_LOGIN_URL}
+                    empty-text={t('无匹配人员')}
+                    placeholder='--'
+                    value={getOwners(row.data)}
+                    multiple
+                    onChange={(val: string[]) => {
+                      // 仅本地受控更新，提交延迟到 on-blur（组件 localValue 完全受控于 value，必须回写）
+                      updateTableRowData(row.data, 'owners', val);
+                    }}
+                    onBlur={() => handleOwnerEditorBlur(row.data)}
+                  />
+                ) : (
+                  <button
+                    class='principal-display'
+                    type='button'
+                    onClick={() => {
+                      editingOwnerRowId.value = row.data?.id ?? null;
+                      editingOwnerPrevOwners.value = [...getOwners(row.data)];
+                      // 挂载后自动聚焦并弹出下拉：同时保证点外部可经 input 原生 blur 退出编辑态
+                      nextTick(() => {
+                        ownerSelectorRef?.focus?.();
+                      });
+                    }}
+                  >
+                    {getOwners(row.data).length ? getOwners(row.data).join(', ') : '--'}
+                  </button>
+                )
+              ) : (
+                <bk-tag-input
+                  style='width: 100%'
+                  class='principal-tag-input'
+                  clearable={false}
+                  placeholder='--'
+                  value={getOwners(row.data)}
+                  allow-create
+                  has-delete-icon
+                  onBlur={() => handleChangePrincipal(null, row.data)}
+                  onChange={(value: string[]) => {
+                    row.data.owners = value;
+                    emit('row-updated');
+                  }}
+                />
+              )}
+            </div>
+          </td>
+          {!isExternal && (
+            <td>
+              <div class='create-strategy-main'>
+                {getOwners(row.data).length > 0 ? (
+                  <div class='is-able'>
+                    <TSwitch
+                      
+                      value={row.data?.strategy_enabled}
+                      onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => changeStrategy(val, row.data))(value); }}
+                    />
+                    {row.data?.strategy_id > 0 && (
+                      <span onClick={() => handleStrategyInfoClick(row.data)}>
+                        <log-icon
+                          style='font-size: 16px'
+                          type='audit'
+                        />
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <TSwitch
+                    v-log-tooltip={t('暂无配置责任人，无法自动创建告警策略')}
+                    
+                    value={row.data?.strategy_enabled}
+                    disabled
+                  />
+                )}
+              </div>
+            </td>
+          )}
+          <td style='padding-right: 8px;'>
+            <div
+              class='remark-column'
+              onMouseenter={e => handleHoverRemarkIcon(e, row.data)}
+              onMouseleave={() => clearTimeout(remarkPopoverTimer)}
+            >
+              {remarkContent(row.data?.remark)}
+            </div>
+          </td>
+        </tr>
+      );
+    };
+
+    /**
+     * 渲染表格行
+     * @param row
+     * @returns
+     */
+    const renderTableRow = (row: ITableItem) => {
+      if (row.isGroupRow) {
+        return renderGroupRow(row);
+      }
+
+      if (showGroupBy.value) {
+        if (groupState.value[row.hashKey]?.isOpen ?? false) {
+          return renderDataRow(row);
+        }
+
+        return null;
+      }
+
+      if (!showGroupBy.value) {
+        return renderDataRow(row);
+      }
+
+      return null;
+    };
+
+    return () => (
+      <div
+        style={{
+          borderLeft: showGroupBy.value ? '1px solid #dcdee5' : 'none',
+          borderRight: showGroupBy.value ? '1px solid #dcdee5' : 'none',
+        }}
+        class='log-content-table-main'
+        v-show={props.tableList.length > 0}
+      >
+        <div
+          ref={tableWraperRef}
+          class='log-content-table-wraper'
+        >
+          <table class='log-content-table'>
+            <thead class='hide-header'>
+              <tr ref={headRowRef}>
+                <th style={{ width: `${columnWidth.value.signature ?? 125}px` }}>数据指纹</th>
+                <th style={{ width: `${columnWidth.value.number}px` }}>数量</th>
+                <th style={{ width: `${columnWidth.value.percentage}px` }}>占比</th>
+                {showYOY.value && (
+                  <th
+                    style={{
+                      width: `${columnWidth.value.year_on_year_count}px`,
+                    }}
+                  >
+                    同比数量
+                  </th>
+                )}
+                {showYOY.value && (
+                  <th
+                    style={{
+                      width: `${columnWidth.value.year_on_year_percentage}px`,
+                    }}
+                  >
+                    同比变化
+                  </th>
+                )}
+                {isFlattenMode.value &&
+                  props.requestData.group_by.map((item: string|number) => (
+                    <th style={{ width: `${columnWidth.value[item] ?? 100}px` }}>{item}</th>
+                  ))}
+                <th style={{ width: `${columnWidth.value.pattern ?? 350}px` }}>Pattern</th>
+                <th style={{ width: `${columnWidth.value.owners ?? 200}px` }}>责任人</th>
+                {!isExternal && (
+                  <th
+                    style={{
+                      width: `${columnWidth.value.alert_option ?? 200}px`,
+                    }}
+                  >
+                    创建告警策略
+                  </th>
+                )}
+                <th style={{ width: `${columnWidth.value.remark ?? 200}px` }}>备注</th>
+                {/* {isAiAssistanceActive.value && <th style="width:60px">ai</th>} */}
+              </tr>
+            </thead>
+            <tbody>{(tablePageData.value ?? []).map(renderTableRow)}</tbody>
+          </table>
+        </div>
+        <RemarkEditTip
+          ref={remarkTipsRef}
+          indexId={props.indexId}
+          requestData={props.requestData}
+          rowData={currentRowValue.value?.data ?? {}}
+          onHideSelf={handleHideRemarkTip}
+          onUpdate={handleUpdateRemark}
+        />
+        <PatternAnalysisSlider
+          isShow={showAnalysisSlider.value}
+          indexSetId={props.indexId}
+          requestData={props.requestData}
+          markIndex={analysisMarkIndex.value}
+          markText={analysisMarkText.value}
+          rowData={analysisRowData.value}
+          clusteringConfigData={clusteringConfigData.value}
+          onClose={() => (showAnalysisSlider.value = false)}
+        />
+      </div>
+    );
+  },
+});

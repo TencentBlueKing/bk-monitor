@@ -1,0 +1,52 @@
+.sample-column-select {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  .sample-column-trigger {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+  }
+  .sample-column-arrow {
+    flex: none;
+    margin: 0 8px;
+    color: #979ba5;
+    transition: transform 0.2s;
+    &.open {
+      transform: rotate(180deg);
+    }
+  }
+}
+.sample-column-panel {
+  padding: 8px 0;
+  > .t-input__wrap {
+    width: calc(100% - 16px);
+    margin: 0 8px 8px;
+  }
+  .sample-column-options {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 216px;
+    overflow-y: auto;
+  }
+  .sample-column-option {
+    cursor: pointer;
+    padding: 8px 16px;
+    color: #63656e;
+    min-height: 32px;
+  }
+  .sample-column-option:hover,
+  .sample-column-option.focused {
+    background: #f5f7fa;
+  }
+  .sample-column-option.selected {
+    color: #3a84ff;
+    background: #e1ecff;
+  }
+  .t-empty {
+    padding: 16px;
+  }
+}

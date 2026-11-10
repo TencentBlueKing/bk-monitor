@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>日志平台 · 原生 Vue3 升级测试</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #f5f7fa;
+      }
+
+      .bklog-bootstrap-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 4000;
+        display: flex;
+        flex-direction: column;
+        background: #f5f7fa;
+      }
+
+      .bklog-bootstrap-loading__nav {
+        height: 52px;
+        background: #182132;
+      }
+
+      .bklog-bootstrap-loading__body {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 12px;
+        box-sizing: border-box;
+        padding: 16px 16px 24px;
+      }
+
+      .bklog-bootstrap-loading__toolbar,
+      .bklog-bootstrap-loading__search,
+      .bklog-bootstrap-loading__side,
+      .bklog-bootstrap-loading__row {
+        border-radius: 2px;
+        background: linear-gradient(90deg, #eef1f6 25%, #e4e8ef 37%, #eef1f6 63%);
+        background-size: 400% 100%;
+        animation: bklog-bootstrap-shimmer 1.4s ease infinite;
+      }
+
+      .bklog-bootstrap-loading__toolbar {
+        width: 280px;
+        height: 32px;
+      }
+
+      .bklog-bootstrap-loading__search {
+        height: 48px;
+      }
+
+      .bklog-bootstrap-loading__main-row {
+        display: flex;
+        flex: 1;
+        gap: 12px;
+        min-height: 360px;
+      }
+
+      .bklog-bootstrap-loading__side {
+        width: 240px;
+        flex: none;
+      }
+
+      .bklog-bootstrap-loading__main {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .bklog-bootstrap-loading__row {
+        height: 28px;
+      }
+
+      @keyframes bklog-bootstrap-shimmer {
+        0% {
+          background-position: 100% 50%;
+        }
+
+        100% {
+          background-position: 0 50%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      (function () {
+        var path = (location.hash || '').replace(/^#/, '').split('?')[0];
+        if (path.indexOf('/retrieve') !== 0) return;
+        var shell = document.createElement('div');
+        shell.className = 'bklog-bootstrap-loading';
+        shell.setAttribute('aria-busy', 'true');
+        shell.innerHTML =
+          '<div class="bklog-bootstrap-loading__nav"></div>' +
+          '<div class="bklog-bootstrap-loading__body">' +
+          '<div class="bklog-bootstrap-loading__toolbar"></div>' +
+          '<div class="bklog-bootstrap-loading__search"></div>' +
+          '<div class="bklog-bootstrap-loading__main-row">' +
+          '<div class="bklog-bootstrap-loading__side"></div>' +
+          '<div class="bklog-bootstrap-loading__main">' +
+          '<div class="bklog-bootstrap-loading__row"></div>'.repeat(8) +
+          '</div></div></div>';
+        document.body.appendChild(shell);
+      })();
+    </script>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

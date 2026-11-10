@@ -1,0 +1,100 @@
+@use '@/shared/styles/mixins/flex.scss' as *;
+[data-tippy-root] .tippy-box {
+  &[data-theme='segment-light'] {
+    color: #26323d;
+    background-color: #fff;
+    box-shadow: 0 0 6px 0 #dcdee5;
+
+    .tippy-arrow {
+      color: #fff;
+      background-color: #fff;
+      box-shadow: rgb(220, 222, 229) 0px -12px 12px 0px;
+    }
+
+    .tippy-content {
+      padding: 0;
+
+      .event-tippy-content {
+        margin-top: 4px;
+        margin-bottom: 4px;
+
+        &.segment-event-icons {
+          flex-direction: column;
+
+          @include flex-center();
+
+          .segment-event-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 240px;
+            height: 32px;
+            padding: 5px 13px 7px 12px;
+            font-size: 12px;
+            color: #4d4f56;
+            cursor: pointer;
+
+            &:hover {
+              background: #f5f7fa;
+            }
+          }
+
+          .segment-new-link {
+            display: flex;
+            align-items: center;
+            justify-content: right;
+            width: 24px;
+            height: 24px;
+          }
+
+          .segment-event-btn {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            justify-content: space-between;
+
+            .new-link {
+              transform: translateY(1px);
+            }
+          }
+
+          .tippy-tooltip {
+            padding: 6px 2px;
+          }
+
+          .icon {
+            display: inline-block;
+            font-size: 16px;
+            cursor: pointer;
+          }
+
+          .bklog-copy-3,
+          .icon-minus-circle,
+          .bklog-trace-view,
+          .bklog-highlight,
+          .icon-plus-circle {
+            margin-right: 4px;
+          }
+
+          .bklog-trace-view {
+            display: inline-block;
+            width: 16px;
+            font-size: 16px;
+            line-height: 16px;
+            text-align: center;
+            vertical-align: middle;
+          }
+
+          .segment-btn-left {
+            align-items: center;
+          }
+
+          .bklog-copy {
+            margin-left: -4px;
+            font-size: 24px;
+          }
+        }
+      }
+    }
+  }
+}

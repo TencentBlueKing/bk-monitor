@@ -1,0 +1,37 @@
+.client-log-viewer {
+  min-height: 100%;
+  color: #f0f1f5;
+  background: #111214;
+
+  .log-content {
+    box-sizing: border-box;
+    margin: 0;
+    font-size: 0;
+    padding: 6px 0;
+
+    .line {
+      display: flex;
+      flex-direction: row;
+      min-height: 16px;
+      padding: 0 15px;
+      margin: 0;
+      font-family: var(--bklog-v3-row-ctx-font);
+      font-size: 12px;
+      line-height: 24px;
+      border-top: 1px solid transparent;
+
+      &:hover {
+        background: #212121;
+      }
+    }
+  }
+
+  .log-empty-tip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: #63656e;
+    font-size: 14px;
+  }
+}

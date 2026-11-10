@@ -1,0 +1,247 @@
+.collection-favorite-popover {
+  .t-input__inner[readonly],
+  .bk-form-textarea[readonly] {
+    /* stylelint-disable-next-line declaration-no-important */
+    background-color: #f0f1f5 !important;
+  }
+
+  .popover-title-content {
+    margin-bottom: 16px;
+
+    .dialog-title {
+      height: 24px;
+      font-size: 16px;
+      line-height: 24px;
+      color: #313238;
+      letter-spacing: 0;
+    }
+  }
+
+  .tippy-tooltip[data-size='small'] {
+    height: 430px;
+    padding: 16px 16px;
+    box-shadow: 0 2px 6px 0 #999999;
+  }
+
+  .bk-tooltip-content {
+    height: 414px;
+
+    .bk-form-content {
+      .t-input__wrap {
+        .bk-input-text {
+          .t-input__inner[readonly] {
+            border: 0px;
+          }
+        }
+
+        .bk-textarea-wrapper {
+          border: 0px;
+
+          .bk-form-textarea[readonly] {
+            font-family: 'Roboto Mono';
+            border: 0px;
+          }
+        }
+      }
+    }
+  }
+
+  .popover-footer {
+    position: absolute;
+    right: -16px;
+    bottom: 0;
+    width: 400px;
+    height: 48px;
+    padding: 0 16px;
+    background: #fafbfd;
+    box-shadow: 0 -1px 0 0 #dcdee5;
+
+    .footer-button {
+      width: 100%;
+      height: 48px;
+      font-size: 0;
+      line-height: 48px;
+      text-align: right;
+
+      .t-button {
+        height: 32px;
+        margin-right: 8px;
+      }
+    }
+  }
+
+  .add-popover-new-page-container {
+    .tippy-tooltip[data-size='small'] {
+      height: auto;
+      padding: 0;
+      box-shadow: 0 3px 9px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .bk-tooltip-content {
+      height: auto;
+
+      .bk-select-search-wrapper {
+        max-height: 32px;
+      }
+
+      .bk-options {
+        .bk-option {
+          &-content {
+            padding: 0 12px;
+          }
+
+          .private-content {
+            color: #979ba5;
+          }
+
+          &.is-selected {
+            background-color: #e1ecff;
+          }
+        }
+      }
+    }
+  }
+
+  .bk-form-vertical {
+    .bk-form-item {
+      .bk-label {
+        min-height: 0;
+        margin-bottom: 6px;
+        line-height: 20px;
+      }
+
+      & + .bk-form-item {
+        margin-top: 16px;
+      }
+    }
+  }
+}
+
+.favorite-group-extension {
+  height: 40px;
+  padding: 0 16px;
+  background: #fafbfd;
+  border-top: 1px solid #dcdee5;
+
+  .select-add-new-group {
+    line-height: 40px;
+    text-align: center;
+    background-color: #fafbfd;
+
+    &:hover {
+      cursor: pointer;
+      background-color: transparent;
+    }
+
+    .icon-plus-circle {
+      padding-right: 2px;
+      color: #979ba5;
+    }
+
+    .add-text {
+      color: #4d4f56;
+    }
+  }
+
+  .add-new-page-input {
+    display: flex;
+    align-items: center;
+    line-height: 40px;
+
+    .operate-button {
+      justify-content: space-between;
+      width: 45px;
+      margin-left: 6px;
+      font-size: 16px;
+      color: #979ba5;
+
+      .bk-icon {
+        cursor: pointer;
+      }
+    }
+  }
+}
+
+.bk-dropdown-menu {
+  .bk-dropdown-list {
+    li > .disabled:hover {
+      color: #dcdee5;
+    }
+
+    .disabled {
+      color: #dcdee5;
+      cursor: not-allowed;
+    }
+  }
+
+  .bk-dropdown-trigger {
+    .icon-save {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+  }
+}
+
+// Native TDesign structure; retain V2's 400px panel and 48px action footer.
+.collection-favorite-popover {
+  > .t-popup__content {
+    position: relative;
+    box-sizing: border-box;
+    width: 400px;
+    min-height: 430px;
+    padding: 16px 16px 64px;
+  }
+
+  .t-form__item {
+    margin-bottom: 16px;
+  }
+
+  .t-form__label {
+    min-height: 0;
+    margin-bottom: 6px;
+    line-height: 20px;
+  }
+
+  .t-input.t-is-readonly,
+  .t-textarea__inner[readonly] {
+    background-color: #f0f1f5;
+    border: 0;
+  }
+
+  .t-textarea__inner[readonly] {
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .popover-footer {
+    right: 0;
+
+    .t-button {
+      min-width: 64px;
+      height: 32px;
+      margin-right: 8px;
+    }
+  }
+}
+
+.add-popover-new-page-container {
+  .private-content {
+    color: #979ba5;
+  }
+
+  .t-popup__content {
+    padding: 0;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .t-select__dropdown-inner {
+    max-height: 216px;
+    overflow-y: auto;
+  }
+}

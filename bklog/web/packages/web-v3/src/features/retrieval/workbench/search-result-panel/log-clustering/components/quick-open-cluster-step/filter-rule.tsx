@@ -1,0 +1,371 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { ServicesInstance } from '@/platform/services';
+
+import { Component, Prop, Emit, Ref, ModelSync, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import useFieldNameHook from '@/shared/composables/use-field-name';
+
+
+import { formatDate } from '../../../../../../../shared/lib/util';
+import { handleTransformToTimestamp } from '../../../../../../../shared/ui/time-range/utils';
+import { BK_LOG_STORAGE } from '../../../../../../../app/state/store.type.ts';
+
+import type { LegacyFormInstance } from '@/shared/types/legacy-form';
+
+import './filter-rule.scss';
+
+interface ClusterFilterRule {
+  fields_name: string; field_name?: string; field_type?: string; es_doc_values?: boolean;
+  op: string; value: string[]; logic_operator: string; valueList: { id: string; name: string }[];
+}
+interface IProps {
+  totalFields: any[];
+
+  // Public props/events already installed by the source decorators.
+  "datePickerValue": any[];
+  "retrieveParams": object;
+  "onFieldChange"?: (value: ClusterFilterRule[]) => void;
+}
+
+const { $i18n } = window.mainComponent;
+
+@Component
+export default class FilterRule extends tsc<IProps> {
+  @ModelSync('value', 'change', { type: Array }) localFilterRule!: ClusterFilterRule[];
+  @Prop({ type: Array, required: true }) totalFields!: any[];
+  @Prop({ type: Array, required: true }) datePickerValue!: any[];
+  @Prop({ type: Object, required: true }) retrieveParams!: object;
+  @Ref('quickClusterFrom') quickClusterFromRef!: LegacyFormInstance;
+
+  conditionList = [
+    // 过滤条件对比
+    { id: '=', name: '=' },
+    { id: '!=', name: '!=' },
+    { id: 'LIKE', name: 'LIKE' },
+    { id: 'NOT LIKE', name: 'NOT LIKE' },
+  ];
+  comparedList = [
+    { id: 'and', name: 'AND' },
+    { id: 'or', name: 'OR' },
+  ];
+  operateIndex = 0;
+  isLikeCorrect = true;
+  formData = {
+    filter_rules: [] as ClusterFilterRule[],
+  };
+  formRules = {
+    clustering_fields: [
+      {
+        required: true,
+        trigger: 'blur',
+      },
+    ],
+    filter_rules: [
+      {
+        validator: this.checkFilterRules,
+        trigger: 'blur',
+      },
+      {
+        validator: this.checkLIKERules,
+        trigger: 'change',
+      },
+    ],
+  };
+
+  get isShowAddFilterIcon() {
+    const rules = this.formData.filter_rules;
+    if (!rules.length || (rules.at(-1)?.fields_name !== '' && rules.length === 1) || (rules.at(-1)?.value.length ?? 0) > 0) {
+      return true;
+    }
+    return false;
+  }
+  get showFieldAlias() {
+    return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+  }
+  // 优先展示选中字段名
+  get filterSelectList() {
+    const { getConcatenatedFieldName } = useFieldNameHook({ store: this.$store });
+    return this.totalFields
+      .filter(item => !/^__dist/.test(item.field_name) && item.field_type !== '__virtual__')
+      .map(el => {
+        return getConcatenatedFieldName(el);
+      });
+  }
+
+  get indexId() {
+    return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+  }
+
+  @Watch('formData.filter_rules', { deep: true })
+  handleIsShowChange(val: ClusterFilterRule[]) {
+    this.localFilterRule = val;
+  }
+
+  @Watch('localFilterRule', { deep: true, immediate: true })
+  handleFilterRuleChange(val: ClusterFilterRule[]) {
+    if (val.length) {
+      this.formData.filter_rules = val;
+    }
+  }
+
+  @Emit('field-change')
+  handleCreateCluster() {
+    return this.formData.filter_rules;
+  }
+
+  handleFieldChange(fieldName: string, index: number) {
+    const field = this.totalFields.find(item => item.field_name === fieldName) ?? {};
+    Object.assign(this.formData.filter_rules[index], {
+      ...field,
+      value: [],
+    });
+    const requestFields = this.fieldsKeyStrList();
+    this.queryValueList(requestFields);
+  }
+  async queryValueList(fields: string[] = []) {
+    if (!fields.length) {
+      return;
+    }
+    const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
+    const isScene = this.$store.getters.isSceneMode;
+    try {
+      let requestConfig;
+      if (isScene) {
+        // 场景化检索：使用 getSceneAggsTerms，不传 index_set_id
+        requestConfig = {
+          data: {
+            keyword: this.retrieveParams?.keyword ?? '*',
+            fields,
+            start_time: formatDate(tempList[0]),
+            end_time: formatDate(tempList[1]),
+            bk_biz_id: this.$store.state.bkBizId,
+            space_uid: this.retrieveParams?.space_uid,
+            table_id_conditions: this.retrieveParams?.table_id_conditions,
+            scene_filter_values: this.retrieveParams?.scene_filter_values,
+          },
+        };
+      } else {
+        // 普通检索：使用 getAggsTerms，传 index_set_id
+        requestConfig = {
+          params: {
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+          },
+          data: {
+            keyword: this.retrieveParams?.keyword ?? '*',
+            fields,
+            start_time: formatDate(tempList[0]),
+            end_time: formatDate(tempList[1]),
+            bk_biz_id: this.$store.state.bkBizId,
+          },
+        };
+      }
+      const res = await (isScene ? ServicesInstance.retrieve.getSceneAggsTerms : ServicesInstance.retrieve.getAggsTerms)(requestConfig);
+      for (const item of this.formData.filter_rules) {
+        item.valueList =
+          res.data.aggs_items[item.fields_name]?.map((newItem: { toString: () => any; }) => ({
+            id: newItem.toString(),
+            name: newItem.toString(),
+          })) ?? [];
+      }
+    } catch {
+      for (const item of this.formData.filter_rules) {
+        item.valueList = [];
+      }
+    }
+  }
+  fieldsKeyStrList() {
+    const fieldsStrList = this.formData.filter_rules
+      .filter(item => item.field_type !== 'text' && item.es_doc_values)
+      .map(item => item.fields_name);
+    return Array.from(new Set(fieldsStrList));
+  }
+  handleValueBlur(operateItem: ClusterFilterRule, val: string) {
+    if (!operateItem.value.length && !!val) {
+      operateItem.value.push(val);
+    }
+  }
+  checkFilterRules() {
+    if (this.formData.filter_rules.length === 1 && !this.formData.filter_rules[0].fields_name) {
+      return true;
+    }
+    return this.formData.filter_rules.every(item => !!item.value.length && item.fields_name);
+  }
+  checkLIKERules() {
+    this.isLikeCorrect = this.formData.filter_rules.every(item => {
+      if (['NOT LIKE', 'LIKE'].includes(item.op) && !!item.value.length) {
+        return /%/.test(item.value[0]);
+      }
+      return true;
+    });
+    return this.isLikeCorrect;
+  }
+  handleDeleteSelect(index: number) {
+    this.formData.filter_rules.splice(index, 1);
+    (this.$refs[`fieldSelectRef-${index}`] as any).close();
+  }
+  handleAddFilterRule() {
+    this.formData.filter_rules.push({
+      fields_name: '', // 过滤规则字段名
+      op: '=', // 过滤规则操作符号
+      value: [], // 过滤规则字段值
+      logic_operator: 'and',
+      valueList: [],
+    });
+    this.$nextTick(() => {
+      const index = this.formData.filter_rules.length - 1;
+      (this.$refs[`fieldSelectRef-${index}`] as any).show();
+    });
+  }
+  async handleCheckRuleValidate() {
+    try {
+      await this.quickClusterFromRef.validate();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  render() {
+    return (
+      <bk-form
+        ref='quickClusterFrom'
+        ext-cls='filter-container'
+        form-type='vertical'
+        {...{
+          ...{
+            model: this.formData,
+            rules: this.formRules,
+          },
+        }}
+      >
+        <bk-form-item
+          label=''
+          property='filter_rules'
+        >
+          {!this.isLikeCorrect && (
+            <div class='like-error-message'>
+              <i class='bk-icon icon-exclamation-circle-shape error-icon' />
+              <span>{$i18n.t('使用LIKE、NOT LINK操作符时请在过滤值前后增加%')}</span>
+            </div>
+          )}
+          <div class='filter-rule'>
+            {this.formData.filter_rules.map((item, index) => (
+              <div
+                key={`${index}-${item}`}
+                class='filter-rule filter-rule-item'
+              >
+                {!!this.formData.filter_rules.length && !!index && !!item.fields_name && (
+                  <bk-select
+                    class='icon-box and-or mr-neg1'
+                    v-model={item.logic_operator}
+                    clearable={false}
+                  >
+                    {this.comparedList.map(option => (
+                      <bk-option
+                        id={option.id}
+                        key={option.id}
+                        name={option.name}
+                      />
+                    ))}
+                  </bk-select>
+                )}
+                <bk-select
+                  v-slots={{
+                    extension: () => (
+                      <div
+                        style='cursor: pointer'
+                        onClick={() => this.handleDeleteSelect(index)}
+                      >
+                        <i class='bk-icon icon-close-circle' />
+                        <span style='margin-left: 4px;'>{$i18n.t('删除')}</span>
+                      </div>
+                    ),
+                  }}
+                  ref={`fieldSelectRef-${index}`}
+                  class={['min-100 above mr-neg1', { 'is-not-error': !!item.fields_name }]}
+                  v-model={item.fields_name}
+                  clearable={false}
+                  popover-min-width={150}
+                  searchable
+                  onSelected={(fieldsName: string) => this.handleFieldChange(fieldsName, index)}
+                >
+                  {this.filterSelectList.map(option => (
+                    <bk-option
+                      id={option.id}
+                      key={option.id}
+                      name={option.name}
+                    />
+                  ))}
+                </bk-select>
+                {!!item.fields_name && (
+                  <bk-select
+                    class='icon-box condition mr-neg1'
+                    v-model={item.op}
+                    clearable={false}
+                    popover-min-width={100}
+                  >
+                    {this.conditionList.map(option => (
+                      <bk-option
+                        id={option.id}
+                        key={option.id}
+                        name={option.name}
+                      />
+                    ))}
+                  </bk-select>
+                )}
+                {!!item.fields_name && (
+                  <div onClick={() => (this.operateIndex = index)}>
+                    <bk-tag-input
+                      class={['min-100 above mr-neg1', { 'is-not-error': !!item.value.length }]}
+                      v-model={item.value}
+                      content-width={232}
+                      list={item.valueList}
+                      placeholder={$i18n.t('请输入')}
+                      trigger='focus'
+                      allow-auto-match
+                      allow-create
+                      onBlur={(v: string) => this.handleValueBlur(item, v)}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+            {this.isShowAddFilterIcon && (
+              <button
+                class='icon-box'
+                onClick={this.handleAddFilterRule}
+              >
+                <i class='bk-icon icon-plus-line' />
+              </button>
+            )}
+          </div>
+        </bk-form-item>
+      </bk-form>
+    );
+  }
+}
