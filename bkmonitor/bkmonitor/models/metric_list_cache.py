@@ -27,27 +27,42 @@ class MetricListCacheManager(models.Manager):
     """指标选择器缓存管理器"""
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        return self._exclude_builtin_duplicates(super().get_queryset())
+
+    def without_request_biz_dedup(self):
+        """返回不做「请求业务去重」的查询集，即绕过 get_queryset() 的过滤。
+
+        默认 get_queryset() 会按 request.biz_id 隐藏业务 0 的内置重名指标，供指标选择器使用。
+        不依赖请求上下文、自带业务范围的批量查询（如 MetricTranslator）应走这里，否则：
+        1. 每构造一次 queryset 会多 2 条探测 SQL（业务 0 是否存在、业务重名指标列表），分批时线性放大；
+        2. 去重先于调用方的 bk_biz_id 过滤执行，会把显式指定的业务 0 记录一并排除，导致别名丢失。
+
+        指标选择器等依赖请求上下文的场景，请继续使用 objects 的默认行为。
+        """
+        return super().get_queryset()
+
+    @staticmethod
+    def _exclude_builtin_duplicates(queryset):
         # 过滤重名内置指标，目前仅针对容器指标处理
         # 从request中获取业务id，获取不到则返回原queryset
         request = get_request(peaceful=True)
         if not request:
             return queryset
-        if request.biz_id:
-            if not queryset.filter(bk_biz_id=0, result_table_id="").exists():
-                return queryset
-            # 过滤出该查询条件下该业务与0业务的重名指标
-            duplicate_metrics = list(
-                queryset.filter(is_duplicate=1, bk_biz_id=safe_int(request.biz_id), result_table_id="").values_list(
-                    "metric_field", flat=1
-                )
+        if not request.biz_id:
+            return queryset
+        if not queryset.filter(bk_biz_id=0, result_table_id="").exists():
+            return queryset
+        # 过滤出该查询条件下该业务与0业务的重名指标
+        duplicate_metrics = list(
+            queryset.filter(is_duplicate=1, bk_biz_id=safe_int(request.biz_id), result_table_id="").values_list(
+                "metric_field", flat=1
             )
-            # 过滤出该查询条件下0业务的重名指标
-            if not duplicate_metrics:
-                return queryset
-            # 原queryset排除0业务下的重名指标
-            queryset = queryset.exclude(bk_biz_id=0, metric_field__in=duplicate_metrics, result_table_id="")
-        return queryset
+        )
+        # 过滤出该查询条件下0业务的重名指标
+        if not duplicate_metrics:
+            return queryset
+        # 原queryset排除0业务下的重名指标
+        return queryset.exclude(bk_biz_id=0, metric_field__in=duplicate_metrics, result_table_id="")
 
 
 class MetricListCache(models.Model):

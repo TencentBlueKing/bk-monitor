@@ -22,9 +22,13 @@ result_table_id + metric_field。两者拼进同一个 OR 时，MySQL 无法做 
 from types import SimpleNamespace
 from unittest import mock
 
+import pytest
+from django.db import connections, router
 from django.db.models import Q
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 
+from bkmonitor.models import MetricListCache
 from fta_web.alert.handlers import translator as translator_module
 from fta_web.alert.handlers.translator import MetricTranslator
 
@@ -48,8 +52,9 @@ def _branch_field_sets(query: Q) -> list[frozenset]:
     return [frozenset(key for key, _ in branch.children) for branch in branches]
 
 
-def _log_row(index_set_id: str = "123", name: str = "日志索引集") -> SimpleNamespace:
+def _log_row(index_set_id: str = "123", name: str = "日志索引集", bk_biz_id: int = 2) -> SimpleNamespace:
     return SimpleNamespace(
+        bk_biz_id=bk_biz_id,
         data_source_label="bk_log_search",
         data_type_label="log",
         result_table_id="rt",
@@ -61,12 +66,28 @@ def _log_row(index_set_id: str = "123", name: str = "日志索引集") -> Simple
     )
 
 
-def _ts_row(name: str = "CPU使用率") -> SimpleNamespace:
+def _ts_row(name: str = "CPU使用率", bk_biz_id: int = 2) -> SimpleNamespace:
     return SimpleNamespace(
+        bk_biz_id=bk_biz_id,
         data_source_label="bk_monitor",
         data_type_label="time_series",
         result_table_id="system.cpu_summary",
         metric_field="usage",
+        metric_field_name=name,
+        related_id="",
+        extend_fields={},
+        data_label="",
+    )
+
+
+def _container_row(name: str, bk_biz_id: int) -> SimpleNamespace:
+    """内置容器指标：result_table_id 为空，metric_id 形如 bk_monitor..kube_pod_info"""
+    return SimpleNamespace(
+        bk_biz_id=bk_biz_id,
+        data_source_label="bk_monitor",
+        data_type_label="time_series",
+        result_table_id="",
+        metric_field="kube_pod_info",
         metric_field_name=name,
         related_id="",
         extend_fields={},
@@ -95,6 +116,10 @@ class _RecordingQuerySet:
 class _RecordingManager:
     def __init__(self):
         self.record = []
+
+    def without_request_biz_dedup(self):
+        self.record.append(("bypass_dedup", True))
+        return self
 
     def filter(self, *args, **kwargs):
         return _RecordingQuerySet(self.record).filter(*args, **kwargs)
@@ -186,6 +211,15 @@ class TestTranslateQueryShape:
             assert bool(biz_calls) is expect_filter, bk_biz_ids
 
     @override_settings(ROLE="web")
+    def test_request_biz_dedup_bypassed(self):
+        # 翻译必须走「不做请求业务去重」的查询集，否则每批都会多 2 条探测 SQL
+        manager = _RecordingManager()
+        with mock.patch.object(translator_module.MetricListCache, "objects", manager), _patched_tenant():
+            MetricTranslator().translate([TS_ID])
+
+        assert manager.record[0] == ("bypass_dedup", True)
+
+    @override_settings(ROLE="web")
     def test_large_group_split_into_batches(self):
         metric_ids = [f"bk_monitor.rt.{index}" for index in range(MetricTranslator.QUERY_BATCH_SIZE * 2 + 20)]
         batches = []
@@ -258,3 +292,113 @@ class TestTranslateResult:
         with mock.patch.object(MetricTranslator, "_query_metrics") as query_metrics:
             assert MetricTranslator().translate(["bk_monitor", "prometheus.xxx"]) == {}
         query_metrics.assert_not_called()
+
+    @override_settings(ROLE="web")
+    def test_duplicate_metric_prefers_business_name(self):
+        """同一 metric_id 命中多行时，业务自身的别名优先，且与返回顺序无关"""
+        builtin = _container_row("内置容器指标", 0)
+        business = _container_row("业务容器指标", 2)
+
+        for rows in ([builtin, business], [business, builtin]):
+
+            def fake_query(self, queries, tenant_id, _rows=tuple(rows)):
+                return list(_rows)
+
+            with mock.patch.object(MetricTranslator, "_query_metrics", fake_query), _patched_tenant():
+                result = MetricTranslator(bk_biz_ids=[2]).translate(["bk_monitor..kube_pod_info"])
+
+            assert result["bk_monitor..kube_pod_info"] == "业务容器指标"
+
+
+class TestTranslationPriority:
+    """别名择优顺序：业务范围 > 其他业务 > 业务 0（内置），并列时 bk_biz_id 兜底保证确定性"""
+
+    @staticmethod
+    def _pick(bk_biz_ids, biz_ids):
+        translator = MetricTranslator(bk_biz_ids=bk_biz_ids)
+        rows = [_container_row(f"业务{biz_id}", biz_id) for biz_id in biz_ids]
+        return min(rows, key=translator._translation_priority).bk_biz_id
+
+    def test_scoped_business_wins(self):
+        assert self._pick([2], [0, 3, 2]) == 2
+
+    def test_business_wins_over_builtin_without_scope(self):
+        assert self._pick(None, [0, 3]) == 3
+
+    def test_all_biz_sentinel_is_deterministic(self):
+        # -1（全部授权业务）不会进入 scope，按 bk_biz_id 升序兜底，结果与返回顺序无关
+        assert self._pick([-1], [3, 2]) == 2
+
+
+@pytest.mark.django_db(databases="__all__")
+class TestRealManager:
+    """真实 manager 下的行为回归：请求业务去重既不能加 SQL，也不能吞掉业务 0 的别名。
+
+    这里只 2 个用例：mock 掉 MetricListCache.objects 的测试无法证明
+    without_request_biz_dedup() 真的绕过了去重，必须用真实 manager 兜底。
+
+    MetricListCache 由 DB router 路由到 monitor_api，不是 default：
+    1. 标记里必须带上该库，否则写入不会被 TestCase 的事务回滚；
+    2. 查询数不能用 pytest-django 的 django_assert_num_queries（只统计 default 连接），
+       要显式在模型所在连接上抓取。
+    """
+
+    # 用唯一指标名：避免命中测试库里预置或其他用例遗留的同名容器指标，
+    # 否则命中多行、priority 并列时取决于返回顺序，断言可能取到别人的名称
+    METRIC_FIELD = "__test_kube_pod_info__"
+    METRIC_ID = f"bk_monitor..{METRIC_FIELD}"
+
+    @staticmethod
+    def _create(**kwargs):
+        defaults = {
+            "bk_tenant_id": TENANT_ID,
+            "bk_biz_id": 2,
+            "data_source_label": "bk_monitor",
+            "data_type_label": "time_series",
+            "result_table_id": "",
+            "metric_field": TestRealManager.METRIC_FIELD,
+            "metric_field_name": "",
+            "extend_fields": {},
+            "data_label": "",
+            # JsonField 无默认值时 Django 会落 ""，显式给合法 JSON 值，避免后续字段类型收紧后插入失败
+            "collect_config_ids": [],
+            "default_dimensions": [],
+            "default_condition": [],
+        }
+        defaults.update(kwargs)
+        return MetricListCache.objects.create(**defaults)
+
+    @staticmethod
+    def _patch_request(monkeypatch, biz_id: str = "2"):
+        from bkmonitor.utils.local import local
+
+        monkeypatch.setattr(
+            local,
+            "current_request",
+            SimpleNamespace(biz_id=biz_id, user=SimpleNamespace(tenant_id=TENANT_ID)),
+            raising=False,
+        )
+
+    @override_settings(ROLE="web")
+    def test_batches_do_not_trigger_request_biz_dedup(self, monkeypatch):
+        self._patch_request(monkeypatch)
+        values = [LOG_ID, TS_ID, FTA_ID, "bk_monitor.log.demo_log"]  # 4 种列集合 → 4 条取数 SQL
+        alias = router.db_for_read(MetricListCache) or "default"
+
+        # 去重探测回来时会变成 12 条，故用上限断言：既能守住回归，又不因以后查询变少而误报；
+        # 同时要求至少 1 条，避免 translate 提前返回（例如 ROLE 变化导致不翻译）时测试变成空跑
+        with _patched_tenant(), CaptureQueriesContext(connections[alias]) as context:
+            MetricTranslator().translate(values)
+
+        assert 0 < len(context.captured_queries) <= 4
+
+    @override_settings(ROLE="web")
+    def test_biz_zero_alias_kept_when_explicitly_scoped(self, monkeypatch):
+        self._patch_request(monkeypatch)
+        self._create(bk_biz_id=0, metric_field_name="内置容器指标")
+        self._create(bk_biz_id=2, metric_field_name="业务容器指标", is_duplicate=1)
+
+        with _patched_tenant():
+            result = MetricTranslator(bk_biz_ids=[0]).translate([self.METRIC_ID])
+
+        assert result[self.METRIC_ID] == "内置容器指标"

@@ -73,7 +73,9 @@ class MetricTranslator(AbstractTranslator):
     QUERY_BATCH_SIZE = 50
 
     # 指标翻译只需要这些字段，避免把 description 等大字段读回来
+    # bk_biz_id 必须一起取：同名指标择优要用，否则会触发 deferred 加载退化成 N+1
     TRANSLATE_FIELDS = (
+        "bk_biz_id",
         "data_source_label",
         "data_type_label",
         "result_table_id",
@@ -85,7 +87,11 @@ class MetricTranslator(AbstractTranslator):
     )
 
     def __init__(self, bk_biz_ids: list[int] | None = None, *args, **kwargs):
-        self.bk_biz_ids = list(set(bk_biz_ids or []) & {0})
+        biz_ids = {biz_id for biz_id in (bk_biz_ids or []) if isinstance(biz_id, int)}
+        # 显式指定业务 0 时，只取业务 0 的指标（保持原有语义）
+        self.bk_biz_ids = sorted(biz_ids & {0})
+        # 仅用于同名指标择优，不参与 SQL 过滤；-1（全部授权业务）不会进入这里
+        self.scope_biz_ids = frozenset(biz_id for biz_id in biz_ids if biz_id > 0)
         super().__init__(*args, **kwargs)
 
     @staticmethod
@@ -114,12 +120,34 @@ class MetricTranslator(AbstractTranslator):
 
     def _query_metrics(self, queries: list[Q], tenant_id: str) -> list:
         """执行一批列集合相同的 Q，只查询翻译需要的字段"""
-        metrics_queryset = MetricListCache.objects.filter(bk_tenant_id=tenant_id).filter(
-            reduce(lambda x, y: x | y, queries)
+        # 翻译场景不使用指标选择器的「请求业务去重」：它依赖 request 上下文、每批多 2 条探测 SQL，
+        # 且会先于下面的 bk_biz_id 过滤排除业务 0 记录。
+        metrics_queryset = (
+            MetricListCache.objects.without_request_biz_dedup()
+            .filter(bk_tenant_id=tenant_id)
+            .filter(reduce(lambda x, y: x | y, queries))
         )
         if self.bk_biz_ids:
             metrics_queryset = metrics_queryset.filter(bk_biz_id__in=self.bk_biz_ids)
         return list(metrics_queryset.only(*self.TRANSLATE_FIELDS))
+
+    def _translation_priority(self, metric) -> tuple:
+        """同一 metric_id 命中多行时的择优顺序，返回值越小越优先。
+
+        metric_id 不携带业务信息，跨业务的同名记录（如 result_table_id 为空的内置指标、
+        容器指标）会解析出同一个 id；而翻译走的是 without_request_biz_dedup()，不再由
+        manager 按 request.biz_id 隐藏业务 0 的内置指标，原来的"后写覆盖"又依赖返回顺序。
+        这里用一组确定的优先级承接这两层语义，保证同一份数据每次得到同一个名称：
+
+        1. 调用方业务范围（scope_biz_ids）内的业务优先，避免业务页显示成其他业务的同名指标；
+        2. 业务自身的记录优先于业务 0 的内置记录，对应原 manager 去重的展示意图；
+        3. bk_biz_id 升序兜底，结果不受数据库返回顺序和分批顺序影响。
+        """
+        return (
+            metric.bk_biz_id not in self.scope_biz_ids,
+            metric.bk_biz_id == 0,
+            metric.bk_biz_id,
+        )
 
     def translate(self, values: list[str]) -> dict:
         if settings.ROLE == "api":
@@ -150,7 +178,7 @@ class MetricTranslator(AbstractTranslator):
                         exc_info=True,
                     )
 
-        metric_translations = {}
+        metric_translations: dict[str, tuple[tuple, str]] = {}
         for metric in all_metrics:
             query_data = {
                 "data_source_label": metric.data_source_label,
@@ -168,9 +196,13 @@ class MetricTranslator(AbstractTranslator):
             elif (metric.data_source_label, metric.data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
                 query_data["custom_event_name"] = metric.extend_fields.get("custom_event_name", "")
             metric_id = get_metric_id(**query_data)
-            metric_translations[metric_id] = metric.metric_field_name
 
-        return {value: metric_translations.get(value, value) for value in values}
+            priority = self._translation_priority(metric)
+            current = metric_translations.get(metric_id)
+            if current is None or priority < current[0]:
+                metric_translations[metric_id] = (priority, metric.metric_field_name)
+
+        return {value: metric_translations[value][1] if value in metric_translations else value for value in values}
 
 
 class StrategyTranslator(AbstractTranslator):
