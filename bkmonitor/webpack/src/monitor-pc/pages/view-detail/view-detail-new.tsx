@@ -41,7 +41,7 @@ import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../components/time-range/
 import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import CompareSelect from '../monitor-k8s/components/panel-tools/compare-select';
 import QueryCriteriaItem from './query-criteria-item.vue';
-import { downCsvFile, refreshList, transformSrcData, transformTableDataToCsvStr } from './utils';
+import { downCsvFile, normalizePromqlStep, refreshList, transformSrcData, transformTableDataToCsvStr } from './utils';
 
 import type { IRefreshItem } from '../monitor-k8s/components/dashboard-tools';
 import type { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
@@ -318,8 +318,8 @@ export default class ViewDetailNew extends tsc<IProps> {
     if (type === 'step') {
       const queryConfig = this.queryconfig[groupIndex].data.query_configs[0];
       if (queryConfig.data_source_label === 'prometheus') {
-        const step = String(value ?? '').trim();
-        if (step !== 'auto' && (!/^\d+$/.test(step) || !Number.isSafeInteger(Number(step)) || Number(step) <= 0)) {
+        const step = normalizePromqlStep(value);
+        if (step === undefined) {
           return;
         }
         queryConfig.interval = step;

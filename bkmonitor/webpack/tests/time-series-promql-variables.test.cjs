@@ -5,6 +5,7 @@ const test = require('node:test');
 const { parser } = require('@prometheus-io/lezer-promql');
 const ts = require('typescript');
 const compiler = require('vue/compiler-sfc');
+const Vue = require('vue');
 
 const root = path.resolve(__dirname, '../src');
 const moduleObject = { exports: {} };
@@ -357,30 +358,83 @@ function loadMethods(filename, names, dependencies = {}, content) {
   const klass = source.statements.find(ts.isClassDeclaration);
   const members = klass.members.filter(member => names.includes(member.name?.getText(source)));
   assert.equal(members.length, names.length);
-  const code = ts.transpileModule(`class Subject { ${members.map(member => member.getText(source)).join('\n')} } return Subject;`, {
+  const printer = ts.createPrinter();
+  const code = ts.transpileModule(`class Subject { ${members.map(member => printer.printNode(
+    ts.EmitHint.Unspecified,
+    ts.factory.replaceModifiers(member, member.modifiers?.filter(modifier => !ts.isDecorator(modifier))),
+    source
+  )).join('\n')} } return Subject;`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText;
   return new Function(...Object.keys(dependencies), code)(...Object.values(dependencies));
 }
 
+const detailUtilsFile = path.join(root, 'monitor-pc/pages/view-detail/utils.ts');
+const detailUtilsSource = ts.createSourceFile(detailUtilsFile, fs.readFileSync(detailUtilsFile, 'utf8'), ts.ScriptTarget.Latest, true);
+const stepNormalizer = detailUtilsSource.statements.find(statement => ts.isVariableStatement(statement) &&
+  statement.declarationList.declarations.some(declaration => declaration.name.getText(detailUtilsSource) === 'normalizePromqlStep'));
+assert.ok(stepNormalizer);
+const stepExports = {};
+new Function('exports', ts.transpileModule(stepNormalizer.getText(detailUtilsSource), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText)(stepExports);
+const { normalizePromqlStep } = stepExports;
+
 const Detail = loadMethods(path.join(root, 'monitor-pc/pages/view-detail/view-detail-new.tsx'), [
-  'handleQueryChange', 'handleSetPanelParams',
-], { random: () => 'chart-refresh' });
+  'handleQueryChange', 'handleSetPanelParams', 'handleTimeRangeChange', 'handleTimeChange', 'handleImmediateRefresh',
+], { random: () => 'chart-refresh', normalizePromqlStep });
 const editorFile = path.join(root, 'monitor-pc/pages/view-detail/query-criteria-item.vue');
 const editorSource = compiler.parse({ source: fs.readFileSync(editorFile, 'utf8'), filename: editorFile });
 assert.deepEqual(editorSource.errors, []);
 const Editor = loadMethods(editorFile, [
-  'handlePromqlDataCodeChange', 'handlePromqlDataCodeBlur', 'handleSourceStepChange', 'handleSourceStepBlur',
-], {}, editorSource.script.content);
+  'queryConfigChange', 'handlePromqlDataCodeChange', 'handlePromqlDataCodeBlur', 'handleSourceStepChange', 'handleSourceStepBlur',
+], { deepClone: structuredClone, normalizePromqlStep }, editorSource.script.content);
+
+const editorTemplate = editorSource.template.content.trim();
+const templateResult = compiler.compileTemplate({
+  source: editorTemplate, filename: editorFile, compilerOptions: { outputSourceRange: true },
+});
+assert.deepEqual(templateResult.errors, []);
+function findStepInput(node, seen = new Set()) {
+  if (!node || seen.has(node)) return undefined;
+  seen.add(node);
+  if (node.tag === 'bk-input' && node.attrsMap.class === 'step-input') return node;
+  for (const child of [...(node.children || []), ...(node.ifConditions || []).map(item => item.block)]) {
+    const found = findStepInput(child, seen);
+    if (found) return found;
+  }
+}
+const stepNode = findStepInput(templateResult.ast);
+assert.ok(stepNode);
+const stepTemplate = compiler.compileTemplate({
+  source: editorTemplate.slice(stepNode.start, stepNode.end), filename: editorFile,
+});
+assert.deepEqual(stepTemplate.errors, []);
+const stepRender = new Function(`${stepTemplate.code}\nreturn { render, staticRenderFns };`)();
+
+function stepInput(editor) {
+  return editor._render().componentOptions;
+}
 
 function detailEditor(panel) {
-  const detail = Object.assign(new Detail(), { panel: structuredClone(panel), queryconfig: structuredClone(panel.targets) });
-  const editor = Object.assign(new Editor(), {
-    groupIndex: 0,
-    queryConfigItem: structuredClone(detail.queryconfig[0].data.query_configs[0]),
-    $emit(event, ...args) { assert.equal(event, 'query-change'); detail.handleQueryChange(...args); },
+  const detail = Object.assign(new Detail(), {
+    panel: structuredClone(panel), queryconfig: structuredClone(panel.targets),
+    compare: { value: [] }, timeRange: ['now-1h', 'now'], timeOffset: ['1h'], chartKey: 'initial',
   });
-  return { detail, editor };
+  const messages = [];
+  const emitted = [];
+  const editor = new Vue({
+    ...stepRender,
+    components: { 'bk-input': { props: ['value'], render: () => null } },
+    data: () => ({ groupIndex: 0, queryConfig: detail.queryconfig[0], queryConfigItem: {}, queryConfigdata: null }),
+    methods: Object.fromEntries(Object.getOwnPropertyNames(Editor.prototype)
+      .filter(name => name !== 'constructor').map(name => [name, Editor.prototype[name]])),
+    watch: { queryConfig: { deep: true, immediate: true, handler: Editor.prototype.queryConfigChange } },
+  });
+  editor.$t = value => value;
+  editor.$bkMessage = message => messages.push(message);
+  editor.$on('query-change', (...args) => { emitted.push(args); detail.handleQueryChange(...args); });
+  return { detail, editor, messages, emitted };
 }
 
 test('Actual native editor blur and Step update the panel used by current and comparison requests', async () => {
@@ -493,6 +547,67 @@ test('Native Step values accept auto and positive integer seconds before current
     for (const request of requests) assert.equal(request.query_configs[0].interval, expected);
     assert.ok(requests[1].query_configs[0].promql.includes('offset 1h'));
   }
+});
+
+test('Native Step renders the executed interval on initialization instead of a missing or stale input shadow', () => {
+  for (const [interval, agg_interval] of [[60, undefined], [60, '30s'], [60, '30'], ['auto', '30'], ['$interval', undefined]]) {
+    const { editor } = detailEditor({ targets: [{ data: { query_configs: [{
+      data_source_label: 'prometheus', promql: 'container_memory_rss', interval, agg_interval,
+    }] } }] });
+    assert.equal(stepInput(editor).propsData.value, interval);
+    editor.$destroy();
+  }
+});
+
+test('Native Step rolls rejected edits back in the rendered input and leaves the current query unchanged', async () => {
+  for (const value of ['30s', '0', '30.5', '1e2', 'invalid', '', ' ']) {
+    const { detail, editor, messages, emitted } = detailEditor({ targets: [{ data: {
+      expression: 'A', query_configs: [{ ...podConfig(), data_source_label: 'prometheus', interval: 60 }],
+    } }] });
+    const before = structuredClone(detail.panel);
+    stepInput(editor).listeners.change(value);
+    await Vue.nextTick();
+    assert.equal(stepInput(editor).propsData.value, value);
+    stepInput(editor).listeners.blur();
+    await Vue.nextTick();
+    assert.equal(stepInput(editor).propsData.value, 60);
+    assert.deepEqual(detail.panel, before);
+    assert.equal(emitted.length, 0);
+    assert.deepEqual(messages, value.trim()
+      ? [{ theme: 'error', message: 'Step需填写合法的整数值' }] : []);
+    editor.$destroy();
+  }
+});
+
+test('Native Step rollback follows the latest accepted value across refresh and time changes', async () => {
+  const { detail, editor, messages, emitted } = detailEditor({ targets: [{ data: {
+    expression: 'A', query_configs: [{ ...podConfig(), data_source_label: 'prometheus', interval: 60 }],
+  } }] });
+  stepInput(editor).listeners.change(' 30 ');
+  stepInput(editor).listeners.blur();
+  stepInput(editor).listeners.change('0');
+  stepInput(editor).listeners.blur();
+  await Vue.nextTick();
+  assert.equal(stepInput(editor).propsData.value, '30');
+  assert.equal(detail.panel.targets[0].data.query_configs[0].interval, '30');
+  assert.equal(emitted.length, 1);
+  assert.equal(messages.length, 1);
+  detail.handleTimeRangeChange(['now-2h', 'now']);
+  detail.handleTimeChange(['2h']);
+  detail.handleImmediateRefresh();
+  const { graph, requests } = graphHarness(detail.panel.targets[0].data);
+  graph.timeRange = detail.timeRange;
+  graph.timeOffset = detail.timeOffset;
+  await graph.queryPanelData();
+  assert.equal(detail.chartKey, 'chart-refresh');
+  assert.equal(requests.length, 2);
+  for (const request of requests) {
+    const payload = JSON.parse(JSON.stringify(request));
+    assert.equal(payload.query_configs[0].interval, stepInput(editor).propsData.value);
+    parse(payload.query_configs[0].promql);
+  }
+  assert.ok(requests[1].query_configs[0].promql.includes('offset 2h'));
+  editor.$destroy();
 });
 
 test('Native unit overrides use the same effective method as the actual query variables', async () => {
