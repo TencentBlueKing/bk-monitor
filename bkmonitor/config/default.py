@@ -1924,7 +1924,7 @@ K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
 #     "plugin_display_name": "",
 #     "description_md": "",
 #     "logo": "",
-#     "collect_json": {
+#     "collector_json": {
 #         "values": {
 #             "limits": {
 #                 "cpu": "100m",
@@ -1939,17 +1939,12 @@ K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
 #     },
 #     "config_json": []
 # }
+# 新表单在 collector_json.exporter 声明版本和产品查询维度，例如
+# {"version": "v0.22.4", "products": {"QCE/CVM": ["InstanceId"]}}。
+# template 的 Deployment 使用固定 image@sha256，resources 沿用模板和 values。
 # 可选 skill_repository_url：各环境配置 Skill 仓库 HTTPS 首页，留空时仅展示上传说明。
 TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
 TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
-# 镜像核验后配置：精确 image 引用 -> {version: "v0.21.0" / "v0.22.4",
-# products: {"QCE/CVM": ["InstanceId"], ...}, templates: [已核验模板的SHA256]}。
-# products 中的列表表示自定义查询的必需维度；templates 防止误认任意历史模板。
-# 历史 tag 仅在已核验其不可变映射时登记；未知映射必须阻断，不能猜测最新版本。
-# 部署需同时登记固定 repo@sha256 条目。tag 条目通过 digest（sha256:...）指向同仓库摘要；
-# 两者必须对应同一版本和产品契约。新建模板条目另提供 resources，存量从源部署渲染取值。
-TENCENT_CLOUD_EXPORTER_CONTRACTS = {}
-
 # 启用监控目标缓存的业务ID列表
 ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 

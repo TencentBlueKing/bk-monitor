@@ -45,19 +45,22 @@ spec:
 
 
 @pytest.fixture
-def legacy(settings):
+def legacy(settings, monkeypatch):
     settings.K8S_PLUGIN_COLLECT_CLUSTER_ID = "test-cluster:monitoring"
     settings.BCS_CLUSTER_BK_ENV_LABEL = "test"
-    contract = {
-        "version": "v0.21.0",
-        "products": {"QCE/REDIS": []},
-        "templates": [sha256(DEPLOY_TEMPLATE.encode()).hexdigest()],
+    from monitor_web.collecting import tencent_cloud
+
+    exporter = {"version": "v0.21.0", "products": {"QCE/REDIS": []}}
+    monkeypatch.setattr(tencent_cloud, "LEGACY_TEMPLATE_SHA256", sha256(DEPLOY_TEMPLATE.strip().encode()).hexdigest())
+    monkeypatch.setattr(tencent_cloud, "LEGACY_EXPORTER", exporter)
+    monkeypatch.setattr(deploy, "LEGACY_PIN", PIN)
+    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {
+        "collector_json": {
+            "template": DEPLOY_TEMPLATE.replace(TAG, PIN),
+            "values": {"limits": {"cpu": "1"}, "requests": {}},
+            "exporter": {**exporter, "version": "v0.22.4"},
+        }
     }
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS = {
-        TAG: {**contract, "digest": DIGEST, "resources": {"limits": {"cpu": "1"}}},
-        PIN: deepcopy(contract),
-    }
-    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {"collector_json": {"template": DEPLOY_TEMPLATE}}
     return sample_config(
         DEPLOY_TEMPLATE,
         {**deepcopy(RESOURCES), "requests": {"cpu": "10m"}, "rate_limit": 20, "is_international": "false"},
@@ -93,21 +96,60 @@ def test_freeze_existing_and_new_profiles(legacy, candidate, settings):
     snapshot = prepare_configmap_snapshot(candidate, legacy)
     assert original == (candidate, legacy.deployment_config.params, legacy.deployment_config.plugin_version.config)
     assert snapshot["collector"]["metric_relabel_configs"] == []
-    assert snapshot["runtime"] == {"image": PIN, "resources": RESOURCES, "contract": "qcloud-exporter-v0.21.0"}
+    assert snapshot["runtime"] == {
+        "image": PIN,
+        "resources": RESOURCES,
+        "products": {"QCE/REDIS": []},
+        "contract": "qcloud-exporter-v0.21.0",
+    }
     assert snapshot["plugin"]["access_key"] == "fixture-access-A"
     assert snapshot["plugin"]["secret_key"] == "fixture-secret-A"
     fresh = deepcopy(candidate)
     fresh["plugin"].update(access_key="new-id", secret_key="new-key")
-    assert prepare_configmap_snapshot(fresh)["runtime"]["resources"] == {"limits": {"cpu": "1"}}
+    new = prepare_configmap_snapshot(fresh)["runtime"]
+    assert new["resources"] == {"limits": {"cpu": "1"}, "requests": {}}
+    assert new["contract"] == "qcloud-exporter-v0.22.4"
     legacy.deployment_config.params = snapshot
     settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
-    del settings.TENCENT_CLOUD_EXPORTER_CONTRACTS[TAG]
     del candidate["plugin"]["access_key"]
     candidate["plugin"]["secret_key"] = "new-secret"
     edited = prepare_configmap_snapshot(candidate, legacy)
     assert edited["runtime"] == snapshot["runtime"]
     assert edited["plugin"]["access_key"] == "fixture-access-A" and edited["plugin"]["secret_key"] == "new-secret"
     assert snapshot["plugin"]["secret_key"] == "fixture-secret-A"
+
+
+def test_new_plugin_definition_survives_serializer_and_template_update(legacy, candidate, settings):
+    from monitor_web.plugin.serializers import K8sSerializer
+
+    definition = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG["collector_json"]
+    serializer = K8sSerializer.CollectorJsonSerializer(data=definition)
+    serializer.is_valid(raise_exception=True)
+    assert serializer.validated_data["exporter"] == definition["exporter"]
+    candidate["plugin"].update(access_key="sample-id", secret_key="sample-key")
+    snapshot = prepare_configmap_snapshot(candidate)
+    legacy.deployment_config.params = snapshot
+    definition["exporter"]["products"] = {"QCE/CVM": ["InstanceId"]}
+    assert prepare_configmap_snapshot(candidate, legacy)["runtime"] == snapshot["runtime"]
+    assert deploy.validated_files(snapshot)
+
+
+def test_source_cannot_declare_an_untrusted_exporter(legacy, settings):
+    definition = deepcopy(settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG["collector_json"])
+    definition["template"] = definition["template"].replace(PIN, "other.example/exporter@" + DIGEST)
+    legacy.deployment_config.plugin_version.config.collector_json = definition
+    with pytest.raises(LegacyConversionFailed):
+        configmap_projection(legacy)
+
+
+def test_read_previous_snapshot_without_products(legacy, candidate, settings):
+    candidate["plugin"].update(access_key="sample-id", secret_key="sample-key")
+    snapshot = prepare_configmap_snapshot(candidate)
+    expected = snapshot["runtime"].pop("products")
+    legacy.deployment_config.params = snapshot
+    assert deploy.validated_files(snapshot)
+    assert prepare_configmap_snapshot(candidate, legacy)["runtime"]["products"] == expected
+    assert "products" not in snapshot["runtime"]
 
 
 @pytest.mark.parametrize("editing", [True, False])
@@ -134,23 +176,19 @@ def test_saved_snapshot_projects_only_masked_credentials(legacy, candidate):
     assert "fixture-rotated-secret" not in json.dumps(detail)
 
 
-@pytest.mark.parametrize(
-    "change", ["tag-only", "unknown-digest", "different-version", "different-products", "unknown-template"]
-)
-def test_unverified_runtime_fails(legacy, candidate, settings, change):
-    contracts = settings.TENCENT_CLOUD_EXPORTER_CONTRACTS
+@pytest.mark.parametrize("change", ["tag-only", "unknown-version", "missing-products", "two-images"])
+def test_invalid_new_definition_fails(legacy, candidate, settings, change):
+    definition = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG["collector_json"]
     if change == "tag-only":
-        contracts[TAG].pop("digest")
-    elif change == "unknown-digest":
-        del contracts[PIN]
-    elif change == "different-version":
-        contracts[PIN]["version"] = "v0.22.4"
-    elif change == "different-products":
-        contracts[PIN]["products"] = {"QCE/COS": []}
+        definition["template"] = definition["template"].replace(PIN, TAG)
+    elif change == "unknown-version":
+        definition["exporter"]["version"] = "unknown"
+    elif change == "missing-products":
+        definition["exporter"].pop("products")
     else:
-        contracts[TAG]["templates"] = []
+        definition["template"] += "image: another-image"
     with pytest.raises(LegacyConversionFailed):
-        prepare_configmap_snapshot(candidate, legacy)
+        deploy.freeze_runtime()
 
 
 @pytest.mark.parametrize(

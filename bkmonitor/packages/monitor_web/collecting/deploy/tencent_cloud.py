@@ -32,7 +32,9 @@ from monitor_web.collecting.deploy.k8s import (
 )
 from monitor_web.collecting.tencent_cloud import (
     ConfigLoader,
+    LEGACY_PIN,
     file_contains_credential,
+    new_collector_definition,
     resolve_contract,
     template_image,
     validate_files,
@@ -45,11 +47,9 @@ ENV_KEYS = {"access_key": "TENCENTCLOUD_SECRET_ID", "secret_key": "TENCENTCLOUD_
 
 def runtime_contract(runtime):
     """实际部署只接受受控仓库的不可变镜像和冻结的资源规格。"""
-    if not isinstance(runtime, dict) or set(runtime) != {"image", "contract", "resources"}:
+    if not isinstance(runtime, dict) or set(runtime) - {"products"} != {"image", "contract", "resources"}:
         raise LegacyConversionFailed()
     contract = resolve_contract({}, runtime)
-    if not re.fullmatch(r"[^@\s]+@sha256:[0-9a-f]{64}", runtime["image"]):
-        raise LegacyConversionFailed()
     resources = runtime["resources"]
     if not isinstance(resources, dict) or resources.keys() - {"limits", "requests"}:
         raise LegacyConversionFailed()
@@ -61,47 +61,54 @@ def runtime_contract(runtime):
 def freeze_runtime(config=None, source=None):
     """首次编辑从原插件部署模板提取实际规格，新建使用平台登记的规格。"""
     if config is None:
-        definition = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG.get("collector_json", {})
+        definition = new_collector_definition()
     else:
         source = source or config.deployment_config
         if "runtime" in source.params:
             runtime = deepcopy(source.params["runtime"])
-            runtime_contract(runtime)
+            contract = runtime_contract(runtime)
+            runtime.setdefault("products", deepcopy(contract["products"]))
             return runtime
         definition = source.plugin_version.config.collector_json
 
     contract = resolve_contract(definition)
     image = template_image(definition["template"])
-    if config is None:
-        resources = contract.get("resources")
-    else:
-        try:
+    try:
+        if config is None:
+            rendered = jinja_render(
+                definition["template"],
+                {
+                    "values": definition.get("values", {}),
+                    "collect": {},
+                    "plugin": {},
+                    "release_name": "qcloud",
+                },
+            )
+        else:
             _, rendered = K8sInstaller(config).render_snapshot(source)
-            deployments = [
-                doc
-                for doc in yaml.load_all(rendered, Loader=ConfigLoader)
-                if isinstance(doc, dict) and doc.get("kind") == "Deployment"
-            ]
-            if len(deployments) != 1:
-                raise LegacyConversionFailed()
-            containers = deployments[0]["spec"]["template"]["spec"]["containers"]
-            if len(containers) != 1 or containers[0]["image"] != image:
-                raise LegacyConversionFailed()
-            resources = containers[0].get("resources", {})
-        except (yaml.YAMLError, TemplateError, ValueError, LookupError, TypeError, AttributeError, RecursionError):
-            raise LegacyConversionFailed() from None
-
-    if "@" not in image:
-        digest = contract.get("digest", "")
-        if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+        deployments = [
+            doc
+            for doc in yaml.load_all(rendered, Loader=ConfigLoader)
+            if isinstance(doc, dict) and doc.get("kind") == "Deployment"
+        ]
+        if len(deployments) != 1:
             raise LegacyConversionFailed()
-        # 只替换最后路径分段的 tag，保留 registry 端口。
-        repository = image.rsplit("/", 1)[-1].split(":", 1)[0]
-        prefix = image.rpartition("/")[0]
-        image = f"{prefix + '/' if prefix else ''}{repository}@{digest}"
-    runtime = {"image": image, "contract": f"qcloud-exporter-{contract['version']}", "resources": deepcopy(resources)}
-    if runtime_contract(runtime)["products"] != contract["products"]:
-        raise LegacyConversionFailed()
+        containers = deployments[0]["spec"]["template"]["spec"]["containers"]
+        if len(containers) != 1 or containers[0]["image"] != image:
+            raise LegacyConversionFailed()
+        resources = containers[0].get("resources", {})
+    except (yaml.YAMLError, TemplateError, ValueError, LookupError, TypeError, AttributeError, RecursionError):
+        raise LegacyConversionFailed() from None
+
+    if "exporter" not in definition:
+        image = LEGACY_PIN
+    runtime = {
+        "image": image,
+        "contract": f"qcloud-exporter-{contract['version']}",
+        "products": deepcopy(contract["products"]),
+        "resources": resources,
+    }
+    runtime_contract(runtime)
     return runtime
 
 

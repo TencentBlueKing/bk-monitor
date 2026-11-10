@@ -10,6 +10,7 @@ import pytest
 from kubernetes.client.exceptions import ApiException
 
 from core.errors.collecting import CollectConfigParamsError, CollectConfigVersionChanged
+from monitor_web.collecting import tencent_cloud as definitions
 from monitor_web.collecting.constant import OperationResult, OperationType
 from monitor_web.collecting.deploy import get_collect_installer, qcloud_lifecycle as lifecycle
 from monitor_web.collecting.deploy.k8s import resource_identity
@@ -124,8 +125,8 @@ def scene(legacy, candidate, settings, mocker):  # noqa: F811
         return version
 
     old.plugin_version.config.collector_json["template"] = OLD_TEMPLATE
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS[TAG]["templates"].append(sha256(OLD_TEMPLATE.encode()).hexdigest())
-    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG["collector_json"]["template"] = OLD_TEMPLATE
+    mocker.patch.object(definitions, "LEGACY_TEMPLATE_SHA256", sha256(OLD_TEMPLATE.strip().encode()).hexdigest())
+    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG["collector_json"]["template"] = OLD_TEMPLATE.replace(TAG, PIN)
     candidate["plugin"]["configmaps"] = candidate["plugin"]["configmaps"][:1]
     cluster = Cluster()
     mocker.patch.object(lifecycle.transaction, "atomic", side_effect=nullcontext)
@@ -294,7 +295,7 @@ def test_competing_edits_commit_one_version(legacy, candidate, settings, mocker)
 
     definition = legacy.deployment_config.plugin_version.config
     definition.collector_json["template"] = OLD_TEMPLATE
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS[TAG]["templates"].append(sha256(OLD_TEMPLATE.encode()).hexdigest())
+    mocker.patch.object(definitions, "LEGACY_TEMPLATE_SHA256", sha256(OLD_TEMPLATE.strip().encode()).hexdigest())
     plugin = CollectorPluginMeta.objects.create(
         plugin_id=legacy.plugin_id, bk_biz_id=legacy.bk_biz_id, plugin_type="K8S"
     )
@@ -360,7 +361,6 @@ def test_competing_edits_commit_one_version(legacy, candidate, settings, mocker)
         "collect_config_detail",
         return_value={"collect_type": "K8S", "id": cfg.pk, "bk_biz_id": cfg.bk_biz_id},
     )
-    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {"collector_json": definition.collector_json}
     backend.CloneCollectConfigResource().perform_request({"id": cfg.pk, "bk_biz_id": cfg.bk_biz_id})
     clone = CollectConfigMeta.objects.get(name=cfg.name + "_copy", bk_biz_id=cfg.bk_biz_id)
     assert clone.last_operation == OperationType.STOP

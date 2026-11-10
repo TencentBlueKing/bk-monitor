@@ -207,6 +207,7 @@ class ProcessSerializer(CollectorMetaSerializer):
 
 class K8sSerializer(CollectorMetaSerializer):
     class CollectorJsonSerializer(serializers.Serializer):
+        exporter = serializers.DictField(required=False, label="腾讯云 exporter 元数据")
         template = serializers.CharField(label="模板文件")
         values = serializers.JSONField(label="默认配置", default=dict)
 

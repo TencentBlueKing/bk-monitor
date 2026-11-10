@@ -9,18 +9,19 @@ import pytest
 import yaml
 
 from core.errors.collecting import CollectConfigParamsError, LegacyConversionFailed
+from monitor_web.collecting import tencent_cloud as definitions
 from monitor_web.collecting.resources import backend, frontend
 from monitor_web.collecting.resources.tencent_cloud import K8sInstaller, configmap_projection, prepare_edit_params
 from monitor_web.plugin.views import CollectorPluginViewSet
 
-IMAGE = "example.com/exporter:test"
+IMAGE = "example.com/exporter@sha256:" + "a" * 64
 TEMPLATE = """apiVersion: v1
 kind: ConfigMap
 data:
   config.yml: |
     credential:
-      access_key: "{{ values.secret_id }}"
-      secret_key: "{{ values.secret_key }}"
+      access_key: "{{values.secret_id}}"
+      secret_key: "{{values.secret_key}}"
       region: "{{ values.region }}"
       is_internal: true
     is_international: {{ values.is_international }}
@@ -99,13 +100,8 @@ def sample_config(template, defaults, params):
 @pytest.fixture
 def config(settings, mocker):
     settings.K8S_PLUGIN_COLLECT_CLUSTER_ID = "sample:monitoring"
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS = {
-        IMAGE: {
-            "version": "v0.21.0",
-            "templates": [sha256(TEMPLATE.encode()).hexdigest()],
-            "products": {"QCE/REDIS": []},
-        }
-    }
+    mocker.patch.object(definitions, "LEGACY_TEMPLATE_SHA256", sha256(TEMPLATE.strip().encode()).hexdigest())
+    mocker.patch.object(definitions, "LEGACY_EXPORTER", {"version": "v0.21.0", "products": {"QCE/REDIS": []}})
     config = sample_config(
         TEMPLATE,
         {"rate_limit": 20, "is_international": "false"},
@@ -135,7 +131,7 @@ def detail(**kwargs):
 def test_help_uses_current_repo_for_new_and_existing_configs(config, settings, mocker):
     settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {
         "plugin_display_name": "Sample",
-        "collector_json": {},
+        "collector_json": {"exporter": definitions.LEGACY_EXPORTER},
         "description_md": "old description",
     }
     mocker.patch("monitor_web.plugin.views.resource.commons.get_label_msg", return_value={})
@@ -281,7 +277,7 @@ def test_repeated_edits_cannot_change_legacy_mode(config, stored_edit, upgrade, 
     if marker == "config_mode":
         first["params"]["plugin"][marker] = "configmap"
     else:
-        first["params"][marker] = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0"}
+        first["params"][marker] = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0", "products": {"QCE/REDIS": []}}
     with pytest.raises(CollectConfigParamsError, match=marker):
         handler.perform_request(first)
     second = deepcopy(data)
@@ -298,7 +294,7 @@ def test_repeated_edits_cannot_change_legacy_mode(config, stored_edit, upgrade, 
 def test_malformed_source_cannot_skip_save_or_upgrade(config, stored_edit, upgrade, broken):
     data, save, installer = stored_edit
     source = config.deployment_config
-    runtime = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0"}
+    runtime = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0", "products": {"QCE/REDIS": []}}
     if broken == "mode-only":
         source.params["plugin"]["config_mode"] = "configmap"
     elif broken == "runtime-only":
@@ -395,7 +391,7 @@ def test_new_format_uses_uploaded_content_and_recomputes_preview(config):
     f["content"] = "# user comment\n" + f["content"]
     f["preview"] = {"qcloud_yaml": "obsolete"}
     params["plugin"].update(access_key="", secret_key="sample-secret")
-    params["runtime"] = {"contract": "qcloud-exporter-v0.21.0", "image": IMAGE}
+    params["runtime"] = {"contract": "qcloud-exporter-v0.21.0", "products": {"QCE/REDIS": []}, "image": IMAGE}
     config.deployment_config.params = params
     candidate = {"plugin": {"config_mode": "configmap"}}
     prepare_edit_params(config, candidate)

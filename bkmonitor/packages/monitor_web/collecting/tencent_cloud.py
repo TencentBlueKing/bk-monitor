@@ -396,14 +396,19 @@ npx skills add {url} -g -s bk-tencentcloud-configmap -a '*' -y
 [查看 Skill 仓库]({url})"""
 
 
-def new_form_definition(detail):
-    if settings.TENCENT_CLOUD_EXPORTER_CONTRACTS:
-        detail.update(
-            config_mode="configmap",
-            collector_json={},
-            config_json=configmap_form(),
-            description_md=configmap_description(),
-        )
+def configmap_enabled():
+    return "exporter" in settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG.get("collector_json", {})
+
+
+def new_form_definition(detail, *, editing=False):
+    if not editing and not configmap_enabled():
+        return detail
+    detail.update(
+        config_mode="configmap",
+        collector_json={},
+        config_json=configmap_form(),
+        description_md=configmap_description(),
+    )
     return detail
 
 
@@ -424,38 +429,88 @@ def template_image(template):
         raise LegacyConversionFailed() from None
 
 
+# 旧插件没有 exporter 元数据。只识别已核验的部署模板，忽略凭据占位符内的空格。
+LEGACY_TEMPLATE_SHA256 = "5dd36584170ec9d481258ccff33879c1bc817342d84586482a4b8da93bb4cc1b"
+LEGACY_PIN = (
+    "ccr.ccs.tencentyun.com/rig-agent/qcloud-exporter@sha256:"
+    "44d8b837f1bcdb58e010b0c8d5b643859859f89a07ff1a8ab2879f300b0df2a9"
+)
+LEGACY_EXPORTER = {
+    "version": "v0.21.0",
+    "products": {
+        "QCE/CFS": ["FileSystemId"],
+        "QCE/COS": ["appid", "bucket"],
+        "QCE/REDIS": ["instanceid"],
+        "QCE/REDIS_MEM": ["instanceid"],
+    },
+}
+
+
+def new_collector_definition():
+    definition = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG.get("collector_json", {})
+    if "exporter" not in definition:
+        raise LegacyConversionFailed()
+    return definition
+
+
 def resolve_contract(collector_json, runtime=None):
-    """只读识别已登记镜像。历史模板只接受唯一的静态 image，不执行用户输入或模板。"""
+    """新建使用平台插件定义，编辑使用部署快照，旧表单只接受已核验模板。"""
     if runtime is not None:
         if not isinstance(runtime, dict):
             raise LegacyConversionFailed()
+        version = runtime.get("contract", "")
+        if not isinstance(version, str) or not version.startswith("qcloud-exporter-"):
+            raise LegacyConversionFailed()
         image = runtime.get("image")
+        if not isinstance(image, str) or not re.fullmatch(r"[^@\s]+@sha256:[0-9a-f]{64}", image):
+            raise LegacyConversionFailed()
+        if "products" in runtime:
+            contract = {"version": version.removeprefix("qcloud-exporter-"), "products": runtime["products"]}
+        else:
+            # 早期 ConfigMap 快照只冻结了镜像、版本和配额。仅从匹配的已知镜像恢复产品规则。
+            if image == LEGACY_PIN:
+                contract = LEGACY_EXPORTER
+            else:
+                definition = new_collector_definition()
+                if image != template_image(definition.get("template")):
+                    raise LegacyConversionFailed()
+                contract = definition.get("exporter")
+            if not isinstance(contract, dict) or version != f"qcloud-exporter-{contract.get('version')}":
+                raise LegacyConversionFailed()
+    elif "exporter" in collector_json:
+        contract = collector_json["exporter"]
+        definition = new_collector_definition()
+        # 外部上传的插件不能自行声明兼容性并替换将接收凭据的 exporter。
+        image = template_image(collector_json.get("template"))
+        if (
+            contract != definition.get("exporter")
+            or collector_json.get("template", "").strip() != definition.get("template", "").strip()
+            or not isinstance(image, str)
+            or not re.fullmatch(r"[^@\s]+@sha256:[0-9a-f]{64}", image)
+        ):
+            raise LegacyConversionFailed()
     else:
-        template = collector_json.get("template", "")
-        image = template_image(template)
-    if not isinstance(image, str):
-        raise LegacyConversionFailed()
-    contract = settings.TENCENT_CLOUD_EXPORTER_CONTRACTS.get(image)
+        template = collector_json.get("template")
+        if not isinstance(template, str):
+            raise LegacyConversionFailed()
+        normalized = re.sub(r"{{ *values\.(secret_id|secret_key) *}}", r"{{values.\1}}", template.strip())
+        if sha256(normalized.encode()).hexdigest() != LEGACY_TEMPLATE_SHA256:
+            raise LegacyConversionFailed()
+        contract = LEGACY_EXPORTER
     if (
         not isinstance(contract, dict)
         or contract.get("version") not in ("v0.21.0", "v0.22.4")
         or not isinstance(contract.get("products"), dict)
         or not contract["products"]
+        or any(
+            not isinstance(namespace, str)
+            or not isinstance(dimensions, list)
+            or any(not isinstance(dimension, str) for dimension in dimensions)
+            for namespace, dimensions in contract["products"].items()
+        )
     ):
         raise LegacyConversionFailed()
-    if any(
-        not isinstance(namespace, str)
-        or not isinstance(dimensions, list)
-        or any(not isinstance(dimension, str) for dimension in dimensions)
-        for namespace, dimensions in contract["products"].items()
-    ):
-        raise LegacyConversionFailed()
-    if runtime is None and sha256(template.encode("utf-8")).hexdigest() not in contract.get("templates", []):
-        # 不能只凭模板中某一行出现已知镜像，就将任意历史模板认作已核验契约。
-        raise LegacyConversionFailed()
-    if runtime is not None and runtime.get("contract") != f"qcloud-exporter-{contract['version']}":
-        raise LegacyConversionFailed()
-    return deepcopy(contract)
+    return contract
 
 
 def file_contains_credential(file, preview, credentials):

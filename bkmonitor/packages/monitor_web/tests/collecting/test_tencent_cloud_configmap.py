@@ -1,5 +1,4 @@
 from copy import deepcopy
-from hashlib import sha256
 from types import SimpleNamespace
 
 import pytest
@@ -227,10 +226,9 @@ def test_new_contract_fields(config):
 
 @pytest.fixture
 def request_data(config, settings):
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS = {
-        IMAGE: {**CONTRACT, "templates": [sha256(f"image: {IMAGE}".encode()).hexdigest()]}
+    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {
+        "collector_json": {"template": f"image: {IMAGE}", "exporter": CONTRACT}
     }
-    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {"collector_json": {"template": f"image: {IMAGE}"}}
     return {
         "bk_biz_id": 2,
         "params": {
@@ -279,9 +277,6 @@ def test_edit_checks_version_tenant_and_readonly(request_data, mocker, settings)
 
 
 def test_unknown_image_fails_closed(settings):
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS = {
-        IMAGE: {**CONTRACT, "templates": [sha256(f"image: {IMAGE}".encode()).hexdigest()]}
-    }
     for template in ("image: unknown", "image: {{ values.image }}", "", "image: a\nimage: b"):
         with pytest.raises(LegacyConversionFailed):
             api.resolve_contract({"template": template})
@@ -371,7 +366,7 @@ def test_known_image_in_unknown_template_is_not_trusted(request_data, settings):
 
 def test_live_source_contract_wins_over_global(request_data, mocker, settings):
     request_data.update(id=10, deployment_id=20)
-    runtime = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0"}
+    runtime = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0", "products": CONTRACT["products"]}
     source = SimpleNamespace(
         params={"runtime": runtime}, plugin_version=SimpleNamespace(config=SimpleNamespace(collector_json={}))
     )
@@ -379,7 +374,7 @@ def test_live_source_contract_wins_over_global(request_data, mocker, settings):
     mocker.patch.object(api.CollectConfigMeta.objects, "select_related").return_value.get.return_value = meta
     settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {"collector_json": {"template": "image: unknown"}}
     assert api.ValidateTencentCloudConfigmapResource().request(request_data)["valid"]
-    assert runtime == {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0"}
+    assert runtime["products"] == CONTRACT["products"]
 
 
 def test_edit_not_found_does_not_resolve_or_validate(request_data, mocker):

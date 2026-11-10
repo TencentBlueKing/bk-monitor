@@ -35,7 +35,9 @@ from monitor_web.collecting.tencent_cloud import (
     ConfigLoader,
     configmap_description,
     new_form_definition,
+    configmap_enabled,
     load_yaml,
+    new_collector_definition,
     resolve_contract,
     file_contains_credential,
     is_qcloud_plugin,
@@ -98,11 +100,11 @@ def form_detail(config, params_format):
     if params_format == "configmap" or "runtime" in config.deployment_config.params:
         params = configmap_projection(config)
         info = config.deployment_config.plugin_version.get_plugin_version_detail()
-        new_form_definition(info)
+        new_form_definition(info, editing=True)
         return params, info
 
     params, info = stored_detail(config)
-    if settings.TENCENT_CLOUD_EXPORTER_CONTRACTS:
+    if configmap_enabled():
         info["description_md"] = configmap_description()
     credential_fields = ("secret_id", "access_key", "secret_key")
     source = config.deployment_config
@@ -406,6 +408,6 @@ class ValidateTencentCloudConfigmapResource(Resource):
             source = config.deployment_config
             contract = resolve_contract(source.plugin_version.config.collector_json, source.params.get("runtime"))
         else:
-            contract = resolve_contract(settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG.get("collector_json", {}))
+            contract = resolve_contract(new_collector_definition())
         params = data["params"]
         return validate_files(params["plugin"]["configmaps"], params["collector"], contract)
