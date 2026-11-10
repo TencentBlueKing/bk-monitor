@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 from django.core.management import BaseCommand, CommandError
 
-from bkmonitor.utils.tenant import set_local_tenant_id
+from bkmonitor.utils.tenant import get_local_tenant_id, set_local_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
@@ -72,7 +72,12 @@ class Command(BaseCommand):
         last_workflow_ids = dict(policies.values_list("id", "last_workflow_id"))
 
         if options.get("refresh"):
-            self._refresh(bk_tenant_id=bk_tenant_id, scene=scene)
+            origin_tenant_id = get_local_tenant_id()
+            try:
+                self._refresh(bk_tenant_id=bk_tenant_id, scene=scene)
+            finally:
+                # 刷新过程会切换线程内租户，结束后恢复，避免影响同进程后续逻辑
+                set_local_tenant_id(origin_tenant_id)
 
         success, failed = 0, 0
         for policy in policies.filter(deploy_policy_id__isnull=False).order_by("id"):
@@ -109,7 +114,7 @@ class Command(BaseCommand):
         from apm.models import ApmApplication
         from apm.task.tasks import refresh_apm_application_config
         from metadata.models import CustomReportSubscription, LogGroup, LogSubscriptionConfig
-        from metadata.task.ping_server import refresh_ping_server_2_node_man
+        from metadata.task.ping_server import refresh_ping_conf
 
         tenant_ids = [bk_tenant_id] if bk_tenant_id else [tenant["id"] for tenant in api.bk_login.list_tenant()]
 
@@ -153,9 +158,14 @@ class Command(BaseCommand):
                 )
 
         if need(BkCollectorDeployScene.PING_SERVER):
-            # PingServer 按 CMDB 主机缓存遍历全部租户，不支持按租户过滤
-            set_local_tenant_id(DEFAULT_TENANT_ID)
-            self._run("ping_server all tenants", refresh_ping_server_2_node_man)
+            # 指定租户时只遍历该租户的主机，避免改动其他租户的 PingServer 策略
+            set_local_tenant_id(bk_tenant_id or DEFAULT_TENANT_ID)
+            self._run(
+                f"ping_server {bk_tenant_id or 'all tenants'}",
+                refresh_ping_conf,
+                BkCollectorDeployPolicy.PLUGIN_NAME,
+                bk_tenant_id=bk_tenant_id,
+            )
 
     def _run(self, name: str, func: Callable, *args, **kwargs):
         # 各场景内部会自行记录单个资源的异常，这里只兜底整体失败，最终结果以策略记录为准

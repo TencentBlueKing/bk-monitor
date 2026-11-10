@@ -133,6 +133,60 @@ def test_deploy_updates_when_context_or_hosts_change(nodeman_v3):
     assert nodeman_v3["execute_deploy_policy"].call_count == 3
 
 
+def test_deploy_keeps_last_scopes_when_deployed_host_temporarily_missing(nodeman_v3):
+    """期望仍是两台，但节点管理暂时只查到一台：保留上次范围，不能让节点管理删掉缺失主机上的子配置"""
+    _deploy(host_ids=(101, 102))
+
+    BkCollectorDeployPolicy._host_biz_cache.clear()
+    with mock.patch.dict(HOST_BIZ):
+        del HOST_BIZ[102]
+        assert _deploy(context={"token": "y"}, host_ids=(101, 102)) == 9001
+
+    nodeman_v3["update_deploy_policy"].assert_not_called()
+    assert nodeman_v3["execute_deploy_policy"].call_count == 1
+    record = BkCollectorDeployPolicy.objects.get(scene=BkCollectorDeployScene.APM_PLATFORM)
+    assert record.bk_host_ids == [101, 102]
+
+    # 主机重新查到后，本轮变更正常下发
+    BkCollectorDeployPolicy._host_biz_cache.clear()
+    _deploy(context={"token": "y"}, host_ids=(101, 102))
+    policy = nodeman_v3["update_deploy_policy"].call_args.kwargs["deploy_policies"][0]
+    assert policy["scopes"] == [
+        {"type": "instance", "scope": {"granularity": "host", "bk_biz_id": 2, "instance_ids": [101, 102]}}
+    ]
+    assert policy["specs"][0]["param"]["custom_config_context"] == {"token": "y"}
+
+
+def test_deploy_shrinks_when_target_hosts_explicitly_reduced(nodeman_v3):
+    """业务明确把目标从两台减为一台：正常收缩范围"""
+    _deploy(host_ids=(101, 102))
+
+    BkCollectorDeployPolicy._host_biz_cache.clear()
+    _deploy(host_ids=(101,))
+
+    policy = nodeman_v3["update_deploy_policy"].call_args.kwargs["deploy_policies"][0]
+    assert policy["scopes"] == [
+        {"type": "instance", "scope": {"granularity": "host", "bk_biz_id": 2, "instance_ids": [101]}}
+    ]
+    record = BkCollectorDeployPolicy.objects.get(scene=BkCollectorDeployScene.APM_PLATFORM)
+    assert record.bk_host_ids == [101]
+
+
+def test_deploy_records_only_resolved_hosts_for_new_unresolved_host(nodeman_v3):
+    """从未下发过的主机查不到时先下发可解析主机，本地只记录实际下发的主机"""
+    assert _deploy(host_ids=(101, 999)) == 9001
+
+    assert nodeman_v3["create_deploy_policy"].call_args.kwargs["scopes"] == [
+        {"type": "instance", "scope": {"granularity": "host", "bk_biz_id": 2, "instance_ids": [101]}}
+    ]
+    record = BkCollectorDeployPolicy.objects.get(scene=BkCollectorDeployScene.APM_PLATFORM)
+    assert record.bk_host_ids == [101]
+
+    # 999 仍查不到，不会被当作已下发主机丢失而阻塞，也不会重复变更
+    _deploy(host_ids=(101, 999))
+    nodeman_v3["update_deploy_policy"].assert_not_called()
+
+
 def test_deploy_recovers_existing_policy_by_name(nodeman_v3):
     nodeman_v3["list_deploy_policies"].return_value = {
         "total": 1,
@@ -320,7 +374,7 @@ def refresh_entries():
             "custom_report": stack.enter_context(
                 mock.patch.object(CustomReportSubscription, "refresh_collector_custom_conf")
             ),
-            "ping_server": stack.enter_context(mock.patch("metadata.task.ping_server.refresh_ping_server_2_node_man")),
+            "ping_server": stack.enter_context(mock.patch("metadata.task.ping_server.refresh_ping_conf")),
         }
 
 
@@ -344,7 +398,7 @@ def test_command_refresh_runs_scenes_and_only_executes_unchanged_policies(nodema
 
     refresh_entries["platform"].assert_called_once_with(TENANT)
     refresh_entries["custom_report"].assert_called_once_with(bk_tenant_id=TENANT, deploy_targets=("node_man",))
-    refresh_entries["ping_server"].assert_called_once_with()
+    refresh_entries["ping_server"].assert_called_once_with("bk-collector", bk_tenant_id=None)
     # 刷新中已执行（refreshed）和新建（custom_report）的策略不重复执行，只补执行未变化的策略
     nodeman_v3["execute_deploy_policy"].assert_called_once_with(bk_tenant_id=TENANT, deploy_policy_id=1)
     unchanged.refresh_from_db()
@@ -378,3 +432,67 @@ def test_command_refuses_when_v3_disabled(nodeman_v3):
     with override_settings(ENABLE_BK_COLLECTOR_NODEMAN_V3=False), pytest.raises(CommandError):
         call_command("execute_bk_collector_deploy_policies", "--refresh")
     nodeman_v3["execute_deploy_policy"].assert_not_called()
+
+
+def test_command_refresh_ping_server_only_touches_given_tenant(nodeman_v3):
+    """指定租户 A 刷新 PingServer 时，不能创建、更新或撤回租户 B 的策略"""
+    from django.core.management import call_command
+
+    from api.cmdb.define import Host
+    from metadata.task.ping_server import refresh_ping_conf
+
+    def host(bk_host_id, bk_biz_id, ip):
+        return Host({"bk_host_id": bk_host_id, "bk_biz_id": bk_biz_id, "bk_cloud_id": 0, "bk_host_innerip": ip})
+
+    tenant_hosts = {"tenant_a": [host(1, 2, "127.0.0.1")], "tenant_b": [host(2, 3, "127.0.0.2")]}
+    # 租户 B 已有一条策略，刷新 A 时不能被改动
+    tenant_b_policy = BkCollectorDeployPolicy.objects.create(
+        bk_tenant_id="tenant_b",
+        scene=BkCollectorDeployScene.PING_SERVER,
+        resource_key="biz3-cloud0-host2",
+        policy_name="bkmonitor-collector-ping_server-biz3-cloud0-host2",
+        deploy_policy_id=88,
+        last_workflow_id="wf-b",
+    )
+
+    def refresh_by_cloud(bk_tenant_id, bk_cloud_id, plugin_name, target_ips):
+        # 模拟按云区域下发：为传入租户写一条策略
+        BkCollectorDeployPolicy.objects.update_or_create(
+            bk_tenant_id=bk_tenant_id,
+            scene=BkCollectorDeployScene.PING_SERVER,
+            resource_key=f"cloud{bk_cloud_id}-{bk_tenant_id}",
+            defaults={"policy_name": f"ping-{bk_tenant_id}", "deploy_policy_id": 99, "last_workflow_id": "wf-new"},
+        )
+
+    with (
+        override_settings(ENABLE_PING_ALARM=True),
+        mock.patch.object(
+            api.bk_login, "list_tenant", return_value=[{"id": "tenant_a"}, {"id": "tenant_b"}]
+        ) as list_tenant,
+        mock.patch(
+            "alarm_backends.core.cache.cmdb.host.HostManager.all",
+            side_effect=lambda bk_tenant_id: tenant_hosts[bk_tenant_id],
+        ) as all_hosts,
+        mock.patch("metadata.task.ping_server._refresh_ping_conf_by_cloud_id", side_effect=refresh_by_cloud),
+    ):
+        call_command(
+            "execute_bk_collector_deploy_policies",
+            "--refresh",
+            "--scene",
+            BkCollectorDeployScene.PING_SERVER,
+            "--bk_tenant_id",
+            "tenant_a",
+        )
+
+        list_tenant.assert_not_called()
+        assert [c.kwargs["bk_tenant_id"] for c in all_hosts.call_args_list] == ["tenant_a"]
+        assert set(BkCollectorDeployPolicy.objects.values_list("bk_tenant_id", flat=True)) == {"tenant_a", "tenant_b"}
+        assert BkCollectorDeployPolicy.objects.filter(bk_tenant_id="tenant_b").count() == 1
+        tenant_b_policy.refresh_from_db()
+        assert tenant_b_policy.last_workflow_id == "wf-b"
+        nodeman_v3["execute_deploy_policy"].assert_not_called()
+
+        # 定时任务不传租户，仍遍历全部租户
+        all_hosts.reset_mock()
+        refresh_ping_conf("bk-collector")
+        assert [c.kwargs["bk_tenant_id"] for c in all_hosts.call_args_list] == ["tenant_a", "tenant_b"]

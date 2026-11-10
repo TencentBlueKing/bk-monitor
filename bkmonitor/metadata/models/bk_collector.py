@@ -100,6 +100,8 @@ class BkCollectorDeployPolicy(models.Model):
         按 V2 订阅同样的目标主机与上下文，声明一份 bk-collector 子配置
 
         目标主机为空时与 V2 一致直接跳过，不清空已下发配置，避免主机查询抖动导致配置被删除。
+        已下发过的主机本轮在节点管理中查不到时（如主机同步延迟），保留上次下发范围不变更，
+        避免节点管理删除这些主机上的子配置；业务明确移除的主机仍正常收缩。
         失败直接抛出，由调用方记录日志，不回退 V2。
         """
         host_ids = sorted({int(host_id) for host_id in bk_host_ids if host_id})
@@ -122,11 +124,33 @@ class BkCollectorDeployPolicy(models.Model):
 
         specs = cls._build_specs(template_name, context)
         scopes = cls._build_scopes(bk_tenant_id, host_ids)
-        if not scopes:
+        resolved_host_ids = sorted(host_id for scope in scopes for host_id in scope["scope"]["instance_ids"])
+        if not resolved_host_ids:
             # 目标主机在节点管理 V3 中都查不到（如主机同步延迟），本轮不变更，避免清空已下发的配置
             logger.warning("[bk-collector-v3] skip %s(%s), no target hosts found in nodeman", scene, resource_key)
             return record.deploy_policy_id
-        return record._apply(specs=specs, scopes=scopes, bk_host_ids=host_ids)
+
+        missing_host_ids = sorted(set(host_ids) - set(resolved_host_ids))
+        if missing_host_ids:
+            # 仍期望但本轮查不到的已下发主机：缩小范围会删除其子配置，保留上次有效范围，待下一轮查到后再更新
+            lost_host_ids = sorted(set(missing_host_ids) & set(record.bk_host_ids or []))
+            if record.deploy_policy_id and lost_host_ids:
+                logger.warning(
+                    "[bk-collector-v3] keep last scopes of %s(%s), deployed hosts not found in nodeman: %s",
+                    scene,
+                    resource_key,
+                    lost_host_ids,
+                )
+                return record.deploy_policy_id
+            # 从未下发过的主机查不到时无法下发，先下发可解析的主机
+            logger.warning(
+                "[bk-collector-v3] %s(%s) skip new hosts not found in nodeman: %s",
+                scene,
+                resource_key,
+                missing_host_ids,
+            )
+        # bk_host_ids 记录实际下发的主机，作为下一轮判断「已下发主机丢失」的依据
+        return record._apply(specs=specs, scopes=scopes, bk_host_ids=resolved_host_ids)
 
     def withdraw(self) -> int | None:
         """清空下发范围，节点管理执行后会删除各主机上由该策略生成的子配置。"""
