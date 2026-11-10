@@ -160,6 +160,7 @@
 
 <script>
   import { random, downJsonFile } from '@/common/util';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
 
@@ -388,6 +389,7 @@
           // 更新本地显示字段状态
           this.$store.commit('resetVisibleFields', currentVisibleList);
           this.$store.commit('updateIsSetDefaultTableColumn');
+          RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
         } catch (error) {
           console.warn(error);
         } finally {
