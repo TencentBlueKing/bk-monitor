@@ -173,7 +173,7 @@
           >
             {{ $t('确定') }}
           </Button>
-          <Button
+          <Button theme="default"
             size="small"
             @click="cancel"
           >

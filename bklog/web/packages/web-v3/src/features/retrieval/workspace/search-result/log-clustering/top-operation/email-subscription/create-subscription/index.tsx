@@ -156,7 +156,7 @@ export default defineComponent({
                   >
                     {t('测试发送')}
                   </TButton>
-                  <TButton
+                  <TButton theme="default"
                     style='width: 88px;'
                     onClick={() => emit('change', false)}
                   >

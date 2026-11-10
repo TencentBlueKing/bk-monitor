@@ -225,7 +225,7 @@ export default defineComponent({
             >
               {$t('确认')}
             </TButton>
-            <TButton
+            <TButton theme="default"
               size='small'
               theme='default'
               onClick={handlePopoverHide}

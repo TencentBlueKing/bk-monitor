@@ -464,7 +464,7 @@ export default defineComponent({
                         >
                           {t('提交')}
                         </TButton>
-                        <TButton
+                        <TButton theme="default"
                           data-test-id='formContainer_button_handleCancel'
                           onClick={handleCancel}
                         >

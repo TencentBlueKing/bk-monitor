@@ -374,7 +374,7 @@ export default class ClusterPopover extends tsc<IProps> {
               >
                 {$i18n.t('确认提取')}
               </TButton>
-              <TButton
+              <TButton theme="default"
                 size='small'
                 onClick={this.handleCancelOccupy}
               >

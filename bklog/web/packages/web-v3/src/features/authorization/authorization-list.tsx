@@ -994,7 +994,7 @@ export default class AuthorizationList extends tsc<object> {
                 >
                   {this.$t('确定')}
                 </Button>
-                <Button
+                <Button theme="default"
                   class='member-btn'
                   {...({ title: 'primary' } satisfies import('vue').HTMLAttributes)}
                   

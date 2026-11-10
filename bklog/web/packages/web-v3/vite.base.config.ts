@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, watchFile } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import vue from '@vitejs/plugin-vue';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin, type ProxyOptions, type ViteDevServer } from 'vite';
 
 const require = createRequire(import.meta.url);
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const { loadLocalEnv, devProxyUrl, allowedHosts } = require(resolve(webRoot, 'dev-env.js'));
+const { loadLocalEnv, reloadLocalEnv, devProxyUrl, allowedHosts } = require(resolve(webRoot, 'dev-env.js'));
 const settingsFile = resolve(webRoot, 'packages/web-v2/local.settings.js');
 loadLocalEnv(resolve(webRoot, '.env.local'));
 
@@ -77,8 +77,67 @@ const proxy = Object.fromEntries(
 );
 console.info(`[web-v3] /api 代理目标${proxyTarget ? '已配置' : '未配置'}，登录头${proxyHeaders?.Cookie ? '已从 .cookie 加载' : '缺失'}`);
 
+const envFile = resolve(webRoot, '.env.local');
+const cookieFile = resolve(webRoot, '.cookie');
+let devServer: ViteDevServer | undefined;
+let localFileWatchStarted = false;
+
+function readCookieFile() {
+  if (!existsSync(cookieFile)) return '';
+  return readFileSync(cookieFile, 'utf8').trim();
+}
+
+function applyProxyCookie(server: ViteDevServer, cookie: string) {
+  const rules = server.config.server.proxy;
+  if (!rules) return;
+  for (const rule of Object.values(rules)) {
+    if (!rule || typeof rule === 'string') continue;
+    const headers = (rule as ProxyOptions).headers;
+    if (headers) headers.Cookie = cookie;
+  }
+}
+
+function watchDevLocalFiles(): Plugin {
+  return {
+    name: 'bklog-dev-local-files',
+    apply: 'serve',
+    configureServer(server) {
+      devServer = server;
+      if (localFileWatchStarted) return;
+      localFileWatchStarted = true;
+
+      const watch = (file: string, onChange: () => void) => {
+        watchFile(file, { interval: 300 }, (current, previous) => {
+          if (current.mtimeMs === previous.mtimeMs && current.size === previous.size) return;
+          onChange();
+        });
+      };
+
+      watch(cookieFile, () => {
+        if (!devServer) return;
+        const cookie = readCookieFile();
+        applyProxyCookie(devServer, cookie);
+        devServer.config.logger.info(
+          `[web-v3] .cookie 已更新，代理登录头${cookie ? '已热更新' : '已清空'}`,
+        );
+      });
+
+      let envTimer: ReturnType<typeof setTimeout> | undefined;
+      watch(envFile, () => {
+        if (envTimer) clearTimeout(envTimer);
+        envTimer = setTimeout(() => {
+          reloadLocalEnv(envFile);
+          delete require.cache[settingsFile];
+          devServer?.config.logger.info('[web-v3] .env.local 已更新，正在热重启开发服务');
+          devServer?.restart();
+        }, 200);
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), watchDevLocalFiles()],
   server: {
     host: '0.0.0.0',
     port: 4173,

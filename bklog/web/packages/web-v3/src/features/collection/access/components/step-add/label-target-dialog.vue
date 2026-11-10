@@ -169,7 +169,7 @@
         >
           {{ $t('确定') }}
         </t-button>
-        <t-button @click="handelCancelDialog">
+        <t-button theme="default" @click="handelCancelDialog">
           {{ $t('取消') }}
         </t-button>
       </div>

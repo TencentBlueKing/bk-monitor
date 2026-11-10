@@ -1,3 +1,21 @@
+// V2 dialog footer buttons: 64×32, 14px, padding 0 15px, adjacent gap 10px (mr10).
+@mixin bklog-dialog-footer-buttons {
+  .t-button {
+    box-sizing: border-box;
+    min-width: 64px;
+    height: 32px;
+    margin-right: 0;
+    padding: 0 15px;
+    font-size: 14px;
+    line-height: 30px;
+    border-radius: 2px;
+  }
+
+  .t-button + .t-button {
+    margin-left: 10px;
+  }
+}
+
 // V2 business theme: theme.scss and bk-magic-vue/lib/ui/{button,input,loading}.css.
 // Higher specificity than TDesign's :root defaults keeps lazy-loaded CSS from
 // resetting the palette. Existing dark-mode variables remain independent.
@@ -69,6 +87,63 @@
       color: #c4c6cc;
       background-color: #faf9fd;
       border-color: #dcdee5;
+    }
+  }
+
+  // V2 bk-dialog-footer：灰底顶栏，确定在左、取消在右。
+  .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
+    margin: 0 -32px -32px;
+    padding: 7px 24px;
+    text-align: right;
+    background: #fafbfd;
+    border-top: 1px solid #dcdee5;
+
+    @include bklog-dialog-footer-buttons;
+
+    > div:has(.t-dialog__cancel) {
+      display: inline-flex;
+      flex-direction: row-reverse;
+      gap: 10px;
+
+      .t-button + .t-button {
+        margin-left: 0;
+      }
+    }
+  }
+
+  // 字段显示等自定义页脚不在 .t-dialog__footer 里，按钮尺寸和间距与弹窗页脚保持一致。
+  .fields-button-container {
+    @include bklog-dialog-footer-buttons;
+  }
+
+  .multiline-reg-dialog-box .t-dialog__footer {
+    margin: 0;
+  }
+
+  // V2 bk-sideslider 页脚同样右对齐，确定在前、取消在后。
+  .t-drawer__footer {
+    padding: 7px 24px;
+    text-align: right;
+    background: #fafbfd;
+    border-top: 1px solid #dcdee5;
+
+    @include bklog-dialog-footer-buttons;
+  }
+
+  // V2 bk-popconfirm：确定在左，取消在右，小号按钮。
+  .t-popconfirm__buttons {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 8px;
+    text-align: right;
+
+    .t-button {
+      min-width: 64px;
+      height: 26px;
+      padding: 0 12px;
+      font-size: 12px;
+      line-height: 24px;
     }
   }
 }

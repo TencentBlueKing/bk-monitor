@@ -246,7 +246,7 @@ export default defineComponent({
                   >
                     {isRuleCorrect.value ? t('保存') : t('检测语法')}
                   </TButton>
-                  <TButton onClick={handleClickCancel}>{t('取消')}</TButton>
+                  <TButton theme="default" onClick={handleClickCancel}>{t('取消')}</TButton>
                 </div>
               </div>
             </div>

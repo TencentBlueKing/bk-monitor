@@ -7,6 +7,9 @@
   import { normalizeSearchTotal } from '@/platform/persistence/utils/normalize-search-total';
   import { throttle } from 'lodash-es';
 
+  import { acquireRetrieveLoading } from '@/features/retrieval/loading-queue';
+  import { useRetrieveLoadingPaint } from '@/features/retrieval/use-retrieve-loading-queue';
+
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
   import LogResult from './log-result/index';
@@ -64,6 +67,17 @@
   );
   const shouldRenderTrendChart = ref(false);
   const isTrendChartPending = ref(!shouldRenderTrendChart.value);
+  const showTrendSkeleton = useRetrieveLoadingPaint('trend');
+  let releaseTrendLoading = null;
+
+  const syncTrendLoading = pending => {
+    if (pending) {
+      releaseTrendLoading ??= acquireRetrieveLoading('trend');
+      return;
+    }
+    releaseTrendLoading?.();
+    releaseTrendLoading = null;
+  };
 
   const setTrendChartPending = () => {
     if (!isOriginShow.value) {
@@ -115,7 +129,9 @@
   watch(
     [isTrendChartPending, shouldRenderTrendChart],
     () => {
-      store.commit('retrieve/updateTrendShellPending', isTrendChartPending.value || !shouldRenderTrendChart.value);
+      const pending = isTrendChartPending.value || !shouldRenderTrendChart.value;
+      syncTrendLoading(pending);
+      store.commit('retrieve/updateTrendShellPending', pending);
     },
     { immediate: true },
   );
@@ -133,6 +149,8 @@
   });
 
   onBeforeUnmount(() => {
+    releaseTrendLoading?.();
+    releaseTrendLoading = null;
     RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
   });
 
@@ -275,7 +293,7 @@
               @trend-ready="handleTrendReady"
             />
             <div
-              v-if="isTrendChartPending || !shouldRenderTrendChart"
+              v-if="showTrendSkeleton"
               class="trend-chart-skeleton"
               aria-hidden="true"
             >

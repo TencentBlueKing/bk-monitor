@@ -786,7 +786,7 @@ export default defineComponent({
             >
               {t('停用')}
             </TButton>
-            <TButton
+            <TButton theme="default"
               onClick={() => {
                 emit('change', false);
               }}

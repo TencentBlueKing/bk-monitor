@@ -137,7 +137,7 @@ export default defineComponent({
                 >
                   确认
                 </TButton>
-                <TButton
+                <TButton theme="default"
                   class='btn-cancel'
                   onClick={() => handleDialogValueChange(false)}
                 >

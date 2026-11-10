@@ -194,7 +194,7 @@
       </BklogLoading>
       <template #footer>
         <t-button theme="primary" @click="handleClickSubmit">{{ $t('下载') }}</t-button>
-        <t-button @click="isShowExportDialog = false">{{ $t('取消') }}</t-button>
+        <t-button theme="default" @click="isShowExportDialog = false">{{ $t('取消') }}</t-button>
       </template>
     </TDialog>
   </div>

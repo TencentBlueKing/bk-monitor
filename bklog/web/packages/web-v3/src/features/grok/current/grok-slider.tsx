@@ -437,7 +437,7 @@ export default defineComponent({
                   {/* 底部按钮 */}
                   <bk-form-item class='slider-footer'>
                     {renderSubmitButton()}
-                    <TButton onClick={handleCancel}>{t('取消')}</TButton>
+                    <TButton theme="default" onClick={handleCancel}>{t('取消')}</TButton>
                   </bk-form-item>
                 </bk-form>
               </BklogLoading>

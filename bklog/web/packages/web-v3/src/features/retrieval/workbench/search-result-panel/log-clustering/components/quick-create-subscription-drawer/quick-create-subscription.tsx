@@ -144,7 +144,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                   </TButton>
                   {/* 20240305 若默认测试发送只给自己，那么没必要再出一次气泡窗选择了 */}
                   {false}
-                  <TButton
+                  <TButton theme="default"
                     style='width: 88px;'
                     onClick={() => this.$emit('change', false)}
                   >

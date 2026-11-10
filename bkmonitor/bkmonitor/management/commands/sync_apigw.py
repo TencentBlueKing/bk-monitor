@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import subprocess
+import sys
 
 from django.conf import settings
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
@@ -24,16 +25,14 @@ class Command(BaseCommand):
         merge_resources_path = f"{settings.BASE_DIR}/support-files/apigw/scripts/merge_resources.py"
         try:
             result = subprocess.run(
-                ["python", merge_resources_path],
+                [sys.executable, merge_resources_path],
                 capture_output=True,
                 text=True,
                 check=True,
             )
             self.stdout.write(result.stdout)
         except subprocess.CalledProcessError as e:
-            self.stdout.write(self.style.ERROR(f"合并 resources 目录下的所有 yaml 文件失败: {e}"))
-            self.stdout.write(e.stderr)
-            return
+            raise CommandError(f"合并 resources 目录下的所有 yaml 文件失败: {e.stderr}") from e
 
         # 待同步网关名，需修改为实际网关名；直接指定网关名，则不需要配置 Django settings BK_APIGW_NAME
         gateway_name = "bk-monitor"
@@ -57,5 +56,7 @@ class Command(BaseCommand):
             f"--file={definition_path}",
             f"--stage={settings.APIGW_STAGE}",
         )
+        # MCP 工具必须来自该环境已生效的资源版本，需在发布成功后同步。
+        call_command("sync_apigw_stage_mcp_servers", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("grant_apigw_permissions", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("fetch_apigw_public_key", f"--gateway-name={gateway_name}")

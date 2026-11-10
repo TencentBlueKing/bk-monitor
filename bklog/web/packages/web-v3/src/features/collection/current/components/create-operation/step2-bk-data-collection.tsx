@@ -957,7 +957,7 @@ export default defineComponent({
             {t('提交')}
           </TButton>
           {/* 取消按钮 */}
-          <TButton onClick={handleClose}>{t('取消')}</TButton>
+          <TButton theme="default" onClick={handleClose}>{t('取消')}</TButton>
         </div>
 
         {/* 索引选择对话框 */}

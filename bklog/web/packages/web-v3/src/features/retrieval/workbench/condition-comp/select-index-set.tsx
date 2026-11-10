@@ -1154,7 +1154,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
                       >
                         {this.$t('确认收藏')}
                       </TButton>
-                      <TButton
+                      <TButton theme="default"
                         
                         onClick={() => this.handleClickFavoritePopoverBtn('cancel')} variant={(true) ? 'text' : ('base')}
                       >

@@ -37,6 +37,7 @@ import BklogPopover from '@/shared/ui/bklog-popover/index';
 import GradeOption from '@/features/charts/components/grade-option';
 import useLocale from '@/shared/composables/use-locale';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
+import { useRetrieveLoadingCovered } from '@/features/retrieval/use-retrieve-loading-queue';
 import useStore from '@/shared/composables/use-store';
 import useTrendChart from '@/shared/composables/use-trend-chart';
 import { formatAdditionalFields, getCommonFilterAddition } from '@/app/state/helper';
@@ -93,7 +94,9 @@ export default defineComponent({
     let runningTimer: ReturnType<typeof setTimeout> | null = null;
 
     const isCurrentTrendLoad = (seq: number) => seq === trendLoadSeq;
+    const trendLoadingCovered = useRetrieveLoadingCovered('trend');
     const isLoading = computed(() => trendStatus.value === 'loading' || trendStatus.value === 'polling');
+    const showTrendSpinner = computed(() => isLoading.value && !trendLoadingCovered.value);
     const showEmpty = computed(() => trendStatus.value === 'empty');
     const finishPolling = computed(() => trendStatus.value === 'ready' || trendStatus.value === 'empty');
 
@@ -676,12 +679,12 @@ export default defineComponent({
         {/* 标题部分 */}
         <div class='title-wrapper'>
           {chartTitleContent()}
-          {isLoading.value && !isFold.value && <TLoading class='chart-spin' />}
+          {showTrendSpinner.value && !isFold.value && <TLoading class='chart-spin' />}
         </div>
         {/* 图表部分：loading/polling 不展示空态；empty 为唯一空态终态 */}
         <div
           class='echart-wrapper'
-          v-loading={{ loading: trendStatus.value === 'loading', size: 'small' }}
+          v-loading={{ loading: trendStatus.value === 'loading' && !trendLoadingCovered.value, size: 'small' }}
           v-show={!isFold.value}
         >
           {showEmpty.value ? (
