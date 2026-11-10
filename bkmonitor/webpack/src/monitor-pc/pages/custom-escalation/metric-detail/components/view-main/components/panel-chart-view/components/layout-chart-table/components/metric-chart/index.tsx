@@ -61,6 +61,7 @@ import {
 } from '../../../../../../../../utils';
 
 import type { IMetricAnalysisConfig } from '../../../../../../../../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IChartTitleMenuEvents } from 'monitor-ui/chart-plugins/components/chart-title/chart-title-menu';
 import type {
   DataQuery,
@@ -482,6 +483,10 @@ class NewMetricChart extends CommonSimpleChart {
     }
     const startTimeStr = convertTimestamp(startTime);
     const endTimeStr = convertTimestamp(endTime);
+    // 起点为数字、终点为「此刻」(now) 等时间表达式时需整体解析区间，解析器的数字入参为毫秒
+    if (typeof endTimeStr === 'string') {
+      return handleTransformToTimestamp([Number(startTimeStr) * 1000, endTime] as unknown as TimeRangeType);
+    }
     return [startTimeStr, endTimeStr];
   }
   /* 粒度计算 */
