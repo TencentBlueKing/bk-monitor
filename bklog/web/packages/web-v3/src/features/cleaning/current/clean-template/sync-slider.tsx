@@ -207,7 +207,7 @@ export default defineComponent({
                     >
                       {t('确认同步')}
                     </TButton>
-                    <TButton
+                    <TButton theme="default"
                       disabled={isSyncing.value}
                       onClick={handleClose}
                     >

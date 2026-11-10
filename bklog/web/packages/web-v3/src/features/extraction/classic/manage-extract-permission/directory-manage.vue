@@ -243,7 +243,7 @@
       >
         {{ $t('确认') }}
       </t-button>
-      <t-button @click="handleCancel">
+      <t-button theme="default" @click="handleCancel">
         {{ $t('取消') }}
       </t-button>
     </div>

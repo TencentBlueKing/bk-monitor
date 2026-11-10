@@ -353,7 +353,7 @@ export default defineComponent({
             <TButton size='small' theme='danger' onClick={() => handleMenuClick(type, item)}>
               {delTxtConfig[type].label}
             </TButton>
-            <TButton
+            <TButton theme="default"
               class='ml8'
               size='small'
               onClick={() => {

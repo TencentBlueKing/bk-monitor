@@ -523,7 +523,7 @@ export default defineComponent({
               >
                 {t('确定')}
               </TButton>
-              <TButton onClick={handleCancel}>{t('取消')}</TButton>
+              <TButton theme="default" onClick={handleCancel}>{t('取消')}</TButton>
             </div>
           ),
         }}

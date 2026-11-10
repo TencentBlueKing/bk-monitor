@@ -531,7 +531,7 @@ export default defineComponent({
                 >
                   {t('确定')}
                 </TButton>
-                <TButton
+                <TButton theme="default"
                   size='small'
                   onClick={handleWordBreakerCancelClick}
                 >
@@ -872,7 +872,7 @@ export default defineComponent({
                   {hasException.value ? t('忽略冲突并继续填入') : t('确认并填入')}
                 </TButton>
               )}
-              <TButton onClick={handleClose}>{t('取消')}</TButton>
+              <TButton theme="default" onClick={handleClose}>{t('取消')}</TButton>
             </div>
           ),
         }}

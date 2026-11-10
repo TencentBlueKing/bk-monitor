@@ -412,7 +412,7 @@ export default defineComponent({
             >
               {shortcutLabel.value}
             </TButton>
-            <TButton
+            <TButton theme="default"
               size='small'
               onClick={handleCancel}
             >

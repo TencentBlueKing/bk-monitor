@@ -120,7 +120,7 @@ export default defineComponent({
               >
                 {t('导出')}
               </TButton>
-              <TButton
+              <TButton theme="default"
                 disabled={exporting.value}
                 onClick={handleClose}
               >

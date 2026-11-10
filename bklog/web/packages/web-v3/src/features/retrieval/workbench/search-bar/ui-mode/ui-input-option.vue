@@ -1726,7 +1726,7 @@
         >
           {{ t('确定') }} {{ getOsCommandLabel() }} + Enter
         </t-button>
-        <t-button
+        <t-button theme="default"
           class="cancel-btn"
           @click="handleCancelBtnClick"
         >

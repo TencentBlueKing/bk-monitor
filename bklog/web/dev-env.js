@@ -1,8 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
-function loadLocalEnv(envFile = path.resolve(__dirname, '.env.local')) {
-  if (!fs.existsSync(envFile)) return;
+const envFileKeys = new Map();
+
+function readEnvAssignments(envFile) {
+  if (!fs.existsSync(envFile)) return new Map();
+  const assignments = new Map();
   const text = fs.readFileSync(envFile, 'utf8');
   for (const line of text.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -18,8 +21,34 @@ function loadLocalEnv(envFile = path.resolve(__dirname, '.env.local')) {
     ) {
       value = value.slice(1, -1);
     }
-    if (process.env[key] === undefined) process.env[key] = value;
+    assignments.set(key, value);
   }
+  return assignments;
+}
+
+function loadLocalEnv(envFile = path.resolve(__dirname, '.env.local'), options = {}) {
+  const refresh = options.refresh === true;
+  const owned = envFileKeys.get(envFile) || new Set();
+  const assignments = readEnvAssignments(envFile);
+  for (const [key, value] of assignments) {
+    // 首次加载不覆盖启动进程时已经存在的环境变量；文件后续变更以文件为准。
+    if (!refresh && process.env[key] !== undefined && !owned.has(key)) continue;
+    process.env[key] = value;
+    owned.add(key);
+  }
+  if (refresh) {
+    for (const key of owned) {
+      if (!assignments.has(key)) {
+        delete process.env[key];
+        owned.delete(key);
+      }
+    }
+  }
+  envFileKeys.set(envFile, owned);
+}
+
+function reloadLocalEnv(envFile = path.resolve(__dirname, '.env.local')) {
+  loadLocalEnv(envFile, { refresh: true });
 }
 
 function devProxyUrl() {
@@ -45,6 +74,7 @@ function allowedHosts() {
 
 module.exports = {
   loadLocalEnv,
+  reloadLocalEnv,
   devProxyUrl,
   devHost,
   devUrl,

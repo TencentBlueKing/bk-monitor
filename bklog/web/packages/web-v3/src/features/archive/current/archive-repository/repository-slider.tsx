@@ -679,7 +679,7 @@ export default defineComponent({
                         >
                           {t('提交')}
                         </TButton>
-                        <TButton
+                        <TButton theme="default"
                           data-test-id='addNewStorehouse_button_cancel'
                           onClick={handleCancel}
                         >

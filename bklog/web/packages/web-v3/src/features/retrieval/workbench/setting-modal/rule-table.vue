@@ -239,7 +239,7 @@
             >
               {{ $t('保存') }}
             </t-button>
-            <t-button @click="() => (isClickAlertIcon = false)">
+            <t-button theme="default" @click="() => (isClickAlertIcon = false)">
               {{ $t('取消') }}
             </t-button>
           </div>

@@ -312,7 +312,7 @@ export default defineComponent({
           >
             {t('删除')}
           </TButton>
-          <TButton
+          <TButton theme="default"
             size='small'
             onClick={handleDelCancel}
           >

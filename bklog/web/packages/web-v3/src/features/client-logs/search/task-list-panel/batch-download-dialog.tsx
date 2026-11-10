@@ -59,7 +59,7 @@ export default defineComponent({
         v-slots={{
           footer: () => (
             <div>
-              <TButton onClick={() => emit('close')}>{t('取消')}</TButton>
+              <TButton theme="default" onClick={() => emit('close')}>{t('取消')}</TButton>
               <TButton
                 class='batch-download-confirm'
                 disabled={props.selectedItems.length === 0}

@@ -494,7 +494,7 @@
       >
         {{ t('确定') }}
       </Button>
-      <Button @click="handleClose">
+      <Button theme="default" @click="handleClose">
         {{ t('取消') }}
       </Button>
     </template>
