@@ -7,9 +7,9 @@ release:
   # 资源配置更新，需更新此版本号才会发布资源版本，此版本号和 sdk 版本号一致，错误设置会影响调用方使用
   version: 0.0.9
   # 版本标题
-  title: "开放独立用户态 API"
+  title: "开放纯用户态 API"
   # 版本描述
-  comment: "新增支持个人令牌的独立用户态 API 目录，保留既有 MCP Server 与应用接口"
+  comment: "新增支持个人令牌的纯用户态 API 目录，保留既有 MCP Server 与应用接口"
 
 # 定义网关基本信息，用于命令 `sync_apigw_config`
 apigateway:

@@ -16,7 +16,7 @@ from kernel_api.tool_schema import _extract_input_schema, _normalize_public_sche
 
 USER_API_PREFIX = "/user/"
 USER_API_BACKEND_PREFIX = "/api/v4/user/"
-USER_API_TAG = "独立用户态接口"
+USER_API_TAG = "纯用户态接口"
 FACADE_OPERATIONS = frozenset(
     {"lookup_tool", "lookup_tool_schema", "lookup_metadata", "lookup_permissions", "execute_tool"}
 )

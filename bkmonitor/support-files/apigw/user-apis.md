@@ -1,19 +1,19 @@
-# 独立用户态 API
+# 纯用户态 API
 
-新增 101 个支持个人令牌的独立用户态 API，网关路径为 `/user/<接口名>/`，资源名称为 `user_<接口名>`，
-文档分组为“独立用户态接口”。无需填写应用凭证或申请网关应用权限；用户仍须具备相应业务、索引集、
+新增 101 个支持个人令牌的纯用户态 API，网关路径为 `/user/<接口名>/`，资源名称为 `user_<接口名>`，
+文档分组为“纯用户态接口”。无需填写应用凭证或申请网关应用权限；用户仍须具备相应业务、索引集、
 APM 应用或其他目标资源的 IAM 权限。现有 MCP 地址、Server 工具清单和应用态接口保持兼容。
 
 ## 范围与原有开启状态
 
 仓库中共有 111 个 MCP API 声明，均要求用户认证。其中 69 个原入口显式开启了 API 级个人令牌，42 个未开启。
-本次将其中 101 个业务接口发布为独立用户态 API，全部开启个人令牌。原 MCP 入口的个人令牌开关不作批量修改。
+本次将其中 101 个业务接口发布为纯用户态 API，全部开启个人令牌。原 MCP 入口的个人令牌开关不作批量修改。
 运营数据 3 个、运维诊断 4 个、OpenClaw 专用入口 3 个不进入公共目录。
 
 Server 的 `oauth2_personal_client_enabled` 与 API 的 `oauth2PersonalClientEnabled` 是不同配置。
 下方“原入口个人令牌”只统计原 `/mcp/...` API 的显式声明，不代表目标环境已经发布或实测成功。
 
-| 范围 | 原接口数 | 原入口已开启 | 原入口未开启 | 新增独立用户态 API |
+| 范围 | 原接口数 | 原入口已开启 | 原入口未开启 | 新增纯用户态 API |
 | --- | ---: | ---: | ---: | ---: |
 | 业务接口 | 101 | 69 | 32 | 101，全部开启 |
 | 内部与专用接口 | 10 | 0 | 10 | 0 |
@@ -48,14 +48,14 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 “未开启”表示原 `/mcp/...` 资源未声明 `oauth2PersonalClientEnabled: true`；新目录中列出路径的接口均已在代码中开启。
 旧路径通常为 `/mcp/<接口名>/`；`apm_mcp_calculate_by_range` 对应 `/mcp/calculate_by_range/`，
-`list_bcs_clusters` 对应 `/mcp/search_bcs_clusters/`。独立用户态入口统一使用工具目录中的名称。
+`list_bcs_clusters` 对应 `/mcp/search_bcs_clusters/`。纯用户态入口统一使用工具目录中的名称。
 方法与新路径可以直接用于 CLI 的原始 API 调用。
 
 ### 元数据
 
 共 2 个，原入口未开启 0 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `list_bcs_clusters` | GET | 已开启 | `/user/list_bcs_clusters/` |
 | `search_spaces` | GET | 已开启 | `/user/search_spaces/` |
@@ -64,7 +64,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 4 个，原入口未开启 0 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `list_time_series_groups` | POST | 已开启 | `/user/list_time_series_groups/` |
 | `list_time_series_metrics` | GET | 已开启 | `/user/list_time_series_metrics/` |
@@ -75,7 +75,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 9 个，原入口未开启 0 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `list_index_sets` | GET | 已开启 | `/user/list_index_sets/` |
 | `get_index_set_fields` | GET | 已开启 | `/user/get_index_set_fields/` |
@@ -91,7 +91,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 3 个，原入口未开启 0 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `list_events` | POST | 已开启 | `/user/list_events/` |
 | `get_event_view_config` | POST | 已开启 | `/user/get_event_view_config/` |
@@ -101,7 +101,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 12 个，原入口未开启 0 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `list_alerts` | POST | 已开启 | `/user/list_alerts/` |
 | `get_alert_top_n` | POST | 已开启 | `/user/get_alert_top_n/` |
@@ -120,7 +120,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 18 个，原入口未开启 10 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `search_alarm_strategies` | POST | 已开启 | `/user/search_alarm_strategies/` |
 | `get_alarm_strategy` | POST | 已开启 | `/user/get_alarm_strategy/` |
@@ -145,7 +145,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 11 个，原入口未开启 0 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `list_apm_applications` | GET | 已开启 | `/user/list_apm_applications/` |
 | `get_apm_filter_fields` | GET | 已开启 | `/user/get_apm_filter_fields/` |
@@ -163,7 +163,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 4 个，原入口未开启 2 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `get_dashboard_tree_list` | GET | 已开启 | `/user/get_dashboard_tree_list/` |
 | `get_dashboard_detail_by_uid` | GET | 已开启 | `/user/get_dashboard_detail_by_uid/` |
@@ -174,7 +174,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 2 个，原入口未开启 0 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `find_relations` | POST | 已开启 | `/user/find_relations/` |
 | `find_relations_range` | POST | 已开启 | `/user/find_relations_range/` |
@@ -183,7 +183,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 17 个，原入口未开启 9 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `update_log_collector_clean_config` | POST | **未开启** | `/user/update_log_collector_clean_config/` |
 | `fast_create_log_collector` | POST | **未开启** | `/user/fast_create_log_collector/` |
@@ -207,7 +207,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 7 个，原入口未开启 3 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `list_log_extract_topology` | POST | 已开启 | `/user/list_log_extract_topology/` |
 | `search_log_extract_hosts` | POST | 已开启 | `/user/search_log_extract_hosts/` |
@@ -221,7 +221,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 7 个，原入口未开启 7 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `preview_recording_rule` | POST | **未开启** | `/user/preview_recording_rule/` |
 | `create_recording_rule` | POST | **未开启** | `/user/create_recording_rule/` |
@@ -235,7 +235,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 5 个，原入口未开启 1 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `lookup_tool` | POST | 已开启 | `/user/lookup_tool/` |
 | `lookup_tool_schema` | POST | 已开启 | `/user/lookup_tool_schema/` |
@@ -247,7 +247,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 3 个，原入口未开启 3 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `list_operation_metrics` | POST | **未开启** | 排除 |
 | `get_operation_metric` | POST | **未开启** | 排除 |
@@ -257,7 +257,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 4 个，原入口未开启 4 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `query_datalink_metadata` | GET | **未开启** | 排除 |
 | `query_data_link_info` | GET | **未开启** | 排除 |
@@ -268,7 +268,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 共 3 个，原入口未开启 3 个。
 
-| 原资源名称 | 方法 | 原入口个人令牌 | 独立用户态入口 |
+| 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
 | `search_openclaw_spans` | POST | **未开启** | 排除 |
 | `get_openclaw_trace_detail` | POST | **未开启** | 排除 |
@@ -283,7 +283,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 发布资源版本为 `0.0.9`，由现有 `python manage.py sync_apigw` 流程同步；真实执行会更新网关资源并发布版本。
 本次代码与本地测试不代表任一环境已经发布。目标环境发布后，应验证：
 
-1. 网关出现“独立用户态接口”分组，101 个 `user_*` 资源公开可见，认证为仅用户认证且支持个人令牌。
+1. 网关出现“纯用户态接口”分组，101 个 `user_*` 资源公开可见，认证为仅用户认证且支持个人令牌。
 2. 三类内部接口没有新增 `/user/...` 资源；已有 MCP Server 的工具清单与访问地址保持兼容。
 3. 使用个人令牌、不携带 MCP 来源头，验证查询成功、缺权拒绝、跨租户拒绝和参数错误。
 4. 在授权测试资源上验证写入确认及执行，检查业务结果；不得以目录可见替代真实调用验收。
