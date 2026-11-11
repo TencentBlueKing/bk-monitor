@@ -501,7 +501,11 @@ export default class CollectorConfiguration extends tsc<IProps> {
                             <span class='item-content'>******</span>
                           ) : (
                             <span class='item-content'>
-                              {(item.type === 'file' ? item.value.filename : stringContent(item.value)) || '--'}
+                              {(item.type === 'file'
+                                ? Array.isArray(item.value)
+                                  ? item.value.map(file => file.filename).join('、')
+                                  : item.value?.filename
+                                : stringContent(item.value)) || '--'}
                             </span>
                           )}
                         </li>

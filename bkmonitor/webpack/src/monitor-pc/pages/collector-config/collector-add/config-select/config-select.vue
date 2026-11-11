@@ -290,6 +290,14 @@ export default {
     });
   },
   methods: {
+    /* 后端下发 configmap 表单视图时才启用新交互 */
+    isConfigMapFlow(plugin = this.config.set?.data?.plugin) {
+      return plugin?.configMode === 'configmap';
+    },
+    /* configmap 表单视图内的 file 参数按集合型处理 */
+    isConfigMapParam(item, plugin = this.config.set?.data?.plugin) {
+      return this.isConfigMapFlow(plugin) && item?.type === 'file';
+    },
     handlePrevious() {
       this.$emit('previous');
     },
@@ -567,7 +575,10 @@ export default {
             } else {
               plugin[item.name] = item.default;
             }
-            if (item.type === 'file') {
+            if (this.isConfigMapParam(item, setData.plugin)) {
+              // 多文件字段提交完整文件数组 [{ uid, filename, content }]，并声明 ConfigMap 模式
+              plugin.config_mode = 'configmap';
+            } else if (item.type === 'file') {
               plugin[item.name] = {
                 filename: item.default,
                 file_base64: item.file_base64,
@@ -613,6 +624,10 @@ export default {
       if (this.config.mode === 'edit' && setData.id) {
         // 编辑时，增加 `id` 字段
         params.id = setData.id;
+        // 多文件（ConfigMap）配置需同时提交编辑所依据的源部署版本；其他插件保持原有请求不变
+        if (setData.deploymentId && this.isConfigMapFlow(setData.plugin)) {
+          params.deployment_id = setData.deploymentId;
+        }
       }
       return params;
     },

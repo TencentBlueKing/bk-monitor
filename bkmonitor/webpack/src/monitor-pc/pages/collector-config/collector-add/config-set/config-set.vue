@@ -234,14 +234,12 @@
                   @blur="validateHost"
                 >
                   <template slot="prepend">
-                    <bk-popover placement="top">
-                      <div class="prepend-text">${host}=</div>
-                      <div slot="content">
-                        <div>{{ $t('参数名称') }} : {{ info.host.name }}</div>
-                        <div>{{ $t('参数类型') }} : {{ paramType[info.host.mode] }}</div>
-                        <div>{{ $t('参数说明') }} : {{ info.host.description || '--' }}</div>
-                      </div>
-                    </bk-popover>
+                    <param-prepend
+                      :description="info.host.description"
+                      label="${host}="
+                      :name="info.host.name"
+                      :type="paramType[info.host.mode]"
+                    />
                   </template>
                 </bk-input>
               </verify-input>
@@ -272,17 +270,12 @@
                   @blur="info.port.default !== '' && validateParam(info.port)"
                 >
                   <template slot="prepend">
-                    <bk-popover
-                      :tippy-options="tippyOptions"
-                      placement="top"
-                    >
-                      <div class="prepend-text">${port}=</div>
-                      <div slot="content">
-                        <div>{{ $t('参数名称') }} : {{ info.port.name }}</div>
-                        <div>{{ $t('参数类型') }} : {{ paramType[info.port.mode] }}</div>
-                        <div>{{ $t('参数说明') }} : {{ info.port.description || '--' }}</div>
-                      </div>
-                    </bk-popover>
+                    <param-prepend
+                      :description="info.port.description"
+                      label="${port}="
+                      :name="info.port.name"
+                      :type="paramType[info.port.mode]"
+                    />
                   </template>
                 </bk-input>
               </verify-input>
@@ -347,24 +340,55 @@
                     @curAuthPriv="handleAuthPriv"
                   >
                     <template slot="prepend">
-                      <bk-popover
-                        :tippy-options="tippyOptions"
-                        placement="top"
-                      >
-                        <div class="prepend-text">
-                          {{ item.name || item.description }}
-                        </div>
-                        <div slot="content">
-                          <div>{{ $t('参数名称') }} : {{ item.name }}</div>
-                          <div>{{ $t('参数类型') }} : {{ paramType[item.mode] }}</div>
-                          <div>{{ $t('参数说明') }} : {{ item.description || '--' }}</div>
-                        </div>
-                      </bk-popover>
+                      <param-prepend
+                        :description="item.description"
+                        :label="item.name || item.description"
+                        :name="item.name"
+                        :type="paramType[item.mode]"
+                      />
                     </template>
                   </auto-complete-input>
                 </verify-input>
               </template>
               <template v-else-if="item.type === 'service' || item.type === 'host'" />
+              <template v-else-if="isConfigMapParam(item)">
+                <div
+                  :key="index"
+                  class="param-item"
+                >
+                  <verify-input
+                    class="reset-big-width"
+                    :show-validate.sync="item.validate.isValidate"
+                    :validator="item.validate"
+                    position="right"
+                  >
+                    <div class="multi-file-param-wrap">
+                      <div class="multi-file-param-prepend">
+                        <param-prepend
+                          :description="item.description"
+                          :label="item.name || item.description"
+                          :name="item.name"
+                          :required="item.required"
+                          :type="paramType[item.mode]"
+                        />
+                      </div>
+                      <multi-file-upload
+                        class="multi-file-param-upload"
+                        :accept="item.accept"
+                        :configName="item.description || item.name"
+                        :max-size="fileMaxSize"
+                        :multiple="item.multiple"
+                        :revalidate-on-init="isClone"
+                        :validate-key="`${info.period}-${info.timeout}`"
+                        :validator="validateConfigMaps"
+                        :value="item.default"
+                        @change="files => handleConfigMapChange(files, item)"
+                        @statusChange="status => handleConfigMapStatusChange(status, item)"
+                      />
+                    </div>
+                  </verify-input>
+                </div>
+              </template>
               <template v-else>
                 <verify-input
                   :key="index"
@@ -389,19 +413,13 @@
                     @passwordInputName="handlePasswordInputName"
                   >
                     <template slot="prepend">
-                      <bk-popover
-                        :tippy-options="tippyOptions"
-                        placement="top"
-                      >
-                        <div :class="{ 'prepend-text': true, required: item.required }">
-                          {{ item.name || item.description }}
-                        </div>
-                        <div slot="content">
-                          <div>{{ $t('参数名称') }} : {{ item.name }}</div>
-                          <div>{{ $t('参数类型') }} : {{ paramType[item.mode] }}</div>
-                          <div>{{ $t('参数说明') }} : {{ item.description || '--' }}</div>
-                        </div>
-                      </bk-popover>
+                      <param-prepend
+                        :description="item.description"
+                        :label="item.name || item.description"
+                        :name="item.name"
+                        :required="item.required"
+                        :type="paramType[item.mode]"
+                      />
                     </template>
                   </auto-complete-input>
                 </verify-input>
@@ -588,6 +606,10 @@ import CollectorIntroduction from './collector-introduction';
 import CollectorLog from './collector-log';
 import PERIOD_LIST from './data';
 import IndicatorPreview from './indicator-preview';
+import { validateTencentCloudConfigmap } from 'monitor-api/modules/collecting';
+import { createUuid } from './components/multi-file-upload/utils/multi-file-upload-utils';
+import MultiFileUpload from './components/multi-file-upload/multi-file-upload.tsx';
+import ParamPrepend from './components/param-prepend/param-prepend.tsx';
 import PluginSelector, { LOG_PLUGIN_ID, PROCESS_PLUGIN_ID } from './plugin-selector.tsx';
 import ProcessParams from './process-params.vue';
 import * as snmp from './snmp';
@@ -607,6 +629,8 @@ export default {
     AutoMulti,
     ProcessParams,
     CycleInput,
+    MultiFileUpload,
+    ParamPrepend,
     PluginSelector,
     TagSwitch,
   },
@@ -644,6 +668,7 @@ export default {
         plugin: {
           id: '',
           type: '',
+          configMode: '',
           descMd: '',
           isOfficial: false,
           isSafety: false,
@@ -823,6 +848,10 @@ export default {
   },
   computed: {
     ...mapGetters(['infoData']),
+    /** 采集配置文件大小上限（MB），未配置时默认 5MB */
+    fileMaxSize() {
+      return +this.$store.getters.collectingConfigFileMaxSize || 5;
+    },
     businessList() {
       if (!this.canSelectBusiness) {
         return this.$store.getters.bizList.filter(biz => +biz.id === +this.info.bizId);
@@ -831,7 +860,8 @@ export default {
     },
     // 是否显示指标预览
     isShowPreview() {
-      return this.info.plugin.id !== '';
+      // configmap 多文件配置本期不支持指标预览
+      return this.info.plugin.id !== '' && !this.info.plugin.configJson?.some(item => this.isConfigMapParam(item));
     },
     // 能否下一步
     canNext() {
@@ -848,7 +878,14 @@ export default {
         const snmpAuthIsOk = +this.info.plugin?.collectorJson?.snmp_version === 3 ? this.SnmpAuthCanSave : true;
         return this.info.name !== '' && this.info.plugin.id !== '' && snmpAuthIsOk && this.snmpIsOk;
       }
-      if (this.info.plugin?.configJson?.some(item => item.validate?.isValidate)) return false;
+      if (
+        this.info.plugin?.configJson?.some(
+          item =>
+            item.validate?.isValidate ||
+            (this.isConfigMapParam(item) && (item.uploadStatus?.pending || item.uploadStatus?.invalid))
+        )
+      )
+        return false;
       return this.info.plugin.id !== '' && this.validateHost();
     },
     // 编辑模式下，采集方式和采集配置不可变
@@ -943,6 +980,10 @@ export default {
   },
   methods: {
     ...mapMutations([SET_OBJECT_TYPE, SET_INFO_DATA]),
+    /* configmap 表单视图内的 file 参数按集合型处理 */
+    isConfigMapParam(item, plugin = this.info?.plugin) {
+      return plugin?.configMode === 'configmap' && item?.type === 'file';
+    },
     //  获取日志右边栏展示的内容
     snmpAuthCanSave(is) {
       this.SnmpAuthCanSave = is;
@@ -1242,7 +1283,7 @@ export default {
           if (!(item.auth_json === undefined)) {
             configValidateList.push(this.handleParamValidate(item));
           }
-          if (item.type === 'file') {
+          if (item.type === 'file' && !this.isConfigMapParam(item)) {
             configValidateList.push(this.handleParamValidate(item));
           } else {
             configValidateList.push(this.handleInput(item));
@@ -1292,7 +1333,7 @@ export default {
       let res = {
         validate: false,
       };
-      if (item.type === 'file') {
+      if (item.type === 'file' && !this.isConfigMapParam(item)) {
         res.validate = item.validate.isValidate;
         return res;
       }
@@ -1364,6 +1405,7 @@ export default {
       const { plugin } = this.info;
       plugin.id = '';
       plugin.type = '';
+      plugin.configMode = '';
       plugin.descMd = '';
       plugin.isOfficial = false;
       plugin.isSafety = false;
@@ -1410,17 +1452,27 @@ export default {
       }
     },
     async pluginTypeInfo(val, _loading, needSetConfig) {
+      /* 编辑/克隆 configmap 配置时，表单定义与参数统一以 config_detail 为准，不再被插件详情覆盖 */
+      if (
+        (this.config.mode === 'edit' || this.isClone) &&
+        this.info.plugin?.configMode === 'configmap' &&
+        this.info.plugin.configJson?.length > 0
+      )
+        return;
       // 获取提示输入数据
       this.loading = true;
       // 先去获取有关的所有插件，并处理数据
       await this.getPluginInfo(val)
         .then(data => {
           const { plugin } = this.info;
+          const pluginMeta = { type: data.plugin_type, configMode: data.config_mode || '' };
           const { configJson, host, port, isShowHost, isShowPort } = this.handlePluginConfigJson(
-            data.plugin_type,
-            data.config_json
+            pluginMeta.type,
+            data.config_json,
+            pluginMeta.configMode
           );
-          plugin.type = data.plugin_type;
+          plugin.type = pluginMeta.type;
+          plugin.configMode = pluginMeta.configMode;
           plugin.descMd = data.description_md;
           plugin.isOfficial = data.is_official;
           plugin.isSafety = data.is_safety;
@@ -1512,9 +1564,11 @@ export default {
                   if (this.config.mode === 'edit' || this.isClone) {
                     const mode = item.mode === 'collector' ? 'collector' : 'plugin';
                     const paramDefault = this.info.params[mode][item.key || item.name];
-                    if (item.type === 'file') {
+                    if (item.type === 'file' && !this.isConfigMapParam(item, pluginMeta)) {
                       item.default = paramDefault.filename;
                       item.file_base64 = paramDefault.file_base64;
+                    } else if (this.isConfigMapParam(item, pluginMeta)) {
+                      item.default = this.normalizeMultiFileValue(paramDefault);
                     } else {
                       item.default = paramDefault;
                     }
@@ -1629,8 +1683,8 @@ export default {
         }
       };
       // 编辑的时候只获取单个插件
-      if (this.config.mode === 'edit') {
-        const pluginId = this.config.data?.updateParams?.pluginId;
+      if (v.mode === 'edit') {
+        const pluginId = v.data?.updateParams?.pluginId;
         promiseList.push(
           retrieveCollectorPlugin(pluginId)
             .then(v => {
@@ -1654,9 +1708,6 @@ export default {
             })
             .catch(() => {})
             .finally(() => {
-              if (this.isClone) {
-                this.setEditOrCloneConfig(v, collectDetail);
-              }
               handlePluginPageParams();
               this.pluginListLoading = false;
             });
@@ -1695,27 +1746,47 @@ export default {
         // 编辑
         this.setEditOrCloneConfig(v, collectDetail);
       } else {
+        if (this.isClone) {
+          this.setEditOrCloneConfig(v, collectDetail);
+        }
         handlePluginPageParams();
       }
       this.loading = false;
     },
 
+    /* 克隆 configmap 配置：重建文件 uid、清空凭据，其余非敏感参数沿用 */
+    resetCloneConfigMapItems(items, pluginMeta) {
+      for (const item of items) {
+        if (this.isConfigMapParam(item, pluginMeta)) {
+          item.default = item.default.map(file => ({ ...file, uid: createUuid() }));
+        } else if (['encrypt', 'password'].includes(item.type)) {
+          item.default = '';
+        }
+      }
+    },
     // 处理配置信息
     handleConfigInfo(data) {
       const pluginInfo = data.plugin_info;
       const { collector, plugin } = data.params;
       const tmpConfigJson = pluginInfo.config_json;
+      const pluginMeta = { type: pluginInfo.plugin_type, configMode: pluginInfo.config_mode || '' };
       // 将插件信息中 configJson 的值，改为 data.params 中对应的值
       for (const item of tmpConfigJson) {
         if (item.mode === 'collector') {
           item.default = collector[item.name];
+        } else if (this.isConfigMapParam(item, pluginMeta)) {
+          item.default = this.normalizeMultiFileValue(plugin[item.name]);
         } else {
           item.default = plugin[item.name];
         }
       }
+      if (this.isClone && pluginMeta.configMode === 'configmap') {
+        this.resetCloneConfigMapItems(tmpConfigJson, pluginMeta);
+      }
       const { configJson, host, port, isShowHost, isShowPort } = this.handlePluginConfigJson(
-        pluginInfo.plugin_type,
-        tmpConfigJson
+        pluginMeta.type,
+        tmpConfigJson,
+        pluginMeta.configMode
       );
       if (data.collect_type === 'Log') {
         this.logData = data.params.log;
@@ -1727,6 +1798,8 @@ export default {
       return {
         info: {
           id: data.id,
+          // 编辑所依据的源部署版本，校验与保存时需一并提交；克隆按新建处理，不继承来源版本
+          deploymentId: this.isClone ? undefined : data.deployment_id,
           bizId: data.bk_biz_id,
           name: data.name,
           objectType: data.target_object_type,
@@ -1743,6 +1816,7 @@ export default {
             collectorJson: pluginInfo.collector_json,
             id: pluginInfo.plugin_id,
             type: pluginInfo.plugin_type,
+            configMode: pluginMeta.configMode,
             descMd: pluginInfo.description_md, //
             isOfficial: pluginInfo.is_official,
             isSafety: pluginInfo.is_safety,
@@ -1863,7 +1937,8 @@ export default {
     getConfigInfo(id) {
       this.loading = true;
       return new Promise(resolve => {
-        collectConfigDetail({ id })
+        // 编辑与克隆统一读取 configmap 视图：定义、参数与源部署版本配套返回
+        collectConfigDetail({ id, params_format: 'configmap' })
           .then(data => {
             this.setNavTitle(data);
             const { info, others } = this.handleConfigInfo(data);
@@ -1884,15 +1959,21 @@ export default {
           });
       });
     },
-    handlePluginConfigJson(type, configs = []) {
+    handlePluginConfigJson(type, configs = [], configMode = '') {
       let configJson = [];
       // snmp 多用户
       const snmpAuthJson = [];
       let host = null;
       let port = null;
+      const pluginMeta = { type, configMode };
       // 如果是插件类型为 'Exporter'，则显示绑定主机和绑定端口
       const data = configs.map(item => {
-        if (item.type === 'file' && typeof item.default === 'object' && item.key !== 'yaml') {
+        if (
+          item.type === 'file' &&
+          !this.isConfigMapParam(item, pluginMeta) &&
+          typeof item.default === 'object' &&
+          item.key !== 'yaml'
+        ) {
           const temp = deepClone(item.default);
           item.default = temp.filename;
           item.file_base64 = temp.file_base64;
@@ -2011,12 +2092,59 @@ export default {
       item.default = file.name;
       item.file_base64 = file.fileContent;
     },
+    handleConfigMapChange(files, item) {
+      item.default = files;
+    },
+    /**
+     * 多文件字段回填值归一化：仅保留 { uid, filename, content }，
+     * 剔除后端只读的 preview，避免随表单回传保存。
+     */
+    normalizeMultiFileValue(files) {
+      if (!Array.isArray(files)) return [];
+      return files.map(({ uid, filename, content }) => ({ uid, filename, content }));
+    },
+    /* 多文件上传的校验状态变化后，同步提交禁用条件与字段状态 */
+    handleConfigMapStatusChange(status, item) {
+      this.$set(item, 'uploadStatus', status);
+      this.handleInput(item);
+    },
+    validateConfigMaps(configmaps) {
+      // 编辑时同时传配置 id 与源部署版本，由后端按源契约校验
+      const editParams =
+        this.config.mode === 'edit' && !this.isClone && this.info.id
+          ? { id: this.info.id, deployment_id: this.info.deploymentId }
+          : {};
+      return validateTencentCloudConfigmap(
+        {
+          ...editParams,
+          params: {
+            collector: { period: +this.info.period, timeout: +this.info.timeout },
+            plugin: { config_mode: 'configmap', configmaps },
+          },
+        },
+        { needMessage: false }
+      );
+    },
     handleErrorMessage(msg, item) {
       item.validate.isValidate = !!msg;
       item.validate.content = msg;
     },
     handlePasswordInputName(val) {
       this.$emit('passwordInputName', val);
+    },
+
+    /**
+     * @description 克隆腾讯云 ConfigMap 配置时，将落库插件 ID 归一为插件选择器可命中的模板 ID
+     * 落库 ID 由后端按「模板 ID + _ + 业务 ID」生成，插件列表只返回模板 ID
+     * @param {string} pluginId 待归一的插件 ID
+     * @returns {string} 归一后的插件 ID；非克隆或非腾讯云 ConfigMap 配置时原样返回
+     */
+    resolveSelectorPluginId(pluginId) {
+      const { type, configMode } = this.info.plugin || {};
+      const { bizId } = this.info;
+      if (!this.isClone || type !== 'K8S' || configMode !== 'configmap' || !bizId) return pluginId;
+      const suffix = `_${bizId}`;
+      return pluginId?.endsWith(suffix) ? pluginId.slice(0, -suffix.length) : pluginId;
     },
 
     /* 编辑时回填插件选择 */
@@ -2031,7 +2159,7 @@ export default {
         this.pluginSelectorObj.id = `snmp_${data.params.snmp_trap.version}`;
         this.pluginSelectorObj.objectIdDisable = false;
       } else {
-        this.pluginSelectorObj.id = data.plugin_info.plugin_id;
+        this.pluginSelectorObj.id = this.resolveSelectorPluginId(data.plugin_info.plugin_id);
         this.pluginSelectorObj.objectIdDisable = true;
       }
       this.pluginSelectorObj.key = random(8);
@@ -2050,7 +2178,7 @@ export default {
           this.pluginSelectorObj.id = plugin.snmpv;
           this.pluginSelectorObj.objectIdDisable = false;
         } else {
-          this.pluginSelectorObj.id = plugin.id;
+          this.pluginSelectorObj.id = this.resolveSelectorPluginId(plugin.id);
           this.pluginSelectorObj.objectIdDisable = true;
         }
       }
@@ -2117,6 +2245,15 @@ export default {
         content: '',
         validate: false,
       };
+      if (this.isConfigMapParam(item) && (item.uploadStatus?.pending || item.uploadStatus?.invalid)) {
+        // 已有文件在校验中或未通过校验：由文件行与汇总条提示，不显示字段必填图标，但仍阻止提交
+        valid.validate = true;
+        item.validate = {
+          content: '',
+          isValidate: false,
+        };
+        return valid;
+      }
       if (item.required) {
         if (typeof item.default === 'object') {
           valid.validate = Array.isArray(item.default) ? !item.default.length : !Object.keys(item.default).length;
@@ -2142,7 +2279,7 @@ export default {
   position: relative;
   display: flex;
   overflow: hidden;
-  background-image: linear-gradient(270deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%);
+  background-image: linear-gradient(270deg, #dcdee5 1px, rgb(0 0 0 / 0%) 1px, rgb(0 0 0 / 0%) 100%);
   background-size: 100% 100%;
 
   .set-edit {
@@ -2160,7 +2297,7 @@ export default {
 
       &.edit-item-host,
       &.edit-item-port {
-        margin-bottom: 0px;
+        margin-bottom: 0;
       }
 
       .item-label {
@@ -2173,7 +2310,7 @@ export default {
         color: #63656e;
         text-align: right;
 
-        &.label-required:after {
+        &.label-required::after {
           position: absolute;
           right: -9px;
           font-size: 12px;
@@ -2188,7 +2325,7 @@ export default {
 
       .item-container {
         .container-tips {
-          padding: 7px 0 9px 0;
+          padding: 7px 0 9px;
           color: #63656e;
 
           &.required {
@@ -2230,7 +2367,7 @@ export default {
 
               &.unit-active {
                 border-color: #3a84ff;
-                box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
+                box-shadow: 0 0 4px rgb(58 132 255 / 40%);
               }
             }
           }
@@ -2248,7 +2385,7 @@ export default {
         .type-radio {
           width: 94px;
 
-          :deep(.icon-check:before) {
+          :deep(.icon-check::before) {
             content: '';
           }
         }
@@ -2269,7 +2406,7 @@ export default {
           .param-item {
             margin-bottom: 5px;
 
-            @media only screen and (min-width: 1720px) {
+            @media only screen and (width >= 1720px) {
               .reset-width {
                 width: 438px;
               }
@@ -2280,7 +2417,8 @@ export default {
             }
 
             .group-prepend,
-            .file-input-wrap .prepend {
+            .file-input-wrap .prepend,
+            .multi-file-param-prepend {
               width: auto;
               max-width: 50%;
               background: #fafbfd;
@@ -2288,20 +2426,12 @@ export default {
               .bk-tooltip,
               .bk-tooltip-ref {
                 width: 100%;
-              }
-
-              :deep(.prepend-text) {
-                padding: 0 20px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                font-size: 12px;
-                line-height: 30px;
-                white-space: nowrap;
               }
             }
 
             :deep(.group-prepend),
-            :deep(.file-input-wrap .prepend) {
+            :deep(.file-input-wrap .prepend),
+            :deep(.multi-file-param-prepend) {
               width: auto;
               max-width: 50%;
               background: #fafbfd;
@@ -2310,14 +2440,24 @@ export default {
               .bk-tooltip-ref {
                 width: 100%;
               }
+            }
 
-              :deep(.prepend-text) {
-                padding: 0 20px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                font-size: 12px;
-                line-height: 30px;
-                white-space: nowrap;
+            .multi-file-param-wrap {
+              display: flex;
+              align-items: flex-start;
+              width: 100%;
+
+              .multi-file-param-prepend {
+                flex-shrink: 0;
+                border: 1px solid #c4c6cc;
+                border-right: 0;
+                border-top-left-radius: 2px;
+                border-bottom-left-radius: 2px;
+              }
+
+              .multi-file-param-upload {
+                flex: 1;
+                min-width: 0;
               }
             }
 
@@ -2325,30 +2465,14 @@ export default {
               width: 100%;
             }
           }
-
-          .prepend-text {
-            padding: 0 20px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-size: 12px;
-            line-height: 30px;
-            white-space: nowrap;
-
-            &.required {
-              position: relative;
-
-              &::after {
-                position: absolute;
-                top: -1px;
-                right: 7px;
-                color: red;
-                content: '*';
-              }
-            }
-          }
         }
 
-        :deep(.bk-radio-text:before) {
+        // 与参数名前缀拼接时去掉上传区左侧圆角，让虚线边框在左上角与前缀边框相接
+        :deep(.multi-file-param-wrap .multi-file-param-upload .multi-file-upload-control .file-wrapper) {
+          border-radius: 0 4px 4px;
+        }
+
+        :deep(.bk-radio-text::before) {
           position: absolute;
           top: 20px;
           left: 20px;
