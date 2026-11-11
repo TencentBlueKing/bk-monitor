@@ -328,7 +328,7 @@
                   (item.type === 'file'
                     ? Array.isArray(item.value)
                       ? item.value.map(file => file.filename).join('、')
-                      : item.value.filename
+                      : item.value?.filename
                     : item.value) || '--'
                 }}
               </span>

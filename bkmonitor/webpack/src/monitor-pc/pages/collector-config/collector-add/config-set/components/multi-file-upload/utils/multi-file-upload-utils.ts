@@ -112,6 +112,29 @@ export const hasBusinessErrors = (parsed: IParsedApiError): boolean =>
   parsed.errors.length > 0 || parsed.files.some(file => file.errors?.length);
 
 /**
+ * @description 生成标准 v4 UUID 作为文件 uid
+ * 优先使用 crypto.randomUUID；非安全上下文降级为 getRandomValues，crypto 不可用时用 Math.random 兜底
+ * @returns 36 位小写 UUID 字符串
+ */
+export const createUuid = (): string => {
+  const webCrypto = globalThis.crypto;
+  if (typeof webCrypto?.randomUUID === 'function') return webCrypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (typeof webCrypto?.getRandomValues === 'function') {
+    webCrypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  // 置 RFC 4122 版本号 4 与 variant 位
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
+/**
  * @description 判断文件扩展名是否在 accept 允许范围内（忽略大小写，仅识别 `.ext` 形式；accept 为空不限制）
  * @param filename 文件名
  * @param accept 形如 `.yaml,.yml` 的限制串

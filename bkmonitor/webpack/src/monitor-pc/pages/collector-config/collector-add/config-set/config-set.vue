@@ -606,8 +606,8 @@ import CollectorIntroduction from './collector-introduction';
 import CollectorLog from './collector-log';
 import PERIOD_LIST from './data';
 import IndicatorPreview from './indicator-preview';
-// TODO: 后端接口上线后，替换为 `import { validateTencentCloudConfigmap } from 'monitor-api/modules/collecting'`
-import { validateTencentCloudConfigmap } from './components/multi-file-upload/mock/validate-tencent-cloud-configmap';
+import { validateTencentCloudConfigmap } from 'monitor-api/modules/collecting';
+import { createUuid } from './components/multi-file-upload/utils/multi-file-upload-utils';
 import MultiFileUpload from './components/multi-file-upload/multi-file-upload.tsx';
 import ParamPrepend from './components/param-prepend/param-prepend.tsx';
 import PluginSelector, { LOG_PLUGIN_ID, PROCESS_PLUGIN_ID } from './plugin-selector.tsx';
@@ -1683,8 +1683,8 @@ export default {
         }
       };
       // 编辑的时候只获取单个插件
-      if (this.config.mode === 'edit') {
-        const pluginId = this.config.data?.updateParams?.pluginId;
+      if (v.mode === 'edit') {
+        const pluginId = v.data?.updateParams?.pluginId;
         promiseList.push(
           retrieveCollectorPlugin(pluginId)
             .then(v => {
@@ -1708,9 +1708,6 @@ export default {
             })
             .catch(() => {})
             .finally(() => {
-              if (this.isClone) {
-                this.setEditOrCloneConfig(v, collectDetail);
-              }
               handlePluginPageParams();
               this.pluginListLoading = false;
             });
@@ -1749,6 +1746,9 @@ export default {
         // 编辑
         this.setEditOrCloneConfig(v, collectDetail);
       } else {
+        if (this.isClone) {
+          this.setEditOrCloneConfig(v, collectDetail);
+        }
         handlePluginPageParams();
       }
       this.loading = false;
@@ -1758,7 +1758,7 @@ export default {
     resetCloneConfigMapItems(items, pluginMeta) {
       for (const item of items) {
         if (this.isConfigMapParam(item, pluginMeta)) {
-          item.default = item.default.map(file => ({ ...file, uid: random(32) }));
+          item.default = item.default.map(file => ({ ...file, uid: createUuid() }));
         } else if (['encrypt', 'password'].includes(item.type)) {
           item.default = '';
         }
@@ -2133,6 +2133,20 @@ export default {
       this.$emit('passwordInputName', val);
     },
 
+    /**
+     * @description 克隆腾讯云 ConfigMap 配置时，将落库插件 ID 归一为插件选择器可命中的模板 ID
+     * 落库 ID 由后端按「模板 ID + _ + 业务 ID」生成，插件列表只返回模板 ID
+     * @param {string} pluginId 待归一的插件 ID
+     * @returns {string} 归一后的插件 ID；非克隆或非腾讯云 ConfigMap 配置时原样返回
+     */
+    resolveSelectorPluginId(pluginId) {
+      const { type, configMode } = this.info.plugin || {};
+      const { bizId } = this.info;
+      if (!this.isClone || type !== 'K8S' || configMode !== 'configmap' || !bizId) return pluginId;
+      const suffix = `_${bizId}`;
+      return pluginId?.endsWith(suffix) ? pluginId.slice(0, -suffix.length) : pluginId;
+    },
+
     /* 编辑时回填插件选择 */
     setPluginSelector(data) {
       if (data.collect_type === 'Log') {
@@ -2145,7 +2159,7 @@ export default {
         this.pluginSelectorObj.id = `snmp_${data.params.snmp_trap.version}`;
         this.pluginSelectorObj.objectIdDisable = false;
       } else {
-        this.pluginSelectorObj.id = data.plugin_info.plugin_id;
+        this.pluginSelectorObj.id = this.resolveSelectorPluginId(data.plugin_info.plugin_id);
         this.pluginSelectorObj.objectIdDisable = true;
       }
       this.pluginSelectorObj.key = random(8);
@@ -2164,7 +2178,7 @@ export default {
           this.pluginSelectorObj.id = plugin.snmpv;
           this.pluginSelectorObj.objectIdDisable = false;
         } else {
-          this.pluginSelectorObj.id = plugin.id;
+          this.pluginSelectorObj.id = this.resolveSelectorPluginId(plugin.id);
           this.pluginSelectorObj.objectIdDisable = true;
         }
       }
@@ -2451,6 +2465,11 @@ export default {
               width: 100%;
             }
           }
+        }
+
+        // 与参数名前缀拼接时去掉上传区左侧圆角，让虚线边框在左上角与前缀边框相接
+        :deep(.multi-file-param-wrap .multi-file-param-upload .multi-file-upload-control .file-wrapper) {
+          border-radius: 0 4px 4px;
         }
 
         :deep(.bk-radio-text::before) {

@@ -62,7 +62,10 @@ export default class ParamPrepend extends tsc<IProps> {
         tippy-options={this.tippyOptions}
       >
         <div class={['prepend-text', 'param-prepend-text', { required: this.required }]}>{this.displayText}</div>
-        <div slot='content'>
+        <div
+          class='param-prepend-content'
+          slot='content'
+        >
           <div>
             {this.$t('参数名称')}
             {' : '}

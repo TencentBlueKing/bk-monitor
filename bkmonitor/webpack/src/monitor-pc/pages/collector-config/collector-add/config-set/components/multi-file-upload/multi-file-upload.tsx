@@ -26,14 +26,13 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils/utils';
-
 import yamlIcon from './assets/yaml.svg';
 import {
   type FileValidator,
   type IFileCheckError,
   type IUploadedFile,
   type IValidateResult,
+  createUuid,
   FILE_ENCODING_INVALID,
   formatAcceptText,
   formatFileSize,
@@ -272,7 +271,7 @@ export default class MultiFileUpload extends tsc<IProps, IEvents> {
    */
   createInvalidRow(filename: string, size: number, message: string): IFileRow {
     return {
-      uid: random(32),
+      uid: createUuid(),
       filename,
       size,
       content: '',
@@ -323,11 +322,12 @@ export default class MultiFileUpload extends tsc<IProps, IEvents> {
           name: file.name,
           other: duplicated.filename,
         }) as string,
+        ellipsisLine: 0,
       });
       return;
     }
     this.rows.push({
-      uid: random(32),
+      uid: createUuid(),
       filename: file.name,
       size: file.size,
       content,
