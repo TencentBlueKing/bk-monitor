@@ -1698,6 +1698,12 @@ class Item(AbstractConfig):
         available_dimensions = set(self.NO_DATA_ACCESS_DIMENSIONS)
         for query in self.query_configs:
             available_dimensions.update(query.agg_dimension)
+            if (query.data_source_label, query.data_type_label) == (
+                DataSourceLabel.BK_MONITOR_COLLECTOR,
+                DataTypeLabel.LOG,
+            ):
+                # 日志关键字查询可按目标拓扑聚合，在运行时生成节点维度。
+                available_dimensions.update({"bk_obj_id", "bk_inst_id"})
             data_source = load_data_source(query.data_source_label, query.data_type_label)
             if (
                 query.data_source_label == DataSourceLabel.BK_LOG_SEARCH

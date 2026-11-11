@@ -14,7 +14,7 @@ import pytest
 
 from alarm_backends.constants import NO_DATA_TAG_DIMENSION
 from alarm_backends.core.control.mixins.nodata import CheckMixin
-from bkmonitor.data_source.data_source import LogSearchTimeSeriesDataSource
+from bkmonitor.data_source.data_source import BkMonitorLogDataSource, LogSearchTimeSeriesDataSource
 from bkmonitor.strategy.new_strategy import Item
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
@@ -81,6 +81,56 @@ def test_structured_queries_keep_union_of_dimensions(settings) -> None:
     item.align_no_data_dimensions(2)
 
     assert item.no_data_config["agg_dimension"] == ["namespace", "pod"]
+
+
+@pytest.mark.parametrize("target_field", ["host_topo_node", "service_topo_node"])
+def test_legacy_log_topology_dimensions_preserve_nodata_targets(target_field, mocker, settings) -> None:
+    from alarm_backends.service.nodata.scenarios.base import ServiceScenario
+
+    settings.EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = [2]
+    mocker.patch("bkmonitor.data_source.data_source.bk_biz_id_to_bk_tenant_id", return_value="system")
+    nodes = [{"bk_obj_id": "module", "bk_inst_id": 1}, {"bk_obj_id": "module", "bk_inst_id": 2}]
+    target = [[{"field": target_field, "method": "eq", "value": nodes}]]
+    query = log_query([])
+    query.update(
+        data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+        data_type_label=DataTypeLabel.LOG,
+        result_table_id="system.event",
+    )
+    item = make_item(["bk_obj_id", "bk_inst_id", "stale"], [query])
+    item.target = target
+    source = BkMonitorLogDataSource.init_by_query_config({**query, "target": target}, bk_biz_id=2)
+
+    assert source.topo_nodes == {"module": [1, 2]}
+    assert source._get_group_by("module") == ["dimensions.bk_module_id"]
+    records = source._remove_dimensions_prefix([{"dimensions.bk_module_id": 1}], "module")
+    assert records == [{"bk_obj_id": "module", "bk_inst_id": 1}]
+
+    item.align_no_data_dimensions(2)
+
+    assert item.no_data_config["agg_dimension"] == ["bk_obj_id", "bk_inst_id"]
+    if target_field == "service_topo_node":
+        scenario = ServiceScenario(
+            SimpleNamespace(
+                strategy=SimpleNamespace(), target=target, query_configs=[query], no_data_config=item.no_data_config
+            )
+        )
+        assert scenario.get_target_instances() == [
+            {"bk_obj_id": "module", "bk_inst_id": "1"},
+            {"bk_obj_id": "module", "bk_inst_id": "2"},
+        ]
+    points = [SimpleNamespace(dimensions=record, timestamp=60) for record in records]
+    result = CheckMixin._process_dimensions(item.no_data_config["agg_dimension"], points)
+    assert result["data_dimensions"] == [{"bk_obj_id": "module", "bk_inst_id": 1, NO_DATA_TAG_DIMENSION: True}]
+
+
+def test_other_sources_still_remove_unused_topology_dimensions(settings) -> None:
+    settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV = []
+    item = make_item(["namespace", "bk_obj_id", "bk_inst_id"], [log_query(["namespace"])])
+
+    item.align_no_data_dimensions(2)
+
+    assert item.no_data_config["agg_dimension"] == ["namespace"]
 
 
 def test_host_fuller_dimension_survives_alignment_and_is_used_by_nodata(mocker, settings) -> None:
