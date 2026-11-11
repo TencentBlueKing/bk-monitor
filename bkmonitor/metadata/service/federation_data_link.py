@@ -361,6 +361,8 @@ def restore_standard_vm_data_link(bk_tenant_id: str, cluster_id: str) -> None:
 
 def reconcile_federation_data_links(bk_tenant_id: str, plan: FederationReconcilePlan) -> None:
     plan = plan.normalized()
+    if plan == FederationReconcilePlan():
+        return
     active_records = models.BcsFederalClusterInfo.objects.filter(
         bk_tenant_id=bk_tenant_id,
         is_deleted=False,

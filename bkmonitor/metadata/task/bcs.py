@@ -79,6 +79,8 @@ def reconcile_federation_data_links_task(
 
 def schedule_federation_reconcile(bk_tenant_id: str, plan: FederationReconcilePlan) -> None:
     plan = plan.normalized()
+    if plan == FederationReconcilePlan():
+        return
     transaction.on_commit(
         lambda: reconcile_federation_data_links_task.delay(
             bk_tenant_id=bk_tenant_id,
@@ -777,11 +779,22 @@ def sync_federation_clusters(
     *,
     allow_empty_topology: bool = False,
 ) -> FederationReconcilePlan:
-    """按租户同步完整联邦拓扑，并返回需要执行的完整链路收敛计划。
+    """按租户同步完整联邦拓扑；有变化时返回完整收敛计划，否则返回空计划。
 
     空响应无法区分“权威确认无联邦”和“本次暂未取到拓扑”。当数据库仍有有效记录时，
     默认拒绝用空响应覆盖；只有明确确认需要清空时才允许传入 ``allow_empty_topology=True``。
     """
+
+    def topology_snapshot(records):
+        return {
+            (record.fed_cluster_id, record.sub_cluster_id): (
+                record.host_cluster_id,
+                sorted(set(record.fed_namespaces or [])),
+                record.fed_builtin_metric_table_id,
+                record.fed_builtin_event_table_id,
+            )
+            for record in records
+        }
 
     validate_federation_topology(fed_clusters)
     logger.info(
@@ -866,6 +879,10 @@ def sync_federation_clusters(
         current_active_records = list(
             models.BcsFederalClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, is_deleted=False)
         )
+        if topology_snapshot(existing_active_records) == topology_snapshot(current_active_records):
+            logger.info("sync_federation_clusters: topology unchanged, skip reconcile, tenant->[%s]", bk_tenant_id)
+            return FederationReconcilePlan()
+
         active_proxy_cluster_ids = {record.fed_cluster_id for record in current_active_records}
         active_sub_cluster_ids = {record.sub_cluster_id for record in current_active_records}
         plan = FederationReconcilePlan(

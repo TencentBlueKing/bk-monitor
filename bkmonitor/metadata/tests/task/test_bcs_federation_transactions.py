@@ -76,3 +76,11 @@ def test_federation_reconcile_waits_for_backend_commit(backend_database, rollbac
             removed_proxy_cluster_ids=[],
             removed_sub_cluster_ids=[],
         )
+
+
+def test_empty_federation_plan_does_not_register_callback(backend_database, mocker):
+    on_commit = mocker.patch("metadata.task.bcs.transaction.on_commit")
+    delay = mocker.patch("metadata.task.bcs.reconcile_federation_data_links_task.delay")
+    schedule_federation_reconcile("transaction-test", FederationReconcilePlan())
+    on_commit.assert_not_called()
+    delay.assert_not_called()

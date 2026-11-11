@@ -11,11 +11,14 @@ specific language governing permissions and limitations under the License.
 from unittest.mock import patch
 
 import pytest
+from django.core.management import call_command
 
 from metadata import models
 from metadata.models.data_link.utils import compose_bkdata_data_id_name
 from metadata.service.federation_data_link import (
     FederationNamespaceConflictError,
+    FederationReconcileError,
+    FederationReconcilePlan,
     FederationTopologyEmptySnapshotError,
     reconcile_federation_data_links,
 )
@@ -542,3 +545,117 @@ def test_sync_federation_clusters_rejects_overlapping_namespaces_before_update(c
     existing.refresh_from_db()
     assert existing.fed_namespaces == ["stable"]
     assert not existing.is_deleted
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("namespaces", [["ns1", "ns2"], ["ns2", "ns1", "ns1"], None])
+def test_federation_unchanged_topology_does_not_apply(create_or_delete_records, mocker, namespaces):
+    topology = {
+        "BCS-K8S-10001": {
+            "host_cluster_id": "BCS-K8S-11111",
+            "sub_clusters": {"BCS-K8S-10002": ["ns1", "ns2"]},
+        }
+    }
+    # 两个周期入口共用此函数；提交回调在此立即执行以验证投递次数。
+    mocker.patch("metadata.task.bcs.transaction.on_commit", side_effect=lambda callback, **kwargs: callback())
+    delay = mocker.patch("metadata.task.bcs.reconcile_federation_data_links_task.delay")
+    apply = mocker.patch.object(models.DataLink, "apply_data_link_with_retry")
+    assert sync_and_schedule_federation_clusters(topology, "system", "discover_bcs_clusters")
+    delay.assert_called_once()
+    topology["BCS-K8S-10001"]["sub_clusters"]["BCS-K8S-10002"] = namespaces
+    assert sync_and_schedule_federation_clusters(topology, "system", "refresh_bcs_monitor_info")
+    delay.assert_called_once()
+    plan = sync_federation_clusters(topology)
+    assert plan == FederationReconcilePlan()
+    reconcile_federation_data_links("system", plan)
+    apply.assert_not_called()
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize(
+    "change", ["add", "remove", "namespaces_add", "namespaces_remove", "namespaces_empty", "host", "metric", "event"]
+)
+def test_federation_topology_changes_trigger_reconcile(create_or_delete_records, change):
+    topology = {
+        "BCS-K8S-10001": {
+            "host_cluster_id": "BCS-K8S-11111",
+            "sub_clusters": {"BCS-K8S-10002": ["ns1", "ns2"]},
+        }
+    }
+    assert sync_federation_clusters(topology) != FederationReconcilePlan()
+    proxy = topology["BCS-K8S-10001"]
+    if change == "add":
+        proxy["sub_clusters"]["BCS-K8S-10003"] = ["ns3"]
+    elif change == "remove":
+        proxy["sub_clusters"] = {}
+    elif change.startswith("namespaces_"):
+        proxy["sub_clusters"]["BCS-K8S-10002"] = {
+            "namespaces_add": ["ns1", "ns2", "ns3"],
+            "namespaces_remove": ["ns1"],
+            "namespaces_empty": [],
+        }[change]
+    elif change == "host":
+        proxy["host_cluster_id"] = "BCS-K8S-22222"
+    else:
+        data_id = 60010 if change == "metric" else 80001
+        models.DataSourceResultTable.objects.filter(bk_data_id=data_id).update(table_id="changed.__default__")
+    plan = sync_federation_clusters(topology)
+    assert plan != FederationReconcilePlan()
+    if change == "remove":
+        assert plan.removed_proxy_cluster_ids == ["BCS-K8S-10001"]
+        assert plan.removed_sub_cluster_ids == ["BCS-K8S-10002"]
+        proxy["sub_clusters"] = {"BCS-K8S-10002": ["ns1", "ns2"]}
+        restored = sync_federation_clusters(topology)
+        assert restored.active_sub_cluster_ids == ["BCS-K8S-10002"]
+    else:
+        assert plan.active_proxy_cluster_ids == ["BCS-K8S-10001"]
+        assert "BCS-K8S-10002" in plan.active_sub_cluster_ids
+    assert sync_federation_clusters(topology) == FederationReconcilePlan()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_federation_reconcile_uses_current_topology_and_preserves_dependency_failure(create_or_delete_records, mocker):
+    topology = {
+        "BCS-K8S-10001": {
+            "host_cluster_id": "BCS-K8S-11111",
+            "sub_clusters": {"BCS-K8S-10002": ["ns1"]},
+        }
+    }
+    sync_federation_clusters(topology)
+    service = "metadata.service.federation_data_link"
+    proxy = mocker.patch(f"{service}.ensure_federal_proxy_data_link")
+    subset = mocker.patch(f"{service}.ensure_federal_subset_data_link")
+    delete = mocker.patch(f"{service}.delete_federal_subset_data_link")
+    stale_plan = FederationReconcilePlan(
+        active_proxy_cluster_ids=["old-proxy"],
+        active_sub_cluster_ids=["old-sub"],
+        removed_sub_cluster_ids=["BCS-K8S-10002"],
+    )
+    reconcile_federation_data_links("system", stale_plan)
+    proxy.assert_called_once_with(bk_tenant_id="system", fed_cluster_id="BCS-K8S-10001")
+    subset.assert_called_once_with(bk_tenant_id="system", sub_cluster_id="BCS-K8S-10002")
+    delete.assert_not_called()
+    proxy.side_effect = RuntimeError("offline")
+    subset.reset_mock()
+    with pytest.raises(FederationReconcileError, match="failed_dependencies"):
+        reconcile_federation_data_links("system", stale_plan)
+    subset.assert_not_called()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_manual_federation_reconcile_still_builds_full_plan(create_or_delete_records, mocker):
+    topology = {
+        "BCS-K8S-10001": {
+            "host_cluster_id": "BCS-K8S-11111",
+            "sub_clusters": {"BCS-K8S-10002": ["ns1"]},
+        }
+    }
+    expected = sync_federation_clusters(topology)
+    assert sync_federation_clusters(topology) == FederationReconcilePlan()
+    reconcile = mocker.patch(
+        "metadata.management.commands.reconcile_federation_data_links.reconcile_federation_data_links"
+    )
+    call_command("reconcile_federation_data_links", "--tenant-id", "system", "--dry-run")
+    reconcile.assert_not_called()
+    call_command("reconcile_federation_data_links", "--tenant-id", "system")
+    reconcile.assert_called_once_with(bk_tenant_id="system", plan=expected)
