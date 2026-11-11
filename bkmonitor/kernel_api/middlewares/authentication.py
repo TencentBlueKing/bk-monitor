@@ -456,6 +456,77 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", ""),
             )
 
+    def _handle_user_api(self, request, backend_path):
+        """按服务端目录执行纯用户态 API，不接受调用方提供的权限或 MCP 来源。"""
+        from rest_framework.exceptions import ValidationError
+        from rest_framework.response import Response
+
+        from bkmonitor.utils.request import get_mcp_trace_id
+        from kernel_api.adapters import ApiRenderer
+        from kernel_api.unified_mcp.errors import build_mcp_error
+        from kernel_api.unified_mcp.permissions import _principal
+        from kernel_api.unified_mcp.registry import get_tool_registry
+        from kernel_api.user_api import FACADE_OPERATIONS, resolve_user_api
+
+        source_root = str(settings.BASE_DIR) + "/support-files/apigw/resources/internal/user"
+        operation = resolve_user_api(source_root, request.method, backend_path)
+        if operation is None:
+            return HttpResponseForbidden("Unknown independent user API or method")
+
+        request.skip_check = False
+        request.unified_mcp_permission_checked = False
+        request.mcp_usage_event_id = secrets.token_hex(16)
+        request.mcp_usage_started_at = time.monotonic()
+        request.mcp_usage_entry_point = "user"
+        request.mcp_usage_operation = operation
+        request.mcp_usage_tool = operation
+        request.mcp_usage_username = request.user.username if request.user else ""
+        request.mcp_usage_app_code = request.jwt.app.get("app_code", "")
+        request.mcp_permission_source = "none"
+        request.mcp_permission_action = ""
+
+        try:
+            _principal(request)
+            if request.method in {"GET", "HEAD"}:
+                arguments = request.GET.dict()
+            else:
+                try:
+                    arguments = json.loads(request.body)
+                except (ValueError, UnicodeDecodeError) as exc:
+                    raise ValidationError("A JSON object is required.") from exc
+                if not isinstance(arguments, dict):
+                    raise ValidationError("A JSON object is required.")
+            if operation not in FACADE_OPERATIONS:
+                tool = get_tool_registry().get(operation)
+                # Reuse complete schema, confirmation, tenant/resource and IAM checks.
+                return self._handle_native_mcp(request, tool, arguments)
+
+            from kernel_api.resource.unified_mcp import (
+                ExecuteToolResource,
+                LookupMetadataResource,
+                LookupPermissionsResource,
+                LookupToolResource,
+                LookupToolSchemaResource,
+            )
+
+            resources = {
+                "lookup_tool": LookupToolResource,
+                "lookup_tool_schema": LookupToolSchemaResource,
+                "lookup_metadata": LookupMetadataResource,
+                "lookup_permissions": LookupPermissionsResource,
+                "execute_tool": ExecuteToolResource,
+            }
+            data = resources[operation]().request(**arguments)
+            content = ApiRenderer().render(data, renderer_context={"request": request, "response": Response()})
+            return HttpResponse(content, content_type="application/json")
+        except Exception as exc:
+            status_code, _, message, data = build_mcp_error(
+                exc, get_mcp_trace_id(request), request.META.get("HTTP_X_BKAPI_REQUEST_ID", "")
+            )
+            return JsonResponse(
+                {"result": False, "code": status_code, "message": message, "data": data}, status=status_code
+            )
+
     def _handle_mcp_auth(self, request, username=None, resolved_tool=None):
         """
         处理MCP权限校验
@@ -895,16 +966,18 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
     def process_view(self, request, view, *args, **kwargs):
         from kernel_api.mcp_read_routes import MCP_READ_PREFIX, is_application_read_route
+        from kernel_api.user_api import USER_API_BACKEND_PREFIX
 
         # Django resolves path_info after stripping SCRIPT_NAME on mounted deployments.
         backend_path = getattr(request, "path_info", request.path)
         is_application = is_application_read_route(request.method, backend_path)
         is_mcp_read = backend_path.startswith(MCP_READ_PREFIX)
+        is_user_api = backend_path.startswith(USER_API_BACKEND_PREFIX)
         if is_application and not self.use_apigw_auth(request):
             return HttpResponseForbidden("Application read APIs require an authenticated gateway application")
 
         # 登录豁免
-        if not is_application and not is_mcp_read and getattr(view, "login_exempt", False):
+        if not is_application and not is_mcp_read and not is_user_api and getattr(view, "login_exempt", False):
             return None
 
         if self.use_apigw_auth(request):
@@ -915,7 +988,9 @@ class AuthenticationMiddleware(MiddlewareMixin):
                     log_mcp_event("gateway_auth_denied", request, level=logging.WARNING, reason="invalid_jwt")
                 return HttpResponseForbidden(error_message)
 
-            if not is_application and ("app_code" not in request.jwt.app or "username" not in request.jwt.user):
+            if not is_application and (
+                (not is_user_api and "app_code" not in request.jwt.app) or "username" not in request.jwt.user
+            ):
                 return HttpResponseForbidden("Gateway identity claims are incomplete")
             app_code = request.jwt.app.get("app_code")
             username = request.jwt.user.get("username")
@@ -938,6 +1013,18 @@ class AuthenticationMiddleware(MiddlewareMixin):
             app_code = request.META.get("HTTP_BK_APP_CODE")
             username = request.META.get("HTTP_BK_USERNAME")
             bk_tenant_id = DEFAULT_TENANT_ID
+
+        if is_user_api:
+            jwt_client = getattr(request, "jwt", None)
+            if not (
+                self.use_apigw_auth(request)
+                and getattr(jwt_client, "is_valid", False)
+                and jwt_client.user.get("verified") is True
+                and username
+            ):
+                return HttpResponseForbidden("Independent user APIs require a verified gateway user")
+            request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
+            return self._handle_user_api(request, backend_path)
 
         # Resolve standalone read-only tools independently of transport markers/app identity.
         # Registry/configuration errors fail closed instead of silently using the ordinary API path.

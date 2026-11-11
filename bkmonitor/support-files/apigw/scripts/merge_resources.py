@@ -1,8 +1,13 @@
 #! /usr/bin/env python
 
 from pathlib import Path
+import sys
 
 import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from kernel_api.user_api import build_user_api_paths
 
 
 def check_unique_operation_ids(merged_data: dict):
@@ -62,6 +67,12 @@ def merge_resources(resources_dir: Path):
                         method_data["x-bk-apigateway-resource"]["allowApplyPermission"] = True
 
                 merged_data.update(data)
+
+    # 独立用户态 API 复用已评审的业务契约，不改变既有 MCP 资源和工具清单。
+    user_paths = build_user_api_paths(resources_dir / "internal/user")
+    if merged_data.keys() & user_paths.keys():
+        raise ValueError("Independent user API paths conflict with existing resources")
+    merged_data.update(user_paths)
 
     # 写入前校验 operationId 全局唯一，避免重复定义被带到部署时才由网关报错
     check_unique_operation_ids(merged_data)

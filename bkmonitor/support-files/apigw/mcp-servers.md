@@ -1,6 +1,7 @@
 # 监控 API 网关与 MCP Server 同步
 
 `definition.yaml` 维护 `bk-monitor` 网关、发布环境和 MCP Server；`resources/` 维护工具对应的 OpenAPI 资源。
+独立用户态 API 的范围、个人令牌配置和全量清单见 [独立用户态 API](user-apis.md)。
 部署使用现有的 `python manage.py sync_apigw`：合并资源、同步网关与环境、同步资源与文档、发布资源版本，随后执行
 `sync_apigw_stage_mcp_servers`，最后同步应用授权与网关公钥。发布或 MCP 同步失败会使命令失败。
 
@@ -70,7 +71,7 @@ python -m pytest -c /dev/null -p no:cacheprovider \
 
 线上验收需在每个环境发布后单独完成：
 
-1. 确认资源版本 `0.0.8` 已在目标 stage 生效，MCP 同步日志中的 Server 名称和数量与声明一致。
+1. 确认当前声明的资源版本已在目标 stage 生效，MCP 同步日志中的 Server 名称和数量与声明一致。
 2. 若网关返回 `pending`，等待网关异步同步完成，回读 Server 清单；命令退出成功不等于异步同步已经完成。
 3. 对照声明检查 `tools/list`，确认补充工具可见、现有应用授权保留，且内部运营入口未被新增注册。
 4. 使用当前用户凭据执行指标、日志、告警等只读查询，分别验证业务成功与权限不足时的响应。
