@@ -123,6 +123,13 @@
     white-space: nowrap;
   }
 
+  // 预览容器 overflow: hidden 不算 scroll container，min-width: auto 会让 nowrap 文本按全文宽度撑开、
+  // 真正裁切发生在父级。这里补上可收缩的省略盒，让文本按剩余宽度收窄并出省略号，截断判断才有意义。
+  &-text {
+    flex: 1;
+    min-width: 0;
+  }
+
   &-placeholder {
     color: #8f9fbd;
   }
@@ -282,6 +289,7 @@
 
   &-arrow {
     font-size: 12px;
+    font-weight: 800;
   }
 
   &-toggle {

@@ -1103,6 +1103,82 @@ test('IO completion reuses structure work while filters and expansion still upda
   stop();
 });
 
+test('span toggle reuses unchanged rows and keeps structure work stable', async () => {
+  const originalClearTimeout = global.window.clearTimeout;
+  global.window.clearTimeout = (...args) => clearTimeout(...args);
+  let builds = 0;
+  let flattens = 0;
+  const observation = createObservation((file, exports) => {
+    if (!file.endsWith('/llm-observation/utils/transform.ts')) return;
+    const build = exports.buildTraceView;
+    const flatten = exports.flattenVisibleSpanRows;
+    exports.buildTraceView = (...args) => {
+      builds++;
+      return build(...args);
+    };
+    exports.flattenVisibleSpanRows = (...args) => {
+      flattens++;
+      return flatten(...args);
+    };
+  });
+  const { result, requests, stop } = observation;
+  const span = (spanId, operation, childs) => ({
+    trace_id: 'trace-a',
+    span_id: spanId,
+    span_name: spanId,
+    start_time: 100,
+    end_time: 300,
+    elapsed_time: 100,
+    attributes: { 'gen_ai.operation.name': operation },
+    ...(childs ? { childs } : {}),
+  });
+  const response = () => {
+    const data = flowResponse('trace-a');
+    data.traces[0].flow = [
+      span('agent', 'invoke_agent', [span('llm-a', 'chat', [span('tool-a', 'execute_tool')]), span('llm-b', 'chat')]),
+    ];
+    return data;
+  };
+  requests.find(request => !request.params.include_input_output).resolve(response());
+  await flush();
+  requests.find(request => request.params.include_input_output).resolve(response());
+  await flush();
+
+  const initialRows = result.traceBlocks.value[0].rows;
+  assert.deepEqual(
+    initialRows.map(row => row.spanId),
+    ['agent', 'llm-a', 'tool-a', 'llm-b']
+  );
+  const [agent, llmA, , llmB] = initialRows;
+  const initialBuilds = builds;
+  const initialFlattens = flattens;
+
+  result.toggleSpan('llm-a');
+  const collapsedRows = result.traceBlocks.value[0].rows;
+  assert.deepEqual(
+    collapsedRows.map(row => row.spanId),
+    ['agent', 'llm-a', 'llm-b']
+  );
+  assert.equal(collapsedRows[0], agent);
+  assert.equal(collapsedRows[2], llmB);
+  assert.equal(builds, initialBuilds);
+  assert.ok(flattens > initialFlattens);
+
+  result.toggleSpan('llm-a');
+  const expandedRows = result.traceBlocks.value[0].rows;
+  assert.deepEqual(
+    expandedRows.map(row => row.spanId),
+    ['agent', 'llm-a', 'tool-a', 'llm-b']
+  );
+  assert.equal(expandedRows[0], agent);
+  assert.equal(expandedRows[1], llmA);
+  assert.equal(expandedRows[3], llmB);
+  assert.equal(builds, initialBuilds);
+
+  stop();
+  global.window.clearTimeout = originalClearTimeout;
+});
+
 function createPreference() {
   localStorage.values.clear();
   localStorage.setItem('TRACE_DETAIL_LLM_PREFERENCE:11-app-a', 'timeline');
@@ -1292,6 +1368,7 @@ test('text, KV and model tool previews share the same equal-width side container
     'renderIoSide',
     {
       h: vue.h,
+      inView: { value: true },
       pickPreviewPiece: pieces => pieces[0] || null,
       formatPiecesTooltip: () => '',
       renderIoPiece: () => vue.h('span', 'preview'),
@@ -1308,4 +1385,23 @@ test('text, KV and model tool previews share the same equal-width side container
     assert.equal(side.children.length, 1);
   }
   assert.equal(render([]).props.class, 'llm-span-io-empty');
+});
+
+test('out-of-view rows render a plain text placeholder instead of measuring KV / Popover', () => {
+  const render = loadFunction(
+    path.join(root, 'inquire-content/llm-observation/components/span-row.tsx'),
+    'renderIoSide',
+    {
+      h: vue.h,
+      inView: { value: false },
+      pickPreviewPiece: pieces => pieces[0] || null,
+      formatPiecesTooltip: () => '',
+      formatPiecesPlainText: () => 'plain-placeholder',
+      renderIoPiece: () => vue.h('span', 'preview'),
+    }
+  );
+  const side = render([{ type: 'kv', pairs: [{ key: 'path', value: '/example' }] }]);
+  assert.equal(side.type, 'span');
+  assert.equal(side.props.class, 'llm-span-io-text');
+  assert.ok(JSON.stringify(side.children).includes('plain-placeholder'));
 });

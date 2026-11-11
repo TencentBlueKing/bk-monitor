@@ -1383,9 +1383,15 @@ const SpanDetails = defineComponent({
     /** 第一层 Tab 已吸顶（header 滚出后）才与第二层拉开 4px，默认贴紧内容 */
     const infoTabStuck = shallowRef(false);
     let unbindInfoTabSticky: (() => void) | undefined;
+    // 嵌套详情是独立实例，同一份 class 在文档里会有多份，必须按实例自身节点定位，
+    // 否则内层重置滚动时会命中外层内容节点，把外层列表滚回顶部
+    const contentRef = shallowRef<HTMLElement>();
+    const setContentRef = (el: unknown) => {
+      contentRef.value = el instanceof HTMLElement ? el : undefined;
+    };
 
     const syncInfoTabStuck = () => {
-      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      const content = contentRef.value;
       const header = content?.querySelector('.details-header') as HTMLElement | undefined;
       if (!content || !header) {
         infoTabStuck.value = false;
@@ -1397,7 +1403,7 @@ const SpanDetails = defineComponent({
 
     const bindInfoTabSticky = () => {
       unbindInfoTabSticky?.();
-      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      const content = contentRef.value;
       const scroller = (content?.closest('.bk-modal-content') as HTMLElement | null) || content;
       if (!scroller) return;
       scroller.addEventListener('scroll', syncInfoTabStuck, { passive: true });
@@ -1410,8 +1416,7 @@ const SpanDetails = defineComponent({
 
     /** LLM 观测外滚吸顶后切走，父级高度收回但祖先 scrollTop 仍在，整栏会被顶出视口 */
     const resetInfoTabScroll = () => {
-      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
-      let el: HTMLElement | null = content;
+      let el: HTMLElement | null = contentRef.value ?? null;
       while (el && el !== document.body) {
         if (el.scrollTop) {
           el.scrollTop = 0;
@@ -1695,7 +1700,10 @@ const SpanDetails = defineComponent({
               <VueJsonPretty data={originalData.value} />
             </div>
           ) : (
-            <div class={`span-details-sideslider-content ${!props.withSideSlider ? 'is-main' : ''}`}>
+            <div
+              ref={setContentRef}
+              class={`span-details-sideslider-content ${!props.withSideSlider ? 'is-main' : ''}`}
+            >
               {!props.withSideSlider && (
                 <div class='header-tool'>
                   <Switcher

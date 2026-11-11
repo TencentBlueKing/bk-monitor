@@ -77,6 +77,30 @@ const LLM_TRACE_GROUP_FIELD = 'trace_id';
 /** 会话概览 Trace 不超过该数量时，按文档异步预加载各条 flow */
 const SESSION_FLOW_PRELOAD_LIMIT = 5;
 
+/** 行对象复用时的元信息比较字段；io / ioLoading 单独处理 */
+const SPAN_ROW_META_KEYS: (keyof LlmSpanRowView)[] = [
+  'childCount',
+  'depth',
+  'elapsedTime',
+  'errorMessage',
+  'hasChildren',
+  'inputTokens',
+  'isError',
+  'isLast',
+  'kind',
+  'lineGuideLevel',
+  'name',
+  'outputTokens',
+  'spanId',
+  'startTime',
+  'subtitle',
+  'traceId',
+];
+
+/** 除 io / ioLoading 外元信息一致时，可复用上一轮的 Span 行对象 */
+const isSameSpanRowMeta = (left: LlmSpanRowView, right: LlmSpanRowView): boolean =>
+  SPAN_ROW_META_KEYS.every(key => left[key] === right[key]);
+
 /**
  * Trace 详情 LLM 观测的数据与交互状态。
  * - 默认按 trace_id 拉 overview + flow；开启「同会话」后按 conversation.id 拉多 Trace，flow 懒加载。
@@ -109,13 +133,28 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   /** 递增以丢弃过期的 overview / 懒加载响应 */
   let overviewRequestId = 0;
   let appliedOverviewRequestId = 0;
+  /** 缓存 buildTraceView 结果：flow 实例与 flowLoaded 未变时直接复用，避免展开/收起时全树重算 */
+  const traceViewCache = new WeakMap<LlmFlowTrace, { flowLoaded: boolean; view: LlmTraceView }>();
+  /** 缓存已构建的 Span 行对象：key 为 traceId:spanId，元信息与 io 引用均未变时复用，稳定 props 引用以跳过重渲染 */
+  const spanRowCache = new Map<string, LlmSpanRowView>();
+
+  const resolveTraceView = (item: LlmFlowTrace): LlmTraceView => {
+    const flowLoaded = flowLoadedTraceIds.value.has(item.trace_id);
+    const cached = traceViewCache.get(item);
+    if (cached && cached.flowLoaded === flowLoaded && cached.view.traceId === item.trace_id) {
+      return cached.view;
+    }
+    const view = buildTraceView(item, get(options.traceId), flowLoaded);
+    traceViewCache.set(item, { flowLoaded, view });
+    return view;
+  };
 
   const stats = computed(() => buildStatCards(traces.value, t, overviewStats.value));
   const kindCounts = computed(() => countSpanKinds(traces.value));
   /** 仅对已展开的 Trace 计算 flatten 行；筛选/关键字变化时复算 rows，不重复请求接口 */
   const structureBlocks = computed<TraceBlockView[]>(() =>
     traces.value.map(item => {
-      const view = buildTraceView(item, get(options.traceId), flowLoadedTraceIds.value.has(item.trace_id));
+      const view = resolveTraceView(item);
       const expanded = expandedTraceIds.value.has(item.trace_id);
       return {
         ...view,
@@ -132,16 +171,26 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     })
   );
   const traceBlocks = computed<TraceBlockView[]>(() =>
-    structureBlocks.value.map(block => ({
-      ...block,
-      ...traceIoPreviews.value.get(block.traceId),
-      title: traceIoPreviews.value.get(block.traceId)?.input || block.title,
-      rows: block.rows.map(row => ({
-        ...row,
-        io: ioPreviews.value.get(`${block.traceId}:${row.spanId}`) || row.io,
-        ioLoading: ioLoadingTraceIds.value.has(block.traceId),
-      })),
-    }))
+    structureBlocks.value.map(block => {
+      const traceIo = traceIoPreviews.value.get(block.traceId);
+      const ioLoading = ioLoadingTraceIds.value.has(block.traceId);
+      return {
+        ...block,
+        ...traceIo,
+        title: traceIo?.input || block.title,
+        rows: block.rows.map(row => {
+          const key = `${block.traceId}:${row.spanId}`;
+          const io = ioPreviews.value.get(key) || row.io;
+          const cached = spanRowCache.get(key);
+          if (cached && cached.io === io && cached.ioLoading === ioLoading && isSameSpanRowMeta(cached, row)) {
+            return cached;
+          }
+          const next = { ...row, io, ioLoading };
+          spanRowCache.set(key, next);
+          return next;
+        }),
+      };
+    })
   );
 
   /** 会话时间线按 start_time 正序；单 Trace 模式仍把当前 Trace 置顶 */
@@ -486,6 +535,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       flowLoadedTraceIds.value = new Set();
       loadingTraceIds.value = new Set();
       highlightedSpanId.value = '';
+      spanRowCache.clear();
     }
   );
 

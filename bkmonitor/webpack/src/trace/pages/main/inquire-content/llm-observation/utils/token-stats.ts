@@ -1,4 +1,4 @@
-import { collectSpanList, pickSpanName, pickSpanTokenUsage } from './transform';
+import { collectSpanList, pickSpanName, pickSpanTokenUsage, resolveSpanKind } from './transform';
 
 import type { LlmFlowSpan } from './typings';
 
@@ -19,6 +19,7 @@ const FALLBACK_NAME = '--';
 /** 当前指标 > 0 的 Span，占比相对该类 Token 之和；再按 Top / Bottom 截断 */
 export function buildTokenSpanStats(flow: LlmFlowSpan[], metric: TokenMetric, rankMode: TokenRankMode): TokenSpanStat[] {
   const items = collectSpanList(flow)
+    .filter(span => resolveSpanKind(span) !== 'AGENT')
     .map(span => ({
       spanId: span.span_id,
       name: pickSpanName(span) || span.span_name || FALLBACK_NAME,
