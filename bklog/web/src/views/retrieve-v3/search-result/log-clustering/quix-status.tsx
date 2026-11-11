@@ -69,14 +69,8 @@ export default defineComponent({
       ) {
         return null;
       }
-      if (
-        props.showProgress &&
-        !failed &&
-        !awaitingReceipt &&
-        !operation?.last_error &&
-        !bkfara?.error &&
-        !bkfara?.pending_result_count
-      ) {
+      // 开启进度页在中间展示状态和失败原因，顶部不再重复提示
+      if (props.showProgress) {
         return null;
       }
       return (

@@ -42,8 +42,10 @@ export default defineComponent({
       type: Object as PropType<ClusteringConfigStatus>,
       required: true,
     },
+    busy: Boolean,
   },
-  setup(props, { expose }) {
+  emits: ['retry'],
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
 
     const isQuix = computed(() => Boolean(props.clusterStepData.quix));
@@ -90,6 +92,13 @@ export default defineComponent({
       }
       return '';
     });
+
+    const operation = computed(() => props.clusterStepData.quix?.operation);
+    // 自动重试中的异常也在中间展示，标题仍保持开启中
+    const reasonMessage = computed(
+      () => errorMessage.value || operation.value?.last_error || props.clusterStepData.quix?.bkfara?.error || '',
+    );
+    const retryable = computed(() => operation.value?.status === 'failed' && !window.IS_EXTERNAL);
 
     const getStatus = (step: StepStatus) => {
       return props.clusterStepData?.[step]?.status || 'SUCCESS';
@@ -178,10 +187,21 @@ export default defineComponent({
                 )}
               </div>
             )}
-            {errorMessage.value && (
+            {reasonMessage.value && (
               <div class='error-message'>
                 <span class='error-reason'>{t('失败原因')}: </span>
-                <span class='error'>{errorMessage.value}</span>
+                <span class='error'>{reasonMessage.value}</span>
+                {retryable.value && (
+                  <bk-button
+                    class='retry-button'
+                    text
+                    theme='primary'
+                    disabled={props.busy}
+                    on-click={() => emit('retry')}
+                  >
+                    {t('重试')}
+                  </bk-button>
+                )}
               </div>
             )}
           </div>
