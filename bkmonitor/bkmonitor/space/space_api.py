@@ -232,6 +232,67 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         return spaces
 
     @classmethod
+    def list_space_dicts_by_biz_ids(cls, bk_biz_ids: list[int], bk_tenant_id: str | None = None) -> list[dict]:
+        """按 bk_biz_id 精确查询空间，只返回 bk_biz_id（供权限候选构造使用）。
+
+        与 `list_spaces_dict` 的差异：
+        1. 只查请求涉及的空间，不做全表扫描；
+        2. 不读写 `caches["space"]`，也不修改模块级 `_space_transform` 映射 —— 后者是
+           `get_space_detail` 负数分支依赖的全局状态，污染它会让其他业务取到错误空间。
+
+        负数 bk_biz_id 表示非 CMDB 空间，满足 `bk_biz_id = -metadata_space.id`。
+        """
+        if not bk_biz_ids:
+            return []
+
+        # 归一化为 int：调用方（parse_biz_item）已保证类型，这里再做一次防御，
+        # 避免字符串入参在 `biz_id > 0` 比较处抛 TypeError。
+        normalized_biz_ids = [int(biz_id) for biz_id in bk_biz_ids]
+        cc_space_ids = [str(biz_id) for biz_id in normalized_biz_ids if biz_id > 0]
+        non_cc_space_ids = [abs(biz_id) for biz_id in normalized_biz_ids if biz_id < 0]
+        if not cc_space_ids and not non_cc_space_ids:
+            return []
+
+        cc_placeholders = ", ".join(["%s"] * len(cc_space_ids))
+        non_cc_placeholders = ", ".join(["%s"] * len(non_cc_space_ids))
+        where_parts = []
+        sql_params: list[object] = []
+        if cc_space_ids:
+            where_parts.append(f"(s.space_type_id = %s AND s.space_id IN ({cc_placeholders}))")
+            sql_params.append(SpaceTypeEnum.BKCC.value)
+            sql_params.extend(cc_space_ids)
+        if non_cc_space_ids:
+            # 与 list_spaces_dict 的判定保持一致：space_type_id 为 NULL 的历史数据也按
+            # 非 CMDB 空间处理（Python 侧 `== "bkcc"` 对 None 同样为 False）。
+            # 因此这里必须显式包含 IS NULL，否则会漏掉这类空间。
+            where_parts.append(
+                f"((s.space_type_id IS NULL OR s.space_type_id != %s) AND s.id IN ({non_cc_placeholders}))"
+            )
+            sql_params.append(SpaceTypeEnum.BKCC.value)
+            sql_params.extend(non_cc_space_ids)
+
+        sql = f"""
+            SELECT s.id, s.bk_tenant_id, s.space_type_id, s.space_id
+            FROM metadata_space s
+            WHERE {" OR ".join(where_parts)}
+        """
+        with connections["monitor_api"].cursor() as cursor:
+            cursor.execute(sql, sql_params)
+            columns = [col[0] for col in cursor.description]
+            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        space_dicts: list[dict] = []
+        for row in rows:
+            # 与 list_spaces_dict 的租户口径保持一致
+            if bk_tenant_id and row["bk_tenant_id"] != bk_tenant_id:
+                continue
+            if row["space_type_id"] == SpaceTypeEnum.BKCC.value:
+                space_dicts.append({"bk_biz_id": int(row["space_id"])})
+            else:
+                space_dicts.append({"bk_biz_id": -row["id"]})
+        return space_dicts
+
+    @classmethod
     def list_sticky_spaces(cls, username):
         sql = """SELECT `metadata_spacestickyinfo`.`space_uid_list`
         FROM `metadata_spacestickyinfo`

@@ -32,6 +32,7 @@ from collections import defaultdict
 
 from django.conf import settings
 from django.utils.functional import cached_property
+from opentelemetry import trace
 
 from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
@@ -72,6 +73,8 @@ from core.errors.iam import ActionNotExistError, PermissionDeniedError
 from core.errors.share import TokenValidatedError
 
 logger = logging.getLogger(__name__)
+
+tracer = trace.get_tracer(__name__)
 
 # ActionIdMap 保留旧 Token 类型到动作的映射，值使用 ActionEnum 以兼容既有配置。
 # 调用方可以传入 ActionEnum、ActionDef 或 action ID 字符串，因此匹配时统一按 action ID 比较。
@@ -900,27 +903,54 @@ class Permission:
         space_list, _ = self.filter_space_list_by_action_with_scope(action, using_cache)
         return space_list
 
-    def filter_space_list_by_action_with_scope(self, action, using_cache=True) -> tuple[list[dict], bool]:
-        """获取有对应 action 权限的空间列表，并标识是否拥有全量空间权限。"""
-        space_list = SpaceApi.list_spaces_dict(bk_tenant_id=self.bk_tenant_id, using_cache=using_cache)
+    def filter_space_list_by_action_with_scope(
+        self, action, using_cache=True, candidate_biz_ids: list[int] | None = None
+    ) -> tuple[list[dict], bool]:
+        """获取有对应 action 权限的空间列表，并标识是否拥有全量空间权限。
+
+        candidate_biz_ids 为 None：行为与原来完全一致，按全租户空间构造候选。
+        非 None：只针对这些业务精确查询并构造候选，避免"全量空间列表 → N 个候选"的
+        O(N) 开销。此时返回的 dict 仅含 bk_biz_id 字段，且第二个返回值只代表
+        "候选集合是否全部授权"，不再具备全租户语义 —— 调用方不得据此设置
+        tenant_wide 标记（该标记只对 bk_biz_ids 含 -1 的全业务请求有意义）。
+
+        注意：candidate_biz_ids 非 None 时走的是按 id 精确查询，不经过
+        `caches["space"]`，此时 using_cache 参数被忽略（缓存里只有整份列表，
+        按业务过滤仍需先反序列化整份，等于没有优化）。
+        """
+        # 三段埋点：取空间列表 / 构造候选 / IAM 过滤求交。
+        # 用途：权限计算是告警中心多个接口的主要耗时（实测单次 1.0~1.9s），
+        # 但这三段此前没有独立 span，无法判断成本落在哪一段。
+        with tracer.start_as_current_span("iam.list_spaces", record_exception=False):
+            if candidate_biz_ids is None:
+                space_list = SpaceApi.list_spaces_dict(bk_tenant_id=self.bk_tenant_id, using_cache=using_cache)
+            else:
+                space_list = SpaceApi.list_space_dicts_by_biz_ids(candidate_biz_ids, bk_tenant_id=self.bk_tenant_id)
         if self.skip_check:
             return space_list, True
 
         action_id_biz = _to_business_action_id(action)
         subject = FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id)
-        candidates = tuple(FwResource(type="space", id=str(s["bk_biz_id"])) for s in space_list)
+        with tracer.start_as_current_span("iam.build_candidates", record_exception=False) as span:
+            candidates = tuple(FwResource(type="space", id=str(s["bk_biz_id"])) for s in space_list)
+            span.set_attribute("iam.space_count", len(space_list))
+            if candidate_biz_ids is not None:
+                span.set_attribute("iam.narrowed", True)
 
-        try:
-            result = self.filter_visible_resources(subject, action_id_biz, candidates)
-        except ProviderError as e:
-            logger.exception("[IAM Policy Query Error]: %s", e)
-            return [], False
+        with tracer.start_as_current_span("iam.filter_visible", record_exception=False) as span:
+            try:
+                result = self.filter_visible_resources(subject, action_id_biz, candidates)
+            except ProviderError as e:
+                logger.exception("[IAM Policy Query Error]: %s", e)
+                return [], False
 
-        if result.all_granted:
-            return space_list, True
+            if result.all_granted:
+                span.set_attribute("iam.all_granted", True)
+                return space_list, True
 
-        visible_ids = set(result.visible_ids)
-        return [s for s in space_list if str(s["bk_biz_id"]) in visible_ids], False
+            visible_ids = set(result.visible_ids)
+            span.set_attribute("iam.visible_count", len(visible_ids))
+            return [s for s in space_list if str(s["bk_biz_id"]) in visible_ids], False
 
     # ================================================================
     # Resource 构造 — 保留（monitor_web/iam/ 回调使用）
