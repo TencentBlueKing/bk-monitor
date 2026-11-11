@@ -618,8 +618,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
           this[key] = +val;
         } else if (['from', 'to'].includes(key)) {
           // this[key] = Array.isArray(val) ? val : isNaN(+val) ? val : +val;
-          key === 'from' && (this.timeRange[0] = val as string);
-          key === 'to' && (this.timeRange[1] = val as string);
+          if (key === 'from') this.timeRange[0] = val as string;
+          if (key === 'to') this.timeRange[1] = val as string;
         } else if (key === 'queryData') {
           try {
             const {
@@ -651,7 +651,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
           /** 目标对比、时间对比数据 */
           try {
             const value = JSON.parse(decodeURIComponent(val as string));
-            key === 'compares' ? (this.compares = value) : (this.timeOffset = value);
+            if (key === 'compares') this.compares = value;
+            else this.timeOffset = value;
             this.compareType = key === 'compares' ? 'target' : 'time';
           } catch (err) {
             console.log(err);
@@ -729,7 +730,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
    * @param isSelectItem 是否为选中侧栏操作
    */
   async handleTabChange(id: string, needLoading = true, isSelectItem = false) {
-    needLoading && (this.loading = true);
+    if (needLoading) this.loading = true;
     this.dashboardId = id;
     /** 优先请求侧栏 */
     if (this.selectorPanelPriority) {
@@ -743,7 +744,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   }
   // 页签改变时
   async handleGetPanelData(v: string, needLoading = true) {
-    needLoading && (this.loading = true);
+    if (needLoading) this.loading = true;
     this.dashboardId = v;
     this.filtersReady = false;
     this.headerTitleChange(this.localSceneType === 'overview' ? '' : this.currentTitle || 'loading...');
@@ -762,7 +763,10 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         ...variablesService.transformVariables(this.currentTabData.params || {}),
       };
     }
-    const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
+    const data: IBookMark = await getSceneView({
+      ...params,
+      ...(params.scene_id === 'kubernetes' && params.id === 'pod' ? { supports_pod_memory_promql: true } : {}),
+    }).catch(() => ({ id: '', panels: [], name: '' }));
     const oldSelectPanel = this.sceneData?.options?.selector_panel?.targets
       ? JSON.stringify(this.sceneData.options.selector_panel.targets)
       : '';
@@ -824,7 +828,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     this.filtersReady = !this.sceneData.variables?.length;
     this.searchValue = [];
     if (this.selectorPanelPriority) this.refleshVariablesKey = random(8);
-    needLoading && (this.loading = false);
+    if (needLoading) this.loading = false;
     this.handleResizeCollapse();
     this.emitTabChange(v);
     this.emitLocalSceneTypeChange();
@@ -1716,7 +1720,10 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                   showAminate={this.showListAnimate}
                   title={this.$t('列表').toString()}
                   toggleSet={this.toggleSet}
-                  onShowChange={show => !show && (this.isSelectPanelActive = false)}
+                  onShowChange={show => {
+                    if (!show) this.isSelectPanelActive = false;
+                    return false;
+                  }}
                   onShrink={() => (this.isSelectPanelActive = !this.isSelectPanelActive)}
                 >
                   {!this.showListAnimate && this.isShowCompleteList() ? (

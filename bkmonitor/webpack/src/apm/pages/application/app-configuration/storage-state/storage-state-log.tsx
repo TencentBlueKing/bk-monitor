@@ -34,6 +34,7 @@ import EditableFormItem from '../../../../components/editable-form-item/editable
 import PanelItem from '../../../../components/panel-item/panel-item';
 import * as authorityMap from '../../../home/authority-map';
 import StorageInfoSkeleton from '../skeleton/storage-info-skeleton';
+import { confirmSwitchStorageCluster } from './confirm-switch-storage-cluster';
 
 import type { ETelemetryDataType, IAppInfo, IClusterItem, ILogStorageInfo, IndicesItem } from '../type';
 
@@ -113,16 +114,24 @@ export default class Log extends tsc<IProps> {
   }
 
   async handleUpdateValue(value, field: string) {
-    if (field === 'es_storage_cluster') {
-      const targetId = Number(value);
-      if (targetId === this.storageInfo?.es_storage_cluster) return true;
-      const targetCluster = this.clusterList.find(item => item.storage_cluster_id === targetId);
-      if (!targetCluster) return false;
-      if (!this.checkClusterValue(targetCluster)) return false;
-      const isConfirm = await this.confirmSwitchCluster(targetCluster);
-      if (!isConfirm) return false;
-    }
+    // 校验与二次确认也需在 try 内，异常时返回 false 以便 EditableFormItem 复位 loading
     try {
+      if (field === 'es_storage_cluster') {
+        const targetId = Number(value);
+        if (targetId === this.storageInfo?.es_storage_cluster) return true;
+        const targetCluster = this.clusterList.find(item => item.storage_cluster_id === targetId);
+        if (!targetCluster) return false;
+        if (!this.checkClusterValue(targetCluster)) return false;
+        const currentName =
+          this.clusterOptions.find(item => item.id === this.storageInfo?.es_storage_cluster)?.name || '--';
+        const targetName = targetCluster.storage_display_name || targetCluster.storage_cluster_name;
+        const isConfirm = await confirmSwitchStorageCluster(this, {
+          currentName,
+          targetName,
+          retentionDays: this.storageInfo?.es_retention ?? '--',
+        });
+        if (!isConfirm) return false;
+      }
       // 更新基本信息
       const obj = {};
       for (const key in this.storageInfo) {
@@ -180,46 +189,6 @@ export default class Log extends tsc<IProps> {
       return false;
     }
     return true;
-  }
-
-  /**
-   * @desc 切换集群二次确认，展示源集群、目标集群与生效保留天数
-   * @param targetCluster 目标集群
-   * @returns 是否确认切换
-   */
-  confirmSwitchCluster(targetCluster: ILogClusterItem): Promise<boolean> {
-    const sourceName = this.clusterOptions.find(item => item.id === this.storageInfo?.es_storage_cluster)?.name || '--';
-    const targetName = targetCluster.storage_display_name || targetCluster.storage_cluster_name;
-    return new Promise(resolve => {
-      this.$bkInfo({
-        title: `${this.$t('确认切换存储集群')}？`,
-        width: 560,
-        extCls: 'log-switch-cluster-info',
-        okText: this.$t('确认切换'),
-        cancelText: this.$t('取消'),
-        subHeader: (
-          <div class='log-switch-cluster-content'>
-            <div class='switch-desc'>
-              {this.$t('切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。')}
-            </div>
-            <div class='switch-item'>
-              <span class='switch-label'>{this.$t('当前集群')}：</span>
-              <span class='switch-value'>{sourceName}</span>
-            </div>
-            <div class='switch-item'>
-              <span class='switch-label'>{this.$t('目标集群')}：</span>
-              <span class='switch-value'>{targetName}</span>
-            </div>
-            <div class='switch-item'>
-              <span class='switch-label'>{this.$t('生效保留天数')}：</span>
-              <span class='switch-value'>{`${this.storageInfo?.es_retention}${this.$t('天')}`}</span>
-            </div>
-          </div>
-        ),
-        confirmFn: () => resolve(true),
-        cancelFn: () => resolve(false),
-      });
-    });
   }
 
   /**

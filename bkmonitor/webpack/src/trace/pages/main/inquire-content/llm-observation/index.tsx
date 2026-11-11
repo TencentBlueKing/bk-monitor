@@ -91,9 +91,12 @@ export default defineComponent({
                     key={block.traceId}
                     expanded={this.expandedTraceIds.has(block.traceId)}
                     expandedSpanIds={this.expandedSpanIds}
+                    flow={block.flow}
                     flowLoading={block.flowLoading}
+                    highlightedSpanId={this.highlightedSpanId}
                     rows={block.rows}
                     trace={block}
+                    onLocate-span={spanId => this.locateSpan(block.traceId, spanId)}
                     onToggle-span={this.toggleSpan}
                     onToggle-trace={this.toggleTrace}
                     onView-detail={this.handleViewDetail}

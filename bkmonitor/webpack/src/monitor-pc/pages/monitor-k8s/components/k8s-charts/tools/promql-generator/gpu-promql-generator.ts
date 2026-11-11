@@ -85,11 +85,7 @@ export class K8sGpuPromqlGenerator extends K8sBasePromqlGenerator {
       )`;
     }
     // 按 namespace / pod / container 聚合：GPU 指标自带对应维度，直接查询
-    // POD 聚合时基类按 pod 标签聚合，而 GPU 指标 pod 维度为 pod_name，需改写
-    const method =
-      context.groupByField === K8sTableColumnKeysEnum.POD
-        ? '$method by(pod_name)'
-        : K8sBasePromqlGenerator.createCommonPromqlMethod(context);
+    const method = K8sBasePromqlGenerator.createCommonPromqlMethod(context);
     return `${method} (${gpuOr(metric, K8sBasePromqlGenerator.createCommonPromqlContent(context), ' $time_shift')})`;
   }
 }

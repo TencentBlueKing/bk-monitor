@@ -1490,8 +1490,18 @@ class QueryConfig(AbstractConfig):
                 continue
             dimensions.add(condition["key"])
 
-        if has_advance_method:
-            self.agg_dimension = list(set(self.agg_dimension) | dimensions)
+        if not has_advance_method:
+            return
+        # 日志只有黑名单业务按条件字段分组后过滤，其余走 UnifyQuery 直接下推条件，补维度只会按日志正文等字段产生高基数分组。
+        # 黑名单业务的聚类查询同样走 UnifyQuery，仍按黑名单补维度；查不到业务时保持补维度。
+        if self.data_source_label == DataSourceLabel.BK_LOG_SEARCH:
+            bk_biz_id = StrategyModel.objects.filter(id=self.strategy_id).values_list("bk_biz_id", flat=True).first()
+            if bk_biz_id is not None and not data_source.is_unify_query_black_biz(bk_biz_id):
+                # 只有查询会丢掉的字段才留在维度里。顶层 bk_collect_config_id 会下推，不能补成维度。
+                dimensions = {key for key in dimensions if data_source.drops_where_key(key)}
+                if not dimensions:
+                    return
+        self.agg_dimension = list(set(self.agg_dimension) | dimensions)
 
     def _clean_empty_dimension(self):
         """

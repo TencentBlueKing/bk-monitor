@@ -118,18 +118,19 @@ wheels = [
 
 [[package]]
 name = "apigw-manager"
-version = "4.0.4"
+version = "4.2.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bkapi-bk-apigateway" },
     { name = "bkapi-client-core" },
+    { name = "docutils" },
     { name = "packaging" },
     { name = "pyyaml" },
     { name = "setuptools" },
     { name = "urllib3" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/6d/4eeef9797d4c63e72739190149121addfc74e2d86ded0117dcf1316a4936/apigw_manager-4.0.4-py3-none-any.whl", hash = "sha256:55b423e321e58c0dbca11f3d2f8b03f5c609c2b976860b9e6172eebd70816417", size = 72381, upload-time = "2025-05-16T06:21:01.972Z" },
+    { url = "https://files.pythonhosted.org/packages/50/78/a8c2b091150482e5a2e0ad47dc916ab3d104ca05a102132fa34f920f2351/apigw_manager-4.2.4-py3-none-any.whl", hash = "sha256:f9529624d78eaaad5e79a5dc4d234f219796539ab5024c0ca7f872710b5fdaeb", size = 77552, upload-time = "2026-05-20T06:57:01.393Z" },
 ]
 
 [[package]]
@@ -422,12 +423,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/e4/5b/242444a0fb700335f
 
 [[package]]
 name = "bkapi-bk-apigateway"
-version = "1.0.11"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bkapi-client-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/25/b2/9ad0ae851955ceee8d3bd99298cc0ac9462594f39d066efd5a388c6ef4c7/bkapi-bk-apigateway-1.0.11.tar.gz", hash = "sha256:fcdbc4eca8bfd3310995cec532ae127ee0533ea858c82916d9782e4df3df4c49", size = 5946, upload-time = "2023-02-24T10:50:25.984Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/38/26/f831c86e48612f482916c7b87dd370ab642b8d6d951035ee91ac9b95f5ec/bkapi_bk_apigateway-1.2.0.tar.gz", hash = "sha256:951af55c247c7b0f8fedcc59291db4b676c0c142a2eb2e13f38f35292f464e0b", size = 12162, upload-time = "2026-05-29T03:23:29.733Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c3/56/a5710f2161778eceae3eeed91b3bdfb21e5b586ca58e7a4dd305b0c41522/bkapi_bk_apigateway-1.2.0-py3-none-any.whl", hash = "sha256:32f9e8eba781ef78e755476a3d4b7f8b0421751d3a07ae67496b0bd54457877e", size = 16166, upload-time = "2026-05-29T03:23:28.448Z" },
+]
 
 [[package]]
 name = "bkapi-client-core"
@@ -584,7 +588,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "aidev-agent", specifier = "==1.0.3" },
-    { name = "apigw-manager", specifier = "==4.0.4" },
+    { name = "apigw-manager", specifier = "==4.2.4" },
     { name = "arrow", specifier = "<1" },
     { name = "babel", specifier = "==2.14.0" },
     { name = "betterproto", specifier = "==2.0.0b7" },
@@ -670,7 +674,7 @@ requires-dist = [
     { name = "requests-toolbelt", specifier = "==1.0.0" },
     { name = "schema", specifier = "==0.7.7" },
     { name = "six", specifier = "==1.17.0" },
-    { name = "sqlparse", specifier = "==0.5.3" },
+    { name = "sqlparse", specifier = "==0.6.1" },
     { name = "supervisor", specifier = "==4.2.5" },
     { name = "typing-extensions", specifier = "==4.14.1" },
     { name = "ujson", specifier = "==5.7.0" },
@@ -1419,6 +1423,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/37/7d/c871f55054e403fdfd6b8f65fd6d1c4e147ed100d3e9f9ba1fe695403939/dnspython-2.6.1.tar.gz", hash = "sha256:e8f0f9c23a7b7cb99ded64e6c3a6f3e701d78f50c55e002b839dea7225cff7cc", size = 332727, upload-time = "2024-02-18T18:48:48.952Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/87/a1/8c5287991ddb8d3e4662f71356d9656d91ab3a36618c3dd11b280df0d255/dnspython-2.6.1-py3-none-any.whl", hash = "sha256:5ef3b9680161f6fa89daf8ad451b5f1a33b18ae8a1c6778cdf4b43f08c0a6e50", size = 307696, upload-time = "2024-02-18T18:48:46.786Z" },
+]
+
+[[package]]
+name = "docutils"
+version = "0.20.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/53/a5da4f2c5739cf66290fac1431ee52aff6851c7c8ffd8264f13affd7bcdd/docutils-0.20.1.tar.gz", hash = "sha256:f08a4e276c3a1583a86dce3e34aba3fe04d02bba2dd51ed16106244e8a923e3b", size = 2058365, upload-time = "2023-05-16T23:39:19.748Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/87/f238c0670b94533ac0353a4e2a1a771a0cc73277b88bff23d3ae35a256c1/docutils-0.20.1-py3-none-any.whl", hash = "sha256:96f387a2c5562db4476f09f13bbab2192e764cac08ebbf3a34a95d9b1e4a59d6", size = 572666, upload-time = "2023-05-16T23:39:15.976Z" },
 ]
 
 [[package]]
@@ -3707,11 +3720,11 @@ wheels = [
 
 [[package]]
 name = "sqlparse"
-version = "0.5.3"
+version = "0.6.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e5/40/edede8dd6977b0d3da179a342c198ed100dd2aba4be081861ee5911e4da4/sqlparse-0.5.3.tar.gz", hash = "sha256:09f67787f56a0b16ecdbde1bfc7f5d9c3371ca683cfeaa8e6ff60b4807ec9272", size = 84999, upload-time = "2024-12-10T12:05:30.728Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7e/e0/361c764ea58cc1a75f7b4b424a74b08449db8bfa5e9199c7275999fdd1b9/sqlparse-0.6.1.tar.gz", hash = "sha256:ca722573f848ff2d30e40ea30f53a104b7dea7635ea9285891263eb2c58fb6e7", size = 182236, upload-time = "2026-11-01T18:06:45.951Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/5c/bfd6bd0bf979426d405cc6e71eceb8701b148b16c21d2dc3c261efc61c7b/sqlparse-0.5.3-py3-none-any.whl", hash = "sha256:cf2196ed3418f3ba5de6af7e82c694a9fbdbfecccdfc72e281548517081f16ca", size = 44415, upload-time = "2024-12-10T12:05:27.824Z" },
+    { url = "https://files.pythonhosted.org/packages/df/ff/2fee788e82e75be8f210c65c5d103bf44c880e3769c884652a4cd911b8ba/sqlparse-0.6.1-py3-none-any.whl", hash = "sha256:3be5a72d04c873d690d7c6dedd33d6fae2ef82759881ceec02fc2efd0cba564f", size = 51200, upload-time = "2026-11-01T18:06:47.434Z" },
 ]
 
 [[package]]

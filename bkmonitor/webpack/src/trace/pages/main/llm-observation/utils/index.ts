@@ -26,6 +26,7 @@
 export * from './helpers';
 export * from './parse-agent';
 export * from './parse-input';
+export * from './parse-model-timeline';
 export * from './parse-output';
 export * from './parse-tool';
 export * from './search';

@@ -1,0 +1,423 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+.llm-timeline-row {
+  position: relative;
+  width: 100%;
+  background: #fff;
+  border-bottom: 1px solid #e4e9f2;
+
+  @include flex-column;
+
+  &-index {
+    position: absolute;
+    top: 11px;
+    left: 0;
+    width: 38px;
+    font-family: menlo, monaco, consolas, monospace;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #8f9fbd;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  &-line {
+    position: absolute;
+    left: 51px;
+    width: 1px;
+    background: #c1cde5;
+
+    &.is-top {
+      top: 0;
+      height: 10px;
+    }
+
+    &.is-bottom {
+      bottom: -1px;
+      height: 11px;
+    }
+  }
+
+  &-main {
+    gap: 12px;
+    min-width: 0;
+    padding: 10px 12px 10px 40px;
+    cursor: pointer;
+
+    @include flex-align(center);
+  }
+
+  &-tag {
+    flex-shrink: 0;
+    gap: 4px;
+    height: 22px;
+    padding: 3px 4px;
+    font-family: 'PingFang SC', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    border-radius: 4px;
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      font-size: 12px;
+    }
+
+    &.is-user {
+      color: #3292d1;
+      background: #f1f8fd;
+      border-color: #bcdbf0;
+    }
+
+    &.is-model {
+      color: #515ae0;
+      background: #f6f5ff;
+      border-color: #d1ccff;
+    }
+
+    &.is-thinking {
+      color: #f38226;
+      background: #fff0e3;
+      border-color: #fdcfa9;
+    }
+
+    &.is-tool {
+      color: #3ba365;
+      background: #f0faf1;
+      border-color: #bfdfd2;
+    }
+
+    &.is-system {
+      color: #8f9fbd;
+      background: #f7f9fc;
+      border-color: #e4e9f2;
+    }
+  }
+
+  &-error {
+    flex-shrink: 0;
+    font-size: 16px;
+    color: $danger-color;
+  }
+
+  &-preview {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+
+    @include flex-align(center);
+  }
+
+  &-text,
+  &-placeholder {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4e5e7a;
+    white-space: nowrap;
+  }
+
+  // 预览容器 overflow: hidden 不算 scroll container，min-width: auto 会让 nowrap 文本按全文宽度撑开、
+  // 真正裁切发生在父级。这里补上可收缩的省略盒，让文本按剩余宽度收窄并出省略号，截断判断才有意义。
+  &-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &-placeholder {
+    color: #8f9fbd;
+  }
+
+  &-tool {
+    flex: 1;
+    gap: 6px;
+    min-width: 0;
+
+    @include flex-align(center);
+  }
+
+  &-tool-name {
+    box-sizing: border-box;
+    display: block;
+    flex-shrink: 0;
+    max-width: 160px;
+    height: 22px;
+    padding: 2px 4px;
+    font-family: menlo, monaco, consolas, monospace;
+    font-size: $font-size-base;
+    line-height: 16px;
+    color: #3ba365;
+    background: #f0faf1;
+    border: 1px solid #bfdfd2;
+    border-radius: 4px;
+
+    @include ellipsis;
+  }
+
+  &-duration {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    gap: 3px;
+    height: 22px;
+    padding: 3px 4px;
+    font-family: arial, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 16px;
+    color: #0061b4;
+    white-space: nowrap;
+    background: #f0f5ff;
+    border: 1px solid #cddffe;
+    border-radius: 4px;
+
+    @include flex-align(center);
+
+    .icon-jishiqi {
+      font-size: $font-size-medium;
+    }
+  }
+
+  &-io {
+    flex: 1;
+    gap: 12px;
+    min-width: 0;
+    overflow: hidden;
+
+    @include flex-align(center);
+  }
+
+  &-pairs {
+    // flex-basis 取 0 保留「最多分到剩余宽度一半」的诉求；max-content 再把左侧钳到内容自然宽度，
+    // 内容短时按内容浮动、省下的宽度由右侧 flex:1 吸收，内容长时仍停在原平分的一半
+    flex: 1 1 0;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+
+    @include flex-align(center);
+
+    &:not(.is-empty) {
+      max-width: max-content;
+    }
+
+    // 空参数占位：容器按内容收缩且不参与收缩，保证「--」不被右侧长内容挤压隐藏，
+    // 剩余宽度全部让给右侧
+    &.is-empty {
+      flex: 0 0 auto;
+      min-width: max-content;
+    }
+  }
+
+  &-result {
+    // 吸收左侧按内容收缩后让出的宽度；左侧撑满一半时与左侧对半分
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  &-pairs-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: 'Roboto Mono', menlo, monaco, consolas, monospace;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4e5e7a;
+
+    @include ellipsis;
+  }
+
+  &-pairs.is-empty &-pairs-text {
+    flex: 0 0 auto;
+  }
+
+  // 右侧操作区只占箭头宽度；按钮绝对定位叠在预览上，避免 hover 显隐挤占 flex 宽度后
+  // SpanIoKvs 按缩小后的内容宽回算，鼠标移开后卡住留下空白
+  &-aside {
+    position: relative;
+    flex-shrink: 0;
+    min-height: 22px;
+
+    @include flex-align(center);
+  }
+
+  &-actions {
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    z-index: 1;
+    display: none;
+    gap: 5px;
+    margin-right: 12px;
+    transform: translateY(-50%);
+  }
+
+  &-action {
+    box-sizing: border-box;
+
+    // 高度与行内 tag / tool-name 对齐，避免 hover 显示时撑高行内容导致抖动
+    gap: 3px;
+    height: 22px;
+    padding: 0 6px;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: $primary-color;
+    white-space: nowrap;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #e9edf5;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgb(25 25 41 / 5%);
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      flex-shrink: 0;
+      font-size: $font-size-medium;
+    }
+  }
+
+  &-arrow,
+  &-toggle {
+    flex-shrink: 0;
+    color: #4d4f56;
+  }
+
+  &-arrow {
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  &-toggle {
+    font-size: 14px;
+  }
+
+  &-detail {
+    min-width: 0;
+    padding: 16px 38px 16px 100px;
+    background: #f7f9fc;
+
+    &.is-system {
+      padding: 0;
+    }
+  }
+
+  &-tool-detail {
+    gap: 10px;
+    min-width: 0;
+
+    @include flex-column;
+
+    // 错误提示间距由父级 gap 统一控制，去掉组件自带的 margin-top 避免叠加过大
+    .llm-error-alert {
+      margin-top: 0;
+    }
+
+    // 展开区本身是灰底，JSON 块改用白底才能和设计稿的卡片分层对齐
+    .llm-json-code-block-body {
+      background: #fff;
+
+      &:not(.is-expanded).is-overflowing::after {
+        background: linear-gradient(180deg, rgb(255 255 255 / 0%) 0%, #fff 100%);
+      }
+    }
+  }
+
+  &-tool-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 22px;
+    align-items: stretch;
+    min-width: 0;
+
+    .llm-json-code-block {
+      height: 100%;
+      min-height: 0;
+    }
+  }
+
+  &-system-detail {
+    position: relative;
+    min-width: 0;
+
+    @include flex-column;
+  }
+
+  &-system-body {
+    width: 100%;
+    font-family: arial, sans-serif;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4e5e7a;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  &-system-actions {
+    position: sticky;
+    top: calc(var(--llm-section-sticky-top, 90px) + var(--llm-section-header-height, 32px) + 48px);
+    z-index: 1;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    width: 100%;
+    height: 0;
+    pointer-events: none;
+  }
+
+  &-system-action {
+    gap: 3px;
+    padding: 2px 6px;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: $primary-color;
+    white-space: nowrap;
+    pointer-events: auto;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #e9edf5;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgb(25 25 41 / 5%);
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      flex-shrink: 0;
+      font-size: $font-size-medium;
+    }
+  }
+
+  &-system-detail:hover .llm-timeline-row-system-actions {
+    display: flex;
+  }
+
+  // 展开的条目行吸附在小标题下方，内容超长滚动时冻结行头
+  &.is-expanded {
+    .llm-timeline-row-main {
+      position: sticky;
+      top: calc(var(--llm-section-sticky-top, 90px) + var(--llm-section-header-height, 32px));
+      z-index: 2;
+      background: #fff;
+    }
+  }
+
+  &:hover {
+    background: #f7f9fc;
+  }
+
+  &.is-tool:hover .llm-timeline-row-actions {
+    display: flex;
+  }
+
+  // 屏外未展开行跳过样式计算与绘制，长列表滚动 / 展开时只处理视口附近的行。
+  // 展开态行头用了 sticky，paint containment 会裁掉吸顶效果，故排除。
+  &:not(.is-expanded) {
+    contain-intrinsic-size: auto 43px;
+    content-visibility: auto;
+  }
+}

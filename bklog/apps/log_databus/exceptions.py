@@ -365,6 +365,26 @@ class ArchiveIndexSetStatusError(BaseCollectorConfigException):
     MESSAGE = _("待归档索引集存在异常状态索引")
 
 
+class ArchiveStorageTypeNotSupported(BaseCollectorConfigException):
+    ERROR_CODE = "805"
+    MESSAGE = _("采集项存储类型{storage_cluster_type}不支持归档，仅支持ES存储")
+
+
+class ArchiveRepositoryNotInCluster(BaseCollectorConfigException):
+    ERROR_CODE = "806"
+    MESSAGE = _("快照仓库{repository_name}不属于采集项的存储集群{cluster_id}，请先查询可用的快照仓库")
+
+
+class ArchiveRepositoryChangeNotAllowed(BaseCollectorConfigException):
+    ERROR_CODE = "807"
+    MESSAGE = _("采集项已存在归档配置，快照仓库为{repository_name}，更换仓库需先删除归档")
+
+
+class ArchiveResultTableNotReady(BaseCollectorConfigException):
+    ERROR_CODE = "808"
+    MESSAGE = _("采集项的结果表尚未就绪，请稍后重试")
+
+
 class MissedNamespaceException(BaseCollectorConfigException):
     ERROR_CODE = "901"
     MESSAGE = _("缺少namespace参数")

@@ -38,6 +38,20 @@ HOST_SCOPE_VERSION = 1
 HOST_DYNAMIC_TIME_PATTERN = re.compile(r"^now(?:[-+]\d+(?:m|h|d|w|M|y|Y))?(?:/(?:m|h|d|w|M|y|Y|fy))?$")
 
 
+def get_shared_alert_id(data: dict) -> str | None:
+    if not isinstance(data, dict):
+        return None
+    if data.get("name") == "alarm-center-detail" and isinstance(data.get("params"), dict):
+        alert_id = data["params"].get("alarmId")
+    elif data.get("name") == "event-center":
+        alert_id = data.get("eventId")
+    else:
+        return None
+    if isinstance(alert_id, (str, int)) and not isinstance(alert_id, bool) and alert_id:
+        return str(alert_id)
+    return None
+
+
 def validate_host_share_scope(data: dict) -> dict:
     scope = data.get("scope") if isinstance(data, dict) else None
     if not isinstance(scope, dict):
@@ -731,6 +745,12 @@ class KubernetesApiAuthChecker(BaseApiAuthChecker):
             raise InvalidParamsError({"key": "query_configs.where"})
 
     def params_check(self, request_data):
+        if "resource_type" in request_data and self.scene_params["type"] == "detail":
+            resource_type = request_data.get("resource_type")
+            if resource_type != self.scene_params["id"]:
+                raise ParamsPermissionDeniedError(
+                    {"key": "resource_type", "error_params": resource_type, "correct_params": self.scene_params["id"]}
+                )
         # 通用参数校验
         for path in self.query_paths:
             # 不校验场景参数的接口，存在冲突参数名

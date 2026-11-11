@@ -149,3 +149,7 @@ Header 不能跳过检查。`search_spaces` 保留现有发现工具的权限豁
 
 `lookup_permissions` 是预检，不是后续请求的授权凭据。实际执行的 `MCP_USAGE` 日志包含
 工具、入口、权限来源、权限动作和网关请求 ID；不得记录 Token、请求正文或业务结果。
+
+## MCP Server 自动同步
+
+MCP Server 已纳入 `sync_apigw`，在资源版本发布后按声明同步。Server 清单、三环境核对记录和发布验收方式见 [MCP Server 同步说明](mcp-servers.md)。

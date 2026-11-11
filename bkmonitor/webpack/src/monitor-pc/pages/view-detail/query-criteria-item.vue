@@ -284,6 +284,7 @@ import { CONDITION_METHOD_LIST } from '../../constant/constant';
 import collapseMixin from '../../mixins/collapseMixin';
 import { MetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 import ConvergenceOptionsItem from './convergence-options-item.vue';
+import { normalizePromqlStep } from './utils';
 
 @Component({
   name: 'query-criteria-item',
@@ -339,7 +340,11 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
 
   @Watch('queryConfig', { immediate: true, deep: true })
   queryConfigChange() {
-    this.queryConfigItem = deepClone(this.queryConfig.data.query_configs[0]);
+    const queryConfigItem = deepClone(this.queryConfig.data.query_configs[0]);
+    if (queryConfigItem.data_source_label === 'prometheus') {
+      queryConfigItem.agg_interval = queryConfigItem.interval ?? 'auto';
+    }
+    this.queryConfigItem = queryConfigItem;
     this.queryConfigdata = deepClone(this.queryConfig.data);
   }
 
@@ -543,7 +548,24 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
   }
 
   handleSourceStepBlur() {
-    this.$emit('query-change', this.queryConfigItem.agg_interval, 'step', this.groupIndex);
+    if (this.queryConfigItem.data_source_label !== 'prometheus') {
+      this.$emit('query-change', this.queryConfigItem.agg_interval, 'step', this.groupIndex);
+      return;
+    }
+    const value = String(this.queryConfigItem.agg_interval ?? '').trim();
+    const currentStep = this.queryConfig.data.query_configs[0].interval ?? 'auto';
+    const step = normalizePromqlStep(value);
+    if (step === undefined) {
+      this.queryConfigItem.agg_interval = currentStep;
+      if (value && value !== String(currentStep).trim()) {
+        this.$bkMessage({ theme: 'error', message: this.$t('Step需填写合法的整数值') });
+      }
+      return;
+    }
+    this.queryConfigItem.agg_interval = step;
+    if (step !== String(currentStep).trim()) {
+      this.$emit('query-change', step, 'step', this.groupIndex);
+    }
   }
 }
 </script>
@@ -574,7 +596,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
   }
 
   .retrieval-content {
-    padding: 0 30px 8px 30px;
+    padding: 0 30px 8px;
 
     &-row {
       display: flex;
@@ -669,7 +691,7 @@ export default class QueryCriteriaItem extends Mixins(collapseMixin, strategyMap
   .retrieval-content-convergence {
     width: 320px;
     height: 73px;
-    padding: 5px 10px 10px 10px;
+    padding: 5px 10px 10px;
     margin: 0 auto;
 
     .convergence-label {

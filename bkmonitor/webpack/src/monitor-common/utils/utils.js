@@ -125,12 +125,13 @@ export const copyText = (text, errorMsg, container = '') => {
   targetContainer.appendChild(textarea);
   textarea.value = text;
   textarea.select();
-  if (document.execCommand('copy')) {
-    document.execCommand('copy');
-  } else {
+  // 复制失败时返回 false，调用方据此决定是否提示成功
+  const copied = document.execCommand('copy');
+  if (!copied && typeof errorMsg === 'function') {
     errorMsg('浏览器不支持此功能，请使用谷歌浏览器。');
   }
   targetContainer.removeChild(textarea);
+  return copied;
 };
 
 /**
@@ -392,7 +393,7 @@ export const byteConvert = bytes => {
 export const debounce = function (func, wait, immediate = true) {
   let timeout;
   return function () {
-    // biome-ignore lint/style/noArguments: <explanation>
+    // biome-ignore lint/complexity/noArguments: preserve debounce arguments for apply
     const args = [...arguments];
     if (timeout) clearTimeout(timeout);
     if (immediate) {

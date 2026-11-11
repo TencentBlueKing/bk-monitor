@@ -2167,3 +2167,23 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: get data link metadata via bkdata v4 meta API
+  /app/metadata/sync_as_code_recording_rules/:
+    post:
+      operationId: metadata_sync_as_code_recording_rules
+      description: 投递 AsCode 预计算规则异步执行任务
+      tags:
+        - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/sync_as_code_recording_rules/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: enqueue AsCode recording rules

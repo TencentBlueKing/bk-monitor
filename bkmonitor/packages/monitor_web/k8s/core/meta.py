@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
-from django.db.models import F, Max, Value
+from django.db.models import F, Max, Min, Value
 from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
@@ -29,6 +29,7 @@ from bkmonitor.utils.time_tools import hms_string
 from core.drf_resource import api, resource
 from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.gpu_compat import gpu_or
+from monitor_web.k8s.core.pod_memory import POD_MEMORY_METRICS, pod_memory_usage
 
 
 class FilterCollection:
@@ -55,9 +56,15 @@ class FilterCollection:
 
     @cached_property
     def filter_queryset(self):
+        queryset = self.query_set
+        scope = self.meta.federated_resource_filter
+        if scope is not None:
+            queryset = queryset.filter(scope)
         for filter_obj in self.filters.values():
-            self.query_set = self.query_set.filter(**self.transform_filter_dict(filter_obj))
-        return self.query_set
+            if scope is not None and filter_obj.filter_uid == self.meta.cluster_filter.filter_uid:
+                continue
+            queryset = queryset.filter(**self.transform_filter_dict(filter_obj))
+        return queryset
 
     def transform_filter_dict(self, filter_obj) -> dict:
         """用于ORM的查询条件"""
@@ -174,6 +181,7 @@ class K8sResourceMeta:
     """
 
     filter = None
+    federated_resource_filter = None
     resource_field = ""
     resource_class = None
     column_mapping = {}
@@ -234,7 +242,8 @@ class K8sResourceMeta:
             return
         self.filter = FilterCollection(self)
         # 默认范围，集群
-        self.filter.add(load_resource_filter("bcs_cluster_id", self.bcs_cluster_id))
+        self.cluster_filter = load_resource_filter("bcs_cluster_id", self.bcs_cluster_id)
+        self.filter.add(self.cluster_filter)
 
         """
         针对共享集群进行判断, 如果是共享集群，则需要获取集群下的所有命名空间
@@ -268,10 +277,12 @@ class K8sResourceMeta:
     def retry_get_from_meta(self):
         return []
 
-    @classmethod
-    def distinct(cls, queryset):
-        # pod不需要去重，因为不会重名，workload，container 在不同ns下会重名，因此需要去重
-        return queryset
+    def distinct(self, queryset):
+        if self.federated_resource_filter is None or isinstance(queryset, list):
+            return queryset
+        # The proxy lists one logical resource even when several members contain it.
+        resource_ids = queryset.order_by().values("namespace", "name").annotate(first_id=Min("pk")).values("first_id")
+        return queryset.filter(pk__in=resource_ids)
 
     def get_from_promql(self, start_time, end_time, order_by="", page_size=20, method="sum"):
         """
@@ -366,7 +377,16 @@ class K8sResourceMeta:
 
     def get_resource_name(self, series):
         meta_field_list = [series["dimensions"][field] for field in self.resource_field_list]
-        return ":".join(meta_field_list)
+        resource_name = ":".join(meta_field_list)
+        if self.federated_resource_filter is not None and self.resource_field in {
+            "pod_name",
+            "container_name",
+            "workload_name",
+            "service",
+            "ingress",
+        }:
+            return f"{series['dimensions']['namespace']}|{resource_name}"
+        return resource_name
 
     def clean_resource_obj(self, obj, series):
         dimensions = series["dimensions"]
@@ -564,6 +584,33 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     column_mapping = {"workload_kind": "workload_type", "pod_name": "name"}
     only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
+    def pod_memory_quota_filters(self):
+        empty_containers = tuple(
+            filter_id
+            for filter_id, resource_filter in self.filter.filters.items()
+            if filter_id.startswith("container")
+            and not filter_id.startswith("container_exclude")
+            and not any(resource_filter.value)
+        )
+        return self.filter.filter_string(exclude=("workload", *empty_containers))
+
+    def pod_memory_usage(self, metric_name, exclude=""):
+        if any(
+            filter_id.startswith("container")
+            and not filter_id.startswith("container_exclude")
+            and any(resource_filter.value)
+            for filter_id, resource_filter in self.filter.filters.items()
+        ):
+            filters = self.filter.filter_string(exclude=exclude)
+            return (
+                "sum by (bcs_cluster_id, workload_kind, workload_name, namespace, pod_name) "
+                f'({metric_name}{{{filters},container_name!="",container_name!="POD"}})'
+            )
+        # Empty container filters carry no selection; the shared builder adds the
+        # child-only exclusions while leaving the parent cgroup eligible.
+        filters = self.filter.filter_string(exclude=(exclude, "container") if exclude else "container")
+        return pod_memory_usage(metric_name, filters)
+
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
@@ -595,6 +642,15 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
         )
 
     def tpl_prom_with_nothing(self, metric_name, exclude=""):
+        if metric_name in POD_MEMORY_METRICS and self.method != "count":
+            # Select the instantaneous Pod total before computing time statistics.
+            usage = (
+                "sum by (workload_kind, workload_name, namespace, pod_name) "
+                f"({self.pod_memory_usage(metric_name, exclude)})"
+            )
+            if self.agg_interval:
+                return f"{self.agg_method}_over_time(({usage})[{self.agg_interval}:])"
+            return usage
         if self.agg_interval:
             return (
                 f"sum by (workload_kind, workload_name, namespace, pod_name) "
@@ -678,12 +734,12 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
             + "/ "
             + f"""(sum by (workload_kind, workload_name, namespace,pod_name)
     ((count by (workload_kind, workload_name, pod_name, namespace) (
-        container_memory_working_set_bytes{{{self.filter.filter_string()}}}
+        {self.pod_memory_usage("container_memory_working_set_bytes")}
     ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      {self.pod_limits_with_sidecar_expr(self.filter.filter_string(exclude="workload"), "memory")}
+      {self.pod_limits_with_sidecar_expr(self.pod_memory_quota_filters(), "memory")}
     )))"""
         )
         return promql
@@ -692,12 +748,12 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     def meta_prom_with_kube_pod_container_resource_requests_memory_bytes(self):
         promql = f"""(sum by (workload_kind, workload_name, namespace,pod_name)
     ((count by (workload_kind, workload_name, pod_name, namespace) (
-        container_memory_working_set_bytes{{{self.filter.filter_string()}}}
+        {self.pod_memory_usage("container_memory_working_set_bytes")}
     ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      kube_pod_container_resource_requests_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
+      kube_pod_container_resource_requests_memory_bytes{{{self.pod_memory_quota_filters()}}}
     )))"""
         return promql
 
@@ -1361,7 +1417,16 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
     column_mapping = {}
 
     def get_from_meta(self):
-        return self.distinct(self.filter.filter_queryset)
+        queryset = self.filter.filter_queryset
+        if self.federated_resource_filter is not None:
+            namespaces = queryset.order_by("namespace").values_list("namespace", flat=True).distinct()
+            return NameSpaceQuerySet(
+                [
+                    self.resource_class(bk_biz_id=self.bk_biz_id, bcs_cluster_id=self.bcs_cluster_id, namespace=ns)
+                    for ns in namespaces
+                ]
+            )
+        return self.distinct(queryset)
 
     def retry_get_from_meta(self):
         # 根据filter 类型进行重新查询

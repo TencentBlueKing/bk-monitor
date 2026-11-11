@@ -137,6 +137,14 @@ grant_permissions:
       - retrieve_databus_collector
       - query_ts
       - query_ts_reference
+  - bk_app_code: bk_fara
+    grant_dimension: "resource"
+    resource_names:
+      - search_index_set
+      - index_set_fields
+      - esquery_search
+      - index_set_terms
+      - generate_querystring
 
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`

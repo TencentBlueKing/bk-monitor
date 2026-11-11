@@ -1,5 +1,9 @@
 # 开发环境搭建
 
+## 租户管理员登录名
+
+多租户部署通过环境变量 `BK_ADMIN_USERNAME` 注入租户虚拟管理员的登录名。未配置时沿用 `bk_admin`。查询使用目标租户 ID，并以用户管理返回的 `bk_username` 作为该租户的管理员身份。
+
 ## 依赖管理
 
 项目使用 [uv](https://docs.astral.sh/uv/getting-started/) 管理项目依赖。
