@@ -26,6 +26,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext as _
 from rest_framework import serializers
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.response import Response
 
 from apps.api import NodeApi
@@ -40,6 +41,7 @@ from apps.iam.handlers.drf import (
     insert_permission_field,
 )
 from apps.log_databus.constants import EtlConfig, OTLPProxyHostConfig, Environment
+from apps.log_databus.handlers.archive import ArchiveHandler
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector import HostCollectorHandler
 from apps.log_databus.handlers.collector import K8sCollectorHandler
@@ -53,6 +55,7 @@ from apps.log_databus.serializers import (
     BatchSubscriptionStatusSerializer,
     BCSCollectorSerializer,
     CleanStashSerializer,
+    CollectorArchivePutSerializer,
     CollectorBatchOperationSerializer,
     CollectorCreateSerializer,
     CollectorDataLinkListSerializer,
@@ -156,6 +159,7 @@ class CollectorViewSet(ModelViewSet):
             "update_or_create_clean_config",
             "custom_update",
             "fast_update",
+            "archive",
             "update_context",
             "report_token",
         ]:
@@ -2542,6 +2546,45 @@ class CollectorViewSet(ModelViewSet):
         handler = CollectorHandler.get_instance(collector_config_id=collector_config_id)
         data = self.params_valid(handler.FAST_UPDATE_SERIALIZER)
         return Response(handler.fast_update(data))
+
+    @detail_route(methods=["GET", "PUT", "DELETE"], url_path="archive")
+    def archive(self, request, collector_config_id=None):
+        """
+        @api {get} /databus/collectors/$collector_config_id/archive/ 采集项归档配置
+        @apiName databus_collector_archive
+        @apiGroup 10_Collector
+        @apiDescription 按采集项查询、设置、关闭日志归档。PUT 幂等，更换仓库需先 DELETE
+        @apiParam {Int} collector_config_id 采集项ID
+        @apiParam {String} [target_snapshot_repository_name] 目标快照仓库，PUT必填
+        @apiParam {Int} [snapshot_days] 归档存储天数，0为永久，PUT必填
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "code": 0,
+            "data": {
+                "archive_config_id": 1,
+                "collector_config_id": 1,
+                "bk_biz_id": 12,
+                "target_snapshot_repository_name": "2_bklog_test",
+                "snapshot_days": 30
+            },
+            "message": ""
+        }
+        """
+        if request.method in ("GET", "HEAD"):
+            return Response(ArchiveHandler.get_collector_archive(collector_config_id))
+        if request.method == "PUT":
+            data = self.params_valid(CollectorArchivePutSerializer)
+            return Response(
+                ArchiveHandler.upsert_collector_archive(
+                    collector_config_id=collector_config_id,
+                    target_snapshot_repository_name=data["target_snapshot_repository_name"],
+                    snapshot_days=data["snapshot_days"],
+                )
+            )
+        if request.method == "DELETE":
+            return Response(ArchiveHandler.delete_collector_archive(collector_config_id))
+        raise MethodNotAllowed(request.method)
 
     @list_route(methods=["POST"], url_path="container_configs_to_yaml")
     def container_configs_to_yaml(self, request):
