@@ -1318,6 +1318,13 @@ class UpdateArchiveSerlalizer(serializers.Serializer):
     snapshot_days = serializers.IntegerField(required=True, label=_("快照存储时间配置"), min_value=0)
 
 
+class CollectorArchivePutSerializer(serializers.Serializer):
+    target_snapshot_repository_name = serializers.CharField(
+        required=True, max_length=255, label=_("目标es集群快照仓库")
+    )
+    snapshot_days = serializers.IntegerField(required=True, label=_("快照存储时间配置"), min_value=0)
+
+
 class RestoreArchiveSerlalizer(serializers.Serializer):
     archive_config_id = serializers.IntegerField(label=_("业务ID"), required=True)
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)

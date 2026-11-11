@@ -50,6 +50,16 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 已勾选主机数（指标对比至少需要两台：一台当前主机 + 至少一台目标） */
+    selectedCount: {
+      type: Number,
+      default: 0,
+    },
+    /** 只读态（分享链接等）下禁止切换对比视角 */
+    readonly: {
+      type: Boolean,
+      default: false,
+    },
     /** 高级过滤是否展开（控制漏斗按钮高亮） */
     filterExpanded: {
       type: Boolean,
@@ -93,13 +103,6 @@ export default defineComponent({
     return () => (
       <div class='host-list-toolbar'>
         <div class='host-list-toolbar__buttons'>
-          {/* 指标对比：本期占位，勾选主机后激活的能力后续接入 */}
-          {/* <Button
-            v-bk-tooltips={{ content: t('功能开发中'), delay: 300 }}
-            disabled
-          >
-            {t('指标对比')}
-          </Button> */}
           <Dropdown
             popoverOptions={{
               extCls: 'host-list-toolbar__buttons_dropdown',
@@ -123,6 +126,12 @@ export default defineComponent({
               ),
             }}
           </Dropdown>
+          <Button
+            disabled={props.disabled || props.readonly || props.selectedCount < 2}
+            onClick={() => emit('compare')}
+          >
+            {t('指标对比')}
+          </Button>
         </div>
         <div class='host-list-toolbar__search'>
           <Input

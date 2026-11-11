@@ -20,7 +20,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from iam_engine.mode import FeatureToggleModeProvider as SharedFeatureToggleModeProvider
-from iam_engine.core.config import DEFAULT_DUAL_STACK, DualStackSpec
+from iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK, DualStackSpec
 from iam_engine.core.exceptions import InvalidAuthModeError
 
 InvalidIAMPermissionModeError = InvalidAuthModeError
@@ -76,6 +76,14 @@ def get_mode_provider() -> FeatureToggleModeProvider:
     """
 
     return FeatureToggleModeProvider()
+
+
+def get_effective_mode() -> AuthMode:
+    """当前生效的协议版本：union 取拓扑 current，解析失败回退 V3。"""
+    try:
+        return DEFAULT_DUAL_STACK.modes_for(get_mode_provider().get_mode())[-1]
+    except (InvalidAuthModeError, ValueError):
+        return AuthMode.V3
 
 
 def get_deployment_mode_provider():

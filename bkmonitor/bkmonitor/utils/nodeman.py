@@ -24,7 +24,10 @@ _v2_plugins, _v3_plugins = V2OfficialPlugins(), V3OfficialPlugins(_request_v3)
 
 
 def get_host_queries() -> HostQueries:
-    return _v3_hosts if settings.ENABLE_NODEMAN_V3 else _v2_hosts
+    # bk-collector 走 V3 部署策略下发时，目标主机（Proxy）也必须来自 V3，避免下发链路上残留 V2 接口调用
+    if settings.ENABLE_NODEMAN_V3 or settings.ENABLE_BK_COLLECTOR_NODEMAN_V3:
+        return _v3_hosts
+    return _v2_hosts
 
 
 def get_official_plugins() -> OfficialPlugins:

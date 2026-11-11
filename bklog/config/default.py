@@ -427,6 +427,9 @@ BK_FAQ_URL = "https://bk.tencent.com/s-mart/community"
 # SaaS访问域名
 BK_BKLOG_HOST = os.environ.get("BK_BKLOG_HOST", f"{BK_PAAS_HOST}/o/bk_log_search/")
 
+# 权限中心 SaaS host（V4）：未显式配置时按 SaaS 域名规则由 bklog 替换为 iam
+BK_IAM_V4_SAAS_HOST = os.environ.get("BK_IAM_V4_SAAS_HOST") or os.getenv("BK_BKLOG_HOST", "").replace("bklog", "iam")
+
 # API访问地址，APIGW 需要用到
 BK_BKLOG_API_HOST = os.getenv("BKAPP_BKLOG_API_HOST", "http://bk-log-search-api")
 
@@ -654,6 +657,8 @@ FEATURE_TOGGLE = {
     "log_manage_v2": os.environ.get("BKAPP_FEATURE_LOG_MANAGE_V2", "on"),
     # 客户端日志
     "tgpa_task": os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off"),
+    # 检索页 ES 部分结果默认关闭，按业务灰度时使用 debug 和业务白名单
+    "retrieve_partial_es_results": "off",
     # 场景化检索
     "scene_search": os.environ.get("BKAPP_FEATURE_SCENE_SEARCH", "off"),
 }
@@ -1359,6 +1364,7 @@ LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+BK_ADMIN_USERNAME = os.getenv("BK_ADMIN_USERNAME", "bk_admin")
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
 # 为了统一多租户和非多租户场景的逻辑，默认使用system租户

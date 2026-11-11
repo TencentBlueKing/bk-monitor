@@ -606,6 +606,19 @@ class IsDataLabelExistResource(Resource):
         return qs.exists()
 
 
+class SyncAsCodeRecordingRulesResource(Resource):
+    """投递已保存的 AsCode 预计算声明，不在请求内解析或下发。"""
+
+    class RequestSerializer(serializers.Serializer):
+        rule_ids = serializers.ListField(child=serializers.IntegerField(min_value=1), allow_empty=False)
+        operator = serializers.CharField()
+
+    def perform_request(self, validated_request_data):
+        from metadata.task.tasks import sync_as_code_recording_rules
+
+        sync_as_code_recording_rules.delay(**validated_request_data)
+
+
 class CreateDownSampleDataFlowResource(Resource):
     """
     创建统计节点（按指定的降采样频率）
@@ -2135,6 +2148,16 @@ class QueryTagValuesResource(Resource):
         table_id = serializers.CharField(required=True, label="结果表ID")
         tag_name = serializers.CharField(required=True, label="dimension/tag名称")
 
+        start_time = serializers.IntegerField(required=False, label="开始时间（Unix秒）")
+        end_time = serializers.IntegerField(required=False, label="结束时间（Unix秒）")
+
+        def validate(self, attrs):
+            if ("start_time" in attrs) != ("end_time" in attrs):
+                raise serializers.ValidationError("start_time 和 end_time 必须同时提供")
+            if "start_time" in attrs and attrs["start_time"] > attrs["end_time"]:
+                raise serializers.ValidationError("start_time 不能大于 end_time")
+            return attrs
+
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_id = validated_request_data.pop("table_id")
@@ -2144,7 +2167,10 @@ class QueryTagValuesResource(Resource):
         except models.ResultTable.DoesNotExist:
             raise ValueError(f"结果表{table_id}不存在，请确认后重试")
 
-        return {"tag_values": rt.get_tag_values(tag_name=tag_name)}
+        time_range = {
+            key: validated_request_data[key] for key in ("start_time", "end_time") if key in validated_request_data
+        }
+        return {"tag_values": rt.get_tag_values(tag_name=tag_name, **time_range)}
 
 
 class ListTransferClusterResource(Resource):

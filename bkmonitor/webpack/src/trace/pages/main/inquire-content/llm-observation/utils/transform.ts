@@ -119,11 +119,11 @@ export function buildStatCards(
   let maxEnd = 0;
 
   for (const span of spans) {
-    const attrs = span.attributes || {};
-    inputTokens += pickNumber(attrs, INPUT_TOKEN_KEYS);
-    outputTokens += pickNumber(attrs, OUTPUT_TOKEN_KEYS);
-    cacheRead += pickNumber(attrs, CACHE_READ_TOKEN_KEYS);
-    cacheWrite += pickNumber(attrs, CACHE_WRITE_TOKEN_KEYS);
+    const usage = pickSpanTokenUsage(span);
+    inputTokens += usage.input;
+    outputTokens += usage.output;
+    cacheRead += usage.cacheRead;
+    cacheWrite += usage.cacheWrite;
     // const kind = resolveSpanKind(span);
     // if (kind === 'LLM') modelCount += 1;
     // if (kind === 'TOOL') toolCount += 1;
@@ -173,9 +173,9 @@ export function buildTraceView(
   let maxEnd = 0;
 
   for (const span of spans) {
-    const attrs = span.attributes || {};
-    inputTokens += pickNumber(attrs, INPUT_TOKEN_KEYS);
-    outputTokens += pickNumber(attrs, OUTPUT_TOKEN_KEYS);
+    const usage = pickSpanTokenUsage(span);
+    inputTokens += usage.input;
+    outputTokens += usage.output;
     if (isErrorSpan(span)) errorCount += 1;
     if (span.start_time < minStart) minStart = span.start_time;
     if (span.end_time > maxEnd) maxEnd = span.end_time;
@@ -280,6 +280,26 @@ export function formatCompactToken(value: number): string {
   return `${value}`;
 }
 
+/** 从 Span attributes 读取 usage，总 Tokens 与统计卡一致：输入 + 输出 */
+export function pickSpanTokenUsage(span: LlmFlowSpan): {
+  cacheRead: number;
+  cacheWrite: number;
+  input: number;
+  output: number;
+  total: number;
+} {
+  const attrs = span.attributes || {};
+  const input = pickNumber(attrs, INPUT_TOKEN_KEYS);
+  const output = pickNumber(attrs, OUTPUT_TOKEN_KEYS);
+  return {
+    input,
+    output,
+    cacheRead: pickNumber(attrs, CACHE_READ_TOKEN_KEYS),
+    cacheWrite: pickNumber(attrs, CACHE_WRITE_TOKEN_KEYS),
+    total: input + output,
+  };
+}
+
 /** OTLP status.code === 2 视为 Span 失败 */
 export function isErrorSpan(span: LlmFlowSpan): boolean {
   return Number(span.status?.code) === STATUS_ERROR_CODE;
@@ -321,19 +341,28 @@ function nodeMatchesOrHasMatch(node: SpanTreeNode, filter: LlmExecutionFilter, k
   return node.children.some(child => nodeMatchesOrHasMatch(child, filter, keyword));
 }
 
-/** 后端已完成语义选择和截断；前端只映射到既有 KV / 文本展示。 */
+/**
+ * 后端已完成语义选择和截断；前端只映射到既有 KV / 文本展示。
+ * 以 Span 对象为键缓存预览，保证重复 flatten 时行内 io 引用稳定，便于上游复用行对象。
+ */
+const ioPreviewCache = new WeakMap<LlmFlowSpan, LlmIoPreview>();
+
 function pickIoPreview(span: LlmFlowSpan): LlmIoPreview {
-  if (resolveSpanKind(span) === 'LLM') {
-    return {
-      input: span.input_preview ? messageToPieces(span.input_preview) : valueToPieces(span.input),
-      output: span.output_preview ? messageToPieces(span.output_preview) : valueToPieces(span.output),
-    };
-  }
-  return { input: valueToPieces(span.input), output: valueToPieces(span.output) };
+  const cached = ioPreviewCache.get(span);
+  if (cached) return cached;
+  const preview =
+    resolveSpanKind(span) === 'LLM'
+      ? {
+          input: span.input_preview ? messageToPieces(span.input_preview) : valueToPieces(span.input),
+          output: span.output_preview ? messageToPieces(span.output_preview) : valueToPieces(span.output),
+        }
+      : { input: valueToPieces(span.input), output: valueToPieces(span.output) };
+  ioPreviewCache.set(span, preview);
+  return preview;
 }
 
 /** 主名称优先展示模型、工具或 Agent 名称，缺失时回退到 SpanName。 */
-function pickSpanName(span: LlmFlowSpan, kind = resolveSpanKind(span)): string {
+export function pickSpanName(span: LlmFlowSpan, kind = resolveSpanKind(span)): string {
   const attrs = span.attributes || {};
   if (kind === 'LLM') {
     return String(
@@ -383,8 +412,8 @@ function spanMatches(span: LlmFlowSpan, filter: LlmExecutionFilter, keyword: str
 /** LlmFlowSpan → 表格行视图；lineGuideLevel 供 span-row 绘制关系竖线 */
 function toSpanRowView(node: SpanTreeNode, depth: number, isLast: boolean, lineGuideLevel: number): LlmSpanRowView {
   const span = node.span;
-  const attrs = span.attributes || {};
   const kind = resolveSpanKind(span);
+  const usage = pickSpanTokenUsage(span);
   return {
     spanId: span.span_id,
     traceId: span.trace_id,
@@ -394,8 +423,8 @@ function toSpanRowView(node: SpanTreeNode, depth: number, isLast: boolean, lineG
     childCount: node.descendantCount,
     startTime: span.start_time,
     elapsedTime: span.elapsed_time,
-    inputTokens: pickNumber(attrs, INPUT_TOKEN_KEYS),
-    outputTokens: pickNumber(attrs, OUTPUT_TOKEN_KEYS),
+    inputTokens: usage.input,
+    outputTokens: usage.output,
     isError: isErrorSpan(span),
     errorMessage: String(span.status?.message || '').trim(),
     depth,

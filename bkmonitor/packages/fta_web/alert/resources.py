@@ -109,6 +109,7 @@ from fta_web.alert.serializers import (
     AlertSuggestionSerializer,
     EventSearchSerializer,
     SearchConditionSerializer,
+    TriggerConditionField,
 )
 from fta_web.alert.utils import (
     generate_date_ranges,
@@ -2150,6 +2151,10 @@ class ListAlertLogResource(ApiAuthResource):
         offset = serializers.IntegerField(required=False, label="偏移")
         limit = serializers.IntegerField(default=10, label="获取的条数")
         operate = serializers.ListField(default=[], label="记录类型")
+        # 以下两个为详情页展示参数，均可选；同时提供时后端可省去一次告警正文查询
+        # begin_time 必须是有效时间戳：0/负数会被直接渲染成 1970 年，缺少数据时前端应省略该参数走回退
+        begin_time = serializers.IntegerField(required=False, min_value=1, label="告警开始时间（展示用，Unix 秒）")
+        trigger_condition = TriggerConditionField(required=False, allow_null=True, label="告警触发条件（展示用）")
 
     def perform_request(self, validated_request_data):
         alert_id = validated_request_data["id"]
@@ -2157,7 +2162,14 @@ class ListAlertLogResource(ApiAuthResource):
         offset = validated_request_data.get("offset")
         limit = validated_request_data["limit"]
 
-        handler = AlertLogHandler(alert_id)
+        # 用"字段是否传入"判断，不能用真值判断：trigger_condition=None 是完整且有效的输入
+        handler_kwargs = {}
+        if "begin_time" in validated_request_data:
+            handler_kwargs["begin_time"] = validated_request_data["begin_time"]
+        if "trigger_condition" in validated_request_data:
+            handler_kwargs["trigger_condition"] = validated_request_data["trigger_condition"]
+
+        handler = AlertLogHandler(alert_id, **handler_kwargs)
         result_data = handler.search(operate_list=operate_list, offset=offset, limit=limit)
         return result_data
 

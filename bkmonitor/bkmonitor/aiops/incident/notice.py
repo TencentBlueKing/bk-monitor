@@ -219,6 +219,7 @@ class IncidentNoticeHelper:
             "assignees": assignees,
             "url": url,
             "process_url": cls._get_process_url(incident),
+            "noise_config_url": cls._get_noise_config_url(incident),
             "bk_biz_id": incident.bk_biz_id,
             "incident_id": incident.incident_id,
         }
@@ -397,6 +398,21 @@ class IncidentNoticeHelper:
         scope_path = quote(str(scope_id), safe="")
         query = urlencode({"incident_task_id": task_id})
         return f"{site_url}/{scope_path}/record/fault/{incident.incident_id}?{query}"
+
+    @classmethod
+    def _get_noise_config_url(cls, incident: IncidentDocument) -> str:
+        """构建故障所属 BKFARA 空间的降噪配置 URL。"""
+        extra_info = incident.extra_info or {}
+        if hasattr(extra_info, "to_dict"):
+            extra_info = extra_info.to_dict()
+        scope_id = extra_info.get("scope_id")
+        site_url = settings.BK_INCIDENT_SAAS_HOST.rstrip("/")
+        if extra_info.get("notice_source") != "bkfara" or not scope_id or not site_url:
+            return ""
+
+        # 降噪配置属于空间，无需等待分析任务生成，也不能用监控业务 ID 推测空间。
+        scope_path = quote(str(scope_id), safe="")
+        return f"{site_url}/{scope_path}/space/setting/noise"
 
     @classmethod
     def _get_alert_owners(cls, incident: IncidentDocument) -> list[str]:

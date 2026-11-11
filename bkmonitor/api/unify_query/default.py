@@ -219,7 +219,7 @@ class QueryRawResource(UnifyQueryAPIResource):
 
     class RequestSerializer(serializers.Serializer):
         query_list = serializers.ListField()
-        metric_merge = serializers.CharField()
+        metric_merge = serializers.CharField(required=False)
         start_time = serializers.CharField()
         end_time = serializers.CharField()
         step = serializers.CharField()
@@ -592,6 +592,13 @@ class QueryMultiResourceV1Beta3(QueryMultiResource):
     """Explicit v1beta3 probe, independent of the business rollout switch."""
 
     path = RELATION_MULTI_RESOURCE_V1BETA3_PATH
+    v1beta3_path = ""
+
+
+class QueryMultiResourceRangeV1Beta3(QueryMultiResourceRange):
+    """Explicit v1beta3 range probe, independent of the business rollout switch."""
+
+    path = RELATION_MULTI_RESOURCE_RANGE_V1BETA3_PATH
     v1beta3_path = ""
 
 

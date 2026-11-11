@@ -32,9 +32,9 @@ import { queryCustomEventGroup } from 'monitor-api/modules/custom_report';
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { ALARM_CENTER_LIST_HASH, getAlarmCenterListHash } from 'monitor-common/utils/alarm-center-router';
-import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
 import bus from 'monitor-common/utils/event-bus';
 import { docCookies, random } from 'monitor-common/utils/utils';
+import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
 import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants';
 import { type IPanelModel, type IViewOptions, BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -257,6 +257,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
       type,
       id,
       is_split: true,
+      ...(this.sceneId === 'kubernetes' && id === 'pod' ? { supports_pod_memory_promql: true } : {}),
     }).catch(() => ({ id: '', panels: [], name: '' }));
     this.sceneData = new BookMarkModel(data || { id: '', panels: [], name: '' });
     this.localPanels = this.handleGetLocalPanels(this.sceneData.panels);
@@ -314,9 +315,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
     if (this.relatePage === 'host') {
       const hostId = current_target?.bk_host_id;
       const hash = resolveLegacyHostHash({
-        id: hostId
-          ? String(hostId)
-          : `${current_target?.bk_target_ip || 0}-${current_target?.bk_target_cloud_id || 0}`,
+        id: hostId ? String(hostId) : `${current_target?.bk_target_ip || 0}-${current_target?.bk_target_cloud_id || 0}`,
       });
       window.open(`${url}${hash}`);
       return;

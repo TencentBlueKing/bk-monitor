@@ -59,9 +59,10 @@ from apps.log_databus.models import (
 )
 from apps.log_measure.handlers.elastic import ElasticHandle
 from apps.log_search.constants import CustomTypeEnum
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Space
 from apps.utils.bcs import Bcs
 from apps.utils import md5_sum
+from apps.utils.local import del_local_param, set_local_param
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 
@@ -638,6 +639,21 @@ def update_collector_storage_config(storage_cluster_id):
     collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids, is_active=True)
     for collector in collectors:
         try:
+            # bk_biz_id 为空时 get_tenant_id 会回落到默认租户，不能拿来判断空间是否有租户
+            tenant_id = (
+                Space.get_tenant_id(bk_biz_id=collector.bk_biz_id, is_need_default=False)
+                if collector.bk_biz_id
+                else None
+            )
+            if not tenant_id:
+                logger.error(
+                    "[update_collector_storage_config] executed failed, collector_config_id->%s, "
+                    "reason: space tenant is empty",
+                    collector.collector_config_id,
+                )
+                continue
+            # 后续查集群和改结果表都走这条租户，不能用应用默认租户
+            set_local_param("bk_tenant_id", tenant_id)
             handler = CollectorHandler.get_instance(collector.collector_config_id)
             collect_config = handler.retrieve()
             clean_stash = handler.get_clean_stash()
@@ -652,7 +668,7 @@ def update_collector_storage_config(storage_cluster_id):
                 "table_id": collector.collector_config_name_en,
                 "storage_cluster_id": storage_cluster_id,
                 "retention": collect_config["retention"],
-                "allocation_min_days": collect_config["retention"],
+                "allocation_min_days": collect_config.get("allocation_min_days") or 0,
                 "storage_replies": collect_config["storage_replies"],
                 "es_shards": collect_config["storage_shards_nums"],
                 "etl_params": etl_params,
@@ -671,6 +687,8 @@ def update_collector_storage_config(storage_cluster_id):
                 collector.collector_config_id,
                 e,
             )
+        finally:
+            del_local_param("bk_tenant_id")
 
 
 @high_priority_task(ignore_result=True)

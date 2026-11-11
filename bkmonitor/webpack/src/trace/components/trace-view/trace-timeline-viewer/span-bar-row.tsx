@@ -26,15 +26,15 @@
 
 import { type PropType, computed, defineComponent } from 'vue';
 
-import { Message, Popover } from 'bkui-vue';
+import { Popover } from 'bkui-vue';
 import { bkTooltips } from 'bkui-vue/lib/directives';
-import { copyText } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 import { Tippy } from 'vue-tippy';
 
 import CrossAppTag from '../../../static/img/cross-app-tag.png';
 import { SPAN_KIND_MAPS } from '../../../store/constant';
 import { useTraceStore } from '../../../store/modules/trace';
+import MessageTooltip from '../../message-tooltip/message-tooltip';
 import { useChildrenHiddenInject, useSpanBarCurrentInject } from '../hooks';
 import ArrowRightShapeIcon from '../icons/arrow-right-shape.svg';
 import ErrorIcon from '../icons/error.svg';
@@ -178,40 +178,6 @@ export default defineComponent({
       emit('toggleCollapse', groupID, status);
     };
 
-    /** 文本复制 */
-    function handleCopyText(text: string) {
-      let msgStr = t('复制成功');
-      copyText(text, errMsg => {
-        msgStr = errMsg as string;
-      });
-      Message({ theme: 'success', message: msgStr });
-    }
-
-    /**
-     * @description: span错误icon hover 鼠标移入弹出内容详情 popover
-     * @param title popover 标题
-     * @param detail 需要展示的kv结构数据
-     */
-    const handleErrorPopoverContent = (title: string, detail: string) => {
-      return (
-        <div class='span-row-content-popover'>
-          <div class='span-row-content-popover-title'>
-            <span class='title-text'>{title}</span>
-            {detail ? (
-              <i
-                class='icon-monitor icon-mc-copy'
-                v-bk-tooltips={{ content: t('复制'), delay: 200, boundary: 'window' }}
-                onClick={() => {
-                  handleCopyText(detail);
-                }}
-              />
-            ) : null}
-          </div>
-          <div class='span-row-content-popover-main'>{detail || '--'}</div>
-        </div>
-      );
-    };
-
     return {
       detailToggle,
       childrenToggle,
@@ -221,7 +187,6 @@ export default defineComponent({
       ellipsisDirection,
       showDuration,
       handleToggleCollapse,
-      handleErrorPopoverContent,
       t,
     };
   },
@@ -402,21 +367,17 @@ export default defineComponent({
                     </span>
                   )}
                   {showErrorIcon && (
-                    <Popover
+                    <MessageTooltip
                       key={label}
-                      extCls='span-error-icon'
-                      v-slots={{
-                        content: () => this.handleErrorPopoverContent(this.t('错误信息'), errorDescription),
-                      }}
+                      detail={errorDescription}
                       placement='bottom'
-                      popoverDelay={[300, 0]}
                     >
                       <img
                         class='error-icon'
                         alt='error'
                         src={ErrorIcon}
                       />
-                    </Popover>
+                    </MessageTooltip>
                   )}
                   {span?.icon && (
                     <img

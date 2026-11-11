@@ -259,6 +259,7 @@ def test_standard_shield_time_is_frozen_before_sender_changes_timezone(monkeypat
 @pytest.mark.parametrize("cycle", ["single", "daily", "weekly", "monthly", "two_hours", "ten_years"])
 def test_english_shield_sends_real_translated_duration(monkeypatch, settings, cycle, notice_type):
     settings.DEFAULT_LOCALE = "en"
+    settings.ENVIRONMENT_CODE = "zone01"
     settings.SMS_NOTICE_TEMPLATE_MODE = "standard"
     settings.SMS_CONTENT_LENGTH = 50
     assert send.i18n is not None
@@ -311,5 +312,5 @@ def test_english_shield_sends_real_translated_duration(monkeypatch, settings, cy
     assert sms_utf16_length(body) <= 70
     assert duration in body
     assert ("Start" if notice_type == "start" else "End") in body
-    assert body.endswith("See WeCom/BK.")
+    assert body.endswith("See WeCom/BK.【zone01】")
     assert send.i18n.get_locale() == "en"

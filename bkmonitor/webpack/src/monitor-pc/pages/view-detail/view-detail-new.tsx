@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/member-ordering */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -42,7 +41,7 @@ import { DEFAULT_TIME_RANGE, getTimeDisplay } from '../../components/time-range/
 import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import CompareSelect from '../monitor-k8s/components/panel-tools/compare-select';
 import QueryCriteriaItem from './query-criteria-item.vue';
-import { downCsvFile, refreshList, transformSrcData, transformTableDataToCsvStr } from './utils';
+import { downCsvFile, normalizePromqlStep, refreshList, transformSrcData, transformTableDataToCsvStr } from './utils';
 
 import type { IRefreshItem } from '../monitor-k8s/components/dashboard-tools';
 import type { PanelToolsType } from '../monitor-k8s/typings/panel-tools';
@@ -264,7 +263,7 @@ export default class ViewDetailNew extends tsc<IProps> {
   /* 原始数据排序 */
   handleTableSort(sort, index) {
     this.tableThArr.forEach((item, i) => {
-      i !== index && (item.sort = '');
+      if (i !== index) item.sort = '';
     });
     if (!sort) {
       this.tableData = [...this.tableTdArr];
@@ -307,7 +306,7 @@ export default class ViewDetailNew extends tsc<IProps> {
 
   handleChangeStatus(name) {
     const data = this.rightData.find(item => item.name === name);
-    data && (data.show = !data.show);
+    if (data) data.show = !data.show;
   }
   handleQueryChange(value, type, groupIndex) {
     if (type === 'method') {
@@ -317,7 +316,20 @@ export default class ViewDetailNew extends tsc<IProps> {
       this.queryconfig[groupIndex].data.query_configs[0].interval = value;
     }
     if (type === 'step') {
-      this.queryconfig[groupIndex].data.query_configs[0].agg_interval = value;
+      const queryConfig = this.queryconfig[groupIndex].data.query_configs[0];
+      if (queryConfig.data_source_label === 'prometheus') {
+        const step = normalizePromqlStep(value);
+        if (step === undefined) {
+          return;
+        }
+        queryConfig.interval = step;
+        queryConfig.agg_interval = step;
+      } else {
+        queryConfig.agg_interval = value;
+      }
+    }
+    if (type === 'promql') {
+      this.queryconfig[groupIndex].data.query_configs[0].promql = value;
     }
     this.handleSetPanelParams();
   }
@@ -377,6 +389,9 @@ export default class ViewDetailNew extends tsc<IProps> {
         metrics,
         filter_dict,
         functions: tempFunctions,
+        ...(typeof queryConfigOfParams.promql === 'string'
+          ? { promql: queryConfigOfParams.promql, agg_interval: queryConfigOfParams.agg_interval }
+          : {}),
       };
       target.data.query_configs = target.data.query_configs.map(qc => ({
         ...qc,

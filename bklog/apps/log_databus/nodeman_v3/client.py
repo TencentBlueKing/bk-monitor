@@ -222,6 +222,18 @@ class NodeManV3Client:
         """查询主机列表（Agent 状态来源，替代 V2 ipchooser_host_details）。"""
         return self._call(BKNodeV3Api.list_hosts, "topo/host/list", payload, write=False) or {}
 
+    def get_host_distribution_by_networkarea_id(self, payload: dict[str, Any]) -> dict:
+        """按业务查询主机所在的管控区域分布（区域 ID -> 主机数）。"""
+        return (
+            self._call(
+                BKNodeV3Api.get_host_distribution_by_networkarea_id,
+                "topo/host/get_host_distribution_by_networkarea_id",
+                payload,
+                write=False,
+            )
+            or {}
+        )
+
     def list_operation_instance_status_distribution(self, trigger_ids: list[str]) -> dict:
         payload = {"trigger_id": trigger_ids}
         return (

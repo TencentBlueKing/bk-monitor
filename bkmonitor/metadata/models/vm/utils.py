@@ -758,6 +758,7 @@ def create_bkbase_data_link(
     bcs_cluster_id: str | None = None,
     consumer_group: str | None = None,
     cleanup_absent_components: bool = False,
+    raise_on_cleanup_error: bool = False,
 ):
     """
     申请计算平台链路
@@ -768,6 +769,7 @@ def create_bkbase_data_link(
     @param data_link_strategy: 链路策略
     @param namespace: 命名空间
     @param bcs_cluster_id: BCS集群ID
+    @param raise_on_cleanup_error: 清理失败时上抛，由联邦收敛记录失败并重试
     @param cleanup_absent_components: 是否按本次期望配置清理多余组件；策略切换重试时应显式开启
     """
     if data_link_strategy is None:
@@ -919,6 +921,7 @@ def create_bkbase_data_link(
             table_id=monitor_table_id,
             storage_cluster_name=storage_cluster_name,
             consumer_group=consumer_group,
+            raise_on_cleanup_error=raise_on_cleanup_error,
             cleanup_absent_components=(
                 cleanup_absent_components
                 or (previous_data_link_strategy is not None and previous_data_link_strategy != data_link_strategy)

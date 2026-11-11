@@ -248,7 +248,7 @@ class TraceHandler:
                 ResourceAttributes.SERVICE_NAME: resource.get(ResourceAttributes.SERVICE_NAME, "")
             }
             span[OtlpKey.EVENTS] = []
-            if span.get(OtlpKey.STATUS):
+            if not cls._is_span_in_context(span, bk_biz_id, app_name) and span.get(OtlpKey.STATUS):
                 span[OtlpKey.STATUS]["message"] = ""
 
     @classmethod

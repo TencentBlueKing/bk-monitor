@@ -36,7 +36,6 @@ from apm.constants import (
     ACTIVE_PROFILING_EXPIRED_TASK_STOP_DELAY_MS,
     ACTIVE_PROFILING_IMMEDIATE_SCRIPT,
     ACTIVE_PROFILING_PARSING_MS,
-    ACTIVE_PROFILING_PLUGIN_VERSION,
     ACTIVE_PROFILING_PROCESS_TOPK_RECENT_ROWS,
     ACTIVE_PROFILING_PROFILE_SERVICE_NAME,
     ACTIVE_PROFILING_SUBSCRIPTION_STEP_ID,
@@ -678,7 +677,7 @@ class ActiveProfilingNodeManHandler(ActiveProfilingDeployMixin):
                     "type": "PLUGIN",
                     "config": {
                         "plugin_name": "bkmonitorbeat",
-                        "plugin_version": ACTIVE_PROFILING_PLUGIN_VERSION,
+                        "plugin_version": settings.ACTIVE_PROFILING_PLUGIN_VERSION,
                         "config_templates": [{"name": ACTIVE_PROFILING_CONFIG_TEMPLATE_NAME, "version": "latest"}],
                     },
                     "params": {"context": {"host_tasks": host_tasks, "target_hosts": target_hosts}},

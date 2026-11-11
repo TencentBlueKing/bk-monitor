@@ -2584,6 +2584,7 @@ class UpdatePartialStrategyV2Resource(Resource):
     def update_no_data_config(strategy: Strategy, no_data_config: dict):
         for item in strategy.items:
             UpdatePartialStrategyV2Resource.update_dict_recursive(item.no_data_config, no_data_config)
+            item.align_no_data_dimensions(strategy.bk_biz_id)
 
         return ItemModel, ["no_data_config"], [item.instance for item in strategy.items]
 

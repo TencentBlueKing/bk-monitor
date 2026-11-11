@@ -42,6 +42,7 @@ import { useAppStore } from '../../../store/modules/app';
 import { useHostStore } from '../../../store/modules/host';
 import { HostSelectAllModeEnum } from '../constants/enum';
 import { HOST_FILTER_FIELDS, HOST_LIST_COLUMNS, HOST_LIST_DEFAULT_PAGE_SIZE } from '../constants/host-list';
+import { sortRows } from '../utils/host-list';
 import { hostTargetKey, resolveHostRequestScope } from '../utils/share-scope';
 import { useHostListData } from './use-host-list-data';
 import { useHostListWorker } from './use-host-list-worker';
@@ -77,7 +78,8 @@ export const useHostList = (options: IUseHostListOptions) => {
   const { selectedNode, where, filterExpanded, activeCategory, keyword } = options;
   const { setUrlParams } = useHostUrlParams();
   const hostListWorker = useHostListWorker();
-  const { timeRange, timezone, refreshGeneration, refreshInterval } = storeToRefs(useHostStore());
+  const hostStore = useHostStore();
+  const { timeRange, timezone, refreshGeneration, refreshInterval } = storeToRefs(hostStore);
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
   /** retrieval-filter 语句模式 */
@@ -491,6 +493,30 @@ export const useHostList = (options: IUseHostListOptions) => {
     Message({ message: window.i18n.t('复制成功 {num} 个IP', { num: ipList.length }), theme: 'success' });
   };
 
+  /**
+   * 指标对比：勾选主机中列表顺序的第一台作为当前主机，其余作为目标对比，
+   * 切换到该主机的系统指标视图（对齐旧版主机监控的「指标对比」）。
+   */
+  const handleCompare = async () => {
+    if (options.readonly) return;
+    const rowKeys = [...selectedRowKeys.value];
+    if (rowKeys.length < 2) return;
+    const { rows } = await hostListWorker.getSelectedRows(rowKeys);
+    if (rows.length < 2) return;
+    // Worker 只按原始数据顺序返回选中行，这里按列表实际顺序（置顶优先 + 列排序）重排后再拆分
+    const [current, ...targets] = sortRows(rows, sortInfo.value, stickyValue.value);
+    if (current.bk_host_id == null) return;
+    hostStore.metricAggregationState.compareType = 'target';
+    hostStore.metricAggregationState.compareTargets = targets.map(row => ({
+      bk_host_id: row.bk_host_id,
+      bk_target_cloud_id: row.bk_cloud_id,
+      bk_target_ip: row.bk_host_innerip,
+    }));
+    hostStore.activeTab = 'system';
+    // 只切换选中节点：handleSelectNode 会重置 metricAggregationState，刚写入的对比目标会被清掉
+    hostStore.nodeId = String(current.bk_host_id);
+  };
+
   onMounted(() => {
     void loadStickyConfig();
     void loadData();
@@ -542,6 +568,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     selectType,
     handleColumnsChange,
     handleCopyIp,
+    handleCompare,
     handleIpMark,
     handleClearFilter,
   };

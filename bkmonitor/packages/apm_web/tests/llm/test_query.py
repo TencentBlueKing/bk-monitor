@@ -15,6 +15,46 @@ from apm_web.llm.query import LLMQuery
 
 
 class LLMQueryTestCase(TestCase):
+    def test_tool_calls_query_filters_and_projects_without_collapsing(self):
+        with mock.patch.object(self.query, "_query_list", return_value=[]) as query_list:
+            self.assertEqual(self.query.query_trace_tool_calls("trace-1"), [])
+
+        query_list.assert_called_once()
+        queries, start_time, end_time, offset, limit = query_list.call_args.args
+        self.assertEqual((start_time, end_time, offset, limit), (None, None, 0, self.query.QUERY_MAX_LIMIT))
+        query = queries[0].query
+        self.assertFalse(query.distinct)
+        self.assertEqual(query.order_by, ["start_time asc", "span_id asc"])
+        self.assertEqual(
+            query.select,
+            [
+                "span_id",
+                "attributes.gen_ai.tool.call.id",
+                "attributes.gen_ai.tool.name",
+                "start_time",
+                "elapsed_time",
+                "status",
+                "events",
+            ],
+        )
+        config = self.query._add_query(self.query.get_qs(None, None).limit(limit), queries).config
+        serialized = json.dumps(config)
+        self.assertIn("trace-1", serialized)
+        self.assertIn("execute_tool", serialized)
+        self.assertIn("attributes.gen_ai.operation.name", serialized)
+        self.assertIn("demo", serialized)
+        self.assertEqual(config["bk_biz_id"], 11)
+
+    def test_tool_calls_query_includes_all_application_data_sources(self):
+        source = TraceDatasourceTarget.build(
+            bk_biz_id=11, app_name="demo", table_id="11_bkapm.trace_demo_second", retention=7
+        )
+        query = LLMQuery([*self.query.data_sources, source])
+        records = [{"span_id": "span-1"}, {"span_id": "span-2"}]
+        with mock.patch.object(query, "_query_list", return_value=records) as query_list:
+            self.assertEqual(query.query_trace_tool_calls("trace-1"), records)
+        self.assertEqual(len(query_list.call_args.args[0]), 2)
+
     def test_service_fallback_filter_keeps_trace_and_application_scope(self):
         original_add_query = self.query._add_query
         service_filter = Q(**{"resource.service.name__eq": ["dynamic-service"]})

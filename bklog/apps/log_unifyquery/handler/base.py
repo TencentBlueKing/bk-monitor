@@ -21,16 +21,7 @@ from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
-from apps.log_desensitize.utils import (
-    _extract_value_by_path,
-    _get_sensitive_top_fields,
-    _is_fail_closed,
-    _MASKED_VALUE,
-    _mask_sensitive_fields,
-    merge_nested_data,
-    path_aware_expand,
-    restore_by_metadata,
-)
+from apps.log_desensitize.utils import expand_nested_data, merge_nested_data, sync_text_fields
 from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
 from apps.log_esquery.exceptions import (
     BaseSearchIndexSetDataDoseNotExists,
@@ -62,6 +53,7 @@ from apps.log_search.permission import Permission
 from apps.log_search.utils import handle_es_query_error
 from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
+from apps.log_unifyquery.partial import is_partial_result
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -104,7 +96,9 @@ def fields_config(name: str, is_active: bool = False):
 
 
 class UnifyQueryHandler:
-    def __init__(self, params):
+    allow_partial_es_results = False
+
+    def __init__(self, params, *, allow_partial_results=False):
         self.search_params: dict[str, Any] = params
 
         # 必需参数，索引集id列表
@@ -119,6 +113,11 @@ class UnifyQueryHandler:
 
         # 必需参数，业务id
         self.bk_biz_id = self.search_params["bk_biz_id"]
+
+        if allow_partial_results:
+            biz_id = self._resolve_partial_results_biz_id()
+            if biz_id:
+                self.allow_partial_es_results = FeatureToggleObject.switch("retrieve_partial_es_results", biz_id=biz_id)
 
         # 查询语句
         self.query_string = self.search_params.get("keyword", "")
@@ -683,37 +682,9 @@ class UnifyQueryHandler:
         log_list = []
         origin_log_list = []
         for log in result_dict["list"]:
-            # pre-desensitize merge: 将 ES 返回的 flatten 格式（{"a.b": 1}）合并为嵌套 dict（{"a": {"b": 1}}）。
-            # 后续 _log_desensitize 内部 path_aware_expand 会再展开，形成一次"合 → 展"往返。
-            # 这是兼容行为，确保旧版 expand_nested_data 路径的消费者不受影响。
-            merge_failed = False
-            try:
-                log = merge_nested_data(log)
-            except Exception as e:
-                logger.error(
-                    "[desensitize] merge_nested_data failed (doc_id=%s): %s, masking sensitive fields",
-                    log.get("__doc_id", "unknown") if isinstance(log, dict) else "unknown",
-                    e,
-                )
-                sensitive_fields = _get_sensitive_top_fields(
-                    self.field_configs, self.text_fields_field_configs, self.text_fields
-                )
-                log = _mask_sensitive_fields(log, sensitive_fields) if isinstance(log, dict) else log
-                merge_failed = True
-            if not merge_failed and (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
-                try:
-                    log = self._log_desensitize(log)
-                except Exception as e:
-                    # fail-closed：脱敏异常时遮罩配置涉及的敏感字段，保留元数据字段
-                    logger.error(
-                        "[desensitize] failed to desensitize log (doc_id=%s): %s, masking sensitive fields",
-                        log.get("__doc_id", "unknown"),
-                        e,
-                    )
-                    sensitive_fields = _get_sensitive_top_fields(
-                        self.field_configs, self.text_fields_field_configs, self.text_fields
-                    )
-                    log = _mask_sensitive_fields(log, sensitive_fields)
+            log = merge_nested_data(log)
+            if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
+                log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
             log = self._add_bcs_cluster_fields(log)
             # 联合索引 增加索引集id信息
@@ -825,79 +796,29 @@ class UnifyQueryHandler:
         if not log:
             return log
 
-        # 提取已配置字段的 dotted path 列表，用于路径感知展开
-        configured_paths = [c["field_name"] for c in self.field_configs if c.get("field_name")]
+        # 展开object对象
+        log = expand_nested_data(log)
 
-        # 先 deepcopy 原始 log，用于后续日志原文替换
-        # 必须在 path_aware_expand 之前执行，否则 log 已被展开为 dotted-key 形式
-        if self.text_fields:
-            try:
-                log_content_tmp = copy.deepcopy(log)
-            except RecursionError:
-                logger.warning(
-                    "[desensitize] deepcopy failed due to deeply nested structure, "
-                    "falling back to shallow copy"
-                )
-                log_content_tmp = copy.copy(log)
+        # 字段脱敏处理，同时记录实际发生的替换，用于原文字段同步
+        hits = []
+        log = self.desensitize_handler.transform_dict(log, hits=hits)
 
-        # 路径感知展开（支持 flattened / JSON 字符串子路径）
-        log, restore_metadata = path_aware_expand(log, configured_paths)
+        # 原文字段应用其他字段的脱敏结果
+        if not self.text_fields:
+            return log
 
-        # 在 transform_dict 之前检测 fail-closed 状态
-        # 必须在此处检测：transform_dict 可能修改 _MASKED_VALUE 值导致后续检测失效
-        has_fail_closed = _is_fail_closed(log, restore_metadata)
+        log = sync_text_fields(
+            log,
+            self.text_fields,
+            hits,
+            self.desensitize_handler,
+            index_set_id=self.index_set_ids[0] if self.index_set_ids else None,
+        )
 
-        # 字段脱敏处理
-        log = self.desensitize_handler.transform_dict(log)
-
-        if self.text_fields and has_fail_closed:
-            # fail-closed 场景下原文字段整体遮罩
-            for text_field in self.text_fields:
-                text_tuple = (text_field,)
-                if text_tuple in log and isinstance(log[text_tuple], str) and log[text_tuple]:
-                    log[text_tuple] = _MASKED_VALUE
-                elif text_tuple not in log and text_tuple in restore_metadata:
-                    # text_field 被 path_aware_expand 展开为子路径，key 已消失
-                    keys_to_remove = [k for k in log if len(k) > 1 and k[0] == text_field]
-                    for k in keys_to_remove:
-                        del log[k]
-                    log[text_tuple] = _MASKED_VALUE
-                    restore_metadata[text_tuple] = {"type": "scalar"}
-        elif self.text_fields:
-            # 原文字段应用其他字段的脱敏结果（原有逻辑，仅在非 fail-closed 时生效）
-            # 对副本做空路径展开，获得 path-token 形式的原始值
-            log_content_tmp_expanded, _ = path_aware_expand(log_content_tmp, [])
-
-            for text_field in self.text_fields:  # ["log"]
-                text_tuple = (text_field,)
-                # 判断原文字段是否存在log中
-                if text_tuple not in log:
-                    continue
-
-                for _config in self.field_configs:
-                    field_name = _config["field_name"]
-                    field_tuple = tuple(field_name.split("."))
-                    if field_tuple not in log or field_tuple == text_tuple:
-                        continue
-
-                    # 优先从展开后的副本获取原始值
-                    original_value = log_content_tmp_expanded.get(field_tuple)
-                    if original_value is None:
-                        # 空路径展开时 JSON 字符串子路径不会被展开
-                        # 从原始 log 按 dotted path 导航提取
-                        original_value = _extract_value_by_path(log_content_tmp, field_name)
-                        if original_value is None:
-                            continue
-
-                    log[text_tuple] = log[text_tuple].replace(
-                        str(original_value), str(log[field_tuple])
-                    )
-
-            # 处理原文字段自身绑定的脱敏逻辑
-            log = self.text_fields_desensitize_handler.transform_dict(log)
-
-        # 按原始容器类型还原（dict 保持 dict，JSON 字符串保持字符串）
-        log = restore_by_metadata(log, restore_metadata)
+        # 处理原文字段自身绑定的脱敏逻辑
+        log = self.text_fields_desensitize_handler.transform_dict(log)
+        # 折叠object对象
+        log = merge_nested_data(log)
         return log
 
     @classmethod
@@ -935,6 +856,9 @@ class UnifyQueryHandler:
         nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
         return self.update_nested_dict(log, nested_dict)
 
+    def _resolve_partial_results_biz_id(self) -> int | None:
+        return self.bk_biz_id
+
     def search(self, search_type="default", is_export=False):
         """
         search
@@ -968,10 +892,14 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
+        if self.allow_partial_es_results and not is_export:
+            search_dict["allow_partial_es_results"] = True
 
         # 预查询
         result = self.query_ts_raw(search_dict, pre_search=pre_search)
-        if pre_search and len(result["list"]) != once_size:
+        if pre_search and (
+            len(result["list"]) != once_size or (self.allow_partial_es_results and is_partial_result(result))
+        ):
             # 全量查询
             result = self.query_ts_raw(search_dict)
         result = self._deal_query_result(result)
@@ -1002,15 +930,7 @@ class UnifyQueryHandler:
 
         if not response.get("series"):
             return {"aggs": {}}
-
-        # 组装结果
-        return_data = self.obtain_result_data(
-            interval,
-            group_field,
-            response,
-        )
-
-        return return_data
+        return self.obtain_result_data(interval, group_field, response)
 
     @staticmethod
     def obtain_result_data(interval, group_field, response):
@@ -1108,8 +1028,10 @@ class UnifyQueryHandler:
         params["metric_merge"] = "a"
         params["step"] = interval
         params["order_by"] = []
+        if self.allow_partial_es_results:
+            params["allow_partial_es_results"] = True
 
-        response = self.query_ts_reference(params)
+        response = self.query_ts_reference(params, raise_exception=self.allow_partial_es_results)
 
         return response
 

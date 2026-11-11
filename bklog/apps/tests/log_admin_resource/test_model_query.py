@@ -37,8 +37,8 @@ from apps.log_search.models import BizProperty, GlobalConfig, LogIndexSet, Scena
 
 
 class ModelSpecContractTest(SimpleTestCase):
-    def test_registry_declares_exactly_the_confirmed_fifty_one_models(self):
-        self.assertEqual(len(SPECS), 51)
+    def test_registry_declares_confirmed_models(self):
+        self.assertEqual(len(SPECS), 52)
         self.assertIn("log_search.LogIndexSet", SPECS)
         self.assertIn("log_extract.ExtractLink", SPECS)
         self.assertIn("tgpa.TGPAReport", SPECS)
@@ -63,7 +63,7 @@ class ModelSpecContractTest(SimpleTestCase):
             result = list_model_specs({})
 
         validate_params(result, FUNCTIONS["bklog.model.list"]["response_schema"], "response")
-        self.assertEqual(result["count"], 48)
+        self.assertEqual(result["count"], 49)
         self.assertTrue(all(item["domain"] != "tgpa" for item in result["items"]))
         self.assertEqual(result["next_call"]["func_name"], "bklog.model.detail")
 
@@ -92,7 +92,7 @@ class ModelSpecContractTest(SimpleTestCase):
                 self.assertIs(resolved, spec)
                 self.assertEqual(model._meta.object_name, spec.model_name)
                 available += 1
-        expected = 51 if _is_model_available(SPECS["tgpa.TGPAReport"]) else 48
+        expected = 52 if _is_model_available(SPECS["tgpa.TGPAReport"]) else 49
         self.assertEqual(available, expected)
 
     def test_detail_describes_per_field_lookups_scope_limits_and_example(self):

@@ -160,4 +160,15 @@
   .bk-table-expand-icon {
     color: #8f9fbd !important;
   }
+
+  .llm-token-stats-rank,
+  .llm-duration-stats-rank {
+    .bkmv3-radio-button-label {
+      line-height: 24px !important;
+    }
+  }
+
+  .llm-model-timeline-filters {
+    background: #f0f1f5 !important;
+  }
 }
