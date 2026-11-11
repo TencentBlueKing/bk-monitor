@@ -180,15 +180,21 @@ class DslMixin:
         clone.query.group_hits_size = size
         return clone
 
-    def dsl_search_after(self, search_after_key: dict[str, Any] | None):
+    def dsl_search_after(self, search_after_key: dict[str, Any] | None, *, missing_bucket: bool = False):
         clone = self._clone()
         if search_after_key is not None:
             clone.query.search_after_key = search_after_key
+        clone.query.composite_missing_bucket = missing_bucket
         return clone
 
     def dsl_date_histogram(self, enable: bool):
         clone = self._clone()
         clone.query.enable_date_histogram = enable
+        return clone
+
+    def dsl_sort(self, sort: list[dict[str, Any]]):
+        clone = self._clone()
+        clone.query.raw_sort = sort
         return clone
 
 

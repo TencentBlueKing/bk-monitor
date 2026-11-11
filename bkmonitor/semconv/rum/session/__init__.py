@@ -9,13 +9,17 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.utils.translation import gettext_lazy as _
-from semconv.rum import common
+from semconv.rum import common, composite, virtual
 from semconv.rum.field import FieldSpec
 from semconv.rum.registry import FieldRegistry
 
 
 class SessionSpec(FieldSpec):
     """Session 层级保留维度与派生字段目录。"""
+
+    VIRTUAL_BROWSER = virtual.BROWSER
+    VIRTUAL_NETWORK = virtual.NETWORK
+    DISPLAY_ENVIRONMENT = composite.ENVIRONMENT
 
     APP_NAME = common.raw_field("app_name")
     RESOURCE_SERVICE_NAME = common.raw_field("resource.service.name")

@@ -67,6 +67,8 @@ COMPUTED = {
     "start_time",
 }
 VIEW_RAW = {
+    "attributes.browser.viewport.width",
+    "attributes.browser.viewport.height",
     "attributes.view.id",
     "attributes.view.name",
     "attributes.view.loading_type",
@@ -78,6 +80,7 @@ VIEW_RAW = {
 }
 VIEW_DERIVED = {f"web_vitals.{metric}" for metric in ("cls", "lcp", "fcp", "inp", "ttfb")}
 SESSION_DERIVED = {"view_count", "enter_url_template", "exit_url_template"}
+VIRTUAL_DIMENSIONS = {"virtual.browser", "virtual.network"}
 
 
 @pytest.mark.parametrize(
@@ -92,18 +95,33 @@ def test_field_catalog_matches_retained_table_without_uq(mode, expected_raw, exp
     with patch.object(BaseQuery, "_query_fields", side_effect=AssertionError("不得发现原始表字段")):
         config = handler.view_config(None, None)
     fields = {field["field_name"]: field for field in config["fields"]}
-    assert fields.keys() == expected_raw | expected_derived
+    virtual_dimensions = VIRTUAL_DIMENSIONS | ({"virtual.viewport"} if mode == "view" else set())
+    display_fields = {"display.environment"} | ({"display.page"} if mode == "view" else set())
+    assert fields.keys() == expected_raw | expected_derived | virtual_dimensions | display_fields
     for name in expected_raw:
         assert fields[name]["is_agg"] and fields[name]["is_searchable"] and fields[name]["is_real"]
         assert fields[name]["supported_operations"]
     for name in expected_derived:
         assert not fields[name]["is_agg"] and not fields[name]["is_searchable"] and not fields[name]["is_real"]
         assert fields[name]["supported_operations"] == []
+    for name in virtual_dimensions:
+        assert fields[name]["is_agg"] and fields[name]["is_searchable"] and not fields[name]["is_real"]
+        assert fields[name]["is_list"] and fields[name]["virtual_config"]
+        assert {operation["operator"] for operation in fields[name]["supported_operations"]} == {
+            "equal",
+            "not_equal",
+            "exists",
+            "not exists",
+        }
+    for name in display_fields:
+        assert fields[name]["is_list"] and fields[name]["composite_config"]
+        assert not fields[name]["is_agg"] and not fields[name]["is_searchable"] and not fields[name]["is_real"]
+        assert fields[name]["supported_operations"] == []
     grouped = [name for group in config["groups"] for name in group["field_names"]]
     assert len(grouped) == len(set(grouped))
-    assert set(grouped) == fields.keys()
+    assert set(grouped) == fields.keys() - display_fields
     assert set(config["display_fields"]) <= fields.keys()
-    assert config["display_fields"][0] == f"attributes.{mode}.id"
+    assert config["display_fields"][0] == ("display.page" if mode == "view" else "attributes.session.id")
     assert set(config["resident_fields"]) <= expected_raw
     resident_fields_by_mode: dict[str, list[str]] = {
         "session": [
@@ -176,7 +194,12 @@ def test_precomputed_tables_enable_fields_and_skip_fold_and_supplement(query_cla
     assert "attributes.span_type" not in json.dumps(q_to_dict(configs[0].query.where))
     with patch.object(handler.query.level_query, "query_list", return_value=[{"error_count": 4}]) as query_list:
         with patch.object(handler.query, "query_summaries", side_effect=AssertionError("不得补查")):
-            assert handler.list_records(10, 20, sort=["-error_count"]) == [{"error_count": 4}]
+            assert handler.list_records(10, 20, sort=["-error_count"]) == [
+                {
+                    "error_count": 4,
+                    "virtual": {"browser": None, "network": None, **({"viewport": None} if mode == "view" else {})},
+                }
+            ]
     assert query_list.call_args.args[-1] == ["-error_count"]
     mixed = query_class([target(mode), target()])
     assert not mixed.use_precomputed

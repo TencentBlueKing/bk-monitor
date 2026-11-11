@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
+
 from rum_web.handlers.builder.base import BaseComponent
 from rum_web.handlers.builder.utils import get_safe_number
 
@@ -153,3 +155,24 @@ class ReusedLayout(NetworkLayout):
         # 与原有展示一致：三段以 0 耗时输出在 connect_end，前端据此合并为「连接复用」提示。
         offset = self.value("connect_end") - self.value("start_time")
         return [(key, offset, 0) for key in ("dns", "connect", "tls")] if offset >= 0 else []
+
+
+def classify_resource_timing(flatten_data: dict[str, Any]) -> TimingLayout:
+    """详情瀑布图与列表获取说明共用同一分类顺序。"""
+    for layout_type in (CrossOriginLayout, ServiceWorkerLayout, LocalLayout, ReusedLayout, NetworkLayout):
+        layout: TimingLayout = layout_type(flatten_data)
+        if layout.matches():
+            return layout
+    return CrossOriginLayout(flatten_data)
+
+
+def resource_delivery(flatten_data: dict[str, Any]) -> str | None:
+    """只返回可确认的获取方式；浏览器时间点不能区分内存与磁盘缓存。"""
+    if flatten_data.get("attributes.span_type") != "resource":
+        return None
+    layout: TimingLayout = classify_resource_timing(flatten_data)
+    if isinstance(layout, ServiceWorkerLayout):
+        return "Service Worker"
+    if isinstance(layout, LocalLayout):
+        return "Cache"
+    return None
