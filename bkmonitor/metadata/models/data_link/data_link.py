@@ -1441,6 +1441,8 @@ class DataLink(models.Model):
             if not bingding_configs:
                 raise ValueError("至少需要一个存储绑定配置")
 
+            clustering_sink = self._claim_attached_log_clustering_sink(databus_sinks, existing_context)
+
             # 已接入日志聚类时，Databus 改为引用聚类 Sink，原存储绑定作为其 raw_sink
             from metadata.models.data_link.log_clustering import prepare_clustering_stores
 
@@ -1451,8 +1453,13 @@ class DataLink(models.Model):
             ).first()
             if pattern_sink is not None:
                 bingding_configs.extend(prepare_clustering_stores(pattern_sink))
+                # 默认回写新增的系统字段须进入本轮源表声明。
+                fields = generate_result_table_field_list(
+                    table_id=table_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    unique_field_list=es_config.unique_field_list if es_config else (),
+                )
 
-            clustering_sink = self._claim_attached_log_clustering_sink(databus_sinks, existing_context)
             if clustering_sink is not None:
                 bingding_configs.append(clustering_sink.compose_config(raw_sink=databus_sinks[0]))
                 databus_sinks = [clustering_sink.reference]

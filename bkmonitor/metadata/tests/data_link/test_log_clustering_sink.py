@@ -259,7 +259,8 @@ def create_log_datalink() -> tuple[DataLink, models.DataSource]:
 
 
 @pytest.fixture
-def log_datalink(default_biz):
+def log_datalink(default_biz, mocker):
+    mocker.patch.object(models.ESStorage, "update_index_and_aliases", return_value=True)
     return create_log_datalink()
 
 
@@ -304,7 +305,13 @@ def test_compose_log_configs_with_attached_sink_only_replaces_databus_sinks(log_
 
     es_binding_ref = {"kind": "ElasticSearchBinding", "name": LOG_DATA_LINK_NAME, "namespace": "bklog"}
     clustering_config = find_config(configs, "LogClusteringSink")
-    assert find_config(plain_configs, "ResultTable") == find_config(configs, "ResultTable")
+    plain_rt = find_config(plain_configs, "ResultTable")
+    clustered_rt = find_config(configs, "ResultTable")
+    assert plain_rt["metadata"] == clustered_rt["metadata"]
+    assert {field["field_name"] for field in clustered_rt["spec"]["fields"]} == {
+        "__log_signature",
+        "__log_cluster_publish_revision",
+    }
     assert find_config(configs, "ResultTable")["spec"]["dataType"] == "log"
     assert clustering_config["metadata"]["name"] == sink.name
     assert clustering_config["spec"]["raw_sink"] == es_binding_ref
