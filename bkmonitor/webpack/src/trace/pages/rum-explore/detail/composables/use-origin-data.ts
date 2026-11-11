@@ -29,7 +29,7 @@ import type { MaybeRef } from 'vue';
 import dayjs from 'dayjs';
 
 import { formatUnitValue } from '../../utils';
-import { ORIGIN_NESTED_KEYS } from '../constants';
+import { ORIGIN_NESTED_KEYS, VITAL_METRIC_META } from '../constants';
 
 import type { IRumField } from '../../typings';
 import type { IRumOriginBlockVM, IRumOriginRowVM } from '../typings';
@@ -61,9 +61,16 @@ export function useOriginData(
     const data = unref(originData);
     if (!data) return [];
 
+    /** 当前 span 的 Web Vitals 指标名（attributes 为扁平点号键），用于还原 vital 伪单位的真实单位 */
+    const vitalMetric = String(data.attributes?.['vital.metric'] ?? '').toLowerCase();
     /** 字段名 → 字段元信息，originKey 命中字段 name 即可拿到单位与枚举 */
     const fieldMap = new Map(unref(fields).map(field => [field.name, field]));
-    const getField = (originKey: string) => fieldMap.get(originKey);
+    const getField = (originKey: string): IRumField | undefined => {
+      const field = fieldMap.get(originKey);
+      if (field?.field_unit !== 'vital') return field;
+      /** vital 为伪单位：真实单位由指标决定，登记见 VITAL_METRIC_META（cls 无量纲，其余按 ms），与评级条 / 链路头部同源 */
+      return { ...field, field_unit: VITAL_METRIC_META[vitalMetric]?.unit ?? 'ms' };
+    };
 
     /** Span 块：顶层标量字段，嵌套字段各自有独立块 */
     const spanRows = Object.entries(data)
