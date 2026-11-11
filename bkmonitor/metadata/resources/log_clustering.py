@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import logging
-from contextlib import contextmanager
 from typing import Any
 
 import pydantic
@@ -25,14 +24,11 @@ from bkmonitor.utils.serializers import TenantIdField
 from core.drf_resource import Resource
 from metadata import models
 from metadata.config import DATABASE_CONNECTION_NAME
-from metadata.models.constants import EsSourceType
 from metadata.models.data_link import DataLinkResourceConfigBase
 from metadata.models.data_link import utils as data_link_utils
-from metadata.models.data_link.constants import DataLinkKind, DataLinkNameScene
+from metadata.models.data_link.constants import DataLinkKind, DataLinkNameScene, DataLinkResourceStatus
 from metadata.models.result_table import LogV4DataLinkOption
 from metadata.task.datalink import apply_log_datalink
-from metadata.tools.redis_lock import DistributedLock
-from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
 
@@ -42,21 +38,7 @@ CLUSTERING_ENABLE_ACTIONS = {"disable": False, "enable": True}
 # metadata 内部动作：切换 Databus 是否引用聚类 Sink 后完整下发日志链路
 SINK_REFERENCE_ACTIONS = {"detach": False, "attach": True}
 
-LOG_FILTER_METHODS = [
-    "eq",
-    "neq",
-    "include",
-    "exclude",
-    "starts_with",
-    "not_starts_with",
-    "ends_with",
-    "not_ends_with",
-]
-DISTANCE_THRESHOLDS = ["0.1", "0.3", "0.5", "0.7", "0.9"]
-DEFAULT_MAX_MESSAGE_BYTES = 1024 * 1024
-MAX_MESSAGE_BYTES_LIMIT = 16 * 1024 * 1024
-# 需覆盖一次完整日志链路下发（含 BKBase 接口重试）的耗时
-CHANGE_LOCK_TIMEOUT_SECONDS = 15 * 60
+RESULT_MODES = ["update_original", "append"]
 
 
 class LogClusteringResourceRefSerializer(serializers.Serializer):
@@ -66,66 +48,8 @@ class LogClusteringResourceRefSerializer(serializers.Serializer):
     tenant = serializers.CharField(label="租户ID", required=False)
 
 
-class LogClusteringKafkaSerializer(serializers.Serializer):
-    cluster_ref = serializers.CharField(label="BKFara Kafka 集群别名")
-    input_topic = serializers.CharField(label="候选 Topic")
-    output_topic = serializers.CharField(label="结果 Topic")
-    consumer_group = serializers.CharField(label="Quix Worker 消费组")
-    result_group = serializers.CharField(label="Databus 结果消费组")
-    partitions = serializers.IntegerField(label="分区数", min_value=1)
-    retention_ms = serializers.IntegerField(label="消息保留时间(ms)", min_value=1)
-    recovery_window_ms = serializers.IntegerField(label="恢复窗口(ms)", min_value=1)
-    source_namespace = serializers.CharField(label="来源名称")
-    mapping_revision = serializers.CharField(label="映射版本")
-
-    def validate(self, attrs):
-        if attrs["recovery_window_ms"] > attrs["retention_ms"]:
-            raise ValidationError({"recovery_window_ms": "recovery_window_ms must not exceed retention_ms"})
-        return attrs
-
-
-class LogClusteringFilterRuleSerializer(serializers.Serializer):
-    key = serializers.CharField(label="字段")
-    method = serializers.ChoiceField(label="匹配方式", choices=LOG_FILTER_METHODS)
-    # 首尾空白属于匹配内容，不能被序列化去除
-    value = serializers.ListField(
-        label="匹配值", child=serializers.CharField(allow_blank=True, trim_whitespace=False), allow_empty=False
-    )
-    condition = serializers.ChoiceField(label="逻辑关系", choices=["", "and", "or"], allow_blank=True)
-
-
-class LogClusteringInputMappingSerializer(serializers.Serializer):
-    log = serializers.CharField(label="正文字段")
-    timestamp = serializers.CharField(label="毫秒时间字段")
-
-
-class LogClusteringBindingSerializer(serializers.Serializer):
-    task_id = serializers.CharField(label="BKFara 任务ID")
-    index_id = serializers.CharField(label="日志平台索引ID")
-    # 由 BKFara 管理：分别取任务 current_generation 和聚类配置 input_revision，调用方原样传入。
-    # metadata 不生成或递增这两个版本，也不把它们作为本地配置修订号。
-    generation = serializers.IntegerField(label="任务代际", min_value=0)
-    config_revision = serializers.IntegerField(label="BKFara 输入配置版本", min_value=0)
-    kafka = LogClusteringKafkaSerializer(label="Kafka 绑定")
-    log_filter = LogClusteringFilterRuleSerializer(label="聚类过滤规则", many=True, default=list)
-    input_mapping = LogClusteringInputMappingSerializer(label="输入字段映射")
-    distance_threshold = serializers.ChoiceField(label="距离档位", choices=DISTANCE_THRESHOLDS, default="0.5")
-    state_index = serializers.CharField(label="结果关联上下文索引")
-    # Kafka 候选消息的序列化大小预算，不是原文日志长度限制；这里只校验和透传。
-    # 实际超限处理由 BKBase Runtime 执行。
-    max_message_bytes = serializers.IntegerField(
-        label="候选消息上限(字节)", min_value=1, max_value=MAX_MESSAGE_BYTES_LIMIT, default=DEFAULT_MAX_MESSAGE_BYTES
-    )
-
-    def validate_log_filter(self, value):
-        for index, rule in enumerate(value):
-            if (index == 0) != (rule["condition"] == ""):
-                raise ValidationError("the first rule condition must be empty, the following must be and/or")
-        return value
-
-
 def get_log_clustering_datalink(bk_tenant_id: str, table_id: str, check_storage: bool = True) -> models.DataLink:
-    """按监控结果表定位日志 V4 链路，check_storage 时校验其满足聚类首版的单 ES 存储条件"""
+    """按监控结果表定位日志 V4 链路，check_storage 时校验其有 ES 存储可作为 raw_sink"""
     bkbase_rt = models.BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id=table_id).first()
     if bkbase_rt is None:
         raise ValidationError(f"table_id({table_id}) has no bkbase datalink")
@@ -152,11 +76,6 @@ def get_log_clustering_datalink(bk_tenant_id: str, table_id: str, check_storage:
         and models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists()
     ):
         raise ValidationError(f"table_id({table_id}) has no elasticsearch storage")
-    if (
-        datalink_option.doris_storage_config
-        and models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists()
-    ):
-        raise ValidationError(f"table_id({table_id}) with doris storage is not supported")
     return datalink
 
 
@@ -193,27 +112,6 @@ def lock_log_clustering_datalink(datalink: models.DataLink) -> None:
     models.DataLink.objects.select_for_update().get(pk=datalink.pk)
 
 
-@contextmanager
-def serialize_log_clustering_change(datalink: models.DataLink):
-    """
-    同一链路上的聚类配置变更从落库到远端下发全程互斥，避免较慢的旧请求在新请求之后下发而覆盖远端配置
-    远端下发不能放进数据库事务：日志链路下发要求本地组件身份先提交，失败回滚会丢失已分配的资源名
-    """
-    lock = DistributedLock(
-        redis_client=RedisTools.metadata_redis_client,
-        lock_name=f"metadata:log_clustering:{datalink.bk_tenant_id}:{datalink.data_link_name}",
-        timeout=CHANGE_LOCK_TIMEOUT_SECONDS,
-    )
-    if not lock.acquire():
-        raise ValidationError(
-            f"data_link_name({datalink.data_link_name}) has another log clustering change in progress, retry later"
-        )
-    try:
-        yield
-    finally:
-        lock.release()
-
-
 def get_log_clustering_raw_sink(datalink: models.DataLink) -> dict[str, str] | None:
     """聚类 Sink 的 raw_sink：本链路唯一的 ES 存储绑定，与完整生成配置时认领的绑定一致；无法唯一确定时返回 None"""
     bindings = list(
@@ -235,7 +133,7 @@ def is_databus_referencing_sink(databus_config: dict[str, Any] | None, sink: mod
 def apply_log_clustering_sink_only(
     datalink: models.DataLink, sink: models.LogClusteringSinkConfig, raw_sink: dict[str, str]
 ) -> None:
-    from metadata.models.data_link.log_clustering import prepare_clustering_stores, publish_clustering_routes
+    from metadata.models.data_link.log_clustering import prepare_clustering_stores
 
     configs = prepare_clustering_stores(sink) + [sink.compose_config(raw_sink=raw_sink)]
     if sink.result.get("mode", "update_original") == "update_original":
@@ -267,7 +165,6 @@ def apply_log_clustering_sink_only(
     configs = datalink.merge_existing_component_configs(configs)
     try:
         datalink.apply_data_link_with_retry(configs)
-        publish_clustering_routes(datalink)
     except RetryError as e:
         raise e.__cause__ if e.__cause__ else e
 
@@ -295,13 +192,16 @@ class SetLogClusteringConfigResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(label="监控结果表ID")
-        binding = LogClusteringBindingSerializer(label="聚类绑定配置")
+        # 由调用方按 BKBase LogClusteringSink 协议组装，metadata 原样保存和下发。
+        binding = serializers.DictField(label="聚类绑定配置")
         kafka_resource = LogClusteringResourceRefSerializer(label="聚类 Kafka 资源引用")
         runtime_cluster = LogClusteringResourceRefSerializer(label="专用 Databus 集群")
         recovery_resource = LogClusteringResourceRefSerializer(label="结果关联存储资源")
-        result_mode = serializers.ChoiceField(choices=["update_original", "append"], required=False)
+        result_mode = serializers.ChoiceField(choices=RESULT_MODES, required=False)
 
         def validate(self, attrs):
+            if not attrs["binding"].get("index_id"):
+                raise ValidationError({"binding": "index_id is required"})
             references = [
                 ("kafka_resource", attrs["kafka_resource"], "Kafka"),
                 ("runtime_cluster", attrs["runtime_cluster"], "DatabusCluster"),
@@ -332,52 +232,48 @@ class SetLogClusteringConfigResource(Resource):
         if dsrt is None:
             raise ValidationError(f"table_id({table_id}) related datasource not found")
 
-        with serialize_log_clustering_change(datalink):
-            with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-                lock_log_clustering_datalink(datalink)
-                sink = get_log_clustering_sink(datalink, for_update=True)
-                is_new_sink = sink is None
-                if is_new_sink:
-                    sink = data_link_utils.create_resource_with_random_name(
-                        models.LogClusteringSinkConfig,
-                        DataLinkNameScene.LOG_CLUSTERING_SINK,
-                        dsrt.bk_data_id,
-                        bk_tenant_id=bk_tenant_id,
-                        namespace=datalink.namespace,
-                        data_link_name=datalink.data_link_name,
-                        bk_biz_id=databus.bk_biz_id,
-                        table_id=table_id,
-                    )
-                requested_mode = validated_request_data.get("result_mode")
-                existing_mode = (sink.result or {}).get("mode", "update_original")
-                if not is_new_sink and requested_mode and requested_mode != existing_mode:
-                    raise ValidationError("首版不支持切换已有聚类结果写入模式")
-                if not sink.result:
-                    sink.result = {"mode": requested_mode or "update_original"}
-                for field, value in config_fields.items():
-                    setattr(sink, field, value)
-                sink.attached = True
-                sink.save()
-
-            # 本地绑定先提交；下发失败时调用方重试同一请求，按远端 Databus 实际引用情况重新下发
-            remote_databus = datalink.get_existing_component_config(
-                DataLinkKind.DATABUS.value, databus.name, databus.namespace
-            )
-            raw_sink = get_log_clustering_raw_sink(datalink)
-            if (
-                raw_sink
-                and is_databus_referencing_sink(remote_databus, sink)
-                and all(
-                    (remote_databus["spec"].get("preferCluster") or {}).get(key, bk_tenant_id)
-                    == sink.runtime_cluster.get(key, bk_tenant_id)
-                    for key in ("kind", "namespace", "name", "tenant")
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            lock_log_clustering_datalink(datalink)
+            sink = get_log_clustering_sink(datalink, for_update=True)
+            is_new_sink = sink is None
+            if is_new_sink:
+                sink = data_link_utils.create_resource_with_random_name(
+                    models.LogClusteringSinkConfig,
+                    DataLinkNameScene.LOG_CLUSTERING_SINK,
+                    dsrt.bk_data_id,
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=datalink.namespace,
+                    data_link_name=datalink.data_link_name,
+                    bk_biz_id=databus.bk_biz_id,
+                    table_id=table_id,
                 )
-            ):
-                apply_log_clustering_sink_only(datalink, sink, raw_sink)
-                applied_scope = "sink_only"
-            else:
-                apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
-                applied_scope = "datalink"
+            requested_mode = validated_request_data.get("result_mode")
+            if not sink.result or (requested_mode and requested_mode != sink.result.get("mode")):
+                sink.result = {"mode": requested_mode or "update_original"}
+            for field, value in config_fields.items():
+                setattr(sink, field, value)
+            sink.attached = True
+            sink.save()
+
+        # 本地绑定先提交；下发失败时调用方重试同一请求，按远端 Databus 实际引用情况重新下发
+        remote_databus = datalink.get_existing_component_config(
+            DataLinkKind.DATABUS.value, databus.name, databus.namespace
+        )
+        raw_sink = get_log_clustering_raw_sink(datalink)
+        if (
+            raw_sink
+            and is_databus_referencing_sink(remote_databus, sink)
+            and all(
+                (remote_databus["spec"].get("preferCluster") or {}).get(key, bk_tenant_id)
+                == sink.runtime_cluster.get(key, bk_tenant_id)
+                for key in ("kind", "namespace", "name", "tenant")
+            )
+        ):
+            apply_log_clustering_sink_only(datalink, sink, raw_sink)
+            applied_scope = "sink_only"
+        else:
+            apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
+            applied_scope = "datalink"
 
         logger.info(
             "SetLogClusteringConfigResource: table_id->[%s] sink->[%s] applied_scope->[%s]",
@@ -418,29 +314,28 @@ class OperateLogClusteringResource(Resource):
 
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
 
-        with serialize_log_clustering_change(datalink):
-            with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-                lock_log_clustering_datalink(datalink)
-                sink = get_log_clustering_sink(datalink, for_update=True)
-                if sink is None:
-                    raise ValidationError(f"table_id({table_id}) has no log clustering config")
-                if action in SINK_REFERENCE_ACTIONS:
-                    sink.attached = SINK_REFERENCE_ACTIONS[action]
-                    sink.save()
-
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            lock_log_clustering_datalink(datalink)
+            sink = get_log_clustering_sink(datalink, for_update=True)
+            if sink is None:
+                raise ValidationError(f"table_id({table_id}) has no log clustering config")
             if action in SINK_REFERENCE_ACTIONS:
-                apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
-            else:
-                remote_sink = datalink.get_existing_component_config(sink.kind, sink.name, sink.namespace)
-                if remote_sink is None:
-                    raise ValidationError(f"log clustering sink({sink.name}) does not exist in BKBase")
-                # 保留完整远端配置，只更新开关；不把 status 等运行态写回，也不重下发 Databus。
-                config = {key: copy.deepcopy(remote_sink[key]) for key in ("kind", "metadata", "spec")}
-                config["spec"]["clustering"]["enabled"] = CLUSTERING_ENABLE_ACTIONS[action]
-                try:
-                    datalink.apply_data_link_with_retry([config])
-                except RetryError as e:
-                    raise e.__cause__ if e.__cause__ else e
+                sink.attached = SINK_REFERENCE_ACTIONS[action]
+                sink.save()
+
+        if action in SINK_REFERENCE_ACTIONS:
+            apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
+        else:
+            remote_sink = datalink.get_existing_component_config(sink.kind, sink.name, sink.namespace)
+            if remote_sink is None:
+                raise ValidationError(f"log clustering sink({sink.name}) does not exist in BKBase")
+            # 保留完整远端配置，只更新开关；不把 status 等运行态写回，也不重下发 Databus。
+            config = {key: copy.deepcopy(remote_sink[key]) for key in ("kind", "metadata", "spec")}
+            config["spec"]["clustering"]["enabled"] = CLUSTERING_ENABLE_ACTIONS[action]
+            try:
+                datalink.apply_data_link_with_retry([config])
+            except RetryError as e:
+                raise e.__cause__ if e.__cause__ else e
 
         logger.info("OperateLogClusteringResource: table_id->[%s] sink->[%s] action->[%s]", table_id, sink.name, action)
         return {
@@ -449,140 +344,40 @@ class OperateLogClusteringResource(Resource):
         }
 
 
-def get_log_clustering_query_targets(datalink: models.DataLink, source_table_id: str, spec: dict) -> dict | None:
-    """按实际结果与 Pattern 的 ES Binding 解析独立查询目标。"""
-    tenant = datalink.bk_tenant_id
-    clustering = spec["clustering"]
+def get_log_clustering_query_targets(sink: models.LogClusteringSinkConfig) -> dict:
+    """返回聚类结果和 Pattern 在 metadata 登记的实际存储，调用方据此注册查询路由。"""
 
-    def check_ref(ref, kind):
-        if ref["kind"] != kind or (settings.ENABLE_MULTI_TENANT_MODE and ref.get("tenant", tenant) != tenant):
-            raise ValidationError(f"invalid {kind} reference in clustering target")
-
-    def resolve_binding(binding_ref, table_ref=None, pattern=False):
-        check_ref(binding_ref, "ElasticSearchBinding")
-        binding = datalink.get_existing_component_config(
-            binding_ref["kind"], binding_ref["name"], binding_ref["namespace"]
-        )
-        if binding is None:
-            raise ValidationError(f"clustering ES binding {binding_ref['name']} not found")
-        binding_status = binding.get("status") or {}
-        phase = binding_status.get("phase")
-        if phase in (None, "", "Pending", "Reconciling", "Initializing", "Creating"):
-            return None
-        if phase != "Ok":
-            raise ValidationError(f"ES binding {binding_ref['name']} is {phase}: {binding_status.get('message', '')}")
-        data, storage = binding["spec"]["data"], binding["spec"]["storage"]
-        check_ref(data, "ResultTable")
-        check_ref(storage, "ElasticSearch")
-        if table_ref is not None:
-            check_ref(table_ref, "ResultTable")
-            if any(table_ref[key] != data[key] for key in ("namespace", "name")):
-                raise ValidationError("binding must reference the selected result table")
-
-        cluster = models.ClusterInfo.objects.filter(
-            bk_tenant_id=tenant, cluster_type=models.ClusterInfo.TYPE_ES, cluster_name=storage["name"]
-        ).first()
-        if cluster is None:
-            raise ValidationError(f"ES binding storage {storage['name']} is not a metadata elasticsearch cluster")
-        alias = binding["spec"].get("write_alias")
-        if pattern:
-            # 兼容历史固定目标，日期别名使用下方共用的查询路由解析。
-            table = datalink.get_existing_component_config(data["kind"], data["name"], data["namespace"])
-            if table is None:
-                raise ValidationError(f"Pattern result table {data['name']} not found")
-            table_status = table.get("status") or {}
-            if table_status.get("phase") in (None, "", "Pending", "Reconciling", "Initializing", "Creating"):
-                return None
-            if table_status["phase"] != "Ok":
-                raise ValidationError(
-                    f"Pattern result table {data['name']} is {table_status['phase']}: {table_status.get('message', '')}"
-                )
-            if table["spec"].get("dataType") != "log":
-                raise ValidationError("Pattern result table must have log data type")
-            table_id = models.ResultTableConfig.objects.get(
-                bk_tenant_id=tenant, namespace=data["namespace"], name=data["name"]
-            ).table_id
-            source_type = EsSourceType.LOG.value if alias and "TimeBased" in alias else EsSourceType.ES.value
-        else:
-            table_id = models.ResultTableConfig.objects.get(
-                bk_tenant_id=tenant,
-                namespace=data["namespace"],
-                name=data["name"],
-            ).table_id
-            source_type = models.ESStorage.objects.get(bk_tenant_id=tenant, table_id=table_id).source_type
-            if not source_type:
-                raise ValidationError("missing query source type for clustering result table")
-        need_add_time = False
-        if (pattern and "TimeBased" not in (alias or {})) or alias is None:
-            query_index = binding["metadata"].get("annotations", {}).get("physical_table_name")
-            if not query_index:
-                rt = (
-                    table
-                    if pattern
-                    else datalink.get_existing_component_config(data["kind"], data["name"], data["namespace"])
-                )
-                rt_spec = rt["spec"]
-                query_index = rt_spec.get("predefiendResultTableId")
-                if not query_index:
-                    biz_prefix = str(rt_spec["bizId"]) + "_"
-                    query_index = (
-                        data["name"]
-                        if data["name"].startswith(biz_prefix)
-                        else biz_prefix + data["name"].replace("-", "_")
-                    )
-            if pattern and alias is not None and alias != {"Fixed": query_index}:
-                raise ValidationError("Pattern binding must use its registered fixed write target")
-        elif "Fixed" in alias:
-            query_index = alias["Fixed"]
-        else:
-            alias_format = alias.get("TimeBased", {}).get("format", "")
-            prefix = "write_%Y%m%d_"
-            if not alias_format.startswith(prefix) or "%" in alias_format[len(prefix) :]:
-                raise ValidationError("no known read alias for the time-based clustering result binding")
-            query_timezone = 8 if source_type == EsSourceType.BKDATA.value else 0
-            if alias["TimeBased"].get("timezone", 0) != query_timezone:
-                raise ValidationError(f"time-based ES binding timezone differs from {source_type} query timezone")
-            query_index = alias_format[len(prefix) :]
-            if pattern and query_index != binding["metadata"].get("annotations", {}).get("physical_table_name"):
-                raise ValidationError("Pattern binding must use its registered write target")
-            need_add_time = True
-        if not query_index or any(c in query_index for c in "*,?"):
-            raise ValidationError("invalid clustering query index")
+    def resolve(table_id):
+        storage = models.ESStorage.objects.get(bk_tenant_id=sink.bk_tenant_id, table_id=table_id)
+        cluster = models.ClusterInfo.objects.get(bk_tenant_id=sink.bk_tenant_id, cluster_id=storage.storage_cluster_id)
         return {
             "table_id": table_id,
             "storage_type": cluster.cluster_type,
-            "source_type": source_type,
+            "source_type": storage.source_type,
             "cluster_id": cluster.cluster_id,
-            "query_index": query_index,
-            "need_add_time": need_add_time,
+            "query_index": storage.index_name,
+            "need_add_time": storage.need_create_index,
         }
 
-    result = clustering["result"]
-    mode = result["mode"]
-    if mode == "update_original":
-        clustered = resolve_binding(spec["raw_sink"])
-    elif mode == "append":
-        clustered = resolve_binding(result["es_binding"], result["result_table"])
-    else:
-        raise ValidationError("unknown LogClusteringSink result mode")
-    if clustered is None:
-        return None
-    if (mode == "update_original") != (clustered["table_id"] == source_table_id):
-        raise ValidationError("clustering result binding points to the wrong result table")
-    pattern_store = clustering["pattern_store"]
-    pattern = resolve_binding(pattern_store["es_binding"], pattern_store["result_table"], pattern=True)
-    if pattern is None:
-        return None
-    return {"clustered": clustered, "pattern": pattern}
+    def store_table_id(store):
+        ref = store["result_table"]
+        return models.ResultTableConfig.objects.get(
+            bk_tenant_id=sink.bk_tenant_id, namespace=ref["namespace"], name=ref["name"]
+        ).table_id
+
+    if not sink.pattern_store:
+        raise ValidationError("pattern store is not prepared")
+    result = sink.result or {}
+    clustered_table_id = store_table_id(result) if result.get("mode") == "append" else sink.table_id
+    return {"clustered": resolve(clustered_table_id), "pattern": resolve(store_table_id(sink.pattern_store))}
 
 
 class GetLogClusteringStatusResource(Resource):
     """
-    查询日志聚类配置与运行状态
+    查询日志聚类链路状态
 
-    返回本地保存的绑定与按链路派生的 raw_sink，透传聚类 Sink、Databus 资源，
-    从聚类 Sink 的 status.message 解析运行进度，不额外请求专用状态接口。
-    sink_referenced/raw_sink_referenced 只说明远端 Databus 配置的引用情况，不代表 Runtime 已实际采用。
+    按 BKBase 回读的聚类 Sink 与 Databus 汇总链路是否就绪、是否已恢复原存储绑定；
+    query_targets 返回聚类结果和 Pattern 在 metadata 登记的存储，由调用方注册查询路由。
     远端查询失败不影响其他字段返回，错误记录在 errors 中。
     """
 
@@ -610,57 +405,53 @@ class GetLogClusteringStatusResource(Resource):
                 logger.warning(
                     "GetLogClusteringStatusResource: table_id->[%s] fetch %s failed, error->[%s]", table_id, source, e
                 )
-                error = {"source": source, "message": str(e)}
-                if source == "query_targets" and isinstance(e, ValidationError):
-                    error["retryable"] = False
-                    error["message"] = "; ".join(map(str, e.detail)) if isinstance(e.detail, list) else str(e.detail)
-                errors.append(error)
+                errors.append({"source": source, "message": str(e)})
                 return None
 
-        sink_resource = fetch(
-            "sink_resource",
-            lambda: datalink.get_existing_component_config(sink.kind, sink.name, sink.namespace),
+        sink_resource = (
+            fetch("sink_resource", lambda: datalink.get_existing_component_config(sink.kind, sink.name, sink.namespace))
+            or {}
         )
-        databus_resource = fetch(
-            "databus_resource",
-            lambda: datalink.get_existing_component_config(databus.kind, databus.name, databus.namespace),
-        )
-
-        def read_clustering_status():
-            message = ((sink_resource or {}).get("status") or {}).get("message")
-            if not message:
-                return None
-            # 新版 message 可为普通状态文本；只有后台收尾会消费旧版 JSON 回执。
-            try:
-                progress = json.loads(message)
-            except (ValueError, TypeError):
-                return None
-            return progress if isinstance(progress, dict) else None
-
-        clustering_status = fetch("clustering_status", read_clustering_status)
-
-        raw_sink = get_log_clustering_raw_sink(datalink)
-        query = {}
-        if validated_request_data["include_query_targets"] and sink_resource:
-            query["query_targets"] = fetch(
-                "query_targets", lambda: get_log_clustering_query_targets(datalink, table_id, sink_resource["spec"])
+        databus_resource = (
+            fetch(
+                "databus_resource",
+                lambda: datalink.get_existing_component_config(databus.kind, databus.name, databus.namespace),
             )
-        return {
-            **query,
+            or {}
+        )
+        sink_phase = (sink_resource.get("status") or {}).get("phase")
+        databus_ok = (databus_resource.get("status") or {}).get("phase") == DataLinkResourceStatus.OK.value
+        sink_referenced = is_databus_referencing_sink(databus_resource, sink)
+        raw_sink = get_log_clustering_raw_sink(datalink)
+        raw_sink_referenced = bool(raw_sink) and any(
+            ref.get("kind") == raw_sink["kind"] and ref.get("name") == raw_sink["name"]
+            for ref in get_databus_sink_refs(databus_resource)
+        )
+
+        result = {
             "configured": True,
             "attached": sink.attached,
-            "binding": sink.binding,
-            "raw_sink": raw_sink,
             "sink": format_log_clustering_identity(bk_tenant_id, sink),
             "databus": format_log_clustering_identity(bk_tenant_id, databus),
-            "sink_resource": sink_resource,
-            "databus_resource": databus_resource,
-            "sink_referenced": is_databus_referencing_sink(databus_resource, sink),
-            "raw_sink_referenced": bool(raw_sink)
-            and any(
-                ref.get("kind") == raw_sink["kind"] and ref.get("name") == raw_sink["name"]
-                for ref in get_databus_sink_refs(databus_resource)
-            ),
-            "clustering_status": clustering_status,
+            "enabled": ((sink_resource.get("spec") or {}).get("clustering") or {}).get("enabled"),
+            "sink_phase": sink_phase,
+            # Databus 已引用聚类 Sink，且两者均为 Ok
+            "ready": sink_referenced and databus_ok and sink_phase == DataLinkResourceStatus.OK.value,
+            # Databus 已恢复引用原存储绑定，不再引用聚类 Sink
+            "detached": raw_sink_referenced and not sink_referenced and databus_ok,
+            "clustering_status": parse_clustering_status(sink_resource),
             "errors": errors,
         }
+        if validated_request_data["include_query_targets"]:
+            result["query_targets"] = fetch("query_targets", lambda: get_log_clustering_query_targets(sink))
+        return result
+
+
+def parse_clustering_status(sink_resource: dict[str, Any]) -> dict[str, Any] | None:
+    """旧版 BKBase 在 status.message 中返回 JSON 进度，仅停用收尾使用；普通文本返回 None。"""
+    message = (sink_resource.get("status") or {}).get("message")
+    try:
+        progress = json.loads(message) if message else None
+    except (ValueError, TypeError):
+        return None
+    return progress if isinstance(progress, dict) else None

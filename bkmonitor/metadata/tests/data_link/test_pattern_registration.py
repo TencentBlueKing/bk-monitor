@@ -11,7 +11,6 @@ from metadata.models.data_link.log_clustering import (
     PATTERN_KEYS,
     RESULT_FIELDS,
     prepare_clustering_stores,
-    publish_clustering_routes,
 )
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.resources.log_clustering import apply_log_clustering_sink_only, get_log_clustering_query_targets
@@ -138,12 +137,8 @@ def test_append_registers_original_fields_and_separate_targets(log_datalink, moc
     assert storage.index_body["mappings"]["properties"]["__log_signature"]["type"] == "keyword"
     assert storage.index_body["mappings"]["properties"]["__log_cluster_publish_revision"]["type"] == "long"
     assert sink.compose_config(RAW_SINK)["spec"]["clustering"]["result"] == sink.result
-    remote = {(c["kind"], c["metadata"]["name"]): {**c, "status": {"phase": "Ok"}} for c in configs}
-    datalink, _ = log_datalink
-    mocker.patch.object(
-        datalink, "get_existing_component_config", side_effect=lambda kind, name, ns: remote[kind, name]
-    )
-    targets = get_log_clustering_query_targets(datalink, LOG_TABLE_ID, sink.compose_config(RAW_SINK)["spec"])
+    targets = get_log_clustering_query_targets(sink)
+    assert targets["clustered"]["table_id"] == rt_model.table_id
     assert targets["clustered"]["query_index"] == storage.index_name
     assert targets["clustered"]["need_add_time"] is True
     assert targets["pattern"]["query_index"] == f"2_bklog_{BINDING['index_id']}_pattern"
@@ -177,7 +172,6 @@ def test_append_registers_original_fields_and_separate_targets(log_datalink, moc
 
 
 def test_append_publish_keeps_both_tables_history(log_datalink, mocker):
-    datalink, _ = log_datalink
     sink = create_clustering_sink(result={"mode": "append"})
     prepare_clustering_stores(sink)
     routes = []
@@ -197,10 +191,10 @@ def test_append_publish_keeps_both_tables_history(log_datalink, mocker):
             index_set=storage.index_set,
             storage_cluster_id=storage.storage_cluster_id,
         )
+    publish = mocker.patch.object(SpaceTableIDRedis, "push_table_id_detail")
     switch_source(710102, timezone.now())
     prepare_clustering_stores(sink)
-    mocker.patch.object(SpaceTableIDRedis, "push_table_id_detail")
-    publish_clustering_routes(datalink)
+    assert set(routes) <= set(publish.call_args.kwargs["table_id_list"])
     detail, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=routes)
     assert len(detail) == 2
     for route, suffix in zip(routes, ("pattern", "clustered")):
@@ -374,7 +368,6 @@ def test_pattern_index_uses_bkbase_storage_business_id(log_datalink, settings, m
 
 
 def test_publish_retry_preserves_history_and_routes(log_datalink, mocker):
-    datalink, _ = log_datalink
     sink = create_clustering_sink()
     prepare_clustering_stores(sink)
     storage = pattern_storage(sink)
@@ -390,16 +383,15 @@ def test_publish_retry_preserves_history_and_routes(log_datalink, mocker):
         index_set=storage.index_set,
         storage_cluster_id=storage.storage_cluster_id,
     )
-    switch_source(710102, timezone.now())
-    prepare_clustering_stores(sink)
     publish = mocker.patch.object(
         SpaceTableIDRedis, "push_table_id_detail", side_effect=[RuntimeError("publish failed"), None]
     )
+    switch_source(710102, timezone.now())
     with pytest.raises(RuntimeError, match="publish failed"):
-        publish_clustering_routes(datalink)
-    publish_clustering_routes(datalink)
+        prepare_clustering_stores(sink)
+    prepare_clustering_stores(sink)
     assert publish.call_args.kwargs["is_publish"] is True
-    assert publish.call_args.kwargs["raise_on_log_write_error"] is True
+    assert route in publish.call_args.kwargs["table_id_list"]
     routes, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=[route])
     assert routes[route]["storage_id"] == 710102
     assert len(routes[route]["storage_cluster_records"]) == 2
@@ -417,10 +409,8 @@ def test_failed_apply_retries_same_pattern_resources(log_datalink, mocker):
     apply = mocker.patch.object(
         datalink, "apply_data_link_with_retry", side_effect=[RuntimeError("apply failed"), None]
     )
-    publish = mocker.patch("metadata.models.data_link.log_clustering.publish_clustering_routes")
     with pytest.raises(RuntimeError, match="apply failed"):
         apply_log_clustering_sink_only(datalink, sink, RAW_SINK)
-    publish.assert_not_called()
     payload = copy.deepcopy(apply.call_args.args[0])
     apply_log_clustering_sink_only(datalink, sink, RAW_SINK)
     assert apply.call_args.args[0] == payload
@@ -428,27 +418,25 @@ def test_failed_apply_retries_same_pattern_resources(log_datalink, mocker):
     assert payload[-1]["spec"]["clustering"]["result"]["mode"] == "update_original"
     assert set(RESULT_FIELDS) <= {field["field_name"] for field in payload[0]["spec"]["fields"]}
     assert not any(config["kind"] == "Databus" for config in payload)
-    publish.assert_called_once_with(datalink)
 
 
 @pytest.mark.parametrize("mode", ["update_original", "append"])
-def test_regular_save_and_disabled_clustering_follow_source_storage(log_datalink, mode):
+def test_detached_clustering_does_not_prepare_stores(log_datalink, mode):
     sink = create_clustering_sink(result={"mode": mode})
-    configs, _ = compose(*log_datalink)
+    compose(*log_datalink)
     sink.refresh_from_db()
-    stored_ref = copy.deepcopy(sink.pattern_store)
+    original_cluster = pattern_storage(sink).storage_cluster_id
     sink.attached = False
     sink.save()
     switch_source(710102, timezone.now())
     configs, context = compose(*log_datalink)
-    sink.refresh_from_db()
-    assert sink.pattern_store["result_table"] == stored_ref["result_table"]
-    assert sink.pattern_store["es_binding"] != stored_ref["es_binding"]
     assert not any(c["kind"] == "LogClusteringSink" for c in configs)
+    assert not any(c["metadata"]["name"].endswith(("_pattern", "_clustered")) for c in configs)
     databus = next(c for c in configs if c["kind"] == "Databus")
     assert databus["spec"]["sinks"][0]["kind"] == "ElasticSearchBinding"
-    assert pattern_storage(sink).storage_cluster_id == 710102
-    # Pattern 资源独立归组，不占用原日志唯一 RT/Binding 的认领名额。
+    assert "preferCluster" not in databus["spec"]
+    # 未接入聚类时普通下发不处理聚类资源。
+    assert pattern_storage(sink).storage_cluster_id == original_cluster
     assert not context.leftover().get(models.ResultTableConfig)
     assert not context.leftover().get(models.ESStorageBindingConfig)
 
@@ -475,27 +463,26 @@ def test_same_index_in_different_tenants_gets_separate_pattern_table(log_datalin
     assert configs[1]["spec"]["storage"]["name"] == "other-es"
 
 
-def test_full_apply_publishes_routes_only_after_success(log_datalink, mocker):
+def test_full_apply_retries_with_clustering_stores(log_datalink, mocker):
     datalink, data_source = log_datalink
     create_clustering_sink()
     mocker.patch.object(datalink, "get_existing_component_config", return_value=None)
     apply = mocker.patch.object(datalink, "apply_data_link_with_retry", side_effect=[RuntimeError("apply failed"), {}])
-    publish = mocker.patch("metadata.models.data_link.log_clustering.publish_clustering_routes")
     with pytest.raises(RuntimeError, match="apply failed"):
         datalink.apply_data_link(bk_biz_id=2, data_source=data_source, table_id=LOG_TABLE_ID)
-    publish.assert_not_called()
     datalink.apply_data_link(bk_biz_id=2, data_source=data_source, table_id=LOG_TABLE_ID)
     configs = apply.call_args.args[0]
     sink = next(c for c in configs if c["kind"] == "LogClusteringSink")
     assert sink["spec"]["clustering"]["result"]["mode"] == "update_original"
     assert len([c for c in configs if c["kind"] == "ResultTable"]) == 2
     assert len([c for c in configs if c["kind"] == "ElasticSearchBinding"]) == 2
-    publish.assert_called_once_with(datalink)
+    databus = next(c for c in configs if c["kind"] == "Databus")
+    assert [ref["kind"] for ref in databus["spec"]["sinks"]] == ["LogClusteringSink"]
+    assert databus["spec"]["preferCluster"]["kind"] == "DatabusCluster"
 
 
 @pytest.mark.parametrize("mode", ["update_original", "append"])
 def test_result_schema_and_normal_query_alias_survive_reapply(log_datalink, mocker, mode):
-    datalink, _ = log_datalink
     models.ESStorage.objects.filter(table_id=LOG_TABLE_ID).update(index_settings="{}", mapping_settings="{}")
     models.ResultTableField.objects.create(
         table_id=LOG_TABLE_ID,
@@ -545,13 +532,11 @@ def test_result_schema_and_normal_query_alias_survive_reapply(log_datalink, mock
             assert mapping["__log_cluster_publish_revision"]["type"] == "long"
         else:
             assert "__log_signature" not in mapping
-        publish_clustering_routes(datalink)
         detail, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=[route])
-        expected = {"body": "message"}
-        if mode == "update_original":
-            expected["signature"] = "__log_signature"
-        assert detail[route]["field_alias"] == expected
-        assert {route, LOG_TABLE_ID} <= set(publish.call_args.kwargs["table_id_list"])
+        # signature 别名由日志平台随路由下发，metadata 不改业务别名。
+        assert detail[route]["field_alias"] == {"body": "message"}
+        if attached and mode == "update_original":
+            assert {route, LOG_TABLE_ID} <= set(publish.call_args.kwargs["table_id_list"])
 
 
 def test_pattern_timestamp_added_to_existing_table_and_rotation(log_datalink, mocker):

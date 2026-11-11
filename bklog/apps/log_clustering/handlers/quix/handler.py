@@ -103,6 +103,10 @@ class QuixClusteringHandler:
         elif ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False):
             # 已通过其他链路接入聚类的索引集不能直接切换
             raise has_exist
+        if self.index_set.support_doris and self.index_set.doris_table_id:
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(detail="首版仅支持 ES 存储的索引集")
+            )
 
         clustering_fields = params.get("clustering_fields") or DEFAULT_CLUSTERING_FIELDS
         filter_rules = params.get("filter_rules", [])

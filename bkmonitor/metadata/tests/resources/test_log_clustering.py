@@ -16,13 +16,6 @@ from rest_framework.exceptions import ValidationError
 
 from core.drf_resource.exceptions import CustomException
 from metadata import models
-from metadata.models.space.constants import (
-    DATA_LABEL_TO_RESULT_TABLE_KEY,
-    RESULT_TABLE_DETAIL_KEY,
-    SPACE_TO_RESULT_TABLE_KEY,
-)
-from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-from metadata.resources.log_datalink import BulkCreateOrUpdateLogRouter
 from metadata.resources.log_clustering import (
     GetLogClusteringStatusResource,
     OperateLogClusteringResource,
@@ -50,30 +43,6 @@ PATTERN_CLUSTER_ID = 710103
 @pytest.fixture(autouse=True)
 def single_tenant(settings):
     settings.ENABLE_MULTI_TENANT_MODE = False
-
-
-class FakeDistributedLock:
-    held: set[str] = set()
-
-    def __init__(self, redis_client, lock_name, timeout):
-        self.lock_name = lock_name
-
-    def acquire(self):
-        if self.lock_name in self.held:
-            return False
-        self.held.add(self.lock_name)
-        return True
-
-    def release(self):
-        self.held.discard(self.lock_name)
-
-
-@pytest.fixture(autouse=True)
-def change_lock(mocker):
-    FakeDistributedLock.held = set()
-    mocker.patch("metadata.resources.log_clustering.DistributedLock", FakeDistributedLock)
-    mocker.patch("metadata.resources.log_clustering.RedisTools")
-    return FakeDistributedLock
 
 
 @pytest.fixture
@@ -133,7 +102,6 @@ def bkbase(mocker):
         return []
 
     mocker.patch("metadata.models.data_link.log_clustering.prepare_clustering_stores", side_effect=prepare)
-    mocker.patch("metadata.models.data_link.log_clustering.publish_clustering_routes")
     state["apply_log_datalink"] = mocker.patch(
         "metadata.resources.log_clustering.apply_log_datalink", side_effect=lambda **kwargs: prepare(get_sink())
     )
@@ -202,6 +170,14 @@ def attach_remotely(state: dict) -> None:
         data_type="log",
         bk_biz_id=2,
     )
+    models.ESStorage.objects.create(
+        bk_tenant_id="system",
+        table_id="bklog.pattern",
+        storage_cluster_id=PATTERN_CLUSTER_ID,
+        index_set=PATTERN_INDEX,
+        source_type="log",
+        need_create_index=True,
+    )
     state[("ResultTable", PATTERN_STORE["result_table"]["name"])] = {
         "metadata": {"tenant": "system"},
         "status": {"phase": "Ok"},
@@ -234,21 +210,26 @@ def test_first_set_creates_sink_and_applies_whole_datalink(clustering_datalink, 
     assert result["databus"] == {"tenant": "system", "namespace": "bklog", "name": LOG_DATA_LINK_NAME}
 
 
-def test_result_mode_is_fixed_at_first_set(clustering_datalink, bkbase):
+def test_result_mode_is_kept_unless_requested(clustering_datalink, bkbase):
     set_config(result_mode="append")
     assert get_sink().result == {"mode": "append"}
+    # 日志平台只在首次开启时传入写入模式，重试和更新不传时沿用。
     set_config()
-    assert get_sink().result == {"mode": "append"}
-    with pytest.raises(ValidationError, match="不支持切换"):
-        set_config(result_mode="update_original")
     assert get_sink().result == {"mode": "append"}
 
 
-def test_default_result_mode_cannot_be_changed_later(clustering_datalink, bkbase):
-    set_config()
-    with pytest.raises(ValidationError, match="不支持切换"):
-        set_config(result_mode="append")
-    assert get_sink().result == {"mode": "update_original"}
+def test_binding_is_forwarded_as_is(clustering_datalink, bkbase):
+    binding = {**copy.deepcopy(BINDING), "future_field": {"keep": True}}
+    set_config(binding=binding)
+    assert get_sink().binding == binding
+
+
+def test_binding_requires_index_id(clustering_datalink, bkbase):
+    binding = copy.deepcopy(BINDING)
+    binding.pop("index_id")
+    with pytest.raises(CustomException):
+        set_config(binding=binding)
+    assert not models.LogClusteringSinkConfig.objects.exists()
 
 
 def test_set_on_attached_sink_only_applies_sink(clustering_datalink, bkbase):
@@ -289,29 +270,6 @@ def test_set_without_single_es_binding_applies_whole_datalink(binding_names, clu
     bkbase["apply_data_link"].assert_not_called()
 
 
-def test_change_in_progress_on_same_datalink_is_rejected_without_changes(clustering_datalink, bkbase, change_lock):
-    change_lock.held.add(f"metadata:log_clustering:system:{LOG_DATA_LINK_NAME}")
-
-    with pytest.raises(ValidationError, match="in progress"):
-        set_config()
-    assert not models.LogClusteringSinkConfig.objects.exists()
-    bkbase["apply_log_datalink"].assert_not_called()
-
-
-def test_lock_covers_remote_apply_and_is_released_after_failure(clustering_datalink, bkbase, change_lock):
-    lock_name = f"metadata:log_clustering:system:{LOG_DATA_LINK_NAME}"
-    held_during_apply = []
-    bkbase["apply_log_datalink"].side_effect = lambda **kwargs: held_during_apply.append(lock_name in change_lock.held)
-    set_config()
-    bkbase["apply_log_datalink"].side_effect = RuntimeError("bkbase apply failed")
-
-    with pytest.raises(RuntimeError):
-        set_config()
-
-    assert held_during_apply == [True]
-    assert lock_name not in change_lock.held
-
-
 def test_filter_values_keep_surrounding_whitespace(clustering_datalink, bkbase):
     binding = copy.deepcopy(BINDING)
     binding["log_filter"] = [
@@ -321,21 +279,6 @@ def test_filter_values_keep_surrounding_whitespace(clustering_datalink, bkbase):
     set_config(binding=binding)
 
     assert get_sink().binding["log_filter"][0]["value"] == [" ERROR ", " ", "\t"]
-
-
-def test_omitted_binding_defaults_are_saved_and_applied(clustering_datalink, bkbase):
-    set_config()
-    attach_remotely(bkbase)
-    binding = copy.deepcopy(BINDING)
-    binding.pop("distance_threshold")
-    binding.pop("max_message_bytes")
-
-    set_config(binding=binding)
-
-    expected = {**binding, "distance_threshold": "0.5", "max_message_bytes": 1048576}
-    assert get_sink().binding == expected
-    (configs,), _ = bkbase["apply_data_link"].call_args
-    assert configs[-1]["spec"]["clustering"]["binding"] == expected
 
 
 @pytest.mark.parametrize(
@@ -356,18 +299,6 @@ def test_all_filter_methods_are_saved_and_forwarded(method, clustering_datalink,
     assert configs[-1]["spec"]["clustering"]["binding"]["log_filter"] == [rule]
 
 
-def test_candidate_message_size_upper_bound_is_forwarded(clustering_datalink, bkbase):
-    set_config()
-    attach_remotely(bkbase)
-    binding = copy.deepcopy(BINDING)
-    binding["max_message_bytes"] = 16 * 1024 * 1024
-
-    set_config(binding=binding)
-
-    (configs,), _ = bkbase["apply_data_link"].call_args
-    assert configs[-1]["spec"]["clustering"]["binding"]["max_message_bytes"] == 16 * 1024 * 1024
-
-
 def test_retry_after_failed_apply_reapplies_whole_datalink(clustering_datalink, bkbase):
     bkbase["apply_log_datalink"].side_effect = RuntimeError("bkbase apply failed")
     with pytest.raises(RuntimeError):
@@ -379,23 +310,6 @@ def test_retry_after_failed_apply_reapplies_whole_datalink(clustering_datalink, 
     assert result["applied_scope"] == "datalink"
     assert result["sink"]["name"] == get_sink().name
     assert bkbase["apply_log_datalink"].call_count == 2
-
-
-def enable_doris_storage_option():
-    option = models.ResultTableOption.objects.get(
-        table_id=LOG_TABLE_ID, name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK
-    )
-    option.value = json.dumps({**json.loads(option.value), "doris_storage_config": {"storage_keys": ["log"]}})
-    option.save()
-
-
-def test_doris_storage_is_rejected_before_creating_sink(clustering_datalink, bkbase):
-    models.DorisStorage.objects.create(table_id=LOG_TABLE_ID, storage_cluster_id=710101, bk_tenant_id="system")
-    enable_doris_storage_option()
-
-    with pytest.raises(ValidationError, match="doris"):
-        set_config()
-    assert not models.LogClusteringSinkConfig.objects.exists()
 
 
 def test_historical_doris_storage_without_doris_option_is_accepted(clustering_datalink, bkbase):
@@ -423,32 +337,6 @@ def test_missing_datasource_is_rejected_before_creating_sink(clustering_datalink
 
     with pytest.raises(ValidationError, match="related datasource not found"):
         set_config()
-    assert not models.LogClusteringSinkConfig.objects.exists()
-
-
-@pytest.mark.parametrize(
-    "field, value",
-    [
-        ("kafka_resource", {"kind": "KafkaChannel", "name": "k", "namespace": "bklog"}),
-        ("recovery_resource", {"kind": "ElasticSearchBinding", "name": "p", "namespace": "bklog"}),
-        ("binding.log_filter", [{"key": "level", "method": "eq", "value": ["ERROR"], "condition": "and"}]),
-        ("binding.log_filter", [{"key": "level", "method": "contains", "value": ["ERROR"], "condition": ""}]),
-        ("binding.distance_threshold", "0.4"),
-        ("binding.max_message_bytes", 0),
-        ("binding.max_message_bytes", 16 * 1024 * 1024 + 1),
-        ("binding.kafka.recovery_window_ms", 604800001),
-    ],
-)
-def test_invalid_request_is_rejected(field, value, clustering_datalink, bkbase):
-    params = build_params()
-    target = params
-    *parents, leaf = field.split(".")
-    for parent in parents:
-        target = target[parent]
-    target[leaf] = value
-
-    with pytest.raises(CustomException):
-        SetLogClusteringConfigResource().request(params)
     assert not models.LogClusteringSinkConfig.objects.exists()
 
 
@@ -521,13 +409,12 @@ def test_detach_and_attach_only_switch_databus_reference(clustering_datalink, bk
     assert get_sink().attached is True
 
 
-def test_retry_resends_enable_switch_without_changing_binding(clustering_datalink, bkbase, change_lock):
+def test_retry_resends_enable_switch_without_changing_binding(clustering_datalink, bkbase):
     set_config()
     attach_remotely(bkbase)
     bkbase["apply_data_link"].side_effect = RuntimeError("bkbase apply failed")
     with pytest.raises(RuntimeError):
         operate("disable")
-    assert not change_lock.held
 
     first_request = copy.deepcopy(bkbase["apply_data_link"].call_args.args)
     bkbase["apply_data_link"].side_effect = None
@@ -538,32 +425,6 @@ def test_retry_resends_enable_switch_without_changing_binding(clustering_datalin
     assert bkbase["apply_data_link"].call_count == 2
 
 
-@pytest.mark.parametrize("action", ["detach", "disable"])
-def test_operation_is_rejected_while_another_change_is_in_progress(action, clustering_datalink, bkbase, change_lock):
-    set_config()
-    change_lock.held.add(f"metadata:log_clustering:system:{LOG_DATA_LINK_NAME}")
-
-    with pytest.raises(ValidationError, match="in progress"):
-        operate(action)
-    assert get_sink().attached is True
-    bkbase["apply_data_link"].assert_not_called()
-
-
-@pytest.mark.parametrize("action", ["detach", "disable"])
-def test_operation_holds_change_lock_during_apply(action, clustering_datalink, bkbase, change_lock):
-    set_config()
-    attach_remotely(bkbase)
-    lock_name = f"metadata:log_clustering:system:{LOG_DATA_LINK_NAME}"
-    held_during_apply = []
-    apply = bkbase["apply_log_datalink"] if action == "detach" else bkbase["apply_data_link"]
-    apply.side_effect = lambda *args, **kwargs: held_during_apply.append(lock_name in change_lock.held)
-
-    operate(action)
-
-    assert held_during_apply == [True]
-    assert lock_name not in change_lock.held
-
-
 def test_operate_without_config_is_rejected(clustering_datalink, bkbase):
     with pytest.raises(ValidationError, match="no log clustering config"):
         operate("disable")
@@ -572,78 +433,6 @@ def test_operate_without_config_is_rejected(clustering_datalink, bkbase):
 
 def test_status_without_config_reports_not_configured(clustering_datalink, bkbase):
     assert get_status() == {"configured": False}
-
-
-def test_status_reads_progress_from_sink_resource(clustering_datalink, bkbase):
-    set_config()
-    attach_remotely(bkbase)
-
-    result = get_status()
-
-    sink = get_sink()
-    assert result["configured"] is True
-    assert result["binding"] == sink.binding
-    assert result["raw_sink"] == ES_BINDING_REF
-    assert result["sink"] == {"tenant": "system", "namespace": "bklog", "name": sink.name}
-    assert result["databus_resource"] == bkbase["remote_databus"]
-    assert result["sink_resource"] == bkbase["remote_sink"]
-    assert (result["sink_referenced"], result["raw_sink_referenced"]) == (True, False)
-    assert result["clustering_status"] == {"configuration_applied": True, "clustering_closed": False}
-    assert result["errors"] == []
-
-
-@pytest.mark.parametrize("status", [None, {}, {"phase": "Pending", "message": ""}])
-def test_status_without_progress_does_not_claim_completion(status, clustering_datalink, bkbase):
-    set_config()
-    attach_remotely(bkbase)
-    bkbase["remote_sink"]["status"] = status
-
-    result = get_status()
-
-    assert result["clustering_status"] is None
-    assert result["errors"] == []
-    assert result["sink_referenced"] is True
-
-
-@pytest.mark.parametrize("message", ["not json", "[]", "null", "true"])
-def test_non_progress_message_preserves_link_status(message, clustering_datalink, bkbase):
-    set_config()
-    attach_remotely(bkbase)
-    bkbase["remote_sink"]["status"]["message"] = message
-
-    result = get_status()
-
-    assert result["clustering_status"] is None
-    assert result["sink_resource"] == bkbase["remote_sink"]
-    assert result["sink_referenced"] is True
-    assert result["errors"] == []
-
-
-def test_status_keeps_databus_when_sink_query_fails(clustering_datalink, bkbase, mocker):
-    set_config()
-    attach_remotely(bkbase)
-    bkbase["remote_databus"]["spec"]["sinks"] = [ES_BINDING_REF]
-
-    def fetch(kind, name, namespace):
-        if kind == "LogClusteringSink":
-            raise RuntimeError("resource unavailable")
-        return bkbase["remote_databus"]
-
-    mocker.patch("metadata.models.DataLink.get_existing_component_config", side_effect=fetch)
-    result = get_status()
-
-    assert (result["sink_referenced"], result["raw_sink_referenced"]) == (False, True)
-    assert result["clustering_status"] is None
-    assert result["errors"] == [{"source": "sink_resource", "message": "resource unavailable"}]
-
-
-def test_status_without_single_es_binding_reports_raw_sink_unreferenced(clustering_datalink, bkbase):
-    set_config()
-    bkbase["remote_databus"] = {"kind": "Databus", "metadata": {}, "spec": {"sinks": [ES_BINDING_REF]}}
-
-    result = get_status()
-
-    assert (result["raw_sink"], result["raw_sink_referenced"]) == (None, False)
 
 
 def test_filter_update_preserves_remote_disabled_state(clustering_datalink, bkbase):
@@ -661,227 +450,127 @@ def test_filter_update_preserves_remote_disabled_state(clustering_datalink, bkba
     assert bkbase["apply_log_datalink"].call_count == 1
 
 
-@pytest.mark.parametrize("failure_key", [RESULT_TABLE_DETAIL_KEY, DATA_LABEL_TO_RESULT_TABLE_KEY])
-def test_pattern_label_resolves_to_binding_through_bulk_router(clustering_datalink, bkbase, mocker, failure_key):
+def get_targets(**params) -> dict:
+    return GetLogClusteringStatusResource().request(
+        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True, **params}
+    )
+
+
+def test_status_summarizes_link_state(clustering_datalink, bkbase):
     set_config()
     attach_remotely(bkbase)
-    targets = GetLogClusteringStatusResource().request(
-        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
-    )["query_targets"]
-    target = targets["pattern"]
-    assert target == {
-        "cluster_id": PATTERN_CLUSTER_ID,
-        "storage_type": "elasticsearch",
-        "query_index": PATTERN_INDEX,
-        "source_type": "es",
-        "need_add_time": False,
-        "table_id": "bklog.pattern",
+    bkbase["remote_databus"]["status"] = {"phase": "Ok"}
+    bkbase["remote_sink"]["spec"]["clustering"]["enabled"] = True
+
+    result = get_status()
+
+    sink = get_sink()
+    assert result == {
+        "configured": True,
+        "attached": True,
+        "sink": {"tenant": "system", "namespace": "bklog", "name": sink.name},
+        "databus": {"tenant": "system", "namespace": "bklog", "name": LOG_DATA_LINK_NAME},
+        "enabled": True,
+        "sink_phase": "Ok",
+        "ready": True,
+        "detached": False,
+        "clustering_status": {"configuration_applied": True, "clustering_closed": False},
+        "errors": [],
     }
-    label = f"bklog_index_set_{BINDING['index_id']}_pattern"
-    route = f"{label}.__default__"
-    params = {
-        "space_type": "bkcc",
-        "space_id": "2",
-        "bk_tenant_id": "system",
-        "data_label": label,
-        "table_info": [
-            {
-                "table_id": route,
-                "storage_type": "elasticsearch",
-                "source_type": "es",
-                "cluster_id": target["cluster_id"],
-                "index_set": target["query_index"],
-                "is_enable": True,
-            }
-        ],
-    }
-    models.Space.objects.create(
-        bk_tenant_id="system", space_type_id="bkcc", space_id="2", space_code="test", space_name="test"
-    )
-    mocker.patch.object(SpaceTableIDRedis, "_compose_metric_table_id_detail", return_value={})
-    mocker.patch.object(SpaceTableIDRedis, "_compose_bkcc_space_table_ids", return_value={route: {}})
-    hashes = {}
 
-    def write(key, values):
-        if key == failure_key:
-            raise RuntimeError("Redis write failed")
-        hashes.setdefault(key, {}).update(values)
-        return True
-
-    mocker.patch("metadata.models.space.space_table_id_redis.RedisTools.hmset_to_redis", side_effect=write)
-    mocker.patch("metadata.models.space.space_table_id_redis.RedisTools.publish")
-    router = BulkCreateOrUpdateLogRouter()
-    with pytest.raises(RuntimeError, match="Redis write failed"):
-        router.request(params)
-    failure_key = None
-    router.request(params)
-    (resolved_table,) = json.loads(hashes[DATA_LABEL_TO_RESULT_TABLE_KEY][label])
-    assert resolved_table == route
-    detail = json.loads(hashes[RESULT_TABLE_DETAIL_KEY][resolved_table])
-    assert (detail["storage_id"], detail["db"]) == (PATTERN_CLUSTER_ID, PATTERN_INDEX)
-    assert route in json.loads(hashes[SPACE_TO_RESULT_TABLE_KEY]["bkcc__2"])
-    assert models.ResultTable.objects.filter(bk_tenant_id="system", table_id=route).count() == 1
+    bkbase["remote_databus"]["spec"]["sinks"] = [ES_BINDING_REF]
+    result = get_status()
+    assert (result["ready"], result["detached"]) == (False, True)
 
 
-@pytest.mark.parametrize("multi_tenant", [False, True])
-@pytest.mark.parametrize("target", ["raw_binding", "pattern_table"])
-def test_query_target_tenant_uses_bkbase_resource_identity(clustering_datalink, bkbase, settings, multi_tenant, target):
+@pytest.mark.parametrize("sink_status", [None, {"phase": "Pending"}, {"phase": "Ok", "message": "running"}])
+def test_status_waits_until_sink_ok(clustering_datalink, bkbase, sink_status):
     set_config()
     attach_remotely(bkbase)
-    settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
-    spec = bkbase["remote_sink"]["spec"]
-    ref = spec["raw_sink"] if target == "raw_binding" else spec["clustering"]["pattern_store"]["result_table"]
-    ref["tenant"] = "default"
-    status = GetLogClusteringStatusResource().request(
-        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
-    )
-    if multi_tenant:
-        assert status["query_targets"] is None
-        assert f"invalid {ref['kind']} reference" in status["errors"][0]["message"]
-    else:
-        assert status["query_targets"]["clustered"]["table_id"] == LOG_TABLE_ID
-        assert status["query_targets"]["pattern"]["query_index"] == PATTERN_INDEX
+    bkbase["remote_databus"]["status"] = {"phase": "Ok"}
+    bkbase["remote_sink"]["status"] = sink_status
+
+    result = get_status()
+
+    assert result["ready"] is (sink_status is not None and sink_status["phase"] == "Ok")
+    # 普通文本 message 不是停用收尾回执。
+    assert result["clustering_status"] is None
+    assert result["errors"] == []
+
+
+def test_status_keeps_databus_when_sink_query_fails(clustering_datalink, bkbase, mocker):
+    set_config()
+    attach_remotely(bkbase)
+    databus = {**bkbase["remote_databus"], "spec": {"sinks": [ES_BINDING_REF]}, "status": {"phase": "Ok"}}
+
+    def fetch(kind, name, namespace):
+        if kind == "LogClusteringSink":
+            raise RuntimeError("resource unavailable")
+        return databus
+
+    mocker.patch("metadata.models.DataLink.get_existing_component_config", side_effect=fetch)
+    result = get_status()
+
+    assert (result["ready"], result["detached"]) == (False, True)
+    assert result["errors"] == [{"source": "sink_resource", "message": "resource unavailable"}]
 
 
 @pytest.mark.parametrize("mode", ["update_original", "append"])
-def test_query_targets_follow_remote_result_binding(clustering_datalink, bkbase, mocker, mode):
-    set_config()
+def test_query_targets_use_registered_storage(clustering_datalink, bkbase, mode):
+    set_config(result_mode=mode)
     attach_remotely(bkbase)
-    result = {"mode": mode}
-    table_id, cluster_id = LOG_TABLE_ID, 710101
+    models.ESStorage.objects.filter(table_id=LOG_TABLE_ID).update(source_type="log", need_create_index=True)
+    clustered_table_id = LOG_TABLE_ID
     if mode == "append":
-        table_id, cluster_id = "2_bklog.predict", PATTERN_CLUSTER_ID
-        result.update(
-            result_table={"kind": "ResultTable", "name": "predict", "namespace": "bklog"},
-            es_binding={"kind": "ElasticSearchBinding", "name": "predict-es", "namespace": "bklog"},
-        )
+        clustered_table_id = "2_bklog.42_clustered"
+        sink = get_sink()
+        sink.result = {
+            "mode": "append",
+            "result_table": {"kind": "ResultTable", "name": "predict", "namespace": "bklog"},
+            "es_binding": {"kind": "ElasticSearchBinding", "name": "predict-es", "namespace": "bklog"},
+        }
+        sink.save(update_fields=["result"])
         models.ResultTableConfig.objects.create(
-            name="predict", namespace="bklog", bk_tenant_id="system", table_id=table_id, bk_biz_id=2
+            name="predict", namespace="bklog", bk_tenant_id="system", table_id=clustered_table_id, bk_biz_id=2
         )
         models.ESStorage.objects.create(
             bk_tenant_id="system",
-            table_id=table_id,
-            storage_cluster_id=710101,
-            index_set="stale-local-index",
-            source_type="bkdata",
+            table_id=clustered_table_id,
+            storage_cluster_id=PATTERN_CLUSTER_ID,
+            source_type="log",
+            need_create_index=True,
         )
-        bkbase[("ElasticSearchBinding", "predict-es")] = {
-            "metadata": {"annotations": {"physical_table_name": "shadowed-by-fixed-alias"}},
-            "status": {"phase": "Ok"},
-            "spec": {
-                "data": result["result_table"],
-                "storage": PATTERN_RESOURCE,
-                "write_alias": {"Fixed": "actual-predict-write"},
-            },
-        }
-    bkbase["remote_sink"]["spec"]["clustering"]["result"] = result
-    params = {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
-    targets = GetLogClusteringStatusResource().request(params)["query_targets"]
-    assert targets["clustered"]["table_id"] == table_id
-    assert targets["clustered"]["cluster_id"] == cluster_id
-    assert targets["clustered"]["query_index"] == ("actual-predict-write" if mode == "append" else "actual_raw")
-    assert targets["clustered"]["need_add_time"] == (mode == "update_original")
-    assert targets["pattern"]["query_index"] == PATTERN_INDEX
-    models.Space.objects.create(
-        bk_tenant_id="system", space_type_id="bkcc", space_id="2", space_code="test", space_name="test"
-    )
-    label = "bklog_index_set_42_clustered"
-    route = f"{label}.__default__"
-    mocker.patch.object(SpaceTableIDRedis, "_compose_metric_table_id_detail", return_value={})
-    mocker.patch.object(SpaceTableIDRedis, "_compose_bkcc_space_table_ids", return_value={route: {}})
-    writes = mocker.patch("metadata.models.space.space_table_id_redis.RedisTools.hmset_to_redis", return_value=True)
-    mocker.patch("metadata.models.space.space_table_id_redis.RedisTools.publish")
-    target = targets["clustered"]
-    BulkCreateOrUpdateLogRouter().request(
-        {
-            "bk_tenant_id": "system",
-            "space_type": "bkcc",
-            "space_id": "2",
-            "data_label": label,
-            "table_info": [
-                {
-                    "table_id": route,
-                    "cluster_id": target["cluster_id"],
-                    "storage_type": target["storage_type"],
-                    "source_type": target["source_type"],
-                    "index_set": target["query_index"],
-                    "query_alias_settings": [{"field_name": "__log_signature", "query_alias": "signature"}],
-                    "options": [
-                        {"name": "need_add_time", "value_type": "bool", "value": json.dumps(target["need_add_time"])}
-                    ],
-                }
-            ],
-        }
-    )
-    writes_by_key = {call.args[0]: call.args[1] for call in writes.call_args_list}
-    assert json.loads(writes_by_key[DATA_LABEL_TO_RESULT_TABLE_KEY][label]) == [route]
-    detail = json.loads(writes_by_key[RESULT_TABLE_DETAIL_KEY][route])
-    assert (detail["storage_id"], detail["db"], detail["options"]["need_add_time"]) == (
-        cluster_id,
-        target["query_index"],
-        mode == "update_original",
-    )
-    assert detail["field_alias"] == {"signature": "__log_signature"}
-    assert detail["source_type"] == ("bkdata" if mode == "append" else "log")
-    assert all(r["storage_id"] == cluster_id for r in detail["storage_cluster_records"])
-    if mode == "append":
-        result["result_table"]["name"] = "mismatched"
-        status = GetLogClusteringStatusResource().request(params)
-        assert status["query_targets"] is None
-        assert status["errors"][0]["source"] == "query_targets"
+
+    targets = get_targets()["query_targets"]
+
+    assert targets["clustered"] == {
+        "table_id": clustered_table_id,
+        "storage_type": "elasticsearch",
+        "source_type": "log",
+        "cluster_id": 710101 if mode == "update_original" else PATTERN_CLUSTER_ID,
+        "query_index": clustered_table_id.replace(".", "_"),
+        "need_add_time": True,
+    }
+    assert targets["pattern"] == {
+        "table_id": "bklog.pattern",
+        "storage_type": "elasticsearch",
+        "source_type": "log",
+        "cluster_id": PATTERN_CLUSTER_ID,
+        "query_index": "bklog_pattern",
+        "need_add_time": True,
+    }
 
 
-@pytest.mark.parametrize(
-    "annotation,rt_spec,expected",
-    [
-        ("actual-physical-name", {}, "actual-physical-name"),
-        (None, {"predefiendResultTableId": "explicit-id", "bizId": 2}, "explicit-id"),
-        (None, {"bizId": 2}, "2_raw"),
-    ],
-)
-def test_result_binding_without_write_alias(clustering_datalink, bkbase, annotation, rt_spec, expected):
+def test_query_targets_report_unprepared_store(clustering_datalink, bkbase):
     set_config()
-    attach_remotely(bkbase)
-    binding = bkbase[("ElasticSearchBinding", ES_BINDING_REF["name"])]
-    del binding["spec"]["write_alias"]
-    binding["metadata"]["annotations"] = {"physical_table_name": annotation}
-    bkbase[("ResultTable", "raw")] = {"spec": rt_spec}
-    params = {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
-    target = GetLogClusteringStatusResource().request(params)["query_targets"]["clustered"]
-    assert (target["query_index"], target["need_add_time"]) == (expected, False)
+    sink = get_sink()
+    sink.pattern_store = {}
+    sink.save(update_fields=["pattern_store"])
 
+    status = get_targets()
 
-def test_daily_binding_uses_result_table_query_timezone(clustering_datalink, bkbase):
-    set_config()
-    attach_remotely(bkbase)
-    bkbase[("ElasticSearchBinding", ES_BINDING_REF["name"])]["spec"]["write_alias"]["TimeBased"]["timezone"] = 8
-    params = {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
-    # 日界线附近，UTC 的 log 查询不会覆盖东八区写入的次日别名。
-    status = GetLogClusteringStatusResource().request(params)
     assert status["query_targets"] is None
-    assert status["errors"][0]["retryable"] is False
-    assert "query timezone" in status["errors"][0]["message"]
-    models.ESStorage.objects.filter(bk_tenant_id="system", table_id=LOG_TABLE_ID).update(source_type="bkdata")
-    target = GetLogClusteringStatusResource().request(params)["query_targets"]["clustered"]
-    assert (target["source_type"], target["query_index"], target["need_add_time"]) == ("bkdata", "actual_raw", True)
-
-
-def test_pending_result_binding_waits_without_error(clustering_datalink, bkbase):
-    set_config()
-    attach_remotely(bkbase)
-    bkbase[("ElasticSearchBinding", ES_BINDING_REF["name"])]["status"] = {"phase": "Pending"}
-    status = GetLogClusteringStatusResource().request(
-        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
-    )
-    assert status["query_targets"] is None
-    assert status["errors"] == []
-    bkbase[("ElasticSearchBinding", ES_BINDING_REF["name"])]["status"] = {"phase": "Failed", "message": "invalid alias"}
-    status = GetLogClusteringStatusResource().request(
-        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
-    )
-    (error,) = status["errors"]
-    assert error["retryable"] is False
-    assert "invalid alias" in error["message"]
+    assert status["errors"][0]["source"] == "query_targets"
 
 
 @pytest.mark.parametrize("field", ["kafka_resource", "runtime_cluster", "recovery_resource"])
@@ -903,68 +592,6 @@ def test_runtime_cluster_change_applies_databus_and_sink(clustering_datalink, bk
     assert set_config()["applied_scope"] == "datalink"
     bkbase["apply_log_datalink"].assert_called_once_with(bk_tenant_id="system", table_id=LOG_TABLE_ID)
     bkbase["apply_data_link"].assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "explicit_id,expected", [(None, "2_shared_patterns"), ("registered-patterns", "registered-patterns")]
-)
-def test_pattern_target_uses_registered_table_id(clustering_datalink, bkbase, explicit_id, expected):
-    set_config()
-    attach_remotely(bkbase)
-    binding = bkbase[("ElasticSearchBinding", PATTERN_STORE["es_binding"]["name"])]
-    binding["metadata"] = {}
-    table = bkbase[("ResultTable", PATTERN_STORE["result_table"]["name"])]
-    table["spec"]["predefiendResultTableId"] = explicit_id
-    status = GetLogClusteringStatusResource().request(
-        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
-    )
-    target = status["query_targets"]["pattern"]
-    assert target["query_index"] == expected
-    assert target["cluster_id"] == PATTERN_CLUSTER_ID
-    assert target["source_type"] == "es"
-    assert target["need_add_time"] is False
-
-
-@pytest.mark.parametrize("resource", ["result_table", "es_binding"])
-def test_pending_pattern_resources_wait_but_failed_resources_report_error(clustering_datalink, bkbase, resource):
-    set_config()
-    attach_remotely(bkbase)
-    ref = PATTERN_STORE[resource]
-    obj = bkbase[(ref["kind"], ref["name"])]
-    params = {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
-    obj["status"] = {"phase": "Pending"}
-    status = GetLogClusteringStatusResource().request(params)
-    assert status["query_targets"] is None
-    assert status["errors"] == []
-    obj["status"] = {"phase": "Failed"}
-    status = GetLogClusteringStatusResource().request(params)
-    assert status["query_targets"] is None
-    assert status["errors"][0]["retryable"] is False
-
-
-@pytest.mark.parametrize(
-    "change", ["wrong_table", "other_tenant", "time_alias", "wrong_fixed_alias", "unregistered_cluster"]
-)
-def test_invalid_pattern_binding_does_not_publish_route(clustering_datalink, bkbase, change, settings):
-    set_config()
-    attach_remotely(bkbase)
-    spec = bkbase[("ElasticSearchBinding", PATTERN_STORE["es_binding"]["name"])]["spec"]
-    if change == "wrong_table":
-        spec["data"] = {**spec["data"], "name": "wrong"}
-    elif change == "other_tenant":
-        settings.ENABLE_MULTI_TENANT_MODE = True
-        spec["storage"] = {**spec["storage"], "tenant": "other"}
-    elif change == "unregistered_cluster":
-        spec["storage"] = {**spec["storage"], "name": "unregistered"}
-    elif change == "time_alias":
-        spec["write_alias"] = {"TimeBased": {"format": "write_%Y%m%d_patterns"}}
-    else:
-        spec["write_alias"] = {"Fixed": "wrong-index"}
-    status = GetLogClusteringStatusResource().request(
-        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True}
-    )
-    assert status["query_targets"] is None
-    assert status["errors"][0]["retryable"] is False
 
 
 def test_runtime_cluster_default_tenant_does_not_reapply_databus(clustering_datalink, bkbase):

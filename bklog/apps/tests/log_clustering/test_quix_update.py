@@ -28,8 +28,6 @@ ERROR_RULES = [{"fields_name": "level", "op": "=", "value": ["ERROR"]}]
 WARN_RULES = [{"fields_name": "level", "op": "=", "value": ["WARN"]}]
 ADOPTED = {
     **ADOPTED_STATUS,
-    "sink_referenced": True,
-    "sink_resource": {"status": {"phase": "Ok"}},
     "clustering_status": {"configuration_applied": True},
 }
 
@@ -87,7 +85,7 @@ class TestQuixUpdateRunner(TestCase):
         return QuixClusteringOperationRunner(self.operation.operation_id).run()
 
     def test_update_waits_for_link_without_promoting_rules(self):
-        self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "sink_referenced": False}
+        self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "ready": False}
 
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
 
@@ -113,14 +111,14 @@ class TestQuixUpdateRunner(TestCase):
         self.assertEqual(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).filter_rules, WARN_RULES)
 
     def test_resource_not_ready_does_not_promote_filter(self):
-        self.transfer.get_log_clustering_status.return_value = {"sink_referenced": False}
+        self.transfer.get_log_clustering_status.return_value = {"ready": False}
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["ERROR"])
         self.transfer.operate_log_clustering.assert_not_called()
 
     def test_receipt_retry_does_not_repeat_config_write(self):
-        self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "sink_referenced": False}
+        self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "ready": False}
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
         self.transfer.get_log_clustering_status.return_value = ADOPTED
         self.assertIsNone(self.run_operation())
@@ -497,7 +495,7 @@ class TestQuixClusteringHandlerUpdate(TestCase):
             handler.update({"clustering_fields": "log"})
 
         transfer.set_log_clustering_config.return_value = {"sink": {"name": "sink"}}
-        transfer.get_log_clustering_status.return_value = {**ADOPTED, "sink_referenced": False}
+        transfer.get_log_clustering_status.return_value = {**ADOPTED, "ready": False}
         runner = QuixClusteringOperationRunner(operation_id)
         with patch("apps.log_clustering.handlers.quix.operation.get_quix_config", return_value=QUIX_CONFIG):
             self.assertEqual(runner.run(), POLL_INTERVAL_SECONDS)

@@ -64,11 +64,8 @@ NON_RETRYABLE_EXCEPTIONS = (
 
 
 def link_is_ready(status: dict) -> bool:
-    return (
-        bool(status.get("sink_referenced"))
-        and ((status.get("sink_resource") or {}).get("status") or {}).get("phase") == "Ok"
-        and ((status.get("databus_resource") or {}).get("status") or {}).get("phase") == "Ok"
-    )
+    """metadata 汇总的链路状态：Databus 已引用聚类 Sink，且两者均为 Ok。"""
+    return not status.get("errors") and bool(status.get("ready"))
 
 
 class ModelParameterRejected(Exception):
@@ -314,15 +311,11 @@ class QuixClusteringOperationRunner:
         status = TransferApi.get_log_clustering_status(self._metadata_params(include_query_targets=True))
         errors = status.get("errors") or []
         if errors:
-            message = "; ".join(f"{error['source']}: {error['message']}" for error in errors)
-            if any(error.get("retryable") is False for error in errors):
-                raise QuixClusteringParamsInvalidException(message)
-            raise RuntimeError(message)
+            # 记录 metadata 返回的具体原因，按步骤重试上限结束。
+            raise RuntimeError("; ".join(f"{error['source']}: {error['message']}" for error in errors))
         if not link_is_ready(status):
             return False
         targets = status["query_targets"]
-        if targets is None:
-            return False
         index_set = LogIndexSet.objects.get(index_set_id=self.runtime.index_set_id)
         space_type, space_id = parse_space_uid(index_set.space_uid)
         result, pattern = targets["clustered"], targets["pattern"]
@@ -363,6 +356,9 @@ class QuixClusteringOperationRunner:
                     "table_info": [{"table_id": f"{label}.__default__", "is_enable": True, **table}],
                 }
             )
+        if result["table_id"] == self.runtime.table_id:
+            # 默认回写时普通检索路由同步补上 signature 别名。
+            BaseIndexSetHandler.sync_router(index_set, raise_exception=True)
         return True
 
     def _promote_pending_config(self, **fields):
@@ -455,14 +451,13 @@ class QuixClusteringOperationRunner:
                 self._save_runtime(candidate_boundary={str(partition): 0 for partition in range(partitions)})
             return True
         status = TransferApi.get_log_clustering_status(self._metadata_params())
-        resource = status.get("sink_resource") or {}
         progress = status.get("clustering_status") or {}
         requested_epoch = progress.get("requested_epoch")
         if (
             status.get("errors")
             or not status.get("configured")
-            or (resource.get("spec") or {}).get("clustering", {}).get("enabled") is not False
-            or (resource.get("status") or {}).get("phase") != "Ok"
+            or status.get("enabled") is not False
+            or status.get("sink_phase") != "Ok"
             or not requested_epoch
             or progress.get("applied_epoch") != requested_epoch
             or progress.get("configuration_applied") is not True
@@ -484,13 +479,7 @@ class QuixClusteringOperationRunner:
         if not self.runtime.sink:
             return True
         status = TransferApi.get_log_clustering_status(self._metadata_params())
-        databus_phase = ((status.get("databus_resource") or {}).get("status") or {}).get("phase")
-        return (
-            not status.get("errors")
-            and bool(status.get("raw_sink_referenced"))
-            and status.get("sink_referenced") is False
-            and databus_phase == "Ok"
-        )
+        return not status.get("errors") and bool(status.get("detached"))
 
     def _step_stop_completed(self) -> bool:
         if not self.runtime.bkfara_task_id:
@@ -545,8 +534,7 @@ class QuixClusteringOperationRunner:
         return self._operate_metadata("attach")
 
     def _step_wait_link(self) -> bool:
-        status = TransferApi.get_log_clustering_status(self._metadata_params())
-        return not status.get("errors") and link_is_ready(status)
+        return link_is_ready(TransferApi.get_log_clustering_status(self._metadata_params()))
 
     def _finish_reopen(self):
         self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value, candidate_boundary=None)

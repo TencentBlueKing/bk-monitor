@@ -81,6 +81,14 @@ class TestQuixClusteringHandler(TestCase):
         self.assertFalse(LogClusteringRuntime.objects.exists())
         mock_delay.assert_not_called()
 
+    def test_doris_index_set_rejected_before_start(self, mock_delay):
+        self.index_set.support_doris = True
+        self.index_set.doris_table_id = "db.doris_table"
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            QuixClusteringHandler(self.index_set).enable({"clustering_fields": "log"})
+        self.assertFalse(LogClusteringRuntime.objects.exists())
+        mock_delay.assert_not_called()
+
     def test_custom_field_alias_is_accepted(self, mock_delay):
         QuixClusteringHandler(self.index_set).enable({"clustering_fields": "content"})
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)

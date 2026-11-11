@@ -313,7 +313,6 @@ class SpaceTableIDRedis:
         bk_tenant_id: str,
         table_id_list: list[str] | None = None,
         is_publish: bool = False,
-        raise_on_log_write_error: bool = False,
     ) -> None:
         """刷新一个租户的 ``result_table_detail`` 路由。
 
@@ -394,8 +393,6 @@ class SpaceTableIDRedis:
                     normalize_table_id=True,
                 )
             except Exception:  # pylint: disable=broad-except
-                if raise_on_log_write_error:
-                    raise
                 # 延续原 ES/Doris 路由后处理的容错；普通指标路由写入仍按旧语义向上抛错。
                 logger.exception(
                     "push_table_id_detail: failed to write log route batch, tenant->[%s], batch_start->[%s]",

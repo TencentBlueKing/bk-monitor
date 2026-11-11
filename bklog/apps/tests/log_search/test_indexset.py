@@ -1779,6 +1779,30 @@ class TestSyncRouter(TestCase):
         non_nanos_result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
         self.assertEqual(non_nanos_result[0]["query_alias_settings"], [])
 
+    def test_route_sync_adds_signature_alias_only_when_clustering_writes_source(self):
+        """轻量化聚类默认回写原表时，普通检索通过 signature 查询回写字段；独立表模式不变。"""
+        from apps.log_clustering.models import LogClusteringRuntime
+
+        index_set = self._build_es_doris_index_set(query_alias_settings=[])
+        self.assertEqual(BaseIndexSetHandler.get_index_set_table_info_list(index_set)[0]["query_alias_settings"], [])
+        runtime = LogClusteringRuntime.objects.create(
+            index_set_id=index_set.index_set_id,
+            bk_biz_id=2,
+            collector_config_id=index_set.collector_config_id,
+            table_id="591_xx",
+            bk_data_id=1,
+            phase="enabling",
+            pending_config={"result_mode": "update_original"},
+        )
+        signature_alias = {"field_name": "__log_signature", "query_alias": "signature"}
+        self.assertEqual(
+            BaseIndexSetHandler.get_index_set_table_info_list(index_set)[0]["query_alias_settings"],
+            [signature_alias],
+        )
+        runtime.pending_config = {"result_mode": "append"}
+        runtime.save(update_fields=["pending_config"])
+        self.assertEqual(BaseIndexSetHandler.get_index_set_table_info_list(index_set)[0]["query_alias_settings"], [])
+
     def test_route_sync_keeps_user_alias_with_auto_nanos_alias(self):
         """纳秒时间字段应同时保留用户别名和自动纳秒别名。"""
         user_alias = {"field_name": "log", "query_alias": "message"}

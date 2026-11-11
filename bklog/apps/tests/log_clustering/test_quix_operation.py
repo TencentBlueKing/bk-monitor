@@ -37,9 +37,9 @@ SET_RESULT = {
     "databus": {"tenant": "system", "namespace": "bklog", "name": "bklog_databus"},
 }
 ADOPTED_STATUS = {
-    "sink_referenced": True,
-    "databus_resource": {"status": {"phase": "Ok"}},
-    "sink_resource": {"status": {"phase": "Ok"}},
+    "ready": True,
+    "enabled": True,
+    "sink_phase": "Ok",
     "errors": [],
     "query_targets": {
         "clustered": {
@@ -177,13 +177,8 @@ class TestQuixEnableRunner(TestCase):
 
     def test_register_routes_records_metadata_errors_and_only_waits_when_pending(self):
         ready = self.transfer.get_log_clustering_status.return_value
-        transient = {"source": "sink_resource", "message": "gateway unavailable"}
-        invalid = {"source": "query_targets", "message": "binding timezone mismatch", "retryable": False}
-        self.transfer.get_log_clustering_status.side_effect = [
-            {**ready, "query_targets": None},
-            {**ready, "errors": [transient]},
-            {**ready, "errors": [invalid]},
-        ]
+        error = {"source": "query_targets", "message": "pattern store is not prepared"}
+        self.transfer.get_log_clustering_status.side_effect = [{**ready, "ready": False}, {**ready, "errors": [error]}]
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
         self.operation.refresh_from_db()
         self.assertEqual(self.operation.step, "register_query_routes")
@@ -192,14 +187,9 @@ class TestQuixEnableRunner(TestCase):
 
         self.assertGreater(self.run_operation(), POLL_INTERVAL_SECONDS)
         self.operation.refresh_from_db()
-        self.assertIn("sink_resource: gateway unavailable", self.operation.last_error)
+        # metadata 返回的具体原因记入操作，按步骤重试上限结束。
+        self.assertIn("query_targets: pattern store is not prepared", self.operation.last_error)
         self.assertEqual(self.operation.retry_count, 1)
-
-        self.assertIsNone(self.run_operation())
-        self.operation.refresh_from_db()
-        self.assertEqual(self.operation.status, ClusteringOperationStatusEnum.FAILED.value)
-        self.assertIn("query_targets: binding timezone mismatch", self.operation.last_error)
-        self.assertEqual(self.operation.steps[-1]["message"], self.operation.last_error)
         self.transfer.bulk_create_or_update_log_router.assert_not_called()
 
     def test_pattern_registration_retries_bulk_route_without_reapplying_binding(self):
@@ -259,6 +249,23 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(table["source_type"], "bkdata")
         self.assertEqual(table["query_alias_settings"], [{"field_name": "__log_signature", "query_alias": "signature"}])
         self.assertEqual(pattern["table_info"][0]["index_set"], targets["pattern"]["query_index"])
+
+    def test_route_registration_syncs_normal_router_only_for_source_write(self):
+        sync = Mock()
+        with patch("apps.log_clustering.handlers.quix.operation.BaseIndexSetHandler.sync_router", sync):
+            self.run_operation()
+            sync.assert_called_once()
+            self.assertTrue(sync.call_args.kwargs["raise_exception"])
+
+            sync.reset_mock()
+            targets = ADOPTED_STATUS["query_targets"]
+            self.transfer.get_log_clustering_status.return_value = {
+                **ADOPTED_STATUS,
+                "query_targets": {**targets, "clustered": {**targets["clustered"], "table_id": "2_bklog.42_clustered"}},
+            }
+            runner = QuixClusteringOperationRunner(self.operation.operation_id)
+            self.assertTrue(runner._step_register_query_routes())
+            sync.assert_not_called()
 
     def test_enable_activates_config_after_route_registration(self):
         self.create_clustering_config()
@@ -357,15 +364,12 @@ class TestQuixEnableRunner(TestCase):
         self.assertNotIn("kafka", request)
 
     def test_pending_databus_does_not_publish_routes(self):
-        self.transfer.get_log_clustering_status.return_value = {
-            **ADOPTED_STATUS,
-            "databus_resource": {"status": {"phase": "Pending"}},
-        }
+        self.transfer.get_log_clustering_status.return_value = {**ADOPTED_STATUS, "ready": False}
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
         self.transfer.bulk_create_or_update_log_router.assert_not_called()
 
     def test_adoption_waits_until_databus_references_sink(self):
-        self.transfer.get_log_clustering_status.return_value = {**ADOPTED_STATUS, "sink_referenced": False}
+        self.transfer.get_log_clustering_status.return_value = {**ADOPTED_STATUS, "ready": False}
 
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
         self.assertEqual(

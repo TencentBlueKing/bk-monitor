@@ -323,7 +323,7 @@ def test_compose_log_configs_with_attached_sink_only_replaces_databus_sinks(log_
     assert {key: value for key, value in databus_config["spec"].items() if key not in ("sinks", "preferCluster")} == {
         key: value for key, value in plain_databus_config["spec"].items() if key not in ("sinks", "preferCluster")
     }
-    assert databus_config["spec"]["preferCluster"] == RUNTIME_CLUSTER
+    # preferCluster 由 apply_data_link 统一读取已接入 Sink 的专用集群。
     assert databus_config["spec"]["consumerGroup"] == "raw_consumer_group"
     assert databus_config["metadata"] == plain_databus_config["metadata"]
 
@@ -417,7 +417,8 @@ def test_regeneration_preserves_remote_clustering_switch(enabled, default_biz):
 
     merged = DataLink.merge_component_config(remote, generated)
 
-    assert merged["spec"]["clustering"]["result"] == result
+    # 写入目标以 metadata 登记的 Sink 配置为准，开关沿用远端。
+    assert merged["spec"]["clustering"]["result"] == generated["spec"]["clustering"]["result"]
     assert merged["spec"]["clustering"]["enabled"] is enabled
     assert merged["spec"]["clustering"]["binding"] == BINDING
     assert "status" not in merged

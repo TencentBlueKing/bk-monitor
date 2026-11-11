@@ -1441,30 +1441,18 @@ class DataLink(models.Model):
             if not bingding_configs:
                 raise ValueError("至少需要一个存储绑定配置")
 
+            # 已接入日志聚类时，Databus 改为引用聚类 Sink，原存储绑定作为其 raw_sink；未接入时不处理聚类资源。
             clustering_sink = self._claim_attached_log_clustering_sink(databus_sinks, existing_context)
+            if clustering_sink is not None:
+                from metadata.models.data_link.log_clustering import prepare_clustering_stores
 
-            # 已接入日志聚类时，Databus 改为引用聚类 Sink，原存储绑定作为其 raw_sink
-            from metadata.models.data_link.log_clustering import prepare_clustering_stores
-
-            # 每条链路至多一个 Sink；复用已认领的对象，组装时才能带上本轮准备的 Pattern 存储引用。
-            pattern_sink = (
-                clustering_sink
-                or LogClusteringSinkConfig.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id,
-                    namespace=self.namespace,
-                    data_link_name=self.data_link_name,
-                ).first()
-            )
-            if pattern_sink is not None:
-                bingding_configs.extend(prepare_clustering_stores(pattern_sink))
+                bingding_configs.extend(prepare_clustering_stores(clustering_sink))
                 # 默认回写新增的系统字段须进入本轮源表声明。
                 fields = generate_result_table_field_list(
                     table_id=table_id,
                     bk_tenant_id=self.bk_tenant_id,
                     unique_field_list=es_config.unique_field_list if es_config else (),
                 )
-
-            if clustering_sink is not None:
                 bingding_configs.append(clustering_sink.compose_config(raw_sink=databus_sinks[0]))
                 databus_sinks = [clustering_sink.reference]
 
@@ -1493,8 +1481,6 @@ class DataLink(models.Model):
             databus.apply_consumer_group(consumer_group)
 
             databus_config = databus.compose_log_config(sinks=databus_sinks, rules=clean_rules)
-            if clustering_sink is not None:
-                databus_config["spec"]["preferCluster"] = dict(clustering_sink.runtime_cluster)
 
             # 组装配置
             config_list.extend(
@@ -3171,10 +3157,6 @@ class DataLink(models.Model):
             self.data_link_strategy,
             response,
         )
-        if self.data_link_strategy == self.BK_LOG:
-            from metadata.models.data_link.log_clustering import publish_clustering_routes
-
-            publish_clustering_routes(self)
         self._cleanup_absent_components(components_to_delete)
         # 仅在远端下发成功后解除停用状态，交由周期任务汇总组件状态。
         BkBaseResultTable.objects.filter(
@@ -3232,16 +3214,9 @@ class DataLink(models.Model):
         # 合并spec
         cls._fill_missing_dict(merged_config["spec"], existing_config["spec"])
 
-        # 聚类结果的写入目标和运行集群由 Sink 配置决定，更新过滤条件时沿用。
-        # 只合并 clustering 的顶层字段；本次声明的 binding 必须完整替换。
+        # 聚类开关由 enable/disable 单独修改，重新生成配置时沿用远端的 clustering 顶层字段。
         if merged_config.get("kind") == DataLinkKind.LOGCLUSTERINGSINK.value:
-            existing_clustering = existing_config["spec"].get("clustering", {})
-            cls._fill_missing_dict(merged_config["spec"]["clustering"], existing_clustering)
-            # 首次接入默认回写；更新配置不切换已有结果写入模式。
-            if "result" in existing_clustering and (
-                existing_clustering["result"]["mode"] != merged_config["spec"]["clustering"]["result"]["mode"]
-            ):
-                merged_config["spec"]["clustering"]["result"] = existing_clustering["result"]
+            cls._fill_missing_dict(merged_config["spec"]["clustering"], existing_config["spec"].get("clustering", {}))
 
         return merged_config
 

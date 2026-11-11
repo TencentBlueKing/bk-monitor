@@ -22,9 +22,9 @@ from apps.tests.log_clustering.test_quix_operation import INDEX_SET_ID, KAFKA, Q
 from apps.tests.log_clustering.test_quix_update import create_running_runtime
 
 ADOPTED = {
-    "sink_referenced": True,
-    "databus_resource": {"status": {"phase": "Ok"}},
-    "sink_resource": {"spec": {"clustering": {"enabled": True}}, "status": {"phase": "Ok"}},
+    "ready": True,
+    "enabled": True,
+    "sink_phase": "Ok",
     "clustering_status": {
         "requested_epoch": "20",
         "applied_epoch": "20",
@@ -120,8 +120,8 @@ class TestQuixReopenRunner(TestCase):
 
     def test_stale_receipts_do_not_finish_or_repeat_provider_writes(self):
         self.transfer.get_log_clustering_status.side_effect = [
-            {**ADOPTED, "databus_resource": {"status": {"phase": "Pending"}}},
-            {**ADOPTED, "sink_referenced": False},
+            {**ADOPTED, "sink_phase": "Pending", "ready": False},
+            {**ADOPTED, "ready": False},
             ADOPTED,
         ]
         for _ in range(2):

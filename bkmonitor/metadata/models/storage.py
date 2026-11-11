@@ -2995,9 +2995,6 @@ class ESStorage(models.Model, StorageResultTable):
     @property
     def index_name(self):
         """返回该index的名字"""
-        # Pattern 的逻辑表在 bklog 命名空间，登记的 ES 名称带业务前缀。
-        if self.table_id.startswith("bklog.bklog_") and self.table_id.endswith("_pattern") and self.index_set:
-            return self.index_set
         return self.table_id.replace(".", "_")
 
     @property

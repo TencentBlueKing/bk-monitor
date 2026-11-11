@@ -129,7 +129,7 @@ def external_es_route_request(route_storage_records, request):
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_external_es_route_cluster_record_stays_consistent(external_es_route_request, mocker, request):
+def test_external_es_route_cluster_record_stays_consistent(external_es_route_request, mocker):
     table_id, target_cluster_id, update_route = external_es_route_request
     modify = mocker.patch.object(models.ResultTable, "modify", autospec=True)
     create_index = mocker.patch.object(models.ESStorage, "create_es_index", autospec=True)
@@ -174,9 +174,8 @@ def test_external_es_route_cluster_record_stays_consistent(external_es_route_req
         assert models.StorageClusterRecord.compose_table_id_storage_cluster_records(table_id, TENANT_ID) == [
             {"storage_id": cluster_id, "enable_time": int(initial_time.timestamp())}
         ]
-        extra = {"raise_on_log_write_error": True} if request.node.callspec.params["external_es_route_request"] else {}
         SpaceTableIDRedis.push_table_id_detail.assert_called_once_with(
-            bk_tenant_id=TENANT_ID, table_id_list=[table_id], is_publish=True, **extra
+            bk_tenant_id=TENANT_ID, table_id_list=[table_id], is_publish=True
         )
 
     modify.assert_not_called()
