@@ -72,7 +72,8 @@ export class K8sPerformancePromqlGenerator extends K8sBasePromqlGenerator {
   private static podMemoryParentPromql(filter: string): string {
     const parent = 'pod_memory_working_set_bytes';
     const child = 'container_memory_working_set_bytes';
-    const selector = `{__name__=~"(${parent}|${child})",${filter}} $time_shift`;
+    // VM can exclude children at storage; retain marker selection for other backends.
+    const selector = `{__name__=~"(${parent}|${child})",__name__!~"container_memory_.*",${filter}} $time_shift`;
     const identity = 'bcs_cluster_id,namespace,pod_name';
     const marker = '__bk_pod_memory_source';
     // Bind the parent branch even when the parent metric is not registered yet.

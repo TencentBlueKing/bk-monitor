@@ -23,7 +23,10 @@ def pod_memory_usage(
     """
     parent_metric = metric.replace("container_memory_", "pod_memory_", 1)
     metric_filter = f'__name__=~"({parent_metric}|{metric})"'
-    parent_filters = ",".join(filter(None, (metric_filter, filters, 'metrics_path="/metrics/cadvisor"')))
+    # VM can exclude children at storage; retain marker selection for other backends.
+    parent_filters = ",".join(
+        filter(None, (metric_filter, '__name__!~"container_memory_.*"', filters, 'metrics_path="/metrics/cadvisor"'))
+    )
     child_filters = ",".join(filter(None, (filters, 'container_name!="",container_name!="POD"')))
     group_by = ", ".join(dict.fromkeys(dimensions))
     metric_group_by = ", ".join(dict.fromkeys(("__name__", *dimensions)))

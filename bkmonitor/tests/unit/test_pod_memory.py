@@ -206,6 +206,7 @@ def assert_child_selection(test, query, metric):
     test.assertIn(f"{metric}{{", query)
     test.assertNotIn("pod_memory_", query)
     test.assertNotIn('container_name=""', query)
+    test.assertNotIn("__name__!~", query)
 
 
 class TestPodMemoryQueries(unittest.TestCase):
@@ -230,6 +231,7 @@ class TestPodMemoryQueries(unittest.TestCase):
                     time_shift="offset 1h",
                 )
                 self.assertEqual(query.count(f'__name__=~"({parent}|{metric})"'), 1)
+                self.assertEqual(query.count('__name__!~"container_memory_.*"'), 1)
                 self.assertIn(f'"parent", "__name__", "{parent}"', query)
                 self.assertIn(f'{metric}{{container_name!="",container_name!="POD"}}', query)
                 self.assertIn("sum by (__name__, bcs_cluster_id, namespace, pod_name)", query)
@@ -242,6 +244,7 @@ class TestPodMemoryQueries(unittest.TestCase):
             with self.subTest(metric=metric):
                 query = self.meta.tpl_prom_with_nothing(metric)
                 self.assertIn(metric.replace("container_", "pod_"), query)
+                self.assertEqual(query.count('__name__!~"container_memory_.*"'), 1)
                 self.assertIn('metrics_path="/metrics/cadvisor"', query)
                 self.assertIn('container_name!="",container_name!="POD"', query)
                 self.assertIn("or on (bcs_cluster_id, namespace, pod_name)", query)
@@ -476,6 +479,7 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
             self.assertEqual(queries[metric]["unit"], "bytes")
             config = queries[metric]["query_configs"][0]
             self.assertIn(metric.replace("container_", "pod_"), config["pod_memory_parent_promql"])
+            self.assertIn('__name__!~"container_memory_.*"', config["pod_memory_parent_promql"])
             assert_child_selection(self, config["pod_memory_child_promql"], metric)
             self.assertIn('"$pod_memory_marker"', config["pod_memory_parent_promql"])
             self.assertEqual(config["promql"], config["pod_memory_child_promql"])
@@ -535,6 +539,7 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
         self.assertNotIn("${namespace:regex}", overview["promql"])
         self.assertNotIn("${namespace:regex}", overview["pod_promql"])
         self.assertIn('metrics_path="/metrics/cadvisor"', overview["pod_memory_parent_promql"])
+        self.assertIn('__name__!~"container_memory_.*"', overview["pod_memory_parent_promql"])
         self.assertIn("pod_memory_working_set_bytes", overview["pod_memory_parent_promql"])
         assert_child_selection(self, overview["pod_memory_child_promql"], METRIC)
         for source in ("child", "parent"):

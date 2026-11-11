@@ -118,12 +118,14 @@ test('Parent selection is a set union without a numeric predicate, so an existin
   const parent = promql.slice(selection.firstChild.from, selection.firstChild.to);
   const child = promql.slice(selection.lastChild.from, selection.lastChild.to);
   assert.ok(parent.includes(`__name__=~"${names}"`));
+  assert.ok(parent.includes('__name__!~"container_memory_.*"'));
   assert.ok(parent.includes(`${scope},metrics_path="/metrics/cadvisor"`));
   assert.equal(parent.includes('container_name'), false);
   assert.ok(parent.includes('"parent","__name__","pod_memory_working_set_bytes"'));
   assert.ok(child.includes(`${scope},container_name!="",container_name!="POD"`));
   assert.ok(child.includes('container_memory_working_set_bytes{'));
   assert.equal(child.includes('__name__=~'), false);
+  assert.equal(child.includes('__name__!~'), false);
   assert.equal(promql.includes('> 0'), false);
 });
 
@@ -149,6 +151,7 @@ test('Explicit container names, including a full name selection, constrain WS an
     const { node, promql } = parsed(generator.generate(metric, input), 'sum', 'offset 1h');
     assert.equal(promql.includes('pod_memory_working_set_bytes'), false);
     assert.equal(promql.includes('__name__=~'), false);
+    assert.equal(promql.includes('__name__!~'), false);
     const selectors = nodesOfType(node, 'VectorSelector');
     const memorySelectors = selectors.filter(selector => !promql.slice(selector.from, selector.to).startsWith('kube_pod_init_container_status_running'));
     assert.ok(memorySelectors.length > 0);
@@ -245,6 +248,8 @@ test('Pod memory alert queries preserve the preexisting PromQL for metric identi
     for (const metric of metrics) {
       const query = targets.createNodesTarget(SceneEnum.Performance, metric, input).data.query_configs[0];
       assert.equal(query.related_promql, generator.scenePrivatePromqlGenerateMain(metric, input, true));
+      assert.equal(query.related_promql.includes('__name__!~'), false);
+      assert.equal(query.promql.includes('__name__!~"container_memory_.*"'), !filters.container?.length);
       parsed(query.related_promql, 'sum', 'offset 1h');
     }
     const auxiliary = targets.createTargetsPanelList(SceneEnum.Performance, metrics[0], input, true).slice(1);
