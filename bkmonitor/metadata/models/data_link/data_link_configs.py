@@ -1137,6 +1137,8 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         flush_timeout: int | None,
         rt_name: str | None = None,
         tokenizers: dict[str, str] | None = None,
+        db: str | None = None,
+        table: str | None = None,
     ) -> dict[str, Any]:
         """
         组装Doris存储绑定配置
@@ -1146,6 +1148,9 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                 binding 与 RT 同名的调用方式；当 compose 复用到不同名的 RT 时，由
                 调用方显式传入实际 RT name。
             tokenizers: 字段自定义分词规则。None 时不下发，显式空对象仍原样下发。
+            db: 物理库名。传入时以调用方为准（换表后由元数据记录决定），否则沿用默认库。
+            table: 物理表名。传入时以调用方为准（换表后由元数据记录决定），否则沿用
+                ``{name}_{bk_biz_id}`` 的历史规则。
         """
         tpl = """
         {
@@ -1179,8 +1184,8 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                     "table_type": "primary_table",
                     "is_profiling": false,
                     "unique_partition_table": true,
-                    "db": "mapleleaf_{{bk_biz_id}}",
-                    "table": "{{name}}_{{bk_biz_id}}",
+                    "db": "{{db}}",
+                    "table": "{{table}}",
                     "storage_keys": {{storage_keys}},
                     "json_fields": {{json_fields}},
                     "original_json_fields": {{original_json_fields}},
@@ -1195,11 +1200,12 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         }
         """
 
+        data_biz_id = self.datalink_biz_ids.data_biz_id
         render_params = {
             "name": self.name,
             "rt_name": rt_name if rt_name is not None else self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.data_biz_id,
+            "bk_biz_id": data_biz_id,
             "monitor_biz_id": self.datalink_biz_ids.label_biz_id,
             "storage_cluster_name": storage_cluster_name,
             "storage_keys": json.dumps(storage_keys),
@@ -1208,6 +1214,8 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             "original_json_fields": json.dumps(original_json_fields),
             "expires": expires,
             "flush_timeout": json.dumps(flush_timeout),
+            "db": db if db is not None else f"mapleleaf_{data_biz_id}",
+            "table": table if table is not None else f"{self.name}_{data_biz_id}",
         }
         if tokenizers is not None:
             render_params["tokenizers"] = json.dumps(tokenizers)

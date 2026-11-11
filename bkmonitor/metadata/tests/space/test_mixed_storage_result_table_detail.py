@@ -104,6 +104,8 @@ def _create_storage_segment(
     cluster_id: int,
     enable_time: datetime.datetime,
     is_current: bool,
+    bkbase_table_id: str = "",
+    physical_tables: dict | None = None,
 ) -> None:
     models.StorageClusterRecord.objects.create(
         bk_tenant_id=bk_tenant_id,
@@ -111,6 +113,8 @@ def _create_storage_segment(
         cluster_id=cluster_id,
         enable_time=enable_time,
         is_current=is_current,
+        bkbase_table_id=bkbase_table_id,
+        physical_tables=physical_tables or {},
         creator="system",
     )
 
@@ -1524,3 +1528,57 @@ def test_es_route_omits_new_fields_even_when_snapshot_has_values():
     for value in (detail, es_history):
         assert "physical_tables" not in value
         assert "bkbase_table_id" not in value
+
+
+@pytest.mark.django_db(databases="__all__")
+@override_settings(ENABLE_MULTI_TENANT_MODE=True)
+def test_push_doris_detail_uses_segment_own_result_table():
+    """换表后：顶层指向当前结果表，历史分段各自指向自己那代结果表与物理表。"""
+    table_id = "2_bklog.doris_rotate"
+    _create_cluster(
+        bk_tenant_id=TENANT_ID,
+        cluster_id=DORIS_CLUSTER_ID,
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        cluster_name="doris-prod",
+    )
+    _create_result_table(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        default_storage=models.ClusterInfo.TYPE_DORIS,
+    )
+    _create_doris_storage(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        cluster_id=DORIS_CLUSTER_ID,
+        bkbase_table_id="2_bkm_doris_rotate_v2",
+        index_set="bklog_index_set_123",
+    )
+    models.DorisStorage.objects.filter(table_id=table_id).update(
+        physical_tables={"main": "mapleleaf_2.bkm_doris_rotate_v2"}
+    )
+    _create_storage_segment(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        cluster_id=DORIS_CLUSTER_ID,
+        enable_time=ES_ENABLE_TIME,
+        is_current=False,
+        bkbase_table_id="2_bkm_doris_rotate_v1",
+        physical_tables={"main": "mapleleaf_2.bkm_doris_rotate_v1"},
+    )
+    _create_storage_segment(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        cluster_id=DORIS_CLUSTER_ID,
+        enable_time=DORIS_ENABLE_TIME,
+        is_current=True,
+        bkbase_table_id="2_bkm_doris_rotate_v2",
+        physical_tables={"main": "mapleleaf_2.bkm_doris_rotate_v2"},
+    )
+
+    detail = _push_and_get_detail(bk_tenant_id=TENANT_ID, table_id=table_id)
+
+    assert detail["db"] == "2_bkm_doris_rotate_v2"
+    assert detail["physical_tables"] == {"main": "mapleleaf_2.bkm_doris_rotate_v2"}
+    history = {segment["db"]: segment for segment in detail["storage_cluster_records"]}
+    assert history["2_bkm_doris_rotate_v1"]["physical_tables"] == {"main": "mapleleaf_2.bkm_doris_rotate_v1"}
+    assert history["2_bkm_doris_rotate_v2"]["physical_tables"] == {"main": "mapleleaf_2.bkm_doris_rotate_v2"}
