@@ -392,6 +392,27 @@ grant_permissions:
       - deploy_uptime_check_task
       - edit_uptime_check_task
       - get_uptime_check_task_list
+  - bk_app_code: bk_ms
+    grant_dimension: "resource"
+    resource_names:
+      - search_alarm_strategy_v3
+      - save_alarm_strategy_v3
+      - switch_alarm_strategy
+      - delete_alarm_strategy_v3
+      - search_alert
+      - alert_detail
+      - search_user_groups
+      - search_user_group_detail
+      - save_user_group
+      - delete_user_group
+      - get_dashboard_directory_tree
+      - get_dashboard_detail
+      - apm_create_application
+      - detail_apm_application
+      - time_series_unify_query
+      - list_apm_application
+      - apm_update_service_config
+      - metadata_get_space_detail
 
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`
