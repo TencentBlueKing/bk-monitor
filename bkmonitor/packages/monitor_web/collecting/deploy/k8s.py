@@ -393,7 +393,7 @@ class K8sInstaller(BaseInstaller):
     def record_install(self, install_config, operation):
         # 创建新的部署记录
         deployment_config_params = {
-            "plugin_version": self.plugin.packaged_release_version,
+            "plugin_version": install_config.get("plugin_version") or self.plugin.packaged_release_version,
             "target_node_type": TargetNodeType.CLUSTER,
             # TODO: 目前仅使用内置的k8s集群，后续根据需求支持自定义集群
             "target_nodes": [],

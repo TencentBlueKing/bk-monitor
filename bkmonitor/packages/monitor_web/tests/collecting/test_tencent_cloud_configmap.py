@@ -1,16 +1,14 @@
 from copy import deepcopy
-from hashlib import sha256
 from types import SimpleNamespace
 
 import pytest
 import yaml
 
-from core.errors.collecting import CollectConfigVersionChanged, LegacyConversionFailed
+from core.errors.collecting import CollectConfigVersionChanged
 from monitor_web.collecting.resources import tencent_cloud as api
 from monitor_web.collecting.tencent_cloud import effective_config, render_config, validate_files
 
 
-CONTRACT = {"version": "v0.21.0", "products": {"QCE/CVM": ["InstanceId"], "QCE/COS": ["appid", "bucket"]}}
 UID = "e6cc3fa6-302f-4fdd-966c-306547b48339"
 IMAGE = "example.com/collector@sha256:" + "a" * 64
 
@@ -48,7 +46,7 @@ def upload(config, uid=UID, filename="example.yaml"):
 
 
 def validate(config, **collector):
-    return validate_files([upload(config)], {"period": 60, "timeout": 60, **collector}, CONTRACT)
+    return validate_files([upload(config)], {"period": 60, "timeout": 60, **collector})
 
 
 def test_preview_preserves_semantics_and_input(config):
@@ -60,7 +58,7 @@ def test_preview_preserves_semantics_and_input(config):
     expected = deepcopy(config)
     expected["credential"].update(access_key="", secret_key="")
     assert tree == expected
-    assert tree == effective_config(config, {"period": 60, "timeout": 60}, CONTRACT)
+    assert tree == effective_config(config, {"period": 60, "timeout": 60})
     assert config == before
     assert "Secret 注入" in preview["qcloud_yaml"]
     assert preview["credential_source"] == "secret_env"
@@ -123,7 +121,7 @@ def test_credentials_rejected_without_echo(config, secret_key):
 def test_unsafe_outer_yaml(config, content, code):
     file = upload(config)
     file["content"] = content
-    result = validate_files([file], {"period": 60, "timeout": 60}, CONTRACT)
+    result = validate_files([file], {"period": 60, "timeout": 60})
     assert result["files"][0]["errors"][0]["code"] == code
     assert result["files"][0]["preview"] is None
     assert "unterminated-secret" not in str(result)
@@ -143,7 +141,7 @@ def test_inner_yaml(config, inner, code):
     outer = yaml.safe_load(file["content"])
     outer["data"]["qcloud.yml"] = inner
     file["content"] = yaml.safe_dump(outer)
-    result = validate_files([file], {"period": 60, "timeout": 60}, CONTRACT)
+    result = validate_files([file], {"period": 60, "timeout": 60})
     assert result["files"][0]["errors"][0]["code"] == code
 
 
@@ -170,7 +168,7 @@ def test_invalid_yaml_tag_is_isolated_to_file(config, layer, tagged_value, mocke
         outer["data"]["qcloud.yml"] += f"extra: {tagged_value}\n"
         bad["content"] = yaml.safe_dump(outer)
     good = upload(config, uid="e6cc3fa6-302f-4fdd-966c-306547b48340")
-    result = validate_files([bad, good], {"period": 60, "timeout": 60}, CONTRACT)
+    result = validate_files([bad, good], {"period": 60, "timeout": 60})
     failed, success = result["files"]
     assert not result["valid"] and not failed["valid"]
     assert failed["preview"] is None
@@ -186,12 +184,12 @@ def test_invalid_yaml_tag_is_isolated_to_file(config, layer, tagged_value, mocke
 def test_dedup_is_full_text_and_uid(config):
     first = upload(config)
     second = upload(config, uid="e6cc3fa6-302f-4fdd-966c-306547b48340", filename="other.yml")
-    result = validate_files([first, second], {"period": 60, "timeout": 60}, CONTRACT)
+    result = validate_files([first, second], {"period": 60, "timeout": 60})
     assert result["files"][1]["errors"][0]["related_uid"] == UID
     second["content"] += "\n# distinct text\n"
-    assert validate_files([first, second], {"period": 60, "timeout": 60}, CONTRACT)["valid"]
+    assert validate_files([first, second], {"period": 60, "timeout": 60})["valid"]
     second["uid"] = UID.upper()
-    result = validate_files([first, second], {"period": 60, "timeout": 60}, CONTRACT)
+    result = validate_files([first, second], {"period": 60, "timeout": 60})
     assert result["files"][1]["errors"][0]["code"] == "UID_DUPLICATED"
 
 
@@ -199,14 +197,13 @@ def test_dedup_is_full_text_and_uid(config):
     "change",
     [
         lambda c: c["products"][0].update(namespace="QCE/ETCD"),
-        lambda c: c["products"][0].update(namespace="QCE/UNKNOWN"),
+        lambda c: c["products"][0].update(namespace=""),
         lambda c: c["products"][0].update(all_instances="false"),
-        lambda c: c["products"][0].update(custom_query_dimensions=[{"wrong": "id"}]),
+        lambda c: c["products"][0].update(custom_query_dimensions=[{"InstanceId": 42}]),
         lambda c: c.update(unknown="hidden-secret"),
         lambda c: c.update(rate_limit=float("nan")),
         lambda c: c["credential"].update(region=""),
         lambda c: c.update(products=[]),
-        lambda c: c.update(project_label=True),
     ],
 )
 def test_invalid_config(config, change):
@@ -217,19 +214,16 @@ def test_invalid_config(config, change):
     assert "hidden-secret" not in str(result)
 
 
-def test_new_contract_fields(config):
+def test_optional_exporter_fields(config):
     config.update(project_label=False, tag_filters=[{"tag_key": "team", "tag_value": ["a"]}])
     config["products"][0]["project_label"] = True
-    result = validate_files([upload(config)], {"period": 60, "timeout": 60}, {**CONTRACT, "version": "v0.22.4"})
+    result = validate_files([upload(config)], {"period": 60, "timeout": 60})
     assert result["valid"]
     assert yaml.safe_load(result["files"][0]["preview"]["qcloud_yaml"])["tag_filters"] == config["tag_filters"]
 
 
 @pytest.fixture
 def request_data(config, settings):
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS = {
-        IMAGE: {**CONTRACT, "templates": [sha256(f"image: {IMAGE}".encode()).hexdigest()]}
-    }
     settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {"collector_json": {"template": f"image: {IMAGE}"}}
     return {
         "bk_biz_id": 2,
@@ -278,17 +272,6 @@ def test_edit_checks_version_tenant_and_readonly(request_data, mocker, settings)
         resource.request(request_data)
 
 
-def test_unknown_image_fails_closed(settings):
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS = {
-        IMAGE: {**CONTRACT, "templates": [sha256(f"image: {IMAGE}".encode()).hexdigest()]}
-    }
-    for template in ("image: unknown", "image: {{ values.image }}", "", "image: a\nimage: b"):
-        with pytest.raises(LegacyConversionFailed):
-            api.resolve_contract({"template": template})
-    with pytest.raises(LegacyConversionFailed):
-        api.resolve_contract({}, {"image": IMAGE, "contract": "qcloud-exporter-v0.22.4"})
-
-
 def test_validate_is_manage_permission():
     from bkmonitor.iam import ActionEnum
     from monitor_web.collecting.views import CollectingConfigViewSet
@@ -302,9 +285,9 @@ def test_validate_is_manage_permission():
 
 
 def test_empty_and_independent_file_results(config):
-    assert validate_files([], {"period": 60, "timeout": 60}, CONTRACT)["errors"][0]["code"] == "CONFIGMAP_REQUIRED"
+    assert validate_files([], {"period": 60, "timeout": 60})["errors"][0]["code"] == "CONFIGMAP_REQUIRED"
     bad = upload(config, "e6cc3fa6-302f-4fdd-966c-306547b48340", "bad.txt")
-    result = validate_files([upload(config), bad], {"period": 60, "timeout": 60}, CONTRACT)
+    result = validate_files([upload(config), bad], {"period": 60, "timeout": 60})
     assert not result["valid"]
     assert result["files"][0]["valid"]
     assert result["files"][1]["errors"][0]["code"] == "FILE_TYPE_INVALID"
@@ -314,7 +297,7 @@ def test_unicode_and_size_boundary(config):
     file = upload(config)
     file["content"] = "\ud800"
     assert (
-        validate_files([file], {"period": 60, "timeout": 60}, CONTRACT)["files"][0]["errors"][0]["code"]
+        validate_files([file], {"period": 60, "timeout": 60})["files"][0]["errors"][0]["code"]
         == "FILE_ENCODING_INVALID"
     )
     config["filename"] = "a" * (1024 * 1024)
@@ -364,12 +347,7 @@ def test_metric_int32_overflow(config):
     assert not validate(config)["valid"]
 
 
-def test_known_image_in_unknown_template_is_not_trusted(request_data, settings):
-    with pytest.raises(LegacyConversionFailed):
-        api.resolve_contract({"template": f"image: {IMAGE}\nunknown: template"})
-
-
-def test_live_source_contract_wins_over_global(request_data, mocker, settings):
+def test_preview_does_not_depend_on_image_registration(request_data, mocker, settings):
     request_data.update(id=10, deployment_id=20)
     runtime = {"image": IMAGE, "contract": "qcloud-exporter-v0.21.0"}
     source = SimpleNamespace(
@@ -389,10 +367,10 @@ def test_edit_not_found_does_not_resolve_or_validate(request_data, mocker):
     mocker.patch.object(
         api.CollectConfigMeta.objects, "select_related"
     ).return_value.get.side_effect = api.CollectConfigMeta.DoesNotExist
-    resolver = mocker.patch.object(api, "resolve_contract")
+    validator = mocker.patch.object(api, "validate_files")
     with pytest.raises(CollectConfigNotExist):
         api.ValidateTencentCloudConfigmapResource().request(request_data)
-    resolver.assert_not_called()
+    validator.assert_not_called()
 
 
 def test_endpoint_registration():
@@ -416,7 +394,7 @@ def test_escaped_surrogate_is_a_file_error_and_batch_continues(config, escape, l
     good = upload(config, uid="e6cc3fa6-302f-4fdd-966c-306547b48340")
     # 原始上传内容可编码；错误只在 YAML 解码转义序列后出现。
     bad["content"].encode("utf-8")
-    result = validate_files([bad, good], {"period": 60, "timeout": 60}, CONTRACT)
+    result = validate_files([bad, good], {"period": 60, "timeout": 60})
     assert not result["valid"]
     assert result["files"][0]["preview"] is None
     assert result["files"][0]["errors"] == [
@@ -438,8 +416,8 @@ def test_credential_alias_does_not_change_other_fields(config):
     original = deepcopy(config)
     file = upload(config)
     assert "&id001" in yaml.safe_load(file["content"])["data"]["qcloud.yml"]
-    effective = effective_config(config, {"period": 60, "timeout": 60}, CONTRACT)
-    result = validate_files([file], {"period": 60, "timeout": 60}, CONTRACT)
+    effective = effective_config(config, {"period": 60, "timeout": 60})
+    result = validate_files([file], {"period": 60, "timeout": 60})
     assert result["valid"]
     preview = result["files"][0]["preview"]["qcloud_yaml"]
     tree = yaml.safe_load(preview)
@@ -466,7 +444,7 @@ def test_repeated_product_and_dimension_aliases_are_validated_once(config, mocke
     product = {"namespace": "QCE/CVM", "all_metrics": True, "custom_query_dimensions": [dimension] * 256}
     config["products"] = [product] * 256
     validate_map = mocker.spy(tencent_cloud, "string_map")
-    result = validate_files([upload(config)], {"timeout": 60, "period": 60}, CONTRACT)
+    result = validate_files([upload(config)], {"timeout": 60, "period": 60})
     assert result["valid"]
     assert validate_map.call_count == 1
     assert result["files"][0]["summary"]["products"] == ["QCE/CVM"] * 256
@@ -476,21 +454,26 @@ def test_repeated_product_and_dimension_aliases_are_validated_once(config, mocke
     assert products[-1]["custom_query_dimensions"][-1] == dimension
 
 
-def test_shared_dimensions_are_checked_again_for_another_namespace(config):
+def test_product_dimensions_remain_exporter_owned(config):
     dimensions = [{"InstanceId": "sample"}]
     first = {"namespace": "QCE/CVM", "custom_query_dimensions": dimensions}
     config["products"] = [first, first, {**first, "namespace": "QCE/COS"}]
-    result = validate_files([upload(config)], {"timeout": 60, "period": 60}, CONTRACT)
-    assert not result["valid"]
-    error = result["files"][0]["errors"][0]
-    assert error["code"] == "QCLOUD_CONFIG_INVALID"
-    assert error["path"] == "qcloud.yml.products[2].custom_query_dimensions"
+    result = validate_files([upload(config)], {"timeout": 60, "period": 60})
+    assert result["valid"]
 
 
 def test_checked_dimension_list_cannot_be_used_as_a_dimension_map(config):
     dimensions = [{"InstanceId": "sample"}]
     first = {"namespace": "QCE/CVM", "custom_query_dimensions": dimensions}
     config["products"] = [first, {**first, "custom_query_dimensions": [dimensions]}]
-    result = validate_files([upload(config)], {"timeout": 60, "period": 60}, CONTRACT)
+    result = validate_files([upload(config)], {"timeout": 60, "period": 60})
     assert not result["valid"]
     assert result["files"][0]["errors"][0]["path"] == "qcloud.yml.products[1].custom_query_dimensions"
+
+
+@pytest.mark.parametrize("field", ["secret_key", "access_key"])
+def test_preview_does_not_accept_form_credentials(request_data, field):
+    request_data["params"]["plugin"][field] = "fixture-secret"
+    with pytest.raises(Exception) as exc:
+        api.ValidateTencentCloudConfigmapResource().validate_request_data(request_data)
+    assert "fixture-secret" not in str(exc.value)

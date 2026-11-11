@@ -36,7 +36,6 @@ from monitor_web.collecting.tencent_cloud import (
     configmap_description,
     new_form_definition,
     load_yaml,
-    resolve_contract,
     file_contains_credential,
     is_qcloud_plugin,
     validate_files,
@@ -47,7 +46,7 @@ from monitor_web.models import CollectConfigMeta
 class StrictSerializer(serializers.Serializer):
     def to_internal_value(self, data):
         if isinstance(data, dict) and data.keys() - self.fields.keys():
-            raise serializers.ValidationError("请求包含不支持的字段")
+            raise serializers.ValidationError({"non_field_errors": ["请求包含不支持的字段"]})
         return super().to_internal_value(data)
 
 
@@ -58,6 +57,8 @@ class ConfigMapFileSerializer(StrictSerializer):
 
 
 class ConfigMapPluginSerializer(StrictSerializer):
+    access_key = serializers.JSONField(required=False)
+    secret_key = serializers.JSONField(required=False)
     config_mode = serializers.CharField()
     configmaps = ConfigMapFileSerializer(many=True, allow_empty=True)
 
@@ -102,8 +103,7 @@ def form_detail(config, params_format):
         return params, info
 
     params, info = stored_detail(config)
-    if settings.TENCENT_CLOUD_EXPORTER_CONTRACTS:
-        info["description_md"] = configmap_description()
+    info["description_md"] = configmap_description()
     credential_fields = ("secret_id", "access_key", "secret_key")
     source = config.deployment_config
     plugin = params.setdefault("plugin", {})
@@ -128,7 +128,7 @@ def form_detail(config, params_format):
 def prepare_edit_params(config_meta: CollectConfigMeta, params: dict) -> None:
     source = config_meta.deployment_config
     if not is_legacy_snapshot(source.params):
-        # 使用与详情相同的契约、文件和结构校验；残缺的快照不能进入新版分支。
+        # 使用与详情相同的文件和结构校验；残缺的快照不能进入新版分支。
         configmap_projection(config_meta)
         return
     plugin = params.setdefault("plugin", {})
@@ -149,24 +149,11 @@ def prepare_edit_params(config_meta: CollectConfigMeta, params: dict) -> None:
 
 def prepare_configmap_snapshot(params, source_config=None):
     """生成供安装器使用的版本参数；调用方负责源版本并发校验与持久化。"""
-    if not isinstance(params, dict) or set(params) != {"collector", "plugin"}:
-        raise CollectConfigParamsError(msg="不支持的部署参数")
+    serializer = ParamsSerializer(data=params)
+    if not serializer.is_valid():
+        raise CollectConfigParamsError(msg="配置参数格式无效", data={"errors": serializer.errors})
+    params = serializer.validated_data
     plugin = params["plugin"]
-    if not isinstance(plugin, dict) or plugin.keys() - {"config_mode", "configmaps", "access_key", "secret_key"}:
-        raise CollectConfigParamsError(msg="不支持的插件参数")
-    if plugin.get("config_mode") != "configmap" or not isinstance(plugin.get("configmaps"), list):
-        raise CollectConfigParamsError(msg="必须提交 ConfigMap 文件列表")
-    collector = params["collector"]
-    if not isinstance(collector, dict) or collector.keys() - CollectorSerializer().fields.keys():
-        raise CollectConfigParamsError(msg="不支持的采集器参数")
-    if any(
-        not isinstance(file, dict)
-        or set(file) != {"uid", "filename", "content"}
-        or any(not isinstance(value, str) for value in file.values())
-        for file in plugin["configmaps"]
-    ):
-        raise CollectConfigParamsError(msg="ConfigMap 参数格式错误")
-
     snapshot = deepcopy(params)
     if source_config is not None:
         if not is_tencent_cloud_config(source_config):
@@ -222,7 +209,7 @@ def save_configmap(data, config, get_plugin=None):
         if config is None:
             if "deployment_id" in data:
                 raise CollectConfigVersionChanged()
-            # 创建业务插件有写入，先完成新建契约全量校验。
+            # 创建业务插件有写入，先完成文件和凭据校验。
             snapshot = prepare_configmap_snapshot(data["params"])
             plugin = get_plugin(data)
             config = CollectConfigMeta(
@@ -251,25 +238,27 @@ def save_configmap(data, config, get_plugin=None):
             operation = OperationType.UPGRADE if upgrading else data["operation"]
             if not upgrading:
                 config.name = data["name"]
-        version = installer.record_install({"params": snapshot}, operation)
+        version = installer.record_install(
+            {"params": snapshot, **({"plugin_version": config.deployment_config.plugin_version} if config.pk else {})},
+            operation,
+        )
     # 先保留可重试的版本身份，再对最新版本执行外部操作。
     installer.apply_current(operation, recover)
     return config, {"id": config.pk, "deployment_id": version.pk, "can_rollback": bool(version.parent_id)}
 
 
 def clone_snapshot(config):
-    """克隆只准备停用的新配置；新建契约与文件 UID 独立，须补齐凭据才能部署。"""
+    """克隆只准备停用的新配置；保留源模板并生成独立的文件 UID，须补齐凭据才能部署。"""
     projected = configmap_projection(config)
-    projected["runtime"] = freeze_runtime()
+    projected["runtime"] = freeze_runtime(config)
     plugin = projected["plugin"]
     plugin.update(access_key="", secret_key="")
     for row in plugin["configmaps"]:
         row.pop("preview")
         row["uid"] = str(uuid4())
-    contract = resolve_contract({}, projected["runtime"])
-    result = validate_files(plugin["configmaps"], projected["collector"], contract)
+    result = validate_files(plugin["configmaps"], projected["collector"])
     if not result["valid"]:
-        raise CollectConfigParamsError(msg="克隆文件不兼容新建镜像契约")
+        raise CollectConfigParamsError(msg="克隆文件配置无效")
     return projected
 
 
@@ -286,7 +275,9 @@ def clone_config(source, name):
         cache_data={},
     )
     installer = get_collect_installer(clone)
-    installer.record_install({"params": snapshot}, OperationType.STOP)
+    installer.record_install(
+        {"params": snapshot, "plugin_version": source.deployment_config.plugin_version}, OperationType.STOP
+    )
     clone.operation_result = OperationResult.SUCCESS
     clone.save(update_fields=["operation_result"])
 
@@ -332,7 +323,6 @@ def configmap_projection(config):
     params = source.params
     try:
         plugin = params["plugin"]
-        contract = resolve_contract(source.plugin_version.config.collector_json, params.get("runtime"))
         collector = {"period": 60, "timeout": 60, **deepcopy(params.get("collector", {}))}
         if is_legacy_snapshot(params):
             files, access_key, secret_key = legacy_configmap(config)
@@ -345,7 +335,7 @@ def configmap_projection(config):
                 raise conversion_failed("params.plugin")
         else:
             raise conversion_failed("params.plugin.config_mode")
-        validated = validate_files(files, collector, contract)
+        validated = validate_files(files, collector)
         if not validated["valid"]:
             errors = validated["errors"] or next(row["errors"] for row in validated["files"] if row["errors"])
             raise conversion_failed(errors[0]["path"])
@@ -386,6 +376,8 @@ class ValidateTencentCloudConfigmapResource(Resource):
         def validate(self, attrs):
             if ("id" in attrs) != ("deployment_id" in attrs):
                 raise serializers.ValidationError("编辑校验必须同时提供 id 和 deployment_id")
+            if {"access_key", "secret_key"} & attrs["params"]["plugin"].keys():
+                raise serializers.ValidationError("预览接口不接收凭据")
             return attrs
 
     def perform_request(self, data):
@@ -403,9 +395,5 @@ class ValidateTencentCloudConfigmapResource(Resource):
                 raise CollectConfigParamsError(msg="仅支持腾讯云指标采集")
             if config.deployment_config_id != data["deployment_id"]:
                 raise CollectConfigVersionChanged()
-            source = config.deployment_config
-            contract = resolve_contract(source.plugin_version.config.collector_json, source.params.get("runtime"))
-        else:
-            contract = resolve_contract(settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG.get("collector_json", {}))
         params = data["params"]
-        return validate_files(params["plugin"]["configmaps"], params["collector"], contract)
+        return validate_files(params["plugin"]["configmaps"], params["collector"])

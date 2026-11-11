@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 """腾讯云 ConfigMap 的纯静态处理。不得在此调用云 API 或修改部署状态。"""
 
 import re
-from collections import defaultdict
 from copy import deepcopy
 from hashlib import sha256
 from math import isfinite
@@ -19,8 +18,6 @@ from uuid import UUID
 
 import yaml
 from django.conf import settings
-
-from core.errors.collecting import LegacyConversionFailed
 
 
 class ConfigError(ValueError):
@@ -187,8 +184,7 @@ def check_fields(value, fields, path, checked):
             checked.add(cache_key)
 
 
-def check_dimensions(dimensions, required, path, checked):
-    # 调用方按 namespace 分开缓存，同一别名仍需满足各自产品的必需维度。
+def check_dimensions(dimensions, path, checked):
     if id(dimensions) in checked:
         return
     for item in dimensions:
@@ -198,23 +194,15 @@ def check_dimensions(dimensions, required, path, checked):
             continue
         if not string_map(item):
             raise ConfigError("QCLOUD_CONFIG_INVALID", path, "查询维度必须是非空字符串映射")
-        if any(key not in item for key in required):
-            raise ConfigError("QCLOUD_CONFIG_INVALID", path, "缺少产品查询维度")
         checked.add(id(item))
     checked.add(id(dimensions))
 
 
-def effective_config(config, collector, contract):
+def effective_config(config, collector):
     """保留显式值和缺省状态；预览和未来部署均消费本函数返回的树。"""
-    fields = dict(CONFIG_FIELDS)
-    product_fields = dict(PRODUCT_FIELDS)
-    if contract["version"] == "v0.21.0":
-        fields.pop("project_label")
-        fields.pop("tag_filters")
-        product_fields.pop("project_label")
     checked = set()
-    checked_dimensions = defaultdict(set)
-    check_fields(config, fields, "qcloud.yml", checked)
+    checked_dimensions = set()
+    check_fields(config, CONFIG_FIELDS, "qcloud.yml", checked)
     credential = config.get("credential")
     check_fields(credential, CREDENTIAL_FIELDS, "qcloud.yml.credential", checked)
     for key in ("access_key", "secret_key", "token"):
@@ -226,22 +214,21 @@ def effective_config(config, collector, contract):
         raise ConfigError("QCLOUD_CONFIG_INVALID", "qcloud.yml.products", "至少配置一个产品")
     for index, product in unique_entries(config["products"]):
         path = f"qcloud.yml.products[{index}]"
-        check_fields(product, product_fields, path, checked)
+        check_fields(product, PRODUCT_FIELDS, path, checked)
         namespace = product.get("namespace")
-        if namespace == "QCE/ETCD" or namespace not in contract["products"]:
-            raise ConfigError("PRODUCT_NOT_SUPPORTED", f"{path}.namespace", "源镜像契约不支持该产品")
+        if not namespace or namespace == "QCE/ETCD":
+            raise ConfigError("PRODUCT_NOT_SUPPORTED", f"{path}.namespace", "必须指定产品，本期不支持 etcd")
         if "custom_query_dimensions" in product:
             check_dimensions(
                 product["custom_query_dimensions"],
-                contract["products"][namespace],
                 f"{path}.custom_query_dimensions",
-                checked_dimensions[namespace],
+                checked_dimensions,
             )
     for index, metric in unique_entries(config.get("metrics", [])):
         path = f"qcloud.yml.metrics[{index}]"
         check_fields(metric, METRIC_FIELDS, path, checked)
-        if metric.get("tc_namespace") not in contract["products"] or metric.get("tc_namespace") == "QCE/ETCD":
-            raise ConfigError("PRODUCT_NOT_SUPPORTED", f"{path}.tc_namespace", "源镜像契约不支持该产品")
+        if not metric.get("tc_namespace") or metric["tc_namespace"] == "QCE/ETCD":
+            raise ConfigError("PRODUCT_NOT_SUPPORTED", f"{path}.tc_namespace", "必须指定产品，本期不支持 etcd")
     for index, tag_filter in unique_entries(config.get("tag_filters", [])):
         check_fields(
             tag_filter,
@@ -272,7 +259,7 @@ def render_config(config):
     return f"{header}\n  # 凭据由平台通过 Secret 注入，无需在配置文件中填写\n{body}"
 
 
-def validate_files(files, collector, contract):
+def validate_files(files, collector):
     result = {"valid": True, "errors": [], "files": []}
     if not files:
         result["errors"].append({"code": "CONFIGMAP_REQUIRED", "path": "configmaps", "message": "至少上传一个配置文件"})
@@ -320,7 +307,7 @@ def validate_files(files, collector, contract):
                 raise ConfigError("CONFIGMAP_DATA_INVALID", "data", "data 必须只包含 qcloud.yml 文本")
             if len(data["qcloud.yml"].encode("utf-8")) > 1024 * 1024:
                 raise ConfigError("CONFIGMAP_DATA_INVALID", "data", "配置超过 ConfigMap 的 1 MiB 限制")
-            config = effective_config(load_yaml(data["qcloud.yml"], "qcloud.yml"), collector, contract)
+            config = effective_config(load_yaml(data["qcloud.yml"], "qcloud.yml"), collector)
             preview_yaml = render_config(config)
             if len(preview_yaml.encode("utf-8")) + len("qcloud.yml") > 1024 * 1024:
                 raise ConfigError("CONFIGMAP_DATA_INVALID", "data", "有效配置超过 ConfigMap 的 1 MiB 限制")
@@ -397,65 +384,18 @@ npx skills add {url} -g -s bk-tencentcloud-configmap -a '*' -y
 
 
 def new_form_definition(detail):
-    if settings.TENCENT_CLOUD_EXPORTER_CONTRACTS:
-        detail.update(
-            config_mode="configmap",
-            collector_json={},
-            config_json=configmap_form(),
-            description_md=configmap_description(),
-        )
+    detail.update(
+        config_mode="configmap",
+        collector_json={},
+        config_json=configmap_form(),
+        description_md=configmap_description(),
+    )
     return detail
 
 
 def is_qcloud_plugin(plugin_id, biz_id):
     base = settings.TENCENT_CLOUD_METRIC_PLUGIN_ID
     return plugin_id == base or plugin_id == f"{base}_{biz_id}"
-
-
-def template_image(template):
-    if not isinstance(template, str):
-        raise LegacyConversionFailed()
-    candidates = re.findall(r"^\s*image:\s*([^\n]+)$", template, re.MULTILINE)
-    if len(candidates) != 1 or "{{" in candidates[0] or "{%" in candidates[0]:
-        raise LegacyConversionFailed()
-    try:
-        return yaml.safe_load(candidates[0])
-    except yaml.YAMLError:
-        raise LegacyConversionFailed() from None
-
-
-def resolve_contract(collector_json, runtime=None):
-    """只读识别已登记镜像。历史模板只接受唯一的静态 image，不执行用户输入或模板。"""
-    if runtime is not None:
-        if not isinstance(runtime, dict):
-            raise LegacyConversionFailed()
-        image = runtime.get("image")
-    else:
-        template = collector_json.get("template", "")
-        image = template_image(template)
-    if not isinstance(image, str):
-        raise LegacyConversionFailed()
-    contract = settings.TENCENT_CLOUD_EXPORTER_CONTRACTS.get(image)
-    if (
-        not isinstance(contract, dict)
-        or contract.get("version") not in ("v0.21.0", "v0.22.4")
-        or not isinstance(contract.get("products"), dict)
-        or not contract["products"]
-    ):
-        raise LegacyConversionFailed()
-    if any(
-        not isinstance(namespace, str)
-        or not isinstance(dimensions, list)
-        or any(not isinstance(dimension, str) for dimension in dimensions)
-        for namespace, dimensions in contract["products"].items()
-    ):
-        raise LegacyConversionFailed()
-    if runtime is None and sha256(template.encode("utf-8")).hexdigest() not in contract.get("templates", []):
-        # 不能只凭模板中某一行出现已知镜像，就将任意历史模板认作已核验契约。
-        raise LegacyConversionFailed()
-    if runtime is not None and runtime.get("contract") != f"qcloud-exporter-{contract['version']}":
-        raise LegacyConversionFailed()
-    return deepcopy(contract)
 
 
 def file_contains_credential(file, preview, credentials):

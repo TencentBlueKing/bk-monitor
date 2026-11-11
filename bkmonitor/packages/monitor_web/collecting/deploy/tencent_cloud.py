@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import re
-from copy import deepcopy
+from copy import copy, deepcopy
 from hashlib import sha256
 from uuid import UUID
 
@@ -23,7 +23,7 @@ from kubernetes import client as k8s_client
 
 from bkmonitor.utils.template import jinja_render
 from constants.common import DEFAULT_TENANT_ID
-from core.errors.collecting import CollectConfigParamsError, LegacyConversionFailed
+from core.errors.collecting import CollectConfigParamsError
 from monitor_web.collecting.deploy.k8s import (
     DATA_ID_TEMPLATE,
     SERVICE_MONITOR_TEMPLATE,
@@ -33,8 +33,6 @@ from monitor_web.collecting.deploy.k8s import (
 from monitor_web.collecting.tencent_cloud import (
     ConfigLoader,
     file_contains_credential,
-    resolve_contract,
-    template_image,
     validate_files,
 )
 
@@ -43,76 +41,31 @@ APP = "qcloud-exporter-managed"
 ENV_KEYS = {"access_key": "TENCENTCLOUD_SECRET_ID", "secret_key": "TENCENTCLOUD_SECRET_KEY"}
 
 
-def runtime_contract(runtime):
-    """实际部署只接受受控仓库的不可变镜像和冻结的资源规格。"""
-    if not isinstance(runtime, dict) or set(runtime) != {"image", "contract", "resources"}:
-        raise LegacyConversionFailed()
-    contract = resolve_contract({}, runtime)
-    if not re.fullmatch(r"[^@\s]+@sha256:[0-9a-f]{64}", runtime["image"]):
-        raise LegacyConversionFailed()
-    resources = runtime["resources"]
-    if not isinstance(resources, dict) or resources.keys() - {"limits", "requests"}:
-        raise LegacyConversionFailed()
-    if any(not isinstance(group, dict) for group in resources.values()):
-        raise LegacyConversionFailed()
-    return contract
-
-
-def freeze_runtime(config=None, source=None):
-    """首次编辑从原插件部署模板提取实际规格，新建使用平台登记的规格。"""
+def freeze_runtime(config=None):
+    """保留源版本的模板覆盖值；镜像及资源定义继续由该插件版本负责。"""
     if config is None:
-        definition = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG.get("collector_json", {})
-    else:
-        source = source or config.deployment_config
-        if "runtime" in source.params:
-            runtime = deepcopy(source.params["runtime"])
-            runtime_contract(runtime)
-            return runtime
-        definition = source.plugin_version.config.collector_json
-
-    contract = resolve_contract(definition)
-    image = template_image(definition["template"])
-    if config is None:
-        resources = contract.get("resources")
-    else:
-        try:
-            _, rendered = K8sInstaller(config).render_snapshot(source)
-            deployments = [
-                doc
-                for doc in yaml.load_all(rendered, Loader=ConfigLoader)
-                if isinstance(doc, dict) and doc.get("kind") == "Deployment"
-            ]
-            if len(deployments) != 1:
-                raise LegacyConversionFailed()
-            containers = deployments[0]["spec"]["template"]["spec"]["containers"]
-            if len(containers) != 1 or containers[0]["image"] != image:
-                raise LegacyConversionFailed()
-            resources = containers[0].get("resources", {})
-        except (yaml.YAMLError, TemplateError, ValueError, LookupError, TypeError, AttributeError, RecursionError):
-            raise LegacyConversionFailed() from None
-
-    if "@" not in image:
-        digest = contract.get("digest", "")
-        if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
-            raise LegacyConversionFailed()
-        # 只替换最后路径分段的 tag，保留 registry 端口。
-        repository = image.rsplit("/", 1)[-1].split(":", 1)[0]
-        prefix = image.rpartition("/")[0]
-        image = f"{prefix + '/' if prefix else ''}{repository}@{digest}"
-    runtime = {"image": image, "contract": f"qcloud-exporter-{contract['version']}", "resources": deepcopy(resources)}
-    if runtime_contract(runtime)["products"] != contract["products"]:
-        raise LegacyConversionFailed()
-    return runtime
+        return {"values": {}}
+    params = config.deployment_config.params
+    if "runtime" in params:
+        # 兼容已保存的早期 ConfigMap 快照，沿用其镜像、配额，不再依赖镜像登记。
+        runtime = params["runtime"]
+        return {key: deepcopy(runtime[key]) for key in ("values", "image", "resources") if key in runtime}
+    return {
+        "values": {
+            key: deepcopy(value)
+            for key, value in params.get("plugin", {}).items()
+            if key not in ("secret_id", "secret_key", "access_key")
+        }
+    }
 
 
 def validated_files(params):
-    contract = runtime_contract(params["runtime"])
     plugin = params["plugin"]
     if plugin.get("config_mode") != "configmap" or any(
         not isinstance(plugin.get(k), str) or not plugin[k] for k in ENV_KEYS
     ):
         raise CollectConfigParamsError(msg="ConfigMap 部署需要已配置的腾讯云凭据")
-    result = validate_files(plugin["configmaps"], params["collector"], contract)
+    result = validate_files(plugin["configmaps"], params["collector"])
     if not result["valid"]:
         errors = result["errors"] or next(row["errors"] for row in result["files"] if row["errors"])
         raise CollectConfigParamsError(
@@ -160,90 +113,110 @@ def file_resources(config, files, labels):
         yield file, resource_name(f"{release}-qcloud-exporter-{uid.hex}"), {**labels, LABEL + "file-uid": str(uid)}
 
 
-def render_resources(config, params, cluster_id, namespace):
-    numeric_data_id = config.data_id
+def render_resources(config, params, cluster_id, namespace, version=None):
+    runtime = params["runtime"]
+    source = copy(version or config.deployment_config)
+    source.params = {"collector": params["collector"], "plugin": deepcopy(runtime.get("values", {}))}
+    context = K8sInstaller(config)._get_context(source)
+    numeric_data_id = context["plugin"]["data_id"]
     if not config.id or not numeric_data_id:
         raise CollectConfigParamsError(msg="部署前需要有效的采集配置 ID 和 DataID")
     files = validated_files(params)
     env = settings.BCS_CLUSTER_BK_ENV_LABEL or ""
-    release = release_name(config)
-    name = resource_name(f"{release}-qcloud-exporter")
+    name = resource_name(f"{release_name(config)}-qcloud-exporter")
     labels = ownership_labels(config)
-
-    def resource(api, kind, resource_name, owner, **fields):
-        return {
-            "apiVersion": api,
-            "kind": kind,
-            "metadata": {"name": resource_name, "namespace": namespace, "labels": owner},
-            **fields,
-        }
-
     credentials = {k: base64.b64encode(params["plugin"][k].encode()).decode("ascii") for k in ENV_KEYS}
-    secret = resource("v1", "Secret", name, labels, type="Opaque", data=credentials)
-    # 避免把可离线猜测的凭据摘要暴露到 Pod 注解。
+    secret = {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": name, "namespace": namespace, "labels": labels},
+        "type": "Opaque",
+        "data": credentials,
+    }
     secret_revision = salted_hmac(
         "qcloud-exporter.secret", json.dumps(credentials, sort_keys=True), algorithm="sha256"
     ).hexdigest()
     dependencies = [secret]
     workloads = []
+    context["values"].update(secret_id="", secret_key="", access_key="")
+    template = source.plugin_version.config.collector_json["template"]
     for file, file_name, selector in file_resources(config, files, labels):
         content = file["preview"]["qcloud_yaml"]
-        dependencies.append(resource("v1", "ConfigMap", file_name, selector, data={"qcloud.yml": content}))
-        port = {"name": "http", "port": 9123, "targetPort": "http"}
-        dependencies.append(
-            resource("v1", "Service", file_name, selector, spec={"selector": selector.copy(), "ports": [port]})
+        tree = yaml.safe_load(content)
+        context["values"].update(
+            region=tree["credential"]["region"],
+            products=yaml.safe_dump(tree["products"], allow_unicode=True, sort_keys=False),
         )
-        container = {
-            "name": "exporter",
-            "image": params["runtime"]["image"],
-            "command": ["qcloud_exporter", "--config.file=/etc/qcloud/qcloud.yml"],
-            "ports": [{"name": "http", "containerPort": 9123}],
-            "resources": deepcopy(params["runtime"]["resources"]),
-            "env": [
+        try:
+            docs = [doc for doc in yaml.load_all(jinja_render(template, context), Loader=ConfigLoader) if doc]
+            groups = {}
+            for doc in docs:
+                groups.setdefault(doc["kind"], []).append(doc)
+            if (
+                set(groups) - {"ConfigMap", "Service", "Deployment", "ServiceAccount"}
+                or any(len(groups.get(kind, [])) != 1 for kind in ("ConfigMap", "Service", "Deployment"))
+                or len(groups.get("ServiceAccount", [])) > 1
+            ):
+                raise ValueError("template structure")
+            configmap, service, deployment = (groups[k][0] for k in ("ConfigMap", "Service", "Deployment"))
+            if len(configmap["data"]) != 1:
+                raise ValueError("config file")
+            old_map_name = configmap["metadata"]["name"]
+            config_key = next(iter(configmap["data"]))
+            configmap["data"] = {config_key: content}
+            pod = deployment["spec"]["template"]
+            containers = pod["spec"]["containers"]
+            if len(containers) != 1:
+                raise ValueError("exporter container")
+            container = containers[0]
+            # 早期快照独立保存的镜像与配额优先；新快照完整沿用插件模板。
+            for key in ("image", "resources"):
+                if key in runtime:
+                    container[key] = deepcopy(runtime[key])
+            container["env"] = [
+                entry for entry in container.get("env", []) if entry["name"] not in ENV_KEYS.values()
+            ] + [
                 {"name": var, "valueFrom": {"secretKeyRef": {"name": name, "key": key}}}
                 for key, var in ENV_KEYS.items()
-            ],
-            "volumeMounts": [{"name": "config", "mountPath": "/etc/qcloud", "readOnly": True}],
-        }
-        pod = {
-            "metadata": {
-                "labels": selector,
-                "annotations": {
+            ]
+            for volume in pod["spec"].get("volumes", []):
+                if volume.get("configMap", {}).get("name") == old_map_name:
+                    volume["configMap"]["name"] = file_name
+            if groups.get("ServiceAccount"):
+                account = groups["ServiceAccount"][0]
+                old_account_name = account["metadata"]["name"]
+                account["metadata"].update(name=file_name, namespace=namespace)
+                account["metadata"].setdefault("labels", {}).update(selector)
+                if pod["spec"].get("serviceAccountName") == old_account_name:
+                    pod["spec"]["serviceAccountName"] = file_name
+                dependencies.append(account)
+            for doc in (configmap, service, deployment):
+                doc["metadata"].update(name=file_name, namespace=namespace)
+                doc["metadata"].setdefault("labels", {}).update(selector)
+            service["spec"].setdefault("selector", {}).update(selector)
+            deployment["spec"]["selector"].setdefault("matchLabels", {}).update(selector)
+            pod.setdefault("metadata", {}).setdefault("labels", {}).update(selector)
+            pod["metadata"].setdefault("annotations", {}).update(
+                {
                     "monitor.bk.tencent.com/config-sha256": sha256(content.encode()).hexdigest(),
                     "monitor.bk.tencent.com/secret-revision": secret_revision,
-                },
-            },
-            "spec": {
-                "automountServiceAccountToken": False,
-                "containers": [container],
-                "volumes": [{"name": "config", "configMap": {"name": file_name}}],
-            },
-        }
-        workloads.append(
-            resource(
-                "apps/v1",
-                "Deployment",
-                file_name,
-                selector,
-                spec={
-                    "replicas": 1,
-                    "strategy": {"type": "Recreate"},
-                    "selector": {"matchLabels": selector},
-                    "template": pod,
-                },
+                }
             )
-        )
-
-    # 沿用平台现有 DataID 路由、抓取参数和归属 relabel，只收窄对象身份及选择器。
-    context = {
-        "plugin_release_name": name,
-        "bk_env": env,
-        "namespace": namespace,
-        "cluster_id": cluster_id,
-        "bk_biz_id": config.bk_biz_id,
-        "collect": params["collector"],
-        "plugin": {"id": config.plugin_id, "data_id": numeric_data_id},
-    }
+            # 文件和凭据更新时让同一采集的旧实例先退出，避免滚动更新期间重复采集。
+            deployment["spec"]["strategy"] = {"type": "Recreate"}
+        except (yaml.YAMLError, TemplateError, ValueError, LookupError, TypeError, AttributeError, RecursionError):
+            raise CollectConfigParamsError(msg="插件模板必须包含单个 exporter Deployment、Service 和配置文件") from None
+        dependencies.extend((configmap, service))
+        workloads.append(deployment)
+    context.update(
+        plugin_release_name=name,
+        namespace=namespace,
+        cluster_id=cluster_id,
+        bk_biz_id=config.bk_biz_id,
+        bk_env=env,
+        collect=params["collector"],
+        plugin={"id": config.plugin_id, "data_id": numeric_data_id},
+    )
     data_id = yaml.safe_load(jinja_render(DATA_ID_TEMPLATE, context))
     monitor = yaml.safe_load(jinja_render(SERVICE_MONITOR_TEMPLATE, context))
     for obj in (data_id, monitor):
