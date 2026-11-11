@@ -255,8 +255,8 @@ defineExpose({
       <template #content>
         <div v-if="popoverLazyLoaded.dropdown" class="dropdown-content">
           <div class="dropdown-search">
-            <TInput v-model="searchKeyword" class="field-input" :placeholder="$t('请输入模板名称')" clearable>
-              <template #prefix-icon><span class="bklog-icon bklog-search" /></template>
+            <TInput v-model:value="searchKeyword" class="field-input" :placeholder="$t('请输入模板名称')" clearable>
+              <template #prefix-icon><span class="bk-icon icon-search" /></template>
             </TInput>
           </div>
           <div class="underline-box"></div>

@@ -9,7 +9,7 @@
     getOsCommandLabel,
     getRegExp,
   } from '@/shared/lib/util';
-  import { Icon } from 'tdesign-vue-next';
+  import { Icon, Input as TInput } from 'tdesign-vue-next';
   import useLocale from '@/shared/composables/use-locale';
   import useStore from '@/shared/composables/use-store';
   import imgEnterKey from '@/shared/assets/images/icons/enter-key.svg';
@@ -1378,14 +1378,16 @@
     <div class="ui-query-option-content">
       <div class="field-list">
         <div class="ui-search-input">
-          <bk-input
+          <TInput
             ref="refFilterInput"
-            v-model="searchValue"
+            v-model:value="searchValue"
             style="width: 100%"
             :placeholder="t('请输入关键字')"
-            behavior="simplicity"
-            left-icon="bk-icon icon-search"
-          />
+          >
+            <template #prefix-icon>
+              <span class="bk-icon icon-search left-icon" />
+            </template>
+          </TInput>
         </div>
         <div
           ref="refSearchResultList"
