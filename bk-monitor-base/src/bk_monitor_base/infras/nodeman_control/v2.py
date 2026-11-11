@@ -34,9 +34,9 @@ class V2HostQueries(HostQueries):
 
     @override
     def beat_plugin_status(
-        self, bk_tenant_id: str, bk_biz_ids: list[int], bk_host_ids: list[int]
+        self, bk_tenant_id: str, bk_biz_ids: list[int] | None, bk_host_ids: list[int]
     ) -> list[dict[str, Any]]:
-        """沿用 V2 插件检索，仍只按主机过滤，不改变原有查询范围。"""
+        """沿用 V2 插件检索，仍只按主机过滤，不使用业务，也不查询 CMDB。"""
         result = api.plugin_search(
             bk_tenant_id=bk_tenant_id,
             params=api.PluginSearchParams(page=1, pagesize=len(bk_host_ids), conditions=[], bk_host_id=bk_host_ids),

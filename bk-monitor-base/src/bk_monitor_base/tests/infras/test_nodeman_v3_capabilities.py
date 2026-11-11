@@ -376,9 +376,41 @@ def test_beat_plugin_status_without_hosts_never_queries_whole_business():
     request.assert_not_called()
 
 
-def test_beat_plugin_status_requires_business():
+def test_beat_plugin_status_resolves_business_when_unknown():
+    """调用方不传业务时按主机推导业务，再带上全部业务查询。"""
+    request = Mock(return_value={"total": 0, "list": []})
+    resolver = Mock(return_value=[2, 5])
+
+    assert v3.V3HostQueries(request, resolver).beat_plugin_status("tenant", None, [1, 3]) == []
+
+    resolver.assert_called_once_with("tenant", [1, 3])
+    request.assert_called_once_with(
+        "list_v2_compatible_processes", "tenant", {"bk_biz_id": [2, 5], "bk_host_id": [1, 3]}
+    )
+
+
+def test_beat_plugin_status_uses_given_business_without_resolving():
+    """调用方已给出主机所属业务时直接使用，不再推导。"""
+    request = Mock(return_value={"total": 0, "list": []})
+    resolver = Mock()
+
+    v3.V3HostQueries(request, resolver).beat_plugin_status("tenant", [2], [1])
+
+    resolver.assert_not_called()
+    request.assert_called_once_with("list_v2_compatible_processes", "tenant", {"bk_biz_id": [2], "bk_host_id": [1]})
+
+
+@pytest.mark.parametrize(
+    ("bk_biz_ids", "resolver"),
+    [
+        pytest.param([], None, id="empty-business"),
+        pytest.param(None, None, id="unknown-business-without-resolver"),
+        pytest.param(None, Mock(return_value=[]), id="hosts-not-in-cmdb"),
+    ],
+)
+def test_beat_plugin_status_requires_business(bk_biz_ids, resolver):
     """兼容接口业务必传，缺失时在本地报错而不是发出必然失败的请求。"""
     request = Mock()
     with pytest.raises(ValueError, match="bk_biz_ids"):
-        v3.V3HostQueries(request).beat_plugin_status("tenant", [], [1])
+        v3.V3HostQueries(request, resolver).beat_plugin_status("tenant", bk_biz_ids, [1])
     request.assert_not_called()

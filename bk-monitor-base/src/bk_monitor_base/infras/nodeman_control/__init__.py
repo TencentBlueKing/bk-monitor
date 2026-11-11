@@ -6,6 +6,7 @@ from typing import Any
 from typing_extensions import override
 
 from bk_monitor_base.infras.nodeman_runtime import nodeman_v3_enabled
+from bk_monitor_base.infras.third_party_api.cmdb.api import find_host_biz_relation
 from bk_monitor_base.infras.third_party_api.nodeman import v3 as api_v3
 
 from .contracts import HostQueries, OfficialPlugins, PluginOperation
@@ -18,13 +19,19 @@ def _request_v3(action: str, tenant: str, params: dict[str, Any]) -> dict[str, A
     return getattr(api_v3, action)(bk_tenant_id=tenant, params=params)
 
 
-_v2_hosts, _v3_hosts = V2HostQueries(), V3HostQueries(_request_v3)
-_v2_plugins, _v3_plugins = V2OfficialPlugins(), V3OfficialPlugins(_request_v3)
-
-
 def unique_ids(values: Iterable[Any]) -> list[int]:
     """去掉空值并去重排序，供按主机/业务查询的入口统一请求参数；0 不是有效的主机或业务 ID。"""
     return sorted({int(value) for value in values if value not in (None, "")} - {0})
+
+
+def _host_biz_ids(tenant: str, bk_host_ids: list[int]) -> list[int]:
+    """按 CMDB 中主机实际所属的业务（同一主机多模块会重复返回）。"""
+    relations = find_host_biz_relation(bk_tenant_id=tenant, bk_host_ids=bk_host_ids)
+    return unique_ids(relation["bk_biz_id"] for relation in relations)
+
+
+_v2_hosts, _v3_hosts = V2HostQueries(), V3HostQueries(_request_v3, _host_biz_ids)
+_v2_plugins, _v3_plugins = V2OfficialPlugins(), V3OfficialPlugins(_request_v3)
 
 
 def get_host_queries() -> HostQueries:
@@ -57,13 +64,17 @@ class HostQueryService(HostQueries):
 
     @override
     def beat_plugin_status(
-        self, bk_tenant_id: str, bk_biz_ids: Iterable[Any], bk_host_ids: Iterable[Any]
+        self, bk_tenant_id: str, bk_biz_ids: Iterable[Any] | None, bk_host_ids: Iterable[Any]
     ) -> list[dict[str, Any]]:
-        """查询 bkmonitorbeat 状态；去掉空值并去重，无主机时不请求。"""
+        """查询 bkmonitorbeat 状态；去掉空值并去重，无主机时不请求。
+
+        bk_biz_ids 传 None 时由 V3 按 CMDB 主机关系推导业务，V2 只按主机查询、不访问 CMDB。
+        """
         host_ids = unique_ids(bk_host_ids)
         if not host_ids:
             return []
-        return get_host_queries().beat_plugin_status(bk_tenant_id, unique_ids(bk_biz_ids), host_ids)
+        biz_ids = None if bk_biz_ids is None else unique_ids(bk_biz_ids)
+        return get_host_queries().beat_plugin_status(bk_tenant_id, biz_ids, host_ids)
 
 
 class OfficialPluginService(OfficialPlugins):

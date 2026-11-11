@@ -20,9 +20,9 @@ class V2HostQueries(HostQueries):
         return api.node_man.ipchooser_host_detail({**params, "bk_tenant_id": bk_tenant_id})
 
     def beat_plugin_status(
-        self, bk_tenant_id: str, bk_biz_ids: list[int], bk_host_ids: list[int]
+        self, bk_tenant_id: str, bk_biz_ids: list[int] | None, bk_host_ids: list[int]
     ) -> list[dict[str, Any]]:
-        # V2 插件检索只按主机过滤，保持原有查询范围
+        # V2 插件检索只按主机过滤，保持原有查询范围，不使用业务
         return api.node_man.plugin_search(
             bk_tenant_id=bk_tenant_id,
             page=1,

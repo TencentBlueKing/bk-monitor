@@ -200,6 +200,33 @@ def test_beat_plugin_status_facade_normalizes_and_selects_backend(enabled):
 
 
 @pytest.mark.parametrize("enabled", [False, True])
+def test_beat_plugin_status_facade_resolves_business_only_for_v3(enabled):
+    """调用方不传业务时：V3 按 CMDB 主机关系推导业务（去重），V2 只按主机查询、不访问 CMDB。"""
+    relations = [
+        {"bk_host_id": 4, "bk_biz_id": 7, "bk_module_id": 1},
+        {"bk_host_id": 4, "bk_biz_id": 7, "bk_module_id": 2},
+        {"bk_host_id": 5, "bk_biz_id": 3, "bk_module_id": 3},
+    ]
+    with (
+        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True, ENABLE_NODEMAN_V3=enabled)),
+        mock.patch.object(nodeman_control, "find_host_biz_relation", return_value=relations) as relation,
+        mock.patch.object(v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}) as compatible,
+        mock.patch.object(api, "plugin_search", return_value={"total": 0, "list": []}) as search,
+    ):
+        assert nodeman_control.host_queries.beat_plugin_status("t", None, [5, 4]) == []
+    if enabled:
+        relation.assert_called_once_with(bk_tenant_id="t", bk_host_ids=[4, 5])
+        compatible.assert_called_once_with(bk_tenant_id="t", params={"bk_biz_id": [3, 7], "bk_host_id": [4, 5]})
+        search.assert_not_called()
+    else:
+        relation.assert_not_called()
+        search.assert_called_once_with(
+            bk_tenant_id="t", params={"page": 1, "pagesize": 2, "conditions": [], "bk_host_id": [4, 5]}
+        )
+        compatible.assert_not_called()
+
+
+@pytest.mark.parametrize("enabled", [False, True])
 def test_beat_plugin_status_facade_skips_request_without_hosts(enabled):
     """没有有效主机时两种后端都不发请求。"""
     with (

@@ -419,14 +419,12 @@ class TestDeployAndTestFlow:
     @patch("bk_monitor_base.domains.uptime_check.collector.host_queries")
     @patch("bk_monitor_base.domains.uptime_check.collector.get_host_by_ip")
     @patch("bk_monitor_base.domains.uptime_check.models.cmdb_api.get_host_by_ip")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.find_host_biz_relation")
     @patch("bk_monitor_base.domains.uptime_check.services.task_manager.host_queries")
     @patch("bk_monitor_base.domains.uptime_check.services.config_generator.get_config")
     def test_task_flow(
         self,
         mock_get_config: Mock,
         mock_task_manager_host_queries: Mock,
-        mock_find_host_biz_relation: Mock,
         mock_model_cmdb_get_host: Mock,
         mock_collector_cmdb_get_host: Mock,
         mock_collector_host_queries: Mock,
@@ -444,13 +442,6 @@ class TestDeployAndTestFlow:
 
         # Mock CMDB API (models 中的) - 返回空列表表示节点已有 bk_host_id，不需要查询
         mock_model_cmdb_get_host.return_value = []
-
-        # Mock CMDB 主机业务关系：主机实际属于业务 7（与节点的业务 2 不同），且同时在两个模块下
-        mock_find_host_biz_relation.side_effect = lambda bk_tenant_id, bk_host_ids: [
-            {"bk_host_id": host_id, "bk_biz_id": 7, "bk_module_id": module_id}
-            for host_id in bk_host_ids
-            for module_id in (1, 2)
-        ]
 
         # Mock beat 状态查询 (task_manager 中的) 返回有效插件版本
         mock_task_manager_host_queries.beat_plugin_status.return_value = [
@@ -550,14 +541,11 @@ class TestDeployAndTestFlow:
         expected_result = RESULT_MSG["0"]
         assert result == expected_result, f"期望返回 '{expected_result}'，但得到 '{result}'"
 
-        # 验证版本校验按 CMDB 中主机实际所属业务查询（去重），collector 按自身业务查询安装路径
+        # 验证版本校验不传节点业务（由 V3 按 CMDB 推导），collector 按自身业务查询安装路径
         mock_task_manager_host_queries.beat_plugin_status.assert_called_once()
         version_query = mock_task_manager_host_queries.beat_plugin_status.call_args.kwargs
         assert first_node is not None
-        assert version_query["bk_biz_ids"] == [7]
+        assert version_query["bk_biz_ids"] is None
         assert version_query["bk_host_ids"] == [first_node.bk_host_id]
-        mock_find_host_biz_relation.assert_called_once_with(
-            bk_tenant_id=manager.bk_tenant_id, bk_host_ids=[first_node.bk_host_id]
-        )
         path_query = mock_collector_host_queries.beat_plugin_status.call_args.kwargs
         assert path_query["bk_biz_ids"] == [first_node.bk_biz_id]

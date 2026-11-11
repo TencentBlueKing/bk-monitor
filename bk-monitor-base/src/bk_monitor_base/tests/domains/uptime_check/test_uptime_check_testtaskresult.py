@@ -43,9 +43,9 @@ pytestmark = pytest.mark.django_db(databases=["default"])
 
 @pytest.fixture(autouse=True)
 def mock_host_biz_relation() -> Iterator[Mock]:
-    """模拟 CMDB 主机业务关系（节点主机 1 属于业务 2），避免 TaskManager.test 访问真实 CMDB。"""
+    """模拟 CMDB 主机业务关系（节点主机 1 属于业务 2），避免 V3 推导业务时访问真实 CMDB。"""
     with patch(
-        "bk_monitor_base.domains.uptime_check.services.task_manager.find_host_biz_relation",
+        "bk_monitor_base.infras.nodeman_control.find_host_biz_relation",
         return_value=[{"bk_host_id": 1, "bk_biz_id": 2, "bk_module_id": 1}],
     ) as mocked:
         yield mocked
@@ -779,7 +779,7 @@ class TestBeatVersionCheck:
         relations: list[dict[str, Any]],
         expected_biz_ids: list[int],
     ) -> None:
-        """版本校验的业务取自 CMDB 主机关系，而不是节点自身的 bk_biz_id。"""
+        """V3 版本校验的业务取自 CMDB 主机关系，而不是节点自身的 bk_biz_id。"""
         task, node = task_with_node
         node.bk_biz_id = node_biz_id
         node.save()
@@ -787,11 +787,11 @@ class TestBeatVersionCheck:
 
         manager = TaskManager(task=task)
         with (
+            patch.object(nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_NODEMAN_V3=True)),
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
-            patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.host_queries.beat_plugin_status",
-                return_value=[],
-            ) as beat_plugin_status,
+            patch.object(
+                nodeman_v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}
+            ) as compatible,
             patch(
                 "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
                 return_value={
@@ -803,8 +803,36 @@ class TestBeatVersionCheck:
             manager.test()
 
         mock_host_biz_relation.assert_called_once_with(bk_tenant_id=manager.bk_tenant_id, bk_host_ids=[1])
-        beat_plugin_status.assert_called_once_with(
-            bk_tenant_id=manager.bk_tenant_id, bk_biz_ids=expected_biz_ids, bk_host_ids=[1]
+        compatible.assert_called_once_with(
+            bk_tenant_id=manager.bk_tenant_id, params={"bk_biz_id": expected_biz_ids, "bk_host_id": [1]}
+        )
+
+    def test_task_manager_v2_never_queries_cmdb(
+        self, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel], mock_host_biz_relation: Mock
+    ) -> None:
+        """V2 只按主机查询插件，不访问 CMDB：CMDB 关系查询失败也不影响测试继续。"""
+        task, node = task_with_node
+        mock_host_biz_relation.side_effect = RuntimeError("cmdb timeout")
+
+        manager = TaskManager(task=task)
+        with (
+            patch.object(nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_NODEMAN_V3=False)),
+            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
+            patch.object(nodeman_api, "plugin_search", return_value={"total": 0, "list": []}) as plugin_search,
+            patch(
+                "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
+                return_value={
+                    "success": [{"bk_host_id": node.bk_host_id, "ip": node.ip, "log_content": '{"error_code":0}'}],
+                    "failed": [],
+                },
+            ),
+        ):
+            assert manager.test() == RESULT_MSG["0"]
+
+        mock_host_biz_relation.assert_not_called()
+        plugin_search.assert_called_once_with(
+            bk_tenant_id=manager.bk_tenant_id,
+            params={"page": 1, "pagesize": 1, "conditions": [], "bk_host_id": [1]},
         )
 
     @pytest.mark.parametrize("enabled", [False, True])
@@ -840,8 +868,10 @@ class TestBeatVersionCheck:
 
         compatible.assert_not_called()
         if enabled:
+            mock_host_biz_relation.assert_called_once()
             plugin_search.assert_not_called()
         else:
+            mock_host_biz_relation.assert_not_called()
             plugin_search.assert_called_once()
 
     def test_task_manager_test_when_some_hosts_not_in_cmdb(

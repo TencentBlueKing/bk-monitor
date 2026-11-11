@@ -9,6 +9,8 @@ from typing_extensions import override
 from .contracts import HostQueries, OfficialPlugins, PluginOperation
 
 V3Request = Callable[[str, str, dict[str, Any]], dict[str, Any]]
+# (bk_tenant_id, bk_host_ids) -> 主机在 CMDB 中实际所属的业务
+HostBizResolver = Callable[[str, list[int]], list[int]]
 PAGE_SIZE = 500
 
 
@@ -48,8 +50,9 @@ def _list_items(
 class V3HostQueries(HostQueries):
     """把 V3 拓扑与节点状态转换为监控使用的主机信息。"""
 
-    def __init__(self, request: V3Request) -> None:
+    def __init__(self, request: V3Request, host_biz_resolver: HostBizResolver | None = None) -> None:
         self.request: V3Request = request
+        self.host_biz_resolver: HostBizResolver | None = host_biz_resolver
 
     @staticmethod
     def _proxy(host: dict[str, Any]) -> dict[str, Any]:
@@ -193,12 +196,15 @@ class V3HostQueries(HostQueries):
 
     @override
     def beat_plugin_status(
-        self, bk_tenant_id: str, bk_biz_ids: list[int], bk_host_ids: list[int]
+        self, bk_tenant_id: str, bk_biz_ids: list[int] | None, bk_host_ids: list[int]
     ) -> list[dict[str, Any]]:
         """调用节点管理为未迁移 beat 提供的 V2 兼容接口，返回结构与 V2 插件检索一致。"""
         # 不传主机时接口返回整个业务的主机，空主机直接视为无结果。
         if not bk_host_ids:
             return []
+        # 接口只认 CMDB 业务；调用方不掌握主机所属业务时，按 CMDB 主机关系推导。
+        if bk_biz_ids is None and self.host_biz_resolver is not None:
+            bk_biz_ids = self.host_biz_resolver(bk_tenant_id, bk_host_ids)
         if not bk_biz_ids:
             raise ValueError("bk_biz_ids is required by NodeMan list_v2_compatible")
         data = self.request(

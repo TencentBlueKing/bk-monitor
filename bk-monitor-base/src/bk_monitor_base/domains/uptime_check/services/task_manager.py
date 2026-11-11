@@ -35,7 +35,6 @@ from bk_monitor_base.domains.uptime_check.services.subscription import Subscript
 from bk_monitor_base.infras.conversion import safe_int
 from bk_monitor_base.infras.exception.base_error import BaseError
 from bk_monitor_base.infras.nodeman_control import host_queries
-from bk_monitor_base.infras.third_party_api.cmdb.api import find_host_biz_relation
 from bk_monitor_base.infras.third_party_api.nodeman.api import (
     CreateSubscriptionParams,
     UpdateSubscriptionParams,
@@ -191,26 +190,20 @@ class TaskManager:
         # 无记录（未经节点管理订阅安装）或版本无法解析时无法判定采集器不可用，
         # 放行并交由第 3 步的测试下发实测兜底，避免把登记缺失误报成版本过低。
         bk_host_ids = [int(host_id) for host_id in all_nodes.values_list("bk_host_id", flat=True).distinct() if host_id]
-        # 节点管理只认 CMDB 业务：公共节点的主机属于其他业务，节点也可能挂在负数空间下，
-        # 因此按 CMDB 中主机实际所属的业务查询，而不是直接使用节点的 bk_biz_id。
-        bk_biz_ids = sorted(
-            {
-                int(relation["bk_biz_id"])
-                for relation in find_host_biz_relation(bk_tenant_id=self.bk_tenant_id, bk_host_ids=bk_host_ids)
-            }
-        )
-        # V2 不使用业务；V3 业务为空（主机已不在 CMDB）时由实现报错。
+        # 不传节点的 bk_biz_id：公共节点的主机属于其他业务，节点也可能挂在负数空间下。
+        # 业务交给 V3 按 CMDB 中主机实际所属业务推导（推导为空即主机已不在 CMDB 时报错）；
+        # V2 只按主机查询，不访问 CMDB。
         all_plugin = host_queries.beat_plugin_status(
-            bk_tenant_id=self.bk_tenant_id, bk_biz_ids=bk_biz_ids, bk_host_ids=bk_host_ids
+            bk_tenant_id=self.bk_tenant_id, bk_biz_ids=None, bk_host_ids=bk_host_ids
         )
         if not all_plugin:
             # 未查到任何主机插件记录：可能是任务没有节点，也可能是节点管理里这些主机
-            # 从未安装过该插件。接口异常与权限不足在这条链路上会抛 BkApiError 而不会
-            # 返回空列表，因此这里不按「接口故障」处理，只记录以便排查校验被整体跳过。
+            # 从未安装过该插件。接口异常会抛 BkApiError。V3 下账号只有部分业务的 plugin_view，
+            # 且请求的业务都不在授权范围内时，节点管理返回空列表而不是无权限错误。
+            # 空列表无法判定版本，不按接口故障处理，只记录以便排查校验被整体跳过。
             logger.warning(
-                "skip bkmonitorbeat version check due to empty plugin list, bk_host_ids=%s, bk_biz_ids=%s",
+                "skip bkmonitorbeat version check due to empty plugin list, bk_host_ids=%s",
                 bk_host_ids,
-                bk_biz_ids,
             )
         too_old_nodes: list[str] = []
         for plugin in all_plugin:
