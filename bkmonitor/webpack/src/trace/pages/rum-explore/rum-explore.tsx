@@ -154,11 +154,19 @@ export default defineComponent({
     const eventsDrawerCtx = useRumEventsDrawer(resetSignal);
     /**
      * 主表高亮行 key（受控单一数据源）：行点击 / 键盘高亮与 events 抽屉共用，重置信号变化时清除；
-     * 兜底行为详情对应行的表格行 key（未记录时回落详情记录 ID，兼容 URL 还原），因此不会被重置信号清空。
+     * 兜底行为详情所在行的表格行 key：页内打开由 detailRowKey 精确记录，刷新 / 分享链接还原时 URL 只带 detailContext，
+     * 需按其记录 ID 在结果集中反查同一记录所在行的行 key（Span 视角会话行的记录 ID 是会话 ID，与行 key 不同），
+     * 因此不会被重置信号清空。
      */
     const activeRowCtx = useRumActiveRow(resetSignal, {
       locked: eventsDrawerCtx.show,
-      fallbackRowKey: computed(() => detailRowKey.value || detailContext.value?.record_id || ''),
+      fallbackRowKey: computed(() => {
+        if (detailRowKey.value) return detailRowKey.value;
+        const recordId = detailContext.value?.record_id ?? '';
+        if (!recordId) return '';
+        const row = tableCtx.tableData.value.find(item => getDetailRecordId(item) === recordId);
+        return String(row?.[RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? '');
+      }),
     });
     const configLoading = computed(() => applicationLoading.value || viewConfigCtx.loading.value);
     // tagValueDisplayFormatter 用于让已选条件 tag 按字段单位与枚举别名展示
