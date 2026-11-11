@@ -1064,9 +1064,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
     def _get_column_metric_mapping(
         cls, column_metric: dict[str, Any], metric_params: dict[str, Any], service_names: list[str]
     ) -> dict[str, Any]:
-        """
-        获取服务异步列数据映射 (指标)
-        """
+        """查询服务列表的异步指标列，按服务名称返回指标值。"""
 
         if column_metric.get("type") == "instant":
             return ServiceHandler.get_service_metric_instant_mapping(
@@ -1078,6 +1076,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         start_time, end_time = metric_params["start_time"], metric_params["end_time"]
         interval = get_bar_interval_number(start_time, end_time)
         calculation_type = column_metric["calculation_type"]
+        # 平均耗时沿用独立的查询步长，三列仍按原柱状图间隔补点。
         query_interval = (
             get_interval_number(start_time, end_time)
             if calculation_type == metric_group.CalculationType.AVG_DURATION.value
@@ -1089,7 +1088,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             service_names=service_names,
             interval=query_interval,
         )
-        # 完成同名覆盖后，仅补齐本次请求的服务。
+        # 每个命中的服务只补点一次，响应仍按原始 service_names 组装。
         filled = {}
         for name in dict.fromkeys(service_names):
             if name not in response:

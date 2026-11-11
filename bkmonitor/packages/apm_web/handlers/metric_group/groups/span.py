@@ -60,8 +60,9 @@ class SpanMetricGroup(base.BaseMetricGroup):
         qs = UnifyQuerySet().scope(self.bk_biz_id)
 
         if calculation_type == define.CalculationType.AVG_DURATION.value:
+            # 使用 QuerySet 读取平均耗时，保留 UQ 返回的原始数值精度。
             start_ms, end_ms = UnifyQuery.process_time_range(start_time * 1000, end_time * 1000)
-            # QuerySet 对齐请求窗口，但按传入的结束时间去末点。平均耗时沿用对齐后去末点。
+            # QuerySet 按传入的结束时间去掉末点。原平均耗时查询去掉的是对齐到步长后的结束点。
             aligned_end_ms = time_interval_align(end_ms // 1000, self.interval) * 1000
             qs = self._avg_duration_qs(qs, q, expression="(a or vector(0)) / b").start_time(start_ms).end_time(end_ms)
             points_by_group = defaultdict(list)
@@ -76,11 +77,12 @@ class SpanMetricGroup(base.BaseMetricGroup):
             ]
 
         if calculation_type == define.CalculationType.EXCEPTION_RATE.value:
+            # 按状态码汇总调用次数后计算错误率，有调用但无错误的时间点返回 0。
             q = q.group_by("status_code")
         elif calculation_type != define.CalculationType.REQUEST_TOTAL.value:
             raise ValueError(f"Unsupported range calculation type -> {calculation_type}")
 
-        # Graph 会将 where 中的全选标记视为通配；保留 filter_dict 以支持同名服务的字面值匹配。
+        # Graph 会移除 where 中的全选条件。保留 filter_dict 可精确匹配与全选标记同名的服务。
         config = self._request_total_qs(qs, q).config
         series = resource.grafana.graph_unify_query.query_with_metric_info(
             {**config, "start_time": start_time, "end_time": end_time}, metric_infos=metric_infos
@@ -158,6 +160,7 @@ class SpanMetricGroup(base.BaseMetricGroup):
         return self._qs().add_query(error_q).add_query(total_q).expression("a / b")
 
     def _avg_duration_qs(self, qs: UnifyQuerySet, q: QueryConfigBuilder, *, expression: str = "a / b") -> UnifyQuerySet:
+        # 累计耗时和调用计数共用分组、过滤条件与增量窗口，分母取 bk_apm_total 的计数器增量。
         q = q.func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
         sum_q = q.metric(field=TraceMetric.BK_APM_DURATION_SUM, method="SUM", alias="a")
         total_q = q.metric(field=TraceMetric.BK_APM_TOTAL, method="SUM", alias="b")

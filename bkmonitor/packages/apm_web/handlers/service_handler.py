@@ -552,27 +552,30 @@ class ServiceHandler:
         service_names: list[str],
         interval: int,
     ) -> dict[str, list]:
-        """查询列表目标的指标趋势，按普通、DB、消息、远程服务的顺序合并。"""
+        """查询本次请求指定服务的指标趋势。"""
         service_names = list(dict.fromkeys(service_names))
         service_group = ("service_name",)
         db_group = ("service_name", "db_system")
         messaging_group = ("service_name", "messaging_system")
         remote_group = ("peer_service",)
+        # 同一名称可能命中多个分支，普通服务始终按请求名称匹配。
         filters_by_group: dict[tuple[str, ...], dict[str, list[str]]] = {
             service_group: {"service_name__eq": service_names}
         }
 
-        # 枚举所有分隔位置，覆盖服务名和组件类型均可能包含连字符的候选配对。
+        # 服务名和组件类型都可能包含连字符。枚举每个分隔位置的非空前缀，保留全部候选服务名。
         candidate_services = sorted(
             {name[:index] for name in service_names for index, char in enumerate(name) if char == "-" and index > 0}
         )
         if candidate_services:
+            # 合并时会丢弃空组件维度的序列，将非空条件下推到 UQ 聚合前。
             filters_by_group[db_group] = {"service_name__eq": candidate_services, "db_system__neq": [""]}
             filters_by_group[messaging_group] = {
                 "service_name__eq": candidate_services,
                 "messaging_system__neq": [""],
             }
 
+        # 远程服务只按被调方 peer_service 筛选，汇总所有调用方的指标。
         remote_prefix = cls.generate_remote_service_name("")
         remote_names = [
             cls.get_remote_service_origin_name(name)
@@ -582,6 +585,7 @@ class ServiceHandler:
         if remote_names:
             filters_by_group[remote_group] = {"peer_service__eq": remote_names}
 
+        # 从已读取的应用配置确定 __default__ 指标表，供各查询分支复用。
         database_name, _ = application.metric_result_table_id.split(".")
         metric_helper = metric_group.MetricHelper(
             application.bk_biz_id, application.app_name, table_id=f"{database_name}.__default__"
@@ -594,7 +598,7 @@ class ServiceHandler:
             config = metric_group.SpanMetricGroup(
                 application.bk_biz_id, application.app_name, metric_helper=metric_helper
             ).query_config(metric_group.CalculationType.REQUEST_TOTAL.value, raw=True)
-            # 两列均读取 bk_apm_count。在请求线程预读，避免分支线程为相同元数据重复建连。
+            # 调用次数和错误率都读取 bk_apm_count。每次列请求预读一次元数据，避免分支线程重复获取数据库连接。
             metric_infos = resource.grafana.graph_unify_query.get_metric_info(
                 {**config, "bk_biz_id": application.bk_biz_id}
             )
@@ -623,8 +627,10 @@ class ServiceHandler:
                     group: pool.apply_async(query_group, args=(group, filters))
                     for group, filters in filters_by_group.items()
                 }
+                # 通过 get() 上抛分支查询异常，沿用该指标列的失败处理。
                 results = {group: future.get() for group, future in futures.items()}
 
+        # 同名结果按普通服务、数据库组件、消息组件和远程服务的顺序覆盖。
         return cls._combine_metric_data(
             results[service_group],
             results.get(db_group, {}),

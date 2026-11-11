@@ -940,7 +940,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         # 拨测指标处理
         self.handle_special_uptime_check_metric(params["query_configs"])
 
-        # 指标信息查询
+        # None 表示未预读，沿用默认读取流程。空列表是可复用的预读结果。
         metrics = self.context.get("metric_infos") if self.context else None
         if metrics is None:
             metrics = self.get_metric_info(params)
@@ -1055,8 +1055,9 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
     def query_with_metric_info(
         cls, params: dict[str, Any], *, metric_infos: list[dict[str, Any]] | None = None
     ) -> dict[str, Any]:
-        """复用调用方预读的指标元数据，保持请求校验与调用记录。"""
+        """复用调用方预读的指标元数据，沿用原校验、鉴权和请求记录。"""
         query = cls(context={"metric_infos": metric_infos})
+        # Resource.__call__ 会重建实例，直接传入 query 以保留本次调用的 context。
         return ResourceData.objects.request(query, (params,), {})
 
     def get_api_auth_request_data(self, request_data, validated_request_data):
