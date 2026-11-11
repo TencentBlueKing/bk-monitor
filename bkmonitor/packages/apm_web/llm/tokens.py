@@ -10,14 +10,11 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-import base64
-import gzip
 import json
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -35,15 +32,6 @@ CONTENT_CATEGORIES = {
 }
 
 
-@lru_cache(maxsize=2)
-def load_encoding(name: str) -> tiktoken.Encoding:
-    """词表随模块分发，初始化不访问网络。"""
-    with gzip.open(Path(__file__).with_name("tokenizers") / f"{name}.json.gz", "rt") as source:
-        data = json.load(source)
-    data["mergeable_ranks"] = {base64.b64decode(token): rank for token, rank in data["mergeable_ranks"].items()}
-    return tiktoken.Encoding(name=name, **data)
-
-
 class TokenCounter:
     """一次请求内复用分词结果，避免重复编码历史上下文。"""
 
@@ -52,7 +40,7 @@ class TokenCounter:
             name = tiktoken.encoding_name_for_model(model)
         except KeyError:
             name = "cl100k_base"
-        self.encoding = load_encoding(name if name == "o200k_base" else "cl100k_base")
+        self.encoding = tiktoken.get_encoding(name if name == "o200k_base" else "cl100k_base")
         encode = self.encoding.encode_ordinary
         # 超长无空白片段的 BPE 编码可能呈二次耗时，分段限制延迟。
         self._count = lru_cache(maxsize=128)(

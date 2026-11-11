@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from unittest import TestCase, mock
+from unittest import TestCase
 
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.utils import repair_truncated_json
-from apm_web.llm.tokens import TokenCounter, build_token_matrix, load_encoding
+from apm_web.llm.tokens import TokenCounter, build_token_matrix
 from apm_web.tests.llm.test_detail import entity_set, raw_span
 
 
@@ -145,17 +145,12 @@ class TokenMatrixTests(TestCase):
         self.assertEqual(TokenCounter("gpt-4o").count("hello"), 1)
         self.assertGreater(TokenCounter("gpt-4o").count("<|endoftext|>"), 0)
 
-    def test_bundled_encodings_match_official_tokens_without_network(self):
-        load_encoding.cache_clear()
-        with (
-            mock.patch("tiktoken.load.read_file", side_effect=AssertionError("no vocabulary download")),
-            mock.patch.dict("os.environ", {"TIKTOKEN_CACHE_DIR": ""}),
+    def test_model_encodings_match_official_token_vectors(self):
+        for model, expected in (
+            ("unknown-model", [57668, 53901, 3922, 14957, 0]),
+            ("gpt-4o", [177519, 979, 24169, 0]),
         ):
-            for model, expected in (
-                ("unknown-model", [57668, 53901, 3922, 14957, 0]),
-                ("gpt-4o", [177519, 979, 24169, 0]),
-            ):
-                self.assertEqual(TokenCounter(model).encoding.encode_ordinary("你好，world!"), expected)
+            self.assertEqual(TokenCounter(model).encoding.encode_ordinary("你好，world!"), expected)
 
     def test_reported_total_calibrates_up_and_down_and_matches_sections(self):
         for reported in (0, 1, 3, 100):
