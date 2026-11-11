@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from ai_whale.alert_analysis_access import authorize_content_ids, check_alert_history, check_alert_session
+from ai_whale.alert_analysis_session import SESSION_PREFIX, history
 from ai_whale.utils import get_agent_code_by_scenario_route
 from core.drf_resource import Resource
 from rest_framework import serializers
@@ -54,6 +56,7 @@ class CreateChatSessionResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        check_alert_session(validated_request_data.get("session_code"))
         session_code = validated_request_data.get("session_code")
         session_name = validated_request_data.get("session_name")
         is_temporary = validated_request_data.get("is_temporary", False)
@@ -79,6 +82,7 @@ class RetrieveChatSessionResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        check_alert_session(validated_request_data.get("session_code"))
         session_code = validated_request_data.get("session_code", None)
         username = get_request_username()
 
@@ -103,6 +107,7 @@ class DestroyChatSessionResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        check_alert_session(validated_request_data.get("session_code"))
         session_code = validated_request_data.get("session_code")
         logger.info("DestroyChatSessionResource: try to destroy session with session_code->[%s]", session_code)
         return aidev_interface.destroy_chat_session(session_code=session_code)
@@ -121,6 +126,7 @@ class UpdateChatSessionResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        check_alert_session(validated_request_data.get("session_code"))
         session_code = validated_request_data.get("session_code")
         logger.info("UpdateChatSessionResource: try to modify session with session_code->[%s]", session_code)
         return aidev_interface.update_chat_session(session_code=session_code, params=validated_request_data)
@@ -136,6 +142,7 @@ class RenameChatSessionResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        check_alert_session(validated_request_data.get("session_code"))
         session_code = validated_request_data.get("session_code")
         logger.info("RenameChatSessionResource: try to rename session->[%s]", session_code)
 
@@ -172,6 +179,7 @@ class CreateFeedbackResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        check_alert_session(validated_request_data.get("session_code"))
         session_code = validated_request_data.get("session_code")
         rate = validated_request_data.get("rate")
         username = get_request_username()
@@ -198,6 +206,7 @@ class CreateChatSessionContentResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter, extract_command_func=extract_command_from_request)
     def perform_request(self, validated_request_data):
+        check_alert_session(validated_request_data.get("session_code"))
         session_code = validated_request_data.get("session_code")
         property_data = validated_request_data.get("property", {})
 
@@ -227,8 +236,13 @@ class GetChatSessionContentsResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        check_alert_session(validated_request_data.get("session_code"))
         session_code = validated_request_data.get("session_code")
         logger.info("GetChatSessionContentResource: try to get content with session_code->[%s]", session_code)
+        if session_code.startswith(SESSION_PREFIX):
+            records = history(aidev_interface, session_code)
+            check_alert_history(session_code, records)
+            return {"result": True, "data": records}
         return aidev_interface.get_chat_session_contents(session_code=session_code)
 
 
@@ -242,6 +256,7 @@ class DestroyChatSessionContentResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        authorize_content_ids(aidev_interface, [validated_request_data["id"]])
         id = validated_request_data.get("id")
         logger.info("DestroyChatSessionContentResource: try to delete content,id->[%s]", id)
         return aidev_interface.destroy_chat_session_content(id=id)
@@ -257,6 +272,7 @@ class BatchDeleteSessionContentResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        authorize_content_ids(aidev_interface, validated_request_data["ids"])
         logger.info(
             "BatchDeleteSessionContentResource: try to batch delete content with params->[%s]", validated_request_data
         )
@@ -278,6 +294,8 @@ class UpdateChatSessionContentResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        authorize_content_ids(aidev_interface, [validated_request_data["id"]], validated_request_data["session_code"])
+        check_alert_session(validated_request_data.get("session_code"))
         session_code = validated_request_data.get("session_code")
         logger.info("UpdateChatSessionContentResource: try to update content with session_code->[%s]", session_code)
         return aidev_interface.update_chat_session_content(params=validated_request_data)
@@ -316,7 +334,10 @@ class CreateChatCompletionResource(Resource):
 
     @ai_enhanced_streaming_metrics(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
+        check_alert_session(validated_request_data.get("session_code"))
         session_code = validated_request_data.get("session_code")
+        if session_code.startswith(SESSION_PREFIX):
+            check_alert_history(session_code, history(aidev_interface, session_code))
         execute_kwargs = validated_request_data["execute_kwargs"]
         username = get_request_username()
 

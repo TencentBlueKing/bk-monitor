@@ -1,10 +1,13 @@
 """Monitor-owned alert analysis APIs; incident results remain explicitly attributed."""
 
-from rest_framework import serializers
-from rest_framework.exceptions import PermissionDenied, ValidationError
+import logging
 
-from ai_whale.alert_analysis_access import authorized_alert, authorize_incident
-from ai_whale.alert_analysis_session import PANELS
+from django.conf import settings
+from rest_framework import serializers
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
+
+from ai_whale.alert_analysis_access import authorized_alert, authorize_incident, check_alert_history, current_identity
+from ai_whale.alert_analysis_session import PANELS, ensure_session
 from bkmonitor.documents import IncidentDocument
 from core.drf_resource import Resource
 from monitor_web.incident.resources import (
@@ -12,6 +15,9 @@ from monitor_web.incident.resources import (
     IncidentPanelDetailResource,
     IncidentResultsResource,
 )
+
+
+logger = logging.getLogger("ai_whale")
 
 
 class AlertAnalysisSerializer(serializers.Serializer):
@@ -132,3 +138,39 @@ class AlertAnalysisPanelDetailResource(Resource):
         # Never trust a client-supplied incident ID; BKFara also validates task/ref ownership.
         params["incident_id"] = int(incident.incident_id)
         return IncidentPanelDetailResource().request(params)
+
+
+class AlertAnalysisSessionContextResource(Resource):
+    RequestSerializer = AlertAnalysisSerializer
+
+    def perform_request(self, validated_request_data):
+        from redis.exceptions import LockError
+        from ai_whale.resources.resources import aidev_interface
+        from utils.redis_client import RedisClient
+
+        # Authorize before acquiring locks or contacting the conversation service.
+        authorized_alert(validated_request_data["alert_id"], validated_request_data["bk_biz_id"])
+        username, tenant_id = current_identity()
+        try:
+            return ensure_session(
+                aidev_interface,
+                RedisClient(),
+                context_factory=lambda: analysis_context(validated_request_data),
+                alert_id=validated_request_data["alert_id"],
+                username=username,
+                tenant_id=tenant_id,
+                agent_code=settings.AIDEV_AGENT_APP_CODE,
+                history_validator=check_alert_history,
+            )
+        except LockError as exc:
+            error = APIException("告警会话正在准备，请稍后重试", code="session_preparing")
+            error.status_code = 409
+            raise error from exc
+        except APIException:
+            raise
+        except Exception as exc:
+            # Upstream exceptions may contain response bodies; keep those out of the frontend response.
+            logger.warning("Alert session preparation failed (%s)", type(exc).__name__)
+            error = APIException("告警分析会话尚未确认持久化，请重试", code="session_not_ready")
+            error.status_code = 502
+            raise error from exc

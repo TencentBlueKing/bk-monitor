@@ -11,6 +11,7 @@ from django.conf import settings
 from rest_framework.exceptions import PermissionDenied
 
 from ai_whale import alert_analysis_access as access
+from ai_whale.alert_analysis_session import session_code_for
 
 
 def module(monkeypatch, name, **attrs):
@@ -134,6 +135,17 @@ def test_64bit_id_remains_a_string(api):
     assert serializer.validated_data["alert_id"] == "9999999999999999999"
 
 
+def test_session_owner_is_checked_before_alert_lookup(monkeypatch):
+    monkeypatch.setattr(access, "current_identity", lambda: ("alice", "tenant"))
+    lookup = Mock()
+    monkeypatch.setattr(access, "authorized_alert", lookup)
+    with pytest.raises(PermissionDenied):
+        access.check_alert_session(session_code_for("123", "bob", "tenant"))
+    lookup.assert_not_called()
+    access.check_alert_session(session_code_for("123", "alice", "tenant"))
+    lookup.assert_called_once_with("123")
+
+
 @pytest.mark.parametrize("authenticated,token", [(False, None), (True, "share-token")])
 def test_anonymous_and_shared_credentials_cannot_initialize(monkeypatch, authenticated, token):
     request = SimpleNamespace(user=SimpleNamespace(username="alice", is_authenticated=authenticated), token=token)
@@ -159,6 +171,95 @@ def test_permission_checks_all_source_businesses_and_tenant(monkeypatch):
     permission.is_allowed_by_biz.return_value = False
     with pytest.raises(PermissionDenied):
         access.authorize_businesses([2], "alice", "tenant")
+
+
+def test_id_only_mutation_cannot_change_another_users_snapshot(monkeypatch):
+    monkeypatch.setattr(access, "current_identity", lambda: ("alice", "tenant"))
+    monkeypatch.setattr(access, "authorized_alert", Mock())
+    code = session_code_for("123", "alice", "tenant")
+    interface = Mock()
+    interface.list_chat_sessions.return_value = {"result": True, "data": [{"session_code": code}]}
+    interface.get_chat_session_contents.return_value = {"result": True, "data": [{"id": 1}]}
+    access.authorize_content_ids(interface, [1])
+    with pytest.raises(PermissionDenied):
+        access.authorize_content_ids(interface, [2])
+    with pytest.raises(PermissionDenied):
+        access.authorize_content_ids(interface, [1], "different-session")
+
+
+def test_history_permissions_are_rechecked_after_revocation(monkeypatch):
+    code = session_code_for("123", "alice", "tenant")
+    incident = SimpleNamespace(id="456")
+    module(monkeypatch, "bkmonitor.documents", IncidentDocument=SimpleNamespace(get=lambda *a, **kw: incident))
+    checker = Mock(side_effect=PermissionDenied())
+    monkeypatch.setattr(access, "authorize_incident", checker)
+    records = [
+        {
+            "role": "ai",
+            "property": {
+                "extra": {
+                    "alert_analysis_message": {
+                        "eventId": "snapshot",
+                        "payload": {"source": {"monitor_incident_id": "456"}},
+                    }
+                }
+            },
+        }
+    ]
+    with pytest.raises(PermissionDenied):
+        access.check_alert_history(code, records)
+    checker.assert_called_once_with(incident)
+
+
+@pytest.fixture
+def session_api(api, monkeypatch):
+    class LockError(Exception):
+        pass
+
+    module(monkeypatch, "redis.exceptions", LockError=LockError)
+    module(monkeypatch, "ai_whale.resources.resources", aidev_interface=object())
+    module(monkeypatch, "utils.redis_client", RedisClient=Mock(return_value=object()))
+    api.module.current_identity = Mock(return_value=("alice", "tenant"))
+    api.module.ensure_session = Mock(return_value={"status": "ready", "session_code": "server-code"})
+    api.lock_error = LockError
+    return api
+
+
+def test_session_uses_authenticated_identity_not_client_input(session_api):
+    api = session_api
+    result = api.module.AlertAnalysisSessionContextResource().request(
+        {**api.params, "username": "bob", "tenant_id": "foreign", "session_code": "client-code"}
+    )
+    assert result["session_code"] == "server-code"
+    kwargs = api.module.ensure_session.call_args.kwargs
+    assert kwargs["username"] == "alice" and kwargs["tenant_id"] == "tenant"
+    assert kwargs["agent_code"] == "monitor"
+    assert kwargs["context_factory"]()["subject"]["alert_id"] == "123"
+
+
+def test_session_busy_is_retryable(session_api):
+    from rest_framework.exceptions import APIException
+
+    session_api.module.ensure_session.side_effect = session_api.lock_error()
+    with pytest.raises(APIException) as error:
+        session_api.module.AlertAnalysisSessionContextResource().request(session_api.params)
+    assert error.value.status_code == 409
+
+
+def test_upstream_failure_does_not_leak_response_body(session_api):
+    from rest_framework.exceptions import APIException
+
+    session_api.module.ensure_session.side_effect = RuntimeError("private upstream response")
+    with pytest.raises(APIException) as error:
+        session_api.module.AlertAnalysisSessionContextResource().request(session_api.params)
+    assert error.value.status_code == 502
+    assert "private" not in str(error.value)
+
+
+def test_session_permission_failure_remains_permission_failure(session_api):
+    session_api.module.ensure_session.side_effect = PermissionDenied()
+    with pytest.raises(PermissionDenied):
+        session_api.module.AlertAnalysisSessionContextResource().request(session_api.params)
 
 
 def test_finished_but_empty_panels_are_unavailable(api):

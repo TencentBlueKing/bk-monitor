@@ -15,6 +15,7 @@ from ai_whale.resources.alert_analysis import (
     AlertAnalysisRelatedIncidentResource,
     AlertAnalysisDiagnosisResource,
     AlertAnalysisPanelDetailResource,
+    AlertAnalysisSessionContextResource,
 )
 
 from bkmonitor.iam.drf import ViewBusinessPermission
@@ -104,4 +105,5 @@ class AlertAnalysisViewSet(ResourceViewSet):
         ResourceRoute("GET", AlertAnalysisResultsResource, endpoint="results"),
         ResourceRoute("POST", AlertAnalysisDiagnosisResource, endpoint="diagnosis"),
         ResourceRoute("POST", AlertAnalysisPanelDetailResource, endpoint="panel_detail"),
+        ResourceRoute("POST", AlertAnalysisSessionContextResource, endpoint="session_context"),
     ]
