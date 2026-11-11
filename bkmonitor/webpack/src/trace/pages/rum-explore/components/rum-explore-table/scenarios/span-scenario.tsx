@@ -212,8 +212,8 @@ export class SpanScenario extends BaseScenario {
   }
 
   /**
-   * @description span_name 列单元格渲染：可看详情的类型走链接列（左键打开 Span 详情抽屉、右键唤起检索条件菜单），
-   *              无详情的类型（如 session）走 TEXT 列渲染，hover 均展示 span 名称 / Span ID / 所属 Trace ID 信息
+   * @description span_name 列单元格渲染：可看详情的类型走链接列（左键打开详情抽屉、右键唤起检索条件菜单），
+   *              未登记详情的类型走 TEXT 列渲染，hover 均展示 span 名称 / Span ID / 所属 Trace ID 信息
    * @param {IRumSpanRecord} row 当前行数据
    * @param {BaseTableColumn} column 当前列配置项
    * @param {TableCellRenderContext} renderCtx 列渲染上下文
@@ -225,8 +225,8 @@ export class SpanScenario extends BaseScenario {
       return renderCtx.cellRenderHandleMap[ExploreTableColumnTypeEnum.TEXT]?.(row, column, renderCtx);
     }
     /**
-     * session 类型的详情尚未设计，不提供详情入口，退化成 TEXT 列；
-     * 判定与详情抽屉「上一条 / 下一条」跳过逻辑同源（RUM_DETAIL_SPAN_TYPES），避免两处可用类型不一致。
+     * 未登记详情展示的类型不提供详情入口，退化成 TEXT 列；
+     * 判定与详情抽屉「上一条 / 下一条」跳转逻辑同源（RUM_DETAIL_SPAN_TYPES），避免两处可用类型不一致。
      */
     if (!RUM_DETAIL_SPAN_TYPES.has(row?.[SPAN_TYPE_FIELD] ?? '')) {
       return this.renderPlainSpanNameCell(row, column, renderCtx, alias);

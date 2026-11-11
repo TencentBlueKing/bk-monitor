@@ -71,9 +71,8 @@ import {
   RumModeEnum,
   SESSION_ID_FIELD,
   SPAN_TYPE_FIELD,
-  VIEW_ID_FIELD,
 } from './constants';
-import RumSpanDetailSlider, { RumSessionDetailSlider } from './detail';
+import RumSpanDetailSlider from './detail';
 import { OVERVIEW_ISOLATED_LINK_FIELDS } from './detail/constants';
 import { getApplicationList } from './services/rum-application';
 import EmptyStatus from '@/components/empty-status/empty-status';
@@ -117,6 +116,14 @@ export default defineComponent({
     /** Span 详情抽屉的上下文，为 null 时抽屉关闭 */
     const detailContext = shallowRef<IRumDetailContext | null>(null);
     const detailShow = shallowRef(false);
+    /** 详情对应行的表格行 key：Span 视角的会话行详情记录 ID 是会话 ID，与行 key（span_id）不同，需单独记录 */
+    const detailRowKey = shallowRef('');
+    /** 详情抽屉层级：Session 视角与 Span 视角下的会话行都按会话层级展示 */
+    const detailMode = computed<RumModeType>(() =>
+      store.mode === RumModeEnum.SESSION || detailContext.value?.span_type === RumModeEnum.SESSION
+        ? RumModeEnum.SESSION
+        : store.mode
+    );
     const applicationLoading = shallowRef(true);
     const applicationError = shallowRef(false);
     let disposed = false;
@@ -147,11 +154,11 @@ export default defineComponent({
     const eventsDrawerCtx = useRumEventsDrawer(resetSignal);
     /**
      * 主表高亮行 key（受控单一数据源）：行点击 / 键盘高亮与 events 抽屉共用，重置信号变化时清除；
-     * 兜底行为详情抽屉的记录 ID，URL 还原的详情因此不会在首屏结果集回填前被重置清空。
+     * 兜底行为详情对应行的表格行 key（未记录时回落详情记录 ID，兼容 URL 还原），因此不会被重置信号清空。
      */
     const activeRowCtx = useRumActiveRow(resetSignal, {
       locked: eventsDrawerCtx.show,
-      fallbackRowKey: computed(() => detailContext.value?.record_id ?? ''),
+      fallbackRowKey: computed(() => detailRowKey.value || detailContext.value?.record_id || ''),
     });
     const configLoading = computed(() => applicationLoading.value || viewConfigCtx.loading.value);
     // tagValueDisplayFormatter 用于让已选条件 tag 按字段单位与枚举别名展示
@@ -430,10 +437,19 @@ export default defineComponent({
     }
 
     /**
+     * 行的详情记录 ID：Span 视角下的会话行与 Session 视角同口径取会话 ID（会话详情的接口与时间轴都以会话 ID 定位），
+     * 其余视角与行唯一键一致。
+     */
+    function getDetailRecordId(row: IRumSpanRecord) {
+      const isSessionSpan = store.mode === RumModeEnum.SPAN && row?.[SPAN_TYPE_FIELD] === RumModeEnum.SESSION;
+      return String(row?.[isSessionSpan ? SESSION_ID_FIELD : RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? '');
+    }
+
+    /**
      * 打开详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
      * 不额外请求列表接口。
      * View / Session 视角的一行即一条 view / session 记录：记录 ID 分别取页面 ID 与会话 ID，
-     * 类型固定为 view / session；Span 视角取行内 span_id 与 span_type。
+     * 类型固定为 view / session；Span 视角取行内 span_id 与 span_type，其中 session 行按会话 ID 打开会话详情。
      */
     function handleOpenDetail(row: IRumSpanRecord) {
       const isViewMode = store.mode === RumModeEnum.VIEW;
@@ -444,7 +460,7 @@ export default defineComponent({
       const endSeconds = microToUnixSeconds(row?.end_time) ?? startSeconds;
       detailContext.value = {
         app_name: store.appName,
-        record_id: String(row?.[RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? ''),
+        record_id: getDetailRecordId(row),
         span_type: isSessionMode ? 'session' : isViewMode ? 'view' : String(row?.[SPAN_TYPE_FIELD] ?? ''),
         start_time: startSeconds ?? queryStart,
         end_time: endSeconds ?? queryEnd,
@@ -452,7 +468,9 @@ export default defineComponent({
       detailShow.value = true;
       /** 打开详情时收起 events 抽屉：两者都是行数据下钻视图，避免底部抽屉与详情侧弹叠放（上/下一条切换同样走这里，随切换收起） */
       eventsDrawerCtx.closeDrawer();
-      activeRowCtx.setActiveRowKey(detailContext.value.record_id);
+      /** 高亮行取表格行 key：Span 视角的会话行记录 ID 是会话 ID，不能直接当行 key */
+      detailRowKey.value = String(row?.[RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? '');
+      activeRowCtx.setActiveRowKey(detailRowKey.value);
       queryCtx.setUrlParams({
         detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
         detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
@@ -461,7 +479,10 @@ export default defineComponent({
 
     const handleSpanDetailShowChange = (show: boolean) => {
       detailShow.value = show;
-      if (!show) detailContext.value = null;
+      if (!show) {
+        detailContext.value = null;
+        detailRowKey.value = '';
+      }
       queryCtx.setUrlParams({
         detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
         detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
@@ -475,13 +496,12 @@ export default defineComponent({
     function handleStepDetail(step: -1 | 1) {
       const tableData = tableCtx.tableData.value;
       if (!tableData.length) return;
-      /** View / Session 视角的行分别以页面 ID、会话 ID 为唯一键，且每行都可打开详情；Span 视角按 span_id 与详情可用类型过滤 */
+      /** View / Session 视角每行都可打开详情；Span 视角按行内详情记录 ID 定位当前行，并按详情可用类型过滤跳转目标 */
       const isViewMode = store.mode === RumModeEnum.VIEW;
       const isSessionMode = store.mode === RumModeEnum.SESSION;
-      const rowKey = isSessionMode ? SESSION_ID_FIELD : isViewMode ? VIEW_ID_FIELD : 'span_id';
       const currentIndex = Math.max(
         0,
-        tableData.findIndex(item => item[rowKey] === detailContext.value?.record_id)
+        tableData.findIndex(item => getDetailRecordId(item) === detailContext.value?.record_id)
       );
       // 最多回绕一整圈，offset 走到与起点重合即说明没有其他可展示详情的记录
       for (let offset = 1; offset <= tableData.length; offset++) {
@@ -583,6 +603,7 @@ export default defineComponent({
       columnConfig,
       detailContext,
       detailShow,
+      detailMode,
       emptyType,
       layoutPreset,
       isSpanSpecialPerspective,
@@ -820,32 +841,18 @@ export default defineComponent({
           </div>
         </div>
 
-        {this.store.mode === RumModeEnum.SESSION ? (
-          <RumSessionDetailSlider
-            context={this.detailContext}
-            fields={viewConfigCtx.viewConfig.value.fields}
-            isShow={this.detailShow}
-            onConditionAdd={(key, value) =>
-              this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
-            }
-            onNext={this.handleNextDetail}
-            onPrevious={this.handlePreviousDetail}
-            onUpdate:isShow={this.handleSpanDetailShowChange}
-          />
-        ) : (
-          <RumSpanDetailSlider
-            context={this.detailContext}
-            fields={viewConfigCtx.viewConfig.value.fields}
-            isShow={this.detailShow}
-            mode={this.store.mode}
-            onConditionAdd={(key, value) =>
-              this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
-            }
-            onNext={this.handleNextDetail}
-            onPrevious={this.handlePreviousDetail}
-            onUpdate:isShow={this.handleSpanDetailShowChange}
-          />
-        )}
+        <RumSpanDetailSlider
+          context={this.detailContext}
+          fields={viewConfigCtx.viewConfig.value.fields}
+          isShow={this.detailShow}
+          mode={this.detailMode}
+          onConditionAdd={(key, value) =>
+            this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
+          }
+          onNext={this.handleNextDetail}
+          onPrevious={this.handlePreviousDetail}
+          onUpdate:isShow={this.handleSpanDetailShowChange}
+        />
 
         {/* events 抽屉：贴页面底部弹出，覆盖除平台导航外的整块内容区，不随表格滚动 */}
         {eventsRow ? (

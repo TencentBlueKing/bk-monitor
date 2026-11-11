@@ -24,6 +24,5 @@
  * IN THE SOFTWARE.
  */
 
-export { default as RumSessionDetailSlider } from './rum-session-detail-slider';
 export { default } from './rum-span-detail-slider';
 export * from './typings';
