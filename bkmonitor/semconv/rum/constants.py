@@ -406,7 +406,10 @@ class NetworkStatus(CachedEnum):
 
 
 class NetworkEffectiveType(CachedEnum):
-    """网络有效类型，对应浏览器 navigator.connection.effective_type 的原始值"""
+    """网络质量等级，对应浏览器 navigator.connection.effectiveType 的原始值。
+
+    由近期往返时延和下行吞吐量估算，与 Wi-Fi、蜂窝等连接类型无关。
+    """
 
     SLOW_2G = "slow-2g"
     G2 = "2g"
@@ -416,10 +419,10 @@ class NetworkEffectiveType(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.SLOW_2G: _("极慢"),
-            self.G2: _("较慢"),
-            self.G3: _("中等"),
-            self.G4: _("较快"),
+            self.SLOW_2G: _("极低速网络"),
+            self.G2: _("低速网络"),
+            self.G3: _("中速网络"),
+            self.G4: _("高速网络"),
         }.get(self, self.value)
 
     @classmethod
