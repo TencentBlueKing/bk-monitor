@@ -410,6 +410,7 @@ export default {
   专业解释: 'Professional explanation',
   用户感受: 'User experience',
   '{0} 会话开始日': '{0} Session Start Date',
+  '{0}月{1}日 {2}': '{0}/{1} {2}',
   '会话结束 · 总时长 {0}': 'Session End · Total Duration {0}',
   会话事件时间轴: 'Session Event Timeline',
 };

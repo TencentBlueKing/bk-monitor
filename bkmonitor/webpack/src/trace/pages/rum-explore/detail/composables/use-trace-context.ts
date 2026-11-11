@@ -139,6 +139,7 @@ export function useTraceContext({
   async function fetchTimeline(app: string, dim: string) {
     const seq = ++requestId;
     loading.value = true;
+    timeline.value = null;
     error.value = false;
     const res =
       scope === 'session'
@@ -240,7 +241,7 @@ export function useTraceContext({
     const startTime = timeline.value?.start_time;
     if (startTime === null || startTime === undefined) return '';
     const startDate = dayjs.tz(Number(startTime) / 1000);
-    return `${startDate.format('M月D日')} ${t(WEEKDAY_LABELS[startDate.day()])}`;
+    return t('{0}月{1}日 {2}', [startDate.month() + 1, startDate.date(), t(WEEKDAY_LABELS[startDate.day()])]);
   });
 
   /** 时间轴总耗时（微秒）：优先取接口 duration，接口未返回时用起止时间差兜底 */

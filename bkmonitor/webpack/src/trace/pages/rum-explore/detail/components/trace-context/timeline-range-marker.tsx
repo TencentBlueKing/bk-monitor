@@ -42,7 +42,7 @@ export default defineComponent({
       type: String as PropType<'head' | 'tail'>,
       required: true,
     },
-    /** 检索维度：会话时间轴与会话内 View 的时间轴使用不同文案 */
+    /** 检索维度 */
     scope: {
       type: String as PropType<'session' | 'view'>,
       required: true,
