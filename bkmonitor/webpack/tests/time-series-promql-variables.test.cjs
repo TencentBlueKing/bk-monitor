@@ -93,6 +93,52 @@ test('Native interpolation preserves variable precedence and noTransform returns
   assert.strictEqual(service.transformVariables(source, { time_shift: '1d' }, true), source);
 });
 
+test('Pod memory marker avoids both fixed and dynamically selected grouping labels', () => {
+  const marker = '__bk_pod_memory_source';
+  const promql = `sum by (${marker},$group_by) (label_replace(sum by (__name__,${marker},$group_by) (container_memory_rss),"$pod_memory_marker","parent","__name__","pod_memory_rss") and on ($pod_memory_marker) label_replace(vector(1),"$pod_memory_marker","parent","__name__",".*"))`;
+  for (const [index, scoped, expected] of [
+    [{ group_by: [] }, {}, `${marker}_`],
+    [{ group_by: [`${marker}_`] }, {}, `${marker}__`],
+    [{}, { group_by: `${marker}_,${marker}__` }, `${marker}___`],
+    [{ group_by: ['namespace'] }, { group_by: [`${marker}_`] }, `${marker}_`],
+  ]) {
+    const source = { promql: 'container_memory_rss', pod_promql: 'container_memory_rss',
+      pod_memory_child_promql: promql, pod_memory_parent_promql: promql };
+    const result = new VariablesService(index).transformVariables(source, scoped).promql;
+    assert.ok(result.includes(`"${expected}","parent"`));
+    assert.ok(result.includes(`and on (${expected})`));
+    assert.ok(!result.includes('$pod_memory_marker'));
+    parse(result);
+  }
+});
+
+test('An ordinary PromQL variable named pod_memory_marker keeps its existing meaning', () => {
+  const service = new VariablesService({ pod_memory_marker: 'custom-value' });
+  const { promql } = service.transformVariables({ promql: 'container_memory_rss{source="$pod_memory_marker"}' });
+  assert.equal(promql, 'container_memory_rss{source="custom-value"}');
+  parse(promql);
+});
+
+test('New Pod memory variants are selected from the response and legacy templates fall back to children', () => {
+  const source = {
+    promql: 'sum(old_child)', pod_promql: 'sum(old_child)',
+    overview_promql: 'sum(old_overview)', overview_pod_promql: 'sum(old_overview)',
+    pod_memory_child_promql: 'sum(new_child)', pod_memory_parent_promql: 'sum(new_parent)',
+    overview_pod_memory_child_promql: 'sum(new_overview_child)',
+    overview_pod_memory_parent_promql: 'sum(new_overview_parent)',
+  };
+  for (const [group_by, expected] of [
+    [[], 'sum(new_parent)'], [['namespace'], 'sum(new_parent)'],
+    [['container_name'], 'sum(new_child)'], [['container'], 'sum(new_child)'], [['image'], 'sum(new_child)'],
+  ]) {
+    const result = new VariablesService({ group_by }).transformVariables(source);
+    assert.deepEqual(result, { promql: expected });
+  }
+  const old = { promql: 'sum(old_child)', pod_promql: 'sum(old_parent)' };
+  assert.deepEqual(new VariablesService({ group_by: [] }).transformVariables(old), { promql: 'sum(old_child)' });
+  assert.deepEqual(new VariablesService({ group_by: ['container'] }).transformVariables(old), { promql: 'sum(old_child)' });
+});
+
 const chartFile = path.join(root, 'monitor-ui/chart-plugins/plugins/time-series/time-series.tsx');
 const chartSource = ts.createSourceFile(chartFile, fs.readFileSync(chartFile, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const component = chartSource.statements.find(ts.isClassDeclaration);
@@ -227,7 +273,9 @@ const childTemplate = template.replace('pod_memory_rss', 'container_memory_rss')
 function podConfig() {
   return {
     promql: childTemplate,
-    pod_promql: template,
+    pod_promql: childTemplate,
+    pod_memory_child_promql: childTemplate,
+    pod_memory_parent_promql: template,
     overview_promql: '$method by ($group_by)(container_memory_rss $time_shift)',
     overview_pod_promql: '$method by ($group_by)(pod_memory_rss $time_shift)',
     metrics: [{ field: 'container_memory_rss', method: '$method', alias: 'A' }],
@@ -252,14 +300,15 @@ test('Pod variants select before interpolation for every consumer input shape an
       parse(result.promql);
       assert.ok(result.promql.includes(child ? 'container_memory_rss{' : 'pod_memory_rss{'));
       assert.deepEqual(result.metrics, [{ field: 'container_memory_rss', method: 'sum', alias: 'A' }]);
-      for (const field of ['pod_promql', 'overview_promql', 'overview_pod_promql']) assert.equal(field in result, false);
+      for (const field of ['pod_promql', 'overview_promql', 'overview_pod_promql', 'pod_memory_child_promql', 'pod_memory_parent_promql']) assert.equal(field in result, false);
       assert.deepEqual(source, before);
     }
   }
 });
 
 test('Fixed variant strings are resolved in nested panels without changing existing fixed or noTransform contracts', () => {
-  const source = { targets: [{ data: { query_configs: [{ promql: 'sum(child_metric)', pod_promql: 'sum(parent_metric)' }] } }] };
+  const source = { targets: [{ data: { query_configs: [{ promql: 'sum(child_metric)', pod_promql: 'sum(child_metric)',
+    pod_memory_child_promql: 'sum(child_metric)', pod_memory_parent_promql: 'sum(parent_metric)' }] } }] };
   const parent = new VariablesService({ group_by: [] }).transformVariables(source);
   const child = new VariablesService({ group_by: ['container'] }).transformVariables(source);
   assert.deepEqual(parent.targets[0].data.query_configs[0], { promql: 'sum(parent_metric)' });
@@ -292,7 +341,8 @@ test('Variant selection follows existing index precedence and scoped fallback', 
 test('A service without an index leaves fixed native queries intact and selects the fixed Pod variant', () => {
   const service = new VariablesService();
   assert.deepEqual(service.transformVariables({ promql: 'sum(fixed_metric)' }), { promql: 'sum(fixed_metric)' });
-  assert.deepEqual(service.transformVariables({ promql: 'sum(child_metric)', pod_promql: 'sum(parent_metric)' }), {
+  assert.deepEqual(service.transformVariables({ promql: 'sum(child_metric)', pod_promql: 'sum(child_metric)',
+    pod_memory_child_promql: 'sum(child_metric)', pod_memory_parent_promql: 'sum(parent_metric)' }), {
     promql: 'sum(parent_metric)',
   });
 });
@@ -653,6 +703,8 @@ test('Actual collection getter and save payload retain grouping and explicit uni
   const ratio = podConfig();
   ratio.promql = `(${ratio.promql}) / 100`;
   ratio.pod_promql = `(${ratio.pod_promql}) / 100`;
+  ratio.pod_memory_child_promql = `(${ratio.pod_memory_child_promql}) / 100`;
+  ratio.pod_memory_parent_promql = `(${ratio.pod_memory_parent_promql}) / 100`;
   const scenarios = [
     { config: podConfig(), method: 'SUM', unit: 'bytes', expected: 'bytes' },
     { config: podConfig(), method: 'COUNT', unit: 'bytes', expected: 'none' },

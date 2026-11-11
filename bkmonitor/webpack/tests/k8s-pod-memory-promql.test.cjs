@@ -37,9 +37,7 @@ const metrics = [
 ];
 const scope = 'bcs_cluster_id="fixture-cluster",namespace=~"^(qa)$",pod_name=~"^(worker-a)$"';
 const childFilter = `${scope},container_name!="POD"`;
-const childUsage = `sum by(bcs_cluster_id,namespace,pod_name)(container_memory_working_set_bytes{${childFilter},container_name!=""} $time_shift)`;
-const parentUsage = `sum by(bcs_cluster_id,namespace,pod_name)(pod_memory_working_set_bytes{${childFilter},metrics_path="/metrics/cadvisor"} $time_shift)`;
-const selectedUsage = `(${parentUsage} or on(bcs_cluster_id,namespace,pod_name) ${childUsage})`;
+const names = '(pod_memory_working_set_bytes|container_memory_working_set_bytes)';
 
 function context(groupByField = fields.POD, filter_dict = {}) {
   return {
@@ -86,7 +84,7 @@ test('Pod WS target keeps the existing API and selects parent or child total bef
       query_configs: [{
         data_source_label: 'prometheus',
         data_type_label: 'time_series',
-        promql: `$method by(namespace,pod_name)(${selectedUsage})`,
+        promql: generator.generate(metrics[0], context()),
         related_promql: `$method by(namespace,pod_name)(container_memory_working_set_bytes{${childFilter}} $time_shift)`,
         interval: '$interval_second',
         alias: 'a',
@@ -101,30 +99,32 @@ test('Pod WS target keeps the existing API and selects parent or child total bef
     const { node } = parsed(target.data.query_configs[0].promql, method);
     assert.equal(node.name, 'AggregateExpr');
     assert.equal(nodesOfType(node, 'Or').length, 1);
-    assert.equal(nodesOfType(node, 'AggregateExpr').length, 3);
+    assert.equal(nodesOfType(node, 'AggregateExpr').length, 4);
   }
 });
 
 test('Parent selection is a set union without a numeric predicate, so an existing zero remains eligible', () => {
   const { node, promql } = parsed(generator.generate(metrics[0], context()));
-  const selection = nodesOfType(node, 'BinaryExpr');
-  assert.equal(selection.length, 1);
-  assert.equal(selection[0].firstChild.name, 'AggregateExpr');
-  assert.equal(selection[0].firstChild.nextSibling.name, 'Or');
-  assert.equal(selection[0].lastChild.name, 'AggregateExpr');
-  const matching = nodesOfType(selection[0], 'MatchingModifierClause');
-  assert.equal(matching.length, 1);
-  assert.equal(promql.slice(matching[0].from, matching[0].to), 'on(bcs_cluster_id,namespace,pod_name)');
-  for (const branch of [selection[0].firstChild, selection[0].lastChild]) {
+  const selection = nodesOfType(node, 'BinaryExpr').find(expr => expr.getChild('Or'));
+  assert.ok(selection);
+  assert.equal(selection.firstChild.name, 'AggregateExpr');
+  assert.equal(selection.lastChild.name, 'AggregateExpr');
+  const matching = selection.getChild('MatchingModifierClause');
+  assert.equal(promql.slice(matching.from, matching.to), 'on(bcs_cluster_id,namespace,pod_name)');
+  for (const branch of [selection.firstChild, selection.lastChild]) {
     const grouping = branch.getChild('AggregateModifier').getChild('GroupingLabels');
     assert.equal(promql.slice(grouping.from, grouping.to), '(bcs_cluster_id,namespace,pod_name)');
   }
-  assert.deepEqual(nodesOfType(selection[0].firstChild, 'Identifier').map(n => promql.slice(n.from, n.to)), [
-    'pod_memory_working_set_bytes',
-  ]);
-  assert.deepEqual(nodesOfType(selection[0].lastChild, 'Identifier').map(n => promql.slice(n.from, n.to)), [
-    'container_memory_working_set_bytes',
-  ]);
+  const parent = promql.slice(selection.firstChild.from, selection.firstChild.to);
+  const child = promql.slice(selection.lastChild.from, selection.lastChild.to);
+  assert.ok(parent.includes(`__name__=~"${names}"`));
+  assert.ok(parent.includes(`${scope},metrics_path="/metrics/cadvisor"`));
+  assert.equal(parent.includes('container_name'), false);
+  assert.ok(parent.includes('"parent","__name__","pod_memory_working_set_bytes"'));
+  assert.ok(child.includes(`${scope},container_name!="",container_name!="POD"`));
+  assert.ok(child.includes('container_memory_working_set_bytes{'));
+  assert.equal(child.includes('__name__=~'), false);
+  assert.equal(promql.includes('> 0'), false);
 });
 
 test('Missing and empty container selection mean all containers and retain parent fallback', () => {
@@ -148,6 +148,7 @@ test('Explicit container names, including a full name selection, constrain WS an
   for (const metric of metrics) {
     const { node, promql } = parsed(generator.generate(metric, input), 'sum', 'offset 1h');
     assert.equal(promql.includes('pod_memory_working_set_bytes'), false);
+    assert.equal(promql.includes('__name__=~'), false);
     const selectors = nodesOfType(node, 'VectorSelector');
     const memorySelectors = selectors.filter(selector => !promql.slice(selector.from, selector.to).startsWith('kube_pod_init_container_status_running'));
     assert.ok(memorySelectors.length > 0);
@@ -167,8 +168,8 @@ test('Parent and fallback preserve namespace identity, escaped names and the sam
     const query = generator.generate(metric, input);
     const { node, promql } = parsed(query, 'avg', 'offset 1h');
     const memorySelectors = nodesOfType(node, 'VectorSelector').filter(selector =>
-      promql.slice(selector.from, selector.to).startsWith('pod_memory_') ||
-      promql.slice(selector.from, selector.to).startsWith('container_memory_')
+      promql.slice(selector.from, selector.to).startsWith('{__name__=~') ||
+      promql.slice(selector.from, selector.to).startsWith('container_memory_working_set_bytes{')
     );
     assert.equal(memorySelectors.length, 2);
     for (const selector of memorySelectors) {
