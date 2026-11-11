@@ -19,8 +19,13 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.conf import settings
+from django.utils.translation import gettext_lazy as _
+
 from apps.generic import APIViewSet
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from bkm_space.utils import space_uid_to_bk_biz_id
 from apps.log_databus.serializers import (
     LogCollectorSerializer,
     GetCollectorFieldEnumsSerializer,
@@ -29,12 +34,41 @@ from apps.log_databus.serializers import (
 
 from apps.utils.drf import list_route
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
+from apps.log_databus.models import CollectorConfig
 
-from apps.iam.handlers.drf import insert_permission_field
+from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
 from apps.iam import ActionEnum, ResourceEnum
 
 
+def get_request_space_uid(request):
+    """获取请求所在空间：GET 取 query、POST 取 body，都没有时回退请求头 X-Bk-Space-Uid"""
+    params = request.query_params if request.method == "GET" else request.data
+    space_uid = params.get("space_uid") or request.headers.get("X-Bk-Space-Uid")
+    return space_uid.strip() if isinstance(space_uid, str) else space_uid
+
+
+class LogAccessPermission(ViewBusinessPermission):
+    """日志接入接口按请求空间鉴权，space_uid 优先，避免伪造 bk_biz_id 绕过校验"""
+
+    @classmethod
+    def fetch_biz_id_by_request(cls, request):
+        space_uid = get_request_space_uid(request)
+        if not space_uid:
+            raise ValidationError(_("缺少空间参数"))
+        bk_biz_id = space_uid_to_bk_biz_id(space_uid)
+        if not bk_biz_id:
+            raise ValidationError(_("无效的空间"))
+        return bk_biz_id
+
+    def has_permission(self, request, view):
+        if settings.IGNORE_IAM_PERMISSION:
+            return True
+        return super().has_permission(request, view)
+
+
 class LogAccessViewSet(APIViewSet):
+    permission_classes = [LogAccessPermission]
+
     @insert_permission_field(
         id_field=lambda d: d.get("collector_config_id"),
         data_field=lambda d: d["list"],
@@ -64,5 +98,15 @@ class LogAccessViewSet(APIViewSet):
     @list_route(methods=["POST"], url_path="collector_status")
     def get_collector_status(self, request):
         data = self.params_valid(GetCollectorStatusSerializer)
-        result = LogCollectorHandler.get_collector_status(data["collector_config_id_list"])
+        collector_config_id_list = data["collector_config_id_list"]
+        space_uid = get_request_space_uid(request)
+        if space_uid:
+            # 只返回当前空间及其关联空间的采集项状态，关联空间无需再单独鉴权
+            scope_bk_biz_ids = LogCollectorHandler(space_uid).all_related_bk_biz_ids
+            collector_config_id_list = list(
+                CollectorConfig.objects.filter(
+                    collector_config_id__in=collector_config_id_list, bk_biz_id__in=scope_bk_biz_ids
+                ).values_list("collector_config_id", flat=True)
+            )
+        result = LogCollectorHandler.get_collector_status(collector_config_id_list)
         return Response(result)
