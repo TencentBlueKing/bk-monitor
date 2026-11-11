@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import copy
+from typing import Any
 from unittest import TestCase, mock
 
+import pytest
 from django.test import override_settings
 
 from apm_web.llm.builders.detail import attach_llm_detail, prepare_llm_spans
@@ -36,6 +39,124 @@ def entity_set(*llm_service_names: str) -> mock.Mock:
         service_names=list(llm_service_names),
         get_system=lambda service_name: {"is_support_llm": True, "product": "default"},
     )
+
+
+def request_trace_detail(spans: list[dict[str, Any]]) -> dict[str, Any]:
+    from apm_web.trace.resources import TraceDetailResource
+
+    with (
+        mock.patch(f"{DETAIL_MODULE}.EntitySet", return_value=entity_set("agent-service")),
+        mock.patch(
+            "apm_web.trace.resources.api.apm_api.query_trace_detail",
+            return_value={"trace_data": spans, "relation_mapping": {}, "options": {}},
+        ),
+        mock.patch("apm_web.trace.diagram.config.DiagramConfigController.read", return_value=None),
+    ):
+        serializer = TraceDetailResource.RequestSerializer(
+            data={
+                "bk_biz_id": 11,
+                "app_name": "agent-app",
+                "trace_id": spans[0]["trace_id"],
+                "reduce_span_details": True,
+            }
+        )
+        serializer.is_valid(raise_exception=True)
+        return TraceDetailResource().perform_request(serializer.validated_data)
+
+
+def error_tool_span() -> dict[str, Any]:
+    source: dict[str, Any] = raw_span("1" * 16, "execute_tool")
+    source.update({"kind": 1, "trace_state": "", "links": [], "bk_biz_id": 11, "app_name": "agent-app"})
+    source["status"] = {"code": 2, "message": "tool failed"}
+    source["attributes"]["gen_ai.tool.call.arguments"] = '{"source": "完整工具输入"}'
+    source["resource"]["host.name"] = "agent-host"
+    source["events"] = [
+        {"name": "exception", "timestamp": source["start_time"], "attributes": {"exception.message": "tool failed"}}
+    ]
+    return source
+
+
+@pytest.mark.parametrize("message", ["工具执行失败\n请检查输入", '{"error": "执行失败", "code": 42}'])
+@override_settings(LLM_BIZ_LIST=[11])
+def test_llm_error_hover_survives_detail_reduction(message: str) -> None:
+    from apm_web.trace.resources import SpanDetailResource
+
+    source: dict[str, Any] = error_tool_span()
+    source["status"]["message"] = message
+    trace: dict[str, Any] = request_trace_detail([source])
+    displayed: dict[str, Any] = trace["trace_tree"]["spans"][0]
+    assert displayed["error"] is True
+    assert displayed["message"] == message
+    assert len(displayed["attributes"]) == 1
+    assert displayed["attributes"][0] == {
+        "key": "span.status_message",
+        "type": "string",
+        "value": message,
+        "query_key": "status.message",
+        "query_value": message,
+    }
+    assert displayed["llm_detail"] == {"span_type": "TOOL"}
+    assert displayed["logs"] == displayed["events"] == displayed["resource"] == []
+    assert trace["original_data"][0]["attributes"] == {}
+    assert trace["original_data"][0]["status"]["message"] == ""
+    assert source["status"]["message"] == message
+
+    with (
+        mock.patch(f"{DETAIL_MODULE}.EntitySet", return_value=entity_set("agent-service")),
+        mock.patch("apm_web.trace.resources.api.apm_api.query_span_detail", return_value=source),
+    ):
+        detail: dict[str, Any] = SpanDetailResource().perform_request(
+            {"bk_biz_id": 11, "app_name": "agent-app", "span_id": source["span_id"]}
+        )
+    assert detail["origin_data"] == source
+    assert len(detail["trace_tree"]["spans"][0]["attributes"]) > 1
+    assert detail["trace_tree"]["spans"][0]["llm_detail"]["attributes"]["gen_ai.tool.call.arguments"] == {
+        "source": "完整工具输入"
+    }
+
+
+@pytest.mark.parametrize("code,message", [(2, ""), (1, "completed"), (0, "not set")])
+@override_settings(LLM_BIZ_LIST=[11])
+def test_llm_without_error_description_keeps_empty_summary(code: int, message: str) -> None:
+    source: dict[str, Any] = error_tool_span()
+    source["status"] = {"code": code, "message": message}
+    trace: dict[str, Any] = request_trace_detail([source])
+    displayed: dict[str, Any] = trace["trace_tree"]["spans"][0]
+    assert displayed["attributes"] == []
+    assert displayed["message"] == ""
+    assert displayed["llm_detail"] == {"span_type": "TOOL"}
+
+
+@pytest.mark.parametrize("context", [{"app_name": "other-app"}, {"bk_biz_id": 22}])
+@override_settings(LLM_BIZ_LIST=[11])
+def test_cross_context_llm_error_details_stay_redacted(context: dict[str, Any]) -> None:
+    source: dict[str, Any] = error_tool_span()
+    source.update(context)
+    trace: dict[str, Any] = request_trace_detail([source])
+    displayed: dict[str, Any] = trace["trace_tree"]["spans"][0]
+    assert displayed["error"] is True
+    assert displayed["attributes"] == []
+    assert displayed["message"] == ""
+    assert trace["original_data"][0]["status"]["message"] == ""
+    assert trace["original_data"][0]["attributes"] == {}
+
+
+@override_settings(LLM_BIZ_LIST=[11])
+def test_large_non_llm_error_span_still_requires_detail_loading() -> None:
+    template: dict[str, Any] = error_tool_span()
+    template["resource"]["service.name"] = "other-service"
+    spans: list[dict[str, Any]] = []
+    for index in range(501):
+        span: dict[str, Any] = copy.deepcopy(template)
+        span["span_id"] = f"{index + 1:016x}"
+        span["parent_span_id"] = "0000000000000001" if index else ""
+        spans.append(span)
+    trace: dict[str, Any] = request_trace_detail(spans)
+    assert len(trace["trace_tree"]["spans"]) == 501
+    for displayed in trace["trace_tree"]["spans"]:
+        assert displayed["attributes"] == []
+        assert displayed["message"] == ""
+        assert "llm_detail" not in displayed
 
 
 class AttachLLMDetailTests(TestCase):

@@ -207,6 +207,7 @@ class TraceHandler:
     ) -> None:
         detail_span_ids = detail_span_ids or set()
         original_spans: list[dict[str, Any]] = trace_detail.get("original_data") or []
+        llm_span_ids: set[str] = {span[OtlpKey.SPAN_ID] for span in original_spans if span.get("llm_detail")}
         trace_tree: dict[str, Any] = trace_detail.get("trace_tree") or {}
         trace_tree_spans: list[dict[str, Any]] = trace_tree.get("spans") or []
         processes: dict[str, dict[str, Any]] = trace_tree.get("processes") or {}
@@ -218,7 +219,8 @@ class TraceHandler:
             and span.get("processID")
         }
         for span in trace_tree_spans:
-            if cls._is_span_in_context(span, bk_biz_id, app_name) and span.get("spanID") not in detail_span_ids:
+            is_current_span: bool = cls._is_span_in_context(span, bk_biz_id, app_name)
+            if is_current_span and span.get("spanID") not in detail_span_ids:
                 continue
 
             process_id: str | None = span.get("processID")
@@ -236,7 +238,20 @@ class TraceHandler:
             span["resource"] = []
             span["events"] = []
             span["logs"] = []
-            span["message"] = ""
+            message: str = span.get("message") or ""
+            # 普通 Span 用空 attributes 触发详情加载；LLM 另有 llm_detail 标记，可保留当前应用的错误摘要。
+            if is_current_span and span.get("spanID") in llm_span_ids and span.get("error") and message:
+                span["attributes"] = [
+                    {
+                        "type": "string",
+                        "key": "span.status_message",
+                        "value": message,
+                        "query_key": OtlpKey.STATUS_MESSAGE,
+                        "query_value": message,
+                    }
+                ]
+            else:
+                span["message"] = ""
 
         for span in original_spans:
             if cls._is_span_in_context(span, bk_biz_id, app_name) and span.get("span_id") not in detail_span_ids:
