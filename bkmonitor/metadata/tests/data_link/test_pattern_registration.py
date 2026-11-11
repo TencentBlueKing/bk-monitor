@@ -80,6 +80,20 @@ def test_log_source_and_append_table_match_es_document_keys(log_datalink, timest
         assert databus["spec"]["sinks"][0]["kind"] == ("LogClusteringSink" if attached else "ElasticSearchBinding")
 
 
+@pytest.mark.parametrize("result", [{"mode": "update_original"}, {"mode": "append"}])
+def test_first_full_apply_composes_sink_with_prepared_pattern_store(log_datalink, result):
+    """首次开启走完整下发时，Sink 尚未保存 Pattern 存储引用，组装须使用本轮准备的结果。"""
+    sink = create_clustering_sink(pattern_store={}, result=result)
+
+    configs, _ = compose(*log_datalink)
+
+    sink.refresh_from_db()
+    assert sink.pattern_store["result_table"]["name"] == f"bklog_{BINDING['index_id']}_pattern"
+    clustering = next(c for c in configs if c["kind"] == "LogClusteringSink")["spec"]["clustering"]
+    assert clustering["pattern_store"] == sink.pattern_store
+    assert next(c for c in configs if c["kind"] == "Databus")["spec"]["sinks"][0]["kind"] == "LogClusteringSink"
+
+
 def test_existing_log_source_corrects_metric_without_clustering(log_datalink):
     compose(*log_datalink)
     rt = models.ResultTableConfig.objects.get(table_id=LOG_TABLE_ID)

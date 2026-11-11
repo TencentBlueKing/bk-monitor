@@ -1446,11 +1446,15 @@ class DataLink(models.Model):
             # 已接入日志聚类时，Databus 改为引用聚类 Sink，原存储绑定作为其 raw_sink
             from metadata.models.data_link.log_clustering import prepare_clustering_stores
 
-            pattern_sink = LogClusteringSinkConfig.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                namespace=self.namespace,
-                data_link_name=self.data_link_name,
-            ).first()
+            # 每条链路至多一个 Sink；复用已认领的对象，组装时才能带上本轮准备的 Pattern 存储引用。
+            pattern_sink = (
+                clustering_sink
+                or LogClusteringSinkConfig.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id,
+                    namespace=self.namespace,
+                    data_link_name=self.data_link_name,
+                ).first()
+            )
             if pattern_sink is not None:
                 bingding_configs.extend(prepare_clustering_stores(pattern_sink))
                 # 默认回写新增的系统字段须进入本轮源表声明。

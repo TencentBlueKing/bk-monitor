@@ -31,6 +31,7 @@ from apps.log_clustering.constants import QUIX_SIGNATURE_FIELD, SIGNATURE_FIELD
 from apps.log_clustering.handlers.pattern import PatternHandler
 from apps.log_clustering.handlers.quix.adapter import FILTER_OP_TO_METHOD
 from apps.log_clustering.models import LogClusteringRuntime
+from apps.log_clustering.utils.pattern import to_placeholder_pattern
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import get_search_request_scope
@@ -116,9 +117,17 @@ class ClusteredLogQuery(UnifyQueryPatternHandler):
         )
         return query
 
+    def query_pattern(self):
+        # 请求不带排序，页面顺序在这里按计数补齐；terms 截断时默认也保留计数最高的签名。
+        return sorted(super().query_pattern(), key=lambda row: row["doc_count"], reverse=True)
+
     @staticmethod
     def query_ts_reference(search_dict, raise_exception=True):
-        return UnifyQueryPatternHandler.query_ts_reference(search_dict, raise_exception=raise_exception)
+        # 签名聚合只读桶计数。-_value 会被转成按签名字段的文档排序，
+        # 开启前已有的原表索引没有该字段 mapping 时会报错。
+        return UnifyQueryPatternHandler.query_ts_reference(
+            {**search_dict, "order_by": []}, raise_exception=raise_exception
+        )
 
 
 class QuixPatternHandler(PatternHandler):
@@ -215,6 +224,8 @@ class QuixPatternHandler(PatternHandler):
                     bk_tenant_id=self.runtime.bk_tenant_id,
                 )
                 hits = result["list"]
+                for hit in hits:
+                    hit["pattern"] = to_placeholder_pattern(hit.get("pattern"))
                 records.extend(hits)
                 found = {row["signature"] for row in hits}
                 missing = [signature for signature in batch if signature not in found]

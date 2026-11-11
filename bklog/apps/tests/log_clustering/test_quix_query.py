@@ -126,8 +126,8 @@ class TestQuixPatternQuery(TestCase):
             "apps.log_unifyquery.handler.base.UnifyQueryApi.query_ts_reference",
             return_value={
                 "series": [
-                    {"group_keys": ["host", "signature"], "group_values": ["node", "a"], "values": [[0, 3]]},
                     {"group_keys": ["host", "signature"], "group_values": ["node", "b"], "values": [[0, 2]]},
+                    {"group_keys": ["host", "signature"], "group_values": ["node", "a"], "values": [[0, 3]]},
                 ]
             },
         )
@@ -137,7 +137,7 @@ class TestQuixPatternQuery(TestCase):
         raw = self.start_patch(
             "apps.log_unifyquery.handler.base.UnifyQueryApi.query_ts_raw",
             side_effect=[
-                {"list": [{"signature": "a", "pattern": "error <*>"}]},
+                {"list": [{"signature": "a", "pattern": " error $NUMBER at $PATH"}]},
                 {"list": [{"log_signature": "business", "signature": "a", "message": "sample log", "host": "node"}]},
             ],
         )
@@ -147,10 +147,13 @@ class TestQuixPatternQuery(TestCase):
         self.assertEqual(raw.call_args.args[0]["query_list"][0]["collapse"], {"field": "signature"})
         self.assertEqual(
             [(row["signature"], row["count"], row["pattern"], row["group"]) for row in rows],
-            [("a", 3, "error <*>", ["node"]), ("b", 2, "", ["node"])],
+            [("a", 3, " error #NUMBER# at #PATH#", ["node"]), ("b", 2, "", ["node"])],
         )
+        self.assertEqual([p["name"] for p in rows[0]["placeholders"]], ["NUMBER", "PATH"])
         self.assertEqual(rows[0]["owners"], ["operator"])
         args = query.call_args.args[0]
+        # 签名聚合不带文档排序，避免开启前的旧索引缺签名字段 mapping 时报错。
+        self.assertEqual(args["order_by"], [])
         q = args["query_list"][0]
         self.assertEqual(q["table_id"], "bklog_index_set_42_clustered")
         self.assertEqual(q["function"][0]["dimensions"], ["signature", "host"])
