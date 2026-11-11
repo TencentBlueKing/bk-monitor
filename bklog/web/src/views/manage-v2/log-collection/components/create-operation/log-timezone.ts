@@ -31,11 +31,7 @@ export function isTimestampFormat(format?: string): boolean {
   return ['epoch_second', 'epoch_millis', 'epoch_micros'].includes(format);
 }
 
-export function getSubmitTimeZone(format: string, zone: number | string): number | string {
-  return isTimestampFormat(format) ? 0 : zone;
-}
-
-/** 时间戳的时区仅作为接口兼容值提交，不修改表单或接口回填的配置。 */
+/** 模板快照比较时忽略时间戳的时区差异，不修改原始配置。 */
 export function normalizeTimestampTimeZones<T extends TimeField>(fields: T[]): T[] {
   return fields.map(field =>
     field.is_time && isTimestampFormat(field.option?.time_format)
@@ -94,7 +90,7 @@ export function useLogTimeZone(
 
   const changeTimeFormat = (format: string) => {
     if (format === form.value.time_format) return;
-    form.value.time_zone = '';
+    form.value.time_zone = isTimestampFormat(format) ? 0 : '';
     form.value.time_format = format;
   };
 

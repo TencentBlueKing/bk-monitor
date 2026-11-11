@@ -61,7 +61,7 @@ import {
 } from '@/components/collection-access/ext-json-expand-depth';
 import { getCleanTypeLabel, getCleanTypeIcon } from '../business-comp/step3/clean-type';
 import { isCollectionEditRoute } from './route-utils';
-import { getSubmitTimeZone, normalizeTimestampTimeZones, useLogTimeZone } from './log-timezone';
+import { normalizeTimestampTimeZones, useLogTimeZone } from './log-timezone';
 
 import type { ISelectItem, ISubmitOptions } from '../../type';
 
@@ -1263,7 +1263,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         bk_biz_id: bkBizId.value,
         clean_type: cleaningMode.value,
         etl_params: templateEtlParams,
-        etl_fields: normalizeTimestampTimeZones(etl_fields),
+        etl_fields,
       };
       const urlParams = {};
       if (isEditTemp.value) {
@@ -1363,7 +1363,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           },
           data: {
             time_format,
-            time_zone: getSubmitTimeZone(time_format, time_zone),
+            time_zone,
             data: timeValueItem?.value || '',
           },
         })
@@ -2508,7 +2508,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               ...(cleaningMode.value === 'bk_log_regexp' ? { is_grok: grokModeEnabled.value } : {}),
             },
           };
-          const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : normalizeTimestampTimeZones(etlFields);
+          const fieldsList = cleaningMode.value === 'bk_log_text' ? [] : etlFields;
           const isDorisEdit = isUpdate.value && curCollect.value.storage_cluster_type === 'doris';
           const requestData = isNeedCreate
             ? {

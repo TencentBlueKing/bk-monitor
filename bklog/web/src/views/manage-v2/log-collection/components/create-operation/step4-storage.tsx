@@ -41,7 +41,6 @@ import ClusterTable from '../business-comp/step4/cluster-table';
 import { deepEqual } from '@/common/util';
 import $http from '@/api';
 import { isCollectionEditRoute } from './route-utils';
-import { normalizeTimestampTimeZones } from './log-timezone';
 
 import type { ISubmitOptions } from '../../type';
 
@@ -754,7 +753,7 @@ export default defineComponent({
         storage_replies: Number(storage_replies),
         etl_params: submitEtlParams,
         es_shards: Number(es_shards),
-        fields: normalizeTimestampTimeZones(fields ?? []),
+        fields,
         etl_config,
         table_id: tableId,
         storage_cluster_id: clusterSelect.value,
