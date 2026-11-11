@@ -419,10 +419,10 @@ class NetworkEffectiveType(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.SLOW_2G: _("极低速网络"),
-            self.G2: _("低速网络"),
-            self.G3: _("中速网络"),
-            self.G4: _("高速网络"),
+            self.SLOW_2G: _("极慢的网络（类似于低速 2G）"),
+            self.G2: _("2G 左右的网络速度"),
+            self.G3: _("3G 左右的网络速度"),
+            self.G4: _("4G / 高速网络"),
         }.get(self, self.value)
 
     @classmethod
