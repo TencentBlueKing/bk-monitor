@@ -10,6 +10,7 @@ from django.apps import apps as django_apps
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import DataError
 from django.db.models import Q, Subquery
+from django.db.models.fields.json import KeyTextTransform
 
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.inspection import sanitize_sensitive_text
@@ -124,6 +125,10 @@ def _model_spec(
         "biz": "Forced to business IDs owned by the current request tenant; global bk_biz_id=0 rows remain visible.",
         "op_biz": "Forced to op_bk_biz_id values owned by the current request tenant.",
         "index_set": "Forced to index sets whose space belongs to the current request tenant.",
+        "search_history": (
+            "Single histories are scoped by index set; union histories require all member index sets to belong "
+            "to the current request tenant; scene histories are scoped by params.space_uid."
+        ),
         "collector": "Forced through collector_config_id to collectors in the current request tenant.",
         "link": "Forced through link_id to extract links in the current request tenant.",
         "rule": "Forced through rule_id to collector configurations in the current request tenant.",
@@ -1064,6 +1069,50 @@ SPECS = {
             soft_delete=True,
         ),
         _model_spec(
+            "log_search.UserIndexSetSearchHistory",
+            exact=("id", "index_set_id", "index_set_type", "search_type", "search_mode", "from_favorite_id"),
+            ordered=("duration", "rank"),
+            json_fields=("params", "index_set_ids"),
+            default=(
+                "id",
+                "index_set_id",
+                "index_set_ids",
+                "index_set_type",
+                "created_by",
+                "created_at",
+                "search_type",
+                "search_mode",
+                "params",
+                "duration",
+                "is_deleted",
+            ),
+            order_by=("id", "created_at", "updated_at", "duration"),
+            default_order_by=("-created_at", "-id"),
+            scope="search_history",
+            audit=True,
+            soft_delete=True,
+            summary=(
+                "Persisted search histories, including single, union and scene searches and soft-deleted rows. "
+                "index_set_id exact/in matches either the single ID or any union member; 0 selects scene histories. "
+                "created_by and created_at filter the search user and recording time; params contains the searched "
+                "time range when recorded. Existing empty-query suppression, caching and record_history switches "
+                "still apply: these rows are not a complete request audit and do not contain hit counts."
+            ),
+            examples=(
+                {
+                    "filter": {
+                        "index_set_id": 1001,
+                        "created_by": "example-user",
+                        "created_at__gte": "2026-01-01T00:00:00+08:00",
+                        "created_at__lte": "2026-01-01T12:00:00+08:00",
+                    },
+                    "order_by": ["-created_at", "-id"],
+                    "limit": 100,
+                },
+                {"filter": {"index_set_id": 0}, "limit": 100},
+            ),
+        ),
+        _model_spec(
             "log_search.ResourceChange",
             exact=(
                 "id",
@@ -1258,6 +1307,8 @@ def query_model(params):
     queryset = getattr(model, spec.manager_name).all()
     queryset = _apply_scope(queryset, spec)
     try:
+        if spec.scope == "search_history":
+            queryset, filters = _filter_search_history_index_sets(queryset, filters, model)
         queryset = queryset.filter(**filters)
         if ordering:
             queryset = queryset.order_by(*ordering)
@@ -1456,6 +1507,28 @@ def _normalize_order_by(raw_order_by, spec):
     return normalized or list(spec.default_order_by)
 
 
+def _filter_search_history_index_sets(queryset, filters, model):
+    """Keep physical fields readable while matching either historical ID representation."""
+    filters = dict(filters)
+    index_field = model._meta.get_field("index_set_id")
+    for key in ("index_set_id", "index_set_id__in"):
+        if key not in filters:
+            continue
+        value = filters.pop(key)
+        # Preserve the usual null-column lookup rather than treating null as a union member.
+        if value is None:
+            filters[key] = value
+            continue
+        ids = value if key.endswith("__in") else [value]
+        ids = [index_field.get_prep_value(item) for item in ids]
+        condition = Q(index_set_id__in=ids)
+        for index_set_id in ids:
+            if index_set_id is not None:
+                condition |= Q(index_set_type="union", index_set_ids__contains=[index_set_id])
+        queryset = queryset.filter(condition)
+    return queryset, filters
+
+
 def _apply_scope(queryset, spec):
     if spec.scope == "global":
         return queryset
@@ -1482,6 +1555,19 @@ def _apply_scope(queryset, spec):
         return queryset.filter(op_bk_biz_id__in=Subquery(tenant_biz_ids))
     if spec.scope == "index_set":
         return queryset.filter(index_set_id__in=Subquery(tenant_index_sets.values("index_set_id")))
+    if spec.scope == "search_history":
+        # params is the legacy JSON-encoded TextField. KeyTextTransform extracts its
+        # space without introducing arbitrary JSON paths into the public filter contract.
+        tenant_ids = list(tenant_index_sets.values_list("index_set_id", flat=True))
+        queryset = queryset.annotate(_history_space_uid=KeyTextTransform("space_uid", "params"))
+        single = Q(index_set_type="single", index_set_id__in=tenant_ids)
+        union = (
+            Q(index_set_type="union", index_set_ids__contained_by=tenant_ids)
+            & ~Q(index_set_ids=[])
+            & Q(index_set_ids__isnull=False)
+        )
+        scene = Q(index_set_type="single", index_set_id=0, _history_space_uid__in=Subquery(tenant_space_uids))
+        return queryset.filter(single | union | scene)
     if spec.scope == "collector":
         tenant_collectors = CollectorConfig.origin_objects.filter(
             Q(bk_biz_id=0) | Q(bk_biz_id__in=Subquery(tenant_biz_ids))
