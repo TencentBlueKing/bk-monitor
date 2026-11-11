@@ -20,7 +20,6 @@ the project delivered to anyone in the future.
 """
 
 import copy
-import re
 from itertools import chain
 
 import arrow
@@ -62,6 +61,7 @@ from apps.log_clustering.models import (
 from apps.log_clustering.utils.pattern import (
     is_remark_group_inherit_allowed,
     parse_pattern_placeholders,
+    to_placeholder_pattern,
 )
 from apps.log_unifyquery.handler.pattern import UnifyQueryPatternHandler
 from apps.models import model_to_dict
@@ -626,7 +626,7 @@ class PatternHandler:
 
         records = self._get_pattern_data_for_bkbase_link(patterns)
         for record in records:
-            record["pattern"] = re.sub(r"\$([a-zA-Z0-9-_]+)", r"#\1#", record["pattern"])
+            record["pattern"] = to_placeholder_pattern(record["pattern"])
         return records
 
     def _get_pattern_data_for_bkbase_link(self, patterns):
