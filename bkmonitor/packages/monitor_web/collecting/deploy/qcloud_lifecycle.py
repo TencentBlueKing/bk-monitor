@@ -24,7 +24,6 @@ from monitor_web.collecting.deploy.k8s import K8sInstaller, collector_release_na
 from monitor_web.collecting.deploy.tencent_cloud import (
     LABEL,
     apply_resource,
-    freeze_runtime,
     ownership_labels,
     render_resources,
     file_resources,
@@ -91,7 +90,7 @@ class TencentCloudInstaller(K8sInstaller):
     def managed(self, version):
         if "runtime" in version.params:
             return True
-        # 回滚旧快照后，后续重试、启停仍须按已核验的旧镜像运行。
+        # 回滚后仍需清理失败迁移遗留的文件资源，部署内容按目标旧版本生成。
         children = DeploymentConfigVersion.objects.filter(config_meta_id=self.collect_config.pk, parent_id=version.pk)
         return any("runtime" in params for params in children.values_list("params", flat=True))
 
@@ -103,13 +102,8 @@ class TencentCloudInstaller(K8sInstaller):
     def manifests(self, version, cluster, namespace):
         config = self.collect_config
         if "runtime" in version.params:
-            return render_resources(config, version.params, cluster, namespace)
-        docs = self.legacy_manifests(version, namespace)
-        runtime = freeze_runtime(config, version)
-        for doc in docs:
-            if doc["kind"] == "Deployment":
-                doc["spec"]["template"]["spec"]["containers"][0]["image"] = runtime["image"]
-        return docs
+            return render_resources(config, version.params, cluster, namespace, version)
+        return self.legacy_manifests(version, namespace)
 
     def legacy_manifests(self, version, namespace):
         _, rendered = self.render_snapshot(version)
@@ -136,7 +130,7 @@ class TencentCloudInstaller(K8sInstaller):
         }
 
     def previous_resources(self, version, namespace):
-        """从版本链取得旧资源身份；新版文件的删除不依赖凭据和镜像契约。"""
+        """从版本链取得旧资源身份；新版文件的删除不依赖文件解析或凭据。"""
         if version and "runtime" not in version.params:
             yield from self.legacy_manifests(version, namespace)
         config = self.collect_config
@@ -150,14 +144,19 @@ class TencentCloudInstaller(K8sInstaller):
             yield {"apiVersion": api, "kind": kind, "metadata": {"name": name, "labels": labels}}
         if version and "runtime" in version.params:
             for _, name, file_labels in file_resources(config, version.params["plugin"]["configmaps"], labels):
-                for api, kind in (("v1", "ConfigMap"), ("v1", "Service"), ("apps/v1", "Deployment")):
+                for api, kind in (
+                    ("v1", "ConfigMap"),
+                    ("v1", "Service"),
+                    ("apps/v1", "Deployment"),
+                    ("v1", "ServiceAccount"),
+                ):
                     yield {"apiVersion": api, "kind": kind, "metadata": {"name": name, "labels": file_labels}}
 
     def inventory(self, client, namespace):
         """取本配置实际持有的对象，补齐失败、重试、回滚历史分支的差集。"""
         owner = ownership_labels(self.collect_config)
         for api, kind in (("apps/v1", "Deployment"), ("v1", "ConfigMap"), ("v1", "Service"), ("v1", "ServiceAccount")):
-            owners = [owner] if kind != "ServiceAccount" else []
+            owners = [owner]
             owners.append(self.legacy_owner(kind))
             for expected in owners:
                 selector = ",".join(f"{key}={value}" for key, value in expected.items())
@@ -302,8 +301,10 @@ class TencentCloudInstaller(K8sInstaller):
         state = "SUCCESS"
         try:
             with self.client(cluster) as client:
-                for doc in self.manifests(version, cluster, namespace):
+                for doc in self.previous_resources(version, namespace):
                     api, kind, name = resource_identity(doc)
+                    if kind != "Deployment":
+                        continue
                     try:
                         result = (
                             client.resources.get(api_version=api, kind=kind)
@@ -313,17 +314,6 @@ class TencentCloudInstaller(K8sInstaller):
                     except ApiException as exc:
                         if exc.status != 404:
                             raise
-                        state = "RUNNING"
-                        continue
-                    if kind != "Deployment":
-                        continue
-                    desired_pod = doc["spec"]["template"]
-                    live_pod = result.get("spec", {}).get("template", {})
-                    expected_revisions = desired_pod.get("metadata", {}).get("annotations", {})
-                    if any(
-                        live_pod.get("metadata", {}).get("annotations", {}).get(k) != v
-                        for k, v in expected_revisions.items()
-                    ):
                         state = "RUNNING"
                         continue
                     status = result.get("status") or {}
@@ -336,7 +326,7 @@ class TencentCloudInstaller(K8sInstaller):
                     ):
                         return self._status_result("FAILED", f"Deployment/{name} 部署失败")
                     elif any(
-                        status.get(k, 0) != doc["spec"].get("replicas", 1)
+                        status.get(k, 0) != result.get("spec", {}).get("replicas", 1)
                         for k in ("replicas", "updatedReplicas", "readyReplicas", "availableReplicas")
                     ):
                         state = "RUNNING"

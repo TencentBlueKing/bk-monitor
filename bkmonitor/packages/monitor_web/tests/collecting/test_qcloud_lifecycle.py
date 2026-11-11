@@ -2,7 +2,6 @@
 
 from contextlib import nullcontext
 from copy import deepcopy
-from hashlib import sha256
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -27,15 +26,10 @@ OLD_META = """metadata:
     app.kubernetes.io/bk-env: "{{ bk_env }}"
 """
 OLD_TEMPLATE = (
-    DEPLOY_TEMPLATE.replace(
-        "kind: ConfigMap\n",
-        "kind: ConfigMap\n" + OLD_META.replace("exporter\n  labels", "exporter-{{ collect.version }}\n  labels"),
-    ).replace("kind: Deployment\n", "kind: Deployment\n" + OLD_META)
-    + "---\napiVersion: v1\nkind: Service\n"
-    + OLD_META
+    DEPLOY_TEMPLATE
     + "---\napiVersion: v1\nkind: ServiceAccount\n"
     + OLD_META.replace("/plugin-id", "/bk-plugin-id").replace("/collect-config-id", "/bk-collect-config-id")
-)
+).replace("      nodeSelector:", "      serviceAccountName: {{ release_name }}-qcloud-exporter\n      nodeSelector:")
 
 
 class Cluster:
@@ -124,7 +118,6 @@ def scene(legacy, candidate, settings, mocker):  # noqa: F811
         return version
 
     old.plugin_version.config.collector_json["template"] = OLD_TEMPLATE
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS[TAG]["templates"].append(sha256(OLD_TEMPLATE.encode()).hexdigest())
     settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG["collector_json"]["template"] = OLD_TEMPLATE
     candidate["plugin"]["configmaps"] = candidate["plugin"]["configmaps"][:1]
     cluster = Cluster()
@@ -182,7 +175,7 @@ def test_first_save_exits_old_before_start_then_repeated_save(scene):
     names = set(s.cluster.objects)
     assert len([k for k in names if k[1] == "Deployment"]) == 1
     assert {k: s.cluster.objects[k] for k in shared} == shared
-    assert not any(k[1] == "ServiceAccount" for k in names)
+    assert len([k for k in names if k[1] == "ServiceAccount"]) == 1
     events.clear()
     s.cfg.operation_result = OperationResult.SUCCESS
     second = s.save()
@@ -216,7 +209,7 @@ def test_failed_submit_retry_and_stop_start_rollback(scene):
     assert s.installer.rollback()["deployment_id"] == s.old.pk
     deployments = [obj for key, obj in s.cluster.objects.items() if key[1] == "Deployment"]
     assert len(deployments) == 1 and deployments[0]["metadata"]["labels"][lifecycle.LABEL + "name"] == "qcloud-exporter"
-    assert deployments[0]["spec"]["template"]["spec"]["containers"][0]["image"] == PIN
+    assert deployments[0]["spec"]["template"]["spec"]["containers"][0]["image"] == TAG
     assert s.cfg.deployment_config == s.old and s.old.params == before
     assert not any(key[1] == "Secret" for key in s.cluster.objects)
 
@@ -263,7 +256,7 @@ def test_clone_rebuilds_identity_without_credentials(scene):
     clone = tencent_cloud.clone_snapshot(s.cfg)
     assert clone["plugin"]["access_key"] == clone["plugin"]["secret_key"] == ""
     assert clone["plugin"]["configmaps"][0]["uid"] != s.cfg.deployment_config.params["plugin"]["configmaps"][0]["uid"]
-    assert clone["runtime"]["resources"] != s.cfg.deployment_config.params["runtime"]["resources"]
+    assert clone["runtime"] == s.cfg.deployment_config.params["runtime"]
 
 
 def test_delete_retries_failed_stop_before_removing_database_record(scene, mocker):
@@ -294,7 +287,6 @@ def test_competing_edits_commit_one_version(legacy, candidate, settings, mocker)
 
     definition = legacy.deployment_config.plugin_version.config
     definition.collector_json["template"] = OLD_TEMPLATE
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS[TAG]["templates"].append(sha256(OLD_TEMPLATE.encode()).hexdigest())
     plugin = CollectorPluginMeta.objects.create(
         plugin_id=legacy.plugin_id, bk_biz_id=legacy.bk_biz_id, plugin_type="K8S"
     )
@@ -347,7 +339,7 @@ def test_competing_edits_commit_one_version(legacy, candidate, settings, mocker)
         versions = list(pool.map(lambda _: save_same_parent(), range(2)))
     cfg.refresh_from_db()
     assert sorted(v for v in versions if v is not None) == [cfg.deployment_config_id]
-    assert cfg.deployment_config.parent_id == old.pk and cfg.deployment_config.params["runtime"]["image"] == PIN
+    assert cfg.deployment_config.parent_id == old.pk and cfg.deployment_config.plugin_version_id == release.pk
     assert DeploymentConfigVersion.objects.filter(config_meta_id=cfg.pk).count() == 2
     assert not any(
         key[1] == "Deployment" and doc["metadata"]["labels"][lifecycle.LABEL + "name"] == "qcloud-exporter"
@@ -396,3 +388,48 @@ def test_competing_edits_commit_one_version(legacy, candidate, settings, mocker)
     assert fresh.pk not in (cfg.pk, clone.pk) and fresh.deployment_config.parent_id == 0
     assert fresh.deployment_config.config_meta_id == fresh.pk and not result["can_rollback"]
     lookup.assert_called_once()
+
+
+def test_edit_and_upgrade_keep_source_plugin_version(scene, mocker):
+    s = scene
+    original = s.old.plugin_version
+    newer = deepcopy(original)
+    newer.config.collector_json["template"] = OLD_TEMPLATE.replace(TAG, "example.com/exporter:new")
+    s.cfg.plugin.packaged_release_version = newer
+    s.cfg.plugin.current_version = SimpleNamespace(info=SimpleNamespace(metric_json=[]))
+    mocker.patch.object(backend.append_metric_list_cache, "delay")
+    s.save()
+    assert s.cfg.deployment_config.plugin_version is original
+    backend.UpgradeCollectPluginResource().perform_request(
+        {
+            "id": s.cfg.id,
+            "bk_biz_id": s.cfg.bk_biz_id,
+            "deployment_id": s.cfg.deployment_config_id,
+            "realtime": False,
+            "params": deepcopy(s.params),
+        }
+    )
+    assert s.cfg.deployment_config.plugin_version is original
+    deployment = next(obj for key, obj in s.cluster.objects.items() if key[1] == "Deployment")
+    assert deployment["spec"]["template"]["spec"]["containers"][0]["image"] == TAG
+
+
+def test_status_reads_workloads_without_parsing_uploads(scene, mocker):
+    s = scene
+    s.save()
+    mocker.patch.object(tencent_cloud, "validate_files", side_effect=AssertionError("status parsed upload"))
+    mocker.patch.object(lifecycle, "render_resources", side_effect=AssertionError("status rendered resources"))
+    s.cfg.operation_result = OperationResult.DEPLOYING
+    assert s.installer.status()[0]["child"][0]["status"] == "RUNNING"
+
+
+def test_new_template_preserves_account_and_metadata(scene):
+    s = scene
+    s.save()
+    resources = list(s.cluster.objects.values())
+    deployment = next(x for x in resources if x["kind"] == "Deployment")
+    account = next(x for x in resources if x["kind"] == "ServiceAccount")
+    pod = deployment["spec"]["template"]
+    assert pod["spec"]["serviceAccountName"] == account["metadata"]["name"]
+    assert account["metadata"]["labels"][lifecycle.LABEL + "bk-collect-config-id"] == str(s.cfg.id)
+    assert pod["spec"]["nodeSelector"] == {"pool": "metrics"}

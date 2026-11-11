@@ -1,7 +1,6 @@
 """腾讯云编辑与展示接口对同一历史部署的只读投影。"""
 
 from copy import deepcopy
-from hashlib import sha256
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -99,13 +98,6 @@ def sample_config(template, defaults, params):
 @pytest.fixture
 def config(settings, mocker):
     settings.K8S_PLUGIN_COLLECT_CLUSTER_ID = "sample:monitoring"
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS = {
-        IMAGE: {
-            "version": "v0.21.0",
-            "templates": [sha256(TEMPLATE.encode()).hexdigest()],
-            "products": {"QCE/REDIS": []},
-        }
-    }
     config = sample_config(
         TEMPLATE,
         {"rate_limit": 20, "is_international": "false"},
@@ -294,7 +286,7 @@ def test_repeated_edits_cannot_change_legacy_mode(config, stored_edit, upgrade, 
     installer.upgrade.assert_not_called()
 
 
-@pytest.mark.parametrize("broken", ["mode-only", "runtime-only", "unknown-contract", "missing-files", "missing-key"])
+@pytest.mark.parametrize("broken", ["mode-only", "runtime-only", "missing-files", "missing-key"])
 def test_malformed_source_cannot_skip_save_or_upgrade(config, stored_edit, upgrade, broken):
     data, save, installer = stored_edit
     source = config.deployment_config
@@ -308,10 +300,7 @@ def test_malformed_source_cannot_skip_save_or_upgrade(config, stored_edit, upgra
         projected["plugin"].update(access_key="sample-access", secret_key="sample-secret")
         projected["runtime"] = runtime
         source.params = projected
-        if broken == "unknown-contract":
-            runtime["contract"] = "unknown"
-        else:
-            del projected["plugin"]["configmaps" if broken == "missing-files" else "secret_key"]
+        del projected["plugin"]["configmaps" if broken == "missing-files" else "secret_key"]
 
     for handler in (save, upgrade):
         with pytest.raises(LegacyConversionFailed):
@@ -407,12 +396,12 @@ def test_new_format_uses_uploaded_content_and_recomputes_preview(config):
     assert projected["plugin"]["access_key"] is False and projected["plugin"]["secret_key"] is True
 
 
-@pytest.mark.parametrize("change", ["unknown-template", "unknown-param", "invalid-products", "secret-in-product"])
+@pytest.mark.parametrize("change", ["invalid-template", "unknown-param", "invalid-products", "secret-in-product"])
 def test_unconvertible_snapshot_fails_closed(config, change):
     source = config.deployment_config
     plugin = source.params["plugin"]
-    if change == "unknown-template":
-        source.plugin_version.config.collector_json["template"] += "# different"
+    if change == "invalid-template":
+        source.plugin_version.config.collector_json["template"] = "kind: ConfigMap\ndata: {}"
     elif change == "unknown-param":
         plugin["unknown"] = "sample-secret"
     elif change == "invalid-products":

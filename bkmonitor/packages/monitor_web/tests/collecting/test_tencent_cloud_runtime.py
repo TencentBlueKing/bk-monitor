@@ -5,7 +5,6 @@ import json
 import re
 from collections import Counter
 from copy import deepcopy
-from hashlib import sha256
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import UUID
@@ -14,7 +13,7 @@ import pytest
 import yaml
 from kubernetes.client.exceptions import ApiException
 
-from core.errors.collecting import CollectConfigParamsError, LegacyConversionFailed
+from core.errors.collecting import CollectConfigParamsError
 from monitor_web.collecting.deploy import qcloud_lifecycle as lifecycle
 from monitor_web.collecting.deploy import tencent_cloud as deploy
 from monitor_web.collecting.resources.tencent_cloud import configmap_projection, prepare_configmap_snapshot
@@ -26,20 +25,61 @@ TAG = "registry.example:5000/exporter:old"
 DIGEST = "sha256:" + "1" * 64
 PIN = "registry.example:5000/exporter@" + DIGEST
 RESOURCES = {"limits": {"cpu": "250m", "memory": "128Mi"}, "requests": {"cpu": "30m"}}
+META = """metadata:
+  name: {{ release_name }}-qcloud-exporter
+  labels:
+    app.kubernetes.io/name: qcloud-exporter
+    app.kubernetes.io/instance: {{ release_name }}
+    app.kubernetes.io/managed-by: bk-monitor
+    app.kubernetes.io/plugin-id: "{{ plugin.id }}"
+    app.kubernetes.io/collect-config-id: "{{ collect.id }}"
+"""
 DEPLOY_TEMPLATE = (
-    TEMPLATE.split("---")[0]
+    TEMPLATE.split("---")[0].replace(
+        "data:", META.replace("exporter\n", "exporter-{{ collect.version }}\n", 1) + "data:", 1
+    )
     + """---
 apiVersion: apps/v1
 kind: Deployment
-spec:
+"""
+    + META
+    + """spec:
+  replicas: 1
+  selector:
+    matchLabels: {}
   template:
+    metadata:
+      labels: {}
     spec:
+      nodeSelector:
+        pool: metrics
       containers:
         - name: exporter
           image: registry.example:5000/exporter:old
+          imagePullPolicy: Always
+          command: [qcloud_exporter, "--config.file=/config.yml"]
+          readinessProbe:
+            httpGet: {path: /, port: 9123}
+          livenessProbe:
+            httpGet: {path: /, port: 9123}
           resources:
             requests: {{ values.requests | tojson }}
             limits: {{ values.limits | tojson }}
+          volumeMounts:
+            - {name: config, mountPath: /config.yml, subPath: config.yml, readOnly: true}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ release_name }}-qcloud-exporter-{{ collect.version }}
+---
+apiVersion: v1
+kind: Service
+"""
+    + META
+    + """spec:
+  selector: {}
+  ports:
+    - {name: http, port: 80, targetPort: 9123}
 """
 )
 
@@ -48,16 +88,12 @@ spec:
 def legacy(settings):
     settings.K8S_PLUGIN_COLLECT_CLUSTER_ID = "test-cluster:monitoring"
     settings.BCS_CLUSTER_BK_ENV_LABEL = "test"
-    contract = {
-        "version": "v0.21.0",
-        "products": {"QCE/REDIS": []},
-        "templates": [sha256(DEPLOY_TEMPLATE.encode()).hexdigest()],
+    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {
+        "collector_json": {
+            "template": DEPLOY_TEMPLATE,
+            "values": {**deepcopy(RESOURCES), "rate_limit": 20, "is_international": "false"},
+        }
     }
-    settings.TENCENT_CLOUD_EXPORTER_CONTRACTS = {
-        TAG: {**contract, "digest": DIGEST, "resources": {"limits": {"cpu": "1"}}},
-        PIN: deepcopy(contract),
-    }
-    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {"collector_json": {"template": DEPLOY_TEMPLATE}}
     return sample_config(
         DEPLOY_TEMPLATE,
         {**deepcopy(RESOURCES), "requests": {"cpu": "10m"}, "rate_limit": 20, "is_international": "false"},
@@ -93,15 +129,15 @@ def test_freeze_existing_and_new_profiles(legacy, candidate, settings):
     snapshot = prepare_configmap_snapshot(candidate, legacy)
     assert original == (candidate, legacy.deployment_config.params, legacy.deployment_config.plugin_version.config)
     assert snapshot["collector"]["metric_relabel_configs"] == []
-    assert snapshot["runtime"] == {"image": PIN, "resources": RESOURCES, "contract": "qcloud-exporter-v0.21.0"}
+    assert snapshot["runtime"]["values"]["requests.cpu"] == "30m"
+    assert "secret_id" not in snapshot["runtime"]["values"]
     assert snapshot["plugin"]["access_key"] == "fixture-access-A"
     assert snapshot["plugin"]["secret_key"] == "fixture-secret-A"
     fresh = deepcopy(candidate)
     fresh["plugin"].update(access_key="new-id", secret_key="new-key")
-    assert prepare_configmap_snapshot(fresh)["runtime"]["resources"] == {"limits": {"cpu": "1"}}
+    assert prepare_configmap_snapshot(fresh)["runtime"] == {"values": {}}
     legacy.deployment_config.params = snapshot
     settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
-    del settings.TENCENT_CLOUD_EXPORTER_CONTRACTS[TAG]
     del candidate["plugin"]["access_key"]
     candidate["plugin"]["secret_key"] = "new-secret"
     edited = prepare_configmap_snapshot(candidate, legacy)
@@ -116,7 +152,7 @@ def test_reject_client_owned_collector_extras(legacy, candidate, editing, field)
     secret = "fixture-rotated-secret"
     candidate["plugin"].update(access_key="fixture-new-id", secret_key=secret)
     candidate["collector"][field] = secret
-    with pytest.raises(CollectConfigParamsError, match="不支持的采集器参数") as err:
+    with pytest.raises(CollectConfigParamsError, match="配置参数格式无效") as err:
         prepare_configmap_snapshot(candidate, legacy if editing else None)
     assert secret not in str(err.value)
     assert secret not in json.dumps(configmap_projection(legacy))
@@ -132,25 +168,6 @@ def test_saved_snapshot_projects_only_masked_credentials(legacy, candidate):
     assert detail["collector"] == {"period": 120, "timeout": 60, "metric_relabel_configs": rules}
     assert detail["plugin"]["secret_key"] is True and detail["plugin"]["access_key"] is True
     assert "fixture-rotated-secret" not in json.dumps(detail)
-
-
-@pytest.mark.parametrize(
-    "change", ["tag-only", "unknown-digest", "different-version", "different-products", "unknown-template"]
-)
-def test_unverified_runtime_fails(legacy, candidate, settings, change):
-    contracts = settings.TENCENT_CLOUD_EXPORTER_CONTRACTS
-    if change == "tag-only":
-        contracts[TAG].pop("digest")
-    elif change == "unknown-digest":
-        del contracts[PIN]
-    elif change == "different-version":
-        contracts[PIN]["version"] = "v0.22.4"
-    elif change == "different-products":
-        contracts[PIN]["products"] = {"QCE/COS": []}
-    else:
-        contracts[TAG]["templates"] = []
-    with pytest.raises(LegacyConversionFailed):
-        prepare_configmap_snapshot(candidate, legacy)
 
 
 @pytest.mark.parametrize(
@@ -213,8 +230,8 @@ def test_resources_and_routing(legacy, candidate):
         assert name.startswith(f"{release}-qcloud-exporter-")
         assert len(name) <= 63
         doc = rows["ConfigMap", name]
-        assert doc["data"] == {"qcloud.yml": file["preview"]["qcloud_yaml"]}
-        creds = yaml.safe_load(doc["data"]["qcloud.yml"])["credential"]
+        assert doc["data"] == {"config.yml": file["preview"]["qcloud_yaml"]}
+        creds = yaml.safe_load(doc["data"]["config.yml"])["credential"]
         assert creds["access_key"] == creds["secret_key"] == ""
         pod = rows["Deployment", name]["spec"]["template"]
         selector = rows["Service", name]["spec"]["selector"]
@@ -223,9 +240,9 @@ def test_resources_and_routing(legacy, candidate):
         assert monitor["spec"]["selector"]["matchLabels"].items() <= selector.items()
         assert selector[deploy.LABEL + "name"] != "qcloud-exporter"
         container = pod["spec"]["containers"][0]
-        assert container["image"] == PIN and container["resources"] == RESOURCES
+        assert container["image"] == TAG and container["resources"] == RESOURCES
         assert pod["spec"]["volumes"][0]["configMap"]["name"] == name
-        assert container["command"][-1] == "--config.file=" + container["volumeMounts"][0]["mountPath"] + "/qcloud.yml"
+        assert container["command"][-1] == "--config.file=" + container["volumeMounts"][0]["mountPath"]
         assert {e["name"]: e["valueFrom"]["secretKeyRef"] for e in container["env"]} == {
             var: {"name": secret["metadata"]["name"], "key": key} for key, var in deploy.ENV_KEYS.items()
         }
@@ -276,7 +293,11 @@ def test_data_id_uses_single_lookup_before_writes(legacy, candidate, value, mock
     connection = mocker.patch.object(deploy.k8s_client, "ApiClient")
     if value is None:
         with pytest.raises(CollectConfigParamsError, match="DataID"):
-            lifecycle.TencentCloudInstaller(config).reconcile(SimpleNamespace(params=snapshot, last_version=None))
+            lifecycle.TencentCloudInstaller(config).reconcile(
+                SimpleNamespace(
+                    params=snapshot, last_version=None, id=5, plugin_version=legacy.deployment_config.plugin_version
+                )
+            )
         connection.assert_not_called()
     else:
         route = next(obj for obj in resources(config, snapshot) if obj["kind"] == "DataID")
@@ -389,7 +410,11 @@ def test_deploy_preflights_all_files_before_writes(legacy, candidate, mocker):
     mocker.patch.object(lifecycle.TencentCloudInstaller, "inventory", return_value=[])
     mocker.patch.object(lifecycle.dynamic, "DynamicClient")
     apply = mocker.patch.object(lifecycle, "apply_resource")
-    lifecycle.TencentCloudInstaller(legacy).reconcile(SimpleNamespace(params=snapshot, last_version=None))
+    lifecycle.TencentCloudInstaller(legacy).reconcile(
+        SimpleNamespace(
+            params=snapshot, last_version=None, id=5, plugin_version=legacy.deployment_config.plugin_version
+        )
+    )
     assert [c.args[1]["kind"] for c in apply.call_args_list] == [
         "Secret",
         "ConfigMap",
@@ -405,6 +430,78 @@ def test_deploy_preflights_all_files_before_writes(legacy, candidate, mocker):
     connection.reset_mock()
     snapshot["plugin"]["configmaps"][1]["content"] = "invalid"
     with pytest.raises(CollectConfigParamsError):
-        lifecycle.TencentCloudInstaller(legacy).reconcile(SimpleNamespace(params=snapshot, last_version=None))
+        lifecycle.TencentCloudInstaller(legacy).reconcile(
+            SimpleNamespace(
+                params=snapshot, last_version=None, id=5, plugin_version=legacy.deployment_config.plugin_version
+            )
+        )
     connection.assert_not_called()
     apply.assert_not_called()
+
+
+def test_template_fields_survive_migration_and_repeated_save(legacy, candidate, settings):
+    source = legacy.deployment_config
+    original = deepcopy(source.plugin_version.config.collector_json)
+    first = prepare_configmap_snapshot(candidate, legacy)
+    source.params = first
+    settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
+    second = prepare_configmap_snapshot(candidate, legacy)
+    manifest = next(obj for obj in resources(legacy, second) if obj["kind"] == "Deployment")
+    pod = manifest["spec"]["template"]
+    container = pod["spec"]["containers"][0]
+    assert container["image"] == TAG
+    assert container["resources"] == RESOURCES
+    assert container["imagePullPolicy"] == "Always"
+    assert container["livenessProbe"] == container["readinessProbe"] == {"httpGet": {"path": "/", "port": 9123}}
+    assert pod["spec"]["nodeSelector"] == {"pool": "metrics"}
+    assert source.plugin_version.config.collector_json == original and source.params == first
+
+
+def test_previous_runtime_snapshot_keeps_image_and_resources(legacy, candidate):
+    snapshot = prepare_configmap_snapshot(candidate, legacy)
+    snapshot["runtime"] = {"image": PIN, "resources": RESOURCES, "contract": "qcloud-exporter-v0.21.0"}
+    legacy.deployment_config.params = snapshot
+    edited = prepare_configmap_snapshot(candidate, legacy)
+    container = next(obj for obj in resources(legacy, edited) if obj["kind"] == "Deployment")["spec"]["template"][
+        "spec"
+    ]["containers"][0]
+    assert container["image"] == PIN and container["resources"] == RESOURCES
+    assert "contract" not in edited["runtime"]
+
+
+def test_cvm_conversion_accepts_comments_and_preserves_values(legacy, settings):
+    source = legacy.deployment_config
+    source.plugin_version.config.collector_json["template"] += "\n# deployment note"
+    source.params["plugin"]["products"] = yaml.safe_dump(
+        [
+            {
+                "namespace": "QCE/CVM",
+                "all_metrics": True,
+                "only_include_instances": ["sample-instance"],
+            }
+        ]
+    )
+    before = deepcopy(source.params)
+    projected = configmap_projection(legacy)
+    file = projected["plugin"]["configmaps"][0]
+    expected = yaml.safe_load(before["plugin"]["products"])
+    assert yaml.safe_load(file["preview"]["qcloud_yaml"])["products"] == expected
+    projected["collector"].pop("metric_relabel_configs")
+    file.pop("preview")
+    snapshot = prepare_configmap_snapshot(projected, legacy)
+    assert (
+        next(obj for obj in resources(legacy, snapshot) if obj["kind"] == "Deployment")["spec"]["template"]["spec"][
+            "containers"
+        ][0]["image"]
+        == TAG
+    )
+    assert source.params == before
+
+
+def test_wrong_template_structure_fails_before_cluster_calls(legacy, candidate, mocker):
+    snapshot = prepare_configmap_snapshot(candidate, legacy)
+    legacy.deployment_config.plugin_version.config.collector_json["template"] = "kind: Secret\ndata: {}"
+    connection = mocker.patch.object(deploy.k8s_client, "ApiClient")
+    with pytest.raises(CollectConfigParamsError):
+        resources(legacy, snapshot)
+    connection.assert_not_called()
