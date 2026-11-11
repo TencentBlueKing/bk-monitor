@@ -297,12 +297,7 @@ class VitalInpInteractionType(CachedEnum):
 
     @cached_property
     def label(self) -> str:
-        return {
-            self.KEYUP: _("松开按键"),
-            self.KEYDOWN: _("按下按键"),
-            self.POINTERDOWN: _("指针按下"),
-            self.POINTERUP: _("指针松开"),
-        }.get(self, self.value)
+        return self.value
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
