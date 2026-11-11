@@ -60,4 +60,4 @@ class Command(BaseCommand):
                 )
             )
             if not options.get("dry_run"):
-                reconcile_federation_data_links(bk_tenant_id=tenant_id, plan=plan)
+                reconcile_federation_data_links(bk_tenant_id=tenant_id, plan=plan, force=True)

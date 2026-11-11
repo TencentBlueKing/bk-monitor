@@ -16,6 +16,7 @@ import time
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 
 from alarm_backends.core.cache.key import SERVICE_LOCK_METADATA_RECONCILE_FEDERATION_DATA_LINK
 from alarm_backends.core.lock.service_lock import service_lock, share_lock
@@ -34,6 +35,8 @@ from metadata.service.federation_data_link import (
     FederationReconcilePlan,
     FederationTopologyEmptySnapshotError,
     get_bcs_metric_table_id,
+    get_federation_reconcile_plan,
+    reset_federation_reconcile,
     reconcile_federation_data_links,
     validate_federation_topology,
 )
@@ -63,18 +66,15 @@ def reconcile_federation_data_links_task(
         removed_sub_cluster_ids=removed_sub_cluster_ids,
     ).normalized()
     try:
-        with service_lock(
-            SERVICE_LOCK_METADATA_RECONCILE_FEDERATION_DATA_LINK,
-            bk_tenant_id=bk_tenant_id,
-        ):
-            reconcile_federation_data_links(bk_tenant_id=bk_tenant_id, plan=plan)
+        reconcile_federation_data_links(bk_tenant_id=bk_tenant_id, plan=plan)
     except Exception as error:  # pylint: disable=broad-except
         logger.exception(
             "reconcile_federation_data_links_task failed, tenant->[%s],plan->[%s]",
             bk_tenant_id,
             plan,
         )
-        raise self.retry(exc=error, countdown=min(60 * (2**self.request.retries), 600))
+        if get_federation_reconcile_plan(bk_tenant_id) != FederationReconcilePlan():
+            raise self.retry(exc=error, countdown=min(60 * (2**self.request.retries), 600))
 
 
 def schedule_federation_reconcile(bk_tenant_id: str, plan: FederationReconcilePlan) -> None:
@@ -108,6 +108,30 @@ def sync_and_schedule_federation_clusters(fed_clusters: dict, bk_tenant_id: str,
 
     schedule_federation_reconcile(bk_tenant_id=bk_tenant_id, plan=plan)
     return True
+
+
+def migrate_bcs_cluster_business(cluster, new_bk_biz_id: int, is_fed_cluster: bool) -> None:
+    """业务归属和联邦重试状态一起提交；与链路下发共用租户锁。"""
+    with service_lock(SERVICE_LOCK_METADATA_RECONCILE_FEDERATION_DATA_LINK, bk_tenant_id=cluster.bk_tenant_id):
+        old_bk_biz_id = cluster.bk_biz_id
+        cluster.bk_biz_id = new_bk_biz_id
+        change_cluster_router(
+            cluster=cluster,
+            old_bk_biz_id=old_bk_biz_id,
+            new_bk_biz_id=new_bk_biz_id,
+            is_fed_cluster=is_fed_cluster,
+        )
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            cluster.save(update_fields=["bk_biz_id", "last_modify_time"])
+            sub_ids = set(
+                models.BcsFederalClusterInfo.objects.filter(
+                    Q(fed_cluster_id=cluster.cluster_id) | Q(sub_cluster_id=cluster.cluster_id),
+                    bk_tenant_id=cluster.bk_tenant_id,
+                    is_deleted=False,
+                ).values_list("sub_cluster_id", flat=True)
+            )
+            reset_federation_reconcile(cluster.bk_tenant_id, sub_ids)
+        logger.info("discover_bcs_clusters: cluster_id:%s change bk_biz_id to %s", cluster.cluster_id, new_bk_biz_id)
 
 
 def get_bcs_cluster_id_suffix(cluster_id: str) -> int | None:
@@ -541,23 +565,7 @@ def discover_bcs_clusters():
                         update_fields.add("api_key_content")
 
                     if int(bk_biz_id) != cluster.bk_biz_id:
-                        # 记录旧业务ID，更新新业务ID
-                        old_bk_biz_id = cluster.bk_biz_id
-                        cluster.bk_biz_id = int(bk_biz_id)
-                        update_fields.add("bk_biz_id")
-
-                        # 若业务ID变更，其RT对应的业务ID也应一并变更
-                        logger.info(
-                            f"discover_bcs_clusters: cluster_id:{cluster_id},project_id:{project_id} change bk_biz_id to {int(bk_biz_id)}"
-                        )
-
-                        # 变更对应的路由元信息
-                        change_cluster_router(
-                            cluster=cluster,
-                            old_bk_biz_id=old_bk_biz_id,
-                            new_bk_biz_id=bk_biz_id,
-                            is_fed_cluster=is_fed_cluster,
-                        )
+                        migrate_bcs_cluster_business(cluster, int(bk_biz_id), is_fed_cluster)
 
                     # 如果project_id改动，需要更新集群信息
                     if project_id != cluster.project_id:
@@ -779,7 +787,7 @@ def sync_federation_clusters(
     *,
     allow_empty_topology: bool = False,
 ) -> FederationReconcilePlan:
-    """按租户同步完整联邦拓扑；有变化时返回完整收敛计划，否则返回空计划。
+    """按租户同步联邦拓扑，重置变化子链路的状态并返回仍需收敛的计划。
 
     空响应无法区分“权威确认无联邦”和“本次暂未取到拓扑”。当数据库仍有有效记录时，
     默认拒绝用空响应覆盖；只有明确确认需要清空时才允许传入 ``allow_empty_topology=True``。
@@ -803,7 +811,10 @@ def sync_federation_clusters(
         sorted(fed_clusters),
     )
     desired_pairs: set[tuple[str, str]] = set()
-    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+    with (
+        service_lock(SERVICE_LOCK_METADATA_RECONCILE_FEDERATION_DATA_LINK, bk_tenant_id=bk_tenant_id),
+        transaction.atomic(using=DATABASE_CONNECTION_NAME),
+    ):
         existing_active_records = list(
             models.BcsFederalClusterInfo.objects.select_for_update().filter(
                 bk_tenant_id=bk_tenant_id,
@@ -817,9 +828,6 @@ def sync_federation_clusters(
                 f"refuse to overwrite active federation topology with empty snapshot: tenant={bk_tenant_id},"
                 f"proxy_cluster_ids={active_proxy_cluster_ids},sub_cluster_ids={active_sub_cluster_ids}"
             )
-
-        existing_proxy_cluster_ids = {record.fed_cluster_id for record in existing_active_records}
-        existing_sub_cluster_ids = {record.sub_cluster_id for record in existing_active_records}
 
         for fed_cluster_id, fed_cluster_data in fed_clusters.items():
             cluster = models.BCSClusterInfo.objects.get(
@@ -879,17 +887,15 @@ def sync_federation_clusters(
         current_active_records = list(
             models.BcsFederalClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, is_deleted=False)
         )
-        if topology_snapshot(existing_active_records) == topology_snapshot(current_active_records):
-            logger.info("sync_federation_clusters: topology unchanged, skip reconcile, tenant->[%s]", bk_tenant_id)
-            return FederationReconcilePlan()
-
-        active_proxy_cluster_ids = {record.fed_cluster_id for record in current_active_records}
-        active_sub_cluster_ids = {record.sub_cluster_id for record in current_active_records}
-        plan = FederationReconcilePlan(
-            active_proxy_cluster_ids=sorted(active_proxy_cluster_ids),
-            active_sub_cluster_ids=sorted(active_sub_cluster_ids),
-            removed_proxy_cluster_ids=sorted(existing_proxy_cluster_ids - active_proxy_cluster_ids),
-            removed_sub_cluster_ids=sorted(existing_sub_cluster_ids - active_sub_cluster_ids),
-        )
+        before = topology_snapshot(existing_active_records)
+        after = topology_snapshot(current_active_records)
+        changed_sub_ids = {pair[1] for pair in before.keys() | after.keys() if before.get(pair) != after.get(pair)}
+        reset_federation_reconcile(bk_tenant_id, changed_sub_ids)
+        plan = get_federation_reconcile_plan(bk_tenant_id)
+        if plan == FederationReconcilePlan():
+            logger.info(
+                "sync_federation_clusters: topology unchanged, skip reconcile (success or failure limit reached), tenant->[%s]",
+                bk_tenant_id,
+            )
     logger.info("sync_federation_clusters: finished, tenant->[%s],plan->[%s]", bk_tenant_id, plan)
     return plan

@@ -8,6 +8,8 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 
+from alarm_backends.core.cache.key import SERVICE_LOCK_METADATA_RECONCILE_FEDERATION_DATA_LINK
+from alarm_backends.core.lock.service_lock import service_lock
 from constants.data_source import DATA_LINK_V4_VERSION_NAME
 from metadata import models
 from metadata.models.data_link import DataLink
@@ -59,6 +61,55 @@ class FederationReconcilePlan:
             removed_proxy_cluster_ids=sorted(set(self.removed_proxy_cluster_ids)),
             removed_sub_cluster_ids=sorted(set(self.removed_sub_cluster_ids)),
         )
+
+
+def reset_federation_reconcile(bk_tenant_id: str, sub_cluster_ids: set[str]) -> None:
+    """调用方持有租户锁；同一子链路的有效和已删除关系一起重置。"""
+    if not sub_cluster_ids:
+        return
+    models.BcsFederalClusterInfo.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        sub_cluster_id__in=sub_cluster_ids,
+    ).update(reconcile_status="pending", reconcile_failures=0)
+    logger.info(
+        "federation config changed, reset reconcile, tenant->[%s],sub_clusters->[%s]",
+        bk_tenant_id,
+        sorted(sub_cluster_ids),
+    )
+
+
+def get_federation_reconcile_plan(bk_tenant_id: str) -> FederationReconcilePlan:
+    """从持久化状态生成计划，包括需要重试清理的已删除关系。"""
+    records = list(models.BcsFederalClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id))
+    limit = settings.BCS_FEDERATION_RECONCILE_MAX_FAILURES
+    pending_sub_ids = {
+        record.sub_cluster_id
+        for record in records
+        if record.reconcile_status != "success" and record.reconcile_failures < limit
+    }
+    exhausted_sub_ids = {
+        record.sub_cluster_id
+        for record in records
+        if record.reconcile_status != "success" and record.reconcile_failures >= limit
+    }
+    if exhausted_sub_ids:
+        logger.warning(
+            "federation failure limit reached, skip reconcile, tenant->[%s],sub_clusters->[%s],limit->[%s]",
+            bk_tenant_id,
+            sorted(exhausted_sub_ids),
+            limit,
+        )
+    if records and not pending_sub_ids and not exhausted_sub_ids:
+        logger.info("federation successful config unchanged, skip reconcile, tenant->[%s]", bk_tenant_id)
+    active_proxy_ids = {record.fed_cluster_id for record in records if not record.is_deleted}
+    active_sub_ids = {record.sub_cluster_id for record in records if not record.is_deleted}
+    affected = [record for record in records if record.sub_cluster_id in pending_sub_ids]
+    return FederationReconcilePlan(
+        active_proxy_cluster_ids=sorted({record.fed_cluster_id for record in affected if not record.is_deleted}),
+        active_sub_cluster_ids=sorted(pending_sub_ids & active_sub_ids),
+        removed_proxy_cluster_ids=sorted({record.fed_cluster_id for record in affected} - active_proxy_ids),
+        removed_sub_cluster_ids=sorted(pending_sub_ids - active_sub_ids),
+    )
 
 
 def validate_federation_topology(fed_clusters: dict) -> None:
@@ -359,77 +410,108 @@ def restore_standard_vm_data_link(bk_tenant_id: str, cluster_id: str) -> None:
     )
 
 
-def reconcile_federation_data_links(bk_tenant_id: str, plan: FederationReconcilePlan) -> None:
-    plan = plan.normalized()
-    if plan == FederationReconcilePlan():
-        return
-    active_records = models.BcsFederalClusterInfo.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        is_deleted=False,
-    )
-    current_proxy_cluster_ids = set(active_records.values_list("fed_cluster_id", flat=True))
-    current_sub_cluster_ids = set(active_records.values_list("sub_cluster_id", flat=True))
-    # Celery 任务可能因重试而乱序，active 状态始终以执行时数据库中的完整拓扑为准；
-    # removed 则过滤掉已重新加入拓扑的集群，避免旧任务覆盖新状态。
-    plan = FederationReconcilePlan(
-        active_proxy_cluster_ids=sorted(current_proxy_cluster_ids),
-        active_sub_cluster_ids=sorted(current_sub_cluster_ids),
-        removed_proxy_cluster_ids=sorted(set(plan.removed_proxy_cluster_ids) - current_proxy_cluster_ids),
-        removed_sub_cluster_ids=sorted(set(plan.removed_sub_cluster_ids) - current_sub_cluster_ids),
-    )
-
-    # 在修改 Proxy 策略前先校验全部子集路由，冲突或代理 RT 未就绪时整批失败并进入重试。
-    for sub_cluster_id in plan.active_sub_cluster_ids:
-        _build_federation_routes(bk_tenant_id=bk_tenant_id, sub_cluster_id=sub_cluster_id)
-
-    failures: list[str] = []
-    failed_proxy_cluster_ids: set[str] = set()
-
-    # 先确保 Proxy 修复好共享组件，再更新 Subset 引用；父链路失败时阻止依赖它的子链路下发。
-    for fed_cluster_id in plan.active_proxy_cluster_ids:
-        try:
-            ensure_federal_proxy_data_link(bk_tenant_id=bk_tenant_id, fed_cluster_id=fed_cluster_id)
-        except Exception as error:  # pylint: disable=broad-except
-            failed_proxy_cluster_ids.add(fed_cluster_id)
-            failures.append(f"proxy:{fed_cluster_id}:{error}")
-            logger.exception("reconcile federation proxy failed, fed_cluster_id->[%s]", fed_cluster_id)
-
-    for sub_cluster_id in plan.active_sub_cluster_ids:
-        dependency_ids = set(
-            models.BcsFederalClusterInfo.objects.filter(
-                bk_tenant_id=bk_tenant_id,
-                sub_cluster_id=sub_cluster_id,
-                is_deleted=False,
-            ).values_list("fed_cluster_id", flat=True)
-        )
-        failed_dependencies = sorted(dependency_ids & failed_proxy_cluster_ids)
-        if failed_dependencies:
-            failures.append(f"subset:{sub_cluster_id}:failed_dependencies={failed_dependencies}")
-            logger.warning(
-                "reconcile federation subset skipped for failed dependencies, sub_cluster_id->[%s],dependencies->[%s]",
-                sub_cluster_id,
-                failed_dependencies,
+def reconcile_federation_data_links(
+    bk_tenant_id: str,
+    plan: FederationReconcilePlan,
+    *,
+    force: bool = False,
+) -> None:
+    # 计划参数兼容已排队的消息；拿锁后始终以数据库中的最新配置和状态为准。
+    with service_lock(SERVICE_LOCK_METADATA_RECONCILE_FEDERATION_DATA_LINK, bk_tenant_id=bk_tenant_id):
+        if force:
+            sub_ids = set(
+                models.BcsFederalClusterInfo.objects.filter(
+                    bk_tenant_id=bk_tenant_id,
+                ).values_list("sub_cluster_id", flat=True)
             )
-            continue
-        try:
-            ensure_federal_subset_data_link(bk_tenant_id=bk_tenant_id, sub_cluster_id=sub_cluster_id)
-        except Exception as error:  # pylint: disable=broad-except
-            failures.append(f"subset:{sub_cluster_id}:{error}")
-            logger.exception("reconcile federation subset failed, sub_cluster_id->[%s]", sub_cluster_id)
+            reset_federation_reconcile(bk_tenant_id, sub_ids)
+        _reconcile_federation_data_links(bk_tenant_id)
 
-    for sub_cluster_id in plan.removed_sub_cluster_ids:
-        try:
-            delete_federal_subset_data_link(bk_tenant_id=bk_tenant_id, sub_cluster_id=sub_cluster_id)
-        except Exception as error:  # pylint: disable=broad-except
-            failures.append(f"delete_subset:{sub_cluster_id}:{error}")
-            logger.exception("delete federation subset failed, sub_cluster_id->[%s]", sub_cluster_id)
 
-    for fed_cluster_id in plan.removed_proxy_cluster_ids:
+def _reconcile_federation_data_links(bk_tenant_id: str) -> None:
+    plan = get_federation_reconcile_plan(bk_tenant_id)
+    if plan == FederationReconcilePlan():
+        logger.info("federation reconcile skipped: success or failure limit reached, tenant->[%s]", bk_tenant_id)
+        return
+
+    records = list(models.BcsFederalClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id))
+    grouped = defaultdict(list)
+    active_proxy_ids = set()
+    for record in records:
+        grouped[record.sub_cluster_id].append(record)
+        if not record.is_deleted:
+            active_proxy_ids.add(record.fed_cluster_id)
+
+    proxy_errors = {}
+    for proxy_id in plan.active_proxy_cluster_ids:
         try:
-            restore_standard_vm_data_link(bk_tenant_id=bk_tenant_id, cluster_id=fed_cluster_id)
-        except Exception as error:  # pylint: disable=broad-except
-            failures.append(f"restore_proxy:{fed_cluster_id}:{error}")
-            logger.exception("restore federation proxy failed, fed_cluster_id->[%s]", fed_cluster_id)
+            ensure_federal_proxy_data_link(bk_tenant_id=bk_tenant_id, fed_cluster_id=proxy_id)
+        except Exception as error:
+            proxy_errors[proxy_id] = str(error)
+            logger.exception("reconcile federation proxy failed, fed_cluster_id->[%s]", proxy_id)
+
+    subset_errors = {}
+    for sub_id in plan.active_sub_cluster_ids + plan.removed_sub_cluster_ids:
+        sub_records = grouped[sub_id]
+        dependencies = {record.fed_cluster_id for record in sub_records if not record.is_deleted}
+        errors = []
+        logger.info(
+            "federation reconcile attempt, tenant->[%s],sub_cluster->[%s],failures->[%s/%s]",
+            bk_tenant_id,
+            sub_id,
+            max(record.reconcile_failures for record in sub_records),
+            settings.BCS_FEDERATION_RECONCILE_MAX_FAILURES,
+        )
+        failed_dependencies = dependencies & proxy_errors.keys()
+        if failed_dependencies:
+            errors.append(f"failed_dependencies={sorted(failed_dependencies)}")
+        else:
+            try:
+                if sub_id in plan.active_sub_cluster_ids:
+                    ensure_federal_subset_data_link(bk_tenant_id=bk_tenant_id, sub_cluster_id=sub_id)
+                else:
+                    delete_federal_subset_data_link(bk_tenant_id=bk_tenant_id, sub_cluster_id=sub_id)
+            except Exception as error:
+                errors.append(str(error))
+                logger.exception("reconcile federation subset failed, sub_cluster_id->[%s]", sub_id)
+        subset_errors[sub_id] = errors
+
+    restore_errors = {}
+    for proxy_id in plan.removed_proxy_cluster_ids:
+        try:
+            restore_standard_vm_data_link(bk_tenant_id=bk_tenant_id, cluster_id=proxy_id)
+        except Exception as error:
+            restore_errors[proxy_id] = str(error)
+            logger.exception("restore federation proxy failed, fed_cluster_id->[%s]", proxy_id)
+
+    failures = []
+    for sub_id, errors in subset_errors.items():
+        sub_records = grouped[sub_id]
+        removed_proxies = {record.fed_cluster_id for record in sub_records} - active_proxy_ids
+        for proxy_id in sorted(removed_proxies & restore_errors.keys()):
+            errors.append(f"restore_proxy:{proxy_id}:{restore_errors[proxy_id]}")
+
+        count = max(record.reconcile_failures for record in sub_records)
+        if errors:
+            count += 1
+            status = "failed"
+            failures.append(f"subset:{sub_id}:{errors}")
+            logger.error(
+                "federation reconcile failed, tenant->[%s],sub_cluster->[%s],failures->[%s/%s],stopped->[%s]",
+                bk_tenant_id,
+                sub_id,
+                count,
+                settings.BCS_FEDERATION_RECONCILE_MAX_FAILURES,
+                count >= settings.BCS_FEDERATION_RECONCILE_MAX_FAILURES,
+            )
+        else:
+            count = 0
+            status = "success"
+            logger.info("federation reconcile success, tenant->[%s],sub_cluster->[%s]", bk_tenant_id, sub_id)
+        models.BcsFederalClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            sub_cluster_id=sub_id,
+        ).update(reconcile_status=status, reconcile_failures=count)
 
     if failures:
         raise FederationReconcileError("; ".join(failures))

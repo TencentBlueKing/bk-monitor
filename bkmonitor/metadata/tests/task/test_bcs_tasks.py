@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from contextlib import nullcontext
 from unittest.mock import patch
 
 import pytest
@@ -40,6 +41,10 @@ def create_or_delete_records(mocker, settings):
     联邦子集群--BCS-K8S-10003--60012
     """
     settings.ENABLE_MULTI_TENANT_MODE = False
+    mocker.patch("metadata.task.bcs.service_lock", side_effect=lambda *args, **kwargs: nullcontext())
+    mocker.patch(
+        "metadata.service.federation_data_link.service_lock", side_effect=lambda *args, **kwargs: nullcontext()
+    )
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
     # 批量创建 BCSClusterInfo 数据
     bcs_cluster_info_data = [
@@ -562,6 +567,7 @@ def test_federation_unchanged_topology_does_not_apply(create_or_delete_records, 
     apply = mocker.patch.object(models.DataLink, "apply_data_link_with_retry")
     assert sync_and_schedule_federation_clusters(topology, "system", "discover_bcs_clusters")
     delay.assert_called_once()
+    models.BcsFederalClusterInfo.objects.update(reconcile_status="success")
     topology["BCS-K8S-10001"]["sub_clusters"]["BCS-K8S-10002"] = namespaces
     assert sync_and_schedule_federation_clusters(topology, "system", "refresh_bcs_monitor_info")
     delay.assert_called_once()
@@ -610,6 +616,7 @@ def test_federation_topology_changes_trigger_reconcile(create_or_delete_records,
     else:
         assert plan.active_proxy_cluster_ids == ["BCS-K8S-10001"]
         assert "BCS-K8S-10002" in plan.active_sub_cluster_ids
+    models.BcsFederalClusterInfo.objects.update(reconcile_status="success")
     assert sync_federation_clusters(topology) == FederationReconcilePlan()
 
 
@@ -635,6 +642,7 @@ def test_federation_reconcile_uses_current_topology_and_preserves_dependency_fai
     proxy.assert_called_once_with(bk_tenant_id="system", fed_cluster_id="BCS-K8S-10001")
     subset.assert_called_once_with(bk_tenant_id="system", sub_cluster_id="BCS-K8S-10002")
     delete.assert_not_called()
+    models.BcsFederalClusterInfo.objects.update(reconcile_status="pending")
     proxy.side_effect = RuntimeError("offline")
     subset.reset_mock()
     with pytest.raises(FederationReconcileError, match="failed_dependencies"):
@@ -651,6 +659,7 @@ def test_manual_federation_reconcile_still_builds_full_plan(create_or_delete_rec
         }
     }
     expected = sync_federation_clusters(topology)
+    models.BcsFederalClusterInfo.objects.update(reconcile_status="success")
     assert sync_federation_clusters(topology) == FederationReconcilePlan()
     reconcile = mocker.patch(
         "metadata.management.commands.reconcile_federation_data_links.reconcile_federation_data_links"
@@ -658,4 +667,154 @@ def test_manual_federation_reconcile_still_builds_full_plan(create_or_delete_rec
     call_command("reconcile_federation_data_links", "--tenant-id", "system", "--dry-run")
     reconcile.assert_not_called()
     call_command("reconcile_federation_data_links", "--tenant-id", "system")
-    reconcile.assert_called_once_with(bk_tenant_id="system", plan=expected)
+    reconcile.assert_called_once_with(bk_tenant_id="system", plan=expected, force=True)
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("change", ["create", "namespace", "delete"])
+def test_federation_publish_failure_is_retried(create_or_delete_records, mocker, change):
+    topology = {"BCS-K8S-10001": {"host_cluster_id": "host", "sub_clusters": {"BCS-K8S-10002": ["ns1"]}}}
+    if change != "create":
+        sync_federation_clusters(topology)
+        models.BcsFederalClusterInfo.objects.update(reconcile_status="success")
+        topology["BCS-K8S-10001"]["sub_clusters"] = {"BCS-K8S-10002": ["ns2"]} if change == "namespace" else {}
+    mocker.patch("metadata.task.bcs.transaction.on_commit", side_effect=lambda callback, **kwargs: callback())
+    delay = mocker.patch(
+        "metadata.task.bcs.reconcile_federation_data_links_task.delay", side_effect=RuntimeError("broker")
+    )
+    with pytest.raises(RuntimeError, match="broker"):
+        sync_and_schedule_federation_clusters(topology, "system", "test")
+    assert set(models.BcsFederalClusterInfo.objects.values_list("reconcile_status", "reconcile_failures")) == {
+        ("pending", 0)
+    }
+    delay.side_effect = None
+    sync_and_schedule_federation_clusters(topology, "system", "test")
+    assert delay.call_count == 2
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_federation_failure_limit_and_partial_success(create_or_delete_records, mocker, settings):
+    settings.BCS_FEDERATION_RECONCILE_MAX_FAILURES = 5
+    topology = {
+        "BCS-K8S-10001": {
+            "host_cluster_id": "host",
+            "sub_clusters": {
+                "BCS-K8S-10002": ["a"],
+                "BCS-K8S-10003": ["b"],
+            },
+        }
+    }
+    plan = sync_federation_clusters(topology)
+    proxy = mocker.patch("metadata.service.federation_data_link.ensure_federal_proxy_data_link")
+
+    def apply_subset(*, bk_tenant_id, sub_cluster_id):
+        if sub_cluster_id == "BCS-K8S-10002":
+            raise RuntimeError("offline")
+
+    subset = mocker.patch(
+        "metadata.service.federation_data_link.ensure_federal_subset_data_link", side_effect=apply_subset
+    )
+    for count in range(1, 6):
+        with pytest.raises(FederationReconcileError):
+            reconcile_federation_data_links("system", plan)
+        failed = models.BcsFederalClusterInfo.objects.get(sub_cluster_id="BCS-K8S-10002")
+        assert (failed.reconcile_status, failed.reconcile_failures) == ("failed", count)
+    assert proxy.call_count == 5
+    assert sum(call.kwargs["sub_cluster_id"] == "BCS-K8S-10003" for call in subset.call_args_list) == 1
+    assert sync_federation_clusters(topology) == FederationReconcilePlan()
+    reconcile_federation_data_links("system", plan)  # 已排队消息也受次数上限约束
+    assert proxy.call_count == 5
+    topology["BCS-K8S-10001"]["sub_clusters"]["BCS-K8S-10002"] = ["new"]
+    new_plan = sync_federation_clusters(topology)
+    assert new_plan.active_sub_cluster_ids == ["BCS-K8S-10002"]
+    failed.refresh_from_db()
+    assert (failed.reconcile_status, failed.reconcile_failures) == ("pending", 0)
+    subset.side_effect = None
+    reconcile_federation_data_links("system", new_plan)
+    failed.refresh_from_db()
+    assert (failed.reconcile_status, failed.reconcile_failures) == ("success", 0)
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("cluster_id", ["BCS-K8S-10001", "BCS-K8S-10002"])
+def test_federation_business_migration_resets_state(create_or_delete_records, mocker, cluster_id):
+    from metadata.task.bcs import migrate_bcs_cluster_business
+
+    topology = {"BCS-K8S-10001": {"host_cluster_id": "host", "sub_clusters": {"BCS-K8S-10002": ["a"]}}}
+    sync_federation_clusters(topology)
+    models.BcsFederalClusterInfo.objects.update(reconcile_status="failed", reconcile_failures=5)
+    mocker.patch("metadata.task.bcs.change_cluster_router")
+    cluster = models.BCSClusterInfo.objects.get(cluster_id=cluster_id)
+    migrate_bcs_cluster_business(cluster, 1234, cluster_id == "BCS-K8S-10001")
+    cluster.refresh_from_db()
+    assert cluster.bk_biz_id == 1234
+    plan = sync_federation_clusters(topology)
+    assert plan.active_sub_cluster_ids == ["BCS-K8S-10002"]
+    assert set(models.BcsFederalClusterInfo.objects.values_list("reconcile_status", "reconcile_failures")) == {
+        ("pending", 0)
+    }
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_federation_deleted_relationship_retries_restore(create_or_delete_records, mocker):
+    topology = {"BCS-K8S-10001": {"host_cluster_id": "host", "sub_clusters": {"BCS-K8S-10002": ["a"]}}}
+    sync_federation_clusters(topology)
+    models.BcsFederalClusterInfo.objects.update(reconcile_status="success")
+    topology["BCS-K8S-10001"]["sub_clusters"] = {}
+    plan = sync_federation_clusters(topology)
+    delete = mocker.patch("metadata.service.federation_data_link.delete_federal_subset_data_link")
+    restore = mocker.patch(
+        "metadata.service.federation_data_link.restore_standard_vm_data_link", side_effect=RuntimeError("offline")
+    )
+    with pytest.raises(FederationReconcileError):
+        reconcile_federation_data_links("system", plan)
+    record = models.BcsFederalClusterInfo.objects.get(sub_cluster_id="BCS-K8S-10002")
+    assert (record.is_deleted, record.reconcile_status, record.reconcile_failures) == (True, "failed", 1)
+    assert sync_federation_clusters(topology) == plan
+    restore.side_effect = None
+    reconcile_federation_data_links("system", plan)
+    record.refresh_from_db()
+    assert (record.reconcile_status, record.reconcile_failures) == ("success", 0)
+    assert delete.call_count == 2
+    assert sync_federation_clusters(topology) == FederationReconcilePlan()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_federation_multi_proxy_failure_counts_once(create_or_delete_records, mocker):
+    topology = {
+        "BCS-K8S-10001": {"host_cluster_id": "host", "sub_clusters": {"BCS-K8S-10002": ["a"]}},
+        "BCS-K8S-70001": {"host_cluster_id": "host", "sub_clusters": {"BCS-K8S-10002": ["b"]}},
+    }
+    plan = sync_federation_clusters(topology)
+    mocker.patch(
+        "metadata.service.federation_data_link.ensure_federal_proxy_data_link", side_effect=RuntimeError("offline")
+    )
+    subset = mocker.patch("metadata.service.federation_data_link.ensure_federal_subset_data_link")
+    with pytest.raises(FederationReconcileError):
+        reconcile_federation_data_links("system", plan)
+    subset.assert_not_called()
+    assert list(models.BcsFederalClusterInfo.objects.values_list("reconcile_status", "reconcile_failures")) == [
+        ("failed", 1),
+        ("failed", 1),
+    ]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_federation_task_stops_retry_at_limit(create_or_delete_records, mocker):
+    from metadata.task.bcs import reconcile_federation_data_links_task
+
+    models.BcsFederalClusterInfo.objects.create(
+        fed_cluster_id="BCS-K8S-10001",
+        sub_cluster_id="BCS-K8S-10002",
+        host_cluster_id="host",
+        fed_namespaces=["a"],
+        reconcile_status="failed",
+        reconcile_failures=4,
+    )
+    mocker.patch(
+        "metadata.service.federation_data_link.ensure_federal_proxy_data_link", side_effect=RuntimeError("offline")
+    )
+    retry = mocker.patch.object(reconcile_federation_data_links_task, "retry")
+    reconcile_federation_data_links_task.run("system", ["BCS-K8S-10001"], ["BCS-K8S-10002"], [], [])
+    retry.assert_not_called()
+    assert models.BcsFederalClusterInfo.objects.get(sub_cluster_id="BCS-K8S-10002").reconcile_failures == 5
