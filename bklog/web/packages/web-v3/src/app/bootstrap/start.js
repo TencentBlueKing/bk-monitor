@@ -63,7 +63,11 @@ import { BK_LOG_STORAGE } from '../state/store.type.ts';
 import { urlArgs } from '../state/default-values.ts';
 import { DEFAULT_MENU_LISTS } from '../state/menu-config.ts';
 import '../../platform/compat/tdesign/runtime-contract';
+import { installZIndexManager } from '../../shared/global/overlay/z-index-manager.js';
+import '../../shared/global/bk-popover.js';
 import '../../shared/styles/theme/tdesign-bklog.scss';
+
+installZIndexManager();
 
 
 const isHeadlessRoute = () =>

@@ -27,7 +27,7 @@
 
   .icon-error {
     position: relative;
-    z-index: 99;
+    z-index: var(--bklog-z-nav);
     margin-right: 14px;
     font-size: 24px;
     color: #ea3636;

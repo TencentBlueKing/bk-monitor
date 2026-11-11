@@ -108,7 +108,7 @@
         offset: [0, 15],
         hideOnClick: false,
         appendTo: props.popupAppendToBody ? document.body : undefined,
-        zIndex: props.popupAppendToBody ? 99999 : undefined,
+        zIndex: props.popupAppendToBody ? window.__bk_zIndex_manager?.nextZIndex?.() : undefined,
         popperOptions: props.popupAppendToBody
           ? {
               strategy: 'fixed',

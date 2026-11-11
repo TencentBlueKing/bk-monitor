@@ -424,7 +424,7 @@
 
     .setting-title {
       position: fixed;
-      z-index: 999;
+      z-index: var(--bklog-z-dropdown);
       width: calc(100vw + 12px);
       min-width: 1460px;
       height: 52px;

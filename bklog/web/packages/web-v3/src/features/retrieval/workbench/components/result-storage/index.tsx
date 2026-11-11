@@ -305,7 +305,6 @@ export default defineComponent({
                 </Checkbox>
                 <div class='bklog-option-json-format'>
                   <Checkbox
-                    style='margin: 0 12px 0 0'
                     class='bklog-option-item'
                     theme='primary'
                     checked={isJsonFormat.value}
@@ -316,10 +315,10 @@ export default defineComponent({
 
                   {isJsonFormat.value && (
                     <InputNumber
-                      style='margin: 0 12px 0 0'
                       class='json-depth-num json-depth-num-input'
                       max={15}
                       min={1}
+                      size='small'
                       value={jsonFormatDeep.value}
                       onChange={handleJsonFormatDeepChange}
                     />
@@ -334,7 +333,6 @@ export default defineComponent({
                   <span class='switch-label'>{$t('展示空字段')}</span>
                 </Checkbox>
                 <Checkbox
-                  style='margin: 0 12px 0 0'
                   class='bklog-option-item'
                   theme='primary'
                   checked={isFormatDate.value}
@@ -344,7 +342,6 @@ export default defineComponent({
                 </Checkbox>
                 {isSceneMode.value && (
                   <Checkbox
-                    style='margin: 8px 12px 0 0'
                     class='bklog-option-item'
                     theme='primary'
                     checked={isShowCollectorField.value}

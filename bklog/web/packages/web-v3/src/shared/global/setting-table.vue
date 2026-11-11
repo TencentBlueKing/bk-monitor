@@ -1158,7 +1158,7 @@
               .participle-icon {
                 position: absolute;
                 left: 40%;
-                z-index: 999;
+                z-index: var(--bklog-z-dropdown);
                 width: 10%;
                 font-size: 18px;
               }
@@ -1169,7 +1169,7 @@
 
               .tooltips-icon {
                 position: absolute;
-                z-index: 10;
+                z-index: var(--bklog-z-page);
                 font-size: 16px;
                 color: #ea3636;
                 cursor: pointer;

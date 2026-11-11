@@ -91,7 +91,7 @@
           position: absolute;
           top: 6px;
           right: 14px;
-          z-index: 999;
+          z-index: var(--bklog-z-dropdown);
           width: 36px;
           @include flex-justify(space-between);
 

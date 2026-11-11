@@ -435,7 +435,7 @@
 
     .fill-key {
       position: relative;
-      z-index: 999;
+      z-index: var(--bklog-z-dropdown);
       width: 100%;
       margin-right: -1px;
 
@@ -451,7 +451,7 @@
       border-radius: 0;
 
       &.is-focus {
-        z-index: 999;
+        z-index: var(--bklog-z-dropdown);
       }
     }
 

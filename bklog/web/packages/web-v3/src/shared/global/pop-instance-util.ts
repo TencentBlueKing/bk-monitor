@@ -26,6 +26,7 @@
 import { isRef, ref, type Ref } from 'vue';
 
 import { overlayRegistry } from './overlay/overlay-registry';
+import { Z_INDEX_LAYERS } from './overlay/z-index-manager.js';
 import { debounce } from 'lodash-es';
 import tippy, { type Props, type Placement, type Instance, MultipleTargets } from 'tippy.js';
 
@@ -195,8 +196,11 @@ export default class PopInstanceUtil {
       placement: 'bottom-start' as Placement,
       interactive: true,
       maxWidth: 800,
-      zIndex: overlayRegistry.nextZIndex(),
+      zIndex: Z_INDEX_LAYERS.DROPDOWN,
       onShow: () => {
+        if (this.tippyOptions?.zIndex == null) {
+          this.tippyInstance?.setProps({ zIndex: overlayRegistry.nextZIndex() });
+        }
         this.onMounted();
         return this.onShowFn?.(this.tippyInstance) ?? true;
       },

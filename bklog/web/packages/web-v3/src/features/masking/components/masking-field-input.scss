@@ -78,7 +78,7 @@
     position: absolute;
     bottom: 53px;
     left: 0px;
-    z-index: 999;
+    z-index: var(--bklog-z-dropdown);
     width: 100%;
     height: 14px;
     cursor: row-resize;
@@ -124,7 +124,7 @@
 .input-fix {
   position: sticky;
   top: 0;
-  z-index: 999;
+  z-index: var(--bklog-z-dropdown);
   background: #fff;
 
   &.other-color {

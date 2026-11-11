@@ -127,7 +127,7 @@
     background: #f0f2f5;
     border-radius: 50%;
     position: relative;
-    z-index: 2;
+    z-index: var(--bklog-z-raised);
   }
   .line-point-shadow {
     position: absolute;

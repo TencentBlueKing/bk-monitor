@@ -103,7 +103,7 @@
     }
 
     .bk-dropdown-content {
-      z-index: 2105;
+      z-index: var(--bklog-z-dropdown);
       min-width: 112px;
       line-height: normal;
 
@@ -131,7 +131,7 @@
 
       &::before {
         position: relative;
-        z-index: 2;
+        z-index: var(--bklog-z-raised);
       }
 
       &.active,
@@ -143,7 +143,7 @@
       &:hover::after {
         position: absolute;
         left: 50%;
-        z-index: 1;
+        z-index: var(--bklog-z-base);
         width: 30px;
         height: 30px;
         content: '';
@@ -209,7 +209,7 @@
 
     .username {
       margin: 0 28px 0 6px;
-      z-index: 999;
+      z-index: var(--bklog-z-dropdown);
     }
 
     .icon-icon-help-document-fill {
@@ -309,7 +309,7 @@
         }
 
         &:hover {
-          z-index: 1;
+          z-index: var(--bklog-z-base);
           color: #3a84ff;
           background: #f0f5ff;
           border-color: #3a84ff;

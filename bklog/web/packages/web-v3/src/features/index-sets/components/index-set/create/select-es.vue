@@ -467,7 +467,7 @@
       position: absolute;
       top: 7px;
       right: 14px;
-      z-index: 10;
+      z-index: var(--bklog-z-page);
       padding-left: 12px;
       font-size: 12px;
       color: #2dcb56;

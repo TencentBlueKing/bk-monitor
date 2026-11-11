@@ -26,7 +26,11 @@
 
 'use strict';
 
-const FALLBACK_ZINDEX_START = 2000;
+import { installZIndexManager, Z_INDEX_LAYERS } from './z-index-manager.js';
+
+installZIndexManager();
+
+const FALLBACK_ZINDEX_START = Z_INDEX_LAYERS.DROPDOWN;
 
 /**
  * 检索页弹出统一契约。业务实现必须满足这些规则，而不是各自 new tippy / 自管 visible。

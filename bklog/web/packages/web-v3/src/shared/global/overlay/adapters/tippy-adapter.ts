@@ -116,8 +116,9 @@ export const createRawTippyOverlay = (
   const created = tippy(target, {
     appendTo: () => document.body,
     ...tippyOptions,
-    zIndex: tippyOptions.zIndex ?? lifecycle.nextZIndex(),
+    zIndex: tippyOptions.zIndex,
     onShow(instance: Instance) {
+      if (tippyOptions.zIndex == null) instance.setProps({ zIndex: lifecycle.nextZIndex() });
       if (lifecycle.onShow(instance.reference) === false) {
         return false;
       }

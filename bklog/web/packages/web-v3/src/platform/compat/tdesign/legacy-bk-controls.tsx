@@ -1,5 +1,6 @@
 import {
   defineComponent,
+  getCurrentInstance,
   h,
   ref,
   watch,
@@ -38,8 +39,44 @@ import {
   Textarea,
   TimePicker,
 } from 'tdesign-vue-next';
+import BkSearchSelect from '@/shared/ui/bk-search-select';
+import { overlayRegistry } from '@/shared/global/overlay/overlay-registry.js';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 
 const mode3 = { compatConfig: { MODE: 3 } };
+
+// bk-popover / tippy 的 *-center、*-start、*-end 不是 TDesign Popup 的 placement。
+// 无法识别时 Popper 不计算位置，弹层会停在页面左上角。
+const BK_POPOVER_PLACEMENT: Record<string, string> = {
+  top: 'top',
+  'top-start': 'top-left',
+  'top-end': 'top-right',
+  'top-left': 'top-left',
+  'top-right': 'top-right',
+  'top-center': 'top',
+  bottom: 'bottom',
+  'bottom-start': 'bottom-left',
+  'bottom-end': 'bottom-right',
+  'bottom-left': 'bottom-left',
+  'bottom-right': 'bottom-right',
+  'bottom-center': 'bottom',
+  left: 'left',
+  'left-start': 'left-top',
+  'left-end': 'left-bottom',
+  'left-top': 'left-top',
+  'left-bottom': 'left-bottom',
+  right: 'right',
+  'right-start': 'right-top',
+  'right-end': 'right-bottom',
+  'right-top': 'right-top',
+  'right-bottom': 'right-bottom',
+  center: 'bottom',
+};
+
+function mapBkPopoverPlacement(placement: unknown) {
+  const value = String(placement || 'top');
+  return BK_POPOVER_PLACEMENT[value] || value;
+}
 
 function attr(props: Record<string, unknown> | null, ...keys: string[]) {
   if (!props) return undefined;
@@ -430,6 +467,14 @@ const BkDialog = defineComponent({
       emit('value-change', false);
       emit(confirm ? 'confirm' : 'cancel');
     };
+    const dialogZIndex = ref(Z_INDEX_LAYERS.DIALOG);
+    watch(
+      () => visibleProp(props),
+      (visible) => {
+        if (visible) dialogZIndex.value = overlayRegistry.nextZIndex();
+      },
+      { immediate: true },
+    );
     return () => {
       const fullscreen = props.fullscreen;
       const dialogClassName = [attrs.dialogClassName, props.extCls].filter(Boolean).join(' ');
@@ -440,6 +485,7 @@ const BkDialog = defineComponent({
           : false;
       return h(Dialog, {
         ...attrs,
+        attach: attrs.attach ?? 'body',
         visible: visibleProp(props),
         header: slots.header ? undefined : (props.title || undefined),
         width: fullscreen ? '100%' : props.width,
@@ -454,6 +500,7 @@ const BkDialog = defineComponent({
           ? { width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%', ...(attrs.dialogStyle as object) }
           : attrs.dialogStyle,
         footer,
+        zIndex: attrs.zIndex ?? dialogZIndex.value,
         onConfirm: () => close(true),
         onClose: () => close(false),
         onClosed: () => emit('after-leave'),
@@ -474,7 +521,7 @@ function ensureResizeLayoutStyle() {
 .bk-resize-layout-main{flex:1 1 auto;min-width:0;min-height:0;overflow:hidden}
 .bk-resize-layout-aside{position:relative;flex:none;min-width:0;min-height:0;overflow:hidden;background:#fff}
 .bk-resize-layout-aside-content{width:100%;height:100%;min-height:0;overflow:auto}
-.bk-resize-collapse{position:absolute;z-index:3;background:#dcdee5}
+.bk-resize-collapse{position:absolute;z-index: var(--bklog-z-local);background:#dcdee5}
 .bk-resize-layout.is-bottom .bk-resize-collapse,.bk-resize-layout.is-top .bk-resize-collapse{left:0;right:0;height:4px;cursor:row-resize}
 .bk-resize-layout.is-bottom .bk-resize-collapse{top:0}
 .bk-resize-layout.is-top .bk-resize-collapse{bottom:0}
@@ -568,6 +615,7 @@ const BkSideslider = defineComponent({
     title: { type: String, default: '' },
     width: { type: [String, Number], default: 640 },
     quickClose: { type: Boolean, default: true },
+    transfer: { type: Boolean, default: true },
   },
   emits: ['update:isShow', 'animation-end', 'shown'],
   setup(props, { attrs, slots, emit }) {
@@ -575,18 +623,35 @@ const BkSideslider = defineComponent({
       emit('update:isShow', false);
       emit('animation-end');
     };
-    return () => h(Drawer, {
-      ...attrs,
-      visible: props.isShow,
-      header: props.title,
-      size: typeof props.width === 'number' ? `${props.width}px` : props.width,
-      closeOnOverlayClick: props.quickClose,
-      footer: Boolean(slots.footer),
-      onClose: close,
-    }, {
-      body: () => props.isShow ? (slots.content || slots.default)?.() : null,
-      footer: props.isShow ? slots.footer : undefined,
-    });
+    const drawerZIndex = ref(Z_INDEX_LAYERS.DRAWER);
+    let drawerReady = false;
+    watch(
+      () => props.isShow,
+      (visible) => {
+        if (visible) drawerZIndex.value = overlayRegistry.nextZIndex();
+        if (drawerReady && visible) emit('shown');
+        drawerReady = true;
+      },
+      { immediate: true },
+    );
+    return () => {
+      const attach = props.transfer === false ? attrs.attach : (attrs.attach ?? 'body');
+      return h(Drawer, {
+        ...attrs,
+        attach,
+        visible: props.isShow,
+        header: props.title,
+        size: typeof props.width === 'number' ? `${props.width}px` : props.width,
+        closeOnOverlayClick: props.quickClose,
+        footer: Boolean(slots.footer),
+        zIndex: attrs.zIndex ?? drawerZIndex.value,
+        onClose: close,
+      }, {
+        header: slots.header,
+        body: () => props.isShow ? (slots.content || slots.default)?.() : null,
+        footer: props.isShow ? slots.footer : undefined,
+      });
+    };
   },
 });
 
@@ -746,13 +811,42 @@ const BkPopover = defineComponent({
     disabled: { type: Boolean, default: false },
   },
   setup(props, { attrs, slots }) {
-    return () => h(Popup, {
-      ...attrs,
-      content: props.content || slots.content,
-      placement: props.placement,
-      disabled: props.disabled,
-      showArrow: true,
-    }, { default: slots.default });
+    return () => {
+      const distance = Number(attrs.distance ?? 8);
+      const skidding = Number(attrs.offset ?? 0);
+      const show = attrs.onShow || attrs['on-show'];
+      const hide = attrs.onHide || attrs['on-hide'];
+      const {
+        distance: _distance,
+        offset: _offset,
+        theme,
+        animation: _animation,
+        onShow: _onShow,
+        onHide: _onHide,
+        'on-show': _onShowKebab,
+        'on-hide': _onHideKebab,
+        ...rest
+      } = attrs;
+      return h(Popup, {
+        ...rest,
+        content: props.content || slots.content,
+        placement: mapBkPopoverPlacement(props.placement),
+        disabled: props.disabled,
+        showArrow: rest.showArrow ?? rest['show-arrow'] ?? true,
+        overlayClassName: [theme, rest.overlayClassName].filter(Boolean).flat(),
+        popperOptions: {
+          ...(typeof rest.popperOptions === 'object' && rest.popperOptions ? rest.popperOptions : {}),
+          modifiers: [
+            { name: 'offset', options: { offset: [Number.isFinite(skidding) ? skidding : 0, Number.isFinite(distance) ? distance : 8] } },
+          ],
+        },
+        onVisibleChange: (visible: boolean, context: unknown) => {
+          if (visible) show?.(visible);
+          else hide?.(visible);
+          rest.onVisibleChange?.(visible, context);
+        },
+      }, { default: slots.default });
+    };
   },
 });
 
@@ -770,15 +864,63 @@ const BkAlert = defineComponent({
   },
 });
 
+// bk-exception 的 scene 是插图尺寸（part / page），type 是插图类型。
+// 不能把 scene 传给 TDesign Empty 的 description，否则无数据时会多出 "part" 文本。
+const BK_EXCEPTION_TYPE: Record<string, 'empty' | 'fail' | 'maintenance' | 'network-error'> = {
+  empty: 'empty',
+  'search-empty': 'empty',
+  login: 'empty',
+  403: 'fail',
+  404: 'fail',
+  500: 'fail',
+  503: 'maintenance',
+  building: 'maintenance',
+};
+
+const BK_EXCEPTION_TEXT: Record<string, string> = {
+  empty: '暂无数据',
+  'search-empty': '搜索无结果',
+  login: '请先登录',
+  403: '无业务权限',
+  404: '页面不存在',
+  500: '服务异常',
+  503: '服务异常',
+  building: '建设中',
+};
+
 const BkException = defineComponent({
   name: 'bk-exception',
+  inheritAttrs: false,
   ...mode3,
   props: {
     type: { type: String, default: 'empty' },
     scene: { type: String, default: '' },
   },
-  setup(props, { slots }) {
-    return () => h(Empty, { description: props.scene || props.type }, slots);
+  setup(props, { attrs, slots }) {
+    const instance = getCurrentInstance();
+    const translate = (text: string) => {
+      const t = instance?.proxy?.$t;
+      return typeof t === 'function' ? t(text) : text;
+    };
+    return () => {
+      const content = slots.default?.();
+      const hasContent = Array.isArray(content) ? content.some(node => node != null && node !== '') : content != null;
+      const scene = props.scene === 'page' ? 'page' : 'part';
+      // 标题插槽有内容时，TDesign 不再回退到类型默认文案「暂无数据」。
+      const title = hasContent
+        ? h('div', { class: ['bk-exception-text', `${scene}-text`] }, content)
+        : translate(BK_EXCEPTION_TEXT[props.type] || BK_EXCEPTION_TEXT.empty);
+      return h(
+        Empty,
+        {
+          ...attrs,
+          class: ['bk-exception', `bk-exception-${scene}`, attrs.class],
+          type: BK_EXCEPTION_TYPE[props.type] || 'empty',
+          size: scene === 'page' ? 'large' : 'medium',
+        },
+        { title: () => title },
+      );
+    };
   },
 });
 
@@ -1057,6 +1199,7 @@ export function installLegacyBkControls(app: App) {
     'bk-tab': BkTab,
     'bk-tab-panel': BkTabPanel,
     'bk-tag-input': BkTagInput,
+    'bk-search-select': BkSearchSelect,
     'bk-popover': BkPopover,
     'bk-alert': BkAlert,
     'bk-exception': BkException,

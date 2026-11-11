@@ -3,7 +3,7 @@
   top: var(--top-searchbar-height);
   right: 0;
   left: 0;
-  z-index: 1;
+  z-index: var(--bklog-z-base);
   display: flex;
   align-items: stretch;
   justify-content: space-between;

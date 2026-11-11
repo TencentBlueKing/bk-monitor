@@ -490,7 +490,7 @@
           position: absolute;
           top: 8px;
           right: 4px;
-          z-index: 10;
+          z-index: var(--bklog-z-page);
           width: 24px;
           font-size: 16px;
           color: #3a84ff;

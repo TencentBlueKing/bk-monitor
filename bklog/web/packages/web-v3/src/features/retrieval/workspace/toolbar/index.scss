@@ -1,5 +1,5 @@
 .v3-bklog-toolbar {
-  z-index: 5;
+  z-index: var(--bklog-z-toolbar, 5);
   display: flex;
   align-items: center;
   justify-items: center;
@@ -57,6 +57,6 @@
   .v3-bklog-toolbar {
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: var(--bklog-z-page);
   }
 }

@@ -87,7 +87,7 @@
 
     .tippy-arrow {
       bottom: -25px !important;
-      z-index: 99999;
+      z-index: var(--bklog-z-message);
     }
   }
 

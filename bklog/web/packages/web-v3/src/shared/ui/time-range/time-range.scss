@@ -71,7 +71,7 @@
 
   .shortcuts-list {
     position: relative;
-    z-index: 999;
+    z-index: var(--bklog-z-dropdown);
 
     .shortcuts-item {
       height: 32px;

@@ -1195,7 +1195,7 @@
       &.is-json .btn-more-action {
         position: sticky;
         bottom: 0;
-        z-index: 2;
+        z-index: var(--bklog-z-raised);
         display: block;
         width: fit-content;
         padding: 0 4px;

@@ -30,7 +30,11 @@ import { MessagePlugin } from 'tdesign-vue-next';
 type MessageContent = Parameters<typeof MessagePlugin>[0] extends infer T ? T extends { content?: infer C } ? C : string : string;
 
 const show = (theme: 'error' | 'success' | 'info' | 'warning', message: MessageContent, duration = 3000) =>
-  MessagePlugin[theme]({ content: message, duration, zIndex: 9999 });
+  MessagePlugin[theme]({
+    content: message,
+    duration,
+    zIndex: window.__bk_zIndex_manager?.nextMessageZIndex?.(),
+  });
 
 export const messageError = (message: MessageContent, delay = 3000, _ellipsisLine = 0) => show('error', message, delay);
 export const messageSuccess = (message: MessageContent, delay = 3000, _ellipsisLine = 0) => show('success', message, delay);

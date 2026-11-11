@@ -167,7 +167,7 @@
       background-image: linear-gradient(90deg, #FFFFFF 0%, #DEB2F3 63%, #7C90E1 100%);
       border-radius: 0 0 3px 3px; // 4px - 1px
       animation: ai-progress-animation 2s linear infinite;
-      z-index: 1;
+      z-index: var(--bklog-z-base);
     }
 
     @keyframes ai-progress-animation {

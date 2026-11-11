@@ -1,13 +1,12 @@
 <template>
   <div>
-    <vue-draggable v-bind="dragOptions" v-model="sortList" item-key="key" class="custom-select-list">
-      <template #item="{ element: { key, sorts } }">
+    <vue-draggable v-bind="dragOptions" :list="sortList" item-key="key" class="custom-select-list">
+      <template #item="{ element }">
         <li class="custom-select-item">
           <span class="icon bklog-icon bklog-ketuodong"></span>
           <Select
-            :value="sorts[0]"
-            clearable
-            @change="(value) => updateSortValue(sorts, 0, value)"
+            :value="element.sorts[0]"
+            @change="(value) => updateSortValue(element.sorts, 0, value)"
             style="width: 174px"
             class="rtl-text"
             :popup-props="{
@@ -16,6 +15,7 @@
                 'table-sort-option-container',
                 { 'is-start-text-ellipsis': isStartTextEllipsis },
               ],
+              overlayInnerStyle: { width: '174px' },
             }"
             :input-props="{ autofocus: true }"
             filterable
@@ -54,10 +54,12 @@
             </Option>
           </Select>
           <Select
-            :value="sorts[1]"
-            clearable
-            :popup-props="{ overlayClassName: 'bklog-v3-popover-tag table-sort-option-container' }"
-            @change="(value) => updateSortValue(sorts, 1, value)"
+            :value="element.sorts[1]"
+            :popup-props="{
+              overlayClassName: 'bklog-v3-popover-tag table-sort-option-container',
+              overlayInnerStyle: { width: '77px' },
+            }"
+            @change="(value) => updateSortValue(element.sorts, 1, value)"
             style="width: 77px"
             :placeholder="$t('请选择')"
           >
@@ -74,7 +76,7 @@
           <span
             style="font-size: 14px; color: #c4c6cc"
             class="bklog-icon bklog-circle-minus-filled bklog-v3-popover-tag"
-            @click="deleteTableItem(key)"
+            @click="deleteTableItem(element.key)"
           ></span>
         </li>
       </template>
@@ -92,7 +94,7 @@ import { computed, ref, watch, type PropType } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import VueDraggable from 'vuedraggable-vue3';
-Object.assign(VueDraggable, { compatConfig: { MODE: 3 } });
+Object.assign(VueDraggable, { compatConfig: { MODE: 3, COMPONENT_V_MODEL: false } });
 import type { FieldDefinition, FieldTypeStyle, SortPair } from './field-settings.types';
 import { Select, Option } from 'tdesign-vue-next';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
@@ -213,26 +215,52 @@ defineExpose({ shadowSort });
   }
 }
 
-.table-sort-option-container {
-  .custom-option-item {
-    display: flex;
-    align-items: center;
-
-    .display-container {
-      width: calc(100% - 12px);
-      padding: 0 4px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-}
-
 .bklog-circle-minus-filled {
   cursor: pointer;
 }
 
 .add-sort-field {
   cursor: pointer;
+}
+</style>
+<style lang="scss">
+.table-sort-option-container {
+  .t-select-option {
+    height: 32px;
+    padding: 0 8px;
+    line-height: 32px;
+
+    > span {
+      display: flex;
+      flex: 1;
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .custom-option-item {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+
+    .field-type-icon {
+      flex: none;
+      width: 16px;
+      height: 16px;
+      margin-right: 4px;
+    }
+
+    .display-container {
+      flex: 1;
+      width: auto;
+      min-width: 0;
+      padding: 0 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
 }
 </style>

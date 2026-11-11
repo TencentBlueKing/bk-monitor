@@ -138,7 +138,7 @@
                     &.active {
                         background: #F0F5FF;
                         position: relative;
-                        z-index: 1;
+                        z-index: var(--bklog-z-base);
                         border-top-color: transparent;
                         border-bottom-color: transparent;
                         &::before {

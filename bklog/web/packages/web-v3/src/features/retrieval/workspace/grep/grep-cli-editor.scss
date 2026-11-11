@@ -57,7 +57,7 @@
     color: #999;
     font-style: italic;
     pointer-events: none;
-    z-index: 1;
+    z-index: var(--bklog-z-base);
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
     font-size: 12px;
     line-height: 1.4;

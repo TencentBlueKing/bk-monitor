@@ -316,7 +316,7 @@ import { ServicesInstance } from '@/platform/services';
 
     .create-btn {
       position: absolute;
-      z-index: 999;
+      z-index: var(--bklog-z-dropdown);
       width: 24px;
       height: 24px;
 

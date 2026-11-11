@@ -111,7 +111,7 @@
   .retrieve-page-skeleton.is-cover {
     position: absolute;
     inset: 0;
-    z-index: 30;
+    z-index: var(--bklog-z-page-top);
   }
 
   .retrieve-page-skeleton__side {

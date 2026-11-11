@@ -45,6 +45,6 @@ export const showBatchDownloadFailures = (failures: readonly DownloadFileFailure
     content: `${t('批量下载：{n} 个文件下载失败', { n: failures.length })}\n${failures
       .map(item => `${item.file_name}: ${item.message}`)
       .join('\n')}`,
-    zIndex: 9999,
+    zIndex: window.__bk_zIndex_manager?.nextMessageZIndex?.(),
   });
 };

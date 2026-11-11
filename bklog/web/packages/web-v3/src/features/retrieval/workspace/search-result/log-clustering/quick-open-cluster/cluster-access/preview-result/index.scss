@@ -8,7 +8,7 @@
     height: 100%;
     background-color: #fff;
     opacity: 0.4;
-    z-index: 99999;
+    z-index: var(--bklog-z-message);
   }
 
   .operate-main {

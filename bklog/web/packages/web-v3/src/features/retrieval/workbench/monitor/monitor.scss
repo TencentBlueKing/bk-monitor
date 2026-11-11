@@ -37,7 +37,7 @@
 
   .sub-head {
     position: relative;
-    z-index: 5;
+    z-index: var(--bklog-z-toolbar);
     display: flex;
     align-items: center;
     height: 48px;
@@ -128,7 +128,7 @@
       position: relative;
       position: sticky;
       top: 8px;
-      z-index: 3;
+      z-index: var(--bklog-z-local);
 
       align-self: start;
       overflow: visible;
@@ -150,7 +150,7 @@
       top: 0;
       bottom: 0;
       left: 0;
-      z-index: 1;
+      z-index: var(--bklog-z-base);
       width: 8px;
       content: '';
       background-color: #f4f7fa;
@@ -188,7 +188,7 @@
   position: absolute;
   top: 50%;
   left: 242px;
-  z-index: 100;
+  z-index: var(--bklog-z-nav-top);
   display: flex;
   align-items: center;
   justify-items: center;
@@ -216,7 +216,7 @@
   position: absolute;
   top: 50%;
   right: -3px;
-  z-index: 100;
+  z-index: var(--bklog-z-nav-top);
   display: flex;
   align-items: center;
   justify-items: center;

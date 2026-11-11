@@ -27,7 +27,7 @@
 <script setup lang="ts">
 import { ServicesInstance } from '@/platform/services';
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import {
   Drawer as TDrawer,
   BaseTable as TTable,
@@ -41,6 +41,8 @@ import { toWorkerMessage } from '@/shared/lib/worker-message';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
 import { useRoute } from 'vue-router';
+import { overlayRegistry } from '@/shared/global/overlay/overlay-registry.js';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 
 import { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
@@ -68,6 +70,7 @@ const route = useRoute();
 const { t } = useLocale();
 const emit = defineEmits(['handle-popover-hide', 'handlePopoverHide']);
 const showSlider = ref(false);
+const drawerZIndex = ref(Z_INDEX_LAYERS.DRAWER);
 const sliderLoading = ref(false);
 const confirmLoading = ref(false);
 const formData = ref<AliasField[]>([]);
@@ -77,10 +80,15 @@ const columns = computed<BaseTableCol[]>(() => [
   { colKey: 'alias', title: t('别名') },
 ]);
 const handleOpenSidebar = async () => {
+  drawerZIndex.value = overlayRegistry.nextZIndex();
   showSlider.value = true;
   emit('handle-popover-hide');
   addObject();
 };
+
+watch(showSlider, (visible) => {
+  if (visible) drawerZIndex.value = overlayRegistry.nextZIndex();
+});
 
 const { addEvent } = useRetrieveEvent();
 addEvent(RetrieveEvent.ALIAS_CONFIG_OPEN, (val) => {
@@ -272,6 +280,7 @@ defineExpose({
     <TDrawer
       attach="body"
       :visible="showSlider"
+      :z-index="drawerZIndex"
       :close-on-overlay-click="true"
       :close-btn="false"
       size="640px"
@@ -403,7 +412,7 @@ defineExpose({
         .tooltips-icon {
           position: absolute;
           top: 14px;
-          z-index: 10;
+          z-index: var(--bklog-z-page);
           font-size: 16px;
           color: #ea3636;
           cursor: pointer;

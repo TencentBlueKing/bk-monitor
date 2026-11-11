@@ -551,7 +551,6 @@ export default defineComponent({
                 arrow: false,
                 offset: [0, 4],
                 maxWidth: 'none',
-                zIndex: 9999,
                 ...(props.popoverPosition === 'cursor'
                   ? {
                       popperOptions: {

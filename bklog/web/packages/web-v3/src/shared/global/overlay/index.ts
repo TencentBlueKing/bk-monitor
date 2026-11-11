@@ -37,6 +37,12 @@ export {
   resolvePopperPlacementRect,
   shouldHideOnOutsideClick,
 } from './overlay-registry';
+export {
+  Z_INDEX_LAYERS,
+  createZIndexManager,
+  installZIndexManager,
+  zIndexManager,
+} from './z-index-manager.js';
 export { useOverlay } from './use-overlay';
 export { useDialogVisible } from './use-dialog-visible';
 export { createOverlayTippy, createRawTippyOverlay } from './adapters/tippy-adapter';

@@ -207,7 +207,7 @@ export default class MaskingField extends tsc<IProps> {
   sidesliderSubmitBoxStyle = {
     width: '640px',
     position: 'fixed',
-    zIndex: '999',
+    zIndex: 'var(--bklog-z-nav)',
     bottom: '0',
     right: '0',
     height: '48px',

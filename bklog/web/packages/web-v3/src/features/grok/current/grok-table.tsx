@@ -365,7 +365,6 @@ export default defineComponent({
             <bk-table-column
               type='setting'
               key='setting'
-              tippy-options={{ zIndex: 3000 }}
             >
               <bk-table-setting-content
                 v-en-style='width: 530px'

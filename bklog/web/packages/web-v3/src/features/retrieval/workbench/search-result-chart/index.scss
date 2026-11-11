@@ -12,7 +12,7 @@
   .title-wrapper {
     position: relative;
     flex: 1;
-    z-index: 3;
+    z-index: var(--bklog-z-local);
     display: flex;
     align-items: center;
     height: 36px;
@@ -167,6 +167,6 @@
   }
 
   .bk-loading {
-    z-index: 1;
+    z-index: var(--bklog-z-base);
   }
 }

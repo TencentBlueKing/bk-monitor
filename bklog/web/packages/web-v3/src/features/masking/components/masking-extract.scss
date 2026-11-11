@@ -96,7 +96,7 @@
     position: fixed;
     right: 0;
     bottom: 0;
-    z-index: 99;
+    z-index: var(--bklog-z-nav);
     width: 640px;
     height: 48px;
     padding-left: 24px;

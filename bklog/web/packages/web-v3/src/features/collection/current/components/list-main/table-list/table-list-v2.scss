@@ -37,7 +37,7 @@
 
   .v2-log-collection-table-tool {
     position: relative;
-    z-index: 80;
+    z-index: var(--bklog-z-float);
     display: flex;
     align-items: center;
     width: 100%;
@@ -755,7 +755,7 @@
     > .tag-more-indicator,
     > .tag-more-empty {
       position: relative;
-      z-index: 1;
+      z-index: var(--bklog-z-base);
     }
 
     &:hover {

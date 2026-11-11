@@ -182,7 +182,7 @@
       &.inside-fields {
         position: sticky;
         bottom: 0;
-        z-index: 10;
+        z-index: var(--bklog-z-page);
         padding-bottom: 0;
         background: #fff;
 

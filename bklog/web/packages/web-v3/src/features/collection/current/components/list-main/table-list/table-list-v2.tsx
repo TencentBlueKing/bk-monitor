@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Button as TButton, Drawer as TDrawer, Input as TInput, Option as TOption, Select as TSelect } from 'tdesign-vue-next';
+import { Button as TButton, Drawer as TDrawer, Option as TOption, Select as TSelect } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { includesValue } from '@/shared/utils/typed-record';
 import type { Canceler } from 'axios';
@@ -445,7 +445,6 @@ export default defineComponent({
       storage_display_name: [],
     });
     const searchSelectValues = ref<ISearchSelectValue[]>([]);
-    const searchKeyword = ref('');
     const collectorSearchEnums = ref<ICollectorSearchEnums>({
       name: [],
       name_en: [],
@@ -1540,7 +1539,6 @@ export default defineComponent({
           is_related_space: effectiveSource,
         };
         tagSelect.value = ['all'];
-        searchKeyword.value = '';
         searchSelectValues.value = [];
         reloadList();
         getCollectorFieldEnums();
@@ -2393,15 +2391,7 @@ export default defineComponent({
         sourceSetting.value = '';
         updateSetting({ source: '' });
       }
-      searchKeyword.value = '';
       searchSelectValues.value = [];
-      reloadList();
-    };
-
-    const applySearchKeyword = (keyword: string) => {
-      const text = keyword.trim();
-      searchKeyword.value = keyword;
-      searchSelectValues.value = text ? [{ id: text, name: text }] : [];
       reloadList();
     };
 
@@ -2553,16 +2543,23 @@ export default defineComponent({
                 ))}
               </TSelect>
             </div>
-            <TInput
-              class='tool-search-select'
+            <bk-search-select
+              data={searchSelectData.value}
+              ext-cls='tool-search-select'
               placeholder={t('搜索 数据 ID、采集名、数据名、存储集群、存储名')}
-              value={searchKeyword.value}
+              show-condition={false}
+              show-popover-tag-change={false}
+              values={searchSelectValues.value}
               clearable
-              onChange={(value: string) => {
-                searchKeyword.value = value;
+              onChange={(values: ISearchSelectValue[]) => {
+                searchSelectValues.value = values;
+                reloadList();
               }}
-              onEnter={(value: string) => applySearchKeyword(value)}
-              onClear={() => applySearchKeyword('')}
+              onClear={() => {
+                searchSelectValues.value = [];
+                reloadList();
+              }}
+              onSearch={reloadList}
             />
           </div>
         </div>
