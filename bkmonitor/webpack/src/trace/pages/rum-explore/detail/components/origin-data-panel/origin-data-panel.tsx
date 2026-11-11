@@ -81,8 +81,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    /** 收起的折叠块：未记录即展开，因此各块默认全部展开（与二级分组同一套语义） */
-    const collapsedKeys = shallowRef<Set<string>>(new Set());
+    /** 展开的折叠块，默认展开 Attributes 与 Events 块，其余收起 */
+    const expandedKeys = shallowRef<Set<string>>(new Set(['attributes', 'events']));
     /** 收起的二级分组（Links 按 trace_id、Events 按事件名），默认全部展开 */
     const collapsedGroups = shallowRef<Set<string>>(new Set());
     /** 已切换为「格式化」展示的 JSON 行，未记录的行默认以原文展示 */
@@ -90,9 +90,9 @@ export default defineComponent({
 
     /** 展开/收起整个折叠块，整条块头均可点击（cursor: pointer 见 scss） */
     function toggleBlock(key: string) {
-      const next = new Set(collapsedKeys.value);
+      const next = new Set(expandedKeys.value);
       next.has(key) ? next.delete(key) : next.add(key);
-      collapsedKeys.value = next;
+      expandedKeys.value = next;
     }
 
     /** 展开/收起块内的二级分组（Links / Events） */
@@ -168,7 +168,7 @@ export default defineComponent({
 
     /** 渲染一个折叠块：块头（标题 / 摘要 / 搜索框）+ 展开后的键值行或二级分组 */
     function renderBlock(block: IRumOriginBlockVM) {
-      const expanded = !collapsedKeys.value.has(block.key);
+      const expanded = expandedKeys.value.has(block.key);
       return (
         <div
           key={block.key}
