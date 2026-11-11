@@ -2114,3 +2114,6 @@ BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"
 # DynamicSettings 先读取静态 settings，此处不定义会在读取时抛 AttributeError；
 # 查询侧部署在 web 角色，因此放在 default.py 而不是只对 worker 生效的 role 配置。
 ALERT_NOTICE_WAY_BY_RECORDS = False
+
+# 同一联邦子链路配置连续收敛失败上限（按轮次，不含投递/抢锁失败）。
+BCS_FEDERATION_RECONCILE_MAX_FAILURES = 5
