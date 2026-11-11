@@ -16,7 +16,7 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarget
 from bkmonitor.data_source.format import flatten_dict_data
-from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS, ViewPhase
+from semconv.rum.constants import RumSpanType, ViewPhase
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.handlers.builder.timeline import build as build_timeline
@@ -33,11 +33,11 @@ class SpanLevelHandler(BaseRumLevelHandler):
     query: SpanQuery
 
     DISPLAY_FIELDS = [
-        *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-        "attributes.view.url_template",
+        "display.span_name",
         "elapsed_time",
-        "resource.user_agent.name",
+        "display.environment",
         "attributes.user.id",
+        "end_time",
     ]
 
     #: 常驻筛选字段，前端置顶展示并默认带出的筛选维度

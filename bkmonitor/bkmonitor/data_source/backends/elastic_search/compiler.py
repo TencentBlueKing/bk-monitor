@@ -85,6 +85,10 @@ class SQLCompiler(compiler.SQLCompiler):
             result = self.connection.execute(sql, params)
             if not result:
                 return []
+            if self.query.search_after_key is not None and (
+                result.get("timed_out") or result.get("_shards", {}).get("failed", 0)
+            ):
+                raise RuntimeError("ES 联合分组查询未完整返回，无法继续聚合分页")
 
             __, dimensions = self._get_dimensions()
             dimensions.reverse()
@@ -144,7 +148,7 @@ class SQLCompiler(compiler.SQLCompiler):
         if query_content:
             dsl["query"] = {"bool": query_content}
 
-        dsl["sort"] = self._parser_order_by()
+        dsl["sort"] = self.query.raw_sort if self.query.raw_sort is not None else self._parser_order_by()
 
         dsl["size"] = self._get_size()
         if self.query.offset is not None:
@@ -306,7 +310,17 @@ class SQLCompiler(compiler.SQLCompiler):
             self.COMPOSITE_AGG_NAME: {
                 "composite": {
                     "size": self._get_bucket_size(),
-                    "sources": [{dimension: {"terms": {"field": dimension}}} for dimension in dimensions],
+                    "sources": [
+                        {
+                            dimension: {
+                                "terms": {
+                                    "field": dimension,
+                                    **({"missing_bucket": True} if self.query.composite_missing_bucket else {}),
+                                }
+                            }
+                        }
+                        for dimension in dimensions
+                    ],
                 },
                 "aggregations": self._get_agg_method_dict(select_fields),
             }
@@ -465,7 +479,7 @@ class SQLCompiler(compiler.SQLCompiler):
     def _get_composite_buckets(self, records, dimensions, aggs, select_fields):
         aggs = aggs[self.COMPOSITE_AGG_NAME]
         for bucket in aggs["buckets"]:
-            record: dict[str, Any] = {"_after_key_": aggs["after_key"]}
+            record: dict[str, Any] = {"_after_key_": aggs.get("after_key")}
             record.update({dimension: bucket["key"].get(dimension) for dimension in dimensions})
             self._fill_values_to_record(bucket, record, select_fields)
 

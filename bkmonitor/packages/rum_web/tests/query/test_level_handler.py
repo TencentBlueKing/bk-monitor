@@ -193,7 +193,14 @@ class TestSpanLevelHandlerMethods:
         with patch.object(handler.query, "query_list", return_value=mock_result) as mock_query:
             result = handler.list_records(start_time=1000, end_time=2000)
         mock_query.assert_called_once()
-        assert result == mock_result
+        assert result == [
+            {
+                "span_id": "abc",
+                "end_time": 1000,
+                "virtual": {"span_kind": None, "viewport": None, "browser": None, "network": None},
+            }
+        ]
+        assert mock_result == [{"span_id": "abc", "end_time": 1000}]
 
     def test_get_fields_option_values_delegates_to_query(self, handler):
         mock_result = {"span_name": ["GET /api", "POST /api"]}
