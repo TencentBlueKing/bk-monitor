@@ -231,6 +231,7 @@ def ensure_federal_proxy_data_link(bk_tenant_id: str, fed_cluster_id: str) -> No
             data_link_strategy=DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
             bcs_cluster_id=fed_cluster_id,
             cleanup_absent_components=True,
+            raise_on_cleanup_error=True,
         )
     except Exception:
         _report_reconcile_metric(context, DataLink.BCS_FEDERAL_PROXY_TIME_SERIES, ACCESS_DATA_LINK_FAILURE_STATUS)
@@ -358,6 +359,7 @@ def ensure_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> N
             table_id=context.table_id,
             storage_cluster_name=context.storage_cluster_name,
             federation_routes=routes,
+            raise_on_cleanup_error=True,
         )
         data_link.sync_metadata(
             table_id=context.table_id,
@@ -401,6 +403,7 @@ def restore_standard_vm_data_link(bk_tenant_id: str, cluster_id: str) -> None:
         data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
         bcs_cluster_id=cluster_id,
         cleanup_absent_components=True,
+        raise_on_cleanup_error=True,
     )
     logger.info(
         "restore_standard_vm_data_link: tenant->[%s],cluster_id->[%s],table_id->[%s]",

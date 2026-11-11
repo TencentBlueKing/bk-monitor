@@ -818,3 +818,101 @@ def test_federation_task_stops_retry_at_limit(create_or_delete_records, mocker):
     reconcile_federation_data_links_task.run("system", ["BCS-K8S-10001"], ["BCS-K8S-10002"], [], [])
     retry.assert_not_called()
     assert models.BcsFederalClusterInfo.objects.get(sub_cluster_id="BCS-K8S-10002").reconcile_failures == 5
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("cluster_id", ["BCS-K8S-10001", "BCS-K8S-10002"])
+def test_business_migration_resets_deleted_federation_relations(create_or_delete_records, mocker, cluster_id):
+    from metadata.task.bcs import migrate_bcs_cluster_business
+
+    relation = models.BcsFederalClusterInfo.objects.create(
+        fed_cluster_id="BCS-K8S-10001",
+        sub_cluster_id="BCS-K8S-10002",
+        host_cluster_id="host",
+        is_deleted=True,
+        reconcile_status="failed",
+        reconcile_failures=5,
+    )
+    mocker.patch("metadata.task.bcs.change_cluster_router")
+    cluster = models.BCSClusterInfo.objects.get(cluster_id=cluster_id)
+    migrate_bcs_cluster_business(cluster, 1234, cluster_id == "BCS-K8S-10001")
+    relation.refresh_from_db()
+    assert (relation.is_deleted, relation.reconcile_status, relation.reconcile_failures) == (True, "pending", 0)
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("failure", ["init_raises", "init_false", "reset"])
+def test_business_migration_rolls_back_router_and_cluster(create_or_delete_records, mocker, failure):
+    from metadata.task.bcs import migrate_bcs_cluster_business
+
+    cluster = models.BCSClusterInfo.objects.get(cluster_id="BCS-K8S-10001")
+    original_biz = cluster.bk_biz_id
+    relation = models.BcsFederalClusterInfo.objects.create(
+        fed_cluster_id=cluster.cluster_id,
+        sub_cluster_id="BCS-K8S-10002",
+        host_cluster_id="host",
+        reconcile_status="failed",
+        reconcile_failures=5,
+    )
+    source_before = list(models.DataSource.objects.order_by("pk").values_list("pk", "space_uid"))
+    spaces_before = list(models.SpaceDataSource.objects.order_by("pk").values_list("pk", "space_id", "bk_data_id"))
+    init = mocker.patch.object(cluster, "init_resource", return_value=failure != "init_false")
+    if failure == "init_raises":
+        init.side_effect = RuntimeError("init failed")
+    elif failure == "reset":
+        mocker.patch("metadata.task.bcs.reset_federation_reconcile", side_effect=RuntimeError("reset failed"))
+    with pytest.raises(RuntimeError):
+        migrate_bcs_cluster_business(cluster, 1234, True)
+    cluster.refresh_from_db()
+    relation.refresh_from_db()
+    assert cluster.bk_biz_id == original_biz
+    assert (relation.reconcile_status, relation.reconcile_failures) == ("failed", 5)
+    assert list(models.DataSource.objects.order_by("pk").values_list("pk", "space_uid")) == source_before
+    assert (
+        list(models.SpaceDataSource.objects.order_by("pk").values_list("pk", "space_id", "bk_data_id")) == spaces_before
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_federation_cleanup_failure_is_retried(create_or_delete_records, mocker):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from metadata.service.federation_data_link import FederationMetricContext
+
+    topology = {"BCS-K8S-10001": {"host_cluster_id": "host", "sub_clusters": {"BCS-K8S-10002": ["a"]}}}
+    plan = sync_federation_clusters(topology)
+    context = FederationMetricContext(
+        cluster=models.BCSClusterInfo.objects.get(cluster_id="BCS-K8S-10001"),
+        data_source=models.DataSource.objects.get(bk_data_id=60010),
+        table_id="1001_bkmonitor_time_series_60010.__default__",
+        storage_cluster_name="vm",
+    )
+    mocker.patch("metadata.service.federation_data_link._get_metric_context", return_value=context)
+    mocker.patch("metadata.service.federation_data_link._report_reconcile_metric")
+    component = Mock(kind="Databus", name="old-databus")
+    component.delete_config.side_effect = RuntimeError("cleanup timeout")
+    link = SimpleNamespace(data_link_name="proxy", _is_remote_component_not_found=lambda error: False)
+
+    def apply(**kwargs):
+        models.DataLink._cleanup_absent_components(
+            link,
+            [component],
+            raise_on_error=kwargs["raise_on_cleanup_error"],
+        )
+
+    mocker.patch("metadata.service.federation_data_link.create_bkbase_data_link", side_effect=apply)
+    subset = mocker.patch("metadata.service.federation_data_link.ensure_federal_subset_data_link")
+    with pytest.raises(FederationReconcileError):
+        reconcile_federation_data_links("system", plan)
+    record = models.BcsFederalClusterInfo.objects.get(sub_cluster_id="BCS-K8S-10002")
+    assert (record.reconcile_status, record.reconcile_failures) == ("failed", 1)
+    component.delete.assert_not_called()
+    subset.assert_not_called()
+    assert sync_federation_clusters(topology) == plan
+    component.delete_config.side_effect = None
+    reconcile_federation_data_links("system", plan)
+    record.refresh_from_db()
+    assert (record.reconcile_status, record.reconcile_failures) == ("success", 0)
+    assert component.delete_config.call_count == 2
+    assert sync_federation_clusters(topology) == FederationReconcilePlan()

@@ -115,19 +115,18 @@ def migrate_bcs_cluster_business(cluster, new_bk_biz_id: int, is_fed_cluster: bo
     with service_lock(SERVICE_LOCK_METADATA_RECONCILE_FEDERATION_DATA_LINK, bk_tenant_id=cluster.bk_tenant_id):
         old_bk_biz_id = cluster.bk_biz_id
         cluster.bk_biz_id = new_bk_biz_id
-        change_cluster_router(
-            cluster=cluster,
-            old_bk_biz_id=old_bk_biz_id,
-            new_bk_biz_id=new_bk_biz_id,
-            is_fed_cluster=is_fed_cluster,
-        )
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            change_cluster_router(
+                cluster=cluster,
+                old_bk_biz_id=old_bk_biz_id,
+                new_bk_biz_id=new_bk_biz_id,
+                is_fed_cluster=is_fed_cluster,
+            )
             cluster.save(update_fields=["bk_biz_id", "last_modify_time"])
             sub_ids = set(
                 models.BcsFederalClusterInfo.objects.filter(
                     Q(fed_cluster_id=cluster.cluster_id) | Q(sub_cluster_id=cluster.cluster_id),
                     bk_tenant_id=cluster.bk_tenant_id,
-                    is_deleted=False,
                 ).values_list("sub_cluster_id", flat=True)
             )
             reset_federation_reconcile(cluster.bk_tenant_id, sub_ids)
