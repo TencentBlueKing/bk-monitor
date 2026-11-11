@@ -15,7 +15,7 @@
       </div>
       <div style="display: flex; align-items: center">
         <t-checkbox
-          v-model="builtFieldVisible"
+          v-model:checked="builtFieldVisible"
           class="visible-built-btn"
           size="small"
           theme="primary"
@@ -47,7 +47,7 @@
           :empty-text="$t('暂无内容')"
           row-key="field_index"
           size="small"
-          col-border
+          :bordered="true"
           :expand-row-keys="expandRowKeys"
         >
             <!-- 字段名 -->
@@ -216,7 +216,7 @@
                 >
                   <div
                     v-if="props.row.is_analyzed"
-                    style="width: 85%; margin-left: 15px"
+                    style="width: 85%"
                   >
                     <div>
                       {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : $t('自然语言分词') }}
@@ -226,13 +226,13 @@
                   <div
                     v-else-if="props.row.is_built_in"
                     v-log-tooltip.top="$t('内置字段不支持快速修改')"
-                    style="width: 85%; margin-left: 15px"
+                    style="width: 85%"
                   >
                     {{ $t('不分词') }}
                   </div>
                   <div
                     v-else
-                    style="width: 85%; margin-left: 15px"
+                    style="width: 85%"
                   >
                     {{ $t('不分词') }}
                   </div>
@@ -285,6 +285,8 @@
                       v-else
                       class="participle-popconfirm"
                       :is-show="isShowParticiple"
+                      :icon="() => []"
+                      :popup-props="{ overlayInnerClassName: 'index-participle-popconfirm' }"
                       trigger="click"
                       @confirm="handleConfirmParticiple(props.row, props.$index)"
                     >
@@ -301,13 +303,14 @@
                                 :property="'source_name'"
                               >
                                 <t-switch
-                                  v-model="currentIsAnalyzed"
+                                  v-model:value="currentIsAnalyzed"
                                   :disabled="getCustomizeDisabled(props.row, 'analyzed')"
                                   
                                   @change="() => handelChangeAnalyzed()"
                                 ></t-switch>
                               </bk-form-item>
                               <bk-form-item
+                                class="participle-mode-form-item"
                                 :label="$t('分词符')"
                                 :property="'participle'"
                               >
@@ -316,6 +319,7 @@
                                     v-for="option in participleList"
                                     :key="option.id"
                                     class="participle-btn"
+                                    theme="default"
                                     :class="currentParticipleState === option.id ? 'is-selected' : ''"
                                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                                     :disabled="getCustomizeDisabled(props.row)"
@@ -326,7 +330,7 @@
                                 </div>
                                 <t-input
                                   v-if="currentParticipleState === 'custom'"
-                                  v-model="currentTokenizeOnChars"
+                                  v-model:value="currentTokenizeOnChars"
                                   style="margin-top: 10px"
                                   :disabled="getCustomizeDisabled(props.row)"
                                 >
@@ -337,7 +341,7 @@
                                 :property="'is_case_sensitive'"
                               >
                                 <t-switch
-                                  v-model="currentIsCaseSensitive"
+                                  v-model:value="currentIsCaseSensitive"
                                   :disabled="getCustomizeDisabled(props.row)"
                                   
                                 ></t-switch>
@@ -1111,6 +1115,26 @@
     }
 
     .field-table.add-field-table {
+      :deep(td) {
+        height: 46px;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+
+      .field-name-overflow-tips {
+        display: flex;
+        align-items: center;
+
+        .ext-btn {
+          font-size: 18px;
+          cursor: pointer;
+
+          &.rotate {
+            transform: rotate(-90deg);
+          }
+        }
+      }
+
       :deep(.bk-table-body) {
         .cell {
           display: contents;
@@ -1279,6 +1303,11 @@
         color: #979ba5;
       }
 
+      .participle-cell-wrap {
+        display: flex;
+        align-items: center;
+      }
+
       .participle-popconfirm {
         width: 100%;
 
@@ -1354,17 +1383,25 @@
     white-space: normal;
   }
 
-  .participle-form {
+  :global(.t-popconfirm .t-popup__content.index-participle-popconfirm .t-popconfirm__buttons) {
+    justify-content: flex-start;
+  }
+
+  .participle-form.t-form {
     margin-right: 10px;
+
+    :deep(.participle-mode-form-item .t-form__controls-content) {
+      display: block;
+    }
 
     .t-input__wrap {
       width: 200px;
     }
 
-    .bk-form-item {
-      margin-top: 5px;
+    :deep(.t-form__item) {
+      margin: 5px 0 0;
 
-      .bk-label {
+      .t-form__label {
         padding: 0 13px 0 0;
       }
     }
@@ -1372,6 +1409,27 @@
     .participle-btn {
       padding: 0 8px;
       font-size: 12px;
+      border-radius: 0;
+
+      + .participle-btn {
+        margin-left: -1px;
+      }
+
+      &:first-child {
+        border-radius: 2px 0 0 2px;
+      }
+
+      &:last-child {
+        border-radius: 0 2px 2px 0;
+      }
+
+      &.is-selected {
+        position: relative;
+        z-index: var(--bklog-z-base);
+        color: #3a84ff;
+        background-color: #e1ecff;
+        border-color: #3a84ff;
+      }
     }
   }
 
