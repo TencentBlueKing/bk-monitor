@@ -9,8 +9,9 @@ from typing import Any
 from django.apps import apps as django_apps
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import DataError
-from django.db.models import Q, Subquery
+from django.db.models import JSONField, Q, Subquery
 from django.db.models.fields.json import KeyTextTransform
+from django.db.models.functions import Cast
 
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.inspection import sanitize_sensitive_text
@@ -1309,6 +1310,12 @@ def query_model(params):
     try:
         if spec.scope == "search_history":
             queryset, filters = _filter_search_history_index_sets(queryset, filters, model)
+            if "params__contains" in filters:
+                # The legacy JsonField stores JSON in a TextField; its contains
+                # lookup would otherwise use LIKE instead of JSON containment.
+                queryset = queryset.alias(_history_params_json=Cast("params", JSONField())).filter(
+                    _history_params_json__contains=filters.pop("params__contains")
+                )
         queryset = queryset.filter(**filters)
         if ordering:
             queryset = queryset.order_by(*ordering)

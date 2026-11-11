@@ -111,6 +111,40 @@ class SearchHistoryModelQueryTest(TestCase):
             with self.subTest(filters=filters), self.assertRaises(ValidationError):
                 self.query(filter=filters)
 
+    def test_params_contains_scene_space_and_empty_conditions(self, _tenant):
+        scene = self.history(index_set_id=0, params={"space_uid": "bkcc__2"})
+        self.history(index_set_id=0, params={"space_uid": "bkcc__2", "keyword": "error"})
+        self.history(index_set_id=1001)
+        result = self.query(
+            filter={"index_set_id": 0, "params__contains": {"space_uid": "bkcc__2", "keyword": "*", "addition": []}}
+        )
+        self.assertEqual([row["id"] for row in result["items"]], [scene.pk])
+        self.assertEqual(self.query(filter={"params__contains": {"space_uid": "bkcc__3"}})["count"], 0)
+
+    def test_params_contains_combines_with_union_member_user_and_time(self, _tenant):
+        union = self.history(index_set_type="union", index_set_ids=[1001, 1002])
+        self.history(index_set_id=1002, params={"keyword": "error"})
+        result = self.query(
+            filter={
+                "index_set_id": 1002,
+                "created_by": "example-user",
+                "created_at__gte": "2026-01-02T10:00:00+08:00",
+                "created_at__lte": "2026-01-02T12:00:00+08:00",
+                "params__contains": {"keyword": "*", "addition": []},
+            }
+        )
+        self.assertEqual([row["id"] for row in result["items"]], [union.pk])
+
+    def test_params_contains_uses_json_values_not_text_patterns(self, _tenant):
+        keyword = "日志 'quoted' \"double\" \\path %_"
+        row = self.history(index_set_id=1001, params={"keyword": keyword, "nested": {"enabled": True}})
+        self.history(index_set_id=1001, params={"keyword": "other", "nested": {"enabled": "true"}})
+        result = self.query(filter={"params__contains": {"nested": {"enabled": True}, "keyword": keyword}})
+        self.assertEqual([item["id"] for item in result["items"]], [row.pk])
+        for candidate in ({"keyword": "%_"}, {"keyword": "quoted"}, {"nested": {"enabled": 1}}):
+            with self.subTest(candidate=candidate):
+                self.assertEqual(self.query(filter={"params__contains": candidate})["count"], 0)
+
     def test_detail_explains_recording_boundaries(self, _tenant):
         detail = get_model_spec_detail({"model": "log_search.UserIndexSetSearchHistory"})
         self.assertIn("not a complete request audit", detail["summary"])
