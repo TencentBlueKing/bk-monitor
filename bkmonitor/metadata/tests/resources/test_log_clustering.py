@@ -80,6 +80,15 @@ def change_lock(mocker):
 def clustering_datalink(mocker):
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
     datalink, data_source = create_log_datalink()
+    models.ResultTableConfig.objects.create(
+        table_id=LOG_TABLE_ID,
+        bk_tenant_id="system",
+        namespace=datalink.namespace,
+        data_link_name=datalink.data_link_name,
+        name=datalink.data_link_name,
+        data_type="log",
+        bk_biz_id=2,
+    )
     models.ClusterInfo.objects.create(
         cluster_name=PATTERN_RESOURCE["name"],
         cluster_type=models.ClusterInfo.TYPE_ES,
@@ -254,10 +263,10 @@ def test_set_on_attached_sink_only_applies_sink(clustering_datalink, bkbase):
     assert result["applied_scope"] == "sink_only"
     assert bkbase["apply_log_datalink"].call_count == 1
     (configs,), _ = bkbase["apply_data_link"].call_args
-    assert [config["kind"] for config in configs] == ["LogClusteringSink"]
-    assert configs[0]["spec"]["clustering"]["binding"]["log_filter"] == binding["log_filter"]
-    assert configs[0]["spec"]["clustering"]["binding"]["input_mapping"] == binding["input_mapping"]
-    assert configs[0]["spec"]["raw_sink"] == ES_BINDING_REF
+    assert [config["kind"] for config in configs] == ["ResultTable", "LogClusteringSink"]
+    assert configs[-1]["spec"]["clustering"]["binding"]["log_filter"] == binding["log_filter"]
+    assert configs[-1]["spec"]["clustering"]["binding"]["input_mapping"] == binding["input_mapping"]
+    assert configs[-1]["spec"]["raw_sink"] == ES_BINDING_REF
 
 
 @pytest.mark.parametrize(
@@ -326,7 +335,7 @@ def test_omitted_binding_defaults_are_saved_and_applied(clustering_datalink, bkb
     expected = {**binding, "distance_threshold": "0.5", "max_message_bytes": 1048576}
     assert get_sink().binding == expected
     (configs,), _ = bkbase["apply_data_link"].call_args
-    assert configs[0]["spec"]["clustering"]["binding"] == expected
+    assert configs[-1]["spec"]["clustering"]["binding"] == expected
 
 
 @pytest.mark.parametrize(
@@ -344,7 +353,7 @@ def test_all_filter_methods_are_saved_and_forwarded(method, clustering_datalink,
 
     assert get_sink().binding["log_filter"] == [rule]
     (configs,), _ = bkbase["apply_data_link"].call_args
-    assert configs[0]["spec"]["clustering"]["binding"]["log_filter"] == [rule]
+    assert configs[-1]["spec"]["clustering"]["binding"]["log_filter"] == [rule]
 
 
 def test_candidate_message_size_upper_bound_is_forwarded(clustering_datalink, bkbase):
@@ -356,7 +365,7 @@ def test_candidate_message_size_upper_bound_is_forwarded(clustering_datalink, bk
     set_config(binding=binding)
 
     (configs,), _ = bkbase["apply_data_link"].call_args
-    assert configs[0]["spec"]["clustering"]["binding"]["max_message_bytes"] == 16 * 1024 * 1024
+    assert configs[-1]["spec"]["clustering"]["binding"]["max_message_bytes"] == 16 * 1024 * 1024
 
 
 def test_retry_after_failed_apply_reapplies_whole_datalink(clustering_datalink, bkbase):
@@ -647,8 +656,8 @@ def test_filter_update_preserves_remote_disabled_state(clustering_datalink, bkba
     set_config(binding=binding)
 
     (configs,), _ = bkbase["apply_data_link"].call_args
-    assert configs[0]["spec"]["clustering"]["enabled"] is False
-    assert configs[0]["spec"]["clustering"]["binding"]["log_filter"] == binding["log_filter"]
+    assert configs[-1]["spec"]["clustering"]["enabled"] is False
+    assert configs[-1]["spec"]["clustering"]["binding"]["log_filter"] == binding["log_filter"]
     assert bkbase["apply_log_datalink"].call_count == 1
 
 

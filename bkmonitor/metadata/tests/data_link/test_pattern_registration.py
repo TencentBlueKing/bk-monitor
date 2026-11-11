@@ -281,6 +281,10 @@ def test_register_managed_pattern_once_per_index(log_datalink):
     assert storage.source_type == "log"
     assert storage.index_name == expected_index
     assert storage.index_body["mappings"]["properties"]["signature"]["type"] == "keyword"
+    assert storage.index_body["mappings"]["properties"]["dtEventTimeStamp"] == {
+        "type": "date",
+        "format": "epoch_millis",
+    }
     models.ESStorage.objects.filter(pk=storage.pk).update(need_create_index=False)
     assert prepare_clustering_stores(sink) == first
     storage.refresh_from_db()
@@ -393,6 +397,7 @@ def test_publish_retry_preserves_history_and_routes(log_datalink, mocker):
 
 def test_failed_apply_retries_same_pattern_resources(log_datalink, mocker):
     datalink, _ = log_datalink
+    compose(*log_datalink)
     sink = create_clustering_sink()
     mocker.patch.object(datalink, "get_existing_component_config", return_value=None)
     apply = mocker.patch.object(
@@ -405,8 +410,10 @@ def test_failed_apply_retries_same_pattern_resources(log_datalink, mocker):
     payload = copy.deepcopy(apply.call_args.args[0])
     apply_log_clustering_sink_only(datalink, sink, RAW_SINK)
     assert apply.call_args.args[0] == payload
-    assert [c["kind"] for c in payload] == ["ResultTable", "ElasticSearchBinding", "LogClusteringSink"]
+    assert [c["kind"] for c in payload] == ["ResultTable", "ResultTable", "ElasticSearchBinding", "LogClusteringSink"]
     assert payload[-1]["spec"]["clustering"]["result"]["mode"] == "update_original"
+    assert set(RESULT_FIELDS) <= {field["field_name"] for field in payload[0]["spec"]["fields"]}
+    assert not any(config["kind"] == "Databus" for config in payload)
     publish.assert_called_once_with(datalink)
 
 
@@ -470,3 +477,90 @@ def test_full_apply_publishes_routes_only_after_success(log_datalink, mocker):
     assert len([c for c in configs if c["kind"] == "ResultTable"]) == 2
     assert len([c for c in configs if c["kind"] == "ElasticSearchBinding"]) == 2
     publish.assert_called_once_with(datalink)
+
+
+@pytest.mark.parametrize("mode", ["update_original", "append"])
+def test_result_schema_and_normal_query_alias_survive_reapply(log_datalink, mocker, mode):
+    datalink, _ = log_datalink
+    models.ESStorage.objects.filter(table_id=LOG_TABLE_ID).update(index_settings="{}", mapping_settings="{}")
+    models.ResultTableField.objects.create(
+        table_id=LOG_TABLE_ID,
+        bk_tenant_id="system",
+        field_name="message",
+        field_type="string",
+        tag="dimension",
+        is_config_by_user=True,
+    )
+    models.ResultTableFieldOption.create_option(
+        LOG_TABLE_ID, "message", "es_type", "text", creator="system", bk_tenant_id="system"
+    )
+    route = "bklog_index_set_schema_test.__default__"
+    models.ResultTable.objects.create(
+        table_id=route, bk_tenant_id="system", default_storage="elasticsearch", bk_biz_id=2, is_custom_table=True
+    )
+    models.ESStorage.objects.create(
+        table_id=route,
+        bk_tenant_id="system",
+        origin_table_id=LOG_TABLE_ID,
+        source_type="es",
+        index_set="source_logs",
+        storage_cluster_id=710101,
+    )
+    for table_id in (LOG_TABLE_ID, route):
+        models.ESFieldQueryAliasOption.objects.create(
+            table_id=table_id, bk_tenant_id="system", query_alias="body", field_path="message", path_type="text"
+        )
+    sink = create_clustering_sink(result={"mode": mode})
+    publish = mocker.patch.object(SpaceTableIDRedis, "push_table_id_detail")
+    for attached in (True, False, True):
+        sink.attached = attached
+        sink.save(update_fields=["attached"])
+        configs, _ = compose(*log_datalink)
+        sink.refresh_from_db()
+        source_rt = models.ResultTableConfig.objects.get(table_id=LOG_TABLE_ID)
+        source_config = next(
+            c for c in configs if c["kind"] == "ResultTable" and c["metadata"]["name"] == source_rt.name
+        )
+        fields = {f["field_name"] for f in source_config["spec"]["fields"]}
+        assert (set(RESULT_FIELDS) <= fields) == (mode == "update_original")
+        source = models.ESStorage.objects.get(table_id=LOG_TABLE_ID)
+        mapping = source.index_body["mappings"]["properties"]
+        assert mapping["message"]["type"] == "text"
+        if mode == "update_original":
+            assert mapping["__log_signature"]["type"] == "keyword"
+            assert mapping["__log_cluster_publish_revision"]["type"] == "long"
+        else:
+            assert "__log_signature" not in mapping
+        publish_clustering_routes(datalink)
+        detail, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=[route])
+        expected = {"body": "message"}
+        if mode == "update_original":
+            expected["signature"] = "__log_signature"
+        assert detail[route]["field_alias"] == expected
+        assert {route, LOG_TABLE_ID} <= set(publish.call_args.kwargs["table_id_list"])
+
+
+def test_pattern_timestamp_added_to_existing_table_and_rotation(log_datalink, mocker):
+    sink = create_clustering_sink()
+    prepare_clustering_stores(sink)
+    storage = pattern_storage(sink)
+    # 模拟升级前的登记；只靠新表初始化不能修复这些存量表。
+    models.ResultTableField.objects.filter(table_id=storage.table_id, field_name="dtEventTimeStamp").delete()
+    models.ResultTableFieldOption.objects.filter(table_id=storage.table_id, field_name="dtEventTimeStamp").delete()
+    checked = []
+
+    def prepare_index(self, **kwargs):
+        if self.table_id == storage.table_id:
+            checked.append(self.index_body["mappings"]["properties"]["dtEventTimeStamp"])
+        return True
+
+    mocker.patch.object(models.ESStorage, "update_index_and_aliases", new=prepare_index)
+    for _ in range(2):
+        configs = prepare_clustering_stores(sink)
+        timestamp = next(f for f in configs[0]["spec"]["fields"] if f["field_name"] == "dtEventTimeStamp")
+        assert timestamp["field_type"] == "long"
+    assert checked == [{"type": "date", "format": "epoch_millis"}] * 2
+    assert models.ResultTableField.objects.filter(table_id=storage.table_id, field_name="dtEventTimeStamp").count() == 1
+    # 后续轮转重新加载持久化配置仍生成同一时间 mapping。
+    reloaded = models.ESStorage.objects.get(pk=storage.pk)
+    assert reloaded.index_body["mappings"]["properties"]["dtEventTimeStamp"] == checked[-1]

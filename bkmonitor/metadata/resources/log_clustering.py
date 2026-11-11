@@ -238,6 +238,32 @@ def apply_log_clustering_sink_only(
     from metadata.models.data_link.log_clustering import prepare_clustering_stores, publish_clustering_routes
 
     configs = prepare_clustering_stores(sink) + [sink.compose_config(raw_sink=raw_sink)]
+    if sink.result.get("mode", "update_original") == "update_original":
+        from metadata.models.data_link.utils import generate_result_table_field_list
+        from metadata.models.result_table import LogV4DataLinkOption
+
+        option = models.ResultTableOption.objects.get(
+            table_id=sink.table_id,
+            bk_tenant_id=sink.bk_tenant_id,
+            name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK,
+        )
+        keys = LogV4DataLinkOption(**json.loads(option.value)).es_storage_config.unique_field_list
+        source = models.ResultTableConfig.objects.get(
+            table_id=sink.table_id,
+            bk_tenant_id=sink.bk_tenant_id,
+            namespace=datalink.namespace,
+            data_link_name=datalink.data_link_name,
+        )
+        configs.insert(
+            0,
+            source.compose_config(
+                fields=generate_result_table_field_list(
+                    sink.table_id,
+                    sink.bk_tenant_id,
+                    unique_field_list=keys,
+                )
+            ),
+        )
     configs = datalink.merge_existing_component_configs(configs)
     try:
         datalink.apply_data_link_with_retry(configs)

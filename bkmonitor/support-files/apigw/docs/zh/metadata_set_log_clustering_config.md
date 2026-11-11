@@ -3,7 +3,7 @@
 保存日志 V4 链路的聚类绑定，并下发 LogClusteringSink。
 
 Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.sinks 改为引用聚类 Sink，原存储绑定作为 raw_sink）；
-已引用时下发 Pattern、可选独立结果表的 ResultTable／ES Binding 和聚类 Sink，不重复下发 Databus，raw_sink 取本链路当前唯一的 ES 存储绑定，无法唯一确定时仍按日志链路完整下发。
+已引用时下发 Pattern、可选独立结果表的 ResultTable／ES Binding 和聚类 Sink，默认回写时同步源 ResultTable 字段声明，不重复下发 Databus，raw_sink 取本链路当前唯一的 ES 存储绑定，无法唯一确定时仍按日志链路完整下发。
 运行集群与远端 Databus.spec.preferCluster 不一致时也完整下发，使其与 clustering.runtime_cluster 一致。
 接口不等待 BKBase 排空，也不代表 Runtime 已采用新配置。
 
@@ -28,9 +28,11 @@ Pattern 资源由 metadata 自动注册，调用方不再提供 `pattern_store`�
 
 Pattern 资源名使用 `bklog_<索引集ID>_pattern`，不使用哈希；租户通过资源 tenant 隔离。建表、写入与查询统一使用 BKBase 完整结果表 ID，即 `<ResultTable.spec.bizId>_bklog_<索引集ID>_pattern`，业务前缀沿用现有租户与存储业务映射。
 
-Pattern 默认使用源日志的 ES 集群。采用固定物理索引，字段为 index_set_id、distance_threshold、signature、pattern、pattern_hash、task_id（string），generation、publish_revision（long）；前三个字段支持精确检索。时间字段的实际写入与最近命中刷新仍需 BKBase 联调确认，不由 metadata 伪造。
+默认回写时，metadata 为源日志表登记 `__log_signature`（ES keyword）和 `__log_cluster_publish_revision`（ES long），在首次接入及重新下发时准备索引和写别名，后续轮转继续包含这两个字段。关闭、重开不删除字段。普通检索和 `_clustered` 路由均提供 `signature → __log_signature` 查询别名，增量登记并保留其他已有别名；独立表模式的普通检索仍查询原表。
 
-源日志切存储时，Pattern 复用原实体表与固定物理名称，在目标集群登记或复用对应 Binding，并更新 Sink 引用。旧存储分段保留，不复制历史数据。`_pattern` 通过 origin_table_id 关联 Pattern 实体表，UnifyQuery 按 StorageClusterRecord 覆盖历史集群。路由发布失败由同一操作重试补发。Pattern 的保留清理策略不沿用普通日志按天删索引，本接口不删除旧 Pattern 索引。
+Pattern 默认使用源日志的 ES 集群，由 metadata 管理按日索引和日期写别名。字段为 index_set_id、distance_threshold、signature、pattern、pattern_hash、task_id（string），generation、publish_revision、dtEventTimeStamp（V4 long）；前三个字段支持精确检索。`dtEventTimeStamp` 单位为毫秒，ES mapping 为 `date`、`format=epoch_millis`。首次注册和旧表重新下发均补齐字段与持久化选项，供后续建索引和轮转使用。时间值由 BKBase 写入，metadata 不伪造时间或回填历史文档；同模板再次命中的时间刷新语义仍需与 BKBase 联调确认。
+
+源日志切存储时，Pattern 复用原实体表与固定物理名称，在目标集群登记或复用对应 Binding，并更新 Sink 引用。旧存储分段保留，不复制历史数据。`_pattern` 通过 origin_table_id 关联 Pattern 实体表，UnifyQuery 按 StorageClusterRecord 覆盖历史集群。路由发布失败由同一操作重试补发。Pattern 按日轮转并沿用源日志的保留设置，由 metadata 负责过期清理；跨日重复映射由应用查询侧去重。
 
 日志平台复用 `MINI_CLUSTERING_CONFIG.feature_config.bkbase_quix`，仅需配置 BKFara profile、kafka_resource、runtime_cluster、recovery_resource、state_index 及可选消息上限。state_index 首次开启保存，重试及重开沿用；恢复上下文存储与 Pattern 存储独立。
 
@@ -40,7 +42,7 @@ Pattern 默认使用源日志的 ES 集群。采用固定物理索引，字段�
 
 `append` 时 metadata 自动注册 `bklog_<索引集ID>_clustered`，完整 BKBase 表 ID 为 `<存储业务ID>_bklog_<索引集ID>_clustered`。保留原日志字段，并追加 `__log_signature`（string）和 `__log_cluster_publish_revision`（long）。不带前缀的同名业务字段仍按原日志字段保存。结果表声明采用 BKBase 的 field_name、field_type、field_alias、is_dimension、field_index 字段格式。
 
-独立结果表复用源日志 ES 集群、字段分词配置、轮转和保留设置，由 metadata 现有 ESStorage 能力准备索引与日期写别名。写别名前缀为 `write_%Y%m%d_<完整BKBase表ID>`，查询使用对应的日期读别名；它不是 Pattern 的固定索引。原表继续保存原文，聚类完成后 BKBase 向独立表写入原文及聚类字段。`_clustered` 指向独立结果表，`_pattern` 仍单独指向 Pattern 表。
+独立结果表复用源日志 ES 集群、字段分词配置、轮转和保留设置，由 metadata 现有 ESStorage 能力准备索引与日期写别名。写别名前缀为 `write_%Y%m%d_<完整BKBase表ID>`，查询使用对应的日期读别名；Pattern 表则独立按日轮转。原表继续保存原文，聚类完成后 BKBase 向独立表写入原文及聚类字段。`_clustered` 指向独立结果表，`_pattern` 仍单独指向 Pattern 表。
 
 源日志切存储时，两张表分别更新目标 Binding，并保留各自历史路由；索引准备失败不下发新引用，同一操作可以重试。该模式不新增数据源或 Databus。
 

@@ -17,6 +17,7 @@ PATTERN_FIELDS = {
     "task_id": "string",
     "generation": "long",
     "publish_revision": "long",
+    "dtEventTimeStamp": "long",
 }
 PATTERN_KEYS = ["index_set_id", "distance_threshold", "signature"]
 
@@ -25,6 +26,44 @@ RESULT_FIELDS = {
     "__log_signature": "string",
     "__log_cluster_publish_revision": "long",
 }
+
+
+def register_result_fields(table_id, tenant):
+    """两种写入目标使用相同的聚类字段和查询别名，不覆盖业务字段选项。"""
+    from metadata import models
+
+    for field, kind in RESULT_FIELDS.items():
+        models.ResultTableField.objects.update_or_create(
+            bk_tenant_id=tenant,
+            table_id=table_id,
+            field_name=field,
+            defaults={
+                "field_type": "int" if kind == "long" else kind,
+                "tag": "dimension",
+                "is_config_by_user": True,
+                "creator": "system",
+                "last_modify_user": "system",
+            },
+        )
+        models.ResultTableFieldOption.objects.update_or_create(
+            table_id=table_id,
+            field_name=field,
+            name="es_type",
+            bk_tenant_id=tenant,
+            defaults={"value": "long" if kind == "long" else "keyword", "value_type": "string", "creator": "system"},
+        )
+    register_signature_alias(table_id, tenant)
+
+
+def register_signature_alias(table_id, tenant):
+    from metadata import models
+
+    models.ESFieldQueryAliasOption.objects.update_or_create(
+        table_id=table_id,
+        bk_tenant_id=tenant,
+        query_alias="signature",
+        defaults={"field_path": "__log_signature", "path_type": "keyword", "is_deleted": False},
+    )
 
 
 def prepare_clustering_stores(sink):
@@ -53,6 +92,13 @@ def prepare_clustering_stores(sink):
         result_configs, result_refs = _prepare_store(sink, "clustered", fields, es_config=es_config)
         sink.result = {"mode": "append", **result_refs}
         configs.extend(result_configs)
+    else:
+        from metadata import models
+
+        register_result_fields(sink.table_id, sink.bk_tenant_id)
+        source = models.ESStorage.objects.get(table_id=sink.table_id, bk_tenant_id=sink.bk_tenant_id)
+        if source.update_index_and_aliases(ahead_time=0, strict=True) is False:
+            raise RuntimeError(f"{sink.table_id} ES 索引或写别名未准备完成")
     sink.save(update_fields=["pattern_store", "result"])
     return configs
 
@@ -77,7 +123,7 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
         bk_tenant_id=tenant, cluster_id=source.storage_cluster_id, cluster_type=models.ClusterInfo.TYPE_ES
     )
     with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-        table, created = models.ResultTable.objects.get_or_create(
+        table, _ = models.ResultTable.objects.get_or_create(
             bk_tenant_id=tenant,
             table_id=table_id,
             defaults={
@@ -90,7 +136,12 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
             },
         )
         models.ResultTable.objects.select_for_update().get(pk=table.pk)
-        if created and suffix == "pattern":
+        if suffix == "pattern":
+            existing_fields = set(
+                models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=tenant).values_list(
+                    "field_name", flat=True
+                )
+            )
             models.ResultTableField.bulk_create_fields(
                 table_id,
                 [
@@ -102,6 +153,7 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
                         "operator": "system",
                     }
                     for field, kind in fields.items()
+                    if field not in existing_fields
                 ],
                 bk_tenant_id=tenant,
             )
@@ -116,7 +168,7 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
                     "table_id": table_id,
                     "field_name": field,
                     "name": "es_type",
-                    "value": "long" if kind == "long" else "keyword",
+                    "value": "date" if field == "dtEventTimeStamp" else ("long" if kind == "long" else "keyword"),
                     "creator": "system",
                 }
                 for field, kind in fields.items()
@@ -124,6 +176,15 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
             ]
             if missing_options:
                 models.ResultTableFieldOption.bulk_create_options(table_id, missing_options, bk_tenant_id=tenant)
+            # V4 用毫秒 long；ES 必须以时间字段索引，兼容 UnifyQuery 时间过滤。
+            for option, value in (("es_type", "date"), ("es_format", "epoch_millis")):
+                models.ResultTableFieldOption.objects.update_or_create(
+                    table_id=table_id,
+                    field_name="dtEventTimeStamp",
+                    name=option,
+                    bk_tenant_id=tenant,
+                    defaults={"value": value, "value_type": "string", "creator": "system"},
+                )
         if suffix == "clustered":
             # 独立日志表复用原字段及 ES 字段选项，保留分词、时间与对象字段语义。
             source_fields = list(models.ResultTableField.objects.filter(table_id=sink.table_id, bk_tenant_id=tenant))
@@ -147,27 +208,7 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
                     option.pk = None
                     option.table_id = table_id
                     option.save()
-            for field, kind in RESULT_FIELDS.items():
-                models.ResultTableField.objects.update_or_create(
-                    bk_tenant_id=tenant,
-                    table_id=table_id,
-                    field_name=field,
-                    defaults={
-                        "field_type": "int" if kind == "long" else kind,
-                        "tag": "dimension",
-                        "is_config_by_user": True,
-                        "creator": "system",
-                        "last_modify_user": "system",
-                    },
-                )
-                models.ResultTableFieldOption.create_option(
-                    table_id,
-                    field,
-                    "es_type",
-                    "long" if kind == "long" else "keyword",
-                    creator="system",
-                    bk_tenant_id=tenant,
-                )
+            register_result_fields(table_id, tenant)
         rt, _ = models.ResultTableConfig.objects.get_or_create(
             bk_tenant_id=tenant,
             namespace=sink.namespace,
@@ -311,14 +352,21 @@ def publish_clustering_routes(datalink):
                 bk_tenant_id=datalink.bk_tenant_id, namespace=ref["namespace"], name=ref["name"]
             ).table_id
         )
-    route_ids = []
+    route_ids = list(table_ids)
     for table_id in table_ids:
         storage = models.ESStorage.objects.get(bk_tenant_id=datalink.bk_tenant_id, table_id=table_id)
         routes = models.ESStorage.objects.filter(
             bk_tenant_id=datalink.bk_tenant_id,
             origin_table_id=table_id,
         )
-        route_ids.extend(routes.values_list("table_id", flat=True))
+        related_ids = list(routes.values_list("table_id", flat=True))
+        # 普通检索的虚拟 RT 可有其他别名；增量补签名，避免其遮住源表别名。
+        if table_id != rt.table_id and (
+            table_id != sink.table_id or sink.result.get("mode", "update_original") == "update_original"
+        ):
+            for route_id in related_ids:
+                register_signature_alias(route_id, sink.bk_tenant_id)
+        route_ids.extend(related_ids)
         routes.update(storage_cluster_id=storage.storage_cluster_id)
     if route_ids:
         SpaceTableIDRedis().push_table_id_detail(
