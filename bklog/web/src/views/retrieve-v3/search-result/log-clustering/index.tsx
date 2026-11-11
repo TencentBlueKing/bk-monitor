@@ -463,7 +463,13 @@ export default defineComponent({
                 }
                 if (isShowClusterStep.value) {
                   // 聚类启动失败
-                  return <cluster-start-fail cluster-step-data={clusterStepData.value} />;
+                  return (
+                    <cluster-start-fail
+                      cluster-step-data={clusterStepData.value}
+                      busy={submitting.value}
+                      on-retry={() => submitAction('retry')}
+                    />
+                  );
                 }
                 if (!clusterSwitch.value || !clusterStepData.value) {
                   // 快速开启日志聚类
