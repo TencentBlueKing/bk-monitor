@@ -1,6 +1,5 @@
 .clean-template-detail-slider {
-  .bk-sideslider-content {
-    height: calc(100% - 52px);
+  .t-drawer__body {
     background: #f2f6fc;
   }
 
@@ -84,13 +83,15 @@
   }
 
   .detail-tabs {
-    .bk-tab-header {
+    .bk-tab-header,
+    .t-tabs__header {
       padding-left: 24px;
       background: #fff;
       border-bottom: 0;
     }
 
-    .bk-tab-label-item {
+    .bk-tab-label-item,
+    .t-tabs__nav-item {
       position: relative;
       padding: 0 16px;
       color: #4e5e7a;
@@ -105,16 +106,19 @@
         background: #e9edf5;
       }
 
-      &.active {
+      &.active,
+      &.t-is-active {
         color: #3a84ff;
       }
     }
 
-    .bk-tab-label-list-has-bar::after {
+    .bk-tab-label-list-has-bar::after,
+    .t-tabs__bar {
       height: 3px;
     }
 
-    .bk-tab-section {
+    .bk-tab-section,
+    .t-tabs__content {
       padding: 16px 24px;
       background: #f2f6fc;
       border: 0;

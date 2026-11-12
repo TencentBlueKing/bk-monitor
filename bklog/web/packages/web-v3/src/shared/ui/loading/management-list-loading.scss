@@ -1,0 +1,39 @@
+.management-list-loading {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+
+  &.is-loading {
+    // The row skeleton replaces a table's default central indicator only here.
+    .t-table__loading { visibility: hidden; }
+    .t-table__content { min-height: var(--bklog-table-skeleton-min-height); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .management-list-skeleton .skeleton { animation: none; }
+}
+
+.management-list-skeleton {
+  position: absolute;
+  z-index: var(--bklog-z-local, 1);
+  max-width: 100%;
+  overflow: hidden;
+  background: #fff;
+  cursor: progress;
+
+  &__row {
+    display: grid;
+    border-bottom: 1px solid #dcdee5;
+    box-sizing: border-box;
+  }
+
+  &__cell {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0 16px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+}

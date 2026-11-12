@@ -54,7 +54,7 @@
     <section class="clean-template-list">
       <bk-table
         ref="cleanTable"
-        v-loading="{ loading: isTableLoading }"
+        :loading="isTableLoading"
         class="clean-table"
         :data="templateList"
         :limit-list="pagination.limitList"

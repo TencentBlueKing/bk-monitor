@@ -30,7 +30,7 @@ import { computed, defineComponent, ref } from 'vue';
 
 import { clearTableFilter } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
-import BklogLoading from '@/shared/ui/loading';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import { t } from '@/shared/composables/use-locale';
 import { useTableSetting } from '@/features/management/manage-v2/hooks/use-table-setting';
 
@@ -251,7 +251,7 @@ export default defineComponent({
 
     return () => (
       <div class='grok-table'>
-        <BklogLoading
+        <ManagementListLoading
           data-testid='grok-table-loading'
           loading={props.loading}
         >
@@ -374,7 +374,7 @@ export default defineComponent({
               />
             </bk-table-column>
           </bk-table>
-        </BklogLoading>
+        </ManagementListLoading>
       </div>
     );
   },

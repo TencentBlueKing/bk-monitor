@@ -285,7 +285,7 @@ export default defineComponent({
     return () => (
       <div
         class='extract-auth-manage'
-        v-loading={{ loading: isLoading.value }}
+        aria-busy={isLoading.value}
         data-test-id='extractAuthManage_div_extractAuthManageBox'
       >
         {/* 新增按钮区域 */}
@@ -315,6 +315,7 @@ export default defineComponent({
 
         {/* 策略列表表格 */}
         <bk-table
+          loading={isLoading.value}
           class='king-table'
           v-slots={{
             empty: () => (

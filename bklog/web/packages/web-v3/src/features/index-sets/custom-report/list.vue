@@ -61,7 +61,7 @@
         data-test-id="customContainer_table_container"
       >
         <bk-table
-          v-loading="{ loading: isRequest }"
+          :loading="isRequest"
           class="custom-table"
           :data="collectList"
           :limit-list="pagination.limitList"

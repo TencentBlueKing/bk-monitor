@@ -25,7 +25,12 @@
 -->
 
 <template>
-  <router-view v-if="isHeadless" :key="refreshKey" class="manage-content manage-content-headless"></router-view>
+  <router-view
+    v-if="isHeadless"
+    :key="refreshKey"
+    class="manage-content manage-content-headless"
+    :class="{ 'manage-ui-aligned': alignManagementList }"
+  ></router-view>
   <div v-else class="bk-log-navigation">
     <aside class="manage-sidebar" :class="{ 'is-fixed': isFixed }">
       <div
@@ -73,7 +78,11 @@
       <div class="manage-container">
         <div class="manage-main">
           <sub-nav :sub-nav-list="menuList" :show-sub-nav="showSubNav"></sub-nav>
-          <router-view :key="refreshKey" class="manage-content"></router-view>
+          <router-view
+            :key="refreshKey"
+            class="manage-content"
+            :class="{ 'manage-ui-aligned': alignManagementList }"
+          ></router-view>
         </div>
       </div>
     </div>
@@ -92,6 +101,7 @@ import SubNav from '@/features/navigation/manage-nav';
 import AuthContainerPage from '@/shared/ui/common/auth-container-page.vue';
 
 import { isFeatureToggleOn } from '@/app/state/helper';
+import '@/shared/styles/theme/management-lists.scss';
 
 export default {
   name: 'ManageIndex',
@@ -118,6 +128,10 @@ export default {
     };
   },
   computed: {
+    alignManagementList() {
+      return this.$route.meta.navId !== 'log-collection'
+        && !/^\/manage\/log-collection(?:\/|$)/.test(this.$route.path);
+    },
     ...mapPiniaState(useApplicationStore, ['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
     authPageInfo() {
       return this.isHeadless ? null : useGlobalsStore().authContainerInfo;

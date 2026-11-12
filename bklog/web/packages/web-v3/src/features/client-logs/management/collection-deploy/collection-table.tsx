@@ -49,6 +49,7 @@ export default defineComponent({
     EmptyStatus,
   },
   props: {
+    loading: { type: Boolean, default: false },
     keyword: {
       type: String,
       default: '',
@@ -379,6 +380,7 @@ export default defineComponent({
     return () => (
       <div class='log-table'>
         <bk-table
+          loading={props.loading}
           data={props.data}
           pagination={props.pagination}
           outer-border={false}
