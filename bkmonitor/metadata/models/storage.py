@@ -4127,7 +4127,7 @@ class ESStorage(models.Model, StorageResultTable):
         return False
 
     def backfill_aliases(self, days: int | None = None, dry_run: bool = True) -> dict:
-        """为唯一物理索引补充昨天起往前的每日读写别名，默认覆盖 retention 天。
+        """为唯一物理索引补充昨天起往前、存储时长内尚未过期的每日读写别名。
 
         只添加别名，不创建索引；沿用存储配置的时区和时间偏移。
         """
@@ -4150,7 +4150,13 @@ class ESStorage(models.Model, StorageResultTable):
             date_str = (start_date + datetime.timedelta(days=offset)).strftime(self.date_format)
             aliases.extend([f"write_{date_str}_{self.index_name}", f"{self.index_name}_{date_str}_read"])
 
-        if not dry_run:
+        # 与 clean_index_v2 使用相同的过期判定，包含时区、时间偏移及延迟清理天数。
+        alias_groups = self.group_expired_alias({target_index: {"aliases": dict.fromkeys(aliases, {})}}, self.retention)
+        aliases = alias_groups[target_index]["not_expired_alias"]
+        effective_days = len(aliases) // 2
+        start_date = end_date - datetime.timedelta(days=effective_days - 1) if aliases else None
+
+        if aliases and not dry_run:
             self._update_aliases_with_retry(
                 actions=[{"add": {"index": target_index, "alias": alias}} for alias in aliases],
                 new_index_name=target_index,
@@ -4158,9 +4164,9 @@ class ESStorage(models.Model, StorageResultTable):
         return {
             "table_id": self.table_id,
             "target_index": target_index,
-            "days": days,
-            "start_date": start_date.isoformat(),
-            "end_date": end_date.isoformat(),
+            "days": effective_days,
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if aliases else None,
             "aliases": aliases,
             "dry_run": dry_run,
         }

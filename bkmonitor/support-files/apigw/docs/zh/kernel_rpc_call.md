@@ -58,8 +58,10 @@ Kernel 类 RPC 通用入口，默认隐藏。
 }
 ```
 
-省略 `days` 则按存储时长补充。`dry_run` 默认为 `true`，设为 `false` 后实际添加别名。
+省略 `days` 则在存储时长内补充。所有候选别名均按清理任务的 `group_expired_alias` 规则过滤，
+排除当前已在清理范围内的别名（包含时区、时间偏移及延迟清理天数）。`dry_run` 默认为 `true`，设为 `false` 后实际添加别名。
 返回的 `data` 包含 `table_id`、`target_index`、`days`、`start_date`、`end_date`、`aliases` 和 `dry_run`。
+`days` 和日期范围反映过滤后的实际结果；没有可补充别名时 `days=0`、日期为 `null`，不提交 ES 更新。
 参数不符合要求或 ES 更新失败时返回错误。该接口标记为 `write` 级别。
 
 在 Django shell 中可直接调用 `es_storage.backfill_aliases(days=7, dry_run=False)`。

@@ -726,14 +726,15 @@ def rotate_es_storage_aliases(params: dict[str, Any]) -> dict[str, Any]:
     FUNC_ES_STORAGE_BACKFILL_ALIASES,
     summary="Admin 补充 ESStorage 历史读写别名",
     description=(
-        "从昨天起往前补充每日读写别名，默认覆盖存储时长，指定天数不得超过 retention。"
+        "从昨天起往前补充每日读写别名，默认在存储时长内补充，指定天数不得超过 retention。"
         "仅支持按天切分且只有一个物理索引的实体表，所有别名指向该索引，不创建索引。"
+        "按别名清理任务的规则排除已过期别名，返回实际补充天数与日期范围。"
         "默认 dry_run=true 预览，设为 false 执行写操作。"
     ),
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "table_id": "必填，实体 ESStorage.table_id",
-        "days": "可选，正整数，最大为 retention，默认 retention 天，不包含当天",
+        "days": "可选，正整数，最大为 retention；默认在 retention 天内补充，排除已过期别名，不包含当天",
         "dry_run": "可选，默认 true，只预览；false 实际补充别名",
     },
     example_params={"bk_tenant_id": "system", "table_id": "system.cpu", "days": 7, "dry_run": True},
