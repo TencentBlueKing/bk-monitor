@@ -22,6 +22,7 @@ import {
   Form,
   FormItem,
   Input,
+  InputAdornment,
   Pagination,
   Popconfirm,
   Popup,
@@ -171,7 +172,7 @@ const BkTable = defineComponent({
         const minWidth = attr(propsOf, 'minWidth', 'min-width');
         const filters = attr(propsOf, 'filters') as { text?: string; label?: string; value: unknown }[] | undefined;
         const multiple = attr(propsOf, 'filterMultiple', 'filter-multiple') !== false;
-        const renderHeader = attr(propsOf, 'renderHeader') as ((...args: unknown[]) => unknown) | undefined;
+        const renderHeader = attr(propsOf, 'renderHeader', 'render-header') as ((...args: unknown[]) => unknown) | undefined;
         if (type === 'selection') {
           return [{ colKey: 'row-select', type: 'multiple', width: width || 50 }];
         }
@@ -283,17 +284,27 @@ const BkInput = defineComponent({
         onFocus: () => emit('focus'),
       };
       if (props.type === 'textarea') return h(Textarea, shared, slots);
-      return h(Input, {
+      const hasAdornment = Boolean(slots.prepend || slots.append);
+      const input = h(Input, {
         ...shared,
+        class: hasAdornment ? undefined : attrs.class,
+        style: hasAdornment ? { flex: 1, minWidth: 0 } : attrs.style,
         type: props.type === 'number' ? 'number' : 'text',
       }, {
-        prefix: slots.prepend,
         suffix: () => [
-          slots.append?.(),
           props.rightIcon
             ? h('i', { class: props.rightIcon, onClick: () => emit('right-icon-click') })
             : null,
         ],
+      });
+      if (!hasAdornment) return input;
+      const renderAdornment = (name: 'prepend' | 'append') => slots[name]
+        ? () => h('span', { class: 't-input-adornment__text' }, slots[name]?.())
+        : undefined;
+      return h(InputAdornment, { class: ['bk-input-adornment', attrs.class], style: attrs.style }, {
+        default: () => input,
+        prepend: renderAdornment('prepend'),
+        append: renderAdornment('append'),
       });
     };
   },

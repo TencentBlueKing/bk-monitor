@@ -36,7 +36,7 @@
               >
                 {{ $t('我的') }}
                 <t-switch
-                  v-model="filterOwner"
+                  v-model:value="filterOwner"
                   class="selector-owner-switch"
                   size="small"
                 ></t-switch>
@@ -126,7 +126,6 @@
               </template>
               <template #alert_name="{ row }">
                 <div
-                  v-log-overflow-tips="row.alert_name"
                   class="bklog-table-col-alert-name"
                   :style="{
                     color: '#3a84ff',
@@ -213,6 +212,7 @@ import {
   Table as TTable,
   Tabs as TTabs,
   TabPanel as TTabPanel,
+  type TableProps,
 } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
@@ -361,12 +361,12 @@ import { asDictionary } from '@/shared/utils/typed-record';
 
   // 固定布局下 col 的 minWidth 不生效，「首次发生时间」会被均分挤窄后换行。
   // 给这一列明确宽度，表头再强制单行。
-  const missionColumns = computed(() => [
-    { colKey: 'alert_name', title: t('告警名称'), minWidth: 120 },
-    { colKey: 'first_anomaly_time', title: t('首次发生时间'), width: 168, sorter: true },
-    { colKey: 'duration', title: t('持续时间'), width: 96, align: 'right' },
-    { colKey: 'status', title: t('状态'), width: 96 },
-    { colKey: 'operation', title: t('操作'), width: 88 },
+  const missionColumns = computed<TableProps['columns']>(() => [
+    { colKey: 'alert_name', title: t('告警名称'), minWidth: 120, ellipsis: (_h, { row }) => row.alert_name },
+    { colKey: 'first_anomaly_time', title: t('首次发生时间'), width: 168, sorter: true, ellipsis: true },
+    { colKey: 'duration', title: t('持续时间'), width: 96, align: 'right', ellipsis: true },
+    { colKey: 'status', title: t('状态'), width: 96, ellipsis: true },
+    { colKey: 'operation', title: t('操作'), width: 88, ellipsis: true },
   ]);
   const configColumns = computed(() => [
     { colKey: 'name', title: t('策略'), ellipsis: true, minWidth: 180 },
