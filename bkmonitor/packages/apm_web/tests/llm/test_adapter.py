@@ -172,6 +172,51 @@ class AdapterTests(TestCase):
         self.assertNotIn("gen_ai.usage.output_tokens", attributes)
         self.assertNotIn("vendor.debug", attributes)
 
+    def test_default_adapter_appends_missing_system_messages_without_duplicates(self) -> None:
+        span = agentlens_span()
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.input.messages": [
+                {"role": "user", "parts": [{"type": "text", "content": "question"}]},
+                {"role": "system", "parts": [{"type": "text", "content": "existing"}]},
+            ],
+            "llm.input": json.dumps(
+                [
+                    {"type": "system", "data": {"content": "existing"}},
+                    {"type": "system", "data": {"content": "missing"}},
+                    {"type": "system", "data": {"content": "missing"}},
+                    {"type": "human", "data": {"content": "question"}},
+                ]
+            ),
+        }
+
+        attributes = adapt_spans([span], "default")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.input.messages"],
+            [
+                {"role": "user", "parts": [{"type": "text", "content": "question"}]},
+                {"role": "system", "parts": [{"type": "text", "content": "existing"}]},
+                {"role": "system", "parts": [{"type": "text", "content": "missing"}]},
+            ],
+        )
+        self.assertNotIn("llm.input", attributes)
+
+    def test_default_adapter_keeps_front_truncated_input_unchanged(self) -> None:
+        span = agentlens_span()
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+            "llm.input": 'truncated prefix",{"type":"system","data":{"content":"hidden"}}]',
+        }
+
+        attributes = adapt_spans([span], "default")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+        )
+
     def test_langfuse_root_maps_conversation_and_content(self) -> None:
         span = langfuse_span(observation_type="span")
         span["attributes"].update(

@@ -14,7 +14,26 @@ from typing import Any
 
 from apm_web.llm.constants import STANDARD_FIELDS
 
-from .utils import standard_content
+from .utils import safe_parse, standard_content, text_message
+
+
+def append_system_messages(attrs: dict[str, Any], content: dict[str, Any]) -> None:
+    messages = content.get("gen_ai.input.messages")
+    source = safe_parse(attrs.get("llm.input"))
+    if not isinstance(messages, list) or not isinstance(source, list):
+        return
+
+    merged = list(messages)
+    for item in source:
+        if not isinstance(item, dict) or item.get("type") != "system":
+            continue
+        data = item.get("data")
+        if not isinstance(data, dict) or not isinstance(data.get("content"), str):
+            continue
+        message = text_message("system", data["content"])
+        if message not in merged:
+            merged.append(message)
+    content["gen_ai.input.messages"] = merged
 
 
 def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -25,6 +44,7 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
             key: value for key, value in attrs.items() if key in STANDARD_FIELDS and value not in (None, "", [])
         }
         attributes.update(standard_content(attrs))
+        append_system_messages(attrs, attributes)
         if not attributes:
             continue
         spans.append(
