@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "scope": "UPSTREAM_BKLOG_FRONTEND_SYNC_NOT_FULL_MASTER_MERGE",
+  "generatedAt": "2026-11-12T03:24:55.602Z",
+  "branch": "feat/ai-migration-engine/#139460519",
+  "upstreamMaster": "638870644c8498fb57e4ce784f3121286d847c57",
+  "upstreamMigration": "9424c9ec77ad186c074360d2aef2c186cc73e37b",
+  "pull": "Already up to date",
+  "targeted": {
+    "passed": 10,
+    "failed": 0
+  },
+  "full": {
+    "reported": 366,
+    "passed": 340,
+    "failed": 26,
+    "failedEntries": [
+      "tests/acceptance-route-contract.test.mjs",
+      "typed domain endpoint definitions preserve every V2 method, URL and export",
+      "all route declarations retain paths, component branches and redirect expressions",
+      "client log list preserves baseline requests, creator labels, filters, paging, clone/view and polling cleanup",
+      "field previews preserve V2 null filtering, original formatting and empty states",
+      "field preview API keeps updated-rule serialization and failure recovery identical to V2",
+      "masking matches and table columns retain V2 request parameters, rules and pagination",
+      "SDK Select maps id/name and controls popup closing without dropping model events",
+      "small domains use the shared native TDesign loading component",
+      "native popup positioning safely handles a closed or unmounted overlay",
+      "shared popovers allocate an overlay layer without requiring the removed UI library global",
+      "alias drafts retain nested field metadata, expand/collapse without duplicating children and never mutate source",
+      "alias validation preserves V2 naming restrictions and submission includes collapsed object children",
+      "tests/field-tree-native.test.mjs",
+      "tests/full-business-gate.test.mjs",
+      "tests/grade-source.test.mjs",
+      "graph editor retains Monaco class identity and private object graph under Vue3 reactivity",
+      "chart disposal releases the ECharts instance on explicit mode switch and unmount",
+      "tests/jsx-contracts.test.mjs",
+      "tests/loading-contract.test.mjs",
+      "tests/log-filter-controls-native.test.mjs",
+      "Monitor packaging checks resources and archives previous outputs while preserving package version",
+      "legacy Monitor constructor mounts a configured Vue3 app, updates host props and destroys once",
+      "actual download task renderer retains V2 progress and retry payload for all task states",
+      "tests/original-log-time-cell.test.mjs",
+      "every source message has a unique stable ID and a loadable generated function in both locales"
+    ]
+  },
+  "typecheck": {
+    "status": "FAILED",
+    "diagnostics": 1671,
+    "previous": 1675,
+    "addedNormalized": [],
+    "removedNormalized": [
+      "src/features/collection/current/components/create-operation/step3-clean.tsx(LINE,COL): error TS2769: No overload matches this call.",
+      "src/features/collection/current/components/create-operation/step3-clean.tsx(LINE,COL): error TS2339: Property 'toReversed' does not exist on type '{}'.",
+      "src/features/collection/current/components/create-operation/step3-clean.tsx(LINE,COL): error TS2339: Property 'map' does not exist on type '{}'.",
+      "src/features/retrieval/workbench/sub-bar/warning-setting.vue(LINE,COL): error TS2322: Type '({ colKey: string; title: string; minWidth: number; width?: undefined; sorter?: undefined; align?: undefined; } | { colKey: string; title: string; width: number; sorter: boolean; minWidth?: undefined; align?: undefined; } | { ...; } | { ...; })[]' is not assignable to type 'PrimaryTableCol<TableRowData>[]'."
+    ]
+  },
+  "build": {
+    "status": "PASSED",
+    "legacyStaticFiles": 215,
+    "runtimeAccepted": false
+  },
+  "fastRegression": {
+    "status": "SOURCE_REGRESSION_PASSED",
+    "passed": 63,
+    "report": "runs/regression/1794453842745-90023786.json",
+    "staleReferenceFiles": [
+      "packages/web-v2/src/api/_httpRequest.js",
+      "packages/web-v2/src/common/analyze-trace.ts",
+      "packages/web-v2/src/common/observe-call.ts",
+      "packages/web-v2/src/global/bk-space-choice/index.tsx",
+      "packages/web-v2/src/global/bk-space-choice/list.tsx",
+      "packages/web-v2/src/hooks/use-list-sort.ts",
+      "packages/web-v2/src/language/lang/en/content.ts",
+      "packages/web-v2/src/store/actions/retrieve-search-actions.js",
+      "packages/web-v2/src/store/index.js",
+      "packages/web-v2/src/views/manage-v2/grok-manage/components/grok-input.tsx",
+      "packages/web-v2/src/views/manage-v2/log-collection/components/business-comp/step2/device-metadata.tsx",
+      "packages/web-v2/src/views/manage-v2/log-collection/components/create-operation/step2-configuration.tsx",
+      "packages/web-v2/src/views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+      "packages/web-v2/src/views/retrieve-v2/result-comp/update/fields-setting.vue",
+      "packages/web-v2/src/views/retrieve-v2/search-result-panel/log-result/index.vue",
+      "packages/web-v2/src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx",
+      "packages/web-v2/src/views/retrieve-v3/search-bar/scene-filter/filter-panel.tsx"
+    ]
+  },
+  "toolCalibration": {
+    "required": 52,
+    "passed": 52
+  },
+  "logs": [
+    {
+      "id": "targeted",
+      "temporaryPath": "/private/tmp/bklog-v3-master-sync-targeted.log",
+      "sha256": "9c9c3ce3fd1f98878f610d3b3f3abadf478fc0697c49287e382a7eb58fa5020c"
+    },
+    {
+      "id": "full",
+      "temporaryPath": "/private/tmp/bklog-v3-master-sync-tests.log",
+      "sha256": "bd608e94bb02fb58e69f3ff86c43bfdcc8f27bc8fe50ced3b59c92f95ddf2456"
+    },
+    {
+      "id": "build",
+      "temporaryPath": "/private/tmp/bklog-v3-master-sync-build.log",
+      "sha256": "86820a197cbb33f6085a2132a38f9704249f66308ba327151d74771033fac6f2"
+    },
+    {
+      "id": "typecheck",
+      "temporaryPath": "/private/tmp/bklog-v3-typecheck-master-sync-final.log",
+      "sha256": "0bd67ffdc1f497bffc2ff93e5e51f0bd27ba501a57332e6f79204440616ea6d9"
+    }
+  ],
+  "businessAccepted": false,
+  "visualAccepted": false,
+  "remotePushed": false
+}

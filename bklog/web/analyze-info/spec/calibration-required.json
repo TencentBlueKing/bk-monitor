@@ -8,7 +8,8 @@
       "tests/product-probe.test.mjs",
       "tests/network-recorder.test.mjs",
       "tests/replay-capture.test.mjs",
-      "tests/contract-pin.test.mjs"
+      "tests/contract-pin.test.mjs",
+      "tests/regression-baseline.test.mjs"
     ],
     "ids": [
       "protocol-exports",
@@ -58,7 +59,11 @@
       "source-v3-component-provenance",
       "management-baseline-runtime-errors-fail-closed",
       "management-oracle-pin-current",
-      "management-oracle-pin-fail-closed"
+      "management-oracle-pin-fail-closed",
+      "baseline impact: shared changes select all; unknown changes remain unmapped",
+      "baseline paths: repository and absolute changes normalize; traversal rejected",
+      "baseline TAP: missing extra duplicate skipped TODO empty and failed tests cannot pass",
+      "baseline integrity: changed source is stale; altered missing evidence and duplicate entries fail"
     ]
   },
   "browser": {

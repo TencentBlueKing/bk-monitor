@@ -263,5 +263,16 @@
     "report": "runs/pilot/self-replay-1794395101778.json",
     "privateInputAvailableNow": false,
     "currentBatchDidNotReuseHistoricalPass": true
+  },
+  "reusableUiBaseline": {
+    "id": "ui-alignment-20261112-r1",
+    "guide": "回归使用指南.md",
+    "manifest": "baselines/ui-alignment/2026-11-12-r1/manifest.json",
+    "uniqueSourceCases": 63,
+    "toolNegativeCases": 4,
+    "referenceStatus": "PARTIAL_REFERENCE",
+    "businessAccepted": false,
+    "visualAccepted": false,
+    "pixelBaselineAvailable": false
   }
 }

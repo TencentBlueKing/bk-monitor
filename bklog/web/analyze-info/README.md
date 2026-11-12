@@ -1,5 +1,12 @@
 # V2基准重建执行目录
 
+后续开发的快速入口：[回归使用指南](回归使用指南.md)。基准清单位于 `baselines/ui-alignment/2026-11-12-r1/manifest.json`，支持证据校验、按改动文件选组和 63 条去重快速回归；尚未完成的真实业务与视觉验收不会自动标为通过。
+
+```sh
+# 从 bklog/web 执行
+node analyze-info/harness/run-regression-baseline.mjs --all
+```
+
 这是2026-11-11按用户已评审方案重新建立的分析工程。旧344个结果文件已清除，仅保留两份原始export输入。没有导入旧PASS/FAIL、覆盖率、Mock或问题清单。
 
 ## 当前材料
