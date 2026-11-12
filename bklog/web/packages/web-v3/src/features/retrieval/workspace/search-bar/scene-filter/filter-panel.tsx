@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Button as TButton } from 'tdesign-vue-next';
+import { Button as TButton, Loading as TLoading } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
@@ -495,7 +495,7 @@ export default defineComponent({
             class='field-suggestion-empty'
             onMousedown={(e: MouseEvent) => e.preventDefault()}
           >
-            {t('暂无数据')}
+            {suggestionState.loading ? <TLoading size='16px' /> : t('暂无数据')}
           </li>
         );
       }
@@ -1002,7 +1002,6 @@ export default defineComponent({
               {suggestionState.visible && suggestionState.currentFieldKey === field.key && (
                 <ul
                   class='field-suggestion-dropdown'
-                  v-loading={{ loading: suggestionState.loading }}
                   onScroll={(e: Event) => {
                     const target = e.target as HTMLElement;
                     if (target.scrollTop + target.clientHeight >= target.scrollHeight - 50) {

@@ -277,9 +277,15 @@
             }
 
             .field-suggestion-empty {
-              padding: 12px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-sizing: border-box;
+              height: 40px;
+              padding: 0 12px;
               text-align: center;
               font-size: 12px;
+              line-height: 20px;
               color: #c4c6cc;
             }
 
