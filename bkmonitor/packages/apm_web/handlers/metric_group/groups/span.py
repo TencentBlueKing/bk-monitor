@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from collections import defaultdict
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 from django.db.models import Q
@@ -56,40 +57,50 @@ class SpanMetricGroup(base.BaseMetricGroup):
         metric_infos: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
-        q = self._q().interval(self.interval)
-        qs = UnifyQuerySet().scope(self.bk_biz_id)
+        qs, execute = self._get_range_query(calculation_type, start_time, end_time, metric_infos)
+        return execute(qs)
 
+    def _get_range_query(
+        self, calculation_type: str, start_time: int, end_time: int, metric_infos: list[dict[str, Any]] | None
+    ) -> tuple[UnifyQuerySet, Callable[[UnifyQuerySet], list[dict[str, Any]]]]:
+        """构造列表范围查询，并绑定对应的执行入口。"""
         if calculation_type == define.CalculationType.AVG_DURATION.value:
-            # 使用 QuerySet 读取平均耗时，保留 UQ 返回的原始数值精度。
             start_ms, end_ms = UnifyQuery.process_time_range(start_time * 1000, end_time * 1000)
-            # QuerySet 按传入的结束时间去掉末点。原平均耗时查询去掉的是对齐到步长后的结束点。
-            aligned_end_ms = time_interval_align(end_ms // 1000, self.interval) * 1000
-            qs = self._avg_duration_qs(qs, q, expression="(a or vector(0)) / b").start_time(start_ms).end_time(end_ms)
-            points_by_group = defaultdict(list)
-            for point in qs:
-                if point["_time_"] == aligned_end_ms:
-                    continue
-                key = tuple(point.get(field) for field in self.group_by)
-                points_by_group[key].append([point["_result_"], point["_time_"]])
-            return [
-                {"dimensions": dict(zip(self.group_by, key)), "datapoints": points}
-                for key, points in points_by_group.items()
-            ]
+            q = self._q().interval(self.interval)
+            qs = self._avg_duration_qs(UnifyQuerySet().scope(self.bk_biz_id), q, expression="(a or vector(0)) / b")
+            return qs.start_time(start_ms).end_time(end_ms), partial(self._query_avg_duration_series, end_ms=end_ms)
 
         if calculation_type == define.CalculationType.EXCEPTION_RATE.value:
-            # 按状态码汇总调用次数后计算错误率，有调用但无错误的时间点返回 0。
-            q = q.group_by("status_code")
-        elif calculation_type != define.CalculationType.REQUEST_TOTAL.value:
+            # 按状态码查询调用次数，供错误率计算区分无错误与无有效调用。
+            extra_group_by = ("status_code",)
+            execute = self._query_error_rate_series
+        elif calculation_type == define.CalculationType.REQUEST_TOTAL.value:
+            extra_group_by = ()
+            execute = self._query_graph_series
+        else:
             raise ValueError(f"Unsupported range calculation type -> {calculation_type}")
 
-        # Graph 会移除 where 中的全选条件。保留 filter_dict 可精确匹配与全选标记同名的服务。
-        config = self._request_total_qs(qs, q).config
-        series = resource.grafana.graph_unify_query.query_with_metric_info(
-            {**config, "start_time": start_time, "end_time": end_time}, metric_infos=metric_infos
-        )["series"]
-        if calculation_type == define.CalculationType.REQUEST_TOTAL.value:
-            return series
+        q = self._q(*extra_group_by).interval(self.interval)
+        qs = self._request_total_qs(UnifyQuerySet().scope(self.bk_biz_id), q)
+        return qs, partial(execute, start_time=start_time, end_time=end_time, metric_infos=metric_infos)
 
+    def _query_graph_series(
+        self,
+        qs: UnifyQuerySet,
+        *,
+        start_time: int,
+        end_time: int,
+        metric_infos: list[dict[str, Any]] | None,
+    ) -> list[dict[str, Any]]:
+        # Graph 会移除 where 中的全选条件。保留 filter_dict 可精确匹配与全选标记同名的服务。
+        return resource.grafana.graph_unify_query.query_with_metric_info(
+            {**qs.config, "start_time": start_time, "end_time": end_time}, metric_infos=metric_infos
+        )["series"]
+
+    def _query_error_rate_series(
+        self, qs: UnifyQuerySet, *, start_time: int, end_time: int, metric_infos: list[dict[str, Any]] | None
+    ) -> list[dict[str, Any]]:
+        series = self._query_graph_series(qs, start_time=start_time, end_time=end_time, metric_infos=metric_infos)
         series_by_group = defaultdict(list)
         for item in series:
             key = tuple(item["dimensions"].get(field) for field in self.group_by)
@@ -100,6 +111,21 @@ class SpanMetricGroup(base.BaseMetricGroup):
                 "datapoints": ErrorRateCalculation.range_cal({"series": items})["series"][0]["datapoints"],
             }
             for key, items in series_by_group.items()
+        ]
+
+    def _query_avg_duration_series(self, qs: UnifyQuerySet, *, end_ms: int) -> list[dict[str, Any]]:
+        # QuerySet 按传入的结束时间去掉末点。原平均耗时查询去掉的是对齐到步长后的结束点。
+        aligned_end_ms = time_interval_align(end_ms // 1000, self.interval) * 1000
+        points_by_group = defaultdict(list)
+        # 直接迭代 QuerySet，保留 UQ 返回的原始数值精度。
+        for point in qs:
+            if point["_time_"] == aligned_end_ms:
+                continue
+            key = tuple(point.get(field) for field in self.group_by)
+            points_by_group[key].append([point["_result_"], point["_time_"]])
+        return [
+            {"dimensions": dict(zip(self.group_by, key)), "datapoints": points}
+            for key, points in points_by_group.items()
         ]
 
     def query_config(self, calculation_type: str, raw: bool = False, **kwargs) -> dict[str, Any]:
@@ -122,9 +148,9 @@ class SpanMetricGroup(base.BaseMetricGroup):
     def _qs(self) -> UnifyQuerySet:
         return self.metric_helper.time_range_qs()
 
-    def _q(self) -> QueryConfigBuilder:
+    def _q(self, *extra_group_by: str) -> QueryConfigBuilder:
         q = (
-            self.metric_helper.q.group_by(*self.group_by)
+            self.metric_helper.q.group_by(*self.group_by, *extra_group_by)
             .filter(self._filter_dict_to_q())
             .time_field(self.metric_helper.TIME_FIELD)
         )
