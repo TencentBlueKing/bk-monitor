@@ -2,6 +2,7 @@ import {
   defineComponent,
   getCurrentInstance,
   h,
+  normalizeClass,
   onBeforeUnmount,
   ref,
   watch,
@@ -42,6 +43,7 @@ import {
   TimePicker,
 } from 'tdesign-vue-next';
 import BkSearchSelect from '@/shared/ui/bk-search-select';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import { overlayRegistry } from '@/shared/global/overlay/overlay-registry.js';
 import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 
@@ -151,6 +153,8 @@ const BkTable = defineComponent({
     size: { type: String, default: 'medium' },
     rowKey: { type: [String, Function], default: undefined },
     emptyText: { type: String, default: '' },
+    loading: { type: Boolean, default: undefined },
+    outerBorder: { type: Boolean, default: true },
   },
   emits: ['page-change', 'page-limit-change', 'filter-change', 'row-click', 'sort-change', 'select', 'selection-change'],
   setup(props, { attrs, slots, emit, expose }) {
@@ -197,8 +201,9 @@ const BkTable = defineComponent({
       const pagination = props.pagination && typeof props.pagination === 'object'
         ? props.pagination as { current?: number; count?: number; limit?: number; limitList?: number[] }
         : undefined;
-      return h(Table, {
+      const content = () => h(Table, {
         ...attrs,
+        class: normalizeClass(['bklog-legacy-table', attrs.class, { 'is-borderless': props.outerBorder === false }]),
         ref: table,
         data: props.data,
         columns,
@@ -234,6 +239,7 @@ const BkTable = defineComponent({
           emit('selection-change', keys);
         },
       }, { empty: slots.empty || (() => props.emptyText) });
+      return props.loading === undefined ? content() : h(ManagementListLoading, { loading: props.loading }, { default: content });
     };
   },
 });
@@ -255,6 +261,7 @@ const BkInput = defineComponent({
     readonly: { type: Boolean, default: false },
     placeholder: { type: String, default: '' },
     maxlength: { type: [String, Number], default: undefined },
+    rows: { type: [String, Number], default: undefined },
     rightIcon: { type: String, default: '' },
     min: { type: [String, Number], default: undefined },
     max: { type: [String, Number], default: undefined },
@@ -284,7 +291,11 @@ const BkInput = defineComponent({
         onBlur: () => emit('blur'),
         onFocus: () => emit('focus'),
       };
-      if (props.type === 'textarea') return h(Textarea, shared, slots);
+      if (props.type === 'textarea') {
+        const rows = Number(props.rows);
+        const autosize = attrs.autosize ?? (Number.isFinite(rows) && rows > 0 ? { minRows: rows, maxRows: rows } : undefined);
+        return h(Textarea, { ...shared, autosize }, slots);
+      }
       const hasAdornment = Boolean(slots.prepend || slots.append);
       const input = h(Input, {
         ...shared,
@@ -411,6 +422,7 @@ const BkForm = defineComponent({
     model: { type: Object, default: () => ({}) },
     rules: { type: Object, default: () => ({}) },
     labelWidth: { type: [String, Number], default: 100 },
+    formType: { type: String, default: 'horizontal' },
   },
   setup(props, { attrs, slots, expose }) {
     const form = ref<{ validate: () => Promise<unknown>; clearValidate: () => void } | null>(null);
@@ -430,7 +442,9 @@ const BkForm = defineComponent({
       ref: form,
       data: props.model,
       rules: props.rules,
-      labelWidth: props.labelWidth,
+      labelAlign: props.formType === 'vertical' ? 'top' : (attrs.labelAlign ?? attrs['label-align'] ?? 'right'),
+      labelWidth: props.formType === 'vertical' ? undefined : props.labelWidth,
+      layout: props.formType === 'inline' ? 'inline' : (attrs.layout ?? 'vertical'),
     }, slots);
   },
 });
@@ -443,9 +457,16 @@ const BkFormItem = defineComponent({
     label: { type: String, default: '' },
     property: { type: String, default: '' },
     required: { type: Boolean, default: false },
+    extCls: { type: String, default: '' },
   },
   setup(props, { attrs, slots }) {
-    return () => h(FormItem, { ...attrs, label: props.label, name: props.property, requiredMark: props.required }, slots);
+    return () => h(FormItem, {
+      ...attrs,
+      class: normalizeClass([props.extCls, attrs.class]),
+      label: props.label,
+      name: props.property,
+      requiredMark: props.required,
+    }, slots);
   },
 });
 
@@ -640,10 +661,13 @@ const BkSideslider = defineComponent({
     width: { type: [String, Number], default: 640 },
     quickClose: { type: Boolean, default: true },
     transfer: { type: Boolean, default: true },
+    extCls: { type: String, default: '' },
+    beforeClose: { type: Function, default: undefined },
   },
   emits: ['update:isShow', 'animation-end', 'shown'],
   setup(props, { attrs, slots, emit }) {
-    const close = () => {
+    const close = async () => {
+      if (props.beforeClose && await props.beforeClose() === false) return;
       emit('update:isShow', false);
       emit('animation-end');
     };
@@ -662,10 +686,13 @@ const BkSideslider = defineComponent({
       const attach = props.transfer === false ? attrs.attach : (attrs.attach ?? 'body');
       return h(Drawer, {
         ...attrs,
+        drawerClassName: normalizeClass(['bklog-compat-drawer', props.extCls, attrs.drawerClassName, attrs.class]),
         attach,
         visible: props.isShow,
         header: props.title,
         size: typeof props.width === 'number' ? `${props.width}px` : props.width,
+        closeBtn: attrs.closeBtn ?? attrs['close-btn'] ?? true,
+        closeOnEscKeydown: attrs.closeOnEscKeydown ?? attrs['close-on-esc-keydown'] ?? true,
         closeOnOverlayClick: props.quickClose,
         footer: Boolean(slots.footer),
         zIndex: attrs.zIndex ?? drawerZIndex.value,

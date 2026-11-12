@@ -393,7 +393,7 @@ export default defineComponent({
         <section class='log-restore-table'>
           <bk-table
             class='restore-table'
-            v-loading={{ loading: isTableLoading.value }}
+            loading={isTableLoading.value}
             v-slots={{
               empty: () => (
                 <div>

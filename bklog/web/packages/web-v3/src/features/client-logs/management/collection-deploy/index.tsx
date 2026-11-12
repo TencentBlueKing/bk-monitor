@@ -460,7 +460,7 @@ export default defineComponent({
               isAllowedDownload={props.isAllowedDownload}
               data={tableData.value.list}
               indexSetId={props.indexSetId}
-              v-loading={{ loading: isLoading.value }}
+              loading={isLoading.value}
               keyword={queryParams.value.keyword}
               hasFilter={hasFilter.value}
               createdBys={createdBys.value}

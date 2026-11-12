@@ -220,7 +220,7 @@ export default defineComponent({
     return () => (
       <div
         class='extract-link-list-container'
-        v-loading={{ loading: isLoading.value }}
+        aria-busy={isLoading.value}
         data-test-id='extractLinkList_div_extractLinkListBox'
       >
         {/* 新增按钮 */}
@@ -240,6 +240,7 @@ export default defineComponent({
         </div>
         {/* 链路表格 */}
         <bk-table
+          loading={isLoading.value}
           class='king-table'
           v-slots={{
             empty: () => (

@@ -47,7 +47,7 @@ import { defineComponent, ref, computed, onMounted, nextTick } from 'vue';
 import * as authorityMap from '@/shared/lib/authority-map';
 import { formatFileSize, isIPv6, getDefaultSettingSelectFiled, setDefaultSettingSelectFiled } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
-import BklogLoading from '@/shared/ui/loading';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import useLocale from '@/shared/composables/use-locale';
 import useRouter from '@/shared/composables/use-router';
 
@@ -948,7 +948,7 @@ export default defineComponent({
               )}}
             />
           </div>
-          <BklogLoading data-testid='cluster-table-loading' loading={tableLoading.value}>
+          <ManagementListLoading data-testid='cluster-table-loading' loading={tableLoading.value}>
             <TTable
               rowKey='cluster_config.cluster_id'
               columns={tableColumns.value}
@@ -975,7 +975,7 @@ export default defineComponent({
                 else handlePageChange(current);
               }}
             />
-          </BklogLoading>
+          </ManagementListLoading>
         </div>
 
         <div style={`width: ${introWidth.value}px`} class={['intro-container', isDraging.value && 'draging-move']}>

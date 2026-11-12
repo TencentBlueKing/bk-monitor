@@ -1,10 +1,16 @@
 .grok-slider {
   .grok-slider-content {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
     padding: 24px 40px;
   }
 
-  .bk-form {
-    .bk-form-item {
+  .t-form {
+    width: 100%;
+    min-width: 0;
+
+    .t-form__item {
       margin-bottom: 24px;
 
       &:last-child {
@@ -22,6 +28,17 @@
   // 调试区域
   .debug-section {
     margin-top: 32px;
+
+    .t-textarea__inner {
+      padding: 5px 10px;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .t-textarea__limit {
+      font-size: 12px;
+      line-height: 18px;
+    }
 
     .debug-section-title {
       font-size: 14px;
@@ -119,7 +136,7 @@
   .slider-footer {
     margin-top: 24px;
 
-    .bk-form-content {
+    .t-form__controls-content {
       display: flex;
       gap: 8px;
     }

@@ -1345,7 +1345,9 @@
     "shared/styles/space-tag-option.scss",
     "shared/styles/storage.scss",
     "shared/styles/theme/common.scss",
+    "shared/styles/theme/compat-drawer.scss",
     "shared/styles/theme/index.scss",
+    "shared/styles/theme/management-lists.scss",
     "shared/styles/theme/mixin.scss",
     "shared/styles/theme/tdesign-bklog.scss",
     "shared/styles/theme/theme-dark.scss",
@@ -1378,6 +1380,8 @@
     "shared/ui/loading/_shimmer.scss",
     "shared/ui/loading/index.scss",
     "shared/ui/loading/index.tsx",
+    "shared/ui/loading/management-list-loading.scss",
+    "shared/ui/loading/management-list-loading.tsx",
     "shared/ui/loading/native.ts",
     "shared/ui/loading/skeleton.scss",
     "shared/ui/loading/skeleton.ts",
@@ -5981,7 +5985,7 @@
     },
     {
       "from": "features/clusters/current/cluster-manage/index.tsx",
-      "to": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/management-list-loading.tsx",
       "kind": "module"
     },
     {
@@ -10266,7 +10270,7 @@
     },
     {
       "from": "features/data-links/manage-data-link-conf/index.vue",
-      "to": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/management-list-loading.tsx",
       "kind": "module"
     },
     {
@@ -11326,7 +11330,7 @@
     },
     {
       "from": "features/grok/current/grok-table.tsx",
-      "to": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/management-list-loading.tsx",
       "kind": "module"
     },
     {
@@ -12892,6 +12896,11 @@
     {
       "from": "features/management/manage/index.vue",
       "to": "app/state/helper.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/management/manage/index.vue",
+      "to": "shared/styles/theme/management-lists.scss",
       "kind": "module"
     },
     {
@@ -22001,12 +22010,22 @@
     },
     {
       "from": "platform/compat/tdesign/legacy-bk-controls.tsx",
+      "to": "shared/ui/loading/management-list-loading.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/legacy-bk-controls.tsx",
       "to": "shared/global/overlay/overlay-registry.js",
       "kind": "module"
     },
     {
       "from": "platform/compat/tdesign/legacy-bk-controls.tsx",
       "to": "shared/global/overlay/z-index-manager.js",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/legacy-control-styles.ts",
+      "to": "shared/styles/theme/compat-drawer.scss",
       "kind": "module"
     },
     {
@@ -24242,6 +24261,21 @@
     {
       "from": "shared/ui/loading/index.tsx",
       "to": "shared/ui/loading/index.scss",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/management-list-loading.tsx",
+      "to": "app/skeleton/item-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/management-list-loading.tsx",
+      "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/management-list-loading.tsx",
+      "to": "shared/ui/loading/management-list-loading.scss",
       "kind": "module"
     },
     {

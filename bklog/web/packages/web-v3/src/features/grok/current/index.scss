@@ -13,8 +13,10 @@
     }
 
     .operating-right {
-      .bk-input-text {
+      .bk-input-text,
+      .t-input__wrap {
         width: 480px;
+        max-width: 100%;
       }
     }
   }

@@ -68,7 +68,7 @@
     <section class="log-clean-list">
       <bk-table
         ref="cleanTable"
-        v-loading="{ loading: isTableLoading }"
+        :loading="isTableLoading"
         class="clean-table"
         :data="cleanList"
         :limit-list="pagination.limitList"

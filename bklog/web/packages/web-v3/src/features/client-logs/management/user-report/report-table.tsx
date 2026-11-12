@@ -452,7 +452,7 @@ export default defineComponent({
           pagination={pagination.value}
           outer-border={false}
           ref={reportTableRef}
-          v-loading={{ loading: props.loading }}
+          loading={props.loading}
           onPage-change={handlePageChange}
           onPage-limit-change={handlePageLimitChange}
           onSort-change={handleSortChange}

@@ -140,7 +140,7 @@ export default defineComponent({
         <section>
           <bk-table
             class='state-table'
-            v-loading={{ loading: isTableLoading.value }}
+            loading={isTableLoading.value}
             data={dataList.value}
             outer-border={false}
           >

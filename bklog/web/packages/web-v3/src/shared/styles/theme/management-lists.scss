@@ -1,0 +1,108 @@
+// V2 management table density. Collection's purpose-built table keeps its own theme.
+.manage-ui-aligned {
+  .t-button:where(:not(.t-size-s):not(.t-size-l)) {
+    font-size: 14px;
+  }
+
+  .t-button--shape-rectangle:where(:not(.t-size-s):not(.t-size-l):not(.t-button--variant-text)) {
+    min-width: 64px;
+  }
+
+  .bklog-legacy-table,
+  &.es-access-container .king-table {
+    color: #575961;
+    background: #fff;
+
+    &:not(.is-borderless) {
+      border: 1px solid #dfe0e5;
+    }
+
+    .t-table__header th {
+      height: 43px;
+      padding: 0 15px;
+      line-height: 42px;
+      font-size: 12px;
+      font-weight: 400;
+      color: #63656e;
+      background: #fafbfd;
+    }
+
+    td {
+      box-sizing: border-box;
+      height: 43px;
+      padding: 10px 15px;
+      line-height: 20px;
+      font-size: 12px;
+      color: #575961;
+      border-bottom-color: #dfe0e5;
+    }
+
+    .t-table__expanded-row > td {
+      height: auto;
+      padding: 0;
+    }
+
+    td .t-button--variant-text {
+      min-width: 0;
+      height: 22px;
+      padding: 0;
+      border: 0;
+      font-size: 12px;
+      line-height: 22px;
+      background: transparent;
+    }
+
+    .t-table__pagination {
+      padding: 15px;
+      margin-top: -1px;
+      border-top: 1px solid #dfe0e5;
+      background: #fafbfd;
+    }
+
+    .t-pagination__total {
+      flex: none;
+      width: auto;
+      margin-right: 12px;
+      line-height: 32px;
+      color: #989dab;
+    }
+
+    .t-pagination__select {
+      margin-right: auto;
+    }
+
+    .t-pagination__number,
+    .t-pagination__btn-prev,
+    .t-pagination__btn-next {
+      box-sizing: border-box;
+      min-width: 32px;
+      height: 32px;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+      color: #63656e;
+      background: #fff;
+    }
+
+    .t-pagination__number.t-is-current {
+      border-color: #3a84ff;
+      color: #3a84ff;
+      background: #fff;
+    }
+
+    .t-pagination__btn-prev.t-is-disabled,
+    .t-pagination__btn-next.t-is-disabled {
+      border-color: #dcdee5;
+      color: #c4c6cc;
+      background: #fafbfd;
+    }
+
+    .t-pagination__pager li:not(:last-child),
+    .t-pagination__btn-prev {
+      margin-right: 4px;
+    }
+
+    .t-pagination__btn-next {
+      margin-left: 4px;
+    }
+  }
+}

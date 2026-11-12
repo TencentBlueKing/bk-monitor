@@ -38,7 +38,7 @@
         >{{ $t('新建') }}</t-button
       >
     </div>
-    <bklog-loading
+    <management-list-loading
       class="link-configuration-table-loading"
       data-testid="data-link-table-loading"
       :loading="tableLoading"
@@ -123,7 +123,7 @@
           </div>
         </template>
       </bk-table>
-    </bklog-loading>
+    </management-list-loading>
     <config-dialog
       :data-source="dialogSetting.dataSource"
       :project-list="projectList"
@@ -140,14 +140,14 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
-  import BklogLoading from '@/shared/ui/loading';
+  import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 
   import ConfigDialog from './config-dialog';
 
   export default {
     name: 'LinkConfiguration',
     components: {
-      BklogLoading,
+      ManagementListLoading,
       ConfigDialog,
       EmptyStatus,
     },

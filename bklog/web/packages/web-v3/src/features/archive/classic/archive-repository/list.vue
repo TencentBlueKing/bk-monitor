@@ -56,7 +56,7 @@
     >
       <bk-table
         ref="repositoryTable"
-        v-loading="{ loading: isTableLoading }"
+        :loading="isTableLoading"
         class="repository-table"
         :data="tableDataPaged"
         :limit-list="pagination.limitList"

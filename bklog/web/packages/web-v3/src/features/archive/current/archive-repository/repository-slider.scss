@@ -1,25 +1,28 @@
 .repository-slider-content {
   min-height: 394px;
 
-  .bk-form.bk-form-vertical {
+  .t-form {
     padding: 0 0 26px 36px;
 
-    .bk-form-content {
+    .t-form__controls {
       width: 500px;
+      max-width: calc(100% - 34px);
     }
 
-    .bk-form-item {
+    .t-form__item {
       padding-left: 34px;
       margin-top: 12px;
+      margin-bottom: 0;
     }
 
     .t-alert {
       width: 500px;
+      max-width: calc(100% - 34px);
       margin: 10px 0 12px 34px;
     }
 
-    .bk-select,
-    .bk-date-picker {
+    .t-select__wrap,
+    .t-date-picker {
       width: 300px;
     }
 
@@ -27,16 +30,16 @@
       display: flex;
       margin-top: 16px;
 
-      .bk-label {
+      .t-form__label {
         /* stylelint-disable-next-line declaration-no-important */
         width: auto !important;
       }
 
-      .bk-form-content {
+      .t-form__controls {
         display: flex;
       }
 
-      .bk-select {
+      .t-select__wrap {
         width: 240px;
       }
 
