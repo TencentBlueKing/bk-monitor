@@ -28,8 +28,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 
-import type { CreateElement } from '@legacy-vue';
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, h, ref } from 'vue';
 import { Popup as TPopup } from 'tdesign-vue-next';
 import useLocale from '@/shared/composables/use-locale';
 import EditStrategy from '../edit-strategy/index';
@@ -80,8 +79,6 @@ export default defineComponent({
     const isEdit = ref(false);
 
     const isNewClass = computed(() => props.type === StrategyType.NEW_CLASS);
-
-    let h: CreateElement;
 
     const handleEditStrategy = () => {
       isEdit.value = true;
@@ -176,8 +173,7 @@ export default defineComponent({
       isShowDialog.value = true;
     };
 
-    return (hFunc: CreateElement) => {
-      h = hFunc;
+    return () => {
       return (
         <div class='strategy-operate-main'>
           <div class='icon-wraper'>
