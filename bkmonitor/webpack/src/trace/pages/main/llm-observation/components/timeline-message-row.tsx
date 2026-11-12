@@ -95,6 +95,39 @@ export default defineComponent({
       rowRef.value = el instanceof HTMLElement ? el : undefined;
     };
     const { inView } = useElementInView(rowRef);
+    // 单行省略的预览文本被截断时不再渲染命中高亮：高亮标记会被 scrollIntoView 滚出可见区，
+    // 导致整行文字消失、只在末尾露出黄色块。命中仍由展开区正文的高亮定位。
+    // 真正裁切发生在父级 .llm-timeline-row-preview（min-width: 0; overflow: hidden），
+    // 文本节点自身按剩余宽度收窄，故以父级可视宽度作比较基准
+    const previewRef = shallowRef<HTMLElement>();
+    const setPreviewRef = (el: unknown) => {
+      previewRef.value = el instanceof HTMLElement ? el : undefined;
+    };
+    const previewTextRef = shallowRef<HTMLElement>();
+    const setPreviewTextRef = (el: unknown) => {
+      previewTextRef.value = el instanceof HTMLElement ? el : undefined;
+    };
+    const previewTruncated = shallowRef(false);
+    // 只单向置位：命中标记自带 1px 内边距，去掉高亮后文本变窄会反转测量结果，
+    // 来回切换高亮会造成测量抖动，故仅在内容 / 关键词变化时重新判定。
+    const syncPreviewTruncated = () => {
+      if (previewTruncated.value) return;
+      const text = previewTextRef.value;
+      const box = previewRef.value;
+      if (!text || !box) return;
+      // 首帧宽度为 0（未参与布局 / 被 content-visibility 跳过）时不判定，
+      // 否则会被误锁成截断且单向锁存无法恢复
+      if (box.clientWidth <= 0) return;
+      previewTruncated.value = text.scrollWidth > box.clientWidth + 1;
+    };
+    useResizeObserver([previewRef, previewTextRef], syncPreviewTruncated);
+    watch(
+      () => [props.part.content, search?.keyword.value],
+      () => {
+        previewTruncated.value = false;
+        nextTick(syncPreviewTruncated);
+      }
+    );
     // 展开后的系统 / 模型正文元素，「独立查看」仅在正文超过一行时才需要
     const systemBodyRef = shallowRef<HTMLElement>();
     const setSystemBodyRef = (el: unknown) => {
@@ -239,8 +272,11 @@ export default defineComponent({
         return <span class='llm-timeline-row-placeholder'>{t('仅工具调用')}</span>;
       }
       return (
-        <div class='llm-timeline-row-text'>
-          {props.part.searchBlockId ? (
+        <div
+          ref={setPreviewTextRef}
+          class='llm-timeline-row-text'
+        >
+          {props.part.searchBlockId && !previewTruncated.value ? (
             <HighlightText
               blockId={props.part.searchBlockId}
               text={props.part.content}
@@ -280,7 +316,12 @@ export default defineComponent({
               <i class='icon-monitor icon-yichang llm-timeline-row-error' />
             </MessageTooltip>
           ) : null}
-          <div class='llm-timeline-row-preview'>{renderPreview()}</div>
+          <div
+            ref={setPreviewRef}
+            class='llm-timeline-row-preview'
+          >
+            {renderPreview()}
+          </div>
           {props.part.role === 'tool' || canExpand.value ? (
             <div class='llm-timeline-row-aside'>
               {props.part.role === 'tool' ? (

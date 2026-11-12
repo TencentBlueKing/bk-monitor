@@ -27,6 +27,18 @@ class HostQueries(ABC):
     def details(self, bk_tenant_id: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         """按监控 IP 选择器的主机和资源范围查询详情与 Agent 状态。"""
 
+    @abstractmethod
+    def beat_plugin_status(
+        self, bk_tenant_id: str, bk_biz_ids: list[int] | None, bk_host_ids: list[int]
+    ) -> list[dict[str, Any]]:
+        """按主机查询 bkmonitorbeat 进程状态与安装路径。
+
+        返回 V2 插件检索的主机结构（bk_host_id、inner_ip、inner_ipv6、bk_cloud_id、setup_path、
+        plugin_status），只保证 plugin_status 中包含 bkmonitorbeat；IP 取首个地址。
+        bk_biz_ids 为主机所属的 CMDB 业务，跨业务时传多个；传 None 表示调用方不掌握主机所属业务，
+        由需要业务的实现自行按 CMDB 主机关系推导，不需要业务的实现不查询 CMDB。
+        """
+
 
 class OfficialPlugins(ABC):
     """独立官方插件部署能力，与 V2 采集器 Ensure 分离。"""

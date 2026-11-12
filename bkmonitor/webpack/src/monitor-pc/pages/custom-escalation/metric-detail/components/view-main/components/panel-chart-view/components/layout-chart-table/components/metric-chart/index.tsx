@@ -1010,6 +1010,11 @@ class NewMetricChart extends CommonSimpleChart {
   }
   beforeDestroy() {
     this.isBeforeDestroying = true;
+    // 父类未在销毁时清理自动刷新定时任务，需在此释放，避免离开页面后继续轮询
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
+      this.refreshIntervalInstance = null;
+    }
   }
   render() {
     return (

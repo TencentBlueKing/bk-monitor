@@ -53,7 +53,6 @@ type GetSceneViewParams = Parameters<typeof getSceneView>[0];
 export default class ApmViewContent extends tsc<any, any> {
   @ProvideReactive('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('containerScrollTop') containerScrollTop = 0;
-  @ProvideReactive('refreshInterval') refreshInterval = -1;
   @InjectReactive('customRouteQuery') customRouteQuery: Record<string, string>;
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @Inject('handleCustomRouteQueryChange') handleCustomRouteQueryChange: (

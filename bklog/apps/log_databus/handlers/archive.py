@@ -27,6 +27,7 @@ from django.utils.translation import gettext as _
 from apps.api import TransferApi
 from apps.log_databus.constants import (
     RESTORE_INDEX_SET_PREFIX,
+    STORAGE_CLUSTER_TYPE,
     ArchiveExpireTime,
     ArchiveInstanceType,
 )
@@ -34,11 +35,16 @@ from apps.log_databus.exceptions import (
     ArchiveIndexSetInfoNotFound,
     ArchiveIndexSetStatusError,
     ArchiveNotFound,
+    ArchiveRepositoryChangeNotAllowed,
+    ArchiveRepositoryNotInCluster,
+    ArchiveResultTableNotReady,
+    ArchiveStorageTypeNotSupported,
     CollectorActiveException,
     CollectorConfigNotExistException,
     RestoreExpired,
     RestoreNotFound,
 )
+from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import ArchiveConfig, CollectorConfig, RestoreConfig
 from apps.log_search.constants import (
     DEFAULT_TIME_FIELD,
@@ -262,6 +268,152 @@ class ArchiveHandler:
                 )
 
             multi_execute_func.run()
+
+    @staticmethod
+    def _get_active_collector(collector_config_id: int) -> CollectorConfig:
+        try:
+            # 首次归档尚无记录，锁住采集项才能串行处理并发 PUT。
+            collector = (
+                CollectorConfig.objects.filter(collector_config_id=collector_config_id).select_for_update().get()
+            )
+        except CollectorConfig.DoesNotExist:
+            raise CollectorConfigNotExistException
+        if not collector.is_active:
+            raise CollectorActiveException
+        return collector
+
+    @classmethod
+    def get_collector_archive(cls, collector_config_id: int):
+        """
+        按采集项查询归档配置，没有归档时返回None
+        """
+        archive = (
+            ArchiveConfig.objects.filter(
+                instance_type=ArchiveInstanceType.COLLECTOR_CONFIG.value,
+                instance_id=collector_config_id,
+            )
+            .order_by("-archive_config_id")
+            .first()
+        )
+        return cls._to_collector_archive_info(archive) if archive else None
+
+    @classmethod
+    @atomic
+    def upsert_collector_archive(
+        cls, collector_config_id: int, target_snapshot_repository_name: str, snapshot_days: int
+    ):
+        """
+        按采集项幂等地创建或更新归档配置
+        """
+        # 路由参数是字符串，统一转成 int 后再写入和返回
+        collector_config_id = int(collector_config_id)
+        collector = cls._get_active_collector(collector_config_id)
+        cls._check_collector_archive_repository(collector, target_snapshot_repository_name)
+
+        archive = ArchiveConfig.objects.filter(
+            instance_type=ArchiveInstanceType.COLLECTOR_CONFIG.value,
+            instance_id=collector_config_id,
+        ).first()
+        if archive is None:
+            archive = ArchiveConfig.objects.create(
+                instance_id=collector_config_id,
+                instance_type=ArchiveInstanceType.COLLECTOR_CONFIG.value,
+                bk_biz_id=collector.bk_biz_id,
+                snapshot_days=snapshot_days,
+                target_snapshot_repository_name=target_snapshot_repository_name,
+            )
+            TransferApi.create_result_table_snapshot(
+                {
+                    "table_id": collector.table_id,
+                    "target_snapshot_repository_name": target_snapshot_repository_name,
+                    "snapshot_days": snapshot_days,
+                }
+            )
+            return cls._to_collector_archive_info(archive)
+
+        # 更换仓库会丢弃已归档的快照，必须由调用方显式删除后重建
+        if archive.target_snapshot_repository_name != target_snapshot_repository_name:
+            raise ArchiveRepositoryChangeNotAllowed(
+                ArchiveRepositoryChangeNotAllowed.MESSAGE.format(
+                    repository_name=archive.target_snapshot_repository_name
+                )
+            )
+        if archive.snapshot_days != snapshot_days:
+            archive.snapshot_days = snapshot_days
+            archive.save(update_fields=["snapshot_days", "updated_at", "updated_by"])
+            # 同一结果表可能存在多份快照配置，需指定仓库才能命中当前归档
+            TransferApi.modify_result_table_snapshot(
+                {
+                    "table_id": collector.table_id,
+                    "target_snapshot_repository_name": archive.target_snapshot_repository_name,
+                    "snapshot_days": snapshot_days,
+                }
+            )
+        return cls._to_collector_archive_info(archive)
+
+    @classmethod
+    @atomic
+    def delete_collector_archive(cls, collector_config_id: int):
+        """
+        关闭采集项归档，没有归档时直接返回，便于调用方重试
+        """
+        archive = ArchiveConfig.objects.filter(
+            instance_type=ArchiveInstanceType.COLLECTOR_CONFIG.value,
+            instance_id=collector_config_id,
+        ).first()
+        if archive is None:
+            return None
+        table_id = archive.table_id
+        target_snapshot_repository_name = archive.target_snapshot_repository_name
+        archive.delete()
+        TransferApi.delete_result_table_snapshot(
+            {
+                "table_id": table_id,
+                "target_snapshot_repository_name": target_snapshot_repository_name,
+            }
+        )
+        return None
+
+    @classmethod
+    def _check_collector_archive_repository(cls, collector: CollectorConfig, repository_name: str):
+        """
+        校验采集项可以归档，且快照仓库属于采集项所在的存储集群
+        """
+        storage_cluster_type = collector.storage_cluster_type or STORAGE_CLUSTER_TYPE
+        if storage_cluster_type != STORAGE_CLUSTER_TYPE:
+            raise ArchiveStorageTypeNotSupported(
+                ArchiveStorageTypeNotSupported.MESSAGE.format(storage_cluster_type=storage_cluster_type)
+            )
+        if not collector.table_id:
+            raise ArchiveResultTableNotReady
+
+        cluster_id = cls._get_collector_storage_cluster_id(collector.table_id, storage_cluster_type)
+        repositories = StorageHandler().repository(bk_biz_id=collector.bk_biz_id, cluster_id=cluster_id)
+        if repository_name not in {repository["repository_name"] for repository in repositories}:
+            raise ArchiveRepositoryNotInCluster(
+                ArchiveRepositoryNotInCluster.MESSAGE.format(repository_name=repository_name, cluster_id=cluster_id)
+            )
+
+    @staticmethod
+    def _get_collector_storage_cluster_id(table_id: str, storage_cluster_type: str) -> int:
+        storage_infos = TransferApi.get_result_table_storage(
+            {"result_table_list": table_id, "storage_type": storage_cluster_type}
+        )
+        cluster_config = (storage_infos.get(table_id) or {}).get("cluster_config") or {}
+        cluster_id = cluster_config.get("cluster_id")
+        if not cluster_id:
+            raise ArchiveResultTableNotReady
+        return cluster_id
+
+    @staticmethod
+    def _to_collector_archive_info(archive: ArchiveConfig) -> dict:
+        return {
+            "archive_config_id": archive.archive_config_id,
+            "collector_config_id": archive.instance_id,
+            "bk_biz_id": archive.bk_biz_id,
+            "target_snapshot_repository_name": archive.target_snapshot_repository_name,
+            "snapshot_days": archive.snapshot_days,
+        }
 
     @atomic
     def restore(self, bk_biz_id, index_set_name, start_time, end_time, expired_time, notice_user):
@@ -490,7 +642,7 @@ class ArchiveHandler:
         if restore.archive.instance_type == ArchiveInstanceType.INDEX_SET.value:
             restore_objs = RestoreConfig.objects.filter(index_set_id=restore.index_set_id)
             restore_objs.update(expired_time=expired_time)
-            meta_restore_ids = list(restore_objs.values_list("meta_restore_ids", flat=True))
+            meta_restore_ids = list(restore_objs.values_list("meta_restore_id", flat=True))
             multi_execute_func = MultiExecuteFunc()
             for meta_restore_id in meta_restore_ids:
                 params = {"restore_id": meta_restore_id, "expired_time": expired_time}

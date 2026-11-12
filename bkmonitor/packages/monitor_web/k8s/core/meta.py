@@ -602,9 +602,10 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
             for filter_id, resource_filter in self.filter.filters.items()
         ):
             filters = self.filter.filter_string(exclude=exclude)
+            child_filters = ",".join(filter(None, (filters, 'container_name!="",container_name!="POD"')))
             return (
                 "sum by (bcs_cluster_id, workload_kind, workload_name, namespace, pod_name) "
-                f'({metric_name}{{{filters},container_name!="",container_name!="POD"}})'
+                f"({metric_name}{{{child_filters}}})"
             )
         # Empty container filters carry no selection; the shared builder adds the
         # child-only exclusions while leaving the parent cgroup eligible.

@@ -341,15 +341,24 @@ function nodeMatchesOrHasMatch(node: SpanTreeNode, filter: LlmExecutionFilter, k
   return node.children.some(child => nodeMatchesOrHasMatch(child, filter, keyword));
 }
 
-/** 后端已完成语义选择和截断；前端只映射到既有 KV / 文本展示。 */
+/**
+ * 后端已完成语义选择和截断；前端只映射到既有 KV / 文本展示。
+ * 以 Span 对象为键缓存预览，保证重复 flatten 时行内 io 引用稳定，便于上游复用行对象。
+ */
+const ioPreviewCache = new WeakMap<LlmFlowSpan, LlmIoPreview>();
+
 function pickIoPreview(span: LlmFlowSpan): LlmIoPreview {
-  if (resolveSpanKind(span) === 'LLM') {
-    return {
-      input: span.input_preview ? messageToPieces(span.input_preview) : valueToPieces(span.input),
-      output: span.output_preview ? messageToPieces(span.output_preview) : valueToPieces(span.output),
-    };
-  }
-  return { input: valueToPieces(span.input), output: valueToPieces(span.output) };
+  const cached = ioPreviewCache.get(span);
+  if (cached) return cached;
+  const preview =
+    resolveSpanKind(span) === 'LLM'
+      ? {
+          input: span.input_preview ? messageToPieces(span.input_preview) : valueToPieces(span.input),
+          output: span.output_preview ? messageToPieces(span.output_preview) : valueToPieces(span.output),
+        }
+      : { input: valueToPieces(span.input), output: valueToPieces(span.output) };
+  ioPreviewCache.set(span, preview);
+  return preview;
 }
 
 /** 主名称优先展示模型、工具或 Agent 名称，缺失时回退到 SpanName。 */

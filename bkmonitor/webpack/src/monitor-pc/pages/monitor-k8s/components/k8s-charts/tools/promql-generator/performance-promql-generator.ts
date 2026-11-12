@@ -36,12 +36,18 @@ import type { K8sBasePromqlGeneratorContext } from '../../typing';
 export class K8sPerformancePromqlGenerator extends K8sBasePromqlGenerator {
   private static createPodMemoryPromql(metric: string, context: K8sBasePromqlGeneratorContext): string {
     const containerContext = K8sPerformancePromqlGenerator.podMemoryContainerContext(context);
-    const filter = K8sBasePromqlGenerator.createCommonPromqlContent(containerContext);
-    const childUsage = `sum by(bcs_cluster_id,namespace,pod_name)(container_memory_working_set_bytes{${filter},container_name!=""} $time_shift)`;
+    const childFilter = K8sBasePromqlGenerator.createCommonPromqlContent(containerContext, false, false).replace(
+      /,$/,
+      ''
+    );
+    const parentFilter = K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false).replace(/,$/, '');
+    const selectedContainers = context.filter_dict?.[K8sTableColumnKeysEnum.CONTAINER]?.some(Boolean);
+    const excludePod = selectedContainers ? '' : ',container_name!="POD"';
+    const childUsage = `sum by(bcs_cluster_id,namespace,pod_name)(container_memory_working_set_bytes{${childFilter},container_name!=""${excludePod}} $time_shift)`;
     // 先逐 Pod 选择总量；or 按序列存在性回退，父级为 0 时仍保留父级。
-    const usage = context.filter_dict?.[K8sTableColumnKeysEnum.CONTAINER]?.some(Boolean)
+    const usage = selectedContainers
       ? childUsage
-      : `(sum by(bcs_cluster_id,namespace,pod_name)(pod_memory_working_set_bytes{${filter},metrics_path="/metrics/cadvisor"} $time_shift) or on(bcs_cluster_id,namespace,pod_name) ${childUsage})`;
+      : `(${K8sPerformancePromqlGenerator.podMemoryParentPromql(`${parentFilter},metrics_path="/metrics/cadvisor"`)} or on(bcs_cluster_id,namespace,pod_name) ${childUsage})`;
     const method = K8sBasePromqlGenerator.createCommonPromqlMethod(context);
     const numerator = `${method}(${usage})`;
     if (metric === 'container_memory_working_set_bytes') return numerator;
@@ -61,6 +67,18 @@ export class K8sPerformancePromqlGenerator extends K8sBasePromqlGenerator {
           resourceMap: new Map(context.resourceMap).set(K8sTableColumnKeysEnum.CONTAINER, containers.join('|')),
         }
       : context;
+  }
+
+  private static podMemoryParentPromql(filter: string): string {
+    const parent = 'pod_memory_working_set_bytes';
+    const child = 'container_memory_working_set_bytes';
+    // VM can exclude children at storage; retain marker selection for other backends.
+    const selector = `{__name__=~"(${parent}|${child})",__name__!~"container_memory_.*",${filter}} $time_shift`;
+    const identity = 'bcs_cluster_id,namespace,pod_name';
+    const marker = '__bk_pod_memory_source';
+    // Bind the parent branch even when the parent metric is not registered yet.
+    // Aggregate before marking to avoid collisions with existing source labels.
+    return `sum by(${identity})(label_replace(sum by(__name__,${identity})(${selector}),"${marker}","parent","__name__","${parent}") and on(${marker}) label_replace(vector(1),"${marker}","parent","__name__",".*"))`;
   }
 
   static createPodMemoryQuotaPromql(context: K8sBasePromqlGeneratorContext, isLimit: boolean, withTimeShift = true) {

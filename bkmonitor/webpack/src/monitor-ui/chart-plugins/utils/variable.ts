@@ -45,11 +45,23 @@ export class VariablesService {
     return scopedVar;
   }
   /** 原生 PromQL 使用字符串分组、offset 与显式正则范围；结构化字段保留原变量类型。 */
-  private replacePromql(target: string, scopedVars?: ScopedVars, keepVariables: string[] = []): string {
+  private replacePromql(
+    target: string,
+    scopedVars?: ScopedVars,
+    keepVariables: string[] = [],
+    podMemoryTemplate = false
+  ): string {
     this.regex.lastIndex = 0;
+    const groupBy = this.index?.group_by ?? scopedVars?.group_by;
+    const groups = Array.isArray(groupBy) ? groupBy : typeof groupBy === 'string' ? groupBy.split(',') : [];
+    let podMemoryMarker = '__bk_pod_memory_source';
+    while (target.includes(podMemoryMarker) || groups.some(group => String(group).trim() === podMemoryMarker)) {
+      podMemoryMarker += '_';
+    }
     return target.replace(this.regex, (match, var1, var2, fmt2, var3, _path, fmt3) => {
       const variableName = var1 || var2 || var3;
       if (keepVariables.includes(variableName)) return match;
+      if (podMemoryTemplate && variableName === 'pod_memory_marker') return podMemoryMarker;
       let value = this.getVariableAtIndex(variableName);
       if (value === undefined && scopedVars) {
         value = this.getVariableValue(variableName, scopedVars);
@@ -136,23 +148,32 @@ export class VariablesService {
     const newData = deepClone(source);
     const mergeVars = { ...this.index, ...scopedVars };
     const setVariables = (data: Record<string, any>) => {
-      if (typeof data.promql === 'string' && typeof data.pod_promql === 'string') {
+      const podMemoryTemplate =
+        typeof data.pod_memory_child_promql === 'string' && typeof data.pod_memory_parent_promql === 'string';
+      if (podMemoryTemplate || (typeof data.promql === 'string' && typeof data.pod_promql === 'string')) {
         let groupBy = this.index?.group_by;
         if (groupBy === undefined) groupBy = this.getVariableValue('group_by', mergeVars);
         const groups = Array.isArray(groupBy) ? groupBy : typeof groupBy === 'string' ? groupBy.split(',') : [];
-        if (!groups.some(group => ['container_name', 'container', 'image'].includes(group.trim()))) {
-          data.promql = data.pod_promql;
+        const byContainer = groups.some(group => ['container_name', 'container', 'image'].includes(group.trim()));
+        if (podMemoryTemplate) {
+          data.promql = byContainer ? data.pod_memory_child_promql : data.pod_memory_parent_promql;
         }
+        // Older responses may contain a parent selector unknown to UQ. Retain
+        // their child query until the server provides the route-safe variants.
         delete data.pod_promql;
         delete data.overview_promql;
         delete data.overview_pod_promql;
+        delete data.pod_memory_child_promql;
+        delete data.pod_memory_parent_promql;
+        delete data.overview_pod_memory_child_promql;
+        delete data.overview_pod_memory_parent_promql;
       }
       for (const [key, val] of Object.entries(data)) {
         if (typeof val === 'string') {
           if (this.hasVariables(val)) {
             const v =
               key === 'promql' || key === 'related_promql'
-                ? this.replacePromql(val, mergeVars, keepPromqlVariables)
+                ? this.replacePromql(val, mergeVars, keepPromqlVariables, key === 'promql' && podMemoryTemplate)
                 : this.replaceString(val.toString(), mergeVars);
             data[key] = v ?? undefined;
           }

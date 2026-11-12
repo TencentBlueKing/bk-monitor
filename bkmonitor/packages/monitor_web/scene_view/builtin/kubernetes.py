@@ -520,6 +520,10 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                         query_config["promql"] = query_config.pop("overview_promql")
                     if "overview_pod_promql" in query_config:
                         query_config["pod_promql"] = query_config.pop("overview_pod_promql")
+                    for source in ("child", "parent"):
+                        overview_key = f"overview_pod_memory_{source}_promql"
+                        if overview_key in query_config:
+                            query_config[f"pod_memory_{source}_promql"] = query_config.pop(overview_key)
 
         return overview_panels
 
@@ -1159,6 +1163,7 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
                             filters,
                             dimensions=(*POD_MEMORY_DIMENSIONS, *groups),
                             time_shift="$time_shift",
+                            marker="$pod_memory_marker",
                         )
                     selected_usage = usage
                 else:
@@ -1176,14 +1181,19 @@ class KubernetesBuiltinProcessor(BuiltinProcessor):
             return f"({queries[0]}) / ({queries[1]}) * 100"
 
         promql = expression(where)
+        overview_promql = expression([])
         query_config = {
             **DEFAULT_GRAPH_PROMQL_QUERY_CONFIG,
             "promql": promql,
-            # Keep the child query usable by older clients. The chart selects the
-            # parent variant only when its runtime grouping is at Pod level.
-            "pod_promql": expression(where, prefer_parent=True),
-            "overview_promql": expression([]),
-            "overview_pod_promql": expression([], prefer_parent=True),
+            "pod_promql": promql,
+            "overview_promql": overview_promql,
+            "overview_pod_promql": overview_promql,
+            # Clients which recognize these templates select the source after
+            # grouping is known; older clients continue to query child series.
+            "pod_memory_child_promql": promql,
+            "pod_memory_parent_promql": expression(where, prefer_parent=True),
+            "overview_pod_memory_child_promql": overview_promql,
+            "overview_pod_memory_parent_promql": expression([], prefer_parent=True),
             # Scene dimension discovery uses these original metric fields even
             # though the Prometheus source executes the inline expression.
             "metrics": [

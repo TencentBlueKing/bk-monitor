@@ -20,6 +20,7 @@ from django.test import override_settings
 
 from api.node_man import default as v2
 from api.node_man_v3 import default as v3
+from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.utils import nodeman
 from core.drf_resource import api
 from constants.common import DEFAULT_TENANT_ID
@@ -275,3 +276,106 @@ def test_official_command_resolves_latest_without_new_user_parameter():
             ],
         )
         old_install.assert_not_called()
+
+
+def test_v3_compatible_process_api_registration_and_serializer():
+    """兼容接口业务和主机都必须非空，避免不传主机时查出整个业务。"""
+    assert isinstance(api.node_man_v3.list_v2_compatible_processes, v3.ListV2CompatibleProcessesResource)
+    assert v3.ListV2CompatibleProcessesResource.action == "api/v3/process/list_v2_compatible"
+    serializer = v3.ListV2CompatibleProcessesResource.RequestSerializer(data={"bk_biz_id": [2], "bk_host_id": [1]})
+    serializer.is_valid(raise_exception=True)
+    assert serializer.validated_data == {"bk_biz_id": [2], "bk_host_id": [1]}
+    for payload in ({"bk_biz_id": [], "bk_host_id": [1]}, {"bk_biz_id": [2], "bk_host_id": []}, {"bk_host_id": [1]}):
+        assert not v3.ListV2CompatibleProcessesResource.RequestSerializer(data=payload).is_valid()
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_beat_plugin_status_selects_backend_and_converts_business(enabled):
+    """入口把空间转换为 CMDB 业务并按开关选择接口，返回结构保持 V2 插件检索。"""
+    host = {
+        "bk_host_id": 1,
+        "inner_ip": "127.0.0.1,127.0.0.2",
+        "inner_ipv6": "",
+        "bk_cloud_id": 0,
+        "setup_path": "/usr/local/gse",
+        "plugin_status": [{"name": "bkmonitorbeat", "version": "3.6.0", "status": "running"}],
+    }
+    with (
+        override_settings(ENABLE_NODEMAN_V3=enabled),
+        # 负数空间 -5 关联 CMDB 业务 3
+        mock.patch.object(nodeman, "validate_bk_biz_id", side_effect=lambda biz_id: 3 if biz_id < 0 else biz_id),
+        mock.patch.object(
+            api.node_man_v3, "list_v2_compatible_processes", return_value={"total": 1, "list": [host]}
+        ) as compatible,
+        mock.patch.object(api.node_man, "plugin_search", return_value={"total": 1, "list": [host]}) as search,
+    ):
+        result = nodeman.host_queries.beat_plugin_status(
+            bk_biz_ids=[2, -5, 2], bk_host_ids=[1, None, 1], bk_tenant_id="t"
+        )
+    if enabled:
+        compatible.assert_called_once_with(bk_tenant_id="t", bk_biz_id=[2, 3], bk_host_id=[1])
+        search.assert_not_called()
+        # 多个 IP 取首个，沿用 V2 口径
+        assert result == [{**host, "inner_ip": "127.0.0.1"}]
+    else:
+        search.assert_called_once_with(bk_tenant_id="t", page=1, pagesize=1, conditions=[], bk_host_id=[1])
+        compatible.assert_not_called()
+        assert result == [host]
+
+
+@override_settings(ENABLE_NODEMAN_V3=True)
+def test_beat_plugin_status_infers_tenant_and_skips_empty_hosts():
+    """未传租户时按业务推断；没有有效主机时不发请求。"""
+    with (
+        mock.patch.object(nodeman, "bk_biz_id_to_bk_tenant_id", return_value="tenant-a") as to_tenant,
+        mock.patch.object(
+            api.node_man_v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}
+        ) as compatible,
+    ):
+        assert nodeman.host_queries.beat_plugin_status(bk_biz_ids=[2], bk_host_ids=[1]) == []
+        assert nodeman.host_queries.beat_plugin_status(bk_biz_ids=[2], bk_host_ids=[None, 0]) == []
+    to_tenant.assert_called_once_with(2)
+    compatible.assert_called_once_with(bk_tenant_id="tenant-a", bk_biz_id=[2], bk_host_id=[1])
+
+
+@pytest.mark.parametrize(
+    ("enabled", "bk_biz_ids", "expected_v3_biz_ids"),
+    [
+        # 无关联业务的空间被跳过，其余业务照常查询
+        (True, [2, -9], [2]),
+        # 全部被跳过时 V3 业务为空，本地报错且不发请求
+        (True, [-9], None),
+        # V2 不使用业务，空间无关联业务也照常按主机查询
+        (False, [-9], None),
+    ],
+)
+def test_beat_plugin_status_skips_space_without_cmdb_business(enabled, bk_biz_ids, expected_v3_biz_ids):
+    """节点管理只认 CMDB 业务：入口跳过无关联业务的空间，V2 不受影响，V3 为空时报错。"""
+
+    def to_cmdb_biz(biz_id):
+        if biz_id == -9:
+            raise NoRelatedResourceError("no related bkcc")
+        return biz_id
+
+    with (
+        override_settings(ENABLE_NODEMAN_V3=enabled),
+        mock.patch.object(nodeman, "validate_bk_biz_id", side_effect=to_cmdb_biz),
+        mock.patch.object(nodeman, "bk_biz_id_to_bk_tenant_id", return_value="t"),
+        mock.patch.object(
+            api.node_man_v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}
+        ) as compatible,
+        mock.patch.object(api.node_man, "plugin_search", return_value={"total": 0, "list": []}) as search,
+    ):
+        if enabled and expected_v3_biz_ids is None:
+            with pytest.raises(ValueError, match="bk_biz_ids"):
+                nodeman.host_queries.beat_plugin_status(bk_biz_ids=bk_biz_ids, bk_host_ids=[1])
+        else:
+            assert nodeman.host_queries.beat_plugin_status(bk_biz_ids=bk_biz_ids, bk_host_ids=[1]) == []
+    if enabled and expected_v3_biz_ids:
+        compatible.assert_called_once_with(bk_tenant_id="t", bk_biz_id=expected_v3_biz_ids, bk_host_id=[1])
+    else:
+        compatible.assert_not_called()
+    if enabled:
+        search.assert_not_called()
+    else:
+        search.assert_called_once_with(bk_tenant_id="t", page=1, pagesize=1, conditions=[], bk_host_id=[1])

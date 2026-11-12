@@ -202,6 +202,13 @@ def panel_queries(view):
     }
 
 
+def assert_child_selection(test, query, metric):
+    test.assertIn(f"{metric}{{", query)
+    test.assertNotIn("pod_memory_", query)
+    test.assertNotIn('container_name=""', query)
+    test.assertNotIn("__name__!~", query)
+
+
 class TestPodMemoryQueries(unittest.TestCase):
     def setUp(self):
         self.ns = builders()
@@ -213,11 +220,31 @@ class TestPodMemoryQueries(unittest.TestCase):
         )
         self.ns["load_resource_meta"] = lambda *_: self.meta
 
+    def test_parent_binds_both_names_and_child_uses_its_original_storage_route(self):
+        for metric in self.ns["POD_MEMORY_METRICS"]:
+            parent = metric.replace("container_memory_", "pod_memory_", 1)
+            with self.subTest(metric=metric):
+                query = self.ns["pod_memory_usage"](
+                    metric,
+                    "",
+                    dimensions=("bcs_cluster_id", "namespace", "pod_name"),
+                    time_shift="offset 1h",
+                )
+                self.assertEqual(query.count(f'__name__=~"({parent}|{metric})"'), 1)
+                self.assertEqual(query.count('__name__!~"container_memory_.*"'), 1)
+                self.assertIn(f'"parent", "__name__", "{parent}"', query)
+                self.assertIn(f'{metric}{{container_name!="",container_name!="POD"}}', query)
+                self.assertIn("sum by (__name__, bcs_cluster_id, namespace, pod_name)", query)
+                self.assertEqual(query.count("offset 1h"), 2)
+                self.assertNotIn("{,", query)
+                self.assertIn('metrics_path="/metrics/cadvisor"', query)
+
     def test_each_gauge_selects_its_own_parent_and_keeps_identity(self):
         for metric in self.ns["POD_MEMORY_METRICS"]:
             with self.subTest(metric=metric):
                 query = self.meta.tpl_prom_with_nothing(metric)
                 self.assertIn(metric.replace("container_", "pod_"), query)
+                self.assertEqual(query.count('__name__!~"container_memory_.*"'), 1)
                 self.assertIn('metrics_path="/metrics/cadvisor"', query)
                 self.assertIn('container_name!="",container_name!="POD"', query)
                 self.assertIn("or on (bcs_cluster_id, namespace, pod_name)", query)
@@ -239,7 +266,7 @@ class TestPodMemoryQueries(unittest.TestCase):
         self.meta.add_filter(self.ns["load_resource_filter"]("container", ["main", "sidecar"]))
         for metric in self.ns["POD_MEMORY_METRICS"]:
             query = self.meta.tpl_prom_with_nothing(metric)
-            self.assertNotIn("pod_memory_", query)
+            assert_child_selection(self, query, metric)
             self.assertIn('container_name=~"^(main|sidecar)$"', query)
             self.assertIn('namespace="default"', query)
 
@@ -258,13 +285,13 @@ class TestPodMemoryQueries(unittest.TestCase):
         self.meta.add_filter(self.ns["load_resource_filter"]("container", ["main"]))
         for kind in ("requests", "limits"):
             query = getattr(self.meta, f"meta_prom_with_kube_pod_memory_{kind}_ratio")
-            self.assertNotIn("pod_memory_working_set_bytes", query)
+            assert_child_selection(self, query, "container_memory_working_set_bytes")
             self.assertGreaterEqual(query.count('container_name="main"'), 3)
 
     def test_ratio_identity_anchor_uses_selected_usage_and_keeps_denominator(self):
         for kind in ("requests", "limits"):
             query = getattr(self.meta, f"meta_prom_with_kube_pod_memory_{kind}_ratio")
-            self.assertEqual(query.count("pod_memory_working_set_bytes"), 2)
+            self.assertEqual(query.count('"parent", "__name__", "pod_memory_working_set_bytes"'), 2)
             self.assertIn("count by (workload_kind, workload_name, pod_name, namespace)", query)
             self.assertIn("* 0 + 1", query)
             self.assertIn("group_right(workload_kind, workload_name)", query)
@@ -349,7 +376,7 @@ class TestPodMemoryQueries(unittest.TestCase):
         self.assertEqual(response[0][METRIC]["datapoints"], [[0, 60000]])
         query = self.query.call_args.args[0]["query_configs"][0]["promql"]
         self.assertIn('namespace="other"', query)
-        self.assertEqual(query.count("pod_memory_working_set_bytes"), 2)
+        self.assertEqual(query.count('"parent", "__name__", "pod_memory_working_set_bytes"'), 2)
 
     def test_query_failure_is_propagated(self):
         self.query.side_effect = RuntimeError("query failed")
@@ -451,7 +478,13 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
         for metric in ("container_memory_working_set_bytes", "container_memory_rss"):
             self.assertEqual(queries[metric]["unit"], "bytes")
             config = queries[metric]["query_configs"][0]
-            self.assertIn(metric.replace("container_", "pod_"), config["pod_promql"])
+            self.assertIn(metric.replace("container_", "pod_"), config["pod_memory_parent_promql"])
+            self.assertIn('__name__!~"container_memory_.*"', config["pod_memory_parent_promql"])
+            assert_child_selection(self, config["pod_memory_child_promql"], metric)
+            self.assertIn('"$pod_memory_marker"', config["pod_memory_parent_promql"])
+            self.assertEqual(config["promql"], config["pod_memory_child_promql"])
+            self.assertEqual(config["promql"], config["pod_promql"])
+            self.assertNotIn("$pod_memory_marker", config["promql"])
             self.assertNotIn("pod_memory_", config["promql"])
             self.assertEqual(config["metrics"][0]["field"], metric)
             self.assertEqual(config["related_metric_ids"], [f"bk_monitor..{metric}"])
@@ -465,7 +498,7 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
             )
         for kind in ("requests", "limits"):
             data = queries[f"kube_pod_memory_{kind}_ratio"]
-            ratio = data["query_configs"][0]["pod_promql"]
+            ratio = data["query_configs"][0]["pod_memory_parent_promql"]
             self.assertIn("pod_memory_rss", ratio)
             self.assertNotIn("pod_memory_working_set_bytes", ratio)
             self.assertIn(f"kube_pod_container_resource_{kind}_memory_bytes", ratio)
@@ -493,7 +526,9 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
         ]
         queries = panel_queries(self.view(order))
         for metric in self.ns["POD_MEMORY_METRICS"]:
-            self.assertIn(metric.replace("container_", "pod_"), queries[metric]["query_configs"][0]["pod_promql"])
+            self.assertIn(
+                metric.replace("container_", "pod_"), queries[metric]["query_configs"][0]["pod_memory_parent_promql"]
+            )
 
     def test_overview_rebuilds_scope_and_share_where_is_retained(self):
         view = self.view()
@@ -503,9 +538,43 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
         self.assertEqual(overview["where"], [])
         self.assertNotIn("${namespace:regex}", overview["promql"])
         self.assertNotIn("${namespace:regex}", overview["pod_promql"])
-        self.assertIn('metrics_path="/metrics/cadvisor"', overview["pod_promql"])
-        self.assertIn("pod_memory_working_set_bytes", overview["pod_promql"])
-        self.assertNotIn("pod_memory_", overview["promql"])
+        self.assertIn('metrics_path="/metrics/cadvisor"', overview["pod_memory_parent_promql"])
+        self.assertIn('__name__!~"container_memory_.*"', overview["pod_memory_parent_promql"])
+        self.assertIn("pod_memory_working_set_bytes", overview["pod_memory_parent_promql"])
+        assert_child_selection(self, overview["pod_memory_child_promql"], METRIC)
+        for source in ("child", "parent"):
+            self.assertIn("${namespace:regex}", detail[f"pod_memory_{source}_promql"])
+            self.assertNotIn("${namespace:regex}", overview[f"pod_memory_{source}_promql"])
+            self.assertNotIn(f"overview_pod_memory_{source}_promql", overview)
+        self.assertEqual(overview["promql"], overview["pod_promql"])
+
+    def test_legacy_templates_survive_graph_query_serializer_with_additional_templates(self):
+        from django.conf import settings
+        from rest_framework import serializers
+
+        if not settings.configured:
+            settings.configure(USE_I18N=False)
+        self.ns["serializers"] = serializers
+        self.ns["settings"] = SimpleNamespace(SQL_MAX_LIMIT=100)
+        self.ns["DataSourceLabel"] = SimpleNamespace(BK_LOG_SEARCH="bk_log_search")
+        self.ns["ValidationError"] = ValueError
+        query_resource = load(
+            "packages/monitor_web/grafana/resources/unify_query.py",
+            self.ns,
+            "UnifyQueryRawResource",
+            {"RequestSerializer"},
+            bases=[],
+        )
+        view = self.view()
+        for panels in (view["panels"], view["overview_panels"]):
+            for metric in (METRIC, "container_memory_rss", "kube_pod_memory_requests_ratio"):
+                config = panel_queries({"panels": panels})[metric]["query_configs"][0]
+                self.assertEqual(config["promql"], config["pod_promql"])
+                self.assertNotIn("$pod_memory_marker", config["promql"])
+                serializer = query_resource.RequestSerializer.QueryConfigSerializer(data=config)
+                self.assertTrue(serializer.is_valid(), serializer.errors)
+                self.assertEqual(serializer.validated_data["promql"], config["promql"])
+                self.assertFalse(any("pod_memory_" in key for key in serializer.validated_data))
 
     def test_detail_and_overview_memory_templates_have_no_empty_matchers(self):
         order = [
@@ -530,10 +599,9 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
                         continue
                     covered_fields.add(field)
                     query = data["query_configs"][0]
-                    for variant in ("promql", "pod_promql"):
-                        for selector in re.findall(r"[a-z_]+\{([^{}]*)\}", query[variant]):
-                            if re.search(r"^\s*,|,\s*,", selector):
-                                invalid_selectors.append((field, variant, selector))
+                    for variant in ("promql", "pod_promql", "pod_memory_child_promql", "pod_memory_parent_promql"):
+                        if re.search(r"\{\s*,|,\s*,", query[variant]):
+                            invalid_selectors.append((field, variant, query[variant]))
         self.assertEqual(len(covered_fields), 8)
         self.assertEqual(invalid_selectors, [], "Empty matcher in actual detail/overview memory template")
 
@@ -544,10 +612,11 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
             {"key": "namespace", "method": "eq", "value": ["demo.v2"]},
         ]
         config = self.processor.pod_memory_panel_target(target, where)["data"]["query_configs"][0]
-        self.assertNotIn("pod_memory_", config["promql"])
+        assert_child_selection(self, config["pod_memory_child_promql"], METRIC)
         self.assertIn('container_name=~"^(main)$"', config["promql"])
         self.assertIn('namespace=~"^(demo\\\\.v2)$"', config["promql"])
         self.assertEqual(config["pod_promql"], config["promql"])
+        self.assertEqual(config["pod_memory_parent_promql"], config["pod_memory_child_promql"])
 
     def test_container_specific_static_groups_and_filters_keep_children_in_both_variants(self):
         for dimension in ("container_name", "container", "image"):
@@ -564,7 +633,8 @@ class TestPodMemoryBuiltinPanels(unittest.TestCase):
                     }
                     config = self.processor.pod_memory_panel_target(target, where)["data"]["query_configs"][0]
                     self.assertEqual(config["pod_promql"], config["promql"])
-                    self.assertNotIn("pod_memory_rss", config["promql"])
+                    self.assertEqual(config["pod_memory_parent_promql"], config["pod_memory_child_promql"])
+                    assert_child_selection(self, config["pod_memory_child_promql"], "container_memory_rss")
                     self.assertIn("container_memory_rss", config["promql"])
 
     def test_memory_only_saved_view_retains_container_dimension_candidates(self):
