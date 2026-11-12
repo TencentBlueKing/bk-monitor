@@ -58,13 +58,17 @@ const HTTP_STATUS_BADGE_COLOR: Record<number, string> = {
  * @param spanType 当前 span 类型，决定左侧 LOGO 图标
  * @param formatField 字段格式化函数，来自 useDetailFormatter
  * @param getField 获取字段对应的别名，来自 useDetailFormatter
+ * @param retrievalFieldNames 当前视角的可检索字段名，公共信息项是否为链接据此判定
  */
 export function useDetailOverview(
   detail: MaybeRef<IRumRecordDetail | null>,
   spanType: MaybeRef<string>,
   formatField: (fieldName: string, value: unknown) => string,
-  getField: (fieldName: string) => IRumField
+  getField: (fieldName: string) => IRumField,
+  retrievalFieldNames: MaybeRef<string[]>
 ) {
+  /** 当前视角可检索字段集合：只有这些字段点击后才能生成该视角可解析的检索条件 */
+  const retrievalFieldSet = computed(() => new Set(unref(retrievalFieldNames)));
   /** 单个 badge 的配色与文案推导 */
   function resolveBadge(badge: IRumDetailItem): IRumBadgeVM {
     const { field_name: fieldName, value } = badge;
@@ -105,7 +109,10 @@ export function useDetailOverview(
         key: item.field_name,
         label: item.field_alias || getField(item.field_name)?.alias || item.field_name,
         value: item.alias ?? formatField(item.field_name, item.value),
-        isLink: OVERVIEW_LINK_FIELDS.has(item.field_name),
+        /** 点击回传原始值：value 是展示文本，可能已经过单位换算或枚举别名 */
+        rawValue: item.value,
+        /** 登记的可跳转字段，或属于当前视角检索字段的项 */
+        isLink: OVERVIEW_LINK_FIELDS.has(item.field_name) || retrievalFieldSet.value.has(item.field_name),
       };
     });
     return {

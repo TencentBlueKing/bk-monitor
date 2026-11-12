@@ -90,6 +90,11 @@ export default defineComponent({
       type: Array as PropType<IRumField[]>,
       default: () => [],
     },
+    /** 当前视角的可检索字段名：详情头部据此判断字段能否点击添加为检索条件 */
+    retrievalFieldNames: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
     mode: {
       type: String as PropType<RumModeType>,
       required: true,
@@ -131,7 +136,13 @@ export default defineComponent({
 
     const originData = computed(() => detail.value?.origin_data || {});
     const { getField, formatField, copyText, resolveCtx } = useDetailFormatter(toRef(props, 'fields'), originData);
-    const { headerVM } = useDetailOverview(detail, spanType, formatField, getField);
+    const { headerVM } = useDetailOverview(
+      detail,
+      spanType,
+      formatField,
+      getField,
+      toRef(props, 'retrievalFieldNames')
+    );
     const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading, {
       /** 跳到链路上下文并套用来源卡片对应的快捷筛选类别，清空关键字避免与类别叠加后筛空 */
       switchTraceContext: category => {
@@ -476,6 +487,7 @@ export default defineComponent({
           fields={props.fields}
           isShow={childShow.value}
           mode={props.mode}
+          retrievalFieldNames={props.retrievalFieldNames}
           nested
           onConditionAdd={(key: string, value: string) => emit('conditionAdd', key, value)}
           onSpanOpen={(context: IRumDetailContext) => {
