@@ -31,7 +31,7 @@
       <div v-if="isTemplateConfig" class="fields-config-container">
         <div class="config-container-header">
           <div v-show="!isShowAddInput" class="header-config-operation">
-            <t-button :variant="true ? 'text' : 'base'" class="config-btn" @click="handleClickAddNew">
+            <t-button variant="text" theme="primary" class="config-btn" @click="handleClickAddNew">
               <i class="bk-icon icon-plus-circle-shape" />
               <span>{{ $t('新建') }}</span>
             </t-button>
@@ -41,8 +41,12 @@
             </log-export>
           </div>
           <div v-show="isShowAddInput" class="header-config-new-input">
-            <t-input v-model="newConfigStr" :class="['config-new-input', { 'input-error': isInputError }]" size="small">
-            </t-input>
+            <t-input
+              v-model:value="newConfigStr"
+              class="config-new-input"
+              :status="isInputError ? 'error' : 'default'"
+              size="small"
+            />
             <div class="new-input-operation">
               <i class="bk-icon icon-check-line" @click="handleAddNewConfig"></i>
               <i class="bk-icon icon-close-line-2" @click="handleCancelNewConfig"></i>
@@ -688,17 +692,31 @@ export default {
 
         .header-config-operation {
           display: flex;
+          align-items: center;
           column-gap: 12px;
           margin-top: 3px;
           color: #3a84ff;
           cursor: pointer;
 
           .config-btn {
+            display: inline-flex;
+            align-items: center;
+            column-gap: 4px;
             height: 100%;
             line-height: 100%;
 
+            &.t-button {
+              padding: 0;
+              font-size: 14px;
+
+              :deep(.t-button__text) {
+                align-items: center;
+                column-gap: 4px;
+              }
+            }
+
             .bk-icon {
-              transform: translateY(-2px);
+              font-size: 16px;
             }
           }
         }
@@ -745,64 +763,63 @@ export default {
         }
       }
 
-      .bk-tab-label-list-has-bar::after {
-        display: none;
-      }
-
       .config-tab {
         width: 100%;
         height: calc(100% - 43px);
+        background: transparent;
 
-        :deep(.bk-tab-header) {
-          padding: 0px;
-          background-color: #f5f7fa;
-        }
-      }
-
-      :deep(.bk-tab-label) {
-        width: 100%;
-      }
-
-      :deep(.bk-tab-label-item) {
-        padding: 0;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        line-height: 36px !important;
-        text-align: left;
-
-        .bk-tab-label {
-          font-size: 12px;
-          color: #4d4f56;
+        :deep(.t-tabs__header),
+        :deep(.t-tabs__nav),
+        :deep(.t-tabs__nav-container),
+        :deep(.t-tabs__nav-scroll),
+        :deep(.t-tabs__nav-wrap) {
+          width: 100%;
         }
 
-        &:hover {
-          background: #eaebf0;
+        :deep(.t-tabs__header) {
+          float: none;
         }
 
-        &.active {
-          /* stylelint-disable-next-line declaration-no-important */
-          background: #e1ecff !important;
-
-          .bk-tab-label {
-            color: #3a84ff;
-          }
-        }
-      }
-
-      :deep(.bk-tab-header) {
-        width: 100%;
-        min-width: 150px;
-        padding: 0 0 10px;
-        // &::after {
-        //   display: none;
-        // }
-        &::before {
+        :deep(.t-tabs__bar),
+        :deep(.t-tabs__content),
+        :deep(.t-tabs__nav-container::after) {
           display: none;
         }
-      }
 
-      :deep(.bk-tab-section) {
-        display: none;
+        :deep(.t-tabs__nav-item) {
+          width: 100%;
+          height: 36px;
+          padding: 0;
+          font-size: 12px;
+          line-height: 36px;
+          color: #4d4f56;
+          text-align: left;
+
+          &:hover {
+            background: #eaebf0;
+          }
+
+          &.t-is-active {
+            color: #3a84ff;
+            text-shadow: none;
+            background: #e1ecff;
+          }
+        }
+
+        :deep(.t-tabs__nav-item-wrapper),
+        :deep(.t-tabs__nav-item-text-wrapper) {
+          width: 100%;
+          min-width: 0;
+          height: 36px;
+          padding: 0;
+          margin: 0;
+          background: transparent;
+          border-radius: 0;
+        }
+
+        :deep(.t-tabs__nav-item-text-wrapper) {
+          display: block;
+        }
       }
     }
   }
@@ -838,23 +855,6 @@ export default {
     background-color: #fafbfd;
     border-top: 1px solid #dcdee5;
     border-radius: 0 0 2px 2px;
-  }
-}
-</style>
-<style lang="scss">
-.update-fields-setting {
-  .fields-config-container {
-    .input-error {
-      .t-input__inner {
-        border: 1px solid #d7473f;
-      }
-    }
-
-    .config-tab {
-      .bk-tab-label-list-has-bar::after {
-        display: none;
-      }
-    }
   }
 }
 </style>

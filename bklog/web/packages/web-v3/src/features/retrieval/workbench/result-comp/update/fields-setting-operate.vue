@@ -56,8 +56,9 @@
     <div v-show="configItem.isShowEdit" class="config-tab-item" @click="(e) => e.stopPropagation()">
       <TInput
         ref="inputRef"
-        v-model="nameStr"
-        :class="['config-input', { 'input-error': isInputError }]"
+        v-model:value="nameStr"
+        class="config-input"
+        :status="isInputError ? 'error' : 'default'"
         :maxlength="10"
         :placeholder="$t('请输入配置名')"
         size="small"
