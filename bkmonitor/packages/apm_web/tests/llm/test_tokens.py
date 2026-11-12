@@ -6,7 +6,7 @@ from copy import deepcopy
 from unittest import TestCase
 
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.adapter.utils import repair_truncated_json
+from apm_web.llm.adapter.utils import recover_front_truncated_messages, repair_truncated_json
 from apm_web.llm.tokens import TokenCounter, build_token_matrix
 from apm_web.tests.llm.test_detail import entity_set, raw_span
 
@@ -332,6 +332,27 @@ class TruncatedContentTests(TestCase):
         value = '[{"text":"hello...[truncated 3 chars]'
         self.assertEqual(repair_truncated_json(value), [{"text": "hello...[truncated 3 chars]"}])
         self.assertEqual(repair_truncated_json('[{"arguments":{"count":'), [{"arguments": {}}])
+
+    def test_front_truncation_recovers_only_complete_message_suffix(self):
+        value = (
+            'lost content"}]}, '
+            '{"role":"tool","parts":[{"type":"tool_call_response","response":"ok"}]}, '
+            '{"role":"user","parts":[{"type":"text","content":"next"}]}]'
+        )
+        self.assertEqual(
+            recover_front_truncated_messages(value),
+            [
+                {"role": "tool", "parts": [{"type": "tool_call_response", "response": "ok"}]},
+                {"role": "user", "parts": [{"type": "text", "content": "next"}]},
+            ],
+        )
+        self.assertEqual(
+            recover_front_truncated_messages('lost content"}]}, {"role":"user"'), 'lost content"}]}, {"role":"user"'
+        )
+        self.assertEqual(
+            recover_front_truncated_messages('{"role":"user","parts":[]}]'),
+            [{"role": "user", "parts": []}],
+        )
 
     def test_valid_json_plain_text_and_invalid_nontruncation_are_preserved(self):
         for value in ('{"a":1}', "普通文本", 'prefix {"a":1', '{"a": @bad}', '{"a":1} trailing', None):

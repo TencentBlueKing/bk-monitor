@@ -81,7 +81,10 @@ def standard_content(attrs: dict[str, Any]) -> dict[str, Any]:
         instructions = [{"type": "text", "content": str(instructions)}]
     put(content, "gen_ai.system_instructions", instructions)
     for key in CONTENT_FIELDS[1:]:
-        put(content, key, safe_parse(attrs.get(key)))
+        value = safe_parse(attrs.get(key))
+        if key == "gen_ai.input.messages":
+            value = recover_front_truncated_messages(value)
+        put(content, key, value)
     return content
 
 
@@ -153,6 +156,33 @@ def repair_truncated_json(value: Any) -> Any:
     return value
 
 
+def recover_front_truncated_messages(value: Any) -> Any:
+    """前截断时只恢复后续完整消息；不能确认边界就保留原文。"""
+    if not isinstance(value, str):
+        return value
+    # 有时只丢失数组开头的 '['，首个消息仍完整。
+    candidate_starts = [len(value) - len(value.lstrip())] if value.lstrip().startswith("{") else []
+    candidate_starts.extend(boundary.end() for boundary in re.finditer(r'\}\s*,\s*(?=\{\s*"role"\s*:)', value))
+    for start in candidate_starts:
+        try:
+            messages = json.loads("[" + value[start:])
+        except json.JSONDecodeError:
+            continue
+        if (
+            isinstance(messages, list)
+            and messages
+            and all(
+                isinstance(message, dict)
+                and isinstance(message.get("role"), str)
+                and isinstance(message.get("parts"), list)
+                and all(isinstance(part, dict) for part in message["parts"])
+                for message in messages
+            )
+        ):
+            return messages
+    return value
+
+
 def repair_span_content(span: dict[str, Any]) -> dict[str, Any]:
     """复制被修复的字段，保留 origin_data；不把正文中的普通 JSON 文本当成协议解析。"""
     attributes: dict[str, Any] = dict(span.get("attributes") or {})
@@ -160,6 +190,8 @@ def repair_span_content(span: dict[str, Any]) -> dict[str, Any]:
         if field not in attributes:
             continue
         value = repair_truncated_json(attributes[field])
+        if field == "gen_ai.input.messages":
+            value = recover_front_truncated_messages(value)
         if isinstance(value, list):
             items: list[Any] = []
             for item in value:

@@ -199,17 +199,26 @@ class AdapterTests(TestCase):
             [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
         )
 
-    def test_default_adapter_keeps_front_truncated_input_unchanged(self) -> None:
+    def test_default_adapter_recovers_complete_messages_after_front_truncation(self) -> None:
         span = agentlens_span()
+        raw_input = (
+            'truncated content"}]}, '
+            '{"role":"user","parts":[{"type":"text","content":"question"}]}, '
+            '{"role":"system","parts":[{"type":"text","content":"instruction"}]}]'
+        )
         span["attributes"] = {
             "gen_ai.operation.name": "chat",
-            "gen_ai.input.messages": 'truncated prefix",{"role":"system","parts":[{"type":"text","content":"hidden"}]}]',
+            "gen_ai.input.messages": raw_input,
         }
 
         attributes = adapt_spans([span], "default")[0]["attributes"]
 
-        self.assertEqual(attributes["gen_ai.input.messages"], span["attributes"]["gen_ai.input.messages"])
-        self.assertNotIn("gen_ai.system_instructions", attributes)
+        self.assertEqual(
+            attributes["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+        )
+        self.assertEqual(attributes["gen_ai.system_instructions"], [{"type": "text", "content": "instruction"}])
+        self.assertEqual(span["attributes"]["gen_ai.input.messages"], raw_input)
 
     def test_langfuse_root_maps_conversation_and_content(self) -> None:
         span = langfuse_span(observation_type="span")
