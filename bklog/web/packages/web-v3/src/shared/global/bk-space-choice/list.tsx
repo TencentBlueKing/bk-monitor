@@ -130,6 +130,15 @@ export default defineComponent({
       emit('handleClickMenuItem', item);
     };
 
+    // 常用分组的分隔线落在常用列表最后一项上，不依赖它前面是否还有置顶结果
+    const isLastCommonItem = (item: IListItem) => {
+      if (!props.commonList.length || item.type === 'group-title') {
+        return false;
+      }
+      const last = props.commonList[props.commonList.length - 1];
+      return item.id === last.id && item.space_uid === last.space_uid;
+    };
+
     // 判断当前项是否被键盘选中
     const isKeyboardSelected = (item: IListItem) => {
       if (props.selectedIndex < 0 || item.type === 'group-title') {
@@ -206,7 +215,7 @@ export default defineComponent({
                     props.theme,
                     { checked: item.space_uid === props.checked },
                     { 'keyboard-selected': isKeyboardSelected(item) },
-                    props.commonList.length > 0 && index === props.commonList.length ? 'last-common-item' : '',
+                    isLastCommonItem(item) ? 'last-common-item' : '',
                   ]}
                   onClick={() => handleSelected(item)}
                 >

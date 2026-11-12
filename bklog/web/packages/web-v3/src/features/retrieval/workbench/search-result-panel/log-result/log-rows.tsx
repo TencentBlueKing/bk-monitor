@@ -723,12 +723,17 @@ export default defineComponent({
      * 将索引字段描述转为表头/单元格列配置（含排序头、JSON 单元格渲染）。
      */
     const formatColumn = (field: FieldInfoItem): ResultColumn => {
+      // 新增字段的样本列宽可能尚未计算，渲染和横向布局必须使用相同的有效宽度。
+      const parsedMinWidth = getNumericWidth(field.minWidth);
+      const minWidth = Number.isFinite(parsedMinWidth) && parsedMinWidth > 0 ? parsedMinWidth : 80;
+      const parsedWidth = getNumericWidth(field.width);
+      const width = Number.isFinite(parsedWidth) && parsedWidth > 0 ? parsedWidth : minWidth;
       return {
         field: field.field_name,
         key: field.field_name,
         title: getFieldNameByField(field, store),
-        width: field.width,
-        minWidth: field.minWidth,
+        width,
+        minWidth,
         field_type: field.field_type,
         align: 'top',
         resize: true,

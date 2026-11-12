@@ -384,6 +384,9 @@
     }
 
     .tools-more {
+      flex: 1;
+      min-width: 0;
+
       @include flex-center;
 
       .switch-label {
@@ -395,9 +398,15 @@
 
     .operation-icons {
       display: flex;
+      flex: 1;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
+      min-width: 0;
       margin-left: 16px;
+
+      > :not(.light-search) {
+        flex-shrink: 0;
+      }
 
       .operation-icon {
         display: flex;
@@ -431,13 +440,32 @@
 
       .light-search {
         display: flex;
+        flex: 0 1 auto;
         align-items: center;
+        min-width: 0;
         font-size: 12px;
         color: #4d4f56;
         background: #ffffff;
 
+        :deep(.bklog-v3-tag-highlight) {
+          flex: 0 1 auto;
+          width: 400px;
+          min-width: 0;
+        }
+
+        :deep(.bklog-v3-tag-highlight .bklog-tag-choice-input) {
+          width: 100%;
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .bklog-v3-match-mode {
+          flex-shrink: 0;
+        }
+
         label {
           display: flex;
+          flex-shrink: 0;
           align-items: center;
           justify-content: center;
           width: 40px;
@@ -469,6 +497,7 @@
     }
 
     .left-operate {
+      flex: 0 0 auto;
       flex-wrap: nowrap;
       align-items: center;
 

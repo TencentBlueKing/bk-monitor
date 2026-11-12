@@ -918,7 +918,7 @@ export default defineComponent({
                 fieldType: field.fieldType,
               })}
             </div>
-            <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
+            <div class={['scene-filter-field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
               <div class='field-input-placeholder' />
               <bk-select
                 value={getSelectValue(field)}
@@ -975,7 +975,7 @@ export default defineComponent({
               fieldType: field.fieldType,
             })}
           </div>
-          <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
+          <div class={['scene-filter-field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
             <div class='field-input-placeholder' />
             <div class='tag-input-wrapper'>
               <bk-tag-input

@@ -668,7 +668,9 @@ export default defineComponent({
         index_set_name: collectorConfigName,
         extra_labels: detailData.extra_labels?.length
           ? detailData.extra_labels
-          : [{ key: '', value: '', operator: '=' }],
+          : isHostLog.value
+            ? []
+            : [{ key: '', value: '', operator: '=' }],
       };
       /**
        * 克隆的时候数据处理
@@ -1112,7 +1114,7 @@ export default defineComponent({
     /** 链路配置 */
     const renderLinkConfig = () => (
       <div class='link-config label-form-box'>
-        <span class='label-title'>{t('上报链路')}</span>
+        <span class='label-title no-require'>{t('上报链路')}</span>
         <TSelect
           class='form-box'
           clearable={false}

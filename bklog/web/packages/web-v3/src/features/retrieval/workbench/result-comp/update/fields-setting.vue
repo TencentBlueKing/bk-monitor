@@ -115,6 +115,7 @@ import BklogLoading from '@/shared/ui/loading';
 import { ServicesInstance } from '@/platform/services';
 
 import { random, downJsonFile } from '@/shared/lib/util';
+import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 import VueDraggable from 'vuedraggable';
 import { mapGetters } from '@/app/state/map-helpers';
 
@@ -348,6 +349,7 @@ export default {
         // 更新本地显示字段状态
         this.$store.commit('resetVisibleFields', currentVisibleList);
         this.$store.commit('updateIsSetDefaultTableColumn');
+        RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
       } catch (error) {
         console.warn(error);
       } finally {

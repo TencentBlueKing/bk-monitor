@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Alert as TAlert } from 'tdesign-vue-next';
+import { Alert as TAlert, Select as TSelect } from 'tdesign-vue-next';
 
 import { Switch as TSwitch, RadioGroup as TRadioGroup, Radio as TRadio, Checkbox as TCheckbox } from 'tdesign-vue-next';
 
@@ -69,6 +69,7 @@ import {
 } from '@/features/collection/access/ext-json-expand-depth';
 import { getCleanTypeLabel, getCleanTypeIcon } from '../business-comp/step3/clean-type';
 import { isCollectionEditRoute } from './route-utils';
+import { normalizeTimestampTimeZones, useLogTimeZone, type TimeFormat, type TimeZoneOption } from './log-timezone';
 
 import type { ISelectItem, ISubmitOptions } from '../../type';
 
@@ -217,6 +218,8 @@ export default defineComponent({
     /** 当前采集项已经确认关联的清洗模板 ID */
     const cleanTemplateId = ref<number | null>(null);
     const initialCleanTemplateId = ref<number | null>(null);
+    const cleanRuleMode = ref<'manual' | 'template'>('manual');
+    const isTemplateBound = computed(() => cleanRuleMode.value === 'template' && cleanTemplateId.value !== null);
 
     const visibleBkBiz = ref<{ id: string | number; name: string }[]>([]);
     const cacheVisibleList = ref<(string | number)[]>([]);
@@ -229,7 +232,11 @@ export default defineComponent({
 
     const builtInFieldsList = ref<EtlField[]>([]);
     const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
-    const globalsData = computed(() => store.getters['globals/globalsData']);
+    const globalsData = computed(() => store.getters['globals/globalsData'] as {
+      data_delimiter?: ISelectItem[];
+      field_date_format?: TimeFormat[];
+      time_zone?: TimeZoneOption[];
+    });
     const curCollect = computed(() => store.getters['collect/curCollect']);
     const bkBizId = computed(() => store.getters.bkBizId);
     const spaceUid = computed(() => store.getters.spaceUid);
@@ -256,7 +263,7 @@ export default defineComponent({
     /**
      * 时区
      */
-    const timeZone = computed(() => (globalsData.value?.time_zone || []).toReversed());
+    const timeZone = computed(() => [...(globalsData.value?.time_zone || [])].reverse());
 
     /**
      * 是否为编辑
@@ -289,7 +296,22 @@ export default defineComponent({
       log_reporting_time: true, // 日志上报时间
       field_name: '',
       time_format: '',
-      time_zone: '',
+      time_zone: '' as number | string,
+    });
+    const { isTimestamp, formatHasTimeZone, parsedTimeZone, isTimeZoneLocked, changeTimeFormat } = useLogTimeZone(
+      formData,
+      fieldDateFormat,
+      timeZone,
+      isTemplateBound,
+    );
+    const timeZoneTip = computed(() => {
+      if (isTemplateBound.value || !formData.value.time_format) return '';
+      if (isTimeZoneLocked.value && parsedTimeZone.value) {
+        return t('已从预览值解析为 {timezone}。', { timezone: parsedTimeZone.value.name });
+      }
+      return formatHasTimeZone.value
+        ? t('时间格式包含时区，但预览值中未识别到，请手动选择。')
+        : t('时间格式不含时区，请选择该时间实际所在的时区。');
     });
     /** 动态字段解析层级下拉值 */
     const expandDepthSelect = ref<ExpandDepthSelect>(DEFAULT_EXPAND_DEPTH);
@@ -510,11 +532,6 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         });
       });
     };
-    /** 清洗规则配置方式：manual 手动配置 / template 使用模板 */
-    const cleanRuleMode = ref<'manual' | 'template'>('manual');
-    /** 当前采集项是否已经绑定清洗模板 */
-    const isTemplateBound = computed(() => cleanRuleMode.value === 'template' && cleanTemplateId.value !== null);
-
     /** 获取保存时需要提交的模板关联 ID */
     const getSubmitCleanTemplateId = () =>
       isClean.value && cleanRuleMode.value === 'template' ? cleanTemplateId.value : null;
@@ -573,7 +590,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
 
     /** 提取实际生效的字段配置，排除日志样例值及表格 UI 状态 */
     const buildTemplateEtlFieldsSnapshot = (fields: EtlField[]): EtlField[] =>
-      fields.map(field => ({
+      normalizeTimestampTimeZones(fields).map(field => ({
         field_index: field.field_index,
         field_name: field.field_name,
         alias_name: field.alias_name,
@@ -1890,7 +1907,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               </TRadio>
             </TRadioGroup>
             {!formData.value.log_reporting_time && (
-              <div class='select-group'>
+              <div class='select-group log-time-settings'>
                 <div class='select-item'>
                   <span class='select-title'>{t('字段')}</span>
                   <bk-select
@@ -1912,42 +1929,42 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 </div>
                 <div class='select-item'>
                   <span class='select-title'>{t('时间格式')}</span>
-                  <bk-select
+                  <TSelect
                     class='select-box'
                     disabled={isTemplateBound.value}
                     value={formData.value.time_format}
-                    onSelected={(val: string) => {
-                      formData.value.time_format = val;
-                    }}
-                  >
-                    {fieldDateFormat.value.map((item: { id: any; name: any; description: any; }) => (
-                      <bk-option
-                        id={item.id}
-                        key={item.id}
-                        name={`${item.name} (${item.description})`}
-                      />
-                    ))}
-                  </bk-select>
+                    clearable={true}
+                    placeholder=''
+                    options={fieldDateFormat.value.map(item => ({ value: item.id, label: `${item.name} (${item.description})` }))}
+                    onChange={value => changeTimeFormat(String(value ?? ''))}
+                  />
                 </div>
-                <div class='select-item'>
-                  <span class='select-title'>{t('时区选择')}</span>
-                  <bk-select
-                    class='select-box'
-                    disabled={isTemplateBound.value}
-                    value={formData.value.time_zone}
-                    onSelected={(val: string) => {
-                      formData.value.time_zone = val;
-                    }}
-                  >
-                    {timeZone.value.map((item: { id: any; name: any; }) => (
-                      <bk-option
-                        id={item.id}
-                        key={item.id}
-                        name={item.name}
+                {!isTimestamp.value && (
+                  <div class='select-item time-zone-item'>
+                    <div class='time-zone-control'>
+                      <span class='select-title'>{t('时区选择')}</span>
+                      <TSelect
+                        class='time-zone-select'
+                        clearable={true}
+                        placeholder=''
+                        disabled={isTemplateBound.value || isTimeZoneLocked.value}
+                        value={formData.value.time_zone}
+                        options={timeZone.value.map(item => ({ value: item.id, label: item.name }))}
+                        onChange={value => {
+                          if (!isTemplateBound.value && !isTimeZoneLocked.value) formData.value.time_zone = value as string | number;
+                        }}
                       />
-                    ))}
-                  </bk-select>
-                </div>
+                    </div>
+                    {timeZoneTip.value && (
+                      <div
+                        class={['time-zone-tip', { 'is-success': isTimeZoneLocked.value }]}
+                        role='status'
+                      >
+                        {timeZoneTip.value}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

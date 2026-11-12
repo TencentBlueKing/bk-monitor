@@ -36,10 +36,27 @@
     }
 
     .box-biz-select {
+      display: grid;
+      grid-template-columns: minmax(0, max-content) auto;
       justify-content: flex-start;
+      min-width: 0;
+
+      // 与索引集共用一列，提供 400px 的首选宽度；列宽不足时占位随之收缩。
+      &:has(> .bklog-v3-indexset-container)::before {
+        grid-area: 1 / 1;
+        width: 400px;
+        max-width: 100%;
+        pointer-events: none;
+        content: '';
+      }
+
+      .bklog-v3-indexset-container {
+        grid-area: 1 / 1;
+        min-width: 0;
+      }
 
       .retrieve-tab-item-title {
-        flex-shrink: 0;
+        grid-area: 1 / 2;
       }
     }
 
