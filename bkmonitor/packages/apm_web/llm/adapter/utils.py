@@ -140,7 +140,7 @@ def repair_truncated_json(value: Any) -> Any:
         if error.msg == "Extra data":
             return value
         try:
-            partial = re.sub(r"\.\.\.\[truncated \d+ chars\]$", "", value)
+            partial = value
             # 不完整转义会让解析器丢弃整段字符串，只移除尚未收全的尾部转义。
             escape = re.search(r"(\\+)(?:u[0-9a-fA-F]{0,3})?$", partial)
             if escape and len(escape[1]) % 2:

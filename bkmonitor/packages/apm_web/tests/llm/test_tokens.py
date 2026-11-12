@@ -309,9 +309,7 @@ class TokenMatrixTests(TestCase):
 class TruncatedContentTests(TestCase):
     def test_truncated_messages_and_tool_json_are_repaired_without_changing_raw_span(self):
         span = model_span()
-        span["attributes"]["gen_ai.input.messages"] = (
-            '[{"role":"user","parts":[{"type":"text","content":"你好...[truncated 10 chars]'
-        )
+        span["attributes"]["gen_ai.input.messages"] = '[{"role":"user","parts":[{"type":"text","content":"你好'
         span["attributes"]["gen_ai.system_instructions"] = '[{"type":"text","content":"系统'
         span["attributes"]["gen_ai.tool.definitions"] = (
             '[{"type":"function","name":"search","parameters":{"type":"object"'
@@ -329,6 +327,11 @@ class TruncatedContentTests(TestCase):
     def test_incomplete_escape_keeps_received_string_prefix(self):
         for suffix in (chr(92), chr(92) + "u4", chr(92) + "u4f"):
             self.assertEqual(repair_truncated_json('{"content":"hello' + suffix), {"content": "hello"})
+
+    def test_partial_parser_does_not_interpret_truncation_suffix(self):
+        value = '[{"text":"hello...[truncated 3 chars]'
+        self.assertEqual(repair_truncated_json(value), [{"text": "hello...[truncated 3 chars]"}])
+        self.assertEqual(repair_truncated_json('[{"arguments":{"count":'), [{"arguments": {}}])
 
     def test_valid_json_plain_text_and_invalid_nontruncation_are_preserved(self):
         for value in ('{"a":1}', "普通文本", 'prefix {"a":1', '{"a": @bad}', '{"a":1} trailing', None):
