@@ -3,6 +3,7 @@
 from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import Mock
+from uuid import UUID
 
 import pytest
 import yaml
@@ -11,6 +12,8 @@ from core.errors.collecting import CollectConfigParamsError, LegacyConversionFai
 from monitor_web.collecting.resources import backend, frontend
 from monitor_web.collecting.resources.tencent_cloud import K8sInstaller, configmap_projection, prepare_edit_params
 from monitor_web.plugin.views import CollectorPluginViewSet
+
+from .test_tencent_cloud_configmap import upload
 
 IMAGE = "example.com/exporter:test"
 TEMPLATE = """apiVersion: v1
@@ -398,6 +401,41 @@ def test_new_format_uses_uploaded_content_and_recomputes_preview(config):
     assert result["content"] == f["content"] and result["uid"] == f["uid"]
     assert result["preview"] != f["preview"] and "runtime" not in projected
     assert projected["plugin"]["access_key"] is False and projected["plugin"]["secret_key"] is True
+
+
+def test_new_format_detail_returns_each_file(config, mocker):
+    files = [
+        upload({"credential": {"region": region}, "products": [PRODUCT]}, str(UUID(int=index)), f"{region}.yaml")
+        for index, region in enumerate(("region-a", "region-b"), 1)
+    ]
+    config.deployment_config.params = {
+        "collector": {"period": 90, "timeout": 60, "metric_relabel_configs": []},
+        "plugin": {
+            "config_mode": "configmap",
+            "access_key": "sample-access",
+            "secret_key": "sample-secret",
+            "configmaps": deepcopy(files),
+        },
+        "runtime": {"contract": "qcloud-exporter-v0.21.0", "image": IMAGE},
+    }
+    result = detail(params_format="configmap")
+    assert [(f["mode"], f["type"]) for f in result["plugin_info"]["config_json"]] == [
+        ("env", "password"),
+        ("env", "password"),
+        ("opt_cmd", "file"),
+    ]
+    returned = result["params"]["plugin"]["configmaps"]
+    assert [{key: f[key] for key in ("uid", "filename", "content")} for f in returned] == files
+    assert [yaml.safe_load(f["preview"]["qcloud_yaml"])["credential"]["region"] for f in returned] == [
+        "region-a",
+        "region-b",
+    ]
+    assert "sample-access" not in str(result) and "sample-secret" not in str(result)
+    mocker.patch.object(frontend.resource.collecting, "collect_config_detail", side_effect=detail)
+    display = frontend.FrontendCollectConfigDetailResource().perform_request(
+        {"id": 3, "bk_biz_id": 2, "params_format": "configmap", "with_target_info": False}
+    )
+    assert display["runtime_params"][-1]["value"] == [{"uid": f["uid"], "filename": f["filename"]} for f in files]
 
 
 @pytest.mark.parametrize("change", ["invalid-template", "unknown-param", "invalid-products", "secret-in-product"])
