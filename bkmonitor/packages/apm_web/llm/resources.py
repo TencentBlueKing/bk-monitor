@@ -487,7 +487,6 @@ class ListFlowsResource(Resource):
         builder = FlowBuilder(raw_spans, spans)
         if token_usage is not None:
             builder.token_matrix = token_usage.build()
-            builder.estimated_token_fields = sorted(token_usage.estimated_token_fields)
         builder.build()
         return builder
 
@@ -571,8 +570,6 @@ class ListFlowsResource(Resource):
             item["flow"] = builder.flow
             if builder.token_matrix is not None:
                 item["token_matrix"] = builder.token_matrix
-            if builder.estimated_token_fields:
-                item["estimated_token_fields"] = builder.estimated_token_fields
             if input_output_preview:
                 item["input"] = item["input"][:PREVIEW_LENGTH]
                 item["output"] = item["output"][:PREVIEW_LENGTH]
@@ -585,11 +582,9 @@ class ListFlowsResource(Resource):
             trace["total_tokens"] = trace["input_tokens"] + trace["output_tokens"]
         start_time: int = min(trace["start_time"] for trace in traces)
         end_time: int = max(trace["end_time"] for trace in traces)
-        estimated_fields = sorted({field for trace in traces for field in trace.get("estimated_token_fields", [])})
         return {
             "group_field": validated_request_data["group_field"],
             "group_id": validated_request_data["group_id"],
-            **({"estimated_token_fields": estimated_fields} if estimated_fields else {}),
             **tokens,
             "start_time": start_time,
             "end_time": end_time,

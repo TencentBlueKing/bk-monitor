@@ -66,7 +66,7 @@
 | `span_detail` | `trace_tree.spans[].llm_detail` | 模型 Span，包含样例中的两个字段 *[2]* |
 
 - *[1] `flow` 中的 `childs` 模型节点也返回分类统计。*
-- *[2] 完整正文执行线与 Span 详情返回修复后的 JSON 和补齐用量，正文预览使用修复后的数据。*
+- *[2] 完整正文执行线与 Span 详情返回修复后的 JSON，正文预览使用修复后的数据。*
 - *[3] `span_detail.origin_data` 保留原始上报内容。*
 
 ## 0x03 字段
@@ -82,7 +82,7 @@
 | `<node>.children` | `array<object>` | 是 | 同结构子节点，叶子为 `[]` |
 | `<node>.estimated_to_reported_ratio` | `number / null` | 否 | 仅根节点返回：校准前估算总量 ÷ 上报总量 *[2]* |
 
-- *[1] 父节点等于子节点之和，输入、输出总量分别对齐模型用量。*
+- *[1] 父节点等于子节点之和；已上报的用量用于校准，缺失用量时仅矩阵使用正文估算值。*
 - *[2] `1` 表示两者相等，该侧存在未上报用量的模型或上报总量为 `0` 时返回 `null`。*
 - *[3] 已上报推理量计入输出比例的分子，输出校准时优先保留推理量，其余分配给内容。*
 - *[4] 节点采用 [ECharts Treemap 数据结构](https://echarts.apache.org/en/option.html#series-treemap.data)，`estimated_to_reported_ratio` 为业务扩展字段。*
@@ -102,15 +102,13 @@
 - *[4] 工具 ID 使用原名的 URL 百分号编码，名称缺失时编码部分为空。*
 - *[5] 存在 Top3 之外的工具时追加“其他工具”，即使 Token 为 `0` 也保留调用次数。*
 
-### c. 分类与来源
+### c. 分类统计
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `token_categories[].key` | `string` | 是 | 对应的标准属性名 |
 | `token_categories[].label` | `string` | 是 | 分类展示名称 |
-| `token_categories[].tokens` | `int` | 是 | 从矩阵共用的计数结果汇总 *[1]* |
-| `estimated_token_fields` | `array<string>` | 否 | 用估算补齐的字段，如 `["input_tokens"]` *[2]* |
+| `token_categories[].tokens` | `int` | 是 | 从矩阵共用的计数结果汇总 *[1][2]* |
 
 - *[1] 系统提示词、可用工具、输入三个分类之和等于矩阵输入总量，输出分类等于矩阵输出总量。*
-- *[2] 模型节点、包含估算回填的 Agent 节点、Trace 和执行线响应顶层携带此标记。*
-- *[3] 字段取值为 `input_tokens`、`output_tokens`，已上报的 `0` 不算缺失。*
+- *[2] 分类估算不写入 Span 的 `gen_ai.usage.input_tokens` 或 `gen_ai.usage.output_tokens`。*

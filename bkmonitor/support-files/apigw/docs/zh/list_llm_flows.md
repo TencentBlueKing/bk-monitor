@@ -26,7 +26,6 @@
 | --- | --- |
 | `traces[].token_matrix` | 当前 Trace 的矩阵与工具占用 |
 | `traces[].flow[].token_categories` | 模型节点的分类总数 |
-| `estimated_token_fields` | 使用估算补齐的用量字段 |
 
 - *[1] 按 Trace 加载正文时返回，包含正文预览模式。完整 JSON 样例和字段定义见 [LLM Token 统计](https://github.com/TencentBlueKing/bk-monitor/blob/master/bkmonitor/packages/apm_web/llm/docs/llm_token_matrix.md)。*
 

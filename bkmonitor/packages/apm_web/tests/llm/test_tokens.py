@@ -167,13 +167,12 @@ class TokenMatrixTests(TestCase):
                 self.assertEqual(sum(item["tokens"] for item in sections[:3]), reported)
                 self.assertEqual(sections[3]["tokens"], output_node["value"])
                 self.assertEqual(span["attributes"], source)
-                self.assertNotIn("estimated_token_fields", span)
 
-    def test_missing_usage_is_filled_once_without_overwriting_reported_zero(self):
+    def test_missing_usage_is_estimated_for_matrix_without_changing_span_usage(self):
         span = model_span(output_tokens=0)
+        original_attributes = deepcopy(span["attributes"])
         matrix = build_token_matrix([span])
-        self.assertEqual(span["attributes"]["gen_ai.usage.input_tokens"], 2)
-        self.assertEqual(span["estimated_token_fields"], ["input_tokens"])
+        self.assertEqual(span["attributes"], original_attributes)
         self.assertEqual(matrix["nodes"][0]["value"], 2)
         self.assertIsNone(matrix["nodes"][0]["estimated_to_reported_ratio"])
         self.assertEqual(matrix, build_token_matrix([span]))
@@ -300,7 +299,6 @@ class TokenMatrixTests(TestCase):
         matrix = build_token_matrix([span, agent, tool])
         self.assertEqual([n["value"] for n in matrix["nodes"]], [5, 4])
         self.assertNotIn("token_categories", agent)
-        self.assertNotIn("estimated_token_fields", tool)
 
     def test_mixed_reported_and_estimated_usage_has_no_accuracy_ratio(self):
         matrix = build_token_matrix([model_span(input_tokens=5), model_span(span_id="model-2")])

@@ -84,12 +84,12 @@ class AttachLLMDetailTests(TestCase):
                 {"bk_biz_id": 11, "app_name": "agent-app", "span_id": source["span_id"]}
             )
         detail = result["trace_tree"]["spans"][0]["llm_detail"]
-        self.assertEqual(detail["estimated_token_fields"], ["input_tokens", "output_tokens"])
+        self.assertNotIn("estimated_token_fields", detail)
         for side, expected in (("input", "修复后的输入"), ("output", "修复后的输出")):
             self.assertEqual(detail["attributes"][f"gen_ai.{side}.messages"][0]["parts"][0]["content"], expected)
             root = next(node for node in detail["token_matrix"]["nodes"] if node["id"] == side)
             self.assertGreater(root["value"], 0)
-            self.assertEqual(root["value"], detail["attributes"][f"gen_ai.usage.{side}_tokens"])
+            self.assertNotIn(f"gen_ai.usage.{side}_tokens", detail["attributes"])
         self.assertTrue(all(set(category) == {"key", "label", "tokens"} for category in detail["token_categories"]))
         self.assertEqual(result["origin_data"]["attributes"], original["attributes"])
         self.assertEqual(source, original)

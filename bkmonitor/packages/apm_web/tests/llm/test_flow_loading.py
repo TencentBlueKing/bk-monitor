@@ -62,19 +62,23 @@ class FlowLoadingTests(TestCase):
         self.assertNotIn("gen_ai.tool.definitions", trace["flow"][0]["attributes"])
         self.assertEqual(sum(c["tokens"] for c in trace["flow"][0]["token_categories"][:3]), 37)
 
-    def test_missing_usage_is_filled_and_source_is_exposed_on_span_trace_and_summary(self):
+    def test_missing_usage_only_affects_matrix_and_categories(self):
         self.source["attributes"].pop("gen_ai.usage.input_tokens")
         result = self.request(input_output_preview=True)
         trace = result["traces"][0]
         model = trace["flow"][0]
+        self.assertEqual(trace["input_tokens"], 0)
+        self.assertGreater(trace["token_matrix"]["nodes"][0]["value"], 0)
+        self.assertEqual(
+            sum(category["tokens"] for category in model["token_categories"][:3]),
+            trace["token_matrix"]["nodes"][0]["value"],
+        )
+        self.assertNotIn("gen_ai.usage.input_tokens", model["attributes"])
         for item in (result, trace, model):
-            self.assertEqual(item["estimated_token_fields"], ["input_tokens"])
-        self.assertEqual(trace["input_tokens"], model["attributes"]["gen_ai.usage.input_tokens"])
-        self.assertEqual(trace["input_tokens"], trace["token_matrix"]["nodes"][0]["value"])
-        self.assertGreater(trace["input_tokens"], 0)
+            self.assertNotIn("estimated_token_fields", item)
         self.assertNotIn("gen_ai.usage.input_tokens", self.source["attributes"])
 
-    def test_content_loading_returns_repaired_json_and_filled_usage_in_full_and_preview_modes(self):
+    def test_content_loading_returns_repaired_json_without_filling_usage(self):
         attrs = self.source["attributes"]
         attrs.pop("gen_ai.usage.input_tokens")
         attrs.pop("gen_ai.usage.output_tokens")
@@ -88,10 +92,11 @@ class FlowLoadingTests(TestCase):
                 self.query.query_by_group_ids.assert_called_once()
                 trace = result["traces"][0]
                 node = trace["flow"][0]
-                self.assertEqual(node["estimated_token_fields"], ["input_tokens", "output_tokens"])
                 for side, expected in (("input", "修复后的输入"), ("output", "修复后的输出")):
-                    self.assertGreater(node["attributes"][f"gen_ai.usage.{side}_tokens"], 0)
-                    self.assertEqual(node["attributes"][f"gen_ai.usage.{side}_tokens"], trace[f"{side}_tokens"])
+                    self.assertNotIn(f"gen_ai.usage.{side}_tokens", node["attributes"])
+                    self.assertEqual(trace[f"{side}_tokens"], 0)
+                    root = next(root for root in trace["token_matrix"]["nodes"] if root["id"] == side)
+                    self.assertGreater(root["value"], 0)
                     if preview:
                         self.assertEqual(node[side], expected)
                     else:
@@ -103,7 +108,7 @@ class FlowLoadingTests(TestCase):
                 )
         self.assertEqual(self.source, original)
 
-    def test_agent_estimation_source_passes_through_tool_and_respects_reported_fields(self):
+    def test_missing_llm_usage_does_not_add_estimated_usage_to_agent(self):
         model = deepcopy(self.source)
         model["parent_span_id"] = "tool"
         model["attributes"].pop("gen_ai.usage.input_tokens")
@@ -117,11 +122,11 @@ class FlowLoadingTests(TestCase):
                 if reported is not None:
                     agent["attributes"]["gen_ai.usage.input_tokens"] = reported
                 result = self.request(input_output_preview=True)["traces"][0]["flow"][0]
-                self.assertEqual("estimated_token_fields" in result, reported is None)
+                self.assertNotIn("estimated_token_fields", result)
                 self.assertNotIn("estimated_token_fields", result["childs"][0])
+                self.assertNotIn("gen_ai.usage.input_tokens", result["childs"][0]["childs"][0]["attributes"])
                 if reported is None:
-                    self.assertEqual(result["estimated_token_fields"], ["input_tokens"])
-                    self.assertGreater(result["attributes"]["gen_ai.usage.input_tokens"], 0)
+                    self.assertEqual(result["attributes"]["gen_ai.usage.input_tokens"], 0)
                 else:
                     self.assertEqual(result["attributes"]["gen_ai.usage.input_tokens"], reported)
 

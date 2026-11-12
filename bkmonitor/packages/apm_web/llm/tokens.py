@@ -128,7 +128,6 @@ class TokenUsageBuilder:
     def __init__(self):
         self.counts: dict[str, int] = defaultdict(int)
         self.estimated_totals: dict[str, int | None] = {"input": 0, "output": 0}
-        self.estimated_token_fields: set[str] = set()
         self.tool_calls: dict[tuple[str, str], int] = defaultdict(int)
         self.tool_names: dict[tuple[str, str], str] = {}
         self.counters: dict[str, TokenCounter] = {}
@@ -154,18 +153,10 @@ class TokenUsageBuilder:
             if reasoning is not None:
                 side_counts = [count for count in side_counts if count.category != "reasoning"]
             estimated: int = sum(count.tokens for count in side_counts) + (reasoning or 0)
-            field: str = f"{side}_tokens"
-            reported = nonnegative_int(attrs.get(f"gen_ai.usage.{field}"))
-            if field in span.get("estimated_token_fields", []):
-                reported = None
+            reported = nonnegative_int(attrs.get(f"gen_ai.usage.{side}_tokens"))
             total: int = reported if reported is not None else estimated
             if reported is None:
                 self.estimated_totals[side] = None
-                self.estimated_token_fields.add(field)
-                span.setdefault("estimated_token_fields", [])
-                if field not in span["estimated_token_fields"]:
-                    span["estimated_token_fields"].append(field)
-                span["attributes"] = {**span["attributes"], f"gen_ai.usage.{field}": total}
             elif (subtotal := self.estimated_totals[side]) is not None:
                 self.estimated_totals[side] = subtotal + estimated
             reasoning_total: int = min(reasoning, total) if reasoning is not None else 0
@@ -248,7 +239,7 @@ class TokenUsageBuilder:
 
 
 def build_token_matrix(spans: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    """补齐模型用量和分类总数，返回矩阵；入参为已标准化、去重的 Span。"""
+    """估算并校准分类总数，返回矩阵；入参为已标准化、去重的 Span。"""
     builder = TokenUsageBuilder()
     for span in spans:
         builder.add_span(span)

@@ -47,7 +47,6 @@ class FlowBuilder:
         self.raw_spans = raw_spans
         self.spans = spans
         self.token_matrix: dict[str, Any] | None = None
-        self.estimated_token_fields: list[str] = []
         # 执行线根节点，build() 后可用
         self.flow: list[dict[str, Any]] = []
         # 各 Agent 的 Token 统计，key 为 span_id，build() 后可用
@@ -117,33 +116,25 @@ class FlowBuilder:
             node["childs"].sort(key=lambda child: child.get(OtlpKey.START_TIME) or 0)
         return roots
 
-    def _aggregate(self, node: dict[str, Any]) -> tuple[dict[str, int], set[str]]:
-        """递归返回子树贡献量及估算来源，来源穿过不累计用量的中间节点。"""
+    def _aggregate(self, node: dict[str, Any]) -> dict[str, int]:
+        """递归累加子树 Token，返回本节点对父层的贡献量。"""
         attributes = node[OtlpKey.ATTRIBUTES]
         totals = dict.fromkeys(TOKEN_ATTRIBUTES, 0)
-        estimated_fields: set[str] = set()
         for child in node["childs"]:
-            child_totals, child_estimated_fields = self._aggregate(child)
-            estimated_fields.update(child_estimated_fields)
+            child_totals = self._aggregate(child)
             for field in TOKEN_ATTRIBUTES:
                 totals[field] += child_totals[field]
 
         if node.get("span_type") == SpanType.LLM:
             for field in TOKEN_ATTRIBUTES:
                 totals[field] += _read_token(attributes, field) or 0
-            estimated_fields.update(node.get("estimated_token_fields", []))
-            return totals, estimated_fields
+            return totals
 
         if node.get("span_type") == SpanType.AGENT:
-            estimated_fields = {
-                field for field in estimated_fields if _read_token(attributes, TOKEN_FIELDS[field]) is None
-            }
-            if estimated_fields:
-                node["estimated_token_fields"] = sorted(estimated_fields)
-            return self._resolve_agent_tokens(node, totals), estimated_fields
+            return self._resolve_agent_tokens(node, totals)
 
         # 非 LLM、非 Agent 的中间 Span 只透传子树统计
-        return totals, estimated_fields
+        return totals
 
     def _resolve_agent_tokens(self, node: dict[str, Any], child_totals: dict[str, int]) -> dict[str, int]:
         """按字段解析 Agent Token：自报值优先，缺失字段回填子树统计，缺失与显式 0 区分对待。"""
