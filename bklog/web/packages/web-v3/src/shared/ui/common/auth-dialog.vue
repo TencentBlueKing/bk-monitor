@@ -28,6 +28,8 @@
   <div class="no-authority">
     <t-dialog
       v-if="showApplyDialog"
+      attach="body"
+      dialog-class-name="bklog-authority-dialog"
       :visible="showApplyDialog"
       :close-btn="false"
       :close-on-overlay-click="false"
@@ -83,6 +85,8 @@
 
     <t-dialog
       v-if="showConfirmDialog"
+      attach="body"
+      dialog-class-name="bklog-authority-dialog"
       :visible="showConfirmDialog"
       :confirm-btn="$t('刷新')"
       :header="$t('权限申请单已提交？')"
@@ -206,6 +210,18 @@ import { Dialog as TDialog } from 'tdesign-vue-next';
         display: flex;
         flex-flow: column;
       }
+    }
+  }
+</style>
+
+<style lang="scss">
+  .bklog-authority-dialog {
+    .t-dialog__header {
+      font-weight: 400;
+    }
+
+    .t-dialog__footer {
+      width: auto;
     }
   }
 </style>
