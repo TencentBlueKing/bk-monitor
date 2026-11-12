@@ -84,6 +84,7 @@ import type {
   IRumApplication,
   IRumColumnLayoutPreset,
   IRumCountDrillDown,
+  IRumField,
   IRumSpanRecord,
   RumModeType,
 } from './typings';
@@ -215,6 +216,42 @@ export default defineComponent({
       const priorityFields = fields.filter(field => priorityMap.has(field.name));
       priorityFields.sort((a, b) => (priorityMap.get(a.name) ?? 0) - (priorityMap.get(b.name) ?? 0));
       return [...priorityFields, ...fields.filter(field => !priorityMap.has(field.name))];
+    });
+
+    /**
+     * 视图配置字段缓存：接口下发的 fields 只属于当前视角，而详情侧栏需要尽量兼容所有视角的字段。
+     * 以「应用 + 视角」为 key 缓存各视角取到的 fields，切走再切回时仍可作为补齐来源。
+     */
+    const cachedModeFields = shallowRef<Record<string, IRumField[]>>({});
+    watch(
+      () => [viewConfigCtx.ready.value, viewConfigCtx.viewConfig.value, store.appName, store.mode],
+      () => {
+        if (!viewConfigCtx.ready.value || !viewConfigCtx.viewConfig.value.fields.length) return;
+        const key = `${store.appName}|${store.mode}`;
+        cachedModeFields.value = { ...cachedModeFields.value, [key]: viewConfigCtx.viewConfig.value.fields };
+      },
+      { immediate: true }
+    );
+
+    /**
+     * 详情侧栏使用的汇总字段：以当前视角的 fields 为基础，再用其它视角缓存的字段补齐缺失项；
+     * 同名时保留当前视角的字段，缓存里的重复项丢弃。
+     */
+    const detailFields = computed<IRumField[]>(() => {
+      const current = viewConfigCtx.viewConfig.value.fields;
+      const names = new Set(current.map(field => field.name));
+      const appPrefix = `${store.appName}|`;
+      const extraFields: IRumField[] = [];
+      for (const [key, fields] of Object.entries(cachedModeFields.value)) {
+        // 只汇总当前应用的各视角字段，换应用后不沿用旧应用的配置
+        if (!key.startsWith(appPrefix)) continue;
+        for (const field of fields) {
+          if (names.has(field.name)) continue;
+          names.add(field.name);
+          extraFields.push(field);
+        }
+      }
+      return extraFields.length ? [...current, ...extraFields] : current;
     });
 
     const favoriteBoxRef = useTemplateRef<InstanceType<typeof FavoriteBox>>('favoriteBoxRef');
@@ -623,6 +660,7 @@ export default defineComponent({
       detailContext,
       detailShow,
       detailMode,
+      detailFields,
       emptyType,
       layoutPreset,
       isSpanSpecialPerspective,
@@ -862,7 +900,7 @@ export default defineComponent({
 
         <RumSpanDetailSlider
           context={this.detailContext}
-          fields={viewConfigCtx.viewConfig.value.fields}
+          fields={this.detailFields}
           isShow={this.detailShow}
           mode={this.detailMode}
           onConditionAdd={(key, value) =>
