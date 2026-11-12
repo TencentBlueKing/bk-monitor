@@ -172,7 +172,7 @@ class TestGraphUnifyQueryResource:
             "data_type_label": DataTypeLabel.TIME_SERIES,
             "extend_fields": {"time_field": "time"},
         }
-        metadata = [[{**metric, "unit": unit}] for unit in ["percent", "KiB"]]
+        metadata = [[{**metric, "unit": unit}] for unit in ["percent", "percentunit"]]
 
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures = [
