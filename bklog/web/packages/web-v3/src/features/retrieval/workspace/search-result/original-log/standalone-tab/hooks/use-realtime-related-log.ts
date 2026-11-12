@@ -1,8 +1,10 @@
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 import { nextTick, onBeforeUnmount, ref, type Ref } from 'vue';
 
 import { messageSuccess } from '@/shared/lib/message';
-import useStore from '@/shared/composables/use-store';
+
 
 import { advanceRealtimeCursor, buildRealtimeTailRequest, createRealtimeCursor } from './realtime-cursor';
 import { useCommonRelatedLog } from './use-common-related-log';
@@ -17,7 +19,7 @@ export const useRealtimeRelatedLog = (options: {
   targetRow: Ref<Record<string, any>>;
   targetFields?: Ref<string[]>;
 }) => {
-  const store = useStore();
+  const store = useApplicationStore();
   const common = useCommonRelatedLog(options);
   const zero = ref(true);
   const isPolling = ref(false);

@@ -94,7 +94,9 @@
   </bk-dialog>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   export default {
   emits: ["update:show-dialog","update:showDialog","update:old-pattern","update:oldPattern"],
@@ -131,10 +133,10 @@
     },
     computed: {
       getDialogWidth() {
-        return this.$store.getters.isEnLanguage ? '800' : '680';
+        return useApplicationStore().isEnLanguage ? '800' : '680';
       },
       getLabelWidth() {
-        return this.$store.getters.isEnLanguage ? 215 : 124;
+        return useApplicationStore().isEnLanguage ? 215 : 124;
       },
     },
     methods: {

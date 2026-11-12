@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import {
   applyIndependentPageLayoutQuery,
   buildMonitorLogRetrievalUrl,
@@ -30,7 +32,7 @@ import {
 } from '@/shared/lib/embed-layout-query';
 
 export function getConditionRouterParams(searchList, searchMode, isNewLink, append = {}) {
-  const indexItem = window.mainComponent.$store.state.indexItem;
+  const indexItem = useApplicationStore().indexItem;
   const getIPChooserStr = ipChooser => {
     if (typeof ipChooser === 'object') return JSON.stringify(ipChooser);
     return ipChooser;
@@ -75,7 +77,7 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink, appe
   }
 
   Object.assign(filterQuery, newQueryObj, append ?? {});
-  const storeState = window.mainComponent.$store.state;
+  const storeState = useApplicationStore();
   const indexId = window.__IS_MONITOR_COMPONENT__
     ? query.indexId || params.indexId || storeState.indexId
     : params.indexId || query.indexId || storeState.indexId;

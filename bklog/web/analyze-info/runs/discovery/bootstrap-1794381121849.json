@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 1,
+  "scope": "POLICY_DISCOVERY_NOT_BASELINE",
+  "status": "NEEDS_ENDPOINT_REVIEW",
+  "documentStatus": 200,
+  "route": "#/retrieve/16176",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v1/meta/index_html_environment/",
+      "queryKeys": [],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "bootstrap-environment"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/meta/mine/",
+      "queryKeys": [],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "getUsername"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/meta/globals/",
+      "queryKeys": [],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "globals"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/meta/spaces/mine/",
+      "queryKeys": [
+        "space_uid",
+        "bk_biz_id",
+        "page",
+        "page_size"
+      ],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "getMySpaceList"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/meta/spaces/mine/",
+      "queryKeys": [],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "getMySpaceList"
+    },
+    {
+      "method": "GET",
+      "path": "/notice/announcements/",
+      "queryKeys": [],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "notice-list"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/frontend_event/report/",
+      "queryKeys": [],
+      "bodyKeys": [
+        "event_name",
+        "event_content",
+        "target",
+        "timestamp",
+        "dimensions"
+      ],
+      "decision": "BLOCK",
+      "reason": "EXCLUDED_TELEMETRY",
+      "ruleId": "telemetry-excluded"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/meta/menu/",
+      "queryKeys": [
+        "space_uid"
+      ],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "menu"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/meta/user_guide/",
+      "queryKeys": [],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "getUserGuide"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ai_assistant/session/",
+      "queryKeys": [],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "ai-session-read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/search/index_set/",
+      "queryKeys": [
+        "space_uid",
+        "is_group"
+      ],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "getIndexSetList"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/search/favorite/list_by_group/",
+      "queryKeys": [
+        "space_uid",
+        "order_type",
+        "source_type"
+      ],
+      "bodyKeys": [],
+      "decision": "ALLOW",
+      "ruleId": "getFavoriteByGroupList"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ai_assistant/session/",
+      "queryKeys": [],
+      "bodyKeys": [
+        "session_code",
+        "session_name",
+        "is_temporary",
+        "updated_at",
+        "created_at",
+        "session_property"
+      ],
+      "decision": "BLOCK",
+      "reason": "WRITE_NOT_AUTHORIZED",
+      "ruleId": "ai-session-create"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/search/index_set/16176/export_history/",
+      "queryKeys": [
+        "bk_biz_id",
+        "page",
+        "pagesize",
+        "show_all",
+        "start_time",
+        "end_time"
+      ],
+      "bodyKeys": [],
+      "decision": "BLOCK",
+      "reason": "UNCLASSIFIED_ENDPOINT"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/alert_strategy/16176/alert_records/",
+      "queryKeys": [],
+      "bodyKeys": [
+        "status",
+        "page_size",
+        "space_uid"
+      ],
+      "decision": "ALLOW",
+      "ruleId": "alertList"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/search/scene/scenes/",
+      "queryKeys": [
+        "bk_biz_id"
+      ],
+      "bodyKeys": [],
+      "decision": "BLOCK",
+      "reason": "UNCLASSIFIED_ENDPOINT"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/search/index_set/16176/fields/",
+      "queryKeys": [
+        "start_time",
+        "end_time",
+        "is_realtime"
+      ],
+      "bodyKeys": [],
+      "decision": "BLOCK",
+      "reason": "UNCLASSIFIED_ENDPOINT"
+    }
+  ],
+  "responses": [
+    {
+      "path": "/api/v1/meta/index_html_environment/",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    {
+      "path": "/api/v1/meta/globals/",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    {
+      "path": "/api/v1/meta/mine/",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    {
+      "path": "/api/v1/meta/spaces/mine/",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    {
+      "path": "/notice/announcements/",
+      "status": 404,
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/api/v1/meta/menu/",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    {
+      "path": "/api/v1/meta/user_guide/",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    {
+      "path": "/api/v1/search/favorite/list_by_group/",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    {
+      "path": "/api/v1/ai_assistant/session/",
+      "status": 200,
+      "contentType": "application/json"
+    },
+    {
+      "path": "/api/v1/search/index_set/",
+      "status": 200,
+      "contentType": "application/json"
+    }
+  ],
+  "errors": []
+}

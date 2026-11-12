@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, defineAsyncComponent, defineComponent, KeepAlive, nextTick, onMounted, ref, type Ref } from 'vue';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router';
@@ -30,7 +32,7 @@ import { useRoute } from 'vue-router';
 import { getFeatureToggleStatus } from '../../shared/composables/use-feature-toggle';
 import { isMonitorIframeContext } from '../../shared/lib/embed-layout-query';
 import useLocale from '../../shared/composables/use-locale';
-import useStore from '../../shared/composables/use-store';
+
 import { join } from '@/shared/global/utils/path';
 
 import LocaleProvider from '@/platform/i18n/locale-provider';
@@ -61,7 +63,7 @@ if (isHeadlessEntry()) {
 export default defineComponent({
   setup() {
     const route = useRoute();
-    const store = useStore();
+    const store = useApplicationStore();
     const { $t } = useLocale();
 
     const noticeComponentHeight = ref(0);
@@ -79,11 +81,11 @@ export default defineComponent({
     }));
 
     const isAsIframe = computed(() => isMonitorIframeContext(route.query));
-    const showAlert = computed(() => store.state.showAlert);
+    const showAlert = computed(() => store.showAlert);
 
-    const isShowGlobalDialog = computed(() => store.state.isShowGlobalDialog);
-    const globalActiveLabel = computed(() => store.state.globalActiveLabel);
-    const globalSettingList = computed(() => store.state.globalSettingList);
+    const isShowGlobalDialog = computed(() => store.isShowGlobalDialog);
+    const globalActiveLabel = computed(() => store.globalActiveLabel);
+    const globalSettingList = computed(() => store.globalSettingList);
 
     const appBodyClassName = computed(() => [
       'log-search-container',
@@ -97,10 +99,10 @@ export default defineComponent({
       const logDesensitize = getFeatureToggleStatus('log_desensitize');
 
       if (logDesensitize === 'off') {
-        store.commit('updateState', { globalSettingList: [] });
+        store.updateState({ globalSettingList: [] });
       }
 
-      store.commit('updateState', {
+      store.updateState({
         maskingToggle: {
           toggleString: logDesensitize,
           toggleList: [],
@@ -116,7 +118,7 @@ export default defineComponent({
       ];
       // 脱敏菜单项
       const maskingItems = isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : [];
-      store.commit('updateState', {
+      store.updateState({
         globalSettingList: [...customItems, ...maskingItems],
       });
     };
@@ -126,7 +128,7 @@ export default defineComponent({
      * @param v
      */
     const showAlertChange = async (v: boolean) => {
-      store.commit('updateState', { showAlert: v });
+      store.updateState({ showAlert: v });
 
       await nextTick();
       noticeComponentHeight.value = v ? (refNoticeComponent.value?.$el?.offsetHeight ?? 0) : 0;
@@ -215,7 +217,7 @@ export default defineComponent({
      * 更新全局弹窗的选项
      */
     const handleChangeMenu = (item: any) => {
-      store.commit('updateState', { globalActiveLabel: item.id });
+      store.updateState({ globalActiveLabel: item.id });
     };
 
     /**
@@ -256,15 +258,15 @@ export default defineComponent({
           ? 'Microsoft Yahei, pingFang-SC, Helvetica, Aria, sans-serif'
           : 'pingFang-SC, Microsoft Yahei, Helvetica, Aria, sans-serif';
       document.body.style.fontFamily = fontFamily;
-      store.commit('updateState', { runVersion: window.RUN_VER || '' });
+      store.updateState({ runVersion: window.RUN_VER || '' });
 
       const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
-      store.commit('updateState', { isEnLanguage });
+      store.updateState({ isEnLanguage });
       const languageClassName = isEnLanguage ? 'language-en' : 'language-zh';
       document.body.classList.add(languageClassName);
       // 初始化脱敏灰度相关的代码
       initMaskingToggle();
-      store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(`${window.IS_EXTERNAL}`) : false;
+      store.isExternal = window.IS_EXTERNAL ? JSON.parse(`${window.IS_EXTERNAL}`) : false;
     });
 
     return () => (

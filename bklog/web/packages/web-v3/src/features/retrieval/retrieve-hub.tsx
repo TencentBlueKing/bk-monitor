@@ -23,10 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineAsyncComponent, defineComponent } from 'vue';
 
 import { useRoute } from 'vue-router';
-import useStore from '@/shared/composables/use-store';
+
 import UnAuthorized from '@/features/authorization/denied/index';
 import RetrieveV3 from '@/features/retrieval/workspace/index';
 const RetrieveV1 = defineAsyncComponent(
@@ -41,12 +43,12 @@ export default defineComponent({
   },
   setup() {
     const route = useRoute();
-    const store = useStore();
+    const store = useApplicationStore();
     const version = localStorage.getItem('retrieve_version') ?? 'v3';
 
     return () => {
       // 恢复空间前不挂载检索页，避免初始化请求及 URL 适配丢失原始索引信息。
-      if (store.state.spaceResolveFailed) {
+      if (store.spaceResolveFailed) {
         return <UnAuthorized type='space' />;
       }
 

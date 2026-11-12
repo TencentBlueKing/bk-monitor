@@ -132,7 +132,7 @@
             <span v-log-tooltip.top="$t('自动转换成正确的数据名格式')">
               <t-button :variant="(true) ? 'text' : ('base')"
                 v-if="!isTextValid"
-                
+
                 @click="handleEnConvert"
                 >{{ $t('自动转换') }}</t-button
               >
@@ -427,6 +427,10 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -436,7 +440,7 @@ import { ServicesInstance } from '@/platform/services';
   import { useIntroResize } from '@/shared/composables/use-intro-resize';
   import { getCurrentInstance } from 'vue';
   import { useStorageClusterForm } from '@/features/collection/composables/use-storage-cluster-form';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   import IntroPanel from './components/intro-panel';
   import FieldSetting from './components/field-setting';
@@ -456,8 +460,8 @@ import { ServicesInstance } from '@/platform/services';
     data() {
       return {
         isItsm: isFeatureToggleOn('collect_itsm', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
+          String(useApplicationStore().bkBizId),
+          String(useApplicationStore().spaceUid),
         ]),
         customRetentionDay: '', // 过期时间天数
         customHotDataDay: 0, // 热数据天数
@@ -580,10 +584,10 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
         spaceUid: 'spaceUid',
-        globalsData: 'globals/globalsData',
+        globalsData: state => state.globals.globalsData,
       }),
       defaultRetention() {
         const { storage_duration_time: storageDurationTime } = this.globalsData;
@@ -598,7 +602,7 @@ import { ServicesInstance } from '@/platform/services';
         return Number(this.bkBizId) > 0 ? `${this.bkBizId}_bklog_` : `space_${Math.abs(Number(this.bkBizId))}_bklog_`;
       },
       getLabelWidth() {
-        return this.$store.getters.isEnLanguage ? 133 : 103;
+        return useApplicationStore().isEnLanguage ? 133 : 103;
       },
     },
     watch: {
@@ -841,7 +845,7 @@ import { ServicesInstance } from '@/platform/services';
           name: routeName,
           query: {
             ...reset,
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },

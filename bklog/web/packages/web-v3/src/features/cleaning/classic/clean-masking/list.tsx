@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -35,7 +37,7 @@ Component.registerHooks(['beforeRouteEnter']);
 @Component
 export default class MaskingList extends tsc<object> {
   get isShowMaskingTemplate() {
-    return this.$store.getters.isShowMaskingTemplate;
+    return useApplicationStore().isShowMaskingTemplate;
   }
   /** 监听是否展示脱敏部分 */
   @Watch('isShowMaskingTemplate')
@@ -44,9 +46,9 @@ export default class MaskingList extends tsc<object> {
     this.goToCollection(!val);
   }
   /** 进入路由前判断是否是灰度业务 */
-  beforeRouteEnter(_from: unknown, _to: unknown, next: (arg0: (vm: { goToCollection: (arg0: boolean) => void; $store: { getters: { isShowMaskingTemplate: any; }; }; }) => void) => void) {
-    next((vm: { goToCollection: (arg0: boolean) => void; $store: { getters: { isShowMaskingTemplate: any; }; }; }) => {
-      vm.goToCollection(!vm.$store.getters.isShowMaskingTemplate);
+  beforeRouteEnter(_from: unknown, _to: unknown, next: (arg0: (vm: { goToCollection: (arg0: boolean) => void; }) => void) => void) {
+    next((vm: { goToCollection: (arg0: boolean) => void; }) => {
+      vm.goToCollection(!useApplicationStore().isShowMaskingTemplate);
     });
   }
   /**

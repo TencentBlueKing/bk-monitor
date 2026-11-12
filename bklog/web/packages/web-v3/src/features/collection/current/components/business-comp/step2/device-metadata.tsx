@@ -78,8 +78,13 @@ export default defineComponent({
     const switcherValue = ref(false);
     // 自定义标签验证错误状态
     const isExtraError = ref(false);
-    // 标记是否已经初始化过回填，避免后续编辑时重复回填
+    // 已完成首次回填，或已通过事件提交本地修改；后续不再自动回填
     const hasInitialized = ref(false);
+
+    const emitLabelsChange = (labels: IMetaItem[]) => {
+      hasInitialized.value = true;
+      emit('extra-labels-change', labels);
+    };
 
     onMounted(() => {
       getDeviceMetaData();
@@ -96,7 +101,7 @@ export default defineComponent({
       switcherValue.value = val;
       if (!val) {
         // 关闭开关时清空数据
-        emit('extra-labels-change', []);
+        emitLabelsChange([]);
       }
     };
 
@@ -194,7 +199,7 @@ export default defineComponent({
           })),
       ];
 
-      emit('extra-labels-change', result);
+      emitLabelsChange(result);
     };
     /**
      * 添加自定义标签
@@ -233,8 +238,10 @@ export default defineComponent({
       }
 
       // 当用户修改后，检查是否可以清除全局错误状态
-      // 如果当前所有项都满足条件（key和value非空且不重复），则清除 isExtraError
-      const hasError = extraLabelList.value.some(item => item.key === '' || item.value === '' || item.duplicateKey);
+      // 全空行按未配置处理，其余项要求 key 和 value 完整且不重复
+      const hasError = extraLabelList.value.some(
+        item => (item.key !== '' || item.value !== '') && (item.key === '' || item.value === '' || item.duplicateKey),
+      );
       if (!hasError) {
         isExtraError.value = false;
       }
@@ -258,7 +265,7 @@ export default defineComponent({
         }
         return accumulator;
       }, []);
-      emit('extra-labels-change', result);
+      emitLabelsChange(result);
     };
     /**
      * 下拉框选择的时候
@@ -283,6 +290,9 @@ export default defineComponent({
       // 检查自定义标签
       if (extraLabelList.value.length) {
         for (const item of extraLabelList.value) {
+          if (item.key === '' && item.value === '') {
+            continue;
+          }
           // 检查必填项
           if (item.key === '' || item.value === '') {
             isExtraError.value = true;
@@ -307,13 +317,17 @@ export default defineComponent({
     watch(
       () => props.metadata,
       (newVal, oldVal) => {
+        if (hasInitialized.value) {
+          return;
+        }
+
         // 深度比较，避免相同引用时重复初始化
         if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
           // 更新开关状态（只有存在有效 key 的项才认为开启）
           switcherValue.value = !!(newVal && newVal.filter(item => item.key).length > 0);
           // 只在第一次进入页面且 groupList 已加载时回填
           // 后续编辑时不再回填，避免覆盖用户的操作
-          if (!hasInitialized.value && groupList.value.length > 0 && newVal && newVal.length > 0) {
+          if (groupList.value.length > 0 && newVal && newVal.length > 0) {
             fillMetadataData();
           }
         }
@@ -329,7 +343,7 @@ export default defineComponent({
       <div class='device-metadata-input-item'>
         <div class='item-left'>
           <TInput
-            class={{ 'extra-error': item.key === '' && isExtraError.value }}
+            class={{ 'extra-error': item.key === '' && item.value !== '' && isExtraError.value }}
             value={item.key}
             onChange={(val: string | number | undefined) => handleExtraLabelChange(index, 'key', val == null ? '' : String(val))}
           />
@@ -341,7 +355,7 @@ export default defineComponent({
         </div>
         <span class='symbol'>=</span>
         <TInput
-          class={{ 'extra-error': item.value === '' && isExtraError.value }}
+          class={{ 'extra-error': item.value === '' && item.key !== '' && isExtraError.value }}
           value={item.value}
           onChange={(val: string | number | undefined) => handleExtraLabelChange(index, 'value', val == null ? '' : String(val))}
         />

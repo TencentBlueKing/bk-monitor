@@ -24,8 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute, useRouter } from "vue-router";
 
 import RouteUrlResolver, { RetrieveUrlResolver } from '../../../app/state/url-resolver';
@@ -34,7 +36,7 @@ import RouteUrlResolver, { RetrieveUrlResolver } from '../../../app/state/url-re
 import type { ConsitionItem } from '../../../app/state/store.type.ts';
 
 export default () => {
-  const store = useStore();
+  const store = useApplicationStore();
   const router = useRouter();
   const route = useRoute();
 
@@ -71,7 +73,7 @@ export default () => {
                 newKeyword = '*';
               }
 
-              store.commit('updateIndexItemParams', { keyword: newKeyword });
+              store.updateIndexItemParams({ keyword: newKeyword });
               return router.replace({ query: { ...route.query, keyword: newKeyword, addition: [], tab: 'origin' } });
             }
 
@@ -86,12 +88,12 @@ export default () => {
   const resolveCommonParams = ({ search_mode: searchMode, addition, keyword }) => {
     if (!searchMode) {
       if (keyword?.length > 0 && addition.length < 4) {
-        store.commit('updateIndexItemParams', { keyword, search_mode: 'sql' });
+        store.updateIndexItemParams({ keyword, search_mode: 'sql' });
         return router.replace({ query: { ...route.query, keyword, addition: [] } });
       }
 
       if (addition?.length >= 4 && keyword?.length === 0) {
-        store.commit('updateIndexItemParams', { addition, search_mode: 'ui' });
+        store.updateIndexItemParams({ addition, search_mode: 'ui' });
 
         const resolver = new RetrieveUrlResolver({
           addition,

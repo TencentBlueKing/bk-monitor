@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "scope": "CONTROLLED_REAL_COMPONENT_CONTRACT_NOT_BACKEND_ACCEPTANCE",
+  "status": "LABEL_CONTRACT_FAILED",
+  "checks": [
+    {
+      "id": "label-render-nonbuiltin",
+      "passed": true
+    },
+    {
+      "id": "label-required-cancel",
+      "passed": true
+    },
+    {
+      "id": "label-duplicate-validation",
+      "passed": true
+    },
+    {
+      "id": "label-builtin-validation",
+      "passed": true
+    },
+    {
+      "id": "label-create-enter",
+      "passed": false
+    },
+    {
+      "id": "label-disabled-add-delete",
+      "passed": false
+    },
+    {
+      "id": "label-keyboard-cycle",
+      "passed": true
+    },
+    {
+      "id": "label-terminated",
+      "passed": true
+    },
+    {
+      "id": "stop-dialog-single-cancel",
+      "passed": true
+    },
+    {
+      "id": "stop-dialog-update-order",
+      "passed": true
+    }
+  ],
+  "missing": [
+    "label-create-enter",
+    "label-disabled-add-delete"
+  ],
+  "failures": [
+    {
+      "id": "label-create-enter",
+      "reason": "expect(received).toEqual(expected) // deep equality\n\n- Expected  - 10\n+ Received  +  1\n\n@@ -1,20 +1,11 @@\n  Array [\n    Object {\n-     \"method\": \"create\",\n-     \"options\": Object {\n-       \"data\": Object {\n-         \"name\": \"新建标签\",\n-         \"space_uid\": \"fixture-space\",\n-       },\n-     },\n-   },\n-   Object {\n      \"method\": \"add\",\n      \"options\": Object {\n        \"data\": Object {\n-         \"tag_id\": 4,\n+         \"tag_id\": 2,\n        },\n        \"params\": Object {\n          \"index_set_id\": \"fixture-index\",\n        },\n      },\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate"
+    },
+    {
+      "id": "label-disabled-add-delete",
+      "reason": "locator.hover: Error: strict mode violation: getByTestId('label-cell').locator('.tag-item').filter({ hasText: '可选标签' }) resolved to 2 elements:\n    1) <span class=\"tag-item\">可选标签</span> aka getByText('可选标签').first()\n    2) <span class=\"tag-item tag-item-label\">…</span> aka locator('span').filter({ hasText: '可选标签' }).nth(1)\n\nCall log:\n\u001b[2m  - waiting for getByTestId('label-cell').locator('.tag-item').filter({ hasText: '可选标签' })\u001b[22m\n"
+    }
+  ],
+  "blocked": [],
+  "runtimeErrors": [],
+  "sourceDigests": [
+    {
+      "path": "fixtures/collection-label-contract.tsx",
+      "sha256": "b8a6e9bde8310e086f920203766b323ca7a63777090ad4805a72da5c00b4e999"
+    },
+    {
+      "path": "fixtures/collection-label-contract.html",
+      "sha256": "154a369794fcbea5871c678989529c7edfdc63a2b6d9feb4ab73082410b9b3df"
+    },
+    {
+      "path": "src/features/collection/current/components/common-comp/tag-more.tsx",
+      "sha256": "5db2585f757465a967ed8478c4abe4c00e71cff3773e451612ba63840189ce19"
+    },
+    {
+      "path": "src/features/collection/current/components/common-comp/tag-more.scss",
+      "sha256": "a3efb1f33197d2921157bb73617756c3eaade714f801fa8ea4eb205f1dd9f60d"
+    },
+    {
+      "path": "src/shared/composables/use-visible-input-focus.ts",
+      "sha256": "0cd8dc0210add16f279a4a9a1f5fa684d89177a200338c5f8027181b15bb4cbc"
+    },
+    {
+      "path": "src/features/collection/current/components/list-main/stop-type-dialog.tsx",
+      "sha256": "ccc9816bcb9a7b158ae761ae788a23844dc9a0f3d90c353de7446894213806b1"
+    }
+  ]
+}

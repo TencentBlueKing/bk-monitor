@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -33,7 +38,7 @@ import * as authorityMap from '@/shared/lib/authority-map';
 import { clearTableFilter } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
@@ -49,7 +54,7 @@ export default defineComponent({
     EmptyStatus,
   },
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
     const repositoryTable = ref<any>(null);
 
@@ -78,9 +83,9 @@ export default defineComponent({
       cos: 'COS',
     }));
 
-    const bkBizId = computed(() => store.getters.bkBizId); // 业务ID
+    const bkBizId = computed(() => store.bkBizId); // 业务ID
     const authorityMapComputed = computed(() => authorityMap); // 权限映射计算属性
-    const globalsData = computed(() => store.getters['globals/globalsData']); // 全局数据
+    const globalsData = computed(() => useGlobalsStore().globalsData); // 全局数据
 
     // 仓库类型过滤项
     const repositoryFilters = computed(() =>
@@ -232,8 +237,8 @@ export default defineComponent({
     const getOptionApplyData = async (paramData: any) => {
       try {
         isTableLoading.value = true;
-        const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateState', { authDialogData: res.data });
+        const res = await store.getApplyData(paramData);
+        store.updateState({ authDialogData: res.data });
       } catch (err) {
         console.warn(err);
       } finally {
@@ -395,7 +400,7 @@ export default defineComponent({
                       class='mr10 king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]}
                       theme='primary'
-                      
+
                       onClick={() => operateHandler(props.row, 'delete')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('删除')}

@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "scope": "MANAGEMENT_MENU_PREVIEW_CANCEL_ONLY_NOT_FULL_ACCEPTANCE",
+  "version": "v3",
+  "status": "V3_PILOT_REQUIRES_REVIEW",
+  "baselineProof": {
+    "schemaVersion": 1,
+    "capabilities": [
+      "management-menu-stop-preview-cancel"
+    ],
+    "scope": "MANAGEMENT_MENU_PREVIEW_CANCEL_ONLY",
+    "status": "PILOT_BASELINE_PROVEN",
+    "captureDigest": "17825d53be1e85e2b33924ba709894bf7a00f8379183faf6a64acd98e6fe1064",
+    "sourceDigest": "a7cd5e2b50b1cefb71549c86a5ea622794fc05e4f2660a85c710a474bbfe0176",
+    "report": {
+      "path": "bklog/web/analyze-info/runs/pilot/management-self-replay-1794386623162.json",
+      "sha256": "33a3b5839b119edabcc0b89d3c06f320d313d4486dc1d16da702d92a84d32763"
+    },
+    "artifacts": [
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-0FECT3/list-ready.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-0FECT3/list-ready.png",
+        "sha256": "56962f886555c4dc7d386836e72bf616dff11fc1fc96bccee39446f68f6c7860",
+        "bytes": 186642
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-wwezmm/list-ready.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-wwezmm/list-ready.png",
+        "sha256": "56962f886555c4dc7d386836e72bf616dff11fc1fc96bccee39446f68f6c7860",
+        "bytes": 186642
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-0FECT3/menu-open.ui.json",
+        "sha256": "0ca6e5ad4fc22195e2ad7f81c41be51a4d8334b421967551ea5acdb7ef25ac9e",
+        "bytes": 3537
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-0FECT3/menu-open.png",
+        "sha256": "dbaa2d08d137b63978c66af9de1c126859f27f145bc96e6779bdf03486d33e8e",
+        "bytes": 191645
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-wwezmm/menu-open.ui.json",
+        "sha256": "63117d3e30b2d0acc7ebf7c6ad3f85f8576b3b149f400269657dd0663ab05e35",
+        "bytes": 3537
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-wwezmm/menu-open.png",
+        "sha256": "dbaa2d08d137b63978c66af9de1c126859f27f145bc96e6779bdf03486d33e8e",
+        "bytes": 191645
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-0FECT3/stop-type-preview.ui.json",
+        "sha256": "8d0ce8024501f776522a8edb184728c09988c2410a6fe06799d4c577fc07bb4e",
+        "bytes": 6839
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-0FECT3/stop-type-preview.png",
+        "sha256": "e94457481272e4185c39291fc6a9e63ea96db22b2d2658018e7d622befc22ed1",
+        "bytes": 160599
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-wwezmm/stop-type-preview.ui.json",
+        "sha256": "8d0ce8024501f776522a8edb184728c09988c2410a6fe06799d4c577fc07bb4e",
+        "bytes": 6839
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-wwezmm/stop-type-preview.png",
+        "sha256": "e94457481272e4185c39291fc6a9e63ea96db22b2d2658018e7d622befc22ed1",
+        "bytes": 160599
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-0FECT3/cancel-restored-list.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-0FECT3/cancel-restored-list.png",
+        "sha256": "56962f886555c4dc7d386836e72bf616dff11fc1fc96bccee39446f68f6c7860",
+        "bytes": 186642
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-wwezmm/cancel-restored-list.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-wwezmm/cancel-restored-list.png",
+        "sha256": "56962f886555c4dc7d386836e72bf616dff11fc1fc96bccee39446f68f6c7860",
+        "bytes": 186642
+      }
+    ],
+    "exclusions": [
+      {
+        "path": "/api/v1/frontend_event/report/",
+        "method": "POST",
+        "ruleId": "telemetry-excluded"
+      }
+    ],
+    "fullProductAccepted": false
+  },
+  "runtimeErrors": [],
+  "captureDigest": "17825d53be1e85e2b33924ba709894bf7a00f8379183faf6a64acd98e6fe1064",
+  "privateInput": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-0FECT3",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-ekfZdy",
+  "fixtureReadRecords": 16,
+  "consumedRecords": 16,
+  "businessRequestsForwarded": 0,
+  "networkAudit": {
+    "scope": "CONTEXT_ROUTE_HANDLER_AUDIT",
+    "interceptedBusiness": 17,
+    "forwardedStatic": 454
+  },
+  "checkpoints": [
+    {
+      "id": "list-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "menu-open",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "stop-type-preview",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "cancel-restored-list",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    }
+  ],
+  "cancellations": [],
+  "uiDifferences": [
+    {
+      "checkpoint": "menu-open",
+      "kind": "GEOMETRY",
+      "id": "collection.row.more-menu",
+      "field": "y",
+      "expected": 275,
+      "actual": 271
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "GEOMETRY",
+      "id": "collection.stop-type.dialog",
+      "field": "y",
+      "expected": 200,
+      "actual": 180
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "GEOMETRY",
+      "id": "collection.stop-type.dialog",
+      "field": "height",
+      "expected": 288,
+      "actual": 297
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "GEOMETRY",
+      "id": "collection.stop-type.selected-choice",
+      "field": "x",
+      "expected": 504,
+      "actual": 513
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "GEOMETRY",
+      "id": "collection.stop-type.selected-choice",
+      "field": "y",
+      "expected": 353,
+      "actual": 349
+    }
+  ],
+  "failures": [
+    {
+      "reason": "SELF_REPLAY_UI_DIFFERENCE",
+      "count": 5
+    }
+  ]
+}

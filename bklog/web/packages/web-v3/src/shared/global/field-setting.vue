@@ -249,23 +249,27 @@
   </div>
 </template>
 
-<script setup lang="ts">import { ServicesInstance } from '@/platform/services';
+<script setup lang="ts">
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
+import { ServicesInstance } from '@/platform/services';
 
   import { computed, ref, nextTick } from 'vue';
 
   import { builtInInitHiddenList } from '@/shared/constants/index.ts';
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import { useRoute, useRouter } from "vue-router";
 
   import * as authorityMap from '../lib/authority-map';
   import settingTable from './setting-table.vue';
-  
+
   import { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
   import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
 
   const { t } = useLocale();
-  const store = useStore();
+  const store = useApplicationStore();
   const route = useRoute();
   const router = useRouter();
   const showSlider = ref(false);
@@ -346,7 +350,7 @@
         collectorId: collectorConfigId.value,
       },
       query: {
-        spaceUid: store.state.spaceUid,
+        spaceUid: store.spaceUid,
       },
     });
     window.open(newURL.href, '_blank', 'noopener,noreferrer');
@@ -422,11 +426,11 @@
     return cleanType.value === 'bk_log_json';
   });
   const labelWidth = computed(() => {
-    return store.state.isEnLanguage ? 130 : 94;
+    return store.isEnLanguage ? 130 : 94;
   });
   const indexfieldTable = ref(null);
   const addNewField = () => {
-    const fields = structuredClone(indexfieldTable.value.getData());
+    const fields = cloneReactiveData(indexfieldTable.value.getData());
     const newBaseFieldObj = {
       ...baseFieldObj.value,
       field_index: tableField.value.length + 1,
@@ -449,14 +453,14 @@
   }
 
   const handleEdit = () => {
-    formDataCopy.value = structuredClone(formData.value);
-    fieldsCopy.value = structuredClone(indexfieldTable.value.getData());
+    formDataCopy.value = cloneReactiveData(formData.value);
+    fieldsCopy.value = cloneReactiveData(indexfieldTable.value.getData());
     isEdit.value = true;
   };
 
   const handleCancel = async () => {
-    formData.value = structuredClone(formDataCopy.value);
-    tableField.value = structuredClone(fieldsCopy.value);
+    formData.value = cloneReactiveData(formDataCopy.value);
+    tableField.value = cloneReactiveData(fieldsCopy.value);
     nextTick(() => {
       isEdit.value = false;
     });
@@ -476,7 +480,7 @@
   const indexBuiltField = ref([]);
 
   const initFormData = async () => {
-    const indexSetList = store.state.retrieve.flatIndexSetList;
+    const indexSetList = useRetrieveStore().flatIndexSetList;
     const indexSetId = route.params?.indexId;
     const currentIndexSet = indexSetList.find((item) => item.index_set_id === `${indexSetId}`);
     if (!currentIndexSet?.collector_config_id) return;

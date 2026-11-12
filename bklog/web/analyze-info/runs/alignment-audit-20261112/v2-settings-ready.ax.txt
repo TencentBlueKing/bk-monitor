@@ -1,0 +1,270 @@
+Browser tab: 544133305, Title: "日志平台 | 蓝鲸智云", URL: "http://appdev.woa.com:8001/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&tab=clustering&clusterParams=%7B%22pattern_level%22%3A%2205%22,%22year_on_year_hour%22%3A0,%22show_new_pattern%22%3Afalse,%22group_by%22%3A%5B%5D,%22size%22%3A10000,%22remark_config%22%3A%22all%22,%22owner_config%22%3A%22all%22,%22owners%22%3A%5B%5D%7D".
+0 AXWebArea 日志平台 | 蓝鲸智云, URL: appdev.woa.com:8001/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&tab=clustering&clusterParams=%7B%22pattern_level%22%3A%2205%22,%22year_on_year_hour%22%3A0,%22show_new_pattern%22%3Afalse,%22group_by%22%3A%5B%5D,%22size%22%3A10000,%22remark_config%22%3A%22all%22,%22owner_config%22%3A%22all%22,%22owners%22%3A%5B%5D%7D
+	1 container
+		2 container app
+			3 container
+				4 image logo
+				5 text 日志平台 | D
+				6 container
+					7 text demo
+					8 text 
+				9 content list
+					10 text 检索
+					11 text 监控策略
+					12 text 仪表盘
+					13 text 管理
+				14 text 
+				15 text 
+				16 text 
+				17 container
+					18 text israelli
+					19 image
+			20 container
+				21 container
+					22 text 
+					23 text 常规检索
+					24 text 场景化检索
+					25 container
+						26 text [采集项]容器日志采集示例  (5000140_bklog.container_log_demo)  Cmd+O Cmd+O
+					27 container
+						28 text  历史查询
+					29 container
+						30 image
+						31 image
+						32 text 近 15 分钟
+						33 image
+					34 container
+						35 text 
+						36 text off
+					37 container
+						38 text  分享
+					39 container
+						40 text  索引配置
+					41 container
+						42 text  告警
+					43 container
+						44 text  全局设置
+					45 container
+						46 text 更多
+						47 text 
+					48 container
+						49 text  回到旧版
+					50 container
+						51 text UI 模式 
+						52 content list
+							53 container
+								54 text + 添加条件
+							55 container
+								56 text field (settable)
+								57 text / 唤起，输入检索内容（Tab 可切换为 AI 模式）
+						58 text 
+						59 text 
+						60 text 
+						61 text 
+						62 container
+							63 image AI 模式
+							64 text AI 模式 
+					65 button  查询
+						66 text 
+						67 text 查询
+					68 container
+						69 text   设置筛选
+					70 container
+						71 text __ext.container_id
+						72 text =
+						73 content list
+							74 text field (settable)
+							75 text 请选择 或 输入
+						76 text 
+						77 text __ext.io_kubernetes_pod
+						78 text =
+						79 content list
+							80 text field (settable)
+							242 text 请选择 或 输入
+						243 text 
+						83 text 
+					84 text 原始日志
+					85 text 日志聚类
+					86 text 图表分析
+					87 text Grep模式
+					88 container
+						89 text  添加到仪表盘
+					90 container
+						91 text  添加告警策略
+					92 text  新类告警策略： 未配置
+					93 text 
+					94 text  数量突增策略： 已配置
+					95 text 
+					96 container
+						97 text 仅查看新类 Pattern
+					98 container
+						99 text  聚合维度
+					100 container
+						101 text  临时分组
+					102 container
+						103 text  时间对比
+					104 text 
+					105 text 
+					106 text 
+					107 text 聚类设置
+					244 container
+						245 text 
+						246 text 聚类设置
+						247 container
+							300 container
+								301 container
+									302 text 聚类字段 *
+								303 container
+									304 text 
+									305 text log(original_text)
+									306 text  只能基于 1 个字段进行聚类，并且字段是为text的分词类型，默认为log字段
+								307 container
+									308 text 最大字段长度 *
+								309 container
+									310 container
+										311 text field (settable) 1000
+										312 text 
+										313 text 
+									314 text 字节  聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源
+								315 text 过滤规则
+								316 text 
+								317 text 聚类规则
+								318 container
+									319 radio button (settable, integer) Description: 自定义, Value: 0
+									320 text 自定义
+									321 radio button (settable, integer) Description: 模板, Value: 1
+									322 text 模板
+								323 text 
+								324 text 系统默认
+								325 button 编辑模板
+									326 container
+										327 text  编辑模板
+								328 button 解绑
+									329 container
+										330 text  解绑
+								331 button 刷新
+									332 container
+										333 text  刷新
+								334 text 生效顺序 正则表达式 占位符
+								335 container
+									336 text 1
+									337 text (http|https)\:\/\/[a-zA-Z0-9\.\/\?\:@\-_=#%]+\.([a-zA-Z]){2,6}([a-zA-Z0-9\.\&\/\?\:@\-_=#%])*
+									338 text URL
+									339 text 2
+									340 text datetime.datetime\(\d{4},\s\d{1,2},\s\d{1,2},\s\d{1,2},\s\d{1,2},\s\d{1,2},\s\d{5},\stzinfo=<\w{3,4}>\)>
+									341 text DATETIME
+									342 text 3
+									343 text \d{1,4}(-|/)?(\d{1,2}|\w{3,4})(-|/)?\d{1,4}(\s|-|_|T)+\d{1,2}:\d{1,2}:\d{1,2}((,|\.|\s)?(\+)?\d{2,6})?(\+\d{2}(\:|\s)?\d{2})?(Z)?
+									344 text DATETIME
+									345 text 4
+									346 text \d{4}(\-|\/|\.)\d{1,2}(\-|\/|\.)\d{1,2}
+									347 text DATE
+									348 text 5
+									349 text \d{2}:\d{2}:\d{2}(\.\d{6})?
+									350 text TIME
+									351 text 6
+									352 text (\/[a-zA-Z0-9\._-]+)+
+									353 text PATH
+									354 text 7
+									355 text ^[0-9]*\.?[0-9]+([µusSmMHh])+$
+									356 text PERIOD
+									357 text 8
+									358 text ^[-+]?[0-9]+(\.[0-9]+)?$
+									359 text NUMBER
+									360 text 9
+									361 text [0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}
+									362 text UUID
+									363 text 10
+									364 text [0-9a-fA-F]{32}
+									365 text UUID
+									366 text 11
+									367 text ^((2(5[0-5]|[0-4]\d))|[0-1]?\d{1,2})(\.((2(5[0-5]|[0-4]\d))|[0-1]?\d{1,2})){3}$
+									368 text IP
+									369 text 12
+									370 text ((2(5[0-5]|[0-4]\d))|[0-1]?\d{1,2})(\.((2(5[0-5]|[0-4]\d))|[0-1]?\d{1,2})){3}\s?:\d{1,5}
+									371 text IP-PORT
+									372 text 13
+									373 text kvs=\[[\s\S]+
+									374 text KVS
+							293 button 保存
+								294 text 保存
+							295 button 调试工具 
+								296 container
+									297 text 调试工具 
+							298 button 重置
+								299 text 重置
+					219 table
+						220 row
+							221 cell
+								222 text 数据指纹
+							223 cell
+								224 text 数量
+								225 container
+									226 text  
+							227 cell
+								228 text 占比
+								229 container
+									230 text  
+							231 cell
+								232 text Pattern
+							233 cell
+								234 text 责任人
+								235 text 
+							236 cell
+								237 text 创建告警策略
+								238 text 
+							239 cell
+								240 text 备注
+								241 text 
+					113 table
+						114 row
+							115 cell
+								116 text 数据指纹
+							117 cell
+								118 text 数量
+							119 cell
+								120 text 占比
+							121 cell
+								122 text Pattern
+							123 cell
+								124 text 责任人
+							125 cell
+								126 text 创建告警策略
+							127 cell
+								128 text 备注
+						129 row
+							130 cell
+								131 text c39a3b674252ce02090707fcb53a8e6b
+							132 cell
+								133 text 1317
+							134 cell
+								135 text 50.02%
+							136 cell
+								137 container
+									138 text #DATETIME#  WARN otlp  #PATH# #NUMBER#  run pre-check failed rtype traces code  #NUMBER#  ip  #IP#  error drop spans cause invalid token  #UUID#  not empty token bk-collector skip empty record
+							139 cell
+								140 button --
+							141 cell
+								142 container
+									143 checkbox (disabled, settable, integer) 0
+							144 cell
+								145 text --
+						146 row
+							147 cell
+								148 text 196bdc44da31e72cb9e630869fbe11fd
+							149 cell
+								150 text 1316
+							151 cell
+								152 text 49.98%
+							153 cell
+								154 container
+									155 text #DATETIME#  ERROR tokenchecker  #PATH# #NUMBER#  failed to parse pdTraces.rsToken  #UUID#  err invalid token  #UUID#  not empty token
+							156 cell
+								157 button yuxiaogao
+							158 cell
+								159 checkbox (settable, integer) 0
+								160 text 
+							161 cell
+								162 text 2131231
+
+The focused UI element is 0 AXWebArea 日志平台 | 蓝鲸智云, URL: appdev.woa.com:8001/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&tab=clustering&clusterParams=%7B%22pattern_level%22%3A%2205%22,%22year_on_year_hour%22%3A0,%22show_new_pattern%22%3Afalse,%22group_by%22%3A%5B%5D,%22size%22%3A10000,%22remark_config%22%3A%22all%22,%22owner_config%22%3A%22all%22,%22owners%22%3A%5B%5D%7D

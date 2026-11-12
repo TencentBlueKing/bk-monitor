@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
 import { computed, defineComponent, ref, nextTick, watch, onBeforeUnmount } from 'vue';
@@ -31,7 +33,7 @@ import { computed, defineComponent, ref, nextTick, watch, onBeforeUnmount } from
 import useElementEvent from '@/shared/composables/use-element-event';
 import useLocale from '@/shared/composables/use-locale';
 import useResizeObserve from '@/shared/composables/use-resize-observe';
-import useStore from '@/shared/composables/use-store';
+
 import useRetrieveParams from '@/shared/composables/use-retrieve-params';
 import aiBluekingSvg from '@/shared/assets/images/ai/ai-bluking-2.svg';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
@@ -57,7 +59,7 @@ export default defineComponent({
   name: 'V3Searchbar',
   setup() {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const searchBarHeight = ref(0);
     const searchBarRef = ref<any>(null);
@@ -68,7 +70,7 @@ export default defineComponent({
     const aiQueryResult = ref<AiQueryResult>(DEFAULT_AI_QUERY_RESULT);
 
     const aiFilterList = computed<string[]>(() =>
-      (store.state.aiMode.filterList ?? []).filter(f => !/^\s*\*?\s*$/.test(f)),
+      (store.aiMode.filterList ?? []).filter(f => !/^\s*\*?\s*$/.test(f)),
     );
 
     const { setRouteParamsByKeywordAndAddition } = useRetrieveParams();
@@ -94,7 +96,7 @@ export default defineComponent({
      */
     const fieldsJsonValue = computed(() => {
       const fieldConfig = {};
-      for (const field of store.getters.rawFieldList) {
+      for (const field of store.rawFieldList) {
         fieldConfig[field.field_name] = {
           type: field.field_type,
           ...(field.query_alias ? { query_alias: field.query_alias } : {}),
@@ -107,14 +109,14 @@ export default defineComponent({
      * 是否激活AI助手
      * @TODO 本周发布BKOP开启助手，上云环境关闭助手，此处需要暂时调整为 false
      */
-    const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
-    const formatValue = computed(() => store.getters.retrieveParams.format);
+    const isAiAssistantActive = computed(() => store.features.isAiAssistantActive);
+    const formatValue = computed(() => store.retrieveParams.format);
 
     /**
      * 当前搜索模式：'ui' | 'sql'
      */
     const currentSearchMode = computed<'ui' | 'sql'>(() =>
-      store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
+      store.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
     );
     /**
      * 更新AI助手位置
@@ -167,18 +169,18 @@ export default defineComponent({
         // 切换模式
         if (searchMode.value === 'normal') {
           // 从非 AI 模式切换到 AI 模式
-          const keyword = store.getters.retrieveParams.keyword;
+          const keyword = store.retrieveParams.keyword;
 
           // 将 keyword 添加为 filterList 的一个选项（过滤空值和通配符）
-          store.state.aiMode.filterList = [keyword].filter(f => !/^\s*\*?\s*$/.test(f));
-          store.state.aiMode.active = true;
+          store.aiMode.filterList = [keyword].filter(f => !/^\s*\*?\s*$/.test(f));
+          store.aiMode.active = true;
 
-          store.commit('updateAiMode', {
+          store.updateAiMode({
             active: true,
             filterList: [keyword].filter(f => !/^\s*\*?\s*$/.test(f)),
           });
 
-          store.commit('updateIndexItemParams', { keyword: '' });
+          store.updateIndexItemParams({ keyword: '' });
           aiQueryResult.value.queryString = '';
           aiQueryResult.value.parseResult = undefined;
           aiQueryResult.value.explain = undefined;
@@ -195,7 +197,7 @@ export default defineComponent({
               trigger_source: 'tab_key',
               action: 'tab',
             },
-            store.state,
+            store,
           );
 
           // 切换到 AI 模式后，聚焦到 AI 输入框
@@ -225,15 +227,15 @@ export default defineComponent({
           const keyword = keywordParts.join(' AND ');
 
           // 先更新 storage 和 indexItem，确保 V2SearchBar 能读取到正确的模式
-          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
-          store.commit('updateIndexItemParams', { keyword, search_mode: 'sql' });
+          store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+          store.updateIndexItemParams({ keyword, search_mode: 'sql' });
 
           // 更新路由参数以同步状态（需要在 nextTick 之前更新，确保路由参数正确）
           setRouteParamsByKeywordAndAddition();
 
           searchMode.value = 'normal';
-          store.state.aiMode.active = false;
-          store.state.aiMode.filterList = [];
+          store.aiMode.active = false;
+          store.aiMode.filterList = [];
           Object.assign(aiQueryResult.value, {
             startTime: undefined,
             endTime: undefined,
@@ -287,7 +289,7 @@ export default defineComponent({
           trigger_source: `${currentSearchMode.value}_mode`,
           action: 'click',
         },
-        store.state,
+        store,
       );
 
       handleTabKeyPress(e as any, true);
@@ -346,7 +348,7 @@ export default defineComponent({
         if (startTime && endTime) {
           const results = handleTransformToTimestamp([startTime, endTime], formatValue.value);
           Object.assign(queryParams, { start_time: results[0], end_time: results[1] });
-          store.commit('updateIndexItemParams', { datePickerValue: [startTime, endTime] });
+          store.updateIndexItemParams({ datePickerValue: [startTime, endTime] });
           aiQueryResult.value.startTime = startTime;
           aiQueryResult.value.endTime = endTime;
           needReplace = true;
@@ -359,19 +361,19 @@ export default defineComponent({
         }
 
         if (needReplace && parseResult !== 'FAILED') {
-          store.commit('updateIndexItemParams', queryParams);
-          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+          store.updateIndexItemParams(queryParams);
+          store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
 
           const { start_time, end_time } = queryParams as any;
           setRouteParamsByKeywordAndAddition({ start_time, end_time }).then(async () => {
             // 场景化检索模式下条件为空时跳过
-            if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
+            if (store.isSceneMode && store.isSceneFilterEmpty) return;
             // 检索条件有变更时先加载字段信息
-            if (store.state.indexItem.isSceneFilterChanged) {
-              await store.dispatch('requestIndexSetFieldInfo');
+            if (store.indexItem.isSceneFilterChanged) {
+              await store.requestIndexSetFieldInfo();
             }
             RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
-            store.dispatch('requestIndexSetQuery');
+            store.requestIndexSetQuery();
           });
         }
 
@@ -407,7 +409,7 @@ export default defineComponent({
           trigger_source: triggerSource,
           action: 'request',
         },
-        store.state,
+        store,
       );
 
       if (value.length === 0) {
@@ -418,7 +420,7 @@ export default defineComponent({
 
       RetrieveHelper.aiAssitantHelper
         .requestTextToQueryString({
-          index_set_id: store.state.indexItem.ids[0],
+          index_set_id: store.indexItem.ids[0],
           description: value,
           domain: window.location.origin,
           fields: fieldsJsonValue.value,
@@ -440,15 +442,15 @@ export default defineComponent({
      */
     const handleFilterChange = async (newFilterList: string[]) => {
       // 更新 store 中的 filterList
-      store.state.aiMode.filterList = newFilterList;
+      store.aiMode.filterList = newFilterList;
       // 场景化检索模式下条件为空时跳过检索请求
-      if (!(store.getters.isSceneMode && store.getters.isSceneFilterEmpty)) {
+      if (!(store.isSceneMode && store.isSceneFilterEmpty)) {
         // 检索条件有变更时先加载字段信息
-        if (store.state.indexItem.isSceneFilterChanged) {
-          await store.dispatch('requestIndexSetFieldInfo');
+        if (store.indexItem.isSceneFilterChanged) {
+          await store.requestIndexSetFieldInfo();
         }
         // 触发查询
-        store.dispatch('requestIndexSetQuery');
+        store.requestIndexSetQuery();
       }
       // 更新 URL 参数
       setRouteParamsByKeywordAndAddition();
@@ -464,7 +466,7 @@ export default defineComponent({
 
     /** 清理 AI 相关状态 */
     const clearAiState = () => {
-      store.commit('updateAiMode', {
+      store.updateAiMode({
         active: false,
         filterList: [],
       });
@@ -474,7 +476,7 @@ export default defineComponent({
 
     // 切换场景时，清理 AI 相关状态
     watch(
-      () => store.state.indexItem.scene_active,
+      () => store.indexItem.scene_active,
       (newVal, oldVal) => {
         if (newVal !== oldVal) {
           clearAiState();
@@ -536,7 +538,7 @@ export default defineComponent({
             const triggerSource = `${currentSearchMode.value}_mode` as 'ui_mode' | 'sql_mode';
 
             if (triggerSource === 'sql_mode') {
-              store.commit('updateIndexItemParams', { keyword: value });
+              store.updateIndexItemParams({ keyword: value });
             }
 
             handleTextToQuery(value, triggerSource);

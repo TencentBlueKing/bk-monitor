@@ -1,0 +1,16 @@
+{
+  "context": {
+    "default": "transparent",
+    "hitHeight": 5,
+    "hoverBlueHeight": 2,
+    "dragFromY": 470,
+    "dragToY": 410,
+    "releasedClass": "bk-resize-trigger"
+  },
+  "realtime": {
+    "default": "transparent",
+    "hover": "2px blue gradient",
+    "afterLeave": "none"
+  },
+  "errors": []
+}

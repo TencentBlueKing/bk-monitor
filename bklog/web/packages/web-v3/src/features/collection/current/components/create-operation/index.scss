@@ -1,4 +1,4 @@
-@use './global.scss' as *;
+@use "./global.scss" as *;
 .create-operation-main {
   .block {
     display: block;
@@ -26,27 +26,89 @@
     background-color: #fff;
     padding: 0 10px;
 
+    // V2's indicator is the circle itself; TDesign wraps that circle in an icon container.
     .custom-icon {
       width: 100%;
 
+      .t-steps-item {
+        margin-right: 16px;
+
+        &:last-child {
+          margin-right: 0;
+        }
+      }
+
+      .t-steps-item__inner {
+        align-items: center;
+      }
+
+      .t-steps-item__description:empty {
+        margin-bottom: 0;
+      }
+
       .t-steps-item__title {
-        font-size: 12px;
+        margin-bottom: 0;
+        padding-right: 16px;
+        color: #63656e;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 24px;
+      }
+
+      .t-steps-item:last-child .t-steps-item__title {
+        padding-right: 0;
       }
 
       .t-steps-item__icon {
-        background: #eaebf0;
+        display: flex;
+        align-items: center;
+        height: 24px;
+        margin-right: 8px;
+        background: transparent;
         border: none;
       }
 
-      .t-steps-item--finish .t-steps-item__icon {
-        background: #e1ecff;
-        color: #3a84ff;
+      .t-steps-item__icon--number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        width: 24px;
+        height: 24px;
+        border: none;
+        border-radius: 50%;
+        background: #eaebf0;
+        color: #979ba5;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 24px;
       }
 
-      .t-steps-item--process .t-steps-item__icon {
+      .t-steps-item--finish .t-steps-item__icon--number {
+        background: #e1ecff;
+        color: #3a84ff;
+
+        .t-icon {
+          width: 14px;
+          height: 14px;
+        }
+      }
+
+      .t-steps-item--process .t-steps-item__icon--number {
         background: #3a84ff;
-        border-color: #3a84ff;
         color: #fff;
+      }
+
+      &.t-steps--horizontal.t-steps--default-anchor
+        .t-steps-item:not(:last-child)
+        .t-steps-item__title::after {
+        border-bottom: 1px solid #c4c6cc;
+      }
+
+      &.t-steps--horizontal.t-steps--default-anchor
+        .t-steps-item--finish:not(:last-child)
+        .t-steps-item__title::after {
+        border-bottom-color: #3a84ff;
       }
     }
   }
@@ -117,7 +179,8 @@
 
     &.running {
       .status-icon-box {
-        background: url('@/shared/assets/images/log-collection/loading.svg') no-repeat center;
+        background: url("@/shared/assets/images/log-collection/loading.svg")
+          no-repeat center;
         background-size: 32px 32px;
         /* 固定像素，避免 contain 的细微重采样 */
         animation: spin 2s linear infinite;
@@ -127,7 +190,6 @@
         color: #fff;
         left: 12px;
       }
-
     }
 
     &.success {

@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { Switch as TSwitch } from 'tdesign-vue-next';
@@ -38,7 +40,7 @@ import { defineComponent, ref, reactive, computed, watch } from 'vue';
 
 import * as authorityMap from '@/shared/lib/authority-map';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
@@ -92,7 +94,7 @@ export default defineComponent({
   emits: ['handleCancelSlider', 'handleUpdatedTable'],
 
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
 
     const confirmLoading = ref(false); // 确认按钮加载状态
@@ -121,7 +123,7 @@ export default defineComponent({
     });
 
     // 获取业务ID和编辑状态
-    const bkBizId = computed(() => store.getters.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
     const isEdit = computed(() => props.editClusterId !== null);
 
     // 必填规则抽离
@@ -292,7 +294,7 @@ export default defineComponent({
         const event = new Event('click');
         document.dispatchEvent(event);
 
-        const res = await store.dispatch('getApplyData', {
+        const res = await store.getApplyData({
           action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
           resources: [
             {
@@ -419,7 +421,7 @@ export default defineComponent({
             <div class='principal-item'>
               <TSwitch
                 size='large'
-                
+
                 value={formData.hdfsFormData.isSecurity}
                 onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => (formData.hdfsFormData.isSecurity = val))(value); }}
               />

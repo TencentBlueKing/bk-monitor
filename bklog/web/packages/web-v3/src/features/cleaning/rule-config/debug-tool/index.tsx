@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { defineComponent, onMounted, ref, computed } from 'vue';
@@ -31,7 +33,7 @@ import TextHighlight from '@/shared/ui/text-highlight';
 
 import { base64Encode } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 
 
@@ -66,14 +68,14 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const logOriginal = ref(''); // 日志源
     const debugRequest = ref(false); // 调试中
     const logOriginalRequest = ref(false); // 原始日志是否正在请求
     const effectOriginal = ref('');
 
-    const cleanConfig = computed(() => store.state.indexSetFieldConfig.clean_config);
+    const cleanConfig = computed(() => store.indexSetFieldConfig.clean_config);
 
     const fillLogOriginal = (res: { data: string|any[]; }) => {
       if (res.data?.length) {

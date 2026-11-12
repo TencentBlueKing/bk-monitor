@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
@@ -34,7 +36,7 @@ import { defineComponent, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { t } from '@/shared/composables/use-locale';
 
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
-import useStore from '@/shared/composables/use-store';
+
 import useRouter from '@/shared/composables/use-router';
 import useUtils from '@/shared/composables/use-utils';
 import ReportTable from './report-table';
@@ -68,7 +70,7 @@ export default defineComponent({
   },
   emits: ['update-total', "updateTotal"],
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
 
     const searchKeyword = ref('');
@@ -303,7 +305,7 @@ export default defineComponent({
       try {
         const params = {
           query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+            bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
             page: pagination.value.current,
             pagesize: pagination.value.limit,
             ...(searchKeyword.value && { keyword: searchKeyword.value }),
@@ -441,7 +443,7 @@ export default defineComponent({
 
       try {
         const requestData: any = {
-          bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+          bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
         };
 
         if (data.file_name_list && data.file_name_list.length > 0) {

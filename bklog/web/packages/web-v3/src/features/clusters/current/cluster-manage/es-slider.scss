@@ -262,3 +262,8 @@
 .bklog-cluster-drawer .t-drawer__body {
   padding: 0;
 }
+
+// V2 limits the description to 100 characters without displaying a counter.
+.es-king-slider-content .cluster-description-textarea .t-textarea__info_wrapper {
+  display: none;
+}

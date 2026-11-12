@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "scope": "CONTROLLED_REAL_COMPONENT_CONTRACT_NOT_BACKEND_ACCEPTANCE",
+  "status": "LABEL_CONTRACT_PASSED",
+  "checks": [
+    {
+      "id": "label-render-nonbuiltin",
+      "passed": true
+    },
+    {
+      "id": "label-required-cancel",
+      "passed": true
+    },
+    {
+      "id": "label-duplicate-validation",
+      "passed": true
+    },
+    {
+      "id": "label-builtin-validation",
+      "passed": true
+    },
+    {
+      "id": "label-create-enter",
+      "passed": true
+    },
+    {
+      "id": "label-disabled-add-delete",
+      "passed": true
+    },
+    {
+      "id": "label-keyboard-cycle",
+      "passed": true
+    },
+    {
+      "id": "label-search-enter",
+      "passed": true
+    },
+    {
+      "id": "label-empty-enter",
+      "passed": true
+    },
+    {
+      "id": "label-terminated",
+      "passed": true
+    },
+    {
+      "id": "stop-dialog-single-cancel",
+      "passed": true
+    },
+    {
+      "id": "stop-dialog-update-order",
+      "passed": true
+    },
+    {
+      "id": "index-group-enter-create",
+      "passed": true
+    },
+    {
+      "id": "index-group-enter-rename",
+      "passed": true
+    },
+    {
+      "id": "index-group-invalid-enter",
+      "passed": true
+    },
+    {
+      "id": "cluster-nodes-hot-filter",
+      "passed": true
+    },
+    {
+      "id": "cluster-nodes-warm-strict-value",
+      "passed": true
+    },
+    {
+      "id": "cluster-nodes-empty-close",
+      "passed": true
+    },
+    {
+      "id": "empty-original-assets-scenes",
+      "passed": true
+    },
+    {
+      "id": "empty-clear-filter-operation",
+      "passed": true
+    },
+    {
+      "id": "empty-refresh-operation",
+      "passed": true
+    },
+    {
+      "id": "empty-slot-operation-override",
+      "passed": true
+    },
+    {
+      "id": "empty-hide-title",
+      "passed": true
+    }
+  ],
+  "missing": [],
+  "failures": [],
+  "blocked": [],
+  "runtimeErrors": [],
+  "sourceDigests": [
+    {
+      "path": "src/features/clusters/current/cluster-manage/es-dialog.tsx",
+      "sha256": "a95db63f7da3744feab7bf1fcdd8fe1a8b750a4bf80b885ad28f7fb9e5b1ce8f"
+    },
+    {
+      "path": "fixtures/collection-label-contract.tsx",
+      "sha256": "9b8020bf0f50e2c35caf863201d98d6ccba1986d11a6764841bb07c3e89bc2ac"
+    },
+    {
+      "path": "fixtures/collection-label-contract.html",
+      "sha256": "154a369794fcbea5871c678989529c7edfdc63a2b6d9feb4ab73082410b9b3df"
+    },
+    {
+      "path": "src/features/collection/current/components/common-comp/tag-more.tsx",
+      "sha256": "331d14af04a9b640a2b9bdfc61e2feaa4bad0b9d32a982f334d84d49f34d5f09"
+    },
+    {
+      "path": "src/features/collection/current/components/common-comp/tag-more.scss",
+      "sha256": "a3efb1f33197d2921157bb73617756c3eaade714f801fa8ea4eb205f1dd9f60d"
+    },
+    {
+      "path": "src/features/collection/current/components/common-comp/use-label-picker-keyboard.ts",
+      "sha256": "f4af92ddd38ef9c8d75e387be5ed7561999a2e0232efb614e29a0a1631f31b55"
+    },
+    {
+      "path": "src/shared/composables/use-visible-input-focus.ts",
+      "sha256": "0cd8dc0210add16f279a4a9a1f5fa684d89177a200338c5f8027181b15bb4cbc"
+    },
+    {
+      "path": "src/features/collection/current/components/list-main/stop-type-dialog.tsx",
+      "sha256": "ccc9816bcb9a7b158ae761ae788a23844dc9a0f3d90c353de7446894213806b1"
+    },
+    {
+      "path": "src/features/collection/current/components/business-comp/step2/add-index-set.tsx",
+      "sha256": "4a7907188e7f4f47b5aba3ab654a26f24b4031dfdb4e19495041a8ab5844df81"
+    },
+    {
+      "path": "src/shared/ui/empty-status/index.vue",
+      "sha256": "c3d043c4d17fa6cb164909ca96c141d015bf0267f06cd3b645921ac21b09a8e3"
+    },
+    {
+      "path": "src/shared/ui/empty-status/types.ts",
+      "sha256": "db4d193f2cc42d494a3e7420f75579adb7c44f372973b8b714b44d5754317759"
+    },
+    {
+      "path": "src/shared/assets/exception/403.svg",
+      "sha256": "ff65f17d53672128468023236da1d7d339a7d9bf3a5eab0500214a482e07869f"
+    },
+    {
+      "path": "src/shared/assets/exception/404.svg",
+      "sha256": "345b0cd595513c8a53c7421ac475b97270afe58c2f79160150a35b3ff99340a0"
+    },
+    {
+      "path": "src/shared/assets/exception/500.svg",
+      "sha256": "5dc9191960b844c5c31e18e48d79d3e0e13503314fbc54f1505bc5d7951cca20"
+    },
+    {
+      "path": "src/shared/assets/exception/building.svg",
+      "sha256": "5952376bb0116825a325f6cbea4d2bd8dac2a6eb42e110c688db49657238f86f"
+    },
+    {
+      "path": "src/shared/assets/exception/empty.svg",
+      "sha256": "beb46e9693f9457ff48161acfbbdbecd49c69060c130edff510c88733662d260"
+    },
+    {
+      "path": "src/shared/assets/exception/search-empty.svg",
+      "sha256": "cda37b76af519454f35f4461e62b4aeadc4fb9705c0e5e2dfa49e4945dd18298"
+    },
+    {
+      "path": "src/shared/assets/exception/login.svg",
+      "sha256": "d8a8e7a1674f64d65bcc948299e9eb88d54293b4a0ce7bc147fc2d67aeaf4baa"
+    }
+  ]
+}

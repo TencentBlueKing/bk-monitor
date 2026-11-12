@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "scope": "CONTROLLED_REAL_COMPONENT_CONTRACT_NOT_BACKEND_ACCEPTANCE",
+  "status": "LABEL_CONTRACT_PASSED",
+  "checks": [
+    {
+      "id": "label-render-nonbuiltin",
+      "passed": true
+    },
+    {
+      "id": "label-required-cancel",
+      "passed": true
+    },
+    {
+      "id": "label-duplicate-validation",
+      "passed": true
+    },
+    {
+      "id": "label-builtin-validation",
+      "passed": true
+    },
+    {
+      "id": "label-create-enter",
+      "passed": true
+    },
+    {
+      "id": "label-disabled-add-delete",
+      "passed": true
+    },
+    {
+      "id": "label-keyboard-cycle",
+      "passed": true
+    },
+    {
+      "id": "label-search-enter",
+      "passed": true
+    },
+    {
+      "id": "label-empty-enter",
+      "passed": true
+    },
+    {
+      "id": "label-terminated",
+      "passed": true
+    },
+    {
+      "id": "stop-dialog-single-cancel",
+      "passed": true
+    },
+    {
+      "id": "stop-dialog-update-order",
+      "passed": true
+    },
+    {
+      "id": "index-group-enter-create",
+      "passed": true
+    },
+    {
+      "id": "index-group-enter-rename",
+      "passed": true
+    },
+    {
+      "id": "index-group-invalid-enter",
+      "passed": true
+    }
+  ],
+  "missing": [],
+  "failures": [],
+  "blocked": [],
+  "runtimeErrors": [],
+  "sourceDigests": [
+    {
+      "path": "fixtures/collection-label-contract.tsx",
+      "sha256": "18e9904e0e1bf45004731c288b43474d11586df989620a834b59857629217467"
+    },
+    {
+      "path": "fixtures/collection-label-contract.html",
+      "sha256": "154a369794fcbea5871c678989529c7edfdc63a2b6d9feb4ab73082410b9b3df"
+    },
+    {
+      "path": "src/features/collection/current/components/common-comp/tag-more.tsx",
+      "sha256": "4fe6988812eb81ed5a82b0aa26cdfadcae64b2ef6ee16058829f242bd6cf5ae5"
+    },
+    {
+      "path": "src/features/collection/current/components/common-comp/tag-more.scss",
+      "sha256": "a3efb1f33197d2921157bb73617756c3eaade714f801fa8ea4eb205f1dd9f60d"
+    },
+    {
+      "path": "src/shared/composables/use-visible-input-focus.ts",
+      "sha256": "0cd8dc0210add16f279a4a9a1f5fa684d89177a200338c5f8027181b15bb4cbc"
+    },
+    {
+      "path": "src/features/collection/current/components/list-main/stop-type-dialog.tsx",
+      "sha256": "ccc9816bcb9a7b158ae761ae788a23844dc9a0f3d90c353de7446894213806b1"
+    },
+    {
+      "path": "src/features/collection/current/components/business-comp/step2/add-index-set.tsx",
+      "sha256": "0945e51d9c0b78b88959b64220833ae83510f5dc49bb16071205ccbea8467d76"
+    }
+  ]
+}

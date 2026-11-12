@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 
-import useStore from '@/shared/composables/use-store';
+
 import SubscriptionForm from './subscription-form/index';
 
 
@@ -60,7 +62,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const createSubscriptionFormRef = ref<any>(null);
     const isSaving = ref(false);
@@ -101,7 +103,7 @@ export default defineComponent({
                 is_enabled: true,
                 subscribers: [
                   {
-                    id: store.state.userMeta?.username || '',
+                    id: store.userMeta?.username || '',
                     type: 'user',
                     is_enabled: true,
                   },
@@ -151,7 +153,7 @@ export default defineComponent({
                     style='width: 88px;'
                     loading={isSending.value}
                     theme='primary'
-                    
+
                     onClick={() => testSending('self')} variant={(true) ? 'outline' : 'base'}
                   >
                     {t('测试发送')}

@@ -1,0 +1,150 @@
+[
+  {
+    "file": "src/features/charts/trend-chart.vue",
+    "calls": 8
+  },
+  {
+    "file": "src/features/retrieval/workbench/condition-comp/select-date.vue",
+    "calls": 5
+  },
+  {
+    "file": "src/features/retrieval/workbench/condition-comp/select-index-set.tsx",
+    "calls": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/field-filter-comp/field-item.tsx",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/field-filter-comp/index.tsx",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/field-filter-comp/update/field-list.vue",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/monitor/monitor.vue",
+    "calls": 5
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/fields-setting.vue",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/kv-list.vue",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/update/fields-setting.vue",
+    "calls": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/components/bookmark-pop.vue",
+    "calls": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/components/common-filter-select.vue",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/components/common-filter-setting.vue",
+    "calls": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/index.vue",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-chart/index.tsx",
+    "calls": 5
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/index.vue",
+    "calls": 5
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/log-result/index.vue",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/log-result/log-rows.tsx",
+    "calls": 4
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-tab/index.vue",
+    "calls": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/index.vue",
+    "calls": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/more-setting.vue",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/retrieve-type-switch.tsx",
+    "calls": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/scene-filter-tags.tsx",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/share-link.tsx",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/favorite/components/collect-list/edit-dialog.tsx",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/favorite/hooks/use-favorite.ts",
+    "calls": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/index.tsx",
+    "calls": 5
+  },
+  {
+    "file": "src/features/retrieval/workspace/monitor/use-monitor-app-init.ts",
+    "calls": 4
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-bar/scene-filter/filter-panel.tsx",
+    "calls": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-bar/scene-filter/index.tsx",
+    "calls": 3
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/components/data-filter/fields-config/index.tsx",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/standalone-tab/hooks/resolve-related-log-target-row.ts",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/standalone-tab/hooks/use-common-related-log.ts",
+    "calls": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/use-app-init.tsx",
+    "calls": 7
+  },
+  {
+    "file": "src/features/sharing/index.tsx",
+    "calls": 1
+  }
+]

@@ -74,7 +74,7 @@
               <t-button :variant="(true) ? 'outline' : 'base'"
                 v-else
                 class="wx-button"
-                
+
                 size="small"
                 theme="primary"
                 @click="handleCreateAGroup(sItem)"
@@ -122,11 +122,14 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
   import BkUserSelector from '@blueking/user-selector';
-  import { mapGetters, mapState } from '@/app/state/map-helpers';
+
 
   export default {
   emits: ["handle-active-details","handleActiveDetails"],
@@ -150,11 +153,11 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
-      ...mapState({
+      ...mapPiniaState(useApplicationStore, {
         userMeta: state => state.userMeta,
       }),
-      ...mapGetters({
-        globalsData: 'globals/globalsData',
+      ...mapPiniaState(useApplicationStore, {
+        globalsData: state => state.globals.globalsData,
       }),
       esSourceList() {
         const { es_source_type: esSourceList } = this.globalsData;

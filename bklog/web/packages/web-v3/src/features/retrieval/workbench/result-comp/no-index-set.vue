@@ -41,7 +41,7 @@
         </div>
         <t-button :variant="(true) ? 'outline' : 'base'"
           class="king-button"
-          
+
           theme="primary"
           @click="goToCreateIndex"
         >
@@ -56,7 +56,7 @@
         </div>
         <t-button :variant="(true) ? 'outline' : 'base'"
           class="king-button"
-          
+
           theme="primary"
           @click="goToCreateCollection"
         >
@@ -75,12 +75,16 @@
 </template>
 
 <script>
-  import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
-  import { mapGetters } from '@/app/state/map-helpers';
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
+
 
   export default {
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         space: 'space',
       }),
     },
@@ -89,18 +93,18 @@
         this.$router.push({
           path: '/manage/log-collection/log-index-set',
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },
       goToCreateCollection() {
         if (
-          isFeatureToggleOn('scenario_log', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)])
+          isFeatureToggleOn('scenario_log', [String(useApplicationStore().bkBizId), String(useApplicationStore().spaceUid)])
         ) {
           this.$router.push({
             path: '/manage/log-collection',
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
             },
           });
         } else {

@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { isAnalyzeEnabled, recordAnalyze, summarizePayload } from '@/common/analyze-trace';
+
 /**
  * 事件发射器基类
  * 提供通用的事件监听和触发功能
@@ -106,6 +108,13 @@ export class EventEmitter<TEvent extends string = string> {
    * @param args 事件参数
    */
   fire(event: TEvent, ...args: any[]): void {
+    if (isAnalyzeEnabled()) {
+      recordAnalyze({
+        kind: 'event',
+        name: String(event),
+        summary: args.length > 0 ? summarizePayload(args[0]) : undefined,
+      });
+    }
     this.emit(event, ...args);
   }
 

@@ -28,65 +28,70 @@ import { ServicesInstance } from '@/platform/services';
 import { defineStore } from 'pinia';
 import { applicationPinia } from '../pinia';
 
-
 import { getRouteConfigById } from '../../router/index';
-import store from '@/app/state/index';
+import { useApplicationStore } from '../domains/application-store';
 
-interface ReportLogState { oldRouteId: unknown; oldNavId: unknown; oldspaceUid: string; }
+interface ReportLogState {
+  oldRouteId: unknown;
+  oldNavId: unknown;
+  oldspaceUid: string;
+}
 export const useReportLogStore = defineStore('bklog.report-log', {
   state: (): ReportLogState => ({ oldRouteId: '', oldNavId: '', oldspaceUid: '' }),
   actions: {
     async reportRouteLog(params: Record<string, unknown>) {
-    const { isAppFirstLoad, bkBizId, spaceUid, mySpaceList: spaceList } = store.state;
+      const store = useApplicationStore();
+      const { isAppFirstLoad, bkBizId, spaceUid, mySpaceList: spaceList } = store;
 
-    if (!(bkBizId || spaceUid)) {
-      return;
-    }
+      if (!(bkBizId || spaceUid)) {
+        return;
+      }
 
-    if (
-      !isAppFirstLoad &&
-      this.oldspaceUid === spaceUid &&
-      params.nav_name !== '日志聚类' &&
-      (this.oldRouteId === params.route_id || this.oldNavId === params.nav_id)
-    ) {
-      return;
-    }
+      if (
+        !isAppFirstLoad &&
+        this.oldspaceUid === spaceUid &&
+        params.nav_name !== '日志聚类' &&
+        (this.oldRouteId === params.route_id || this.oldNavId === params.nav_id)
+      ) {
+        return;
+      }
 
-    this.oldRouteId = params.route_id;
-    this.oldNavId = params.nav_id;
-    this.oldspaceUid = spaceUid;
+      this.oldRouteId = params.route_id;
+      this.oldNavId = params.nav_id;
+      this.oldspaceUid = spaceUid;
 
-    const username = store.state.userMeta?.username;
-    const space = spaceList?.find(item => item.space_uid === spaceUid);
-    const routeConfig = getRouteConfigById(params.nav_id, spaceUid, bkBizId, params.externalMenu);
+      const username = store.userMeta?.username;
+      const space = spaceList?.find((item) => item.space_uid === spaceUid);
+      const routeConfig = getRouteConfigById(params.nav_id, spaceUid, bkBizId, params.externalMenu);
 
-    ServicesInstance.report.frontendEventReport(
-        {
-          data: {
-            event_name: '用户运营数据',
-            event_content: '基于前端路由的运营数据上报',
-            target: 'bk_log',
-            timestamp: Date.now(),
-            dimensions: {
-              space_id: space?.space_uid || bkBizId,
-              space_name: space?.space_name || bkBizId,
-              user_name: username,
-              nav_name: params.nav_name || routeConfig?.meta?.title,
-              version: localStorage.getItem('retrieve_version') || 'v3',
-              ...params,
+      ServicesInstance.report
+        .frontendEventReport(
+          {
+            data: {
+              event_name: '用户运营数据',
+              event_content: '基于前端路由的运营数据上报',
+              target: 'bk_log',
+              timestamp: Date.now(),
+              dimensions: {
+                space_id: space?.space_uid || bkBizId,
+                space_name: space?.space_name || bkBizId,
+                user_name: username,
+                nav_name: params.nav_name || routeConfig?.meta?.title,
+                version: localStorage.getItem('retrieve_version') || 'v3',
+                ...params,
+              },
             },
           },
-        },
-        {
-          catchIsShowMessage: false,
-        },
-      )
-      .catch(() => false);
+          {
+            catchIsShowMessage: false,
+          },
+        )
+        .catch(() => false);
 
-    // 首条路由事件进入上报流程后，启用后续路由去重。
-    if (isAppFirstLoad) {
-      store.commit('updateState', { isAppFirstLoad: false });
-    }
+      // 首条路由事件进入上报流程后，启用后续路由去重。
+      if (isAppFirstLoad) {
+        store.updateState({ isAppFirstLoad: false });
+      }
     },
   },
 });

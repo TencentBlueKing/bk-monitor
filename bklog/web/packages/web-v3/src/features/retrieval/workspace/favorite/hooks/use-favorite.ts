@@ -24,11 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, onScopeDispose, ref, watch } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 import { RetrieveUrlResolver } from '@/app/state/url-resolver';
 import { debounce } from 'lodash-es';
 import { useRoute, useRouter } from "vue-router";
@@ -80,7 +85,7 @@ const replaceApmHashAddition = (href: string, addition: unknown): string => {
  * 收藏功能的自定义 Hook
  */
 export const useFavorite = () => {
-  const store = useStore();
+  const store = useApplicationStore();
   const router = useRouter();
   const route = useRoute();
 
@@ -95,14 +100,14 @@ export const useFavorite = () => {
   const expandedMap = ref<Record<string, boolean>>({});
 
   // 计算属性
-  const isUnionSearch = computed(() => store.getters.isUnionSearch);
-  const unionIndexList = computed(() => store.state.unionIndexList);
-  const indexSetId = computed(() => `${store.getters.indexId}`);
-  const favoriteList = computed(() => store.state.favoriteList || []);
-  const indexSetList = computed(() => store.state.retrieve.flatIndexSetList ?? []);
-  const isSceneMode = computed(() => store.getters.isSceneMode);
-  const sceneActive = computed(() => store.state.indexItem?.scene_active);
-  const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+  const isUnionSearch = computed(() => store.isUnionSearch);
+  const unionIndexList = computed(() => store.unionIndexList);
+  const indexSetId = computed(() => `${store.indexId}`);
+  const favoriteList = computed(() => store.favoriteList || []);
+  const indexSetList = computed(() => useRetrieveStore().$state.flatIndexSetList ?? []);
+  const isSceneMode = computed(() => store.isSceneMode);
+  const sceneActive = computed(() => store.indexItem?.scene_active);
+  const sceneConfigs = computed(() => useRetrieveStore().sceneConfigList);
 
   /**
    * 过滤收藏列表数据
@@ -180,7 +185,7 @@ export const useFavorite = () => {
   const getFavoriteList = async (): Promise<void> => {
     try {
       favoriteLoading.value = true;
-      await store.dispatch('requestFavoriteList');
+      await store.requestFavoriteList();
     } catch (error) {
       console.error('获取收藏列表失败:', error);
     } finally {
@@ -207,12 +212,12 @@ export const useFavorite = () => {
    * 设置路由参数
    */
   const setRouteParams = (item: IFavoriteItem): void => {
-    const { ids, isUnionIndex } = store.state.indexItem;
-    const searchMode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
-    const unionList = store.state.unionIndexList;
-    const clusterParams = store.state.clusterParams;
+    const { ids, isUnionIndex } = store.indexItem;
+    const searchMode = SEARCH_MODE_DIC[store.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+    const unionList = store.unionIndexList;
+    const clusterParams = store.clusterParams;
     const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
-      store.getters.retrieveParams;
+      store.retrieveParams;
     const pid = item.pid;
 
     // 公共路由参数
@@ -225,7 +230,7 @@ export const useFavorite = () => {
       ip_chooser,
       host_scopes,
       interval,
-      bk_biz_id: store.state.bkBizId,
+      bk_biz_id: store.bkBizId,
       search_mode: searchMode,
       sort_list,
       clusterParams,
@@ -236,8 +241,8 @@ export const useFavorite = () => {
     if (isSceneMode.value) {
       Object.assign(routeParams, {
         retrieve_type: 'scene',
-        scene_active: store.state.indexItem.scene_active,
-        scene_filter_values: store.state.indexItem.scene_filter_values,
+        scene_active: store.indexItem.scene_active,
+        scene_filter_values: store.indexItem.scene_filter_values,
       });
     } else {
       // 索引集模式追加参数
@@ -261,7 +266,7 @@ export const useFavorite = () => {
     // const { RetrieveUrlResolver } = require('@/app/state/url-resolver');
     const resolver = new RetrieveUrlResolver({
       ...routeParams,
-      datePickerValue: store.state.indexItem.datePickerValue,
+      datePickerValue: store.indexItem.datePickerValue,
     });
 
     Object.assign(query, resolver.resolveParamsToUrl(), {
@@ -277,8 +282,8 @@ export const useFavorite = () => {
   const selectFavoriteItem = (item: IFavoriteItem | null): void => {
     if (!item) {
       activeFavorite.value = null;
-      let clearSearchValueNum = store.state.clearSearchValueNum;
-      store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
+      let clearSearchValueNum = store.clearSearchValueNum;
+      store.updateClearSearchValueNum((clearSearchValueNum += 1));
       setRouteParams(item);
       setTimeout(() => {
         RetrieveHelper.setFavoriteActive(activeFavorite.value);
@@ -309,16 +314,16 @@ export const useFavorite = () => {
     if (isSceneSource) {
       // 场景化收藏：重置检索参数，但保留索引集相关状态
       // （切回常规检索时仍需 ids/items/isUnionIndex/unionIndexList 等）
-      store.commit('updateIndexItem', {
+      store.updateIndexItem({
         ...getDefaultRetrieveParams(),
         chart_params: structuredClone(IndexItem.chart_params),
       });
     } else {
-      store.commit('resetIndexsetItemParams');
-      store.commit('updateState', { indexId: cloneValue.index_set_id, pid: cloneValue.pid ?? [] });
+      store.resetIndexsetItemParams();
+      store.updateState({ indexId: cloneValue.index_set_id, pid: cloneValue.pid ?? [] });
     }
-    store.commit('updateIsSetDefaultTableColumn', false);
-    store.commit('updateStorage', {
+    store.updateIsSetDefaultTableColumn(false);
+    store.updateStorage({
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: isSceneSource ? 'single' : item.index_set_type,
       [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(searchMode ?? 'ui'),
     });
@@ -327,10 +332,7 @@ export const useFavorite = () => {
     const ipChooser = { ...(cloneValue.params?.ip_chooser ?? {}) };
     // 索引集模式下处理联合索引
     if (!isSceneSource && isUnionIndex) {
-      store.commit(
-        'updateUnionIndexList',
-        cloneValue.index_set_ids.map(newItem => String(newItem)),
-      );
+      store.updateUnionIndexList(cloneValue.index_set_ids.map(newItem => String(newItem)));
     }
 
     if (JSON.stringify(ipChooser) !== '{}') {
@@ -365,23 +367,23 @@ export const useFavorite = () => {
       });
     }
 
-    store.commit('updateIndexItem', indexItemUpdate);
+    store.updateIndexItem(indexItemUpdate);
 
     setRouteParams(item);
-    store.commit('updateChartParams', {
+    store.updateChartParams({
       ...cloneValue.params?.chart_params,
       fromCollectionActiveTab: 'unused',
     });
 
-    store.commit('updateIndexSetQueryResult', {
+    store.updateIndexSetQueryResult({
       row_keys: [],
       row_query_key: '',
       cached_count: 0,
     });
 
-    store.dispatch('requestIndexSetFieldInfo').then(() => {
+    store.requestIndexSetFieldInfo().then(() => {
       RetrieveHelper.setFavoriteActive({ ...activeFavorite.value, search_mode: searchMode });
-      store.dispatch('requestIndexSetQuery');
+      store.requestIndexSetQuery();
     });
   };
 
@@ -432,7 +434,7 @@ export const useFavorite = () => {
   ): Promise<void> => {
     try {
       const { group_id, group_new_name: groupNewName } = groupData;
-      const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
+      const sourceType = store.isSceneMode ? 'scene' : 'index_set';
       const params = { group_id };
       const data = { name: groupNewName, space_uid: spaceUid, source_type: sourceType };
       if (window.__IS_MONITOR_APM__) {
@@ -613,7 +615,7 @@ export const useFavorite = () => {
   /** 获取组列表 */
   const requestGroupList = async (spaceUid: string | number, callback?: (res: any) => void) => {
     try {
-      const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
+      const sourceType = store.isSceneMode ? 'scene' : 'index_set';
       const query = {
         space_uid: spaceUid,
         source_type: sourceType,

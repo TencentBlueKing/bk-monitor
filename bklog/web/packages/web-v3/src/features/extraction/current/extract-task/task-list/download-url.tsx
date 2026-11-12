@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
@@ -32,7 +34,7 @@ import { defineComponent, ref } from 'vue';
 
 import { copyMessage } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 export default defineComponent({
   name: 'DownloadUrl',
@@ -43,7 +45,7 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
 
     const loading = ref(false); // 加载状态
@@ -56,7 +58,7 @@ export default defineComponent({
         if (!urlPrefix.endsWith('/')) {
           urlPrefix += '/';
         }
-        const { bkBizId } = store.state;
+        const { bkBizId } = store;
 
         const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${props.taskId}&bk_biz_id=${bkBizId}`;
         copyMessage(new URL(downloadUrl, window.location.origin).href, t('已复制到剪切板'));

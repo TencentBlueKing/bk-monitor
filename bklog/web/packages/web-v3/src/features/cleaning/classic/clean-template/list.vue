@@ -100,7 +100,7 @@
               <t-button :variant="(true) ? 'text' : ('base')"
                 class="mr10 king-button"
                 theme="primary"
-                
+
                 @click.stop="operateHandler(props.row, 'edit')"
               >
                 {{ $t('编辑') }}
@@ -109,7 +109,7 @@
               <t-button :variant="(true) ? 'text' : ('base')"
                 class="mr10 king-button"
                 theme="primary"
-                
+
                 @click.stop="operateHandler(props.row, 'delete')"
               >
                 {{ $t('删除') }}
@@ -130,11 +130,15 @@
   </section>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { clearTableFilter } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   export default {
     name: 'CleanTemplate',
@@ -161,10 +165,10 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         spaceUid: 'spaceUid',
         bkBizId: 'bkBizId',
-        globalsData: 'globals/globalsData',
+        globalsData: state => state.globals.globalsData,
       }),
       formatFilters() {
         const { etl_config: etlConfig } = this.globalsData;
@@ -191,7 +195,7 @@
         this.$router.push({
           name: 'clean-template-create',
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },
@@ -256,7 +260,7 @@
               templateId: row.clean_template_id,
             },
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
               editName: row.name,
             },
           });

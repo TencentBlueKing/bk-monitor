@@ -11,8 +11,7 @@
   "dependsOn": [
     "app",
     "features/retrieval",
-    "platform",
-    "shared"
+    "platform"
   ],
   "tests": [],
   "sourceMap": "ai-native/source-map.json",

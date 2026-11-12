@@ -23,6 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref, inject, reactive, RendererElement, RendererNode, VNode } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/shared/lib/util';
@@ -35,7 +39,7 @@ import useLocale from '@/shared/composables/use-locale';
 import useResizeObserve from '@/shared/composables/use-resize-observe';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
 import { UseSegmentProp } from '@/shared/composables/use-segment-pop';
-import useStore from '@/shared/composables/use-store';
+
 import useWheel from '@/shared/composables/use-wheel';
 
 import { overlayRegistry, resolvePopperPlacementRect } from '@/shared/global/overlay/index';
@@ -114,7 +118,7 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { $t } = useLocale();
 
     // —— DOM 引用 ——
@@ -285,7 +289,7 @@ export default defineComponent({
     /** 划词分段操作弹层（复制 / 添加到检索 / 高亮 / AI 等） */
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
-      aiBluekingEnabled: store.state.features.isAiAssistantActive,
+      aiBluekingEnabled: store.features.isAiAssistantActive,
       stopPropagation: true,
       highlightEnabled: true,
       allowDelineateSearch: true,
@@ -382,43 +386,43 @@ export default defineComponent({
     });
 
     // —— Store 派生状态 ——
-    const indexFieldInfo = computed(() => store.state.indexFieldInfo);
-    const filteredFieldList = computed(() => store.getters.filteredFieldList);
-    const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
-    const visibleFields = computed(() => store.getters.visibleFields);
-    const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
-    const tableShowRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
-    const showFieldAlias = computed(() => store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
-    const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
+    const indexFieldInfo = computed(() => store.indexFieldInfo);
+    const filteredFieldList = computed(() => store.filteredFieldList);
+    const indexSetQueryResult = computed(() => store.indexSetQueryResult);
+    const visibleFields = computed(() => store.resolvedVisibleFields);
+    const indexSetOperatorConfig = computed(() => store.indexSetOperatorConfig);
+    const tableShowRowIndex = computed(() => store.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
+    const showFieldAlias = computed(() => store.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
+    const unionIndexItemList = computed(() => store.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
     /** 展开行 KV 视图可展示的字段名列表 */
     const kvShowFieldsList = computed(() => filteredFieldList.value?.map((f: { field_name: any; }) => f.field_name));
-    const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
+    const userSettingConfig = computed(() => useRetrieveStore().$state.catchFieldCustomConfig);
     /** 字段宽度等配置的作用域（索引集 / 默认） */
-    const fieldScope = computed(() => indexFieldInfo.value.field_scope || store.state.indexId || 'default');
+    const fieldScope = computed(() => indexFieldInfo.value.field_scope || store.indexId || 'default');
     /** IndexedDB 行缓存 key 列表；有值时优先走缓存渲染路径 */
     const rowKeys = computed<string[]>(() => indexSetQueryResult.value?.row_keys ?? []);
     const tableDataSize = computed(() => rowKeys.value.length || (indexSetQueryResult.value?.list?.length ?? 0));
-    const isUnionSearch = computed(() => store.getters.isUnionSearch);
+    const isUnionSearch = computed(() => store.isUnionSearch);
     /** 内存中的结果 list（无 row_keys 时的兜底数据源） */
     const tableList = computed<readonly Record<string, unknown>[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     /** 日志级别着色配置 */
-    const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
-    const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
+    const gradeOption = computed(() => store.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
+    const indexSetType = computed(() => store.indexItem.isUnionIndex);
     /** 单元格 JSON 内容最多展示行数 */
     const limitRow = computed(() => {
       // if (store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]) {
       //   return 'auto';
       // }
 
-      return store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES];
+      return store.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES];
     });
 
     /** 通知消费方字段宽度计算结果已更新 */
     const bumpFieldWidthVersion = () => {
-      store.commit('updateState', { fieldWidthVersion: store.state.fieldWidthVersion + 1 });
+      store.updateState({ fieldWidthVersion: store.fieldWidthVersion + 1 });
     };
 
     const exceptionMsg = computed(() => {
@@ -428,10 +432,10 @@ export default defineComponent({
 
       return indexSetQueryResult.value?.exception_msg || $t('检索结果为空');
     });
-    const isShowSourceField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
-    const isShowCollectorField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD]);
-    const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
-    const isSceneMode = computed(() => store.getters.isSceneMode);
+    const isShowSourceField = computed(() => store.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
+    const isShowCollectorField = computed(() => store.storage[BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD]);
+    const flatIndexSetList = computed(() => useRetrieveStore().$state.flatIndexSetList);
+    const isSceneMode = computed(() => store.isSceneMode);
     /** 列布局版本号：变更时强制 getFieldColumns 重算 */
     const columnLayoutVersion = ref(0);
     /**
@@ -499,12 +503,12 @@ export default defineComponent({
     addEvent(RetrieveEvent.AUTO_REFRESH, async () => {
       resetPageState();
       // 场景化检索模式下条件为空时跳过
-      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
+      if (store.isSceneMode && store.isSceneFilterEmpty) return;
       // 检索条件有变更时先加载字段信息
-      if (store.state.indexItem.isSceneFilterChanged) {
-        await store.dispatch('requestIndexSetFieldInfo');
+      if (store.indexItem.isSceneFilterChanged) {
+        await store.requestIndexSetFieldInfo();
       }
-      store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
+      store.requestIndexSetQuery({ from: 'auto_refresh' });
     });
 
     const getRowCacheKey = (row: Record<string,any>, index: number) => rowKeys.value[index] ?? `${row?.dtEventTimeStamp ?? 'row'}_${index}`;
@@ -645,7 +649,7 @@ export default defineComponent({
 
     /** 原始日志模式的两列：时间 + 原文 JSON */
     const originalColumns = computed<ResultColumn[]>(() => {
-      const formatDate = store.state.isFormatDate;
+      const formatDate = store.isFormatDate;
       // 依赖划词高亮 version，确保时间列在关键字变化后同步重绘
       void pageHighlightState.version;
       return [
@@ -657,7 +661,7 @@ export default defineComponent({
           resize: false,
           minWidth: timeFieldType.value === 'date_nanos' ? 250 : 200,
           renderBodyCell: ({ row }: { row: ResultRow }) => {
-            const timezone = store.state.indexItem.timezone;
+            const timezone = store.indexItem.timezone;
             const fieldType = timeFieldType.value;
             const fieldName = timeField.value;
             const rawValue = row[fieldName];
@@ -723,12 +727,17 @@ export default defineComponent({
      * 将索引字段描述转为表头/单元格列配置（含排序头、JSON 单元格渲染）。
      */
     const formatColumn = (field: FieldInfoItem): ResultColumn => {
+      // 新增字段的样本列宽可能尚未计算，渲染和横向布局必须使用相同的有效宽度。
+      const parsedMinWidth = getNumericWidth(field.minWidth);
+      const minWidth = Number.isFinite(parsedMinWidth) && parsedMinWidth > 0 ? parsedMinWidth : 80;
+      const parsedWidth = getNumericWidth(field.width);
+      const width = Number.isFinite(parsedWidth) && parsedWidth > 0 ? parsedWidth : minWidth;
       return {
         field: field.field_name,
         key: field.field_name,
         title: getFieldNameByField(field, store),
-        width: field.width,
-        minWidth: field.minWidth,
+        width,
+        minWidth,
         field_type: field.field_type,
         align: 'top',
         resize: true,
@@ -750,7 +759,7 @@ export default defineComponent({
           return renderHead(field, order => {
             if (sortable) {
               const sortList = order ? [[field.field_name, order]] : [];
-              const updatedSortList = store.state.indexFieldInfo.sort_list.map(item => {
+              const updatedSortList = store.indexFieldInfo.sort_list.map(item => {
                 if (sortList.length > 0 && item[0] === field.field_name) {
                   return sortList[0];
                 }
@@ -761,10 +770,10 @@ export default defineComponent({
               });
               const temporarySortList = syncSpecifiedFieldSort(field.field_name, sortList);
               resetPageState();
-              store.commit('updateState', { localSort: true });
-              store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
-              store.commit('updateIndexItemParams', { sort_list: temporarySortList });
-              store.dispatch('requestIndexSetQuery');
+              store.updateState({ localSort: true });
+              store.updateIndexFieldInfo({ sort_list: updatedSortList });
+              store.updateIndexItemParams({ sort_list: temporarySortList });
+              store.requestIndexSetQuery();
             }
           });
         },
@@ -1005,7 +1014,7 @@ export default defineComponent({
     /** JSON / 分词菜单点击：时间字段需取原始时间戳构造检索条件 */
     const handleMenuClick = (option: { operation: any; value: any; fieldName: any; fieldType?: any; depth: any; displayFieldNames: any; fullPlain?: any; isSoleToken?: any; tokenIndex?: any; tokenCount?: any; content?: string|undefined; field?: any; row?: any; isLink?: boolean|undefined; isNestedField?: string|undefined; }, isLink: boolean, fieldOption?: { row: any; field?: any }) => {
       if (window.__IS_MONITOR_APM__ && isLink && option.operation === 'trace-view') {
-        const apmRelation = store.state.indexSetFieldConfig?.apm_relation;
+        const apmRelation = store.indexSetFieldConfig?.apm_relation;
         const { app_name: appName, bk_biz_id: bkBizId } = apmRelation!.extra;
         handleRelatedTraceClick({
           appName,
@@ -1447,14 +1456,14 @@ type?: undefined; class?: undefined;
 
       field.width = width;
 
-      store.dispatch('userFieldConfigChange', {
+      store.userFieldConfigChange({
         fieldsWidth: newFieldsWidthObj,
       });
       retrieveFieldCacheService.setUserWidths(fieldScope.value, newFieldsWidthObj);
       bumpFieldWidthVersion();
 
       if (visibleFields.value.length) {
-        store.commit('updateVisibleFields', visibleFields.value);
+        store.updateVisibleFields(visibleFields.value);
       } else {
         fullColumns.value = [...currentFields];
       }
@@ -1529,8 +1538,7 @@ type?: undefined; class?: undefined;
         isRequesting.value = true;
         isPaginationLoading.value = true;
         skipNextLoadingEndReset = true;
-        const currentPromise = store
-          .dispatch('requestIndexSetQuery', { isPagination: true })
+        const currentPromise = store.requestIndexSetQuery({ isPagination: true })
           .then(resp => {
             const isCurrentRequest =
               requestToken === paginationRequestToken &&
@@ -1874,7 +1882,7 @@ type?: undefined; class?: undefined;
         !indexSetQueryResult.value.is_loading &&
         !indexFieldInfo.value.is_loading
       ) {
-        store.commit('retrieve/updateResultShellReady', true);
+        useRetrieveStore().updateResultShellReady(true);
       }
     };
     watch(
@@ -1883,7 +1891,7 @@ type?: undefined; class?: undefined;
         const result = indexSetQueryResult.value;
         if (loading && !result.is_pagination_loading) {
           sawQueryLoading = true;
-          store.commit('retrieve/updateResultShellReady', false);
+          useRetrieveStore().updateResultShellReady(false);
         } else if (result.is_error || result.took > 0 || result.total > 0 || (result.row_keys?.length ?? 0) > 0) {
           sawQueryLoading = true;
         }
@@ -2071,7 +2079,7 @@ type?: undefined; class?: undefined;
           onMouseleave={deactivateHoverOperator}
         >
           <div class='bklog-row-hover-operator-content'>
-            
+
             <OperatorTools
               handleClick={(type: string, event: MouseEvent) => {
                 if (type === 'ai') {

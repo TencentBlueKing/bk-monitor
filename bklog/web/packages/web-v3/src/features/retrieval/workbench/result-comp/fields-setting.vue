@@ -158,6 +158,12 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
 import { h as createVNode } from 'vue';
 import { Tabs as TTabs, TabPanel as TTabPanel } from 'tdesign-vue-next';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
@@ -166,7 +172,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import { getFieldNameByField } from '@/shared/composables/use-field-name';
 import VueDraggable from 'vuedraggable';
-import { mapGetters } from '@/app/state/map-helpers';
+
 
 // import useFieldNameHook from '@/shared/composables/use-field-name';
 import fieldsSettingOperate from './fields-setting-operate';
@@ -215,23 +221,23 @@ export default {
   },
   computed: {
     shadowSort() {
-      return this.$store.state.indexFieldInfo.sort_list;
+      return useApplicationStore().indexFieldInfo.sort_list;
     },
     shadowTotal() {
-      return this.$store.getters.filteredFieldList;
+      return useApplicationStore().filteredFieldList;
     },
     filterShadowTotal() {
-      return this.$store.getters.filteredFieldList.filter((item) => {
+      return useApplicationStore().filteredFieldList.filter((item) => {
         const matchesKeyword = item.field_name?.includes(this.keyword) || item.query_alias?.includes(this.keyword);
         const isInShadowVisible = this.shadowVisible.some((shadowItem) => shadowItem === item.field_name);
         return matchesKeyword && !isInShadowVisible;
       });
     },
     showFieldAlias() {
-      return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+      return useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
     },
     fieldAliasMap() {
-      return this.$store.getters.fieldAliasMap;
+      return useApplicationStore().fieldAliasMap;
     },
     toSelectLength() {
       if (this.keyword) {
@@ -251,16 +257,16 @@ export default {
 
     filedSettingConfigID() {
       // 当前索引集的显示字段ID
-      return this.$store.state.retrieve.filedSettingConfigID;
+      return useRetrieveStore().$state.filedSettingConfigID;
     },
     currentClickConfigData() {
       // 当前选中的配置
       return this.configTabPanels.find((item) => item.id === this.currentClickConfigID) || this.configTabPanels?.[0];
     },
     fieldWidth() {
-      return this.$store.state.isEnLanguage ? '60' : '114';
+      return useApplicationStore().isEnLanguage ? '60' : '114';
     },
-    ...mapGetters({
+    ...mapPiniaState(useApplicationStore, {
       unionIndexList: 'unionIndexList',
       isUnionSearch: 'isUnionSearch',
     }),
@@ -281,7 +287,7 @@ export default {
     },
     getFiledDisplay(field) {
       if (this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
-        return getFieldNameByField(field, this.$store);
+        return getFieldNameByField(field, useApplicationStore());
       }
       const alias = this.fieldAliasMap[field.field_name];
       if (alias && alias !== field.field_name) {
@@ -314,18 +320,17 @@ export default {
           await this.submitFieldsSet(this.currentClickConfigData.id);
         }
         this.cancelModifyFields();
-        this.$store.commit('updateIsSetDefaultTableColumn', false);
-        this.$store
-          .dispatch('userFieldConfigChange', {
+        useApplicationStore().updateIsSetDefaultTableColumn(false);
+        useApplicationStore().userFieldConfigChange({
             displayFields: this.shadowVisible,
             fieldsWidth: {},
           })
           .then(() => {
-            this.$store.commit('resetVisibleFields', this.shadowVisible);
-            this.$store.commit('updateIsSetDefaultTableColumn');
+            useApplicationStore().resetVisibleFields(this.shadowVisible);
+            useApplicationStore().updateIsSetDefaultTableColumn();
           });
-        await this.$store.dispatch('requestIndexSetFieldInfo');
-        await this.$store.dispatch('requestIndexSetQuery');
+        await useApplicationStore().requestIndexSetFieldInfo();
+        await useApplicationStore().requestIndexSetQuery();
       } catch (error) {
         console.warn(error);
       } finally {
@@ -522,7 +527,7 @@ export default {
         });
         if (this.activeFieldTab === 'sort') {
           if (this.isSortFieldChanged) {
-            this.$store.dispatch('requestIndexSetQuery', { formChartChange: false }).then(() => {
+            useApplicationStore().requestIndexSetQuery({ formChartChange: false }).then(() => {
               this.isSortFieldChanged = false;
             });
           }
@@ -555,8 +560,8 @@ export default {
         if (this.filedSettingConfigID === configID) {
           this.currentClickConfigID = this.configTabPanels[0].id;
           const { display_fields } = this.configTabPanels[0];
-          this.$store.commit('resetVisibleFields', display_fields);
-          this.$store.dispatch('requestIndexSetQuery');
+          useApplicationStore().resetVisibleFields(display_fields);
+          useApplicationStore().requestIndexSetQuery();
           this.cancelModifyFields();
         }
       }

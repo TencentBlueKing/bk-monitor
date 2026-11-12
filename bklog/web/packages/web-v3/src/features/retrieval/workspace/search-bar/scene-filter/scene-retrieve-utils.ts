@@ -24,21 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-import RequestPool from '@/app/state/request-pool';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import type { NativeApplicationStore } from '@/app/state/domains/application-store';
 
 /**
  * 取消所有进行中的检索相关请求
  */
-export const cancelPendingRetrieveRequests = () => {
-  RequestPool.execCanceToken('requestIndexSetFieldInfoCancelToken');
-  RequestPool.execCanceToken('requestIndexSetQueryCancelToken');
-  RequestPool.execCanceToken('requestSearchTotalCancelToken');
+export const cancelPendingRetrieveRequests = (store = useApplicationStore()) => {
+  store.requestPool.execCanceToken('requestIndexSetFieldInfoCancelToken');
+  store.requestPool.execCanceToken('requestIndexSetQueryCancelToken');
+  store.requestPool.execCanceToken('requestSearchTotalCancelToken');
 };
 
 /**
  * 清空检索相关的数据（字段信息 + 检索结果）
  */
-export const resetRetrieveData = (store: any) => {
-  store.commit('resetIndexFieldInfo');
-  store.commit('resetIndexSetQueryResult');
+export const resetRetrieveData = (store: NativeApplicationStore) => {
+  store.resetIndexFieldInfo();
+  store.resetIndexSetQueryResult();
 };

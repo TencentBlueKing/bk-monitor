@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, watch, computed } from 'vue';
@@ -31,7 +33,7 @@ import { defineComponent, ref, watch, computed } from 'vue';
 import * as authorityMap from '@/shared/lib/authority-map';
 import { base64Decode } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 
 
@@ -54,7 +56,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const formRef = ref(null);
     const indexSetList = ref<IndexSet[]>([]);
@@ -75,7 +77,7 @@ export default defineComponent({
       ],
     };
 
-    const configId = computed(() => store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id);
+    const configId = computed(() => store.indexSetFieldConfig.clean_config?.extra.collector_config_id);
 
     let rulesList: Record<string, any>[] = [];
 
@@ -115,7 +117,7 @@ export default defineComponent({
       indexSetLoading.value = true;
       ServicesInstance.retrieve.getIndexSetList({
           query: {
-            space_uid: store.state.spaceUid,
+            space_uid: store.spaceUid,
           },
         })
         .then(res => {

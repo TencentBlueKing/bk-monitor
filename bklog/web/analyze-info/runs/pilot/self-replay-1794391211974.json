@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "scope": "SINGLE_ROW_PILOT_ONLY_NOT_FULL_V2_V3_ACCEPTANCE",
+  "version": "v2",
+  "oraclePin": "eddfb98305c17667d02047e21bfaabed3f1204cecf6c8b3be67c3cb60e7ff1fe",
+  "status": "PILOT_SELF_REPLAY_PASSED",
+  "runtimeErrors": [],
+  "captureDigest": "d00cb997064c5332e6fa992ad7f6f6fa725ed688003b8d19fbc6f82525639210",
+  "privateInput": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-pilot-4USduA",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-Fez1Hp",
+  "fixtureReadRecords": 19,
+  "consumedRecords": 19,
+  "businessRequestsForwarded": 0,
+  "networkAudit": {
+    "scope": "CONTEXT_ROUTE_HANDLER_AUDIT",
+    "interceptedBusiness": 22,
+    "forwardedStatic": 88
+  },
+  "checkpoints": [
+    {
+      "id": "query-ready",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391210959
+    },
+    {
+      "id": "expanded-kv-filter",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391211144
+    },
+    {
+      "id": "expanded-no-match",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391211257
+    },
+    {
+      "id": "expanded-clear-restored",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391211426
+    },
+    {
+      "id": "expanded-json",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391211636
+    },
+    {
+      "id": "collapsed-restored",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391211821
+    }
+  ],
+  "cancellations": [
+    {
+      "id": "request-18",
+      "clientCancellationObserved": true
+    }
+  ],
+  "uiDifferences": [],
+  "failures": []
+}

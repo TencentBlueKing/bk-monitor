@@ -311,12 +311,16 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
   import BklogLoading from '@/shared/ui/loading';
   import { useIntroResize } from '@/shared/composables/use-intro-resize';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   import * as authorityMap from '../../../../shared/lib/authority-map';
   import {
@@ -438,10 +442,10 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
         spaceUid: 'spaceUid',
-        globalsData: 'globals/globalsData',
+        globalsData: state => state.globals.globalsData,
       }),
       authorityMap() {
         return authorityMap;
@@ -471,7 +475,7 @@
     methods: {
       async checkCreateAuth() {
         try {
-          const res = await this.$store.dispatch('checkAllowed', {
+          const res = await useApplicationStore().checkAllowed({
             action_ids: [authorityMap.CREATE_ES_SOURCE_AUTH],
             resources: [
               {
@@ -618,7 +622,7 @@
         } else {
           try {
             this.tableLoading = true;
-            const res = await this.$store.dispatch('getApplyData', {
+            const res = await useApplicationStore().getApplyData({
               action_ids: [authorityMap.CREATE_ES_SOURCE_AUTH],
               resources: [
                 {
@@ -627,7 +631,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', { authDialogData: res.data });
+            useApplicationStore().updateState({ authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {
@@ -640,7 +644,7 @@
         this.$router.push({
           name: 'es-index-set-create',
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
             cluster: row.cluster_config.cluster_id,
           },
         });
@@ -660,8 +664,8 @@
               ],
             };
             this.tableLoading = true;
-            const res = await this.$store.dispatch('getApplyData', paramData);
-            this.$store.commit('updateState', { authDialogData: res.data });
+            const res = await useApplicationStore().getApplyData(paramData);
+            useApplicationStore().updateState({ authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {
@@ -688,8 +692,8 @@
               ],
             };
             this.tableLoading = true;
-            const res = await this.$store.dispatch('getApplyData', paramData);
-            this.$store.commit('updateState', { authDialogData: res.data });
+            const res = await useApplicationStore().getApplyData(paramData);
+            useApplicationStore().updateState({ authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {

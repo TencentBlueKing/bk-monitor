@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, defineComponent, ref, watch } from 'vue';
 import { Input as TInput, Empty as TEmpty, Loading as TLoading } from 'tdesign-vue-next';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
@@ -56,7 +58,7 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     // 使用自定义 hook 管理状态
     const {
@@ -154,7 +156,7 @@ export default defineComponent({
 
     // 计算属性
     const allFavoriteNumber = computed(
-      () => store.state.favoriteList?.reduce((pre: number, cur: any) => pre + cur.favorites.length, 0) || 0,
+      () => store.favoriteList?.reduce((pre: number, cur: any) => pre + cur.favorites.length, 0) || 0,
     );
 
     const tabList = computed((): ITabItem[] => [

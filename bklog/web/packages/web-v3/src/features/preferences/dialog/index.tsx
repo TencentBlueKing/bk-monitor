@@ -24,10 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, type PropType } from 'vue';
 
 import { Dialog } from 'tdesign-vue-next';
-import useStore from '@/shared/composables/use-store';
+
 
 import './index.scss';
 
@@ -45,7 +47,7 @@ emits: ['change', 'menu-change', "menuChange"],
 computed: {},
 methods: {},
 setup(props, { slots, emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     return () => props.value ? (
       <Dialog
         style='z-index: var(--bklog-z-dialog);'
@@ -60,7 +62,7 @@ setup(props, { slots, emit }) {
         showOverlay={false}
         visible={props.value}
       >
-        <div class={`global-container ${store.state.showAlert ? 'is-show-notice' : ''}`}>
+        <div class={`global-container ${store.showAlert ? 'is-show-notice' : ''}`}>
           <div class='global-title'>
             <div />
             <span>{props.title}</span>

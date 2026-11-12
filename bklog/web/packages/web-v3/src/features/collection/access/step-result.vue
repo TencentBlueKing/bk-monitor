@@ -85,7 +85,9 @@
 </template>
 
 <script>
-  export default {
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+export default {
   emits: ["step-result-back","stepResultBack"],
 
     name: 'StepResult',
@@ -155,7 +157,7 @@
             indexId: type === 'search' && this.indexSetId ? this.indexSetId : '',
           },
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
         this.$emit('step-result-back');

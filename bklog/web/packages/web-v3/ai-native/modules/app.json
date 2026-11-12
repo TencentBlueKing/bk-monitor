@@ -3,12 +3,10 @@
   "id": "app",
   "purpose": "应用启动、路由及全局状态装配",
   "root": "src/app",
-  "files": 65,
+  "files": 70,
   "entryPoints": [
     "app/router/index.js",
     "app/services/index.ts",
-    "app/state/actions/index.ts",
-    "app/state/getters/index.ts",
     "app/state/index.ts",
     "app/state/mutations/index.js",
     "main.ts"
@@ -54,5 +52,17 @@
   ],
   "sourceMap": "ai-native/source-map.json",
   "acceptance": "NEEDS_REVIEW",
-  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger."
+  "note": "Directory migration preserves source behavior; domain-wide acceptance remains in the existing ledger.",
+  "nativeState": {
+    "owners": [
+      "app/state/domains/application-store.ts",
+      "app/state/domains/retrieve-store.ts",
+      "app/state/domains/collection-store.ts",
+      "app/state/domains/globals-store.ts"
+    ],
+    "externalBoundary": "app/state/monitor-store-compatibility.ts",
+    "internalApi": "直接读写原生字段及具名 action；Options API 使用 Pinia mapState 的函数 selector",
+    "guard": "pnpm --ignore-workspace check:native-state",
+    "evidence": "../../analyze-info/runs/implementation-20261112-03/"
+  }
 }

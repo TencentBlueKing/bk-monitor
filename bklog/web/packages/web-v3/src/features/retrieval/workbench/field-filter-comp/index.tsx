@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import type { FieldInfoItem } from '@/app/state/store.type';
 import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
@@ -32,6 +37,7 @@ import { TABLE_LOG_FIELDS_SORT_REGULAR, getRegExp } from '@/shared/lib/util';
 import { builtInInitHiddenList } from '@/shared/constants/index.ts';
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 import VueDraggable from 'vuedraggable-vue3';
+import { preserveVue3ComponentModel } from '@/platform/compat/vue3-component-model';
 import { Input, Tree as TTree, Tooltip as TTooltip } from 'tdesign-vue-next';
 import 'tdesign-vue-next/es/input/style/index.css';
 
@@ -54,7 +60,7 @@ interface FieldTreeNode extends FieldInfoItem {
   filterVisible?: boolean;
 }
 
-Object.assign(VueDraggable, { compatConfig: { MODE: 3 } });
+preserveVue3ComponentModel(VueDraggable);
 // Vue.Draggable 4.1 emits `end`, but its published declaration omits Sortable events.
 // Keep the installed props and add only the event used by this business list.
 type FieldDragInstance = InstanceType<typeof VueDraggable> & {
@@ -86,6 +92,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   @Prop({ type: Object, default: () => ({}) }) indexSetItem!: any;
   @Ref('filterPopover') readonly filterPopoverRef!: HTMLDivElement;
   @Ref('fieldFilter') readonly fieldFilterRef!: HTMLDivElement;
+  @Ref('fieldSearchInput') readonly fieldSearchInputRef!: { blur: () => void };
 
   searchKeyword = '';
   polymerizable = '0'; // 聚合
@@ -106,20 +113,18 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   isShowAllIndexSet = false;
 
   isShowErrInfo = false;
-  fieldTreeBroken = false;
 
   errorCaptured(err: unknown) {
     console.error('[field-filter] render failed', err);
-    this.fieldTreeBroken = true;
-    return false;
+    // Keep render failures observable with normal Vue error propagation.
   }
   get errInfo() {
-    const isScene = this.$store.getters.isSceneMode;
+    const isScene = useApplicationStore().isSceneMode;
     const key = isScene ? 'retrieve/getSceneFields' : 'retrieve/getLogTableHead';
-    return this.$store.state.apiErrorInfo[key] || '';
+    return useApplicationStore().apiErrorInfo[key] || '';
   }
   get isFieldLoading() {
-    return this.$store.state.indexFieldInfo.is_loading;
+    return useApplicationStore().indexFieldInfo.is_loading;
   }
   get hasFilterVisibleFields() {
     return this.totalFields.length > 0;
@@ -135,8 +140,8 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   }
   get statisticalFieldsData() {
     // 版本号用于触发视图更新，实际大对象存放在 runtime cache / IndexedDB 镜像中。
-    void this.$store.state.retrieveDropdownDataVersion;
-    return storeRuntimeCacheService.getRetrieveDropdownData(this.$store.state.indexId || 'default');
+    void useApplicationStore().retrieveDropdownDataVersion;
+    return storeRuntimeCacheService.getRetrieveDropdownData(useApplicationStore().indexId || 'default');
   }
 
   /** 内置字段 */
@@ -202,7 +207,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   }
   /** object格式字段的层级展示 */
   objectHierarchy(arrData: FieldTreeNode[]) {
-    const tree = this.$store.getters.fieldTree;
+    const tree = useApplicationStore().fieldTree;
     return this.pickFieldTree(tree, arrData);
   }
   /** 递归将tree变回数组 */
@@ -344,16 +349,16 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   }
   get filedSettingConfigID() {
     // 当前索引集的显示字段ID
-    return this.$store.state.retrieve.filedSettingConfigID;
+    return useRetrieveStore().$state.filedSettingConfigID;
   }
   get unionIndexList() {
-    return this.$store.getters.unionIndexList;
+    return useApplicationStore().unionIndexList;
   }
   get isUnionSearch() {
-    return this.$store.getters.isUnionSearch;
+    return useApplicationStore().isUnionSearch;
   }
   get bkBizId() {
-    return this.$store.state.bkBizId;
+    return useApplicationStore().bkBizId;
   }
   /** 未开启白名单时 是否由前端来统计总数 */
   get isFrontStatistics() {
@@ -421,7 +426,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
         regExp.lastIndex = 0; // 重置lastIndex,这个正则有全局标志
         fieldItem.filterVisible =
           regExp.test(fieldItem.field_name) ||
-          regExp.test(fieldItem.field_alias ?? '') ||
+          regExp.test(String(fieldItem.field_alias)) ||
           regExp.test(fieldItem.query_alias || '');
       }
     }
@@ -499,7 +504,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
       this.filterListByCondition();
     }
     this.isShowErrInfo = false;
-    this.$store.dispatch('requestIndexSetFieldInfo');
+    useApplicationStore().requestIndexSetFieldInfo();
   }
   // 记录bigTree展开节点
   expandChange(TreeNode: { id: any; expanded: any }, ref: string) {
@@ -610,6 +615,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
         <div class='form-container'>
           <Input
             class='king-input'
+            ref='fieldSearchInput'
             value={this.searchKeyword}
             data-test-id='fieldFilter_input_searchFieldName'
             placeholder={this.$t('搜索 字段名')}
@@ -619,11 +625,15 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
               this.searchKeyword = value as string;
               this.filterListByCondition();
             }}
-            // onClear={() => this.handleSearchException('clear-filter')}
+            onClick={({e}) => {
+              if ((e.target as Element | null)?.closest('.t-input__suffix-clear')) {
+                this.fieldSearchInputRef?.blur();
+              }
+            }}
           />
         </div>
         <div ref='fieldFilter' class='field-filter-container-new'>
-          {!this.isFieldLoading && !this.hasFilterVisibleFields && (!!this.searchKeyword || !!this.errInfo) && (
+          {!this.isFieldLoading && !this.hasFilterVisibleFields && (
             <EmptyStatus
               style={{ marginTop: '20%' }}
               emptyType={this.searchKeyword ? 'search-empty' : '500'}
@@ -701,7 +711,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
                   {this.showIndexSetFields.map((item: FieldTreeNode, index: number) =>
-                    item.children?.length && !this.fieldTreeBroken ? (
+                    item.children?.length ? (
                       this.bigTreeRender(item, `${index}select`)
                     ) : (
                       <FieldItem
@@ -738,7 +748,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
                 </div>
                 <ul class='filed-list'>
                   {this.builtInLazyShowFields.map((item: FieldTreeNode, index: number) =>
-                    item.children?.length && !this.fieldTreeBroken ? (
+                    item.children?.length ? (
                       this.bigTreeRender(item, `${index}built`)
                     ) : (
                       <FieldItem

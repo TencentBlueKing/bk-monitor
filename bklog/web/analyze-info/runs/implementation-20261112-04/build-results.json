@@ -1,0 +1,14 @@
+[
+  {
+    "command": "build:apm",
+    "exitCode": 0
+  },
+  {
+    "command": "build:trace",
+    "exitCode": 0
+  },
+  {
+    "command": "build",
+    "exitCode": 0
+  }
+]

@@ -1622,4 +1622,9 @@ export default {
   '为支持分片并行导出，将优先按日志时间降序排列，同一时间内保留其他字段的排序规则。筛选条件、导出字段和数据范围不变。实际导出排序：{sort}':
     'For parallel export, logs will be sorted by log time descending first, retaining the other sort rules for equal timestamps. Filters, exported fields, and the data range remain unchanged. Export order: {sort}',
   '导出排序已变化，请重新提交并确认': 'The export sort order has changed. Please submit again and confirm.',
+  '时间格式不含时区，请选择该时间实际所在的时区。':
+    'The time format does not include a timezone. Select the timezone of the original time.',
+  '已从预览值解析为 {timezone}。': 'Parsed from the preview value as {timezone}.',
+  '时间格式包含时区，但预览值中未识别到，请手动选择。':
+    'The time format includes a timezone, but none was recognized in the preview value. Select one manually.',
 };

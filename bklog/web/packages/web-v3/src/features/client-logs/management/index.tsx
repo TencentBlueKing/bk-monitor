@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, computed, onMounted, ref, watch } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 import useRouter from '@/shared/composables/use-router';
 import useAdaptivePagination from '@/features/management/manage-v2/hooks/use-adaptive-pagination';
 import { t } from '@/shared/composables/use-locale';
@@ -58,7 +60,7 @@ export default defineComponent({
     UserReport,
   },
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
 
     // 从路由查询参数获取初始 tab 值
@@ -112,7 +114,7 @@ export default defineComponent({
       try {
         const params = {
           query: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
           },
         };
 
@@ -130,7 +132,7 @@ export default defineComponent({
       try {
         const params = {
           query: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
           },
         };
 
@@ -150,8 +152,8 @@ export default defineComponent({
 
     // 检查是否为灰度业务
     const checkGrayReleaseAccess = () => {
-      const bizId = store.state.bkBizId;
-      const spaceUid = store.state.spaceUid;
+      const bizId = store.bkBizId;
+      const spaceUid = store.spaceUid;
       const hasAccess = isFeatureToggleOn('tgpa_task', [String(bizId), String(spaceUid)], { defaultEnabled: true });
 
       isGrayRelease.value = !hasAccess;
@@ -195,7 +197,7 @@ export default defineComponent({
     });
 
     watch(
-      () => store.state.spaceUid,
+      () => store.spaceUid,
       (newSpaceUid, oldSpaceUid) => {
         if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
           // 检查灰度业务权限
@@ -214,7 +216,7 @@ export default defineComponent({
             resources: [
               {
                 type: 'space',
-                id: store.state.spaceUid,
+                id: store.spaceUid,
               },
             ],
           },

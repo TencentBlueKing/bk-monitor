@@ -25,6 +25,8 @@
 -->
 
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, ref, watch } from 'vue';
@@ -39,7 +41,7 @@ import type { BaseTableCol } from 'tdesign-vue-next';
 import BklogLoading from '@/shared/ui/loading';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute } from 'vue-router';
 import { overlayRegistry } from '@/shared/global/overlay/overlay-registry.js';
 import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
@@ -65,7 +67,9 @@ interface AliasSetting {
   path_type: string;
 }
 
-const store = useStore();
+const props = withDefaults(defineProps<{ showTrigger?: boolean }>(), { showTrigger: true });
+
+const store = useApplicationStore();
 const route = useRoute();
 const { t } = useLocale();
 const emit = defineEmits(['handle-popover-hide', 'handlePopoverHide']);
@@ -74,7 +78,7 @@ const drawerZIndex = ref(Z_INDEX_LAYERS.DRAWER);
 const sliderLoading = ref(false);
 const confirmLoading = ref(false);
 const formData = ref<AliasField[]>([]);
-const fields = computed<AliasField[]>(() => store.getters.rawFieldList as AliasField[]);
+const fields = computed<AliasField[]>(() => store.rawFieldList as AliasField[]);
 const columns = computed<BaseTableCol[]>(() => [
   { colKey: 'fieldName', title: t('字段名') },
   { colKey: 'alias', title: t('别名') },
@@ -131,7 +135,7 @@ const submit = async () => {
 
     if (res.code === 0) {
       showSlider.value = false;
-      store.dispatch('requestIndexSetFieldInfo');
+      store.requestIndexSetFieldInfo();
     }
   } catch (error) {
     console.error('Submit failed:', error);
@@ -274,7 +278,7 @@ defineExpose({
 </script>
 <template>
   <div class="field-alias-v3">
-    <div class="bklog-v3 field-alias-title" @click="handleOpenSidebar">
+    <div v-if="props.showTrigger" class="bklog-v3 field-alias-title" @click="handleOpenSidebar">
       <span class="bklog-icon bklog-wholesale-editor"></span>{{ t('批量编辑别名') }}
     </div>
     <TDrawer

@@ -17,6 +17,8 @@ let utils;
 try {
   globalThis.window = { $t: t, mainComponent: { $t: t } };
   utils = loadTypeScript(new URL('../src/features/collection/current/utils.ts', import.meta.url), {
+    'tdesign-vue-next': {MessagePlugin:{error(){}}},
+    './save-failure': loadTypeScript(new URL('../src/features/collection/current/save-failure.ts', import.meta.url)),
     '@/shared/utils/typed-record': { asDictionary: (v) => v, includesValue: (list, value) => list.includes(value) },
     '@/shared/lib/util': { formatFileSize: String, random: () => '' },
   });
@@ -49,17 +51,8 @@ function setup(conditions = { type: 'none' }, response = { data: { fields: [] } 
         },
       },
       '@/shared/composables/use-locale': () => ({ t }),
-      '@/shared/composables/use-store': () => ({
-        getters: {
-          'globals/globalsData': {
-            data_delimiter: [
-              { id: '|', name: 'pipe' },
-              { id: ',', name: 'comma' },
-            ],
-          },
-          'collect/curCollect': {},
-        },
-      }),
+      '@/app/state/domains/globals-store': {useGlobalsStore: () => ({globalsData: {data_delimiter: [{id:'|',name:'pipe'},{id:',',name:'comma'}]}})},
+      '@/app/state/domains/collection-store': {useCollectionStore: () => ({curCollect:{}})},
       '@/shared/lib/worker-message': worker,
       '../../../utils': utils,
       '../../common-comp/info-tips': { name: 'InfoTips' },

@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
 import { includesValue } from '@/shared/utils/typed-record';
 
 import { computed, ref } from 'vue';
@@ -31,7 +34,7 @@ import { computed, ref } from 'vue';
 import * as authorityMap from '@/shared/lib/authority-map';
 import useRoute from '@/shared/composables/use-route';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 import { getExternalDefaultRoute, routeNameToExternalMenu } from '@/app/router/helper';
 import reportLogStore from '@/app/state/modules/report-log';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
@@ -43,19 +46,19 @@ export function useNavMenu(options: {
   emit?: (_event: 'welcome', ..._args: unknown[]) => void;
 }) {
   const { t, bkInfo } = options;
-  const store = useStore();
+  const store = useApplicationStore();
   const route = useRoute();
   const router = useRouter();
   const isFirstLoad = ref(true);
 
   // computed
-  const topMenu = computed(() => store.state.topMenu);
-  const menuList = computed(() => store.state.menuList);
-  const spaceUid = computed(() => store.state.spaceUid);
-  const bkBizId = computed(() => store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID]);
-  const mySpaceList = computed(() => store.state.mySpaceList);
-  const isExternal = computed(() => store.state.isExternal);
-  const externalMenu = computed(() => store.state.externalMenu);
+  const topMenu = computed(() => store.topMenu);
+  const menuList = computed(() => store.menuList);
+  const spaceUid = computed(() => store.spaceUid);
+  const bkBizId = computed(() => store.storage[BK_LOG_STORAGE.BK_BIZ_ID]);
+  const mySpaceList = computed(() => store.mySpaceList);
+  const isExternal = computed(() => store.isExternal);
+  const externalMenu = computed(() => store.externalMenu);
 
   // methods
   const getDemoProjectUrl = (id: string) => {
@@ -71,12 +74,12 @@ export function useNavMenu(options: {
 
   const checkSpaceAuth = async (space: any) => {
     if (space?.permission?.[authorityMap.VIEW_BUSINESS]) {
-      store.commit('globals/updateAuthContainerInfo', null);
+      useGlobalsStore().updateAuthContainerInfo(null);
       return;
     }
     try {
-      store.commit('updateSpace', space.space_uid);
-      const res = await store.dispatch('getApplyData', {
+      store.updateSpace(space.space_uid);
+      const res = await store.getApplyData({
         action_ids: [authorityMap.VIEW_BUSINESS],
         resources: [
           {
@@ -85,7 +88,7 @@ export function useNavMenu(options: {
           },
         ],
       });
-      store.commit('globals/updateAuthContainerInfo', res.data);
+      useGlobalsStore().updateAuthContainerInfo(res.data);
     } catch (err) {
       console.warn(err);
     }
@@ -105,7 +108,7 @@ export function useNavMenu(options: {
       }
     }
     // 聚类配置等功能级授权项不对应菜单，需要保留原始授权项供页面内判断
-    store.commit('updateState', { externalMenu: list, externalPermissions });
+    store.updateState({ externalMenu: list, externalPermissions });
   };
 
   const setRouter = async (newSpaceUid: string) => {
@@ -113,7 +116,7 @@ export function useNavMenu(options: {
       updateExternalMenuBySpace(newSpaceUid);
     }
     // 空间解析失败的恢复跳转由空间选择器统一处理，避免覆盖原始 IndexId。
-    if (store.state.spaceResolveFailed) {
+    if (store.spaceResolveFailed) {
       return;
     }
     // 外部版：当前路由在新业务不可用时，重定向到第一个可用路由
@@ -148,15 +151,15 @@ export function useNavMenu(options: {
   };
 
   const spaceChange = async (newSpaceUid = '') => {
-    store.commit('updateSpace', newSpaceUid);
+    store.updateSpace(newSpaceUid);
     if (newSpaceUid) {
       const space = mySpaceList.value.find((item: any) => item.space_uid === newSpaceUid);
       await checkSpaceAuth(space);
     }
-    store.commit('updateStorage', { [BK_LOG_STORAGE.BK_SPACE_UID]: newSpaceUid });
+    store.updateStorage({ [BK_LOG_STORAGE.BK_SPACE_UID]: newSpaceUid });
     for (const item of mySpaceList.value) {
       if (item.space_uid === newSpaceUid) {
-        store.commit('updateStorage', { [BK_LOG_STORAGE.BK_BIZ_ID]: item.bk_biz_id });
+        store.updateStorage({ [BK_LOG_STORAGE.BK_BIZ_ID]: item.bk_biz_id });
         break;
       }
     }
@@ -165,7 +168,7 @@ export function useNavMenu(options: {
     }
 
     // 首次加载应用路由触发上报还未获取到 spaceUid ，需手动执行上报
-    if (store.state.isAppFirstLoad && newSpaceUid) {
+    if (store.isAppFirstLoad && newSpaceUid) {
       const { name, meta } = route as any;
       reportLogStore.reportRouteLog({
         route_id: name,
@@ -177,7 +180,7 @@ export function useNavMenu(options: {
 
   const checkSpaceChange = (newSpaceUid = '') => {
     if (!isFirstLoad.value && (route.meta as any)?.needBack) {
-      store.commit('updateState', { showRouterLeaveTip: true });
+      store.updateState({ showRouterLeaveTip: true });
 
       bkInfo({
         title: t('是否放弃本次操作？'),
@@ -185,7 +188,7 @@ export function useNavMenu(options: {
           spaceChange(newSpaceUid);
         },
         cancelFn: () => {
-          store.commit('updateState', { showRouterLeaveTip: false });
+          store.updateState({ showRouterLeaveTip: false });
         },
       });
       return;

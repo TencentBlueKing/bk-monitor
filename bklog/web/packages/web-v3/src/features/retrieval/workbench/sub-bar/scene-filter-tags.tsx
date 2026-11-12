@@ -24,9 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 import { isEmptyFilterValue } from '@/app/state/helper';
 import { getOperatorDisplay, getDefaultOp } from '@/features/retrieval/workspace/search-bar/scene-filter/scene-config';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
@@ -52,7 +57,7 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const store = useStore();
+    const store = useApplicationStore();
 
     const containerRef = ref<HTMLDivElement>();
     const measureRef = ref<HTMLDivElement>();
@@ -70,11 +75,11 @@ export default defineComponent({
       indicator: ref<HTMLSpanElement | null>(null),
     };
 
-    const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+    const sceneConfigs = computed(() => useRetrieveStore().sceneConfigList);
 
     const tags = computed<TagItem[]>(() => {
-      const sceneActive = store.state.indexItem.scene_active;
-      const filterValues = store.state.indexItem.scene_filter_values;
+      const sceneActive = store.indexItem.scene_active;
+      const filterValues = store.indexItem.scene_filter_values;
 
       if (!sceneActive || !filterValues) return [];
 

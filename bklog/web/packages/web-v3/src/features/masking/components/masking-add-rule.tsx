@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Checkbox as Checkbox, RadioGroup as RadioGroup, Radio as Radio } from 'tdesign-vue-next';
 
 import { Button as Button } from 'tdesign-vue-next';
@@ -248,7 +250,7 @@ export default class MaskingAddRule extends tsc<IProps> {
   }
 
   get spaceUid() {
-    return this.$store.state.spaceUid;
+    return useApplicationStore().spaceUid;
   }
 
   get isShowAndIcon() {
@@ -444,7 +446,7 @@ export default class MaskingAddRule extends tsc<IProps> {
       name: this.scenarioRouteMap[row.scenario_id],
       query: {
         ids: encodeURIComponent(idList),
-        spaceUid: this.$store.state.spaceUid,
+        spaceUid: useApplicationStore().spaceUid,
       },
     });
     window.open(href, '_blank', 'noopener,noreferrer');
@@ -485,7 +487,7 @@ export default class MaskingAddRule extends tsc<IProps> {
           v-slots={{
             default: ({ row }: import("@/shared/types/table-row-scope").TableRowScope<typeof this.editAccessValue.accessInfo>) => (
               <Button
-                
+
                 onClick={() => this.handleJumpAccess(row)} variant={(true) ? 'text' : ('base')}
               >
                 {row.ids.length}
@@ -692,7 +694,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                             style='font-size: 12px;'
                             disabled={this.isCanClickDebugBtn}
                             theme='primary'
-                            
+
                             onClick={this.handleDebugging} variant={(true) ? 'outline' : 'base'}
                           >
                             {this.$t('结果预览')}

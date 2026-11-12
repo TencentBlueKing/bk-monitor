@@ -85,7 +85,9 @@
   const originalValueExpandStateCache = new Map<string, Record<string, boolean>>();
 </script>
 <script setup lang="ts">
-  import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
   // @ts-ignore
   import { getRowFieldValue } from '@/shared/lib/util';
@@ -103,14 +105,14 @@
   } from '../../platform/persistence/utils/retrieve-render-meta';
   import { clearWordSplitSourceCache } from '../composables/use-json-formatter';
   import useJsonRoot from '../composables/use-json-root';
-  import useStore from '../composables/use-store';
+
   import { BK_LOG_STORAGE } from '../../app/state/store.type.ts';
   import RetrieveHelper, { RetrieveEvent } from '../../features/retrieval/retrieve-helper';
   import { buildHighlightHtml, pageHighlightState } from '../../features/retrieval/core/page-highlight';
   import { parseMarkedJson, type PrimitiveMarkMap } from '../../features/retrieval/core/marked-json';
 
   const emit = defineEmits(['menu-click', 'view-full', "menuClick", "viewFull"]);
-  const store = useStore();
+  const store = useApplicationStore();
   const { $t } = useLocale();
 
   const props = defineProps({
@@ -171,10 +173,10 @@
   const isRowIntersecting = inject('isRowIntersecting', ref(false));
   const isResolved = ref(isRowIntersecting.value);
 
-  const isFormatDateField = computed(() => store.state.isFormatDate);
-  const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
-  const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
-  const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+  const isFormatDateField = computed(() => store.isFormatDate);
+  const isWrap = computed(() => store.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+  const isLimitExpandText = computed(() => store.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
+  const formatJson = computed(() => store.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
   const isOriginalMode = computed(() => props.originalMode);
   const limitRowNumber = computed(() => {
     // KV 等场景传入 'auto'：不限制行高，也不展示「更多」
@@ -475,7 +477,7 @@
   };
 
   const getAliasAwareSegments = (field: any, segments: Record<string, any[]> | undefined) => {
-    if (!segments || !store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+    if (!segments || !store.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
       return segments;
     }
 
@@ -716,7 +718,7 @@
 
   const getDateFieldValue = (field: { field_type: string; }, content: unknown, formatDate: boolean) => {
     if (formatDate && ['date_nanos', 'date'].includes(field.field_type)) {
-      const timezone = store.state.indexItem.timezone;
+      const timezone = store.indexItem.timezone;
       return RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
     }
 
@@ -848,7 +850,7 @@
     });
   });
 
-  const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
+  const depth = computed(() => store.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
 
   const debounceUpdate = debounce(() => {
     updateRootFieldOperator(rootList.value as any, depth.value);

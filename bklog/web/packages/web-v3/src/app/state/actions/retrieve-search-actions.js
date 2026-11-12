@@ -21,7 +21,7 @@
 import { ServicesInstance } from '@/platform/services';
 
 import axios from 'axios';
-
+import { toRaw } from 'vue';
 
 import { parseBigNumberList } from '@/shared/lib/util';
 import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
@@ -38,20 +38,30 @@ import { normalizeSearchTotal } from '@/platform/persistence/utils/normalize-sea
 
 import { formatAdditionalFields, getCommonFilterAdditionWithValues, isSceneRetrieve } from '../helper.ts';
 import { reportRouteLog } from '../modules/report-helper.ts';
-import RequestPool from '../request-pool.ts';
 
-let _dateFieldSortList = [];
-let currentRetrieveRowQueryKey = '';
-/** 当前主检索 searchStream 的 requestId，用于按 id 取消，避免误杀上下文本地 Stream */
-let currentMainSearchRequestId = '';
-const fieldInfoRequestPromises = new Map();
+const querySessions = new WeakMap();
+const querySession = (application) => {
+  // Pinia devtools wraps each action receiver in a new Proxy; $state keeps the owner stable.
+  const owner = toRaw(application.$state);
+  let session = querySessions.get(owner);
+  if (!session) {
+    session = {
+      dateFieldSortList: [],
+      currentRetrieveRowQueryKey: '',
+      currentMainSearchRequestId: '',
+      fieldInfoRequestPromises: new Map(),
+    };
+    querySessions.set(owner, session);
+  }
+  return session;
+};
 
-const getCookie = name => {
+const getCookie = (name) => {
   const matched = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
   return matched ? decodeURIComponent(matched[1]) : '';
 };
 
-const buildSearchRequestHeaders = state => {
+const buildSearchRequestHeaders = (state) => {
   const headers = {
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
@@ -69,11 +79,11 @@ const buildSearchRequestHeaders = state => {
   return headers;
 };
 
-const isSearchRequestCanceled = error =>
+const isSearchRequestCanceled = (error) =>
   error?.code === 'ERR_CANCELED' || error?.name === 'AbortError' || error?.message === 'Search request canceled';
 
 // 检索接口 total 只用于结果集自身，不覆盖 requestSearchTotal 写入的总趋势总数
-const normalizeResultTotal = total => normalizeSearchTotal(total);
+const normalizeResultTotal = (total) => normalizeSearchTotal(total);
 
 // 展示用总数：优先本次有效值，否则回退到已知总数，避免中间态（分页/meta 缺失）把总数显示成 0
 const resolveDisplayTotal = (state, total) => {
@@ -82,13 +92,20 @@ const resolveDisplayTotal = (state, total) => {
   return normalizeSearchTotal(state.searchTotal) || normalizeSearchTotal(state.indexSetQueryResult.total);
 };
 
-const applySearchStreamProgress = ({ commit, payload, progress, requestCurrentRowKeys, requestRowQueryKey, state }) => {
+const applySearchStreamProgress = ({
+  application,
+  payload,
+  progress,
+  requestCurrentRowKeys,
+  requestRowQueryKey,
+  state,
+}) => {
   if (progress.stage === 'meta' && progress.meta) {
     const meta = { ...progress.meta };
     // 流式 meta 阶段的 /search total 只用于结果集自身，不覆盖总趋势 total
     meta.total = resolveDisplayTotal(state, normalizeResultTotal(meta.total));
     storageHealthService.markActiveQuery(requestRowQueryKey);
-    commit('updateIndexSetQueryResult', {
+    application.updateIndexSetQueryResult({
       ...meta,
       row_keys: Object.freeze([...requestCurrentRowKeys]),
       row_query_key: requestRowQueryKey,
@@ -103,14 +120,14 @@ const applySearchStreamProgress = ({ commit, payload, progress, requestCurrentRo
 
   if (progress.stage === 'row' && progress.rowKeys?.length) {
     if (!payload?.isPagination && progress.rowCount === 1) {
-      retrieveRowCacheService.getRows(progress.rowKeys.slice(0, 1)).then(layoutRows => {
-        commit('updateIsSetDefaultTableColumn', { list: layoutRows });
+      retrieveRowCacheService.getRows(progress.rowKeys.slice(0, 1)).then((layoutRows) => {
+        application.updateIsSetDefaultTableColumn({ list: layoutRows });
       });
     }
   }
 };
 
-const getRenderFieldMetadata = state => {
+const getRenderFieldMetadata = (state) => {
   const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
   const fieldNameIndex = retrieveFieldCacheService.getFieldNameIndex(fieldScope);
 
@@ -133,18 +150,18 @@ const getRenderFieldMetadata = state => {
   }, {});
 };
 
-const getProjectionFieldNames = state => {
+const getProjectionFieldNames = (state) => {
   const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
   const cachedFields = retrieveFieldCacheService.getFieldList(fieldScope, false);
   const fields = [
     ...(state.visibleFields || []),
-    ...cachedFields.filter(field => field?.is_time_field || field?.field_name === state.indexFieldInfo?.time_field),
+    ...cachedFields.filter((field) => field?.is_time_field || field?.field_name === state.indexFieldInfo?.time_field),
   ];
 
   return Array.from(
     new Set(
       fields
-        .flatMap(field => {
+        .flatMap((field) => {
           if (!field) return [];
           return [field.field_name, field.alias_mapping_field?.field_name, ...(field.source_field_names || [])];
         })
@@ -153,30 +170,33 @@ const getProjectionFieldNames = state => {
   );
 };
 
-function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
+function requestIndexSetFieldInfoActionImpl(application) {
+  const state = application;
+  const getters = application;
+
   const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
-  commit('resetIndexFieldInfo');
-  commit('updataOperatorDictionary', {});
-  commit('updateNotTextTypeFields', {});
-  commit('updateIndexSetFieldConfig', {});
-  commit('updateVisibleFields', []);
+  application.resetIndexFieldInfo();
+  application.updataOperatorDictionary({});
+  application.updateNotTextTypeFields({});
+  application.updateIndexSetFieldConfig({});
+  application.updateVisibleFields([]);
 
   const cancelTokenKey = 'requestIndexSetFieldInfoCancelToken';
-  RequestPool.execCanceToken(cancelTokenKey);
-  const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
+  application.requestPool.execCanceToken(cancelTokenKey);
+  const requestCancelToken = application.requestPool.getCancelToken(cancelTokenKey);
 
   if (!ids.length) {
     return;
   }
 
-  commit('resetIndexFieldInfo', { is_loading: true });
+  application.resetIndexFieldInfo({ is_loading: true });
   const isScene = isSceneRetrieve(state);
   const urlStr = isScene
     ? ServicesInstance.retrieve.getSceneFields
     : isUnionIndex
-      ? ServicesInstance.unionSearch.unionMapping
-      : ServicesInstance.retrieve.getLogTableHead;
-  !isUnionIndex && commit('deleteApiError', urlStr.id);
+    ? ServicesInstance.unionSearch.unionMapping
+    : ServicesInstance.retrieve.getLogTableHead;
+  !isUnionIndex && application.deleteApiError(urlStr.id);
   const queryData = {
     start_time,
     end_time,
@@ -186,7 +206,7 @@ function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
     const retrieveParams = getters.retrieveParams;
     const tableIdConditions = retrieveParams.table_id_conditions;
     if (getters.isSceneFilterEmpty || !tableIdConditions?.length) {
-      commit('resetIndexFieldInfo');
+      application.resetIndexFieldInfo();
       return Promise.resolve({ result: false, ignored: true, reason: 'empty-scene-filter' });
     }
     Object.assign(queryData, {
@@ -215,18 +235,16 @@ function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
       : undefined,
   });
 
-  _dateFieldSortList = undefined;
+  querySession(application).dateFieldSortList = undefined;
   return urlStr(
-      {
-        params: isScene ? {} : { index_set_id: ids[0] },
-        query: !isScene && !isUnionIndex ? queryData : undefined,
-        data: isScene || isUnionIndex ? queryData : undefined,
-      },
-      isUnionIndex
-        ? { cancelToken: requestCancelToken }
-        : { catchIsShowMessage: false, cancelToken: requestCancelToken },
-    )
-    .then(res => {
+    {
+      params: isScene ? {} : { index_set_id: ids[0] },
+      query: !isScene && !isUnionIndex ? queryData : undefined,
+      data: isScene || isUnionIndex ? queryData : undefined,
+    },
+    isUnionIndex ? { cancelToken: requestCancelToken } : { catchIsShowMessage: false, cancelToken: requestCancelToken },
+  )
+    .then((res) => {
       const normalizedFields = normalizeRetrieveFields(res.data ?? {});
       if (res.data) {
         res.data.fields = normalizedFields;
@@ -236,7 +254,7 @@ function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
         ([fieldName]) => [fieldName, undefined],
       );
 
-      normalizedFields.forEach(field => {
+      normalizedFields.forEach((field) => {
         if (!field || typeof field !== 'object') return;
         Object.assign(field, {
           filterVisible: field.filterVisible ?? true,
@@ -246,43 +264,44 @@ function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
         });
       });
 
-      commit(
-        'updateIndexFieldInfo',
+      application.updateIndexFieldInfo(
         Object.assign({}, res.data ?? {}, {
           field_scope: fieldScope,
           default_sort_list: defaultSortList,
         }),
       );
       // updateIndexFieldInfo 已同步写入内存 meta；IndexedDB 后台落盘，不挡住后续 search。
-      commit('updataOperatorDictionary', res.data ?? {});
-      commit('updateNotTextTypeFields', res.data ?? {});
-      commit('updateIndexSetFieldConfig', res.data ?? {});
-      commit('retrieve/updateFiledSettingConfigID', res.data?.config_id ?? -1);
-      commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config);
-      commit('resetVisibleFields');
-      commit('resetIndexSetOperatorConfig');
-      commit('updateIsSetDefaultTableColumn');
+      application.updataOperatorDictionary(res.data ?? {});
+      application.updateNotTextTypeFields(res.data ?? {});
+      application.updateIndexSetFieldConfig(res.data ?? {});
+      application.retrieve.updateFiledSettingConfigID(res.data?.config_id ?? -1);
+      application.retrieve.updateCatchFieldCustomConfig(res.data.user_custom_config);
+      application.resetVisibleFields();
+      application.resetIndexSetOperatorConfig();
+      application.updateIsSetDefaultTableColumn();
       storeCacheService
         // API 缓存 key 沿用后端字段名 start_time / end_time
         // eslint-disable-next-line camelcase
         .setApiCache(urlStr.id, `${ids.join(',')}:${start_time}:${end_time}`, res.data || {})
-        .catch(error => {
+        .catch((error) => {
           console.warn('[store-cache] cache field info failed', error);
         });
       return res;
     })
-    .catch(err => {
+    .catch((err) => {
       if (axios.isCancel(err)) return;
-      !isUnionIndex && commit('updateApiError', { apiName: urlStr.id, errorMessage: err });
-      commit('updateIndexFieldInfo', { is_loading: false });
+      !isUnionIndex && application.updateApiError({ apiName: urlStr.id, errorMessage: err });
+      application.updateIndexFieldInfo({ is_loading: false });
     })
     .finally(() => {
-      commit('updateIndexFieldInfo', { is_loading: false });
+      application.updateIndexFieldInfo({ is_loading: false });
     });
 }
 
-export function requestIndexSetFieldInfoAction(context) {
-  const { state } = context;
+export function requestIndexSetFieldInfoAction(application) {
+  const state = application;
+  const getters = application;
+
   const key = JSON.stringify({
     ids: state.indexItem?.ids ?? [],
     start_time: state.indexItem?.start_time ?? '',
@@ -290,18 +309,19 @@ export function requestIndexSetFieldInfoAction(context) {
     isUnionIndex: !!state.indexItem?.isUnionIndex,
     retrieve_type: state.indexItem?.retrieve_type ?? '',
   });
-  const existing = fieldInfoRequestPromises.get(key);
+  const existing = querySession(application).fieldInfoRequestPromises.get(key);
   if (existing) return existing;
 
-  const request = Promise.resolve(requestIndexSetFieldInfoActionImpl(context)).finally(() =>
-    fieldInfoRequestPromises.delete(key),
+  const request = Promise.resolve(requestIndexSetFieldInfoActionImpl(application)).finally(() =>
+    querySession(application).fieldInfoRequestPromises.delete(key),
   );
-  fieldInfoRequestPromises.set(key, request);
+  querySession(application).fieldInfoRequestPromises.set(key, request);
   return request;
 }
 
+/** @param {import('../domains/application-store').RetrieveQueryPayload} [payload] */
 export async function requestIndexSetQueryAction(
-  { commit, state, getters, dispatch },
+  application,
   payload = {
     isPagination: false,
     cancelToken: null,
@@ -310,6 +330,9 @@ export async function requestIndexSetQueryAction(
     from: undefined,
   },
 ) {
+  const state = application;
+  const getters = application;
+
   let cachedQueryResult = {
     row_keys: state.indexSetQueryResult.row_keys || [],
     row_query_key: state.indexSetQueryResult.row_query_key || '',
@@ -323,7 +346,7 @@ export async function requestIndexSetQueryAction(
 
   if (!payload?.isPagination) {
     // 不在此处将 searchTotal 清零：保留上一次总数直到新结果（meta/最终）返回，避免因请求耗时/竞态导致标题闪成 0
-    commit('updateIndexSetQueryResult', {
+    application.updateIndexSetQueryResult({
       row_keys: [],
       row_query_key: '',
       cached_count: 0,
@@ -336,8 +359,8 @@ export async function requestIndexSetQueryAction(
     (state.indexItem.isUnionIndex && !state.unionIndexList.length)
   ) {
     state.searchTotal = 0;
-    commit('updateSqlQueryFieldList', []);
-    commit('updateIndexSetQueryResult', {
+    application.updateSqlQueryFieldList([]);
+    application.updateIndexSetQueryResult({
       is_error: false,
       exception_msg: '',
       total: 0,
@@ -350,7 +373,7 @@ export async function requestIndexSetQueryAction(
   const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
   const hasFieldMetadata = retrieveFieldCacheService.getFieldList(fieldScope, false).length > 0;
   if (!hasFieldMetadata) {
-    const fieldResponse = await dispatch('requestIndexSetFieldInfo');
+    const fieldResponse = await application.requestIndexSetFieldInfo();
     if (!fieldResponse?.data?.fields?.length) {
       return { result: false, ignored: true, reason: 'index-set-field-not-found' };
     }
@@ -360,7 +383,7 @@ export async function requestIndexSetQueryAction(
   const shouldSkipEmptySceneSearch =
     isSceneRetrieve(state) && (getters.isSceneFilterEmpty || !retrieveParams.table_id_conditions?.length);
   if (shouldSkipEmptySceneSearch) {
-    commit('updateIndexSetQueryResult', {
+    application.updateIndexSetQueryResult({
       is_error: false,
       exception_msg: '',
       is_loading: false,
@@ -385,24 +408,26 @@ export async function requestIndexSetQueryAction(
 
   if (!payload?.isPagination) {
     if (payload?.defaultSortList) {
-      _dateFieldSortList = payload?.defaultSortList?.filter(([fieldName, sort]) => fieldName && sort);
+      querySession(application).dateFieldSortList = payload?.defaultSortList?.filter(
+        ([fieldName, sort]) => fieldName && sort,
+      );
     }
 
     const { datePickerValue } = state.indexItem;
     const letterRegex = /[a-zA-Z]/;
-    const needTransform = datePickerValue.every(d => letterRegex.test(d));
+    const needTransform = datePickerValue.every((d) => letterRegex.test(d));
 
     const [startTime, endTime] = needTransform
       ? handleTransformToTimestamp(datePickerValue, format)
       : [state.indexItem.start_time, state.indexItem.end_time];
 
     if (needTransform) {
-      commit('updateIndexItem', { start_time: startTime, end_time: endTime });
+      application.updateIndexItem({ start_time: startTime, end_time: endTime });
     }
   }
 
   const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
-  commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
+  (payload.isPagination ? application.updateIndexSetQueryResult : application.resetIndexSetQueryResult)({
     is_loading: true,
     is_pagination_loading: !!payload?.isPagination,
     search_count: searchCount,
@@ -410,11 +435,11 @@ export async function requestIndexSetQueryAction(
 
   const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
   const cancelTokenKey = 'requestIndexSetQueryCancelToken';
-  RequestPool.execCanceToken(cancelTokenKey);
-  RequestPool.setCancelToken(cancelTokenKey, () => {
-    if (currentMainSearchRequestId) {
-      retrieveSearchWorkerService.cancelSearch(currentMainSearchRequestId);
-      currentMainSearchRequestId = '';
+  application.requestPool.execCanceToken(cancelTokenKey);
+  application.requestPool.setCancelToken(cancelTokenKey, () => {
+    if (querySession(application).currentMainSearchRequestId) {
+      retrieveSearchWorkerService.cancelSearch(querySession(application).currentMainSearchRequestId);
+      querySession(application).currentMainSearchRequestId = '';
     }
   });
 
@@ -422,12 +447,12 @@ export async function requestIndexSetQueryAction(
   const searchUrl = isScene
     ? '/search/scene/search/'
     : !state.indexItem.isUnionIndex
-      ? `/search/index_set/${state.indexId}/search/`
-      : '/search/index_set/union_search/';
+    ? `/search/index_set/${state.indexId}/search/`
+    : '/search/index_set/union_search/';
 
   if (!payload?.isPagination) {
-    const previousRowQueryKey = currentRetrieveRowQueryKey;
-    currentRetrieveRowQueryKey = retrieveRowCacheService.createQueryKey({
+    const previousRowQueryKey = querySession(application).currentRetrieveRowQueryKey;
+    querySession(application).currentRetrieveRowQueryKey = retrieveRowCacheService.createQueryKey({
       searchUrl,
       searchCount,
       indexId: state.indexId,
@@ -440,7 +465,7 @@ export async function requestIndexSetQueryAction(
     if (previousRowQueryKey) {
       storageHealthService.clearActiveQuery(previousRowQueryKey);
       retrieveRowCacheService.releaseQuery(previousRowQueryKey);
-      retrieveRowCacheService.clearQuery(previousRowQueryKey).catch(error => {
+      retrieveRowCacheService.clearQuery(previousRowQueryKey).catch((error) => {
         console.warn('[retrieve-search] clear previous query rows failed', error);
       });
     }
@@ -456,9 +481,9 @@ export async function requestIndexSetQueryAction(
     addition: formatAdditionalFields(state, [...requestAddition, ...getCommonFilterAdditionWithValues(state)]),
   };
 
-  const unionConfigs = state.unionIndexList.map(item => ({
+  const unionConfigs = state.unionIndexList.map((item) => ({
     begin: payload?.isPagination
-      ? (state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
+      ? state.indexItem.catchUnionBeginList.find((cItem) => String(cItem?.index_set_id) === item)?.begin ?? 0
       : 0,
     index_set_id: item,
   }));
@@ -479,8 +504,8 @@ export async function requestIndexSetQueryAction(
   );
 
   const requestRowQueryKey = payload.isPagination
-    ? state.indexSetQueryResult.row_query_key || currentRetrieveRowQueryKey
-    : currentRetrieveRowQueryKey;
+    ? state.indexSetQueryResult.row_query_key || querySession(application).currentRetrieveRowQueryKey
+    : querySession(application).currentRetrieveRowQueryKey;
   const requestCurrentRowKeys = payload.isPagination ? state.indexSetQueryResult.row_keys || [] : [];
   const requestStartSeq = payload.isPagination ? requestCurrentRowKeys.length : 0;
   let isStaleSearchResponse = false;
@@ -488,7 +513,7 @@ export async function requestIndexSetQueryAction(
     payload.isPagination
       ? requestRowQueryKey === state.indexSetQueryResult.row_query_key &&
         requestStartSeq === (state.indexSetQueryResult.row_keys || []).length
-      : requestRowQueryKey === currentRetrieveRowQueryKey;
+      : requestRowQueryKey === querySession(application).currentRetrieveRowQueryKey;
 
   const searchHeaders = buildSearchRequestHeaders(state);
   let thisMainSearchRequestId = '';
@@ -500,14 +525,14 @@ export async function requestIndexSetQueryAction(
       fieldMetadata: getRenderFieldMetadata(state),
       fieldNames: getProjectionFieldNames(state),
       headers: searchHeaders,
-      onRequestId: requestId => {
+      onRequestId: (requestId) => {
         thisMainSearchRequestId = requestId;
-        currentMainSearchRequestId = requestId;
+        querySession(application).currentMainSearchRequestId = requestId;
       },
-      onProgress: progress => {
+      onProgress: (progress) => {
         if (!isCurrentSearchRequest()) return;
         applySearchStreamProgress({
-          commit,
+          application,
           payload,
           progress,
           requestCurrentRowKeys,
@@ -520,12 +545,12 @@ export async function requestIndexSetQueryAction(
       startSeq: requestStartSeq,
       writeMode: payload.isPagination ? 'append' : 'replace',
     })
-    .then(async workerResult => {
+    .then(async (workerResult) => {
       const { code, data, result, message, permission, rowKeys, size, source } = workerResult;
       if (!isCurrentSearchRequest()) {
         isStaleSearchResponse = true;
         if (!payload.isPagination || requestRowQueryKey !== state.indexSetQueryResult.row_query_key) {
-          retrieveRowCacheService.clearQuery(requestRowQueryKey).catch(error => {
+          retrieveRowCacheService.clearQuery(requestRowQueryKey).catch((error) => {
             console.warn('[retrieve-search] clear stale query rows failed', error);
           });
         }
@@ -558,14 +583,14 @@ export async function requestIndexSetQueryAction(
 
         if (!payload?.isPagination) {
           const layoutRows = await retrieveRowCacheService.getRows(rowKeys.slice(0, Math.min(rowKeys.length, 10)));
-          commit('updateIsSetDefaultTableColumn', { list: layoutRows });
+          application.updateIsSetDefaultTableColumn({ list: layoutRows });
         }
-        commit('updateSqlQueryFieldList', []);
-        commit('updateIndexItem', {
+        application.updateSqlQueryFieldList([]);
+        application.updateIndexItem({
           catchUnionBeginList,
           begin: payload.isPagination ? begin : 0,
         });
-        commit('updateIndexSetQueryResult', rsolvedData);
+        application.updateIndexSetQueryResult(rsolvedData);
         storeCacheService
           .setApiCache('retrieve/search-result-meta', requestRowQueryKey, {
             ...rsolvedData,
@@ -573,7 +598,7 @@ export async function requestIndexSetQueryAction(
             row_query_key: requestRowQueryKey,
             cached_count: rsolvedData.cached_count,
           })
-          .catch(error => {
+          .catch((error) => {
             console.warn('[store-cache] cache search meta failed', error);
           });
         const activeQueryKeys = await storageHealthService.getActiveQueryKeys();
@@ -601,7 +626,7 @@ export async function requestIndexSetQueryAction(
       }
 
       if (code === '9900403') {
-        commit('updateState', {
+        application.updateState({
           authDialogData: {
             apply_url: data.apply_url,
             apply_data: permission,
@@ -613,7 +638,7 @@ export async function requestIndexSetQueryAction(
       if (!payload.isPagination) {
         state.searchTotal = 0;
       }
-      commit('updateIndexSetQueryResult', {
+      application.updateIndexSetQueryResult({
         exception_msg: message,
         is_error: !result,
         total: payload.isPagination ? cachedQueryResult.total : 0,
@@ -628,7 +653,7 @@ export async function requestIndexSetQueryAction(
         size: 0,
       };
     })
-    .catch(e => {
+    .catch((e) => {
       if (!isCurrentSearchRequest()) {
         isStaleSearchResponse = true;
         return;
@@ -639,7 +664,7 @@ export async function requestIndexSetQueryAction(
         // 否则快速滚动触发的请求竞态会把一个正常结果集清空成 0。
         cachedQueryResult.is_loading = false;
         cachedQueryResult.is_pagination_loading = false;
-        commit('updateIndexSetQueryResult', cachedQueryResult);
+        application.updateIndexSetQueryResult(cachedQueryResult);
         return { result: false, ignored: true, reason: 'request-canceled' };
       }
 
@@ -647,19 +672,19 @@ export async function requestIndexSetQueryAction(
         state.searchTotal = 0;
         retrieveRowCacheService.clearMemory();
       }
-      commit('updateSqlQueryFieldList', []);
-      commit('updateIndexSetQueryResult', {
+      application.updateSqlQueryFieldList([]);
+      application.updateIndexSetQueryResult({
         is_error: true,
         exception_msg: e?.message ?? e?.toString(),
         total: payload.isPagination ? cachedQueryResult.total : 0,
       });
     })
     .finally(() => {
-      if (currentMainSearchRequestId === thisMainSearchRequestId) {
-        currentMainSearchRequestId = '';
+      if (querySession(application).currentMainSearchRequestId === thisMainSearchRequestId) {
+        querySession(application).currentMainSearchRequestId = '';
       }
       if (!isStaleSearchResponse && isCurrentSearchRequest()) {
-        commit('updateIndexSetQueryResult', {
+        application.updateIndexSetQueryResult({
           is_loading: false,
           is_pagination_loading: false,
         });

@@ -28,6 +28,7 @@ import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, comp
 import { useRouter, useRoute } from 'vue-router/composables';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { markBranch } from '@/common/analyze-trace';
 import * as authorityMap from '@/common/authority-map';
 import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
 import axios from 'axios';
@@ -1679,6 +1680,10 @@ export default defineComponent({
           }
           const shouldContinuePolling =
             res.data.filter(item => ['running', 'unknown'].includes(item.status)).length > 0;
+          markBranch('tableListV2.getCollectStatus', {
+            total: Array.isArray(res.data) ? res.data.length : 0,
+            shouldContinuePolling,
+          });
           tableList.value = tableList.value.map(item => {
             const info = res.data.find(val => val.collector_id === item.collector_config_id);
             if (!info?.status) return item;

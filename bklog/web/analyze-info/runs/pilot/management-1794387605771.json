@@ -1,0 +1,507 @@
+{
+  "schemaVersion": 1,
+  "scope": "MANAGEMENT_PREVIEW_CANCEL_NO_RESOURCE_MUTATION",
+  "status": "INVALID_RUN",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-PdH95Y",
+  "checkpoints": [
+    {
+      "id": "list-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "menu-open",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "stop-type-preview",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "cancel-restored-list",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "label-popup-preview",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "label-filter-no-match",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "label-required-validation",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    }
+  ],
+  "failures": [
+    {
+      "reason": "DRAFT_CANCEL_DID_NOT_CLOSE\n\nexpect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.new-label-container:visible').locator('.new-label-input')\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - DRAFT_CANCEL_DID_NOT_CLOSE locator('.new-label-container:visible').locator('.new-label-input') with timeout 5000ms\n  - waiting for locator('.new-label-container:visible').locator('.new-label-input')\n    14 × locator resolved to 1 element\n       - unexpected value \"1\"\n"
+    }
+  ],
+  "requests": [
+    {
+      "id": "request-1",
+      "path": "/api/v1/meta/index_html_environment/",
+      "method": "GET",
+      "signature": "4c079e7f35fd559ff6c25d8ee12bc74ee264de99b649d34711d536cc4c68bc2d",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "bootstrap-environment"
+      },
+      "startedAt": 1794387588059,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "eeb3df9b525ab8c5600866198caaef0d8a461d36759eb4bb26636ad782a95220",
+          "bytes": 23286
+        }
+      },
+      "finishedAt": 1794387588505
+    },
+    {
+      "id": "request-2",
+      "path": "/api/v1/meta/mine/",
+      "method": "GET",
+      "signature": "8a7efea2f8b2e6c75b30cf8dc2ebe588d39fe245873d3ad0b1bbbc6aa581921f",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getUsername"
+      },
+      "startedAt": 1794387588503,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "f38fffb2d099e44d9087230af1a5abbd2faf2b1ae75f2617d769f084fb12e72e",
+          "bytes": 178
+        }
+      },
+      "finishedAt": 1794387588830
+    },
+    {
+      "id": "request-3",
+      "path": "/api/v1/meta/globals/",
+      "method": "GET",
+      "signature": "35e5b12842a8896ef4487d65987b2c95da9c1f208cc199e16d40bb39f31efc9e",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "globals"
+      },
+      "startedAt": 1794387588503,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "39d1a4484317f2a3e9d2f3a1dd62122581860d771a75941dab8d94de66e0f273",
+          "bytes": 22469
+        }
+      },
+      "finishedAt": 1794387588739
+    },
+    {
+      "id": "request-4",
+      "path": "/api/v1/meta/spaces/mine/",
+      "method": "GET",
+      "signature": "d1ed2cfaae5177f5fd92b33ce26f61729c78085f5617d1339441bd95f2fd7ef0",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getMySpaceList"
+      },
+      "startedAt": 1794387588503,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "651146c20f484eaa43e2f0eb2c0bf83ad8bfadce4b6fd575395497b5fe9ac5e5",
+          "bytes": 329
+        }
+      },
+      "finishedAt": 1794387588884
+    },
+    {
+      "id": "request-5",
+      "path": "/api/v1/frontend_event/report/",
+      "method": "POST",
+      "signature": "1a6bd420d0b1953af4cc129a6060b97ae0e1e0f1099b7d61ecb95484229f7817",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "BLOCK",
+        "reason": "EXCLUDED_TELEMETRY",
+        "ruleId": "telemetry-excluded"
+      },
+      "startedAt": 1794387588881,
+      "complete": false,
+      "finishedAt": 1794387588884,
+      "failure": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "cancelled": false
+    },
+    {
+      "id": "request-6",
+      "path": "/api/v1/meta/spaces/mine/",
+      "method": "GET",
+      "signature": "51154a5620b73b8d0b5f1583782cf02c63d98a17d4a811267e55b657694235a1",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getMySpaceList"
+      },
+      "startedAt": 1794387588883,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "0f350b2314fcb19f475b0d5c849f3cfa619286a0451bb9498231c3a620f4b1e5",
+          "bytes": 41609000
+        }
+      },
+      "finishedAt": 1794387594915
+    },
+    {
+      "id": "request-7",
+      "path": "/notice/announcements/",
+      "method": "GET",
+      "signature": "3cd695d45780c7bc4b532c805ae8865e5313f84632856feed5a90bfa5e8ad447",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "notice-list"
+      },
+      "startedAt": 1794387588896,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 404,
+        "contentType": "text/html; charset=utf-8",
+        "classification": "HTTP_ERROR",
+        "body": {
+          "sha256": "85c4af702b109121cebbea5d5a07524d654f43c81e35701eb8971a7c3e14dd8e",
+          "bytes": 160
+        }
+      },
+      "finishedAt": 1794387589071
+    },
+    {
+      "id": "request-8",
+      "path": "/api/v1/meta/menu/",
+      "method": "GET",
+      "signature": "eba2dfcb90930a93b59abc0ade8f6567ce32b5c7a783312428f207a4f92b1c57",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "menu"
+      },
+      "startedAt": 1794387588957,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "4a230dc8f4f66c29aa54489fe07303cfd45080dd1f7654fd647d3139d20c59fc",
+          "bytes": 3486
+        }
+      },
+      "finishedAt": 1794387589204
+    },
+    {
+      "id": "request-9",
+      "path": "/api/v1/meta/user_guide/",
+      "method": "GET",
+      "signature": "ff3713a0706b10b90cceb232eb3a800b374af55f625310efba96fcd516ef1e91",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getUserGuide"
+      },
+      "startedAt": 1794387588958,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "bdd636a9b8e11261102ca4674cd9abbc0cf1db65c7bae13982b78801ef9f4747",
+          "bytes": 397
+        }
+      },
+      "finishedAt": 1794387589204
+    },
+    {
+      "id": "request-10",
+      "path": "/api/v1/databus/log_access/collector_field_enums/",
+      "method": "GET",
+      "signature": "0e9867f72762961a743ee57ab3336d6804dc5e10bba1849242ad6550e67f0660",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "collectorFieldEnums"
+      },
+      "startedAt": 1794387589068,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "a68194af1e1958c2c2e6baa5b6420360e635e12b93dc7990685110e712c543b6",
+          "bytes": 27266
+        }
+      },
+      "finishedAt": 1794387589844
+    },
+    {
+      "id": "request-11",
+      "path": "/api/v1/index_set/tag/list/",
+      "method": "GET",
+      "signature": "7f2a207af568c751cb5e79d726e40a6638c78d86a35baf3ef9b197e1a8ae6ad3",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "unionLabelList"
+      },
+      "startedAt": 1794387589069,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "15c27bcc12436f8dd09789f8a9d53d4b01cc7e255ebaa3bc61f1bf1e84c05b14",
+          "bytes": 1310
+        }
+      },
+      "finishedAt": 1794387589274
+    },
+    {
+      "id": "request-12",
+      "path": "/api/v1/index_group/",
+      "method": "GET",
+      "signature": "6e277b17f6235f016e9e40b5da0573752fe42e95d3dd4c98bf39a4be0a76feab",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getIndexGroupList"
+      },
+      "startedAt": 1794387589069,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "243b0116a9b3acbc1b55ed438fd16d6fd37caafbe7a46bfe25957769e6870c9f",
+          "bytes": 317
+        }
+      },
+      "finishedAt": 1794387589404
+    },
+    {
+      "id": "request-13",
+      "path": "/api/v1/iam/meta/check_allowed/",
+      "method": "POST",
+      "signature": "aef11b2ea5952a3c64acc9062505ba07b1148d7e1b68de9097b5c0a1814bb792",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "checkAllowed"
+      },
+      "startedAt": 1794387589070,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "21502816f4c7a65feec2b6fdd226abaf228515fb133c769b46a68031e6790192",
+          "bytes": 101
+        }
+      },
+      "finishedAt": 1794387589404
+    },
+    {
+      "id": "request-14",
+      "path": "/api/v1/databus/log_access/collector/",
+      "method": "POST",
+      "signature": "16dedce2f41fdc6bcdf074d7620c3605abc3daacca1cd3ff37d9f7e80db81b83",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "newCollectList"
+      },
+      "startedAt": 1794387589401,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "0f14f5dfde1b3ee25c4d551f93cb3f6c48582aea43e46f42eb6defcbdcd84348",
+          "bytes": 11577
+        }
+      },
+      "finishedAt": 1794387590578
+    },
+    {
+      "id": "request-15",
+      "path": "/api/v1/databus/log_access/collector_field_enums/",
+      "method": "GET",
+      "signature": "0e9867f72762961a743ee57ab3336d6804dc5e10bba1849242ad6550e67f0660",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "collectorFieldEnums"
+      },
+      "startedAt": 1794387589402,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "a68194af1e1958c2c2e6baa5b6420360e635e12b93dc7990685110e712c543b6",
+          "bytes": 27266
+        }
+      },
+      "finishedAt": 1794387590217
+    },
+    {
+      "id": "request-16",
+      "path": "/api/v1/index_set/storage_usage/",
+      "method": "POST",
+      "signature": "d384d091e60518d23c54376b7ac93dd1997abc5423e6b67cbf1cd46741ff0df0",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getStorageUsage"
+      },
+      "startedAt": 1794387590576,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "7735e15b14b0e85231ce055b267b49c2e28263d63b18b0eb702437128b4a4168",
+          "bytes": 1087
+        }
+      },
+      "finishedAt": 1794387597243
+    },
+    {
+      "id": "request-17",
+      "path": "/api/v1/databus/log_access/collector_status/",
+      "method": "POST",
+      "signature": "92de3f60d2045f6c1aa153668f46867da331885dd5c7624548c718532f341f8d",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getCollectorStatus"
+      },
+      "startedAt": 1794387590576,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "1ef889cb3f6add8737d1b1616f75e7be8e10749d39eb1e8b87b051c338251b2e",
+          "bytes": 578
+        }
+      },
+      "finishedAt": 1794387590996
+    }
+  ]
+}

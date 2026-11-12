@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -33,7 +35,7 @@ import * as authorityMap from '@/shared/lib/authority-map';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
@@ -44,7 +46,7 @@ import './link-list.scss';
 export default defineComponent({
   name: 'ExtractLinkList',
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
     const { t } = useLocale();
 
@@ -67,12 +69,12 @@ export default defineComponent({
       limitList: [10, 20, 50, 100],
     });
 
-    const spaceUid = computed(() => store.getters.spaceUid); // 空间UID
+    const spaceUid = computed(() => store.spaceUid); // 空间UID
 
     // 权限校验，校验通过后拉取链路列表
     const checkManageAuth = async () => {
       try {
-        const res = await store.dispatch('checkAllowed', {
+        const res = await store.checkAllowed({
           action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
           resources: [
             {
@@ -140,7 +142,7 @@ export default defineComponent({
       } else {
         try {
           isButtonLoading.value = true;
-          const res = await store.dispatch('getApplyData', {
+          const res = await store.getApplyData({
             action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
             resources: [
               {
@@ -149,7 +151,7 @@ export default defineComponent({
               },
             ],
           });
-          store.commit('updateState', { authDialogData: res.data });
+          store.updateState({ authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {

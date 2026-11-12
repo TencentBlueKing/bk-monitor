@@ -1,3 +1,4 @@
+import { nativeStateFixture } from './helpers/native-state-fixture.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';
@@ -32,9 +33,12 @@ const store = {
   },
 };
 const common = {
+  '@/app/state/domains/application-store': { useApplicationStore: () => nativeStateFixture(store) },
+  '@/app/state/domains/retrieve-store': {useRetrieveStore:()=>({...store.state.retrieve,$state:store.state.retrieve})},
+  '@/app/state/domains/globals-store': {useGlobalsStore:()=>({$state:store.state.globals})},
   'vue-property-decorator': decorators,
   'vue-tsx-support': { Component: ComponentBase },
-  'tdesign-vue-next': {},
+  'tdesign-vue-next': {Popup: {name:'NativePopupFixture'}, Tooltip:{name:'Tooltip'}, Drawer:{name:'Drawer'}},
   './agg-chart': {},
   './field-analysis': {},
   '@/shared/lib/util': { blobDownload() {} },
@@ -119,17 +123,17 @@ test('native analysis popup retains V2 availability rules and explicit title/ico
   assert.equal(vm.analysisActive, false);
 });
 
-test('native popup positioning safely handles a closed or unmounted overlay', (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] });
-  const vm = field();
-  let updated = 0;
-  vm.analysisPopupRef = { update: () => updated++ };
-  vm.updatePopperInstance();
-  t.mock.timers.tick(100);
-  assert.equal(updated, 1);
-  vm.updatePopperInstance();
-  vm.analysisPopupRef = undefined;
-  assert.doesNotThrow(() => t.mock.timers.tick(100));
+test('native popup owns positioning and safely closes after its reference is released', () => {
+  const vm = field();vm.$t = value => value;
+  const popup = () => vm.render().children[0];
+  assert.equal(popup().type.name, 'NativePopupFixture');
+  assert.equal(popup().props.attach, 'body');assert.equal(popup().props.placement,'right');
+  assert.equal(popup().props.visible,false);assert.equal(popup().props['v-slots'].content(),null);
+  vm.handleClickAnalysisItem();assert.equal(popup().props.visible,true);
+  vm.analysisPopupRef=undefined;
+  assert.doesNotThrow(()=>vm.handleAnalysisVisibleChange(false,{trigger:'document'}));
+  assert.equal(popup().props.visible,false);assert.equal(popup().props['v-slots'].content(),null);
+  assert.doesNotThrow(()=>vm.instanceDestroy());
 });
 
 test('field display toggle closes analysis and preserves the original type and field payload', () => {

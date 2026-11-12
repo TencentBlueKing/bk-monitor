@@ -45,7 +45,9 @@
 </template>
 
 <script>
-  import AuthContainerPage from '@/shared/ui/common/auth-container-page';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import AuthContainerPage from '@/shared/ui/common/auth-container-page';
   import BklogLoading from '@/shared/ui/loading';
 
   import * as authorityMap from '../../shared/lib/authority-map';
@@ -66,10 +68,10 @@
     },
     computed: {
       spaceUid() {
-        return this.$store.state.spaceUid;
+        return useApplicationStore().spaceUid;
       },
       bkBizId() {
-        return this.$store.state.bkBizId;
+        return useApplicationStore().bkBizId;
       },
     },
     watch: {
@@ -128,7 +130,7 @@
       // 检查是否有查看权限
       async checkViewAuth() {
         try {
-          const res = await this.$store.dispatch('checkAndGetData', {
+          const res = await useApplicationStore().checkAndGetData({
             action_ids: [authorityMap.VIEW_DASHBOARD_AUTH],
             resources: [
               {
@@ -210,7 +212,7 @@
       // 检查是否有管理权限
       async checkManageAuth() {
         try {
-          const res = await this.$store.dispatch('checkAndGetData', {
+          const res = await useApplicationStore().checkAndGetData({
             action_ids: [authorityMap.MANAGE_DASHBOARD_AUTH],
             resources: [
               {
@@ -220,7 +222,7 @@
             ],
           });
           if (res.isAllowed === false) {
-            this.$store.commit('updateState', { authDialogData: res.data });
+            useApplicationStore().updateState({ authDialogData: res.data });
             this.isLoading = false;
             return false;
           }

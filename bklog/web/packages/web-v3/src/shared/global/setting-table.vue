@@ -305,7 +305,7 @@
                                 <t-switch
                                   v-model:value="currentIsAnalyzed"
                                   :disabled="getCustomizeDisabled(props.row, 'analyzed')"
-                                  
+
                                   @change="() => handelChangeAnalyzed()"
                                 ></t-switch>
                               </bk-form-item>
@@ -343,7 +343,7 @@
                                 <t-switch
                                   v-model:value="currentIsCaseSensitive"
                                   :disabled="getCustomizeDisabled(props.row)"
-                                  
+
                                 ></t-switch>
                               </bk-form-item>
                             </bk-form>
@@ -398,7 +398,15 @@
   </div>
 </template>
 <script>
-  import { mapGetters } from '@/app/state/map-helpers';
+import { mapState as mapPiniaState } from 'pinia';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
+
   import { isFieldTypeDisabled, judgeNumber } from '@/shared/lib/util';
   import BklogPopover from '@/shared/ui/bklog-popover/index';
 
@@ -557,11 +565,11 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
       }),
-      ...mapGetters('collect', ['curCollect']),
-      ...mapGetters('globals', ['globalsData']),
+      ...mapPiniaState(useCollectionStore, ['curCollect']),
+      ...mapPiniaState(useGlobalsStore, ['globalsData']),
       isSettingDisable() {
         return !this.fields.length;
       },
@@ -584,7 +592,7 @@
         return currentTableList;
       },
       getParticipleWidth() {
-        return this.$store.getters.isEnLanguage ? '65' : '50';
+        return useApplicationStore().isEnLanguage ? '65' : '50';
       },
     },
     watch: {
@@ -603,7 +611,7 @@
     methods: {
       reset() {
         const arr = [];
-        const copyFields = structuredClone(this.fields); // option指向地址bug
+        const copyFields = cloneReactiveData(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
           typeErr: false,
@@ -648,7 +656,7 @@
         this.$emit('reset');
       },
       batchAddField() {
-        const indexSetList = this.$store.state.retrieve.flatIndexSetList;
+        const indexSetList = useRetrieveStore().flatIndexSetList;
         const indexSetId = this.$route.params?.indexId;
         const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` === indexSetId);
 
@@ -755,7 +763,7 @@
       },
       judgeNumber,
       getData() {
-        const data = structuredClone(this.changeTableList);
+        const data = cloneReactiveData(this.changeTableList);
 
         data.forEach(item => {
           if (Object.prototype.hasOwnProperty.call(item, 'fieldErr')) {
@@ -772,7 +780,7 @@
         return data;
       },
       getAllData() {
-        const data = structuredClone(this.tableAllList);
+        const data = cloneReactiveData(this.tableAllList);
         data.forEach(field => {
           if (Object.prototype.hasOwnProperty.call(field, 'expand')) {
             if (field.expand === false) {
@@ -1046,8 +1054,8 @@
         }
       },
       addObject() {
-        const fieldsObjectData = structuredClone(
-          this.$store.getters.rawFieldList.filter(item => item.field_name.includes('.')),
+        const fieldsObjectData = cloneReactiveData(
+          useApplicationStore().rawFieldList.filter(item => item.field_name.includes('.')),
         );
         fieldsObjectData.forEach(item => {
           const name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');

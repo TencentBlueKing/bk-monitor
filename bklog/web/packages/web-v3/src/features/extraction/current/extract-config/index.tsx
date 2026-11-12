@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -32,7 +34,7 @@ import { defineComponent, ref, computed, onMounted } from 'vue';
 import * as authorityMap from '@/shared/lib/authority-map';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
@@ -48,7 +50,7 @@ export default defineComponent({
     EmptyStatus,
   },
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
     const directoryRef = ref<any>(null);
 
@@ -71,14 +73,14 @@ export default defineComponent({
     const userApi = ref(''); // 用户API
     const emptyType = ref('empty'); // 空状态类型
 
-    const spaceUid = computed(() => store.getters.spaceUid); // 空间UID
-    const bkBizId = computed(() => store.state.bkBizId); // 业务ID
-    const userMeta = computed(() => store.state.userMeta); // 用户元数据
+    const spaceUid = computed(() => store.spaceUid); // 空间UID
+    const bkBizId = computed(() => store.bkBizId); // 业务ID
+    const userMeta = computed(() => store.userMeta); // 用户元数据
 
     // 检查管理权限
     const checkManageAuth = async () => {
       try {
-        const res = await store.dispatch('checkAllowed', {
+        const res = await store.checkAllowed({
           action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
           resources: [
             {
@@ -145,7 +147,7 @@ export default defineComponent({
       if (!isAllowedManage.value) {
         try {
           isButtonLoading.value = true;
-          const res = await store.dispatch('getApplyData', {
+          const res = await store.getApplyData({
             action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
             resources: [
               {
@@ -154,7 +156,7 @@ export default defineComponent({
               },
             ],
           });
-          store.commit('updateState', { authDialogData: res.data });
+          store.updateState({ authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {

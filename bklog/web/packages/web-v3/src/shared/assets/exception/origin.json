@@ -1,0 +1,52 @@
+{
+  "package": "bk-magic-vue",
+  "version": "2.5.10-beta.15",
+  "license": "MIT",
+  "source": "lib/exception.js",
+  "sourceSha256": "3d0ab984520760b2a77f99e599f5fa1dba7dca32a16368d38045134c23ebe0be",
+  "generation": "byte-identical SVG payload extraction; no runtime dependency on the original component library",
+  "assets": [
+    {
+      "type": "building",
+      "file": "building.svg",
+      "sha256": "5952376bb0116825a325f6cbea4d2bd8dac2a6eb42e110c688db49657238f86f",
+      "bytes": 23378
+    },
+    {
+      "type": "404",
+      "file": "404.svg",
+      "sha256": "345b0cd595513c8a53c7421ac475b97270afe58c2f79160150a35b3ff99340a0",
+      "bytes": 18001
+    },
+    {
+      "type": "403",
+      "file": "403.svg",
+      "sha256": "ff65f17d53672128468023236da1d7d339a7d9bf3a5eab0500214a482e07869f",
+      "bytes": 9351
+    },
+    {
+      "type": "500",
+      "file": "500.svg",
+      "sha256": "5dc9191960b844c5c31e18e48d79d3e0e13503314fbc54f1505bc5d7951cca20",
+      "bytes": 7892
+    },
+    {
+      "type": "empty",
+      "file": "empty.svg",
+      "sha256": "beb46e9693f9457ff48161acfbbdbecd49c69060c130edff510c88733662d260",
+      "bytes": 5829
+    },
+    {
+      "type": "search-empty",
+      "file": "search-empty.svg",
+      "sha256": "cda37b76af519454f35f4461e62b4aeadc4fb9705c0e5e2dfa49e4945dd18298",
+      "bytes": 9744
+    },
+    {
+      "type": "login",
+      "file": "login.svg",
+      "sha256": "d8a8e7a1674f64d65bcc948299e9eb88d54293b4a0ce7bc147fc2d67aeaf4baa",
+      "bytes": 12734
+    }
+  ]
+}

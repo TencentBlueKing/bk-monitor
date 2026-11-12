@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Switch as TSwitch } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
@@ -33,7 +35,7 @@ import { computed, defineComponent, isRef, nextTick, onBeforeUnmount, onMounted,
 import TextHighlight from '@/shared/ui/text-highlight';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 // import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import BkUserSelector from '@blueking/user-selector';
 
@@ -152,7 +154,7 @@ export default defineComponent({
       if (owners && Array.isArray(owners.value)) return owners.value as string[];
       return [] as string[];
     };
-    const store = useStore();
+    const store = useApplicationStore();
     let activeMarkElement: HTMLElement | null = null;
     const isExternal = window.IS_EXTERNAL === true;
 
@@ -279,15 +281,15 @@ export default defineComponent({
       });
 
       // 聚类下钻只能使用ui模式
-      store.commit('updateIndexItem', { search_mode: 'ui' });
+      store.updateIndexItem({ search_mode: 'ui' });
       // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
-      store.commit('updateState', { key: 'clusterParams', value: null });
-      store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
+      store.updateState({ key: 'clusterParams', value: null });
+      store.setQueryCondition(additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
         if (isLink) {
           const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
           window.open(openUrl, '_blank', 'noopener,noreferrer');
           // 新开页后当前页面回填聚类参数
-          store.commit('updateState', {
+          store.updateState({
             key: 'clusterParams',
             value: props.requestData,
           });
@@ -403,7 +405,7 @@ export default defineComponent({
     const handleStrategyInfoClick = (row: ClusterPatternRow|undefined) => {
       currentRowId.value = row.id;
       window.open(
-        `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
+        `${window.MONITOR_URL}/?bizId=${store.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
         '_blank',
         'noopener,noreferrer',
       );
@@ -469,7 +471,7 @@ export default defineComponent({
         value: [row.group[index]],
         from: 'cluster',
       }));
-      store.dispatch('setQueryCondition', addConditions);
+      store.setQueryCondition(addConditions);
       RetrieveHelper.searchValueChange('cluster', addConditions);
     };
 
@@ -752,7 +754,7 @@ export default defineComponent({
                 {getOwners(row.data).length > 0 ? (
                   <div class='is-able'>
                     <TSwitch
-                      
+
                       value={row.data?.strategy_enabled}
                       onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => changeStrategy(val, row.data))(value); }}
                     />
@@ -768,7 +770,7 @@ export default defineComponent({
                 ) : (
                   <TSwitch
                     v-log-tooltip={t('暂无配置责任人，无法自动创建告警策略')}
-                    
+
                     value={row.data?.strategy_enabled}
                     disabled
                   />

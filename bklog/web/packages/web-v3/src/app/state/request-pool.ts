@@ -25,7 +25,7 @@
  */
 import axios from 'axios';
 
-class RequestPool {
+export class RequestPool {
   cancelStore: Map<string, () => void>;
   constructor() {
     this.cancelStore = new Map();

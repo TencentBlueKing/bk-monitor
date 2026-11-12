@@ -38,16 +38,17 @@
           <template v-for="groupItem in menuList" :key="groupItem.id">
             <t-menu-group
               v-if="getGroupChildren(groupItem.children).length"
-              :title="isExpand ? groupItem.name : ''"
+              :title="isExpand ? groupItem.name : groupItem.keyword"
             >
               <template v-for="navItem in getGroupChildren(groupItem.children)" :key="navItem.id">
                 <a
                   v-if="shouldShowMenuItem(navItem.id)"
                   class="nav-item"
+                  :data-test-id="`navBox_nav_${navItem.id}`"
                   :href="getRouteHref(navItem.id)"
                   @click="handleMenuAnchorClick($event, navItem.id)"
                 >
-                  <t-menu-item :value="navItem.id" :data-test-id="`navBox_nav_${navItem.id}`">
+                  <t-menu-item :value="navItem.id">
                     <template #icon><i :class="getMenuIcon(navItem)"></i></template>
                     <span v-show="isExpand">{{ navItem.name }}</span>
                   </t-menu-item>
@@ -80,10 +81,16 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
 import { Menu as TMenu, MenuGroup as TMenuGroup, MenuItem as TMenuItem } from 'tdesign-vue-next';
 import SubNav from '@/features/navigation/manage-nav';
 import AuthContainerPage from '@/shared/ui/common/auth-container-page.vue';
-import { mapState } from '@/app/state/map-helpers';
+
 import { isFeatureToggleOn } from '@/app/state/helper';
 
 export default {
@@ -111,9 +118,9 @@ export default {
     };
   },
   computed: {
-    ...mapState(['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
+    ...mapPiniaState(useApplicationStore, ['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
     authPageInfo() {
-      return this.isHeadless ? null : this.$store.getters['globals/authContainerInfo'];
+      return this.isHeadless ? null : useGlobalsStore().authContainerInfo;
     },
     manageNavList() {
       if (this.isHeadless) {
@@ -192,8 +199,8 @@ export default {
     this.refreshKey = this.buildRefreshKey();
   },
   mounted() {
-    const bkBizId = this.$store.state.bkBizId;
-    const spaceUid = this.$store.state.spaceUid;
+    const bkBizId = useApplicationStore().bkBizId;
+    const spaceUid = useApplicationStore().spaceUid;
 
     this.$router
       .replace({
@@ -242,7 +249,7 @@ export default {
       this.$router.push({
         name: id,
         query: {
-          spaceUid: this.$store.state.spaceUid,
+          spaceUid: useApplicationStore().spaceUid,
         },
       });
     },
@@ -304,7 +311,7 @@ export default {
       const newUrl = this.$router.resolve({
         name: pageName,
         query: {
-          spaceUid: this.$store.state.spaceUid,
+          spaceUid: useApplicationStore().spaceUid,
         },
       });
       return newUrl.href;
@@ -330,8 +337,8 @@ export default {
     },
     // 检查 tgpa_task 功能开关
     checkTgpaTaskFeatureToggle() {
-      const bizId = this.$store.state.bkBizId;
-      const spaceUid = this.$store.state.spaceUid;
+      const bizId = useApplicationStore().bkBizId;
+      const spaceUid = useApplicationStore().spaceUid;
       return isFeatureToggleOn('tgpa_task', [String(bizId), String(spaceUid)], { defaultEnabled: true });
     },
     // 检查当前路由是否为 tgpa-task 相关路由
@@ -421,6 +428,66 @@ export default {
     --td-gray-color-10: #3b4660;
   }
 
+  // V2 navigation metrics: list gutter 12px, group headings 40/48px,
+  // and 40px menu rows with 2px vertical space on each side.
+  :deep(.t-default-menu .t-menu) {
+    padding: 12px 0 4px;
+    // V2 hides the navigation scrollbar while keeping wheel/trackpad scrolling.
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+  }
+
+  :deep(.t-default-menu .t-menu-group__title) {
+    display: block;
+    padding: 26px 18px 6px;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    color: #66748f;
+    white-space: nowrap;
+  }
+
+  :deep(.t-default-menu .t-menu-group:first-child .t-menu-group__title) {
+    padding-top: 18px;
+  }
+
+  :deep(.t-default-menu.t-is-collapsed .t-menu-group:first-child .t-menu-group__title) {
+    display: block;
+  }
+
+  :deep(.t-default-menu.t-is-collapsed .t-menu-group__title::after) {
+    display: none;
+  }
+
+  :deep(.t-default-menu .t-menu .t-menu-group > .nav-item) {
+    height: 44px;
+    padding: 2px 0;
+    margin: 0;
+  }
+
+  :deep(.t-default-menu .t-menu .t-menu__item) {
+    justify-content: flex-start;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 12px 0 22px;
+    margin: 0;
+    font-size: 14px;
+    border-radius: 0;
+
+    > i {
+      flex: 0 0 16px;
+      width: 16px;
+      margin-right: 22px;
+      font-size: 16px;
+    }
+  }
+
   .nav-item {
     display: block;
     color: inherit;
@@ -428,10 +495,6 @@ export default {
   }
 
   &:not(.is-expanded) {
-    :deep(.t-menu__group-title) {
-      display: none;
-    }
-
     :deep(.t-menu__item) {
       justify-content: center;
       overflow: hidden;

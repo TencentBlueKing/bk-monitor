@@ -181,10 +181,14 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
-  import { mapGetters } from '@/app/state/map-helpers';
+
   import useUtils from '@/shared/composables/use-utils';
 
   import * as authorityMap from '../../../../shared/lib/authority-map';
@@ -213,7 +217,7 @@
       };
     },
     computed: {
-      ...mapGetters(['spaceUid']),
+      ...mapPiniaState(useApplicationStore, {"spaceUid": "spaceUid"}),
     },
     created() {
       this.checkManageAuth();
@@ -221,7 +225,7 @@
     methods: {
       async checkManageAuth() {
         try {
-          const res = await this.$store.dispatch('checkAllowed', {
+          const res = await useApplicationStore().checkAllowed({
             action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
             resources: [
               {
@@ -248,7 +252,7 @@
         try {
           this.isLoading = true;
           const res = await ServicesInstance.extractManage.getStrategyList({
-            query: { bk_biz_id: this.$store.state.bkBizId },
+            query: { bk_biz_id: useApplicationStore().bkBizId },
           });
           const { formatResponseListTimeZoneString } = useUtils();
           this.strategyList = formatResponseListTimeZoneString(res.data || []);
@@ -263,7 +267,7 @@
         if (!this.isAllowedManage) {
           try {
             this.isButtonLoading = true;
-            const res = await this.$store.dispatch('getApplyData', {
+            const res = await useApplicationStore().getApplyData({
               action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
               resources: [
                 {
@@ -272,7 +276,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', { authDialogData: res.data });
+            useApplicationStore().updateState({ authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {
@@ -288,7 +292,7 @@
           user_list: [],
           visible_dir: [''],
           file_type: [''],
-          operator: this.$store.state.userMeta.operator,
+          operator: useApplicationStore().userMeta.operator,
           select_type: 'topo',
           modules: [],
         };
@@ -332,7 +336,7 @@
 
         this.isSliderLoading = true;
         const data = Object.assign(strategyData, {
-          bk_biz_id: this.$store.state.bkBizId,
+          bk_biz_id: useApplicationStore().bkBizId,
         });
 
         if (this.type === 'create') {

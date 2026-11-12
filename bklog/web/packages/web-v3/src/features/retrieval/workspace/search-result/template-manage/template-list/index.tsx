@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 import { computed, defineComponent, ref, nextTick, watch } from 'vue';
-import useStore from '@/shared/composables/use-store';
+
 import useLocale from '@/shared/composables/use-locale';
 
 import CreateTemplate from './create-template/index';
@@ -54,13 +56,13 @@ export default defineComponent({
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const currentTemplateIndex = ref(0);
     const searchValue = ref('');
     const templateList = ref<TemplateItemType[]>([]);
 
-    const spaceUid = computed(() => store.state.spaceUid);
+    const spaceUid = computed(() => store.spaceUid);
     const currentTemplate = computed(() => templateList.value[currentTemplateIndex.value]);
 
     let localTemplateList: TemplateItemType[] = [];

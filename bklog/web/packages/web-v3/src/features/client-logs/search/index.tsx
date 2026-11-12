@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -37,7 +39,7 @@ import LogDetailPanel from './log-detail-panel/index';
 import { MAX_BATCH_DOWNLOAD_TASKS } from './types';
 import type { SearchParams, LogItem, UserReportStats, ProcessStatus, DataSource, UrlState } from './types';
 import useUrlSync from './use-url-sync';
-import useStore from '@/shared/composables/use-store';
+
 
 import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
 import { t } from '@/shared/composables/use-locale';
@@ -58,7 +60,7 @@ export default defineComponent({
     LogDetailPanel,
   },
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
 
     // ---- URL 参数同步 ----
@@ -68,8 +70,8 @@ export default defineComponent({
     // ---- 从 URL 回填 spaceUid 到 store ----
     const route = useRoute();
     const urlSpaceUid = route.query.spaceUid as string;
-    if (urlSpaceUid && urlSpaceUid !== store.state.spaceUid) {
-      store.commit('updateSpace', urlSpaceUid);
+    if (urlSpaceUid && urlSpaceUid !== store.spaceUid) {
+      store.updateSpace(urlSpaceUid);
     }
 
     /** 是否有下载权限 */
@@ -84,7 +86,7 @@ export default defineComponent({
             resources: [
               {
                 type: 'space',
-                id: store.state.spaceUid,
+                id: store.spaceUid,
               },
             ],
           },
@@ -282,7 +284,7 @@ export default defineComponent({
       }
       isTaskListLoading.value = true;
 
-      const bkBizId = store.state.bkBizId;
+      const bkBizId = store.bkBizId;
       const [startTime, endTime] = params.timeRange;
 
       const query: Record<string, any> = {
@@ -441,7 +443,7 @@ export default defineComponent({
         userReportStats.value = null;
         return;
       }
-      const bkBizId = store.state.bkBizId;
+      const bkBizId = store.bkBizId;
       const [startTime, endTime] = lastSearchParams.value.timeRange;
 
       const query: Record<string, any> = {
@@ -518,7 +520,7 @@ export default defineComponent({
       const taskItems = pendingItems.filter(item => item.source === 'task');
       const reportItems = pendingItems.filter(item => item.source === 'report');
 
-      const bkBizId = store.state.bkBizId;
+      const bkBizId = store.bkBizId;
 
       // 同时查询 task 和 report 类型任务状态
       const queries: Promise<void>[] = [];
@@ -605,7 +607,7 @@ export default defineComponent({
       updateTasksByFileName(item, 'running');
 
       // 调用同步接口
-      const bkBizId = store.state.bkBizId;
+      const bkBizId = store.bkBizId;
       try {
         if (item.source === 'task') {
           await ServicesInstance.clientLog.syncTask({
@@ -635,7 +637,7 @@ export default defineComponent({
       try {
         const params = {
           query: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
           },
         };
 
@@ -655,9 +657,9 @@ export default defineComponent({
         if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
           // 业务切换时清空 URL 中的条件
           clearUrlParams();
-          const isExternal = store.state.isExternal;
-          const hasPermission = isFeatureToggleOn('tgpa_task', [String(store.state.bkBizId), String(newSpaceUid)]);
-          const externalMenu = store.state.externalMenu as string[];
+          const isExternal = store.isExternal;
+          const hasPermission = isFeatureToggleOn('tgpa_task', [String(store.bkBizId), String(newSpaceUid)]);
+          const externalMenu = store.externalMenu as string[];
           const hasExternalPermission = isExternal && (externalMenu || []).includes('client-log-search');
           // 灰度开关关闭 或 外部版无权限 则跳转
           if (!hasPermission || (isExternal && !hasExternalPermission)) {
@@ -668,7 +670,7 @@ export default defineComponent({
               name: targetRoute,
               query: {
                 spaceUid: String(newSpaceUid),
-                bizId: String(store.state.bkBizId),
+                bizId: String(store.bkBizId),
               },
             });
             return;
@@ -721,9 +723,9 @@ export default defineComponent({
 
     onMounted(async () => {
       // 页面挂载时检查功能开关/权限，无权限则跳转
-      const isExternal = store.state.isExternal;
-      const hasPermission = isFeatureToggleOn('tgpa_task', [String(store.state.bkBizId), String(store.state.spaceUid)]);
-      const externalMenu = store.state.externalMenu as string[];
+      const isExternal = store.isExternal;
+      const hasPermission = isFeatureToggleOn('tgpa_task', [String(store.bkBizId), String(store.spaceUid)]);
+      const externalMenu = store.externalMenu as string[];
       const hasExternalPermission = isExternal && (externalMenu || []).includes('client-log-search');
       // 灰度开关关闭 或 外部版无权限 则跳转
       if (!hasPermission || (isExternal && !hasExternalPermission)) {
@@ -733,8 +735,8 @@ export default defineComponent({
         router.replace({
           name: targetRoute,
           query: {
-            spaceUid: String(store.state.spaceUid),
-            bizId: String(store.state.bkBizId),
+            spaceUid: String(store.spaceUid),
+            bizId: String(store.bkBizId),
           },
         });
         return;

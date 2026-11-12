@@ -23,6 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
+
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
 
 import { Input as TInput } from 'tdesign-vue-next';
 import { Alert as TAlert } from 'tdesign-vue-next';
@@ -31,7 +36,7 @@ import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, computed, watch, onBeforeUnmount, onMounted, nextTick } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { isFieldTypeDisabled, judgeNumber } from '@/shared/lib/util';
 import tippy, { type Instance } from 'tippy.js';
 import TableComponent from '../../common-comp/table-component';
@@ -184,9 +189,9 @@ export default defineComponent({
   emits: ['close', 'confirm', 'refresh'],
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     /** 字段类型选项：与 FieldList 一致，取自 global 接口（globals.field_data_type） */
-    const fieldTypeOptions = computed(() => store.getters['globals/globalsData']?.field_data_type || []);
+    const fieldTypeOptions = computed(() => useGlobalsStore().globalsData?.field_data_type || []);
     /** 当前字段类型是否禁用（与 FieldList 一致，基于字段预览值判断） */
     const isTypeDisabled = (row: PreviewFieldRow, option: { id: string }) => {
       // 无调试结果（template 回填）时没有真实预览值，不做类型禁用，对齐 FieldList 新增行
@@ -471,7 +476,7 @@ export default defineComponent({
               <div class='menu-item'>
                 <span class='menu-item-label'>{t('分词')}</span>
                 <TSwitch
-                  
+
                   value={cacheData.value.is_analyzed}
                   onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
                     cacheData.value.is_analyzed = value;
@@ -511,7 +516,7 @@ export default defineComponent({
                 <span class='menu-item-label'>{t('大小写敏感')}</span>
                 <TSwitch
                   disabled={!cacheData.value.is_analyzed}
-                  
+
                   value={cacheData.value.is_case_sensitive}
                   onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
                     cacheData.value.is_case_sensitive = value;
@@ -921,7 +926,7 @@ export default defineComponent({
                 logExampleText.value = val;
               }}
             />
-            <TButton
+            <TButton theme='default' variant='outline'
               class='re-debug-btn'
               disabled={!logExampleText.value || isDebugLoading.value}
               onClick={handleDebug}

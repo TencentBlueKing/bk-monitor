@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { nativeStateFixture } from './native-state-fixture.mjs';
 import { createServiceFixture } from './service-fixture.mjs';
 
 import { readFileSync } from 'node:fs';
@@ -37,6 +38,7 @@ const parser = require('@babel/parser');
 // or issuing HTTP requests. Component/render behavior is verified in browser.
 export function loadScriptSetup(file, bindings) {
   const dependencies = { ...bindings };
+  if (bindings.useStore && !bindings.useApplicationStore) dependencies.useApplicationStore = () => nativeStateFixture(bindings.useStore());
   if (bindings.$http?.request) dependencies.ServicesInstance = createServiceFixture(bindings.$http.request);
   const { descriptor } = parse(readFileSync(file, 'utf8'), { filename: fileURLToPath(file) });
   let code = compileScript(descriptor, { id: 'source-contract' }).content;

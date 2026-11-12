@@ -65,3 +65,38 @@
       }
     }
   }
+
+// Preserve the V2 dialog's 480px content, 24px gutters and 47px footer.
+// Scope these measurements to this business dialog; other dialogs have their own contracts.
+body .t-dialog.stop-type-dialog {
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+
+  .t-dialog__header {
+    height: 54px;
+    padding: 0 24px;
+    color: #313238;
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 24px;
+  }
+
+  .t-dialog__body {
+    padding: 3px 24px 24px;
+    overflow: visible;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
+    width: 100%;
+    margin: 0;
+    padding: 7px 24px;
+  }
+
+  .t-dialog__close {
+    top: 5px;
+    right: 5px;
+  }
+}

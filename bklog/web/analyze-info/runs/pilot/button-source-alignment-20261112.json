@@ -1,0 +1,354 @@
+{
+  "schemaVersion": 1,
+  "scope": "SOURCE_PROPS_ALIGNMENT_NOT_BROWSER_ACCEPTANCE",
+  "controls": 22,
+  "files": 10,
+  "changes": [
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.tsx",
+      "beforeSha256": "5efa464448ef265752101b22700b085ef6c24a6da6f4540c6e7468c0ab0545f9",
+      "afterSha256": "d4ddb332f42f1563200d60a5f8851d0d823c43382f9de5f0dd638bce23bd9fe0",
+      "controls": [
+        {
+          "line": 355,
+          "labels": [
+            "导入"
+          ],
+          "v2Source": "views/retrieve-v3/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.tsx",
+          "v2Line": 352,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 387,
+          "labels": [
+            "导出"
+          ],
+          "v2Source": "views/retrieve-v3/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.tsx",
+          "v2Line": 383,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 394,
+          "labels": [
+            "恢复默认"
+          ],
+          "v2Source": "views/retrieve-v3/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.tsx",
+          "v2Line": 390,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        }
+      ],
+      "nonThemeAstUnchanged": true
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/template-manage/index.tsx",
+      "beforeSha256": "43fb32c862b3fa9bc7af6e380bd5186a2f299c7376a4c92704e3b80ff79af192",
+      "afterSha256": "89d819f1d7d24958c5039df687b57480d07b07de3a0189575772255a4776fcbd",
+      "controls": [
+        {
+          "line": 228,
+          "labels": [
+            "导入"
+          ],
+          "v2Source": "views/retrieve-v3/search-result/template-manage/index.tsx",
+          "v2Line": 233,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 258,
+          "labels": [
+            "导出"
+          ],
+          "v2Source": "views/retrieve-v3/search-result/template-manage/index.tsx",
+          "v2Line": 262,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        }
+      ],
+      "nonThemeAstUnchanged": true
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/graph-analysis/index.tsx",
+      "beforeSha256": "e9c55dea64fe1e3e6bff06892afb8bec295d6d1ddbc97d5da9029ccb8fe4e898",
+      "afterSha256": "31be54a7752666c9adca260abf9042be9d88b4f81788978e4f7afca87071f02c",
+      "controls": [
+        {
+          "line": 584,
+          "labels": [
+            "我知道了"
+          ],
+          "v2Source": "views/retrieve-v2/search-result-panel/graph-analysis/index.tsx",
+          "v2Line": 562,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        }
+      ],
+      "nonThemeAstUnchanged": true
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step3/clean-result-preview-dialog.tsx",
+      "beforeSha256": "a856defcd70fcbc6f2acb7a761be7f5370860851e814e8494f930f6f9497c520",
+      "afterSha256": "90076b6b10028548c5dafa0ef039107f3811f438f845b1df2fa7887cbf9d16e3",
+      "controls": [
+        {
+          "line": 924,
+          "labels": [
+            "重新调试"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/business-comp/step3/clean-result-preview-dialog.tsx",
+          "v2Line": 916,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        }
+      ],
+      "nonThemeAstUnchanged": true
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step3/collect-issued-slider.tsx",
+      "beforeSha256": "b2de0bf0dd73cecc4cc71c9785018b623b9df477d1b688f79bd0bfa667cf2aa9",
+      "afterSha256": "439e3b92aa73a2a35eb376377d7ad8429cd354ee82ce8b6099dfea2002e37896",
+      "controls": [
+        {
+          "line": 669,
+          "labels": [
+            "失败批量重试"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/business-comp/step3/collect-issued-slider.tsx",
+          "v2Line": 669,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        }
+      ],
+      "nonThemeAstUnchanged": true
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step2-bk-data-collection.tsx",
+      "beforeSha256": "32ac8a72803f8e660d7075ff113c04137cceca26c62f2bf1095ae725b6c9be98",
+      "afterSha256": "4052ced42a7a69b9cb3ddca303a970ddf6fd5d26250d066dddff327933dbf637",
+      "controls": [
+        {
+          "line": 941,
+          "labels": [
+            "上一步"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step2-bk-data-collection.tsx",
+          "v2Line": 936,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        }
+      ],
+      "nonThemeAstUnchanged": true
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step2-configuration.tsx",
+      "beforeSha256": "ce9e02bd52219b1bbcd5059b1b8208be1513c05270f0657054bbf9b332893e63",
+      "afterSha256": "2fee9bbe2832938bf67e90158e8fc93e2815aaa7d41362b186c7ea3a159936cd",
+      "controls": [
+        {
+          "line": 905,
+          "labels": [
+            "选择目标"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step2-configuration.tsx",
+          "v2Line": 901,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        }
+      ],
+      "nonThemeAstUnchanged": true
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step2-custom-report.tsx",
+      "beforeSha256": "e81caa4a8d3161526f7779c8ff4601a81930f0a2878309ae143fc2bf8a6da1dc",
+      "afterSha256": "5017f5a269632a5c8242dfa1826b59eee45a9e04f92954390d03b168a52e9bd0",
+      "controls": [
+        {
+          "line": 494,
+          "labels": [
+            "上一步"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step2-custom-report.tsx",
+          "v2Line": 474,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        }
+      ],
+      "nonThemeAstUnchanged": true
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step3-clean.tsx",
+      "beforeSha256": "6a04cc7337f917a9c28a32bc64e643c012b26ddcc394b976cabdf8ca2e0dc63b",
+      "afterSha256": "8b3b2d4f006217b9ebeaaa8ddf6eefe83efe9a3d42b960ca2ffcc51be47bcf2a",
+      "controls": [
+        {
+          "line": 1066,
+          "labels": [
+            "清洗"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+          "v2Line": 1099,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 1101,
+          "labels": [
+            "调试"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+          "v2Line": 1134,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 1150,
+          "labels": [
+            "调试"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+          "v2Line": 1183,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 1574,
+          "labels": [
+            "手动配置清洗规则"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+          "v2Line": 1617,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 1582,
+          "labels": [
+            "使用模板"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+          "v2Line": 1625,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 2067,
+          "labels": [
+            "调试"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+          "v2Line": 2110,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 2629,
+          "labels": [
+            "上一步"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+          "v2Line": 2673,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 2670,
+          "labels": [
+            "另存为模板"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+          "v2Line": 2714,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 2684,
+          "labels": [
+            "重置"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+          "v2Line": 2728,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        },
+        {
+          "line": 2779,
+          "labels": [
+            "仅保存模板"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step3-clean.tsx",
+          "v2Line": 2823,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        }
+      ],
+      "nonThemeAstUnchanged": true
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step4-storage.tsx",
+      "beforeSha256": "d351e96661d990078efb91ccb1b3d490119d2ddf8f1f2fbeedc7bcab963b4283",
+      "afterSha256": "8941cf3ab655868e12317cd970f9c837948ac280225ef7961c7ec35416ffa5d3",
+      "controls": [
+        {
+          "line": 871,
+          "labels": [
+            "上一步"
+          ],
+          "v2Source": "views/manage-v2/log-collection/components/create-operation/step4-storage.tsx",
+          "v2Line": 853,
+          "sourceTheme": "default",
+          "nativeTheme": "default",
+          "nativeVariant": "outline",
+          "uiStatus": "PENDING_BROWSER_COMPARISON"
+        }
+      ],
+      "nonThemeAstUnchanged": true
+    }
+  ],
+  "businessAccepted": false,
+  "uiAccepted": false
+}

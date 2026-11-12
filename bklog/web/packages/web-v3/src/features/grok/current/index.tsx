@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -36,7 +38,7 @@ import { debounce } from 'lodash-es';
 
 
 import { t } from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import useUtils from '@/shared/composables/use-utils';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import { tenantManager, UserInfoLoadedEventData } from '@/features/retrieval/core/tenant-manager';
@@ -55,7 +57,7 @@ export default defineComponent({
     GrokSlider,
   },
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const { formatResponseListTimeZoneString } = useUtils();
 
     const searchKeyword = ref('');
@@ -119,7 +121,7 @@ export default defineComponent({
       try {
         const response = await ServicesInstance.grok.getUpdatedByList({
           query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+            bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
           },
         });
         // 将接口返回的数据转换为过滤器所需的格式
@@ -157,7 +159,7 @@ export default defineComponent({
       try {
         const params = {
           query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+            bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
             page: pagination.value.current,
             pagesize: pagination.value.limit,
             ...(searchKeyword.value && { keyword: searchKeyword.value }),
@@ -300,7 +302,7 @@ export default defineComponent({
           await ServicesInstance.grok.updateGrok({
             params: { id: formData.id },
             data: {
-              bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+              bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
               pattern: formData.pattern,
               sample: formData.sample || '',
               description: formData.description,
@@ -311,7 +313,7 @@ export default defineComponent({
           // 创建
           await ServicesInstance.grok.createGrok({
             data: {
-              bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+              bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
               name: formData.name,
               pattern: formData.pattern,
               sample: formData.sample || '',

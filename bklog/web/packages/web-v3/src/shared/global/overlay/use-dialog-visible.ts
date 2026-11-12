@@ -43,8 +43,11 @@ const nextDialogId = () => {
 export const useDialogVisible = (initial = false, options: OverlayRegisterOptions = {}) => {
   const id = options.id || nextDialogId();
   const visible = ref(Boolean(initial));
+  const zIndex = ref<number>();
   const state = createDialogVisibleState(initial, {
-    onOpen: () => overlayRegistry.open(id),
+    onOpen: () => {
+      zIndex.value = overlayRegistry.open(id).zIndex;
+    },
     onHide: () => overlayRegistry.hide(id),
   });
 
@@ -56,6 +59,12 @@ export const useDialogVisible = (initial = false, options: OverlayRegisterOption
       state.setVisible(false);
     },
   });
+
+  // An initially visible native dialog needs the same registered layer as a
+  // false-to-true transition; the state machine will not emit onOpen again.
+  if (initial) {
+    zIndex.value = overlayRegistry.open(id).zIndex;
+  }
 
   const setVisible = (next: boolean) => {
     visible.value = state.setVisible(next);
@@ -76,6 +85,7 @@ export const useDialogVisible = (initial = false, options: OverlayRegisterOption
   return {
     id,
     visible,
+    zIndex,
     setVisible,
     onValueChange,
   };

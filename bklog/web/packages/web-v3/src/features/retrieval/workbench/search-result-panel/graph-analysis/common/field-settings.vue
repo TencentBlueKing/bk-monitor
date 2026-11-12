@@ -23,167 +23,159 @@
 * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 * IN THE SOFTWARE.
 -->
-<script setup>
-  import { computed } from 'vue';
+<script setup lang="ts">
+import { computed, h, type PropType } from 'vue';
+import { Select as TSelect, Tooltip as TTooltip } from 'tdesign-vue-next';
+import useLocale from '@/shared/composables/use-locale';
+const { t } = useLocale();
+interface SchemaField {
+  field_alias: string;
+  field_type: string;
+}
+interface FieldOptions {
+  xFields: string[];
+  yFields: string[];
+  dimensions: string[];
+  hiddenFields: string[];
+  category: string;
+}
 
-  const props = defineProps({
-    options: {
-      type: Object,
-      default: () => ({
-        xFields: [],
-        yFields: [],
-        dimensions: [],
-        hiddenFields: [],
-        category: '',
-      }),
-    },
+const props = defineProps({
+  options: {
+    type: Object as PropType<FieldOptions>,
+    default: () => ({
+      xFields: [],
+      yFields: [],
+      dimensions: [],
+      hiddenFields: [],
+      category: '',
+    }),
+  },
 
-    resultSchema: {
-      type: Array,
-    },
-  });
+  resultSchema: {
+    type: Array as PropType<SchemaField[]>,
+    default: () => [],
+  },
+});
 
-  const emit = defineEmits(['update']);
-  const list = computed(() => props.resultSchema.map(item => item.field_alias));
+const emit = defineEmits(['update']);
+const list = computed(() => props.resultSchema.map((item) => item.field_alias));
 
-  const excludeList = computed(() => [...props.options.yFields, ...props.options.dimensions, ...props.options.xFields]);
-  const xFieldOptions = computed(() =>
-    props.resultSchema
-      .filter(item => !excludeList.value.includes(item.field_alias) || props.options.xFields.includes(item.field_alias))
-      .map(item => {
-        return {
-          item: item.field_alias,
-          disabled: false,
-        };
-      }),
-  );
+const excludeList = computed(() => [...props.options.yFields, ...props.options.dimensions, ...props.options.xFields]);
+const xFieldOptions = computed(() =>
+  props.resultSchema
+    .filter((item) => !excludeList.value.includes(item.field_alias) || props.options.xFields.includes(item.field_alias))
+    .map((item) => {
+      return {
+        value: item.field_alias,
+        label: item.field_alias,
+        disabled: false,
+      };
+    }),
+);
 
-  const yFieldOptions = computed(() =>
-    props.resultSchema
-      .filter(
-        item =>
-          /long|number|int|float|bigint|double/.test(item.field_type) &&
-          (!excludeList.value.includes(item.field_alias) || props.options.yFields.includes(item.field_alias)),
-      )
-      .map(item => {
-        return {
-          item: item.field_alias,
-          disabled: false,
-        };
-      }),
-  );
+const yFieldOptions = computed(() =>
+  props.resultSchema
+    .filter(
+      (item) =>
+        /long|number|int|float|bigint|double/.test(item.field_type) &&
+        (!excludeList.value.includes(item.field_alias) || props.options.yFields.includes(item.field_alias)),
+    )
+    .map((item) => {
+      return {
+        value: item.field_alias,
+        label: item.field_alias,
+        disabled: false,
+      };
+    }),
+);
 
-  const dimensionsOptions = computed(() =>
-    props.resultSchema
-      .filter(
-        item => !excludeList.value.includes(item.field_alias) || props.options.dimensions.includes(item.field_alias),
-      )
-      .map(item => {
-        return {
-          item: item.field_alias,
-          disabled: false,
-        };
-      }),
-  );
+const dimensionsOptions = computed(() =>
+  props.resultSchema
+    .filter(
+      (item) => !excludeList.value.includes(item.field_alias) || props.options.dimensions.includes(item.field_alias),
+    )
+    .map((item) => {
+      return {
+        value: item.field_alias,
+        label: item.field_alias,
+        disabled: false,
+      };
+    }),
+);
 
-  function change(axis, newValue) {
-    emit('update', axis, newValue);
-  }
+const hiddenFieldOptions = computed(() =>
+  list.value.map((field) => {
+    const disabled =
+      list.value.length - props.options.hiddenFields.length === 1 && !props.options.hiddenFields.includes(field);
+    return {
+      value: field,
+      label: field,
+      disabled,
+      content: disabled
+        ? () =>
+            h(TTooltip, { content: t('至少需要一个字段'), placement: 'top-left' }, { default: () => h('span', field) })
+        : field,
+    };
+  }),
+);
+
+function change(axis: string, newValue: unknown) {
+  emit('update', axis, newValue);
+}
 </script>
 <template>
   <div class="bklog-chart-field">
     <div v-show="options.category !== 'table'">
       <div class="title">{{ $t('指标') }}</div>
-      <bk-select
+      <TSelect
         :value="options.yFields"
-        searchable
+        filterable
         :clearable="false"
         multiple
+        :options="yFieldOptions"
         @change="change('yFields', $event)"
-      >
-        <bk-option
-          v-for="option in yFieldOptions"
-          :id="option.item"
-          :key="option.item"
-          :name="option.item"
-          :disabled="option.disabled"
-        >
-        </bk-option>
-      </bk-select>
+      />
     </div>
     <div v-show="options.category !== 'table' && options.category !== 'number'">
       <div class="title">{{ $t('维度') }}</div>
-      <bk-select
+      <TSelect
         :value="options.xFields"
-        searchable
+        filterable
         :clearable="false"
         multiple
+        :options="xFieldOptions"
         @change="change('xFields', $event)"
-      >
-        <bk-option
-          v-for="option in xFieldOptions"
-          :id="option.item"
-          :key="option.item"
-          :name="option.item"
-          :disabled="option.disabled"
-        >
-        </bk-option>
-      </bk-select>
+      />
     </div>
     <div v-show="options.category == 'bar' || options.category == 'line'">
       <div class="title">{{ $t('时间维度') }}</div>
-      <bk-select
-        :value="options.dimensions"
-        searchable
+      <TSelect
+        :value="options.dimensions[0]"
+        filterable
+        :options="dimensionsOptions"
         @change="change('dimensions', $event)"
-      >
-        <bk-option
-          v-for="option in dimensionsOptions"
-          :id="option.item"
-          :key="option.item"
-          :name="option.item"
-          :disabled="option.disabled"
-        >
-        </bk-option>
-      </bk-select>
+      />
     </div>
     <div v-show="options.category == 'table'">
       <div class="title">{{ $t('隐藏字段') }}</div>
-      <bk-select
+      <TSelect
         :value="options.hiddenFields"
         :clearable="true"
         multiple
-        searchable
+        filterable
+        :options="hiddenFieldOptions"
         @change="change('hiddenFields', $event)"
-      >
-        <bk-option
-          v-for="option in list"
-          :id="option"
-          :key="option"
-          :name="option"
-          :disabled="list.length - options.hiddenFields.length === 1 && !options.hiddenFields.includes(option)"
-        >
-          <div v-if="list.length - options.hiddenFields.length !== 1 || options.hiddenFields.includes(option)">
-            {{ option }}
-          </div>
-          <div
-            v-else
-            v-log-tooltip="{ content: $t('至少需要一个字段'), placements: ['top-start'] }"
-          >
-            {{ option }}
-          </div>
-        </bk-option>
-      </bk-select>
+      />
     </div>
   </div>
 </template>
-
 <style lang="scss" scoped>
-  .bklog-chart-field {
-    .title {
-      margin: 10px 0;
-      font-size: 12px;
-      color: #63656e;
-    }
+.bklog-chart-field {
+  .title {
+    margin: 10px 0;
+    font-size: 12px;
+    color: #63656e;
   }
+}
 </style>

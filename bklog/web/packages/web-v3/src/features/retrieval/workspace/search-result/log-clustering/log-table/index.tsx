@@ -24,10 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Loading as TLoading, RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount, shallowRef, markRaw } from 'vue';
-import useStore from '@/shared/composables/use-store';
+
 import { moduleLargeDataCacheService, clusterTableWorkerService } from '@/platform/persistence/index';
 import useLocale from '@/shared/composables/use-locale';
 import MainHeader from './main-header/index';
@@ -92,7 +94,7 @@ export default defineComponent({
     },
   },
   setup(props, { expose, emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
 
     const initFilterSortMap = () => ({
@@ -228,14 +230,14 @@ export default defineComponent({
       applyViewResult(view);
     };
 
-    const retrieveParams = computed(() => store.getters.retrieveParams);
+    const retrieveParams = computed(() => store.retrieveParams);
     const showGroupBy = computed(() => props.requestData?.group_by.length > 0 && displayType.value === 'group');
 
     const smallLoaderWidthList = computed(() => {
       return props.requestData?.year_on_year_hour > 0 ? loadingWidthList.compared : loadingWidthList.notCompared;
     });
 
-    const tableColumnWidth = computed(() => (store.getters.isEnLanguage ? enTableWidth : cnTableWidth));
+    const tableColumnWidth = computed(() => (store.isEnLanguage ? enTableWidth : cnTableWidth));
 
     const loadingWidthList = {
       // loading表头宽度列表
@@ -341,7 +343,7 @@ export default defineComponent({
       if ((payload?.type === 'ui' || payload?.type === 'filter') && Array.isArray(payload.value)) {
         return normalizeSearchAddition(payload.value);
       }
-      return store.getters.requestAddition ?? [];
+      return store.requestAddition ?? [];
     };
 
     const getClusterOperateParams = () => {
@@ -376,7 +378,7 @@ export default defineComponent({
       } = retrieveParams.value;
 
       const data: Record<string, any> = {
-        bk_biz_id: store.state.bkBizId,
+        bk_biz_id: store.bkBizId,
         addition: getClusterSearchAddition(payload),
         keyword: payload?.type === 'sql' ? ((payload.value as string) ?? '*') : keyword,
         ip_chooser,
@@ -390,7 +392,7 @@ export default defineComponent({
       };
 
       // 场景化检索模式：传递场景过滤参数，聚类结果才能随场景条件刷新
-      if (store.getters.isSceneMode) {
+      if (store.isSceneMode) {
         Object.assign(data, { scene_filter_values, table_id_conditions, space_uid });
       }
 

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "purpose": "P4_DIAGNOSTIC_REPAIR_NOT_PRODUCT_ACCEPTANCE",
+  "files": [
+    {
+      "file": "packages/web-v2/src/common/observe-call.ts",
+      "sha256": "f077db0ffef89afa4093d9f052f2eac1c186f7a8bd9cfa370ef0be65c94144b8"
+    },
+    {
+      "file": "packages/web-v2/src/common/analyze-trace.ts",
+      "sha256": "28865408fab3eb91a0f6f6550f3d4e437f04be0fa7e493e628a3479dae600a6b"
+    },
+    {
+      "file": "packages/web-v2/src/store/index.js",
+      "sha256": "4e4072ad63e6c3e31f738c075049c5399e903046e12f68c798a58da43883c00e"
+    },
+    {
+      "file": "packages/web-v2/src/api/_httpRequest.js",
+      "sha256": "ab3fda822fbd29274bfedd8f17d66973f962265ee11341767df9e747ed33bd3b"
+    },
+    {
+      "file": "packages/web-v2/src/api/index.js",
+      "sha256": "30467afdacd995a2bc3460021bba661fb68f925eb97b25158f8a92bf674219be"
+    },
+    {
+      "file": "packages/web-v2/src/store/actions/retrieve-search-actions.js",
+      "sha256": "4b9d99626f1d54825cf484623c64c68b9f2ebabb8d400fe4317d63176fb022c8"
+    }
+  ]
+}

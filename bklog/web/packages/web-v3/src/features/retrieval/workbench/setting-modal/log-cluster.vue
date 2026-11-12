@@ -85,7 +85,7 @@
                 :before-change="() => (() => false)(!(fingerSwitch))"
                 data-test-id="LogCluster_div_isOpenSignature"
                 size="large"
-                
+
               >
               </t-switch>
             </span>
@@ -193,7 +193,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import FilterRule from '../search-result-panel/log-clustering/components/quick-open-cluster-step/filter-rule.tsx';
   import RuleTable from './rule-table';
@@ -332,7 +334,7 @@
         this.fingerSwitch = true;
         this.isShowFingerTips = true;
         this.isActive = this.configData.is_active;
-        this.configID = this.$store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id;
+        this.configID = useApplicationStore().indexSetFieldConfig.clean_config?.extra.collector_config_id;
         this.formData.clustering_fields = this.configData?.extra.clustering_fields;
         this.clusterField = this.totalFields
           .filter(item => item.is_analyzed)

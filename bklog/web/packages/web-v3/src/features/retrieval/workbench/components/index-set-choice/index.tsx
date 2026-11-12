@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType, type Ref } from 'vue';
 
 import { getOsCommandLabel } from '../../../../../shared/lib/util';
 import BklogPopover from '../../../../../shared/ui/bklog-popover/index';
 import EllipsisTagList from '../../../../../shared/ui/ellipsis-tag-list/index';
 import Content from './content';
-import useStore from '@/shared/composables/use-store';
+
 
 import type { IndexSetTabList, IndexSetType } from './use-choice';
 import type { Props } from 'tippy.js';
@@ -97,7 +99,7 @@ export default defineComponent({
   },
   emits: ['type-change', 'value-change', 'auth-request', "valueChange", "typeChange", "authRequest"],
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
 
     const isOpened = ref(false);
     const refRootElement: Ref<any | null> = ref(null);
@@ -172,7 +174,7 @@ export default defineComponent({
       values => {
         selectedValues.value = values;
         if (selectedValues.value.length === 1 && window.__IS_MONITOR_APM__) {
-          store.commit('updateSpace', selectedValues.value[0]);
+          store.updateSpace(selectedValues.value[0]);
         }
       },
       { immediate: true },

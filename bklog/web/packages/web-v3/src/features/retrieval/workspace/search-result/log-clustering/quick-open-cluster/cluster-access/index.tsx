@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { computed, defineComponent, ref, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import FilterRule from '@/features/collection/filter-rule/index';
 import PreviewResult from './preview-result/index';
@@ -76,7 +78,7 @@ export default defineComponent({
     };
 
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const previewResultRef = ref();
     const quickClusterFromRef = ref();
@@ -130,7 +132,7 @@ export default defineComponent({
         try {
           const rules = filterRuleRef.value.getValue();
           const data = {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
             clustering_fields: formData.value.clustering_fields,
             filter_rules: rules.map((item: { field_name: any; logic_operator: any; op: any; value: any; }) => ({
               fields_name: item.field_name,

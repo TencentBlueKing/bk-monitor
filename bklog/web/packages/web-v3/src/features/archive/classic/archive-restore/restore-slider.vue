@@ -149,12 +149,16 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
   import { getCurrentInstance } from 'vue';
   import { useSidebarDiff } from '@/shared/composables/use-sidebar-diff';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   import * as authorityMap from '../../../../shared/lib/authority-map';
   import ValidateUserSelector from '../../../extraction/classic/manage-extract-permission/validate-user-selector';
@@ -174,7 +178,7 @@ import { ServicesInstance } from '@/platform/services';
     components: {
       ValidateUserSelector,
     },
-    
+
     props: {
       showSlider: {
         type: Boolean,
@@ -220,10 +224,10 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
         user: 'uesr',
-        globalsData: 'globals/globalsData',
+        globalsData: state => state.globals.globalsData,
       }),
       authorityMap() {
         return authorityMap;
@@ -259,7 +263,7 @@ import { ServicesInstance } from '@/platform/services';
               datePickerExpired: expiredTime,
             });
           } else {
-            const { userMeta } = this.$store.state;
+            const { userMeta } = useApplicationStore();
             if (userMeta?.username) {
               this.formData.notice_user.push(userMeta.username);
             }

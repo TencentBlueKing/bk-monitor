@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, ref, onUnmounted } from 'vue';
 
 import BklogPopover from '@/shared/ui/bklog-popover/index';
 import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
-import useStore from '@/shared/composables/use-store';
+
 import useLocale from '@/shared/composables/use-locale';
 
 import './auto-refresh-new.scss';
@@ -44,7 +46,7 @@ export default defineComponent({
   setup() {
     const popoverRef = ref(null);
     const selectedValue = ref<string>('off');
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
 
     const datasource = ref<TimeOption[]>([
@@ -91,11 +93,11 @@ export default defineComponent({
     };
 
     const handleRefresh = () => {
-      const formatValue = store.getters.retrieveParams.format;
-      const val = store.state.indexItem.datePickerValue;
+      const formatValue = store.retrieveParams.format;
+      const val = store.indexItem.datePickerValue;
       const result = handleTransformToTimestamp(val, formatValue.value);
 
-      store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1] });
+      store.updateIndexItemParams({ start_time: result[0], end_time: result[1] });
       RetrieveHelper.fire(RetrieveEvent.AUTO_REFRESH);
     };
 

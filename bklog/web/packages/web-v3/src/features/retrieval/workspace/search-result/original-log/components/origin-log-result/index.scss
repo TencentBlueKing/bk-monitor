@@ -33,25 +33,26 @@
     }
   }
 
-  .title-main {
+  .origin-log-title-bar {
     display: flex;
     align-items: center;
     margin: 10px 16px 12px 16px;
     font-size: 14px;
 
-    .title {
+    .origin-log-title {
       font-weight: 700;
       color: #313238;
     }
 
-    .split-line {
+    .origin-log-title-divider {
+      flex: 0 0 1px;
       width: 1px;
       height: 14px;
       background: #dcdee5;
       margin: 0 8px 0 12px;
     }
 
-    .desc {
+    .origin-log-title-description {
       color: #979ba5;
     }
   }

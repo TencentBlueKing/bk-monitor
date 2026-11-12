@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import {
   Input as TInput,
   Textarea as TTextarea,
@@ -39,7 +44,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { computed, defineComponent, ref } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { useFavorite } from '../../hooks/use-favorite';
 import { IFavoriteItem, IGroupItem } from '../../types/index';
@@ -72,9 +77,9 @@ export default defineComponent({
     const { t } = useLocale();
     const formRef = ref<FormInstanceFunctions | null>(null);
     const groupPopupVisible = ref(false);
-    const store = useStore();
+    const store = useApplicationStore();
     /** 当前空间id */
-    const spaceUid = computed(() => store.state.spaceUid);
+    const spaceUid = computed(() => store.spaceUid);
     const isUnionSearch = computed(() => props.data.index_set_type === 'union');
     const groupNameMap = asDictionary({
       unknown: t('未分组'),
@@ -116,7 +121,7 @@ export default defineComponent({
     const showGroupList = computed(() => {
       return favoriteData.value.visible_type === 'public' ? publicGroupList.value : groupList.value;
     });
-    const indexItem = computed(() => store.state.indexItem);
+    const indexItem = computed(() => store.indexItem);
 
     const handleCancel = () => {
       emit('cancel', !props.isShow);
@@ -125,8 +130,8 @@ export default defineComponent({
       if (!isClickFavoriteEdit.value) return favoriteData.value;
       const merged = Object.assign({}, favoriteData.value, indexItem.value);
       // 场景化模式：使用 retrieveParams 中已转换的 table_id_conditions 和 scene_filter_values 覆盖
-      if (store.getters.isSceneMode) {
-        const { table_id_conditions, scene_filter_values } = store.getters.retrieveParams as Pick<
+      if (store.isSceneMode) {
+        const { table_id_conditions, scene_filter_values } = store.retrieveParams as Pick<
           IFavoriteItem,
           'table_id_conditions' | 'scene_filter_values'
         >;
@@ -166,7 +171,7 @@ export default defineComponent({
       const data = favoriteData.value;
       if (data.source_type === 'scene') {
         // 场景化收藏：从 sceneConfigList 中查找场景名称
-        const sceneConfigs = store.getters['retrieve/sceneConfigList'] ?? [];
+        const sceneConfigs = useRetrieveStore().sceneConfigList ?? [];
         const sceneConfig = sceneConfigs.find((s: { type: string | undefined }) => s.type === data.scene_id);
         return sceneConfig?.label ?? data.scene_id ?? '';
       }

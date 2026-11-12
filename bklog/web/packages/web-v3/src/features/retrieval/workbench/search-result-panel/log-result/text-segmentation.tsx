@@ -23,9 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, defineComponent } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 import { BK_LOG_STORAGE } from '../../../../../app/state/store.type.ts';
 import TextSegmentation from '../../components/text-segmentation/index';
 
@@ -49,10 +51,10 @@ export default defineComponent({
   },
   emits: ['menu-click', "menuClick"],
   setup(props, { emit }) {
-    const store = useStore();
-    const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+    const store = useApplicationStore();
+    const isWrap = computed(() => store.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
     const isLimitExpandView = computed(
-      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW] || props.forceAll,
+      () => store.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW] || props.forceAll,
     );
 
     const handleMenuClick = (event: unknown) => {

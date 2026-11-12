@@ -25,6 +25,7 @@
  */
 
 import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
+import { markBranch, markStageReady } from '@/common/analyze-trace';
 
 // 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位）
 const LogCollectionView = { name: 'LogCollection', template: '<router-view></router-view>' };
@@ -136,7 +137,15 @@ const logManageV2Mixin = {
 const createVersionedComponent = (newComponent, oldComponent) => ({
   mixins: [logManageV2Mixin],
   render(h) {
-    return h(this.isV2Enabled ? newComponent : oldComponent);
+    const enabled = Boolean(this.isV2Enabled);
+    markBranch('manage.createVersionedComponent', {
+      routeName: this.$route?.name,
+      isV2Enabled: enabled,
+    });
+    if (this.$route?.name === 'collection-item-list') {
+      markStageReady('01-feature-toggle', { isV2Enabled: enabled });
+    }
+    return h(enabled ? newComponent : oldComponent);
   },
 });
 

@@ -106,7 +106,7 @@
         <template #default="props">
           <t-button :variant="(true) ? 'text' : ('base')"
             theme="primary"
-            
+
             @click="editConfig(props.row)"
           >
             {{ $t('编辑') }}
@@ -135,7 +135,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
   import BklogLoading from '@/shared/ui/loading';
@@ -168,7 +170,7 @@
     },
     computed: {
       projectList() {
-        return [{ bk_biz_id: '0', space_full_code_name: this.$t('全部空间') }, ...this.$store.state.mySpaceList];
+        return [{ bk_biz_id: '0', space_full_code_name: this.$t('全部空间') }, ...useApplicationStore().mySpaceList];
       },
     },
     created() {

@@ -9,6 +9,8 @@ const TreeFixture = { name: 'TreeFixture' },
 const { default: Fields } = loadTypeScript(
   new URL('index.tsx', root),
   {
+    '@/app/state/domains/application-store': {useApplicationStore:()=>({apiErrorInfo:{},indexFieldInfo:{is_loading:false},unionIndexList:[]})},
+    '@/app/state/domains/retrieve-store': {useRetrieveStore:()=>({$state:{filedSettingConfigID:0}})},
     'vue-property-decorator': {
       Component: (value) => value,
       Prop: () => () => {},
@@ -20,6 +22,7 @@ const { default: Fields } = loadTypeScript(
     '@/shared/constants/index.ts': { builtInInitHiddenList: [] },
     '@/shared/composables/use-feature-toggle': {},
     'vuedraggable-vue3': DragFixture,
+    '@/platform/compat/vue3-component-model': loadTypeScript(new URL('../src/platform/compat/vue3-component-model.ts', import.meta.url)),
     'tdesign-vue-next': { Tree: TreeFixture, Input: { name: 'InputFixture' } },
     'tdesign-vue-next/es/input/style/index.css': {},
     '../../../../shared/ui/empty-status/index.vue': {},
@@ -79,7 +82,9 @@ test('native field tree preserves keys, custom field payloads and controlled exp
   assert.ok(rendered.props.expanded.includes('__ext.labels'));
   assert.equal(rendered.props.filter({ data: tree.children[0].children[0] }), true);
   assert.equal(rendered.props.filter({ data: { field_name: 'other' } }), false);
-  const label = rendered.props['v-slots'].label({ node: { data: tree.children[0].children[0] } });
+  const labels = rendered.props['v-slots'].label({ node: { data: tree.children[0].children[0] } });
+  assert.equal(labels.length, 1);
+  const [label] = labels;
   assert.equal(label.props.fieldItem, tree.children[0].children[0]);
   assert.equal(label.props.isFieldObject, true);
   rendered.props.onExpand(['__ext'], { node: { value: '__ext' } });
@@ -130,5 +135,5 @@ test('field drag keeps V2 string-key ordering and event payload', () => {
     value.visibleFields.map((row) => row.field_name),
     ['log', 'level'],
   );
-  assert.deepEqual(DragFixture.compatConfig, { MODE: 3 });
+  assert.deepEqual(DragFixture.compatConfig, { MODE: 3, COMPONENT_V_MODEL: false });
 });

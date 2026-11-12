@@ -95,7 +95,9 @@
 </template>
 
 <script>
-  import { Dialog as TDialog } from 'tdesign-vue-next';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { Dialog as TDialog } from 'tdesign-vue-next';
 
   export default {
     components: { TDialog },
@@ -108,7 +110,7 @@
     },
     computed: {
       authDialogData() {
-        return this.$store.state.authDialogData;
+        return useApplicationStore().authDialogData;
       },
     },
     watch: {
@@ -162,7 +164,7 @@
         location.reload();
       },
       closeAuth() {
-        this.$store.commit('updateState', { authDialogData: null });
+        useApplicationStore().updateState({ authDialogData: null });
       },
     },
   };

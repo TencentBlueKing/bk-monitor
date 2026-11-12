@@ -6,7 +6,9 @@
   "files": 1,
   "entryPoints": [],
   "services": [],
-  "dependsOn": [],
+  "dependsOn": [
+    "app"
+  ],
   "tests": [],
   "sourceMap": "ai-native/source-map.json",
   "acceptance": "NEEDS_REVIEW",

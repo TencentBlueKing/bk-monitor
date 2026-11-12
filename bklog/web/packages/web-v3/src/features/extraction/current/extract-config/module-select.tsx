@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { RadioGroup as TRadioGroup, Radio as TRadio, Checkbox as TCheckbox } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, onMounted, nextTick } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 
 
@@ -60,7 +62,7 @@ export default defineComponent({
   emits: ['handleConfirm', 'handleValueChange'],
 
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
 
     const isLoading = ref(true); // 加载状态
@@ -85,7 +87,7 @@ export default defineComponent({
         isLoading.value = true;
         const res = await ServicesInstance.collect.getExtractBizTopo({
           query: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
           },
         });
         topoList.value = res.data;

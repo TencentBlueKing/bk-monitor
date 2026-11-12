@@ -2722,5 +2722,8 @@
   "content_please_check_device_metadata_139521613": "请检查设备元数据",
   "content_please_complete_storage_settings_139521613": "请完善存储配置",
   "content_please_complete_cleaning_fields_139521613": "请完善清洗字段配置",
-  "label_save_failed_139521613": "保存失败"
+  "label_save_failed_139521613": "保存失败",
+  "message_f744a1a66160": "时间格式不含时区，请选择该时间实际所在的时区。",
+  "message_bde49ae99913": "已从预览值解析为 {timezone}。",
+  "message_a9c0bd83e72a": "时间格式包含时区，但预览值中未识别到，请手动选择。"
 }

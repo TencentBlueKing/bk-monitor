@@ -49,6 +49,7 @@ import preload, { getAllSpaceList, getExternalMenuListBySpace, requestUserGuideD
 import getRouter from './router';
 import store from './store';
 import { performanceMonitorService } from './storage';
+import { installRouterAnalyze, installStoreAnalyze, markBranch } from './common/analyze-trace';
 
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 import './scss/theme/theme-dark.scss';
@@ -134,6 +135,12 @@ const mountedVueInstance = () => {
 
     const { space, spaceUid, bkBizId } = spaceRequest.value ?? {};
     store.commit('updateState', { spaceResolveFailed: !space });
+    markBranch('preload.spaceResolved', {
+      hasSpace: Boolean(space),
+      spaceUid,
+      bkBizId,
+      spaceResolveFailed: !space,
+    });
 
     let externalMenu = [];
     if (window.IS_EXTERNAL && space) {
@@ -146,6 +153,8 @@ const mountedVueInstance = () => {
 
     const router = getRouter(spaceUid, bkBizId, externalMenu);
     setRouterErrorHandle(router);
+    installStoreAnalyze(store);
+    installRouterAnalyze(router);
     performanceMonitorService.init(router);
 
     if (!store.state.topMenu?.length) {

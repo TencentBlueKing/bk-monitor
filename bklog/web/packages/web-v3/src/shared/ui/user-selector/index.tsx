@@ -23,10 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, h, ref, watch } from 'vue';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { computed, defineComponent, h, ref, toRaw, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import BkUserSelector from '@blueking/bk-user-selector';
 
 import './index.scss';
@@ -71,12 +73,12 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const localValue = ref<string[]>([]);
     const isError = ref(false); // 是否显示错误状态
 
-    const tenantId = computed(() => store.state.userMeta.bk_tenant_id);
+    const tenantId = computed(() => store.userMeta.bk_tenant_id);
 
     // 开发环境放自己的本地测试地址即可
     const apiBaseUrl = window.BK_LOGIN_URL;
@@ -84,7 +86,7 @@ export default defineComponent({
     watch(
       () => props.value,
       () => {
-        localValue.value = structuredClone(props.value);
+        localValue.value = structuredClone(toRaw(props.value));
       },
       {
         immediate: true,

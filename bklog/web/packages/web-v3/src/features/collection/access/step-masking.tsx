@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
 import { Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -63,7 +68,7 @@ export default class StepMasking extends tsc<IProps> {
   @Ref('maskingField') private readonly maskingFieldRef!: HTMLElement; // 移动到分组实例
 
   get curCollect() {
-    return this.$store.getters['collect/curCollect'];
+    return useCollectionStore().curCollect;
   }
 
   get isShowJump() {
@@ -160,7 +165,7 @@ export default class StepMasking extends tsc<IProps> {
     this.$router.push({
       name: 'collection-item',
       query: {
-        spaceUid: this.$store.state.spaceUid,
+        spaceUid: useApplicationStore().spaceUid,
       },
     });
   }

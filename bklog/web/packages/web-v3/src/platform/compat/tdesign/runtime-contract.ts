@@ -26,6 +26,7 @@
 
 import * as Vue from 'vue';
 import * as TDesign from 'tdesign-vue-next';
+import { preserveVue3ComponentModel } from '../vue3-component-model';
 
 // This file has no effect in native Vue3. In the diagnostic compatibility host,
 // Vue otherwise rewrites modelValue/update:modelValue into Vue2 value/input,
@@ -37,7 +38,11 @@ if ('configureCompat' in Vue) {
       typeof component === 'object' &&
       ('setup' in component || 'render' in component || 'props' in component)
     ) {
-      Object.assign(component, { compatConfig: { MODE: 3 } });
+      preserveVue3ComponentModel(component);
+      // Tree's Options API render reads $slots as functions. Global legacy render
+      // conversion otherwise exposes arrays and breaks scoped label rendering.
+      const native = component as {compatConfig?: Record<string, unknown>};
+      native.compatConfig = {...native.compatConfig, RENDER_FUNCTION: false};
     }
   }
 }

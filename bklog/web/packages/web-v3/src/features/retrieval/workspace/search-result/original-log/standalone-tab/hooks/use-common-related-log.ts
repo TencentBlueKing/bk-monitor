@@ -1,10 +1,13 @@
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import { computed, nextTick, onBeforeUnmount, ref, type Ref } from 'vue';
 
 import type { ServiceOperation } from '@/platform/services/runtime/service-client';
 import { getFlatObjValues } from '@/shared/lib/util';
 import useFieldNameHook from '@/shared/composables/use-field-name';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { retrieveRowCacheService } from '@/platform/persistence/index';
 import { createRetrieveRowRenderMeta } from '@/platform/persistence/utils/retrieve-render-meta';
 
@@ -35,7 +38,7 @@ export const normalizeDisplayValue = (value: any) => {
 };
 
 export const useCommonRelatedLog = (options: RelatedLogCommonOptions) => {
-  const store = useStore();
+  const store = useApplicationStore();
   const { t } = useLocale();
   const { changeFieldName } = useFieldNameHook({ store });
 
@@ -68,7 +71,7 @@ export const useCommonRelatedLog = (options: RelatedLogCommonOptions) => {
   const getShowFieldNames = () =>
     displayFieldNames.length
       ? displayFieldNames
-      : getDefaultDisplayFields(store, store.state.retrieve.catchFieldCustomConfig?.contextDisplayFields);
+      : getDefaultDisplayFields(store, useRetrieveStore().$state.catchFieldCustomConfig?.contextDisplayFields);
 
   const getDisplayFieldValue = (row: Record<string, any>, flatRow: Record<string, any>, field: string) => {
     const realField = changeFieldName(field);

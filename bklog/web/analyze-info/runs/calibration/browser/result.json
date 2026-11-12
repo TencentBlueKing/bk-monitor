@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "scope": "CONTROLLED_FIXTURE_NOT_PRODUCT_ACCEPTANCE",
+  "baseUrl": "http://appdev.woa.com:50664",
+  "status": "BROWSER_CALIBRATION_PASSED",
+  "results": [
+    {
+      "id": "missing-control",
+      "status": "PASSED"
+    },
+    {
+      "id": "framework-wrapper",
+      "status": "PASSED"
+    },
+    {
+      "id": "collapsed-navigation",
+      "status": "PASSED"
+    },
+    {
+      "id": "slow-readiness",
+      "status": "PASSED"
+    },
+    {
+      "id": "post-read-and-blocked-write",
+      "status": "PASSED"
+    },
+    {
+      "id": "existing-panel-update",
+      "status": "PASSED"
+    },
+    {
+      "id": "portal-occlusion",
+      "status": "PASSED"
+    },
+    {
+      "id": "request-context-isolation",
+      "status": "PASSED"
+    },
+    {
+      "id": "stream-completeness",
+      "status": "PASSED"
+    },
+    {
+      "id": "ambiguous-target",
+      "status": "PASSED"
+    },
+    {
+      "id": "passive-probe",
+      "status": "PASSED"
+    },
+    {
+      "id": "wrong-route",
+      "status": "PASSED"
+    },
+    {
+      "id": "finite-animation-readiness",
+      "status": "PASSED"
+    },
+    {
+      "id": "semantic-name-binding",
+      "status": "PASSED"
+    },
+    {
+      "id": "hidden-descendant-name",
+      "status": "PASSED"
+    }
+  ],
+  "missing": [],
+  "backendWrites": 0
+}

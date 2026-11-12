@@ -1,13 +1,15 @@
 <script setup>
-  import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
   import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 
   import FieldFilterComp from '../field-filter-comp/index';
-  const store = useStore();
+  const store = useApplicationStore();
   const { $t } = useLocale();
   const props = defineProps({
     value: { type: Boolean, default: true },
@@ -15,22 +17,22 @@
   });
   const emit = defineEmits(['input', 'field-status-change', "fieldStatusChange"]);
 
-  const showFieldAlias = computed(() => store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
+  const showFieldAlias = computed(() => store.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
-    const { start_time: startTime = 'now-15m', end_time: endTime = 'now' } = store.state.indexItem;
+    const { start_time: startTime = 'now-15m', end_time: endTime = 'now' } = store.indexItem;
     return [startTime, endTime];
   });
 
   const indexSetItem = computed(() => {
-    return store.state.indexItem;
+    return store.indexItem;
   });
 
   const sortList = computed(() => {
-    return store.state.indexFieldInfo.sort_list;
+    return store.indexFieldInfo.sort_list;
   });
 
-  const sourceFields = computed(() => store.getters.filteredFieldList ?? []);
+  const sourceFields = computed(() => store.filteredFieldList ?? []);
   // 千级字段进 store 后先让 search XHR 出去，下一帧再把列表交给左侧面板，避免首屏 flush 挡住检索。
   // 帧回调只读最新快照：取消已排队的帧会把后续字段更新丢掉，左侧列表就一直空着。
   const deferredFields = ref([]);
@@ -71,20 +73,20 @@
     return fieldAliasMap;
   });
 
-  const requestAddition = computed(() => store.getters.requestAddition);
+  const requestAddition = computed(() => store.requestAddition);
 
   const retrieveParams = computed(() => {
     return {
-      bk_biz_id: store.state.bkBizId,
-      ...store.getters.retrieveParams,
+      bk_biz_id: store.bkBizId,
+      ...store.retrieveParams,
       start_time: datePickerValue.value[0],
       end_time: datePickerValue.value[1],
       addition: requestAddition.value ?? [],
-      showFieldAlias: store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
+      showFieldAlias: store.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
     };
   });
 
-  const visibleFields = computed(() => store.getters.visibleFields ?? []);
+  const visibleFields = computed(() => store.resolvedVisibleFields ?? []);
   const rootStyle = computed(() => ({
     '--root-width': `${props.width}px`,
   }));
@@ -94,12 +96,12 @@
    * @param {Array} displayFieldNames 展示字段
    */
   const handleFieldsUpdated = async displayFieldNames => {
-    store.dispatch('userFieldConfigChange', {
+    store.userFieldConfigChange({
       displayFields: displayFieldNames,
     });
     await nextTick();
-    store.commit('resetVisibleFields', { displayFieldNames, version: 'v2' });
-    store.commit('updateIsSetDefaultTableColumn', false);
+    store.resetVisibleFields({ displayFieldNames, version: 'v2' });
+    store.updateIsSetDefaultTableColumn(false);
     RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
   };
   const handleCloseFilterTitle = isTextClick => {

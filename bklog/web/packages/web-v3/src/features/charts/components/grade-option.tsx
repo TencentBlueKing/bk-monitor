@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import BklogLoading from '@/shared/ui/loading';
 import {
   Form,
@@ -124,7 +126,7 @@ export default defineComponent({
   emits: ['change'],
   setup(_, { emit, expose }) {
     const { $t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     /**
      * 分级类别
      */
@@ -166,15 +168,15 @@ export default defineComponent({
     const indexedRows = ref<Record<string, any>[]>([]);
 
     const fieldList = computed(() =>
-      store.getters.rawFieldList.filter((f: { es_doc_values: any; field_type: string; }) => f.es_doc_values && f.field_type === 'keyword'),
+      store.rawFieldList.filter((f: { es_doc_values: any; field_type: string; }) => f.es_doc_values && f.field_type === 'keyword'),
     );
 
     const gradeOptionField = computed(() => fieldList.value.find((f: { field_name: null; }) => f.field_name === gradeOptionForm.value.field));
 
     watch(
       () => [
-        store.state.indexSetQueryResult.row_query_key,
-        store.state.indexSetQueryResult.cached_count,
+        store.indexSetQueryResult.row_query_key,
+        store.indexSetQueryResult.cached_count,
         gradeOptionForm.value.field,
         gradeOptionForm.value.valueType,
       ],
@@ -185,7 +187,7 @@ export default defineComponent({
         }
 
         indexedRows.value = await retrieveRowCacheService.getRowsByQuery(
-          store.state.indexSetQueryResult.row_query_key,
+          store.indexSetQueryResult.row_query_key,
           0,
           200,
         );
@@ -228,9 +230,9 @@ export default defineComponent({
 
         ServicesInstance.retrieve.setIndexSetCustomConfig({
             data: {
-              index_set_id: store.state.indexId,
-              index_set_ids: store.state.indexItem.ids,
-              index_set_type: store.state.indexItem.isUnionIndex ? 'union' : 'single',
+              index_set_id: store.indexId,
+              index_set_ids: store.indexItem.ids,
+              index_set_type: store.indexItem.isUnionIndex ? 'union' : 'single',
               index_set_config: {
                 grade_options: gradeOptionForm.value,
               },
@@ -238,7 +240,7 @@ export default defineComponent({
           })
           .then(resp => {
             if (resp.result) {
-              store.commit('updateIndexSetCustomConfig', {
+              store.updateIndexSetCustomConfig({
                 grade_options: structuredClone(toWorkerMessage(gradeOptionForm.value)),
               });
               emit('change', { event: e, isSave, data: gradeOptionForm.value });

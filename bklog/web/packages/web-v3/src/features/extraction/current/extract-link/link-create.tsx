@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 
 import { Button as TButton, MessagePlugin } from 'tdesign-vue-next';
@@ -33,7 +38,7 @@ import { defineComponent, ref, computed, onMounted } from 'vue';
 import ValidateUserSelector from '@/shared/ui/user-selector/index';
 import useLocale from '@/shared/composables/use-locale';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 
 
 
@@ -42,7 +47,7 @@ import './link-create.scss';
 export default defineComponent({
   name: 'ExtractLinkCreateTsx',
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
     const { t } = useLocale();
 
@@ -85,7 +90,7 @@ export default defineComponent({
       qcloud_secret_id: [{ required: true, trigger: 'blur' }],
       qcloud_cos_region: [{ required: true, trigger: 'blur' }],
     };
-    const isK8sDeploy = computed(() => store.getters['globals/globalsData']?.is_k8s_deploy); // 是否k8s部署
+    const isK8sDeploy = computed(() => useGlobalsStore().globalsData?.is_k8s_deploy); // 是否k8s部署
     const isShowCommon = computed(() => router.currentRoute?.params?.linkId && editInitLinkType.value === 'common'); // 是否展示内网链路
 
     // 初始化表单数据
@@ -111,7 +116,7 @@ export default defineComponent({
           editInitLinkType.value = formData.value.link_type;
         } catch (e) {
           console.warn(e);
-          router.push({ name: 'extract-link-list', query: { spaceUid: store.state.spaceUid } });
+          router.push({ name: 'extract-link-list', query: { spaceUid: store.spaceUid } });
         } finally {
           if (isK8sDeploy.value && editInitLinkType.value === 'common') {
             isDisableCommon.value = true;
@@ -201,7 +206,7 @@ export default defineComponent({
           MessagePlugin.success(t('创建成功'));
         }
         isSubmit.value = true;
-        router.push({ name: 'extract-link-list', query: { spaceUid: store.state.spaceUid } });
+        router.push({ name: 'extract-link-list', query: { spaceUid: store.spaceUid } });
       } catch (e) {
         console.warn(e);
         submitLoading.value = false;
@@ -489,7 +494,7 @@ export default defineComponent({
                         style='padding: 0'
                         disabled={formData.value.hosts.length === 1}
                         size='small'
-                        
+
                         onClick={() => deleteHost(index)} variant={(true) ? 'text' : ('base')}
                       >
                         {t('删除')}

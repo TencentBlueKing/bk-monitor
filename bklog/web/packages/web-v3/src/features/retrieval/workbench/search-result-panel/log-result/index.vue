@@ -112,8 +112,14 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
   import { debounce } from 'lodash-es';
-  import { mapGetters, mapState } from '@/app/state/map-helpers';
+
   // MONITOR_APP !== 'trace'
   import ExportLog from '../../result-comp/export-log.vue';
   // #else
@@ -198,14 +204,14 @@
       },
       filedSettingConfigID() {
         // 当前索引集的显示字段ID
-        return this.$store.state.retrieve.filedSettingConfigID;
+        return useRetrieveStore().$state.filedSettingConfigID;
       },
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
       }),
-      ...mapState({
-        indexSetList: state => state.retrieve?.indexSetList ?? [],
+      ...mapPiniaState(useApplicationStore, {
+        indexSetList: () => useRetrieveStore().indexSetList,
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
       }),
@@ -215,13 +221,13 @@
       },
 
       fieldAliasMap() {
-        return this.$store.getters.fieldAliasMap;
+        return useApplicationStore().fieldAliasMap;
       },
       showFieldsConfigPopoverNum() {
-        return this.$store.state.showFieldsConfigPopoverNum;
+        return useApplicationStore().showFieldsConfigPopoverNum;
       },
       jsonFormat() {
-        return this.$store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT];
+        return useApplicationStore().storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT];
       },
       highlightStyle() {
         return {
@@ -384,6 +390,9 @@
     }
 
     .tools-more {
+      flex: 1;
+      min-width: 0;
+
       @include flex-center;
 
       .switch-label {
@@ -395,9 +404,15 @@
 
     .operation-icons {
       display: flex;
+      flex: 1;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
+      min-width: 0;
       margin-left: 16px;
+
+      > :not(.light-search) {
+        flex-shrink: 0;
+      }
 
       .operation-icon {
         display: flex;
@@ -431,13 +446,32 @@
 
       .light-search {
         display: flex;
+        flex: 0 1 auto;
         align-items: center;
+        min-width: 0;
         font-size: 12px;
         color: #4d4f56;
         background: #ffffff;
 
+        :deep(.bklog-v3-tag-highlight) {
+          flex: 0 1 auto;
+          width: 400px;
+          min-width: 0;
+        }
+
+        :deep(.bklog-v3-tag-highlight .bklog-tag-choice-input) {
+          width: 100%;
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .bklog-v3-match-mode {
+          flex-shrink: 0;
+        }
+
         label {
           display: flex;
+          flex-shrink: 0;
           align-items: center;
           justify-content: center;
           width: 40px;
@@ -469,6 +503,7 @@
     }
 
     .left-operate {
+      flex: 0 0 auto;
       flex-wrap: nowrap;
       align-items: center;
 

@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Empty as TEmpty, Tooltip as TTooltip } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -34,7 +36,7 @@ import ItemSkeleton from '@/app/skeleton/item-skeleton';
 import axios from 'axios';
 import dayjs from 'dayjs';
 
-import store from '@/app/state/index';
+
 import type * as echarts from 'echarts';
 
 import { formatNumberWithRegex } from '../../../../shared/lib/util';
@@ -127,7 +129,7 @@ export default class FieldAnalysis extends Vue {
   }
 
   get pillarChartHeight() {
-    return store.getters.isEnLanguage ? CHART_HEIGHTS.PILLAR_EN_BASE : CHART_HEIGHTS.PILLAR_BASE;
+    return useApplicationStore().isEnLanguage ? CHART_HEIGHTS.PILLAR_EN_BASE : CHART_HEIGHTS.PILLAR_BASE;
   }
 
   /** 图表区固定高度。骨架和正式图共用，避免渲染过程中把弹层撑高再缩回去。 */
@@ -140,7 +142,7 @@ export default class FieldAnalysis extends Vue {
     const { start_time: startTime, end_time: endTime } = this.queryParams;
     if (startTime && endTime && this.isPillarChart) {
       // const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
-      const timezone = store.state.indexItem.timezone;
+      const timezone = useApplicationStore().indexItem.timezone;
       return `${window.mainComponent.$t('查询时段')}: ${formatTimeStampZone(startTime, timezone)} - ${formatTimeStampZone(endTime, timezone)}`;
     }
     return '';
@@ -226,7 +228,7 @@ export default class FieldAnalysis extends Vue {
       this.infoLoading = true;
       this.chartLoading = true;
 
-      const isScene = store.getters.isSceneMode;
+      const isScene = useApplicationStore().isSceneMode;
       const urlStr = isScene
         ? ServicesInstance.retrieve.getSceneFieldStatisticsInfo
         : ServicesInstance.retrieve.fieldStatisticsInfo;
@@ -255,7 +257,7 @@ export default class FieldAnalysis extends Vue {
         });
       }
 
-      const isScene = store.getters.isSceneMode;
+      const isScene = useApplicationStore().isSceneMode;
       const urlStr = isScene
         ? ServicesInstance.retrieve.getSceneFieldStatisticsGraph
         : ServicesInstance.retrieve.fieldStatisticsGraph;

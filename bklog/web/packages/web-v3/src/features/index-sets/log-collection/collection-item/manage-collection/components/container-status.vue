@@ -130,9 +130,12 @@
     </div>
   </div>
 </template>
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { ServicesInstance } from '@/platform/services';
 
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   export default {
   emits: ["update:is-loading","update:isLoading"],
@@ -184,7 +187,7 @@
       };
     },
     computed: {
-      ...mapGetters('collect', ['curCollect']),
+      ...mapPiniaState(useCollectionStore, ['curCollect']),
       hasRunning() {
         // 是否还有执行中的状态
         return this.navBtnList[3].listNum;

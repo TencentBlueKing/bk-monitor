@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { defineComponent, ref, watch, computed, onBeforeUnmount, onMounted, nextTick, type PropType } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 import InfoTips from '../../../common-comp/info-tips';
@@ -124,7 +126,7 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     // ==================== Refs 定义 ====================
     /** Tippy 菜单面板引用 */
@@ -136,7 +138,7 @@ export default defineComponent({
     /** Tippy 实例 */
     let tippyInstance: Instance | null = null;
     /** 业务 ID */
-    const bkBizId = computed(() => store.getters.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
     /** 选择集群提示配置 */
     const chooseClusterTips = ref({
       content: t('请先选择集群'),

@@ -24,13 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+
+import publishedMonitorStore from '@/app/state/index';
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert, Badge as TBadge, Progress as TProgress, Tag as TTag } from 'tdesign-vue-next';
 import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup, Radio as TRadio, RadioButton as TRadioButton, RadioGroup as TRadioGroup, Switch as TSwitch, Loading as TLoading } from 'tdesign-vue-next';
 import { Button as TButton } from 'tdesign-vue-next';
 import Vue from '@/platform/compat/vue-runtime.mjs';
 import i18n from '@/platform/i18n/i18n';
 import JsonFormatWrapper from '@/shared/global/json-format-wrapper.vue';
-import useStore from '@/shared/composables/use-store';
+
 import { performanceMonitorService } from '@/platform/persistence/index';
 import MonitorTraceLog from './monitor';
 
@@ -41,10 +44,11 @@ if (!window.mainComponent?.$t) {
   };
 }
 
-const logStore = useStore();
+// Published Monitor hosts retain their existing store protocol.
+const logStore = publishedMonitorStore;
 
 const initMonitorState = (payload: unknown) => {
-  logStore.commit('initMonitorState', payload);
+  useApplicationStore().initMonitorState(payload);
 };
 const initGlobalComponents = () => {
   Vue.component('JsonFormatWrapper', JsonFormatWrapper);

@@ -1,8 +1,10 @@
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 import { nextTick, onBeforeUnmount, ref, type Ref } from 'vue';
 
 import $http from '@/platform/http/index';
-import useStore from '@/shared/composables/use-store';
+
 
 import { flattenLogParams, useCommonRelatedLog } from './use-common-related-log';
 import {
@@ -16,7 +18,7 @@ export const useContextRelatedLog = (options: {
   targetRow: Ref<Record<string, any>>;
   targetFields?: Ref<string[]>;
 }) => {
-  const store = useStore();
+  const store = useApplicationStore();
   const common = useCommonRelatedLog(options);
   const zero = ref(true);
   const prevBegin = ref(0);

@@ -1,0 +1,14 @@
+{
+  "scanned": 927,
+  "publishedBoundaryFiles": [
+    "app/state/index.ts",
+    "app/state/application-runtime.ts",
+    "app/state/monitor-store-compatibility.ts",
+    "platform/embedding/monitor-application.ts",
+    "app/entries/monitor-bootstrap.ts",
+    "features/retrieval/workspace/monitor/apm.ts",
+    "features/retrieval/workspace/monitor/trace.ts",
+    "features/retrieval/workbench/monitor/index.ts"
+  ],
+  "violations": []
+}

@@ -50,9 +50,13 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
 
-  import { mapGetters } from '@/app/state/map-helpers';
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
+
+
 
   export default {
     props: {
@@ -73,9 +77,9 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
-        curCollect: 'collect/curCollect',
+        curCollect: state => state.collect.curCollect,
       }),
     },
     methods: {
@@ -83,7 +87,7 @@
         this.$router.push({
           name: this.backRouter,
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },

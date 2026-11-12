@@ -28,6 +28,8 @@
 </template>
 
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, reactive, ref } from 'vue';
 import {
   Popup as TPopup,
@@ -39,9 +41,9 @@ import {
 import type { FormInstanceFunctions } from 'tdesign-vue-next';
 import type { SortPair } from '../field-settings.types';
 
-import useStore from '@/shared/composables/use-store';
 
-const store = useStore();
+
+const store = useApplicationStore();
 
 const props = defineProps<{
   confirmHandler: (
@@ -54,7 +56,7 @@ const props = defineProps<{
 }>();
 
 const defaultSortFields = computed<SortPair[]>(() =>
-  (store.state.indexFieldInfo?.default_sort_list ?? []).map(([field, order]: SortPair) => [field, order ?? 'desc']),
+  (store.indexFieldInfo?.default_sort_list ?? []).map(([field, order]: SortPair) => [field, order ?? 'desc']),
 );
 
 const formRef = ref<FormInstanceFunctions>();

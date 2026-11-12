@@ -24,13 +24,18 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { computed, defineComponent, type PropType } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 
 
-import useStore from '../../../../../shared/composables/use-store';
+
 import RetrieveHelper from '../../../retrieve-helper';
 
 export default defineComponent({
@@ -48,21 +53,21 @@ export default defineComponent({
   },
   setup(props) {
     const { $t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const isFieldSettingShow = computed(() => {
-      return !(store.getters.isUnionSearch || isExternal.value);
+      return !(store.isUnionSearch || isExternal.value);
     });
 
     const hasCollectorConfigId = computed(() => {
-      const indexSetList = store.state.retrieve.flatIndexSetList;
-      const indexSetId = store.state.indexId;
+      const indexSetList = useRetrieveStore().$state.flatIndexSetList;
+      const indexSetId = store.indexId;
       const currentIndexSet = indexSetList.find((item) => item.index_set_id === indexSetId);
       return currentIndexSet?.collector_config_id;
     });
 
-    const isExternal = computed(() => store.state.isExternal);
+    const isExternal = computed(() => store.isExternal);
     const openConfiguration = () => {
-      if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
+      if (isFieldSettingShow.value && store.spaceUid && hasCollectorConfigId.value) {
         RetrieveHelper.setIndexConfigOpen(true);
       } else {
         TDesignMessage("info", { content: '第三方ES、计算平台索引集类型不支持自定义分词' });

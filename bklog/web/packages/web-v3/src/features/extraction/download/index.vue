@@ -34,7 +34,9 @@
 </template>
 
 <script>
-  export default {
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+export default {
     name: 'Extract',
     data() {
       return {
@@ -44,7 +46,7 @@
     },
     computed: {
       bkBizId() {
-        return this.$store.state.bkBizId;
+        return useApplicationStore().bkBizId;
       },
     },
     watch: {
@@ -61,8 +63,8 @@
       },
     },
     mounted() {
-      const bkBizId = this.$store.state.bkBizId;
-      const spaceUid = this.$store.state.spaceUid;
+      const bkBizId = useApplicationStore().bkBizId;
+      const spaceUid = useApplicationStore().spaceUid;
 
       this.$router.replace({
         query: {
@@ -77,7 +79,7 @@
         this.$router.push({
           name: 'extract',
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },

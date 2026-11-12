@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { asDictionary } from '@/shared/utils/typed-record';
 import { getSelectionText } from '@/shared/lib/selection-util';
 import RetrieveHelper from '@/features/retrieval/retrieve-helper';
@@ -53,7 +55,7 @@ import {
   setScrollLoadCell,
 } from './hooks-helper';
 import { getJsonSegmentRanges } from './json-segment-ranges';
-import useStore from './use-store';
+
 import UseSegmentPropInstance from './use-segment-pop';
 
 import type { Ref } from 'vue';
@@ -172,14 +174,14 @@ export default class UseJsonFormatter {
     // Visible 之外也要能命中完整字段列表（含 __ext_json / __ext_json.deployment 等虚拟中间层），
     // 否则深路径会被错误收敛到根字段。
     try {
-      const store = useStore();
-      const index = store.state?.indexFieldInfo?.fieldNameIndex;
+      const store = useApplicationStore();
+      const index = store?.indexFieldInfo?.fieldNameIndex;
       if (index && typeof index === 'object') {
         for (const name of names) {
           if (index[name]) return index[name];
         }
       }
-      return matchInList(store.getters?.filteredFieldList) ?? matchInList(store.getters?.rawFieldList);
+      return matchInList(store.filteredFieldList) ?? matchInList(store.rawFieldList);
     } catch {
       return undefined;
     }

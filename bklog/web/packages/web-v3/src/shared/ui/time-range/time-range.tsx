@@ -24,13 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import { defineComponent, h, onMounted, onBeforeUnmount, onDeactivated, watch, ref, type PropType } from 'vue';
 import { mountDatePicker } from 'virtual:bklog-native-date-picker';
 import type { DatePickerHandle, DatePickerState, DatePickerValue } from '@/platform/sdk/date-picker/contract';
 import { updateTimezone } from '../../../platform/i18n/dayjs';
 import { DEFAULT_TIME_RANGE } from './utils';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
-import useStore from '@/shared/composables/use-store';
+
 import '@blueking/date-picker/vue3/vue3.css';
 
 export type TimeRangeType = [string, string];
@@ -48,7 +51,7 @@ export default defineComponent({
   },
   emits: ['change', 'format-change', 'timezone-change', 'formatChange', 'timezoneChange'],
   setup(props, { emit, expose }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const host = ref<HTMLElement>();
     const datePicker = ref<DatePickerHandle>();
     const getState = (): DatePickerState => ({
@@ -59,13 +62,13 @@ export default defineComponent({
       format: formatStr.value,
       maxDuration: props.maxDuration,
     });
-    const formatStr = ref(store.getters.retrieveParams.format);
-    onMounted(() => store.commit('retrieve/updateCachePickerValue', props.value));
+    const formatStr = ref(store.retrieveParams.format);
+    onMounted(() => useRetrieveStore().updateCachePickerValue(props.value));
     function handleModelValueChange(value: DatePickerValue) {
       if (value.every((item) => typeof item === 'string'))
         localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(value));
-      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: [] });
-      store.commit('retrieve/updateCachePickerValue', props.value);
+      store.updateStorage({ [BK_LOG_STORAGE.CACHED_BATCH_LIST]: [] });
+      useRetrieveStore().updateCachePickerValue(props.value);
       emit('change', value);
     }
     function handleFormatChange(value: string) {

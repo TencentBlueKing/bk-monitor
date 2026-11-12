@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
@@ -89,11 +91,11 @@ export default class QuickOpenCluster extends tsc<IProps> {
   }
 
   get bkBizId() {
-    return this.$store.state.bkBizId;
+    return useApplicationStore().bkBizId;
   }
 
   get datePickerValue() {
-    const { start_time: startTime = 'now-15m', end_time: endTime = 'now' } = this.$store.state.indexItem;
+    const { start_time: startTime = 'now-15m', end_time: endTime = 'now' } = useApplicationStore().indexItem;
     return [startTime, endTime];
   }
 

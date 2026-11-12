@@ -42,19 +42,29 @@
         </span>
       </div>
       <div class="tab-right">
-        <bk-input
+        <TInput
+          ref="fieldSearchInput"
           v-show="activeExpandView === 'kv'"
-          v-model="searchKeyword"
-          ext-cls="search-input"
+          v-model:value="searchKeyword"
+          class="search-input"
           clearable
           :placeholder="$t('搜索字段')"
-          :right-icon="'bk-icon icon-search'"
           @enter="handleSearch"
-          @right-icon-click="handleSearch"
           @clear="handleClearSearch"
-          @input="handleInputChange"
+          @click="handleInputClick"
+          @change="handleInputChange"
         >
-        </bk-input>
+          <template #suffix>
+            <button
+              type="button"
+              class="field-search-submit"
+              :aria-label="$t('搜索字段')"
+              @click.stop="handleSearch"
+            >
+              <SearchIcon />
+            </button>
+          </template>
+        </TInput>
         <span
           v-log-tooltip="{ content: $t('复制') }"
           class="bklog-icon bklog-data-copy"
@@ -95,7 +105,10 @@
 </template>
 
 <script>
-import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { Input as TInput, MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { SearchIcon } from 'tdesign-icons-vue-next';
 
   import { TABLE_LOG_FIELDS_SORT_REGULAR, copyMessage } from '@/shared/lib/util';
   import { getFieldNameByField } from '@/shared/composables/use-field-name';
@@ -109,6 +122,8 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   export default {
     setup() { return useTableRowDeepView(); },
     components: {
+      TInput,
+      SearchIcon,
       KvList,
     },
     inheritAttrs: false,
@@ -150,13 +165,13 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     },
     computed: {
       visibleFields() {
-        return this.$store.getters.visibleFields ?? [];
+        return useApplicationStore().resolvedVisibleFields ?? [];
       },
       totalFields() {
-        return this.$store.getters.filteredFieldList;
+        return useApplicationStore().filteredFieldList;
       },
       showFieldAlias() {
-        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+        return useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       // 性能优化：使用 Set 缓存 kvShowFieldsList，提升查找性能
       kvShowFieldsSet() {
@@ -196,7 +211,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
             const fieldNameCache = new Map();
             const getCachedFieldName = field => {
               if (!fieldNameCache.has(field)) {
-                fieldNameCache.set(field, getFieldNameByField(field, this.$store));
+                fieldNameCache.set(field, getFieldNameByField(field, useApplicationStore()));
               }
               return fieldNameCache.get(field);
             };
@@ -254,7 +269,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
             const fieldNameCache = new Map();
             const getCachedFieldName = field => {
               if (!fieldNameCache.has(field)) {
-                fieldNameCache.set(field, getFieldNameByField(field, this.$store));
+                fieldNameCache.set(field, getFieldNameByField(field, useApplicationStore()));
               }
               return fieldNameCache.get(field);
             };
@@ -446,6 +461,10 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         this.searchKeyword = '';
         this.activeSearchKeyword = '';
       },
+      handleInputClick({ e }) {
+        // Run after TInput's root-click focus, preserving V2 clear-icon blur.
+        if (e.target?.closest?.('.t-input__suffix-clear')) this.$refs.fieldSearchInput?.blur();
+      },
       handleInputChange(value) {
         // 当输入框内容被手动删空时，重置搜索
         if (!value?.trim?.()) {
@@ -522,26 +541,52 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         align-items: center;
 
         .search-input {
+          width: 200px;
+          height: 22px;
           margin-right: 10px;
 
+          :deep(.t-input) {
+            height: 22px;
+            min-height: 0;
+            padding: 0;
+            background: #f5f7fa;
+            border: 0;
+            border-radius: 0;
+            box-shadow: inset 0 -1px #c4c6cc;
+          }
+
           :deep(.t-input__inner) {
+            flex: none;
             width: 200px;
             height: 22px;
-            padding: 0;
-            background: #F5F7FA;
-            border: none;
-            border-bottom: 1px solid #c4c6cc;
-
-            &:focus {
-              /* stylelint-disable-next-line declaration-no-important */
-              background: #F5F7FA !important;
-            }
+            padding: 0 36px 0 0;
+            font-size: 12px;
+            line-height: 22px;
+            background: transparent;
           }
 
-          :deep(.right-icon) {
-            /* stylelint-disable-next-line declaration-no-important */
-            right: 0px !important;
+          :deep(.t-input__suffix) {
+            position: absolute;
+            right: 0;
+            margin: 0;
           }
+
+          :deep(.t-input__suffix-icon) {
+            right: 18px;
+          }
+        }
+
+        .field-search-submit {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 22px;
+          padding: 0;
+          color: #979ba5;
+          cursor: pointer;
+          background: transparent;
+          border: 0;
         }
 
         .bklog-icon {

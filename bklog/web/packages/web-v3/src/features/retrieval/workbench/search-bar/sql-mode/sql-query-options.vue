@@ -1,4 +1,6 @@
-<script lang="ts" setup>import { asDictionary } from '@/shared/utils/typed-record';
+<script lang="ts" setup>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { asDictionary } from '@/shared/utils/typed-record';
 
   import { ComputedRef, Ref, computed, nextTick, ref, watch } from 'vue';
 
@@ -6,7 +8,7 @@
   // @ts-ignore
   import useLocale from '@/shared/composables/use-locale';
   // @ts-ignore
-  import useStore from '@/shared/composables/use-store';
+
 
   import jsCookie from 'js-cookie';
   // @ts-ignore
@@ -34,7 +36,7 @@
 
   const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change', 'text-to-query', "activeChange", "textToQuery"]);
 
-  const store = useStore();
+  const store = useApplicationStore();
   const { $t } = useLocale();
   const { getQualifiedFieldName, buildFieldNameIndex } = useFieldNameHook({ store });
 
@@ -53,7 +55,7 @@
    * @description 是否显示 AI 助手快捷键提示
    * @returns {boolean}
    */
-  const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+  const isAiAssistantActive = computed(() => store.features.isAiAssistantActive);
 
   enum OptionItemType {
     Colon = 'Colon',
@@ -80,14 +82,14 @@
   });
 
   const retrieveDropdownData = computed(() => {
-    void store.state.retrieveDropdownDataVersion;
-    return storeRuntimeCacheService.getRetrieveDropdownData(store.state.indexId || 'default');
+    void store.retrieveDropdownDataVersion;
+    return storeRuntimeCacheService.getRetrieveDropdownData(store.indexId || 'default');
   });
   const fieldAggsItems = computed(() => {
-    void store.state.fieldAggsItemsVersion;
-    return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
+    void store.fieldAggsItemsVersion;
+    return storeRuntimeCacheService.getFieldAggsItems(store.indexId || 'default');
   });
-  const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.getters.filteredFieldList);
+  const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.filteredFieldList);
 
   const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
 
@@ -344,7 +346,7 @@
     // 开始输入字段【nam】
     const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
     if (inputField) {
-      const fieldScope = store.state.indexFieldInfo.field_scope || store.state.indexId || 'default';
+      const fieldScope = store.indexFieldInfo.field_scope || store.indexId || 'default';
       const cachedFieldIndex = storeRuntimeCacheService.getFieldNameIndex(fieldScope);
       const fieldIndex = Object.keys(cachedFieldIndex).length
         ? cachedFieldIndex

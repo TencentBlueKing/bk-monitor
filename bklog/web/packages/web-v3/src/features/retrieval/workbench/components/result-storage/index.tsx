@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { includesValue } from '@/shared/utils/typed-record';
 
 import { computed, defineComponent, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { Popup, Checkbox, InputNumber, Button, MessagePlugin } from 'tdesign-vue-next';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
 import 'tdesign-vue-next/es/style/index.css';
@@ -45,34 +47,34 @@ const IS_SORT_TIME_SHOW = !window.__IS_MONITOR_APM__ && !window.__IS_MONITOR_TRA
 
 export default defineComponent({
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const { $t } = useLocale();
-    const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
-    const jsonFormatDeep = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
-    const isJsonFormat = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
-    const isAllowEmptyField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]);
-    const showRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
-    const expandTextView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
-    const isShowSourceField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
-    const isShowCollectorField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD]);
-    const isUnionSearch = computed(() => store.getters.isUnionSearch);
-    const isSceneMode = computed(() => store.getters.isSceneMode);
-    const isFormatDate = computed(() => store.state.isFormatDate);
+    const isWrap = computed(() => store.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+    const jsonFormatDeep = computed(() => store.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
+    const isJsonFormat = computed(() => store.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+    const isAllowEmptyField = computed(() => store.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]);
+    const showRowIndex = computed(() => store.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
+    const expandTextView = computed(() => store.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
+    const isShowSourceField = computed(() => store.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
+    const isShowCollectorField = computed(() => store.storage[BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD]);
+    const isUnionSearch = computed(() => store.isUnionSearch);
+    const isSceneMode = computed(() => store.isSceneMode);
+    const isFormatDate = computed(() => store.isFormatDate);
 
     const sortStatus = ref<undefined | 'asc' | 'desc'>(undefined);
 
     // 切换检索模式时，重置排序状态
     watch(
-      () => store.state.indexItem?.retrieve_type,
+      () => store.indexItem?.retrieve_type,
       () => {
         sortStatus.value = undefined;
-        store.commit('updateState', { dateTimeSort: false, dateTimeSortList: [] });
+        store.updateState({ dateTimeSort: false, dateTimeSortList: [] });
       },
     );
 
-    const userSortFields = computed(() => store.state.indexFieldInfo?.user_custom_config?.sortList ?? []);
+    const userSortFields = computed(() => store.indexFieldInfo?.user_custom_config?.sortList ?? []);
     const defaultSortFields = computed(() =>
-      (store.state.indexFieldInfo?.default_sort_list ?? []).map(([field, order]) => [field, order ?? 'desc']),
+      (store.indexFieldInfo?.default_sort_list ?? []).map(([field, order]) => [field, order ?? 'desc']),
     );
     const localSortFields = computed(() => {
       return userSortFields.value.length ? userSortFields.value : defaultSortFields.value;
@@ -114,15 +116,15 @@ export default defineComponent({
 
       fieldsSettingPopperRef.value?.hide();
 
-      store.commit('updateState', { localSort: false });
+      store.updateState({ localSort: false });
 
-      await store.dispatch('userFieldConfigChange', {
+      await store.userFieldConfigChange({
         sortList: updateSortList,
       });
 
       if (isSortListChanged) {
-        await store.dispatch('requestIndexSetFieldInfo');
-        await store.dispatch('requestIndexSetQuery');
+        await store.requestIndexSetFieldInfo();
+        await store.requestIndexSetQuery();
         RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
       }
     };
@@ -139,17 +141,17 @@ export default defineComponent({
     };
 
     const handleStorageChange = (val: boolean, key: BK_LOG_STORAGE) => {
-      store.commit('updateStorage', { [key]: val });
+      store.updateStorage({ [key]: val });
     };
 
     const handleJsonFormatDeepChange = (val: unknown) => {
       const value = Number(val);
       const target = value > 15 ? 15 : value < 1 ? 1 : value;
-      store.commit('updateStorage', { [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: target });
+      store.updateStorage({ [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: target });
     };
 
     const handleFormatDate = (val: boolean) => {
-      store.commit('updateState', { isFormatDate: val });
+      store.updateState({ isFormatDate: val });
     };
     const handleShowLogTimeChange = async (target?: 'asc' | 'desc') => {
       if (target !== undefined) {
@@ -168,12 +170,12 @@ export default defineComponent({
         sortList = localSortFields.value.map((item: unknown[]) => [item[0], sortStatus.value]);
       }
       displaySortFields.value = sortList;
-      store.commit('updateState', {
+      store.updateState({
         dateTimeSort: includesValue(['asc', 'desc'], sortStatus.value),
         dateTimeSortList: sortList,
       });
-      await store.dispatch('requestIndexSetFieldInfo');
-      await store.dispatch('requestIndexSetQuery', { defaultSortList: sortList });
+      await store.requestIndexSetFieldInfo();
+      await store.requestIndexSetQuery({ defaultSortList: sortList });
       RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED, sortList);
     };
 

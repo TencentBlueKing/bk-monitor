@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { mergeWith } from 'lodash-es';
 import { defineComponent, ref } from 'vue';
 import SubscriptionContent from './subscription-content/index';
 import EmailConfig from './email-config/index';
 import SendConfig from './send-config/index';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute } from "vue-router";
 import './index.scss';
 
@@ -54,7 +56,7 @@ export default defineComponent({
     },
   },
   setup(props, { expose }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
 
     const subscriptionContentRef = ref<any>(null);
@@ -79,7 +81,7 @@ export default defineComponent({
             is_enabled: true,
             subscribers: [
               {
-                id: store.state.userMeta?.username || '',
+                id: store.userMeta?.username || '',
                 type: 'user',
                 is_enabled: true,
               },

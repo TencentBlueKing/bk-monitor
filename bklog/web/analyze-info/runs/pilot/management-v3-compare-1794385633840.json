@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "scope": "MANAGEMENT_MENU_PREVIEW_CANCEL_ONLY_NOT_FULL_ACCEPTANCE",
+  "version": "v3",
+  "status": "V3_PILOT_REQUIRES_REVIEW",
+  "baselineProof": {
+    "schemaVersion": 1,
+    "capabilities": [
+      "management-menu-stop-preview-cancel"
+    ],
+    "scope": "MANAGEMENT_MENU_PREVIEW_CANCEL_ONLY",
+    "status": "PILOT_BASELINE_PROVEN",
+    "captureDigest": "52f4fe297120613887171a1c305e3f9844670ef9676ec032d53d69ed98600e73",
+    "sourceDigest": "a7cd5e2b50b1cefb71549c86a5ea622794fc05e4f2660a85c710a474bbfe0176",
+    "report": {
+      "path": "analyze-info/runs/pilot/management-self-replay-1794385425136.json",
+      "sha256": "6932d36598e690cc39e7d36a92da3998e403d16b0a9b914e9986c77b1679d986"
+    },
+    "artifacts": [
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-nKHMgI/list-ready.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-nKHMgI/list-ready.png",
+        "sha256": "2abc1ee3a7e16d9e693e78ee5ebf31a421b20f3769f69697015093573c73e053",
+        "bytes": 186107
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-bX2psS/list-ready.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-bX2psS/list-ready.png",
+        "sha256": "2abc1ee3a7e16d9e693e78ee5ebf31a421b20f3769f69697015093573c73e053",
+        "bytes": 186107
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-nKHMgI/menu-open.ui.json",
+        "sha256": "2bc53978688eda2f241d96e7dd128205f25011d22357cceff9b268ed9cfc4296",
+        "bytes": 3537
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-nKHMgI/menu-open.png",
+        "sha256": "71a849a0a385659f89fcc5afbf51f67a8dc6756017d3a2fb0e1140607b09aa8e",
+        "bytes": 191109
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-bX2psS/menu-open.ui.json",
+        "sha256": "563872d22bedb5459482e186a43d047fa121969ea3e5d5646d74f19a80a94cc3",
+        "bytes": 3537
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-bX2psS/menu-open.png",
+        "sha256": "71a849a0a385659f89fcc5afbf51f67a8dc6756017d3a2fb0e1140607b09aa8e",
+        "bytes": 191109
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-nKHMgI/stop-type-preview.ui.json",
+        "sha256": "e98e1f6dc1126bb12e2fabe79b0fb5e6ef036ce4d61df9e7861dc726e0ce2bb7",
+        "bytes": 5685
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-nKHMgI/stop-type-preview.png",
+        "sha256": "80a742b357d9fce94aca65666d2ee499ed2c2ceee60a52a5abba9d31bf90221b",
+        "bytes": 160321
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-bX2psS/stop-type-preview.ui.json",
+        "sha256": "e98e1f6dc1126bb12e2fabe79b0fb5e6ef036ce4d61df9e7861dc726e0ce2bb7",
+        "bytes": 5685
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-bX2psS/stop-type-preview.png",
+        "sha256": "80a742b357d9fce94aca65666d2ee499ed2c2ceee60a52a5abba9d31bf90221b",
+        "bytes": 160321
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-nKHMgI/cancel-restored-list.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-nKHMgI/cancel-restored-list.png",
+        "sha256": "2abc1ee3a7e16d9e693e78ee5ebf31a421b20f3769f69697015093573c73e053",
+        "bytes": 186107
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-bX2psS/cancel-restored-list.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-bX2psS/cancel-restored-list.png",
+        "sha256": "2abc1ee3a7e16d9e693e78ee5ebf31a421b20f3769f69697015093573c73e053",
+        "bytes": 186107
+      }
+    ],
+    "exclusions": [
+      {
+        "path": "/api/v1/frontend_event/report/",
+        "method": "POST",
+        "ruleId": "telemetry-excluded"
+      }
+    ],
+    "fullProductAccepted": false
+  },
+  "runtimeErrors": [],
+  "captureDigest": "52f4fe297120613887171a1c305e3f9844670ef9676ec032d53d69ed98600e73",
+  "privateInput": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-nKHMgI",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-wJ0931",
+  "fixtureReadRecords": 16,
+  "consumedRecords": 16,
+  "businessRequestsForwarded": 0,
+  "networkAudit": {
+    "scope": "CONTEXT_ROUTE_HANDLER_AUDIT",
+    "interceptedBusiness": 17,
+    "forwardedStatic": 454
+  },
+  "checkpoints": [
+    {
+      "id": "list-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "menu-open",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "stop-type-preview",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "cancel-restored-list",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    }
+  ],
+  "cancellations": [],
+  "uiDifferences": [
+    {
+      "checkpoint": "menu-open",
+      "kind": "GEOMETRY",
+      "id": "collection.row.more-menu",
+      "field": "y",
+      "expected": 275,
+      "actual": 271
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "SEMANTIC",
+      "id": "collection.stop-type.dialog",
+      "field": "name",
+      "expected": "请确认停用类型停用索引集索引集停用后，该索引集将无法检索。停用采集配置采集项停用后，在有效期内，您仍可检索历史日志。\n                    下一步\n                  \n                    取消",
+      "actual": "请确认停用类型停用索引集索引集停用后，该索引集将无法检索。停用采集配置采集项停用后，在有效期内，您仍可检索历史日志。取消下一步"
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "SEMANTIC",
+      "id": "collection.stop-type.dialog",
+      "field": "occluded",
+      "actual": false
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "GEOMETRY",
+      "id": "collection.stop-type.dialog",
+      "field": "x",
+      "expected": -100000,
+      "actual": 480
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "GEOMETRY",
+      "id": "collection.stop-type.dialog",
+      "field": "y",
+      "expected": -100000,
+      "actual": 180
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "GEOMETRY",
+      "id": "collection.stop-type.dialog",
+      "field": "width",
+      "expected": 1440,
+      "actual": 480
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "GEOMETRY",
+      "id": "collection.stop-type.dialog",
+      "field": "height",
+      "expected": 900,
+      "actual": 297
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "GEOMETRY",
+      "id": "collection.stop-type.selected-choice",
+      "field": "x",
+      "expected": 504,
+      "actual": 513
+    },
+    {
+      "checkpoint": "stop-type-preview",
+      "kind": "GEOMETRY",
+      "id": "collection.stop-type.selected-choice",
+      "field": "y",
+      "expected": 353,
+      "actual": 349
+    }
+  ],
+  "failures": [
+    {
+      "reason": "SELF_REPLAY_UI_DIFFERENCE",
+      "count": 9
+    }
+  ]
+}

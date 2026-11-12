@@ -527,7 +527,7 @@
             <div class="origin-log-config">
               <t-switch
                 v-model="formData.etl_params.retain_extra_json"
-                
+
                 @change="handleRetainExtraJsonChange"
               ></t-switch>
               <div class="switcher-tips">
@@ -582,7 +582,7 @@
               ></t-alert>
               <t-button :variant="(true) ? 'text' : ('base')"
                 class="expand-depth-example-btn"
-                
+
                 theme="primary"
                 @click="expandDepthExampleVisible = true"
               >
@@ -599,7 +599,7 @@
             <div class="origin-log-config">
               <t-switch
                 v-model="enableMetaData"
-                
+
               ></t-switch>
             </div>
           </bk-form-item>
@@ -994,6 +994,12 @@
   </section>
 </template>
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -1003,7 +1009,7 @@ import { ServicesInstance } from '@/platform/services';
   import { computed, getCurrentInstance } from 'vue';
   import { useSpaceSelector } from '@/shared/composables/use-space-selector';
   import useFullscreenLoading from '@/shared/composables/use-fullscreen-loading';
-  import { mapGetters, mapState } from '@/app/state/map-helpers';
+
   import * as authorityMap from '../../../shared/lib/authority-map';
   import { deepEqual } from '../../../shared/lib/util';
   import {
@@ -1283,15 +1289,15 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
-      ...mapState({
+      ...mapPiniaState(useApplicationStore, {
         mySpaceList: state => state.mySpaceList,
       }),
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
         spaceUid: 'spaceUid',
-        curCollect: 'collect/curCollect',
-        globalsData: 'globals/globalsData',
-        exportCollectObj: 'collect/exportCollectObj',
+        curCollect: state => state.collect.curCollect,
+        globalsData: state => state.globals.globalsData,
+        exportCollectObj: state => state.collect.exportCollectObj,
       }),
       authorityMap() {
         return authorityMap;
@@ -1320,7 +1326,7 @@ import { ServicesInstance } from '@/platform/services';
         return this.formData.fields.length;
       },
       collectProject() {
-        return projectManages(this.$store.state.topMenu, 'collection-item');
+        return projectManages(useApplicationStore().topMenu, 'collection-item');
       },
       isEditTemp() {
         return this.$route.name === 'clean-template-edit';
@@ -1331,8 +1337,8 @@ import { ServicesInstance } from '@/platform/services';
       advanceDisable() {
         return (
           !isFeatureToggleOn('scenario_bkdata', [
-            String(this.$store.state.bkBizId),
-            String(this.$store.state.spaceUid),
+            String(useApplicationStore().bkBizId),
+            String(useApplicationStore().spaceUid),
           ]) ||
           this.curCollect.bkdata_data_id === null ||
           (this.isCleanField && !this.cleanCollector)
@@ -1340,7 +1346,7 @@ import { ServicesInstance } from '@/platform/services';
       },
       advanceDisableTips() {
         if (
-          !isFeatureToggleOn('scenario_bkdata', [String(this.$store.state.bkBizId), String(this.$store.state.spaceUid)])
+          !isFeatureToggleOn('scenario_bkdata', [String(useApplicationStore().bkBizId), String(useApplicationStore().spaceUid)])
         ) {
           return '';
         }
@@ -1351,14 +1357,14 @@ import { ServicesInstance } from '@/platform/services';
       },
       unAuthBkdata() {
         return !isFeatureToggleOn('scenario_bkdata', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
+          String(useApplicationStore().bkBizId),
+          String(useApplicationStore().spaceUid),
         ]);
       },
       isExtJsonExpandDepthEnabled() {
         return isFeatureToggleOn(EXT_JSON_EXPAND_DEPTH_TOGGLE, [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
+          String(useApplicationStore().bkBizId),
+          String(useApplicationStore().spaceUid),
         ]);
       },
       /** 仅控制「动态字段解析层级」，不影响「JSON 字段动态新增」 */
@@ -1441,7 +1447,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         return ['clean-template-create', 'clean-template-edit'].includes(this.$route.name);
       },
       labelWidth() {
-        return this.$store.state.isEnLanguage ? this.enLabelWidth : 130;
+        return useApplicationStore().isEnLanguage ? this.enLabelWidth : 130;
       },
       renderFieldNameList() {
         return this.fieldNameList.filter(item => {
@@ -1759,7 +1765,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
             separator_regexp: this.formData.etl_params?.path_regexp,
           },
           data: this.pathExample,
-          bk_biz_id: this.$store.state.bkBizId,
+          bk_biz_id: useApplicationStore().bkBizId,
         };
         const urlParams = {};
         this.isDebugLoading = true;
@@ -1925,7 +1931,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           etl_config: etlConfig,
           fields: etlFields,
           etl_params: etlParams,
-          bk_biz_id: this.$store.state.bkBizId,
+          bk_biz_id: useApplicationStore().bkBizId,
         };
 
         const updateData = {
@@ -2128,7 +2134,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           name: routeName,
           query: {
             ...reset,
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },
@@ -2284,7 +2290,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           etl_config,
           etl_params: etlParams,
           data: this.logOriginal,
-          bk_biz_id: this.$store.state.bkBizId,
+          bk_biz_id: useApplicationStore().bkBizId,
         };
 
         if (this.isTempField) {
@@ -2618,7 +2624,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           })
           .then(async res => {
             if (res.data) {
-              this.$store.commit('collect/setCurCollect', res.data);
+              useCollectionStore().setCurCollect(res.data);
               this.getDetail();
               await this.getCleanStash(id);
               this.getDataLog('init');
@@ -2641,7 +2647,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
             },
           ],
         };
-        const res = await this.$store.dispatch('checkAndGetData', paramData);
+        const res = await useApplicationStore().checkAndGetData(paramData);
         if (res.isAllowed === false) {
           this.authPageInfo = res.data;
           this.basicLoading = false;
@@ -2657,7 +2663,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
           await this.setDetail(id);
         } else {
           // 新增清洗且当前采集项已有基础清洗 则默认只能新增高级清洗
-          this.$store.commit('collect/setCurCollect', curCollect);
+          useCollectionStore().setCurCollect(curCollect);
           this.setAdvanceCleanTab(true);
           this.basicLoading = false;
         }
@@ -2667,7 +2673,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         this.$el.click(); // 手动关闭下拉
         const loading = this.showFullscreenLoading();
         try {
-          const res = await this.$store.dispatch('getApplyData', {
+          const res = await useApplicationStore().getApplyData({
             action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
             resources: [
               {

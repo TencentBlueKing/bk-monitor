@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import {
   RadioGroup as TRadioGroup,
   Radio as TRadio,
@@ -35,7 +37,7 @@ import { defineComponent, ref, onMounted, PropType, computed } from 'vue';
 
 import type { FormRules } from 'tdesign-vue-next';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import AddGroup from '../collect-list/add-group';
 
@@ -60,8 +62,8 @@ export default defineComponent({
   emits: ['handle'],
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
-    const isSceneMode = computed(() => store.getters.isSceneMode);
+    const store = useApplicationStore();
+    const isSceneMode = computed(() => store.isSceneMode);
     const addPopoverVisible = ref(false);
     const sortPopoverVisible = ref(false);
     const active = ref('');

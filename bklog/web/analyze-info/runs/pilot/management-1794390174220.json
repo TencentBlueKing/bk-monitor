@@ -1,0 +1,569 @@
+{
+  "schemaVersion": 1,
+  "scope": "MANAGEMENT_PREVIEW_CANCEL_NO_RESOURCE_MUTATION",
+  "status": "CAPTURED_NEEDS_SELF_REPLAY",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-CevhCe",
+  "checkpoints": [
+    {
+      "id": "list-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "menu-open",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "stop-type-preview",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "cancel-restored-list",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "collapsed-nav-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "nav-cluster-ready",
+      "route": "#/manage/es-cluster-manage?spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    }
+  ],
+  "failures": [],
+  "requests": [
+    {
+      "id": "request-1",
+      "path": "/api/v1/meta/index_html_environment/",
+      "method": "GET",
+      "signature": "4c079e7f35fd559ff6c25d8ee12bc74ee264de99b649d34711d536cc4c68bc2d",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "bootstrap-environment"
+      },
+      "startedAt": 1794390164618,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "5dc03aff7baefe0f77b8facaaa0140b1cd4eb8281061023ac464514c114aea7c",
+          "bytes": 23286
+        }
+      },
+      "finishedAt": 1794390165083
+    },
+    {
+      "id": "request-2",
+      "path": "/api/v1/meta/mine/",
+      "method": "GET",
+      "signature": "8a7efea2f8b2e6c75b30cf8dc2ebe588d39fe245873d3ad0b1bbbc6aa581921f",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getUsername"
+      },
+      "startedAt": 1794390165081,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "f38fffb2d099e44d9087230af1a5abbd2faf2b1ae75f2617d769f084fb12e72e",
+          "bytes": 178
+        }
+      },
+      "finishedAt": 1794390165428
+    },
+    {
+      "id": "request-3",
+      "path": "/api/v1/meta/globals/",
+      "method": "GET",
+      "signature": "35e5b12842a8896ef4487d65987b2c95da9c1f208cc199e16d40bb39f31efc9e",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "globals"
+      },
+      "startedAt": 1794390165081,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "39d1a4484317f2a3e9d2f3a1dd62122581860d771a75941dab8d94de66e0f273",
+          "bytes": 22469
+        }
+      },
+      "finishedAt": 1794390165311
+    },
+    {
+      "id": "request-4",
+      "path": "/api/v1/meta/spaces/mine/",
+      "method": "GET",
+      "signature": "d1ed2cfaae5177f5fd92b33ce26f61729c78085f5617d1339441bd95f2fd7ef0",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getMySpaceList"
+      },
+      "startedAt": 1794390165082,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "651146c20f484eaa43e2f0eb2c0bf83ad8bfadce4b6fd575395497b5fe9ac5e5",
+          "bytes": 329
+        }
+      },
+      "finishedAt": 1794390165485
+    },
+    {
+      "id": "request-5",
+      "path": "/api/v1/frontend_event/report/",
+      "method": "POST",
+      "signature": "1a6bd420d0b1953af4cc129a6060b97ae0e1e0f1099b7d61ecb95484229f7817",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "BLOCK",
+        "reason": "EXCLUDED_TELEMETRY",
+        "ruleId": "telemetry-excluded"
+      },
+      "startedAt": 1794390165482,
+      "complete": false,
+      "finishedAt": 1794390165485,
+      "failure": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "cancelled": false
+    },
+    {
+      "id": "request-6",
+      "path": "/api/v1/meta/spaces/mine/",
+      "method": "GET",
+      "signature": "51154a5620b73b8d0b5f1583782cf02c63d98a17d4a811267e55b657694235a1",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getMySpaceList"
+      },
+      "startedAt": 1794390165484,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "359bed0234f8ff8d986510c64418bfb6b064febabcd1fbc9107e735b2ad4bca8",
+          "bytes": 41612265
+        }
+      },
+      "finishedAt": 1794390171011
+    },
+    {
+      "id": "request-7",
+      "path": "/notice/announcements/",
+      "method": "GET",
+      "signature": "3cd695d45780c7bc4b532c805ae8865e5313f84632856feed5a90bfa5e8ad447",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "notice-list"
+      },
+      "startedAt": 1794390165495,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 404,
+        "contentType": "text/html; charset=utf-8",
+        "classification": "HTTP_ERROR",
+        "body": {
+          "sha256": "85c4af702b109121cebbea5d5a07524d654f43c81e35701eb8971a7c3e14dd8e",
+          "bytes": 160
+        }
+      },
+      "finishedAt": 1794390165564
+    },
+    {
+      "id": "request-8",
+      "path": "/api/v1/meta/menu/",
+      "method": "GET",
+      "signature": "eba2dfcb90930a93b59abc0ade8f6567ce32b5c7a783312428f207a4f92b1c57",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "menu"
+      },
+      "startedAt": 1794390165554,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "4a230dc8f4f66c29aa54489fe07303cfd45080dd1f7654fd647d3139d20c59fc",
+          "bytes": 3486
+        }
+      },
+      "finishedAt": 1794390165787
+    },
+    {
+      "id": "request-9",
+      "path": "/api/v1/meta/user_guide/",
+      "method": "GET",
+      "signature": "ff3713a0706b10b90cceb232eb3a800b374af55f625310efba96fcd516ef1e91",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getUserGuide"
+      },
+      "startedAt": 1794390165557,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "bdd636a9b8e11261102ca4674cd9abbc0cf1db65c7bae13982b78801ef9f4747",
+          "bytes": 397
+        }
+      },
+      "finishedAt": 1794390165761
+    },
+    {
+      "id": "request-10",
+      "path": "/api/v1/databus/log_access/collector_field_enums/",
+      "method": "GET",
+      "signature": "0e9867f72762961a743ee57ab3336d6804dc5e10bba1849242ad6550e67f0660",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "collectorFieldEnums"
+      },
+      "startedAt": 1794390165666,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "f935df6475106671ea8945590f8e402d6a5fd46e5ba9e434da374bcb1361bc56",
+          "bytes": 27510
+        }
+      },
+      "finishedAt": 1794390166511
+    },
+    {
+      "id": "request-11",
+      "path": "/api/v1/index_set/tag/list/",
+      "method": "GET",
+      "signature": "7f2a207af568c751cb5e79d726e40a6638c78d86a35baf3ef9b197e1a8ae6ad3",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "unionLabelList"
+      },
+      "startedAt": 1794390165667,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "15c27bcc12436f8dd09789f8a9d53d4b01cc7e255ebaa3bc61f1bf1e84c05b14",
+          "bytes": 1310
+        }
+      },
+      "finishedAt": 1794390165939
+    },
+    {
+      "id": "request-12",
+      "path": "/api/v1/index_group/",
+      "method": "GET",
+      "signature": "6e277b17f6235f016e9e40b5da0573752fe42e95d3dd4c98bf39a4be0a76feab",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getIndexGroupList"
+      },
+      "startedAt": 1794390165667,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "ebaeb9647f425101d99fe7fc494c94faed083864103c380c7a605ef2fbd48cc7",
+          "bytes": 317
+        }
+      },
+      "finishedAt": 1794390166306
+    },
+    {
+      "id": "request-13",
+      "path": "/api/v1/iam/meta/check_allowed/",
+      "method": "POST",
+      "signature": "aef11b2ea5952a3c64acc9062505ba07b1148d7e1b68de9097b5c0a1814bb792",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "checkAllowed"
+      },
+      "startedAt": 1794390165667,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "21502816f4c7a65feec2b6fdd226abaf228515fb133c769b46a68031e6790192",
+          "bytes": 101
+        }
+      },
+      "finishedAt": 1794390165946
+    },
+    {
+      "id": "request-14",
+      "path": "/api/v1/databus/log_access/collector/",
+      "method": "POST",
+      "signature": "16dedce2f41fdc6bcdf074d7620c3605abc3daacca1cd3ff37d9f7e80db81b83",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "newCollectList"
+      },
+      "startedAt": 1794390166304,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "65266c90054e81ae1bfbc7f861ba10167112c7fe4491a3245a342f45f9e999e4",
+          "bytes": 11463
+        }
+      },
+      "finishedAt": 1794390167572
+    },
+    {
+      "id": "request-15",
+      "path": "/api/v1/databus/log_access/collector_field_enums/",
+      "method": "GET",
+      "signature": "0e9867f72762961a743ee57ab3336d6804dc5e10bba1849242ad6550e67f0660",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "collectorFieldEnums"
+      },
+      "startedAt": 1794390166305,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "f935df6475106671ea8945590f8e402d6a5fd46e5ba9e434da374bcb1361bc56",
+          "bytes": 27510
+        }
+      },
+      "finishedAt": 1794390167168
+    },
+    {
+      "id": "request-16",
+      "path": "/api/v1/index_set/storage_usage/",
+      "method": "POST",
+      "signature": "2df89f8d9bce6fbfa5caca62bc3e6a2d47a4533973ead7706e32f927b50e0ff4",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getStorageUsage"
+      },
+      "startedAt": 1794390167570,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "c65dff65d9e7a1b01f6ea96eda77b5fcc56145d9c3573843789b1b4fb7d812db",
+          "bytes": 1053
+        }
+      },
+      "finishedAt": 1794390171017
+    },
+    {
+      "id": "request-17",
+      "path": "/api/v1/databus/log_access/collector_status/",
+      "method": "POST",
+      "signature": "7a9234eae13ff9dde9c09ae954aca9860a726b9d5a779296a2ad50074cc67286",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getCollectorStatus"
+      },
+      "startedAt": 1794390167571,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "bbf025051c0cc8c4443f2b5561f5376aa028437bcc07778d1c2398f0e67ea3b3",
+          "bytes": 578
+        }
+      },
+      "finishedAt": 1794390168040
+    },
+    {
+      "id": "request-18",
+      "path": "/api/v1/frontend_event/report/",
+      "method": "POST",
+      "signature": "2d378b200e3e76540991eae01e6036b1d535e4c3f75748ddf7e0ad4577d03713",
+      "observedDuring": "nav-open-cluster",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "BLOCK",
+        "reason": "EXCLUDED_TELEMETRY",
+        "ruleId": "telemetry-excluded"
+      },
+      "startedAt": 1794390173110,
+      "complete": false,
+      "finishedAt": 1794390173113,
+      "failure": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "cancelled": false
+    },
+    {
+      "id": "request-19",
+      "path": "/api/v1/iam/meta/check_allowed/",
+      "method": "POST",
+      "signature": "2d0fb9ecbdd9ceb9426134ef5c48efe2f7c4b2812024132569f86d988a3be2f2",
+      "observedDuring": "nav-open-cluster",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "checkAllowed"
+      },
+      "startedAt": 1794390173111,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "4f8c66c8e6b8a4877c2e443458d6bdb0b0720e0f8055cb89a5523899fac11f1e",
+          "bytes": 100
+        }
+      },
+      "finishedAt": 1794390173361
+    },
+    {
+      "id": "request-20",
+      "path": "/api/v1/databus/storage/",
+      "method": "GET",
+      "signature": "cb2264952bd538d6e87157a3b2e3ee87d169ba1dce71a33148be67426c518b01",
+      "observedDuring": "nav-open-cluster",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "cluster-source-list"
+      },
+      "startedAt": 1794390173111,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "83263d623e7f9ac9bd77a76e4b13ee23a589c267da79031958a10ee2f25b35ce",
+          "bytes": 47
+        }
+      },
+      "finishedAt": 1794390173579
+    }
+  ]
+}

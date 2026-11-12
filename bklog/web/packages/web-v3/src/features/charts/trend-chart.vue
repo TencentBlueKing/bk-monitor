@@ -1,7 +1,10 @@
-<script setup>import { ServicesInstance } from '@/platform/services';
+<script setup>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { ref, computed, onBeforeUnmount, inject } from 'vue';
-  import useStore from '@/shared/composables/use-store';
+
   import useTrendChart from '@/shared/composables/use-trend-chart';
   import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
   import BklogLoading from '@/shared/ui/loading';
@@ -10,19 +13,19 @@
   import { RetrieveEvent } from '../retrieval/retrieve-helper';
   import axios from 'axios';
 
-  
-  const store = useStore();
+
+  const store = useApplicationStore();
   const route = useRoute();
 
   defineEmits(['polling']);
 
   const CancelToken = axios.CancelToken;
-  const isUnionSearch = computed(() => store.getters.isUnionSearch);
-  const unionIndexList = computed(() => store.getters.unionIndexList);
-  const retrieveParams = computed(() => store.getters.retrieveParams);
-  const requestAddition = computed(() => store.getters.requestAddition);
-  const isLoading = computed(() => store.state.indexFieldInfo.is_loading);
-  const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
+  const isUnionSearch = computed(() => store.isUnionSearch);
+  const unionIndexList = computed(() => store.unionIndexList);
+  const retrieveParams = computed(() => store.retrieveParams);
+  const requestAddition = computed(() => store.requestAddition);
+  const isLoading = computed(() => store.indexFieldInfo.is_loading);
+  const gradeOptions = computed(() => store.indexFieldInfo.custom_config?.grade_options);
 
   const refDataTrendCanvas = ref(null);
   const dynamicHeight = ref(130);
@@ -74,8 +77,8 @@
       pollingStartTime = requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
 
       isStart.value = true;
-      store.commit('retrieve/updateTrendDataLoading', true);
-      store.commit('retrieve/updateTrendDataCount', 0);
+      useRetrieveStore().updateTrendDataLoading(true);
+      useRetrieveStore().updateTrendDataCount(0);
       const { interval } = initChartData(startTimeStamp, endTimeStamp);
       runningInterval = interval;
     } else {
@@ -87,7 +90,7 @@
       pollingStartTime = startTimeStamp;
       // 轮询结束
       finishPolling.value = true;
-      store.commit('retrieve/updateTrendDataLoading', false);
+      useRetrieveStore().updateTrendDataLoading(false);
     }
 
     if (pollingStartTime < retrieveParams.value.start_time) {
@@ -98,7 +101,7 @@
       // 轮询结束
       finishPolling.value = true;
       isStart.value = false;
-      store.commit('retrieve/updateTrendDataLoading', false);
+      useRetrieveStore().updateTrendDataLoading(false);
       return;
     }
 
@@ -108,7 +111,7 @@
       const urlStr = (isUnionSearch.value ? ServicesInstance.unionSearch.unionDateHistogram : ServicesInstance.retrieve.getLogChartList);
       const queryData = {
         ...retrieveParams.value,
-        addition: [...requestAddition.value, ...getCommonFilterAdditionWithValues(store.state)],
+        addition: [...requestAddition.value, ...getCommonFilterAdditionWithValues(store)],
         time_range: 'customized',
         interval: runningInterval,
         // 每次轮循的起始时间
@@ -148,13 +151,13 @@
             sumCount += setChartData(res?.data?.aggs, queryData.group_field, isInit);
             isInit = false;
 
-            store.commit('retrieve/updateTrendDataCount', sumCount);
+            useRetrieveStore().updateTrendDataCount(sumCount);
           }
 
           if (!res?.result || requestInterval === 0) {
             isStart.value = false;
             finishPolling.value = true;
-            store.commit('retrieve/updateTrendDataLoading', false);
+            useRetrieveStore().updateTrendDataLoading(false);
             return;
           }
 
@@ -166,12 +169,12 @@
         .catch(() => {
           isStart.value = false;
           finishPolling.value = true;
-          store.commit('retrieve/updateTrendDataLoading', false);
+          useRetrieveStore().updateTrendDataLoading(false);
         });
     } else {
       isStart.value = false;
       finishPolling.value = true;
-      store.commit('retrieve/updateTrendDataLoading', false);
+      useRetrieveStore().updateTrendDataLoading(false);
     }
   };
 

@@ -1553,9 +1553,11 @@
     },
     {
       "source": "hooks/use-store.ts",
-      "target": "shared/composables/use-store.ts",
+      "target": "app/state/domains/application-store.ts",
       "sourceSha256": "9e44c2c566956286755f8623ae64edef7915030b2be590fe97190e088206039d",
-      "targetSha256": "bd57086ff02f4db11408ce1af99d5e09415459fbc76e7d763fce288852c05f63"
+      "targetSha256": "8685c6e6fabc378998989818b6bd7b9cda21dad1aa62556c8882699b3b36604e",
+      "previousTarget": "shared/composables/use-store.ts",
+      "reason": "Native Pinia migration: state ownership and named actions/selectors moved into this domain; legacy context, dictionaries and business commit/dispatch callers removed. See implementation batch 03 for effect tests and explicit Monitor boundary."
     },
     {
       "source": "hooks/use-text-segmentation.ts",
@@ -3014,13 +3016,6 @@
       "targetSha256": "c020039f3464a7027173753ba5554d800d04c2162d2dc90adf908052e3cd5dc2"
     },
     {
-      "source": "store/actions/index.js",
-      "target": "app/state/actions/index.ts",
-      "sourceSha256": "e10c7c0c3d07f18d5495264ec502ae49cee51a2b1a005452b6dd0697bcf89652",
-      "targetSha256": "e10c7c0c3d07f18d5495264ec502ae49cee51a2b1a005452b6dd0697bcf89652",
-      "previousTarget": "app/state/actions/index.js"
-    },
-    {
       "source": "store/actions/query-condition-actions.js",
       "target": "app/state/actions/query-condition-actions.js",
       "sourceSha256": "26bccffb0e5acc1e8fca911e86a1898b2eb9a308e19317c00af12b43d2ec8673",
@@ -3063,13 +3058,6 @@
       "target": "app/state/default-values.ts",
       "sourceSha256": "63f34ea1337e4143fb2dce5833b91df44370fe2c99fbc58ebdbe631fe45faa90",
       "targetSha256": "5842cfb63154719792f2e2817a1f65950560b97290367e621fd667626a0a5680"
-    },
-    {
-      "source": "store/getters/index.js",
-      "target": "app/state/getters/index.ts",
-      "sourceSha256": "056f7044f50e9e80093aa83a62b6989935d8a193c3fd94ab346f9173438922b1",
-      "targetSha256": "7f110677ebdc2fd5125fc554148790fe32320a6e316ab2ffe3c584e297cfe8e8",
-      "previousTarget": "app/state/getters/index.js"
     },
     {
       "source": "store/globals.js",
@@ -3129,9 +3117,11 @@
     },
     {
       "source": "store/retrieve.js",
-      "target": "app/state/retrieve.js",
+      "target": "app/state/domains/retrieve-store.ts",
       "sourceSha256": "435c69e3fa21483eb706729b21ba082aa566b33ddee76689f8694e0b60114676",
-      "targetSha256": "43e0fa7a2b4b64a177f6736dec0d9a8af38a23a341c7456169806acb59c83014"
+      "targetSha256": "a03d1498f885a0342586ea020dbbada53b1c6c3d220ba9bffbffb29182b75c4b",
+      "previousTarget": "app/state/retrieve.js",
+      "reason": "Native Pinia migration: state ownership and named actions/selectors moved into this domain; legacy context, dictionaries and business commit/dispatch callers removed. See implementation batch 03 for effect tests and explicit Monitor boundary."
     },
     {
       "source": "store/scene-filter-config.ts",
@@ -7969,6 +7959,22 @@
       "targetSha256": "a78d74304c6d291ba371786c6757fcd359fc733b9f8f1f9b8a12d2c25b04633b",
       "previousTarget": "platform/i18n/lang/en/route.ts",
       "reason": "Vue I18n source dictionary consolidated into the complete compiled Paraglide catalogs; original keys, text and interpolation are retained and tested."
+    },
+    {
+      "source": "store/actions/index.js",
+      "target": "app/state/domains/application-store.ts",
+      "sourceSha256": "e10c7c0c3d07f18d5495264ec502ae49cee51a2b1a005452b6dd0697bcf89652",
+      "targetSha256": "8685c6e6fabc378998989818b6bd7b9cda21dad1aa62556c8882699b3b36604e",
+      "previousTarget": "app/state/actions/index.ts",
+      "reason": "Native Pinia migration: state ownership and named actions/selectors moved into this domain; legacy context, dictionaries and business commit/dispatch callers removed. See implementation batch 03 for effect tests and explicit Monitor boundary."
+    },
+    {
+      "source": "store/getters/index.js",
+      "target": "app/state/domains/application-store.ts",
+      "sourceSha256": "056f7044f50e9e80093aa83a62b6989935d8a193c3fd94ab346f9173438922b1",
+      "targetSha256": "8685c6e6fabc378998989818b6bd7b9cda21dad1aa62556c8882699b3b36604e",
+      "previousTarget": "app/state/getters/index.ts",
+      "reason": "Native Pinia migration: state ownership and named actions/selectors moved into this domain; legacy context, dictionaries and business commit/dispatch callers removed. See implementation batch 03 for effect tests and explicit Monitor boundary."
     }
   ]
 }

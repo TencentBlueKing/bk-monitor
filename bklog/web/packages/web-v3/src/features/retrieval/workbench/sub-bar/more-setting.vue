@@ -1,7 +1,11 @@
 <script setup>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
   import { ref, computed, watch } from 'vue';
   import { Popup as TPopup } from 'tdesign-vue-next';
-  import useStore from '@/shared/composables/use-store';
+
   import useRouter from '@/shared/composables/use-router';
   import useLocale from '@/shared/composables/use-locale';
   import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
@@ -12,13 +16,13 @@
 
   const { $t } = useLocale();
   const router = useRouter();
-  const store = useStore();
+  const store = useApplicationStore();
 
-  const isExternal = computed(() => store.state.isExternal);
-  const spaceUid = computed(() => store.state.spaceUid);
-  const indexSetId = computed(() => store.state.indexId);
+  const isExternal = computed(() => store.isExternal);
+  const spaceUid = computed(() => store.spaceUid);
+  const indexSetId = computed(() => store.indexId);
   const indexSetItem = computed(() =>
-    store.state.retrieve.flatIndexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
+    useRetrieveStore().$state.flatIndexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
   );
   /** 判断当前索引集是否是索引组（有子节点） */
   const isIndexGroup = computed(() => {
@@ -26,12 +30,12 @@
   });
   const isPopoverShow = ref(false);
 
-  const isUnionSearch = computed(() => store.getters.isUnionSearch);
+  const isUnionSearch = computed(() => store.isUnionSearch);
   const isShowRetrieveSetting = computed(() => !isExternal.value && !isUnionSearch.value);
-  const isShowMaskingTemplate = computed(() => store.getters.isShowMaskingTemplate);
-  const clusterIsActive = computed(() => store.state.indexSetFieldConfig.clustering_config.is_active);
-  const storeIsShowClusterStep = computed(() => store.state.storeIsShowClusterStep);
-  const bkBizId = computed(() => store.state.bkBizId);
+  const isShowMaskingTemplate = computed(() => store.isShowMaskingTemplate);
+  const clusterIsActive = computed(() => store.indexSetFieldConfig.clustering_config.is_active);
+  const storeIsShowClusterStep = computed(() => store.storeIsShowClusterStep);
+  const bkBizId = computed(() => store.bkBizId);
 
   const isAiopsToggle = computed(() => {
     return isFeatureToggleOn('bkdata_aiops_toggle', String(bkBizId.value));

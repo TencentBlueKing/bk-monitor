@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Tag as TTag } from 'tdesign-vue-next';
 
 import { Loading as TLoading } from 'tdesign-vue-next';
@@ -38,7 +40,7 @@ import useLocale from '@/shared/composables/use-locale';
 import useResizeObserve from '@/shared/composables/use-resize-observe';
 import useRoute from '@/shared/composables/use-route';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 import useUtils from '@/shared/composables/use-utils';
 import { manageDraftCacheService } from '@/platform/persistence/index';
 import TagMore from '@/features/collection/current/components/common-comp/tag-more';
@@ -62,7 +64,7 @@ export default defineComponent({
     TagMore,
   },
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
     const router = useRouter();
     const route = useRoute();
@@ -116,7 +118,7 @@ export default defineComponent({
         emptyType.value = searchKeyword.value ? 'search-empty' : 'empty';
         const payload: any = {
           query: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
             page: pagination.value.current,
             pagesize: pagination.value.limit,
             ...(ordering.value && { ordering: ordering.value }),
@@ -169,7 +171,7 @@ export default defineComponent({
             host_list: hostList,
           },
           params: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
           },
         });
         displayNameList.value = res.data;
@@ -308,7 +310,7 @@ export default defineComponent({
       if (!urlPrefix.endsWith('/')) {
         urlPrefix += '/';
       }
-      const { bkBizId } = store.state;
+      const { bkBizId } = store;
 
       const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${taskId}&bk_biz_id=${bkBizId}`;
       window.open(downloadUrl);
@@ -321,7 +323,7 @@ export default defineComponent({
         await ServicesInstance.extract.reDownloadFile({
           data: {
             task_id,
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
           },
         });
         await initTaskList();

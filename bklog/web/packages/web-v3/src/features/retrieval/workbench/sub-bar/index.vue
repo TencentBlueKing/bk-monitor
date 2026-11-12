@@ -1,12 +1,16 @@
 <script setup>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
   import { computed, ref } from 'vue';
 
-  import useStore from '@/shared/composables/use-store';
+
   import { ConditionOperator } from '@/app/state/condition-operator';
   import { RetrieveUrlResolver } from '@/app/state/url-resolver';
-  
+
   import { isEqual } from 'lodash-es';
   import { useRoute, useRouter } from "vue-router";
 
@@ -54,33 +58,33 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   });
   const route = useRoute();
   const router = useRouter();
-  const store = useStore();
+  const store = useApplicationStore();
 
-  const isSceneMode = computed(() => store.getters.isSceneMode);
-  const isExternal = computed(() => store.state.isExternal);
+  const isSceneMode = computed(() => store.isSceneMode);
+  const isExternal = computed(() => store.isExternal);
   const isSceneRetrieveEnabled = computed(
     () =>
       !isExternal.value &&
-      isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)]),
+      isFeatureToggleOn('scene_search', [String(store.bkBizId), String(store.spaceUid)]),
   );
   const retrieveType = computed(() => (isSceneMode.value ? RetrieveType.Scene : RetrieveType.Normal));
   const fieldSettingRef = ref(null);
   const timeSettingRef = ref(null);
   const isShowClusterSetting = ref(false);
-  const indexSetParams = computed(() => store.state.indexItem);
+  const indexSetParams = computed(() => store.indexItem);
 
   // 树形索引集列表（选择面板渲染用，避免子节点被摊平到根级导致重复）
-  const indexSetList = computed(() => store.state.retrieve.indexSetList);
+  const indexSetList = computed(() => useRetrieveStore().$state.indexSetList);
   // 扁平索引集列表（按 unique_id / index_set_id 查找用）
-  const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
+  const flatIndexSetList = computed(() => useRetrieveStore().$state.flatIndexSetList);
 
   // 索引集选择结果
-  const indexSetValue = computed(() => store.state.indexItem.ids);
+  const indexSetValue = computed(() => store.indexItem.ids);
 
   /**
    * 索引ID所属父ID
    */
-  const indexSetPid = computed(() => store.state.indexItem.pid ?? []);
+  const indexSetPid = computed(() => store.indexItem.pid ?? []);
 
   /**
    * 根据当前索引ID和pid生成唯一ID
@@ -90,17 +94,17 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   });
 
   // 索引集类型
-  const indexSetType = computed(() => (store.state.indexItem.isUnionIndex ? 'union' : 'single'));
+  const indexSetType = computed(() => (store.indexItem.isUnionIndex ? 'union' : 'single'));
 
   // 索引集当前激活Tab
   const indexSetTab = computed(() => {
-    return store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] ?? indexSetType.value;
+    return store.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] ?? indexSetType.value;
   });
 
-  const spaceUid = computed(() => store.state.spaceUid);
+  const spaceUid = computed(() => store.spaceUid);
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+    const textEllipsisDir = store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
@@ -116,7 +120,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   });
 
   const isFieldSettingShow = computed(() => {
-    return !store.getters.isUnionSearch && !isExternal.value;
+    return !store.isUnionSearch && !isExternal.value;
   });
 
   const setRouteParams = (ids, isUnionIndex, pid) => {
@@ -142,15 +146,15 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         unionList: isUnionIndex ? JSON.stringify(ids) : undefined,
         clusterParams: undefined,
         pid: JSON.stringify(pid),
-        [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
-        [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
+        [BK_LOG_STORAGE.HISTORY_ID]: store.storage[BK_LOG_STORAGE.HISTORY_ID],
+        [BK_LOG_STORAGE.FAVORITE_ID]: store.storage[BK_LOG_STORAGE.FAVORITE_ID],
       },
     });
   };
 
   const setRouteQuery = () => {
     const query = { ...route.query };
-    const { keyword, addition, ip_chooser, search_mode, begin, size } = store.getters.retrieveParams;
+    const { keyword, addition, ip_chooser, search_mode, begin, size } = store.retrieveParams;
 
     const resolver = new RetrieveUrlResolver({
       keyword,
@@ -159,8 +163,8 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       search_mode,
       begin,
       size,
-      [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
-      [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
+      [BK_LOG_STORAGE.HISTORY_ID]: store.storage[BK_LOG_STORAGE.HISTORY_ID],
+      [BK_LOG_STORAGE.FAVORITE_ID]: store.storage[BK_LOG_STORAGE.FAVORITE_ID],
     });
 
     Object.assign(query, resolver.resolveParamsToUrl());
@@ -202,7 +206,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
           };
         }
         if (indexSetDefaultCondition.search_mode) {
-          store.commit('updateStorage', {
+          store.updateStorage({
             [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(indexSetDefaultCondition.search_mode),
           });
         }
@@ -210,15 +214,15 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
       RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single', false);
       RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_PENDING);
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
-      store.commit('updateIndexItem', { ...payload, ...indexSetDefaultCondition });
+      store.updateUnionIndexList(payload.isUnionIndex ? (payload.ids ?? []) : []);
+      store.updateIndexItem({ ...payload, ...indexSetDefaultCondition });
 
       if (!payload.isUnionIndex) {
-        store.commit('updateState', { indexId: payload.ids[0] });
+        store.updateState({ indexId: payload.ids[0] });
       }
 
-      store.commit('updateSqlQueryFieldList', []);
-      store.commit('updateIndexSetQueryResult', {
+      store.updateSqlQueryFieldList([]);
+      store.updateIndexSetQueryResult({
         row_keys: [],
         row_query_key: '',
         cached_count: 0,
@@ -226,15 +230,15 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         is_error: false,
       });
 
-      store.dispatch('requestIndexSetFieldInfo').then(resp => {
+      store.requestIndexSetFieldInfo().then(resp => {
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
         if (resp?.data?.fields?.length) {
-          store.dispatch('requestIndexSetQuery');
+          store.requestIndexSetQuery();
         }
 
         if (!resp?.data?.fields?.length) {
-          store.commit('updateIndexSetQueryResult', {
+          store.updateIndexSetQueryResult({
             is_error: true,
             exception_msg: 'index-set-field-not-found',
           });
@@ -244,7 +248,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       setRouteParams(payload.ids, payload.isUnionIndex, payload.pid);
     } else {
       if (payload.pid?.length && !isEqual(payload.pid, indexSetPid.value)) {
-        store.commit('updateIndexItem', { pid: payload.pid });
+        store.updateIndexItem({ pid: payload.pid });
         router.replace({
           // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
           params: {
@@ -280,7 +284,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
     const mode = ['ui', 'sql'].includes(searchMode) ? searchMode : 'ui';
 
-    store.commit('updateIndexItemParams', {
+    store.updateIndexItemParams({
       keyword,
       addition: foramtAddition,
       ip_chooser,
@@ -288,23 +292,23 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       search_mode: mode,
     });
 
-    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(mode) });
+    store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(mode) });
 
     setRouteQuery();
     // 场景化检索模式：解析 table_id_conditions 和 scene_filter_values，先请求字段列表再检索
-    if (store.getters.isSceneMode && (tableIdConditions || sceneFilterValues)) {
+    if (store.isSceneMode && (tableIdConditions || sceneFilterValues)) {
       const { scene_active, scene_filter_values: parsedFilterValues } = parseTableIdConditions(
         tableIdConditions,
         sceneFilterValues,
       );
-      store.commit('updateIndexItemParams', {
+      store.updateIndexItemParams({
         scene_active,
         scene_filter_values: parsedFilterValues,
       });
       setTimeout(() => {
-        store.dispatch('requestIndexSetFieldInfo').then(resp => {
+        store.requestIndexSetFieldInfo().then(resp => {
           if (resp?.data?.fields?.length) {
-            store.dispatch('requestIndexSetQuery');
+            store.requestIndexSetQuery();
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           } else {
             RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
@@ -315,7 +319,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     }
 
     setTimeout(() => {
-      store.dispatch('requestIndexSetQuery');
+      store.requestIndexSetQuery();
       RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
     });
   };
@@ -334,39 +338,39 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       if (payload) {
         Object.assign(storage, {
           [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
-            ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
+            ...(store.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
             [spaceUid.value]: [firstUid],
           },
         });
-        store.commit('updateStorage', storage);
+        store.updateStorage(storage);
         handleIndexSetSelected(payload);
         return;
       }
     }
 
     if (['union', 'single'].includes(type)) {
-      store.commit('updateIndexItem', {
+      store.updateIndexItem({
         isUnionIndex: type === 'union',
       });
     }
 
-    store.commit('updateStorage', storage);
+    store.updateStorage(storage);
   };
 
   const handleIndexSetValueChange = (values, type, id) => {
     const storage = {
       [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
-        ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
+        ...(store.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
         [spaceUid.value]: values,
       },
     };
     if (['single', 'union'].includes(type)) {
-      store.commit('updateIndexItem', {
+      store.updateIndexItem({
         isUnionIndex: type === 'union',
       });
 
       if (type === 'union') {
-        store.commit('updateUnionIndexList', { updateIndexItem: false, list: store.state.indexItem.ids });
+        store.updateUnionIndexList({ updateIndexItem: false, list: store.indexItem.ids });
       }
 
       Object.assign(storage, {
@@ -383,7 +387,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: id });
     }
 
-    store.commit('updateStorage', storage);
+    store.updateStorage(storage);
     const items = flatIndexSetList.value.filter(item => (values ?? []).includes(item.unique_id));
     const idxIdList = [];
     const idexPidList = [];
@@ -397,8 +401,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
   const handleAuthRequest = item => {
     try {
-      store
-        .dispatch('getApplyData', {
+      store.getApplyData({
           action_ids: [authorityMap.SEARCH_LOG_AUTH],
           resources: [
             {
@@ -464,7 +467,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       <AutoRefresh class="custom-border-right" />
       <ShareLink v-if="!isExternal" />
       <FieldSetting
-        v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId && !isSceneMode"
+        v-if="isFieldSettingShow && store.spaceUid && hasCollectorConfigId && !isSceneMode"
         ref="fieldSettingRef"
         class="custom-border-right"
       />

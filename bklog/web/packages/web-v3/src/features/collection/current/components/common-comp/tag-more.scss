@@ -256,3 +256,86 @@
 .tippy-content .more-tips-panel {
   display: block;
 }
+
+
+// Use TSelect's label TNode for the complete V2 cell trigger, without input chrome.
+.t-select__wrap:has(.tag-more-native-trigger) {
+  .tag-more-native-trigger {
+    height: auto;
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .t-input__prefix {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+
+  .t-input__prefix .t-input__label {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .t-input__inner,
+  .t-input__suffix {
+    display: none;
+  }
+}
+
+.collection-label-picker {
+  &.t-popup .t-popup__content {
+    margin: 0;
+    border: 1px solid #dcdee5;
+    border-radius: 1px;
+  }
+  .collection-label-search {
+    padding: 0 5px;
+
+    .t-input {
+      height: 32px;
+      padding: 0;
+      border: 0;
+      box-shadow: none;
+    }
+
+    .t-input__inner {
+      height: 32px;
+      padding: 0 10px 0 30px;
+      font-size: 12px;
+      border-bottom: 1px solid #dcdee5;
+    }
+
+    .t-input__prefix {
+      position: absolute;
+      left: 5px;
+      color: #979ba5;
+    }
+  }
+
+  .new-label-container {
+    padding: 0 16px;
+    background: #fafbfd;
+    border-top: 1px solid #dcdee5;
+
+    &:hover {
+      background: #f0f1f5;
+    }
+  }
+
+  .label-option.is-keyboard-active {
+    background: #eaf3ff;
+  }
+}
+
+
+.collection-label-trigger {
+  width: 100%;
+  outline: 0;
+}

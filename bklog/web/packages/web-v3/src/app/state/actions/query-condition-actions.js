@@ -4,12 +4,18 @@
  */
 import DOMPurify from 'dompurify';
 
-import { compileFieldValueToQueryString, escapeQueryStringPhraseLiteral } from '@/shared/composables/log-query-compiler/index';
+import {
+  compileFieldValueToQueryString,
+  escapeQueryStringPhraseLiteral,
+} from '@/shared/composables/log-query-compiler/index';
 import { storeCacheService } from '@/platform/persistence/index';
 
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../store.type.ts';
 
-export function setQueryConditionAction({ state, dispatch }, payload) {
+export function setQueryConditionAction(application, payload) {
+  const state = application;
+  const getters = application;
+
   const newQueryList = Array.isArray(payload) ? payload : [payload];
   const isLink = newQueryList[0]?.isLink;
   let searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
@@ -23,12 +29,12 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
   const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
   const from = newQueryList[0].from ?? 'origin';
 
-  const getTargetField = field =>
-    state.visibleFields?.find(item => item.field_name === field) ??
-    state.indexFieldInfo?.fields?.find?.(item => item.field_name === field);
+  const getTargetField = (field) =>
+    state.visibleFields?.find((item) => item.field_name === field) ??
+    state.indexFieldInfo?.fields?.find?.((item) => item.field_name === field);
   const getFieldType = (field, fallbackType) => getTargetField(field)?.field_type ?? fallbackType ?? '';
 
-  const normalizeAdditionValue = value => {
+  const normalizeAdditionValue = (value) => {
     if (Array.isArray(value)) {
       return value;
     }
@@ -110,7 +116,7 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
   const searchValueIsExist = (newSearchValue, targetSearchMode) => {
     let isExist;
     if (targetSearchMode === 'ui') {
-      isExist = state.indexItem.addition.some(addition => {
+      isExist = state.indexItem.addition.some((addition) => {
         return (
           addition.field === newSearchValue.field &&
           addition.operator === newSearchValue.operator &&
@@ -126,7 +132,7 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
   };
 
   const filterQueryList = newQueryList
-    .map(item => {
+    .map((item) => {
       const isNewSearchPageItem = item.operator === 'new-search-page-is';
       item.operator = isNewSearchPageItem ? 'is' : item.operator;
       const { field, operator } = item;
@@ -160,13 +166,13 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
     .filter(Boolean);
 
   if (state.aiMode.active) {
-    const newSearchKeywords = filterQueryList.filter(item => !state.aiMode.filterList.includes(item));
+    const newSearchKeywords = filterQueryList.filter((item) => !state.aiMode.filterList.includes(item));
     if (newSearchKeywords.length) {
       state.aiMode.filterList.push(...newSearchKeywords);
     }
 
     if (from === 'origin') {
-      dispatch('requestIndexSetQuery');
+      application.requestIndexSetQuery();
     }
 
     return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);
@@ -179,14 +185,14 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
       const startIndex = state.indexItem.addition.length;
       state.indexItem.addition.splice(startIndex, 0, ...filterQueryList);
       if (from === 'origin') {
-        dispatch('requestIndexSetQuery');
+        application.requestIndexSetQuery();
       }
     }
 
     if (searchMode === 'sql') {
       const keyword = state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
       const keywords = keyword.length > 0 ? [keyword] : [];
-      const newSearchKeywords = filterQueryList.filter(item => keyword.indexOf(item) === -1);
+      const newSearchKeywords = filterQueryList.filter((item) => keyword.indexOf(item) === -1);
       if (newSearchKeywords.length) {
         const lastIndex = newSearchKeywords.length - 1;
         newSearchKeywords[lastIndex] = newSearchKeywords[lastIndex].replace(/\s*$/, ' ');
@@ -199,7 +205,7 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
       state.indexItem.keyword = (keywords ?? []).concat(newSearchKeywords).join('AND ');
 
       if (from === 'origin') {
-        dispatch('requestIndexSetQuery');
+        application.requestIndexSetQuery();
       }
     }
   }

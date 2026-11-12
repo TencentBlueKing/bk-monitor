@@ -24,38 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { set } from '@/shared/lib/reactivity';
-
 import { fieldTypeMap } from './constant';
 
 export interface GlobalsState {
   globalsData: Record<string, unknown>;
-  fieldTypeMap: typeof fieldTypeMap;
+  fieldTypeMap: typeof fieldTypeMap & Record<string, { name: string; icon: string; color: string; textColor?: string }>;
   authContainerInfo: Record<string, unknown> | null;
 }
-const state: GlobalsState = {
-    globalsData: {},
-    fieldTypeMap,
-    authContainerInfo: null, // 检索页或有侧边栏菜单父级路由展示的业务无权限页面信息
-  };
-
-export default {
-  namespaced: true,
-  state,
-  getters: {
-    globalsData: (state: GlobalsState) => state.globalsData,
-    authContainerInfo: (state: GlobalsState) => state.authContainerInfo,
-  },
-  mutations: {
-    setGlobalsData(state: GlobalsState, globalsData: GlobalsState['globalsData']) {
-      set(state, 'globalsData', globalsData);
-    },
-    updateGlobalsData(state: GlobalsState, globalsData: GlobalsState['globalsData']) {
-      set(state, 'globalsData', globalsData);
-    },
-    updateAuthContainerInfo(state: GlobalsState, info: GlobalsState['authContainerInfo']) {
-      set(state, 'authContainerInfo', info);
-    },
-  },
-  actions: {},
-};

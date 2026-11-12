@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "status": "UNIT_CALIBRATION_PASSED",
+  "processExit": 0,
+  "required": 7,
+  "passed": 7,
+  "missing": [],
+  "testFileDigests": [
+    {
+      "file": "analyze-info/harness/tests/clone-reactive-data.test.mjs",
+      "sha256": "7d41bf50651023e688872f2b76cf75d5ca1d479871d21eea80bfbc65451d2099"
+    }
+  ],
+  "stdout": "TAP version 13\n# Subtest: reactive-clone-native-negative\nok 1 - reactive-clone-native-negative\n  ---\n  duration_ms: 0.548709\n  type: 'test'\n  ...\n# Subtest: reactive-clone-nested-form-and-isolation\nok 2 - reactive-clone-nested-form-and-isolation\n  ---\n  duration_ms: 0.2875\n  type: 'test'\n  ...\n# Subtest: reactive-clone-cycles-and-shared-identity\nok 3 - reactive-clone-cycles-and-shared-identity\n  ---\n  duration_ms: 0.126958\n  type: 'test'\n  ...\n# Subtest: reactive-clone-map-set-aliases\nok 4 - reactive-clone-map-set-aliases\n  ---\n  duration_ms: 0.12925\n  type: 'test'\n  ...\n# Subtest: reactive-clone-native-builtins\nok 5 - reactive-clone-native-builtins\n  ---\n  duration_ms: 0.213166\n  type: 'test'\n  ...\n# Subtest: reactive-clone-sparse-and-prototype-key\nok 6 - reactive-clone-sparse-and-prototype-key\n  ---\n  duration_ms: 0.13975\n  type: 'test'\n  ...\n# Subtest: reactive-clone-unsupported-not-erased\nok 7 - reactive-clone-unsupported-not-erased\n  ---\n  duration_ms: 0.088875\n  type: 'test'\n  ...\n1..7\n# tests 7\n# suites 0\n# pass 7\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 155.962917\n",
+  "stderr": "",
+  "scope": "PRODUCT_REACTIVE_DATA_CLONE_CONTRACT_NOT_PAGE_ACCEPTANCE",
+  "source": {
+    "path": "packages/web-v3/src/shared/lib/clone-reactive-data.ts",
+    "sha256": "ab4cd4346f2343d70327dad435778b9079dd48dbdcac13728cc88033f4ac18d6"
+  }
+}

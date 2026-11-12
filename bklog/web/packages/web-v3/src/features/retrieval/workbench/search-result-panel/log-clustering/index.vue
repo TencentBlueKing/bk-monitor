@@ -172,11 +172,15 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
   import ClusteringLoader from '@/app/skeleton/clustering-loader';
-  import { mapGetters } from '@/app/state/map-helpers';
+
   import FingerOperate from './components/finger-operate';
   import DataFingerprint from './data-fingerprint';
   import QuickOpenCluster from './components/quick-open-cluster-step/quick-open-cluster';
@@ -261,14 +265,14 @@
       };
     },
     computed: {
-      ...mapGetters({
-        globalsData: 'globals/globalsData',
+      ...mapPiniaState(useApplicationStore, {
+        globalsData: state => state.globals.globalsData,
       }),
       indexFieldInfo() {
-        return this.$store.state.indexFieldInfo;
+        return useApplicationStore().indexFieldInfo;
       },
       indexSetFieldConfig() {
-        return this.$store.state.indexSetFieldConfig;
+        return useApplicationStore().indexSetFieldConfig;
       },
       smallLoaderWidthList() {
         return this.requestData.year_on_year_hour > 0
@@ -284,16 +288,16 @@
         return this.collectorConfigId ? this.$t('跳转到日志清洗') : '';
       },
       bkBizId() {
-        return this.$store.state.bkBizId;
+        return useApplicationStore().bkBizId;
       },
       showFieldAlias() {
-        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+        return useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       isHaveAnalyzed() {
         return this.totalFields.some(item => item.is_analyzed);
       },
       totalFields() {
-        return this.$store.getters.filteredFieldList;
+        return useApplicationStore().filteredFieldList;
       },
       clusteringConfig() {
         return this.indexSetFieldConfig.clustering_config;
@@ -342,13 +346,13 @@
         return this.exhibitAll && this.clusterSwitch && !this.isShowClusterStep;
       },
       indexSetItem() {
-        return this.$store.state.indexItem;
+        return useApplicationStore().indexItem;
       },
       isSearchIng() {
-        return this.$store.state.indexSetQueryResult?.is_loading || false;
+        return useApplicationStore().indexSetQueryResult?.is_loading || false;
       },
       clusterParams() {
-        return this.$store.state.clusterParams;
+        return useApplicationStore().clusterParams;
       },
     },
     watch: {
@@ -379,7 +383,7 @@
         this.confirmClusterStepStatus();
       },
       isShowClusterStep(v) {
-        this.$store.commit('updateState', { storeIsShowClusterStep: v });
+        useApplicationStore().updateState({ storeIsShowClusterStep: v });
       },
       showFieldAlias() {
         this.filterGroupList();
@@ -400,19 +404,19 @@
       this.onUnMountedLoad();
     },
     beforeDestroy() {
-      this.$store.commit('updateState', { clusterParams: null });
+      useApplicationStore().updateState({ clusterParams: null });
       this.stopPolling(); // 停止状态轮询
     },
     methods: {
       setRouteParams() {
         const route = this.$route;
-        const store = this.$store;
+        const store = useApplicationStore();
         const router = this.$router;
 
         const query = { ...route.query };
 
         const resolver = new RetrieveUrlResolver({
-          clusterParams: store.state.clusterParams,
+          clusterParams: useApplicationStore().clusterParams,
         });
 
         Object.assign(query, resolver.resolveParamsToUrl());
@@ -477,7 +481,7 @@
           });
         }
         Object.assign(this.requestData, queryRequestData);
-        this.$store.commit('updateState', { clusterParams: this.requestData });
+        useApplicationStore().updateState({ clusterParams: this.requestData });
         this.setRouteParams();
         this.isInitPage = false;
       },
@@ -509,7 +513,7 @@
           case 'requestData': // 数据指纹的请求参数
             Object.assign(this.requestData, val);
             // 数据指纹对请求参数修改过的操作将数据回填到url上
-            this.$store.commit('updateState', { clusterParams: this.requestData });
+            useApplicationStore().updateState({ clusterParams: this.requestData });
             this.setRouteParams();
             break;
           case 'fingerOperateData': // 数据指纹操作的参数
@@ -540,7 +544,7 @@
             name: 'clean-edit',
             params: { collectorId: this.collectorConfigId },
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
               backRoute: this.$route.name,
             },
           });
@@ -618,7 +622,7 @@
        * @desc: 初始化分组select数组
        */
       filterGroupList() {
-        const { getConcatenatedFieldName } = useFieldNameHook({ store: this.$store });
+        const { getConcatenatedFieldName } = useFieldNameHook({ store: useApplicationStore() });
         const filterList = this.totalFields
           .filter(el => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
           .map(item => {
@@ -720,7 +724,7 @@
           await this.confirmClusterStepStatus();
           if (this.isClickSearch && !this.isInitPage) this.requestFinger();
           if (!this.isInitPage) {
-            this.$store.commit('updateState', { clusterParams: this.requestData });
+            useApplicationStore().updateState({ clusterParams: this.requestData });
             this.setRouteParams();
           }
         }
@@ -728,7 +732,7 @@
       async onUnMountedLoad() {
         if (this.isClusterActive) {
           this.isClusterActive = false;
-          this.$store.commit('updateState', { clusterParams: null });
+          useApplicationStore().updateState({ clusterParams: null });
           this.setRouteParams();
           this.stopPolling(); // 停止状态轮询
         }

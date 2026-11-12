@@ -59,10 +59,14 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
   // import stepStorage from '@/features/collection/access/step-storage';
-  import advanceCleanLand from '@/features/collection/access/advance-clean-land';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import advanceCleanLand from '@/features/collection/access/advance-clean-land';
   import stepField from '@/features/collection/access/step-field';
-  import { mapState } from '@/app/state/map-helpers';
+
 
   export default {
     name: 'LogCleanCreate',
@@ -81,7 +85,7 @@
       };
     },
     computed: {
-      ...mapState({
+      ...mapPiniaState(useApplicationStore, {
         showRouterLeaveTip: state => state.showRouterLeaveTip,
       }),
     },
@@ -107,7 +111,7 @@
           this.$router.push({
             name: 'log-clean-list',
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
             },
           });
           return;

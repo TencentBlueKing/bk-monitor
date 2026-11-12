@@ -66,11 +66,13 @@
   </div>
 </template>
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed } from 'vue';
 import dayjs from 'dayjs';
 import { Popup as TPopup, Input as TInput, Tooltip as TTooltip } from 'tdesign-vue-next';
 import BklogLoading from '@/shared/ui/loading';
-import useStore from '@/shared/composables/use-store';
+
 import useLocale from '@/shared/composables/use-locale';
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
 import BookmarkPop from '../search-bar/components/bookmark-pop.vue';
@@ -79,7 +81,7 @@ import BookmarkPop from '../search-bar/components/bookmark-pop.vue';
 // #endif
 import { useQueryHistory, type HistoryQueryParams } from './use-query-history';
 const emit = defineEmits<{ change: [params: HistoryQueryParams] }>();
-const store = useStore();
+const store = useApplicationStore();
 const { $t } = useLocale();
 const isMonitorComponent = computed(() => !!window.__IS_MONITOR_COMPONENT__);
 const {
@@ -93,11 +95,11 @@ const {
   handleClickHistory,
 } = useQueryHistory(
   () => ({
-    isSceneMode: store.getters.isSceneMode,
-    isUnionSearch: store.getters.isUnionSearch,
-    indexId: store.state.indexItem.ids[0],
-    unionIndexList: store.getters.unionIndexList,
-    retrieveParams: store.getters.retrieveParams,
+    isSceneMode: store.isSceneMode,
+    isUnionSearch: store.isUnionSearch,
+    indexId: store.indexItem.ids[0],
+    unionIndexList: store.unionIndexList,
+    retrieveParams: store.retrieveParams,
   }),
   (params) => emit('change', params),
 );

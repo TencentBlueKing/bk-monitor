@@ -76,6 +76,10 @@
 </template>
 
 <script>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
   import { defineAsyncComponent } from 'vue';
 
   import { ServicesInstance } from '@/platform/services';
@@ -198,7 +202,7 @@
           const canManage = Boolean(allowedMap[manageAction]);
 
           if (!canView) {
-            const applyRes = await this.$store.dispatch('getApplyData', {
+            const applyRes = await useApplicationStore().getApplyData({
               action_ids: [viewAction],
               resources,
             });
@@ -208,7 +212,7 @@
 
           this.editAuth = isBkDataOrEs ? true : canManage;
           if (!canManage && !isBkDataOrEs) {
-            const applyRes = await this.$store.dispatch('getApplyData', {
+            const applyRes = await useApplicationStore().getApplyData({
               action_ids: [manageAction],
               resources,
             });
@@ -225,7 +229,7 @@
               this.fetchScenarioMap(),
             ]);
             this.collectorData = indexSetData;
-            this.$store.commit('collect/updateCurIndexSet', indexSetData);
+            useCollectionStore().updateCurIndexSet(indexSetData);
           } else {
             const { data: collectorData } = await ServicesInstance.collect.details({
               params: {
@@ -233,7 +237,7 @@
               },
             });
             this.collectorData = collectorData;
-            this.$store.commit('collect/setCurCollect', collectorData);
+            useCollectionStore().setCurCollect(collectorData);
           }
         } catch (err) {
           console.warn(err);
@@ -251,20 +255,20 @@
           name: 'retrieve',
           params,
           query: {
-            spaceUid: this.$store.state.spaceUid,
-            bizId: this.$store.state.bkBizId,
+            spaceUid: useApplicationStore().spaceUid,
+            bizId: useApplicationStore().bkBizId,
           },
         });
       },
       async fetchScenarioMap() {
-        const scenarioMap = this.$store.state.collect.scenarioMap;
+        const scenarioMap = useCollectionStore().$state.scenarioMap;
         if (!scenarioMap) {
           const { data } = await ServicesInstance.meta.scenario();
           const map = {};
           data.forEach(item => {
             map[item.scenario_id] = item.scenario_name;
           });
-          this.$store.commit('collect/updateScenarioMap', map);
+          useCollectionStore().updateScenarioMap(map);
         }
       },
     },

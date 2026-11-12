@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "status": "UNIT_CALIBRATION_PASSED",
+  "processExit": 0,
+  "required": 52,
+  "passed": 52,
+  "missing": [],
+  "testFileDigests": [
+    {
+      "file": "/Users/lixintao/github/bk-monitor/bklog/web/analyze-info/harness/tests/protocol.test.mjs",
+      "sha256": "d3d9d7f910a802d425fb422013b74ceef3d49232957d97eddc2828a501544101"
+    },
+    {
+      "file": "/Users/lixintao/github/bk-monitor/bklog/web/analyze-info/harness/tests/source-inventory.test.mjs",
+      "sha256": "6b7ac31cf492aaea600515e8f887546006579a345d3ad1cdfe00d0bf8d864487"
+    },
+    {
+      "file": "/Users/lixintao/github/bk-monitor/bklog/web/analyze-info/harness/tests/verifier.test.mjs",
+      "sha256": "83ca8005234b1900ac0bade7d33ae4407d1e9e7b8fe4c9c9e449ac8dc5d4c375"
+    },
+    {
+      "file": "/Users/lixintao/github/bk-monitor/bklog/web/analyze-info/harness/tests/product-probe.test.mjs",
+      "sha256": "5b4ca397684923f5d87149e3b95da473cc9773e0f19bbeb9e3f7ba06d9fa15dd"
+    },
+    {
+      "file": "/Users/lixintao/github/bk-monitor/bklog/web/analyze-info/harness/tests/network-recorder.test.mjs",
+      "sha256": "88be9558907e42d26acf9038cb4bde90b9c34ec4f97df94851e27f358d2066f8"
+    },
+    {
+      "file": "/Users/lixintao/github/bk-monitor/bklog/web/analyze-info/harness/tests/replay-capture.test.mjs",
+      "sha256": "fec3ecc1c31095068497e5aac4ee7138f8c0a1a543f81188722d41569ffd2321"
+    },
+    {
+      "file": "/Users/lixintao/github/bk-monitor/bklog/web/analyze-info/harness/tests/contract-pin.test.mjs",
+      "sha256": "dc77ead4f5854bb5d78b4a147f23701e55c4d79d2dd93fdcef1482a7e31f379d"
+    },
+    {
+      "file": "/Users/lixintao/github/bk-monitor/bklog/web/analyze-info/harness/tests/regression-baseline.test.mjs",
+      "sha256": "c3519b646d49920cd14d441615e90fd5af0a27e8c56c586324390b8a41bd5346"
+    }
+  ],
+  "stdout": "TAP version 13\n# Subtest: oracle-pin-current\nok 1 - oracle-pin-current\n  ---\n  duration_ms: 1.928458\n  type: 'test'\n  ...\n# Subtest: oracle-pin-missing\nok 2 - oracle-pin-missing\n  ---\n  duration_ms: 0.730208\n  type: 'test'\n  ...\n# Subtest: oracle-pin-changed-actor\nok 3 - oracle-pin-changed-actor\n  ---\n  duration_ms: 0.738875\n  type: 'test'\n  ...\n# Subtest: oracle-pin-missing-entry\nok 4 - oracle-pin-missing-entry\n  ---\n  duration_ms: 1.011917\n  type: 'test'\n  ...\n# Subtest: management-oracle-pin-current\nok 5 - management-oracle-pin-current\n  ---\n  duration_ms: 1.252584\n  type: 'test'\n  ...\n# Subtest: management-oracle-pin-fail-closed\nok 6 - management-oracle-pin-fail-closed\n  ---\n  duration_ms: 0.355333\n  type: 'test'\n  ...\n# Subtest: recorder-no-fake-success\nok 7 - recorder-no-fake-success\n  ---\n  duration_ms: 2.245916\n  type: 'test'\n  ...\n# Subtest: recorder-private-full-body\nok 8 - recorder-private-full-body\n  ---\n  duration_ms: 102.69975\n  type: 'test'\n  ...\n# Subtest: recorder-stream-and-cancel\nok 9 - recorder-stream-and-cancel\n  ---\n  duration_ms: 202.87\n  type: 'test'\n  ...\n# Subtest: recorder-exact-body-fallback\nok 10 - recorder-exact-body-fallback\n  ---\n  duration_ms: 101.272125\n  type: 'test'\n  ...\n# Subtest: product-dispatch-passivity\nok 11 - product-dispatch-passivity\n  ---\n  duration_ms: 1.2465\n  type: 'test'\n  ...\n# Subtest: product-http-passivity\nok 12 - product-http-passivity\n  ---\n  duration_ms: 0.51675\n  type: 'test'\n  ...\n# Subtest: product-no-inferred-async-parent\nok 13 - product-no-inferred-async-parent\n  ---\n  duration_ms: 0.294291\n  type: 'test'\n  ...\n# Subtest: transport-auth-classification\nok 14 - transport-auth-classification\n  ---\n  duration_ms: 0.365666\n  type: 'test'\n  ...\n# Subtest: vue3-native-model-boundary\nok 15 - vue3-native-model-boundary\n  ---\n  duration_ms: 22.445209\n  type: 'test'\n  ...\n# Subtest: protocol-exports\nok 16 - protocol-exports\n  ---\n  duration_ms: 0.432584\n  type: 'test'\n  ...\n# Subtest: post-policy\nok 17 - post-policy\n  ---\n  duration_ms: 0.108709\n  type: 'test'\n  ...\n# Subtest: request-identity\nok 18 - request-identity\n  ---\n  duration_ms: 0.789334\n  type: 'test'\n  ...\n# Subtest: replay-isolation\nok 19 - replay-isolation\n  ---\n  duration_ms: 0.356209\n  type: 'test'\n  ...\n# Subtest: stream-completeness\nok 20 - stream-completeness\n  ---\n  duration_ms: 0.271958\n  type: 'test'\n  ...\n# Subtest: semantic-diff\nok 21 - semantic-diff\n  ---\n  duration_ms: 0.576\n  type: 'test'\n  ...\n# Subtest: collapsed-nav\nok 22 - collapsed-nav\n  ---\n  duration_ms: 0.1475\n  type: 'test'\n  ...\n# Subtest: readiness-gate\nok 23 - readiness-gate\n  ---\n  duration_ms: 0.300875\n  type: 'test'\n  ...\n# Subtest: defect-gate\nok 24 - defect-gate\n  ---\n  duration_ms: 0.100125\n  type: 'test'\n  ...\n# Subtest: probe-passivity\nok 25 - probe-passivity\n  ---\n  duration_ms: 0.2345\n  type: 'test'\n  ...\n# Subtest: concurrent-context\nok 26 - concurrent-context\n  ---\n  duration_ms: 0.107834\n  type: 'test'\n  ...\n# Subtest: ambiguous-policy\nok 27 - ambiguous-policy\n  ---\n  duration_ms: 0.065083\n  type: 'test'\n  ...\n# Subtest: sse-boundary\nok 28 - sse-boundary\n  ---\n  duration_ms: 0.107792\n  type: 'test'\n  ...\n# Subtest: oracle-ids\nok 29 - oracle-ids\n  ---\n  duration_ms: 0.04925\n  type: 'test'\n  ...\n# Subtest: probe-receiver\nok 30 - probe-receiver\n  ---\n  duration_ms: 0.047083\n  type: 'test'\n  ...\n# Subtest: accessible-name-whitespace\nok 31 - accessible-name-whitespace\n  ---\n  duration_ms: 0.129375\n  type: 'test'\n  ...\n# Subtest: product-scenario-schema-and-context\nok 32 - product-scenario-schema-and-context\n  ---\n  duration_ms: 54.991083\n  type: 'test'\n  ...\n# Subtest: baseline impact: shared changes select all; unknown changes remain unmapped\nok 33 - baseline impact: shared changes select all; unknown changes remain unmapped\n  ---\n  duration_ms: 0.659583\n  type: 'test'\n  ...\n# Subtest: baseline paths: repository and absolute changes normalize; traversal rejected\nok 34 - baseline paths: repository and absolute changes normalize; traversal rejected\n  ---\n  duration_ms: 0.23975\n  type: 'test'\n  ...\n# Subtest: baseline TAP: missing extra duplicate skipped TODO empty and failed tests cannot pass\nok 35 - baseline TAP: missing extra duplicate skipped TODO empty and failed tests cannot pass\n  ---\n  duration_ms: 0.311459\n  type: 'test'\n  ...\n# Subtest: baseline integrity: changed source is stale; altered missing evidence and duplicate entries fail\nok 36 - baseline integrity: changed source is stale; altered missing evidence and duplicate entries fail\n  ---\n  duration_ms: 3.590583\n  type: 'test'\n  ...\n# Subtest: capture-integrity-and-source\nok 37 - capture-integrity-and-source\n  ---\n  duration_ms: 4.595333\n  type: 'test'\n  ...\n# Subtest: capture-incomplete-cannot-pass\nok 38 - capture-incomplete-cannot-pass\n  ---\n  duration_ms: 1.53125\n  type: 'test'\n  ...\n# Subtest: capture-full-request-match\nok 39 - capture-full-request-match\n  ---\n  duration_ms: 1.438375\n  type: 'test'\n  ...\n# Subtest: capture-ambiguous-generation-blocks\nok 40 - capture-ambiguous-generation-blocks\n  ---\n  duration_ms: 1.923375\n  type: 'test'\n  ...\n# Subtest: capture-path-and-request-tamper\nok 41 - capture-path-and-request-tamper\n  ---\n  duration_ms: 1.631792\n  type: 'test'\n  ...\n# Subtest: capture-reviewed-identical-read-sequence\nok 42 - capture-reviewed-identical-read-sequence\n  ---\n  duration_ms: 2.193625\n  type: 'test'\n  ...\n# Subtest: capture-observation-phase-isolation\nok 43 - capture-observation-phase-isolation\n  ---\n  duration_ms: 1.4025\n  type: 'test'\n  ...\n# Subtest: source-routes\nok 44 - source-routes\n  ---\n  duration_ms: 8.1105\n  type: 'test'\n  ...\n# Subtest: source-jsx\nok 45 - source-jsx\n  ---\n  duration_ms: 1.6165\n  type: 'test'\n  ...\n# Subtest: source-sfc\nok 46 - source-sfc\n  ---\n  duration_ms: 1.994666\n  type: 'test'\n  ...\n# Subtest: source-invalid\nok 47 - source-invalid\n  ---\n  duration_ms: 1.017709\n  type: 'test'\n  ...\n# Subtest: source-vue2-functional\nok 48 - source-vue2-functional\n  ---\n  duration_ms: 3.225167\n  type: 'test'\n  ...\n# Subtest: source-v3-router-prefix\nok 49 - source-v3-router-prefix\n  ---\n  duration_ms: 1.774875\n  type: 'test'\n  ...\n# Subtest: source-v3-component-provenance\nok 50 - source-v3-component-provenance\n  ---\n  duration_ms: 2.578208\n  type: 'test'\n  ...\n# Subtest: empty-test-files-cannot-pass\nok 51 - empty-test-files-cannot-pass\n  ---\n  duration_ms: 50.79225\n  type: 'test'\n  ...\n# Subtest: management-baseline-runtime-errors-fail-closed\nok 52 - management-baseline-runtime-errors-fail-closed\n  ---\n  duration_ms: 4.465916\n  type: 'test'\n  ...\n1..52\n# tests 52\n# suites 0\n# pass 52\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 454.04325\n",
+  "stderr": ""
+}

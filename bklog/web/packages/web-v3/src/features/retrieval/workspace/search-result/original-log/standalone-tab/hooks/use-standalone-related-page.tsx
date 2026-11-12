@@ -1,11 +1,13 @@
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { computed, ref } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import useRoute from '@/shared/composables/use-route';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 import { retrieveRowCacheService, storageHealthService } from '@/platform/persistence/index';
 import { createRetrieveRowRenderMeta } from '@/platform/persistence/utils/retrieve-render-meta';
 
@@ -38,7 +40,7 @@ const normalizeSearchList = (data: Record<string, any>) => {
 export const useStandaloneRelatedPage = () => {
   const route = useRoute();
   const router = useRouter();
-  const store = useStore();
+  const store = useApplicationStore();
   const { t } = useLocale();
 
   const loading = ref(true);
@@ -59,13 +61,13 @@ export const useStandaloneRelatedPage = () => {
     const { originList, renderList } = normalizeSearchList(data);
     const total = data?.total?.toNumber?.() ?? data?.total ?? originList.length;
 
-    store.commit('updateState', {
+    store.updateState({
       indexId: payload.indexSetId,
-      bkBizId: toNumber(payload.query.bk_biz_id, store.getters.bkBizId),
-      spaceUid: payload.routeQuery.spaceUid || payload.routeQuery.space_uid || store.getters.spaceUid,
+      bkBizId: toNumber(payload.query.bk_biz_id, store.bkBizId),
+      spaceUid: payload.routeQuery.spaceUid || payload.routeQuery.space_uid || store.spaceUid,
     });
 
-    store.commit('updateIndexItem', {
+    store.updateIndexItem({
       ids: [payload.indexSetId],
       start_time: payload.query.start_time,
       end_time: payload.query.end_time,
@@ -73,14 +75,14 @@ export const useStandaloneRelatedPage = () => {
       size: payload.query.size || 50,
     });
 
-    await store.dispatch('requestIndexSetFieldInfo');
+    await store.requestIndexSetFieldInfo();
 
     const rowQueryKey = retrieveRowCacheService.createQueryKey({
       standalone: 'related-log',
       indexSetId: payload.indexSetId,
       query: payload.query,
     });
-    const fieldNames = store.getters?.filteredFieldList?.map?.((field: { field_name: any; }) => field.field_name) ?? [];
+    const fieldNames = store.filteredFieldList?.map?.((field: { field_name: any; }) => field.field_name) ?? [];
     const renderMetas = originList.map((row, index) => createRetrieveRowRenderMeta(row, renderList[index]));
     const rowKeys = originList.length
       ? await retrieveRowCacheService.replaceRows(rowQueryKey, originList, {
@@ -91,7 +93,7 @@ export const useStandaloneRelatedPage = () => {
       : [];
     storageHealthService.markActiveQuery(rowQueryKey);
 
-    store.commit('updateIndexSetQueryResult', {
+    store.updateIndexSetQueryResult({
       ...data,
       // Keep list/origin_log_list as graceful fallback for environments where IndexedDB is unavailable.
       list: renderList,

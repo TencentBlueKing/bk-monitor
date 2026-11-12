@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { Switch as TSwitch, RadioGroup as TRadioGroup, Radio as TRadio, RadioButton as TRadioButton, Checkbox as TCheckbox } from 'tdesign-vue-next';
@@ -511,7 +513,7 @@ class QuickCreateSubscription extends tsc<IProps> {
               is_enabled: true,
               subscribers: [
                 {
-                  id: this.$store.state.userMeta?.username || '',
+                  id: useApplicationStore().userMeta?.username || '',
                   type: 'user',
                   is_enabled: true,
                 },
@@ -584,8 +586,8 @@ class QuickCreateSubscription extends tsc<IProps> {
    * 以及从 url 中提取并赋值 展示同比 和 Pattern 。
    */
   setDefaultValue() {
-    const spaceList = this.$store.state.mySpaceList;
-    const bizId = this.$store.state.bkBizId;
+    const spaceList = useApplicationStore().mySpaceList;
+    const bizId = useApplicationStore().bkBizId;
     this.bizName = spaceList.find(item => item.bk_biz_id === bizId)?.space_name || '';
     const currentDate = dayjs(new Date()).format('YYYY-MM-DD HH:mm');
     const titleMapping = asDictionary({
@@ -598,7 +600,7 @@ class QuickCreateSubscription extends tsc<IProps> {
     const targetName = nameMapping[this.scenario] || '';
     this.formData.content_config.title = targetName;
     this.formData.content_config__title = targetName;
-    this.formData.name = `${targetTitle}-${this.$store.state.userMeta?.username || ''}`;
+    this.formData.name = `${targetTitle}-${useApplicationStore().userMeta?.username || ''}`;
 
     const clusterRouteParams = JSON.parse(this.$route.query.clusterRouteParams || '{}');
     // this.pattenLevelSlider = PatternLevelEnum[clusterRouteParams?.requestData?.pattern_level || '09'];
@@ -615,7 +617,7 @@ class QuickCreateSubscription extends tsc<IProps> {
   getIndexSetList() {
     ServicesInstance.retrieve.getIndexSetList({
         query: {
-          space_uid: this.$store.state.space.space_uid,
+          space_uid: useApplicationStore().space.space_uid,
         },
       })
       .then(response => {
@@ -740,7 +742,7 @@ class QuickCreateSubscription extends tsc<IProps> {
               <TButton
                 style='margin-left: 120px; margin-bottom: 10px; margin-top: 20px;font-size: 12px;'
                 theme='primary'
-                
+
                 onClick={() => (this.isShowAdvancedOption = !this.isShowAdvancedOption)} variant={(true) ? 'text' : ('base')}
               >
                 <div style='display: flex; align-items: center;'>
@@ -841,7 +843,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                   <div style='display: flex; align-items: center;'>
                     <TSwitch
                       v-model={this.isShowYOY}
-                      
+
                       onChange={() => {
                         this.formData.scenario_config.year_on_year_hour = this.isShowYOY ? 1 : 0;
                       }}

@@ -24,6 +24,8 @@
  * SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -34,7 +36,7 @@ import axios from 'axios';
 import TimeRange from '@/shared/ui/time-range/time-range';
 import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
 import { t } from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import type { SearchCondition, SearchParams, SearchSelectValue, SearchValueType, UrlState } from '../types';
 
@@ -66,7 +68,7 @@ export default defineComponent({
   },
   emits: ['search'],
   setup(props, { emit, expose }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const urlState = props.initialUrlState ?? {};
 
     const timeRange = ref<[string, string]>(
@@ -134,7 +136,7 @@ export default defineComponent({
       const cancelToken = new axios.CancelToken(cancel => {
         cancelExecutor = cancel;
       });
-      const query: Record<string, any> = { bk_biz_id: store.state.bkBizId };
+      const query: Record<string, any> = { bk_biz_id: store.bkBizId };
       if (keyword) query.keyword = keyword;
       if (startTime) query.start_time = startTime;
       if (endTime) query.end_time = endTime;

@@ -159,7 +159,7 @@
               <t-button
                 class="king-button"
                 data-test-id="newlogIndexSetBox_button_addNewIndex"
-                
+
                 @click="openDialog"
               ><template #icon><span :class="`bk-icon icon-${'plus'}`"></span></template></t-button>
             </div>
@@ -329,7 +329,7 @@
               <template #trigger>
                 <t-button
                   class="king-button"
-                  
+
                 ><template #icon><span :class="`bk-icon icon-${'plus'}`"></span></template></t-button>
               </template>
               <bk-option
@@ -364,12 +364,18 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { projectManages } from '@/shared/lib/util';
   import AuthContainerPage from '@/shared/ui/common/auth-container-page';
   import VueDraggable from 'vuedraggable';
-  import { mapGetters, mapState } from '@/app/state/map-helpers';
+
 
   import * as authorityMap from '../../../../../shared/lib/authority-map';
   import SelectCollection from './select-collection';
@@ -431,14 +437,14 @@
       };
     },
     computed: {
-      ...mapState(['spaceUid', 'bkBizId', 'showRouterLeaveTip']),
-      ...mapState('collect', ['curIndexSet']),
-      ...mapGetters('globals', ['globalsData']),
+      ...mapPiniaState(useApplicationStore, ['spaceUid', 'bkBizId', 'showRouterLeaveTip']),
+      ...mapPiniaState(useCollectionStore, ['curIndexSet']),
+      ...mapPiniaState(useGlobalsStore, ['globalsData']),
       authorityMap() {
         return authorityMap;
       },
       collectProject() {
-        return projectManages(this.$store.state.topMenu, 'collection-item');
+        return projectManages(useApplicationStore().topMenu, 'collection-item');
       },
       subTitle() {
         const textMap = {
@@ -496,7 +502,7 @@
                   },
                 ],
               };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
+          const res = await useApplicationStore().checkAndGetData(paramData);
           if (res.isAllowed === false) {
             this.authPageInfo = res.data;
           }
@@ -534,7 +540,7 @@
               index_set_id: indexSetId,
             },
           });
-          this.$store.commit('collect/updateCurIndexSet', indexSetData);
+          useCollectionStore().updateCurIndexSet(indexSetData);
         }
       },
       // 初始化集群列表
@@ -598,7 +604,7 @@
         try {
           this.$el.click(); // 因为下拉在loading上面所以需要关闭下拉
           this.basicLoading = true;
-          const res = await this.$store.dispatch('getApplyData', {
+          const res = await useApplicationStore().getApplyData({
             action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
             resources: [
               {

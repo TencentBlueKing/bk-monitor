@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, onBeforeUnmount, ref, watch, nextTick, type PropType } from 'vue';
 import type * as echarts from 'echarts';
 import dayjs from 'dayjs';
-import useStore from '@/shared/composables/use-store';
+
 import useLocale from '@/shared/composables/use-locale';
 import TimeRange, { type TimeRangeType } from '@/shared/ui/time-range/time-range';
 import $http, { axiosInstance } from '@/platform/http/index';
@@ -74,11 +76,11 @@ export default defineComponent({
   },
   emits: ['close'],
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
-    const retrieveParams = computed(() => store.getters.retrieveParams);
+    const retrieveParams = computed(() => store.retrieveParams);
     // 直接从 state.indexItem 获取 datePickerValue
-    const datePickerValue = computed(() => store.state.indexItem.datePickerValue);
+    const datePickerValue = computed(() => store.indexItem.datePickerValue);
     const searchValue = ref('');
     const sortValue = ref('count_desc');
     const timeRange = ref<TimeRangeType>(['now-1d', 'now']);
@@ -695,10 +697,10 @@ export default defineComponent({
       });
 
       // 强制使用 UI 模式
-      store.commit('updateIndexItem', { search_mode: 'ui' });
-      store.commit('updateState', { key: 'clusterParams', value: null });
+      store.updateIndexItem({ search_mode: 'ui' });
+      store.updateState({ key: 'clusterParams', value: null });
 
-      store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
+      store.setQueryCondition(additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
         // 构建跳转 URL 的附加参数，包含 tab 和时间参数
         // URL 中的 start_time/end_time 存储的是 datePickerValue 格式的字符串（如 "2026-04-24 14:34:46" 或 "now-1d"）
         // 而不是数字时间戳，因此这里需要传 timeRange.value 而非 getBaseParams 返回的时间戳
@@ -711,7 +713,7 @@ export default defineComponent({
         const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, appendParams);
         window.open(openUrl, '_blank', 'noopener,noreferrer');
         // 回填当前页面聚类参数
-        store.commit('updateState', {
+        store.updateState({
           key: 'clusterParams',
           value: props.requestData,
         });
@@ -804,7 +806,7 @@ export default defineComponent({
                   />
                   <TButton
                     theme='primary'
-                    
+
                     v-log-tooltip={{
                       placement: 'top',
                       content: t('当前仅支持下载1w条数据'),

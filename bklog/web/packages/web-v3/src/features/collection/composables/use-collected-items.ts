@@ -1,9 +1,11 @@
 /* Copyright (C) 2021 THL A29 Limited, a Tencent company.
  * 蓝鲸智云PaaS平台 (BlueKing PaaS), MIT License. */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { reactive } from 'vue';
 import { useRoute } from 'vue-router';
 import { ServicesInstance } from '@/platform/services';
-import useStore from '@/shared/composables/use-store';
+
 import useLocale from '@/shared/composables/use-locale';
 import * as authorityMap from '@/shared/lib/authority-map';
 export type CollectionOperation =
@@ -47,7 +49,7 @@ export interface CollectedItemsContext {
   stopStatusPolling(): void;
 }
 export function useCollectedItems(context: () => CollectedItemsContext) {
-  const store = useStore();
+  const store = useApplicationStore();
   const route = useRoute();
   const { t } = useLocale();
   const disabledTips = reactive({
@@ -177,8 +179,8 @@ export function useCollectedItems(context: () => CollectedItemsContext) {
     const model = context();
     try {
       model.isTableLoading = true;
-      const res = await store.dispatch('getApplyData', paramData);
-      store.commit('updateState', { authDialogData: res.data });
+      const res = await store.getApplyData(paramData);
+      store.updateState({ authDialogData: res.data });
     } catch (err) {
       console.warn(err);
     } finally {
@@ -189,7 +191,7 @@ export function useCollectedItems(context: () => CollectedItemsContext) {
   async function checkCreateAuth() {
     const model = context();
     try {
-      const res = await store.dispatch('checkAllowed', {
+      const res = await store.checkAllowed({
         action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
         resources: [
           {

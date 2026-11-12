@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { Loading as TLoading } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { ServiceOperation } from '@/platform/services/runtime/service-client';
@@ -38,7 +43,7 @@ import GradeOption from '@/features/charts/components/grade-option';
 import useLocale from '@/shared/composables/use-locale';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
 import { useRetrieveLoadingCovered } from '@/features/retrieval/use-retrieve-loading-queue';
-import useStore from '@/shared/composables/use-store';
+
 import useTrendChart from '@/shared/composables/use-trend-chart';
 import { formatAdditionalFields, getCommonFilterAddition } from '@/app/state/helper';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
@@ -58,7 +63,7 @@ export default defineComponent({
   name: 'SearchResultChart',
   emits: ['toggle-change', 'trend-ready', 'change-total-count', 'change-queue-res', "changeTotalCount", "changeQueueRes", "toggleChange", "trendReady"],
   setup(_props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const router = useRouter();
     const { t } = useLocale();
@@ -80,11 +85,11 @@ export default defineComponent({
     const trendChartCanvas = ref(null);
     const dynamicHeight = ref(130);
 
-    const retrieveParams = computed(() => store.getters.retrieveParams);
-    const requestAddition = computed(() => store.getters.requestAddition ?? []);
-    const isUnionSearch = computed(() => store.getters.isUnionSearch);
-    const unionIndexList = computed(() => store.getters.unionIndexList);
-    const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
+    const retrieveParams = computed(() => store.retrieveParams);
+    const requestAddition = computed(() => store.requestAddition ?? []);
+    const isUnionSearch = computed(() => store.isUnionSearch);
+    const unionIndexList = computed(() => store.unionIndexList);
+    const gradeOptions = computed(() => store.indexFieldInfo.custom_config?.grade_options);
 
     // 唯一状态机 + 代次号（防竞态），替代 isStart/finishPolling/isChartEmpty/isEmptySettled/isSearchingCanceled
     const trendStatus = ref<TrendStatus>('loading');
@@ -105,7 +110,7 @@ export default defineComponent({
         return;
       }
       trendStatus.value = status;
-      store.commit('retrieve/updateTrendDataLoading', status === 'loading' || status === 'polling');
+      useRetrieveStore().updateTrendDataLoading(status === 'loading' || status === 'polling');
     };
 
     // 初始化、设置、重绘图表
@@ -128,7 +133,7 @@ export default defineComponent({
 
     // 监听store中interval变化，自动同步到chartInterval
     watch(
-      () => store.getters.retrieveParams.interval,
+      () => store.retrieveParams.interval,
       newVal => {
         chartInterval.value = newVal;
       },
@@ -140,7 +145,7 @@ export default defineComponent({
       hideOnClick: false,
       onShown: () => {
         // popover 展开时，更新分级配置
-        const cfg = store.state.indexFieldInfo.custom_config?.grade_options ?? {};
+        const cfg = store.indexFieldInfo.custom_config?.grade_options ?? {};
         refGradeOption.value?.updateOptions?.(cfg);
       },
     };
@@ -163,8 +168,8 @@ export default defineComponent({
     };
 
     // 总趋势展示总数以 Total 接口写入的 searchTotal 为准，避免 /search 截断 total 覆盖展示
-    const totalCount = computed(() => normalizeSearchTotal(store.state.searchTotal));
-    const tookTime = computed(() => Number.parseFloat(String(store.state.tookTime)).toFixed(0));
+    const totalCount = computed(() => normalizeSearchTotal(store.searchTotal));
+    const tookTime = computed(() => Number.parseFloat(String(store.tookTime)).toFixed(0));
 
     watch(
       totalCount,
@@ -200,7 +205,7 @@ export default defineComponent({
     // 切换折叠状态
     const toggleExpand = (val: boolean) => {
       isFold.value = val;
-      store.commit('updateStorage', { [BK_LOG_STORAGE.TREND_CHART_IS_FOLD]: val });
+      store.updateStorage({ [BK_LOG_STORAGE.TREND_CHART_IS_FOLD]: val });
       nextTick(() => {
         emit('toggle-change', !isFold.value, getOffsetHeight());
       });
@@ -209,15 +214,15 @@ export default defineComponent({
     // 切换汇聚周期
     const handleChangeInterval = (v: string) => {
       chartInterval.value = v;
-      store.commit('updateIndexItem', { interval: v });
-      store.commit('retrieve/updateChartKey', { prefix: 'chart_interval_' });
+      store.updateIndexItem({ interval: v });
+      useRetrieveStore().updateChartKey({ prefix: 'chart_interval_' });
       router.replace({
         query: {
           ...route.query,
           interval: v,
         },
       });
-      store.commit('retrieve/updateTrendDataLoading', true);
+      useRetrieveStore().updateTrendDataLoading(true);
       RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH); // 触发趋势图刷新
     };
 
@@ -287,7 +292,7 @@ export default defineComponent({
                   gradeOptions.value?.settings ?? [],
                   queryData,
                   runningInterval,
-                  store.state.indexItem.timezone,
+                  store.indexItem.timezone,
                   currentIsInit,
                 );
                 if (!isCurrentTrendLoad(seq)) {
@@ -339,14 +344,14 @@ export default defineComponent({
         const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
         const urlStr = isUnionSearch.value
           ? ServicesInstance.unionSearch.unionDateHistogram
-          : store.getters.isSceneMode
+          : store.isSceneMode
             ? ServicesInstance.retrieve.getSceneDateHistogram
             : ServicesInstance.retrieve.getLogChartList;
         const queryData = {
           ...retrieveParams.value,
-          addition: formatAdditionalFields(store.state, [
+          addition: formatAdditionalFields(store, [
             ...requestAddition.value,
-            ...getCommonFilterAddition(store.state),
+            ...getCommonFilterAddition(store),
           ]),
           time_range: 'customized',
           interval: runningInterval,
@@ -391,7 +396,7 @@ export default defineComponent({
         const params = buildQueryParams(startTime, endTime);
 
         if (
-          store.getters.isSceneMode ||
+          store.isSceneMode ||
           (!isUnionSearch.value && !!params.indexId) ||
           (isUnionSearch.value && unionIndexList.value?.length)
         ) {
@@ -423,7 +428,7 @@ export default defineComponent({
       logChartCancel = () => controller.abort();
 
       const requestConfig: any = { data: queryData };
-      if (!store.getters.isSceneMode) {
+      if (!store.isSceneMode) {
         requestConfig.params = { index_set_id: indexId };
       }
 
@@ -467,7 +472,7 @@ export default defineComponent({
     // 加载趋势图数据
     const loadTrendData = () => {
       // 场景化检索模式下，过滤条件为空时不加载趋势图
-      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) {
+      if (store.isSceneMode && store.isSceneFilterEmpty) {
         setTrendStatus('empty');
         markTrendReady();
         return;
@@ -477,7 +482,7 @@ export default defineComponent({
       const seq = trendLoadSeq;
 
       cacheChartOptions();
-      store.commit('retrieve/updateTotalCountLoaded', false);
+      useRetrieveStore().updateTotalCountLoaded(false);
       setTrendStatus('loading', seq);
       setChartData(null, null, true);
 
@@ -487,7 +492,7 @@ export default defineComponent({
           return;
         }
         // 若未选择索引集（无索引集或索引集为空数组），则直接结算空态
-        if (!store.state.indexItem.ids?.length) {
+        if (!store.indexItem.ids?.length) {
           settleChartEmpty(seq);
           return;
         }
@@ -499,7 +504,7 @@ export default defineComponent({
             totalTimer = setTimeout(() => resolve({ result: false, timeout: true }), 20000);
           });
           await Promise.race([
-            store.dispatch('requestSearchTotal').catch(() => ({ result: false })),
+            store.requestSearchTotal().catch(() => ({ result: false })),
             totalTimeout,
           ]).finally(() => {
             if (totalTimer) clearTimeout(totalTimer);
@@ -507,9 +512,9 @@ export default defineComponent({
           if (!isCurrentTrendLoad(seq)) {
             return;
           }
-          store.commit('retrieve/updateTotalCountLoaded', true);
+          useRetrieveStore().updateTotalCountLoaded(true);
           // 2. 结果为空：整轮前置请求结束后再结算空态（含 stream meta 兜底）
-          if (!getEffectiveSearchTotal(store.state)) {
+          if (!getEffectiveSearchTotal(store)) {
             settleChartEmpty(seq);
             return;
           }
@@ -553,7 +558,7 @@ export default defineComponent({
     addEvent(RetrieveEvent.TREND_GRAPH_CLEAR, () => {
       invalidateTrendLoad();
       destroyChart();
-      store.commit('SET_APP_STATE', { searchTotal: 0, tookTime: 0 });
+      store.SET_APP_STATE({ searchTotal: 0, tookTime: 0 });
       setTrendStatus('empty');
     });
 
@@ -572,7 +577,7 @@ export default defineComponent({
 
     onMounted(() => {
       // 初始化折叠状态
-      isFold.value = store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] ?? false;
+      isFold.value = store.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] ?? false;
       nextTick(() => {
         emit('toggle-change', !isFold.value, getOffsetHeight());
       });
@@ -642,7 +647,7 @@ export default defineComponent({
                     />
                   ))}
                 </Select>
-                {!store.getters.isSceneMode && (
+                {!store.isSceneMode && (
                   <BklogPopover
                     ref={refGradePopover}
                     content={() => (

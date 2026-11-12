@@ -175,6 +175,10 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import {
   MessagePlugin as TDesignMessage,
   Dialog as TDialog,
@@ -188,7 +192,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import axios from 'axios';
 import { formatDate, blobDownload } from '@/shared/lib/util';
-import { mapGetters } from '@/app/state/map-helpers';
+
 import { parseTableIdConditions } from '@/app/state/helper.ts';
 import { resolveExportHistoryIndexSetId } from '@/features/retrieval/workbench/sub-bar/union-to-single';
 
@@ -361,24 +365,24 @@ export default {
       );
     },
     bkBizId() {
-      return this.$store.state.bkBizId;
+      return useApplicationStore().bkBizId;
     },
     getTableWidth() {
-      return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
+      return useApplicationStore().isEnLanguage ? this.enTableWidth : this.cnTableWidth;
     },
-    ...mapGetters({
+    ...mapPiniaState(useApplicationStore, {
       unionIndexList: 'unionIndexList',
       isUnionSearch: 'isUnionSearch',
       retrieveParams: 'retrieveParams',
     }),
     isScene() {
-      return this.$store.getters.isSceneMode;
+      return useApplicationStore().isSceneMode;
     },
     routerIndexSet() {
       return resolveExportHistoryIndexSetId({
         isMonitorComponent: window.__IS_MONITOR_COMPONENT__,
         queryIndexId: this.$route.query.indexId,
-        storeIndexId: this.$store.state.indexId,
+        storeIndexId: useApplicationStore().indexId,
       });
     },
   },
@@ -433,7 +437,7 @@ export default {
         const res = await ServicesInstance.retrieve.getExportDownloadLink({
           params: { job_id: row.id },
           query: {
-            space_uid: this.$store.getters.spaceUid,
+            space_uid: useApplicationStore().spaceUid,
             artifact_id: 'full',
           },
         });
@@ -552,7 +556,7 @@ export default {
       return formatDate(new Date(time).getTime(), true);
     },
     handleRetrieve($row) {
-      const { spaceUid } = this.$store.state;
+      const { spaceUid } = useApplicationStore();
       const { log_index_set_id: indexSetID, search_dict: dict } = $row;
       // 检索数据回填
       const queryParamsStr = {};

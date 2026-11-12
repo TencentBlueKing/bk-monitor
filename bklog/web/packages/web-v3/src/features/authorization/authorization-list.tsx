@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as Alert, Tag as Tag } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage, Button as TButton, Button as Button } from 'tdesign-vue-next';
@@ -302,7 +304,7 @@ export default class AuthorizationList extends tsc<object> {
 
   // 当前操作人是否有cmdb运维角色
   get hasCMDBRole(): boolean {
-    const username = this.$store.state.userMeta?.username ?? '';
+    const username = useApplicationStore().userMeta?.username ?? '';
     return this.bizCMDBRoleList.includes(username);
   }
 
@@ -376,7 +378,7 @@ export default class AuthorizationList extends tsc<object> {
   }
 
   async created() {
-    this.spaceUid = this.$store.state.spaceUid;
+    this.spaceUid = useApplicationStore().spaceUid;
     const hasManageAuth = await this.checkBizAllow();
     if (hasManageAuth) {
       this.angleType = (this.$route.query?.activeNav as AngleType) || 'user';
@@ -389,7 +391,7 @@ export default class AuthorizationList extends tsc<object> {
 
   async checkBizAllow() {
     try {
-      const res = await this.$store.dispatch('checkAndGetData', {
+      const res = await useApplicationStore().checkAndGetData({
         action_ids: [authorityMap.VIEW_BUSINESS],
         resources: [
           {
@@ -399,7 +401,7 @@ export default class AuthorizationList extends tsc<object> {
         ],
       });
       if (res.isAllowed === false) {
-        this.$store.commit('updateState', { authDialogData: res.data });
+        useApplicationStore().updateState({ authDialogData: res.data });
         return false;
       }
       return true;
@@ -989,7 +991,7 @@ export default class AuthorizationList extends tsc<object> {
                 <Button
                   class='member-btn'
                   {...({ title: 'primary' } satisfies import('vue').HTMLAttributes)}
-                  
+
                   onClick={this.createOrUpdateAuthUser} variant={(true) ? 'text' : ('base')}
                 >
                   {this.$t('确定')}
@@ -997,7 +999,7 @@ export default class AuthorizationList extends tsc<object> {
                 <Button theme="default"
                   class='member-btn'
                   {...({ title: 'primary' } satisfies import('vue').HTMLAttributes)}
-                  
+
                   onClick={() => (this.isEditMember = false)} variant={(true) ? 'text' : ('base')}
                 >
                   {this.$t('取消')}
@@ -1134,7 +1136,7 @@ export default class AuthorizationList extends tsc<object> {
                       <div>
                         {this.angleType === 'approval' ? (
                           <TButton
-                            
+
                             onClick={() => window.open(row.approval_url)} variant={(true) ? 'text' : ('base')}
                           >
                             {this.$t('查看详情')}
@@ -1144,7 +1146,7 @@ export default class AuthorizationList extends tsc<object> {
                             <TButton
                               key='edit'
                               style='margin-right: 16px'
-                              
+
                               disabled={row.status === 'expired' || row.status === 'invalid'}
                               onClick={() => this.showDialog(row)} variant={(true) ? 'text' : ('base')}
                             >
@@ -1152,7 +1154,7 @@ export default class AuthorizationList extends tsc<object> {
                             </TButton>,
                             <TButton
                               key='delete'
-                              
+
                               onClick={() => this.handleDelete(row)} variant={(true) ? 'text' : ('base')}
                             >
                               {this.$t('删除')}

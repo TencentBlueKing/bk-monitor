@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "id": "retrieve-row-expand-filter-json-restore",
+  "state": "SOURCE_CONTRACT_DRAFT_RUNTIME_BINDING_IN_PROGRESS",
+  "sourceRefs": [
+    {
+      "file": "views/retrieve-v2/search-result-panel/log-result/log-rows.tsx",
+      "symbol": "handleRowMouseup/expandOption/ensureTableRowConfig",
+      "line": 2101,
+      "sha256": "4757e9a90fa27dd2e0d58e26ea82c8d775869358596cf155585321829f701223"
+    },
+    {
+      "file": "views/retrieve-v2/components/result-cell-element/expand-view.vue",
+      "symbol": "handleSearch/handleInputChange/activeExpandView",
+      "line": 443,
+      "sha256": "2f447594d0bc6f82eb61cf7007c6115c6af5ba86cec2df16af9f73454f3a79a9"
+    },
+    {
+      "file": "views/retrieve-v2/search-result-panel/log-result/index.vue",
+      "symbol": "handleClickTableBtn",
+      "line": 358,
+      "sha256": "62d3cf8f65535ee52da2602204ed0e8727a89b58bdfc58940c30203aa6d4449d"
+    },
+    {
+      "file": "storage/workers/retrieve-search.worker.ts",
+      "symbol": "meta/row/done stream consumption",
+      "line": 189,
+      "sha256": "9c787cc94ec7673fd73492b0c7ead41120070e2696d9bbe1bd9ca6451dc10cc3"
+    },
+    {
+      "file": "views/retrieve-v2/field-filter-comp/index.tsx",
+      "symbol": "watchVisibleFields/selected draggable render",
+      "line": 357,
+      "sha256": "b0424f17a931ef4e602e42dc31fe59cfb771a503f62d7e2af4c01b93a57a2c3b"
+    },
+    {
+      "file": "views/retrieve-v2/field-filter-comp/field-item.tsx",
+      "symbol": "computedFieldName/render",
+      "line": 313,
+      "sha256": "9220ddbf1cfa089e06eb03cf34625667527dfc841859eeffa523bfdb217a4e40"
+    },
+    {
+      "file": "store/services/retrieve-query.service.js",
+      "symbol": "resolveGetterVisibleFields",
+      "line": 10,
+      "sha256": "d0464e993a2fba2d712743692ac6ad82f4f931b846cfcfd4fd11d6824a8cd7b6"
+    },
+    {
+      "file": "common/util.js",
+      "symbol": "copyMessage native fallback and feedback",
+      "line": 813,
+      "sha256": "20517c8b661a1053b83012313a6d3adc3cbd5d20d8bfe6fcd76960a2711532d2"
+    },
+    {
+      "file": "storage/services/retrieve-row-cache.service.ts",
+      "symbol": "getCopyRowsFromMemory/resolve includeFields",
+      "line": 117,
+      "sha256": "ebea722bcd1093192a3a027a23e57b21d71cd9d7fe0f12485a473b9de35680a7"
+    }
+  ],
+  "context": {
+    "spaceUid": "bkcc__5000140",
+    "bizId": "5000140",
+    "indexId": "16176",
+    "start_time": 1794240000000,
+    "end_time": 1794247199000,
+    "timezone": "Asia/Shanghai",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "locale": "zh-CN",
+    "build": "main",
+    "mode": "ordinary-ui",
+    "fixtureRequiredFields": [
+      "level"
+    ],
+    "writes": "NONE",
+    "clockEpochMs": 1794355200000,
+    "clockScope": "Date fixed only until bootstrap reads complete; then resume clock at epoch+1 to preserve Vue native event timestamps. Local-only pilot actions issue no business requests.",
+    "capabilities": [
+      "row-expand-kv-json-restore",
+      "selected-field-sidebar-initial-read",
+      "row-field-search-icons",
+      "advancing-clock-after-bootstrap",
+      "row-copy-payload-native-event",
+      "selected-field-search-restore"
+    ]
+  },
+  "initialState": {
+    "query": "URL fixed absolute time; source URL resolver defaults must be checked against request body",
+    "localStorage": "fresh context; table is default; no version-state inherited from previous browser",
+    "ready": [
+      "main NDJSON includes ordered meta/row/done and transport finished",
+      "row index0 rendered once",
+      "first row level read from index0 response matches expanded KV value"
+    ]
+  },
+  "actions": [
+    {
+      "id": "sidebar-field-search",
+      "source": "FieldFilterComp.filterListByCondition/searchKeyword",
+      "target": {
+        "scope": "field sidebar search",
+        "semanticId": "retrieval.sidebar.field-search"
+      },
+      "ready": [
+        {
+          "id": "initial-selected-field-order"
+        }
+      ],
+      "expected": [
+        {
+          "id": "level-only-selected-field"
+        },
+        {
+          "id": "no-match-keeps-selected-section-with-no-field-rows"
+        },
+        {
+          "id": "clear-icon-restores-original-field-order"
+        },
+        {
+          "id": "no-request-count-change-in-sidebar-search-window"
+        }
+      ]
+    },
+    {
+      "id": "expand-row",
+      "source": "handleRowMouseup",
+      "target": {
+        "scope": ".bklog-row-container[data-row-index=\"0\"]",
+        "semanticId": "result.row.fixture-index0.expand"
+      },
+      "ready": [
+        {
+          "id": "row-identity"
+        }
+      ],
+      "expected": [
+        {
+          "id": "expand-view-visible"
+        },
+        {
+          "id": "kv-loaded"
+        }
+      ]
+    },
+    {
+      "id": "filter-existing-panel",
+      "source": "ExpandView.handleSearch",
+      "target": {
+        "scope": "fixture row expanded panel",
+        "semanticId": "result.row.expand.field-search"
+      },
+      "ready": [
+        {
+          "id": "unique-search-input"
+        }
+      ],
+      "expected": [
+        {
+          "id": "level-only-field"
+        },
+        {
+          "id": "level-value-equals-response"
+        },
+        {
+          "id": "no-new-query-required"
+        }
+      ]
+    },
+    {
+      "id": "field-search-icons",
+      "source": "ExpandView.handleSearch/handleClearSearch/handleInputChange",
+      "target": {
+        "scope": "fixture row expanded panel",
+        "semanticId": "result.row.expand.field-search"
+      },
+      "ready": [
+        {
+          "id": "existing-level-filter"
+        }
+      ],
+      "expected": [
+        {
+          "id": "nonempty-draft-does-not-commit"
+        },
+        {
+          "id": "search-icon-commits-no-match"
+        },
+        {
+          "id": "clear-icon-restores-original-fields"
+        },
+        {
+          "id": "search-trims-without-changing-draft"
+        },
+        {
+          "id": "whitespace-resets-immediately"
+        },
+        {
+          "id": "no-network-request"
+        }
+      ]
+    },
+    {
+      "id": "switch-json",
+      "source": "activeExpandView=json",
+      "target": {
+        "scope": "fixture row expanded panel tabs",
+        "semanticId": "result.row.expand.json-tab"
+      },
+      "ready": [
+        {
+          "id": "json-tab-unique"
+        }
+      ],
+      "expected": [
+        {
+          "id": "json-content-visible"
+        },
+        {
+          "id": "kv-content-removed"
+        },
+        {
+          "id": "raw-row-values-preserved"
+        }
+      ]
+    },
+    {
+      "id": "copy-origin-row",
+      "source": "ExpandView.handleCopy/collectCopyIncludeFields/copyMessage",
+      "target": {
+        "scope": "expanded row",
+        "semanticId": "result.row.expand.copy"
+      },
+      "ready": [
+        {
+          "id": "unique-copy-icon"
+        }
+      ],
+      "expected": [
+        {
+          "id": "trusted-native-copy-event"
+        },
+        {
+          "id": "copy-success-feedback"
+        },
+        {
+          "id": "level-log-timestamp-equal-response"
+        },
+        {
+          "id": "payload-equal-v2-self-replay"
+        },
+        {
+          "id": "no-request-count-change-in-copy-window"
+        }
+      ]
+    },
+    {
+      "id": "restore-and-collapse",
+      "source": "activeExpandView=kv/handleInputChange/handleRowMouseup",
+      "target": {
+        "scope": "fixture row",
+        "semanticId": "result.row.expand.restore"
+      },
+      "ready": [
+        {
+          "id": "kv-return-visible"
+        }
+      ],
+      "expected": [
+        {
+          "id": "filter-draft-retained-across-tabs"
+        },
+        {
+          "id": "clear-restores-original-field-set"
+        },
+        {
+          "id": "row-collapse-removed-panel"
+        },
+        {
+          "id": "row-data-preserved"
+        }
+      ]
+    }
+  ],
+  "guardObligations": [
+    "selection mouseup must not expand row",
+    "content token click does not toggle outer row",
+    "missing raw row/cache failure keeps warning and is not a valid fixture",
+    "large/virtual row hidden requires scrolling before action",
+    "Monitor Trace shadow selection belongs to separate integration scenario"
+  ],
+  "limitations": [
+    "This is one pilot contract, not full retrieval coverage",
+    "Row fixture index is validated against captured response, not a stable entity identity across new live queries",
+    "AI auto-create blocked => AI baseline not accepted",
+    "Full UI and data oracle evidence must be completed before V3 verdict",
+    "Clipboard payload is observed through trusted native copy event and source feedback; OS clipboard readback/cross-browser interoperability not accepted.",
+    "Sidebar hasFilterVisibleFields uses totalFields.length; no-match keeps section structure and does not render an empty illustration. Earlier empty-illustration expectation was invalid, not a V3 defect."
+  ],
+  "revision": 6,
+  "sidebarExpected": {
+    "source": "Getter visibleFields maps display fields and aliases; rendering preserves this order",
+    "fixture": "Full fields response/config and V2 DOM after bootstrap dependencies complete",
+    "oracle": "Ordered visible selected field names must match V2; no saving or drag persistence in this readonly scenario"
+  },
+  "sourceDigest": "a7cd5e2b50b1cefb71549c86a5ea622794fc05e4f2660a85c710a474bbfe0176",
+  "contextDigest": "16eef05599d5923e33f1b874d40a9d29a3810a6223efcdf6b65efb9675089dbd",
+  "protocolStatus": "SCHEMA_VALID_RUNTIME_ORACLE_MAPPING_PARTIAL"
+}
