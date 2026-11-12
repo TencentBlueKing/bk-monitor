@@ -112,8 +112,14 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
   import { debounce } from 'lodash-es';
-  import { mapGetters, mapState } from '@/app/state/map-helpers';
+
   // MONITOR_APP !== 'trace'
   import ExportLog from '../../result-comp/export-log.vue';
   // #else
@@ -198,14 +204,14 @@
       },
       filedSettingConfigID() {
         // 当前索引集的显示字段ID
-        return this.$store.state.retrieve.filedSettingConfigID;
+        return useRetrieveStore().$state.filedSettingConfigID;
       },
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
       }),
-      ...mapState({
-        indexSetList: state => state.retrieve?.indexSetList ?? [],
+      ...mapPiniaState(useApplicationStore, {
+        indexSetList: () => useRetrieveStore().indexSetList,
         indexSetQueryResult: 'indexSetQueryResult',
         indexFieldInfo: 'indexFieldInfo',
       }),
@@ -215,13 +221,13 @@
       },
 
       fieldAliasMap() {
-        return this.$store.getters.fieldAliasMap;
+        return useApplicationStore().fieldAliasMap;
       },
       showFieldsConfigPopoverNum() {
-        return this.$store.state.showFieldsConfigPopoverNum;
+        return useApplicationStore().showFieldsConfigPopoverNum;
       },
       jsonFormat() {
-        return this.$store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT];
+        return useApplicationStore().storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT];
       },
       highlightStyle() {
         return {

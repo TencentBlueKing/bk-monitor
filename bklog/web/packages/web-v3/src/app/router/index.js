@@ -29,6 +29,8 @@
  * @author  <>
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { createRouter, createWebHashHistory } from 'vue-router';
 
 import reportLogStore from '@/app/state/modules/report-log';
@@ -44,7 +46,7 @@ import manageRoutes from './manage';
 import retrieveRoutes from './retrieve';
 import http from '@/platform/http/index';
 import { stringifyLegacyQuery } from '@/platform/routing/source-router';
-import store from '@/app/state/index';
+
 
 // Vue3 returns navigation failures instead of throwing on duplicate navigation.
 // Keep the source's callback and rejection handling on this router instance.
@@ -178,7 +180,7 @@ export default (spaceId, bkBizId, externalMenu) => {
       )
     ) {
       // 非外部版路由重定向，保留 query 和 params 参数
-      const routeName = getExternalDefaultRoute(store.state.externalMenu || []);
+      const routeName = getExternalDefaultRoute(useApplicationStore().externalMenu || []);
       next({
         name: routeName,
         query: to.query,

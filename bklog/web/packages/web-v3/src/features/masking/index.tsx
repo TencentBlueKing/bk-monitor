@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { includesValue } from '@/shared/utils/typed-record';
@@ -65,10 +67,10 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
   }
 
   /** 进入路由前判断是否是灰度业务 */
-  beforeRouteEnter(_from: unknown, _to: unknown, next: (arg0: (vm: { $store: any; $router: any; }) => void) => void) {
-    next((vm: { $store: any; $router: any; }) => {
-      const { $store, $router } = vm;
-      if (!$store.getters.isShowMaskingTemplate) {
+  beforeRouteEnter(_from: unknown, _to: unknown, next: (arg0: (vm: { $router: any; }) => void) => void) {
+    next((vm: { $router: any; }) => {
+      const { $router } = vm;
+      if (!useApplicationStore().isShowMaskingTemplate) {
         $router.push({
           name: 'retrieve',
         });

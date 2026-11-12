@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
 import { Component, Prop, Emit, Ref, ModelSync, Watch } from 'vue-property-decorator';
@@ -106,11 +108,11 @@ export default class FilterRule extends tsc<IProps> {
     return false;
   }
   get showFieldAlias() {
-    return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+    return useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
   }
   // 优先展示选中字段名
   get filterSelectList() {
-    const { getConcatenatedFieldName } = useFieldNameHook({ store: this.$store });
+    const { getConcatenatedFieldName } = useFieldNameHook({ store: useApplicationStore() });
     return this.totalFields
       .filter(item => !/^__dist/.test(item.field_name) && item.field_type !== '__virtual__')
       .map(el => {
@@ -152,8 +154,8 @@ export default class FilterRule extends tsc<IProps> {
     if (!fields.length) {
       return;
     }
-    const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
-    const isScene = this.$store.getters.isSceneMode;
+    const tempList = handleTransformToTimestamp(this.datePickerValue, useApplicationStore().retrieveParams.format);
+    const isScene = useApplicationStore().isSceneMode;
     try {
       let requestConfig;
       if (isScene) {
@@ -164,7 +166,7 @@ export default class FilterRule extends tsc<IProps> {
             fields,
             start_time: formatDate(tempList[0]),
             end_time: formatDate(tempList[1]),
-            bk_biz_id: this.$store.state.bkBizId,
+            bk_biz_id: useApplicationStore().bkBizId,
             space_uid: this.retrieveParams?.space_uid,
             table_id_conditions: this.retrieveParams?.table_id_conditions,
             scene_filter_values: this.retrieveParams?.scene_filter_values,
@@ -181,7 +183,7 @@ export default class FilterRule extends tsc<IProps> {
             fields,
             start_time: formatDate(tempList[0]),
             end_time: formatDate(tempList[1]),
-            bk_biz_id: this.$store.state.bkBizId,
+            bk_biz_id: useApplicationStore().bkBizId,
           },
         };
       }

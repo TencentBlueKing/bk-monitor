@@ -1,14 +1,17 @@
-<script setup>import { ServicesInstance } from '@/platform/services';
+<script setup>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { computed, ref, nextTick } from 'vue';
   import { Popup, Form, FormItem, Input, Textarea, Select, Option, Button } from 'tdesign-vue-next';
   import 'tdesign-vue-next/es/style/index.css';
 
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import { ConditionOperator } from '@/app/state/condition-operator';
 
-  
+
 
   const props = defineProps({
     sql: {
@@ -44,9 +47,9 @@
   });
   const emit = defineEmits(['refresh', 'save-current-active-favorite', 'instanceShow', "saveCurrentActiveFavorite"]);
   const { $t } = useLocale();
-  const store = useStore();
+  const store = useApplicationStore();
 
-  const indexSetItem = computed(() => store.state.indexItem);
+  const indexSetItem = computed(() => store.indexItem);
 
   // 用于展示索引集
   // 这里返回数组，展示 index_set_name 字段
@@ -55,19 +58,19 @@
   //   return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
   // });
   const indexSetName = computed(() => {
-    if (store.getters.isSceneMode) {
-      const sceneConfigs = store.getters['retrieve/sceneConfigList'] ?? [];
-      const sceneActive = store.state.indexItem?.scene_active ?? '';
+    if (store.isSceneMode) {
+      const sceneConfigs = useRetrieveStore().sceneConfigList ?? [];
+      const sceneActive = store.indexItem?.scene_active ?? '';
       const sceneConfig = sceneConfigs.find(s => s.type === sceneActive);
       return sceneConfig?.label ?? sceneActive ?? '';
     }
-    const indexSetList = store.state.retrieve.flatIndexSetList || [];
-    const indexSetId = store.state.indexId;
+    const indexSetList = useRetrieveStore().$state.flatIndexSetList || [];
+    const indexSetId = store.indexId;
     const indexSet = indexSetList.find(item => String(item.index_set_id) === String(indexSetId));
     return indexSet ? indexSet.index_set_name : ''; // 提供一个默认名称或处理
   });
-  const collectGroupList = computed(() => store.state.favoriteList);
-  const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
+  const collectGroupList = computed(() => store.favoriteList);
+  const favStrList = computed(() => store.favoriteList.map(item => item.name));
   const unknownGroupID = computed(() => collectGroupList.value[collectGroupList.value.length - 1]?.group_id);
   const privateGroupID = computed(() => collectGroupList.value[0]?.group_id);
   // 表单ref
@@ -97,7 +100,7 @@
     visible_type: 'public',
     display_fields: [],
   });
-  const spaceUid = computed(() => store.state.spaceUid);
+  const spaceUid = computed(() => store.spaceUid);
   const isShowAddGroup = ref(true); // 是否新增组
   const verifyData = ref({
     groupName: '',
@@ -190,7 +193,7 @@
       const data = {
         name: verifyData.value.groupName,
         space_uid: spaceUid.value,
-        source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
+        source_type: store.isSceneMode ? 'scene' : 'index_set',
       };
       if (window.__IS_MONITOR_APM__) {
         Object.assign(data, {
@@ -206,7 +209,7 @@
         });
         if (res.result) {
           // 获取最新组列表
-          await store.dispatch('requestFavoriteList');
+          await store.requestFavoriteList();
           favoriteData.value.group_id = res.data.id;
           window.mainComponent.messageSuccess($t('操作成功'));
           groupPopupVisible.value = false;
@@ -278,10 +281,10 @@
   });
 
   const sceneFilterString = computed(() => {
-    if (!store.getters.isSceneMode) return '';
+    if (!store.isSceneMode) return '';
 
     const { table_id_conditions: tableIdConditions, scene_filter_values: sceneFilterValues } =
-      store.getters.retrieveParams;
+      store.retrieveParams;
 
     const staticParts = (tableIdConditions?.[0] ?? [])
       .filter(item => item.field_name !== 'scene')
@@ -346,16 +349,16 @@
       index_set_ids: [],
       index_set_names: [],
       space_uid: spaceUid.value,
-      pid: store.state.indexItem.pid,
+      pid: store.indexItem.pid,
       ...searchParams,
     };
 
-    if (store.getters.isSceneMode) {
+    if (store.isSceneMode) {
       // 场景化收藏
-      const { table_id_conditions, scene_filter_values } = store.getters.retrieveParams;
+      const { table_id_conditions, scene_filter_values } = store.retrieveParams;
       Object.assign(data, {
         source_type: 'scene',
-        scene_id: store.state.indexItem.scene_active,
+        scene_id: store.indexItem.scene_active,
         table_id_conditions,
         scene_filter_values,
       });
@@ -366,7 +369,7 @@
       });
     } else {
       Object.assign(data, {
-        index_set_id: store.state.indexId,
+        index_set_id: store.indexId,
         index_set_type: 'single',
       });
     }
@@ -390,7 +393,7 @@
         // 获取最新组列表
         window.mainComponent.messageSuccess($t('收藏成功'));
         hidePopover();
-        store.dispatch('requestFavoriteList');
+        store.requestFavoriteList();
         favoriteData.value.name = '';
         favoriteData.value.group_id = undefined;
         verifyData.value.groupName = '';
@@ -643,7 +646,7 @@
             </Select>
           </FormItem>
 
-          <FormItem :label="store.getters.isSceneMode ? $t('场景') : $t('索引集')">
+          <FormItem :label="store.isSceneMode ? $t('场景') : $t('索引集')">
             <Input
               :value="indexSetName"
               readonly

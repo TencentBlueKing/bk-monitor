@@ -24,13 +24,18 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { Button as TButton } from 'tdesign-vue-next';
 
 import { computed, defineComponent, ref, watch } from 'vue';
 
 import { messageSuccess } from '@/shared/lib/message';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import VueDraggable from 'vuedraggable-vue3';
 import { preserveVue3ComponentModel } from '@/platform/compat/vue3-component-model';
 
@@ -57,14 +62,14 @@ export default defineComponent({
   name: 'FieldsConfig',
   setup(_, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const fieldConfigRef = ref();
     const displayFieldNames = ref<string[]>([]); // 展示的字段名
     let cachedDisplayFieldNames: string[] = []; // 缓存的字段名，用于取消时恢复
     const confirmLoading = ref(false);
 
-    const totalFiels = computed(() => store.getters.filteredFieldList);
+    const totalFiels = computed(() => store.filteredFieldList);
     const restFieldNames = computed(() =>
       totalFiels.value.map((item: { field_name: any; }) => item.field_name).filter((field: string) => !displayFieldNames.value.includes(field)),
     );
@@ -78,7 +83,7 @@ export default defineComponent({
     };
 
     watch(
-      () => store.state.retrieve.catchFieldCustomConfig,
+      () => useRetrieveStore().$state.catchFieldCustomConfig,
       config => {
         displayFieldNames.value = getDefaultDisplayFields(store, config.contextDisplayFields);
         cachedDisplayFieldNames = [...displayFieldNames.value];
@@ -108,8 +113,7 @@ export default defineComponent({
 
     const handleConfirm = () => {
       confirmLoading.value = true;
-      store
-        .dispatch('userFieldConfigChange', {
+      store.userFieldConfigChange({
           contextDisplayFields: displayFieldNames.value,
         })
         .then(() => {

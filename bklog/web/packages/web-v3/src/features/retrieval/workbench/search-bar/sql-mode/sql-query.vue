@@ -1,8 +1,10 @@
 <script setup>
-  import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref } from 'vue';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref } from 'vue';
 
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import { debounce } from 'lodash-es';
 
   import CreateLuceneEditor from './codemirror-lucene';
@@ -28,8 +30,8 @@
   };
 
   const { t } = useLocale();
-  const store = useStore();
-  const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+  const store = useApplicationStore();
+  const isAiAssistantActive = computed(() => store.features.isAiAssistantActive);
 
   // 检测操作系统，决定显示 CMD 还是 Ctrl
   const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent);

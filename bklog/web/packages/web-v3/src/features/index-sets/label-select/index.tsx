@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Tag as Tag } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
@@ -170,7 +172,7 @@ export default class QueryStatement extends tsc<IProps> {
           ServicesInstance.unionSearch.unionCreateLabel({
               data: {
                 name: this.verifyData.labelEditName.trim(),
-                space_uid: this.$store.state.spaceUid,
+                space_uid: useApplicationStore().spaceUid,
               },
             })
             .then(res => {

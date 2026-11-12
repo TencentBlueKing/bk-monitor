@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, type Ref } from 'vue';
 
 import { getRowFieldValue, isNestedField } from '@/shared/lib/util';
@@ -31,7 +33,7 @@ import { normalizeArrayFieldPath, resolveMappedFieldPath } from '@/shared/compos
 import { resolveOuterValidText } from '@/shared/composables/hooks-helper';
 import { findJsonSegmentRangeAtOffset, getJsonSegmentRanges } from '@/shared/composables/json-segment-ranges';
 import LuceneSegment from '@/shared/composables/lucene.segment.ts';
-import useStore from '@/shared/composables/use-store';
+
 import { isKeywordLikeField, isTextLikeField, resolveAddToSearch } from '@/shared/composables/log-query-compiler/index';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/app/state/store.type.ts';
 import { splitRenderText } from '@/platform/persistence/utils/retrieve-render-meta';
@@ -135,13 +137,13 @@ export const getFieldPathDepth = (fieldName: string, fallbackDepth?: string | nu
 };
 
 export default (options: UseSelectionSearchOptions) => {
-  const store = useStore();
+  const store = useApplicationStore();
   const { handleAddCondition, getObjectValue, fullColumns, showCtxType } = options;
   // 划词 Value：默认最小分词拆分；传 false 时补齐但不拆分，并剥离 KEY
   const enableMinimalTokenCompletion = options.enableMinimalTokenCompletion ?? DEFAULT_ENABLE_MINIMAL_TOKEN_COMPLETION;
 
-  const filteredFieldList = computed(() => store.getters.filteredFieldList ?? []);
-  const visibleFields = computed(() => store.getters.visibleFields ?? []);
+  const filteredFieldList = computed(() => store.filteredFieldList ?? []);
+  const visibleFields = computed(() => store.resolvedVisibleFields ?? []);
 
   const getFieldByName = (fieldName: string) => {
     if (!fieldName) {
@@ -2305,7 +2307,7 @@ export default (options: UseSelectionSearchOptions) => {
   };
 
   const getSearchMode = (): 'ui' | 'sql' => {
-    const mode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]];
+    const mode = SEARCH_MODE_DIC[store.storage[BK_LOG_STORAGE.SEARCH_TYPE]];
     return mode === 'sql' ? 'sql' : 'ui';
   };
 

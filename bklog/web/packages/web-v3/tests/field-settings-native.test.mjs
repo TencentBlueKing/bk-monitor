@@ -25,6 +25,7 @@ const bindings = {
   getRegExp: (value) => new RegExp(value, 'i'),
   BK_LOG_STORAGE: { TEXT_ELLIPSIS_DIR: 'dir' },
   toWorkerMessage,
+  overlayRegistry: new OverlayRegistry(),
   random: () => String(Math.random()),
   mapGetters: () => ({}),
 };
@@ -167,9 +168,14 @@ test('shared popovers allocate an overlay layer without requiring the removed UI
   try {
     const first = pop.getDefaultOption();
     const second = pop.getDefaultOption();
-    assert.ok(second.zIndex > first.zIndex);
+    const layers = [];
+    pop.tippyInstance = {setProps: options => layers.push(options.zIndex)};
+    first.onShow();
+    second.onShow();
+    assert.ok(layers[1] > layers[0]);
     globalThis.window = { __bk_zIndex_manager: { nextZIndex: () => 9001 } };
-    assert.equal(pop.getDefaultOption().zIndex, 9001);
+    pop.getDefaultOption().onShow();
+    assert.equal(layers.at(-1), 9001);
   } finally {
     if (previous === undefined) delete globalThis.window;
     else globalThis.window = previous;
@@ -358,6 +364,7 @@ function setupAliases() {
     { field_name: 'virtual', field_type: '__virtual__' },
   ]);
   const calls = [];
+  const events = new Map();
   const component = loadScriptSetup(
     new URL('../src/features/retrieval/workbench/field-filter-comp/update/field-alias.vue', import.meta.url),
     {
@@ -367,7 +374,7 @@ function setupAliases() {
       }),
       useRoute: () => ({ params: { indexId: '16176' } }),
       useLocale: () => ({ t: (value) => value }),
-      useRetrieveEvent: () => ({ addEvent() {} }),
+      useRetrieveEvent: () => ({ addEvent: (name, fn) => events.set(name, fn) }),
       RetrieveEvent: { ALIAS_CONFIG_OPEN: 'alias-open' },
       ServicesInstance: {
         retrieve: {
@@ -378,10 +385,11 @@ function setupAliases() {
         },
       },
       toWorkerMessage,
+      overlayRegistry: new OverlayRegistry(),
     },
   );
   const model = component.setup({}, { expose() {}, emit: (...args) => calls.push(['emit', ...args]) });
-  return { model, original, calls };
+  return { model, original, calls, events };
 }
 
 test('alias drafts retain nested field metadata, expand/collapse without duplicating children and never mutate source', async () => {
@@ -431,4 +439,21 @@ test('alias validation preserves V2 naming restrictions and submission includes 
   });
   assert.equal(model.showSlider.value, false);
   assert.ok(calls.some((row) => row[0] === 'dispatch' && row[1] === 'requestIndexSetFieldInfo'));
+});
+
+
+test('global alias-open event opens an untouched draft before the field Popup has ever opened', () => {
+  const { model, original, calls, events } = setupAliases();
+  assert.equal(model.showSlider.value, false);
+  assert.equal(events.size, 1);
+  events.get('alias-open')(false);
+  assert.equal(model.showSlider.value, false);
+  events.get('alias-open')(true);
+  assert.equal(model.showSlider.value, true);
+  assert.ok(model.formData.value.length > 0);
+  model.formData.value.find(field => field.field_name === 'log').query_alias = 'local_draft';
+  model.handleCancel();
+  assert.equal(model.showSlider.value, false);
+  assert.equal(original.find(field => field.field_name === 'log').query_alias, 'message');
+  assert.equal(calls.some(([name]) => name === 'save'), false);
 });

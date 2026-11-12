@@ -1,6 +1,8 @@
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { type Ref } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 
 import {
   getRelatedLogIndexSetId,
@@ -9,7 +11,7 @@ import {
 } from './resolve-related-log-target-row';
 
 export const useRelatedLogRowResolver = (options: { targetRow: Ref<Record<string, any>>; indexSetId: Ref<number> }) => {
-  const store = useStore();
+  const store = useApplicationStore();
 
   const resolveByRowKey = async (rowKey?: string, fallbackRow?: Record<string, any>) => {
     if (!rowKey && (!fallbackRow || !Object.keys(fallbackRow).length)) {

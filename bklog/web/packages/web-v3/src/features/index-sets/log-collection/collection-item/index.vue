@@ -377,7 +377,7 @@
                   v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
                   :disabled="!getOperatorCanClick(props.row, 'search')"
                   theme="primary"
-                  
+
                   @click="operateHandler(props.row, 'search')"
                 >
                   {{ $t('检索') }}
@@ -398,7 +398,7 @@
                   }"
                   :disabled="!getOperatorCanClick(props.row, 'edit')"
                   theme="primary"
-                  
+
                   @click.stop="operateHandler(props.row, 'edit')"
                 >
                   {{ $t('编辑') }}
@@ -420,7 +420,7 @@
                   }"
                   :disabled="!getOperatorCanClick(props.row, 'clean')"
                   theme="primary"
-                  
+
                   @click.stop="operateHandler(props.row, 'clean')"
                 >
                   {{ $t('清洗') }}
@@ -616,7 +616,13 @@
   </section>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { ServicesInstance } from '@/platform/services';
 
   import {
     projectManages,
@@ -627,7 +633,7 @@
   } from '@/shared/lib/util';
   import { getCurrentInstance } from 'vue';
   import { useCollectedItems } from '@/features/collection/composables/use-collected-items';
-  import { mapGetters } from '@/app/state/map-helpers';
+
   import { formatBytes, requestStorageUsage } from '../../util.ts';
   import * as authorityMap from '../../../../shared/lib/authority-map';
   import EmptyStatus from '../../../../shared/ui/empty-status/index';
@@ -762,7 +768,7 @@
         },
         collectList: [],
         collectorIdStr: '',
-        collectProject: projectManages(this.$store.state.topMenu, 'collection-item'),
+        collectProject: projectManages(useApplicationStore().topMenu, 'collection-item'),
         filterParams: {
           status: '',
           collector_scenario_id: '',
@@ -804,13 +810,13 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         spaceUid: 'spaceUid',
         bkBizId: 'bkBizId',
-        authGlobalInfo: 'globals/authContainerInfo',
+        authGlobalInfo: state => state.globals.authContainerInfo,
         isShowMaskingTemplate: 'isShowMaskingTemplate',
       }),
-      ...mapGetters('globals', ['globalsData']),
+      ...mapPiniaState(useGlobalsStore, ['globalsData']),
       authorityMap() {
         return authorityMap;
       },
@@ -903,7 +909,7 @@
     methods: {
       async stopCollectHandler(row) {
         if (this.getOperatorCanClick(row, 'stop')) {
-          this.$store.commit('collect/setCurCollect', row);
+          useCollectionStore().setCurCollect(row);
           await this.$refs.issuedSliderRef.requestIssuedClusterList();
           this.$refs.issuedSliderRef?.viewDetail();
           this.currentRowCollectorConfigId = row?.collector_config_id ?? '';
@@ -944,7 +950,7 @@
                 collectorId: row.collector_config_id || '',
               },
               query: {
-                spaceUid: this.$store.state.spaceUid,
+                spaceUid: useApplicationStore().spaceUid,
               },
             });
           }
@@ -1017,14 +1023,14 @@
           // 直接跳转到脱敏页隐藏左侧的步骤
           query.type = 'masking';
         }
-        this.$store.commit('collect/setCurCollect', row);
+        useCollectionStore().setCurCollect(row);
 
         this.$router.push({
           name: targetRoute,
           params,
           query: {
             ...query,
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
             backRoute,
           },
         });
@@ -1203,7 +1209,7 @@
         try {
           const res = await ServicesInstance.unionSearch.unionLabelList({
             query: {
-              space_uid: this.$store.state.spaceUid,
+              space_uid: useApplicationStore().spaceUid,
             },
           });
           this.selectLabelList = res.data;

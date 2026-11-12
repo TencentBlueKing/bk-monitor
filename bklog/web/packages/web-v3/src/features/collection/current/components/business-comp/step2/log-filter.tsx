@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
 import { Switch as TSwitch, Select as TSelect, Textarea as TTextarea, Loading as TLoading } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
@@ -33,7 +38,7 @@ import { defineComponent, ref, onMounted, watch, computed, nextTick } from 'vue'
 
 import useLocale from '@/shared/composables/use-locale';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
-import useStore from '@/shared/composables/use-store';
+
 // import { debounce } from 'throttle-debounce';
 
 import { type btnType, operatorSelectList, btnGroupList, normalizeOperator, tableRowBaseObj } from '../../../utils';
@@ -71,7 +76,6 @@ export default defineComponent({
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
 
     // -------------------------- 响应式数据 --------------------------
     /** 过滤器开关状态 */
@@ -116,12 +120,12 @@ export default defineComponent({
     // -------------------------- 计算属性 --------------------------
     /** 全局数据分隔符选项（从store获取） */
     const globalDataDelimiter = computed<ISelectItem[]>(() => {
-      return (store.getters['globals/globalsData']?.data_delimiter as ISelectItem[] | undefined) || [];
+      return (useGlobalsStore().globalsData?.data_delimiter as ISelectItem[] | undefined) || [];
     });
 
     /** 当前选中的采集配置（从store获取） */
     const currentCollect = computed<any>(() => {
-      return store.getters['collect/curCollect'] || {};
+      return useCollectionStore().curCollect || {};
     });
 
     /** 是否为匹配类型过滤 */

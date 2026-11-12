@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Tag as Tag } from 'tdesign-vue-next';
 
 import { Switch as Switcher } from 'tdesign-vue-next';
@@ -314,7 +316,7 @@ export default class MaskingField extends tsc<IProps> {
   }
 
   get spaceUid() {
-    return this.$store.state.spaceUid;
+    return useApplicationStore().spaceUid;
   }
 
   get isShowConfigFiledEmptyTips() {
@@ -1409,7 +1411,7 @@ export default class MaskingField extends tsc<IProps> {
         <div class='tag-box'>
           <Tag
             class={['title-overflow', `field-tag ${rItem?.disabled ? 'is-failed' : ''}`]}
-            
+
             icon={() => <i class={this.getMoveFillIcon(fieldItem.rules)} />}
             closable
             onClose={() => this.handleCloseRule(rIndex, fieldItem)} variant='light' data-v2-display='tag'
@@ -1468,7 +1470,7 @@ export default class MaskingField extends tsc<IProps> {
               ) : (
                 <div class='tag-box'>
                   <Button
-                    
+
                     onClick={() => this.handleClickAddRuleIcon(item)} variant={(true) ? 'text' : ('base')}
                   >
                     <i class='bk-icon icon-plus push' />
@@ -1650,7 +1652,7 @@ export default class MaskingField extends tsc<IProps> {
               />
               <Switcher
                 v-model={this.previewSwitch}
-                
+
               />
               <span>{this.$t('结果预览')}</span>
             </div>

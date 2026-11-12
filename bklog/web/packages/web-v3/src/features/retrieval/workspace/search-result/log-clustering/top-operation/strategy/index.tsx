@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, computed, watch, onMounted } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 import { type ClusteringInfo } from '@/features/retrieval/services/retrieve';
 import { type IResponseData } from '@/platform/services/type';
 import ConfigItem from './config-item/index';
@@ -77,7 +79,7 @@ export default defineComponent({
       label_name: [],
     };
 
-    const store = useStore();
+    const store = useApplicationStore();
 
     const strategyConfigData = ref({
       /** 新类策略初始数据 */
@@ -91,8 +93,8 @@ export default defineComponent({
     /** 数量突增告警告警是否保存过 */
     const increaseIsSubmit = ref(false);
 
-    const bkBizId = computed(() => store.state.bkBizId);
-    const indexItemBizId = computed(() => String(store.state.indexItem.items[0]?.bk_biz_id ?? bkBizId.value));
+    const bkBizId = computed(() => store.bkBizId);
+    const indexItemBizId = computed(() => String(store.indexItem.items[0]?.bk_biz_id ?? bkBizId.value));
 
     watch(alarmIsSubmit, () => {
       props.strategySubmitStatus?.(alarmIsSubmit.value);

@@ -356,7 +356,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { operatorMappingObj, operatorMapping } from '@/features/collection/access/components/log-filter/type';
 
@@ -494,7 +496,7 @@
         try {
           const res = await ServicesInstance.linkConfiguration.getLinkList({
             query: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
             },
           });
           this.dataLinkName =
@@ -514,7 +516,7 @@
         try {
           const res = await ServicesInstance.container.yamlJudgement({
             data: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
               bcs_cluster_id: this.collectorData.bcs_cluster_id,
               yaml_config: yamlConfig,
             },
@@ -545,7 +547,7 @@
        */
       async getBcsClusterName(bcsID) {
         try {
-          const query = { bk_biz_id: this.$store.state.bkBizId };
+          const query = { bk_biz_id: useApplicationStore().bkBizId };
           const res = await ServicesInstance.container.getBcsList({ query });
           return res.data.find(item => item.id === bcsID)?.name || '--';
         } catch {

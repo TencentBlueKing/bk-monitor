@@ -1,4 +1,10 @@
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
   import { asDictionary, includesValue } from '@/shared/utils/typed-record';
 
   import type { QueryField } from '../utils/const.common';
@@ -11,7 +17,7 @@
   } from '@/shared/lib/util';
   import { Icon } from 'tdesign-vue-next';
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import imgEnterKey from '@/shared/assets/images/icons/enter-key.svg';
   import imgUpDownKey from '@/shared/assets/images/icons/up-down-key.svg';
   import { Props } from 'tippy.js';
@@ -45,17 +51,17 @@
   });
 
   const emit = defineEmits(['save', 'cancel', 'batch-input-change', "batchInputChange"]);
-  const store = useStore();
+  const store = useApplicationStore();
 
   const formatDateTimeField = (value: unknown, fieldType: unknown) => {
-    return store.state.isFormatDate ? formatDateTimeValue(value, fieldType) : value;
+    return store.isFormatDate ? formatDateTimeValue(value, fieldType) : value;
   };
   const { t } = useLocale();
 
-  const indexFieldInfo = computed(() => store.state.indexFieldInfo);
-  const fieldTypeMap = computed(() => asDictionary(store.state.globals.fieldTypeMap));
-  const currentFieldList = computed<QueryField[]>(() => store.getters.filteredFieldList ?? []);
-  const rawFieldList = computed<QueryField[]>(() => store.getters.rawFieldList ?? []);
+  const indexFieldInfo = computed(() => store.indexFieldInfo);
+  const fieldTypeMap = computed(() => asDictionary(useGlobalsStore().$state.fieldTypeMap));
+  const currentFieldList = computed<QueryField[]>(() => store.filteredFieldList ?? []);
+  const rawFieldList = computed<QueryField[]>(() => store.rawFieldList ?? []);
   const isNotIpSelectShow = computed(() => rawFieldList.value.some(item => item.field_name === '__ext.container_id'));
 
   const svgImg = ref({ imgUpDownKey, imgEnterKey });
@@ -217,7 +223,7 @@
   });
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+    const textEllipsisDir = store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
@@ -331,8 +337,8 @@
   });
 
   const fuzzyMatchEngine = computed(() => {
-    const indexSetIds = store.getters.isUnionSearch ? store.getters.unionIndexList : [store.getters.indexId];
-    const selectedIndexSetList = store.state.retrieve.flatIndexSetList.filter(
+    const indexSetIds = store.isUnionSearch ? store.unionIndexList : [store.indexId];
+    const selectedIndexSetList = useRetrieveStore().$state.flatIndexSetList.filter(
 (      item) => indexSetIds.includes(String(item.index_set_id)) || indexSetIds.includes(item.index_set_id),
     );
 
@@ -721,8 +727,8 @@
   });
 
   const fieldAggsItems = computed(() => {
-    void store.state.fieldAggsItemsVersion;
-    return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
+    void store.fieldAggsItemsVersion;
+    return storeRuntimeCacheService.getFieldAggsItems(store.indexId || 'default');
   });
 
   const currentEditTagIndex: Ref<number | null> = ref(null);
@@ -1540,7 +1546,7 @@
                   @show-change="handleBatchShowChange"
                 />
                 <t-button :variant="(true) ? 'text' : ('base')"
-                  
+
                   :disabled="condition.value.length === 0"
                   class="ui-value-clear-btn"
                   @click="handleClearBtnClick"

@@ -24,7 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent } from 'vue';
+import { Drawer as TDrawer } from 'tdesign-vue-next';
+import useDialogVisible from '@/shared/global/overlay/use-dialog-visible';
 import useLocale from '@/shared/composables/use-locale';
 import EditConfig from './edit-config/index';
 import './index.scss';
@@ -51,15 +53,15 @@ export default defineComponent({
   setup(props, { expose }) {
     const { t } = useLocale();
 
-    const showEditConfig = ref(false);
+    const { visible: showEditConfig, zIndex, setVisible } = useDialogVisible(false, { type: 'slider' });
 
     const handleShowEditConfig = () => {
-      showEditConfig.value = true;
+      setVisible(true);
     };
 
     const handleBeforeClose = () => {
       setTimeout(() => {
-        showEditConfig.value = false;
+        setVisible(false);
       });
     };
 
@@ -68,34 +70,40 @@ export default defineComponent({
     });
 
     return () => (
-      <div
-        class='cluster-config-operate-main'
-        onClick={handleShowEditConfig}
-      >
-        <log-icon
-          type='setting-line'
-          class='icon'
-        />
+      <div class='cluster-config-operate-main' onClick={handleShowEditConfig}>
+        <log-icon type='setting-line' class='icon' />
         <span>{t('聚类设置')}</span>
-        <bk-sideslider
+        <TDrawer
+          visible={showEditConfig.value}
+          size='1140px'
+          attach='body'
+          zIndex={zIndex.value}
+          footer={false}
+          closeBtn={false}
+          closeOnOverlayClick={true}
+          closeOnEscKeydown={false}
+          drawerClassName='cluster-settings-drawer'
+          onClose={handleBeforeClose}
           v-slots={{
-            content: () => (
-              <div>
-                <edit-config
+            header: () => (
+              <div class='cluster-settings-header'>
+                <button type='button' aria-label={t('关闭')} onClick={handleBeforeClose}>
+                  <log-icon common type='angle-right' />
+                </button>
+                <span>{t('聚类设置')}</span>
+              </div>
+            ),
+            body: () =>
+              showEditConfig.value ? (
+                <EditConfig
                   indexId={props.indexId}
                   totalFields={props.totalFields}
                   isExternal={props.isExternal}
-                  onClose={() => (showEditConfig.value = false)}
+                  onClose={() => setVisible(false)}
                 />
-              </div>
-            ),
+              ) : null,
           }}
-          is-show={showEditConfig.value}
-          before-close={handleBeforeClose}
-          quick-close={true}
-          width={1140}
-          title={t('聚类设置')}
-        ></bk-sideslider>
+        />
       </div>
     );
   },

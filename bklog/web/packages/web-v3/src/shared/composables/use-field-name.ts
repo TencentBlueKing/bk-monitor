@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import type { ApplicationStore } from '@/app/state/application-store.type';
 
 import { retrieveFieldAliasCacheService, retrieveFieldCacheService } from '@/platform/persistence/index';
@@ -37,7 +39,7 @@ import { BK_LOG_STORAGE, FieldInfoItem } from '../../app/state/store.type.ts';
  * @returns 返回别名，如果没有别名则返回字段名
  */
 export const getFieldNameByField = (field: { field_name: string; query_alias?: string }, store: ApplicationStore) => {
-  if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+  if (store.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
     return field?.query_alias || field?.field_name;
   }
 
@@ -45,7 +47,7 @@ export const getFieldNameByField = (field: { field_name: string; query_alias?: s
 };
 
 export default ({ store }: { store: ApplicationStore }) => {
-  const getFieldScope = () => store.state.indexFieldInfo.field_scope || store.state.indexId || 'default';
+  const getFieldScope = () => useApplicationStore().indexFieldInfo.field_scope || useApplicationStore().indexId || 'default';
   const getIndexWithFallback = (
     runtimeIndex: Record<string, FieldInfoItem>,
     fallbackIndex: Record<string, FieldInfoItem>,
@@ -63,7 +65,7 @@ export default ({ store }: { store: ApplicationStore }) => {
         retrieveFieldCacheService.getFieldNameIndex(scope),
         getIndexWithFallback(
           retrieveFieldAliasCacheService.getFieldNameIndex(scope),
-          store.state.indexFieldInfo.fieldNameIndex ?? {},
+          useApplicationStore().indexFieldInfo.fieldNameIndex ?? {},
         ),
       ),
     );
@@ -77,7 +79,7 @@ export default ({ store }: { store: ApplicationStore }) => {
         retrieveFieldCacheService.getQueryAliasIndex(scope),
         getIndexWithFallback(
           retrieveFieldAliasCacheService.getQueryAliasIndex(scope),
-          store.state.indexFieldInfo.queryAliasIndex ?? {},
+          useApplicationStore().indexFieldInfo.queryAliasIndex ?? {},
         ),
       ),
     );
@@ -122,7 +124,7 @@ export default ({ store }: { store: ApplicationStore }) => {
    * @returns 返回别名，如果没有别名则返回字段名
    */
   const getFieldName = (name: string) => {
-    if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+    if (useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
       const field = getStoreFieldNameIndex()[name];
       return field?.query_alias || name;
     }
@@ -139,7 +141,7 @@ export default ({ store }: { store: ApplicationStore }) => {
    * @returns 返回别名数组，如果没有别名则返回字段名
    */
   const getFieldNames = (fields: any) => {
-    if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+    if (useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
       return fields.map((fieldInfo: { query_alias: any; field_name: any; }) => fieldInfo.query_alias || fieldInfo.field_name);
     }
     return fields.map((fieldInfo: { field_name: any; }) => fieldInfo.field_name);
@@ -152,7 +154,7 @@ export default ({ store }: { store: ApplicationStore }) => {
    */
   const getConcatenatedFieldName = (fields: any) => {
     const { field_name: id, field_alias: alias, query_alias: query } = fields;
-    if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS] && query) {
+    if (useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS] && query) {
       return { id, name: `${query}(${alias || id})` };
     }
     return { id, name: alias ? `${id}(${alias})` : id };
@@ -163,7 +165,7 @@ export default ({ store }: { store: ApplicationStore }) => {
    * @returns 返回别名
    */
   const getQueryAlias = (field: any) => {
-    return store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+    return useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
       ? field.query_alias || field.field_name
       : field.field_name;
   };

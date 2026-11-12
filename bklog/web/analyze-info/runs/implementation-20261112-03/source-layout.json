@@ -1,0 +1,30 @@
+{
+  "status": "INCOMPLETE",
+  "sourceRoot": "src",
+  "duplicateSources": [],
+  "remainingJavascript": 22,
+  "javascript": [
+    "src/app/bootstrap/start.js",
+    "src/app/router/index.js",
+    "src/app/state/actions/app-actions.js",
+    "src/app/state/actions/query-condition-actions.js",
+    "src/app/state/actions/retrieve-misc-actions.js",
+    "src/app/state/actions/retrieve-search-actions.js",
+    "src/app/state/mutations/index.js",
+    "src/app/state/services/field-metadata.service.js",
+    "src/app/state/services/retrieve-query.service.js",
+    "src/app/state/services/runtime-cache.service.js",
+    "src/features/charts/utils.js",
+    "src/features/collection/current/save-failure.test.mjs",
+    "src/features/collection/ip-selector/bk-ip-selector-vue3.js",
+    "src/features/retrieval/workbench/search-bar/sql-mode/codemirror-lucene.js",
+    "src/features/retrieval/workbench/search-result-panel/panel-util.js",
+    "src/platform/compat/vue-runtime.mjs",
+    "src/platform/http/_httpRequest.js",
+    "src/platform/http/index.js",
+    "src/shared/global/bk-popover.js",
+    "src/shared/global/overlay/overlay-registry.js",
+    "src/shared/global/overlay/z-index-manager.js",
+    "src/shared/lib/util.js"
+  ]
+}

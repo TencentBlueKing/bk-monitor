@@ -1,0 +1,29 @@
+{
+  "status": "FAILED",
+  "scope": "source imports, dynamic imports, reexports, and literal global registrations",
+  "counts": {
+    "imports": 31,
+    "compatibilityImports": 5,
+    "sdkImports": 26,
+    "legacyRegistrations": 0,
+    "trackedDebt": 15,
+    "violations": 1
+  },
+  "violations": [
+    {
+      "file": "features/collection/ip-selector/bk-ip-selector-vue3.js",
+      "source": "@blueking/ip-selector/dist/vue2.6.x.esm",
+      "symbols": [
+        "Component",
+        "merge",
+        "Vue2"
+      ],
+      "typeOnly": false,
+      "compat": false,
+      "oldUi": false,
+      "sdk": true,
+      "trackedDebt": false,
+      "reason": "BlueKing SDK import is outside its frozen owner"
+    }
+  ]
+}

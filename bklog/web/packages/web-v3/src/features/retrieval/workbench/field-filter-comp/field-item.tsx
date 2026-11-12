@@ -24,6 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import { Tag as TTag } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
@@ -93,7 +101,7 @@ class FieldItem extends tsc<FieldItemProps> {
   fieldIconCache: Record<string, { icon: string; color: string; textColor: string }> = {};
 
   get queryParams() {
-    const isScene = this.$store.getters.isSceneMode;
+    const isScene = useApplicationStore().isSceneMode;
     const baseParams = {
       ...this.retrieveParams,
       field_type: this.fieldItem.field_type,
@@ -113,19 +121,19 @@ class FieldItem extends tsc<FieldItemProps> {
   }
 
   get fieldTypeMap() {
-    return this.$store.state.globals.fieldTypeMap;
+    return useGlobalsStore().$state.fieldTypeMap;
   }
   get unionIndexList() {
-    return this.$store.getters.unionIndexList;
+    return useApplicationStore().unionIndexList;
   }
   get isUnionSearch() {
-    return this.$store.getters.isUnionSearch;
+    return useApplicationStore().isUnionSearch;
   }
   get unionIndexItemList() {
-    return this.$store.getters.unionIndexItemList;
+    return useApplicationStore().unionIndexItemList;
   }
   get indexSetList() {
-    return this.$store.state.retrieve?.flatIndexSetList ?? [];
+    return useRetrieveStore().$state?.flatIndexSetList ?? [];
   }
   get gatherFieldsCount() {
     if (this.isFrontStatistics) {
@@ -164,7 +172,7 @@ class FieldItem extends tsc<FieldItemProps> {
   }
 
   get computedFieldName() {
-    const rawName = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+    const rawName = useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
       ? this.fieldItem?.query_alias || this.fieldItem?.field_name
       : this.fieldItem?.field_name;
     let name = rawName == null ? '' : String(rawName);
@@ -272,7 +280,7 @@ class FieldItem extends tsc<FieldItemProps> {
   /** 下载 */
   downloadFieldStatistics() {
     this.btnLoading = true;
-    const isScene = this.$store.getters.isSceneMode;
+    const isScene = useApplicationStore().isSceneMode;
     const downRequestUrl = isScene ? '/search/scene/field/fetch_value_list/' : '/field/index_set/fetch_value_list/';
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
@@ -292,7 +300,7 @@ class FieldItem extends tsc<FieldItemProps> {
           return;
         }
         const routerIndexSet = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
-        const lightName = this.indexSetList.find((item) => item.index_set_id === routerIndexSet)?.lightenName;
+        const lightName = this.indexSetList.find((item) => item.index_set_id === routerIndexSet)?.lightenName as string;
         const downloadName = `bk_log_search__${lightName.substring(2, lightName.length - 1)}_${this.fieldItem.field_name}.csv`;
         blobDownload(res, downloadName);
       })

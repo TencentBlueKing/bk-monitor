@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { random } from '@/shared/lib/util';
 import { join } from '@/shared/global/utils/path';
-import store from '@/app/state/index';
+
 import { FetchResponse } from './types';
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
@@ -79,8 +81,8 @@ const buildRequestConfig = (
     'Content-Type': 'application/json',
   };
 
-  if (store.state.userMeta?.bk_tenant_id) {
-    headers['X-Bk-Tenant-Id'] = store.state.userMeta?.bk_tenant_id;
+  if (useApplicationStore().userMeta?.bk_tenant_id) {
+    headers['X-Bk-Tenant-Id'] = useApplicationStore().userMeta?.bk_tenant_id;
   }
 
   // CSRF Token（对应 axios xsrfCookieName 和 xsrfHeaderName）
@@ -90,8 +92,8 @@ const buildRequestConfig = (
   }
 
   // 平台级索引集的所有检索子接口都需要请求空间，统一通过 header 传递
-  if (store.state.spaceUid && !skipSpaceUid) {
-    headers['X-Bk-Space-Uid'] = store.state.spaceUid;
+  if (useApplicationStore().spaceUid && !skipSpaceUid) {
+    headers['X-Bk-Space-Uid'] = useApplicationStore().spaceUid;
   }
 
   // 监控上层并没有使用 OT 这里直接自己生成traceparent id（对应 axios 拦截器）

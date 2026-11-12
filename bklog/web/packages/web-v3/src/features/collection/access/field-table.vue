@@ -45,8 +45,8 @@
               v-if="!isPreviewMode && retainExtraJsonIsOpen && !isTempField"
               v-model="builtFieldVisible"
               :checked="false"
-              
-              
+
+
               @change="handleBuiltField"
             >
               <span style="margin-right: 20px; line-height: 30px">{{ $t('显示内置字段') }}</span>
@@ -397,7 +397,7 @@
                               <t-switch
                                 v-model="currentIsAnalyzed"
                                 :disabled="getCustomizeDisabled(props.row, 'analyzed')"
-                                
+
                                 @change="() => handelChangeAnalyzed()"
                               ></t-switch>
                             </bk-form-item>
@@ -433,7 +433,7 @@
                               <t-switch
                                 v-model="currentIsCaseSensitive"
                                 :disabled="getCustomizeDisabled(props.row)"
-                                
+
                               ></t-switch>
                             </bk-form-item>
                           </bk-form>
@@ -569,7 +569,13 @@
 </template>
 
 <script>
-  import { mapGetters } from '@/app/state/map-helpers';
+import { mapState as mapPiniaState } from 'pinia';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
   import { isFieldTypeDisabled, judgeNumber } from '@/shared/lib/util';
   export default {
   emits: ["handle-table-data","handleTableData","reset","delete-visible","deleteVisible","handle-keep-log","handleKeepLog","handle-built-field","handleBuiltField","delete-field","deleteField"],
@@ -691,11 +697,11 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
       }),
-      ...mapGetters('collect', ['curCollect']),
-      ...mapGetters('globals', ['globalsData']),
+      ...mapPiniaState(useCollectionStore, ['curCollect']),
+      ...mapPiniaState(useGlobalsStore, ['globalsData']),
       isSettingDisable() {
         return !this.fields.length;
       },
@@ -715,7 +721,7 @@
         return this.deletedVisible ? this.hideDeletedTable : this.tableList;
       },
       getParticipleWidth() {
-        return this.$store.getters.isEnLanguage ? '65' : '50';
+        return useApplicationStore().isEnLanguage ? '65' : '50';
       },
       retainExtraJsonIsOpen() {
         return this.globalsData?.retain_extra_json ?? false;

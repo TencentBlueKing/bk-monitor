@@ -26,7 +26,7 @@
 
 import { includesValue } from '@/shared/utils/typed-record';
 
-import store from './index';
+import { useRetrieveStore } from './domains/retrieve-store';
 import { handleTransformToTimestamp, intTimestampStr } from '@/shared/ui/time-range/utils';
 import { getAllSceneFieldOpKeys } from '@/app/state/scene-filter-config';
 
@@ -46,7 +46,7 @@ type ValueResolver = (value: DecodedUrlValue) => DecodedUrlValue;
 const getStoreSceneConfigs = () => {
   try {
     // 延迟引用 store，避免循环依赖
-    return store?.getters?.['retrieve/sceneConfigList'] ?? [];
+    return useRetrieveStore().sceneConfigList;
   } catch {
     return [];
   }

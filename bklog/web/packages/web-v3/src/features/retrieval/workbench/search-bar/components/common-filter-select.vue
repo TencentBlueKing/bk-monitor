@@ -1,9 +1,14 @@
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import type { ConsitionItem } from '@/app/state/store.type';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
   import { computed, ref, watch } from 'vue';
 
   import { getOperatorKey } from '@/shared/lib/util';
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
 
   import useFieldEgges from '@/shared/composables/use-field-egges';
   import { storeRuntimeCacheService } from '@/app/state/services/runtime-cache.service.js';
@@ -23,9 +28,9 @@
   import CommonFilterSetting from './common-filter-setting.vue';
 
   const { $t } = useLocale();
-  const store = useStore();
+  const store = useApplicationStore();
   const route = useRoute();
-  const filterFieldsList = computed(() => getCommonFilterFieldsList(store.state));
+  const filterFieldsList = computed(() => getCommonFilterFieldsList(store));
 
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = (operator: string) => !withoutValueConditionList.includes(operator);
@@ -35,11 +40,11 @@
     commonFilterAddition.value.length = 0;
     commonFilterAddition.value = [];
     // 合并策略优化
-    commonFilterAddition.value = getCommonFilterAddition(store.state);
+    commonFilterAddition.value = getCommonFilterAddition(store);
   };
 
   watch(
-    () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
+    () => [filterFieldsList.value, store.indexId], // 同时监听 indexId
     () => {
       setCommonFilterAddition();
     },
@@ -48,23 +53,23 @@
   const activeIndex = ref(-1);
 
   const operatorDictionary = computed(() => {
-    void store.state.operatorDictionaryVersion;
+    void store.operatorDictionaryVersion;
     const defVal = {
       [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
     };
     return {
       ...defVal,
-      ...storeRuntimeCacheService.getOperatorDictionary(store.state.indexId || 'default'),
+      ...storeRuntimeCacheService.getOperatorDictionary(store.indexId || 'default'),
     };
   });
 
   const fieldAggsItems = computed(() => {
-    void store.state.fieldAggsItemsVersion;
-    return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
+    void store.fieldAggsItemsVersion;
+    return storeRuntimeCacheService.getFieldAggsItems(store.indexId || 'default');
   });
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+    const textEllipsisDir = store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
@@ -115,26 +120,26 @@
       }
     });
 
-    setStorageCommonFilterAddition(store.state, commonFilterAddition.value);
+    setStorageCommonFilterAddition(store, commonFilterAddition.value);
 
-    store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
+    useRetrieveStore().updateCatchFilterAddition({ addition: commonFilterAddition.value as ConsitionItem[] });
 
     // 兼容旧版本 graphAnalysis
     if (route.query.tab !== 'graphAnalysis' && route.query.tab !== 'graph_analysis') {
       // 场景化检索模式下条件为空时跳过检索请求
-      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
+      if (store.isSceneMode && store.isSceneFilterEmpty) return;
 
       // 检索条件有变更时先加载字段信息
-      if (store.state.indexItem.isSceneFilterChanged) {
-        const resp = await store.dispatch('requestIndexSetFieldInfo');
+      if (store.indexItem.isSceneFilterChanged) {
+        const resp = await store.requestIndexSetFieldInfo();
         if (resp?.data?.fields?.length) {
-          store.dispatch('requestIndexSetQuery');
+          store.requestIndexSetQuery();
           RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
         } else {
           RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
         }
       } else {
-        store.dispatch('requestIndexSetQuery');
+        store.requestIndexSetQuery();
         RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
       }
     } else {

@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Input as TInput } from 'tdesign-vue-next';
 
 import { RadioGroup as TRadioGroup, RadioButton as TRadioButton, Checkbox as TCheckbox, Radio as TRadio } from 'tdesign-vue-next';
@@ -37,7 +39,7 @@ import { defineComponent, ref, onMounted, nextTick, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 
 import dayjs from 'dayjs';
-import useStore from '@/shared/composables/use-store';
+
 import { type VariableList } from '@/features/reporting/services/new-report';
 import './index.scss';
 
@@ -62,7 +64,7 @@ export default defineComponent({
   },
   setup(props, { expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const formRef = ref<any>(null);
     const variableTableData = ref<VariableList>([]);
@@ -353,15 +355,15 @@ export default defineComponent({
      * 以及从 url 中提取并赋值 展示同比 和 Pattern 。
      */
     const setFormDefaultValue = () => {
-      const spaceList = store.state.mySpaceList;
-      const bizId = store.state.bkBizId;
+      const spaceList = store.mySpaceList;
+      const bizId = store.bkBizId;
       const bizName = spaceList.find(item => item.bk_biz_id === bizId)?.space_name || '';
       const currentDate = dayjs(new Date()).format('YYYY-MM-DD HH:mm');
       const titleMapping = asDictionary({
         clustering: t('{0}-日志聚类统计报表-{1}', [bizName, currentDate]),
       });
       const targetTitle = titleMapping[props.scenario] || '';
-      formData.value.name = `${targetTitle}-${store.state.userMeta?.username || ''}`;
+      formData.value.name = `${targetTitle}-${store.userMeta?.username || ''}`;
     };
 
     /** 获取变量列表 */

@@ -2,6 +2,7 @@ import {
   defineComponent,
   getCurrentInstance,
   h,
+  onBeforeUnmount,
   ref,
   watch,
   type App,
@@ -532,13 +533,15 @@ function ensureResizeLayoutStyle() {
 .bk-resize-layout-main{flex:1 1 auto;min-width:0;min-height:0;overflow:hidden}
 .bk-resize-layout-aside{position:relative;flex:none;min-width:0;min-height:0;overflow:hidden;background:#fff}
 .bk-resize-layout-aside-content{width:100%;height:100%;min-height:0;overflow:auto}
-.bk-resize-collapse{position:absolute;z-index: var(--bklog-z-local);background:#dcdee5}
-.bk-resize-layout.is-bottom .bk-resize-collapse,.bk-resize-layout.is-top .bk-resize-collapse{left:0;right:0;height:4px;cursor:row-resize}
-.bk-resize-layout.is-bottom .bk-resize-collapse{top:0}
-.bk-resize-layout.is-top .bk-resize-collapse{bottom:0}
-.bk-resize-layout.is-left .bk-resize-collapse,.bk-resize-layout.is-right .bk-resize-collapse{top:0;bottom:0;width:4px;cursor:col-resize}
-.bk-resize-layout.is-left .bk-resize-collapse{right:0}
-.bk-resize-layout.is-right .bk-resize-collapse{left:0}
+.bk-resize-trigger{position:absolute;z-index:var(--bklog-z-local);background:transparent}
+.bk-resize-layout.is-bottom .bk-resize-trigger,.bk-resize-layout.is-top .bk-resize-trigger{left:0;right:0;height:5px;cursor:row-resize}
+.bk-resize-layout.is-bottom .bk-resize-trigger{top:0}
+.bk-resize-layout.is-top .bk-resize-trigger{bottom:0}
+.bk-resize-layout.is-left .bk-resize-trigger,.bk-resize-layout.is-right .bk-resize-trigger{top:0;bottom:0;width:5px;cursor:col-resize}
+.bk-resize-layout.is-left .bk-resize-trigger{right:0}
+.bk-resize-layout.is-right .bk-resize-trigger{left:0}
+.bk-resize-layout.is-vertical .bk-resize-trigger:hover,.bk-resize-layout.is-vertical .bk-resize-trigger.is-dragging{background-image:linear-gradient(to bottom,transparent 2px,#3a84ff 2px,#3a84ff 4px,transparent 4px)}
+.bk-resize-layout.is-horizontal .bk-resize-trigger:hover,.bk-resize-layout.is-horizontal .bk-resize-trigger.is-dragging{background-image:linear-gradient(to right,transparent 2px,#3a84ff 2px,#3a84ff 4px,transparent 4px)}
 `;
   document.head.appendChild(style);
 }
@@ -558,6 +561,9 @@ const BkResizeLayout = defineComponent({
   setup(props, { attrs, slots }) {
     ensureResizeLayoutStyle();
     const size = ref(Number(props.initialDivide) || 0);
+    const isDragging = ref(false);
+    let stopDrag: (() => void) | undefined;
+    onBeforeUnmount(() => stopDrag?.());
     watch(
       () => props.initialDivide,
       value => {
@@ -576,7 +582,9 @@ const BkResizeLayout = defineComponent({
     };
 
     const onPointerDown = (event: PointerEvent) => {
+      stopDrag?.();
       event.preventDefault();
+      isDragging.value = true;
       const vertical = props.placement === 'top' || props.placement === 'bottom';
       const start = vertical ? event.clientY : event.clientX;
       const startSize = size.value;
@@ -588,9 +596,14 @@ const BkResizeLayout = defineComponent({
       const up = () => {
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        isDragging.value = false;
+        stopDrag = undefined;
       };
+      stopDrag = up;
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
     };
 
     return () => {
@@ -600,7 +613,7 @@ const BkResizeLayout = defineComponent({
         ? { height: `${size.value}px`, width: '100%' }
         : { width: `${size.value}px`, height: '100%' };
       const aside = h('div', { class: 'bk-resize-layout-aside', style: asideStyle }, [
-        h('div', { class: 'bk-resize-collapse', onPointerdown: onPointerDown }),
+        h('div', { class: ['bk-resize-trigger', { 'is-dragging': isDragging.value }], onPointerdown: onPointerDown }),
         h('div', { class: 'bk-resize-layout-aside-content' }, slots.aside?.()),
       ]);
       const main = h('div', { class: 'bk-resize-layout-main' }, slots.main?.());

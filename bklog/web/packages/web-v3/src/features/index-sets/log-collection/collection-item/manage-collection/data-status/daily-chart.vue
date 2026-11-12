@@ -62,12 +62,17 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { formatDate } from '@/shared/lib/util';
   import dayjs from 'dayjs';
   import * as echarts from 'echarts';
-  import { mapGetters } from '@/app/state/map-helpers';
+
   // import { formatAdditionalFields } from '@/app/state/helper';
 
   import SelectDate from './select-date';
@@ -86,7 +91,7 @@
         basicLoading: true,
         datePickerValue: [startTime, endTime], // 日期选择器
         retrieveParams: {
-          bk_biz_id: this.$store.state.bkBizId,
+          bk_biz_id: useApplicationStore().bkBizId,
           keyword: '*',
           time_range: 'custom',
           start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
@@ -103,10 +108,10 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         chartSizeNum: 'chartSizeNum',
       }),
-      ...mapGetters('collect', ['curCollect']),
+      ...mapPiniaState(useCollectionStore, ['curCollect']),
     },
     watch: {
       chartSizeNum() {

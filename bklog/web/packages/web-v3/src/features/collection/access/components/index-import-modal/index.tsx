@@ -24,6 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
 import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
@@ -73,7 +79,7 @@ export default class IndexImportModal extends tsc<IProps> {
   };
 
   get etlConfigList() {
-    return this.$store.getters['globals/globalsData']?.etl_config || [];
+    return (useGlobalsStore().globalsData?.etl_config as { id: string; name: string }[] | undefined) || [];
   }
 
   get collectShowList() {
@@ -142,7 +148,7 @@ export default class IndexImportModal extends tsc<IProps> {
     this.collectList = [];
     ServicesInstance.collect.getAllCollectors({
         query: {
-          bk_biz_id: this.$store.state.bkBizId,
+          bk_biz_id: useApplicationStore().bkBizId,
           collector_id_list: collectorIdList,
           have_data_id: 1,
           not_custom: 1,
@@ -229,7 +235,7 @@ export default class IndexImportModal extends tsc<IProps> {
           if (collect.collector_scenario_id !== 'wineventlog' && isPhysics && collect?.params.paths) {
             collect.params.paths = collect.params.paths.map((item: unknown) => ({ value: item }));
           }
-          this.$store.commit('collect/updateExportCollectObj', {
+          useCollectionStore().updateExportCollectObj({
             collectID: this.currentCheckImportID,
             syncType: this.syncType,
             collect,

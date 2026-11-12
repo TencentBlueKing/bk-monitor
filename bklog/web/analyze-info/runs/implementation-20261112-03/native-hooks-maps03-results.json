@@ -1,0 +1,1034 @@
+[
+  {
+    "file": "src/app/bootstrap/preload.ts",
+    "changed": 3
+  },
+  {
+    "file": "src/app/bootstrap/start.js",
+    "changed": 2
+  },
+  {
+    "file": "src/app/entries/monitor-bootstrap.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/app/router/index.js",
+    "changed": 0
+  },
+  {
+    "file": "src/app/router/retrieve.ts",
+    "changed": 3
+  },
+  {
+    "file": "src/app/router/use-manage-version.ts",
+    "changed": 3
+  },
+  {
+    "file": "src/app/shell/app.tsx",
+    "changed": 13
+  },
+  {
+    "file": "src/features/archive/classic/archive-list/list.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/archive/classic/archive-repository/list.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/archive/classic/archive-repository/repository-slider.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/archive/classic/archive-restore/list.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/archive/classic/archive-restore/restore-slider.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/archive/current/archive-list/index.tsx",
+    "changed": 4
+  },
+  {
+    "file": "src/features/archive/current/archive-list/list-slider.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/archive/current/archive-repository/index.tsx",
+    "changed": 4
+  },
+  {
+    "file": "src/features/archive/current/archive-repository/repository-slider.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/archive/current/archive-restore/index.tsx",
+    "changed": 4
+  },
+  {
+    "file": "src/features/archive/current/archive-restore/restore-slider.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/authorization/denied/index.tsx",
+    "changed": 8
+  },
+  {
+    "file": "src/features/charts/components/grade-option.tsx",
+    "changed": 9
+  },
+  {
+    "file": "src/features/charts/trend-chart.vue",
+    "changed": 8
+  },
+  {
+    "file": "src/features/cleaning/classic/clean-manage/create.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/cleaning/classic/clean-manage/list.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/cleaning/classic/clean-template/create.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/cleaning/classic/clean-template/list.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/cleaning/current/clean-template/collector-table.tsx",
+    "changed": 5
+  },
+  {
+    "file": "src/features/cleaning/current/clean-template/detail-slider.tsx",
+    "changed": 1
+  },
+  {
+    "file": "src/features/cleaning/current/clean-template/list.tsx",
+    "changed": 4
+  },
+  {
+    "file": "src/features/cleaning/current/create-clean.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/cleaning/current/create-temp-clean.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/cleaning/rule-config/debug-tool/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/client-logs/management/collection-deploy/index.tsx",
+    "changed": 6
+  },
+  {
+    "file": "src/features/client-logs/management/collection-slider/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/client-logs/management/hooks/use-download-file.ts",
+    "changed": 6
+  },
+  {
+    "file": "src/features/client-logs/management/hooks/use-search-task.ts",
+    "changed": 4
+  },
+  {
+    "file": "src/features/client-logs/management/index.tsx",
+    "changed": 7
+  },
+  {
+    "file": "src/features/client-logs/management/user-report/index.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/client-logs/search/index.tsx",
+    "changed": 19
+  },
+  {
+    "file": "src/features/client-logs/search/log-detail-panel/index.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/client-logs/search/search-bar/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/clusters/current/cluster-manage/es-slider.tsx",
+    "changed": 8
+  },
+  {
+    "file": "src/features/clusters/current/cluster-manage/index.tsx",
+    "changed": 11
+  },
+  {
+    "file": "src/features/clusters/current/cluster-manage/intro-panel.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/clusters/status/es-cluster-mess/components/intro-panel.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/clusters/status/es-cluster-mess/es-slider.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/clusters/status/es-cluster-mess/index.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/access/advance-clean-land.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/access/components/cluster-table.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/access/components/step-add/config-log-set-item.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/access/components/step-add/configs-select.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/access/components/step-add/container-target-item.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/access/field-table.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/features/collection/access/index.vue",
+    "changed": 5
+  },
+  {
+    "file": "src/features/collection/access/issued-slider.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/access/step-add.vue",
+    "changed": 4
+  },
+  {
+    "file": "src/features/collection/access/step-field.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/access/step-storage.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/composables/use-collected-items.ts",
+    "changed": 4
+  },
+  {
+    "file": "src/features/collection/composables/use-storage-cluster-form.ts",
+    "changed": 3
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/add-index-set.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/base-info.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/container-collection/config-cluster-box.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/container-collection/config-log-set-edit-item.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/container-collection/configuration-item-list.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/container-collection/workload-selection.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/index-config-import-dialog.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/log-filter.tsx",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/multiline-reg-dialog.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/third-party-logs/bkdata-select-dialog.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step2/third-party-logs/es-select-dialog.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step3/clean-result-preview-dialog.tsx",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step3/field-list.tsx",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/current/components/business-comp/step4/cluster-table.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/common-comp/tag-more.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/create-operation/step2-bk-data-collection.tsx",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/current/components/create-operation/step2-configuration.tsx",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/current/components/create-operation/step2-custom-report.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/create-operation/step3-clean.tsx",
+    "changed": 7
+  },
+  {
+    "file": "src/features/collection/current/components/create-operation/step4-storage.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/collection/current/components/list-main/table-list/table-list-v1.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/list-main/table-list/table-list-v2.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/current/components/masking-operation/index.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/collection/current/hook/useCollectList.ts",
+    "changed": 9
+  },
+  {
+    "file": "src/features/collection/current/hook/useCustomTypeIntro.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/features/collection/current/hook/useOperation.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/collection/filter-rule/config-rule/index.tsx",
+    "changed": 6
+  },
+  {
+    "file": "src/features/dashboards/home.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/extraction/classic/manage-extract-permission/index.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/extraction/current/extract-config/config-slider.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/extraction/current/extract-config/index.tsx",
+    "changed": 7
+  },
+  {
+    "file": "src/features/extraction/current/extract-config/module-select.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/extraction/current/extract-link/link-create.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/extraction/current/extract-link/link-list.tsx",
+    "changed": 5
+  },
+  {
+    "file": "src/features/extraction/current/extract-task/index.tsx",
+    "changed": 4
+  },
+  {
+    "file": "src/features/extraction/current/extract-task/task-create/index.tsx",
+    "changed": 10
+  },
+  {
+    "file": "src/features/extraction/current/extract-task/task-create/preview-files.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/extraction/current/extract-task/task-list/download-url.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/extraction/current/extract-task/task-list/index.tsx",
+    "changed": 5
+  },
+  {
+    "file": "src/features/extraction/download/create/index.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/grok/current/components/grok-popover-list.tsx",
+    "changed": 0
+  },
+  {
+    "file": "src/features/grok/current/grok-slider.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/grok/current/index.tsx",
+    "changed": 5
+  },
+  {
+    "file": "src/features/index-sets/components/index-set/create/index.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/features/index-sets/components/index-set/create/select-collection.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/index-sets/components/index-set/create/select-es.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/index-sets/components/index-set/list/index.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/index-sets/components/index-set/manage/basic-info.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/index-sets/components/index-set/manage/index.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/index-sets/custom-report/components/intro-panel.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/index-sets/custom-report/create.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/index-sets/custom-report/list.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/index-sets/import-from-other/index.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/index-sets/log-collection/collection-item/index.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/index-sets/log-collection/collection-item/manage-collection/basic-info.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/index-sets/log-collection/collection-item/manage-collection/components/container-status.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/index-sets/log-collection/collection-item/manage-collection/data-status/daily-chart.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/index-sets/log-collection/collection-item/manage-collection/data-status/minute-chart.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/management/manage/index.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/management/manage-v2/hooks/use-drag.ts",
+    "changed": 2
+  },
+  {
+    "file": "src/features/preferences/dialog/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/reporting/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/retrieve-hub.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/collect/batch-operation-menu.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/collect/favorite-manage-dialog.vue",
+    "changed": 5
+  },
+  {
+    "file": "src/features/retrieval/workbench/components/index-set-choice/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/components/result-cell-element/operator-tools.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/components/result-storage/index.tsx",
+    "changed": 26
+  },
+  {
+    "file": "src/features/retrieval/workbench/field-filter-comp/agg-chart.tsx",
+    "changed": 0
+  },
+  {
+    "file": "src/features/retrieval/workbench/field-filter-comp/components/field-select-config.vue",
+    "changed": 11
+  },
+  {
+    "file": "src/features/retrieval/workbench/field-filter-comp/field-analysis.tsx",
+    "changed": 0
+  },
+  {
+    "file": "src/features/retrieval/workbench/field-filter-comp/update/field-alias.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/field-filter-comp/update/field-list.vue",
+    "changed": 16
+  },
+  {
+    "file": "src/features/retrieval/workbench/field-filter-comp/update/field-setting.vue",
+    "changed": 5
+  },
+  {
+    "file": "src/features/retrieval/workbench/hooks/use-selection-search.ts",
+    "changed": 4
+  },
+  {
+    "file": "src/features/retrieval/workbench/hooks/use-text-action.ts",
+    "changed": 9
+  },
+  {
+    "file": "src/features/retrieval/workbench/monitor/index.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/monitor/monitor.vue",
+    "changed": 22
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/export-history.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/export-log.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/fields-setting.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/kv-list.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/no-index-set.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/text-segmentation.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/update/children/save-as-popover.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/update/field-setting.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/update/fields-setting.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/result-comp/update/table-sort.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/components/bookmark-pop.vue",
+    "changed": 18
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/components/common-filter-select.vue",
+    "changed": 16
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/components/common-filter-setting.vue",
+    "changed": 5
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/components/favorite-list.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/index.vue",
+    "changed": 43
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/sql-mode/sql-query-options.vue",
+    "changed": 9
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/sql-mode/sql-query.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
+    "changed": 11
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-bar/ui-mode/ui-input.vue",
+    "changed": 7
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-chart/index.tsx",
+    "changed": 26
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/field-filter.vue",
+    "changed": 14
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/graph-analysis/chart/index.tsx",
+    "changed": 6
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/graph-analysis/sql-editor/index.tsx",
+    "changed": 8
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/graph-analysis/sql-editor/use-editor.ts",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/index.vue",
+    "changed": 15
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/log-clustering/index.vue",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/log-result/index.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
+    "changed": 5
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/log-result/log-rows.tsx",
+    "changed": 36
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/log-result/text-segmentation.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-panel/log-result/use-render-header.ts",
+    "changed": 10
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-tab/components/dashboard-dialog.vue",
+    "changed": 10
+  },
+  {
+    "file": "src/features/retrieval/workbench/search-result-tab/index.vue",
+    "changed": 10
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/auto-refresh-new.tsx",
+    "changed": 4
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/auto-refresh.vue",
+    "changed": 4
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/bar-global-setting.tsx",
+    "changed": 5
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/field-setting.vue",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/index.vue",
+    "changed": 45
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/more-setting.vue",
+    "changed": 9
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/query-history.vue",
+    "changed": 6
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/retrieve-type-switch.tsx",
+    "changed": 11
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/scene-filter-tags.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/share-link.tsx",
+    "changed": 11
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/time-setting.vue",
+    "changed": 20
+  },
+  {
+    "file": "src/features/retrieval/workbench/sub-bar/warning-setting.vue",
+    "changed": 17
+  },
+  {
+    "file": "src/features/retrieval/workbench/use-retrieve-hook.ts",
+    "changed": 4
+  },
+  {
+    "file": "src/features/retrieval/workspace/favorite/collect-main.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/favorite/components/collect-list/add-group.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/favorite/components/collect-list/collect-list.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/favorite/components/collect-list/edit-dialog.tsx",
+    "changed": 5
+  },
+  {
+    "file": "src/features/retrieval/workspace/favorite/components/collect-tool/collect-tool.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/favorite/hooks/use-favorite.ts",
+    "changed": 32
+  },
+  {
+    "file": "src/features/retrieval/workspace/grep/grep-cli.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/grep/index.tsx",
+    "changed": 12
+  },
+  {
+    "file": "src/features/retrieval/workspace/index.tsx",
+    "changed": 18
+  },
+  {
+    "file": "src/features/retrieval/workspace/monitor/apm.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/monitor/monitor.tsx",
+    "changed": 15
+  },
+  {
+    "file": "src/features/retrieval/workspace/monitor/trace.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/monitor/use-monitor-app-init.ts",
+    "changed": 23
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-bar/index.tsx",
+    "changed": 36
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-bar/scene-filter/filter-panel.tsx",
+    "changed": 8
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-bar/scene-filter/index.tsx",
+    "changed": 26
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-bar/scene-filter/scene-retrieve-utils.ts",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/empty-cluster/index.tsx",
+    "changed": 5
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/index.tsx",
+    "changed": 11
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/index.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/index.tsx",
+    "changed": 7
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/pattern-analysis-slider/index.tsx",
+    "changed": 7
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/log-table/content-table/remark-edit-tip/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/log-table/index.tsx",
+    "changed": 6
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/quick-open-cluster/cluster-access/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/index.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-download/index.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+    "changed": 4
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/subscription-content/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/edit-strategy/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/index.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/components/data-filter/fields-config/default-display-fields.ts",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/components/data-filter/fields-config/index.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/components/origin-log-result/index.tsx",
+    "changed": 15
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/standalone-tab/hooks/resolve-related-log-target-row.ts",
+    "changed": 6
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/standalone-tab/hooks/use-common-related-log.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/standalone-tab/hooks/use-context-related-log.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/standalone-tab/hooks/use-realtime-related-log.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/standalone-tab/hooks/use-related-log-row-resolver.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/original-log/standalone-tab/hooks/use-standalone-related-page.tsx",
+    "changed": 8
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/template-manage/create-template/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/template-manage/template-list/create-template/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/search-result/template-manage/template-list/index.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/features/retrieval/workspace/use-app-init.tsx",
+    "changed": 73
+  },
+  {
+    "file": "src/features/sharing/index.tsx",
+    "changed": 4
+  },
+  {
+    "file": "src/platform/http/index.js",
+    "changed": 0
+  },
+  {
+    "file": "src/platform/request/index.ts",
+    "changed": 0
+  },
+  {
+    "file": "src/shared/composables/use-field-alias-request-params.tsx",
+    "changed": 4
+  },
+  {
+    "file": "src/shared/composables/use-field-egges.ts",
+    "changed": 3
+  },
+  {
+    "file": "src/shared/composables/use-field-name.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/shared/composables/use-intro-resize.ts",
+    "changed": 2
+  },
+  {
+    "file": "src/shared/composables/use-json-formatter.ts",
+    "changed": 4
+  },
+  {
+    "file": "src/shared/composables/use-nav-menu.ts",
+    "changed": 18
+  },
+  {
+    "file": "src/shared/composables/use-retrieve-params.ts",
+    "changed": 3
+  },
+  {
+    "file": "src/shared/composables/use-store.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/shared/composables/use-table-row-deep-view.ts",
+    "changed": 2
+  },
+  {
+    "file": "src/shared/composables/use-trend-chart.ts",
+    "changed": 13
+  },
+  {
+    "file": "src/shared/composables/use-utils.ts",
+    "changed": 2
+  },
+  {
+    "file": "src/shared/global/bk-space-choice/index.tsx",
+    "changed": 15
+  },
+  {
+    "file": "src/shared/global/bk-space-choice/list.tsx",
+    "changed": 2
+  },
+  {
+    "file": "src/shared/global/field-setting.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/shared/global/head-navi/index.tsx",
+    "changed": 18
+  },
+  {
+    "file": "src/shared/global/head-navi/log-version.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/shared/global/json-formatter.vue",
+    "changed": 8
+  },
+  {
+    "file": "src/shared/global/setting-table.vue",
+    "changed": 3
+  },
+  {
+    "file": "src/shared/lib/util.js",
+    "changed": 0
+  },
+  {
+    "file": "src/shared/types/component-injections.d.ts",
+    "changed": 1
+  },
+  {
+    "file": "src/shared/ui/time-range/time-range.tsx",
+    "changed": 3
+  },
+  {
+    "file": "src/shared/ui/user-selector/index.tsx",
+    "changed": 2
+  }
+]

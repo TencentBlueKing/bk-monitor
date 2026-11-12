@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import { RadioGroup as TRadioGroup, Radio as TRadio, Switch as TSwitch } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
@@ -46,7 +51,7 @@ import { overlayRegistry } from '@/shared/global/overlay/overlay-registry';
 import { messageError } from '@/shared/lib/message';
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import BklogLoading from '@/shared/ui/loading';
 import ValidateUserSelector from '@/shared/ui/user-selector/index';
 
@@ -113,7 +118,7 @@ export default defineComponent({
   },
   emits: ['handleCancelSlider', 'handleUpdatedTable'],
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
 
     // 表单与组件引用
@@ -122,7 +127,7 @@ export default defineComponent({
 
     const configDocUrl = ref((window as any).BK_HOT_WARM_CONFIG_URL);
     const archiveDocUrl = ref((window as any).BK_ARCHIVE_DOC_URL); // 日志归档跳转链接
-    const isItsm = ref(isFeatureToggleOn('collect_itsm', [String(store.state.bkBizId), String(store.state.spaceUid)])); // 容量评估全局参数
+    const isItsm = ref(isFeatureToggleOn('collect_itsm', [String(store.bkBizId), String(store.spaceUid)])); // 容量评估全局参数
 
     const confirmLoading = ref(false); // 确认按钮加载状态
     const sliderLoading = ref(false); // 侧边栏加载状态
@@ -232,13 +237,13 @@ export default defineComponent({
     const isFirstShow = ref(true); // 是否是第一次渲染
     const selectZIndex = ref(3007);
 
-    const mySpaceList = computed(() => store.state.mySpaceList);
-    const userMeta = computed(() => store.state.userMeta);
-    const bkBizId = computed(() => store.getters.bkBizId);
-    const globalsData = computed(() => store.getters['globals/globalsData']);
+    const mySpaceList = computed(() => store.mySpaceList);
+    const userMeta = computed(() => store.userMeta);
+    const bkBizId = computed(() => store.bkBizId);
+    const globalsData = computed(() => useGlobalsStore().globalsData);
     const isEdit = computed(() => props.editClusterId !== null);
     const isDoris = computed(() => props.clusterType === CLUSTER_TYPES.DORIS);
-    const isMultiTenant = computed(() => !!store.state.userMeta?.bk_tenant_id);
+    const isMultiTenant = computed(() => !!store.userMeta?.bk_tenant_id);
     const visibleScopeOptions = computed(() => {
       if (isMultiTenant.value) {
         return [...visibleScopeSelectList.value, { id: 'current_tenant', name: t('当前租户可见') }];
@@ -342,7 +347,7 @@ export default defineComponent({
         for (const val of visibleConfig.visible_bk_biz ?? []) {
           const target = mySpaceList.value.find((project) => project.bk_biz_id === String(val.bk_biz_id));
           if (target) {
-            store.commit('patchMySpaceListItem', {
+            store.patchMySpaceListItem({
               bkBizId: String(val.bk_biz_id),
               patch: { is_use: val.is_use },
             });

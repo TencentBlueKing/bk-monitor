@@ -80,7 +80,7 @@ V2 → V3 目录对应关系（平移后的落点）：
 | `views/manage/index.vue` 等管理壳 | `features/management/` | 管理模块外壳与侧栏导航 |
 | `components/`、`global/` | `shared/ui/` + `shared/global/` | 公共组件（空态、JsonFormat、顶部导航等） |
 | `common/`、`utils/` | `shared/lib/` + `shared/utils/` | 无业务工具方法 |
-| `mixins/`、`hooks/` | `shared/composables/` | 组合式函数（`use-nav-menu`、`use-store` 等） |
+| `mixins/`、`hooks/` | `shared/composables/` | 组合式函数（`use-nav-menu` 等，业务状态使用 `app/state/domains` 原生 hooks） |
 | `scss/` | `shared/styles/` | 全局样式、mixins、主题 |
 | `main.js` | `app/bootstrap/` + `app/entries/` | 启动装配与多入口 |
 
@@ -136,7 +136,7 @@ bk-magic 全局样式消失后，逐模块对照 V2 找回，主要涉及：
 - **`features/`**：按业务域重组（collection、index-sets、archive、extraction、retrieval、management、navigation……），一个域的改动不出域；
 - **`platform/`**：收敛平台能力——compat（旧组件适配）、http、i18n、routing、state、sdk、observability，业务代码只消费接口；
 - **`shared/`**：ui/lib/styles/utils/types/composables 纯共享，禁止反向依赖 features/platform；
-- **状态收敛**：store 访问走 `map-helpers`/类型化封装，消灭散落的 `$store.state.xxx` 直读，AI 修改时有明确契约可查；
+- **状态收敛**：store 访问走 `app/state/domains` 的原生 Pinia hooks/Pinia mapState，消灭散落的 `$store.state.xxx` 直读，AI 修改时有明确契约可查；
 - **可机器验证**：TS 类型 + lint + 双端对照脚本化，让 AI 的每次产出有自动化的验收关卡。
 
 #### V3 最终架构详解
@@ -148,7 +148,7 @@ web-v3/src/
 │   │                     #   全局属性 $services/$t/$renderHeader、http、服务注册）
 │   ├── entries/          # 多入口：monitor-bootstrap（嵌入监控平台）、apm、trace
 │   ├── router/           # 路由表（manage/retrieve/monitor/dashboard）+ async-view 版本化懒加载
-│   ├── state/            # 全局状态（字段与 V2 同名）+ map-helpers 类型化访问封装
+│   ├── state/            # 原生 Pinia 根域与检索、采集、全局域
 │   ├── shell/            # 根组件 app.tsx、404 页
 │   └── skeleton/         # 全局骨架屏
 ├── features/             # 业务域，一个域一个目录，改动不出域
@@ -175,14 +175,14 @@ web-v3/src/
     ├── ui/ + global/     # 通用组件（empty-status、json-format-wrapper、head-navi…）
     ├── lib/              # 无业务工具（bus、message、demand-import、authority-map…）
     ├── styles/           # reset/mixins/theme/animation
-    ├── composables/      # use-nav-menu、use-store、use-route、use-locale 等 hooks
+    ├── composables/      # use-nav-menu、use-route、use-locale 等 hooks
     └── utils/  types/  constants/  directives/  assets/
 ```
 
 职责约束：
 
 - **`features/` 按域隔离**：域内自治（组件、composables、services、样式），跨域引用只允许经由 `shared/` 或 `platform/` 的公开接口；AI 改一个域时，上下文边界就是这个目录。域内 `classic/` 与 `current/` 子目录区分新旧两代实现，由 `app/router/async-view.ts` 的版本化懒加载（`createVersionedAsyncView`/`createManageAsyncView`）按开关分流。
-- **`platform/` 能力收敛**：http/i18n/routing/state/compat 各有唯一入口。典型例子是状态层：`platform/state/domain-store.ts` 在 Pinia 之上保留 Vuex 风格的 `state/getters/mutations/actions` 与 `commit/dispatch` 契约，`app/state/map-helpers.ts` 让 Options API 组件的 `mapState/mapGetters` 原样编译运行——业务代码不知道底下已经换了实现。
+- **`platform/` 能力收敛**：http/i18n/routing/compat 各有明确入口。业务状态由 `app/state/domains` 原生 Pinia stores 拥有，通用 Vuex 转换器已删除；只有 Monitor 发布协议保留独立、可审计的适配边界。
 - **`shared/` 纯共享**：不允许 import `features/` 与 `platform/` 的业务实现，杜绝循环依赖；它是所有域都能安全引用的“公共地板”。
 - **`app/` 启动与状态**：新增任何全局能力（组件、指令、原型属性、插件）只在 `bootstrap/configure-app.ts` 登记，入口文件（`entries/`）只做 `configureApp(app) + use(store) + use(i18n)` 的薄组合。
 
@@ -291,21 +291,16 @@ web-v3/src/
 
 ### 2. 状态管理
 
-| 维度 | V2（`web-v2/src/store/`） | V3（`web-v3/src/app/state/` + `src/platform/state/`） |
-| --- | --- | --- |
-| 运行时 | `index.js` 里 `new Vuex.Store(...)`：模块 retrieve/collect/globals + 根 state/getters/mutations/actions | 唯一 Pinia 实例（`app/state/pinia.ts` 的 `applicationPinia`）；**不加载 Vuex 运行时**（vuex 4.x 仅在 devDependencies 里供类型/兼容解析） |
-| 文件组织 | `collect.js`/`retrieve.js`/`globals.js` 模块 + `actions/`、`getters/`、`mutations/`、`state.js` | 同名文件原样保留在 `app/state/`（`collect.ts`/`retrieve.js`/`globals.ts`、`actions/`、`getters/`、`mutations/`、`state.ts`），字段名、mutation 类型字符串、action 名不变 |
-| Vuex 契约怎么保留 | 原生就是 Vuex | `platform/state/domain-store.ts` 的 `defineDomainStore` 在 Pinia `defineStore`（setup 式）上重建契约：state → `ref`，getters → `computed`（仍按 `(state, getters, rootState, rootGetters)` 签名调用原函数），mutations/actions → 绑定方法，action 收到的第一个参数仍是 Vuex 风格的 context（`{ state, getters, rootState, rootGetters, commit, dispatch }`）。`platform/state/state-runtime.ts` 再把 application 根域 + retrieve/collect/globals 三个域组合出兼容壳：`state` 是代理视图（根字段与模块字段同层可读），`commit/dispatch` 支持 `'模块/类型'` 字符串与对象两种写法，`dispatch(type, payload, config)` 原生保留 V2 hack 出来的第三参 `config`，并保留 `subscribeAction` |
-| 业务代码怎么读 | `this.$store.state.xxx`、`commit('xxx')`、`dispatch('xxx')`、`mapState/mapGetters`（vuex 版） | 旧写法全部可用：`state-runtime` 的 `install` 把兼容壳挂到 `app.config.globalProperties.$store`；`app/state/map-helpers.ts` 提供自己的 `mapState/mapGetters`，Options API 组件原样编译运行，直读 Pinia 状态。新增的组合式入口：`app/state/index.ts` 命名导出 `useApplicationStore`/`useRetrieveStore`/`useCollectionStore`/`useGlobalsStore`（`application-runtime.ts`），域 state 用 `structuredClone` 初始化，可直接 `useRetrieveStore().state.xxx` |
-| 装配位置 | `main.js` 里 `new Vue` 传 store | 入口薄组合：`app/entries/monitor-bootstrap.ts` 依次 `configureApp(app)` → `app.use(store)` → `app.use(i18n)` |
+2026-11-12 批次 03 已将 application 根状态、retrieve、collect、globals 收敛为原生 Pinia。主应用和 Monitor 的 Vue3 应用安装 Pinia；业务组件不再调用 Vuex 风格的 state/getters/commit/dispatch，也不依赖通用转换器或旧 map helpers。
 
-要点：Pinia 是唯一状态拥有者，Vuex 契约只是一层显式适配（`domain-store.ts` 注释写明 "The adapter only supplies the explicit context expected by the preserved business handlers"）。业务代码无感，AI 改状态时有明确契约可查：要新写字段就改 `app/state/` 的同名文件，要新写调用就用 `use*Store` 组合式入口。
+- 直接导入 `app/state/domains/{application,retrieve,collection,globals}-store.ts`；根域字段为扁平状态。原始 `visibleFields` 与派生 `resolvedVisibleFields` 分开，禁止混用。
+- 根域保留 40 个具名同步 action、17 个具名异步 action。方法的 API、缓存、本地存储、权限、取消和回填副作用保留在原服务与具名状态操作中。Options API 使用 Pinia 的 `mapState`；跨域 selector 使用函数，不能把 `globals/globalsData` 当作原生字段名。
+- 主应用启动使用 `app/state/pinia.ts`。独立测试/嵌入组件可显式传入 Pinia，组件内默认遵循注入的拥有者。请求池和查询会话按拥有者隔离；Devtools 的 action 代理不改变会话身份。
+- `app/state/index.ts` 和 `monitor-store-compatibility.ts` 只维护 Monitor 已发布的 logStore 协议（含第三参 config、对象调用、subscribeAction）。它们直接转发原生 action，不拥有第二份 state。内部业务禁止导入这一边界。
+- 已删除 `platform/state/domain-store.ts`、`state-runtime.ts`、旧 action/getter 字典、旧 retrieve 定义、`map-helpers.ts`、`use-store.ts`。
+- 执行 `pnpm --ignore-workspace check:native-state`，同时检查脚本和 Vue 模板，防止旧接口及字符串命名空间 selector 回流。该检查不能替代真实业务验收。
 
----
-
-## 五、V3 多出来的 AI-Native 支持
-
-V2 的 `package.json` 脚本只有 dev/build/analyze/format 一类工程命令，没有任何机器校验与上下文供给能力。V3 新增了一整套给「人或 AI 代理」使用的检查与索引脚本，全部落在 `web-v3/tools/` 与 `web-v3/ai-native/` 两个目录。
+本批证据见 `analyze-info/reports/alignment-audit-20261112/实施记录-03-根状态原生Pinia与Monitor聚类验证.md`；尚有存量测试和类型错误，不能据此宣称全业务验收通过。
 
 ### 1. 能力清单（V2 均不存在）
 
@@ -348,7 +343,7 @@ flowchart TD
     BOOT["bootstrap/configure-app.ts<br/>注册 T* 与 bk-* 适配组件、$services、$t、http"]
     ENTRY["entries/ 多入口<br/>configureApp → use(store) → use(i18n)"]
     ROUTER["router/ 路由表（name 与 V2 全同）"]
-    ASTATE["state/ 状态装配 + map-helpers"]
+    ASTATE["state/domains 原生 Pinia"]
   end
 
   subgraph FEAT["features/ 业务域（改动不出域）"]

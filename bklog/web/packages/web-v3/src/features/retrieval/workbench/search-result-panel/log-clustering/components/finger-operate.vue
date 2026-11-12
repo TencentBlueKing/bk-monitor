@@ -32,8 +32,8 @@
       <t-checkbox
         v-model="isNear24"
         :disabled="!clusterSwitch || !strategyHaveSubmit"
-        
-        
+
+
         data-test-id="fingerTable_checkBox_selectCustomSize"
         @change="handleShowNearPattern"
       >
@@ -194,7 +194,7 @@
             <div class="year-on-year">
               <t-switch
                 v-model="yearSwitch"
-                
+
               >
               </t-switch>
               <bk-select
@@ -265,6 +265,8 @@
 </template>
 
 <script>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -330,7 +332,7 @@ import { ServicesInstance } from '@/platform/services';
     },
     computed: {
       bkBizId() {
-        return this.$store.state.bkBizId;
+        return useApplicationStore().bkBizId;
       },
       dimensionList() {
         return this.fingerOperateData.groupList.filter(item => !this.group.includes(item.id));
@@ -489,7 +491,7 @@ import { ServicesInstance } from '@/platform/services';
         ServicesInstance.newReport.getExistReports({
             query: {
               scenario: 'clustering',
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
               index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
           })

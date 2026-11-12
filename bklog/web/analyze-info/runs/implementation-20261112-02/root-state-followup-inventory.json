@@ -1,0 +1,52 @@
+{
+  "status": "not-migrated",
+  "files": [
+    {
+      "file": "src/app/state/state.ts",
+      "lines": 168
+    },
+    {
+      "file": "src/app/state/getters/index.ts",
+      "lines": 88
+    },
+    {
+      "file": "src/app/state/mutations/index.js",
+      "lines": 530
+    },
+    {
+      "file": "src/app/state/actions/index.ts",
+      "lines": 122
+    },
+    {
+      "file": "src/app/state/actions/app-actions.js",
+      "lines": 211
+    },
+    {
+      "file": "src/app/state/actions/query-condition-actions.js",
+      "lines": 218
+    },
+    {
+      "file": "src/app/state/actions/retrieve-misc-actions.js",
+      "lines": 264
+    },
+    {
+      "file": "src/app/state/actions/retrieve-search-actions.js",
+      "lines": 689
+    }
+  ],
+  "requiredContracts": [
+    "user and permissions failures",
+    "space restore and switch ordering",
+    "query cancellation and stale responses",
+    "stream progress and final response",
+    "pagination and fallback cached rows",
+    "field configuration persistence",
+    "two Pinia instances query dedup isolation",
+    "APM and Trace consumers"
+  ],
+  "forbiddenCompletionShortcuts": [
+    "deleting dependency only",
+    "renaming commit/dispatch only",
+    "wrapping old dictionaries in a renamed converter"
+  ]
+}

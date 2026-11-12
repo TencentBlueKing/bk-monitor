@@ -55,7 +55,7 @@
                   class="king-button"
                   data-test-id="sourceLogBox_button_debugging"
                   size="small"
-                  
+
                   @click="showRegDialog = true"
                 >
                   {{ $t('调试') }}
@@ -363,7 +363,12 @@
   </div>
 </template>
 <script>
-  import { mapGetters } from '@/app/state/map-helpers';
+import { mapState as mapPiniaState } from 'pinia';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
 
   import LogFilter from '../log-filter/index';
   import MultilineRegDialog from './multiline-reg-dialog';
@@ -536,7 +541,7 @@
       };
     },
     computed: {
-      ...mapGetters('globals', ['globalsData']),
+      ...mapPiniaState(useGlobalsStore, ['globalsData']),
       // 是否打开行首正则功能
       hasMultilineReg() {
         return this.scenarioId === 'section';
@@ -549,7 +554,7 @@
         return this.subFormData.params?.exclude_files || [];
       },
       labelWidth() {
-        return this.$store.state.isEnLanguage ? this.enLabelWidth : 115;
+        return useApplicationStore().isEnLanguage ? this.enLabelWidth : 115;
       },
       // 是否是标准输出
       isStandardOutput() {

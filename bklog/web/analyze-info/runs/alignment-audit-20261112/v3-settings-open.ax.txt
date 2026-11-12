@@ -1,0 +1,229 @@
+Browser tab: 544133234, Title: "日志平台 · Vue3 UI 对齐", URL: "http://appdev.woa.com:4175/#/retrieve/16176?spaceUid=bkcc__5000140&tab=clustering&clusterParams=%7B%22pattern_level%22%3A%2205%22,%22year_on_year_hour%22%3A0,%22show_new_pattern%22%3Afalse,%22group_by%22%3A%5B%5D,%22size%22%3A10000,%22remark_config%22%3A%22all%22,%22owner_config%22%3A%22all%22,%22owners%22%3A%5B%5D%7D".
+1 AXWebArea 日志平台 · Vue3 UI 对齐, URL: appdev.woa.com:4175/#/retrieve/16176?spaceUid=bkcc__5000140&tab=clustering&clusterParams=%7B%22pattern_level%22%3A%2205%22,%22year_on_year_hour%22%3A0,%22show_new_pattern%22%3Afalse,%22group_by%22%3A%5B%5D,%22size%22%3A10000,%22remark_config%22%3A%22all%22,%22owner_config%22%3A%22all%22,%22owners%22%3A%5B%5D%7D
+	2 container
+		3 container app
+			4 container
+				5 image logo
+				6 text 日志平台 | D
+				7 container
+					8 text demo
+					178 text 
+				10 content list
+					11 text 检索
+					12 text 监控策略
+					13 text 仪表盘
+					14 text 管理
+				179 text   
+				16 text israelli
+			17 container
+				18 container
+					180 text 
+					20 text 常规检索
+					21 text 场景化检索
+					22 container
+						23 text [采集项]容器日志采集示例  (5000140_bklog.container_log_demo)  Cmd+O Cmd+O
+					24 button  历史查询
+						181 text 
+						26 text 历史查询
+					27 container
+						28 image
+						29 text 近 15 分钟
+					30 container
+						182 text  off
+					32 container
+						183 text  分享
+					34 container
+						184 text  索引配置
+					36 container
+						185 text  告警
+					38 container
+						186 text  全局设置
+					40 container
+						41 text 更多 
+					42 container
+						187 text  回到旧版
+					44 container
+						45 text UI 模式 
+					46 container
+						47 content list
+							48 container
+								49 text + 添加条件
+							50 container
+								51 text field (settable)
+								188 text / 唤起，输入检索内容（Tab 可切换为 AI 模式）
+						189 text 
+						190 text 
+						191 text 
+						192 text 
+						57 image AI 模式
+						58 text AI 模式
+						193 text 
+					60 button  查询
+						194 text 
+						62 text 查询
+					63 container
+						195 text   设置筛选
+					65 container
+						66 text __ext.container_id
+						67 container
+							68 text =
+							69 text field
+						70 content list
+							71 text field (settable)
+							196 text 请选择 或 输入
+						197 text 
+						74 text __ext.io_kubernetes_pod
+						75 container
+							76 text =
+							77 text field
+						78 content list
+							79 text field (settable)
+							198 text 请选择 或 输入
+						199 text 
+						200 text 
+					83 text 原始日志
+					84 text 日志聚类
+					85 text 图表分析
+					86 text Grep模式
+					87 container
+						201 text  添加到仪表盘
+					89 container
+						202 text  添加告警策略
+					203 text  新类告警策略 ： 未配置   数量突增策略 ： 已配置 
+					92 container
+						93 checkbox (disabled, settable, integer) Description: 仅查看新类 Pattern, Value: 0
+						94 text 仅查看新类 Pattern
+					204 text 
+					96 text 聚合维度
+					205 text 
+					98 text 临时分组
+					206 text 
+					100 text 时间对比
+					207 text 
+					208 text 
+					209 text 
+					104 text 聚类设置
+					105 table
+						106 row
+							107 cell
+								108 text 数据指纹
+							109 cell
+								110 text 数量
+								111 container
+									210 text  
+							113 cell
+								114 text 占比
+								115 container
+									211 text  
+							117 cell
+								118 text Pattern
+							119 cell
+								120 text 责任人
+								121 container
+									122 text field (settable)
+									123 image
+							124 cell
+								125 text 创建告警策略
+								212 text 
+							127 cell
+								128 text 备注
+								129 container
+									130 text field
+									131 image
+					132 table
+						133 row
+							134 cell
+								135 text 数据指纹
+							136 cell
+								137 text 数量
+							138 cell
+								139 text 占比
+							140 cell
+								141 text Pattern
+							142 cell
+								143 text 责任人
+							144 cell
+								145 text 创建告警策略
+							146 cell
+								147 text 备注
+						148 row
+							149 cell
+								150 text 196bdc44da31e72cb9e630869fbe11fd
+							151 cell
+								152 text 1313
+							153 cell
+								154 text 50.00%
+							155 cell
+								156 container
+									157 text #DATETIME#  ERROR tokenchecker  #PATH# #NUMBER#  failed to parse pdTraces.rsToken  #UUID#  err invalid token  #UUID#  not empty token
+							158 cell
+								159 button yuxiaogao
+							160 cell
+								213 text 
+							162 cell
+								163 text 2131231
+						164 row
+							165 cell
+								166 text c39a3b674252ce02090707fcb53a8e6b
+							167 cell
+								168 text 1313
+							169 cell
+								170 text 50.00%
+							171 cell
+								172 container
+									173 text #DATETIME#  WARN otlp  #PATH# #NUMBER#  run pre-check failed rtype traces code  #NUMBER#  ip  #IP#  error drop spans cause invalid token  #UUID#  not empty token bk-collector skip empty record
+							174 cell
+								175 button --
+							176 cell
+								177 text --
+		214 container
+			215 text 聚类设置
+			216 container
+				217 container
+					218 container
+						219 text * 聚类字段
+					220 container
+						221 text field log(original_text)
+						222 image
+					223 text 
+					224 text 只能基于 1 个字段进行聚类，并且字段是为text的分词类型，默认为log字段
+					225 container
+						226 text * 最大字段长度
+					227 stepper (settable, integer) 1000
+					228 text 字节
+					229 text 
+					230 text 聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源 过滤规则
+					231 text 
+					232 text 聚类规则
+					233 container
+						234 radio button (settable, integer) Description: 自定义, Value: 0
+						235 text 自定义
+					236 container
+						237 radio button (settable, integer) Description: 模板, Value: 1
+						238 text 模板
+					239 container
+						240 text field (settable)
+						241 image
+					242 button  编辑模板
+						243 text 编辑模板
+					244 button  解绑
+					245 button  刷新
+						246 text 刷新
+					247 text 生效顺序 正则表达式 占位符
+				248 button 保存
+				249 button 调试工具 
+					250 text 调试工具
+					251 text 
+				252 button 重置
+		253 text 源码升级启动错误
+TypeError: popoverRef.value.hideHandler is not a function
+    at Proxy.handleClickCancel (http://appdev.woa.com:4175/features/collection/filter-rule/config-rule/index.tsx?t=1794453608921:251:24)
+    at handleClickOutside (http://appdev.woa.com:4175/features/collection/filter-rule/index.tsx?t=1794453608921:103:33)
+    at _ZoneDelegate.invokeTask (http://appdev.woa.com:4175/@fs/Users/lixintao/github/bk-monitor/bklog/web/packages/web-v3/node_modules/.vite-application/deps/@blueking_open-telemetry.js?v=6a728433:8120:171)
+    at _ZoneImpl2.runTask (http://appdev.woa.com:4175/@fs/Users/lixintao/github/bk-monitor/bklog/web/packages/web-v3/node_modules/.vite-application/deps/@blueking_open-telemetry.js?v=6a728433:7901:37)
+    at ZoneTask.invokeTask [as invoke] (http://appdev.woa.com:4175/@fs/Users/lixintao/github/bk-monitor/bklog/web/packages/web-v3/node_modules/.vite-application/deps/@blueking_open-telemetry.js?v=6a728433:8197:26)
+    at invokeTask (http://appdev.woa.com:4175/@fs/Users/lixintao/github/bk-monitor/bklog/web/packages/web-v3/node_modules/.vite-application/deps/@blueking_open-telemetry.js?v=6a728433:8726:12)
+    at globalCallback (http://appdev.woa.com:4175/@fs/Users/lixintao/github/bk-monitor/bklog/web/packages/web-v3/node_modules/.vite-application/deps/@blueking_open-telemetry.js?v=6a728433:8755:23)
+    at globalZoneAwareCallback (http://appdev.woa.com:4175/@fs/Users/lixintao/github/bk-monitor/bklog/web/packages/web-v3/node_modules/.vite-application/deps/@blueking_open-telemetry.js?v=6a728433:8772:12)
+
+The focused UI element is 1 AXWebArea 日志平台 · Vue3 UI 对齐, URL: appdev.woa.com:4175/#/retrieve/16176?spaceUid=bkcc__5000140&tab=clustering&clusterParams=%7B%22pattern_level%22%3A%2205%22,%22year_on_year_hour%22%3A0,%22show_new_pattern%22%3Afalse,%22group_by%22%3A%5B%5D,%22size%22%3A10000,%22remark_config%22%3A%22all%22,%22owner_config%22%3A%22all%22,%22owners%22%3A%5B%5D%7D

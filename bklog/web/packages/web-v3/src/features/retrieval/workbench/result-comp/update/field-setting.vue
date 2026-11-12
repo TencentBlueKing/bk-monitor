@@ -93,11 +93,15 @@
   </div>
 </template>
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
 import { ref, computed, watch, type PropType } from 'vue';
 
 import { getRegExp } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import type { FieldDefinition, FieldView, FieldTypeStyle } from './field-settings.types';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import VueDraggable from 'vuedraggable-vue3';
@@ -106,7 +110,7 @@ import { Input as TInput, Empty as TEmpty, Tooltip as TTooltip } from 'tdesign-v
 preserveVue3ComponentModel(VueDraggable);
 
 // 获取 store
-const store = useStore();
+const store = useApplicationStore();
 const { $t } = useLocale();
 const searchKeyword = ref('');
 
@@ -117,7 +121,7 @@ const props = defineProps({
   },
 });
 // 定义响应式数据
-const fieldList = computed<FieldDefinition[]>(() => store.getters.filteredFieldList as FieldDefinition[]);
+const fieldList = computed<FieldDefinition[]>(() => store.filteredFieldList as FieldDefinition[]);
 
 /** 将 fieldList 数组转换成 kv 结构(k-field_name,v-fieldItem) ,控制字段渲染顺序使用 */
 const fieldListMap = computed(() => {
@@ -167,11 +171,11 @@ const toSelectLength = computed(() => {
 });
 
 const textDir = computed(() => {
-  const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+  const textEllipsisDir = store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
   return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
 });
 
-const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap as Record<string, FieldTypeStyle>);
+const fieldTypeMap = computed(() => useGlobalsStore().$state.fieldTypeMap as Record<string, FieldTypeStyle>);
 const getFieldIcon = (fieldType: string) => {
   return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
 };

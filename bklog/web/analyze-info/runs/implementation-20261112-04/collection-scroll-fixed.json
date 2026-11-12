@@ -1,0 +1,71 @@
+{
+  "create": [
+    {
+      "cls": "t-menu t-menu--scroll",
+      "h": 622,
+      "rect": {
+        "bottom": 714,
+        "height": 622,
+        "left": 0,
+        "right": 60,
+        "top": 92,
+        "width": 60,
+        "x": 0,
+        "y": 92
+      },
+      "scroll": 780,
+      "top": 0
+    },
+    {
+      "cls": "classify-main-box",
+      "h": 578,
+      "rect": {
+        "bottom": 718,
+        "height": 578,
+        "left": 60,
+        "right": 1280,
+        "top": 140,
+        "width": 1220,
+        "x": 60,
+        "y": 140
+      },
+      "scroll": 941,
+      "top": 0
+    }
+  ],
+  "edit": [
+    {
+      "cls": "t-menu t-menu--scroll",
+      "h": 622,
+      "rect": {
+        "bottom": 714,
+        "height": 622,
+        "left": 0,
+        "right": 60,
+        "top": 92,
+        "width": 60,
+        "x": 0,
+        "y": 92
+      },
+      "scroll": 780,
+      "top": 0
+    },
+    {
+      "cls": "classify-main-box",
+      "h": 578,
+      "rect": {
+        "bottom": 718,
+        "height": 578,
+        "left": 60,
+        "right": 1280,
+        "top": 140,
+        "width": 1220,
+        "x": 60,
+        "y": 140
+      },
+      "scroll": 1040,
+      "top": 0
+    }
+  ],
+  "selectorDialogOpenedAndCancelled": true
+}

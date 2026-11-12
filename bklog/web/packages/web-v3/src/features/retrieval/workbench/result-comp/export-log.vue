@@ -201,6 +201,11 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import { h } from 'vue';
 import {
   MessagePlugin as TDesignMessage,
@@ -214,7 +219,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import axios from 'axios';
 import { blobDownload } from '@/shared/lib/util';
-import { mapGetters, mapState } from '@/app/state/map-helpers';
+
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 import useFieldNameHook from '@/shared/composables/use-field-name';
 import exportHistory from './export-history';
@@ -344,23 +349,23 @@ export default {
     };
   },
   computed: {
-    ...mapState({
+    ...mapPiniaState(useApplicationStore, {
       totalCount: (state) => {
         const effectiveTotal = getEffectiveSearchTotal(state);
         if (effectiveTotal > 0) {
           return effectiveTotal;
         }
 
-        return state.retrieve.trendDataCount;
+        return useRetrieveStore().trendDataCount;
       },
-      queueStatus: (state) => state.retrieve.isTotalCountLoaded,
-      totalFields: (_state, getters) => getters.filteredFieldList,
+      queueStatus: () => useRetrieveStore().isTotalCountLoaded,
+      totalFields: (_state) => _state.filteredFieldList,
       visibleFields: (state) => state.visibleFields ?? [],
       showFieldAlias: (state) => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
       retrieveType: (state) => state.indexItem?.retrieve_type,
       isLoading: (state) => state.indexSetQueryResult?.is_loading,
     }),
-    ...mapGetters({
+    ...mapPiniaState(useApplicationStore, {
       bkBizId: 'bkBizId',
       spaceUid: 'spaceUid',
       isShowMaskingTemplate: 'isShowMaskingTemplate',
@@ -405,10 +410,10 @@ export default {
       return [];
     },
     routerIndexSet() {
-      return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$store.state.indexId;
+      return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : useApplicationStore().indexId;
     },
     isScene() {
-      return this.$store.getters.isSceneMode;
+      return useApplicationStore().isSceneMode;
     },
     /** 当前显示的单个下载中任务（最先下载的任务），优先取 download_log 类型 */
     activeDownloadingTask() {
@@ -494,7 +499,7 @@ export default {
   methods: {
     getExportTaskKey,
     shouldDisplayTask(task) {
-      const currentUser = this.$store.state.userMeta?.username || '';
+      const currentUser = useApplicationStore().userMeta?.username || '';
       if (task.export_created_by !== currentUser) return false;
       if (task.export_status === 'failed') {
         return this.failedTaskIds.includes(getExportTaskKey(task));
@@ -723,7 +728,7 @@ export default {
       this.showHistoryExport = false;
     },
     getFieldName(field) {
-      const { getQueryAlias } = useFieldNameHook({ store: this.$store });
+      const { getQueryAlias } = useFieldNameHook({ store: useApplicationStore() });
       return getQueryAlias(field);
     },
 
@@ -804,7 +809,7 @@ export default {
      * @param { Array } data 任务列表数据
      */
     handleTaskStatus(data) {
-      const currentUser = this.$store.state.userMeta?.username || '';
+      const currentUser = useApplicationStore().userMeta?.username || '';
       data.forEach((item) => {
         // 只处理当前用户的任务
         if (item.export_created_by !== currentUser) return;
@@ -936,12 +941,12 @@ export default {
         requestConfig = { data: params };
       } else if (this.isUnionSearch) {
         queryUrl = ServicesInstance.unionSearch.unionExportHistory;
-        params.index_set_id = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$store.state.indexId;
+        params.index_set_id = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : useApplicationStore().indexId;
         params.index_set_ids = this.unionIndexList;
         requestConfig = { params };
       } else {
         queryUrl = ServicesInstance.retrieve.getExportHistoryList;
-        params.index_set_id = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$store.state.indexId;
+        params.index_set_id = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : useApplicationStore().indexId;
         requestConfig = { params };
       }
 

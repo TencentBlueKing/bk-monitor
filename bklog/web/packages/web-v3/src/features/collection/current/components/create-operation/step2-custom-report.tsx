@@ -24,6 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
 import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
 import { Alert as TAlert, Loading as TLoading } from 'tdesign-vue-next';
 
@@ -34,7 +40,7 @@ import { defineComponent, ref, computed, onMounted } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import { useRoute } from 'vue-router';
-import useStore from '@/shared/composables/use-store';
+
 import { deepEqual } from '@/shared/lib/util';
 
 import { useOperation } from '../../hook/useOperation';
@@ -61,13 +67,13 @@ export default defineComponent({
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const { cardRender } = useOperation();
     const baseInfoRef = ref();
     const loading = ref(false);
     const submitLoading = ref(false);
-    const bkBizId = computed(() => store.state.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
     /**
      * 初始表单数据快照，用于对比是否有变更
      */
@@ -121,7 +127,7 @@ export default defineComponent({
 
       return options;
     });
-    const globalsData = computed(() => store.getters['globals/globalsData']);
+    const globalsData = computed(() => useGlobalsStore().globalsData);
 
     /**
      * 链路配置列表
@@ -176,7 +182,7 @@ export default defineComponent({
             sort_fields: sortFields || [],
             index_set_id: indexSetId || '',
           };
-          store.commit('collect/setCurCollect', responseData);
+          useCollectionStore().setCurCollect(responseData);
           // 保存初始表单数据快照
           saveInitialFormData();
           emit('detail', configData.value);

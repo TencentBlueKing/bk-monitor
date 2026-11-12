@@ -23,6 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
+
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
 
 import { ServicesInstance } from '@/platform/services';
 
@@ -30,7 +35,7 @@ import { ref, computed, type Ref, type ComputedRef } from 'vue';
 import { useRoute } from "vue-router";
 
 
-import useStore from '@/shared/composables/use-store';
+
 
 // ==================== 类型定义 ====================
 
@@ -81,7 +86,7 @@ export interface IUseCustomTypeIntroReturn {
  * ```
  */
 export const useCustomTypeIntro = (options: IUseCustomTypeIntroOptions): IUseCustomTypeIntroReturn => {
-  const store = useStore();
+  const store = useApplicationStore();
   const route = useRoute();
 
   // ==================== 响应式数据 ====================
@@ -90,7 +95,7 @@ export const useCustomTypeIntro = (options: IUseCustomTypeIntroOptions): IUseCus
   const proxyHost = ref<any[]>([]);
 
   /** 全局数据（包含自定义上报类型列表） */
-  const globalsData = computed(() => store.getters['globals/globalsData']);
+  const globalsData = computed(() => useGlobalsStore().globalsData);
 
   // ==================== 方法 ====================
 

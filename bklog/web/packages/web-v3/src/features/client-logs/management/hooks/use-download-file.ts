@@ -24,10 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { blobDownload, readBlobRespToJson } from '@/shared/lib/util';
 import { axiosInstance } from '@/platform/http/index';
 import { t } from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import * as authorityMap from '../../../../shared/lib/authority-map';
 import { showBatchDownloadFailures, showDownloadFailure } from '../download-message';
@@ -69,7 +71,7 @@ interface DownloadFileOptions {
  * 用于统一处理表格中的文件下载逻辑（含权限校验）
  */
 export const useDownloadFile = () => {
-  const store = useStore();
+  const store = useApplicationStore();
 
   /**
    * 请求单个文件并触发浏览器保存；批量下载只返回失败记录，不逐条提示
@@ -129,12 +131,12 @@ export const useDownloadFile = () => {
       resources: [
         {
           type: 'space',
-          id: store.state.spaceUid,
+          id: store.spaceUid,
         },
       ],
     };
-    const res = await store.dispatch('getApplyData', paramData);
-    store.commit('updateState', { authDialogData: res.data });
+    const res = await store.getApplyData(paramData);
+    store.updateState({ authDialogData: res.data });
   };
 
   /**
@@ -145,7 +147,7 @@ export const useDownloadFile = () => {
    */
   const downloadFile = async (fileName: string, isAllowedDownload: boolean, options: DownloadFileOptions = {}) => {
     if (isAllowedDownload) {
-      requestFileDownload(fileName, store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID], options);
+      requestFileDownload(fileName, store.storage[BK_LOG_STORAGE.BK_BIZ_ID], options);
     } else {
       await requestApplyPermission();
     }
@@ -164,7 +166,7 @@ export const useDownloadFile = () => {
       await requestApplyPermission();
       return;
     }
-    const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+    const bkBizId = store.storage[BK_LOG_STORAGE.BK_BIZ_ID];
     const failedTasks: DownloadFileFailure[] = [];
     for (const fileName of uniqueFileNames) {
       const failure = await requestFileDownload(fileName, bkBizId, options, false);

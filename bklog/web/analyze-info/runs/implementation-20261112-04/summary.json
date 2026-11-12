@@ -1,0 +1,36 @@
+{
+  "batch": "implementation-20261112-04",
+  "tests": {
+    "total": 402,
+    "passed": 395,
+    "failed": 7,
+    "skipped": 0
+  },
+  "typeErrors": 1567,
+  "fullAcceptance": false,
+  "source": "V2 actual components and installed library CSS",
+  "uiVerified": [
+    "collection-step-states",
+    "manage-menu-scrollbar-hidden-wheel-preserved",
+    "collection-create-edit-no-extra-page",
+    "ip-selector-dialog-open-cancel",
+    "context-divider-default-hover-drag",
+    "realtime-divider-default-hover-leave"
+  ],
+  "readOnlyExistingResource": 10663,
+  "writesToExistingResources": false,
+  "builds": [
+    {
+      "command": "build:apm",
+      "exitCode": 0
+    },
+    {
+      "command": "build:trace",
+      "exitCode": 0
+    },
+    {
+      "command": "build",
+      "exitCode": 0
+    }
+  ]
+}

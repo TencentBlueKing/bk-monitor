@@ -27,7 +27,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 export function monitorHostFixture(packageRoot) {
-  const require=createRequire(resolve(packageRoot,'../../package.json'));
+  const require=createRequire(resolve(packageRoot,'../web-v2/package.json'));
   return {
     name:'monitor-host-contract-fixture',apply:'serve',
     resolveId(id) {

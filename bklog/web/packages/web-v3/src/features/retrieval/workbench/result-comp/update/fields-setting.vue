@@ -108,6 +108,12 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
 import { h as createVNode } from 'vue';
 import { Tabs as TTabs, TabPanel as TTabPanel } from 'tdesign-vue-next';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
@@ -117,7 +123,7 @@ import { ServicesInstance } from '@/platform/services';
 import { random, downJsonFile } from '@/shared/lib/util';
 import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 import VueDraggable from 'vuedraggable';
-import { mapGetters } from '@/app/state/map-helpers';
+
 
 import LogExport from '../../../../index-sets/import/log-import';
 import saveAsPopover from './children/save-as-popover.vue';
@@ -195,11 +201,11 @@ export default {
       return this.configType === 'template';
     },
     catchFieldCustomSortList() {
-      return this.$store.state.retrieve?.catchFieldCustomConfig?.sortList;
+      return useRetrieveStore().$state?.catchFieldCustomConfig?.sortList;
     },
     /** 当前本地用户正在应用的展示字段设置 */
     localVisibleFields() {
-      return (this.$store.getters.visibleFields ?? []).map((e) => e.field_name);
+      return (useApplicationStore().resolvedVisibleFields ?? []).map((e) => e.field_name);
     },
     shadowSort() {
       // 如果是模板配置模式，使用当前选中配置的 sort_list
@@ -209,20 +215,20 @@ export default {
       if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
         return this.catchFieldCustomSortList;
       }
-      return this.$store.state.indexFieldInfo?.user_custom_config?.sortList ?? [];
+      return useApplicationStore().indexFieldInfo?.user_custom_config?.sortList ?? [];
     },
     shadowTotal() {
-      return this.$store.getters.filteredFieldList;
+      return useApplicationStore().filteredFieldList;
     },
     filterShadowTotal() {
-      return this.$store.getters.filteredFieldList.filter((item) => {
+      return useApplicationStore().filteredFieldList.filter((item) => {
         const matchesKeyword = item.field_name?.includes(this.keyword) || item.query_alias?.includes(this.keyword);
         const isInShadowVisible = this.shadowVisible.some((shadowItem) => shadowItem === item.field_name);
         return matchesKeyword && !isInShadowVisible;
       });
     },
     fieldAliasMap() {
-      return this.$store.getters.fieldAliasMap;
+      return useApplicationStore().fieldAliasMap;
     },
     toSelectLength() {
       if (this.keyword) {
@@ -242,17 +248,17 @@ export default {
 
     filedSettingConfigID() {
       // 当前索引集的显示字段ID
-      return this.$store.state.retrieve.filedSettingConfigID;
+      return useRetrieveStore().$state.filedSettingConfigID;
     },
     isSceneMode() {
-      return this.$store.getters.isSceneMode;
+      return useApplicationStore().isSceneMode;
     },
     currentClickConfigData() {
       // 当前选中的配置
       return this.configTabPanels.find((item) => item.id === this.currentClickConfigID) || this.configTabPanels?.[0];
     },
     fieldWidth() {
-      return this.$store.state.isEnLanguage ? '60' : '114';
+      return useApplicationStore().isEnLanguage ? '60' : '114';
     },
     currentSortList() {
       return (this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields) ?? [];
@@ -263,7 +269,7 @@ export default {
         this.shadowVisible?.map((item) => item.field_name)
       );
     },
-    ...mapGetters({
+    ...mapPiniaState(useApplicationStore, {
       unionIndexList: 'unionIndexList',
       isUnionSearch: 'isUnionSearch',
     }),
@@ -338,17 +344,17 @@ export default {
 
         // 个人配置模式下的保存逻辑
         this.cancelModifyFields();
-        this.$store.commit('updateIsSetDefaultTableColumn', false);
+        useApplicationStore().updateIsSetDefaultTableColumn(false);
 
         // 先等待用户配置保存完成
-        await this.$store.dispatch('userFieldConfigChange', {
+        await useApplicationStore().userFieldConfigChange({
           displayFields: currentVisibleList,
           fieldsWidth: {},
         });
 
         // 更新本地显示字段状态
-        this.$store.commit('resetVisibleFields', currentVisibleList);
-        this.$store.commit('updateIsSetDefaultTableColumn');
+        useApplicationStore().resetVisibleFields(currentVisibleList);
+        useApplicationStore().updateIsSetDefaultTableColumn();
         RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
       } catch (error) {
         console.warn(error);
@@ -496,8 +502,8 @@ export default {
       const data = this.isSceneMode
         ? {
             ...baseData,
-            bk_biz_id: this.$store.state.bkBizId,
-            scene_id: this.$store.state.indexItem.scene_active,
+            bk_biz_id: useApplicationStore().bkBizId,
+            scene_id: useApplicationStore().indexItem.scene_active,
           }
         : {
             ...baseData,
@@ -509,7 +515,7 @@ export default {
         await requestName({ data });
         if (this.activeFieldTab === 'sort') {
           if (this.isSortFieldChanged) {
-            this.$store.dispatch('requestIndexSetQuery', { formChartChange: false }).then(() => {
+            useApplicationStore().requestIndexSetQuery({ formChartChange: false }).then(() => {
               this.isSortFieldChanged = false;
             });
           }
@@ -600,8 +606,8 @@ export default {
           : ServicesInstance.retrieve.getFieldsListConfig;
         const data = this.isSceneMode
           ? {
-              bk_biz_id: this.$store.state.bkBizId,
-              scene_id: this.$store.state.indexItem.scene_active,
+              bk_biz_id: useApplicationStore().bkBizId,
+              scene_id: useApplicationStore().indexItem.scene_active,
               scope: 'default',
             }
           : {
@@ -632,7 +638,7 @@ export default {
     },
     /** gseIndex和iterationIndex排序顺序同步dtEventTimeStamp */
     syncSort(currentSortList) {
-      const fields = this.$store.getters.rawFieldList.map((item) => item.field_name);
+      const fields = useApplicationStore().rawFieldList.map((item) => item.field_name);
       const existingKeys = new Set(currentSortList.map((item) => item[0]));
       const requiredFields = ['gseIndex', 'iterationIndex'];
 

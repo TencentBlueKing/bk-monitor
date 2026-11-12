@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton, Form as TForm, FormItem as TFormItem, Input as TInput } from 'tdesign-vue-next';
 import type { FormInstanceFunctions, FormRules } from 'tdesign-vue-next';
 import type { ServiceOperation } from '@/platform/services/runtime/service-client';
@@ -32,7 +34,7 @@ import { ServicesInstance } from '@/platform/services';
 import { defineComponent, type PropType, ref, nextTick, computed, onMounted } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { showMessage } from '../../../utils';
 
@@ -64,7 +66,7 @@ export default defineComponent({
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const inputRef = ref<{ focus?: () => void } | null>(null);
     const editFormRef = ref<FormInstanceFunctions | null>(null);
     const loading = ref(false);
@@ -87,7 +89,7 @@ export default defineComponent({
     const editData = ref<IListItemData>({
       index_set_name: '',
     });
-    const spaceUid = computed(() => store.getters.spaceUid);
+    const spaceUid = computed(() => store.spaceUid);
 
     onMounted(() => {
       editData.value = { ...props.data };

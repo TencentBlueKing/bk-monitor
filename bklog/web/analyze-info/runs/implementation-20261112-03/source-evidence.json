@@ -1,0 +1,30 @@
+{
+  "before": "本批修改前的工作区快照，含此前未提交修改；不是冻结 V2 等价性结论。",
+  "mutations": {
+    "beforeSha256": "07ea439d5c141bbc51ec088ddab3cb79e4f491ee5810134e0ae467e0542d2bdf",
+    "afterSha256": "9a508bd5869a64d29e864c69b2f110a98a1cd5f9de6c024b8e488b8955b24e80",
+    "identicalBodies": 40
+  },
+  "actions": [
+    {
+      "file": "src/app/state/actions/app-actions.js",
+      "beforeSha256": "7f721162ee4756894a6c57f5e0cd9d5a13d70ebdef4c9aad726db00c74936db2",
+      "afterSha256": "8b0bdb1cba283b09fd4fd03489f75c3052e3e5c32c41ca52b758024720eed646"
+    },
+    {
+      "file": "src/app/state/actions/query-condition-actions.js",
+      "beforeSha256": "4f83d4bc70a13296f6e703381080283af4d3b1e7a2be33440ba85c9d5685662b",
+      "afterSha256": "c12e8ae81df1b85e861bf57653e39231a1566e704e8c39f9d8319f5f2b007f87"
+    },
+    {
+      "file": "src/app/state/actions/retrieve-misc-actions.js",
+      "beforeSha256": "ae56c1f8e8fd084063f00e52ab0a2f5a13149b8e816e69c2761ebd63c3188ed3",
+      "afterSha256": "06f6c98a15f6133c26dac1744d85b852dae0f6238a98bcd6325a97495d213371"
+    },
+    {
+      "file": "src/app/state/actions/retrieve-search-actions.js",
+      "beforeSha256": "19a2afdea827d3288da91babe3ed51a2a14df71ee89573b2aa8a213ca6d6ff2d",
+      "afterSha256": "1cc51d10d2a391711262226faf2487ff268ff996a5d820a46a51a05c0c604001"
+    }
+  ]
+}

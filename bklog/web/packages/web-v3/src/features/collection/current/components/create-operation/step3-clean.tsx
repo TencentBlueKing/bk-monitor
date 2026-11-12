@@ -24,6 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
 import { Alert as TAlert, Select as TSelect } from 'tdesign-vue-next';
 
 import { Switch as TSwitch, RadioGroup as TRadioGroup, Radio as TRadio, Checkbox as TCheckbox } from 'tdesign-vue-next';
@@ -35,7 +41,7 @@ import type { EtlParams, EtlField, EtlConfigInput, CleanFormState, CleanTemplate
 import { defineComponent, ref, onMounted, computed, onBeforeUnmount } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 import { LocationQueryValue, useRoute } from 'vue-router';
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
@@ -121,7 +127,7 @@ export default defineComponent({
   emits: ['next', 'prev', 'cancel', 'change-submit', "changeSubmit"],
 
   setup(props, { emit, expose }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
     const route = useRoute();
     const defaultRegex = '(?P<request_ip>[\\d.]+)[^[]+\\[(?P<request_time>[^]]+)\\]';
@@ -232,15 +238,15 @@ export default defineComponent({
 
     const builtInFieldsList = ref<EtlField[]>([]);
     const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
-    const globalsData = computed(() => store.getters['globals/globalsData'] as {
+    const globalsData = computed(() => useGlobalsStore().globalsData as {
       data_delimiter?: ISelectItem[];
       field_date_format?: TimeFormat[];
       time_zone?: TimeZoneOption[];
     });
-    const curCollect = computed(() => store.getters['collect/curCollect']);
-    const bkBizId = computed(() => store.getters.bkBizId);
-    const spaceUid = computed(() => store.getters.spaceUid);
-    const mySpaceList = computed(() => store.state.mySpaceList);
+    const curCollect = computed(() => useCollectionStore().curCollect);
+    const bkBizId = computed(() => store.bkBizId);
+    const spaceUid = computed(() => store.spaceUid);
+    const mySpaceList = computed(() => store.mySpaceList);
 
     const showCardConfig = computed(() => {
       let list = props.isTempField
@@ -776,7 +782,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           if (res.data) {
             // 克隆时不覆盖curCollect，避免把第一步创建的新采集项ID覆盖为旧ID
             if (!props.isClone) {
-              store.commit('collect/setCurCollect', res.data);
+              useCollectionStore().setCurCollect(res.data);
             }
             const fieldsSource = props.isClone ? res.data.fields : curCollect.value.fields;
             builtInFieldsList.value = (fieldsSource || []).filter((item: { is_built_in: any; }) => item.is_built_in);
@@ -1353,7 +1359,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           },
         ],
       };
-      const res = await store.dispatch('checkAndGetData', paramData);
+      const res = await store.checkAndGetData(paramData);
       if (res.isAllowed === false) {
         return;
       }
@@ -1362,7 +1368,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     /** 模板场景仅使用采集项获取调试日志，不回填采集项已有的清洗规则 */
     const handleTemplateDebugSourceChange = async (id: number) => {
       cleanCollectorId.value = id;
-      const res = await store.dispatch('checkAndGetData', {
+      const res = await store.checkAndGetData({
         action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
         resources: [
           {
@@ -1380,7 +1386,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     // 采集项列表点击申请采集项目管理权限
     const applyProjectAccess = async (item: never) => {
       try {
-        const res = await store.dispatch('getApplyData', {
+        const res = await store.getApplyData({
           action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
           resources: [
             {
@@ -1566,7 +1572,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <div class='form-box mt-5 clean-enable-row'>
               <TSwitch
                 size='large'
-                
+
                 value={isClean.value}
                 disabled={props.isCleanField && !cleanCollectorId.value}
                 onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
@@ -1700,7 +1706,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 <TButton
                   theme='primary'
                   icon={() => <span class={`bk-icon icon-${'plus'}`} />}
-                  
+
                   onClick={() => {
                     cleanTemplateDialogVisible.value = true;
                   }} variant={(true) ? 'outline' : 'base'}
@@ -1782,7 +1788,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           )}
           <TButton
             class='expand-depth-example-btn'
-            
+
             theme='primary'
             onClick={() => {
               expandDepthExampleVisible.value = true;
@@ -2000,7 +2006,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <div class='form-box mt-5'>
               <TSwitch
                 size='large'
-                
+
                 disabled={isTemplateBound.value}
                 value={formData.value.etl_params.retain_extra_json}
                 onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
@@ -2027,7 +2033,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           <div class='form-box mt-5'>
             <TSwitch
               size='large'
-              
+
               disabled={isTemplateBound.value}
               value={enableMetaData.value}
               onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {

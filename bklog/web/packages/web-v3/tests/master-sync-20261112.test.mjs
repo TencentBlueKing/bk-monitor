@@ -118,7 +118,7 @@ test('master sync: scenario CSS namespace and table column refresh are preserved
   const panel = readFileSync(target('features/retrieval/workspace/search-bar/scene-filter/filter-panel.tsx'), 'utf8');
   assert.equal((panel.match(/\['scene-filter-field-input'/g) ?? []).length, 2);
   const fields = readFileSync(target('features/retrieval/workbench/result-comp/update/fields-setting.vue'), 'utf8');
-  assert.match(fields, /updateIsSetDefaultTableColumn'\);\s*RetrieveHelper\.fire\(RetrieveEvent\.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE\)/);
+  assert.match(fields, /updateIsSetDefaultTableColumn\(\);\s*RetrieveHelper\.fire\(RetrieveEvent\.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE\)/);
   const grok = readFileSync(target('features/grok/current/components/grok-input.tsx'), 'utf8');
   assert.match(grok, /getReferenceClientRect:/);
   assert.match(grok, /name: 'grokMaxHeight'/);

@@ -81,10 +81,16 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
 import { Menu as TMenu, MenuGroup as TMenuGroup, MenuItem as TMenuItem } from 'tdesign-vue-next';
 import SubNav from '@/features/navigation/manage-nav';
 import AuthContainerPage from '@/shared/ui/common/auth-container-page.vue';
-import { mapState } from '@/app/state/map-helpers';
+
 import { isFeatureToggleOn } from '@/app/state/helper';
 
 export default {
@@ -112,9 +118,9 @@ export default {
     };
   },
   computed: {
-    ...mapState(['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
+    ...mapPiniaState(useApplicationStore, ['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
     authPageInfo() {
-      return this.isHeadless ? null : this.$store.getters['globals/authContainerInfo'];
+      return this.isHeadless ? null : useGlobalsStore().authContainerInfo;
     },
     manageNavList() {
       if (this.isHeadless) {
@@ -193,8 +199,8 @@ export default {
     this.refreshKey = this.buildRefreshKey();
   },
   mounted() {
-    const bkBizId = this.$store.state.bkBizId;
-    const spaceUid = this.$store.state.spaceUid;
+    const bkBizId = useApplicationStore().bkBizId;
+    const spaceUid = useApplicationStore().spaceUid;
 
     this.$router
       .replace({
@@ -243,7 +249,7 @@ export default {
       this.$router.push({
         name: id,
         query: {
-          spaceUid: this.$store.state.spaceUid,
+          spaceUid: useApplicationStore().spaceUid,
         },
       });
     },
@@ -305,7 +311,7 @@ export default {
       const newUrl = this.$router.resolve({
         name: pageName,
         query: {
-          spaceUid: this.$store.state.spaceUid,
+          spaceUid: useApplicationStore().spaceUid,
         },
       });
       return newUrl.href;
@@ -331,8 +337,8 @@ export default {
     },
     // 检查 tgpa_task 功能开关
     checkTgpaTaskFeatureToggle() {
-      const bizId = this.$store.state.bkBizId;
-      const spaceUid = this.$store.state.spaceUid;
+      const bizId = useApplicationStore().bkBizId;
+      const spaceUid = useApplicationStore().spaceUid;
       return isFeatureToggleOn('tgpa_task', [String(bizId), String(spaceUid)], { defaultEnabled: true });
     },
     // 检查当前路由是否为 tgpa-task 相关路由
@@ -426,6 +432,14 @@ export default {
   // and 40px menu rows with 2px vertical space on each side.
   :deep(.t-default-menu .t-menu) {
     padding: 12px 0 4px;
+    // V2 hides the navigation scrollbar while keeping wheel/trackpad scrolling.
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
   }
 
   :deep(.t-default-menu .t-menu-group__title) {

@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton, Form as TForm, FormItem as TFormItem, Input as TInput } from 'tdesign-vue-next';
 import type { FormInstanceFunctions, FormRules } from 'tdesign-vue-next';
 
 import { computed, defineComponent, ref, reactive, watch, PropType } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { useFavorite } from '../../hooks/use-favorite';
 import { IFavoriteItem } from '../../types/index';
@@ -64,9 +66,9 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     /** 当前业务名 */
-    const spaceUid = computed(() => store.state.spaceUid);
+    const spaceUid = computed(() => store.spaceUid);
     const formData = reactive({ group_name: '' });
     const isShowAddGroup = ref(false);
     const checkInputFormRef = ref<FormInstanceFunctions | null>(null);

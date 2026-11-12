@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, defineComponent, type PropType } from 'vue';
 
 import BklogPopover from '@/shared/ui/bklog-popover/index';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { useRouter } from 'vue-router';
 
 import './collector-table.scss';
@@ -57,10 +59,10 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
 
-    const currentBizName = computed(() => store.state.space?.name || store.state.space?.space_name || '--');
+    const currentBizName = computed(() => store.space?.name || store.space?.space_name || '--');
     const tableData = computed(() => {
       const searchValue = props.keyword.trim().toLowerCase();
       if (!searchValue) {
@@ -91,7 +93,7 @@ export default defineComponent({
         params: { collectorId: `${row.collector_config_id}` },
         query: {
           bizId: `${row.bk_biz_id}`,
-          spaceUid: store.state.spaceUid,
+          spaceUid: store.spaceUid,
           typeKey: row.log_access_type,
         },
       });
@@ -102,7 +104,7 @@ export default defineComponent({
         name: 'collection-item-list',
         query: {
           indexSetId: `${indexSetId}`,
-          spaceUid: store.state.spaceUid,
+          spaceUid: store.spaceUid,
         },
       });
       window.open(routeData.href, '_blank', 'noopener,noreferrer');

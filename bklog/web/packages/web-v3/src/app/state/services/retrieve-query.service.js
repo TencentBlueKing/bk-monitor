@@ -7,10 +7,10 @@ import { retrieveFieldCacheService, storeCacheService } from '@/platform/persist
 import { buildTableIdConditions, isSceneRetrieve } from '../helper.ts';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../store.type.ts';
 
-export const resolveGetterVisibleFields = state => {
+export const resolveGetterVisibleFields = (state) => {
   if (state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
     const result = [];
-    state.visibleFields.forEach(field => {
+    state.visibleFields.forEach((field) => {
       if (!field.has_repeat_alias_field) {
         result.push(field);
       }
@@ -22,10 +22,10 @@ export const resolveGetterVisibleFields = state => {
     return result;
   }
 
-  return state.visibleFields.filter(field => !field.is_virtual_alias_field);
+  return state.visibleFields.filter((field) => !field.is_virtual_alias_field);
 };
 
-export const resolveFilteredFieldList = state => {
+export const resolveFilteredFieldList = (state) => {
   void state.fieldMetaVersion;
   void state.indexFieldInfo.field_meta_version;
   const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
@@ -34,43 +34,43 @@ export const resolveFilteredFieldList = state => {
     state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
   );
   const result = state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
-    ? sourceFields.filter(field => !field.has_repeat_alias_field)
-    : sourceFields.filter(field => !field.is_virtual_alias_field);
+    ? sourceFields.filter((field) => !field.has_repeat_alias_field)
+    : sourceFields.filter((field) => !field.is_virtual_alias_field);
 
   return result;
 };
 
-export const resolveRawFieldList = state => {
+export const resolveRawFieldList = (state) => {
   void state.fieldMetaVersion;
   void state.indexFieldInfo.field_meta_version;
   const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
   return retrieveFieldCacheService.getFieldList(fieldScope, false);
 };
 
-export const resolveFieldTree = state => {
+export const resolveFieldTree = (state) => {
   void state.fieldMetaVersion;
   void state.indexFieldInfo.field_meta_version;
   const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
   return retrieveFieldCacheService.getFieldTree(fieldScope);
 };
 
-export const resolveFieldAliasMap = state =>
+export const resolveFieldAliasMap = (state) =>
   resolveRawFieldList(state).reduce((out, field) => {
     out[field.field_name] = field.field_alias || field.field_name;
     return out;
   }, {});
 
 /** UI 展示专用：仅使用 query_alias，不影响既有 fieldAliasMap 业务语义 */
-export const resolveDisplayFieldAliasMap = state =>
+export const resolveDisplayFieldAliasMap = (state) =>
   resolveRawFieldList(state).reduce((out, field) => {
     out[field.field_name] = field.query_alias || field.field_name;
     return out;
   }, {});
 
-export const buildOriginAddition = state => {
+export const buildOriginAddition = (state) => {
   const { addition = [] } = state.indexItem;
   const filterAddition = addition
-    .filter(item => item.field !== '_ip-select_')
+    .filter((item) => item.field !== '_ip-select_')
     .map(({ field, operator, value, hidden_values, disabled }) => {
       const target = {
         field,
@@ -87,12 +87,12 @@ export const buildOriginAddition = state => {
       return target;
     });
 
-  filterAddition.forEach(item => {
+  filterAddition.forEach((item) => {
     if (['=~', '&=~', '!=~', '&!=~'].includes(item.operator)) {
       const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
       const field = retrieveFieldCacheService.getFieldNameIndex(fieldScope)[item.field];
       if (field?.field_type === 'text' && !(field?.is_case_sensitive ?? true)) {
-        item.value = item.value.map(v => v?.toLowerCase() ?? '');
+        item.value = item.value.map((v) => v?.toLowerCase() ?? '');
       }
     }
   });
@@ -121,7 +121,7 @@ export const buildRetrieveParams = (state, getters, rootGetters) => {
 
   if (state.aiMode.active) {
     searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword]
-      .filter(f => !/^\s*\*?\s*$/.test(f))
+      .filter((f) => !/^\s*\*?\s*$/.test(f))
       .join(' AND ');
   }
 
@@ -156,10 +156,7 @@ export const buildRetrieveParams = (state, getters, rootGetters) => {
   };
 
   if (isSceneRetrieve(state)) {
-    const { table_id_conditions, scene_filter_values } = buildTableIdConditions(
-      state,
-      rootGetters['retrieve/sceneConfigList'],
-    );
+    const { table_id_conditions, scene_filter_values } = buildTableIdConditions(state, rootGetters.sceneConfigList);
     Object.assign(baseParams, {
       space_uid: state.spaceUid,
       table_id_conditions,
@@ -184,7 +181,7 @@ export const buildRequestAddition = (state, getters) => {
   return originAddition.reduce((output, current) => {
     const { field, operator, value, hidden_values: hiddenValues = [], disabled } = current;
     if (!disabled && field !== '_ip-select_') {
-      const filterFn = v => !hiddenValues.includes(v);
+      const filterFn = (v) => !hiddenValues.includes(v);
       const filterValue = Array.isArray(value) ? value.filter(filterFn) : [value].filter(filterFn);
       if (['does not exists', 'exists', 'is false', 'is true'].includes(operator) || filterValue.length > 0) {
         output.push({

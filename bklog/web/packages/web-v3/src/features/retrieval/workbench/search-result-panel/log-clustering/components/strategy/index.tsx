@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
@@ -146,7 +148,7 @@ export default class Strategy extends tsc<StrategyProps> {
     return this.activeType === 'alarm';
   }
   get bkBizId() {
-    return this.$store.state.bkBizId;
+    return useApplicationStore().bkBizId;
   }
   get formData(): any {
     return this.isAlarmType ? this.alarmFormData : this.increaseFormData;
@@ -157,7 +159,7 @@ export default class Strategy extends tsc<StrategyProps> {
   }
 
   get isExternal() {
-    return this.$store.state.isExternal;
+    return useApplicationStore().isExternal;
   }
 
   @Watch('alarmIsSubmit')
@@ -333,14 +335,14 @@ export default class Strategy extends tsc<StrategyProps> {
   }
   /** 跳转告警策略列表 */
   handleJumpStrategyList() {
-    const bizid = this.$store.state.indexItem.items[0].bk_biz_id;
+    const bizid = useApplicationStore().indexItem.items[0].bk_biz_id;
     window.open(
       `${window.MONITOR_URL}/?bizId=${bizid}#/strategy-config?strategyLabels=${JSON.stringify(this.labelName)}`,
       '_blank',
     );
   }
   handleCreateUserGroups() {
-    const bizid = this.$store.state.indexItem.items[0].bk_biz_id;
+    const bizid = useApplicationStore().indexItem.items[0].bk_biz_id;
     window.open(`${window.MONITOR_URL}/?bizId=${bizid}#/alarm-group/add`, '_blank');
   }
   render() {
@@ -557,7 +559,7 @@ export default class Strategy extends tsc<StrategyProps> {
         {!!this.labelName.length && (
           <TButton
             size='small'
-            
+
             onClick={this.handleJumpStrategyList} variant={(true) ? 'text' : ('base')}
           >
             <span>{$i18n.t('查看策略')}</span>

@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Progress as TProgress } from 'tdesign-vue-next';
 
 import { Radio as TRadio } from 'tdesign-vue-next';
@@ -32,7 +34,7 @@ import { computed, defineComponent, ref, watch, type PropType } from 'vue';
 
 import { formatFileSize } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { useRouter } from 'vue-router';
 import TableComponent from '../../common-comp/table-component';
 
@@ -143,7 +145,7 @@ export default defineComponent({
     // ==================== 基础依赖 ====================
     const { t } = useLocale();
     const router = useRouter();
-    const store = useStore();
+    const store = useApplicationStore();
 
     // ==================== 常量定义 ====================
     /** 百分比基数 */
@@ -299,7 +301,7 @@ export default defineComponent({
       const newUrl = router.resolve({
         name: 'es-cluster-manage',
         query: {
-          spaceUid: store.state.spaceUid,
+          spaceUid: store.spaceUid,
         },
       });
       window.open(newUrl.href, '_blank');

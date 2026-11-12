@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { Tag as TTag } from 'tdesign-vue-next';
 
 import { Checkbox as TCheckbox } from 'tdesign-vue-next';
@@ -166,23 +171,23 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
   @Ref('checkInputForm') private readonly checkInputFormRef!: any;
 
   get indexSetList() {
-    return this.$store.state.retrieve.flatIndexSetList;
+    return useRetrieveStore().$state.flatIndexSetList;
   }
 
   get basicLoading() {
-    return this.$store.state.retrieve.isIndexSetLoading;
+    return useRetrieveStore().$state.isIndexSetLoading;
   }
 
   get indexId() {
     if (window.__IS_MONITOR_COMPONENT__) {
-      return String(this.$store.state.indexId || this.$route.query.indexId);
+      return String(useApplicationStore().indexId || this.$route.query.indexId);
     }
     return String(this.$route.params.indexId);
   }
 
   get routeParamIndexId() {
     if (window.__IS_MONITOR_COMPONENT__) {
-      return String(this.$store.state.indexId || this.$route?.query?.indexId);
+      return String(useApplicationStore().indexId || this.$route?.query?.indexId);
     }
     return String(this.$route.params.indexId);
   }
@@ -208,11 +213,11 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
   }
 
   get spaceUid() {
-    return this.$store.state.spaceUid;
+    return useApplicationStore().spaceUid;
   }
 
   get bkBizId() {
-    return this.$store.state.bkBizId;
+    return useApplicationStore().bkBizId;
   }
 
   /** 展示的收藏 */
@@ -342,15 +347,15 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
   }
 
   get unionIndexList() {
-    return this.$store.state.unionIndexList;
+    return useApplicationStore().unionIndexList;
   }
 
   get isUnionSearch() {
-    return this.$store.getters.isUnionSearch;
+    return useApplicationStore().isUnionSearch;
   }
 
   get indexItem() {
-    return this.$store.state.indexItem;
+    return useApplicationStore().indexItem;
   }
 
   get isOverSelect() {
@@ -568,7 +573,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
     (this.$el as any).click(); // 手动关闭下拉
     try {
       this.$emit('update:basic-loading', true);
-      const res = await this.$store.dispatch('getApplyData', {
+      const res = await useApplicationStore().getApplyData({
         action_ids: [authorityMap.SEARCH_LOG_AUTH],
         resources: [
           {
@@ -605,7 +610,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
           if (window.__IS_MONITOR_COMPONENT__) {
             this.$emit('collection');
           } else {
-            this.$store.dispatch('retrieve/getIndexSetList', { spaceUid: this.spaceUid, isLoading: false });
+            useRetrieveStore().getIndexSetList({ spaceUid: this.spaceUid, isLoading: false });
           }
         });
     } finally {
@@ -1052,7 +1057,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
                         <TTag
                           key={setName}
                           class={['title-overflow', 'tag-item']}
-                          
+
                           v-log-overflow-tips variant='light' data-v2-display='tag'
                         >
                           {setName}
@@ -1149,13 +1154,13 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
                     </bk-form>
                     <div class='operate-button'>
                       <TButton
-                        
+
                         onClick={() => this.handleClickFavoritePopoverBtn('add')} variant={(true) ? 'text' : ('base')}
                       >
                         {this.$t('确认收藏')}
                       </TButton>
                       <TButton theme="default"
-                        
+
                         onClick={() => this.handleClickFavoritePopoverBtn('cancel')} variant={(true) ? 'text' : ('base')}
                       >
                         {this.$t('取消')}

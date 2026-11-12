@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import {
   Button as TButton,
   Dialog as TDialog,
@@ -39,7 +41,7 @@ import { ServicesInstance } from '@/platform/services';
 import { computed, defineComponent, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute } from 'vue-router';
 
 import './multiline-reg-dialog.scss';
@@ -70,7 +72,7 @@ export default defineComponent({
     const DIALOG_MIN_TOP = 70;
 
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const matchLines = ref<number | null>(null);
     const isMatchLoading = ref(false);
@@ -88,11 +90,11 @@ export default defineComponent({
     ]);
 
     const getDialogWidth = computed(() => {
-      return store.getters.isEnLanguage ? '800' : '680';
+      return store.isEnLanguage ? '800' : '680';
     });
 
     const getLabelWidth = computed(() => {
-      return store.getters.isEnLanguage ? EN_LABEL_WIDTH : CN_LABEL_WIDTH;
+      return store.isEnLanguage ? EN_LABEL_WIDTH : CN_LABEL_WIDTH;
     });
 
     const dialogTop = computed(() => {

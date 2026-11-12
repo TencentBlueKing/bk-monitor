@@ -23,6 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
+
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
 
 import { Input as TInput } from 'tdesign-vue-next';
 
@@ -33,7 +38,7 @@ import { Button as TButton } from 'tdesign-vue-next';
 import { defineComponent, ref, computed, onBeforeUnmount, onMounted, nextTick, type PropType, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { isFieldTypeDisabled } from '@/shared/lib/util';
 import tippy, { type Instance } from 'tippy.js';
 import InfoTips from '../../common-comp/info-tips';
@@ -171,7 +176,7 @@ export default defineComponent({
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const REQUIRED_FIELD_MSG = t('必填项');
     const INVALID_FIELD_NAME_MSG = t('只能包含a - z、A - Z、0 - 9和_，且不能以_开头和结尾');
     const INVALID_ALIAS_NAME_MSG = t('重命名只能包含a - z、A - Z、0 - 9和_');
@@ -186,7 +191,7 @@ export default defineComponent({
     let isDestroyed = false;
     const formData = ref({ tableList: [] as FieldItem[] });
     // 获取全局数据
-    const globalsData = computed(() => store.getters['globals/globalsData']);
+    const globalsData = computed(() => useGlobalsStore().globalsData);
     const isPreviewMode = computed(() => props.tableType === 'preview');
     const isAdd = computed(() => props.selectEtlConfig === 'bk_log_json');
     const currentParticipleState = ref('default');
@@ -330,7 +335,7 @@ export default defineComponent({
                   <span class='menu-item-label'>{t('分词')}</span>
                   <TSwitch
                     // disabled={getCustomizeDisabled(props.row, 'analyzed')}
-                    
+
                     value={cacheData.value.is_analyzed}
                     onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
                       cacheData.value.is_analyzed = value;
@@ -373,7 +378,7 @@ export default defineComponent({
                   <span class='menu-item-label'>{t('大小写敏感')}</span>
                   <TSwitch
                     disabled={!cacheData.value.is_analyzed}
-                    
+
                     value={cacheData.value.is_case_sensitive}
                     onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
                       cacheData.value.is_case_sensitive = value;

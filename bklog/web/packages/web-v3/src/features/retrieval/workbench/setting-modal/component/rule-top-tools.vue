@@ -266,6 +266,8 @@
 </template>
 
 <script>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -366,7 +368,7 @@ import { ServicesInstance } from '@/platform/services';
         },
       },
       spaceUid() {
-        return this.$store.state.spaceUid;
+        return useApplicationStore().spaceUid;
       },
     },
     watch: {

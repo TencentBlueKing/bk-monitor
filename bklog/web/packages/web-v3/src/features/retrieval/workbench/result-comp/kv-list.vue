@@ -132,6 +132,13 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
   // import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/shared/lib/util';
@@ -141,7 +148,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   import { useTableRowDeepView } from '@/shared/composables/use-table-row-deep-view';
   import { retrieveRowCacheService } from '@/platform/persistence/index';
   import _escape from 'lodash/escape';
-  import { mapGetters, mapState } from '@/app/state/map-helpers';
+
 
   // import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
   import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
@@ -273,11 +280,11 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       };
     },
     computed: {
-      ...mapState('globals', ['fieldTypeMap']),
-      ...mapGetters({
+      ...mapPiniaState(useGlobalsStore, ['fieldTypeMap']),
+      ...mapPiniaState(useApplicationStore, {
         retrieveParams: 'retrieveParams',
       }),
-      ...mapState({
+      ...mapPiniaState(useApplicationStore, {
         formatJson: state => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
         showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
         isAllowEmptyField: state => state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD],
@@ -286,10 +293,10 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         return pageHighlightState.version;
       },
       apmRelation() {
-        return this.$store.state.indexSetFieldConfig.apm_relation;
+        return useApplicationStore().indexSetFieldConfig.apm_relation;
       },
       bkBizId() {
-        return this.$store.state.bkBizId;
+        return useApplicationStore().bkBizId;
       },
       // 缓存映射：kvShowFieldsList 转为 Set
       kvShowFieldsSet() {
@@ -330,7 +337,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       },
       filedSettingConfigID() {
         // 当前索引集的显示字段ID
-        return this.$store.state.retrieve.filedSettingConfigID;
+        return useRetrieveStore().$state.filedSettingConfigID;
       },
       isHaveBkHostIDAndHaveValue() {
         // 当前是否有bk_host_id字段且有值
@@ -1017,7 +1024,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
        */
       getRelationMonitorField(field) {
         // 外部版不提供外链跳转
-        if (this.$store.state.isExternal) return false;
+        if (useApplicationStore().isExternal) return false;
 
         const key = field.toLowerCase();
         // 提取最后一段字段名，仅用于trace检索的嵌套字段匹配
@@ -1065,7 +1072,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         return this.fieldItemMapByName[fieldName];
       },
       getFieldName(field) {
-        return getFieldNameByField(field, this.$store);
+        return getFieldNameByField(field, useApplicationStore());
       },
       /** 展开面板字段 KEY 同样应用页面高亮 */
       getHighlightedFieldNameHtml(field) {
@@ -1084,9 +1091,9 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         if (visible && !displayFields.includes(field.field_name)) {
           displayFields.push(field.field_name);
         }
-        this.$store.dispatch('userFieldConfigChange', { displayFields }).then(() => {
-          this.$store.commit('resetVisibleFields', { displayFieldNames: displayFields, version: 'v2' });
-          this.$store.commit('updateIsSetDefaultTableColumn', false);
+        useApplicationStore().userFieldConfigChange({ displayFields }).then(() => {
+          useApplicationStore().resetVisibleFields({ displayFieldNames: displayFields, version: 'v2' });
+          useApplicationStore().updateIsSetDefaultTableColumn(false);
           RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
         });
       },

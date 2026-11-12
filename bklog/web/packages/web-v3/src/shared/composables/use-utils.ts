@@ -1,12 +1,14 @@
-import useStore from './use-store';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
 import { computed } from 'vue';
 import { formatTimeZoneString } from '@/shared/global/utils/time';
 
 export default () => {
-  const store = useStore();
+  const store = useApplicationStore();
 
   const timezone = computed(() => {
-    return store.state.userMeta.time_zone;
+    return store.userMeta.time_zone;
   });
 
   /**

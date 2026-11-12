@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton, Dialog as TDialog, Input as TInput } from 'tdesign-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 import { defineComponent, ref, computed, watch, nextTick, onUnmounted } from 'vue';
@@ -38,7 +40,7 @@ import { debounce } from 'throttle-debounce';
 import { useRouter, useRoute } from 'vue-router';
 
 import * as authorityMap from '../../lib/authority-map';
-import useStore from '../../composables/use-store';
+
 import useListSort, { isExactHiddenMatch, isExactSearchFieldMatch } from '../../composables/use-list-sort';
 import { useUserConfiguration } from '@/shared/composables/use-user-configuration';
 import List from './list';
@@ -64,7 +66,7 @@ export default defineComponent({
     const { t } = useLocale();
     const BIZ_SELECTOR_COMMON_MAX = 5; // 常用业务缓存最大个数
 
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const router = useRouter();
     const navMenu = useNavMenu({ t, bkInfo: (window as any).bkInfo, http: (window as any).$http, emit });
@@ -83,10 +85,10 @@ export default defineComponent({
     const DEFAULT_BIZ_ID_KEY = 'DEFAULT_BIZ_ID';
     const refRootElement = ref<HTMLElement>(null);
 
-    const isExternal = computed(() => store.state.isExternal);
+    const isExternal = computed(() => store.isExternal);
     // 首屏只加载当前空间，全量空间列表由 getAllSpaceList 异步补齐
-    const spaceListLoading = computed(() => !store.state.spaceListLoaded);
-    const demoUid = computed(() => store.getters.demoUid);
+    const spaceListLoading = computed(() => !store.spaceListLoaded);
+    const demoUid = computed(() => store.demoUid);
     const demoSpace = computed(() => mySpaceList.value.find(item => item.space_uid === demoUid.value));
 
     const menuSearchInput = ref();
@@ -94,15 +96,15 @@ export default defineComponent({
     const bizBoxWidth = ref(418);
     const selectedIndex = ref(-1); // 当前键盘选中的索引
 
-    const commonListIdsLog = computed(() => store.state.storage[BK_LOG_STORAGE.COMMON_SPACE_ID_LIST] ?? []);
-    const spaceUid = computed(() => store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID]);
+    const commonListIdsLog = computed(() => store.storage[BK_LOG_STORAGE.COMMON_SPACE_ID_LIST] ?? []);
+    const spaceUid = computed(() => store.storage[BK_LOG_STORAGE.BK_SPACE_UID]);
 
     // 业务名称和首字母
     const bizName = computed(() => {
       if (props.isExternalAuth && !!exterlAuthSpaceName.value) {
         return exterlAuthSpaceName.value;
       }
-      if (store.state.spaceResolveFailed && !props.isExternalAuth) {
+      if (store.spaceResolveFailed && !props.isExternalAuth) {
         return t('请选择业务');
       }
       return mySpaceList.value.find(item => item.space_uid === spaceUid.value)?.space_name ?? t('请选择业务');
@@ -434,7 +436,7 @@ export default defineComponent({
         .handleSetUserConfig(DEFAULT_BIZ_ID_KEY, `${bizId}`, '')
         .then(result => {
           if (result) {
-            store.commit('SET_APP_STATE', {
+            store.SET_APP_STATE({
               defaultBizId: bizId,
             });
           }
@@ -451,13 +453,13 @@ export default defineComponent({
 
     // 单例 debounce：每次点击复用同一实例，连续切业务才真正防抖
     const debounceUpdateRouter = debounce(60, async (space: any) => {
-      store.commit('updateSpace', space.space_uid);
-      store.commit('updateStorage', {
+      store.updateSpace(space.space_uid);
+      store.updateStorage({
         [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
         [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
       });
 
-      if (store.state.spaceResolveFailed && !props.isExternalAuth) {
+      if (store.spaceResolveFailed && !props.isExternalAuth) {
         const location = buildSpaceRecoveryLocation({
           routeName: route.name as string,
           params: route.params,
@@ -470,9 +472,9 @@ export default defineComponent({
           route.name === 'retrieve' &&
           route.query.spaceUid === space.space_uid &&
           route.query.bizId === `${space.bk_biz_id}` &&
-          store.state.spaceUid === space.space_uid
+          store.spaceUid === space.space_uid
         ) {
-          store.commit('updateState', { spaceResolveFailed: false, tenantMismatch: null });
+          store.updateState({ spaceResolveFailed: false, tenantMismatch: null });
         }
         return;
       }
@@ -491,7 +493,7 @@ export default defineComponent({
           query: buildSpaceSwitchQuery({
             routeName: route.name as string,
             query: route.query ?? {},
-            storeRetrieveType: store.state.indexItem?.retrieve_type,
+            storeRetrieveType: store.indexItem?.retrieve_type,
             space,
           }),
         });
@@ -534,7 +536,7 @@ export default defineComponent({
       // 将当前 id 插入第一位
       cacheIds.unshift(id);
 
-      store.commit('updateStorage', { [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: cacheIds.slice(0, maxLen) });
+      store.updateStorage({ [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: cacheIds.slice(0, maxLen) });
     };
 
     // 下拉框内容渲染

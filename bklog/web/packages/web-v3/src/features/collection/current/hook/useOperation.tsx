@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
 /**
@@ -33,7 +35,7 @@ import { ServicesInstance } from '@/platform/services';
 import { computed, ref, type Ref } from 'vue';
 
 import * as authorityMap from '@/shared/lib/authority-map';
-import useStore from '@/shared/composables/use-store';
+
 
 
 
@@ -62,8 +64,8 @@ type ResponseTransformCallback<T = unknown> = (_response: IApiResponse) => T;
  * @returns 返回操作相关的状态和方法
  */
 export const useOperation = () => {
-  const store = useStore();
-  const spaceUid = computed(() => store.getters.spaceUid);
+  const store = useApplicationStore();
+  const spaceUid = computed(() => store.spaceUid);
 
   // ==================== 状态管理 ====================
 

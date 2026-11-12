@@ -1,12 +1,14 @@
 <script setup>
-  import { computed, reactive, ref, watch, onMounted, onUpdated } from 'vue';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { computed, reactive, ref, watch, onMounted, onUpdated } from 'vue';
   import { Popup as TPopup } from 'tdesign-vue-next';
 import { set } from "@/shared/lib/reactivity";
 
   import { getOperatorKey } from '@/shared/lib/util';
   import useFieldNameHook from '@/shared/composables/use-field-name';
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import { storeRuntimeCacheService } from '@/app/state/services/runtime-cache.service.js';
 
   import IPSelector from '../components/ip-selector';
@@ -37,13 +39,13 @@ import { set } from "@/shared/lib/reactivity";
   });
 
   const emit = defineEmits(['input', 'change', 'height-change', 'popup-change', 'text-to-query', "heightChange", "popupChange", "textToQuery"]);
-  const store = useStore();
+  const store = useApplicationStore();
   const { t } = useLocale();
   const inputValueLength = ref(0);
 
   const language = jsCookie.get('blueking_language') || 'zh-cn';
 
-  const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+  const isAiAssistantActive = computed(() => store.features.isAiAssistantActive);
 
   const paddingLeft = computed(() => {
     if (!isAiAssistantActive.value) {
@@ -79,7 +81,7 @@ import { set } from "@/shared/lib/reactivity";
     return '';
   });
 
-  const bkBizId = computed(() => store.state.bkBizId);
+  const bkBizId = computed(() => store.bkBizId);
 
   /**
    * 格式化搜索标签渲染格式
@@ -100,7 +102,7 @@ import { set } from "@/shared/lib/reactivity";
   };
 
   const operatorDictionary = computed(() => {
-    void store.state.operatorDictionaryVersion;
+    void store.operatorDictionaryVersion;
     const defVal = {
       [getOperatorKey(FulltextOperatorKey)]: {
         label: t('包含'),
@@ -109,7 +111,7 @@ import { set } from "@/shared/lib/reactivity";
     };
     return {
       ...defVal,
-      ...storeRuntimeCacheService.getOperatorDictionary(store.state.indexId || 'default'),
+      ...storeRuntimeCacheService.getOperatorDictionary(store.indexId || 'default'),
     };
   });
 
@@ -565,11 +567,11 @@ import { set } from "@/shared/lib/reactivity";
   };
 
   const formatDateTimeField = (value, fieldType) => {
-    if (!store.state.isFormatDate) {
+    if (!store.isFormatDate) {
       return value;
     }
 
-    const timezone = store.state.indexItem.timezone;
+    const timezone = store.indexItem.timezone;
     return RetrieveHelper.formatTimeZoneValue(value, fieldType, timezone);
   };
 </script>

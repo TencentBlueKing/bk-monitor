@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
@@ -31,7 +33,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, ref, nextTick, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { createRawTippyOverlay, useDialogVisible } from '@/shared/global/overlay/index';
 import RegexTable, { type RowData } from './regex-table/index';
 
@@ -72,7 +74,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const previewBtnRef = ref<HTMLElement>();
     const secondConfirmRef = ref<any>(null);
@@ -94,8 +96,8 @@ export default defineComponent({
     const isConfirmLoading = ref(false);
     const regexList = ref<RowData[]>([]);
 
-    const indexSetItem = computed(() => store.state.indexItem.items[0]);
-    const configId = computed(() => store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id);
+    const indexSetItem = computed(() => store.indexItem.items[0]);
+    const configId = computed(() => store.indexSetFieldConfig.clean_config?.extra.collector_config_id);
     // 选中的划词
     let occupyOriginStr = '';
     let occupyPopoverInstance: any = null;
@@ -496,7 +498,7 @@ export default defineComponent({
                 <span ref={previewBtnRef}>
                   <TButton
                     theme='primary'
-                    
+
                     size='small'
                     disabled={!regexList.value.length}
                     onClick={handleClickPreview} variant={(true) ? 'outline' : 'base'}

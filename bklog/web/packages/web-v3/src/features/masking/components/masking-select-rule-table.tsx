@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Checkbox as Checkbox } from 'tdesign-vue-next';
 
 import { Button as Button } from 'tdesign-vue-next';
@@ -128,7 +130,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   isAllowed = false;
 
   get spaceUid() {
-    return this.$store.state.spaceUid;
+    return useApplicationStore().spaceUid;
   }
 
   get authorityData() {
@@ -192,8 +194,8 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   async handleAddNewRule() {
     if (!this.isAllowed) {
       try {
-        const res = await this.$store.dispatch('getApplyData', this.authorityData);
-        this.$store.commit('updateState', { authDialogData: res.data });
+        const res = await useApplicationStore().getApplyData(this.authorityData);
+        useApplicationStore().updateState({ authDialogData: res.data });
       } catch (err) {
         console.warn(err);
       }
@@ -240,7 +242,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       this.tableLoading = true;
       let params = {}; // 如果要获取全局列表 params为空 不传业务id
       params = { space_uid: this.spaceUid, rule_type: 'all' }; // 非全局列表 传业务id
-      const authorityRes = await this.$store.dispatch('checkAndGetData', this.authorityData);
+      const authorityRes = await useApplicationStore().checkAndGetData(this.authorityData);
       this.isAllowed = authorityRes.isAllowed;
       const res = await ServicesInstance.masking.getMaskingRuleList({
         params,
@@ -492,7 +494,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             class='new-rule-btn'
             v-cursor={{ active: !this.isAllowed }}
             theme='primary'
-            
+
             onClick={() => this.handleAddNewRule()} variant={(true) ? 'outline' : 'base'}
           >
             <i class='bk-icon icon-plus push' />

@@ -1,10 +1,12 @@
 /* Copyright (C) 2021 THL A29 Limited, a Tencent company.
  * 蓝鲸智云PaaS平台 (BlueKing PaaS), MIT License. */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { onScopeDispose, ref } from 'vue';
-import useStore from './use-store';
+
 /** V2's right-hand introduction pane: dragging left expands the pane. */
 export function useIntroResize(initialWidth = 400) {
-  const store = useStore();
+  const store = useApplicationStore();
   const minIntroWidth = ref(300);
   const maxIntroWidth = ref(480);
   const introWidth = ref(initialWidth);
@@ -33,7 +35,7 @@ export function useIntroResize(initialWidth = 400) {
     currentTreeBoxWidth.value = null;
     currentScreenX.value = null;
     removeListeners();
-    store.commit('updateChartSize');
+    store.updateChartSize();
   }
   onScopeDispose(removeListeners);
   return {

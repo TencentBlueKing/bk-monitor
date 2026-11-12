@@ -180,10 +180,14 @@
   </bk-dialog>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
-  import { mapState } from '@/app/state/map-helpers';
+
   import * as authorityMap from '../../../../../shared/lib/authority-map';
 
   export default {
@@ -230,7 +234,7 @@
       };
     },
     computed: {
-      ...mapState(['spaceUid', 'bkBizId']),
+      ...mapPiniaState(useApplicationStore, ['spaceUid', 'bkBizId']),
       authorityMap() {
         return authorityMap;
       },
@@ -353,7 +357,7 @@
         try {
           this.$el.click(); // 因为下拉在loading上面所以需要关闭下拉
           this.basicLoading = true;
-          const res = await this.$store.dispatch('getApplyData', {
+          const res = await useApplicationStore().getApplyData({
             action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
             resources: [
               {

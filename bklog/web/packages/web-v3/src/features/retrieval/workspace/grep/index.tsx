@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -31,8 +33,7 @@ import { defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { readBlobRespToJson } from '@/shared/lib/util';
 import { moduleLargeDataCacheService } from '@/platform/persistence/index';
 import useFieldAliasRequestParams from '@/shared/composables/use-field-alias-request-params';
-import useStore from '@/shared/composables/use-store';
-import RequestPool from '@/app/state/request-pool';
+
 import { debounce } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
@@ -59,7 +60,7 @@ export default defineComponent({
     GrepCliResult,
   },
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
 
     const route = useRoute();
     const router = useRouter();
@@ -96,7 +97,7 @@ export default defineComponent({
      * 如果 log 字段不存在，则设置为第一个 field_type 为 text 的字段
      */
     const setDefaultFieldValue = () => {
-      const rawFieldList = store.getters.rawFieldList;
+      const rawFieldList = store.rawFieldList;
       if (field.value === '' && rawFieldList.length > 0) {
         const logField = rawFieldList.find((field: { field_name: string; }) => field.field_name === 'log');
         if (logField) {
@@ -152,15 +153,15 @@ export default defineComponent({
 
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const cancelTokenKey = 'requestIndexSetGrepQueryToken';
-      RequestPool.execCanceToken(cancelTokenKey);
-      const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
+      store.requestPool.execCanceToken(cancelTokenKey);
+      const requestCancelToken = store.requestPool.getCancelToken(cancelTokenKey);
 
-      const { start_time, end_time, keyword, addition } = store.state.indexItem;
+      const { start_time, end_time, keyword, addition } = store.indexItem;
       const { alias_settings: aliasSettings, sort_list: sortList } = useFieldAliasRequestParams();
 
       const params: any = {
         method: 'post',
-        url: `/search/index_set/${store.state.indexId}/grep_query/`,
+        url: `/search/index_set/${store.indexId}/grep_query/`,
         cancelToken: requestCancelToken,
         withCredentials: true,
         baseURL: baseUrl,
@@ -179,10 +180,10 @@ export default defineComponent({
         },
       };
 
-      if (store.state.spaceUid) {
+      if (store.spaceUid) {
         Object.assign(params, {
           headers: {
-            'X-Bk-Space-Uid': store.state.spaceUid,
+            'X-Bk-Space-Uid': store.spaceUid,
           },
         });
       }
@@ -192,7 +193,7 @@ export default defineComponent({
           trigger_source: 'grep',
           action: 'request',
         },
-        store.state,
+        store,
       );
 
       return axiosInstance(params)
@@ -205,7 +206,7 @@ export default defineComponent({
                 const currentScope =
                   grepRequestResult.value.cache_scope ||
                   moduleLargeDataCacheService.createScope('grep', {
-                    indexId: store.state.indexId,
+                    indexId: store.indexId,
                     field: field.value,
                     grepQuery: grepQuery.value,
                     start_time,
@@ -354,7 +355,7 @@ export default defineComponent({
       if (!field.value) {
         return;
       }
-      const { start_time, end_time, keyword, addition } = store.state.indexItem;
+      const { start_time, end_time, keyword, addition } = store.indexItem;
       const { alias_settings: aliasSettings, sort_list: sortList } = useFieldAliasRequestParams();
       const data = {
         start_time,
@@ -368,7 +369,7 @@ export default defineComponent({
       };
       ServicesInstance.retrieve.getGrepResultTotal({
           params: {
-            index_set_id: store.state.indexId,
+            index_set_id: store.indexId,
           },
           data,
         })
@@ -389,7 +390,7 @@ export default defineComponent({
     };
 
     watch(
-      () => store.getters.rawFieldList.length,
+      () => store.rawFieldList.length,
       length => {
         if (!field.value && length > 0) {
           setDefaultFieldValue();
@@ -411,13 +412,13 @@ export default defineComponent({
       const mountAction = resolveGrepMountAction(RetrieveHelper.isSearching, field.value);
       if (mountAction === 'reload') {
         reloadGrepDataAndTotal();
-      } else if (mountAction === 'idle' && !store.state.indexFieldInfo.is_loading) {
+      } else if (mountAction === 'idle' && !store.indexFieldInfo.is_loading) {
         grepRequestResult.value.is_loading = false;
       }
     });
 
     onBeforeUnmount(() => {
-      RequestPool.execCanceToken('requestIndexSetGrepQueryToken');
+      store.requestPool.execCanceToken('requestIndexSetGrepQueryToken');
       requestGrepList.cancel?.();
       resetGrepRequestResult(false);
       moduleLargeDataCacheService.clearMemory(grepRequestResult.value.cache_scope);

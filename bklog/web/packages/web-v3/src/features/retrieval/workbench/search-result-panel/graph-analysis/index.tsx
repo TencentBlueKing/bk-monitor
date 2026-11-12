@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 import { Component, Watch } from 'vue-property-decorator';
@@ -62,6 +63,15 @@ export enum GraphCategory {
   PIE = 'pie',
   TABLE = 'table',
 }
+interface StoredGraphParams {
+  xFields: string[];
+  yFields: string[];
+  dimensions: string[];
+  hiddenFields: string[];
+  activeGraphCategory: GraphCategory;
+  chartActiveType: GraphCategory;
+  sql: string;
+}
 @Component({
   components: {
     ClusteringLoader,
@@ -82,12 +92,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   minRightOptionWidth = 360;
   activeGraphCategory = GraphCategory.TABLE;
   chartActiveType = GraphCategory.TABLE;
-  xFields = [];
-  yFields = [];
+  xFields: string[] = [];
+  yFields: string[] = [];
   chartData: { data?: any; list?: any[]; result_schema?: any[]; select_fields_order?: string[] } = {};
   resultSchema = [];
-  hiddenFields = [];
-  dimensions = [];
+  hiddenFields: string[] = [];
+  dimensions: string[] = [];
   uiQueryValue = [];
   sqlQueryValue = '';
   advanceHeight = 164;
@@ -120,28 +130,31 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     scrollTop: 0,
   };
 
-  debounceCallback = debounce(entry => {
+  debounceCallback = debounce((entry) => {
     const { offsetWidth, offsetHeight } = entry.target;
     Object.assign(this.canvasBodyStyle, { with: offsetWidth, height: offsetHeight });
   }, 120);
 
-  throttleScrollCallback = throttle(event => {
+  throttleScrollCallback = throttle((event) => {
     Object.assign(this.canvasBodyStyle, { scrollTop: (event.target as HTMLElement).scrollTop });
   });
 
   resizeObserver: ResizeObserver | null = null;
   chartParamsTimers = new Set<ReturnType<typeof setTimeout>>();
+  chartParamsSnapshot: Partial<StoredGraphParams> | null = null;
   isRequesting = false;
 
   get exceptionStyle() {
     const scrollHeight =
       this.canvasBodyStyle.scrollTop < this.sqlEditorHeight ? this.canvasBodyStyle.scrollTop : this.sqlEditorHeight;
 
-    const announcementHeight = this.$store.state.showAlert ? 40 : 0;
+    const announcementHeight = useApplicationStore().showAlert ? 40 : 0;
 
     return {
       '--exception-width': `${this.canvasBodyStyle.with}px`,
-      '--exception-height': `${this.canvasBodyStyle.height - this.sqlEditorHeight + scrollHeight - announcementHeight}px`,
+      '--exception-height': `${
+        this.canvasBodyStyle.height - this.sqlEditorHeight + scrollHeight - announcementHeight
+      }px`,
       '--exception-right': `${this.rightOptionWidth + 10}px`,
     };
   }
@@ -246,14 +259,14 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   get storedChartParams() {
-    return this.$store.state.indexItem.chart_params ?? {};
+    return useApplicationStore().indexItem.chart_params ?? {};
   }
 
   get extendParams() {
     return {
       favorite_type: 'chart',
       chart_params: this.storedChartParams,
-      search_mode: SEARCH_MODE_DIC[this.$store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
+      search_mode: SEARCH_MODE_DIC[useApplicationStore().storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
     };
   }
 
@@ -262,26 +275,30 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     if (this.storedChartParams) {
       const timer = setTimeout(() => {
         this.chartParamsTimers.delete(timer);
-        const paramKeys = [
-          'xFields',
-          'yFields',
-          'activeGraphCategory',
-          'chartActiveType',
-          'dimensions',
-          'hiddenFields',
-        ];
-        for (const key of paramKeys) {
-          const target = this.storedChartParams[key];
-          if (!isEqual(target, this.chartOptions[key]) && target) {
-            if (Array.isArray(target)) {
-              this[key].splice(0, this[key].length, ...target);
-            } else {
-              this[key] = target;
-            }
-          }
+        const arrayKeys = ['xFields', 'yFields', 'dimensions', 'hiddenFields'] as const;
+        const categoryKeys = ['activeGraphCategory', 'chartActiveType'] as const;
+        const params = this.storedChartParams as Partial<StoredGraphParams>;
+        const snapshot: Partial<StoredGraphParams> = {
+          activeGraphCategory: params.activeGraphCategory,
+          chartActiveType: params.chartActiveType,
+          sql: params.sql,
+        };
+        for (const key of arrayKeys) snapshot[key] = params[key] ? [...params[key]] : params[key];
+        const previous = this.chartParamsSnapshot;
+        this.chartParamsSnapshot = snapshot;
+        // A category-only write must not replay unchanged empty axes over SQL-derived defaults.
+        for (const key of arrayKeys) {
+          const target = snapshot[key];
+          const changed = !previous || !isEqual(target, previous[key]);
+          if (changed && target && !isEqual(target, this[key])) this[key].splice(0, this[key].length, ...target);
+        }
+        for (const key of categoryKeys) {
+          const target = snapshot[key];
+          const changed = !previous || !isEqual(target, previous[key]);
+          if (changed && target && !isEqual(target, this[key])) this[key] = target;
         }
 
-        this.sqlContent = this.storedChartParams.sql;
+        if (!previous || !isEqual(snapshot.sql, previous.sql)) this.sqlContent = snapshot.sql as string;
       });
       this.chartParamsTimers.add(timer);
     }
@@ -312,7 +329,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
     this.activeGraphCategory = category;
     this.chartCounter += 1;
-    this.$store.commit('updateChartParams', {
+    useApplicationStore().updateChartParams({
       activeGraphCategory: this.activeGraphCategory,
       chartActiveType: this.chartActiveType,
     });
@@ -325,16 +342,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   renderGraphCategory() {
-    return this.graphCategoryList.map(category => {
+    return this.graphCategoryList.map((category) => {
       const item = this.graphCategory[category];
       const isActive = this.activeGraphCategory === category;
       const imgHref = isActive ? item.images.active : item.images.def;
       return (
-        <div
-          key={category}
-          class={{ 'category-item': true, active: isActive }}
-          onClick={item.click}
-        >
+        <div key={category} class={{ 'category-item': true, active: isActive }} onClick={item.click}>
           <div class='category-img'>
             <img src={imgHref} />
           </div>
@@ -346,27 +359,17 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   renderBasicInfo() {
     return [
-      <div
-        key='info-row'
-        class='basic-info-row'
-      >
+      <div key='info-row' class='basic-info-row'>
         <div class='title'> {this.$t('标题')}</div>
-        <bk-input
-          style='margin-top: 8px;'
-          v-model={this.basicInfoTitle.title}
-          placeholder={this.$t('请输入标题')}
-        />
+        <bk-input style='margin-top: 8px;' v-model={this.basicInfoTitle.title} placeholder={this.$t('请输入标题')} />
       </div>,
     ];
   }
 
   renderFieldsSetting() {
-    return this.fieldList.map(field => {
+    return this.fieldList.map((field) => {
       return (
-        <div
-          key={field}
-          class='field-setting-row'
-        >
+        <div key={field} class='field-setting-row'>
           <div class='field'>{field}</div>
           <div class='type'>指标</div>
         </div>
@@ -380,30 +383,18 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         return [];
       }
       return [
-        <div
-          key='row-filter'
-          class='dimensions-index-row'
-        >
+        <div key='row-filter' class='dimensions-index-row'>
           <div class='label'>{this.$t('过滤')}</div>
           <div class='settings' />
         </div>,
-        <div
-          key='row-sort'
-          class='dimensions-index-row'
-        >
+        <div key='row-sort' class='dimensions-index-row'>
           <div class='label'>{this.$t('排序')}</div>
           <div class='settings' />
         </div>,
-        <div
-          key='row-limit'
-          class='dimensions-index-row'
-        >
+        <div key='row-limit' class='dimensions-index-row'>
           <div class='label'>{this.$t('限制')}</div>
           <div class='settings white'>
-            <bk-input
-              style='width: 120px;'
-              type='number'
-            />
+            <bk-input style='width: 120px;' type='number' />
           </div>
         </div>,
       ];
@@ -421,29 +412,17 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       ];
     }
     return [
-      <div
-        key='row-fields'
-        class='dimensions-index-row'
-      >
+      <div key='row-fields' class='dimensions-index-row'>
         <div class='label'>{this.$t('指标')}</div>
         <TagInput />
       </div>,
-      <div
-        key='row-dimensions'
-        class='dimensions-index-row'
-      >
+      <div key='row-dimensions' class='dimensions-index-row'>
         <div class='label'>{this.$t('维度')}</div>
         <div class='settings' />
       </div>,
-      <div
-        key='row-advance-setting'
-        class='dimensions-index-row'
-      >
+      <div key='row-advance-setting' class='dimensions-index-row'>
         <div class='label' />
-        <div
-          class='advance-setting'
-          onClick={this.handleAdvanceSettingClick}
-        >
+        <div class='advance-setting' onClick={this.handleAdvanceSettingClick}>
           {this.$t('高级设置')}
           <i class={['log-icon', this.advanceSettingClass]} />
         </div>
@@ -456,7 +435,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.chartActiveType = t;
     this.chartCounter += 1;
 
-    this.$store.commit('updateChartParams', { chartActiveType: t });
+    useApplicationStore().updateChartParams({ chartActiveType: t });
   }
 
   handleHorizionMoveEnd({ offsetY }) {
@@ -537,15 +516,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   getExceptionRender() {
     if (this.isRequesting) {
       return (
-        <div
-          style={this.exceptionStyle}
-          class='bklog-chart-skeleton'
-        >
-          <ClusteringLoader
-            width-list={[120, 120, '']}
-            loader-len={10}
-            is-loading
-          />
+        <div style={this.exceptionStyle} class='bklog-chart-skeleton'>
+          <ClusteringLoader width-list={[120, 120, '']} loader-len={10} is-loading />
         </div>
       );
     }
@@ -553,25 +525,15 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     const { showException, message, showQuery, tips = '' } = this.getExceptionMessage();
     if (showException) {
       return (
-        <bk-exception
-          style={this.exceptionStyle}
-          class='bklog-chart-exception'
-          type='500'
-        >
+        <bk-exception style={this.exceptionStyle} class='bklog-chart-exception' type='500'>
           <div class='bk-exception-title'>{tips}</div>
           <div class='bk-exception-title'>{message}</div>
           {showQuery
             ? [
-                <div
-                  key='description'
-                  class='bk-exception-description'
-                >
+                <div key='description' class='bk-exception-description'>
                   {this.$t('请重新发起查询')}
                 </div>,
-                <div
-                  key='footer'
-                  class='bk-exception-footer'
-                >
+                <div key='footer' class='bk-exception-footer'>
                   <TButton
                     class='mr10'
                     size='small'
@@ -581,7 +543,9 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                   >
                     {this.$t('查询')}
                   </TButton>
-                  <TButton theme='default' variant='outline'
+                  <TButton
+                    theme='default'
+                    variant='outline'
                     class='mr10'
                     size='small'
                     onClick={() => {
@@ -598,26 +562,14 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
 
     if (!this.chartOptions.data?.list?.length) {
-      return (
-        <bk-exception
-          style={this.exceptionStyle}
-          class='bklog-chart-exception'
-          scene='part'
-          type='empty'
-        />
-      );
+      return <bk-exception style={this.exceptionStyle} class='bklog-chart-exception' scene='part' type='empty' />;
     }
 
     return '';
   }
 
   renderCanvasChartAndTable() {
-    return (
-      <GraphChart
-        chartCounter={this.chartCounter}
-        chartOptions={this.chartOptions}
-      />
-    );
+    return <GraphChart chartCounter={this.chartCounter} chartOptions={this.chartOptions} />;
   }
 
   changeModel() {
@@ -625,17 +577,17 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   setDefaultFieldSettings(list: any[]) {
-    const fieldList = list.map(item => item.field_alias);
+    const fieldList = list.map((item) => item.field_alias);
     // 重置字段列表
     const fieldsArr = [this.xFields, this.yFields, this.dimensions, this.hiddenFields];
     for (const data of fieldsArr) {
-      const filterList = data.filter(item => fieldList.includes(item));
+      const filterList = data.filter((item) => fieldList.includes(item));
       data.splice(0, data.length, ...filterList);
     }
 
     // 重置默认字段
     if (this.xFields.length === 0 && this.dimensions.length === 0) {
-      const defValue = (list.find(item => /date|time/.test(item.field_alias)) ?? list[0])?.field_alias;
+      const defValue = (list.find((item) => /date|time/.test(item.field_alias)) ?? list[0])?.field_alias;
       if (defValue) {
         this.xFields.push(defValue);
       }
@@ -643,7 +595,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
     if (this.yFields.length === 0) {
       const filterList = list.filter(
-        item =>
+        (item) =>
           !(
             /date|time/.test(item.field_alias) ||
             includesValue(this.xFields, item.field_alias) ||
@@ -652,7 +604,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
       );
 
       const defValue = filterList?.find(
-        item =>
+        (item) =>
           /long|number|int|float|bigint|double/.test(item.field_type) && !includesValue(this.xFields, item.field_alias),
       )?.field_alias;
 
@@ -686,10 +638,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   updateChartData(axis: string | number, newValue: unknown) {
-    this[axis] = (Array.isArray(newValue) ? newValue : [newValue]).filter(t => !!t);
+    this[axis] = (Array.isArray(newValue) ? newValue : [newValue]).filter((t) => !!t);
     this.chartCounter += 1;
 
-    this.$store.commit('updateChartParams', { [axis]: this[axis] });
+    useApplicationStore().updateChartParams({ [axis]: this[axis] });
   }
 
   createResizeObserve() {
@@ -697,7 +649,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
-      this.resizeObserver = new ResizeObserver(entries => {
+      this.resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           // 获取元素的新高度
           this.debounceCallback(entry);
@@ -738,20 +690,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   render() {
     return (
       <div class='graph-analysis-index'>
-        <div
-          style='display: none;'
-          class='graph-analysis-navi'
-        />
+        <div style='display: none;' class='graph-analysis-navi' />
 
         <div class='graph-analysis-body'>
-          <div
-            ref='refGraphAnalysisBodyLeft'
-            class='body-left'
-          >
-            <div
-              style={this.axiosStyle}
-              class={['graph-axios-options', this.isSqlMode ? 'sql-mode' : '']}
-            >
+          <div ref='refGraphAnalysisBodyLeft' class='body-left'>
+            <div style={this.axiosStyle} class={['graph-axios-options', this.isSqlMode ? 'sql-mode' : '']}>
               <div class='graph-axios-rows'>{this.renderDimensionsAndIndexSetting()}</div>
               <div class='graph-axios-drag'>
                 <GraphDragTool
@@ -762,17 +705,10 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
               </div>
             </div>
             <div class='graph-canvas-line' />
-            <div
-              ref='refCanvasBody'
-              style={this.canvasStyle}
-              class='graph-canvas-options'
-            >
+            <div ref='refCanvasBody' style={this.canvasStyle} class='graph-canvas-options'>
               <div class='canvas-head'>
                 {this.basicInfoTitle.title ? <span class='title'>{this.basicInfoTitle.title}</span> : ''}
-                <span
-                  class='icons'
-                  v-show={this.activeGraphCategory !== GraphCategory.TABLE}
-                >
+                <span class='icons' v-show={this.activeGraphCategory !== GraphCategory.TABLE}>
                   <span
                     class={{ active: this.chartActiveType !== GraphCategory.TABLE }}
                     onClick={() => this.handleCanvasTypeChange(GraphCategory.CHART)}
@@ -791,24 +727,14 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
               {this.getExceptionRender()}
             </div>
           </div>
-          <div
-            style={this.rightOptionStyle}
-            class='body-right'
-          >
+          <div style={this.rightOptionStyle} class='body-right'>
             <div class='graph-category'>
               <div class='category-title'>{this.$t('图表样式')}</div>
               <div class='category-list'>{this.renderGraphCategory()}</div>
             </div>
             <div class='graph-info'>
-              <GraphDragTool
-                class='vertical-drag-tool'
-                direction='vertical'
-                onMove-end={this.handleVerticalMoveEnd}
-              />
-              <bk-collapse
-                class='graph-info-collapse'
-                v-model={this.activeSettings}
-              >
+              <GraphDragTool class='vertical-drag-tool' direction='vertical' onMove-end={this.handleVerticalMoveEnd} />
+              <bk-collapse class='graph-info-collapse' v-model={this.activeSettings}>
                 <bk-collapse-item
                   v-slots={{
                     content: () => (

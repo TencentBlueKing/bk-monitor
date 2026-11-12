@@ -24,138 +24,133 @@
  * IN THE SOFTWARE.
  */
 
-import { Checkbox as TCheckbox } from 'tdesign-vue-next';
-
-import { Button as TButton } from 'tdesign-vue-next';
-
-import { defineComponent, ref } from 'vue';
+import { Button as TButton, Checkbox as TCheckbox, Input as TInput, Popup as TPopup } from 'tdesign-vue-next';
+import { computed, defineComponent, ref, type PropType } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 import './index.scss';
 
+type FilterValue = string | number;
 export default defineComponent({
-  emits: ["confirm"],
-
   name: 'FilterOperate',
+  emits: ['confirm'],
   props: {
     list: {
-      type: Array<{
-        id: number;
-        name: string;
-      }>,
+      type: Array as PropType<{ id: FilterValue; name: string }[]>,
       default: () => [],
     },
-    searchable: {
-      type: Boolean,
-      default: true,
-    },
-    multiple: {
-      type: Boolean,
-      default: true,
-    },
+    searchable: { type: Boolean, default: true },
+    multiple: { type: Boolean, default: true },
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-
-    const selectRef = ref<any>(null);
-    const localValue = ref<number[]>([]);
-
-    const handleConfirm = () => {
-      emit('confirm', localValue.value);
-      selectRef.value?.close();
+    const visible = ref(false);
+    const keyword = ref('');
+    const localValue = ref<FilterValue[]>([]);
+    const filteredOptions = computed(() => {
+      const search = keyword.value.trim().toLowerCase();
+      return props.list.filter((option) => option.name.toLowerCase().includes(search));
+    });
+    const close = () => {
+      visible.value = false;
+      keyword.value = '';
     };
-
+    const handleConfirm = () => {
+      emit('confirm', [...localValue.value]);
+      close();
+    };
     const handleReset = () => {
       localValue.value = [];
       emit('confirm', []);
-      selectRef.value?.close();
+      close();
     };
-
-    const handleSelectChange = (list: number[]) => {
-      if (props.multiple) {
-        localValue.value = list;
-        return;
-      }
-      if (list.length > 1) {
-        localValue.value = [list[list.length - 1]];
-      } else {
-        localValue.value = list;
-      }
+    const toggle = (id: FilterValue) => {
+      if (localValue.value.includes(id)) localValue.value = localValue.value.filter((value) => value !== id);
+      else localValue.value = props.multiple ? [...localValue.value, id] : [id];
     };
-
     expose({
       reset: () => {
         localValue.value = [];
       },
     });
-
     return () => (
-      <div class='filter-main'>
-        <bk-select
-          v-slots={{
-            trigger: () => (
-              <div>
-                <log-icon
-                  common
-                  type='funnel'
-                  class={{
-                    'funnel-icon': true,
-                    'is-funnel-active': localValue.value.length > 0,
+      <TPopup
+        visible={visible.value}
+        trigger='click'
+        placement='bottom-left'
+        overlayClassName='cluster-header-filter-popup'
+        overlayInnerStyle={{ padding: 0, minWidth: '150px' }}
+        onVisibleChange={(value) => {
+          visible.value = value;
+          if (!value) keyword.value = '';
+        }}
+        v-slots={{
+          content: () => (
+            <div
+              class='cluster-header-filter-content'
+              onKeydown={(event: KeyboardEvent) => {
+                if (event.key === 'Escape') {
+                  event.stopPropagation();
+                  close();
+                }
+              }}
+            >
+              {props.searchable && (
+                <TInput
+                  value={keyword.value}
+                  class='cluster-header-filter-search'
+                  placeholder={t('输入关键字搜索')}
+                  v-slots={{ prefixIcon: () => <log-icon common type='search' /> }}
+                  clearable
+                  onChange={(value) => {
+                    keyword.value = String(value ?? '');
                   }}
                 />
+              )}
+              <div class='cluster-header-filter-options'>
+                {filteredOptions.value.map((option) => (
+                  <TCheckbox
+                    key={option.id}
+                    checked={localValue.value.includes(option.id)}
+                    onChange={() => toggle(option.id)}
+                  >
+                    <span class='option-name' title={option.name}>
+                      {option.name}
+                    </span>
+                  </TCheckbox>
+                ))}
+                {!filteredOptions.value.length && <div class='cluster-header-filter-empty'>{t('暂无数据')}</div>}
               </div>
-            ),
-            extension: () => (
               <div class='operate-btns'>
-                <TButton
-                  size='small'
-                  theme='primary'
-                  
-                  onClick={handleConfirm} variant={(true) ? 'text' : ('base')}
-                >
+                <TButton size='small' theme='primary' variant='text' onClick={handleConfirm}>
                   {t('确定')}
                 </TButton>
-                <TButton
-                  size='small'
-                  theme='primary'
-                  
-                  onClick={handleReset} variant={(true) ? 'text' : ('base')}
-                >
+                <TButton size='small' theme='primary' variant='text' onClick={handleReset}>
                   {t('重置')}
                 </TButton>
               </div>
-            ),
+            </div>
+          ),
+        }}
+      >
+        <button
+          type='button'
+          class='cluster-header-filter-trigger'
+          aria-label={t('筛选')}
+          aria-expanded={visible.value}
+          onKeydown={(event: KeyboardEvent) => {
+            if (event.key === 'Escape') close();
           }}
-          ref={selectRef}
-          value={localValue.value}
-          size='small'
-          class='filter-select'
-          multiple
-          searchable={props.searchable}
-          popover-min-width={150}
-          scroll-height={280}
-          ext-popover-cls='filter-select-ext-popover'
-          onChange={handleSelectChange}
         >
-          {props.list.map(option => (
-            <bk-option
-              key={option.id}
-              id={option.id}
-              name={option.name}
-            >
-              <TCheckbox checked={localValue.value.includes(option.id)} />
-              <span
-                v-log-tooltip={{
-                  content: option.name,
-                  placement: 'top',
-                }}
-                class='option-name'
-              >
-                {option.name}
-              </span>
-            </bk-option>
-          ))}
-        </bk-select>
-      </div>
+          <log-icon
+            common
+            type='funnel'
+            class={{
+              'funnel-icon': true,
+              'is-funnel-active': localValue.value.length > 0,
+            }}
+          />
+        </button>
+      </TPopup>
     );
   },
 });

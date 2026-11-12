@@ -1,9 +1,12 @@
-<script setup>import { ServicesInstance } from '@/platform/services';
+<script setup>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+import { ServicesInstance } from '@/platform/services';
 
-  
+
   import { getFeatureToggleStatus, isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import { computed, onMounted, ref, watch } from 'vue';
   import { useRoute } from "vue-router";
   import DashboardDialog from './components/dashboard-dialog.vue';
@@ -17,24 +20,24 @@
 
   const showDialog = ref(false); // 控制弹窗显示状态
   const { $t } = useLocale();
-  const store = useStore();
+  const store = useApplicationStore();
   const route = useRoute();
 
   const emit = defineEmits(['input']);
 
-  const indexSetIds = computed(() => store.state.indexItem.ids.map(id => `${id}`));
+  const indexSetIds = computed(() => store.indexItem.ids.map(id => `${id}`));
   const indexSetId = computed(() => indexSetIds.value[0]);
-  const bkBizId = computed(() => store.state.bkBizId);
+  const bkBizId = computed(() => store.bkBizId);
 
   const indexSetItems = computed(() =>
-    store.state.retrieve.flatIndexSetList?.filter(item => indexSetIds.value.includes(`${item.index_set_id}`)),
+    useRetrieveStore().$state.flatIndexSetList?.filter(item => indexSetIds.value.includes(`${item.index_set_id}`)),
   );
 
-  const retrieveParams = computed(() => store.getters.retrieveParams);
-  const requestAddition = computed(() => store.getters.requestAddition);
+  const retrieveParams = computed(() => store.retrieveParams);
+  const requestAddition = computed(() => store.requestAddition);
 
   const isAiopsToggle = computed(() => {
-    if (store.getters.isUnionSearch) {
+    if (store.isUnionSearch) {
       return false;
     }
 
@@ -51,17 +54,17 @@
   });
 
   const isExternal = computed(() => window.IS_EXTERNAL === true);
-  const isSceneMode = computed(() => store.getters.isSceneMode);
+  const isSceneMode = computed(() => store.isSceneMode);
   const isChartEnable = computed(
     () =>
-      !store.getters.isUnionSearch &&
+      !store.isUnionSearch &&
       indexSetItems.value?.[0]?.support_doris &&
       !isSceneMode.value &&
       !isExternal.value,
   );
   const isGrepEnable = computed(
     () =>
-      !store.getters.isUnionSearch &&
+      !store.isUnionSearch &&
       indexSetItems.value?.[0]?.support_doris &&
       !isSceneMode.value &&
       !isExternal.value,
@@ -108,14 +111,14 @@
 
   const handleAddAlertPolicy = async () => {
     const params = {
-      bizId: store.state.bkBizId,
+      bizId: store.bkBizId,
       indexSetId: indexSetId.value,
       scenarioId: '',
       indexStatement: retrieveParams.value.keyword, // 查询语句
       dimension: [], // 监控维度
       condition: [], // 监控条件
     };
-    const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId.value);
+    const indexSet = (useRetrieveStore().$state.indexSetList ?? []).find(item => item.index_set_id === indexSetId.value);
     if (indexSet) {
       params.scenarioId = indexSet.category_id;
     }

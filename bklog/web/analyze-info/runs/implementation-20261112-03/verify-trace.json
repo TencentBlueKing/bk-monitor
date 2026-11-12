@@ -1,0 +1,15 @@
+{
+  "kind": "trace",
+  "files": 58,
+  "exports": [
+    "MonitorTraceLog",
+    "Vue2",
+    "configureMonitorApp",
+    "logStore",
+    "i18n",
+    "initMonitorState",
+    "initGlobalComponents",
+    "initWindowState"
+  ],
+  "sourceDigest": "8fab5165f1c982ff3fa19f50b80352a13bfdffedf789f2c64f26523c6974b1cf"
+}

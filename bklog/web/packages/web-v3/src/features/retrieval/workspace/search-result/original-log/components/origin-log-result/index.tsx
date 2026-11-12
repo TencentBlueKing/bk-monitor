@@ -23,11 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 
 import JsonFormatter from '@/shared/global/json-formatter.vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import SearchBar from '@/features/retrieval/workbench/search-bar/index.vue';
 import { cloneDeep, debounce } from 'lodash-es';
@@ -69,7 +71,7 @@ export default defineComponent({
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const searchBarRef = ref<any>();
     const tableRef = ref<HTMLElement>();
@@ -82,15 +84,15 @@ export default defineComponent({
     const exceptionMsg = ref('');
 
     const fieldsMap = computed(() =>
-      store.getters.rawFieldList.reduce((dataMap: { [x: string]: any; }, item: { field_name: string|number; }) => {
+      store.rawFieldList.reduce((dataMap: { [x: string]: any; }, item: { field_name: string|number; }) => {
         dataMap[item.field_name] = item;
         return dataMap;
       }, {}),
     );
 
-    const timeField = computed(() => store.state.indexFieldInfo.time_field);
+    const timeField = computed(() => store.indexFieldInfo.time_field);
     const timeFieldType = computed(() => fieldsMap.value[timeField.value]?.field_type);
-    const visibleFields = computed(() => store.getters.visibleFields);
+    const visibleFields = computed(() => store.resolvedVisibleFields);
 
     const requestOtherparams = cloneDeep(props.retrieveParams);
     delete requestOtherparams.format;
@@ -254,16 +256,16 @@ export default defineComponent({
       const requestQueryKey = localQueryKey;
       const requestStartSeq = isStorageAppend ? localStoredRowCount : 0;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
-      const searchUrl = store.getters.isSceneMode
+      const searchUrl = store.isSceneMode
         ? '/search/scene/search/'
         : `/search/index_set/${props.indexSetId}/search/`;
       const requestData = {
         ...requestOtherparams,
-        sort_list: store.state.indexFieldInfo.default_sort_list.filter(item => item.length > 0 && !!item[1]) || [],
+        sort_list: store.indexFieldInfo.default_sort_list.filter(item => item.length > 0 && !!item[1]) || [],
         size,
         begin,
       };
-      const { fieldMetadata, fieldNames } = buildOriginLogSearchFieldPayload(store.state);
+      const { fieldMetadata, fieldNames } = buildOriginLogSearchFieldPayload(store);
       let thisRequestId = '';
 
       const isCurrentRequest = () =>
@@ -278,7 +280,7 @@ export default defineComponent({
             total = metaTotal;
           }
           if (String(progress.meta.code) === '9900403') {
-            store.commit('updateState', {
+            store.updateState({
               authDialogData: {
                 apply_url: progress.meta?.data?.apply_url ?? progress.meta?.apply_url,
                 apply_data: progress.meta?.permission,
@@ -303,7 +305,7 @@ export default defineComponent({
           body: requestData,
           fieldMetadata,
           fieldNames,
-          headers: buildOriginLogSearchHeaders(store.state),
+          headers: buildOriginLogSearchHeaders(store),
           onRequestId: requestId => {
             thisRequestId = requestId;
             activeLocalSearchRequestId = requestId;
@@ -330,7 +332,7 @@ export default defineComponent({
         const { code, data, result, message, permission, rowKeys } = workerResult;
 
         if (code === '9900403') {
-          store.commit('updateState', {
+          store.updateState({
             authDialogData: {
               apply_url: data?.apply_url,
               apply_data: permission,
@@ -444,8 +446,8 @@ export default defineComponent({
 
       const targetField =
         fieldsMap.value[field] ??
-        store.state.visibleFields?.find?.(item => item.field_name === field) ??
-        store.state.indexFieldInfo?.fields?.find?.((item: { field_name: string; }) => item.field_name === field);
+        store.visibleFields?.find?.(item => item.field_name === field) ??
+        store.indexFieldInfo?.fields?.find?.((item: { field_name: string; }) => item.field_name === field);
       const textType = targetField?.field_type ?? '';
       const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
 
@@ -492,7 +494,7 @@ export default defineComponent({
       const fieldName = data.option.fieldName || '*';
       const fieldType =
         fieldsMap.value[fieldName]?.field_type ??
-        store.state.indexFieldInfo?.fields?.find?.((item: { field_name: string; }) => item.field_name === fieldName)?.field_type ??
+        store.indexFieldInfo?.fields?.find?.((item: { field_name: string; }) => item.field_name === fieldName)?.field_type ??
         data.option.fieldType;
       /** 对象/数组不能 String()，否则会得到 "[object Object]" */
       const toScalarPlain = (val: any): string => {
@@ -695,7 +697,7 @@ export default defineComponent({
       // init: () => handleSearch(requestOtherparams.search_mode, false),
       init: async () => {
         // 初始化搜索框
-        const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
+        const modeIndex = store.storage[BK_LOG_STORAGE.SEARCH_TYPE];
         searchBarRef.value.setLocalMode(modeIndex);
         requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
         const addition = props.retrieveParams.addition || [];
@@ -729,7 +731,7 @@ export default defineComponent({
           }
         }
         // 设置外部数据：优先读 IndexedDB 渲染行（含检索高亮 overlay），避免初次丢失 mark
-        const outerLogResult = store.state.indexSetQueryResult;
+        const outerLogResult = store.indexSetQueryResult;
         total = outerLogResult.total;
         setExceptionMsg(outerLogResult.is_error ? outerLogResult.exception_msg || '' : '');
         const rowKeys = outerLogResult.row_keys ?? [];

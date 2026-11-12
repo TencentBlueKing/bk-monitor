@@ -23,10 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, ref, computed, watch, nextTick } from 'vue';
 import { RecycleScroller } from 'vue-virtual-scroller';
 
-import useStore from '../../composables/use-store';
+
 import { SPACE_TYPE_MAP } from '../../../app/state/constant';
 
 import './list.scss';
@@ -107,11 +109,11 @@ export default defineComponent({
   },
   emits: ['handleClickOutSide', 'handleClickMenuItem', 'openDialog'],
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const scrollerRef = ref<{ scrollToItem?: (index: number) => void } | null>(null);
     const defaultSpace = ref<IListItem | null>(null); // 当前弹窗中选中的业务
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
-    const defaultBizId = computed(() => store.getters.defaultBizId); // 当前默认业务ID
+    const defaultBizId = computed(() => store.defaultBizId); // 当前默认业务ID
 
     // 点击设置/取消默认
     const handleDefaultBizIdDialog = (e: MouseEvent, data: IListItem, isSetDefault: boolean) => {

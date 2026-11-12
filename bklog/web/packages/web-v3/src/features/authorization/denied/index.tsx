@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton, Dialog as TDialog } from 'tdesign-vue-next';
 import { computed, defineComponent, ref, watch } from 'vue';
 import { join } from '@/shared/global/utils/path';
 import { t } from '@/shared/composables/use-locale';
 import useRoute from '@/shared/composables/use-route';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import { pickCurrentTenantId, resolveSpaceUnauthorizedMode } from './tenant-mismatch';
 
@@ -44,13 +46,13 @@ export default defineComponent({
   setup(props) {
     const route = useRoute();
     const router = useRouter();
-    const store = useStore();
+    const store = useApplicationStore();
     const exceptionType = computed(() => ((props.type || route.query.type) === 'indexset' ? 'indexset' : 'space'));
-    const isExternal = computed(() => store.state.isExternal);
+    const isExternal = computed(() => store.isExternal);
     const isOpenVersion = window.RUN_VER === 'open';
-    const tenantMismatch = computed<Partial<import('@/app/state/application-store.type').TenantMismatch>>(() => store.state.tenantMismatch || {});
+    const tenantMismatch = computed<Partial<import('@/app/state/application-store.type').TenantMismatch>>(() => store.tenantMismatch || {});
     const currentTenant = computed(() =>
-      pickCurrentTenantId(tenantMismatch.value.current_tenant_id, store.state.userMeta?.bk_tenant_id),
+      pickCurrentTenantId(tenantMismatch.value.current_tenant_id, store.userMeta?.bk_tenant_id),
     );
     const targetTenant = computed(() => `${tenantMismatch.value.target_tenant_id || ''}`.trim());
     const isCrossTenant = computed(
@@ -82,8 +84,8 @@ export default defineComponent({
       router.push({
         name: 'collectAdd',
         query: {
-          spaceUid: store.state.spaceUid,
-          bizId: store.state.bkBizId,
+          spaceUid: store.spaceUid,
+          bizId: store.bkBizId,
           step: '1',
         },
       });
@@ -94,7 +96,7 @@ export default defineComponent({
      * @returns
      */
     const handleRetry = () => {
-      store.commit('updateStorage', {
+      store.updateStorage({
         [BK_LOG_STORAGE.BK_SPACE_UID]: undefined,
         [BK_LOG_STORAGE.BK_BIZ_ID]: undefined,
       });
@@ -409,7 +411,7 @@ export default defineComponent({
             <h1>{isIndexset ? t('当前空间还没有采集项') : t('暂无业务 / 空间访问权限')}</h1>
             <div class='un-authorized-description'>
               {isIndexset ? (
-                <p>{t('空间「{spaceName}」尚未配置日志采集', { spaceName: store.state.space.space_name })}</p>
+                <p>{t('空间「{spaceName}」尚未配置日志采集', { spaceName: store.space.space_name })}</p>
               ) : (
                 <p>{t('你尚未获得任何业务或空间的访问权限，暂时无法使用日志平台')}</p>
               )}

@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import type { FieldInfoItem } from '@/app/state/store.type';
 import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
@@ -114,12 +119,12 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
     // Keep render failures observable with normal Vue error propagation.
   }
   get errInfo() {
-    const isScene = this.$store.getters.isSceneMode;
+    const isScene = useApplicationStore().isSceneMode;
     const key = isScene ? 'retrieve/getSceneFields' : 'retrieve/getLogTableHead';
-    return this.$store.state.apiErrorInfo[key] || '';
+    return useApplicationStore().apiErrorInfo[key] || '';
   }
   get isFieldLoading() {
-    return this.$store.state.indexFieldInfo.is_loading;
+    return useApplicationStore().indexFieldInfo.is_loading;
   }
   get hasFilterVisibleFields() {
     return this.totalFields.length > 0;
@@ -135,8 +140,8 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   }
   get statisticalFieldsData() {
     // 版本号用于触发视图更新，实际大对象存放在 runtime cache / IndexedDB 镜像中。
-    void this.$store.state.retrieveDropdownDataVersion;
-    return storeRuntimeCacheService.getRetrieveDropdownData(this.$store.state.indexId || 'default');
+    void useApplicationStore().retrieveDropdownDataVersion;
+    return storeRuntimeCacheService.getRetrieveDropdownData(useApplicationStore().indexId || 'default');
   }
 
   /** 内置字段 */
@@ -202,7 +207,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   }
   /** object格式字段的层级展示 */
   objectHierarchy(arrData: FieldTreeNode[]) {
-    const tree = this.$store.getters.fieldTree;
+    const tree = useApplicationStore().fieldTree;
     return this.pickFieldTree(tree, arrData);
   }
   /** 递归将tree变回数组 */
@@ -344,16 +349,16 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   }
   get filedSettingConfigID() {
     // 当前索引集的显示字段ID
-    return this.$store.state.retrieve.filedSettingConfigID;
+    return useRetrieveStore().$state.filedSettingConfigID;
   }
   get unionIndexList() {
-    return this.$store.getters.unionIndexList;
+    return useApplicationStore().unionIndexList;
   }
   get isUnionSearch() {
-    return this.$store.getters.isUnionSearch;
+    return useApplicationStore().isUnionSearch;
   }
   get bkBizId() {
-    return this.$store.state.bkBizId;
+    return useApplicationStore().bkBizId;
   }
   /** 未开启白名单时 是否由前端来统计总数 */
   get isFrontStatistics() {
@@ -499,7 +504,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
       this.filterListByCondition();
     }
     this.isShowErrInfo = false;
-    this.$store.dispatch('requestIndexSetFieldInfo');
+    useApplicationStore().requestIndexSetFieldInfo();
   }
   // 记录bigTree展开节点
   expandChange(TreeNode: { id: any; expanded: any }, ref: string) {

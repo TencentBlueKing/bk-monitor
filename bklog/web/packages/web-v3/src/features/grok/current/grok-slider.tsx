@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -31,7 +33,7 @@ import { computed, defineComponent, reactive, ref, watch } from 'vue';
 
 
 import { t } from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import BklogLoading from '@/shared/ui/loading';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import { useSidebarDiff } from '@/shared/composables/use-sidebar-diff';
@@ -63,7 +65,7 @@ export default defineComponent({
   },
   emits: ['confirm', 'cancel'],
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const formRef = ref<import("@/shared/types/legacy-form").LegacyFormInstance | null>(null);
 
     // 表单数据
@@ -190,7 +192,7 @@ export default defineComponent({
 
         const response = await ServicesInstance.grok.debugGrok({
           data: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+            bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
             pattern: formData.pattern,
             sample: formData.sample,
           },

@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import { includesValue } from '@/shared/utils/typed-record';
 import { asDictionary } from '@/shared/utils/typed-record';
 import { h, computed } from 'vue';
@@ -32,22 +37,22 @@ import type { FieldInfoItem } from '@/app/state/store.type';
 
 import { getFieldNameByField } from '@/shared/composables/use-field-name';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 
 export default () => {
-  const store = useStore();
+  const store = useApplicationStore();
   const { $t } = useLocale();
 
   const fieldTypeMap = computed<Record<string, { icon: string; color: string; textColor?: string; name: string }>>(
-    () => store.state.globals.fieldTypeMap,
+    () => useGlobalsStore().$state.fieldTypeMap,
   );
-  const isUnionSearch = computed(() => store.getters.isUnionSearch);
-  const isSceneMode = computed(() => store.getters.isSceneMode);
-  const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
-  const visibleFields = computed(() => store.getters.visibleFields);
-  const isNotVisibleFieldsShow = computed(() => store.state.isNotVisibleFieldsShow);
-  const activeSortField = computed(() => store.state.indexItem.sort_list);
+  const isUnionSearch = computed(() => store.isUnionSearch);
+  const isSceneMode = computed(() => store.isSceneMode);
+  const unionIndexItemList = computed(() => store.unionIndexItemList);
+  const visibleFields = computed(() => store.resolvedVisibleFields);
+  const isNotVisibleFieldsShow = computed(() => store.isNotVisibleFieldsShow);
+  const activeSortField = computed(() => store.indexItem.sort_list);
   const sortShow = (fieldName: string, currentSortField: string | null) => {
     const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
     if (requiredFields.includes(fieldName) && includesValue(requiredFields, currentSortField)) {
@@ -169,11 +174,11 @@ export default () => {
                         displayFieldNames.push(newField.field_name);
                       }
                     }
-                    store.dispatch('userFieldConfigChange', {
+                    store.userFieldConfigChange({
                       displayFields: displayFieldNames,
                     });
-                    store.commit('resetVisibleFields', displayFieldNames);
-                    store.commit('updateIsSetDefaultTableColumn');
+                    store.resetVisibleFields(displayFieldNames);
+                    store.updateIsSetDefaultTableColumn();
                     RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
                   },
                 }),

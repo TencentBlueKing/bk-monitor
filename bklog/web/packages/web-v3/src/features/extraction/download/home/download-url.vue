@@ -51,7 +51,9 @@
 </template>
 
 <script>
-  import { copyMessage } from '@/shared/lib/util';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { copyMessage } from '@/shared/lib/util';
   export default {
     props: {
       taskId: {
@@ -69,7 +71,7 @@
         try {
           let urlPrefix = window.AJAX_URL_PREFIX;
           if (!urlPrefix.endsWith('/')) urlPrefix += '/';
-          const { bkBizId } = this.$store.state;
+          const { bkBizId } = useApplicationStore();
 
           const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${this.taskId}&bk_biz_id=${bkBizId}`;
           // copyMessage(downloadUrl, this.$t('已复制到剪切板'));

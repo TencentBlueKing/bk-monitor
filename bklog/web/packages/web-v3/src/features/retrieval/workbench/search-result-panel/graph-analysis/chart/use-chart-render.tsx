@@ -31,6 +31,8 @@ import type * as Echarts from 'echarts';
 import { lineOrBarOptions, pieOptions } from './chart-config-def';
 export default ({ target, type }: { target: Ref<any>; type: string }) => {
   let chartInstance: Echarts.ECharts | null = null;
+  let unmounted = false;
+  let generation = 0;
   let options: any = {};
   let echartsLoader: Promise<typeof import('echarts')> | null = null;
   const loadEcharts = () => (echartsLoader ??= import('echarts'));
@@ -99,7 +101,10 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   const getDateTimeFormatValue = (value: string) => {
     // 如果是12位长度的格式，是后端返回的一个特殊格式 yyyyMMddHHmm
     if (`${value}`.length === 12 && /^\d+$/.test(value)) {
-      return `${value.substring(0, 4)}-${value.substring(4, 6)}-${value.substring(6, 8)} ${value.substring(8, 10)}:${value.substring(10, 12)}`;
+      return `${value.substring(0, 4)}-${value.substring(4, 6)}-${value.substring(6, 8)} ${value.substring(
+        8,
+        10,
+      )}:${value.substring(10, 12)}`;
     }
 
     const timestamp = /^\d+$/.test(value) ? Number(value) : value;
@@ -127,7 +132,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
 
       const categories = Object.keys(timeGroup)
         .sort()
-        .map(key => [key, getDateTimeFormatValue(key)]);
+        .map((key) => [key, getDateTimeFormatValue(key)]);
 
       const seriesData = categories
         .map(([key, timeValue]) => {
@@ -135,7 +140,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
           return metrics.map((metric: string | number) => ({
             name: metric,
             type: newType,
-            data: Object.keys(aggregatedData).map(item => [timeValue, aggregatedData[item][metric], item]),
+            data: Object.keys(aggregatedData).map((item) => [timeValue, aggregatedData[item][metric], item]),
           }));
         })
         .flat(2);
@@ -157,10 +162,10 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
       }
 
       return {
-        categories: categories.map(c => c[1]),
+        categories: categories.map((c) => c[1]),
         seriesData: Array.from(
           Array.from(seriesDataMap.entries()).map(([name, mapValue]) => {
-            return Object.keys(mapValue).map(k => {
+            return Object.keys(mapValue).map((k) => {
               return {
                 name: `${name}-${k}`,
                 type: newType,
@@ -180,7 +185,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     const seriesData = metrics.map((metric: string | number) => ({
       name: metric,
       type: newType,
-      data: categories.map(item => [item, aggregatedData[item][metric]]),
+      data: categories.map((item) => [item, aggregatedData[item][metric]]),
     }));
 
     return {
@@ -238,7 +243,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     return {
       formatter: (params: unknown) => {
         const args = Array.isArray(params) ? params : [params];
-        const label = new Set(args.map(p => p.name));
+        const label = new Set(args.map((p) => p.name));
         const content = `<div>${label ? `<span>${[...label].join(',')}</span></br>` : ''}${args
           .map(({ value, seriesName }) => `<span>${value[2] ?? seriesName}: ${abbreviateNumber(value[1])}</span>`)
           .join('</br>')}</div>`;
@@ -275,11 +280,12 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   };
 
   const initChartInstance = async () => {
-    if (chartInstance || !target.value?.$el) {
+    if (unmounted || chartInstance || !target.value?.$el) {
       return;
     }
+    const expectedGeneration = generation;
     const echarts = await loadEcharts();
-    if (chartInstance || !target.value?.$el) {
+    if (unmounted || expectedGeneration !== generation || chartInstance || !target.value?.$el) {
       return;
     }
     chartInstance = echarts.init(target.value.$el);
@@ -358,9 +364,11 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     data?: any,
     newType?: string,
   ) => {
+    if (unmounted) return;
     if (!chartInstance) {
+      const expectedGeneration = generation;
       void initChartInstance().then(() => {
-        if (!chartInstance) {
+        if (unmounted || expectedGeneration !== generation || !chartInstance) {
           return;
         }
         chartInstance.clear();
@@ -375,16 +383,18 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     updateChartOptions(xFields, yFields, dimensions, data, newType);
   };
 
-  onMounted(() => {
-    void initChartInstance();
-  });
+  onMounted(initChartInstance);
 
   const destroyInstance = () => {
+    generation++;
     chartInstance?.dispose();
     chartInstance = null;
   };
 
-  onBeforeUnmount(destroyInstance);
+  onBeforeUnmount(() => {
+    unmounted = true;
+    destroyInstance();
+  });
 
   const getChartInstance = () => {
     return chartInstance;

@@ -24,25 +24,27 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, ref, computed, watch, onMounted } from 'vue';
 
 import useRoute from '@/shared/composables/use-route';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 
 import './index.scss';
 
 export default defineComponent({
   name: 'Extract',
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
     const route = useRoute();
 
     const isRender = ref(true);
     const isLoading = ref(false);
 
-    const bkBizId = computed(() => store.state.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
 
     watch(bkBizId, () => {
       isLoading.value = true;
@@ -54,8 +56,8 @@ export default defineComponent({
     });
 
     onMounted(() => {
-      const newBkBizId = store.state.bkBizId;
-      const spaceUid = store.state.spaceUid;
+      const newBkBizId = store.bkBizId;
+      const spaceUid = store.spaceUid;
 
       router.replace({
         query: {

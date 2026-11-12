@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import {
   Table as TTable,
   Popup as TPopup,
@@ -45,7 +50,7 @@ import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import BklogLoading from '@/shared/ui/loading';
 import useLocale from '@/shared/composables/use-locale';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
 import { useDrag } from '../../../management/manage-v2/hooks/use-drag';
@@ -78,7 +83,7 @@ export default defineComponent({
   },
 
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
     const { t } = useLocale();
 
@@ -144,9 +149,9 @@ export default defineComponent({
       selectedFields: settingFields.value.slice(0, 10),
     });
 
-    const bkBizId = computed(() => store.getters.bkBizId); // 业务ID
-    const spaceUid = computed(() => store.getters.spaceUid); // 空间ID
-    const globalsData = computed(() => store.getters['globals/globalsData']);
+    const bkBizId = computed(() => store.bkBizId); // 业务ID
+    const spaceUid = computed(() => store.spaceUid); // 空间ID
+    const globalsData = computed(() => useGlobalsStore().globalsData);
     const authorityMapComputed = computed(() => authorityMap); // 权限映射
 
     // 从路由查询参数获取初始 tab 值
@@ -207,7 +212,7 @@ export default defineComponent({
     // 检查创建权限
     const checkCreateAuth = async () => {
       try {
-        const res = await store.dispatch('checkAllowed', {
+        const res = await store.checkAllowed({
           action_ids: [authorityMapComputed.value.CREATE_ES_SOURCE_AUTH],
           resources: [
             {
@@ -409,7 +414,7 @@ export default defineComponent({
       } else {
         try {
           tableLoading.value = true;
-          const res = await store.dispatch('getApplyData', {
+          const res = await store.getApplyData({
             action_ids: [authorityMapComputed.value.CREATE_ES_SOURCE_AUTH],
             resources: [
               {
@@ -418,7 +423,7 @@ export default defineComponent({
               },
             ],
           });
-          store.commit('updateState', { authDialogData: res.data });
+          store.updateState({ authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {
@@ -432,7 +437,7 @@ export default defineComponent({
       router.push({
         name: 'es-index-set-create',
         query: {
-          spaceUid: store.state.spaceUid,
+          spaceUid: store.spaceUid,
           cluster: row.cluster_config.cluster_id,
         },
       });
@@ -455,8 +460,8 @@ export default defineComponent({
             ],
           };
           tableLoading.value = true;
-          const res = await store.dispatch('getApplyData', paramData);
-          store.commit('updateState', { authDialogData: res.data });
+          const res = await store.getApplyData(paramData);
+          store.updateState({ authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {
@@ -488,8 +493,8 @@ export default defineComponent({
             ],
           };
           tableLoading.value = true;
-          const res = await store.dispatch('getApplyData', paramData);
-          store.commit('updateState', { authDialogData: res.data });
+          const res = await store.getApplyData(paramData);
+          store.updateState({ authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {

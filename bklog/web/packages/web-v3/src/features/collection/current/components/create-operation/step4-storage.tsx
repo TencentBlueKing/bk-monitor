@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { IClusterItem } from '../business-comp/step4/cluster-table';
@@ -34,7 +39,7 @@ import { computed, defineComponent, onMounted, ref } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute } from 'vue-router';
 
 import ClusterTypeTabs from '../../../../clusters/current/cluster-manage/cluster-type-tabs.tsx';
@@ -94,7 +99,7 @@ export default defineComponent({
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const router = useRouter();
     const { cardRender, sortByPermission } = useOperation();
@@ -146,9 +151,9 @@ export default defineComponent({
      */
     const initialFormData = ref<StorageFormState | null>(null);
 
-    const bkBizId = computed(() => store.state.bkBizId);
-    const spaceUid = computed(() => store.getters.spaceUid);
-    const curCollect = computed(() => store.getters['collect/curCollect'] || {});
+    const bkBizId = computed(() => store.bkBizId);
+    const spaceUid = computed(() => store.spaceUid);
+    const curCollect = computed(() => useCollectionStore().curCollect || {});
     const currentCollect = computed(() => (curCollect.value?.collector_config_id ? curCollect.value : formData.value));
 
     const getInitialTab = (): ClusterType => {
@@ -440,7 +445,7 @@ export default defineComponent({
           )
           .then(res => {
             if (res?.data) {
-              store.commit('collect/setCurCollect', res.data);
+              useCollectionStore().setCurCollect(res.data);
               const { storage_cluster_id: storageClusterId, storage_cluster_type: storageClusterType } = res.data;
               if (storageClusterType) {
                 clusterType = storageClusterType;
@@ -790,7 +795,7 @@ export default defineComponent({
               callback?.(true);
             } else {
               emit('cancel');
-              store.commit('collect/updateCurCollect', { ...formData.value, ...data, ...res.data });
+              useCollectionStore().updateCurCollect({ ...formData.value, ...data, ...res.data });
             }
           } else {
             showCollectSaveFailure(res, t('保存失败'));

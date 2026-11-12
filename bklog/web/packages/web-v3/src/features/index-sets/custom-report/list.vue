@@ -211,7 +211,7 @@
                     !props.row.is_active || (!props.row.index_set_id && !props.row.bkdata_index_set_ids.length)
                   "
                   theme="primary"
-                  
+
                   @click="operateHandler(props.row, 'search')"
                 >
                   {{ $t('检索') }}</t-button
@@ -222,7 +222,7 @@
                   }"
                   class="king-button"
                   theme="primary"
-                  
+
                   @click="operateHandler(props.row, 'edit')"
                 >
                   {{ $t('编辑') }}</t-button
@@ -233,7 +233,7 @@
                   }"
                   :disabled="!props.row.table_id"
                   theme="primary"
-                  
+
                   @click="operateHandler(props.row, 'clean')"
                 >
                   {{ $t('清洗') }}
@@ -359,14 +359,18 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { projectManages, updateLastSelectedIndexId } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
   import IndexSetLabelSelect from '@/features/index-sets/label-select/index';
   import { getCurrentInstance } from 'vue';
   import { useCollectedItems } from '@/features/collection/composables/use-collected-items';
-  import { mapGetters } from '@/app/state/map-helpers';
+
   import useUtils from '@/shared/composables/use-utils';
   import { formatBytes, requestStorageUsage } from '../util';
   import * as authorityMap from '../../../shared/lib/authority-map';
@@ -387,7 +391,7 @@
         collectList: [],
         selectLabelList: [],
         isAllowedCreate: null,
-        collectProject: projectManages(this.$store.state.topMenu, 'collection-item'), // 权限
+        collectProject: projectManages(useApplicationStore().topMenu, 'collection-item'), // 权限
         isRequest: false,
         params: {
           collector_config_id: '',
@@ -402,10 +406,10 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         spaceUid: 'spaceUid',
         bkBizId: 'bkBizId',
-        authGlobalInfo: 'globals/authContainerInfo',
+        authGlobalInfo: state => state.globals.authContainerInfo,
         isShowMaskingTemplate: 'isShowMaskingTemplate',
       }),
       authorityMap() {
@@ -504,7 +508,7 @@
           params,
           query: {
             ...query,
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
             backRoute,
             editName,
           },
@@ -618,7 +622,7 @@
         try {
           const res = await ServicesInstance.unionSearch.unionLabelList({
             query: {
-              space_uid: this.$store.state.spaceUid,
+              space_uid: useApplicationStore().spaceUid,
             },
           });
           this.selectLabelList = res.data;

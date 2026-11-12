@@ -1,6 +1,8 @@
 /* Copyright (C) 2021 THL A29 Limited, a Tencent company.
  * 蓝鲸智云PaaS平台 (BlueKing PaaS), MIT License. */
-import type store from '@/app/state';
+
+
+
 import type { Instance as PopoverInstance, Props as PopoverProps } from 'tippy.js';
 import type { HttpClient } from '@/platform/http/types';
 import type i18n from '@/platform/i18n/i18n';
@@ -16,7 +18,6 @@ export interface ApplicationInjections {
   messageWarn: typeof import('@/shared/lib/message').messageWarn;
   $services: import('@/platform/services').ApplicationServices;
   $bkPopover: (target: Element | EventTarget | string | null, options?: Partial<PopoverProps> & { [key: string]: unknown }) => PopoverInstance;
-  $store: typeof store;
   $http: HttpClient;
   $t: typeof i18n.t;
   $i18n: typeof i18n;

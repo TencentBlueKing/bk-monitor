@@ -1,4 +1,8 @@
 <script setup>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -6,7 +10,7 @@ import { ServicesInstance } from '@/platform/services';
 
   import PopInstanceUtil from '@/shared/global/pop-instance-util';
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import { RetrieveUrlResolver } from '@/app/state/url-resolver';
   import { useRoute, useRouter } from "vue-router";
 
@@ -17,9 +21,9 @@ import { ServicesInstance } from '@/platform/services';
   // #endif
 
   import { ConditionOperator } from '@/app/state/condition-operator';
-  
 
-  
+
+
   import { copyMessage } from '@/shared/lib/util';
   import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
   import useResizeObserve from '@/shared/composables/use-resize-observe';
@@ -29,7 +33,6 @@ import { ServicesInstance } from '@/platform/services';
     getCommonFilterAddition,
     getCommonFilterAdditionWithValues,
   } from '@/app/state/helper';
-  import RequestPool from '@/app/state/request-pool';
   import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/app/state/store.type.ts';
   import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
   import CommonFilterSelect from './components/common-filter-select.vue';
@@ -92,7 +95,7 @@ import { ServicesInstance } from '@/platform/services';
     'text-to-query',
     'close-ai-parsed-text',
   , "heightChange", "modeChange", "textToQuery", "closeAiParsedText"]);
-  const store = useStore();
+  const store = useApplicationStore();
   const { $t } = useLocale();
   const queryTypeList = ref([$t('UI 模式'), $t('语句模式')]);
   const refRootElement = ref(null);
@@ -127,35 +130,35 @@ import { ServicesInstance } from '@/platform/services';
 
   const isGloalUsage = computed(() => props.usageType === 'global');
   const activeIndex = computed(() =>
-    !isGloalUsage.value ? localModeActiveIndex.value : (store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] ?? 0),
+    !isGloalUsage.value ? localModeActiveIndex.value : (store.storage[BK_LOG_STORAGE.SEARCH_TYPE] ?? 0),
   );
   const isFilterSecFocused = computed(
-    () => isGloalUsage.value && store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition,
+    () => isGloalUsage.value && useRetrieveStore().$state.catchFieldCustomConfig.fixedFilterAddition,
   );
   const commonFilterAdditionForBookmark = computed(() =>
-    isFilterSecFocused.value ? getCommonFilterAdditionWithValues(store.state) : [],
+    isFilterSecFocused.value ? getCommonFilterAdditionWithValues(store) : [],
   );
   // const indexItem = computed(() => store.state.indexItem);
   const keyword = computed(() => {
-    const value = store.state.indexItem.keyword;
+    const value = store.indexItem.keyword;
     return value;
   });
-  const addition = computed(() => store.state.indexItem.addition);
+  const addition = computed(() => store.indexItem.addition);
   const searchMode = computed(() =>
     !isGloalUsage.value
       ? SEARCH_MODE_DIC[localModeActiveIndex.value]
-      : (SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui'),
+      : (SEARCH_MODE_DIC[store.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui'),
   );
-  const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
+  const clearSearchValueNum = computed(() => store.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
 
-  const indexFieldInfo = computed(() => store.state.indexFieldInfo);
+  const indexFieldInfo = computed(() => store.indexFieldInfo);
   const isInputLoading = computed(() => {
     return indexFieldInfo.value.is_loading;
   });
 
   const isSearching = computed(() => {
-    const queryResult = store.state.indexSetQueryResult;
+    const queryResult = store.indexSetQueryResult;
     return queryResult.is_loading && !queryResult.is_pagination_loading;
   });
 
@@ -172,8 +175,8 @@ import { ServicesInstance } from '@/platform/services';
   );
 
   // 场景化检索模式下，未选择任何过滤条件时禁用查询按钮
-  const isSceneMode = computed(() => store.getters.isSceneMode);
-  const isSceneFilterEmpty = computed(() => store.getters.isSceneFilterEmpty);
+  const isSceneMode = computed(() => store.isSceneMode);
+  const isSceneFilterEmpty = computed(() => store.isSceneFilterEmpty);
   const isQueryBtnDisabled = computed(() => isLogPlatform.value && isSceneFilterEmpty.value && !isSearching.value);
 
   const isCopyBtnActive = computed(() => {
@@ -184,7 +187,7 @@ import { ServicesInstance } from '@/platform/services';
     return sqlQueryValue.value.length > 0;
   });
 
-  const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
+  const isIndexFieldLoading = computed(() => store.indexFieldInfo.is_loading);
 
   const computedIconClass = computed(() => {
     const iconClass = {
@@ -202,7 +205,7 @@ import { ServicesInstance } from '@/platform/services';
     () => {
       nextTick(() => {
         uiQueryValue.value.forEach(
-          v => (v.field_type = store.getters.rawFieldList.find(f => f.field_name === v.field)?.field_type),
+          v => (v.field_type = store.rawFieldList.find(f => f.field_name === v.field)?.field_type),
         );
       });
     },
@@ -221,7 +224,7 @@ import { ServicesInstance } from '@/platform/services';
 
   // 额外监听 store 中的 keyword 变化（深度监听）
   watch(
-    () => store.state.indexItem.keyword,
+    () => store.indexItem.keyword,
     newValue => {
       if (newValue !== sqlQueryValue.value) {
         sqlQueryValue.value = newValue;
@@ -239,7 +242,7 @@ import { ServicesInstance } from '@/platform/services';
       if (newQueryString) {
         // 使用 nextTick 确保 store 中的 keyword 已经更新
         nextTick(() => {
-          const storeKeyword = store.state.indexItem.keyword;
+          const storeKeyword = store.indexItem.keyword;
           // 如果 store 中的 keyword 与 AI 结果一致，或者 AI 结果刚返回（oldQueryString 为空），则强制同步
           if (storeKeyword === newQueryString || !oldQueryString) {
             if (sqlQueryValue.value !== newQueryString) {
@@ -259,7 +262,7 @@ import { ServicesInstance } from '@/platform/services';
     return addition.map(v => {
       const value = {
         ...v,
-        field_type: store.getters.rawFieldList.find(f => f.field_name === v.field)?.field_type,
+        field_type: store.rawFieldList.find(f => f.field_name === v.field)?.field_type,
       };
 
       const instance = new ConditionOperator(value);
@@ -281,7 +284,7 @@ import { ServicesInstance } from '@/platform/services';
     const nextMode = SEARCH_MODE_DIC[activeIndex.value];
     const resolver = new RetrieveUrlResolver({
       keyword: keyword.value,
-      addition: store.getters.retrieveParams.addition,
+      addition: store.retrieveParams.addition,
       search_mode: nextMode,
     });
 
@@ -299,15 +302,15 @@ import { ServicesInstance } from '@/platform/services';
   const requestIndexSetList = () => {
     if (route.query.tab === 'origin' || !route.query.tab) {
       if (isSceneMode.value) {
-        store.dispatch('requestIndexSetFieldInfo').then(resp => {
+        store.requestIndexSetFieldInfo().then(resp => {
           if (resp?.data?.fields?.length) {
-            store.dispatch('requestIndexSetQuery');
+            store.requestIndexSetQuery();
           } else {
             RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
           }
         });
       } else {
-        store.dispatch('requestIndexSetQuery');
+        store.requestIndexSetQuery();
       }
     }
   };
@@ -337,7 +340,7 @@ import { ServicesInstance } from '@/platform/services';
   };
 
   const getBtnQueryResult = () => {
-    store.commit('updateIndexItemParams', {
+    store.updateIndexItemParams({
       addition: uiQueryValue.value.filter(val => !val.is_focus_input),
       keyword: sqlQueryValue.value ?? '',
       ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
@@ -356,16 +359,16 @@ import { ServicesInstance } from '@/platform/services';
 
     if (isGloalUsage.value) {
       if (isSearching.value) {
-        RequestPool.execCanceToken('requestIndexSetQueryCancelToken');
+        store.requestPool.execCanceToken('requestIndexSetQueryCancelToken');
         RetrieveHelper.fire(RetrieveEvent.SEARCH_CANCEL);
         return;
       }
 
       if (!isInputLoading.value) {
-        const { datePickerValue, format } = store.state.indexItem;
+        const { datePickerValue, format } = store.indexItem;
         const result = handleTransformToTimestamp(datePickerValue, format);
 
-        store.commit('updateIndexItemParams', {
+        store.updateIndexItemParams({
           start_time: result[0],
           end_time: result[1],
           datePickerValue,
@@ -400,7 +403,7 @@ import { ServicesInstance } from '@/platform/services';
     if (isGloalUsage.value) {
       if (value !== '*') {
         beforeQueryBtnClick().then(() => {
-          store.commit('updateIndexItemParams', {
+          store.updateIndexItemParams({
             keyword: value,
           });
 
@@ -428,7 +431,7 @@ import { ServicesInstance } from '@/platform/services';
 
     sqlQueryValue.value = '';
     uiQueryValue.value.splice(0);
-    store.commit('updateIndexItemParams', {
+    store.updateIndexItemParams({
       ip_chooser: {},
     });
     handleBtnQueryClick();
@@ -448,8 +451,8 @@ import { ServicesInstance } from '@/platform/services';
    * 应用查询模式切换（更新 storage / indexItem / 路由，不自动发起查询）
    */
   const applySearchModeChange = (nextType, nextMode, extraParams = {}) => {
-    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: nextType });
-    store.commit('updateIndexItemParams', {
+    store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: nextType });
+    store.updateIndexItemParams({
       search_mode: nextMode,
       ...extraParams,
     });
@@ -514,8 +517,8 @@ import { ServicesInstance } from '@/platform/services';
     }
 
     // 语句 → UI：保持原有切换行为
-    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: nextType });
-    store.commit('updateIndexItemParams', {
+    store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: nextType });
+    store.updateIndexItemParams({
       search_mode: nextMode,
     });
 
@@ -543,12 +546,12 @@ import { ServicesInstance } from '@/platform/services';
     const type = SEARCH_MODE_DIC.findIndex(idx => idx === activeFavorite.value.search_mode) ?? 0;
 
     initSourceSQLStr(activeFavorite.value.params, activeFavorite.value.search_mode);
-    store.commit('updateStorage', { searchType: type });
+    store.updateStorage({ searchType: type });
     setRouteParams();
   });
 
   const matchSQLStr = computed(() => {
-    if (activeFavorite.value?.index_set_id !== store.state.indexId) {
+    if (activeFavorite.value?.index_set_id !== store.indexId) {
       return false;
     }
     if (activeIndex.value === 0) {
@@ -565,7 +568,7 @@ import { ServicesInstance } from '@/platform/services';
     }
     return sqlQueryValue.value === sourceSQLStr.value;
   });
-  const indexSetItem = computed(() => store.state.indexItem);
+  const indexSetItem = computed(() => store.indexItem);
 
   const saveCurrentActiveFavorite = async () => {
     if (matchSQLStr.value) {
@@ -601,7 +604,7 @@ import { ServicesInstance } from '@/platform/services';
       });
     } else {
       Object.assign(data, {
-        index_set_id: store.state.indexId,
+        index_set_id: store.indexId,
         index_set_type: 'single',
       });
     }
@@ -613,7 +616,7 @@ import { ServicesInstance } from '@/platform/services';
       if (res.result) {
         window.mainComponent.messageSuccess($t('保存成功'));
         initSourceSQLStr(res.data.params, res.data.search_mode);
-        store.dispatch('requestFavoriteList');
+        store.requestFavoriteList();
         handleRefresh(true);
       }
     } catch (error) {
@@ -665,7 +668,7 @@ import { ServicesInstance } from '@/platform/services';
   const handleFilterSecClick = () => {
     if (isFilterSecFocused.value) {
       if (activeIndex.value === 0) {
-        const commonFilterAddition = getCommonFilterAddition(store.state);
+        const commonFilterAddition = getCommonFilterAddition(store);
         if (commonFilterAddition.length) {
           window.mainComponent.messageSuccess($t('“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
           uiQueryValue.value.push(
@@ -674,8 +677,8 @@ import { ServicesInstance } from '@/platform/services';
               isCommonFixed: true,
             })),
           );
-          clearStorageCommonFilterAddition(store.state);
-          store.commit('updateIndexItemParams', {
+          clearStorageCommonFilterAddition(store);
+          store.updateIndexItemParams({
             addition: uiQueryValue.value.filter(val => !val.is_focus_input),
             keyword: sqlQueryValue.value ?? '',
             ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
@@ -687,14 +690,14 @@ import { ServicesInstance } from '@/platform/services';
     }
 
     if (activeIndex.value === 1) {
-      store.dispatch('userFieldConfigChange', {
+      store.userFieldConfigChange({
         fixedFilterAddition: !isFilterSecFocused.value,
       });
 
       return;
     }
 
-    store.dispatch('userFieldConfigChange', {
+    store.userFieldConfigChange({
       fixedFilterAddition: !isFilterSecFocused.value,
       filterAddition: [],
     });
@@ -740,8 +743,8 @@ import { ServicesInstance } from '@/platform/services';
         .then(res => {
           if (res.result) {
             emit('text-to-query', `${res.data?.querystring} AND ${value}`);
-            store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
-            store.commit('updateIndexItemParams', {
+            store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+            store.updateIndexItemParams({
               search_mode: 'sql',
             });
           } else {
@@ -758,8 +761,8 @@ import { ServicesInstance } from '@/platform/services';
 
     if (value.length) {
       emit('text-to-query', value);
-      store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
-      store.commit('updateIndexItemParams', {
+      store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+      store.updateIndexItemParams({
         search_mode: 'sql',
       });
     }
@@ -967,7 +970,7 @@ import { ServicesInstance } from '@/platform/services';
         @click="handleBtnQueryClick"
       >
         <t-button
-          
+
           size="small"
           theme="primary"
           :disabled="isQueryBtnDisabled"

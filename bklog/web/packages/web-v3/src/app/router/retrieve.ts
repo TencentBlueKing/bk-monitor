@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineAsyncComponent, defineComponent, h, nextTick, onBeforeUnmount, ref, Suspense } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 
@@ -37,7 +39,7 @@ import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import { acquireRetrieveLoading } from '@/features/retrieval/loading-queue';
 import RetrieveHelper from '@/features/retrieval/retrieve-helper';
-import useStore from '@/shared/composables/use-store';
+
 
 // 检索模块各组件异步声明（用于路由懒加载）
 const RetrieveView = defineAsyncComponent({
@@ -76,10 +78,10 @@ const Retrieve = defineComponent({
       menuReady = true;
       revealShell();
     }, 8000);
-    const store = useStore();
-    const fieldSetting = store.state.storage?.[BK_LOG_STORAGE.FIELD_SETTING] ?? {};
+    const store = useApplicationStore();
+    const fieldSetting = store.storage?.[BK_LOG_STORAGE.FIELD_SETTING] ?? {};
     const fieldWidth = fieldSetting.show === false ? 0 : Number(fieldSetting.width) || 200;
-    const trendHeight = store.state.storage?.[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] ? 40 : 170;
+    const trendHeight = store.storage?.[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] ? 40 : 170;
     const railWidth = RetrieveHelper.isFavoriteShown
       ? RetrieveHelper.favoriteWidth > 0
         ? RetrieveHelper.favoriteWidth

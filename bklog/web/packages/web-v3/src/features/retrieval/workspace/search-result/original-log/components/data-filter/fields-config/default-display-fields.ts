@@ -1,3 +1,5 @@
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import type { ApplicationStore } from '@/app/state/application-store.type';
 
 interface IFieldItem {
@@ -6,12 +8,12 @@ interface IFieldItem {
 }
 
 const getStoreFieldList = (store: ApplicationStore): IFieldItem[] => {
-  const filteredFieldList = store.getters.filteredFieldList;
+  const filteredFieldList = store.filteredFieldList;
   if (Array.isArray(filteredFieldList) && filteredFieldList.length) {
     return filteredFieldList;
   }
 
-  const rawFieldList = store.getters.rawFieldList;
+  const rawFieldList = store.rawFieldList;
   return Array.isArray(rawFieldList) ? rawFieldList : [];
 };
 

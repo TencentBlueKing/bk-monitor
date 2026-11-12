@@ -158,7 +158,7 @@
                 class="mr10 king-button"
                 :disabled="props.row.is_expired"
                 theme="primary"
-                
+
                 @click.stop="operateHandler(props.row, 'edit')"
               >
                 {{ $t('编辑') }}
@@ -171,7 +171,7 @@
                 class="mr10 king-button"
                 :disabled="props.row.is_expired"
                 theme="primary"
-                
+
                 @click.stop="operateHandler(props.row, 'delete')"
               >
                 {{ $t('删除') }}
@@ -199,11 +199,15 @@
   </section>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { formatFileSize } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
-  import { mapGetters } from '@/app/state/map-helpers';
+
   import useUtils from '@/shared/composables/use-utils';
 
   import * as authorityMap from '../../../../shared/lib/authority-map';
@@ -239,7 +243,7 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
       }),
       authorityMap() {
@@ -495,8 +499,8 @@
       async getOptionApplyData(paramData) {
         try {
           this.isTableLoading = true;
-          const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateState', { authDialogData: res.data });
+          const res = await useApplicationStore().getApplyData(paramData);
+          useApplicationStore().updateState({ authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {

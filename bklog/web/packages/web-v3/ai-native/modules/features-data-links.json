@@ -11,6 +11,7 @@
     "features/data-links/services/link-configuration.ts"
   ],
   "dependsOn": [
+    "app",
     "platform",
     "shared"
   ],

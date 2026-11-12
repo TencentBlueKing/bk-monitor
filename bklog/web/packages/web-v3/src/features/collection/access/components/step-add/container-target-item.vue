@@ -69,9 +69,12 @@
     </div>
   </div>
 </template>
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   export default {
   emits: ["update:container"],
@@ -110,7 +113,7 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
       }),
       typeListIDStrList() {

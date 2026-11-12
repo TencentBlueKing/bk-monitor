@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, computed, type PropType } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { useOperation } from '../../../../hook/useOperation';
 import InfoTips from '../../../common-comp/info-tips';
@@ -85,7 +87,7 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const { handleMultipleSelected, tableLoading } = useOperation();
 
     /**
@@ -115,7 +117,7 @@ export default defineComponent({
     /**
      * 业务ID
      */
-    const bkBizId = computed(() => store.getters.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
     /**
      * 表单数据
      */

@@ -1,7 +1,11 @@
 <script setup>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
   import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-  import useStore from '@/shared/composables/use-store';
+
   import { getCommonFilterAdditionWithValues } from '@/app/state/helper';
   import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
   import { normalizeSearchTotal } from '@/platform/persistence/utils/normalize-search-total';
@@ -42,24 +46,24 @@
   // #code const LogClustering = () => null;
   // #endif
 
-  const store = useStore();
-  const isFilterLoading = computed(() => store.state.indexFieldInfo.is_loading);
-  const isSearchRersultLoading = computed(() => store.state.indexSetQueryResult.is_loading);
+  const store = useApplicationStore();
+  const isFilterLoading = computed(() => store.indexFieldInfo.is_loading);
+  const isSearchRersultLoading = computed(() => store.indexSetQueryResult.is_loading);
 
-  const retrieveParams = computed(() => store.getters.retrieveParams);
-  const requestAddition = computed(() => store.getters.requestAddition);
-  const isNoIndexSet = computed(() => !store.state.retrieve.flatIndexSetList.length);
+  const retrieveParams = computed(() => store.retrieveParams);
+  const requestAddition = computed(() => store.requestAddition);
+  const isNoIndexSet = computed(() => !useRetrieveStore().$state.flatIndexSetList.length);
   const isOriginShow = computed(() => props.activeTab === 'origin');
   const trendContextKey = computed(() =>
-    [store.state.spaceUid, store.state.indexId, ...(store.state.indexItem.ids ?? [])].join('|'),
+    [store.spaceUid, store.indexId, ...(store.indexItem.ids ?? [])].join('|'),
   );
   const pageLoading = computed(
-    () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading,
+    () => isFilterLoading.value || isSearchRersultLoading.value || useRetrieveStore().$state.isIndexSetLoading,
   );
 
   const totalCount = ref(0);
   const queueStatus = ref(false);
-  const isTrendChartShow = ref(!store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD]);
+  const isTrendChartShow = ref(!store.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD]);
   const DEFAULT_TREND_CHART_EXPANDED_HEIGHT = 170;
   const DEFAULT_TREND_CHART_FOLDED_HEIGHT = 40;
   const heightNum = ref(
@@ -85,7 +89,7 @@
     }
 
     isTrendChartPending.value = true;
-    store.commit('retrieve/updateTrendDataLoading', true);
+    useRetrieveStore().updateTrendDataLoading(true);
     heightNum.value = isTrendChartShow.value
       ? Math.max(heightNum.value, DEFAULT_TREND_CHART_EXPANDED_HEIGHT)
       : DEFAULT_TREND_CHART_FOLDED_HEIGHT;
@@ -119,7 +123,7 @@
   });
 
   watch(
-    () => store.state.retrieve.isTrendDataLoading,
+    () => useRetrieveStore().$state.isTrendDataLoading,
     loading => {
       if (loading === false) {
         isTrendChartPending.value = false;
@@ -131,7 +135,7 @@
     () => {
       const pending = isTrendChartPending.value || !shouldRenderTrendChart.value;
       syncTrendLoading(pending);
-      store.commit('retrieve/updateTrendShellPending', pending);
+      useRetrieveStore().updateTrendShellPending(pending);
     },
     { immediate: true },
   );
@@ -154,18 +158,18 @@
     RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
   });
 
-  const fieldFilterWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
+  const fieldFilterWidth = computed(() => store.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
   const isShowFieldStatistics = computed(() => {
     if (window.__IS_MONITOR_TRACE__) {
       return false;
     }
-    return store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].show;
+    return store.storage[BK_LOG_STORAGE.FIELD_SETTING].show;
   });
 
   const retrieveParamsWithCommonAddition = computed(() => {
     return {
       ...retrieveParams.value,
-      addition: [...requestAddition.value, ...getCommonFilterAdditionWithValues(store.state)],
+      addition: [...requestAddition.value, ...getCommonFilterAdditionWithValues(store)],
     };
   });
 
@@ -175,7 +179,7 @@
     totalCount.value = count;
   };
   watch(
-    () => normalizeSearchTotal(store.state.searchTotal),
+    () => normalizeSearchTotal(store.searchTotal),
     count => {
       totalCount.value = count;
     },
@@ -203,7 +207,7 @@
       RetrieveHelper.setLeftFieldSettingWidth(DEFAULT_FIELDS_WIDTH);
     }
     RetrieveHelper.setLeftFieldIsShown(!!status);
-    store.commit('updateStorage', {
+    store.updateStorage({
       [BK_LOG_STORAGE.FIELD_SETTING]: {
         show: !!status,
         width: DEFAULT_FIELDS_WIDTH,
@@ -214,7 +218,7 @@
   const handleFilterWidthChange = throttle(width => {
     if (width !== fieldFilterWidth.value) {
       RetrieveHelper.setLeftFieldSettingWidth(width);
-      store.commit('updateStorage', {
+      store.updateStorage({
         [BK_LOG_STORAGE.FIELD_SETTING]: {
           show: true,
           width,

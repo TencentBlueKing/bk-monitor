@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+
+import { applicationPinia } from '@/app/state/pinia';
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
 import './public-path';
@@ -50,7 +53,7 @@ import {
   releaseBootstrapShell,
 } from './shell-gate';
 import getRouter from '../router/index';
-import store from '../state/index';
+
 import { performanceMonitorService } from '../../platform/persistence/index';
 
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
@@ -108,6 +111,7 @@ export const mountApplication = (app, target) => {
 };
 
 const mountedVueInstance = () => {
+  const store = useApplicationStore();
   // Object.assign(window, localSettings);
   window.mainComponent = {
     $t(key, params) {
@@ -116,15 +120,15 @@ const mountedVueInstance = () => {
   };
 
   preload({ http, store, isHeadless: isHeadlessRoute() }).then(([spaceRequest]) => {
-    rumInstance?.setUser({ id: store.state.userMeta?.username });
+    rumInstance?.setUser({ id: useApplicationStore().userMeta?.username });
 
     const { space, spaceUid, bkBizId } = spaceRequest.value ?? {};
-    store.commit('updateState', { spaceResolveFailed: !space });
+    useApplicationStore().updateState({ spaceResolveFailed: !space });
 
     let externalMenu = [];
     if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
-      store.commit('updateState', {
+      useApplicationStore().updateState({
         externalMenu,
         externalPermissions: space.external_permission ?? [],
       });
@@ -134,11 +138,11 @@ const mountedVueInstance = () => {
     setRouterErrorHandle(router);
     performanceMonitorService.init(router);
 
-    if (!store.state.topMenu?.length) {
+    if (!useApplicationStore().topMenu?.length) {
       const bootstrapMenu = createBootstrapMenuList();
-      store.commit('updateState', { topMenu: bootstrapMenu, menuList: bootstrapMenu });
-    } else if (!store.state.menuList?.length) {
-      store.commit('updateState', { menuList: store.state.topMenu });
+      useApplicationStore().updateState({ topMenu: bootstrapMenu, menuList: bootstrapMenu });
+    } else if (!useApplicationStore().menuList?.length) {
+      useApplicationStore().updateState({ menuList: useApplicationStore().topMenu });
     }
 
     const patchLogCollectionMenu = (menuList = []) => {
@@ -167,16 +171,15 @@ const mountedVueInstance = () => {
     };
 
     const menuSignature = (list = []) => list.map(item => `${item?.id}:${item?.name}`).join('|');
-    store
-      .dispatch('requestMenuList', spaceUid)
+    useApplicationStore().requestMenuList(spaceUid)
       .then((menuList = []) => {
         if (isBootstrapShellReleased()) {
           return;
         }
         patchLogCollectionMenu(menuList);
         const nextMenu = structuredClone(menuList);
-        if (menuSignature(nextMenu) !== menuSignature(store.state.topMenu)) {
-          store.commit('updateState', { topMenu: nextMenu });
+        if (menuSignature(nextMenu) !== menuSignature(useApplicationStore().topMenu)) {
+          useApplicationStore().updateState({ topMenu: nextMenu });
         }
       })
       .catch(e => {
@@ -204,8 +207,8 @@ const mountedVueInstance = () => {
                 query: {
                   ...this.$route.query,
                   type: 'space',
-                  spaceUid: spaceUid ?? store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
-                  bkBizId: bkBizId ?? store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+                  spaceUid: spaceUid ?? useApplicationStore().storage[BK_LOG_STORAGE.BK_SPACE_UID],
+                  bkBizId: bkBizId ?? useApplicationStore().storage[BK_LOG_STORAGE.BK_BIZ_ID],
                   indexId: this.$route.params.indexId ?? this.$route.query.indexId ?? urlArgs.index_id,
                   from: urlArgs.from,
                 },
@@ -243,7 +246,7 @@ const mountedVueInstance = () => {
             window.setTimeout(releaseBootstrapShell, 12000);
           }
           if (!isHeadlessRoute()) {
-            getAllSpaceList(http, store);
+            getAllSpaceList(http, useApplicationStore());
             const requestUserGuide = () => {
               requestUserGuideData({ http, store }).catch(e => {
                 console.error('获取用户引导数据失败', e);
@@ -261,7 +264,7 @@ const mountedVueInstance = () => {
         },
       });
       configureApp(app);
-      app.use(store);
+      app.use(applicationPinia);
       app.use(i18n);
       app.use(router);
       return mountApplication(app, '#app');

@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
 import { ServicesInstance } from '@/platform/services';
 import type { ApplicationStore } from '@/app/state/application-store.type';
 import { VIEW_BUSINESS } from '../../shared/lib/authority-map';
 import '../../platform/compat/polyfill';
-import { SET_APP_STATE } from '../state/index';
 import { urlArgs } from '../state/default-values';
 import { BK_LOG_STORAGE, ConsitionItem } from '../state/store.type.ts';
 import BkUserDisplayName from '@blueking/bk-user-display-name';
@@ -64,7 +66,7 @@ let allSpaceListPromise: Promise<void> | null = null;
  * @returns
  */
 export const getAllSpaceList = (http: HttpClient, store: ApplicationStore): Promise<void> => {
-  if (store.state.spaceListLoaded) {
+  if (store.spaceListLoaded) {
     return Promise.resolve();
   }
   if (allSpaceListPromise) {
@@ -82,14 +84,14 @@ export const getAllSpaceList = (http: HttpClient, store: ApplicationStore): Prom
             item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
           });
 
-          store.commit('updateMySpaceList', spaceList);
+          store.updateMySpaceList(spaceList);
         })
         .catch(e => {
           // 保留首屏已解析出的当前空间，避免请求失败时业务名与下拉列表一起被清空
           console.error('获取空间列表失败', e);
         })
         .finally(() => {
-          store.commit(SET_APP_STATE, { spaceListLoaded: true });
+          store.SET_APP_STATE({ spaceListLoaded: true });
           resolve();
         });
     });
@@ -109,7 +111,7 @@ export const getAllSpaceList = (http: HttpClient, store: ApplicationStore): Prom
  */
 export const requestUserGuideData = ({ http, store }: { http: HttpClient; store: ApplicationStore }) => {
   return ServicesInstance.meta.getUserGuide().then((res: { data: any; }) => {
-    store.commit('updateState', { userGuideData: res.data });
+    useApplicationStore().updateState({ userGuideData: res.data });
     return res.data;
   });
 };
@@ -142,8 +144,8 @@ export default ({
         )
         .then(resp => {
           if (resp.result) {
-            store.commit('updateSpace', resp.data);
-            store.commit('updateStorage', {
+            useApplicationStore().updateSpace(resp.data);
+            useApplicationStore().updateStorage({
               [BK_LOG_STORAGE.BK_BIZ_ID]: resp.data.bk_biz_id,
               [BK_LOG_STORAGE.BK_SPACE_UID]: resp.data.space_uid,
             });
@@ -170,7 +172,7 @@ export default ({
       return urlArgs.spaceUid;
     }
 
-    return store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+    return useApplicationStore().storage[BK_LOG_STORAGE.BK_SPACE_UID];
   };
 
   /**
@@ -182,7 +184,7 @@ export default ({
       return urlArgs.bizId;
     }
 
-    return store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+    return useApplicationStore().storage[BK_LOG_STORAGE.BK_BIZ_ID];
   };
 
   /**
@@ -246,27 +248,27 @@ export default ({
       let spaceUid = undefined;
       let bkBizId = undefined;
 
-      store.commit('updateMySpaceList', spaceList);
-      const normalizedSpaceList = store.state.mySpaceList;
+      useApplicationStore().updateMySpaceList(spaceList);
+      const normalizedSpaceList = useApplicationStore().mySpaceList;
       let space: { [key: string]: any } | null = null;
 
       if (urlArgs.spaceUid || urlArgs.bizId) {
         space = (normalizedSpaceList ?? []).find(
 (          item: { space_uid: string; bk_biz_id: string; }) => item.space_uid === urlArgs.spaceUid || item.bk_biz_id === `${urlArgs.bizId}`,
         );
-        store.commit('updateSpace', space?.space_uid || urlArgs.spaceUid);
+        useApplicationStore().updateSpace(space?.space_uid || urlArgs.spaceUid);
         spaceUid = space?.space_uid || urlArgs.spaceUid;
         bkBizId = space?.bk_biz_id || urlArgs.bizId;
 
         if (space) {
-          store.commit('updateStorage', {
+          useApplicationStore().updateStorage({
             [BK_LOG_STORAGE.BK_BIZ_ID]: space?.bk_biz_id,
             [BK_LOG_STORAGE.BK_SPACE_UID]: space?.space_uid,
           });
         }
       } else {
-        const storageSpaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
-        const storageBkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+        const storageSpaceUid = useApplicationStore().storage[BK_LOG_STORAGE.BK_SPACE_UID];
+        const storageBkBizId = useApplicationStore().storage[BK_LOG_STORAGE.BK_BIZ_ID];
         if (storageSpaceUid) {
           space = (normalizedSpaceList ?? []).find((item: { space_uid: any; }) => item.space_uid === storageSpaceUid);
         }
@@ -279,8 +281,8 @@ export default ({
           space = normalizedSpaceList?.find((item: { permission: { [x: string]: any; }; }) => item?.permission?.[VIEW_BUSINESS]) ?? normalizedSpaceList?.[0];
         }
 
-        store.commit('updateSpace', space?.space_uid);
-        store.commit('updateStorage', {
+        useApplicationStore().updateSpace(space?.space_uid);
+        useApplicationStore().updateStorage({
           [BK_LOG_STORAGE.BK_BIZ_ID]: space?.bk_biz_id,
           [BK_LOG_STORAGE.BK_SPACE_UID]: space?.space_uid,
         });
@@ -297,7 +299,7 @@ export default ({
    * 获取用户信息
    */
   const userInfoRequest = ServicesInstance.userInfo.getUsername().then(resp => {
-    store.commit('updateState', { userMeta: resp.data });
+    useApplicationStore().updateState({ userMeta: resp.data });
     BkUserDisplayName.configure({
       // 必填，租户 ID
       tenantId: resp.data.bk_tenant_id,
@@ -322,7 +324,7 @@ export default ({
       updateBuiltInInitHiddenList(res.data.log_built_in_field);
     }
 
-    store.commit('globals/setGlobalsData', res.data);
+    useGlobalsStore().setGlobalsData(res.data);
     return res.data;
   });
 

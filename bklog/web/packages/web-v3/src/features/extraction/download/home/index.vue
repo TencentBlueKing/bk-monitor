@@ -245,7 +245,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { manageDraftCacheService } from '@/platform/persistence/index';
   import EmptyStatus from '@/shared/ui/empty-status/index';
@@ -317,7 +319,7 @@
           this.emptyType = this.searchKeyword ? 'search-empty' : 'empty';
           const payload = {
             query: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
               page: this.pagination.current,
               pagesize: this.pagination.limit,
             },
@@ -365,7 +367,7 @@
               host_list: hostList,
             },
             params: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
             },
           });
           this.displayNameList = res.data;
@@ -468,7 +470,7 @@
       downloadFile({ task_id: taskId }) {
         let urlPrefix = window.AJAX_URL_PREFIX;
         if (!urlPrefix.endsWith('/')) urlPrefix += '/';
-        const { bkBizId } = this.$store.state;
+        const { bkBizId } = useApplicationStore();
 
         const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${taskId}&bk_biz_id=${bkBizId}`;
         window.open(downloadUrl);
@@ -480,7 +482,7 @@
           await ServicesInstance.extract.reDownloadFile({
             data: {
               task_id,
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
             },
           });
           await this.initTaskList();

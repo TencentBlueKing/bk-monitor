@@ -92,7 +92,7 @@
             >
               <template #default="scope">
                 <t-button :variant="(true) ? 'text' : ('base')"
-                  
+
                   @click="handleRemoveIp(scope)"
                   >{{ $t('移除') }}</t-button
                 >
@@ -110,7 +110,9 @@
   </bk-dialog>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { copyMessage } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
@@ -153,7 +155,7 @@
           this.isLoading = true;
           const res = await ServicesInstance.extract.getTopoIpList({
             query: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
             },
           });
           this.topoTemplate = res.data;
@@ -191,10 +193,10 @@
         this.isLoading = true;
         ServicesInstance.collect.getHostByIp({
             params: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
             },
             data: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
               ip_list: Object.values(ipObj),
             },
           })
@@ -243,7 +245,7 @@
           // 选择服务器后，获取可预览的路径
           const res = await ServicesInstance.extract.getAvailableExplorerPath({
             data: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
               ip_list: this.selectedIpList,
             },
           });

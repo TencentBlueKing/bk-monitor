@@ -105,6 +105,8 @@
 </template>
 
 <script>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Input as TInput, MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { SearchIcon } from 'tdesign-icons-vue-next';
 
@@ -163,13 +165,13 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
     },
     computed: {
       visibleFields() {
-        return this.$store.getters.visibleFields ?? [];
+        return useApplicationStore().resolvedVisibleFields ?? [];
       },
       totalFields() {
-        return this.$store.getters.filteredFieldList;
+        return useApplicationStore().filteredFieldList;
       },
       showFieldAlias() {
-        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+        return useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       // 性能优化：使用 Set 缓存 kvShowFieldsList，提升查找性能
       kvShowFieldsSet() {
@@ -209,7 +211,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
             const fieldNameCache = new Map();
             const getCachedFieldName = field => {
               if (!fieldNameCache.has(field)) {
-                fieldNameCache.set(field, getFieldNameByField(field, this.$store));
+                fieldNameCache.set(field, getFieldNameByField(field, useApplicationStore()));
               }
               return fieldNameCache.get(field);
             };
@@ -267,7 +269,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
             const fieldNameCache = new Map();
             const getCachedFieldName = field => {
               if (!fieldNameCache.has(field)) {
-                fieldNameCache.set(field, getFieldNameByField(field, this.$store));
+                fieldNameCache.set(field, getFieldNameByField(field, useApplicationStore()));
               }
               return fieldNameCache.get(field);
             };

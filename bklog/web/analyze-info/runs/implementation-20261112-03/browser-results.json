@@ -1,0 +1,43 @@
+{
+  "business": {
+    "indexSetId": 16176,
+    "spaceUid": "bkcc__5000140",
+    "bizId": 5000140
+  },
+  "writesToExistingResources": false,
+  "cases": [
+    {
+      "name": "主应用独立初始化及原始日志查询",
+      "status": "通过",
+      "evidence": "v3-main-query-1280.png",
+      "scope": "初始化用户/空间/全局配置/索引，趋势及真实日志结果加载；未覆盖所有查询模式。"
+    },
+    {
+      "name": "日志聚类表格、责任人筛选弹层",
+      "status": "通过",
+      "scope": "真实接口结果含两个 Pattern；筛选入口保持漏斗图标；恢复搜索图标、底边框、150px 宽度、勾选间距。未在本批提交责任人变更。"
+    },
+    {
+      "name": "模板解绑取消",
+      "status": "通过",
+      "evidence": "v3-unbind-1280.png",
+      "scope": "仅打开确认并取消，模板和规则保留；确认后的本地事件链通过组件测试，未保存已有配置。"
+    },
+    {
+      "name": "Vue2 宿主调用原生根状态",
+      "status": "通过",
+      "evidence": "monitor-native-owner.png",
+      "scope": "Vue2 2.7.16 → Vue3 3.5.44；注入拥有者断言一致，组件引用使 root counter 0→1，原数组变更、未知参数保留、路由同步和卸载清理。"
+    },
+    {
+      "name": "APM/Trace 真实业务宿主端到端",
+      "status": "待验证",
+      "scope": "本批验证最终生产构建、导出和通用宿主协议；未在独立 APM/Trace 产品页面完整跑通后端业务。"
+    },
+    {
+      "name": "全量视觉验收",
+      "status": "待验证",
+      "scope": "本批 V2 实测1440×900、V3实测1280×720。视口 capability 未对 V3 生效；截图用于固定宽度侧栏及弹层结构复核，不作相同全页尺寸的像素通过证明。尚需1440×900及1280×800同数据验收。"
+    }
+  ]
+}

@@ -84,6 +84,7 @@ function setup(file, props, options = {}) {
       'tdesign-vue-next': native,
       '@/shared/utils/typed-record': { asDictionary: (x) => x },
       '@/shared/composables/use-locale': () => ({ t: (x) => x }),
+      '@/app/state/domains/retrieve-store': { useRetrieveStore: () => ({ ...store.state.retrieve, $state: store.state.retrieve, sceneConfigList: store.getters['retrieve/sceneConfigList'] }) },
       '@/shared/composables/use-store': () => store,
       '../../hooks/use-favorite': { useFavorite: () => hook },
       '../../utils/index': {

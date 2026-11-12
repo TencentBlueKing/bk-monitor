@@ -168,7 +168,9 @@ test('SDK Select maps id/name and controls popup closing without dropping model 
   assert.equal(option.type, controls.Option);
   assert.equal(option.props.value, 'now');
   assert.equal(option.props.label, '此刻');
-  assert.equal(node.props.popupProps.zIndex, 10020);
+  assert.equal(node.props.popupProps.zIndex, undefined, 'SDK popup layers are assigned by the shared overlay runtime');
+  assert.equal(node.props.popupProps.overlayClassName, 'sdk-popup');
+  assert.deepEqual(node.props.popupProps.overlayInnerStyle, {minWidth: '130px'});
   node.props['onUpdate:modelValue']('hour');
   assert.deepEqual(selected, ['hour']);
   node.props.onPopupVisibleChange(true);

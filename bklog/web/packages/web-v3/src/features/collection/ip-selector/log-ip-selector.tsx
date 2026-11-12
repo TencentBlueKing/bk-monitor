@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import { ServicesInstance } from '@/platform/services';
 
 import { Component, Prop } from 'vue-property-decorator';
@@ -395,7 +400,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return [
       {
         scope_type: 'space',
-        scope_id: this.$store.state.spaceUid,
+        scope_id: useApplicationStore().spaceUid,
       },
     ];
   }
@@ -454,7 +459,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   }
 
   get priorityList() {
-    return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
+    return useGlobalsStore().globalsData?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
   }
 
   // 拉取topology
@@ -645,7 +650,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   async fetchConfig() {
     const res = await ServicesInstance.ipChooser.globalConfig();
     const rootUrl = res.data?.CC_ROOT_URL || '';
-    const bizId = this.$store.state.bkBizId;
+    const bizId = useApplicationStore().bkBizId;
     return {
       // CMDB 动态分组链接
       bk_cmdb_dynamic_group_url: `${rootUrl}/#/business/${bizId}/custom-query`,

@@ -24,13 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, onMounted, computed, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { useOperation } from '../../../../hook/useOperation';
 
@@ -58,13 +60,13 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const indexName = ref('');
     const tableData = ref([]);
     const basicLoading = ref(false);
     const collectionList = ref([]);
     const confirmLoading = ref(false);
-    const bkBizId = computed(() => store.getters.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
     const { handleMultipleSelected, tableLoading } = useOperation();
     onMounted(() => {
       fetchCollectionList();

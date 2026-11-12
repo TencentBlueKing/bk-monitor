@@ -142,7 +142,9 @@
   </bk-dialog>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import FullTextIndex from './full-text-index';
   import LogCluster from './log-cluster';
@@ -199,22 +201,22 @@
     },
     computed: {
       cleanConfig() {
-        return this.$store.state.indexSetFieldConfig.clean_config;
+        return useApplicationStore().indexSetFieldConfig.clean_config;
       },
       configData() {
-        return this.$store.state.indexSetFieldConfig.clustering_config;
+        return useApplicationStore().indexSetFieldConfig.clustering_config;
       },
       retrieveParams() {
-        return this.$store.getters.retrieveParams;
+        return useApplicationStore().retrieveParams;
       },
       indexSetItem() {
-        return this.$store.state.indexItem.items[0];
+        return useApplicationStore().indexItem.items[0];
       },
       totalFields() {
-        return this.$store.getters.filteredFieldList;
+        return useApplicationStore().filteredFieldList;
       },
       datePickerValue() {
-        const { start_time: startTime = 'now-15m', end_time: endTime = 'now' } = this.$store.state.indexItem;
+        const { start_time: startTime = 'now-15m', end_time: endTime = 'now' } = useApplicationStore().indexItem;
         return [startTime, endTime];
       },
       globalEditable() {
@@ -384,7 +386,7 @@
           extra: { collector_config_id: collectorID, collector_scenario_id: scenarioID },
         } = this.cleanConfig;
         if (!collectorID) return;
-        const { spaceUid } = this.$store.state;
+        const { spaceUid } = useApplicationStore();
         const jumpUrl =
           scenarioID === 'custom'
             ? `/#/manage/custom-report/detail/${collectorID}?spaceUid=${spaceUid}`

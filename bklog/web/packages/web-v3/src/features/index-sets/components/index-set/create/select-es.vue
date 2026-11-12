@@ -173,10 +173,13 @@
   </bk-dialog>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
-  import { mapState } from '@/app/state/map-helpers';
+
 
   export default {
   emits: ["selected","update:time-index","update:timeIndex"],
@@ -252,7 +255,7 @@
       };
     },
     computed: {
-      ...mapState(['spaceUid', 'bkBizId']),
+      ...mapPiniaState(useApplicationStore, ['spaceUid', 'bkBizId']),
     },
     methods: {
       openDialog() {

@@ -110,7 +110,7 @@ export default defineComponent({
     const handleClickOutside = (e: any) => {
       const popoverTriger = e.target.closest('.config-rule-trigger');
       const popover = e.target.closest('.config-rule-content');
-      const otherPopover = e.target.closest('.tippy-popper');
+      const otherPopover = e.target.closest('.tippy-popper, .t-popup');
       const isActiveOtherPopover = otherPopover?.className && !otherPopover.className.includes('config-rule-trigger');
       if (!(popoverTriger || popover || isActiveOtherPopover)) {
         for (const item of configRulesRef.value) {

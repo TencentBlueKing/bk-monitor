@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -32,7 +37,7 @@ import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'v
 import { getOs } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
-import useStore from '@/shared/composables/use-store';
+
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import { RetrieveUrlResolver } from '@/app/state/url-resolver';
 import { isEqual } from 'lodash-es';
@@ -58,23 +63,23 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const router = useRouter();
 
-    const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+    const sceneConfigs = computed(() => useRetrieveStore().sceneConfigList);
 
     const activeScene = computed<string>({
-      get: () => store.state.indexItem.scene_active || SceneType.Container,
+      get: () => store.indexItem.scene_active || SceneType.Container,
       set: (val: string) => {
-        store.commit('updateIndexItem', { scene_active: val });
+        store.updateIndexItem({ scene_active: val });
       },
     });
 
     const filterValues = computed<FilterValues>({
-      get: () => store.state.indexItem.scene_filter_values ?? {},
+      get: () => store.indexItem.scene_filter_values ?? {},
       set: (val: FilterValues) => {
-        store.commit('updateIndexItem', { scene_filter_values: val });
+        store.updateIndexItem({ scene_filter_values: val });
       },
     });
 
@@ -99,14 +104,14 @@ export default defineComponent({
 
     // 切换业务时组件会被复用，清空选择时记录的名称
     watch(
-      () => store.state.spaceUid,
+      () => store.spaceUid,
       () => {
         filterLabels.value = {};
       },
     );
 
     const syncUrlParams = (options?: { clearKeywordAndAddition?: boolean }) => {
-      const { scene_active, scene_filter_values } = store.state.indexItem;
+      const { scene_active, scene_filter_values } = store.indexItem;
       const resolver = new RetrieveUrlResolver({
         scene_active,
         scene_filter_values,
@@ -156,7 +161,7 @@ export default defineComponent({
     const updateQueryHint = () => {
       if (lastQueriedFilterValues.value === null) {
         const hasValues = Object.keys(normalizeFilterValues(filterValues.value)).length > 0;
-        store.commit('updateIndexItem', { isSceneFilterChanged: hasValues });
+        store.updateIndexItem({ isSceneFilterChanged: hasValues });
         return;
       }
       const filtersChanged = !isEqual(
@@ -166,20 +171,20 @@ export default defineComponent({
       const sceneChanged = activeScene.value !== lastQueriedScene.value;
       const changed = filtersChanged || sceneChanged;
       showQueryHint.value = changed;
-      store.commit('updateIndexItem', { isSceneFilterChanged: changed });
+      store.updateIndexItem({ isSceneFilterChanged: changed });
     };
 
     const handleSceneChange = (type: string) => {
       // 取消进行中的请求
-      cancelPendingRetrieveRequests();
+      cancelPendingRetrieveRequests(store);
 
       activeScene.value = type;
       filterValues.value = {};
       filterLabels.value = {};
 
-      store.commit('retrieve/updateCatchFieldCustomConfig', { fixedFilterAddition: false, filterAddition: [] });
-      store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
-      store.commit('updateIndexItemParams', { keyword: '', addition: [] });
+      useRetrieveStore().updateCatchFieldCustomConfig({ fixedFilterAddition: false, filterAddition: [] });
+      store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
+      store.updateIndexItemParams({ keyword: '', addition: [] });
 
       // 清空检索数据
       resetRetrieveData(store);
@@ -187,12 +192,12 @@ export default defineComponent({
       // 获取场景化检索用户自定义配置
       ServicesInstance.retrieve.getSceneUserCustomConfig({
           query: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
             scene_id: type,
           },
         })
         .then(res => {
-          store.commit('retrieve/updateCatchFieldCustomConfig', res.data);
+          useRetrieveStore().updateCatchFieldCustomConfig(res.data);
         });
 
       syncUrlParams({ clearKeywordAndAddition: true });
@@ -227,23 +232,23 @@ export default defineComponent({
       filterValues.value = {};
       filterLabels.value = {};
       showQueryHint.value = false;
-      store.commit('updateIndexItem', { isSceneFilterChanged: false });
+      store.updateIndexItem({ isSceneFilterChanged: false });
     };
 
     // 每场景独立的显示字段配置
-    const bkBizId = computed(() => store.state.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
 
     /** 从 localStorage 读取当前业务的场景显示字段配置 */
     const getLocalSceneDisplayFields = (): SceneDisplayFields => {
-      const all = store.state.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
+      const all = store.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
       return all[bkBizId.value] ?? {};
     };
 
     /** 将当前业务的场景显示字段配置写入 localStorage */
     const saveLocalSceneDisplayFields = (fields: SceneDisplayFields) => {
-      const all = store.state.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
+      const all = store.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
       all[bkBizId.value] = fields;
-      store.commit('updateStorage', {
+      store.updateStorage({
         [BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS]: all,
       });
     };
@@ -270,16 +275,16 @@ export default defineComponent({
     };
 
     const syncQueriedSnapshot = () => {
-      lastQueriedFilterValues.value = JSON.parse(JSON.stringify(store.state.indexItem.scene_filter_values ?? {}));
+      lastQueriedFilterValues.value = JSON.parse(JSON.stringify(store.indexItem.scene_filter_values ?? {}));
       lastQueriedScene.value = activeScene.value;
       showQueryHint.value = false;
-      store.commit('updateIndexItem', { isSceneFilterChanged: false });
+      store.updateIndexItem({ isSceneFilterChanged: false });
       syncUrlParams();
     };
 
     // 监听 is_loading 从 false→true，表示查询开始
     watch(
-      () => store.state.indexSetQueryResult.is_loading,
+      () => store.indexSetQueryResult.is_loading,
       (newVal, oldVal) => {
         if (newVal && !oldVal) {
           syncQueriedSnapshot();
@@ -292,7 +297,7 @@ export default defineComponent({
       lastQueriedFilterValues.value = null;
       lastQueriedScene.value = null;
       showQueryHint.value = false;
-      store.commit('updateIndexItem', { isSceneFilterChanged: false });
+      store.updateIndexItem({ isSceneFilterChanged: false });
     });
 
     // 监听字段列表为空事件（场景化检索模式下，字段为空时跳过检索，需同步状态）
@@ -310,15 +315,15 @@ export default defineComponent({
 
     // ---- 场景化检索禁用判断 ----
     /** 当前是否正在检索中 */
-    const isSearching = computed(() => store.state.indexSetQueryResult.is_loading);
+    const isSearching = computed(() => store.indexSetQueryResult.is_loading);
 
     /** 场景过滤条件是否为空 */
-    const isSceneFilterEmpty = computed(() => store.getters.isSceneFilterEmpty);
+    const isSceneFilterEmpty = computed(() => store.isSceneFilterEmpty);
 
     // ---- 快捷键搜索逻辑 ----
     const handleShortcutKeySearch = (event: KeyboardEvent) => {
       // 仅在场景化检索模式下响应快捷键
-      if (!store.getters.isSceneMode) return;
+      if (!store.isSceneMode) return;
 
       const isMac = getOs() === 'macos';
       const isCtrlShiftEnter = !isMac && event.ctrlKey && event.shiftKey && event.key === 'Enter';
@@ -335,9 +340,9 @@ export default defineComponent({
         if (isSearching.value) return;
 
         // 场景化检索模式下，先请求字段列表数据，再执行查询
-        store.dispatch('requestIndexSetFieldInfo').then((resp: any) => {
+        store.requestIndexSetFieldInfo().then((resp: any) => {
           if (resp?.data?.fields?.length) {
-            store.dispatch('requestIndexSetQuery');
+            store.requestIndexSetQuery();
             RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
           } else {
             RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);

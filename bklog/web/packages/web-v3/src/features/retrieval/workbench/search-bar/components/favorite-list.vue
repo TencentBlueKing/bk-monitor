@@ -1,8 +1,10 @@
 <script setup>
-  import { computed } from 'vue';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { computed } from 'vue';
 
   // @ts-ignore
-  import useStore from '@/shared/composables/use-store';
+
 
   const props = defineProps({
     searchValue: {
@@ -11,11 +13,11 @@
     },
   });
 
-  const store = useStore();
+  const store = useApplicationStore();
   const emit = defineEmits(['change']);
 
-  const indexSetItemIdList = computed(() => store.state.indexItem.ids);
-  const favoriteGroupList = computed(() => store.state.favoriteList.map(f => f.favorites).flat());
+  const indexSetItemIdList = computed(() => store.indexItem.ids);
+  const favoriteGroupList = computed(() => store.favoriteList.map(f => f.favorites).flat());
 
   const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
   const regFormat = str => `${str}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');

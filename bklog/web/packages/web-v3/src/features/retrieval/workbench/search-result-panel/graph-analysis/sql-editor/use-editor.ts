@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, onBeforeUnmount, onMounted, shallowRef, type Ref } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
 import { debounce } from 'lodash-es';
 import type * as Monaco from 'monaco-editor';
 
@@ -45,12 +45,13 @@ export default ({
   // untouched; retain that identity when upgrading to Vue3 reactivity.
   const editorInstance = shallowRef<Monaco.editor.IStandaloneCodeEditor>();
   const listeners: Monaco.IDisposable[] = [];
+  let unmounted = false;
   let resetLayoutTimer: ReturnType<typeof setTimeout> | undefined;
   let clearSuggestFields: (() => void) | undefined;
   let monacoApi: typeof import('monaco-editor') | undefined;
   let setDorisFields: typeof import('./lang').setDorisFields | undefined;
-  const store = useStore();
-  const fieldList = computed(() => store.getters.filteredFieldList);
+  const store = useApplicationStore();
+  const fieldList = computed(() => store.filteredFieldList);
 
   const updateEditorHeight = () => {
     editorInstance.value?.layout(); // 重新布局编辑器
@@ -80,7 +81,7 @@ export default ({
     editorInstance.value = editor;
     // 监听编辑器的键盘事件
     listeners.push(
-      editor.onKeyDown(e => {
+      editor.onKeyDown((e) => {
         if (e.keyCode === monaco.KeyCode.Space) {
           // 阻止默认空格行为，使得我们可以手动处理
           e.preventDefault();
@@ -174,17 +175,17 @@ export default ({
 
   useResizeObserve(refRootElement, debounceLayout);
 
-  onMounted(() => {
-    void (async () => {
-      const [monaco, lang] = await Promise.all([import('monaco-editor'), import('./lang')]);
-      monacoApi = monaco;
-      setDorisFields = lang.setDorisFields;
-      initEditorInstance();
-      setSuggestFields();
-    })();
+  onMounted(async () => {
+    const [monaco, lang] = await Promise.all([import('monaco-editor'), import('./lang')]);
+    if (unmounted) return;
+    monacoApi = monaco;
+    setDorisFields = lang.setDorisFields;
+    initEditorInstance();
+    setSuggestFields();
   });
 
   onBeforeUnmount(() => {
+    unmounted = true;
     debounceUpdateSqlValue.cancel();
     debounceLayout.cancel();
     if (resetLayoutTimer !== undefined) clearTimeout(resetLayoutTimer);

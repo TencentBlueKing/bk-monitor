@@ -148,6 +148,8 @@
 </template>
 
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import {
   MessagePlugin as TDesignMessage,
   Popup as TPopup,
@@ -163,7 +165,7 @@ import { ref, watch, computed, nextTick } from 'vue';
 
 import { useDialogVisible } from '@/shared/global/overlay/index';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 const { $t } = useLocale();
 const props = withDefaults(
@@ -174,8 +176,8 @@ const props = withDefaults(
   }>(),
   { selectFavoriteList: () => [], favoriteType: 'event', favoriteGroupList: () => [] },
 );
-const store = useStore();
-const spaceUid = computed(() => store.state.spaceUid);
+const store = useApplicationStore();
+const spaceUid = computed(() => store.spaceUid);
 const emit = defineEmits<{ operateChange: [groupId?: FavoriteGroupId] }>();
 const outerMenuVisible = ref(false);
 const groupMenuVisible = ref(false);
@@ -296,7 +298,7 @@ async function handleAddGroupConfirm() {
     const data = {
       name: addGroupData.value.name,
       space_uid: spaceUid.value,
-      source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
+      source_type: store.isSceneMode ? 'scene' : 'index_set',
     };
     const res = await ServicesInstance.favorite.createGroup({
       data,

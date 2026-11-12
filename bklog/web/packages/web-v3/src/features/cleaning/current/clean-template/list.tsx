@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -38,7 +43,7 @@ import {
 import LogImport from '@/features/index-sets/import/log-import';
 import useLocale from '@/shared/composables/use-locale';
 import useResizeObserver from '@/shared/composables/use-resize-observe';
-import useStore from '@/shared/composables/use-store';
+
 import useUtils from '@/shared/composables/use-utils';
 import TableComponent from '@/features/collection/current/components/common-comp/table-component';
 import { tenantManager, UserInfoLoadedEventData } from '@/features/retrieval/core/tenant-manager';
@@ -171,7 +176,7 @@ export default defineComponent({
     const { t } = useLocale();
     const { formatResponseListTimeZoneString } = useUtils();
     const router = useRouter();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const isTableLoading = ref(true);
     const templateList = ref<CleanTemplateItem[]>([]);
@@ -203,8 +208,8 @@ export default defineComponent({
       limitList: [10, 20, 50, 100],
     });
 
-    const bkBizId = computed(() => store.getters.bkBizId);
-    const globalsData = computed(() => store.getters['globals/globalsData'] || {});
+    const bkBizId = computed(() => store.bkBizId);
+    const globalsData = computed(() => useGlobalsStore().globalsData || {});
     const formatFilters = computed(() => {
       return (globalsData.value.etl_config || []).map((item: { id: string; name: string }) => ({
         label: item.name,
@@ -437,7 +442,7 @@ export default defineComponent({
       router.push({
         name: 'clean-template-create',
         query: {
-          spaceUid: store.state.spaceUid,
+          spaceUid: store.spaceUid,
         },
       });
     };
@@ -487,7 +492,7 @@ export default defineComponent({
           templateId: `${row.clean_template_id}`,
         },
         query: {
-          spaceUid: store.state.spaceUid,
+          spaceUid: store.spaceUid,
           editName: row.name,
         },
       });
@@ -698,7 +703,7 @@ export default defineComponent({
           <div class='template-operations'>
             <TButton
               theme='primary'
-              
+
               onClick={() => handleEdit(row)} variant={(true) ? 'text' : ('base')}
             >
               {t('编辑')}
@@ -712,7 +717,7 @@ export default defineComponent({
               <TButton
                 disabled={row.status !== 'DRAFT'}
                 theme='primary'
-                
+
                 onClick={() => handleOpenSyncSlider(row)} variant={(true) ? 'text' : ('base')}
               >
                 {t('一键同步')}

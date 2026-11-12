@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Tag as TTag } from 'tdesign-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 
@@ -31,7 +33,7 @@ import { computed, defineComponent, ref } from 'vue';
 import Stratege from './strategy/index';
 import QuickFilter from './quick-filter/index';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import EmailSubscription from './email-subscription/index';
 import ClusterConfig from './cluster-config/index';
 import ClusterDownload from './cluster-download/index';
@@ -85,7 +87,7 @@ export default defineComponent({
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const clusterConfigRef = ref<any>(null);
     /** 是否创建过策略 */
@@ -121,7 +123,7 @@ export default defineComponent({
       if (!isExternal) {
         return true;
       }
-      const permissions = store.state.externalPermissions ?? [];
+      const permissions = store.externalPermissions ?? [];
       return includesValue(permissions, 'log_search') && includesValue(permissions, 'log_clustering');
     });
 

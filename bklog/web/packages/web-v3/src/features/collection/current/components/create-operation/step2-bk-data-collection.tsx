@@ -23,6 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
+
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
 
 import { Alert as TAlert } from 'tdesign-vue-next';
 
@@ -32,7 +37,7 @@ import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, watch, computed, type PropType } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute } from 'vue-router';
 
 import { useCollectList } from '../../hook/useCollectList';
@@ -208,7 +213,7 @@ export default defineComponent({
     // ==================== 基础依赖 ====================
     const { t } = useLocale();
     const route = useRoute();
-    const store = useStore();
+    const store = useApplicationStore();
     const { bkBizId, spaceUid } = useCollectList();
     const { cardRender, handleMultipleSelected, tableLoading, sortByPermission } = useOperation();
 
@@ -514,7 +519,7 @@ export default defineComponent({
         })) as { data: IIndexSetData };
 
         // 更新store中的当前索引集
-        store.commit('collect/updateCurIndexSet', indexSetData);
+        useCollectionStore().updateCurIndexSet(indexSetData);
 
         // 更新配置数据
         const {

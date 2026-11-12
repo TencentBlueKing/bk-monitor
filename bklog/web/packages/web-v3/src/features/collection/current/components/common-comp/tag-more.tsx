@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import {
   Form as TForm,
   FormItem as TFormItem,
@@ -43,7 +45,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 
-import useStore from '@/shared/composables/use-store';
+
 import useVisibleInputFocus from '@/shared/composables/use-visible-input-focus';
 import { showMessage } from '../../utils';
 
@@ -182,7 +184,7 @@ export default defineComponent({
   emits: ['refresh-label-list', 'update-tags', "updateTags", "refreshLabelList"],
 
   setup(props: ITagMoreProps, { emit, slots }) {
-    const store = useStore();
+    const store = useApplicationStore();
 
     // DOM引用
     const containerRef = ref<HTMLDivElement>(); // 主容器引用
@@ -329,7 +331,7 @@ export default defineComponent({
             // TDesign resolves validation errors; only true authorizes submission.
             if (result !== true) return;
             ServicesInstance.unionSearch.unionCreateLabel({
-                data: { name: verifyData.value.labelEditName.trim(), space_uid: store.state.spaceUid },
+                data: { name: verifyData.value.labelEditName.trim(), space_uid: store.spaceUid },
               })
               .then(res => {
                 emit('refresh-label-list');

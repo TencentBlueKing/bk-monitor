@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ref } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 import { ConditionOperator } from '@/app/state/condition-operator';
 
 export default () => {
-  const store = useStore();
+  const store = useApplicationStore();
 
   const isRequesting = ref(false);
   const isValidateItem = ref(false);
@@ -116,11 +118,10 @@ export default () => {
       }
 
       taskPool.push(taskArgs);
-      store
-        .dispatch('requestIndexSetValueList', taskArgs)
+      store.requestIndexSetValueList(taskArgs)
         .then(resp => {
           if (taskArgs.pending) {
-            store.commit('updateIndexFieldEggsItems', resp.data?.aggs_items ?? {});
+            store.updateIndexFieldEggsItems(resp.data?.aggs_items ?? {});
             callback?.(resp);
           }
         })

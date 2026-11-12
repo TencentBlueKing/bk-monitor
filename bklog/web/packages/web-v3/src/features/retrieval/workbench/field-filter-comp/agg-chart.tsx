@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Input as TInput, Tooltip as TTooltip } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
@@ -37,7 +39,7 @@ import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-hel
 import DOMPurify from 'dompurify';
 import { escape as _escape } from 'lodash-es';
 
-import store from '@/app/state/index';
+
 import { BK_LOG_STORAGE } from '../../../../app/state/store.type.ts';
 
 import './agg-chart.scss';
@@ -99,11 +101,11 @@ export default class AggChart extends tsc<AggChartProps> {
   searchKeyword = '';
 
   get unionIndexList() {
-    return store.getters.unionIndexList;
+    return useApplicationStore().unionIndexList;
   }
 
   get isUnionSearch() {
-    return store.getters.isUnionSearch;
+    return useApplicationStore().isUnionSearch;
   }
 
   // Vue computed 会按依赖自动缓存；勿再套一层手动缓存，否则请求中途渲染会把旧 values 固化，导致过滤后百分比异常
@@ -138,7 +140,7 @@ export default class AggChart extends tsc<AggChartProps> {
   }
 
   get watchQueryParams() {
-    const { datePickerValue, ip_chooser, addition, timezone, keyword } = store.state.indexItem;
+    const { datePickerValue, ip_chooser, addition, timezone, keyword } = useApplicationStore().indexItem;
     return { datePickerValue, ip_chooser, addition, timezone, keyword };
   }
 
@@ -146,7 +148,7 @@ export default class AggChart extends tsc<AggChartProps> {
    * 当前查询模式 0：ui，1:sql
    */
   get searchMode() {
-    return store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
+    return useApplicationStore().storage[BK_LOG_STORAGE.SEARCH_TYPE];
   }
 
   get filterList() {
@@ -215,16 +217,15 @@ export default class AggChart extends tsc<AggChartProps> {
     const route = this.$route;
     const mappedOperator = OPERATOR_MAPPING[operator] || operator;
 
-    store
-      .dispatch('setQueryCondition', {
+    useApplicationStore().setQueryCondition({
         field: fieldName,
         operator: mappedOperator,
         value: [value],
       })
       .then(() => {
         const resolver = new RetrieveUrlResolver({
-          keyword: store.getters.retrieveParams.keyword,
-          addition: store.getters.retrieveParams.addition,
+          keyword: useApplicationStore().retrieveParams.keyword,
+          addition: useApplicationStore().retrieveParams.addition,
         });
 
         router
@@ -261,7 +262,7 @@ export default class AggChart extends tsc<AggChartProps> {
 
     if (this.searchMode === 0) {
       const mappedOperator = OPERATOR_MAPPING[operator] || operator;
-      return store.getters.retrieveParams?.addition?.some(
+      return useApplicationStore().retrieveParams?.addition?.some(
         (addition: { field: string; operator: any; value: { toString: () => any } }) => {
           return (
             addition.field === fieldName &&
@@ -307,7 +308,7 @@ export default class AggChart extends tsc<AggChartProps> {
       return mappingKey[operator] ?? operator; // is is not 值映射
     };
     const keyword = getSqlAdditionMappingOperator({ operator, field: fieldName })?.(value) ?? value;
-    return store.getters.retrieveParams?.keyword.indexOf(keyword) >= 0;
+    return useApplicationStore().retrieveParams?.keyword.indexOf(keyword) >= 0;
   };
   // 查询字段数据
   async queryFieldFetchTopList(limit = 5) {
@@ -325,16 +326,16 @@ export default class AggChart extends tsc<AggChartProps> {
       field_count: 0,
     };
     try {
-      const isScene = store.getters.isSceneMode;
+      const isScene = useApplicationStore().isSceneMode;
       const indexSetIDs = this.isUnionSearch
         ? this.unionIndexList
         : [window.__IS_MONITOR_COMPONENT__ ? this.route.query.indexId : this.route.params.indexId];
       // watchQueryParams 直接订阅 store，可能早于 props 更新；覆盖关键查询条件保证过滤后统计一致
-      const latestRetrieveParams = store.getters.retrieveParams || {};
+      const latestRetrieveParams = useApplicationStore().retrieveParams || {};
       const data = {
         ...this.retrieveParams,
         ...latestRetrieveParams,
-        addition: store.getters.requestAddition ?? latestRetrieveParams.addition ?? this.retrieveParams.addition,
+        addition: useApplicationStore().requestAddition ?? latestRetrieveParams.addition ?? this.retrieveParams.addition,
         start_time: this.retrieveParams.start_time ?? latestRetrieveParams.start_time,
         end_time: this.retrieveParams.end_time ?? latestRetrieveParams.end_time,
         agg_field: this.fieldName,

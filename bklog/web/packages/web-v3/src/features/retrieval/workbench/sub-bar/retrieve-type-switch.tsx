@@ -24,11 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { useRoute, useRouter } from "vue-router";
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
@@ -50,31 +55,31 @@ export default defineComponent({
   name: 'RetrieveTypeSwitch',
   setup() {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const router = useRouter();
 
-    const isSceneMode = computed(() => store.getters.isSceneMode);
+    const isSceneMode = computed(() => store.isSceneMode);
     const retrieveType = computed(() => (isSceneMode.value ? RetrieveType.Scene : RetrieveType.Normal));
 
-    const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+    const sceneConfigs = computed(() => useRetrieveStore().sceneConfigList);
 
     const handleChange = (type: string) => {
       if (retrieveType.value === type) return;
 
       // 先取消所有进行中的请求，防止旧请求返回覆盖新数据
-      cancelPendingRetrieveRequests();
+      cancelPendingRetrieveRequests(store);
 
       // 切换检索模式时，关闭常驻筛选面板
-      store.commit('retrieve/updateCatchFieldCustomConfig', { fixedFilterAddition: false, filterAddition: [] });
+      useRetrieveStore().updateCatchFieldCustomConfig({ fixedFilterAddition: false, filterAddition: [] });
 
       // 切换检索模式时，清空 keyword 和 addition
-      store.commit('updateIndexItemParams', { keyword: '', addition: [] });
-      store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
+      store.updateIndexItemParams({ keyword: '', addition: [] });
+      store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
 
       // 切换到常规检索时，清空场景化检索条件
       if (type === RetrieveType.Normal) {
-        store.commit('updateIndexItemParams', {
+        store.updateIndexItemParams({
           retrieve_type: type,
           scene_active: '',
           scene_filter_values: {},
@@ -82,15 +87,15 @@ export default defineComponent({
 
         // 清空检索数据后重新请求
         resetRetrieveData(store);
-        store.dispatch('requestIndexSetFieldInfo').then(resp => {
+        store.requestIndexSetFieldInfo().then(resp => {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
           if (resp?.data?.fields?.length) {
-            store.dispatch('requestIndexSetQuery');
+            store.requestIndexSetQuery();
           }
 
           if (!resp?.data?.fields?.length) {
-            store.commit('updateIndexSetQueryResult', {
+            store.updateIndexSetQueryResult({
               is_error: true,
               exception_msg: 'index-set-field-not-found',
             });
@@ -106,11 +111,11 @@ export default defineComponent({
           delete cleanQuery[key];
         }
         router.replace({
-          params: { ...route.params, indexId: store.state.indexId || undefined },
+          params: { ...route.params, indexId: store.indexId || undefined },
           query: cleanQuery,
         });
       } else {
-        store.commit('updateIndexItemParams', {
+        store.updateIndexItemParams({
           retrieve_type: type,
           scene_active: SceneType.Container,
           scene_filter_values: {},
@@ -124,12 +129,12 @@ export default defineComponent({
         // 获取场景化检索用户自定义配置
         ServicesInstance.retrieve.getSceneUserCustomConfig({
             query: {
-              bk_biz_id: store.state.bkBizId,
+              bk_biz_id: store.bkBizId,
               scene_id: SceneType.Container,
             },
           })
           .then(res => {
-            store.commit('retrieve/updateCatchFieldCustomConfig', res.data);
+            useRetrieveStore().updateCatchFieldCustomConfig(res.data);
           });
 
         router.replace({

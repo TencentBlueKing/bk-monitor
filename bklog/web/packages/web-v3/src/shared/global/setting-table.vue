@@ -305,7 +305,7 @@
                                 <t-switch
                                   v-model:value="currentIsAnalyzed"
                                   :disabled="getCustomizeDisabled(props.row, 'analyzed')"
-                                  
+
                                   @change="() => handelChangeAnalyzed()"
                                 ></t-switch>
                               </bk-form-item>
@@ -343,7 +343,7 @@
                                 <t-switch
                                   v-model:value="currentIsCaseSensitive"
                                   :disabled="getCustomizeDisabled(props.row)"
-                                  
+
                                 ></t-switch>
                               </bk-form-item>
                             </bk-form>
@@ -398,8 +398,15 @@
   </div>
 </template>
 <script>
-  import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
-import { mapGetters } from '@/app/state/map-helpers';
+import { mapState as mapPiniaState } from 'pinia';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
+
   import { isFieldTypeDisabled, judgeNumber } from '@/shared/lib/util';
   import BklogPopover from '@/shared/ui/bklog-popover/index';
 
@@ -558,11 +565,11 @@ import { mapGetters } from '@/app/state/map-helpers';
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
       }),
-      ...mapGetters('collect', ['curCollect']),
-      ...mapGetters('globals', ['globalsData']),
+      ...mapPiniaState(useCollectionStore, ['curCollect']),
+      ...mapPiniaState(useGlobalsStore, ['globalsData']),
       isSettingDisable() {
         return !this.fields.length;
       },
@@ -585,7 +592,7 @@ import { mapGetters } from '@/app/state/map-helpers';
         return currentTableList;
       },
       getParticipleWidth() {
-        return this.$store.getters.isEnLanguage ? '65' : '50';
+        return useApplicationStore().isEnLanguage ? '65' : '50';
       },
     },
     watch: {
@@ -649,7 +656,7 @@ import { mapGetters } from '@/app/state/map-helpers';
         this.$emit('reset');
       },
       batchAddField() {
-        const indexSetList = this.$store.state.retrieve.flatIndexSetList;
+        const indexSetList = useRetrieveStore().flatIndexSetList;
         const indexSetId = this.$route.params?.indexId;
         const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` === indexSetId);
 
@@ -1048,7 +1055,7 @@ import { mapGetters } from '@/app/state/map-helpers';
       },
       addObject() {
         const fieldsObjectData = cloneReactiveData(
-          this.$store.getters.rawFieldList.filter(item => item.field_name.includes('.')),
+          useApplicationStore().rawFieldList.filter(item => item.field_name.includes('.')),
         );
         fieldsObjectData.forEach(item => {
           const name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');

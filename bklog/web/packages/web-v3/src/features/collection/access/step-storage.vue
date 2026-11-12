@@ -356,6 +356,12 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -363,7 +369,7 @@ import { ServicesInstance } from '@/platform/services';
   import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
   import { getCurrentInstance } from 'vue';
   import { useStorageClusterForm } from '@/features/collection/composables/use-storage-cluster-form';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   import ClusterTable from './components/cluster-table';
   import ClusterTypeTabs from '@/features/clusters/current/cluster-manage/cluster-type-tabs';
@@ -395,8 +401,8 @@ import { ServicesInstance } from '@/platform/services';
     data() {
       return {
         isItsm: isFeatureToggleOn('collect_itsm', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
+          String(useApplicationStore().bkBizId),
+          String(useApplicationStore().spaceUid),
         ]),
         HOST_COUNT: window.ASSESSMEN_HOST_COUNT,
         refresh: false,
@@ -534,17 +540,17 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
         spaceUid: 'spaceUid',
-        curCollect: 'collect/curCollect',
-        globalsData: 'globals/globalsData',
+        curCollect: state => state.collect.curCollect,
+        globalsData: state => state.globals.globalsData,
         accessUserManage: 'accessUserManage',
         isShowMaskingTemplate: 'isShowMaskingTemplate',
-        exportCollectObj: 'collect/exportCollectObj',
+        exportCollectObj: state => state.collect.exportCollectObj,
       }),
       collectProject() {
-        return projectManages(this.$store.state.topMenu, 'collection-item');
+        return projectManages(useApplicationStore().topMenu, 'collection-item');
       },
       defaultRetention() {
         const { storage_duration_time: storageDurationTime } = this.globalsData;
@@ -652,7 +658,7 @@ import { ServicesInstance } from '@/platform/services';
             },
             data: {
               ...data,
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
             },
           })
           .then(res => {
@@ -660,7 +666,7 @@ import { ServicesInstance } from '@/platform/services';
               // this.storageList = res.data
               // this.formData.storage_cluster_id = this.storageList[0].storage_cluster_id
               if (res.data) {
-                this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
+                useCollectionStore().updateCurCollect(Object.assign({}, this.formData, data, res.data));
                 this.$emit('change-index-set-id', res.data.index_set_id || '');
               }
               if (data.need_assessment && data.assessment_config.need_approval) {
@@ -840,7 +846,7 @@ import { ServicesInstance } from '@/platform/services';
           name: routeName,
           query: {
             ...reset,
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },

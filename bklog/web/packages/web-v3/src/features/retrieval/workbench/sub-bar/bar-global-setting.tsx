@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton, Popup as TPopup } from 'tdesign-vue-next';
 import { defineComponent, onMounted, ref } from 'vue';
 
 import useLocale from '../../../../shared/composables/use-locale';
-import useStore from '../../../../shared/composables/use-store';
+
 import { BK_LOG_STORAGE } from '../../../../app/state/store.type.ts';
 
 import './bar-global-setting.scss';
@@ -71,7 +73,7 @@ export default defineComponent({
   setup(_, ctx) {
     const { emit } = ctx;
     const { $t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     /** popover 弹窗显隐 */
     const popoverVisible = ref(false);
@@ -83,9 +85,9 @@ export default defineComponent({
     const resultDisplayLines = ref(3);
 
     const initDefaultSettings = () => {
-      showFieldAlias.value = store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
-      textEllipsisDir.value = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
-      resultDisplayLines.value = store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES] ?? 3;
+      showFieldAlias.value = store.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+      textEllipsisDir.value = store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+      resultDisplayLines.value = store.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES] ?? 3;
     };
 
     onMounted(() => {
@@ -146,7 +148,7 @@ export default defineComponent({
      */
     function handleConfirm() {
       // 存入localstorage
-      store.commit('updateStorage', {
+      store.updateStorage({
         [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: showFieldAlias.value,
         [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: textEllipsisDir.value,
         [BK_LOG_STORAGE.RESULT_DISPLAY_LINES]: resultDisplayLines.value,

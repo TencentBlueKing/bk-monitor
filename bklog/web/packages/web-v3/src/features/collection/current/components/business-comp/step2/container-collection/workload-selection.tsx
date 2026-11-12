@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, reactive, watch, computed, onMounted, onUnmounted, type PropType } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import type { IContainerConfigItem } from '../../../../type';
 
 import './workload-selection.scss';
@@ -53,7 +55,7 @@ export default defineComponent({
   emits: ['update'],
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const formData = reactive({
       workload_type: '',
       workload_name: '',
@@ -70,7 +72,7 @@ export default defineComponent({
     let isUnmounted = false;
     // const placeHolderStr = ref(`${t('请输入应用名称')}, ${t('支持正则匹配')}`);
 
-    const bkBizId = computed(() => store.getters.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
 
     const typeListIDStrList = computed(() => typeList.value.map(item => item.id));
 

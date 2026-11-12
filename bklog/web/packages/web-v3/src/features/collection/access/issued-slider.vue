@@ -124,7 +124,7 @@
                   :disabled="hasRunning"
                   :title="$t('失败批量重试')"
                   data-test-id="collectionDistribution_button_refresh"
-                  
+
                   @click="issuedRetry"
                   ><template #icon><span :class="`bk-icon icon-${'refresh'}`"></span></template>{{ $t('失败批量重试') }}
                 </t-button>
@@ -305,12 +305,19 @@
   </div>
 </template>
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
   import rightPanel from '@/features/collection/ip-select/right-panel';
   import containerStatus from '@/features/index-sets/log-collection/collection-item/manage-collection/components/container-status';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   import stepResult from './step-result';
 
@@ -408,7 +415,7 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
-      ...mapGetters('collect', ['curCollect']),
+      ...mapPiniaState(useCollectionStore, ['curCollect']),
       hasFailed() {
         return !!this.tabList[2].num;
       },
@@ -427,7 +434,7 @@ import { ServicesInstance } from '@/platform/services';
         return this.$t('完成');
       },
       hostIdentifierPriority() {
-        return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
+        return useGlobalsStore().globalsData?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
       },
     },
     watch: {
@@ -499,7 +506,7 @@ import { ServicesInstance } from '@/platform/services';
       },
       prevHandler() {
         if (this.operateType === 'add') {
-          this.$store.commit('updateState', { showRouterLeaveTip: true });
+          useApplicationStore().updateState({ showRouterLeaveTip: true });
           this.$router.replace({
             name: 'collectEdit',
             params: {
@@ -507,7 +514,7 @@ import { ServicesInstance } from '@/platform/services';
               notAdd: true,
             },
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
             },
           });
         }

@@ -24,7 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import {
+  RadioGroup as TRadioGroup,
+  Radio as TRadio,
+  Select as TSelect,
+  Popconfirm as TPopconfirm,
+} from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -33,13 +39,11 @@ import { defineComponent, ref, computed, onMounted, watch, type PropType, nextTi
 
 import OtherImport from '@/features/index-sets/import-from-other/index';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
 
 import dayjs from 'dayjs';
 import { useRouter } from 'vue-router';
 
 import { base64ToRuleArr } from './util';
-
 
 import type { ConfigInfo, RuleTemplate } from '@/features/retrieval/services/log-clustering';
 import type { IResponseData } from '@/platform/services/type';
@@ -47,7 +51,15 @@ import type { IResponseData } from '@/platform/services/type';
 import './index.scss';
 
 export default defineComponent({
-  emits: ["rule-type-change","ruleTypeChange","rule-list-change","ruleListChange","search","unbind-template","unbindTemplate"],
+  emits: [
+    'rule-type-change',
+    'ruleTypeChange',
+    'rule-list-change',
+    'ruleListChange',
+    'search',
+    'unbind-template',
+    'unbindTemplate',
+  ],
 
   name: 'RuleOperate',
   components: {
@@ -73,10 +85,11 @@ export default defineComponent({
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
 
     const ruleType = ref('template');
+    const radioRenderKey = ref(0);
     const isShowOtherImport = ref(false);
     const searchValue = ref('');
     const templateRuleId = ref(0);
@@ -89,14 +102,14 @@ export default defineComponent({
     >([]);
 
     const isCustomize = computed(() => ruleType.value === 'customize');
-    const spaceUid = computed(() => store.state.spaceUid);
+    const spaceUid = computed(() => store.spaceUid);
     const templateSpaceUid = computed(() => props.templateSpaceUid || spaceUid.value);
     const currentTemplate = computed(() => {
       if (!templateRuleId.value) {
         return null;
       }
 
-      return templateList.value.find(item => item.id === templateRuleId.value) || null;
+      return templateList.value.find((item) => item.id === templateRuleId.value) || null;
     });
     const hasMatchedTemplate = computed(() => Boolean(currentTemplate.value));
     const isOriginTemplateConfig = computed(() => props.defaultValue.regex_rule_type === 'template');
@@ -104,7 +117,8 @@ export default defineComponent({
     /** 快速导入的dom */
     let inputDocument: HTMLInputElement;
     let localRuleType = 'template';
-    let isShowSwitchPopConfirm = false;
+    const isShowSwitchPopConfirm = ref(false);
+    const isShowUnbindConfirm = ref(false);
 
     const handleRuleTypeChange = (value: string, onlyState = false) => {
       ruleType.value = value;
@@ -128,16 +142,19 @@ export default defineComponent({
     };
 
     const handleBeforeRuleTypeChange = (value: string) => {
-      isShowSwitchPopConfirm = true;
+      isShowSwitchPopConfirm.value = true;
       ruleType.value = value;
       localRuleType = value;
       nextTick(() => {
         ruleType.value = value === 'customize' ? 'template' : 'customize';
+        // Recreate native radio inputs after rejecting the tentative selection.
+        // Their DOM checked state must match the still-active configuration.
+        radioRenderKey.value += 1;
       });
     };
 
     const handleRuleTypeChangeConfirm = () => {
-      isShowSwitchPopConfirm = false;
+      isShowSwitchPopConfirm.value = false;
       handleRuleTypeChange(localRuleType);
     };
 
@@ -167,7 +184,7 @@ export default defineComponent({
     watch(
       () => [props.defaultValue, templateList.value, isCustomize.value],
       () => {
-        if (isShowSwitchPopConfirm || isCustomize.value) {
+        if (isShowSwitchPopConfirm.value || isCustomize.value) {
           return;
         }
 
@@ -205,7 +222,7 @@ export default defineComponent({
     };
 
     function handleSelectTemplate(value?: number) {
-      const matchedTemplate = templateList.value.find(item => item.id === value);
+      const matchedTemplate = templateList.value.find((item) => item.id === value);
       templateRuleId.value = matchedTemplate?.id || 0;
       const selectTemplateStr = matchedTemplate?.predefined_varibles || '';
       emit('rule-list-change', selectTemplateStr ? base64ToRuleArr(selectTemplateStr) : []);
@@ -233,7 +250,7 @@ export default defineComponent({
           });
           emit('rule-list-change', list);
         } catch {
-          TDesignMessage("error", { content: t('不是有效的json文件') });
+          TDesignMessage('error', { content: t('不是有效的json文件') });
         }
       };
       // 以Text的形式读取文件:
@@ -251,7 +268,7 @@ export default defineComponent({
     /** 导出规则 */
     const handleExportRule = () => {
       if (!props.ruleList.length) {
-        TDesignMessage("error", { content: t('聚类规则为空，无法导出规则') });
+        TDesignMessage('error', { content: t('聚类规则为空，无法导出规则') });
         return;
       }
       const eleLink = document.createElement('a');
@@ -283,7 +300,7 @@ export default defineComponent({
 
     const handleGoTemplateManage = (templateId?: number) => {
       const query = {
-        collectorConfigId: store.state.indexSetFieldConfig.clean_config.extra.collector_config_id,
+        collectorConfigId: store.indexSetFieldConfig.clean_config.extra.collector_config_id,
       };
       if (templateId) {
         Object.assign(query, { templateId });
@@ -311,27 +328,43 @@ export default defineComponent({
 
     return () => (
       <div class='rule-operate-main'>
-        <bk-popconfirm
-          width='288'
-          confirm-text={t('确认切换')}
-          content={t('切换后，已有的相关配置将会丢失，请确认。')}
+        <TPopconfirm
+          visible={isShowSwitchPopConfirm.value}
           placement='bottom'
-          title={t('确认切换配置模式？')}
-          trigger='click'
+          showArrow
+          icon={() => null}
+          confirmBtn={{ content: t('确认切换'), size: 'small' }}
+          cancelBtn={{ content: t('取消'), size: 'small' }}
+          popupProps={{
+            overlayClassName: 't-popconfirm cluster-mode-switch-confirm',
+            overlayInnerStyle: { width: '288px', padding: 0, marginTop: '8px' },
+          }}
+          content={() => (
+            <div>
+              <div class='switch-title'>{t('确认切换配置模式？')}</div>
+              <div class='switch-description'>{t('切换后，已有的相关配置将会丢失，请确认。')}</div>
+            </div>
+          )}
+          onVisibleChange={(visible, context) => {
+            if (!visible && context?.trigger !== 'trigger-element-click') isShowSwitchPopConfirm.value = false;
+          }}
           onCancel={() => {
-            isShowSwitchPopConfirm = false;
+            isShowSwitchPopConfirm.value = false;
           }}
           onConfirm={handleRuleTypeChangeConfirm}
         >
           <TRadioGroup
+            key={radioRenderKey.value}
             class='type-choose-main'
             value={ruleType.value}
-            onChange={(value) => { if (typeof value === 'string') (handleBeforeRuleTypeChange)(value); }}
+            onChange={(value) => {
+              if (typeof value === 'string') handleBeforeRuleTypeChange(value);
+            }}
           >
             <TRadio value='customize'>{t('自定义')}</TRadio>
             <TRadio value='template'>{t('模板')}</TRadio>
           </TRadioGroup>
-        </bk-popconfirm>
+        </TPopconfirm>
         <div class='right-oprate-main'>
           {isCustomize.value ? (
             <div class='custom-operate-main'>
@@ -352,7 +385,9 @@ export default defineComponent({
                 v-slots={{
                   'dropdown-trigger': () => (
                     <div>
-                      <TButton theme='default' variant='outline'
+                      <TButton
+                        theme='default'
+                        variant='outline'
                         class='operate-btn'
                         data-test-id='LogCluster_button_addNewRules'
                       >
@@ -363,10 +398,7 @@ export default defineComponent({
                   'dropdown-content': () => (
                     <ul class='bk-dropdown-list'>
                       <li>
-                        <a
-                          href='javascript:;'
-                          onClick={() => inputDocument.click()}
-                        >
+                        <a href='javascript:;' onClick={() => inputDocument.click()}>
                           {t('本地导入')}
                         </a>
                       </li>
@@ -384,14 +416,13 @@ export default defineComponent({
                   ),
                 }}
               ></bk-dropdown-menu>
-              <TButton theme='default' variant='outline'
-                class='operate-btn'
-                onClick={handleExportRule}
-              >
+              <TButton theme='default' variant='outline' class='operate-btn' onClick={handleExportRule}>
                 {t('导出')}
               </TButton>
               {!isOriginTemplateConfig.value && (
-                <TButton theme='default' variant='outline'
+                <TButton
+                  theme='default'
+                  variant='outline'
                   style='min-width: 72px'
                   class='operate-btn'
                   onClick={() => initDefaultConfig(false)}
@@ -402,45 +433,52 @@ export default defineComponent({
             </div>
           ) : (
             <div class='template-operate-main'>
-              <bk-select
-                ref='templateListRef'
-                ext-cls='template-select'
+              <TSelect
+                class='template-select'
                 clearable={false}
-                ext-popover-cls='template-select-popover'
+                popupProps={{ overlayClassName: 'template-select-popover' }}
                 value={templateRuleId.value}
-                searchable
-                onChange={handleSelectTemplate}
-              >
-                {templateList.value.map(option => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    name={option.name}
-                  />
-                ))}
-                {!props.isExternal && (
-                  <div
-                    class='template-manage-extension'
-                    slot='extension'
-                    onClick={() => handleGoTemplateManage()}
-                  >
-                    <log-icon type='shezhi' />
-                    {t('模板管理')}
-                  </div>
-                )}
-              </bk-select>
+                filterable
+                options={templateList.value.map((option) => ({
+                  value: option.id,
+                  label: option.name,
+                }))}
+                onChange={(value) => handleSelectTemplate(Number(value))}
+                v-slots={{
+                  panelBottomContent: () =>
+                    !props.isExternal && (
+                      <div class='template-manage-extension' onClick={() => handleGoTemplateManage()}>
+                        <log-icon type='shezhi' />
+                        {t('模板管理')}
+                      </div>
+                    ),
+                }}
+              />
               {!props.isExternal && templateRuleId.value > 0 && hasMatchedTemplate.value && (
                 <TButton
                   size='small'
                   theme='primary'
-                  
-                  onClick={() => handleGoTemplateManage(templateRuleId.value)} variant={(true) ? 'text' : ('base')}
+                  onClick={() => handleGoTemplateManage(templateRuleId.value)}
+                  variant={true ? 'text' : 'base'}
                 >
                   <log-icon type='edit' />
                   <span style='margin-left: 5px'>{t('编辑模板')}</span>
                 </TButton>
               )}
-              <bk-popconfirm
+              <TPopconfirm
+                visible={isShowUnbindConfirm.value}
+                icon={() => null}
+                showArrow
+                popupProps={{
+                  overlayClassName: 't-popconfirm cluster-template-unbind-confirm',
+                  overlayInnerStyle: { width: '380px' },
+                }}
+                onVisibleChange={(visible) => {
+                  isShowUnbindConfirm.value = visible;
+                }}
+                onCancel={() => {
+                  isShowUnbindConfirm.value = false;
+                }}
                 v-slots={{
                   content: () => (
                     <div>
@@ -462,29 +500,22 @@ export default defineComponent({
                     </div>
                   ),
                 }}
-                width={380}
-                confirm-text={t('解绑')}
-                trigger='click'
-                onConfirm={handleConfirmUnbindTemplate}
+                confirmBtn={{ content: t('解绑'), size: 'small' }}
+                cancelBtn={{ content: t('取消'), size: 'small' }}
+                onConfirm={() => {
+                  handleConfirmUnbindTemplate();
+                  isShowUnbindConfirm.value = false;
+                }}
               >
                 {isOriginTemplateConfig.value && isSameTemplateId.value && hasMatchedTemplate.value && (
-                  <TButton
-                    size='small'
-                    theme='primary'
-                     variant={(true) ? 'text' : ('base')}
-                  >
+                  <TButton size='small' theme='primary' variant={true ? 'text' : 'base'}>
                     <log-icon type='jiebang' />
                     <span style='margin-left: 5px'>{t('解绑')}</span>
                   </TButton>
                 )}
-              </bk-popconfirm>
+              </TPopconfirm>
 
-              <TButton
-                size='small'
-                theme='primary'
-                
-                onClick={handleRefresh} variant={(true) ? 'text' : ('base')}
-              >
+              <TButton size='small' theme='primary' onClick={handleRefresh} variant={true ? 'text' : 'base'}>
                 <log-icon type='refresh-icon' />
                 <span style='margin-left: 5px'>{t('刷新')}</span>
               </TButton>

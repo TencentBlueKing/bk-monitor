@@ -58,7 +58,7 @@
               :disabled="!collectProject"
               :size="size"
               :title="$t('重试')"
-              
+
               theme="default"
               @click="retryClick(dataFal, dataFir.contents.length)"
               ><template #icon><span :class="`bk-icon icon-${'right-turn-line'}`"></span></template>{{ $t('失败批量重试') }}
@@ -177,7 +177,7 @@
                   <t-button :variant="(true) ? 'text' : ('base')"
                     v-if="props.row.status === 'FAILED'"
                     theme="primary"
-                    
+
                     @click="retryClick(props.row, 'odd')"
                   >
                     {{ $t('重试') }}
@@ -235,6 +235,10 @@
 </template>
 
 <script>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -333,13 +337,13 @@ import { ServicesInstance } from '@/platform/services';
     },
     computed: {
       collectProject() {
-        return projectManages(this.$store.state.topMenu, 'collection-item');
+        return projectManages(useApplicationStore().topMenu, 'collection-item');
       },
       isContainer() {
         return this.collectorData.environment === 'container';
       },
       hostIdentifierPriority() {
-        return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
+        return useGlobalsStore().globalsData?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
       },
     },
     created() {

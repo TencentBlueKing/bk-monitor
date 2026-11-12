@@ -1,13 +1,15 @@
 <script setup>
-  import { computed, ref } from 'vue';
-  import FieldsSetting from '../result-comp/fields-setting';
-  import useStore from '@/shared/composables/use-store';
 
-  const store = useStore();
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { computed, ref } from 'vue';
+  import FieldsSetting from '../result-comp/fields-setting';
+
+
+  const store = useApplicationStore();
   const isShowFieldsSetting = ref(false);
   const fieldsSettingPopper = ref(null);
 
-  const retrieveParams = computed(() => store.getters.retrieveParams);
+  const retrieveParams = computed(() => store.retrieveParams);
 
   const emit = defineEmits(['update-log-fields', 'fields-updated', 'should-retrieve', "updateLogFields", "fieldsUpdated", "shouldRetrieve"]);
 

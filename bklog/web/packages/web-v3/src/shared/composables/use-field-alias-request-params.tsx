@@ -23,15 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import { computed } from 'vue';
 
-import useStore from './use-store';
+
 
 export default () => {
-  const store = useStore();
+  const store = useApplicationStore();
 
   const aliasSettings = computed(() =>
-    (store.getters.rawFieldList ?? [])
+    (store.rawFieldList ?? [])
       .filter((f: { query_alias: any; }) => f.query_alias)
       .map((f: { field_name: any; query_alias: any; field_type: any; }) => ({
         field_name: f.field_name,
@@ -41,9 +44,9 @@ export default () => {
   );
 
   const sortList = computed(() =>
-    store.state.localSort
-      ? (store.state.indexItem.sort_list ?? [])
-      : (store.state.retrieve.catchFieldCustomConfig.sortList ?? []),
+    store.localSort
+      ? (store.indexItem.sort_list ?? [])
+      : (useRetrieveStore().catchFieldCustomConfig.sortList ?? []),
   );
 
   return {

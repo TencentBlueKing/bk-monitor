@@ -299,7 +299,7 @@
               v-else
               v-model="row.strategy_enabled"
               v-log-tooltip="$t('暂无配置责任人，无法自动创建告警策略')"
-              
+
               :disabled="true"
             ></t-switch>
           </div>
@@ -444,6 +444,8 @@
 </template>
 
 <script lang="jsx">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
   import { h as createVNode } from 'vue';import { ServicesInstance } from '@/platform/services';
@@ -579,16 +581,16 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     },
     computed: {
       bkBizId() {
-        return this.$store.state.bkBizId;
+        return useApplicationStore().bkBizId;
       },
       isLimitExpandView() {
-        return this.$store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
+        return useApplicationStore().storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
       },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
       },
       getTableWidth() {
-        return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
+        return useApplicationStore().isEnLanguage ? this.enTableWidth : this.cnTableWidth;
       },
       /** 获取当前编辑操作的数据 */
       getHoverRowValue() {
@@ -606,7 +608,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         return !!this.requestData.group_by.length;
       },
       username() {
-        return this.$store.state.userMeta?.username;
+        return useApplicationStore().userMeta?.username;
       },
       isExternal() {
         return window.IS_EXTERNAL === true;
@@ -692,18 +694,18 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
         const router = this.$router;
         const route = this.$route;
-        const store = this.$store;
+        const store = useApplicationStore();
 
         // 聚类下钻只能使用ui模式
-        this.$store.commit('updateIndexItem', { search_mode: 'ui' });
+        useApplicationStore().updateIndexItem({ search_mode: 'ui' });
         // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
-        this.$store.commit('updateState', { clusterParams: null });
-        this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
+        useApplicationStore().updateState({ clusterParams: null });
+        useApplicationStore().setQueryCondition(additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
             window.open(openUrl, '_blank', 'noopener,noreferrer');
             // 新开页后当前页面回填聚类参数
-            this.$store.commit('updateState', { clusterParams: this.requestData });
+            useApplicationStore().updateState({ clusterParams: this.requestData });
             return;
           }
           this.$emit('show-change', 'origin');
@@ -711,7 +713,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
           const query = { ...route.query };
 
           const resolver = new RetrieveUrlResolver({
-            clusterParams: store.state.clusterParams,
+            clusterParams: useApplicationStore().clusterParams,
             addition: additionList,
             searchMode,
           });
@@ -725,7 +727,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
           // 触发索引集查询
           this.$nextTick(() => {
-            store.dispatch('requestIndexSetQuery');
+            useApplicationStore().requestIndexSetQuery();
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           });
         });
@@ -1288,7 +1290,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       },
       handleStrategyInfoClick(row) {
         window.open(
-          `${window.MONITOR_URL}/?bizId=${this.$store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
+          `${window.MONITOR_URL}/?bizId=${useApplicationStore().bkBizId}#/strategy-config/detail/${row.strategy_id}`,
           '_blank',
         );
       },

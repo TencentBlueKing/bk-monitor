@@ -61,14 +61,19 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import TimeRange from '@/shared/ui/time-range/time-range';
   import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
   import { updateTimezone } from '@/platform/i18n/dayjs';
   import dayjs from 'dayjs';
   import * as echarts from 'echarts';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   export default {
     components: {
@@ -83,7 +88,7 @@
         basicLoading: true,
         datePickerValue: ['now-15m', 'now'], // 日期选择器
         retrieveParams: {
-          bk_biz_id: this.$store.state.bkBizId,
+          bk_biz_id: useApplicationStore().bkBizId,
           keyword: '*',
           time_range: 'custom',
           start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
@@ -101,10 +106,10 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         chartSizeNum: 'chartSizeNum',
       }),
-      ...mapGetters('collect', ['curCollect']),
+      ...mapPiniaState(useCollectionStore, ['curCollect']),
     },
     watch: {
       chartSizeNum() {
@@ -247,7 +252,7 @@
         this.handleRefreshChange();
       },
       handleRefreshChange() {
-        const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
+        const tempList = handleTransformToTimestamp(this.datePickerValue, useApplicationStore().retrieveParams.format);
         Object.assign(this.retrieveParams, {
           start_time: tempList[0],
           end_time: tempList[1],

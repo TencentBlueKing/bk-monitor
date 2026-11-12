@@ -1,9 +1,11 @@
 /* Copyright (C) 2021 THL A29 Limited, a Tencent company.
  * 蓝鲸智云PaaS平台 (BlueKing PaaS), MIT License. */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { nextTick, onScopeDispose, watch, type WatchStopHandle } from 'vue';
 import { useRouter } from 'vue-router';
 import { ServicesInstance } from '@/platform/services';
-import useStore from '@/shared/composables/use-store';
+
 import useLocale from '@/shared/composables/use-locale';
 import { showClusterSelectError } from '@/shared/lib/collector-api-error';
 import * as authorityMap from '@/shared/lib/authority-map';
@@ -56,7 +58,7 @@ export interface StorageFormContext {
   messageError(message: string): void;
 }
 export function useStorageClusterForm(context: () => StorageFormContext) {
-  const store = useStore();
+  const store = useApplicationStore();
   const router = useRouter();
   const { t } = useLocale();
   const watchers: WatchStopHandle[] = [];
@@ -157,7 +159,7 @@ export function useStorageClusterForm(context: () => StorageFormContext) {
       router.resolve({
         name: 'es-cluster-manage',
         query: {
-          spaceUid: store.state.spaceUid,
+          spaceUid: store.spaceUid,
         },
       }).href,
       '_blank',
@@ -170,7 +172,7 @@ export function useStorageClusterForm(context: () => StorageFormContext) {
     model.$el.click(); // 因为下拉在loading上面所以需要关闭下拉
     try {
       model.basicLoading = true;
-      const res = await store.dispatch('getApplyData', {
+      const res = await store.getApplyData({
         action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
         resources: [
           {

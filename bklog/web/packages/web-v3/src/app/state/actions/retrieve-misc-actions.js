@@ -6,7 +6,6 @@
 import { ServicesInstance } from '@/platform/services';
 import axios from 'axios';
 
-
 import { formatDate } from '@/shared/lib/util';
 import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
 import { retrieveFieldCacheService, storeCacheService } from '@/platform/persistence/index';
@@ -14,23 +13,25 @@ import { retrieveFieldCacheService, storeCacheService } from '@/platform/persist
 import { normalizeSearchTotal } from '@/platform/persistence/utils/normalize-search-total';
 
 import { formatAdditionalFields, getCommonFilterAdditionWithValues, isSceneRetrieve } from '../helper.ts';
-import RequestPool from '../request-pool.ts';
 import { BK_LOG_STORAGE } from '../store.type.ts';
 import { storeRuntimeCacheService } from '../services/runtime-cache.service.js';
 
 const cacheApi = (name, scope, data, meta = {}) => {
-  storeCacheService.setApiCache(name, scope || 'default', data, meta).catch(error => {
+  storeCacheService.setApiCache(name, scope || 'default', data, meta).catch((error) => {
     console.warn('[store-cache] cache api failed', name, error);
   });
 };
 
-export function requestIndexSetValueListAction({ commit, state, getters }, payload) {
+export function requestIndexSetValueListAction(application, payload) {
+  const state = application;
+  const getters = application;
+
   const { start_time: startTime, end_time: endTime } = state.indexItem;
   const lastQueryTimerange = `${startTime}_${endTime}`;
 
   const cancelTokenKey = 'requestIndexSetValueListCancelToken';
-  RequestPool.execCanceToken(cancelTokenKey);
-  const requestCancelToken = payload.cancelToken ? RequestPool.getCancelToken(cancelTokenKey) : null;
+  application.requestPool.execCanceToken(cancelTokenKey);
+  const requestCancelToken = payload.cancelToken ? application.requestPool.getCancelToken(cancelTokenKey) : null;
 
   if (state.indexFieldInfo.last_eggs_request_token !== lastQueryTimerange) {
     storeRuntimeCacheService.clearFieldAggsItems(state.indexId || 'default');
@@ -42,7 +43,7 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
   const rawFieldList = retrieveFieldCacheService.getFieldList(fieldScope, false);
   if (payload.force) {
     const emptyAggsItems = {};
-    (payloadFields.length ? payloadFields : rawFieldList).forEach(field => {
+    (payloadFields.length ? payloadFields : rawFieldList).forEach((field) => {
       emptyAggsItems[field.field_name] = [];
     });
     storeRuntimeCacheService.patchFieldAggsItems(state.indexId || 'default', emptyAggsItems);
@@ -50,10 +51,10 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
   }
 
   const isDefaultQuery = !payloadFields.length;
-  const filterBuildIn = field => (isDefaultQuery ? !field.is_built_in : true);
+  const filterBuildIn = (field) => (isDefaultQuery ? !field.is_built_in : true);
 
   const cachedAggsItems = storeRuntimeCacheService.getFieldAggsItems(state.indexId || 'default');
-  const filterFn = field =>
+  const filterFn = (field) =>
     !cachedAggsItems[field.field_name]?.length &&
     field.es_doc_values &&
     filterBuildIn(field) &&
@@ -62,7 +63,7 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
 
   // 配置了别名的字段，请求时必须使用别名（query_alias），否则存储侧无法识别该字段，导致聚合无结果
   // 与 formatAdditionalFields 中 addition 字段的别名转换口径保持一致
-  const getRequestFieldName = field => field.query_alias || field.field_name;
+  const getRequestFieldName = (field) => field.query_alias || field.field_name;
   const filteredFields = (payloadFields.length ? payloadFields : rawFieldList).filter(filterFn);
   // 请求字段名（别名）-> 原始字段名列表映射，用于将接口返回的 aggs_items key 还原为 field_name
   // 同一别名可能对应多个真实字段（rt 不相交时后端允许重名别名），需要全部记录以便响应扇出还原
@@ -93,9 +94,9 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
     // 两条路径只走其一，避免叠加转换（如别名恰好与另一真实字段同名时，二次查找会把字段错误改写）
     addition: state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
       ? formatAdditionalFields(state, payload?.addition ?? [])
-      : (payload?.addition ?? []).map(item => ({
+      : (payload?.addition ?? []).map((item) => ({
           ...item,
-          field: rawFieldList.find(f => f.field_name === item.field)?.query_alias || item.field,
+          field: rawFieldList.find((f) => f.field_name === item.field)?.query_alias || item.field,
         })),
     start_time: formatDate(startTime),
     end_time: formatDate(endTime),
@@ -123,33 +124,35 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
 
   const body = isScene ? { data: queryData } : { params: { index_set_id: state.indexId }, data: queryData };
 
-  return urlStr( body, {
-      cancelToken: requestCancelToken,
-    })
-    .then(resp => {
-      // 接口按请求字段（别名）返回 aggs_items，这里将 key 还原为 field_name
-      // 保证 fieldAggsItems 缓存与各消费方（统一按 field_name 取值）逻辑无需改动
-      const aggsItems = resp.data?.aggs_items ?? {};
-      resp.data = {
-        ...(resp.data ?? {}),
-        aggs_items: Object.keys(aggsItems).reduce((acc, key) => {
-          // 同一别名对应多个真实字段时扇出还原，保证每个字段的缓存都能填充
-          (requestFieldNameMap[key] ?? [key]).forEach(fieldName => {
-            acc[fieldName] = aggsItems[key];
-          });
-          return acc;
-        }, {}),
-      };
+  return urlStr(body, {
+    cancelToken: requestCancelToken,
+  }).then((resp) => {
+    // 接口按请求字段（别名）返回 aggs_items，这里将 key 还原为 field_name
+    // 保证 fieldAggsItems 缓存与各消费方（统一按 field_name 取值）逻辑无需改动
+    const aggsItems = resp.data?.aggs_items ?? {};
+    resp.data = {
+      ...(resp.data ?? {}),
+      aggs_items: Object.keys(aggsItems).reduce((acc, key) => {
+        // 同一别名对应多个真实字段时扇出还原，保证每个字段的缓存都能填充
+        (requestFieldNameMap[key] ?? [key]).forEach((fieldName) => {
+          acc[fieldName] = aggsItems[key];
+        });
+        return acc;
+      }, {}),
+    };
 
-      if (payload?.commit !== false) {
-        commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
-      }
-      cacheApi(urlStr.id, `${state.indexId}:${lastQueryTimerange}:${fields.join(',')}`, resp.data || {});
-      return resp;
-    });
+    if (payload?.commit !== false) {
+      application.updateIndexFieldEggsItems(resp.data.aggs_items ?? {});
+    }
+    cacheApi(urlStr.id, `${state.indexId}:${lastQueryTimerange}:${fields.join(',')}`, resp.data || {});
+    return resp;
+  });
 }
 
-export function requestSearchTotalAction({ state, getters }) {
+export function requestSearchTotalAction(application) {
+  const state = application;
+  const getters = application;
+
   const retrieveParams = getters.retrieveParams;
   const isScene = isSceneRetrieve(state);
   const shouldSkipEmptySceneSearch =
@@ -160,11 +163,13 @@ export function requestSearchTotalAction({ state, getters }) {
 
   const startTime = Math.floor(retrieveParams.start_time);
   const endTime = Math.ceil(retrieveParams.end_time);
-  const urlStr = isScene ? ServicesInstance.retrieve.getSceneFieldStatisticsTotal : ServicesInstance.retrieve.fieldStatisticsTotal;
+  const urlStr = isScene
+    ? ServicesInstance.retrieve.getSceneFieldStatisticsTotal
+    : ServicesInstance.retrieve.fieldStatisticsTotal;
 
   const cancelTokenKey = 'requestSearchTotalCancelToken';
-  RequestPool.execCanceToken(cancelTokenKey);
-  const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
+  application.requestPool.execCanceToken(cancelTokenKey);
+  const requestCancelToken = application.requestPool.getCancelToken(cancelTokenKey);
 
   const data = {
     ...retrieveParams,
@@ -176,13 +181,13 @@ export function requestSearchTotalAction({ state, getters }) {
   };
 
   return urlStr(
-      { data },
-      {
-        catchIsShowMessage: false,
-        cancelToken: requestCancelToken,
-      },
-    )
-    .then(res => {
+    { data },
+    {
+      catchIsShowMessage: false,
+      cancelToken: requestCancelToken,
+    },
+  )
+    .then((res) => {
       const { data } = res;
       if (res.result === true) {
         // Total 接口是总趋势展示总数的权威来源，包含 0 结果场景
@@ -191,14 +196,17 @@ export function requestSearchTotalAction({ state, getters }) {
       cacheApi(urlStr.id, `${state.indexId}:${startTime}:${endTime}`, data || {});
       return res;
     })
-    .catch(err => {
+    .catch((err) => {
       if (axios.isCancel(err)) return;
       console.error(err);
       return Promise.reject(err);
     });
 }
 
-export function handleTrendDataZoomAction({ commit, getters }, payload) {
+export function handleTrendDataZoomAction(application, payload) {
+  const state = application;
+  const getters = application;
+
   const { start_time: startTime, end_time: endTime, format } = payload;
   const formatStr = getters.retrieveParams.format;
 
@@ -206,7 +214,7 @@ export function handleTrendDataZoomAction({ commit, getters }, payload) {
     ? handleTransformToTimestamp([startTime, endTime], formatStr)
     : [startTime, endTime];
 
-  commit('updateIndexItem', {
+  application.updateIndexItem({
     start_time: startTimeStamp,
     end_time: endTimeStamp,
     datePickerValue: [startTime, endTime],
@@ -215,7 +223,10 @@ export function handleTrendDataZoomAction({ commit, getters }, payload) {
   return Promise.resolve(true);
 }
 
-export function userFieldConfigChangeAction({ state, getters, commit }, userConfig) {
+export function userFieldConfigChangeAction(application, userConfig) {
+  const state = application;
+  const getters = application;
+
   const indexSetConfig = {
     ...state.retrieve.catchFieldCustomConfig,
     ...userConfig,
@@ -244,21 +255,25 @@ export function userFieldConfigChangeAction({ state, getters, commit }, userConf
     }
   }
 
-  return requestName( { data: queryParams })
-    .then(res => {
+  return requestName({ data: queryParams })
+    .then((res) => {
       if (res.code === 0 && !userConfig.isUpdate) {
         const updatedUserConfig = getters.isSceneMode ? res.data : res.data.index_set_config;
-        commit('retrieve/updateCatchFieldCustomConfig', updatedUserConfig);
-        cacheApi(requestName.id, `${state.indexId || state.indexItem.scene_active}:field-config`, updatedUserConfig || {});
+        application.retrieve.updateCatchFieldCustomConfig(updatedUserConfig);
+        cacheApi(
+          requestName.id,
+          `${state.indexId || state.indexItem.scene_active}:field-config`,
+          updatedUserConfig || {},
+        );
         if (Object.prototype.hasOwnProperty.call(updatedUserConfig ?? {}, 'fieldsWidth')) {
           retrieveFieldCacheService.setUserWidths(
             state.indexFieldInfo.field_scope || state.indexId || 'default',
             updatedUserConfig.fieldsWidth ?? {},
           );
-          commit('updateState', { fieldWidthVersion: state.fieldWidthVersion + 1 });
+          application.updateState({ fieldWidthVersion: state.fieldWidthVersion + 1 });
         }
       }
       return res;
     })
-    .catch(err => Promise.reject(err));
+    .catch((err) => Promise.reject(err));
 }

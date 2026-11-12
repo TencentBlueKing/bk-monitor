@@ -23,15 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, defineComponent } from 'vue';
-import useStore from '@/shared/composables/use-store';
+
 
 export default defineComponent({
   name: 'ReportManagement',
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const src = computed(() => {
-      const bizId = store.state.bkBizId;
+      const bizId = store.bkBizId;
       const host = process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
       return `${host}/?bizId=${bizId}&needMenu=false#/trace/report`;
     });
