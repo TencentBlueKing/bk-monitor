@@ -1503,12 +1503,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           name={option.collector_config_name}
         >
           {!option.permission?.[authorityMap.MANAGE_COLLECTION_AUTH] ? (
-            <div
-              class='option-slot-container no-authority'
-              on-click={(event: MouseEvent) => {
-                event.stopPropagation();
-              }}
-            >
+            <div class='option-slot-container no-authority'>
               <span class='text'>
                 <span>{option.collector_config_name}</span>
                 <span style='color: #979ba5'>（{`#${option.collector_config_id}`}）</span>
