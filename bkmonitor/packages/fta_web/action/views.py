@@ -67,7 +67,8 @@ class ActionConfigViewSet(viewsets.ModelViewSet):
         return self.serializer_class
 
     def list(self, request, *args, **kwargs):
-        request_biz_id = request.query_params.get("bk_biz_id", 0)
+        # 统计范围需与 get_queryset 一致，业务可能来自 bk_biz_id 之外的别名参数
+        request_biz_id = getattr(request, "biz_id", None) or 0
         response = super().list(request, *args, **kwargs)
 
         if request.query_params.get("with_advance_fields") == "no":
@@ -119,7 +120,7 @@ class ActionConfigViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
-        request_biz_id = request.query_params.get("bk_biz_id", GLOBAL_BIZ_ID)
+        request_biz_id = getattr(request, "biz_id", None) or GLOBAL_BIZ_ID
         instance_id = response.data["id"]
         config_strategy_dict = get_action_config_strategy_dict(
             [instance_id],

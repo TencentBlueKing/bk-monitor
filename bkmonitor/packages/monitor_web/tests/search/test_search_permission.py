@@ -74,6 +74,23 @@ def test_string_business_id_is_compared_as_integer():
     assert [item.title for item in handler.filter_allowed_results(items)] == ["allowed"]
 
 
+def test_mixed_business_id_types_are_sorted_as_integer():
+    class MixedHandler(StrategySearchHandler):
+        def search(self, query, limit=10):
+            # 汇总项业务 ID 为整数，ES 明细项为字符串
+            items = [
+                SearchResultItem(bk_biz_id=ALLOWED_BIZ_ID, title="collected", view="event-center", is_collected=True),
+                SearchResultItem(bk_biz_id=str(ALLOWED_BIZ_ID), title="detail", view="event-center-detail"),
+            ]
+            self.add_permission_for_results(items, action=None)
+            return items
+
+    handler = MixedHandler(bk_biz_id=ALLOWED_BIZ_ID, scope=SearchScope.GLOBAL, username="tester")
+    result = handler.handle(query="repro", limit=100).to_dict()
+
+    assert [item["bk_biz_id"] for item in result["results"]] == [ALLOWED_BIZ_ID, ALLOWED_BIZ_ID]
+
+
 def test_host_search_skips_share_token_for_denied_business():
     hosts = [
         SimpleNamespace(bk_biz_id=ALLOWED_BIZ_ID, bk_cloud_id=0, ip="127.0.0.1"),

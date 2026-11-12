@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 from rest_framework import serializers
@@ -30,15 +31,10 @@ def _create_assign_group(biz):
     return AlertAssignGroup.objects.create(name=f"group-{biz}", bk_biz_id=biz)
 
 
-@pytest.fixture(
-    params=[
-        (ActionConfig, action_views, action_views.ActionConfigViewSet, _create_action_config),
-        (AlertAssignGroup, assign_views, assign_views.AssignGroupViewSet, _create_assign_group),
-    ],
-    ids=["action_config", "assign_group"],
-)
-def api(request, monkeypatch):
-    model, views_module, viewset, create = request.param
+USER = SimpleNamespace(tenant_id="tenant-a", is_active=True)
+
+
+def _test_viewset(monkeypatch, model, views_module, viewset):
     # 模拟 IAM 放行请求业务：数据范围必须由视图自身收敛，不能依赖对象鉴权
     monkeypatch.setattr(
         views_module,
@@ -47,6 +43,9 @@ def api(request, monkeypatch):
     )
 
     class ObjectSerializer(serializers.ModelSerializer):
+        # 与真实序列化器一致，业务 ID 按整数输出
+        bk_biz_id = serializers.IntegerField()
+
         class Meta:
             fields = ["id", "name", "bk_biz_id"]
 
@@ -58,6 +57,19 @@ def api(request, monkeypatch):
         def get_serializer_class(self):
             return ObjectSerializer
 
+    return TestViewSet
+
+
+@pytest.fixture(
+    params=[
+        (ActionConfig, action_views, action_views.ActionConfigViewSet, _create_action_config),
+        (AlertAssignGroup, assign_views, assign_views.AssignGroupViewSet, _create_assign_group),
+    ],
+    ids=["action_config", "assign_group"],
+)
+def api(request, monkeypatch):
+    model, views_module, viewset, create = request.param
+    TestViewSet = _test_viewset(monkeypatch, model, views_module, viewset)
     objects = {biz: create(biz) for biz in [0, 2, 3]}
 
     def call(biz=2, target=None):
@@ -125,3 +137,25 @@ def test_write_uses_business_from_json_body(api):
     objects[2].refresh_from_db()
     assert objects[2].name == "changed"
     assert call.mutate("delete", objects[2], {"bk_biz_id": 2}).status_code == 204
+
+
+def test_action_config_statistics_use_resolved_business(monkeypatch):
+    TestViewSet = _test_viewset(monkeypatch, ActionConfig, action_views, action_views.ActionConfigViewSet)
+    strategy_dict = mock.Mock(return_value={})
+    config_rules = mock.Mock(return_value=[])
+    monkeypatch.setattr(action_views, "get_action_config_strategy_dict", strategy_dict)
+    monkeypatch.setattr(action_views, "get_action_config_rules", config_rules)
+    monkeypatch.setattr(action_views, "ActionInstanceDocument", mock.MagicMock())
+    objects = {biz: _create_action_config(biz) for biz in [0, 2, 3]}
+
+    try:
+        # 业务通过别名参数传入时，统计范围也需按解析出的业务限定
+        for action, kwargs in (("list", {}), ("retrieve", {"pk": objects[0].id})):
+            req = APIRequestFactory().get("/?bizId=2")
+            req.biz_id = fetch_biz_id_from_request(req, {})
+            force_authenticate(req, user=USER)
+            assert TestViewSet.as_view({"get": action})(req, **kwargs).status_code == 200
+            assert strategy_dict.call_args.kwargs["bk_biz_id"] == "2"
+            assert config_rules.call_args.args[1] == "2"
+    finally:
+        ActionConfig.objects.filter(id__in=[obj.id for obj in objects.values()]).delete()
