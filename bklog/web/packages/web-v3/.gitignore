@@ -4,3 +4,17 @@ dist/
 
 # Paraglide compiler products; source catalogs live under src/platform/i18n/messages.
 .paraglide/
+
+# Local browser verification and API recordings must never be published.
+/test-results/
+/playwright-report/
+/screenshots/
+/captures/
+/responses/
+/artifacts/
+/.auth/
+*.har
+*.har.zip
+/tests/**/*.png
+/tests/**/*.jpg
+/tests/**/*.webp
