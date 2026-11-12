@@ -37,3 +37,43 @@ def ignored(*exceptions, **kwargs):
         if kwargs.get("log_exception", False):
             logger.warning(traceback.format_exc())
         pass
+
+
+def get_field_value(record: dict, field: str, default: Any = "") -> Any:
+    """
+    按 field_alias 从日志中取值，同时兼容扁平（dotted key）与嵌套两种结构
+
+    优先直接命中（扁平结构或同名字段），未命中时按点号路径在嵌套结构中逐层导航，
+    例如 a.b.c 可同时支持 {"a.b.c": "1"} 与 {"a": {"b": {"c": "1"}}}
+
+    :param record: 单条日志
+    :param field: result_schema 中的 field_alias，可能是 a.b.c 这类嵌套路径
+    :param default: 路径不存在时的返回值，默认空串（与既有导出行为一致）
+    :return: 字段值；路径不存在时返回 default
+    """
+    if not isinstance(record, dict) or not isinstance(field, str) or not field:
+        return default
+
+    if field in record:
+        return record[field]
+
+    value = record
+    for part in field.split("."):
+        if not isinstance(value, dict) or part not in value:
+            return default
+        value = value[part]
+
+    return value
+
+
+def project_chart_row(record: dict, fields: list) -> list:
+    """
+    把单条记录投影成导出的一行
+
+    兼容扁平（dotted key）与嵌套两种字段形态，字段缺失时输出空串
+
+    :param record: 单条记录
+    :param fields: result_schema 中的 field_alias 列表
+    :return: 按 fields 顺序排列的值列表
+    """
+    return [get_field_value(record, field) for field in fields]

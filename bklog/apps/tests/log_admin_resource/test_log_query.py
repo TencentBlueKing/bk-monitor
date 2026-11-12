@@ -15,6 +15,7 @@ from apps.log_admin_resource.handlers.log_query import (
     ResourceSceneUnifyQueryHandler,
     ResourceUnifyQueryTermsAggsHandler,
     _bounded_items,
+    _build_context_anchor,
     _context_time_bounds,
     _field_compatibility,
     _index_set_fields,
@@ -444,6 +445,31 @@ class LogQueryHandlerTest(TestCase):
         with self.assertRaises(ValidationError) as error:
             _validate_context_anchor(self.index_set, anchor)
         self.assertEqual(str(error.exception.code), "3624107")
+
+    def test_context_anchor_supports_dotted_sort_field(self):
+        """排序字段配置为点号形式时，应从嵌套 record 中按路径取值。"""
+        self.index_set.sort_fields = ["body.player.id"]
+        self.index_set.save(update_fields=["sort_fields"])
+        record = {
+            "body": {"player": {"id": "12345"}},
+            "dtEventTimeStamp": 1767227400000,
+            "gseIndex": 100,
+            "iterationIndex": 1,
+        }
+
+        anchor = _build_context_anchor({"type": "index_set"}, self.index_set, record)
+
+        self.assertEqual(anchor["sort_values"]["body.player.id"], "12345")
+        self.assertEqual(anchor["sort_values"]["dtEventTimeStamp"], 1767227400000)
+
+    def test_context_anchor_missing_sort_field_is_none(self):
+        """排序字段在记录中缺失时，锚点值保持 None（与 record.get 语义一致）。"""
+        self.index_set.sort_fields = ["body.player.id"]
+        self.index_set.save(update_fields=["sort_fields"])
+
+        anchor = _build_context_anchor({"type": "index_set"}, self.index_set, {"dtEventTimeStamp": 1767227400000})
+
+        self.assertIsNone(anchor["sort_values"]["body.player.id"])
 
     def test_log_context_builder_omits_missing_server_ip_condition(self):
         body = CreateSearchContextBodyScenarioLog(

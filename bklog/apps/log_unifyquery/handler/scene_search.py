@@ -33,6 +33,7 @@ from apps.log_unifyquery.constants import BASE_OP_MAP, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
+from apps.utils.function import get_field_value, project_chart_row
 from apps.utils.local import (
     get_local_param,
     get_request_external_username,
@@ -246,7 +247,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 logger.exception("[scene_search] failed to map result_table_id to index_set_id")
 
         for log in result_dict.get("list", []):
-            log = merge_nested_data(log)
+            log = merge_nested_data(log, on_conflict="keep")
             if add_index_set_id:
                 log["__index_set_id__"] = result_table_index_set_map.get(log.get("__result_table"))
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
@@ -255,23 +256,10 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             log = self._add_bcs_cluster_fields(log)
 
             if self.export_fields:
-                new_origin_log = {}
-                for _export_field in self.export_fields:
-                    if _export_field in log:
-                        new_origin_log[_export_field] = log[_export_field]
-                    elif "." in _export_field:
-                        key, *field_list = _export_field.split(".")
-                        _result = log.get(key, {})
-                        for _field in field_list:
-                            if isinstance(_result, dict) and _field in _result:
-                                _result = _result[_field]
-                            else:
-                                _result = ""
-                                break
-                        new_origin_log[_export_field] = _result
-                    else:
-                        new_origin_log[_export_field] = log.get(_export_field, "")
-                origin_log = new_origin_log
+                # 兼容虚拟字段[__set__, __module__, ipv6]与 a.b.c 形式的嵌套字段取值
+                origin_log = {
+                    _export_field: get_field_value(log, _export_field) for _export_field in self.export_fields
+                }
             else:
                 origin_log = log
 
@@ -969,7 +957,8 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 if apply_desensitize:
                     # export_chart_data 不走 _deal_query_result，需显式逐行脱敏
                     record = self._log_desensitize(record)
-                csv_writer.writerow([record.get(field, "") for field in fields])
+                # 脱敏后 record 为嵌套结构，field_alias 可能是 body.player.id 这类嵌套路径，需按路径取值
+                csv_writer.writerow(project_chart_row(record, fields))
             yield row_buffer.getvalue()
             row_buffer.seek(0)
             row_buffer.truncate()
