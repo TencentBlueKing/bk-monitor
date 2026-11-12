@@ -729,6 +729,8 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
     merged = yaml.safe_load((tmp_path / "resources.yaml").read_text())["paths"]
     enabled = set()
     for path, methods in merged.items():
+        if not path.startswith("/mcp/"):
+            continue
         for operation in methods.values():
             config = operation["x-bk-apigateway-resource"]["authConfig"]
             if not config.get("oauth2PersonalClientEnabled"):
@@ -748,6 +750,48 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
         "lookup_metadata",
     } <= enabled
     assert "execute_tool" not in enabled
+
+
+def test_independent_user_directory_is_public_personal_only_and_excludes_internal_tools(tmp_path):
+    import shutil
+
+    from kernel_api.user_api import USER_API_TAG, build_user_api_paths
+
+    aliases = build_user_api_paths(_RESOURCES_DIR / "internal/user")
+    assert len(aliases) == 101
+    assert not any(
+        path in aliases
+        for filename in ("operation_mcp.yaml", "ops_mcp.yaml", "openclaw_recovering_mcp.yaml")
+        for source_path in _load_paths(_RESOURCES_DIR / "internal/user" / filename)
+        for path in [source_path.replace("/mcp/", "/user/", 1)]
+    )
+    shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
+    merge_resources_func(tmp_path / "resources")
+    merged = _load_paths(tmp_path / "resources.yaml")
+    assert {
+        path: methods
+        for path, methods in merged.items()
+        if any(operation.get("tags") == [USER_API_TAG] for operation in methods.values())
+    } == aliases
+    names = []
+    for path, methods in aliases.items():
+        for method, operation in methods.items():
+            names.append(operation["operationId"])
+            assert operation["tags"] == [USER_API_TAG]
+            resource = operation["x-bk-apigateway-resource"]
+            assert resource["isPublic"] is True
+            assert resource["allowApplyPermission"] is False
+            assert resource["authConfig"] == {
+                "userVerifiedRequired": True,
+                "appVerifiedRequired": False,
+                "resourcePermissionRequired": False,
+                "oauth2PersonalClientEnabled": True,
+            }
+            assert resource["backend"]["path"] == "/api/v4" + path
+            assert resource["backend"]["method"] == method
+            assert resource["matchSubpath"] is False
+            assert resource["backend"]["matchSubpath"] is False
+    assert len(set(names)) == 101
 
 
 def test_shared_read_backends_move_only_mcp_resources(tmp_path):

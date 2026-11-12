@@ -1343,6 +1343,7 @@ def test_dynamic_configuration_round_trip_rebuilds_catalog(monkeypatch, redis_en
         redis_cache=redis,
         json=json,
         logger=logging.getLogger("test"),
+        kms=NS(enabled=lambda: False),
     )
     db = {}
     model = NS(get=lambda key, default, **kwargs: db.get(key, default), set=lambda key, value: db.update({key: value}))
@@ -3325,6 +3326,12 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
     handle = source_method(
         "kernel_api/middlewares/authentication.py", "AuthenticationMiddleware._handle_mcp_auth", **common
     )
+    handle_user = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware._handle_user_api",
+        HttpResponse=HttpResponse,
+        **common,
+    )
     execute = source_method(
         "kernel_api/middlewares/authentication.py",
         "AuthenticationMiddleware._handle_native_mcp",
@@ -3417,7 +3424,16 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
             dispatch_tool=io.dispatch,
         )
         module = ModuleType("kernel_api.resource.unified_mcp")
-        module.ExecuteToolResource = lambda: NS(perform_request=lambda data: perform(NS(), data))
+        module.ExecuteToolResource = lambda: NS(
+            perform_request=lambda data: perform(NS(), data), request=lambda **data: perform(NS(), data)
+        )
+        for class_name in (
+            "LookupToolResource",
+            "LookupToolSchemaResource",
+            "LookupMetadataResource",
+            "LookupPermissionsResource",
+        ):
+            setattr(module, class_name, lambda: NS(request=lambda **data: {"received": data}))
         monkeypatch.setitem(sys.modules, module.__name__, module)
         process = source_method(
             "kernel_api/middlewares/authentication.py",
@@ -3444,6 +3460,7 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         )
         middleware._handle_native_mcp = lambda *a, **kw: execute(middleware, *a, **kw)
         middleware._handle_mcp_auth = lambda *a, **kw: handle(middleware, *a, **kw)
+        middleware._handle_user_api = lambda *a, **kw: handle_user(middleware, *a, **kw)
         response = process(middleware, request, NS())
         return response, request, permission, ordinary
 
@@ -4273,3 +4290,178 @@ def test_other_mcp_formats_cannot_select_application_authorization(direct_gatewa
     )
     assert response.status_code == 403
     ordinary.assert_not_called()
+
+
+def test_independent_user_contracts_match_business_execution():
+    from kernel_api.user_api import (
+        CONFIRMATION_OPERATIONS,
+        FACADE_OPERATIONS,
+        USER_API_SOURCE_FILES,
+        build_user_api_paths,
+    )
+
+    assert set(USER_API_SOURCE_FILES) == {
+        filename for files in registry.SOURCE_FILES.values() for filename in files
+    } | {"unified_mcp.yaml"}
+    catalog = registry.load_tool_registry(native_tools=())
+    assert CONFIRMATION_OPERATIONS == {name for name in catalog.names if catalog.get(name).requires_confirmation}
+    paths = build_user_api_paths(BASE / "support-files/apigw/resources/internal/user")
+    for path, methods in paths.items():
+        name = path.strip("/").split("/")[-1]
+        if name in FACADE_OPERATIONS:
+            continue
+        for operation in methods.values():
+            schema = registry._normalize_public_schema(name, registry._extract_input_schema(operation))
+            assert schema == catalog.get(name).input_schema, name
+
+
+@pytest.mark.parametrize("marker,bearer", [(False, False), (False, True), (True, True)])
+@pytest.mark.parametrize("allowed,status", [(True, 200), (False, 403)])
+def test_independent_user_query_uses_current_user_iam(direct_gateway, io, marker, bearer, allowed, status):
+    io.monitor.iam_client.is_allowed.side_effect = None
+    io.monitor.iam_client.is_allowed.return_value = False
+    io.iam.is_allowed.return_value = allowed
+    response, request, _, ordinary = direct_gateway(
+        path="/api/v4/user/search_logs/", marker=marker, bearer=bearer, app_code="personal", spoof_headers=True
+    )
+    assert response.status_code == status
+    assert io.dispatch.call_count == (1 if allowed else 0)
+    assert request.mcp_usage_entry_point == "user"
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("confirmation,status", [(None, 400), (False, 400), (True, 200)])
+def test_independent_user_mutation_requires_confirmation_and_iam(direct_gateway, io, confirmation, status):
+    io.monitor.iam_client.is_allowed.side_effect = None
+    io.monitor.iam_client.is_allowed.return_value = True
+    arguments = {"bk_biz_id": "2", "configs": {"dashboard": "{}"}}
+    if confirmation is not None:
+        arguments["confirm"] = confirmation
+    response, _, permission, ordinary = direct_gateway(
+        "create_dashboard",
+        arguments,
+        path="/api/v4/user/create_dashboard/",
+        marker=False,
+        bearer=True,
+    )
+    assert response.status_code == status
+    assert io.dispatch.call_count == (1 if status == 200 else 0)
+    if status == 200:
+        io.monitor.iam_client.is_allowed.assert_called()
+        assert "confirm" not in io.dispatch.call_args.args[1]
+    ordinary.assert_not_called()
+
+
+def test_independent_user_mutation_denied_before_dispatch(direct_gateway, io):
+    io.monitor.iam_client.is_allowed.side_effect = None
+    io.monitor.iam_client.is_allowed.return_value = False
+    response, _, _, _ = direct_gateway(
+        "create_dashboard",
+        {"bk_biz_id": "2", "configs": {"dashboard": "{}"}, "confirm": True},
+        path="/api/v4/user/create_dashboard/",
+        marker=False,
+        bearer=True,
+    )
+    assert response.status_code == 403
+    io.dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "identity",
+    [
+        {"valid_jwt": False},
+        {"verified": False},
+        {"gateway": False},
+        {"username": ""},
+        {"user_name": "mallory"},
+        {"authenticated": False},
+    ],
+)
+def test_independent_user_identity_cannot_fall_back(direct_gateway, io, identity):
+    response, _, _, ordinary = direct_gateway(path="/api/v4/user/search_logs/", marker=False, **identity)
+    assert response.status_code == 403
+    io.dispatch.assert_not_called()
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "name", ["list_operation_metrics", "query_datalink_metadata", "search_openclaw_logs", "unknown"]
+)
+def test_independent_user_cannot_route_internal_tools(direct_gateway, io, name):
+    response, _, _, _ = direct_gateway(path=f"/api/v4/user/{name}/", marker=False)
+    assert response.status_code == 403
+    io.dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize("suffix", ["/", ".json", ".xml", ".abc123"])
+def test_independent_user_route_aliases_keep_permissions(direct_gateway, io, suffix):
+    response, _, _, _ = direct_gateway(path="/api/v4/user/search_logs" + suffix, marker=False, script_name="/query-api")
+    assert response.status_code == 200
+    io.dispatch.assert_called_once()
+
+
+@pytest.mark.parametrize("operation", ["lookup_tool", "lookup_tool_schema", "lookup_metadata", "lookup_permissions"])
+def test_independent_user_facades_reach_existing_resources(direct_gateway, io, operation):
+    response, request, _, ordinary = direct_gateway(
+        path=f"/api/v4/user/{operation}/", args={"tool_name": "search_logs"}, marker=False, bearer=True
+    )
+    assert response.status_code == 200
+    assert json.loads(response.content) == {"received": {"tool_name": "search_logs"}}
+    assert request.skip_check is False
+    assert request.unified_mcp_permission_checked is False
+    io.dispatch.assert_not_called()
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("confirmed,status", [(False, 400), (True, 200)])
+def test_independent_user_execute_tool_checks_inner_confirmation(direct_gateway, io, confirmed, status):
+    io.monitor.iam_client.is_allowed.side_effect = None
+    io.monitor.iam_client.is_allowed.return_value = True
+    response, _, _, _ = direct_gateway(
+        path="/api/v4/user/execute_tool/",
+        marker=False,
+        bearer=True,
+        args={
+            "tool_name": "create_dashboard",
+            "tool_args": {
+                "bk_biz_id": "2",
+                "configs": {"dashboard": "{}"},
+                "confirm": confirmed,
+            },
+        },
+    )
+    assert response.status_code == status
+    assert io.dispatch.call_count == (1 if status == 200 else 0)
+
+
+def test_independent_user_does_not_require_an_application_claim(direct_gateway, io):
+    response, _, _, ordinary = direct_gateway(path="/api/v4/user/search_logs/", marker=False, missing_claim="app_code")
+    assert response.status_code == 200
+    io.dispatch.assert_called_once()
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize("native", [False, True])
+def test_independent_user_legacy_and_native_permission_modes(monkeypatch, direct_gateway, io, native):
+    if not native:
+        monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
+    io.monitor.iam_client.is_allowed.side_effect = None
+    io.monitor.iam_client.is_allowed.return_value = True
+    response, _, permission, _ = direct_gateway(
+        "create_dashboard",
+        {"bk_biz_id": "2", "configs": {"dashboard": "{}"}, "confirm": True},
+        path="/api/v4/user/create_dashboard/",
+        marker=False,
+    )
+    assert response.status_code == 200
+    io.dispatch.assert_called_once()
+    if not native:
+        permission.is_allowed_by_biz.assert_called()
+
+
+def test_independent_user_rejects_identity_arguments(direct_gateway, io):
+    response, _, _, _ = direct_gateway(
+        path="/api/v4/user/search_logs/", args={**log_args(), "skip_check": True}, marker=False
+    )
+    assert response.status_code == 400
+    io.dispatch.assert_not_called()
