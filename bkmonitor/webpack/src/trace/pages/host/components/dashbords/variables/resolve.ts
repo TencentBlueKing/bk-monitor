@@ -39,16 +39,26 @@ const PURE_VARIABLE_REG = /^\$\{?(\w+)\}?$/;
 
 const isEmpty = (val: unknown) => val === '' || val === null || val === undefined;
 
+const hasBkTargetIp = (target?: CompareTarget | null) => target?.bk_target_ip != null;
+
+/**
+ * 目标对比的聚合维度：已有 bk_host_id 时只按主机聚合，否则按管控区域 + IP。
+ * 当前目标与对比目标任一携带 bk_host_id 即视为已有。
+ */
+const resolveCompareGroupBy = (targets: CompareTarget[], currentTarget?: CompareTarget | null) => {
+  const hasTargetIp = hasBkTargetIp(currentTarget) || targets.some(hasBkTargetIp);
+  return hasTargetIp ? ['bk_target_cloud_id', 'bk_target_ip'] : ['bk_host_id'];
+};
+
 /**
  * 把 toolbar 汇聚状态映射为变量取值。
- * 注：当前 toolbar 无「汇聚维度」字段，$group_by 默认空（占位会被移除）。
+ * 注：当前 toolbar 无「汇聚维度」字段，非目标对比时 $group_by 为空（占位会被移除）。
  * 对比相关变量仅在对应对比模式下生效，否则置空。
  */
 export function buildScopedVars(state: MetricAggregationState, currentTarget?: CompareTarget | null): ScopedVarMap {
   /** 是否存在目标对比 */
   const hasTarget = state.compareType === 'target' && state.compareTargets.length > 0;
-  const targetGroupBy = hasTarget ? Object.keys(state.compareTargets?.[0] || {}).map(key => key) : [];
-  const groupBy = [...new Set([...targetGroupBy])];
+  const groupBy = hasTarget ? resolveCompareGroupBy(state.compareTargets, currentTarget) : [];
   return {
     // 目标维度字段全量展开为顶层变量（对齐旧版 variables = { ...filters }），供 $bk_host_id 等占位符取值
     ...currentTarget,
