@@ -53,6 +53,7 @@ FUNC_ES_STORAGE_DETAIL = "admin.es_storage.detail"
 FUNC_ES_STORAGE_RUNTIME_OVERVIEW = "admin.es_storage.runtime_overview"
 FUNC_ES_STORAGE_SAMPLE = "admin.es_storage.sample"
 FUNC_ES_STORAGE_ROTATE_ALIASES = "admin.es_storage.rotate_aliases"
+FUNC_ES_STORAGE_BACKFILL_ALIASES = "admin.es_storage.backfill_aliases"
 
 TABLE_KIND_PHYSICAL = "physical"
 TABLE_KIND_VIRTUAL = "virtual"
@@ -715,6 +716,40 @@ def rotate_es_storage_aliases(params: dict[str, Any]) -> dict[str, Any]:
     return build_response(
         operation="es_storage.rotate_aliases",
         func_name=FUNC_ES_STORAGE_ROTATE_ALIASES,
+        bk_tenant_id=bk_tenant_id,
+        data=data,
+        safety_level=SAFETY_LEVEL_WRITE,
+    )
+
+
+@KernelRPCRegistry.register(
+    FUNC_ES_STORAGE_BACKFILL_ALIASES,
+    summary="Admin 补充 ESStorage 历史读写别名",
+    description=(
+        "从昨天起往前补充每日读写别名，默认覆盖存储时长，指定天数不得超过 retention。"
+        "仅支持按天切分且只有一个物理索引的实体表，所有别名指向该索引，不创建索引。"
+        "默认 dry_run=true 预览，设为 false 执行写操作。"
+    ),
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "table_id": "必填，实体 ESStorage.table_id",
+        "days": "可选，正整数，最大为 retention，默认 retention 天，不包含当天",
+        "dry_run": "可选，默认 true，只预览；false 实际补充别名",
+    },
+    example_params={"bk_tenant_id": "system", "table_id": "system.cpu", "days": 7, "dry_run": True},
+)
+def backfill_es_storage_aliases(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    table_id = _require_table_id(params)
+    dry_run = normalize_optional_bool(params.get("dry_run"), "dry_run")
+    es_storage = _get_es_storage_or_raise(bk_tenant_id, table_id)
+    try:
+        data = es_storage.backfill_aliases(days=params.get("days"), dry_run=True if dry_run is None else dry_run)
+    except ValueError as error:
+        raise CustomException(message=str(error)) from error
+    return build_response(
+        operation="es_storage.backfill_aliases",
+        func_name=FUNC_ES_STORAGE_BACKFILL_ALIASES,
         bk_tenant_id=bk_tenant_id,
         data=data,
         safety_level=SAFETY_LEVEL_WRITE,

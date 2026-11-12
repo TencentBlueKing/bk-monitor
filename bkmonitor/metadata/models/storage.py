@@ -4126,6 +4126,45 @@ class ESStorage(models.Model, StorageResultTable):
 
         return False
 
+    def backfill_aliases(self, days: int | None = None, dry_run: bool = True) -> dict:
+        """为唯一物理索引补充昨天起往前的每日读写别名，默认覆盖 retention 天。
+
+        只添加别名，不创建索引；沿用存储配置的时区和时间偏移。
+        """
+        days = self.retention if days is None else days
+        if type(days) is not int or not 1 <= days <= self.retention:
+            raise ValueError(f"days 必须是 1 到存储时长 {self.retention} 之间的整数")
+        if self.origin_table_id or not self.need_create_index:
+            raise ValueError("仅实体 ESStorage 支持补充历史别名")
+        if self.date_format != "%Y%m%d":
+            raise ValueError("补充历史别名只支持按天切分（date_format=%Y%m%d）")
+
+        index_names = self.get_index_names()
+        if len(index_names) != 1:
+            raise ValueError(f"补充历史别名要求只有一个物理索引，实际为：{index_names}")
+        target_index = index_names[0]
+        end_date = self.now.date() - datetime.timedelta(days=1)
+        start_date = end_date - datetime.timedelta(days=days - 1)
+        aliases = []
+        for offset in range(days):
+            date_str = (start_date + datetime.timedelta(days=offset)).strftime(self.date_format)
+            aliases.extend([f"write_{date_str}_{self.index_name}", f"{self.index_name}_{date_str}_read"])
+
+        if not dry_run:
+            self._update_aliases_with_retry(
+                actions=[{"add": {"index": target_index, "alias": alias}} for alias in aliases],
+                new_index_name=target_index,
+            )
+        return {
+            "table_id": self.table_id,
+            "target_index": target_index,
+            "days": days,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "aliases": aliases,
+            "dry_run": dry_run,
+        }
+
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
     def _update_aliases_with_retry(self, actions, new_index_name, force_rotate: bool = False):
         """
