@@ -140,6 +140,7 @@ def test_batch_payload_off_keeps_legacy_list_format(mocker):
     processor.strategy_group_key = "group"
     processor.items = [mocker.MagicMock()]
     processor.items[0].strategy.id = 1
+    processor.items[0].query.is_partial = False
     processor.alarmd_v2_execution_id = None
     client = mocker.MagicMock()
     mocker.patch.object(access_processor.key.ACCESS_BATCH_DATA_KEY, "_cache", client)

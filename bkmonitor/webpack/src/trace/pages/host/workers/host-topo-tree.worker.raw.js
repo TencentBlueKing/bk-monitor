@@ -455,6 +455,7 @@ self.onmessage = event => {
         type: 'SELECT_DONE',
         selectedNode: index === undefined ? null : nodes[index].data,
         selectedNodeOffset: getNodeOffset(message.id),
+        total: getTotal(),
       });
       break;
     }

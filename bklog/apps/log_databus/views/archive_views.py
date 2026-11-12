@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
+    IAMPermission,
     InstanceActionForDataPermission,
     ViewBusinessPermission,
     insert_permission_field,
@@ -73,19 +74,15 @@ class ArchiveViewSet(ModelViewSet):
                 raise ArchiveNotFound
             if archive_obj.instance_type == ArchiveInstanceType.INDEX_SET.value:
                 return [
-                    InstanceActionForDataPermission(
-                        "archive_config_id",
+                    IAMPermission(
                         [ActionEnum.MANAGE_INDICES],
-                        ResourceEnum.INDICES,
-                        get_instance_id=ArchiveConfig.get_index_set_id,
+                        [ResourceEnum.INDICES.create_instance(archive_obj.instance_id)],
                     )
                 ]
             return [
-                InstanceActionForDataPermission(
-                    "archive_config_id",
+                IAMPermission(
                     [ActionEnum.MANAGE_COLLECTION],
-                    ResourceEnum.COLLECTION,
-                    get_instance_id=ArchiveConfig.get_collector_config_id,
+                    [ResourceEnum.COLLECTION.create_instance(archive_obj.collector_config_id)],
                 )
             ]
         return [ViewBusinessPermission()]

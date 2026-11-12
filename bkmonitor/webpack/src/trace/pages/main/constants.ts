@@ -31,5 +31,13 @@ export const TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY = '__bk_monitor_trace_span_
 export const TRACE_SLIDER_Z_INDEX = 2500;
 /** Span 详情侧滑，叠在 Trace 详情侧滑之上 */
 export const SPAN_DETAILS_Z_INDEX = TRACE_SLIDER_Z_INDEX + 100;
+/** LLM「独立查看」侧滑，叠在所属 Span 详情之上 */
+export const LLM_DETAIL_SLIDER_Z_INDEX_GAP = 100;
 /** LLM「独立查看」侧滑，叠在 Span 详情之上，仍低于导航 3000 */
-export const LLM_DETAIL_SLIDER_Z_INDEX = SPAN_DETAILS_Z_INDEX + 100;
+export const LLM_DETAIL_SLIDER_Z_INDEX = SPAN_DETAILS_Z_INDEX + LLM_DETAIL_SLIDER_Z_INDEX_GAP;
+/** 从当前 Span 详情再开一层时，越过本层「独立查看」 */
+export const NESTED_SPAN_DETAILS_Z_INDEX_GAP = 200;
+/** Span 详情侧滑默认宽度 */
+export const SPAN_DETAILS_SLIDER_WIDTH = '80%';
+/** 从当前 Span 详情再开一层时的侧滑宽度，收窄以与父层错开 */
+export const NESTED_SPAN_DETAILS_SLIDER_WIDTH = '75%';

@@ -503,6 +503,8 @@ class BCSPod(BCSBase, BCSBaseResources):
     def get_instance_with_cache(cls, name, bcs_cluster_id, namespace=None):
         """
         获取实例（带缓存）
+        不指定 namespace 时，同一集群不同命名空间可能有同名 Pod（如同名 StatefulSet 的 Pod），
+        只返回唯一匹配；匹配到多个时抛出 MultipleObjectsReturned，且不缓存
         """
         from bkmonitor.utils.dynamic_settings import redis_cache
 
@@ -512,7 +514,7 @@ class BCSPod(BCSBase, BCSBaseResources):
 
         # 如果没有Redis缓存，直接查询数据库
         if redis_cache is None:
-            return cls.get_instance(**filter_kwargs)
+            return cls.get_unique_instance(**filter_kwargs)
 
         pod_cache_key = f"bcs_pod:{bcs_cluster_id}:{namespace}:{name}"
         # 尝试从缓存获取
@@ -521,12 +523,23 @@ class BCSPod(BCSBase, BCSBaseResources):
             return cls(**json.loads(result))
 
         # 缓存未命中，查询数据库
-        instance = cls.get_instance(**filter_kwargs)
+        instance = cls.get_unique_instance(**filter_kwargs)
         # 如果查询到实例，设置缓存
         if instance:
             redis_cache.set(pod_cache_key, instance._serialize_pod(), timeout=3600)
 
         return instance
+
+    @classmethod
+    def get_unique_instance(cls, **params):
+        """
+        获取唯一实例，没有匹配时返回 None，匹配到多个时抛出 MultipleObjectsReturned
+        最多取两条即可判断是否唯一
+        """
+        instances = list(cls.objects.filter(**params)[:2])
+        if len(instances) > 1:
+            raise cls.MultipleObjectsReturned(f"more than one pod matches {params}")
+        return instances[0] if instances else None
 
     def _serialize_pod(self) -> str:
         """

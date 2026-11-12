@@ -1213,3 +1213,36 @@ def analyze_es_storage_usage(params: dict[str, Any]) -> dict[str, Any]:
         warnings=warnings,
     )
     return _mark_inspect_response(response)
+
+
+@KernelRPCRegistry.register(
+    "admin.cluster_info.doris_storage_analysis",
+    summary="Admin 分析 Doris 集群物理表占用与当前、历史归属",
+    description="inspect 级别，只读当前账号可见内部库表，一次返回分析快照，容量包含副本，行数为估算。",
+    params_schema={"bk_tenant_id": "可选，租户 ID", "cluster_id": "必填，Doris ClusterInfo.cluster_id"},
+    example_params={"bk_tenant_id": "system", "cluster_id": 3},
+)
+def analyze_doris_storage_usage(params: dict[str, Any]) -> dict[str, Any]:
+    from kernel_api.rpc.functions.admin.doris_analysis import build_doris_storage_analysis
+
+    bk_tenant_id = get_bk_tenant_id(params)
+    try:
+        cluster_id = int(params.get("cluster_id"))
+    except (TypeError, ValueError) as error:
+        raise CustomException(message="cluster_id 必须是整数") from error
+    try:
+        cluster = models.ClusterInfo.objects.get(
+            bk_tenant_id=bk_tenant_id, cluster_id=cluster_id, cluster_type=models.ClusterInfo.TYPE_DORIS
+        )
+    except models.ClusterInfo.DoesNotExist as error:
+        raise CustomException(message=f"未找到 Doris ClusterInfo: cluster_id={cluster_id}") from error
+    data, warnings = build_doris_storage_analysis(cluster, bk_tenant_id)
+    return _mark_inspect_response(
+        build_response(
+            operation="cluster_info.doris_storage_analysis",
+            func_name="admin.cluster_info.doris_storage_analysis",
+            bk_tenant_id=bk_tenant_id,
+            data=data,
+            warnings=warnings,
+        )
+    )

@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import logging
+import time
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -19,6 +21,11 @@ from bkmonitor.models import NO_DATA_TAG_DIMENSION
 from bkmonitor.utils.time_tools import utc2datetime
 from bkmonitor.utils.user import get_user_display_name
 from constants.alert import EVENT_SEVERITY_DICT, EventSeverity
+
+logger = logging.getLogger(__name__)
+
+# 用于区分"调用方未提供展示参数"与"调用方显式传入空值"（trigger_condition=None 是合法输入）
+_NOT_PROVIDED = object()
 
 
 class AlertLogHandler:
@@ -48,17 +55,90 @@ class AlertLogHandler:
     # 注意：只去重 ACK，保留 ACTION（因为单独的 action 语义是"所有 ACTION"）
     USER_ACTION_DUPLICATE_TYPES = {AlertLog.OpType.ACK}
 
-    def __init__(self, alert_id: str):
-        self.alert = AlertDocument.get(alert_id)
+    # 收窄后允许的最大索引数。超过说明创建时间异常（例如 ID 前缀是 1970 年，会枚举出数百个月通配），
+    # 此时拼出的索引路径会超过 ES 的请求行长度限制，回退到单个全量读别名更安全。
+    MAX_SEARCH_INDEX_COUNT = 64
+
+    def __init__(self, alert_id: str, begin_time=_NOT_PROVIDED, trigger_condition=_NOT_PROVIDED):
+        self.alert_id = alert_id
         self.log_records = []
+
+        if begin_time is _NOT_PROVIDED or trigger_condition is _NOT_PROVIDED:
+            # 回退：展示参数不完整时沿用原逻辑从告警正文取数，同时保留"告警不存在"的异常语义
+            self.alert = AlertDocument.get(alert_id)
+            self.begin_time = self.alert.begin_time
+            self.trigger_condition = self.build_trigger_condition(self.alert)
+        else:
+            # 完整展示参数：省去一次告警正文查询，展示内容完全由调用方提供
+            self.alert = None
+            self.begin_time = begin_time
+            self.trigger_condition = trigger_condition
+
+    @staticmethod
+    def build_trigger_condition(alert):
+        """
+        从告警正文构造与前端补充参数同构的触发条件。
+
+        :return: None 表示无需追加触发条件文案
+        """
+        strategy = alert.strategy
+        if not strategy or not strategy["items"][0]["algorithms"]:
+            return None
+
+        item = strategy["items"][0]
+        detect = strategy["detects"][0]
+        if NO_DATA_TAG_DIMENSION in alert.origin_alarm["data"]["dimensions"]:
+            return {"type": "no_data", "continuous": item["no_data_config"]["continuous"]}
+
+        trigger_config = detect["trigger_config"]
+        return {
+            "type": "algorithm",
+            "check_window": trigger_config["check_window"],
+            "count": trigger_config["count"],
+        }
+
+    def build_search_object(self):
+        """
+        构造基础查询对象，并把索引收窄到"告警创建日 ~ 当前日"。
+
+        告警 ID 由告警创建时间生成，而流水 create_time 取写入时的系统时间，
+        因此流水一定落在该区间对应的日读别名内。
+        任何无法安全收窄的情况（ID 非法、创建日在未来、候选索引为空、索引数异常）都回退全量读别名，
+        优先保证不漏数据。
+        """
+        try:
+            start_time = AlertDocument.parse_timestamp_by_id(self.alert_id)
+        except (TypeError, ValueError):
+            logger.warning("alert log query fallback to all indices, invalid alert_id: %s", self.alert_id)
+            return AlertLog.search(all_indices=True)
+
+        end_time = int(time.time())
+        if start_time > end_time:
+            logger.warning("alert log query fallback to all indices, alert_id(%s) created in the future", self.alert_id)
+            return AlertLog.search(all_indices=True)
+
+        index_name = AlertLog.build_index_name_by_time(start_time=start_time, end_time=end_time)
+        if not index_name:
+            logger.warning("alert log query fallback to all indices, empty index for alert_id: %s", self.alert_id)
+            return AlertLog.search(all_indices=True)
+
+        if len(index_name) > self.MAX_SEARCH_INDEX_COUNT:
+            logger.warning(
+                "alert log query fallback to all indices, too many candidate indices(%s) for alert_id: %s",
+                len(index_name),
+                self.alert_id,
+            )
+            return AlertLog.search(all_indices=True)
+
+        return AlertLog.search(index=index_name)
 
     def search(self, operate_list: list = None, offset: int = None, limit: int = None):
         self.log_records = []
 
         search_object = (
-            AlertLog.search(all_indices=True)
-            .params(ignore_unavailable=True, preserve_order=True)
-            .filter("term", alert_id=self.alert.id)
+            self.build_search_object()
+            .params(preserve_order=True)
+            .filter("term", alert_id=self.alert_id)
             .sort("-create_time", "op_type", "-_doc")
         )
 
@@ -162,22 +242,19 @@ class AlertLogHandler:
         告警产生
         """
         contents = [hit.description]
-        source_time = utc2datetime(self.alert.begin_time)
 
-        if self.alert.strategy and self.alert.strategy["items"][0]["algorithms"]:
-            item = self.alert.strategy["items"][0]
-            detect = self.alert.strategy["detects"][0]
-            if NO_DATA_TAG_DIMENSION in self.alert.origin_alarm["data"]["dimensions"]:
-                continuous = item["no_data_config"]["continuous"]
-                contents.append(_(" 达到了触发告警条件（数据连续丢失{}个周期）").format(continuous))
-            else:
-                trigger_config = detect["trigger_config"]
-                contents.append(
-                    _(" 达到了触发告警条件（{}周期内满足{}次检测算法）").format(
-                        trigger_config["check_window"], trigger_config["count"]
-                    )
+        if self.trigger_condition and self.trigger_condition["type"] == "no_data":
+            contents.append(
+                _(" 达到了触发告警条件（数据连续丢失{}个周期）").format(self.trigger_condition["continuous"])
+            )
+        elif self.trigger_condition:
+            contents.append(
+                _(" 达到了触发告警条件（{}周期内满足{}次检测算法）").format(
+                    self.trigger_condition["check_window"], self.trigger_condition["count"]
                 )
-        record.update({"source_time": source_time, "index": 0, "contents": contents})
+            )
+
+        record.update({"source_time": utc2datetime(self.begin_time), "index": 0, "contents": contents})
         self.log_records.append(record)
 
     def add_record_recover(self, hit, record):

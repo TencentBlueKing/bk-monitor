@@ -26,6 +26,7 @@ from iam_engine.core.config import AuthMode
 from iam_engine.exceptions import ProviderError
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.tenant import is_biz_in_tenant
 
 logger = logging.getLogger("monitor_web")
 
@@ -369,6 +370,15 @@ class GrafanaReadPermission:
         return f"grafana_read_allowed:{mode}:{get_request_tenant_id()}:{request.user.username}:{request.biz_id}"
 
     def has_permission(self, request, view):
+        if getattr(view, "action", None) == "time_series/unify_query":
+            # Check the executed business before cache, dashboard, share, or IAM bypass grants.
+            params = getattr(request, "data", None)
+            param_biz_id = params.get("bk_biz_id") if hasattr(params, "get") else None
+            if param_biz_id not in (None, "") and str(param_biz_id) != str(request.biz_id):
+                return False
+            if request.biz_id and not is_biz_in_tenant(request.biz_id, getattr(request.user, "tenant_id", None)):
+                return False
+
         if not request.biz_id:
             return True
 

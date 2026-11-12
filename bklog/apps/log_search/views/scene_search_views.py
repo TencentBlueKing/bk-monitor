@@ -41,7 +41,7 @@ from apps.log_search.exceptions import GetMultiResultFailException
 from apps.log_search.export import api as sharded_export_api
 from apps.log_search.export.config import is_sharded_export_enabled
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.handlers.scene_search import AllConditionsBuilder, get_field_candidates
+from apps.log_search.handlers.scene_search import AllConditionsBuilder, build_dimension_options, get_field_candidates
 from apps.log_search.handlers.search.scene_fields_config import (
     SceneFieldsConfigHandler,
     UserSceneCustomConfigHandler,
@@ -769,6 +769,10 @@ class SceneSearchViewSet(APIViewSet):
         @apiName scene_search_dimension_values
         @apiGroup 14_SceneSearch
         @apiDescription 获取场景下指定维度的可选值列表（支持级联筛选），供前端下拉框使用。
+            返回 {dimension_key, values, options}：
+            - values: 原始维度值字符串数组（向后兼容）
+            - options: [{id, name}] 结构，始终返回（空结果为 []）；name 默认等于 id，
+              命中名称解析器的维度（如 k8s 场景的 cluster_id）会补充集群名称
         """
         from apps.log_search.models import IndexSetTag
 
@@ -782,7 +786,15 @@ class SceneSearchViewSet(APIViewSet):
             filters=data.get("filters") or None,
             space_uids=space_uids,
         )
-        return Response({"dimension_key": data["dimension_key"], "values": sorted(values)})
+
+        sorted_values = sorted(values)
+        return Response(
+            {
+                "dimension_key": data["dimension_key"],
+                "values": sorted_values,
+                "options": build_dimension_options(data["scene"], data["dimension_key"], sorted_values),
+            }
+        )
 
     @list_route(methods=["POST"], url_path="list_field_candidates")
     def list_field_candidates(self, request):

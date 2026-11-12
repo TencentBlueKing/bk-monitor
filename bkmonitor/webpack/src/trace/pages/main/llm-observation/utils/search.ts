@@ -28,10 +28,18 @@ import type { ComputedRef, InjectionKey } from 'vue';
 import { beautifyJsonValue, formatJsonDisplay, isRecord } from './helpers';
 import { formatAgentLabel, parseAgentObservation } from './parse-agent';
 import { parseInputObservation } from './parse-input';
+import { parseModelTimeline } from './parse-model-timeline';
 import { parseOutputObservation } from './parse-output';
 import { parseToolObservation } from './parse-tool';
 
-import type { LlmInputObservation, LlmOutputObservation, LlmPlannedToolCall, LlmToolCallRecord } from './typings';
+import type {
+  LlmInputObservation,
+  LlmModelTimeline,
+  LlmOutputObservation,
+  LlmPlannedToolCall,
+  LlmTimelinePart,
+  LlmToolCallRecord,
+} from './typings';
 
 /** 页内搜索：字面量匹配、命中收集、高亮定位与 provide/inject 上下文 */
 
@@ -51,6 +59,8 @@ export const LLM_SEARCH_SECTION = {
   outputPlanned: 'output-planned',
   outputReasoning: 'output-reasoning',
   outputResults: 'output-results',
+  timelineInput: 'timeline-input',
+  timelineOutput: 'timeline-output',
   tool: 'tool',
 } as const;
 
@@ -133,7 +143,8 @@ export function collectObservationHits(
   keyword: string,
   attributes: Record<string, unknown>,
   isTool: boolean,
-  isAgent = false
+  isAgent = false,
+  isModel = false
 ): LlmSearchHit[] {
   const trimmed = keyword.trim();
   if (!trimmed) return [];
@@ -146,6 +157,10 @@ export function collectObservationHits(
 
   if (isAgent) {
     collectAgentHits(builder, parseAgentObservation(attributes));
+  }
+  if (isModel) {
+    collectModelTimelineHits(builder, parseModelTimeline(attributes));
+    return builder.hits;
   }
   collectInputHits(builder, parseInputObservation(attributes));
   collectOutputHits(builder, parseOutputObservation(attributes));
@@ -219,6 +234,57 @@ function collectAgentHits(builder: HitBuilder, observation: ReturnType<typeof pa
   const meta = { sectionId: LLM_SEARCH_SECTION.agent, tab: 'agent' };
   builder.pushText(label, { ...meta, blockId: 'agent:name' });
   builder.pushText(observation.description.trim(), { ...meta, blockId: 'agent:desc' });
+}
+
+/** 模型时间流：系统 Prompts → 可用工具 → 输入 messages/parts → 输出 messages/parts */
+function collectModelTimelineHits(builder: HitBuilder, observation: LlmModelTimeline) {
+  for (const item of observation.systemPrompts) {
+    builder.pushText(item.content, {
+      blockId: `input:system:${item.id}`,
+      sectionId: LLM_SEARCH_SECTION.inputSystem,
+      tab: 'input',
+    });
+  }
+  for (const tool of observation.availableTools) {
+    const prefix = `input:tool:${tool.name}`;
+    const meta = {
+      sectionId: LLM_SEARCH_SECTION.inputTools,
+      tab: 'input' as const,
+      toolName: tool.name,
+    };
+    builder.pushText(tool.name.trim(), { ...meta, blockId: `${prefix}:name` });
+    builder.pushText(tool.description.trim(), { ...meta, blockId: `${prefix}:desc` });
+    builder.pushJson(tool.parameters, `${prefix}:params`, meta);
+  }
+  for (const message of observation.inputMessages) {
+    for (const part of message.parts) {
+      collectTimelinePartHits(builder, part, 'input', LLM_SEARCH_SECTION.timelineInput);
+    }
+  }
+  for (const message of observation.outputMessages) {
+    for (const part of message.parts) {
+      collectTimelinePartHits(builder, part, 'output', LLM_SEARCH_SECTION.timelineOutput);
+    }
+  }
+}
+
+function collectTimelinePartHits(
+  builder: HitBuilder,
+  part: LlmTimelinePart,
+  tab: 'input' | 'output',
+  sectionId: LlmSearchSectionId
+) {
+  const meta = { expandId: part.id, sectionId, tab };
+  if (part.role === 'tool') {
+    builder.pushText((part.toolName || '').trim(), { ...meta, blockId: `${part.searchBlockId}:name` });
+    builder.pushText((part.description || '').trim(), { ...meta, blockId: `${part.searchBlockId}:desc` });
+    builder.pushJson(part.arguments, `${part.searchBlockId}:args`, meta);
+    if (part.response !== undefined) {
+      builder.pushJson(part.response, `${part.searchBlockId}:resp`, meta);
+    }
+    return;
+  }
+  builder.pushText(part.content, { ...meta, blockId: part.searchBlockId });
 }
 
 /** 输入侧：消息 / 推理 / 工具调用 / 可用工具，顺序即翻页顺序 */

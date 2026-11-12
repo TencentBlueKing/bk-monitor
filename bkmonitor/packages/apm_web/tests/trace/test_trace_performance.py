@@ -89,6 +89,7 @@ def test_trace_resource_defers_large_trace_details_only_when_requested(
     from apm_web.trace.resources import SpanDetailResource, TraceDetailResource
 
     template: dict = copy.deepcopy(read_trace_list("simple")[0])
+    template["status"] = {"code": 2, "message": '工具执行失败\n{"error": "unavailable"}'}
     spans: list[dict] = []
     for index in range(span_count):
         span: dict = copy.deepcopy(template)
@@ -129,6 +130,7 @@ def test_trace_resource_defers_large_trace_details_only_when_requested(
     else:
         assert result["original_data"] == full["original_data"]
     assert restored["origin_data"] == spans[0]
+    assert all(span["status"] == template["status"] for span in result["original_data"])
     assert restored["trace_tree"]["spans"][0]["attributes"] == full["trace_tree"]["spans"][0]["attributes"]
     assert spans[0]["attributes"] == template["attributes"]
     assert spans[0]["resource"] == template["resource"]
@@ -137,6 +139,8 @@ def test_trace_resource_defers_large_trace_details_only_when_requested(
 @pytest.mark.parametrize("reduce_details", [False, True])
 def test_cross_app_and_llm_details_are_independent_of_large_trace_opt_in(reduce_details: bool) -> None:
     spans: list[dict] = copy.deepcopy(read_trace_list("simple"))
+    for span in spans:
+        span["status"] = {"code": 2, "message": '工具执行失败\n{"error": "unavailable"}'}
     spans[0]["app_name"] = "other-app"
     spans[1]["bk_biz_id"] = 3
     spans[2]["llm_detail"] = {"span_type": "LLM"}
@@ -146,8 +150,13 @@ def test_cross_app_and_llm_details_are_independent_of_large_trace_opt_in(reduce_
     TraceHandler.sanitize_span_details(compact, 2, "app", detail_span_ids=deferred)
     for span in compact["trace_tree"]["spans"]:
         assert bool(span["attributes"]) is (span["spanID"] not in deferred)
+    cross_context_span_ids: set[str] = {span["span_id"] for span in spans[:2]}
     for span in compact["original_data"]:
         assert bool(span["attributes"]) is (span["span_id"] not in deferred)
+        assert span["status"]["code"] == 2
+        expected_message: str = "" if span["span_id"] in cross_context_span_ids else spans[2]["status"]["message"]
+        assert span["status"]["message"] == expected_message
+    assert all(span["status"]["message"] for span in spans)
 
 
 def test_large_trace_preserves_virtual_details_without_storage_lookup() -> None:

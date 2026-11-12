@@ -9,6 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 from . import (
+    alarm_query,
+    alarm_redis,
+    alarm_strategy,
     apm,
     apm_trace,
     api_auth_token,
@@ -24,6 +27,7 @@ from . import (
     consul,
     datalink,
     datasource,
+    doris_sql,
     es_storage,
     kafka_sample,
     kafka_status,
@@ -49,6 +53,9 @@ from . import (
 )
 
 __all__ = [
+    "alarm_query",
+    "alarm_redis",
+    "alarm_strategy",
     "apm",
     "apm_trace",
     "api_auth_token",
@@ -64,6 +71,7 @@ __all__ = [
     "consul",
     "datalink",
     "datasource",
+    "doris_sql",
     "es_storage",
     "kafka_sample",
     "kafka_status",

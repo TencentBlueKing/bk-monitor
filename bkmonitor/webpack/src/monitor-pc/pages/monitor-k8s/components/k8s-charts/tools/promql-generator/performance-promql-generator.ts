@@ -34,9 +34,79 @@ import type { K8sBasePromqlGeneratorContext } from '../../typing';
  * @description K8s性能图表数据查询Promql生成器
  */
 export class K8sPerformancePromqlGenerator extends K8sBasePromqlGenerator {
+  private static createPodMemoryPromql(metric: string, context: K8sBasePromqlGeneratorContext): string {
+    const containerContext = K8sPerformancePromqlGenerator.podMemoryContainerContext(context);
+    const childFilter = K8sBasePromqlGenerator.createCommonPromqlContent(containerContext, false, false).replace(
+      /,$/,
+      ''
+    );
+    const parentFilter = K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false).replace(/,$/, '');
+    const selectedContainers = context.filter_dict?.[K8sTableColumnKeysEnum.CONTAINER]?.some(Boolean);
+    const excludePod = selectedContainers ? '' : ',container_name!="POD"';
+    const childUsage = `sum by(bcs_cluster_id,namespace,pod_name)(container_memory_working_set_bytes{${childFilter},container_name!=""${excludePod}} $time_shift)`;
+    // 先逐 Pod 选择总量；or 按序列存在性回退，父级为 0 时仍保留父级。
+    const usage = selectedContainers
+      ? childUsage
+      : `(${K8sPerformancePromqlGenerator.podMemoryParentPromql(`${parentFilter},metrics_path="/metrics/cadvisor"`)} or on(bcs_cluster_id,namespace,pod_name) ${childUsage})`;
+    const method = K8sBasePromqlGenerator.createCommonPromqlMethod(context);
+    const numerator = `${method}(${usage})`;
+    if (metric === 'container_memory_working_set_bytes') return numerator;
+    const denominator = K8sPerformancePromqlGenerator.createPodMemoryQuotaPromql(
+      context,
+      metric === 'kube_pod_memory_limits_ratio'
+    );
+    return `${numerator} / ${denominator}`;
+  }
+
+  private static podMemoryContainerContext(context: K8sBasePromqlGeneratorContext): K8sBasePromqlGeneratorContext {
+    const containers = context.filter_dict?.[K8sTableColumnKeysEnum.CONTAINER]?.filter(Boolean) || [];
+    return containers.length
+      ? {
+          ...context,
+          groupByField: K8sTableColumnKeysEnum.CONTAINER,
+          resourceMap: new Map(context.resourceMap).set(K8sTableColumnKeysEnum.CONTAINER, containers.join('|')),
+        }
+      : context;
+  }
+
+  private static podMemoryParentPromql(filter: string): string {
+    const parent = 'pod_memory_working_set_bytes';
+    const child = 'container_memory_working_set_bytes';
+    // VM can exclude children at storage; retain marker selection for other backends.
+    const selector = `{__name__=~"(${parent}|${child})",__name__!~"container_memory_.*",${filter}} $time_shift`;
+    const identity = 'bcs_cluster_id,namespace,pod_name';
+    const marker = '__bk_pod_memory_source';
+    // Bind the parent branch even when the parent metric is not registered yet.
+    // Aggregate before marking to avoid collisions with existing source labels.
+    return `sum by(${identity})(label_replace(sum by(__name__,${identity})(${selector}),"${marker}","parent","__name__","${parent}") and on(${marker}) label_replace(vector(1),"${marker}","parent","__name__",".*"))`;
+  }
+
+  static createPodMemoryQuotaPromql(context: K8sBasePromqlGeneratorContext, isLimit: boolean, withTimeShift = true) {
+    const containerContext = K8sPerformancePromqlGenerator.podMemoryContainerContext(context);
+    const filter = K8sBasePromqlGenerator.createCommonPromqlContent(containerContext);
+    const timeShift = withTimeShift ? ' $time_shift' : '';
+    const quota = isLimit
+      ? K8sBasePromqlGenerator.createContainerResourceLimit(containerContext, false, withTimeShift)
+      : `kube_pod_container_resource_requests_memory_bytes{${filter}}${timeShift}`;
+    return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(sum by(bcs_cluster_id,namespace,pod_name)(${quota}))`;
+  }
+
   readonly promqlGenerateScene = SceneEnum.Performance;
 
-  scenePrivatePromqlGenerateMain(metric: string, context: K8sBasePromqlGeneratorContext): string {
+  scenePrivatePromqlGenerateMain(
+    metric: string,
+    context: K8sBasePromqlGeneratorContext,
+    useLegacyPodMemory = false
+  ): string {
+    if (
+      !useLegacyPodMemory &&
+      context.groupByField === K8sTableColumnKeysEnum.POD &&
+      ['container_memory_working_set_bytes', 'kube_pod_memory_limits_ratio', 'kube_pod_memory_requests_ratio'].includes(
+        metric
+      )
+    ) {
+      return K8sPerformancePromqlGenerator.createPodMemoryPromql(metric, context);
+    }
     switch (metric) {
       case 'container_cpu_usage_seconds_total': // CPU使用量
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(rate(${metric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}}[$interval] $time_shift))`;
@@ -45,23 +115,23 @@ export class K8sPerformancePromqlGenerator extends K8sBasePromqlGenerator {
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(rate(${metric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context, false, false)}}[$interval] $time_shift))`;
       case 'kube_pod_cpu_limits_ratio': // CPU limit使用率
         if (context.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
-          return `$method by (workload_kind, workload_name)(rate(container_cpu_usage_seconds_total{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD"}[1m] $time_shift)) / ${K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, true)}`;
+          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(rate(container_cpu_usage_seconds_total{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD"}[1m] $time_shift)) / ${K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, true)}`;
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(rate(${'container_cpu_usage_seconds_total'}{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}}[$interval] $time_shift)) / ${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(${K8sBasePromqlGenerator.createContainerResourceLimit(context)})`;
       case 'container_cpu_cfs_throttled_ratio': // CPU 限流占比
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}((increase(container_cpu_cfs_throttled_periods_total{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}}[$interval] $time_shift) / increase(container_cpu_cfs_periods_total{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}}[$interval] $time_shift)))`;
       case 'kube_pod_cpu_requests_ratio': // CPU request使用率
         if (context.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
-          return `$method by (workload_kind, workload_name)(rate(container_cpu_usage_seconds_total{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD"}[1m] $time_shift)) / ${K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, false)}`;
+          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(rate(container_cpu_usage_seconds_total{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD"}[1m] $time_shift)) / ${K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, false)}`;
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(rate(${'container_cpu_usage_seconds_total'}{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}}[$interval] $time_shift)) / ${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(kube_pod_container_resource_requests_cpu_cores{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}} $time_shift)`;
       case 'container_memory_working_set_bytes': // 内存使用量(rss)
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(${metric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}} $time_shift)`;
       case 'kube_pod_memory_limits_ratio': // 内存limit使用率
         if (context.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
-          return `$method by (workload_kind, workload_name)(container_memory_working_set_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD"} $time_shift) / ${K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, true, false)}`;
+          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(container_memory_working_set_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD"} $time_shift) / ${K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, true, false)}`;
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(${'container_memory_working_set_bytes'}{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}} $time_shift) / ${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(${K8sBasePromqlGenerator.createContainerResourceLimit(context, false)})`;
       case 'kube_pod_memory_requests_ratio': // 内存request使用率
         if (context.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
-          return `$method by (workload_kind, workload_name)(container_memory_working_set_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD"} $time_shift) / ${K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, false, false)}`;
+          return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(container_memory_working_set_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD"} $time_shift) / ${K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, false, false)}`;
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(${'container_memory_working_set_bytes'}{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}} $time_shift) / ${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(kube_pod_container_resource_requests_memory_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}} $time_shift)`;
       default:
         return '';

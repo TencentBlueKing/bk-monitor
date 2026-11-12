@@ -160,8 +160,7 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
 
             self.kubernetes_alerts[alert.bk_biz_id].append(alert)
 
-            # 获取origin_alarm的维度字典， 原生没有做后期丰富，的比较接近查询的内容
-            source_info = alert.get_origin_alarm_dimensions()
+            source_info = self.get_source_info(alert)
             # 1. 容器关联本身也是一个指标，如果查询时间戳使用「首次异常时间」，时间早于「容器指标」最早可查询时间，会出现查询不到关联信息的问题
             # 2. 容器关联指标会跟随时间动态变化，unify query 根据给定时间戳往前找 5min 内第一个点，如果查询时间和 「首次异常时间」如果有较大时间差距，也可能会导致查不到关联关系
             # 3. 此处加一个偏移量用于规避指标收敛窗口周期查的问题，基于 2. 这个偏移量不能过大并且不能是未来时间
@@ -192,6 +191,23 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
                 )
                 continue
             self.biz_resource_info[bk_biz_id] = result["data"]
+
+    @staticmethod
+    def get_source_info(alert: Alert) -> dict:
+        """
+        获取关联查询的源维度
+        以 origin_alarm 的维度为准，原生没有做后期丰富，比较接近查询的内容；拷贝一份，避免改动原始告警。
+        Pod 是命名空间级资源，策略没有按 namespace 聚合时，unify query 推断不出资源类型。
+        接入时已按 Pod 查到 namespace 并补充到告警维度，原始维度缺失时用它补上。
+        """
+        source_info = dict(alert.get_origin_alarm_dimensions())
+        if source_info.get("namespace"):
+            return source_info
+        for dimension in alert.dimensions:
+            if dimension["key"] == "namespace" and dimension.get("value"):
+                source_info["namespace"] = dimension["value"]
+                break
+        return source_info
 
     def get_node_ips(self) -> dict[str, set[str]]:
         """

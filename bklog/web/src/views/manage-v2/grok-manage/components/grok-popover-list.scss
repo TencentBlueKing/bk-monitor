@@ -9,10 +9,11 @@
 
 .grok-popover-list {
   display: grid;
-  grid-template-rows: 472px 48px;
+  grid-template-rows: minmax(0, 1fr) 48px;
   grid-template-columns: 400px 440px;
   width: 840px;
   height: 520px;
+  max-height: var(--grok-popover-max-height, 520px);
   overflow: hidden;
   font-size: 12px;
   background: #fff;

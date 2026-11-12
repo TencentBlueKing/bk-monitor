@@ -32,10 +32,10 @@ import { useHostStore } from 'trace/store/modules/host';
 import { useI18n } from 'vue-i18n';
 
 import { useHostList } from '../../composables/use-host-list';
+import { HostRefreshStatus } from '../host-loading/host-loading';
 import HostListFilter from './host-list-filter';
 import HostListTable from './host-list-table';
 import HostListToolbar from './host-list-toolbar';
-import { HostRefreshStatus } from '../host-loading/host-loading';
 import HostStatCards from './host-stat-cards';
 
 import type { EHostQuickCategory, IHostListRow } from '../../types/host-list';
@@ -81,7 +81,11 @@ export default defineComponent({
 
     return () => (
       <div class='host-list'>
-        <HostRefreshStatus loading={ctx.retainingData.value && ctx.fullLoading.value} error={ctx.retainingData.value && ctx.fullLoadError.value} onRetry={ctx.retryFullData} />
+        <HostRefreshStatus
+          error={ctx.retainingData.value && ctx.fullLoadError.value}
+          loading={ctx.retainingData.value && ctx.fullLoading.value}
+          onRetry={ctx.retryFullData}
+        />
         <div class='host-list-content'>
           <HostStatCards
             activeKey={ctx.activeCategory.value}
@@ -119,6 +123,9 @@ export default defineComponent({
               filterExpanded={ctx.filterExpanded.value}
               hasSelection={hasSelection.value}
               keyword={ctx.keyword.value}
+              readonly={props.readonly}
+              selectedCount={ctx.selectedRowKeys.value.size}
+              onCompare={ctx.handleCompare}
               onCopyIp={ctx.handleCopyIp}
               onKeywordChange={ctx.handleKeywordChange}
               onSearch={ctx.handleSearch}
