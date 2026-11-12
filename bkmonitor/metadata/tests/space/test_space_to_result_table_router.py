@@ -501,6 +501,75 @@ def test_compose_log_global_table_ids_ignore_invalid_or_ineligible_options(creat
 
 
 @pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("from_authorization", [False, True])
+def test_compose_bkci_other_table_ids_include_authorized_data(create_or_delete_records, mocker, from_authorization):
+    mocker.patch("metadata.models.space.utils.cached_cluster_data_id_list", return_value=[])
+    models.SpaceDataSource.objects.create(
+        space_type_id="bkci", space_id="bkmonitor", bk_data_id=50010, from_authorization=from_authorization
+    )
+    client = SpaceTableIDRedis()
+    table_id = "1001_bkmonitor_time_series_50010.__default__"
+    space = models.Space.objects.get(space_type_id="bkci", space_id="bkmonitor")
+
+    assert client._compose_bkci_other_table_ids("bkci", "bkmonitor") == {table_id: {"filters": []}}
+    assert client._compose_bkci_space_table_ids(space)[table_id] == {"filters": []}
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("space_id,bk_tenant_id", [("another-project", "system"), ("bkmonitor", "another-tenant")])
+def test_compose_bkci_other_table_ids_isolate_authorization(create_or_delete_records, mocker, space_id, bk_tenant_id):
+    mocker.patch("metadata.models.space.utils.cached_cluster_data_id_list", return_value=[])
+    models.SpaceDataSource.objects.create(
+        space_type_id="bkci",
+        space_id=space_id,
+        bk_tenant_id=bk_tenant_id,
+        bk_data_id=50010,
+        from_authorization=True,
+    )
+
+    assert SpaceTableIDRedis()._compose_bkci_other_table_ids("bkci", "bkmonitor") == {}
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("metric_field", ["K8sMetricDataID", "CustomMetricDataID"])
+@pytest.mark.parametrize(
+    "cluster_type,namespaces,expected_filters",
+    [
+        ("single", None, [{"bcs_cluster_id": "BCS-K8S-AUTH", "namespace": None}]),
+        ("shared", ["ns-a"], [{"bcs_cluster_id": "BCS-K8S-AUTH", "namespace": "ns-a"}]),
+        ("shared", [], None),
+    ],
+)
+def test_compose_bkci_authorization_preserves_cluster_filters(
+    create_or_delete_records, mocker, metric_field, cluster_type, namespaces, expected_filters
+):
+    mocker.patch("metadata.models.space.utils.cached_cluster_data_id_list", return_value=[50010])
+    models.BCSClusterInfo.objects.bulk_create(
+        [models.BCSClusterInfo(cluster_id="BCS-K8S-AUTH", bk_biz_id=1, port=443, **{metric_field: 50010})]
+    )
+    models.SpaceResource.objects.create(
+        space_type_id="bkci",
+        space_id="bkmonitor",
+        resource_type="bcs",
+        resource_id="bkmonitor",
+        dimension_values=[{"cluster_id": "BCS-K8S-AUTH", "namespace": namespaces, "cluster_type": cluster_type}],
+    )
+    models.SpaceDataSource.objects.create(
+        space_type_id="bkci", space_id="bkmonitor", bk_data_id=50010, from_authorization=True
+    )
+    client = SpaceTableIDRedis()
+    space = models.Space.objects.get(space_type_id="bkci", space_id="bkmonitor")
+    table_id = "1001_bkmonitor_time_series_50010.__default__"
+
+    assert client._compose_bkci_other_table_ids("bkci", "bkmonitor") == {}
+    routes = client._compose_bkci_space_table_ids(space)
+    if expected_filters is None:
+        assert table_id not in routes
+    else:
+        assert routes[table_id] == {"filters": expected_filters}
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_compose_bkci_level_table_ids(create_or_delete_records):
     """
     测试特殊路由 -- BKCI下也使用RT中的bk_biz_id_alias

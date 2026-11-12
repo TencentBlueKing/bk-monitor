@@ -1485,7 +1485,8 @@ class SpaceTableIDRedis:
             space_id,
             exclude_data_id_list=exclude_data_id_list,
             include_platform_data_id=False,
-            from_authorization=False,
+            # 普通数据源包含显式授权；容器数据源仍由专用分支生成集群和命名空间过滤。
+            from_authorization=None,
             bk_tenant_id=bk_tenant_id,
         )
         _values = {}
