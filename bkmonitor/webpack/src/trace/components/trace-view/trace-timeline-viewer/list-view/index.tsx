@@ -191,6 +191,19 @@ export default defineComponent({
     const forceUpdate = () => internalInstance?.proxy?.$forceUpdate();
 
     const spans = computed(() => useTraceStore().spanGroupTree);
+    /**
+     * span_id → status.message（仅错误 span，且 message 非空）。
+     * 按需加载详情时接口不下发 span.attributes，错误文案需回退到 original_data 的 status.message。
+     * 在 computed 内读取 store，整表只构建一次并作为 prop 下发给各行，避免每行重复扫描。
+     */
+    const spanStatusMessageMap = computed<Map<string, string>>(() => {
+      const map = new Map<string, string>();
+      for (const item of useTraceStore().traceData?.original_data || []) {
+        const message = item?.status?.message;
+        if (item?.span_id && message) map.set(item.span_id, message);
+      }
+      return map;
+    });
     const getRowStates = computed<RowState[]>(() => {
       const { detailStates } = props;
       return trace ? generateRowStates(spans.value, childrenHiddenStore?.childrenHiddenIds.value, detailStates) : [];
@@ -512,6 +525,7 @@ export default defineComponent({
             rpc={rpc}
             showErrorIcon={showErrorIcon}
             span={span}
+            spanStatusMessageMap={spanStatusMessageMap.value}
             onLoadCrossAppInfo={getCrossAppInfo}
             onToggleCollapse={(groupID, status) => emit('toggleCollapse', groupID, status)}
           />
