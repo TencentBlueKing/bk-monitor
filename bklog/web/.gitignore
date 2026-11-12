@@ -175,3 +175,7 @@ packages/web-v3/tests/helpers/*
 !packages/web-v3/tests/related-resize-native.test.mjs
 
 !packages/web-v3/tests/clustering-strategy-menu-native.test.mjs
+
+!packages/web-v3/tests/search-select-focus-native.test.mjs
+
+!packages/web-v3/tests/collection-tag-filter-native.test.mjs

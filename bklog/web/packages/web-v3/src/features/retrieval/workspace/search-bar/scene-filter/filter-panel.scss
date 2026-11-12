@@ -178,6 +178,7 @@
           }
 
           .bk-select,
+          .t-select__wrap,
           .tag-input-wrapper {
             position: absolute;
             top: 0;
@@ -192,7 +193,7 @@
           }
         }
 
-        .bk-select, .bk-tag-input {
+        .bk-select, .bk-tag-input, .t-select .t-input, .t-tag-input .t-input {
           border: 1px solid #C1CDE5;
         }
 
@@ -239,6 +240,12 @@
             margin: 0;
             z-index: var(--bklog-z-dropdown);
             overflow-y: auto;
+
+            // Clip the rotating loading SVG inside its overlay: its transformed
+            // square can otherwise add 1px to this list's scrollable overflow.
+            > .t-loading--full {
+              overflow: hidden;
+            }
 
             .field-suggestion-item {
               padding: 6px 12px;

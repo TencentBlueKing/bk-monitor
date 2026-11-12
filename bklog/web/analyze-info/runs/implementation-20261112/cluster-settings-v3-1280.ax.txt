@@ -1,3 +1,0 @@
-Browser tab: 1, Title: "日志平台 · Vue3 UI 对齐", URL: "http://appdev.woa.com:4175/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&tab=clustering&clusterParams=%7B%22pattern_level%22%3A%2205%22,%22year_on_year_hour%22%3A0,%22show_new_pattern%22%3Afalse,%22group_by%22%3A%5B%5D,%22size%22%3A10000,%22remark_config%22%3A%22all%22,%22owner_config%22%3A%22all%22,%22owners%22%3A%5B%5D%7D".
-There has been no change in the accessibility tree.
-The focused UI element is 295 text field (settable) 系统默认

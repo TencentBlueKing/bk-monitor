@@ -988,7 +988,7 @@ export default defineComponent({
                   tagInputRefs.value[field.key] = el;
                 }}
                 value={getLocalTagValues(field.key)}
-                placeholder={field.placeholder}
+                placeholder={field.placeholder ?? t('请输入并按Enter结束')}
                 allow-create={true}
                 has-delete-icon={true}
                 allow-next-focus={true}

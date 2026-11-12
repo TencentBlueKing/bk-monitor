@@ -32,6 +32,7 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import { computed, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 
 import AiAssitant from '@/shared/global/ai-assitant/index';
 
@@ -214,9 +215,10 @@ export default defineComponent({
         class='scene-empty-tip'
         v-loading={{ loading: sceneEmptyView.value.sceneEmptyTipLoading }}
       >
-        <bk-exception
+        <EmptyStatus
           class='exception-wrap-item'
-          type='search-empty'
+          emptyType='search-empty'
+          showText={false}
           scene='part'
         >
           <h1 class='scene-empty-tip-title'>{t('当前日志未过滤')}</h1>
@@ -226,7 +228,7 @@ export default defineComponent({
               '场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容',
             )}
           </div>
-        </bk-exception>
+        </EmptyStatus>
       </div>
     );
 
@@ -238,9 +240,10 @@ export default defineComponent({
         class='scene-empty-tip'
         v-loading={{ loading: isSceneLoading.value }}
       >
-        <bk-exception
+        <EmptyStatus
           class='exception-wrap-item'
-          type='search-empty'
+          emptyType='search-empty'
+          showText={false}
           scene='part'
         >
           <h1 class='scene-empty-tip-title'>{t('未匹配到索引集')}</h1>
@@ -254,7 +257,7 @@ export default defineComponent({
               {t('BK助手')}
             </a>
           </div>
-        </bk-exception>
+        </EmptyStatus>
       </div>
     );
 

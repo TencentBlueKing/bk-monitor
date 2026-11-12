@@ -46,7 +46,7 @@ function fixture(configured) {
   }, { jsx: ts.JsxEmit.ReactJSX, jsxImportSource: 'vue' });
   const props = { configured, type: 'normal_strategy', indexId: '16176', bkBizId: '5000140', labelName: ['source-label'], configData: { strategy_id: 12 } };
   const render = component.setup(props, { emit: (...args) => emitted.push(args) });
-  const tree = () => render(Vue.h);
+  const tree = () => render();
   const popup = tree().children.find(n => n.type === Popup);
   return { props, tree, popup, requests, confirmations, emitted, menu: popup.props['v-slots'].content().children[0] };
 }
