@@ -12,6 +12,14 @@ from bkmonitor.utils.request import get_request_username
 from core.drf_resource import api
 
 
+def to_biz_id(bk_biz_id) -> Optional[int]:
+    # ES 等数据源返回的业务 ID 可能是字符串
+    try:
+        return int(bk_biz_id)
+    except (TypeError, ValueError):
+        return None
+
+
 class SearchScope:
     BIZ = "BIZ"  # 当前业务
     GLOBAL = "GLOBAL"  # 所有业务
@@ -81,11 +89,26 @@ class BaseSearchHandler(metaclass=abc.ABCMeta):
         """
         为搜索结果增加访问权限检测
         """
-        bk_biz_ids = list({item.bk_biz_id for item in results})
-        permission = Permission(username=self.username)
-        allowed_biz_ids = permission.filter_biz_ids_by_action(action, bk_biz_ids)
+        bk_biz_ids = {to_biz_id(item.bk_biz_id) for item in results}
+        bk_biz_ids.discard(None)
+        allowed_biz_ids = set()
+        # filter_biz_ids_by_action 会把空列表视为全部业务，需单独处理
+        if bk_biz_ids:
+            permission = Permission(username=self.username)
+            allowed_biz_ids = set(permission.filter_biz_ids_by_action(action, list(bk_biz_ids)))
         for item in results:
-            item.is_allowed = item.bk_biz_id in allowed_biz_ids
+            item.is_allowed = to_biz_id(item.bk_biz_id) in allowed_biz_ids
+
+    @staticmethod
+    def filter_allowed_results(results: List[SearchResultItem]) -> List[SearchResultItem]:
+        """
+        过滤掉用户无权访问业务下的结果，结果标题、业务和对象 ID 本身即属于该业务的数据
+        """
+        allowed_results = [item for item in results if item.is_allowed]
+        # 汇总项与 ES 明细项的业务 ID 类型可能不同，统一为整数后才能排序和翻译业务名称
+        for item in allowed_results:
+            item.bk_biz_id = to_biz_id(item.bk_biz_id)
+        return allowed_results
 
     def _add_biz_name_for_results(self, results: List[SearchResultItem]):
         """
@@ -147,7 +170,7 @@ class BaseSearchHandler(metaclass=abc.ABCMeta):
         return result
 
     def handle(self, query: str, limit: int = 10) -> SearchResult:
-        items = self.search(query, limit)
+        items = self.filter_allowed_results(self.search(query, limit))
         result = self.post_search(items)
         return result
 

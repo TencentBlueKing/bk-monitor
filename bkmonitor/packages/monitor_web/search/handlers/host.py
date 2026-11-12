@@ -103,18 +103,19 @@ class HostSearchHandler(BaseSearchHandler):
 
         hosts: Host = api.cmdb.get_host_without_biz(params)["hosts"]
 
-        # 仅为具备主机查看权限的业务生成分享链接；filter_biz_ids_by_action 会把空列表视为全部业务，需单独处理
+        # 仅返回具备主机查看权限的业务下的主机；filter_biz_ids_by_action 会把空列表视为全部业务，需单独处理
         host_biz_ids = list({host.bk_biz_id for host in hosts})
         share_biz_ids = (
             set(Permission(username=self.username).filter_biz_ids_by_action(ActionEnum.VIEW_HOST, host_biz_ids))
             if host_biz_ids
             else set()
         )
+        hosts = [host for host in hosts if host.bk_biz_id in share_biz_ids]
 
         search_results = []
 
         for host in hosts:
-            enabled_token = self.get_enabled_token(host) if host.bk_biz_id in share_biz_ids else None
+            enabled_token = self.get_enabled_token(host)
 
             search_results.append(
                 SearchResultItem(

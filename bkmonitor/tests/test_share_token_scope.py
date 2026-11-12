@@ -105,7 +105,7 @@ class TestApiTokenPermission(TestCase):
 
 
 class TestHostSearchShareLink(TestCase):
-    """全局搜索仅为具备主机查看权限的业务生成分享链接"""
+    """全局搜索仅返回具备主机查看权限的业务下的主机，并只为这些主机生成分享链接"""
 
     @mock.patch.object(HostSearchHandler, "collect_results_by_biz", side_effect=lambda results, **kwargs: results)
     @mock.patch.object(HostSearchHandler, "get_enabled_token", return_value="token-xxx")
@@ -121,8 +121,8 @@ class TestHostSearchShareLink(TestCase):
 
         get_enabled_token.assert_called_once_with(own)
         share_urls = {item.bk_biz_id: item.temp_share_url for item in results}
+        self.assertEqual(list(share_urls), [2])
         self.assertIsNotNone(share_urls[2])
-        self.assertIsNone(share_urls[3])
 
     @mock.patch.object(HostSearchHandler, "collect_results_by_biz", side_effect=lambda results, **kwargs: results)
     @mock.patch("monitor_web.search.handlers.host.Permission")
