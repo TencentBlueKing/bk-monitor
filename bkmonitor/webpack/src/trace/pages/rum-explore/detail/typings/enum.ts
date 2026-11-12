@@ -28,6 +28,8 @@ import type {
   RumDetailTabEnum,
   RumSectionTypeEnum,
   RumTimelineFilterCategoryEnum,
+  RumTimelineSortEnum,
+  RumViewLoadingTypeEnum,
 } from '../constants';
 
 /** 统计卡片主值的语义配色取值 */
@@ -42,3 +44,9 @@ export type RumSectionType = (typeof RumSectionTypeEnum)[keyof typeof RumSection
 /** 链路上下文列表的快捷筛选类别取值，口径见 timeline 接口协议 2.12.3 */
 export type RumTimelineFilterCategoryType =
   (typeof RumTimelineFilterCategoryEnum)[keyof typeof RumTimelineFilterCategoryEnum];
+
+/** 时间轴 View 卡片的排序方向取值 */
+export type RumTimelineSortType = (typeof RumTimelineSortEnum)[keyof typeof RumTimelineSortEnum];
+
+/** View 的路由类型取值，取自 view.loading_type */
+export type RumViewLoadingType = (typeof RumViewLoadingTypeEnum)[keyof typeof RumViewLoadingTypeEnum];

@@ -80,6 +80,41 @@ export const RumTimelineFilterCategoryEnum = {
   ERROR: 'error',
 } as const;
 
+/** 时间轴 View 卡片的排序方向，按 View 开始时间（view.started_at）排列 */
+export const RumTimelineSortEnum = {
+  /** 正序：开始时间由早到晚 */
+  ASC: 'asc',
+  /** 倒序：开始时间由晚到早 */
+  DESC: 'desc',
+} as const;
+
+/** View 的路由类型（view.loading_type）枚举，会话时间轴的类型图标按此取值 */
+export const RumViewLoadingTypeEnum = {
+  /** 初始加载 */
+  INITIAL_LOAD: 'initial_load',
+  /** 路由切换 */
+  ROUTE_CHANGE: 'route_change',
+  /** 续期重建 */
+  SESSION_RENEWAL: 'session_renewal',
+  /** 缓存恢复 */
+  BF_CACHE: 'bf_cache',
+} as const;
+
+/** 路由类型的默认别名，view_config 未配置枚举别名时兜底展示 */
+export const RUM_VIEW_LOADING_TYPE_ALIAS: Record<string, string> = {
+  [RumViewLoadingTypeEnum.INITIAL_LOAD]: window.i18n.t('初始加载'),
+  [RumViewLoadingTypeEnum.ROUTE_CHANGE]: window.i18n.t('路由切换'),
+  [RumViewLoadingTypeEnum.SESSION_RENEWAL]: window.i18n.t('续期重建'),
+  [RumViewLoadingTypeEnum.BF_CACHE]: window.i18n.t('缓存恢复'),
+};
+
+export const RUM_VIEW_LOADING_TYPE_ICONS = {
+  [RumViewLoadingTypeEnum.INITIAL_LOAD]: 'icon-a-Property1chucijiazai',
+  [RumViewLoadingTypeEnum.ROUTE_CHANGE]: 'icon-a-Property1luyouqiehuan',
+  [RumViewLoadingTypeEnum.SESSION_RENEWAL]: 'icon-shuaxin1',
+  [RumViewLoadingTypeEnum.BF_CACHE]: 'icon-a-3yuan-bohui',
+};
+
 /** 后端计算字段的前缀，此类字段的别名与格式化值由后端直接给出 */
 export const DISPLAY_FIELD_PREFIX = 'display.';
 

@@ -600,4 +600,5 @@ export default {
 
   '确认重新分析？': 'Confirm to re-analyze?',
   '分析失败，请稍后重试': 'Analysis failed. Please try again later',
+  暂无时间轴数据: 'No timeline data',
 };

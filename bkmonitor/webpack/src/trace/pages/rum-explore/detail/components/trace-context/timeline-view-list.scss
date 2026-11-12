@@ -1,0 +1,17 @@
+.rum-timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.rum-timeline-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* 卡片下留出间距，时间轴竖线由轴列伸展的下连线跨过，保持整列连续 */
+.rum-timeline-main {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 16px;
+}

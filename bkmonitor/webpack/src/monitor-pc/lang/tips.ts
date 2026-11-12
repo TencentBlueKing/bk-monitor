@@ -572,4 +572,5 @@ export default {
   '正在拉取来源构建、提交历史与 Blame 信息': 'Pulling source build, commit history, and blame information',
   '重新分析将基于最新告警重新触发 AI 源码分析，是否继续？':
     'Re-analysis will trigger AI source code analysis based on the latest alerts. Do you want to continue?',
+  '已折叠中间 {0} 个 View，{1}': '{0} views have been collapsed, {1}',
 };

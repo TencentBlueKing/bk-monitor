@@ -144,6 +144,7 @@ export const SPAN_TYPE_META: Record<string, ISpanTypeMeta> = {
 
 export const SPAN_TYPE_META_ICON = {
   view: { icon: 'icon-View', label: 'View' },
+  session: { icon: 'icon-Session', label: 'Session' },
   resource: { icon: 'icon-Resource', label: 'Resource' },
   error: { icon: 'icon-ERROR', label: 'Error' },
   vital: { icon: 'icon-a-WebVital', label: 'Vital' },
@@ -183,6 +184,7 @@ export const RUM_TIME_FIELDS = new Set(['start_time', 'end_time', 'events.timest
 /** 支持排序的字段类型 */
 export const RUM_SORTABLE_FIELD_TYPES = new Set(['date', 'double', 'integer', 'long']);
 
+/** 可打开详情抽屉的 span 类型：列表 span_name 的可点判定与详情「上一条 / 下一条」跳转共用（session 打开会话详情） */
 export const RUM_DETAIL_SPAN_TYPES = new Set([
   'view',
   'resource',
@@ -192,6 +194,7 @@ export const RUM_DETAIL_SPAN_TYPES = new Set([
   'action',
   'websocket',
   'custom',
+  'session',
 ]);
 
 /** Span 视角列宽（视角私有），未列出的字段使用 DEFAULT_COLUMN_WIDTH */

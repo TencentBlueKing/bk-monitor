@@ -31,6 +31,7 @@ import { buildWaterfall, matchRating } from '../composables/use-detail-sections'
 import {
   RATING_FALLBACK_META,
   RATING_META,
+  RUM_VIEW_LOADING_TYPE_ALIAS,
   SectionKeyEnum,
   TIMELINE_CONTEXT_SIZE,
   TIMELINE_HEAD_SIZE,
@@ -52,6 +53,7 @@ import type {
   IRumTimelineSpanVM,
   IRumTimelineViewVM,
   IRumTimelineVitalVM,
+  RumViewLoadingType,
 } from '../typings';
 
 /** 未登记类型的标签主色 */
@@ -159,11 +161,16 @@ export function buildViewVM(
   const waterfallData = record?.sections?.find(section => section.type === RumSectionTypeEnum.WATERFALL)?.data as
     | IRumWaterfallData
     | undefined;
+  /** loading_type 原始值与枚举别名：view_config 未配置别名时用前端枚举兜底 */
+  const loadingTypeValue = String(attributes['view.loading_type'] ?? '');
+  const loadingTypeText = formatField('attributes.view.loading_type', loadingTypeValue);
+  const loadingTypeAlias = RUM_VIEW_LOADING_TYPE_ALIAS[loadingTypeValue];
   return {
     spanId: viewNode.span_id,
     title: record?.origin_data?.span_name || viewNode.span_id,
     isCurrent: viewNode.span_id === currentSpanId,
-    loadingType: formatField('attributes.view.loading_type', attributes['view.loading_type']),
+    loadingType: loadingTypeText === loadingTypeValue && loadingTypeAlias ? loadingTypeAlias : loadingTypeText,
+    loadingTypeValue: loadingTypeAlias ? (loadingTypeValue as RumViewLoadingType) : '',
     vitalMetrics: buildVitalMetricsVM(getSectionData(record, SectionKeyEnum.WEB_VITALS)),
     waterfall: waterfallData?.phases?.length
       ? buildWaterfall(waterfallData, getAttributes(record).span_type)
@@ -172,6 +179,10 @@ export function buildViewVM(
       TIMELINE_REQUEST_RESOURCE_TYPES.has(getAttributes(item)['resource.type'])
     ),
     actionCount: children.filter(child => getAttributes(recordMap.get(child.span_id)).span_type === 'action').length,
+    errorCount: countSubtree(children, recordMap, item => {
+      const attributes = getAttributes(item);
+      return attributes.span_type === 'error' || attributes.error === true || attributes['outcome.type'] === 'error';
+    }),
     durationText: isValidNumber(duration) ? formatDuration(Number(duration), '', 2, 'ms') : '',
   };
 }
