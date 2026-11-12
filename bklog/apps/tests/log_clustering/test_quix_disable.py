@@ -399,7 +399,12 @@ class TestQuixClusteringHandlerDisable(TestCase):
             phase=ClusteringRuntimePhaseEnum.STOPPED.value, sink={}, bkfara_task_id="old-task"
         )
         collector_config = Mock(
-            collector_config_id=10, collector_config_name_en="demo", bk_biz_id=2, table_id="2_bklog.demo", bk_data_id=1
+            collector_config_id=10,
+            collector_config_name_en="demo",
+            bk_biz_id=2,
+            table_id="2_bklog.demo",
+            bk_data_id=1,
+            storage_cluster_type="elasticsearch",
         )
         collector_config.get_etl_config.return_value = {"fields": []}
         with (

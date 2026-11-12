@@ -41,6 +41,7 @@ from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import LogIndexSet, Space
 from apps.models import model_to_dict
@@ -103,10 +104,6 @@ class QuixClusteringHandler:
         elif ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False):
             # 已通过其他链路接入聚类的索引集不能直接切换
             raise has_exist
-        if self.index_set.support_doris and self.index_set.doris_table_id:
-            raise QuixClusteringParamsInvalidException(
-                QuixClusteringParamsInvalidException.MESSAGE.format(detail="首版仅支持 ES 存储的索引集")
-            )
 
         clustering_fields = params.get("clustering_fields") or DEFAULT_CLUSTERING_FIELDS
         filter_rules = params.get("filter_rules", [])
@@ -123,6 +120,10 @@ class QuixClusteringHandler:
         clustering_config["result_mode"] = result_mode
 
         collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
+        if collector_config.storage_cluster_type != STORAGE_CLUSTER_TYPE:
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("当前仅支持 ES 存储的索引集"))
+            )
         etl_config = collector_config.get_etl_config()
         ClusteringConfigHandler.pre_check_fields(
             fields=etl_config["fields"],
