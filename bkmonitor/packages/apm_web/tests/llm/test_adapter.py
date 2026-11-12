@@ -220,6 +220,22 @@ class AdapterTests(TestCase):
         self.assertEqual(attributes["gen_ai.system_instructions"], [{"type": "text", "content": "instruction"}])
         self.assertEqual(span["attributes"]["gen_ai.input.messages"], raw_input)
 
+    def test_aidev_reuses_front_truncation_recovery(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat_model.generate"
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.input.messages": 'lost content"}]}, {"role":"user","parts":[{"type":"text","content":"question"}]}]',
+            "llm.input": "fallback input",
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+        )
+
     def test_langfuse_root_maps_conversation_and_content(self) -> None:
         span = langfuse_span(observation_type="span")
         span["attributes"].update(
