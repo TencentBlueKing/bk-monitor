@@ -14,9 +14,11 @@ from unittest.mock import patch
 
 import pytest
 from django.conf import settings
+from django.core.cache.backends.locmem import LocMemCache
 from django.utils import timezone
 
 from metadata import models
+from metadata.models.space import utils
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.tests.common_utils import consul_client
 
@@ -502,8 +504,7 @@ def test_compose_log_global_table_ids_ignore_invalid_or_ineligible_options(creat
 
 @pytest.mark.django_db(databases="__all__")
 @pytest.mark.parametrize("from_authorization", [False, True])
-def test_compose_bkci_other_table_ids_include_authorized_data(create_or_delete_records, mocker, from_authorization):
-    mocker.patch("metadata.models.space.utils.cached_cluster_data_id_list", return_value=[])
+def test_compose_bkci_other_table_ids_include_authorized_data(create_or_delete_records, from_authorization):
     models.SpaceDataSource.objects.create(
         space_type_id="bkci", space_id="bkmonitor", bk_data_id=50010, from_authorization=from_authorization
     )
@@ -517,8 +518,7 @@ def test_compose_bkci_other_table_ids_include_authorized_data(create_or_delete_r
 
 @pytest.mark.django_db(databases="__all__")
 @pytest.mark.parametrize("space_id,bk_tenant_id", [("another-project", "system"), ("bkmonitor", "another-tenant")])
-def test_compose_bkci_other_table_ids_isolate_authorization(create_or_delete_records, mocker, space_id, bk_tenant_id):
-    mocker.patch("metadata.models.space.utils.cached_cluster_data_id_list", return_value=[])
+def test_compose_bkci_other_table_ids_isolate_authorization(create_or_delete_records, space_id, bk_tenant_id):
     models.SpaceDataSource.objects.create(
         space_type_id="bkci",
         space_id=space_id,
@@ -531,6 +531,8 @@ def test_compose_bkci_other_table_ids_isolate_authorization(create_or_delete_rec
 
 
 @pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("from_authorization", [False, True])
+@pytest.mark.parametrize("update_data_id", [False, True])
 @pytest.mark.parametrize("metric_field", ["K8sMetricDataID", "CustomMetricDataID"])
 @pytest.mark.parametrize(
     "cluster_type,namespaces,expected_filters",
@@ -541,12 +543,28 @@ def test_compose_bkci_other_table_ids_isolate_authorization(create_or_delete_rec
     ],
 )
 def test_compose_bkci_authorization_preserves_cluster_filters(
-    create_or_delete_records, mocker, metric_field, cluster_type, namespaces, expected_filters
+    create_or_delete_records,
+    mocker,
+    metric_field,
+    cluster_type,
+    namespaces,
+    expected_filters,
+    from_authorization,
+    update_data_id,
 ):
-    mocker.patch("metadata.models.space.utils.cached_cluster_data_id_list", return_value=[50010])
-    models.BCSClusterInfo.objects.bulk_create(
-        [models.BCSClusterInfo(cluster_id="BCS-K8S-AUTH", bk_biz_id=1, port=443, **{metric_field: 50010})]
-    )
+    mocker.patch("metadata.models.space.utils.cache", LocMemCache("bkci-route-test", {}))
+    utils.cache.clear()
+    cluster = models.BCSClusterInfo(cluster_id="BCS-K8S-AUTH", bk_biz_id=1, port=443, **{metric_field: 50009})
+    if update_data_id:
+        models.BCSClusterInfo.objects.bulk_create([cluster])
+    # 先建立真实缓存，再新增集群或更换指标 DataID，复现缓存尚未过期的窗口。
+    assert 50010 not in utils.cached_cluster_data_id_list()
+    if update_data_id:
+        models.BCSClusterInfo.objects.filter(cluster_id=cluster.cluster_id).update(**{metric_field: 50010})
+    else:
+        setattr(cluster, metric_field, 50010)
+        models.BCSClusterInfo.objects.bulk_create([cluster])
+    assert 50010 not in utils.cached_cluster_data_id_list()
     models.SpaceResource.objects.create(
         space_type_id="bkci",
         space_id="bkmonitor",
@@ -555,7 +573,7 @@ def test_compose_bkci_authorization_preserves_cluster_filters(
         dimension_values=[{"cluster_id": "BCS-K8S-AUTH", "namespace": namespaces, "cluster_type": cluster_type}],
     )
     models.SpaceDataSource.objects.create(
-        space_type_id="bkci", space_id="bkmonitor", bk_data_id=50010, from_authorization=True
+        space_type_id="bkci", space_id="bkmonitor", bk_data_id=50010, from_authorization=from_authorization
     )
     client = SpaceTableIDRedis()
     space = models.Space.objects.get(space_type_id="bkci", space_id="bkmonitor")
