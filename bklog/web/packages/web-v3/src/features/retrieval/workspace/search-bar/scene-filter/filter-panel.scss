@@ -209,22 +209,31 @@
           flex-direction: column;
           gap: 2px;
 
-          // 标签输入框组件 如果输入的第一个标签占据一行,则自动折叠功能会失效,这里先暂时限制单个标签的最大宽度
-          .bk-tag-input, .tag-list {
+          .scene-filter-tag-input {
             width: 100%;
-          }
+            min-width: 0;
 
-          .key-node {
-            display: flex;
-            max-width: 48%;
-
-            >.tag {
-              flex: 1;
-              min-width: 0; 
+            // 预留输入位置，标签在剩余空间中伸缩，折叠数量保持完整显示。
+            .t-input.t-input--prefix > .t-input__prefix {
+              display: inline-flex;
+              align-items: center;
+              vertical-align: middle;
+              max-width: calc(100% - 24px);
+              min-width: 0;
             }
 
-            >.bk-icon {
+            .t-tag:not(.scene-filter-collapsed-trigger) {
+              flex-shrink: 1;
+              max-width: 100%;
+              min-width: 36px;
+            }
+
+            .scene-filter-collapsed-trigger {
               flex-shrink: 0;
+            }
+
+            .t-tag--text {
+              min-width: 0;
             }
           }
 

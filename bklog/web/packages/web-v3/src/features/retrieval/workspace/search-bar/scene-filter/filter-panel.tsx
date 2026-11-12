@@ -24,7 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Button as TButton, Loading as TLoading } from 'tdesign-vue-next';
+import {
+  Button as TButton,
+  Loading as TLoading,
+  Tag as TTag,
+  Tooltip as TTooltip,
+  type TagInputProps,
+} from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
@@ -783,6 +789,18 @@ export default defineComponent({
       handleFieldChange(fieldName, []);
     };
 
+    const renderCollapsedItems: TagInputProps['collapsedItems'] = (
+      _h,
+      { collapsedSelectedItems, count },
+    ) => (
+      <TTooltip
+        content={collapsedSelectedItems.join(', ')}
+        placement='top'
+      >
+        <TTag class='scene-filter-collapsed-trigger'>+{count}</TTag>
+      </TTooltip>
+    );
+
     const renderSceneTabBar = () => (
       <div class='scene-tab-bar'>
         {sceneConfigs.value.map((scene: SceneConfig) => (
@@ -979,6 +997,7 @@ export default defineComponent({
             <div class='field-input-placeholder' />
             <div class='tag-input-wrapper'>
               <bk-tag-input
+                class='scene-filter-tag-input'
                 ref={(el: any) => {
                   tagInputRefs.value[field.key] = el;
                 }}
@@ -989,7 +1008,9 @@ export default defineComponent({
                 allow-next-focus={true}
                 clearable={true}
                 free-paste={true}
-                collapse-tags={true}
+                minCollapsedNum={1}
+                collapsedItems={renderCollapsedItems}
+                tagProps={{ maxWidth: '100%' }}
                 onChange={(tags: string[]) => handleTagChange(field.key, tags)}
                 onRemoveAll={() => handleTagClear(field.key)}
                 onFocus={() => {
