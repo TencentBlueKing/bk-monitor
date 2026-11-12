@@ -235,7 +235,12 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
     def list_space_dicts_by_biz_ids(cls, bk_biz_ids: list[int], bk_tenant_id: str | None = None) -> list[dict]:
         """按 bk_biz_id 精确查询空间，只返回 bk_biz_id（供权限候选构造使用）。
 
-        与 `list_spaces_dict` 的差异：
+        与 `list_spaces_dict` 的**一致之处**：同样 `JOIN metadata_spacetype`（类型为空或
+        不在类型表里的空间两边都查不出来）、同样的租户过滤口径、同样的 bk_biz_id 推导
+        （CMDB 空间取 `space_id`，其余取 `-id`）。因此返回的候选集合是 `list_spaces_dict`
+        的子集，不会多出旧路径没有的业务。
+
+        差异只有两点：
         1. 只查请求涉及的空间，不做全表扫描；
         2. 不读写 `caches["space"]`，也不修改模块级 `_space_transform` 映射 —— 后者是
            `get_space_detail` 负数分支依赖的全局状态，污染它会让其他业务取到错误空间。
@@ -262,18 +267,17 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             sql_params.append(SpaceTypeEnum.BKCC.value)
             sql_params.extend(cc_space_ids)
         if non_cc_space_ids:
-            # 与 list_spaces_dict 的判定保持一致：space_type_id 为 NULL 的历史数据也按
-            # 非 CMDB 空间处理（Python 侧 `== "bkcc"` 对 None 同样为 False）。
-            # 因此这里必须显式包含 IS NULL，否则会漏掉这类空间。
-            where_parts.append(
-                f"((s.space_type_id IS NULL OR s.space_type_id != %s) AND s.id IN ({non_cc_placeholders}))"
-            )
+            where_parts.append(f"(s.space_type_id != %s AND s.id IN ({non_cc_placeholders}))")
             sql_params.append(SpaceTypeEnum.BKCC.value)
             sql_params.extend(non_cc_space_ids)
 
+        # JOIN 必须与 list_spaces_dict 一致（INNER JOIN）：space_type_id 为空、或不在
+        # metadata_spacetype 中的空间，旧实现不会返回。漏掉 JOIN 只会让这里多出旧路径
+        # 不存在的候选，在 skip_check / 全量授权时被误判为有权限，属于权限放宽。
         sql = f"""
             SELECT s.id, s.bk_tenant_id, s.space_type_id, s.space_id
             FROM metadata_space s
+            JOIN metadata_spacetype t ON s.space_type_id = t.type_id
             WHERE {" OR ".join(where_parts)}
         """
         with connections["monitor_api"].cursor() as cursor:

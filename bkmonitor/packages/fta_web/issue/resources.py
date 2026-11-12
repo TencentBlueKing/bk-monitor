@@ -2669,16 +2669,7 @@ class IssueTrendResource(Resource):
         unique_day_indexes = sorted(set(day_indexes))
         allowed_ids: set[str] = set()
         if unique_day_indexes and len(unique_day_indexes) <= MAX_DAY_INDEXES_PER_QUERY:
-            hits = (
-                IssueDocument.search(index=unique_day_indexes)
-                .filter("terms", _id=requested_ids)
-                .filter("terms", bk_biz_id=bk_biz_ids)
-                .source(False)
-                .params(size=len(requested_ids))
-                .execute()
-                .hits
-            )
-            allowed_ids = {hit.meta.id for hit in hits}
+            allowed_ids = IssueTrendResource._query_allowed_ids(requested_ids, bk_biz_ids, index=unique_day_indexes)
         elif unique_day_indexes:
             # 极端场景：id 横跨过多天索引，索引名列表会把 URL 撑超 ES 的
             # http.max_initial_line_length（默认 4KB，约 150 个索引名）。
@@ -2688,28 +2679,10 @@ class IssueTrendResource(Resource):
                 len(unique_day_indexes),
                 bk_biz_ids,
             )
-            hits = (
-                IssueDocument.search(all_indices=True)
-                .filter("terms", _id=requested_ids)
-                .filter("terms", bk_biz_id=bk_biz_ids)
-                .source(False)
-                .params(size=len(requested_ids))
-                .execute()
-                .hits
-            )
-            allowed_ids = {hit.meta.id for hit in hits}
+            allowed_ids = IssueTrendResource._query_allowed_ids(requested_ids, bk_biz_ids)
 
         if unparsable_ids:
-            hits = (
-                IssueDocument.search(all_indices=True)
-                .filter("terms", _id=unparsable_ids)
-                .filter("terms", bk_biz_id=bk_biz_ids)
-                .source(False)
-                .params(size=len(unparsable_ids))
-                .execute()
-                .hits
-            )
-            allowed_ids |= {hit.meta.id for hit in hits}
+            allowed_ids |= IssueTrendResource._query_allowed_ids(unparsable_ids, bk_biz_ids)
 
         if not unparsable_ids and len(allowed_ids) < len(requested_ids):
             # 只告警、不回退全索引：若持续出现，说明 id 内嵌时间戳与文档实际落盘索引日
@@ -2721,6 +2694,24 @@ class IssueTrendResource(Resource):
                 bk_biz_ids,
             )
         return allowed_ids
+
+    @staticmethod
+    def _query_allowed_ids(ids: list[str], bk_biz_ids: list[int], index: list[str] | None = None) -> set[str]:
+        """按 `_id` + `bk_biz_id` 查询命中的 Issue id 集合。
+
+        `bk_biz_id` 条件不可省略 —— 它就是归属校验本身，去掉会让其他业务的 Issue 通过。
+        `index` 为空时查全索引通配（`bkfta_issue_*_read`）。
+        """
+        search = IssueDocument.search(index=index) if index else IssueDocument.search(all_indices=True)
+        hits = (
+            search.filter("terms", _id=ids)
+            .filter("terms", bk_biz_id=bk_biz_ids)
+            .source(False)
+            .params(size=len(ids))
+            .execute()
+            .hits
+        )
+        return {hit.meta.id for hit in hits}
 
 
 class IssueDetailResource(Resource):

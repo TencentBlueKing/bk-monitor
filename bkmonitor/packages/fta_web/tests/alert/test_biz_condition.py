@@ -450,8 +450,10 @@ def test_list_space_dicts_by_biz_ids_maps_negative_ids_and_filters_tenant(monkey
     # 正数按 bkcc + space_id 查，负数按 id 查
     assert "s.space_type_id = %s AND s.space_id IN" in sql
     assert "s.id IN" in sql
-    # space_type_id 为 NULL 的历史数据也属于非 CMDB 空间，不能被 != 过滤掉
-    assert "s.space_type_id IS NULL" in sql
+    # 必须与 list_spaces_dict 一样 JOIN 类型表：类型为空/不在表里的空间，
+    # 旧路径查不出来，这里也不能多给（否则等于权限放宽）
+    assert "JOIN metadata_spacetype t ON s.space_type_id = t.type_id" in sql
+    assert "IS NULL" not in sql
     assert "5000140" in params and 12 in params and 13 in params
 
 
@@ -517,3 +519,32 @@ def test_parse_biz_item_falls_back_when_narrowed_query_fails(monkeypatch, caplog
     assert sorted(authorized_bizs) == [1, 2]
     assert unauthorized_bizs == [9]
     assert any("fallback to full space list" in record.getMessage() for record in caplog.records)
+
+
+def test_parse_biz_item_skips_narrowing_when_space_api_lacks_method(monkeypatch, caplog):
+    """部署侧覆盖 BKM_SPACE_API_CLASS 且未实现收窄查询时，静默走全量路径。"""
+    import logging
+
+    _patch_request(monkeypatch)
+    calls = []
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action, candidate_biz_ids=None):
+            calls.append(candidate_biz_ids)
+            return [{"bk_biz_id": 1}, {"bk_biz_id": 2}], False
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+    # 模拟一个没有 list_space_dicts_by_biz_ids 的 SpaceApi 实现
+    monkeypatch.setattr(base_handler_module, "SpaceApi", object(), raising=False)
+
+    with caplog.at_level(logging.WARNING):
+        authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([1, 2, 9])
+
+    assert calls == [None]  # 直接走全量，不传 candidate_biz_ids
+    assert sorted(authorized_bizs) == [1, 2]
+    assert unauthorized_bizs == [9]
+    # 静默降级，不应刷 warning
+    assert not [record for record in caplog.records if "narrowed" in record.getMessage()]
