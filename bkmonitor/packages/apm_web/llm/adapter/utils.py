@@ -190,8 +190,6 @@ def repair_span_content(span: dict[str, Any]) -> dict[str, Any]:
         if field not in attributes:
             continue
         value = repair_truncated_json(attributes[field])
-        if field == "gen_ai.input.messages":
-            value = recover_front_truncated_messages(value)
         if isinstance(value, list):
             items: list[Any] = []
             for item in value:
