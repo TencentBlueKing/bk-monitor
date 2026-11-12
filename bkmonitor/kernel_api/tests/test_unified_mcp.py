@@ -60,13 +60,13 @@ def test_registry_loads_all_repository_mcp_tools():
     root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
     registry = load_tool_registry(root)
 
-    assert len(registry) == 96
+    assert len(registry) == 99
     expected_category_counts = {
         "metrics": 4,
         "log": 9,
         "alert": 12,
         "event": 3,
-        "apm": 11,
+        "apm": 14,
         "dashboard": 4,
         "relation": 2,
         "alert_handling": 18,
@@ -383,6 +383,9 @@ def test_apm_event_dispatcher_preserves_application_permission(monkeypatch):
     [
         ("calculate_by_range", dispatcher.CalculateByRangeResource),
         ("list_apm_services", dispatcher.ServiceListResource),
+        ("llm_mcp_search_traces", dispatcher.LLMListTracesResource),
+        ("llm_mcp_search_flows", dispatcher.LLMListFlowsResource),
+        ("llm_mcp_calculate_by_range", dispatcher.LLMCalculateByRangeResource),
     ],
 )
 def test_apm_web_dispatchers_preserve_application_permission(monkeypatch, tool_name, resource_class):
