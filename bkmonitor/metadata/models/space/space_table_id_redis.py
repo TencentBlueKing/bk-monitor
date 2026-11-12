@@ -1479,13 +1479,21 @@ class SpaceTableIDRedis:
 
     def _compose_bkci_other_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
         logger.info("start to push bkci space other table_id, space_type: %s, space_id: %s", space_type, space_id)
-        exclude_data_id_list = utils.cached_cluster_data_id_list()
+        # 实时排除容器 DataID，避免旧缓存遗漏新集群或变更后的 DataID，覆盖容器过滤。
+        exclude_data_id_list = [
+            data_id
+            for data_ids in models.BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id).values_list(
+                "K8sMetricDataID", "CustomMetricDataID"
+            )
+            for data_id in data_ids
+        ]
         table_id_data_id = get_space_table_id_data_id(
             space_type,
             space_id,
             exclude_data_id_list=exclude_data_id_list,
             include_platform_data_id=False,
-            from_authorization=False,
+            # 普通数据源包含显式授权；容器数据源仍由专用分支生成集群和命名空间过滤。
+            from_authorization=None,
             bk_tenant_id=bk_tenant_id,
         )
         _values = {}
