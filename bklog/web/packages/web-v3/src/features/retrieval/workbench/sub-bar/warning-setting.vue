@@ -36,7 +36,7 @@
               >
                 {{ $t('我的') }}
                 <t-switch
-                  v-model="filterOwner"
+                  v-model:value="filterOwner"
                   class="selector-owner-switch"
                   size="small"
                 ></t-switch>
