@@ -23,11 +23,14 @@ import copy
 
 from django.conf import settings
 from django.db import transaction
+from django.utils.translation import gettext as _
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 
-from apps.log_clustering.models import ClusteringConfig
+from apps.log_clustering.constants import ClusteringRuntimePhaseEnum
+from apps.log_clustering.exceptions import QuixClusteringParamsInvalidException
+from apps.log_clustering.models import ClusteringConfig, LogClusteringRuntime
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.exceptions import CleanTemplateNotExistException
@@ -168,6 +171,20 @@ class TransferEtlHandler(EtlHandler):
 
         if not storage_cluster_type:
             storage_cluster_type = cluster_info.get("cluster_type") or STORAGE_CLUSTER_TYPE
+
+        # 轻量化聚类的结果表只支持 ES 存储，聚类未关闭时不能切到其他类型的集群
+        if (
+            storage_switched
+            and storage_cluster_type != STORAGE_CLUSTER_TYPE
+            and LogClusteringRuntime.objects.filter(index_set_id=index_set_obj.index_set_id)
+            .exclude(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
+            .exists()
+        ):
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(
+                    detail=_("轻量化聚类仅支持 ES 存储，请先关闭聚类再切换到其他类型的存储集群")
+                )
+            )
 
         # es 集群获取 es 版本, doris 集群将 es 版本设置为空
         if not cluster_info["cluster_config"]["version"] or storage_cluster_type != STORAGE_CLUSTER_TYPE:

@@ -272,7 +272,7 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         with (
             patch("apps.log_databus.handlers.etl.transfer.StorageHandler", storage),
             patch.object(TransferEtlHandler, "check_es_storage_capacity"),
-            patch("apps.log_databus.handlers.etl.transfer.EtlStorage"),
+            patch("apps.log_databus.handlers.etl.transfer.EtlStorage") as etl_storage,
             patch.object(
                 TransferEtlHandler,
                 "_update_or_create_index_set",
@@ -288,6 +288,21 @@ class TestQuixClusteringHandlerUpdate(TestCase):
                     etl.update_or_create(storage_cluster_id=cluster_id, **params)
                 self.assertEqual(follow.call_count, expected)
             follow.assert_called_with(INDEX_SET_ID)
+
+            # 聚类未关闭时不能切到非 ES 集群，且不会先改结果表；关闭后放行。
+            storage.return_value.get_cluster_info_by_id.return_value = {
+                "cluster_type": "doris",
+                "cluster_config": {"version": "", "custom_option": {}},
+            }
+            etl_storage.reset_mock()
+            with self.assertRaises(QuixClusteringParamsInvalidException):
+                etl.update_or_create(storage_cluster_id=3, **params)
+            etl_storage.get_instance.assert_not_called()
+            LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(
+                phase=ClusteringRuntimePhaseEnum.STOPPED.value
+            )
+            etl.update_or_create(storage_cluster_id=3, **params)
+            etl_storage.get_instance.assert_called_once()
 
     def test_follow_storage_redeclares_running_clustering(self, mock_delay):
         from apps.log_clustering.tasks.quix import follow_quix_clustering_storage
