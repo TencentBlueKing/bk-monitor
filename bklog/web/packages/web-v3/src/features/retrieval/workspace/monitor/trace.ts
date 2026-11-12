@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import publishedMonitorStore from '@/app/state/index';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert, Badge as TBadge, Progress as TProgress, Tag as TTag } from 'tdesign-vue-next';
-import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup, Radio as TRadio, RadioButton as TRadioButton, RadioGroup as TRadioGroup, Switch as TSwitch, Loading as TLoading } from 'tdesign-vue-next';
+import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup, Radio as TRadio, RadioButton as TRadioButton, RadioGroup as TRadioGroup, Switch as TSwitch } from 'tdesign-vue-next';
 import { Button as TButton } from 'tdesign-vue-next';
 import Vue from '@/platform/compat/vue-runtime.mjs';
 import i18n from '@/platform/i18n/i18n';

@@ -546,6 +546,7 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style lang="scss" scoped>
+@use '@/shared/ui/loading/shimmer' as *;
   .main-container {
     /*新增任务样式*/
     .option-container {
@@ -604,7 +605,9 @@ import { ServicesInstance } from '@/platform/services';
 
         .icon-refresh {
           margin-right: 2px;
-          animation: refresh-rotate 1s linear infinite;
+          @include loading-shimmer;
+          color: transparent;
+          &::before { content: ""; }
 
           @keyframes refresh-rotate {
             0% {

@@ -1,3 +1,4 @@
+@use '@/shared/ui/loading/shimmer' as *;
 @use '../../business-comp/step2/index-set-option' as *;
 .v2-log-collection-table {
   width: 100%;
@@ -511,12 +512,12 @@
             display: inline-block;
             width: 15px;
             height: 15px;
-            background: url('../../../../../../shared/assets/images/loading.svg');
+            @include loading-shimmer;
             margin-right: 4px;
-            background-size: cover;
+
             vertical-align: middle;
             top: 18%;
-            animation: spin 2s linear infinite;
+
           }
         }
       }

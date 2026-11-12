@@ -162,8 +162,8 @@
     },
     {
       "path": "img/clusterf999154.png",
-      "bytes": 426598,
-      "sha256": "d3add2650f16e00b0011b46ac8fdd673cf0f1d0be8a4dc03096651dd0d3be2ef"
+      "bytes": 8587,
+      "sha256": "678125600cdeb4a9a03e82b4f538595c2cc87b7087c9a4ce62c867ee496afce6"
     },
     {
       "path": "img/iconcool.9f9ea49.9f9ea49.svg",
@@ -1085,5 +1085,9 @@
       "bytes": 1886,
       "sha256": "186eefa5a5ed6e06694950abadd27e08ef5282c637bbe57e6df7959094b794fd"
     }
-  ]
+  ],
+  "privacyAssetRevision": {
+    "reason": "Business screenshot replaced by a from-scratch schematic. JavaScript and CSS unchanged.",
+    "rebuildRequirement": "Any future sealing must exclude business screenshots before packaging."
+  }
 }

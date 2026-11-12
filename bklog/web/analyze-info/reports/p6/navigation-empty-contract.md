@@ -4,7 +4,7 @@
 
 V2 `views/manage/index.vue` 的菜单过滤、getRouteHref、handleClickNavItem；`views/manage-v2/es-cluster/cluster-manage/index.tsx` 的 getTableData、checkCreateAuth 与 empty 插槽；`components/empty-status/index.vue` 的全部展示和操作条件；当前 V2 安装包 bk-magic-vue 2.5.10-beta.15 的 Navigation/Table/Exception 实际实现。
 
-业务上下文为 spaceUid=bkcc__5000140、bizId=5000140。通过折叠侧栏真实图标进入 ES 集群页面，不执行 router.push/page.goto 代替点击。接口真实返回空列表，因此只证明空态；非空列表、连接状态不算通过。18条可重放只读记录、2条排除埋点；业务后端兜底转发为0。
+本段具体业务环境与运行记录已移至仓库外本地归档；复验须提供本地授权测试上下文。
 
 固定响应私有目录 bklog-v2-management-CevhCe；V2 自重放报告 runs/pilot/management-self-replay-1794390273596.json。V3 六检查点通过，对照报告按 captureDigest=b1a95e1782dbfbf219dd632fc749bc533fe53abe00f5895cb62837abcb5bcdb3 查找。
 

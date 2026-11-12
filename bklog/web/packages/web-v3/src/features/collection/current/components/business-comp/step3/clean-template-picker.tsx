@@ -310,7 +310,7 @@ export default defineComponent({
               </div>
             </div>
           ))}
-          {loading.value && currentPage.value > 1 && <div class='template-list-loading'>{'loading...'}</div>}
+          {loading.value && currentPage.value > 1 && <div class='template-list-loading'><span class='bklog-loading-mark' role='status' aria-label='Loading' /></div>}
         </div>
       </div>
     );

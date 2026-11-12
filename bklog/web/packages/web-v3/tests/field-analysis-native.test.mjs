@@ -26,7 +26,7 @@ const store = {
   getters: {
     isSceneMode: false,
     isUnionSearch: false,
-    unionIndexList: [16176, 16462],
+    unionIndexList: [900101, 900105],
     unionIndexItemList: [],
     retrieveParams: {},
     requestAddition: [],
@@ -54,7 +54,7 @@ function field() {
   const vm = new FieldItem();
   Object.assign(vm, {
     $store: store,
-    $route: { params: { indexId: '16176' }, query: { indexId: '16462' } },
+    $route: { params: { indexId: '900101' }, query: { indexId: '900105' } },
     fieldItem: { field_name: '__ext.labels.app', field_type: 'keyword', query_alias: 'appAlias', es_doc_values: true },
     retrieveParams: { keyword: '*', addition: [], start_time: 'start', end_time: 'end' },
     statisticalFieldData: {},
@@ -82,7 +82,7 @@ test('field statistics preserve ordinary, union, scene and embedded payloads and
       else
         assert.deepEqual(
           request.index_set_ids,
-          mode === 'union' ? [16176, 16462] : [mode === 'embedded' ? '16462' : '16176'],
+          mode === 'union' ? [900101, 900105] : [mode === 'embedded' ? '900105' : '900101'],
         );
       assert.equal('agg_field' in vm.retrieveParams, false);
     }
@@ -217,7 +217,7 @@ function aggregateClass(requests) {
 function withAggregate(callback) {
   const previous = globalThis.window;
   globalThis.window = {
-    mainComponent: { $route: { params: { indexId: '16176' }, query: { indexId: '16462' } }, $t: (value) => value },
+    mainComponent: { $route: { params: { indexId: '900101' }, query: { indexId: '900105' } }, $t: (value) => value },
   };
   const requests = [];
   const Aggregate = aggregateClass(requests);
@@ -291,7 +291,7 @@ test('aggregate backend requests preserve ordinary, union, scene and embedded co
       else
         assert.deepEqual(
           data.index_set_ids,
-          mode === 'union' ? [16176, 16462] : [mode === 'embedded' ? '16462' : '16176'],
+          mode === 'union' ? [900101, 900105] : [mode === 'embedded' ? '900105' : '900101'],
         );
       assert.equal(vm.listLoading, false);
       assert.deepEqual(vm.fieldValueData.values, [
@@ -392,7 +392,7 @@ for (const [operation, expected] of [
         // Vue Class field initializers run against a collection instance. Only the
         // live host has router injections; a captured arrow ignores this receiver.
         const host = Object.create(vm);
-        host.$route = { query: { spaceUid: 'bkcc__5000140', bizId: '5000140', f_11: '20680' } };
+        host.$route = { query: { spaceUid: 'bkcc__900001', bizId: '900001', f_11: '20680' } };
         host.$router = {
           replace: async (options) => {
             calls.push(['route', options]);
@@ -414,8 +414,8 @@ for (const [operation, expected] of [
           { field: 'iterationIndex', operator: expected, value: [0] },
         ]);
         assert.deepEqual(calls[1][1].query, {
-          spaceUid: 'bkcc__5000140',
-          bizId: '5000140',
+          spaceUid: 'bkcc__900001',
+          bizId: '900001',
           f_11: '20680',
           keyword: '',
           addition: JSON.stringify([calls[0][2]]),

@@ -23,8 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { LoadingDirective, LoadingPlugin } from '@/shared/ui/loading/native';
 import Vue from 'vue';
-import { LoadingDirective, LoadingPlugin } from 'tdesign-vue-next';
+
 import logClickOutside from '@/shared/directives/log-click-outside';
 import logOverflowTips from '@/shared/directives/log-overflow-tips';
 import logTooltip from '@/shared/directives/log-tooltip';

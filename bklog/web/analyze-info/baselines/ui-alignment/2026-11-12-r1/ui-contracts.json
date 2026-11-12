@@ -1,8 +1,6 @@
 {
   "schemaVersion": 1,
   "scope": "INTRINSIC_METRICS_AND_INTERACTIONS_PARTIAL_REFERENCE",
-  "v2Route": "http://appdev.woa.com:8001/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140",
-  "v3Route": "http://appdev.woa.com:4175/#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140",
   "v3Viewports": [
     {
       "width": 1440,
@@ -73,5 +71,6 @@
     "status": "MISSING_REQUIRES_PAIRED_CAPTURE",
     "reason": "Previous screenshots were displayed in the chat; no paired versioned pixel artifacts exist here."
   },
-  "writePolicy": "Existing business resources must not be edited or deleted. Confirm/write lifecycle tests require newly created dedicated resources."
+  "writePolicy": "Existing business resources must not be edited or deleted. Confirm/write lifecycle tests require newly created dedicated resources.",
+  "runtimeContext": "Provide authorized targets and parameters through external local configuration."
 }

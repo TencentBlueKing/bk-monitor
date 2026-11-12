@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { Loading as TLoading } from 'tdesign-vue-next';
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { Button as TButton } from 'tdesign-vue-next';
 

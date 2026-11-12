@@ -1,3 +1,5 @@
+import { bindTargetContracts } from './runtime-target.mjs';
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -33,12 +35,13 @@ const require = createRequire(new URL('../../packages/web-v3/package.json', impo
 const {chromium} = require('@playwright/test');
 const target = process.argv[2];
 if (!target || new URL(target).hostname !== 'appdev.woa.com') throw new Error('Use verified appdev.woa.com dev target');
-const out = fileURLToPath(new URL('../runs/discovery/', import.meta.url));
+const out = fileURLToPath(localArtifactUrl('runs/discovery/'));
 mkdirSync(out, {recursive: true});
 const {classifyResponse} = await import('./response-classifier.mjs');
 const requests = [], errors = [], responses = [];
 const {requestPolicy} = await import('./protocol.mjs');
 const policy = JSON.parse(readFileSync(new URL('../spec/read-policy.json', import.meta.url), 'utf8'));
+policy.rules = bindTargetContracts(policy.rules, target);
 for (const rule of policy.rules) {
   const {createHash} = await import('node:crypto');
   const bytes = readFileSync(new URL('../../packages/web-v2/src/' + rule.source.file, import.meta.url));
@@ -85,5 +88,5 @@ try {
   await page.screenshot({path: resolve(out, `discovery-${Date.now()}.png`)});
   const result = {schemaVersion: 1, scope: 'POLICY_DISCOVERY_NOT_BASELINE', status: authBlocked ? 'AUTH_BLOCKED' : 'NEEDS_ENDPOINT_REVIEW', documentStatus: response?.status(), route: new URL(page.url()).hash.split('?')[0], requests, responses, errors};
   writeFileSync(resolve(out, `bootstrap-${Date.now()}.json`), JSON.stringify(result, null, 2) + '\n');
-  console.log(JSON.stringify({status: result.status, requests: requests.length, pendingReview: requests.filter(r => r.reason === 'UNCLASSIFIED_ENDPOINT'), nonSuccessResponses: responses.filter(r => r.status >= 400), errors}));
+  console.log(JSON.stringify({status: result.status, details: 'PRIVATE_LOCAL_REPORT'}));
 } finally {await browser.close();}

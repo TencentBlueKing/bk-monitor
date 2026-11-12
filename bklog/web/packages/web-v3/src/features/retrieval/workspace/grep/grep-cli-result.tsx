@@ -150,7 +150,7 @@ export default defineComponent({
           class='cli-result-line'
         >
           {isLoadingValue.value && props.grepRequestResult.list.length > 0 && (
-            <div style={{ minHeight: '64px', fontSize: '12px', padding: '20px' }}>loading...</div>
+            <div style={{ minHeight: '64px', fontSize: '12px', padding: '20px' }}><span class='bklog-loading-mark' role='status' aria-label='Loading' /></div>
           )}
         </div>
         <ScrollTop></ScrollTop>

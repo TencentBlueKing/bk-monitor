@@ -1,3 +1,4 @@
+import { assertExternalPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -32,13 +33,14 @@ const require = createRequire(new URL('../../packages/web-v3/package.json', impo
 const {expect} = require('@playwright/test');
 
 /** Open and cancel only. Never click Next/Confirm on an existing collector. */
-export async function runManagementMenuPilot(page, {entries, privateDir, readBody, checkpoints, setPhase = () => {}, labelPreview = false, labelCancelPreview = false, navClusterPreview = false, clusterSearchPreview = false, readRequest}) {
+export async function runManagementMenuPilot(page, {entries, privateDir, readBody, checkpoints, expectedContext, setPhase = () => {}, labelPreview = false, labelCancelPreview = false, navClusterPreview = false, clusterSearchPreview = false, readRequest}) {
+  assertExternalPath(privateDir);
   await expect.poll(() => entries.some(e => e.path === '/api/v1/databus/log_access/collector/' && e.complete), {timeout: 60000}).toBe(true);
   await expect.poll(() => entries.filter(e => e.policy.decision === 'ALLOW' && !e.complete && !e.failure && !e.captureError).length, {timeout: 60000}).toBe(0);
   const hash = new URL(page.url()).hash;
   if (!hash.startsWith('#/manage/log-collection/collection-item/list?')) throw new Error('WRONG_MANAGEMENT_ROUTE');
   const query = new URLSearchParams(hash.split('?')[1]);
-  if (query.get('bizId') !== '5000140' || query.get('spaceUid') !== 'bkcc__5000140') throw new Error('WRONG_MANAGEMENT_CONTEXT');
+  if (query.get('bizId') !== String(expectedContext.bizId) || query.get('spaceUid') !== expectedContext.spaceUid) throw new Error('WRONG_MANAGEMENT_CONTEXT');
   const listEntry = entries.find(e => e.path === '/api/v1/databus/log_access/collector/' && e.complete);
   const response = JSON.parse(readBody(listEntry));
   const candidates = response.data.list.filter(row => row.log_access_type === 'linux' && !row.is_related_space);
@@ -187,7 +189,7 @@ export async function runManagementMenuPilot(page, {entries, privateDir, readBod
     await expect.poll(async () => Math.round((await sidebar.boundingBox())?.width ?? -1)).toBe(60);
     await waitForUiIdle(sidebar);
     const navQuery = new URLSearchParams(new URL(page.url()).hash.split('?')[1]);
-    if (navQuery.get('spaceUid') !== 'bkcc__5000140') throw new Error('NAV_SPACE_CONTEXT_LOST');
+    if (navQuery.get('spaceUid') !== expectedContext.spaceUid) throw new Error('NAV_SPACE_CONTEXT_LOST');
     const path = '/api/v1/databus/storage/';
     await expect.poll(() => entries.some(entry => entry.path === path && entry.complete), {timeout:60000}).toBe(true);
     const listRecord = entries.find(entry => entry.path === path && entry.complete);
@@ -195,7 +197,7 @@ export async function runManagementMenuPilot(page, {entries, privateDir, readBod
     if (!Array.isArray(clusters)) throw new Error('CLUSTER_LIST_PROTOCOL_MISMATCH');
     const requestData = readRequest(listRecord);
     const requestUrl = new URL(requestData.url);
-    if (requestUrl.searchParams.get('bk_biz_id') !== '5000140' || requestUrl.searchParams.get('cluster_type') !== 'elasticsearch') throw new Error('NAV_CLUSTER_REQUEST_CONTEXT_LOST');
+    if (requestUrl.searchParams.get('bk_biz_id') !== String(expectedContext.bizId) || requestUrl.searchParams.get('cluster_type') !== 'elasticsearch') throw new Error('NAV_CLUSTER_REQUEST_CONTEXT_LOST');
     const table = page.locator('[data-test-id="esAccessBox_table_esAccessTableBox"]');await expect(table).toHaveCount(1);
     if (clusters.length) {
       await expect.poll(() => entries.some(entry => entry.path === '/api/v1/databus/storage/batch_connectivity_detect/' && entry.complete), {timeout:60000}).toBe(true);

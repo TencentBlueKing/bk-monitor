@@ -49,7 +49,7 @@ const [{default: TagMore}, {default: store}, {default: StopTypeDialog}, {default
 store.state.spaceUid = 'fixture-space';
 store.commit('globals/setGlobalsData', {es_source_type:[{id:'other',name:'Other'}],storage_duration_time:[{id:7,name:'7'},{id:14,name:'14'}]});
 store.state.userMeta.username = 'fixture-user';
-store.state.bkBizId = 5000140;
+store.state.bkBizId = 900001;
 const initialLabels: ITagItem[] = [
   {tag_id: 1, name: '已有标签'},
   {tag_id: 2, name: '可选标签'},

@@ -2342,7 +2342,16 @@ type?: undefined; class?: undefined;
       if (refLoadMoreElement.value) {
         const targetElement = refLoadMoreElement.value.firstElementChild as HTMLElement;
         targetElement.style.width = `${offsetWidth.value}px`;
-        targetElement.textContent = loadingText.value;
+        const busy = loadingText.value === 'Loading ...';
+        targetElement.textContent = busy ? '' : loadingText.value;
+        targetElement.classList.toggle('bklog-loading-footer', busy);
+        if (busy) {
+          const skeleton = document.createElement('span');
+          skeleton.className = 'bklog-loading-mark';
+          skeleton.setAttribute('role', 'status');
+          skeleton.setAttribute('aria-label', loadingText.value);
+          targetElement.appendChild(skeleton);
+        }
       }
     };
 

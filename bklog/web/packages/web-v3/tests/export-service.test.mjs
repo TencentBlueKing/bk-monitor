@@ -37,8 +37,8 @@ new Function('exports', 'cloneDeep', 'ServicesInstance', 'TDesignDialog', 'TDesi
   () => {},
 );
 const task = {
-  log_index_set_id: 40678,
-  log_index_set_ids: [40678, 40679],
+  log_index_set_id: 900102,
+  log_index_set_ids: [900102, 40679],
   engine: 'legacy',
   export_type: 'async',
   search_dict: { sort_list: [['dtEventTime', 'DESC']], keyword: 'fixture' },
@@ -60,14 +60,14 @@ test('export retry chooses named endpoints and preserves the saved query snapsho
   }
   const union = api.buildExportRetryRequest({ ...task, index_set_type: 'union' });
   assert.deepEqual(union.config.data.union_configs, [
-    { begin: 0, index_set_id: 40678 },
+    { begin: 0, index_set_id: 900102 },
     { begin: 0, index_set_id: 40679 },
   ]);
   assert.equal(union.config.data.is_quick_export, false);
 });
 test('synchronous download URLs remain separate from service dispatch', () => {
   for (const [type, url] of [
-    ['single', '/search/index_set/40678/export/'],
+    ['single', '/search/index_set/900102/export/'],
     ['union', '/search/index_set/union_search/export/'],
     ['scene', '/search/scene/export/sample/'],
   ]) {

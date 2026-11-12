@@ -1,3 +1,4 @@
+import { localArtifactUrl } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -32,7 +33,7 @@ import {createHash} from 'node:crypto';
 const commonFiles = [
  'harness/management-contract-pin.mjs', 'harness/management-menu-pilot.mjs',
  'harness/ui-snapshot.mjs', 'harness/protocol.mjs', 'harness/network-recorder.mjs',
- 'harness/response-classifier.mjs', 'harness/capture-transport.mjs',
+ 'harness/runtime-target.mjs', 'harness/local-artifacts.mjs', 'harness/response-classifier.mjs', 'harness/capture-transport.mjs',
  'harness/capture-management-pilot.mjs', 'harness/self-replay-management.mjs',
  'harness/replay-capture.mjs', 'harness/replay-transport.mjs', 'harness/management-baseline.mjs',
  'spec/read-policy.json', 'spec/cancel-contracts.json', 'spec/sequence-contracts.json',
@@ -42,7 +43,7 @@ const scenarios = new Map([
  ['management-collapsed-nav-cluster-read', 'scenarios/management-nav-cluster-read.json'],
 ]);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
-export function snapshotManagementContract(scenarioId, read = path => readFileSync(new URL('../' + path, import.meta.url))) {
+export function snapshotManagementContract(scenarioId, read = path => readFileSync(path.startsWith('scenarios/') ? localArtifactUrl(path) : new URL('../' + path, import.meta.url))) {
  const scenarioPath = scenarios.get(scenarioId);
  if (!scenarioPath) throw new Error('MANAGEMENT_SCENARIO_NOT_REVIEWED');
  const entries = [...commonFiles, scenarioPath].map(path => ({path, sha256: hash(read(path))}));

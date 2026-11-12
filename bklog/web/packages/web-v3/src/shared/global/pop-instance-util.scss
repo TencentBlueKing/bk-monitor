@@ -6,3 +6,9 @@
     padding: 5px 9px;
   }
 }
+
+// This value list follows its input border box; Tippy content padding must not inset it.
+.bklog-condition-values-popup {
+  .tippy-box { width: 100%; max-width: none; }
+  .tippy-content { padding: 0; }
+}

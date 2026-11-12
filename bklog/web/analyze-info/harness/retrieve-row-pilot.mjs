@@ -1,3 +1,4 @@
+import { assertExternalPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -33,7 +34,8 @@ const {expect} = require('@playwright/test');
 
 /** One source-derived recipe shared by live capture and isolated self-replay. */
 export async function runRetrieveRowPilot(page, {entries, privateDir, readBody, setPhase = () => {}, checkpoints, expectedContext, readRequest}) {
-  await expect.poll(() => entries.some(e => e.path === '/api/v1/search/index_set/16176/search/' && e.complete), {timeout: 60000}).toBe(true);
+  assertExternalPath(privateDir);
+  await expect.poll(() => entries.some(e => e.path === `/api/v1/search/index_set/${expectedContext.indexId}/search/` && e.complete), {timeout: 60000}).toBe(true);
   await expect.poll(() => entries.filter(e => e.policy.decision === 'ALLOW' && !e.complete && !e.failure && !e.captureError).length, {timeout: 60000}).toBe(0);
   const hash = new URL(page.url()).hash.slice(1);
   const [path, query] = hash.split('?');
@@ -42,7 +44,7 @@ export async function runRetrieveRowPilot(page, {entries, privateDir, readBody, 
   for (const key of ['spaceUid', 'bizId', 'start_time', 'end_time']) {
     if (params.get(key) !== String(expectedContext[key])) throw new Error('URL_CONTEXT_MISMATCH:' + key);
   }
-  const queryRecord = entries.find(e => e.path === '/api/v1/search/index_set/16176/search/' && e.complete);
+  const queryRecord = entries.find(e => e.path === `/api/v1/search/index_set/${expectedContext.indexId}/search/` && e.complete);
   const request = readRequest(queryRecord);
   const body = JSON.parse(request.body);
   for (const [key, expected] of Object.entries({start_time: expectedContext.start_time, end_time: expectedContext.end_time, time_zone: expectedContext.timezone, bk_biz_id: expectedContext.bizId, search_mode: 'ui'})) {
@@ -121,7 +123,7 @@ export async function runRetrieveRowPilot(page, {entries, privateDir, readBody, 
   await search.fill('level');
   await search.press('Enter');
   await expect.poll(() => fields.allTextContents()).toEqual(['level']);
-  const searchEntry = entries.find(e => e.path === '/api/v1/search/index_set/16176/search/' && e.complete);
+  const searchEntry = entries.find(e => e.path === `/api/v1/search/index_set/${expectedContext.indexId}/search/` && e.complete);
   const events = readBody(searchEntry).trim().split('\n').map(line => JSON.parse(line));
   const firstRow = events.find(event => event.event === 'row' && event.index === 0);
   const level = (firstRow?.origin_data ?? firstRow?.data)?.level;

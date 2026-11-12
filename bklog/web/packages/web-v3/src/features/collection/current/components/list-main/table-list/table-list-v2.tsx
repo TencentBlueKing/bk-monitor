@@ -26,7 +26,7 @@
 
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { Button as TButton, Drawer as TDrawer, Option as TOption, Select as TSelect } from 'tdesign-vue-next';
+import { Button as TButton, Input as TInput, Drawer as TDrawer, Option as TOption, Select as TSelect } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { includesValue } from '@/shared/utils/typed-record';
 import type { Canceler } from 'axios';
@@ -412,6 +412,7 @@ export default defineComponent({
     // 标签过滤当前选中项
     const tagSelect = ref<(string | number)[]>(['all']);
     const editingIndexSetRowId = ref<number | string>('');
+    const indexSetSearch = ref('');
     const updatingIndexSetRowId = ref<number | string>('');
     const editingIndexSetDraftIds = ref<Record<string, Array<number | string>>>({});
     const localParentIndexSetMap = ref<
@@ -931,6 +932,11 @@ export default defineComponent({
                     event.preventDefault();
                     event.stopPropagation();
                     handleEditOperation(row, 'edit');
+                  } else if (!isOpen && !isUpdating) {
+                    indexSetSearch.value = '';
+                    isAddIndexSet.value = false;
+                    setEditingIndexSetDraftIds(rowId, getRowParentIndexSetIds(row));
+                    editingIndexSetRowId.value = rowId;
                   }
                 }}
               >
@@ -967,20 +973,29 @@ export default defineComponent({
       }
 
       return (
-        <bk-select
+        <TSelect
           class='index-set-inline-select'
           disabled={isUpdating}
-          display-tag
-          ext-popover-cls='managev2-index-set-checkbox-popover'
+          popupVisible={isEditing}
+          valueDisplay={() => renderTrigger(isEditing)}
+          inputProps={{ inputClass: 'tag-more-native-trigger', readonly: true }}
+          selectInputProps={{ borderless: true }}
+          showArrow={false}
+          clearable={false}
+          placeholder=''
+          inputValue={indexSetSearch.value}
+          onInputChange={value => { indexSetSearch.value = value; }}
+          popupProps={{ attach: 'body', overlayClassName: 'managev2-index-set-checkbox-popover collection-index-set-picker', overlayInnerStyle: { minWidth: '240px' } }}
+          options={indexSetOptionList.value.map(option => ({ value: option.index_set_id, label: option.index_set_name }))}
           loading={isUpdating}
           multiple
-          searchable
-          selected-style='checkbox'
+          filterable
           value={draftSelectedIds}
-          onChange={(val: Array<number | string>) => {
-            setEditingIndexSetDraftIds(rowId, val || []);
+          onChange={val => {
+            setEditingIndexSetDraftIds(rowId, Array.isArray(val) ? val : []);
           }}
-          onToggle={(isOpen: boolean) => {
+          onPopupVisibleChange={(isOpen: boolean) => {
+            indexSetSearch.value = '';
             if (isOpen) {
               isAddIndexSet.value = false;
               setEditingIndexSetDraftIds(rowId, getRowParentIndexSetIds(row));
@@ -994,10 +1009,16 @@ export default defineComponent({
             }
           }}
           v-slots={{
-            ...{
-              trigger: () => renderTrigger(isEditing),
-            },
-            extension: () => (
+            panelTopContent: () => (
+              <TInput
+                class='collection-index-set-search'
+                value={indexSetSearch.value}
+                placeholder={t('请输入关键字')}
+                clearable
+                onChange={value => { indexSetSearch.value = String(value); }}
+              />
+            ),
+            panelBottomContent: () => (
               <div class='index-set-inline-extension'>
                 {isAddIndexSet.value ? (
                   <AddIndexSet
@@ -1020,14 +1041,7 @@ export default defineComponent({
             ),
           }}
         >
-          {indexSetOptionList.value.map((option: IListItemData) => (
-            <bk-option
-              id={option.index_set_id}
-              key={option.index_set_id}
-              name={option.index_set_name}
-            />
-          ))}
-        </bk-select>
+        </TSelect>
       );
     };
 

@@ -149,7 +149,7 @@
     {
       "id": "alertList",
       "method": "POST",
-      "path": "/api/v1/alert_strategy/16176/alert_records/",
+      "path": "/api/v1/alert_strategy/{indexId}/alert_records/",
       "semantics": "READ",
       "reviewed": true,
       "rationale": "warning-setting.vue requestAlertList passes status/page_size to read list and badge; not a write despite POST.",
@@ -189,7 +189,7 @@
     {
       "id": "getLogTableHead",
       "method": "GET",
-      "path": "/api/v1/search/index_set/16176/fields/",
+      "path": "/api/v1/search/index_set/{indexId}/fields/",
       "semantics": "READ",
       "reviewed": true,
       "rationale": "Field metadata read by getLogTableHead action and selection restoration.",
@@ -203,7 +203,7 @@
     {
       "id": "getExportHistoryList",
       "method": "GET",
-      "path": "/api/v1/search/index_set/16176/export_history/",
+      "path": "/api/v1/search/index_set/{indexId}/export_history/",
       "semantics": "READ",
       "reviewed": true,
       "rationale": "Read export history; creating export tasks is not allowed.",
@@ -231,7 +231,7 @@
     {
       "id": "getLogTableList",
       "method": "POST",
-      "path": "/api/v1/search/index_set/16176/search/",
+      "path": "/api/v1/search/index_set/{indexId}/search/",
       "semantics": "READ_STREAM",
       "reviewed": true,
       "rationale": "Worker searchStream posts query data and consumes NDJSON result; full stream required.",
@@ -245,7 +245,7 @@
     {
       "id": "getLogChartList",
       "method": "POST",
-      "path": "/api/v1/search/index_set/16176/aggs/date_histogram/",
+      "path": "/api/v1/search/index_set/{indexId}/aggs/date_histogram/",
       "semantics": "READ",
       "reviewed": true,
       "rationale": "Histogram query posts same filter/time context and renders buckets; no resource mutation.",
@@ -315,7 +315,7 @@
     {
       "id": "getAggsTerms",
       "method": "POST",
-      "path": "/api/v1/search/index_set/16176/aggs/terms/",
+      "path": "/api/v1/search/index_set/{indexId}/aggs/terms/",
       "semantics": "READ",
       "reviewed": true,
       "rationale": "Field aggregation query: service comment and retrieval consumer read statistical values; POST is query payload, not resource update.",

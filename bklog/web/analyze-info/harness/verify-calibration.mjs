@@ -1,3 +1,4 @@
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -37,5 +38,5 @@ export function verifyCalibration({files,requiredIds}){
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const spec=JSON.parse(readFileSync(new URL('../spec/calibration-required.json',import.meta.url),'utf8'));
  const result=verifyCalibration({files:spec.unit.files.map(f=>fileURLToPath(new URL(f,import.meta.url))),requiredIds:spec.unit.ids});
- const dir=fileURLToPath(new URL('../runs/calibration/',import.meta.url));mkdirSync(dir,{recursive:true});writeFileSync(resolve(dir,'unit-result.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({...result,stdout:undefined,stderr:undefined}));if(result.status!=='UNIT_CALIBRATION_PASSED')process.exitCode=1;
+ const dir=fileURLToPath(localArtifactUrl('runs/calibration/'));mkdirSync(dir,{recursive:true});writeFileSync(resolve(dir,'unit-result.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify({...result,stdout:undefined,stderr:undefined}));if(result.status!=='UNIT_CALIBRATION_PASSED')process.exitCode=1;
 }

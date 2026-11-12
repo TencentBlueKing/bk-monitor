@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Tag as TTag } from 'tdesign-vue-next';
 
-import { Loading as TLoading } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';

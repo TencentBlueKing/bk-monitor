@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { Loading as TLoading } from 'tdesign-vue-next';
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { Button as TButton } from 'tdesign-vue-next';
 
@@ -225,7 +226,7 @@ export default defineComponent({
       default: ({ row }: { row: CollectionTask }) => (
         <TButton
           class='king-button name-button'
-          
+
           theme='primary'
           onClick={() => viewTask(row)} variant={(true) ? 'text' : ('base')}
         >
@@ -331,7 +332,7 @@ export default defineComponent({
             }}
           >
             <TButton
-              
+
               theme='primary'
               disabled={row.process_status !== 'success'}
               onClick={() => handleSearchTask(row)} variant={(true) ? 'text' : ('base')}
@@ -341,7 +342,7 @@ export default defineComponent({
           </span>
           <TButton
             class='king-button'
-            
+
             theme='primary'
             onClick={() => cloneTask(row)} variant={(true) ? 'text' : ('base')}
           >
@@ -356,7 +357,7 @@ export default defineComponent({
           >
             <TButton
               disabled={row.status !== TaskStatus.COMPLETED}
-              
+
               class={[
                 {
                   'disabled-download': !props.isAllowedDownload,

@@ -136,6 +136,20 @@
       top: 27px;
       right: 36px;
     }
+
+    .trend-chart-progress {
+      display: inline-flex;
+      width: 16px;
+      height: 16px;
+      color: #3a84ff;
+      pointer-events: none;
+
+      svg { animation: trend-chart-progress-rotate 1s linear infinite; }
+
+      @media (prefers-reduced-motion: reduce) {
+        svg { animation: none; }
+      }
+    }
   }
 
   // 图表样式
@@ -148,6 +162,28 @@
     background-repeat: repeat;
     background-position: top;
     border-radius: 2px;
+
+    .trend-chart-loading-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: var(--bklog-z-local, 1);
+      overflow: hidden;
+      background: #fff;
+
+      .bk-log-chart-skeleton {
+        height: 100%;
+        margin: 0;
+      }
+
+      .chart-area { box-sizing: border-box; background: #fff; }
+      // Dense bars should not create a continuous strip of x-axis placeholders.
+      .x-axis-labels .x-label {
+        display: none;
+        &:nth-child(5n + 1) { display: block; flex-shrink: 0; width: 40px; }
+      }
+      .bar-skeleton { gap: 6px; }
+      .bar-item { flex: 1; min-width: 0; max-width: 24px; }
+    }
 
     .trend-chart-empty {
       display: flex;
@@ -169,4 +205,8 @@
   .bk-loading {
     z-index: var(--bklog-z-base);
   }
+}
+
+@keyframes trend-chart-progress-rotate {
+  to { transform: rotate(360deg); }
 }

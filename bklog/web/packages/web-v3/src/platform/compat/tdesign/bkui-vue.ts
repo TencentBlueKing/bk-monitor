@@ -24,32 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading } from '@/shared/ui/loading/native';
+
 /**
  * 仅供 NPM 包 @blueking/date-picker 解析 `bkui-vue` 导入。
  * 项目源码不要引用这个文件，也不要使用 bkui-vue 的组件名。
  */
 import tippy from 'tippy.js';
 import { defineComponent, h, ref, Fragment, isVNode, type VNode, type Directive } from 'vue';
-import {
-  Button,
-  Checkbox,
-  Dialog,
-  DialogPlugin,
-  Empty,
-  Form,
-  FormItem,
-  Input as TInput,
-  Loading,
-  MessagePlugin,
-  Popconfirm,
-  Popup,
-  Select as TSelect,
-  Option as TOption,
-  OptionGroup as TOptionGroup,
-  Tag as TTag,
-  Tabs,
-  TabPanel,
-} from 'tdesign-vue-next';
+import { Button, Checkbox, Dialog, DialogPlugin, Empty, Form, FormItem, Input as TInput, MessagePlugin, Popconfirm, Popup, Select as TSelect, Option as TOption, OptionGroup as TOptionGroup, Tag as TTag, Tabs, TabPanel } from 'tdesign-vue-next';
 
 export { Button, Checkbox, Dialog, Form, Loading };
 export const Input = defineComponent({

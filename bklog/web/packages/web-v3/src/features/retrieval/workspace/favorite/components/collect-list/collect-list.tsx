@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { Button as TButton, Dialog as TDialog, Loading as TLoading } from 'tdesign-vue-next';
+import { Button as TButton, Dialog as TDialog } from 'tdesign-vue-next';
 import { asDictionary } from '@/shared/utils/typed-record';
 
 import { defineComponent, ref, watch, computed, onUnmounted } from 'vue';

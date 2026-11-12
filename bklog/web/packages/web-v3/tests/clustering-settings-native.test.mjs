@@ -69,7 +69,7 @@ async function fixture(validation, serviceError = false) {
   const submit = handler('handleSubmit', {
     formRef: { value: { validate: async () => validation } },
     formData: { value: form },
-    indexSetItem: { value: { index_set_id: 16176, bk_biz_id: 5000140 } },
+    indexSetItem: { value: { index_set_id: 900101, bk_biz_id: 900001 } },
     configId: { value: 123 },
     ruleConfigOperateRef: {
       value: { setSaveLoading: (value) => loading.push(value) },
@@ -106,7 +106,7 @@ test('clustering native form retains full V2 save payload and closes only after 
   const f = await fixture(true);
   assert.deepEqual(f.calls, [
     {
-      params: { index_set_id: 16176 },
+      params: { index_set_id: 900101 },
       data: {
         max_dist_list: '0.5',
         predefined_varibles: 'fixture-base64',
@@ -124,8 +124,8 @@ test('clustering native form retains full V2 save payload and closes only after 
         regex_template_id: 8,
         signature_enable: true,
         collector_config_id: 123,
-        index_set_id: 16176,
-        bk_biz_id: 5000140,
+        index_set_id: 900101,
+        bk_biz_id: 900001,
       },
     },
   ]);

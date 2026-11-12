@@ -1,3 +1,4 @@
+import { localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -250,7 +251,7 @@ const result = {
   ],
 };
 writeFileSync(
-  web + '/analyze-info/runs/alignment-audit-20261112/source-contract-risks.json',
+  localArtifactPath('runs/alignment-audit-20261112/source-contract-risks.json'),
   JSON.stringify(result, null, 2) + '\n'
 );
 console.log(JSON.stringify({ ...result, risks: undefined, sourceDigests: undefined }, null, 2));

@@ -1,3 +1,4 @@
+@use '@/shared/ui/loading/shimmer' as *;
 .host-detail-main {
     width: 100%;
     height: 100%;
@@ -6,11 +7,11 @@
         display: inline-block;
         width: 14px;
         height: 14px;
-        background: url('../../../../../shared/assets/images/loading.svg');
+        @include loading-shimmer;
         margin-right: 4px;
-        background-size: cover;
+
         vertical-align: middle;
-        animation: spin 2s linear infinite;
+
     }
     .host-detail-tab {
         display: inline-block;
@@ -108,7 +109,7 @@
             border: 1px solid #DCDEE5;
             border-top: none;
             overflow: auto;
-            
+
             .content-left-title {
                 height: 42px;
                 line-height: 42px;

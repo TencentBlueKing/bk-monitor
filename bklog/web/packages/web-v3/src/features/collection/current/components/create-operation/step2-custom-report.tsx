@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
@@ -31,7 +33,7 @@ import { useCollectionStore } from '@/app/state/domains/collection-store';
 
 
 import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
-import { Alert as TAlert, Loading as TLoading } from 'tdesign-vue-next';
+import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -477,17 +479,10 @@ export default defineComponent({
       handleSubmitSave,
     });
 
-    const renderLoadingIndicator = () => (
-      <span class='bklog-loading-dots bklog-loading-dots--large'>
-        {[0, 1, 2, 3].map(index => <span key={index} />)}
-      </span>
-    );
-
     return () => (
       <TLoading
         class='operation-step2-custom-report-loading'
         data-testid='collection-custom-report-loading'
-        indicator={renderLoadingIndicator}
         loading={loading.value}
         showOverlay
         size='large'

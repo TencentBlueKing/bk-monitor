@@ -17,6 +17,18 @@ export function loadTypeScript(file, dependencies = {}, compilerOptions = {}) {
   const errors = diagnostics?.filter(item => item.category === ts.DiagnosticCategory.Error) ?? [];
   if (errors.length) throw new Error(ts.formatDiagnosticsWithColorAndContext(errors, { getCanonicalFileName: name => name, getCurrentDirectory: () => process.cwd(), getNewLine: () => '\n' }));
   const exports = {};
-  new Function('exports', 'require', outputText)(exports, id => id in dependencies ? dependencies[id] : id === 'vue/jsx-runtime' ? compilerRequire(id) : require(id));
+  new Function('exports', 'require', outputText)(exports, id => {
+    if (id in dependencies) return dependencies[id];
+    if (id === '@/shared/ui/loading/skeleton') return loadTypeScript(new URL('../../src/shared/ui/loading/skeleton.ts', import.meta.url), dependencies);
+    if (id === '@/shared/global/dropdown-width') return loadTypeScript(new URL('../../src/shared/global/dropdown-width.ts', import.meta.url), dependencies);
+    if (id === '@/shared/ui/loading/native') {
+      return loadTypeScript(new URL('../../src/shared/ui/loading/native.ts', import.meta.url), {
+        ...dependencies,
+        './skeleton': loadTypeScript(new URL('../../src/shared/ui/loading/skeleton.ts', import.meta.url), dependencies),
+        'lodash-es': { isEqual: compilerRequire('lodash').isEqual },
+      });
+    }
+    return id === 'vue/jsx-runtime' ? compilerRequire(id) : require(id);
+  });
   return exports;
 }

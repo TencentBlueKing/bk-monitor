@@ -96,8 +96,8 @@ class Pool {
 }
 const useQuery = defineStore('fixture.query', {
   state: () => ({
-    indexId: '16176',
-    bkBizId: '5000140',
+    indexId: '900101',
+    bkBizId: '900001',
     spaceUid: 'space',
     userMeta: {},
     mySpaceList: [],
@@ -106,7 +106,7 @@ const useQuery = defineStore('fixture.query', {
     unionIndexList: [],
     visibleFields: [{ field_name: 'log' }],
     indexItem: {
-      ids: ['16176'],
+      ids: ['900101'],
       begin: 0,
       datePickerValue: ['2026-01-01', '2026-01-02'],
       start_time: 's',
@@ -114,7 +114,7 @@ const useQuery = defineStore('fixture.query', {
       timezone: 'UTC',
       catchUnionBeginList: [],
     },
-    indexFieldInfo: { field_scope: '16176', is_loading: false, time_field: 'time' },
+    indexFieldInfo: { field_scope: '900101', is_loading: false, time_field: 'time' },
     indexSetQueryResult: {
       row_keys: [],
       row_query_key: '',
