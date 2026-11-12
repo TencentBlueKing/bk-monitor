@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -32,7 +34,7 @@ import { uniqueId } from 'lodash-es';
 
 import ValidateUserSelector from '@/shared/ui/user-selector/index';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.tsx';
@@ -83,7 +85,7 @@ export default defineComponent({
   emits: ['handleUpdatedTable', 'handleCancelSlider'],
 
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
 
     const isChangeOperatorLoading = ref(false); // 修改执行人加载状态
@@ -181,7 +183,7 @@ export default defineComponent({
 
     // 修改执行人
     const changeOperator = async () => {
-      const { operator } = store.state.userMeta;
+      const { operator } = store.userMeta;
       if (operator) {
         manageStrategyData.value.operator = operator;
         isValidatedComputed();
@@ -191,7 +193,7 @@ export default defineComponent({
       try {
         isChangeOperatorLoading.value = true;
         const res = await ServicesInstance.userInfo.getUsername();
-        store.commit('updateState', { userMeta: res.data });
+        store.updateState({ userMeta: res.data });
         manageStrategyData.value.operator = res.data.operator;
         isValidatedComputed();
       } catch (e) {

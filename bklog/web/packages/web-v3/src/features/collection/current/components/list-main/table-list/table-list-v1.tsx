@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { includesValue } from '@/shared/utils/typed-record';
@@ -32,7 +34,7 @@ import type { Canceler } from 'axios';
 import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed, type PropType } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import * as authorityMap from '@/shared/lib/authority-map';
 import tippy, { type Instance } from 'tippy.js';
 import { tenantManager, UserInfoLoadedEventData } from '@/features/retrieval/core/tenant-manager';
@@ -210,7 +212,7 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
     const route = useRoute();
     const showStopTypeDialog = ref(false);
@@ -1956,7 +1958,7 @@ export default defineComponent({
       return hasSearch || hasFilter;
     });
 
-    const collectProject = computed(() => projectManages(store.state.topMenu, 'collection-item'));
+    const collectProject = computed(() => projectManages(store.topMenu, 'collection-item'));
 
     /**
      * 处理空状态操作
@@ -2003,7 +2005,7 @@ export default defineComponent({
               }}
             >
               <TButton
-                
+
                 theme='primary'
                 v-cursor={{ active: isAllowedCreate }}
                 disabled={!collectProject.value || isLoading.value || isAllowedCreate === null}

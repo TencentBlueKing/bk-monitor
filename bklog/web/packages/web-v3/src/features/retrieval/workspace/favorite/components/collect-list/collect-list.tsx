@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton, Dialog as TDialog, Loading as TLoading } from 'tdesign-vue-next';
 import { asDictionary } from '@/shared/utils/typed-record';
 
@@ -32,7 +34,7 @@ import { defineComponent, ref, watch, computed, onUnmounted } from 'vue';
 import BklogPopover from '@/shared/ui/bklog-popover/index';
 import { useDialogVisible } from '@/shared/global/overlay/index';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { utcFormatDate } from '../../../../../../shared/lib/util';
 import { useFavorite } from '../../hooks/use-favorite';
@@ -67,7 +69,7 @@ export default defineComponent({
   emits: ['refresh', 'select-item', 'selectItem'],
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const expandedMap = ref({});
     /** 当前选中的收藏 */
     const selectedId = ref<(number | undefined) | null>(null);
@@ -160,7 +162,7 @@ export default defineComponent({
     });
 
     // 用户信息
-    const userMeta = computed(() => store.state.userMeta);
+    const userMeta = computed(() => store.userMeta);
     // 去掉个人收藏的组列表
     const unPrivateGroupList = computed(() => props.list.filter((g) => g.group_type !== 'private'));
 

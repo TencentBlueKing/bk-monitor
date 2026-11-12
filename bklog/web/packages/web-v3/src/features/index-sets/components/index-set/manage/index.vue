@@ -72,13 +72,18 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { ServicesInstance } from '@/platform/services';
 
   import BasicTab from '@/shared/ui/basic-tab/index';
   import AuthContainerPage from '@/shared/ui/common/auth-container-page';
   import UsageDetails from '@/features/index-sets/components/usage-details/index';
   import FieldInfo from '@/features/index-sets/log-collection/collection-item/manage-collection/field-info.tsx';
-  import { mapState } from '@/app/state/map-helpers';
+
 
   import * as authorityMap from '../../../../../shared/lib/authority-map';
   import BasicInfo from './basic-info';
@@ -107,7 +112,7 @@
       };
     },
     computed: {
-      ...mapState('collect', ['curIndexSet', 'scenarioMap']),
+      ...mapPiniaState(useCollectionStore, ['curIndexSet', 'scenarioMap']),
       dynamicComponent() {
         const componentMaP = {
           basicInfo: 'BasicInfo',
@@ -134,7 +139,7 @@
               },
             ],
           };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
+          const res = await useApplicationStore().checkAndGetData(paramData);
           if (res.isAllowed === false) {
             this.authPageInfo = res.data;
             // 显示无权限页面
@@ -156,7 +161,7 @@
               index_set_id: indexSetId,
             },
           });
-          this.$store.commit('collect/updateCurIndexSet', indexSetData);
+          useCollectionStore().updateCurIndexSet(indexSetData);
         }
       },
       // 数据源(场景)映射关系
@@ -167,7 +172,7 @@
           data.forEach(item => {
             map[item.scenario_id] = item.scenario_name;
           });
-          this.$store.commit('collect/updateScenarioMap', map);
+          useCollectionStore().updateScenarioMap(map);
         }
       },
       handleGoSearch() {
@@ -180,8 +185,8 @@
           name: 'retrieve',
           params,
           query: {
-            spaceUid: this.$store.state.spaceUid,
-            bizId: this.$store.state.bkBizId,
+            spaceUid: useApplicationStore().spaceUid,
+            bizId: useApplicationStore().bkBizId,
           },
         });
       },

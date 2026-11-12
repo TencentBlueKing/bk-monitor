@@ -30,6 +30,7 @@ import { getAllSceneFieldOpKeys } from '@/store/scene-filter-config';
 import { ConditionOperator } from './condition-operator';
 import { isEmptyFilterValue } from './helper';
 import { BK_LOG_STORAGE } from './store.type';
+import { markBranch, summarizePayload } from '@/common/analyze-trace';
 
 import type { Route } from 'vue-router';
 
@@ -83,7 +84,7 @@ class RouteUrlResolver {
    * 将URL参数解析为store里面缓存的数据结构
    */
   public convertQueryToStore<T>(): T {
-    return this.resolveFieldList.reduce((output, key) => {
+    const resolved = this.resolveFieldList.reduce((output, key) => {
       let value;
       try {
         value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
@@ -105,6 +106,9 @@ class RouteUrlResolver {
 
       return output;
     }, {}) as T;
+
+    markBranch('RouteUrlResolver.convertQueryToStore', summarizePayload(resolved));
+    return resolved;
   }
 
   /**

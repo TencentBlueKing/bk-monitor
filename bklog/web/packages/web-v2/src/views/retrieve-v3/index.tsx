@@ -40,6 +40,7 @@ import V3Toolbar from './toolbar';
 import useAppInit from './use-app-init';
 import { resolveSceneEmptyView } from './scene-empty-view';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import { markBranch } from '@/common/analyze-trace';
 
 import './global-en.scss';
 import './index.scss';
@@ -97,15 +98,21 @@ export default defineComponent({
     // 字段列表已请求完成但返回为空
     const isFieldListEmpty = computed(() => isFieldListFetched.value && store.getters.rawFieldList.length === 0);
 
-    const sceneEmptyView = computed(() =>
-      resolveSceneEmptyView({
+    const sceneEmptyView = computed(() => {
+      const view = resolveSceneEmptyView({
         isSceneMode: isSceneMode.value,
         isSceneFilterEmpty: isSceneFilterEmpty.value,
         isFieldListFetched: isFieldListFetched.value,
         isFieldListEmpty: isFieldListEmpty.value,
         isSceneLoading: isSceneLoading.value,
-      }),
-    );
+      });
+      markBranch('RetrieveV3.resolveSceneEmptyView', {
+        isSceneMode: isSceneMode.value,
+        isFieldListFetched: isFieldListFetched.value,
+        hideSearchResult: view.hideSearchResult,
+      });
+      return view;
+    });
 
     // 场景化模式下：未过滤 / 字段未就绪 / 字段为空时隐藏检索结果（含趋势图）
     const hideSearchResult = computed(() => sceneEmptyView.value.hideSearchResult);

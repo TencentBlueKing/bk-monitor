@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { updateLastSelectedIndexId } from '@/shared/lib/util';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
-import useStore from '@/shared/composables/use-store';
+
 import useRouter from '@/shared/composables/use-router';
 
 export interface SearchCondition {
@@ -40,7 +42,7 @@ export interface SearchCondition {
  * 用于统一处理表格中的检索跳转逻辑
  */
 export const useSearchTask = () => {
-  const store = useStore();
+  const store = useApplicationStore();
   const router = useRouter();
 
   /**
@@ -51,14 +53,14 @@ export const useSearchTask = () => {
    */
   const searchTask = (indexSetId: string, conditions: SearchCondition[], timeRange?: [string, string]) => {
     // 更新最后选择的索引集ID
-    updateLastSelectedIndexId(store.state.spaceUid, indexSetId);
+    updateLastSelectedIndexId(store.spaceUid, indexSetId);
 
     // 设置搜索类型为UI模式
-    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
+    store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
 
     // 构建查询参数
     const queryParams: any = {
-      spaceUid: store.state.spaceUid,
+      spaceUid: store.spaceUid,
       search_mode: 'ui',
       addition: JSON.stringify(conditions),
     };

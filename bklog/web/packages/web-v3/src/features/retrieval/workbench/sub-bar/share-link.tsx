@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { Input as TInput } from 'tdesign-vue-next';
 
 import { Radio as TRadio } from 'tdesign-vue-next';
@@ -41,22 +46,22 @@ import BklogPopover from '@/shared/ui/bklog-popover/index';
 import { TimeRangeType } from '@/shared/ui/time-range/time-range';
 import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import dayjs from 'dayjs';
 import { useRoute } from 'vue-router';
 
 import './share-link.scss';
 export default defineComponent({
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const { t } = useLocale();
 
-    const timezone = computed(() => store.state.indexItem.timezone);
-    const timeRange = computed(() => store.state.indexItem.datePickerValue);
-    const format = computed(() => store.getters.retrieveParams.format);
-    const startTime = computed(() => store.getters.retrieveParams.start_time);
-    const endTime = computed(() => store.getters.retrieveParams.end_time);
+    const timezone = computed(() => store.indexItem.timezone);
+    const timeRange = computed(() => store.indexItem.datePickerValue);
+    const format = computed(() => store.retrieveParams.format);
+    const startTime = computed(() => store.retrieveParams.start_time);
+    const endTime = computed(() => store.retrieveParams.end_time);
 
     const expireTime = ref('1m');
     const expireTimeList = ref([
@@ -67,8 +72,8 @@ export default defineComponent({
     const link = ref('');
 
     const formatTimeRange: Ref<TimeRangeType> = ref([
-      store.getters.retrieveParams.start_time,
-      store.getters.retrieveParams.end_time,
+      store.retrieveParams.start_time,
+      store.retrieveParams.end_time,
     ]);
     const timeValueType = ref('static');
     let isDatePickerChange = false;
@@ -137,14 +142,14 @@ export default defineComponent({
           },
         },
         store: {
-          storage: store.state.storage,
+          storage: store.storage,
           indexItem: {
-            ...store.state.indexItem,
+            ...store.indexItem,
             items: [],
             datePickerValue: formatTimeRange.value,
           },
 
-          catchFieldCustomConfig: store.state.retrieve.catchFieldCustomConfig,
+          catchFieldCustomConfig: useRetrieveStore().$state.catchFieldCustomConfig,
         },
       };
 
@@ -158,7 +163,7 @@ export default defineComponent({
             end_time: result[1],
             timezone: timezone.value,
             default_time_range: timeRange.value,
-            space_uid: store.state.spaceUid,
+            space_uid: store.spaceUid,
             data: params,
           },
         })

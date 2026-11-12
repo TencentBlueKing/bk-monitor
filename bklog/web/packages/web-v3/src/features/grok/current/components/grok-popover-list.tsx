@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { computed, defineComponent, nextTick, ref, watch } from 'vue';
@@ -31,7 +33,7 @@ import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
 import { getOsCommandLabel } from '@/shared/lib/util';
 import { t } from '@/shared/composables/use-locale';
-import store from '@/app/state/index';
+
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import ItemSkeleton from '@/app/skeleton/item-skeleton';
 
@@ -118,7 +120,7 @@ export default defineComponent({
       try {
         const params = {
           query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+            bk_biz_id: useApplicationStore().storage[BK_LOG_STORAGE.BK_BIZ_ID],
             page: page.value,
             pagesize,
             ...(searchKeyword.value && { keyword: searchKeyword.value }),

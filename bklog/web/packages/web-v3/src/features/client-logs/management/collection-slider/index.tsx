@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
@@ -31,7 +33,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, watch } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
@@ -61,7 +63,7 @@ export default defineComponent({
   },
   emits: ['cancel-slider', 'updated-table', "updatedTable", "cancelSlider"],
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
 
     const confirmLoading = ref(false); // 确认按钮加载状态
     const formData = ref({
@@ -118,7 +120,7 @@ export default defineComponent({
         confirmLoading.value = true;
 
         const postData = {
-          bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+          bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
           task_name: formData.value.task_name,
           openid: formData.value.openid,
           scene: formData.value.scene,

@@ -24,6 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
+import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -31,7 +37,7 @@ import { defineComponent, ref, computed } from 'vue';
 
 import { xssFilter } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import BkUserSelector from '@blueking/user-selector';
 
 
@@ -50,7 +56,7 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
 
     const isShowDialog = ref(false);
@@ -59,8 +65,8 @@ export default defineComponent({
     const chatName = ref(''); // 群聊名称
     const userApi = (window as any).BK_LOGIN_URL;
 
-    const userMeta = computed(() => store.state.userMeta);
-    const globalsData = computed(() => store.getters['globals/globalsData']);
+    const userMeta = computed(() => store.userMeta);
+    const globalsData = computed(() => useGlobalsStore().globalsData);
     const esSourceList = computed(() => globalsData.value.es_source_type || []);
     const customTypeIntro = computed(() => filterSourceShow(esSourceList.value) || []);
 
@@ -86,7 +92,7 @@ export default defineComponent({
       isShowDialog.value = true;
       chatName.value = adminList.chat_name;
       formDataAdmin.value = adminList.users.concat([userMeta.value.username]);
-      baseAdmin.value = structuredClone(formDataAdmin.value);
+      baseAdmin.value = cloneReactiveData(formDataAdmin.value);
     };
 
     const handleSubmitQWGroup = async () => {
@@ -168,7 +174,7 @@ export default defineComponent({
                       <TButton
                         key={`${sIndex}-${sItem}`}
                         class='wx-button'
-                        
+
                         size='small'
                         theme='primary'
                         onClick={() => handleCreateAGroup(sItem)} variant={(true) ? 'outline' : 'base'}

@@ -666,7 +666,7 @@ export default defineComponent({
               </span>
             ))}
           </span>
-          <TButton onClick={() => containerRetry()}>{t('失败批量重试')}</TButton>
+          <TButton theme='default' variant='outline' onClick={() => containerRetry()}>{t('失败批量重试')}</TButton>
         </div>
         <div class='container-table-section'>
           {containerRenderList.value.map((renderItem, renderIndex) => (

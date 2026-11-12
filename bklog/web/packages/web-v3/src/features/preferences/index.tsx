@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, type PropType } from 'vue';
 
 import { Dialog } from 'tdesign-vue-next';
@@ -54,10 +56,10 @@ menuList: { type: Array as PropType<IMenuItem[]>, default: () => [] },
 activeMenu: { type: String, default: '' }},
 emits: ['change', 'menu-change', "menuChange"],
 computed: {showAlert() {
-    return this.$store.state.showAlert;
+    return useApplicationStore().showAlert;
   }},
 methods: {handleCloseDialog() {
-    this.$store.commit('updateState', { isShowGlobalDialog: false });
+    useApplicationStore().updateState({ isShowGlobalDialog: false });
   },
 getContentPanel(activeMenu: string) {
     switch (activeMenu) {

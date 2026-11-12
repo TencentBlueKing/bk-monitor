@@ -52,7 +52,9 @@
 </template>
 
 <script>
-  import { ServicesInstance } from '@/platform/services';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import ContextLog from '@/features/retrieval/workspace/search-result/original-log/context-log/index.tsx';
   import RealTimeLog from '@/features/retrieval/workspace/search-result/original-log/real-time-log/index';
@@ -88,7 +90,7 @@
     },
     computed: {
       isExternal() {
-        return !this.$store.getters.isAiAssistantActive;
+        return !useApplicationStore().isAiAssistantActive;
       },
     },
     beforeUnmount() {
@@ -147,8 +149,8 @@
       handleClickTools(event, row, config, index, rowKey) {
         if (event === 'ai') {
           RetrieveHelper.aiAssitantHelper.openAiAssitant(true, {
-            space_uid: this.$store.getters.spaceUid,
-            index_set_id: this.$store.getters.indexId,
+            space_uid: useApplicationStore().spaceUid,
+            index_set_id: useApplicationStore().indexId,
             log: row,
             index,
           });
@@ -165,7 +167,7 @@
           this.targetFields = targetFields ?? [];
           this.openLogDialog(event, rowKey || '');
         } else if (event === 'webConsole') this.openWebConsole(row);
-        else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
+        else if (event === 'logSource') useApplicationStore().changeShowUnionSource();
       },
       handleDialogClosed(type) {
         // Ignore a previous dialog's leave callback after another mode opened.

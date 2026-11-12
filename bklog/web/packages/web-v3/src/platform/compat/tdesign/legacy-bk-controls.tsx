@@ -2,6 +2,7 @@ import {
   defineComponent,
   getCurrentInstance,
   h,
+  onBeforeUnmount,
   ref,
   watch,
   type App,
@@ -22,6 +23,7 @@ import {
   Form,
   FormItem,
   Input,
+  InputAdornment,
   Pagination,
   Popconfirm,
   Popup,
@@ -171,7 +173,7 @@ const BkTable = defineComponent({
         const minWidth = attr(propsOf, 'minWidth', 'min-width');
         const filters = attr(propsOf, 'filters') as { text?: string; label?: string; value: unknown }[] | undefined;
         const multiple = attr(propsOf, 'filterMultiple', 'filter-multiple') !== false;
-        const renderHeader = attr(propsOf, 'renderHeader') as ((...args: unknown[]) => unknown) | undefined;
+        const renderHeader = attr(propsOf, 'renderHeader', 'render-header') as ((...args: unknown[]) => unknown) | undefined;
         if (type === 'selection') {
           return [{ colKey: 'row-select', type: 'multiple', width: width || 50 }];
         }
@@ -283,17 +285,27 @@ const BkInput = defineComponent({
         onFocus: () => emit('focus'),
       };
       if (props.type === 'textarea') return h(Textarea, shared, slots);
-      return h(Input, {
+      const hasAdornment = Boolean(slots.prepend || slots.append);
+      const input = h(Input, {
         ...shared,
+        class: hasAdornment ? undefined : attrs.class,
+        style: hasAdornment ? { flex: 1, minWidth: 0 } : attrs.style,
         type: props.type === 'number' ? 'number' : 'text',
       }, {
-        prefix: slots.prepend,
         suffix: () => [
-          slots.append?.(),
           props.rightIcon
             ? h('i', { class: props.rightIcon, onClick: () => emit('right-icon-click') })
             : null,
         ],
+      });
+      if (!hasAdornment) return input;
+      const renderAdornment = (name: 'prepend' | 'append') => slots[name]
+        ? () => h('span', { class: 't-input-adornment__text' }, slots[name]?.())
+        : undefined;
+      return h(InputAdornment, { class: ['bk-input-adornment', attrs.class], style: attrs.style }, {
+        default: () => input,
+        prepend: renderAdornment('prepend'),
+        append: renderAdornment('append'),
       });
     };
   },
@@ -521,13 +533,15 @@ function ensureResizeLayoutStyle() {
 .bk-resize-layout-main{flex:1 1 auto;min-width:0;min-height:0;overflow:hidden}
 .bk-resize-layout-aside{position:relative;flex:none;min-width:0;min-height:0;overflow:hidden;background:#fff}
 .bk-resize-layout-aside-content{width:100%;height:100%;min-height:0;overflow:auto}
-.bk-resize-collapse{position:absolute;z-index: var(--bklog-z-local);background:#dcdee5}
-.bk-resize-layout.is-bottom .bk-resize-collapse,.bk-resize-layout.is-top .bk-resize-collapse{left:0;right:0;height:4px;cursor:row-resize}
-.bk-resize-layout.is-bottom .bk-resize-collapse{top:0}
-.bk-resize-layout.is-top .bk-resize-collapse{bottom:0}
-.bk-resize-layout.is-left .bk-resize-collapse,.bk-resize-layout.is-right .bk-resize-collapse{top:0;bottom:0;width:4px;cursor:col-resize}
-.bk-resize-layout.is-left .bk-resize-collapse{right:0}
-.bk-resize-layout.is-right .bk-resize-collapse{left:0}
+.bk-resize-trigger{position:absolute;z-index:var(--bklog-z-local);background:transparent}
+.bk-resize-layout.is-bottom .bk-resize-trigger,.bk-resize-layout.is-top .bk-resize-trigger{left:0;right:0;height:5px;cursor:row-resize}
+.bk-resize-layout.is-bottom .bk-resize-trigger{top:0}
+.bk-resize-layout.is-top .bk-resize-trigger{bottom:0}
+.bk-resize-layout.is-left .bk-resize-trigger,.bk-resize-layout.is-right .bk-resize-trigger{top:0;bottom:0;width:5px;cursor:col-resize}
+.bk-resize-layout.is-left .bk-resize-trigger{right:0}
+.bk-resize-layout.is-right .bk-resize-trigger{left:0}
+.bk-resize-layout.is-vertical .bk-resize-trigger:hover,.bk-resize-layout.is-vertical .bk-resize-trigger.is-dragging{background-image:linear-gradient(to bottom,transparent 2px,#3a84ff 2px,#3a84ff 4px,transparent 4px)}
+.bk-resize-layout.is-horizontal .bk-resize-trigger:hover,.bk-resize-layout.is-horizontal .bk-resize-trigger.is-dragging{background-image:linear-gradient(to right,transparent 2px,#3a84ff 2px,#3a84ff 4px,transparent 4px)}
 `;
   document.head.appendChild(style);
 }
@@ -547,6 +561,9 @@ const BkResizeLayout = defineComponent({
   setup(props, { attrs, slots }) {
     ensureResizeLayoutStyle();
     const size = ref(Number(props.initialDivide) || 0);
+    const isDragging = ref(false);
+    let stopDrag: (() => void) | undefined;
+    onBeforeUnmount(() => stopDrag?.());
     watch(
       () => props.initialDivide,
       value => {
@@ -565,7 +582,9 @@ const BkResizeLayout = defineComponent({
     };
 
     const onPointerDown = (event: PointerEvent) => {
+      stopDrag?.();
       event.preventDefault();
+      isDragging.value = true;
       const vertical = props.placement === 'top' || props.placement === 'bottom';
       const start = vertical ? event.clientY : event.clientX;
       const startSize = size.value;
@@ -577,9 +596,14 @@ const BkResizeLayout = defineComponent({
       const up = () => {
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        isDragging.value = false;
+        stopDrag = undefined;
       };
+      stopDrag = up;
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
     };
 
     return () => {
@@ -589,7 +613,7 @@ const BkResizeLayout = defineComponent({
         ? { height: `${size.value}px`, width: '100%' }
         : { width: `${size.value}px`, height: '100%' };
       const aside = h('div', { class: 'bk-resize-layout-aside', style: asideStyle }, [
-        h('div', { class: 'bk-resize-collapse', onPointerdown: onPointerDown }),
+        h('div', { class: ['bk-resize-trigger', { 'is-dragging': isDragging.value }], onPointerdown: onPointerDown }),
         h('div', { class: 'bk-resize-layout-aside-content' }, slots.aside?.()),
       ]);
       const main = h('div', { class: 'bk-resize-layout-main' }, slots.main?.());

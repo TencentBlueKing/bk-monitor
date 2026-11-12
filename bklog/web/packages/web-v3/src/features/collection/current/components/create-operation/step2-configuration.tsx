@@ -23,6 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
+
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
 
 import { CheckboxGroup as TCheckboxGroup, Checkbox as TCheckbox, RadioGroup as TRadioGroup, Radio as TRadio, Select as TSelect } from 'tdesign-vue-next';
 
@@ -33,7 +39,7 @@ import { computed, defineComponent, onMounted, ref, onBeforeMount, nextTick } fr
 
 import LogIpSelector, { toTransformNode, toSelectorNode, ITarget, type INodeType } from '@/features/collection/ip-selector/log-ip-selector'; // 日志IP选择器组件
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute } from 'vue-router';
 
 import { useCollectList } from '../../hook/useCollectList'; // 收集列表相关功能
@@ -145,7 +151,7 @@ export default defineComponent({
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const { bkBizId, goListPage } = useCollectList();
     const { cardRender } = useOperation();
@@ -244,7 +250,7 @@ export default defineComponent({
       }, {});
     const isClone = computed(() => route.query.type === 'clone');
     // 获取全局数据
-    const globalsData = computed(() => store.getters['globals/globalsData']);
+    const globalsData = computed(() => useGlobalsStore().globalsData);
     const environment = computed(() => {
       if (showClusterListKeys.includes(props.scenarioId)) {
         return 'container';
@@ -668,7 +674,9 @@ export default defineComponent({
         index_set_name: collectorConfigName,
         extra_labels: detailData.extra_labels?.length
           ? detailData.extra_labels
-          : [{ key: '', value: '', operator: '=' }],
+          : isHostLog.value
+            ? []
+            : [{ key: '', value: '', operator: '=' }],
       };
       /**
        * 克隆的时候数据处理
@@ -745,7 +753,7 @@ export default defineComponent({
         initConfig(res.data);
         emit('detail', res.data);
         // 更新 store 中的当前采集配置
-        store.commit('collect/setCurCollect', res.data);
+        useCollectionStore().setCurCollect(res.data);
         await nextTick();
         isConfigChange.value = false;
       } catch (err) {
@@ -902,7 +910,7 @@ export default defineComponent({
           <div class='label-form-box'>
             <span class='label-title'>{t('采集目标')}</span>
             <div class='form-box'>
-              <TButton
+              <TButton theme='default' variant='outline'
                 class={{
                   'target-btn': true,
                   error: isTargetNodesEmpty.value,
@@ -1112,7 +1120,7 @@ export default defineComponent({
     /** 链路配置 */
     const renderLinkConfig = () => (
       <div class='link-config label-form-box'>
-        <span class='label-title'>{t('上报链路')}</span>
+        <span class='label-title no-require'>{t('上报链路')}</span>
         <TSelect
           class='form-box'
           clearable={false}
@@ -1475,7 +1483,7 @@ export default defineComponent({
             ...formData.value,
             ...res.data,
           };
-          store.commit(`collect/${isUpdate.value ? 'updateCurCollect' : 'setCurCollect'}`, newConfig);
+          useCollectionStore()[isUpdate.value ? 'updateCurCollect' : 'setCurCollect'](newConfig);
           res.result && showMessage(t('保存成功'));
           // 根据 action 参数决定执行不同操作
           if (action === 'saveOnly') {

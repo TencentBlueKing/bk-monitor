@@ -25,6 +25,8 @@
  */
 import { defineComponent, ref, computed, watch, type PropType } from 'vue';
 
+import {Dialog as TDialog, Table as TTable} from 'tdesign-vue-next';
+
 import useLocale from '@/shared/composables/use-locale';
 
 interface NodeItem {
@@ -93,36 +95,32 @@ export default defineComponent({
     };
 
     return () => (
-      <bk-dialog
+      <TDialog
         width={840}
-        header-position='left'
-        show-footer={false}
-        title={title.value}
-        value={props.value}
-        onValueChange={handleVisibilityChange}
+        header={title.value}
+        visible={props.value}
+        footer={false}
+        closeOnEscKeydown
+        closeOnOverlayClick
+        attach='body'
+        dialogClassName='bklog-cluster-nodes-dialog'
+        onClose={() => handleVisibilityChange(false)}
       >
         <div style='min-height: 200px; padding-bottom: 20px'>
           {props.value && (
-            <bk-table
+            <TTable
+              rowKey='id'
               data={filterList.value}
-              max-height={320}
-            >
-              <bk-table-column
-                label='ID'
-                prop='id'
-              />
-              <bk-table-column
-                label='Name'
-                prop='name'
-              />
-              <bk-table-column
-                label='Host'
-                prop='host'
-              />
-            </bk-table>
+              maxHeight={320}
+              columns={[
+                {title: 'ID', colKey: 'id'},
+                {title: 'Name', colKey: 'name'},
+                {title: 'Host', colKey: 'host'},
+              ]}
+            />
           )}
         </div>
-      </bk-dialog>
+      </TDialog>
     );
   },
 });

@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as Alert, Tag as Tag } from 'tdesign-vue-next';
 
 import { Switch as Switcher } from 'tdesign-vue-next';
@@ -257,11 +259,11 @@ export default class MaskingSetting extends tsc<IProps> {
   };
 
   get spaceUid() {
-    return this.$store.state.spaceUid;
+    return useApplicationStore().spaceUid;
   }
 
   get getTableWidth() {
-    return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
+    return useApplicationStore().isEnLanguage ? this.enTableWidth : this.cnTableWidth;
   }
 
   get authorityData() {
@@ -288,7 +290,7 @@ export default class MaskingSetting extends tsc<IProps> {
     try {
       this.tableLoading = true;
       const params = { space_uid: this.spaceUid, rule_type: this.isPublicList ? 'public' : 'all' }; // 非全局列表 传业务id
-      const authorityRes = await this.$store.dispatch('checkAndGetData', this.authorityData);
+      const authorityRes = await useApplicationStore().checkAndGetData(this.authorityData);
       this.isAllowed = authorityRes.isAllowed;
       const res = await ServicesInstance.masking.getMaskingRuleList({
         params,
@@ -581,8 +583,8 @@ export default class MaskingSetting extends tsc<IProps> {
   /** 申请权限 */
   async getOptionApplyData() {
     try {
-      const res = await this.$store.dispatch('getApplyData', this.authorityData);
-      this.$store.commit('updateState', { authDialogData: res.data });
+      const res = await useApplicationStore().getApplyData(this.authorityData);
+      useApplicationStore().updateState({ authDialogData: res.data });
     } catch (err) {
       console.warn(err);
     }
@@ -661,7 +663,7 @@ export default class MaskingSetting extends tsc<IProps> {
     const accessItemSlot = {
       default: ({ row }: { row: MaskingRuleRow }) => (
         <Button
-          
+
           onClick={() => this.handleClickAccess(row)} variant={(true) ? 'text' : ('base')}
         >
           {row.accessNum}
@@ -680,7 +682,7 @@ export default class MaskingSetting extends tsc<IProps> {
             disabled={this.isDisabledClick(row)}
             beforeChange={() => false}
             size='small'
-            
+
           />
         </div>
       ),
@@ -692,7 +694,7 @@ export default class MaskingSetting extends tsc<IProps> {
           <Button
             v-cursor={{ active: !this.isAllowed }}
             disabled={this.isDisabledClick(row)}
-            
+
             onClick={() => this.handleEditRule(row)} variant={(true) ? 'text' : ('base')}
           >
             {this.$t('编辑')}
@@ -700,7 +702,7 @@ export default class MaskingSetting extends tsc<IProps> {
           <Button
             v-cursor={{ active: !this.isAllowed }}
             disabled={this.isDisabledClick(row)}
-            
+
             onClick={() => this.handleDeleteRule(row)} variant={(true) ? 'text' : ('base')}
           >
             {this.$t('删除')}
@@ -735,7 +737,7 @@ export default class MaskingSetting extends tsc<IProps> {
           v-slots={{
             default: ({ row }: import("@/shared/types/table-row-scope").TableRowScope<typeof this.stopOrStartAccessValue.accessInfo>) => (
               <Button
-                
+
                 onClick={() => this.handleJumpAccess(row)} variant={(true) ? 'text' : ('base')}
               >
                 {row.ids.length}

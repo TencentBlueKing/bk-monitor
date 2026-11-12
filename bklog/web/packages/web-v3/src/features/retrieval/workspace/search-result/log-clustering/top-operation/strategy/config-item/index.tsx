@@ -28,8 +28,8 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 
-import type { CreateElement } from '@legacy-vue';
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, h, ref } from 'vue';
+import { Popup as TPopup } from 'tdesign-vue-next';
 import useLocale from '@/shared/composables/use-locale';
 import EditStrategy from '../edit-strategy/index';
 
@@ -79,8 +79,6 @@ export default defineComponent({
     const isEdit = ref(false);
 
     const isNewClass = computed(() => props.type === StrategyType.NEW_CLASS);
-
-    let h: CreateElement;
 
     const handleEditStrategy = () => {
       isEdit.value = true;
@@ -175,8 +173,7 @@ export default defineComponent({
       isShowDialog.value = true;
     };
 
-    return (hFunc: CreateElement) => {
-      h = hFunc;
+    return () => {
       return (
         <div class='strategy-operate-main'>
           <div class='icon-wraper'>
@@ -188,9 +185,9 @@ export default defineComponent({
           ) : (
             <span class='not-config'>{t('未配置')}</span>
           )}
-          <bk-dropdown-menu
+          <TPopup
             v-slots={{
-              'dropdown-trigger': () => (
+              default: () => (
                 <div>
                   <div class='more-icon-wraper'>
                     <log-icon
@@ -200,9 +197,9 @@ export default defineComponent({
                   </div>
                 </div>
               ),
-              'dropdown-content': () => (
+              content: () => (
                 <div>
-                  <div class={['dropdown-list', { 'is-not-config': !props.configured }]}>
+                  <div class={['clustering-strategy-operation-menu', { 'is-not-config': !props.configured }]}>
                     {props.configured ? (
                       operationList.map(item => (
                         <div
@@ -233,8 +230,11 @@ export default defineComponent({
                 </div>
               ),
             }}
-            align='right'
-          ></bk-dropdown-menu>
+            trigger='hover'
+            placement='bottom-right'
+            showArrow={false}
+            overlayClassName='clustering-strategy-operation-popup'
+          ></TPopup>
           <edit-strategy
             type={props.type}
             isShow={isShowDialog.value}

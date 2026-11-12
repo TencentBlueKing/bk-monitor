@@ -1,11 +1,13 @@
 /* Copyright (C) 2021 THL A29 Limited, a Tencent company.
  * 蓝鲸智云PaaS平台 (BlueKing PaaS), MIT License. */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed } from 'vue';
 import { parseTableRowData } from '@/shared/lib/util';
-import useStore from './use-store';
+
 export function useTableRowDeepView() {
-  const store = useStore();
-  const isFormatDate = computed(() => store.state.isFormatDate);
+  const store = useApplicationStore();
+  const isFormatDate = computed(() => store.isFormatDate);
   function tableRowDeepView(
     row: Parameters<typeof parseTableRowData>[0],
     key: Parameters<typeof parseTableRowData>[1],

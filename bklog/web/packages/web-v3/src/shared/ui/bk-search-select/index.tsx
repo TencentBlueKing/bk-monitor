@@ -324,7 +324,19 @@ export default defineComponent({
       updateInput(text);
       emit('menu-select', item, index);
       refreshMenu(text);
-      nextTick(() => inputRef.value?.focus());
+      nextTick(() => {
+        const element = inputRef.value;
+        if (!element) return;
+        element.focus();
+        // Replacing contenteditable text does not move its caret after the field prefix.
+        const selection = element.ownerDocument.getSelection();
+        if (!selection) return;
+        const range = element.ownerDocument.createRange();
+        range.selectNodeContents(element);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      });
     };
 
     const toggleCheck = (item: SearchRecord) => {
@@ -388,6 +400,10 @@ export default defineComponent({
       if (!input.value) showFieldMenu();
     };
 
+    const handleBlur = () => {
+      input.focus = false;
+    };
+
     const handleOutside = () => {
       menuVisible.value = false;
       input.focus = false;
@@ -395,7 +411,10 @@ export default defineComponent({
       emit('input-click-outside', { target: inputRef.value });
     };
 
-    const handleVisibleChange = (visible: boolean) => {
+    const handleVisibleChange = (visible: boolean, context?: { trigger?: string }) => {
+      // Focus opens the field menu before the same pointer click reaches Popup.
+      // Clicking within an editable search field must not toggle that menu closed.
+      if (!visible && context?.trigger === 'trigger-element-click') return;
       if (visible) {
         menuVisible.value = true;
         input.focus = true;
@@ -404,8 +423,10 @@ export default defineComponent({
       }
       if (closingBySelf) {
         closingBySelf = false;
-        menuVisible.value = false;
-        return;
+        if (!context?.trigger) {
+          menuVisible.value = false;
+          return;
+        }
       }
       handleOutside();
     };
@@ -506,6 +527,7 @@ export default defineComponent({
       handleInputChange,
       handleKeydown,
       handleFocus,
+      handleBlur,
       handleVisibleChange,
       handleClearAll,
       handleSearchClick,
@@ -537,6 +559,7 @@ export default defineComponent({
             <div
               class='search-input'
               style={{ maxHeight: `${maxHeight}px` }}
+              onClick={() => this.inputRef?.focus()}
             >
               {this.chips.map((item: SearchRecord, index: number) => (
                 <div
@@ -564,6 +587,7 @@ export default defineComponent({
                   data-placeholder={this.placeholder}
                   spellcheck='false'
                   onFocus={this.handleFocus}
+                  onBlur={this.handleBlur}
                   onInput={this.handleInputChange}
                   onKeydown={this.handleKeydown}
                 />

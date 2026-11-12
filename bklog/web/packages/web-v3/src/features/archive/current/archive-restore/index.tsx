@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -33,7 +35,7 @@ import * as authorityMap from '@/shared/lib/authority-map';
 import { formatFileSize } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import useUtils from '@/shared/composables/use-utils';
 
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
@@ -50,7 +52,7 @@ export default defineComponent({
     EmptyStatus,
   },
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
 
     const isTableLoading = ref(false); // 表格加载状态
@@ -70,7 +72,7 @@ export default defineComponent({
       limitList: [10, 20, 50, 100],
     });
 
-    const bkBizId = computed(() => store.getters.bkBizId); // 业务ID
+    const bkBizId = computed(() => store.bkBizId); // 业务ID
     const authorityMapComputed = computed(() => authorityMap); // 权限映射
 
     // 搜索处理
@@ -320,8 +322,8 @@ export default defineComponent({
     const getOptionApplyData = async (paramData: any) => {
       try {
         isTableLoading.value = true;
-        const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateState', { authDialogData: res.data });
+        const res = await store.getApplyData(paramData);
+        store.updateState({ authDialogData: res.data });
       } catch (err) {
         console.warn('权限申请失败:', err);
       } finally {
@@ -475,7 +477,7 @@ export default defineComponent({
                       }}
                       disabled={props.row.is_expired}
                       theme='primary'
-                      
+
                       onClick={() => operateHandler(props.row, 'search')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('检索')}
@@ -488,7 +490,7 @@ export default defineComponent({
                       }}
                       disabled={props.row.is_expired}
                       theme='primary'
-                      
+
                       onClick={() => operateHandler(props.row, 'edit')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('编辑')}
@@ -501,7 +503,7 @@ export default defineComponent({
                       }}
                       disabled={props.row.is_expired}
                       theme='primary'
-                      
+
                       onClick={() => operateHandler(props.row, 'delete')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('删除')}

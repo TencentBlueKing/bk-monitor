@@ -155,7 +155,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { debounce } from 'lodash-es';
   import { formatDate } from '@/shared/lib/util';
@@ -290,7 +292,7 @@
         this.emptyType = 'search-empty';
         ServicesInstance.extract.getExplorerList({
             data: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
               ip_list: ipList,
               path: path || this.fileOrPath,
               time_range: this.timeRange,
@@ -357,7 +359,7 @@
         this.emptyType = 'search-empty';
         ServicesInstance.extract.getExplorerList({
             data: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
               ip_list: findIpList,
               path,
               time_range: timeRange,

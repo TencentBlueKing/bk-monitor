@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { Checkbox as TCheckbox, RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
@@ -37,7 +39,7 @@ import { defineComponent, ref, computed, watch, nextTick, onBeforeUnmount } from
 import { formatDate } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import FileDatePicker from './file-date-picker.tsx';
 import FilesInput from './files-input.tsx';
@@ -57,7 +59,7 @@ export default defineComponent({
     ipSelectNewNameList: { type: Array, required: true },
   },
   setup(props, { emit, expose }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
     const isLoading = ref(false);
     const previewIp = ref<any[]>([]);
@@ -284,7 +286,7 @@ export default defineComponent({
       emptyType.value = 'search-empty';
       return ServicesInstance.extract.getExplorerList({
           data: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
             ip_list: getFindIpList(),
             path,
             time_range: timeRange.value,
@@ -353,7 +355,7 @@ export default defineComponent({
       emptyType.value = 'search-empty';
       return ServicesInstance.extract.getExplorerList({
           data: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
             ip_list: findIpList,
             path,
             time_range: timeRangeVal,
@@ -554,7 +556,7 @@ export default defineComponent({
                   <div class='parent-directory-row'>
                     <TButton
                       disabled={isLoading.value}
-                      
+
                       onClick={() => getExplorerList({ path: '../' })} variant={(true) ? 'text' : ('base')}
                     >
                       ../
@@ -617,7 +619,7 @@ export default defineComponent({
             <strong>{t('已选预览')}</strong>
             <TButton
               disabled={!selectedFiles.value.length}
-              
+
               onClick={clearSelectedFiles} variant={(true) ? 'text' : ('base')}
             >
               {t('清空')}

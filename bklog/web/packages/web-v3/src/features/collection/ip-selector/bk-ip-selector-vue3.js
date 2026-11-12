@@ -130,7 +130,8 @@ export default options => {
         role: 'bk-ip-selector',
         ref: 'rootRef',
         style: {
-          height: 'inherit',
+          // Dialogs render outside normal flow; inheriting the page height creates an empty second viewport.
+          height: this.mode === 'dialog' ? 'auto' : 'inherit',
         },
       });
     },

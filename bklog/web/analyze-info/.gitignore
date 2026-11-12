@@ -1,0 +1,21 @@
+# Private migration evidence: local only, never publish to GitHub.
+# Match directory symlinks too (no trailing slash).
+/runs
+/scenarios
+/export-*.jsonl
+/export-*.md
+/spec/execution-state.json
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.har
+*.har.zip
+
+# Local response/capture directories created by ad-hoc verification.
+/captures
+/responses
+/screenshots
+/artifacts
+/.local

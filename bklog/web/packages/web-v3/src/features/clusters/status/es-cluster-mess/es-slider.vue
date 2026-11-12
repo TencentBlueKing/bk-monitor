@@ -583,6 +583,10 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { overlayRegistry } from '@/shared/global/overlay/overlay-registry';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -591,7 +595,7 @@ import { ServicesInstance } from '@/platform/services';
   import { useSidebarDiff } from '@/shared/composables/use-sidebar-diff';
   import { useSpaceSelector } from '@/shared/composables/use-space-selector';
   import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
-  import { mapState, mapGetters } from '@/app/state/map-helpers';
+
   import BklogLoading from '@/shared/ui/loading';
   import ValidateUserSelector from '@/shared/ui/user-selector/index';
 
@@ -638,8 +642,8 @@ import { ServicesInstance } from '@/platform/services';
         configDocUrl: window.BK_HOT_WARM_CONFIG_URL,
         archiveDocUrl: window.BK_ARCHIVE_DOC_URL, // 日志归档跳转链接
         isItsm: isFeatureToggleOn('collect_itsm', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
+          String(useApplicationStore().bkBizId),
+          String(useApplicationStore().spaceUid),
         ]), // 容量评估全局参数
         confirmLoading: false,
         sliderLoading: false,
@@ -757,13 +761,13 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
-      ...mapState({
+      ...mapPiniaState(useApplicationStore, {
         mySpaceList: state => state.mySpaceList,
         userMeta: state => state.userMeta,
       }),
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
-        globalsData: 'globals/globalsData',
+        globalsData: state => state.globals.globalsData,
       }),
       isEdit() {
         return this.editClusterId !== null;
@@ -978,7 +982,7 @@ import { ServicesInstance } from '@/platform/services';
           (res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []).forEach(val => {
             const target = this.mySpaceList.find(project => project.bk_biz_id === String(val.bk_biz_id));
             if (target) {
-              this.$store.commit('patchMySpaceListItem', {
+              useApplicationStore().patchMySpaceListItem({
                 bkBizId: String(val.bk_biz_id),
                 patch: { is_use: val.is_use },
               });

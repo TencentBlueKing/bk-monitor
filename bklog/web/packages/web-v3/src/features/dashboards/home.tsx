@@ -24,16 +24,18 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { defineComponent } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import { useRoute, useRouter } from 'vue-router';
 
 export default defineComponent({
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const router = useRouter();
 
@@ -45,7 +47,7 @@ export default defineComponent({
 
     const handleBtnClick = (isNewTarget = true) => {
       if (isNewTarget) {
-        const target = `${window.MONITOR_URL}/?bizId=${store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID]}#/grafana?${getQueryString()}`;
+        const target = `${window.MONITOR_URL}/?bizId=${store.storage[BK_LOG_STORAGE.BK_BIZ_ID]}#/grafana?${getQueryString()}`;
         window.open(target, '_blank', 'noopener,noreferrer');
         return;
       }
@@ -53,7 +55,7 @@ export default defineComponent({
       router.push({
         name: 'default-dashboard',
         query: {
-          spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+          spaceUid: store.storage[BK_LOG_STORAGE.BK_SPACE_UID],
           ...(route.query ?? {}),
         },
       });
@@ -72,7 +74,7 @@ export default defineComponent({
           </TButton>
           <span style='padding: 0 8px;'></span>
           <TButton
-            
+
             onClick={() => handleBtnClick(false)} variant={(true) ? 'outline' : 'base'}
           >
             查看旧版

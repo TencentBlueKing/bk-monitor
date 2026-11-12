@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref, type Ref } from 'vue';
@@ -33,7 +35,7 @@ import useFieldAliasRequestParams from '@/shared/composables/use-field-alias-req
 import useLocale from '@/shared/composables/use-locale';
 import useResizeObserve from '@/shared/composables/use-resize-observe';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
-import useStore from '@/shared/composables/use-store';
+
 import { debounce } from 'lodash-es';
 import screenfull from 'screenfull';
 import { formatDialect, transactsql } from 'sql-formatter';
@@ -56,7 +58,7 @@ export default defineComponent({
   },
   emits: ['change', 'sql-change', 'error', 'sqlChange'],
   setup(props, { emit, expose }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const refRootElement = ref<HTMLElement>();
     const refSqlBox = ref<HTMLElement>();
     const refSqlPreviewElement = ref<HTMLElement>();
@@ -66,12 +68,12 @@ export default defineComponent({
     const sqlPreviewHeight = ref(0);
     const previewSqlContent = ref('');
 
-    const sqlContent = computed(() => store.state.indexItem.chart_params.sql);
+    const sqlContent = computed(() => store.indexItem.chart_params.sql);
 
     const isFullscreen = ref(false);
     const onValueChange = (value: any) => {
       if (value !== sqlContent.value) {
-        store.commit('updateChartParams', { sql: value });
+        store.updateChartParams({ sql: value });
         emit('sql-change', value);
       }
     };
@@ -79,11 +81,11 @@ export default defineComponent({
     const { editorInstance } = useEditor({ refRootElement, sqlContent, onValueChange });
     const { alias_settings } = useFieldAliasRequestParams();
 
-    const indexSetId = computed(() => store.state.indexId);
-    const retrieveParams = computed(() => store.getters.retrieveParams);
-    const requestAddition = computed(() => store.getters.requestAddition);
+    const indexSetId = computed(() => store.indexId);
+    const retrieveParams = computed(() => store.retrieveParams);
+    const requestAddition = computed(() => store.requestAddition);
     // eslint-disable-next-line camelcase
-    const filter_addition = computed(() => getCommonFilterAdditionWithValues(store.state));
+    const filter_addition = computed(() => getCommonFilterAdditionWithValues(store));
 
     let abortController: AbortController | null = null;
     let disposed = false;
@@ -127,7 +129,7 @@ export default defineComponent({
           trigger_source: 'graph_analysis',
           action: 'request',
         },
-        store.state,
+        store,
       );
 
       return requestBlob({

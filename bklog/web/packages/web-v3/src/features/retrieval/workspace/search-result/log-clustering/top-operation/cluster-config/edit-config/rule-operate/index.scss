@@ -9,6 +9,15 @@
     gap: 16px;
     align-items: center;
 
+    .t-radio {
+      margin-right: 0;
+      font-size: 12px;
+    }
+
+    .t-radio__label {
+      margin-left: 2px;
+      padding-left: 0;
+    }
   }
 
   .right-oprate-main {
@@ -62,5 +71,76 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
+  }
+}
+:root .t-popup.cluster-mode-switch-confirm {
+  .t-popconfirm__icon--default {
+    display: none;
+  }
+  .t-popconfirm__buttons {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .t-popconfirm__buttons .t-button.t-popconfirm__confirm {
+    order: 0;
+    margin: 0;
+    min-width: 80px;
+    padding: 0;
+  }
+  .t-popconfirm__buttons .t-button.t-popconfirm__cancel {
+    order: 1;
+    min-width: 58px;
+    padding: 0;
+  }
+  .switch-title {
+    font-size: 14px;
+    line-height: 22px;
+    color: #313238;
+  }
+  .switch-description {
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+  }
+}
+
+:root .t-popup.cluster-template-unbind-confirm {
+  .t-popup__content { padding: 0; }
+  .t-popconfirm__content {
+    padding: 16px;
+  }
+  .t-popconfirm__icon--default {
+    display: none;
+  }
+  .t-popconfirm__inner {
+    width: 100%;
+    max-width: none;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+  }
+  .warn-title {
+    line-height: 22px;
+  }
+  .t-popconfirm__buttons {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 0;
+  }
+  .t-popconfirm__buttons .t-button {
+    min-width: 56px;
+    padding: 0;
+  }
+  .t-popconfirm__confirm {
+    order: 0;
+    margin: 0;
+  }
+  .t-popconfirm__cancel {
+    order: 1;
   }
 }

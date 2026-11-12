@@ -24,23 +24,27 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, onMounted, ref } from 'vue';
 
 
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute, useRouter } from "vue-router";
 
 import './index.scss';
-import { SET_APP_STATE } from '@/app/state/index';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 
 export default defineComponent({
   setup() {
     const router = useRouter();
     const route = useRoute();
-    const store = useStore();
+    const store = useApplicationStore();
     const errorMessage = ref('正在解析地址, 请稍候 ...');
 
     const linkId = route.params.linkId as string;
@@ -57,14 +61,14 @@ export default defineComponent({
           if (resp.result) {
             const data = resp.data.data;
             const { storage, indexItem, catchFieldCustomConfig } = data.store;
-            store.commit('updateStorage', storage);
-            store.commit('updateIndexItem', indexItem);
-            store.commit(SET_APP_STATE, {
+            store.updateStorage(storage);
+            store.updateIndexItem(indexItem);
+            store.SET_APP_STATE({
               bkBizId: storage[BK_LOG_STORAGE.BK_BIZ_ID],
               spaceUid: storage[BK_LOG_STORAGE.BK_SPACE_UID],
             });
 
-            store.commit('retrieve/updateCatchFieldCustomConfig', catchFieldCustomConfig);
+            useRetrieveStore().updateCatchFieldCustomConfig(catchFieldCustomConfig);
             router.push({ ...data.route });
             return;
           }

@@ -1,73 +1,82 @@
-.filter-main {
-  .filter-select {
-    border: none;
-    outline: none;
-    box-shadow: none;
-  }
-
+.cluster-header-filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  margin-left: 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   .funnel-icon {
     font-size: 13px;
     color: #c4c6cc;
-    margin-left: 4px;
-    cursor: pointer;
-
-    &.is-funnel-active {
-      color: rgb(58, 132, 255);
-    }
+  }
+  .is-funnel-active {
+    color: #3a84ff;
+  }
+  &:focus-visible {
+    outline: 1px solid #3a84ff;
   }
 }
-
-.filter-select-ext-popover {
-  .is-selected {
-    background: #fff !important;
+.cluster-header-filter-content {
+  width: 150px;
+  min-width: 150px;
+  font-size: 12px;
+  .cluster-header-filter-search {
+    padding: 0 6px;
+    .t-input {
+      height: 32px;
+      padding: 0 6px;
+      border: 0;
+      border-bottom: 1px solid #dcdee5;
+      border-radius: 0;
+      box-shadow: none;
+      font-size: 12px;
+    }
+    .t-input__prefix-icon {
+      color: #c4c6cc;
+      font-size: 14px;
+    }
+    .t-input__inner {
+      min-width: 0;
+      font-size: 12px;
+    }
   }
-
-  .bk-options {
+  .cluster-header-filter-options {
+    max-height: 280px;
+    overflow: auto;
     padding-top: 10px;
   }
-
-  .bk-option {
-    margin: 0px !important;
-
-    .bk-option-content {
-      height: 16px;
-      padding: 0 10px !important;
-      margin-bottom: 10px;
-      background: #fff !important;
-      display: flex;
-      align-items: center;
-
-      .option-name {
-        color: #63656e;
-        margin-left: 6px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-    }
+  .t-checkbox {
+    gap: 0;
+    display: flex;
+    height: 16px;
+    padding: 0 10px;
+    margin: 0 0 10px;
   }
-
-  .bk-select-extension {
-    background: #fff;
-
-    &:hover {
-      background: #fff;
-    }
-
-    .operate-btns {
-      width: 100%;
-      height: 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-
-      .t-button--variant-text.t-size-s {
-        padding: 0 8px !important;
-      }
-    }
+  .t-checkbox__label {
+    min-width: 0;
+    margin-left: 6px;
+    font-size: 12px;
+    line-height: 16px;
   }
-}
-
-.bk-form-checkbox {
-  flex-shrink: 0 !important;
+  .option-name {
+    color: #63656e;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .operate-btns {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 30px;
+    border-top: 1px solid #dcdee5;
+  }
+  .operate-btns .t-button {
+    padding: 0 8px;
+  }
+  .cluster-header-filter-empty {
+    padding: 10px;
+    color: #979ba5;
+  }
 }

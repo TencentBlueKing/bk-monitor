@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent } from 'vue';
 
 // import useLocale from '@/shared/composables/use-locale';
 import { useRoute, useRouter } from 'vue-router';
-import useStore from '@/shared/composables/use-store';
+
 import StepClean from '../../collection/current/components/create-operation/step3-clean';
 
 import './create-clean.scss';
@@ -40,7 +42,7 @@ export default defineComponent({
     // const { t } = useLocale();
     const route = useRoute();
     const router = useRouter();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const goList = () => {
       const { backRoute, ...reset } = route.query;
@@ -49,7 +51,7 @@ export default defineComponent({
         name: routeName,
         query: {
           ...reset,
-          spaceUid: store.state.spaceUid,
+          spaceUid: store.spaceUid,
         },
       });
     };

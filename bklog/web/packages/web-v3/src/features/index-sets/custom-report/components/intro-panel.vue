@@ -53,10 +53,14 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
 
-  import { mapGetters } from '@/app/state/map-helpers';
-  
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
+
+
+
   export default {
   emits: ["handle-active-details","handleActiveDetails"],
 
@@ -76,8 +80,8 @@
       };
     },
     computed: {
-      ...mapGetters({
-        globalsData: 'globals/globalsData',
+      ...mapPiniaState(useApplicationStore, {
+        globalsData: state => state.globals.globalsData,
       }),
       dataTypeList() {
         const { databus_custom: databusCustom } = this.globalsData;
@@ -104,7 +108,7 @@
       },
       handleActiveDetails(state) {
         this.$emit('handle-active-details', state ? state : !this.isOpenWindow);
-        this.$store.commit('updateChartSize');
+        useApplicationStore().updateChartSize();
       },
       async initTargetFieldSelectList() {
         const res = await ServicesInstance.retrieve.getProxyHost({

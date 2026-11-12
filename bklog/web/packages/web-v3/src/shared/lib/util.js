@@ -31,12 +31,14 @@
 
 
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { BK_LOG_STORAGE } from '@/app/state/store.type';
 import dayjs from 'dayjs';
 import DOMPurify from 'dompurify';
 import JSONBigNumber from 'json-bignumber';
 
-import store from '@/app/state';
+
 /**
  * 函数柯里化
  *
@@ -1134,7 +1136,7 @@ export const parseTableRowData = (
   row,
   key,
   fieldType = undefined,
-  isFormatDate = store.state.isFormatDate,
+  isFormatDate = useApplicationStore().isFormatDate,
   emptyCharacter = '--',
 ) => {
   const keyArr = typeof key === 'string' ? key.split('.') : [];
@@ -1240,7 +1242,7 @@ export const parseTableRowData = (
  * @returns {String} 字段值
  */
 export const getRowFieldValue = (row, field) => {
-  const showFieldAlias = store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+  const showFieldAlias = useApplicationStore().storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
   const fieldList = showFieldAlias
     ? [field.query_alias, field.field_name, ...(field.is_virtual_alias_field ? field.source_field_names || [] : [])]
     : [field.field_name];
@@ -1535,7 +1537,7 @@ export const getStorageIndexItem = (indexList) => {
   const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
   if (catchIndexSetStr) {
     const catchIndexSetList = JSON.parse(catchIndexSetStr);
-    const spaceUid = store.state.spaceUid;
+    const spaceUid = useApplicationStore().spaceUid;
     if (catchIndexSetList[spaceUid] && indexList.some(item => item.index_set_id === catchIndexSetList[spaceUid])) {
       return catchIndexSetList[spaceUid];
     }
@@ -1625,9 +1627,9 @@ export const getOsCommandLabel = () => {
 export const updateLastSelectedIndexId = (spaceUid, indexSetId) => {
   const storage = {
     [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
-      ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
+      ...(useApplicationStore().storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
       [spaceUid]: [String(indexSetId)],
     },
   };
-  store.commit('updateStorage', storage);
+  useApplicationStore().updateStorage(storage);
 };

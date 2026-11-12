@@ -30,6 +30,8 @@
  */
 
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { messageWarn } from '@/shared/lib/message';
 import { bus } from '@/shared/lib/bus';
 import { showCaughtApiError } from '@/shared/lib/collector-api-error';
@@ -45,7 +47,7 @@ import { random } from '../../shared/lib/util';
 import HttpRequst from './_httpRequest';
 import CachedPromise from './cached-promise';
 import RequestQueue from './request-queue';
-import store from '@/app/state/index';
+
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
 
@@ -70,8 +72,8 @@ axiosInstance.interceptors.request.use(
       // config.url = config.url;
     }
     // 平台级索引集的所有检索子接口都需要请求空间，统一通过 header 传递
-    if (store.state.spaceUid) {
-      config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
+    if (useApplicationStore().spaceUid) {
+      config.headers['X-Bk-Space-Uid'] = useApplicationStore().spaceUid;
     }
     // if (window.__IS_MONITOR_COMPONENT__) {
     // 监控上层并没有使用 OT 这里直接自己生成traceparent id
@@ -80,7 +82,7 @@ axiosInstance.interceptors.request.use(
     // }
     // 检索模块使用时间选择器设置的时区，其它模块使用用户个人设置的时区
     const isRetrievePage = /^#\/retrieve(?:\/|\?|$)/.test(window.location.hash);
-    const timezone = isRetrievePage ? store.state.indexItem?.timezone : store.state.userMeta?.time_zone;
+    const timezone = isRetrievePage ? useApplicationStore().indexItem?.timezone : useApplicationStore().userMeta?.time_zone;
     if (timezone) {
       config.headers['X-BKLOG-TIMEZONE'] = timezone;
     }
@@ -251,7 +253,7 @@ function handleResponse({ config, response, resolve, reject, status }) {
   } else {
     if (code === '9900403') {
       reject({ message: response.message, code, data: response.data || {} });
-      store.commit('updateState', {
+      useApplicationStore().updateState({
         authDialogData: {
           apply_url: response.data.apply_url,
           apply_data: response.permission,
@@ -342,9 +344,9 @@ function handleReject(error, config, reject) {
         const tenantMismatch = resolveTenantMismatchPayload({
           message,
           data: error.data,
-          userTenantId: store.state.userMeta?.bk_tenant_id,
+          userTenantId: useApplicationStore().userMeta?.bk_tenant_id,
         });
-        store.commit('updateState', { tenantMismatch });
+        useApplicationStore().updateState({ tenantMismatch });
         const displayMessage =
           tenantMismatch.current_tenant_id && tenantMismatch.target_tenant_id
             ? i18n.t(

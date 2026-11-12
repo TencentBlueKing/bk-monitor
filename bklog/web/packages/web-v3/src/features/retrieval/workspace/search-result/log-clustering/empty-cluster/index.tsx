@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { computed, defineComponent } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute, useRouter } from 'vue-router';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import './index.scss';
@@ -46,13 +48,13 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const router = useRouter();
 
-    const collectorConfigId = computed(() => store.state.indexSetFieldConfig.clean_config.extra?.collector_config_id);
-    const indexSetItem = computed(() => store.state.indexItem);
-    const isHaveAnalyzed = computed(() => store.getters.rawFieldList.some((item: { is_analyzed: any; }) => item.is_analyzed));
+    const collectorConfigId = computed(() => store.indexSetFieldConfig.clean_config.extra?.collector_config_id);
+    const indexSetItem = computed(() => store.indexItem);
+    const isHaveAnalyzed = computed(() => store.rawFieldList.some((item: { is_analyzed: any; }) => item.is_analyzed));
     const exhibitText = computed(() =>
       collectorConfigId.value ? t('当前无可用字段，请前往日志清洗进行设置') : t('当前索引集不支持日志聚类设置'),
     );
@@ -71,7 +73,7 @@ export default defineComponent({
           name: 'clean-edit',
           params: { collectorId: collectorConfigId.value },
           query: {
-            spaceUid: store.state.spaceUid,
+            spaceUid: store.spaceUid,
             backRoute: route.name,
           },
         });

@@ -23,11 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import publishedMonitorStore from '@/app/state/index';
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import Vue from '@/platform/compat/vue-runtime.mjs';
 
 import LogButton from '@/shared/ui/log-button/index.vue';
 import JsonFormatWrapper from '@/shared/global/json-format-wrapper.vue';
-import useStore from '@/shared/composables/use-store';
+
 import i18n from '@/platform/i18n/i18n';
 
 import MonitorRetrieve from './monitor.vue';
@@ -36,9 +39,10 @@ import '../../../../shared/assets/static/style.css';
 window.__IS_MONITOR_COMPONENT__ = true;
 window.__IS_MONITOR_TRACE__ = process.env.MONITOR_APP === 'trace';
 window.__IS_MONITOR_APM__ = process.env.MONITOR_APP === 'apm';
-const logStore = useStore();
+// Published Monitor hosts retain their existing store protocol.
+const logStore = publishedMonitorStore;
 const initMonitorState = (payload: unknown) => {
-  logStore.commit('initMonitorState', payload);
+  useApplicationStore().initMonitorState(payload);
 };
 const initGlobalComponents = () => {
   Vue.component('JsonFormatWrapper', JsonFormatWrapper);

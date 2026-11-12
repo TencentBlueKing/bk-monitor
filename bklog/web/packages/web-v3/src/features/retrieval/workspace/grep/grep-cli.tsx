@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, ref, computed } from 'vue';
 
 import BklogPopover from '@/shared/ui/bklog-popover/index';
@@ -31,7 +33,7 @@ import useLocale from '@/shared/composables/use-locale';
 import { debounce } from 'lodash-es';
 import { useRoute } from 'vue-router';
 
-import useStore from '../../../../shared/composables/use-store';
+
 import GrepCliEditor from './grep-cli-editor';
 
 import './grep-cli.scss';
@@ -72,8 +74,8 @@ export default defineComponent({
       wordMatch: false,
     });
 
-    const store = useStore();
-    const fieldList = computed(() => store.getters.rawFieldList.filter((field: { field_type: string; }) => field.field_type === 'text'));
+    const store = useApplicationStore();
+    const fieldList = computed(() => store.rawFieldList.filter((field: { field_type: string; }) => field.field_type === 'text'));
 
     // 选择字段
     const handleFieldChange = (id: string) => {

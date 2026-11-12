@@ -128,7 +128,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
   import TimeRange from '@/shared/ui/time-range/time-range';
@@ -185,7 +187,7 @@
         this.fetchTableData();
       },
       fetchChartData() {
-        const tempList = handleTransformToTimestamp(this.chartDateValue, this.$store.getters.retrieveParams.format);
+        const tempList = handleTransformToTimestamp(this.chartDateValue, useApplicationStore().retrieveParams.format);
         const payload = {
           params: {
             index_set_id: this.indexSetId,
@@ -259,7 +261,7 @@
       async fetchTableData() {
         try {
           this.tableLoading = true;
-          const tempList = handleTransformToTimestamp(this.tableDateValue, this.$store.getters.retrieveParams.format);
+          const tempList = handleTransformToTimestamp(this.tableDateValue, useApplicationStore().retrieveParams.format);
           const res = await ServicesInstance.indexSet.getIndexHistory({
             params: {
               index_set_id: this.indexSetId,

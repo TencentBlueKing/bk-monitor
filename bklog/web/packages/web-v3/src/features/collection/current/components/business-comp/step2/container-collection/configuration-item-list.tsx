@@ -24,13 +24,18 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, computed, type PropType, ref, type ComponentPublicInstance, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 
 import LineRuleConfig from '../line-rule-config';
@@ -147,7 +152,7 @@ export default defineComponent({
   setup(props: IConfigurationItemListProps, { emit, expose }) {
     // 使用国际化翻译函数
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     /**
      * 子组件引用数组
@@ -159,10 +164,10 @@ export default defineComponent({
     const logFilterRefs = ref<any[]>([]);
 
     /** 获取全局数据（字符集选项等） */
-    const globalsData = computed(() => store.getters['globals/globalsData']);
+    const globalsData = computed(() => useGlobalsStore().globalsData);
 
     /** 业务 ID */
-    const bkBizId = computed(() => store.getters.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
 
     /** 是否正在请求命名空间接口 */
     const nameSpaceRequest = ref(false);

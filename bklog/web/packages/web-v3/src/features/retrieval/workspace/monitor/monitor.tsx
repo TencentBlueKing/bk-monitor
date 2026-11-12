@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, defineComponent, provide, watch, onBeforeUnmount } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 
 import type { TimeRangeType } from '../../../../shared/ui/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../shared/ui/time-range/utils';
@@ -79,7 +81,7 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const store = useStore();
+    const store = useApplicationStore();
     provide('handleChartDataZoom', props.handleChartDataZoom);
     provide('handleRelatedTraceClick', props.handleRelatedTraceClick);
     const {
@@ -90,14 +92,14 @@ export default defineComponent({
       getIndexSetList,
       setDefaultRouteUrl,
     } = useMonitorAppInit(props.indexSetApi);
-    const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+    const isStartTextEllipsis = computed(() => store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
     const init = () => {
       if (props.appName && props.serviceName) {
         window.MONITOR_APM_APP_NAME = props.appName;
         window.MONITOR_APM_SERVICE_NAME = props.serviceName;
       }
-      const result = handleTransformToTimestamp(props.timeRange as TimeRangeType, store.getters.retrieveParams.format);
-      store.commit('updateIndexItem', {
+      const result = handleTransformToTimestamp(props.timeRange as TimeRangeType, store.retrieveParams.format);
+      store.updateIndexItem({
         start_time: result[0],
         end_time: result[1],
         datePickerValue: props.timeRange,
@@ -113,15 +115,15 @@ export default defineComponent({
       async val => {
         if (!val) return;
         getIndexSetList();
-        store.commit('updateIsSetDefaultTableColumn', false);
-        store.commit('resetIndexSetQueryResult', {
+        store.updateIsSetDefaultTableColumn(false);
+        store.resetIndexSetQueryResult({
           is_loading: true,
-          search_count: store.state.indexSetQueryResult.search_count + 1,
+          search_count: store.indexSetQueryResult.search_count + 1,
         });
-        const result = handleTransformToTimestamp(val as TimeRangeType, store.getters.retrieveParams.format);
-        store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
-        await store.dispatch('requestIndexSetFieldInfo');
-        store.dispatch('requestIndexSetQuery', { searchCount: store.state.indexSetQueryResult.search_count });
+        const result = handleTransformToTimestamp(val as TimeRangeType, store.retrieveParams.format);
+        store.updateIndexItemParams({ start_time: result[0], end_time: result[1], datePickerValue: val });
+        await store.requestIndexSetFieldInfo();
+        store.requestIndexSetQuery({ searchCount: store.indexSetQueryResult.search_count });
       },
     );
 
@@ -129,16 +131,16 @@ export default defineComponent({
       () => props.timezone,
       val => {
         if (!val) return;
-        store.commit('updateIndexItemParams', { timezone: val });
+        store.updateIndexItemParams({ timezone: val });
         updateTimezone(val);
-        store.dispatch('requestIndexSetQuery');
+        store.requestIndexSetQuery();
       },
     );
 
     watch(
       () => props.refreshImmediate,
       () => {
-        store.dispatch('requestIndexSetQuery');
+        store.requestIndexSetQuery();
       },
     );
 

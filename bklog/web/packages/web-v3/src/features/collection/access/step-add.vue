@@ -99,7 +99,7 @@
             <span v-log-tooltip.top="$t('自动转换成正确的数据名格式')">
               <t-button :variant="(true) ? 'text' : ('base')"
                 v-if="!isTextValid"
-                
+
                 @click="handleEnConvert"
                 >{{ $t('自动转换') }}</t-button
               >
@@ -141,7 +141,7 @@
                 class="ml10"
                 :disabled="!formData.bcs_cluster_id"
                 :before-change="() => (handelChangeYaml)(!(isYaml))"
-                
+
               >
               </t-switch>
             </div>
@@ -309,7 +309,7 @@
               :disabled="!formData.category_id"
               :title="$t('新增')"
               data-test-id="sourceLogBox_button_addCollectionTarget"
-              
+
               theme="default"
               @click="showIpSelectorDialog = true"
             ><template #icon><span :class="`bk-icon icon-${'plus'}`"></span></template>
@@ -515,6 +515,13 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -526,7 +533,7 @@ import { ServicesInstance } from '@/platform/services';
   import NodeSvg from '@/shared/assets/images/container-icons/Node.svg';
   import StdoutSvg from '@/shared/assets/images/container-icons/Stdout.svg';
   import WindowsSvg from '@/shared/assets/images/container-icons/Windows.svg';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   // import ipSelectorDialog from './ip-selector-dialog';
   import configLogSetItem from './components/step-add/config-log-set-item';
@@ -566,8 +573,8 @@ import { ServicesInstance } from '@/platform/services';
         guideUrl: window.COLLECTOR_GUIDE_URL,
         colorRules: false,
         isItsm: isFeatureToggleOn('collect_itsm', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
+          String(useApplicationStore().bkBizId),
+          String(useApplicationStore().spaceUid),
         ]),
         showRegDialog: false, // 显示段日志调试弹窗
         linkConfigurationList: [], // 链路配置列表
@@ -814,15 +821,15 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
         mySpaceList: 'mySpaceList',
       }),
-      ...mapGetters('collect', ['curCollect']),
-      ...mapGetters('collect', ['exportCollectObj']),
-      ...mapGetters('globals', ['globalsData']),
+      ...mapPiniaState(useCollectionStore, ['curCollect']),
+      ...mapPiniaState(useCollectionStore, ['exportCollectObj']),
+      ...mapPiniaState(useGlobalsStore, ['globalsData']),
       collectProject() {
-        return projectManages(this.$store.state.topMenu, 'collection-item');
+        return projectManages(useApplicationStore().topMenu, 'collection-item');
       },
       isCloseDataLink() {
         // 没有可上报的链路时，编辑采集配置链路ID为0或null时，隐藏链路配置框，并且不做空值校验。
@@ -885,7 +892,7 @@ import { ServicesInstance } from '@/platform/services';
         return collectorId ? Number(collectorId) : Number(this.curCollect.collector_config_id);
       },
       labelWidth() {
-        return this.$store.state.isEnLanguage ? this.enLabelWidth : 115;
+        return useApplicationStore().isEnLanguage ? this.enLabelWidth : 115;
       },
     },
     watch: {
@@ -925,7 +932,7 @@ import { ServicesInstance } from '@/platform/services';
     },
     created() {
       this.isClone = this.$route.query?.type === 'clone';
-      this.$store.commit('updateState', { showRouterLeaveTip: false });
+      useApplicationStore().updateState({ showRouterLeaveTip: false });
       this.configBaseObj = structuredClone(this.formData.configs[0]); // 生成配置项的基础对象
       this.getLinkData();
       // 克隆与编辑均进行数据回填
@@ -972,7 +979,7 @@ import { ServicesInstance } from '@/platform/services';
           this.tableLoading = true;
           const res = await ServicesInstance.linkConfiguration.getLinkList({
             query: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
             },
           });
           this.linkConfigurationList = res.data.filter(item => item.is_active);
@@ -1238,10 +1245,7 @@ import { ServicesInstance } from '@/platform/services';
         requestUrl(updateData)
           .then(res => {
             if (res.code === 0) {
-              this.$store.commit(
-                `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
-                Object.assign({}, this.formData, params, res.data),
-              );
+              useCollectionStore()[this.isUpdate ? 'updateCurCollect' : 'setCurCollect'](Object.assign({}, this.formData, params, res.data));
               this.$emit('update:is-update', true);
               this.setDetail(res.data.collector_config_id);
               // 物理环境编辑情况
@@ -1279,10 +1283,7 @@ import { ServicesInstance } from '@/platform/services';
         requestUrl(updateData)
           .then(res => {
             if (res.code === 0) {
-              this.$store.commit(
-                `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
-                Object.assign({}, this.formData, params, res.data),
-              );
+              useCollectionStore()[this.isUpdate ? 'updateCurCollect' : 'setCurCollect'](Object.assign({}, this.formData, params, res.data));
               this.$emit('update:is-update', true);
               this.setDetail(res.data.collector_config_id);
               // 容器环境没有下发步骤 直接回到列表或者下一步
@@ -1489,7 +1490,7 @@ import { ServicesInstance } from '@/platform/services';
           name: routeName,
           query: {
             ...reset,
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },
@@ -1552,7 +1553,7 @@ import { ServicesInstance } from '@/platform/services';
           })
           .then(res => {
             if (res.data) {
-              this.$store.commit('collect/setCurCollect', res.data);
+              useCollectionStore().setCurCollect(res.data);
             }
           });
       },
@@ -1565,7 +1566,7 @@ import { ServicesInstance } from '@/platform/services';
       async getEnNameIsRepeat(val) {
         try {
           const res = await ServicesInstance.collect.getPreCheck({
-            params: { collector_config_name_en: val, bk_biz_id: this.$store.state.bkBizId },
+            params: { collector_config_name_en: val, bk_biz_id: useApplicationStore().bkBizId },
           });
           if (res.data) {
             this.enNameErrorMessage = res.data.message;

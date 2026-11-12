@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref } from 'vue';
-import useStore from '@/shared/composables/use-store';
+
 import useLocale from '@/shared/composables/use-locale';
 
 
@@ -40,7 +42,7 @@ export default defineComponent({
   name: 'CreateTemplate',
   setup(props, { slots, emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const popoverRef = ref<any>(null);
     const formRef = ref<any>(null);
@@ -80,7 +82,7 @@ export default defineComponent({
       confirmLoading.value = true;
       ServicesInstance.logClustering.createTemplate({
           data: {
-            space_uid: store.state.spaceUid,
+            space_uid: store.spaceUid,
             template_name: formData.value.name,
           },
         })

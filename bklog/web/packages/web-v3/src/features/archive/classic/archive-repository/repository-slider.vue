@@ -194,7 +194,7 @@
                   <t-switch
                     v-model="formData.hdfsFormData.isSecurity"
                     size="large"
-                    
+
                   >
                   </t-switch>
                   <t-input
@@ -316,6 +316,10 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -325,7 +329,7 @@ import { ServicesInstance } from '@/platform/services';
   import { getCurrentInstance } from 'vue';
   import { useSidebarDiff } from '@/shared/composables/use-sidebar-diff';
   import useFullscreenLoading from '@/shared/composables/use-fullscreen-loading';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   import * as authorityMap from '../../../../shared/lib/authority-map';
 
@@ -372,7 +376,7 @@ import { ServicesInstance } from '@/platform/services';
     },
   emits: ["hidden","update:show-slider","update:showSlider","updated"],
 
-    
+
     props: {
       showSlider: {
         type: Boolean,
@@ -412,7 +416,7 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
       }),
       authorityMap() {
@@ -559,7 +563,7 @@ import { ServicesInstance } from '@/platform/services';
         this.$el.click(); // 手动关闭下拉
         const loading = this.showFullscreenLoading();
         try {
-          const res = await this.$store.dispatch('getApplyData', {
+          const res = await useApplicationStore().getApplyData({
             action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
             resources: [
               {

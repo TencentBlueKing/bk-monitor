@@ -24,15 +24,21 @@
  * IN THE SOFTWARE.
  */
 
-import * as pinyin from 'tiny-pinyin';
-import patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
+import './initialize-pinyin';
 import { useApplicationStores } from './application-runtime';
 
-if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
-  pinyin.patchDict(patcher56L);
-}
 export const SET_APP_STATE = 'SET_APP_STATE';
-export { useApplicationStore, useRetrieveStore, useCollectionStore, useGlobalsStore, useApplicationStores } from './application-runtime';
+export {
+  useApplicationStore,
+  useRetrieveStore,
+  useCollectionStore,
+  useGlobalsStore,
+  useApplicationStores,
+} from './application-runtime';
 /** Published compatibility envelope; native domain stores are exported above. */
-const store = useApplicationStores();
+// Monitor exports are imported alongside application components. Resolve lazily to avoid
+// creating Pinia state while the root module graph is still initializing.
+const store = new Proxy({} as ReturnType<typeof useApplicationStores>, {
+  get: (_target, key) => Reflect.get(useApplicationStores(), key),
+});
 export default store;

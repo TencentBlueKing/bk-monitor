@@ -51,7 +51,7 @@
         v-model="searchParams.keyword"
         style="width: 300px"
         :placeholder="$t('请输入索引集名称')"
-        
+
         data-test-id="logIndexSetBox_input_searchIndexSet"
         @change="handleSearchChange"
         @enter="reFilter"
@@ -187,7 +187,7 @@
             v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_INDICES_AUTH]) }"
             style="margin-right: 4px"
             theme="primary"
-            
+
             @click="manageIndexSet('search', props.row)"
             >{{ $t('检索') }}
           </t-button>
@@ -196,7 +196,7 @@
             v-if="isShowMaskingTemplate"
             style="margin-right: 4px"
             theme="primary"
-            
+
             @click="manageIndexSet('masking', props.row)"
             >{{ $t('日志脱敏') }}
           </t-button>
@@ -205,7 +205,7 @@
             style="margin-right: 4px"
             :disabled="!props.row.is_editable"
             theme="primary"
-            
+
             @click="manageIndexSet('edit', props.row)"
           >
             <span
@@ -219,7 +219,7 @@
           <t-button :variant="(true) ? 'text' : ('base')"
             v-cursor="{ active: !(props.row.permission && props.row.permission.manage_indices_v2) }"
             theme="primary"
-            
+
             @click="manageIndexSet('delete', props.row)"
           >
             <span>{{ $t('删除') }}</span>
@@ -238,12 +238,17 @@
   </section>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { projectManages, updateLastSelectedIndexId } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
   import IndexSetLabelSelect from '@/features/index-sets/label-select/index';
-  import { mapGetters } from '@/app/state/map-helpers';
+
   import { formatBytes, requestStorageUsage } from '../../../util';
   import * as authorityMap from '../../../../../shared/lib/authority-map';
   import useUtils from '@/shared/composables/use-utils';
@@ -283,7 +288,7 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
         spaceUid: 'spaceUid',
         isShowMaskingTemplate: 'isShowMaskingTemplate',
@@ -292,7 +297,7 @@
         return authorityMap;
       },
       collectProject() {
-        return projectManages(this.$store.state.topMenu, 'collection-item');
+        return projectManages(useApplicationStore().topMenu, 'collection-item');
       },
       alertText() {
         const textMap = {
@@ -307,7 +312,7 @@
         return textMap[this.scenarioId];
       },
       operatorWidth() {
-        return this.$store.state.isEnLanguage ? 300 : 190;
+        return useApplicationStore().isEnLanguage ? 300 : 190;
       },
     },
     created() {
@@ -318,7 +323,7 @@
     methods: {
       async checkCreateAuth() {
         try {
-          const res = await this.$store.dispatch('checkAllowed', {
+          const res = await useApplicationStore().checkAllowed({
             action_ids: [authorityMap.CREATE_INDICES_AUTH],
             resources: [
               {
@@ -425,7 +430,7 @@
         if (this.isAllowedCreate === false) {
           try {
             this.isCreateLoading = true;
-            const res = await this.$store.dispatch('getApplyData', {
+            const res = await useApplicationStore().getApplyData({
               action_ids: [authorityMap.CREATE_INDICES_AUTH],
               resources: [
                 {
@@ -434,7 +439,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', { authDialogData: res.data });
+            useApplicationStore().updateState({ authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {
@@ -446,7 +451,7 @@
         this.$router.push({
           name: this.$route.name.replace('list', 'create'),
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },
@@ -454,7 +459,7 @@
         if (!row.permission?.[authorityMap.MANAGE_INDICES_AUTH]) {
           try {
             this.isTableLoading = true;
-            const res = await this.$store.dispatch('getApplyData', {
+            const res = await useApplicationStore().getApplyData({
               action_ids: [authorityMap.MANAGE_INDICES_AUTH],
               resources: [
                 {
@@ -463,7 +468,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', { authDialogData: res.data });
+            useApplicationStore().updateState({ authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {
@@ -474,14 +479,14 @@
 
         if (type === 'manage') {
           // 管理索引集
-          this.$store.commit('collect/updateCurIndexSet', row);
+          useCollectionStore().updateCurIndexSet(row);
           this.$router.push({
             name: this.$route.name.replace('list', 'manage'),
             params: {
               indexSetId: row.index_set_id,
             },
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
             },
           });
         } else if (type === 'search') {
@@ -493,19 +498,19 @@
               indexId: row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0],
             },
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
             },
           });
         } else if (type === 'edit') {
           // 编辑索引集
-          this.$store.commit('collect/updateCurIndexSet', row);
+          useCollectionStore().updateCurIndexSet(row);
           this.$router.push({
             name: this.$route.name.replace('list', 'edit'),
             params: {
               indexSetId: row.index_set_id,
             },
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
               editName: row.index_set_name,
             },
           });
@@ -536,7 +541,7 @@
               indexSetId: row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0],
             },
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
               editName: row.index_set_name,
             },
           });

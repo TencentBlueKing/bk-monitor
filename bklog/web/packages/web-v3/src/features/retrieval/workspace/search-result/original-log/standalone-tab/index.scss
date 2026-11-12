@@ -1,3 +1,40 @@
+// Both hosts teleport outside the application layout; scope by their own roots.
+.log-context-dialog-main,
+.log-realtime-dialog-main {
+  // V2 fullscreen dialogs have an overlay close control, not a title bar.
+  // TDesign retains a header for closeBtn even with header=false.
+  &.t-dialog__fullscreen {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .t-dialog__header {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    width: 32px;
+    height: 32px;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .t-dialog__header-content {
+    display: none;
+  }
+
+  .t-dialog__close {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 26px;
+    height: 26px;
+  }
+
+}
+
 .t-dialog__ctx:has(.log-context-dialog-main),
 .t-dialog__ctx:has(.log-realtime-dialog-main) {
   .t-dialog__wrap {

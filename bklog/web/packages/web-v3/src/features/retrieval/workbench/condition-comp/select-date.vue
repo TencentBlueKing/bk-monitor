@@ -84,6 +84,8 @@
 </template>
 
 <script>
+  import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
   export default {
   emits: ["update:date-picker-value","update:datePickerValue","update:time-range","update:timeRange","date-picker-change","datePickerChange","retrieveWhenChartChange"],
 
@@ -214,8 +216,8 @@
       },
     },
     mounted() {
-      this.$store.commit('retrieve/updateCachePickerValue', [...this.datePickerValue]);
-      this.$store.commit('retrieve/updateCacheTimeRange', this.timeRange);
+      useRetrieveStore().updateCachePickerValue([...this.datePickerValue]);
+      useRetrieveStore().updateCacheTimeRange(this.timeRange);
       window.bus.$on('changeTimeByChart', this.handleChangeTimeByChart);
     },
     beforeUnmount() {
@@ -228,19 +230,19 @@
       handleDateChange(date) {
         // if (type !== undefined) console.log('日期选择事件')
         // else console.log('快捷键事件')
-        this.$store.commit('retrieve/updateCachePickerValue', date);
+        useRetrieveStore().updateCachePickerValue(date);
         this.$emit('update:date-picker-value', date);
       },
       handleShortcutChange(data) {
         if (data !== undefined) {
           // 快捷键事件
           const timeRange = this.shortTextEnum[data.text];
-          this.$store.commit('retrieve/updateCacheTimeRange', timeRange);
+          useRetrieveStore().updateCacheTimeRange(timeRange);
           this.$emit('update:time-range', timeRange);
           this.isShowDatePicker = false;
         } else {
           // 日期选择事件
-          this.$store.commit('retrieve/updateCacheTimeRange', 'customized');
+          useRetrieveStore().updateCacheTimeRange('customized');
           this.$emit('update:time-range', 'customized');
         }
       },

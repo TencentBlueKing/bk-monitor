@@ -1,37 +1,52 @@
-/* Copyright (C) 2021 THL A29 Limited, a Tencent company, MIT License. */
-import { createPinia, type Pinia } from 'pinia';
-import { createStateRuntime } from '@/platform/state/state-runtime';
-import actions from './actions';
-import getters from './getters';
-import mutations from './mutations';
-import collect from './collect';
-import globals from './globals';
-import retrieve from './retrieve';
-import { createStoreState } from './state';
-import { applicationPinia } from './pinia';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 
+import { createPinia, type Pinia } from 'pinia';
+import { applicationPinia } from './pinia';
+import { useApplicationStore } from './domains/application-store';
+import { useRetrieveStore } from './domains/retrieve-store';
+import { useCollectionStore } from './domains/collection-store';
+import { useGlobalsStore } from './domains/globals-store';
+import { createMonitorStoreCompatibility } from './monitor-store-compatibility';
+export { useApplicationStore, useRetrieveStore, useCollectionStore, useGlobalsStore };
+/** Preserved export for existing Monitor hosts; main application uses Pinia directly. */
 export function createApplicationRuntime(pinia: Pinia = createPinia()) {
-  return createStateRuntime({
-    pinia,
-    root: 'application',
-    definitions: {
-      application: { createState: createStoreState, getters, mutations, actions },
-      retrieve: { ...retrieve, createState: () => structuredClone(retrieve.state) },
-      collect: { ...collect, createState: () => structuredClone(collect.state) },
-      globals: { ...globals, createState: () => structuredClone(globals.state) },
-    },
+  return createMonitorStoreCompatibility(pinia, {
+    application: useApplicationStore(pinia),
+    retrieve: useRetrieveStore(pinia),
+    collect: useCollectionStore(pinia),
+    globals: useGlobalsStore(pinia),
   });
 }
-const applications = new WeakMap<Pinia, ReturnType<typeof createApplicationRuntime>>();
+const adapters = new WeakMap<Pinia, ReturnType<typeof createApplicationRuntime>>();
 export function useApplicationStores(pinia: Pinia = applicationPinia) {
-  let runtime = applications.get(pinia);
-  if (!runtime) {
-    runtime = createApplicationRuntime(pinia);
-    applications.set(pinia, runtime);
+  let adapter = adapters.get(pinia);
+  if (!adapter) {
+    adapter = createApplicationRuntime(pinia);
+    adapters.set(pinia, adapter);
   }
-  return runtime;
+  return adapter;
 }
-export const useApplicationStore = (pinia?: Pinia) => useApplicationStores(pinia).domains.application;
-export const useRetrieveStore = (pinia?: Pinia) => useApplicationStores(pinia).domains.retrieve;
-export const useCollectionStore = (pinia?: Pinia) => useApplicationStores(pinia).domains.collect;
-export const useGlobalsStore = (pinia?: Pinia) => useApplicationStores(pinia).domains.globals;

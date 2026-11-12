@@ -24,10 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { computed, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+
 import AiAssitant from '@/shared/global/ai-assitant/index';
 
 import { BK_LOG_STORAGE } from '../../../app/state/store.type.ts';
@@ -50,7 +56,7 @@ import './segment-pop.scss';
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
     const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
 
@@ -65,12 +71,12 @@ export default defineComponent({
       requestRetrieveShellSettle();
     };
     // 每次进入检索页重新等这一轮字段、日志和趋势图，避免沿用上一次的完成标记把骨架提前揭掉。
-    store.commit('retrieve/updateResultShellReady', false);
-    store.commit('retrieve/updateTrendShellPending', true);
+    useRetrieveStore().updateResultShellReady(false);
+    useRetrieveStore().updateTrendShellPending(true);
     const sawFieldLoad = ref(false);
     const sawSearchLoad = ref(false);
     watch(
-      () => store.state.indexFieldInfo.is_loading,
+      () => store.indexFieldInfo.is_loading,
       loading => {
         if (loading) {
           sawFieldLoad.value = true;
@@ -79,9 +85,9 @@ export default defineComponent({
       { immediate: true },
     );
     watch(
-      () => store.state.indexSetQueryResult.is_loading,
+      () => store.indexSetQueryResult.is_loading,
       loading => {
-        const result = store.state.indexSetQueryResult;
+        const result = store.indexSetQueryResult;
         if (
           (loading && !result.is_pagination_loading) ||
           result.is_error ||
@@ -94,17 +100,17 @@ export default defineComponent({
       { immediate: true },
     );
 
-    const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
-    const isSceneMode = computed(() => store.getters.isSceneMode);
-    const isSceneFilterEmpty = computed(() => store.getters.isSceneFilterEmpty);
+    const isStartTextEllipsis = computed(() => store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+    const isSceneMode = computed(() => store.isSceneMode);
+    const isSceneFilterEmpty = computed(() => store.isSceneFilterEmpty);
     const isSceneLoading = computed(
-      () => store.state.indexFieldInfo.is_loading || store.state.indexSetQueryResult.is_loading,
+      () => store.indexFieldInfo.is_loading || store.indexSetQueryResult.is_loading,
     );
 
     // 追踪字段列表是否完成过至少一次请求（is_loading 从 true → false）
     const isFieldListFetched = ref(false);
     watch(
-      () => store.state.indexFieldInfo.is_loading,
+      () => store.indexFieldInfo.is_loading,
       (loading, prevLoading) => {
         if (prevLoading && !loading) {
           isFieldListFetched.value = true;
@@ -113,27 +119,27 @@ export default defineComponent({
     );
     // 切换检索模式或场景时，重置字段列表获取状态
     watch(
-      () => store.state.indexItem.retrieve_type,
+      () => store.indexItem.retrieve_type,
       () => {
         isFieldListFetched.value = false;
       },
     );
     watch(
-      () => store.state.indexItem.scene_active,
+      () => store.indexItem.scene_active,
       () => {
         isFieldListFetched.value = false;
       },
     );
     // 切业务后旧业务字段态失效，必须回到「未过滤」空态，不能沿用 isFieldListFetched
     watch(
-      () => store.state.spaceUid,
+      () => store.spaceUid,
       () => {
         isFieldListFetched.value = false;
       },
     );
 
     // 字段列表已请求完成但返回为空
-    const isFieldListEmpty = computed(() => isFieldListFetched.value && store.getters.rawFieldList.length === 0);
+    const isFieldListEmpty = computed(() => isFieldListFetched.value && store.rawFieldList.length === 0);
 
     const sceneEmptyView = computed(() =>
       resolveSceneEmptyView({
@@ -172,7 +178,7 @@ export default defineComponent({
      * @returns
      */
     const renderAiAssitant = () => {
-      if (!store.state.features.isAiAssistantActive) {
+      if (!store.features.isAiAssistantActive) {
         return null;
       }
 
@@ -209,9 +215,10 @@ export default defineComponent({
         class='scene-empty-tip'
         v-loading={{ loading: sceneEmptyView.value.sceneEmptyTipLoading }}
       >
-        <bk-exception
+        <EmptyStatus
           class='exception-wrap-item'
-          type='search-empty'
+          emptyType='search-empty'
+          showText={false}
           scene='part'
         >
           <h1 class='scene-empty-tip-title'>{t('当前日志未过滤')}</h1>
@@ -221,7 +228,7 @@ export default defineComponent({
               '场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容',
             )}
           </div>
-        </bk-exception>
+        </EmptyStatus>
       </div>
     );
 
@@ -233,9 +240,10 @@ export default defineComponent({
         class='scene-empty-tip'
         v-loading={{ loading: isSceneLoading.value }}
       >
-        <bk-exception
+        <EmptyStatus
           class='exception-wrap-item'
-          type='search-empty'
+          emptyType='search-empty'
+          showText={false}
           scene='part'
         >
           <h1 class='scene-empty-tip-title'>{t('未匹配到索引集')}</h1>
@@ -249,7 +257,7 @@ export default defineComponent({
               {t('BK助手')}
             </a>
           </div>
-        </bk-exception>
+        </EmptyStatus>
       </div>
     );
 
@@ -257,21 +265,21 @@ export default defineComponent({
       if (!isPreApiLoaded.value) {
         return false;
       }
-      if (!store.state.retrieve.flatIndexSetList.length) {
+      if (!useRetrieveStore().$state.flatIndexSetList.length) {
         return true;
       }
       if (hideSearchResult.value && !isSceneLoading.value) {
         return true;
       }
       const fieldsReady =
-        !store.state.indexFieldInfo.is_loading &&
-        (sawFieldLoad.value || store.getters.rawFieldList.length > 0);
+        !store.indexFieldInfo.is_loading &&
+        (sawFieldLoad.value || store.rawFieldList.length > 0);
       return (
         fieldsReady &&
         sawSearchLoad.value &&
-        !store.state.indexSetQueryResult.is_loading &&
-        store.state.retrieve.resultShellReady &&
-        !store.state.retrieve.trendShellPending
+        !store.indexSetQueryResult.is_loading &&
+        useRetrieveStore().$state.resultShellReady &&
+        !useRetrieveStore().$state.trendShellPending
       );
     });
     watch(retrieveShellReady, ready => {

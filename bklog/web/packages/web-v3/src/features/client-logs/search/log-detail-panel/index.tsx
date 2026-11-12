@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Loading as TLoading } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
@@ -33,7 +35,7 @@ import { defineComponent, ref, watch, computed, onMounted, onUnmounted } from 'v
 
 
 import { t } from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
 import { useDownloadFile } from '../../management/hooks/use-download-file';
@@ -161,7 +163,7 @@ export default defineComponent({
   },
   emits: ['expand', 'collect', 'url-sync', 'scroll-state-change', "urlSync", "scrollStateChange"],
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
 
     /** URL 初始状态 */
     const urlState = (props.initialUrlState ?? {}) as Partial<UrlState>;
@@ -281,7 +283,7 @@ export default defineComponent({
       if (!indexSetIdVal) return;
 
       isFileLoading.value = true;
-      const bkBizId = store.state.bkBizId;
+      const bkBizId = store.bkBizId;
       const processedAt = props.selectedLogItem?.processed_at;
 
       const data: Record<string, any> = {
@@ -450,7 +452,7 @@ export default defineComponent({
         currentBegin.value = 0;
       }
 
-      const bkBizId = store.state.bkBizId;
+      const bkBizId = store.bkBizId;
       const processedAt = props.selectedLogItem?.processed_at;
 
       const data: Record<string, any> = {

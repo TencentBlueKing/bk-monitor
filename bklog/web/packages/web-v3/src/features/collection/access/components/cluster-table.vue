@@ -166,8 +166,12 @@
   </div>
 </template>
 <script>
-  import EmptyStatus from '@/shared/ui/empty-status/index';
-  import { mapGetters } from '@/app/state/map-helpers';
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import EmptyStatus from '@/shared/ui/empty-status/index';
+
 
   import { formatFileSize } from '../../../../shared/lib/util';
 
@@ -220,8 +224,8 @@
       };
     },
     computed: {
-      ...mapGetters({
-        curCollect: 'collect/curCollect',
+      ...mapPiniaState(useApplicationStore, {
+        curCollect: state => state.collect.curCollect,
       }),
       tableShowType() {
         return this.tableType !== 'exclusive';
@@ -279,7 +283,7 @@
         const newUrl = this.$router.resolve({
           name: 'es-cluster-manage',
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
         window.open(newUrl.href, '_blank', 'noopener,noreferrer');

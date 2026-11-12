@@ -24,7 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Alert as TAlert } from 'tdesign-vue-next';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
+import { Alert as TAlert, Select as TSelect } from 'tdesign-vue-next';
 
 import { Switch as TSwitch, RadioGroup as TRadioGroup, Radio as TRadio, Checkbox as TCheckbox } from 'tdesign-vue-next';
 
@@ -35,7 +41,7 @@ import type { EtlParams, EtlField, EtlConfigInput, CleanFormState, CleanTemplate
 import { defineComponent, ref, onMounted, computed, onBeforeUnmount } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 import { LocationQueryValue, useRoute } from 'vue-router';
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
@@ -69,6 +75,7 @@ import {
 } from '@/features/collection/access/ext-json-expand-depth';
 import { getCleanTypeLabel, getCleanTypeIcon } from '../business-comp/step3/clean-type';
 import { isCollectionEditRoute } from './route-utils';
+import { normalizeTimestampTimeZones, useLogTimeZone, type TimeFormat, type TimeZoneOption } from './log-timezone';
 
 import type { ISelectItem, ISubmitOptions } from '../../type';
 
@@ -120,7 +127,7 @@ export default defineComponent({
   emits: ['next', 'prev', 'cancel', 'change-submit', "changeSubmit"],
 
   setup(props, { emit, expose }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
     const route = useRoute();
     const defaultRegex = '(?P<request_ip>[\\d.]+)[^[]+\\[(?P<request_time>[^]]+)\\]';
@@ -217,6 +224,8 @@ export default defineComponent({
     /** 当前采集项已经确认关联的清洗模板 ID */
     const cleanTemplateId = ref<number | null>(null);
     const initialCleanTemplateId = ref<number | null>(null);
+    const cleanRuleMode = ref<'manual' | 'template'>('manual');
+    const isTemplateBound = computed(() => cleanRuleMode.value === 'template' && cleanTemplateId.value !== null);
 
     const visibleBkBiz = ref<{ id: string | number; name: string }[]>([]);
     const cacheVisibleList = ref<(string | number)[]>([]);
@@ -229,11 +238,15 @@ export default defineComponent({
 
     const builtInFieldsList = ref<EtlField[]>([]);
     const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
-    const globalsData = computed(() => store.getters['globals/globalsData']);
-    const curCollect = computed(() => store.getters['collect/curCollect']);
-    const bkBizId = computed(() => store.getters.bkBizId);
-    const spaceUid = computed(() => store.getters.spaceUid);
-    const mySpaceList = computed(() => store.state.mySpaceList);
+    const globalsData = computed(() => useGlobalsStore().globalsData as {
+      data_delimiter?: ISelectItem[];
+      field_date_format?: TimeFormat[];
+      time_zone?: TimeZoneOption[];
+    });
+    const curCollect = computed(() => useCollectionStore().curCollect);
+    const bkBizId = computed(() => store.bkBizId);
+    const spaceUid = computed(() => store.spaceUid);
+    const mySpaceList = computed(() => store.mySpaceList);
 
     const showCardConfig = computed(() => {
       let list = props.isTempField
@@ -256,7 +269,7 @@ export default defineComponent({
     /**
      * 时区
      */
-    const timeZone = computed(() => (globalsData.value?.time_zone || []).toReversed());
+    const timeZone = computed(() => [...(globalsData.value?.time_zone || [])].reverse());
 
     /**
      * 是否为编辑
@@ -289,7 +302,22 @@ export default defineComponent({
       log_reporting_time: true, // 日志上报时间
       field_name: '',
       time_format: '',
-      time_zone: '',
+      time_zone: '' as number | string,
+    });
+    const { isTimestamp, formatHasTimeZone, parsedTimeZone, isTimeZoneLocked, changeTimeFormat } = useLogTimeZone(
+      formData,
+      fieldDateFormat,
+      timeZone,
+      isTemplateBound,
+    );
+    const timeZoneTip = computed(() => {
+      if (isTemplateBound.value || !formData.value.time_format) return '';
+      if (isTimeZoneLocked.value && parsedTimeZone.value) {
+        return t('已从预览值解析为 {timezone}。', { timezone: parsedTimeZone.value.name });
+      }
+      return formatHasTimeZone.value
+        ? t('时间格式包含时区，但预览值中未识别到，请手动选择。')
+        : t('时间格式不含时区，请选择该时间实际所在的时区。');
     });
     /** 动态字段解析层级下拉值 */
     const expandDepthSelect = ref<ExpandDepthSelect>(DEFAULT_EXPAND_DEPTH);
@@ -510,11 +538,6 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         });
       });
     };
-    /** 清洗规则配置方式：manual 手动配置 / template 使用模板 */
-    const cleanRuleMode = ref<'manual' | 'template'>('manual');
-    /** 当前采集项是否已经绑定清洗模板 */
-    const isTemplateBound = computed(() => cleanRuleMode.value === 'template' && cleanTemplateId.value !== null);
-
     /** 获取保存时需要提交的模板关联 ID */
     const getSubmitCleanTemplateId = () =>
       isClean.value && cleanRuleMode.value === 'template' ? cleanTemplateId.value : null;
@@ -573,7 +596,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
 
     /** 提取实际生效的字段配置，排除日志样例值及表格 UI 状态 */
     const buildTemplateEtlFieldsSnapshot = (fields: EtlField[]): EtlField[] =>
-      fields.map(field => ({
+      normalizeTimestampTimeZones(fields).map(field => ({
         field_index: field.field_index,
         field_name: field.field_name,
         alias_name: field.alias_name,
@@ -759,7 +782,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           if (res.data) {
             // 克隆时不覆盖curCollect，避免把第一步创建的新采集项ID覆盖为旧ID
             if (!props.isClone) {
-              store.commit('collect/setCurCollect', res.data);
+              useCollectionStore().setCurCollect(res.data);
             }
             const fieldsSource = props.isClone ? res.data.fields : curCollect.value.fields;
             builtInFieldsList.value = (fieldsSource || []).filter((item: { is_built_in: any; }) => item.is_built_in);
@@ -1063,7 +1086,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
        */
       if (cleaningMode.value === 'bk_log_json') {
         return (
-          <TButton
+          <TButton theme='default' variant='outline'
             class='clean-btn'
             disabled={!logOriginal.value}
             onClick={() => debugHandler()}
@@ -1098,7 +1121,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 ))}
               </bk-select>
             </div>
-            <TButton
+            <TButton theme='default' variant='outline'
               class='clean-btn'
               disabled={!logOriginal.value || !delimiter.value}
               onClick={() => debugHandler()}
@@ -1147,7 +1170,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 };
               }}
             />
-            <TButton
+            <TButton theme='default' variant='outline'
               class='clean-btn'
               disabled={!(logOriginal.value && separatorRegexp.value)}
               onClick={() => debugHandler()}
@@ -1336,7 +1359,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           },
         ],
       };
-      const res = await store.dispatch('checkAndGetData', paramData);
+      const res = await store.checkAndGetData(paramData);
       if (res.isAllowed === false) {
         return;
       }
@@ -1345,7 +1368,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     /** 模板场景仅使用采集项获取调试日志，不回填采集项已有的清洗规则 */
     const handleTemplateDebugSourceChange = async (id: number) => {
       cleanCollectorId.value = id;
-      const res = await store.dispatch('checkAndGetData', {
+      const res = await store.checkAndGetData({
         action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
         resources: [
           {
@@ -1363,7 +1386,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     // 采集项列表点击申请采集项目管理权限
     const applyProjectAccess = async (item: never) => {
       try {
-        const res = await store.dispatch('getApplyData', {
+        const res = await store.getApplyData({
           action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
           resources: [
             {
@@ -1549,7 +1572,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <div class='form-box mt-5 clean-enable-row'>
               <TSwitch
                 size='large'
-                
+
                 value={isClean.value}
                 disabled={props.isCleanField && !cleanCollectorId.value}
                 onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
@@ -1571,7 +1594,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               />
               {isClean.value && (
                 <div class='bk-button-group clean-rule-mode-group'>
-                  <TButton
+                  <TButton theme='default' variant='outline'
                     class={{ 'is-selected': cleanRuleMode.value === 'manual' }}
                     onClick={() => {
                       cleanRuleMode.value = 'manual';
@@ -1579,7 +1602,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                   >
                     {t('手动配置清洗规则')}
                   </TButton>
-                  <TButton
+                  <TButton theme='default' variant='outline'
                     class={{ 'is-selected': cleanRuleMode.value === 'template' }}
                     onClick={() => {
                       cleanRuleMode.value = 'template';
@@ -1683,7 +1706,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 <TButton
                   theme='primary'
                   icon={() => <span class={`bk-icon icon-${'plus'}`} />}
-                  
+
                   onClick={() => {
                     cleanTemplateDialogVisible.value = true;
                   }} variant={(true) ? 'outline' : 'base'}
@@ -1765,7 +1788,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           )}
           <TButton
             class='expand-depth-example-btn'
-            
+
             theme='primary'
             onClick={() => {
               expandDepthExampleVisible.value = true;
@@ -1890,7 +1913,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               </TRadio>
             </TRadioGroup>
             {!formData.value.log_reporting_time && (
-              <div class='select-group'>
+              <div class='select-group log-time-settings'>
                 <div class='select-item'>
                   <span class='select-title'>{t('字段')}</span>
                   <bk-select
@@ -1912,42 +1935,42 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 </div>
                 <div class='select-item'>
                   <span class='select-title'>{t('时间格式')}</span>
-                  <bk-select
+                  <TSelect
                     class='select-box'
                     disabled={isTemplateBound.value}
                     value={formData.value.time_format}
-                    onSelected={(val: string) => {
-                      formData.value.time_format = val;
-                    }}
-                  >
-                    {fieldDateFormat.value.map((item: { id: any; name: any; description: any; }) => (
-                      <bk-option
-                        id={item.id}
-                        key={item.id}
-                        name={`${item.name} (${item.description})`}
-                      />
-                    ))}
-                  </bk-select>
+                    clearable={true}
+                    placeholder=''
+                    options={fieldDateFormat.value.map(item => ({ value: item.id, label: `${item.name} (${item.description})` }))}
+                    onChange={value => changeTimeFormat(String(value ?? ''))}
+                  />
                 </div>
-                <div class='select-item'>
-                  <span class='select-title'>{t('时区选择')}</span>
-                  <bk-select
-                    class='select-box'
-                    disabled={isTemplateBound.value}
-                    value={formData.value.time_zone}
-                    onSelected={(val: string) => {
-                      formData.value.time_zone = val;
-                    }}
-                  >
-                    {timeZone.value.map((item: { id: any; name: any; }) => (
-                      <bk-option
-                        id={item.id}
-                        key={item.id}
-                        name={item.name}
+                {!isTimestamp.value && (
+                  <div class='select-item time-zone-item'>
+                    <div class='time-zone-control'>
+                      <span class='select-title'>{t('时区选择')}</span>
+                      <TSelect
+                        class='time-zone-select'
+                        clearable={true}
+                        placeholder=''
+                        disabled={isTemplateBound.value || isTimeZoneLocked.value}
+                        value={formData.value.time_zone}
+                        options={timeZone.value.map(item => ({ value: item.id, label: item.name }))}
+                        onChange={value => {
+                          if (!isTemplateBound.value && !isTimeZoneLocked.value) formData.value.time_zone = value as string | number;
+                        }}
                       />
-                    ))}
-                  </bk-select>
-                </div>
+                    </div>
+                    {timeZoneTip.value && (
+                      <div
+                        class={['time-zone-tip', { 'is-success': isTimeZoneLocked.value }]}
+                        role='status'
+                      >
+                        {timeZoneTip.value}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1983,7 +2006,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <div class='form-box mt-5'>
               <TSwitch
                 size='large'
-                
+
                 disabled={isTemplateBound.value}
                 value={formData.value.etl_params.retain_extra_json}
                 onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
@@ -2010,7 +2033,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           <div class='form-box mt-5'>
             <TSwitch
               size='large'
-              
+
               disabled={isTemplateBound.value}
               value={enableMetaData.value}
               onChange={(value) => { if (typeof value === 'boolean') ((val: boolean) => {
@@ -2064,7 +2087,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                     };
                   }}
                 />
-                <TButton
+                <TButton theme='default' variant='outline'
                   class='debug-btn'
                   disabled={isTemplateBound.value || !showDebugPathRegexBtn.value || isPathDebugLoading.value}
                   onClick={debuggerPathRegex}
@@ -2626,7 +2649,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         </bk-dialog>
         <div class='classify-btns-fixed'>
           {!props.isTempField && !props.isCleanField && (
-            <TButton
+            <TButton theme='default' variant='outline'
               class='mr-8'
               onClick={() => {
                 emit('prev', props.configData);
@@ -2667,7 +2690,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               {isEditTemp.value ? t('保存') : t('提交')}
             </TButton>
           ) : (
-            <TButton
+            <TButton theme='default' variant='outline'
               class='template-btn'
               disabled={formData.value.etl_fields.length === 0}
               onClick={() => {
@@ -2681,7 +2704,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             </TButton>
           )}
           {!props.isTempField && !props.isCleanField && (
-            <TButton
+            <TButton theme='default' variant='outline'
               class='mr-8'
               onClick={async () => {
                 formData.value = deepClone(cacheTemplateData.value);
@@ -2776,7 +2799,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               >
                 {t('同步所有采集项')}
               </TButton>
-              <TButton
+              <TButton theme='default' variant='outline'
                 disabled={loading.value}
                 onClick={() => handleTempConfirm(false)}
               >

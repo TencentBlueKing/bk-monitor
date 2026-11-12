@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "contracts": [
+    {
+      "id": "collector-enums-bootstrap-duplicates",
+      "path": "/api/v1/databus/log_access/collector_field_enums/",
+      "method": "GET",
+      "kind": "IDENTICAL_COMPLETE_READS",
+      "rationale": "The indexSet watcher and mounted initialization call getCollectorFieldEnums (lines1514 and1587). Only complete 200 responses with identical body bytes may use observed request occurrence order; every occurrence remains consumed.",
+      "source": {
+        "file": "views/manage-v2/log-collection/components/list-main/table-list/table-list-v2.tsx",
+        "symbol": "getCollectorFieldEnums/watch/index initialization",
+        "line": 1514,
+        "sha256": "5391803932b907a9cda1950230308e1cc4e83789a6573cf808bae65f1c465eca"
+      }
+    }
+  ]
+}

@@ -57,7 +57,7 @@
                 v-cursor="{ active: !editAuth }"
                 class="view-btn"
                 :loading="tokenLoading"
-                
+
                 @click="handleGetToken"
                 >{{ tokenLoading ? '' : $t('点击查看') }}</t-button
               >
@@ -324,11 +324,15 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { utcFormatDate, copyMessage } from '@/shared/lib/util';
   import { operatorMappingObj, operatorMapping } from '@/features/collection/access/components/log-filter/type';
-  import { mapState } from '@/app/state/map-helpers';
+
 
   import containerBase from './components/container-base';
 
@@ -369,7 +373,7 @@
       };
     },
     computed: {
-      ...mapState(['spaceUid']),
+      ...mapPiniaState(useApplicationStore, ['spaceUid']),
       getEventIDStr() {
         return this.params.winlog_event_id?.join(',') || '';
       },
@@ -485,7 +489,7 @@
       },
       handleClickEdit() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateState', { authDialogData: this.editAuthData });
+          useApplicationStore().updateState({ authDialogData: this.editAuthData });
           return;
         }
         const params = {};
@@ -501,7 +505,7 @@
           name: routeName,
           params,
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
             backRoute,
             type: 'basicInfo',
             typeKey: this.collectorData.log_access_type,
@@ -511,7 +515,7 @@
       },
       async handleGetToken() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateState', { authDialogData: this.editAuthData });
+          useApplicationStore().updateState({ authDialogData: this.editAuthData });
           return;
         }
         try {

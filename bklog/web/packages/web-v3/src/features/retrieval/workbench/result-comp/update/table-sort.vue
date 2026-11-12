@@ -90,11 +90,16 @@
   </div>
 </template>
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
 import { computed, ref, watch, type PropType } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import VueDraggable from 'vuedraggable-vue3';
-Object.assign(VueDraggable, { compatConfig: { MODE: 3, COMPONENT_V_MODEL: false } });
+import { preserveVue3ComponentModel } from '@/platform/compat/vue3-component-model';
+preserveVue3ComponentModel(VueDraggable);
 import type { FieldDefinition, FieldTypeStyle, SortPair } from './field-settings.types';
 import { Select, Option } from 'tdesign-vue-next';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
@@ -113,8 +118,8 @@ const props = defineProps({
   },
 });
 const { $t } = useLocale();
-const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
-const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap as Record<string, FieldTypeStyle>);
+const isStartTextEllipsis = computed(() => store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+const fieldTypeMap = computed(() => useGlobalsStore().$state.fieldTypeMap as Record<string, FieldTypeStyle>);
 const dragOptions = {
   animation: 150,
   tag: 'ul',
@@ -125,13 +130,13 @@ const orderList = [
   { id: 'desc', name: $t('降序') },
   { id: 'asc', name: $t('升序') },
 ];
-const store = useStore();
+const store = useApplicationStore();
 
 /** 新增变量处理v-for时需要使用的 key 字段，避免重复新建 VNode */
 const sortList = ref<{ key: string; sorts: SortPair }[]>([{ key: random(8), sorts: ['', ''] }]);
 
 const shadowSort = computed(() => sortList.value.map((e) => e.sorts).filter((e) => e[0] !== '' && e[1] !== ''));
-const fieldList = computed<FieldDefinition[]>(() => store.getters.filteredFieldList as FieldDefinition[]);
+const fieldList = computed<FieldDefinition[]>(() => store.filteredFieldList as FieldDefinition[]);
 
 const selectList = computed(() => {
   const filterFn = (field: FieldDefinition) =>

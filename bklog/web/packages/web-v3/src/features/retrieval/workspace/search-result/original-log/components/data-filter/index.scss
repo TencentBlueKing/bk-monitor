@@ -1,5 +1,8 @@
 .filter-bar-main {
+  // Match the source toolbar's text metrics without changing the global theme.
+  --td-font-family: pingFang-SC, 'Microsoft Yahei', Helvetica, Aria, sans-serif;
   width: 100%;
+  font-family: pingFang-SC, 'Microsoft Yahei', Helvetica, Aria, sans-serif;
 
   .filter-item-top {
     width: 100%;
@@ -9,12 +12,22 @@
 
     .filter-main {
       flex: 1;
+      min-width: 0;
       display: flex;
       min-width: 0;
 
       .filter-select-main {
-        flex: 0 0 80px;
-        width: 80px;
+        flex: 0 0 72px;
+        width: 72px;
+        min-width: 72px;
+
+        .t-input {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+        }
+
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
         margin-right: -1px;
 
         .t-input {
@@ -27,7 +40,7 @@
         flex: 1;
         min-width: 0;
 
-        .t-input {
+        > .t-input {
           border-top-left-radius: 0;
           border-bottom-left-radius: 0;
         }
@@ -36,6 +49,7 @@
 
     .highlight-main {
       flex: 1;
+      min-width: 0;
       display: flex;
       margin-left: 8px;
       font-size: 12px;
@@ -55,8 +69,9 @@
 
       .highlight-tag-input {
         flex: 1;
+        min-width: 0;
 
-        .bk-tag-input {
+        > .t-input {
           border-radius: 0;
         }
       }
@@ -95,6 +110,23 @@
     }
   }
 
+  .context-highlight-tag {
+    font-family: pingFang-SC, 'Microsoft Yahei', Helvetica, Aria, sans-serif;
+    height: 22px;
+    padding: 0 5px;
+    margin: 4px 5px 4px 0;
+    line-height: 20px;
+    color: #63656e;
+    border: 1px solid #f0f1f5;
+    border-radius: 2px;
+
+    .t-tag__icon-close {
+      width: 16px;
+      height: 16px;
+      margin-left: 0;
+    }
+  }
+
   .filter-item-bottom {
     width: 100%;
     display: flex;
@@ -105,6 +137,17 @@
       display: flex;
       align-items: center;
       font-size: 12px;
+      line-height: 18px;
+
+      .context-filter-checkbox {
+        flex: 0 0 16px;
+        width: 16px;
+        height: 18px;
+
+        .t-checkbox__label {
+          display: none;
+        }
+      }
 
       .row-control {
         display: flex;
@@ -112,17 +155,29 @@
 
         .row-control-input {
           width: 48px;
+          height: 26px;
           margin: 0 4px;
 
-          input {
+          .t-input {
+            height: 26px;
+            padding: 0 4px;
+            line-height: 24px;
             border: none;
             border-bottom: solid 1px #dcdee5;
+            border-radius: 0;
+          }
+
+          input {
+            padding: 0;
           }
         }
       }
     }
 
     .operate-right {
+      .context-locate-button {
+        color: #63656e;
+      }
       display: flex;
       align-items: center;
       gap: 8px;

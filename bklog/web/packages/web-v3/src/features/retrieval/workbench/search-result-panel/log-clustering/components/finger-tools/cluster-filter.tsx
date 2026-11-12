@@ -134,7 +134,7 @@ export default class ClusterFilter extends tsc<IProps> {
   render() {
     const triggerSlot = () => (
       <div
-        class='filter-box'
+        class='filter-box cluster-select-filter-trigger'
         onClick={(event: MouseEvent) => {
           event.stopPropagation();
           this.toggleSelect(!this.isShowSelectOption);
@@ -182,7 +182,11 @@ export default class ClusterFilter extends tsc<IProps> {
         placement='bottom-left'
         attach='body'
         overlayInnerClassName='cluster-select-filter-popover'
-        overlayInnerStyle={{ minWidth: `${this.popoverMinWidth}px`, padding: '8px 0 0' }}
+        overlayInnerStyle={{ minWidth: `${this.popoverMinWidth}px`, padding: 0, marginTop: '4px' }}
+        popperOptions={{ modifiers: [{ name: 'preventOverflow', options: { padding: 4 } }] }}
+        onVisibleChange={(visible: boolean) => {
+          if (!visible && this.isShowSelectOption) this.toggleSelect(false);
+        }}
         v-slots={{
           content: () => (
             <div
@@ -193,8 +197,8 @@ export default class ClusterFilter extends tsc<IProps> {
                 <TInput
                   class='cluster-filter-search'
                   value={this.keyword}
-                  placeholder={String(this.$t('请输入关键字'))}
-                  clearable
+                  placeholder={String(this.$t('输入关键字搜索'))}
+                  prefixIcon={() => <i class='bk-icon icon-search' />}
                   onChange={(value: string) => {
                     this.keyword = value;
                   }}

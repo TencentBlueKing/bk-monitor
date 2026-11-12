@@ -25,24 +25,28 @@
 -->
 
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ref, computed } from 'vue';
 import { Popup as TPopup } from 'tdesign-vue-next';
 import FieldSelectConfig from './field-list.vue';
 import FieldAlias from './field-alias.vue';
-import useStore from '@/shared/composables/use-store';
 
-const store = useStore();
+
+const store = useApplicationStore();
 
 const visible = ref(false);
+const fieldAliasRef = ref<{ handleOpenSidebar: () => void }>();
+const handleAliasOpen = () => fieldAliasRef.value?.handleOpenSidebar();
 const fieldSelectConfigRef = ref<{ isPopoverInstance: () => boolean }>();
 
-const isUnionSearch = computed(() => store.getters.isUnionSearch);
-const isExternal = computed(() => store.state.isExternal);
-const isSceneMode = computed(() => store.getters.isSceneMode);
+const isUnionSearch = computed(() => store.isUnionSearch);
+const isExternal = computed(() => store.isExternal);
+const isSceneMode = computed(() => store.isSceneMode);
 
 // 联合查询、外部环境和场景化检索不展示
 const isFieldSettingShow = computed(() => {
-  return !store.getters.isUnionSearch && !isExternal.value && !isSceneMode.value;
+  return !store.isUnionSearch && !isExternal.value && !isSceneMode.value;
 });
 
 const handleVisibleChange = (next: boolean) => {
@@ -66,10 +70,21 @@ const handlePopoverHide = () => {
       <template #content>
         <ul class="dropdown-list">
           <li><FieldSelectConfig ref="fieldSelectConfigRef" @handle-popover-hide="handlePopoverHide" /></li>
-          <li v-if="isFieldSettingShow"><FieldAlias @handle-popover-hide="handlePopoverHide" /></li>
+          <li v-if="isFieldSettingShow">
+            <div class="bklog-v3 field-alias-title" @click="handleAliasOpen">
+              <span class="bklog-icon bklog-wholesale-editor" />{{ $t('批量编辑别名') }}
+            </div>
+          </li>
         </ul>
       </template>
     </TPopup>
+    <!-- Keep the event listener and drawer mounted before Popup's lazy content opens. -->
+    <FieldAlias
+      v-if="isFieldSettingShow"
+      ref="fieldAliasRef"
+      :show-trigger="false"
+      @handle-popover-hide="handlePopoverHide"
+    />
   </div>
 </template>
 <style lang="scss">

@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -32,7 +37,7 @@ import { computed, defineComponent, onMounted, ref } from 'vue';
 
 import MaskingField from '@/features/masking/components/masking-field';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute, useRouter } from "vue-router";
 
 import './index.scss';
@@ -51,7 +56,7 @@ export default defineComponent({
     const { t } = useLocale();
     const route = useRoute();
     const router = useRouter();
-    const store = useStore();
+    const store = useApplicationStore();
     const maskingFieldRef = ref<any>(null);
     const loading = ref(true);
     const submitLoading = ref(false);
@@ -81,7 +86,7 @@ export default defineComponent({
           name: String(backRoute),
           query: {
             ...query,
-            spaceUid: store.state.spaceUid,
+            spaceUid: store.spaceUid,
           },
         });
         return;
@@ -113,7 +118,7 @@ export default defineComponent({
 
         collectData.value = res.data;
         isCollectDataReady.value = true;
-        store.commit('collect/setCurCollect', collectData.value);
+        useCollectionStore().setCurCollect(collectData.value);
       } catch (err) {
         console.log('获取采集配置详情失败:', err);
       } finally {
@@ -122,7 +127,7 @@ export default defineComponent({
     };
 
     const initData = async () => {
-      if (!store.getters.isShowMaskingTemplate) {
+      if (!store.isShowMaskingTemplate) {
         loading.value = false;
         router.replace({ name: 'retrieve' });
         return;

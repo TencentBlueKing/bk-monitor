@@ -24,36 +24,52 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { Button as TButton } from 'tdesign-vue-next';
 
 import { computed, defineComponent, ref, watch } from 'vue';
 
 import { messageSuccess } from '@/shared/lib/message';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
-import VueDraggable from 'vuedraggable';
+
+import VueDraggable from 'vuedraggable-vue3';
+import { preserveVue3ComponentModel } from '@/platform/compat/vue3-component-model';
 
 import { getDefaultDisplayFields } from './default-display-fields';
 
 import './index.scss';
 
+// Isolate native options so this popup does not alter other draggable instances.
+// Native Vue.Draggable reads function slots from $slots in its Options render.
+// The installed declaration omits the update:modelValue event that 4.1 emits.
+type FieldDragInstance = InstanceType<typeof VueDraggable> & {
+  $props: InstanceType<typeof VueDraggable>['$props'] & {
+    'onUpdate:modelValue'?: (fields: string[]) => void;
+  };
+};
+const FieldDraggable = {...VueDraggable} as typeof VueDraggable &
+  (new () => FieldDragInstance) & {compatConfig?: Record<string, unknown>};
+preserveVue3ComponentModel(FieldDraggable);
+FieldDraggable.compatConfig = {...FieldDraggable.compatConfig, RENDER_FUNCTION: false};
+
 export default defineComponent({
   emits: ["success","cancel"],
 
   name: 'FieldsConfig',
-  components: {
-    VueDraggable,
-  },
   setup(_, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const fieldConfigRef = ref();
     const displayFieldNames = ref<string[]>([]); // 展示的字段名
     let cachedDisplayFieldNames: string[] = []; // 缓存的字段名，用于取消时恢复
     const confirmLoading = ref(false);
 
-    const totalFiels = computed(() => store.getters.filteredFieldList);
+    const totalFiels = computed(() => store.filteredFieldList);
     const restFieldNames = computed(() =>
       totalFiels.value.map((item: { field_name: any; }) => item.field_name).filter((field: string) => !displayFieldNames.value.includes(field)),
     );
@@ -67,7 +83,7 @@ export default defineComponent({
     };
 
     watch(
-      () => store.state.retrieve.catchFieldCustomConfig,
+      () => useRetrieveStore().$state.catchFieldCustomConfig,
       config => {
         displayFieldNames.value = getDefaultDisplayFields(store, config.contextDisplayFields);
         cachedDisplayFieldNames = [...displayFieldNames.value];
@@ -97,8 +113,7 @@ export default defineComponent({
 
     const handleConfirm = () => {
       confirmLoading.value = true;
-      store
-        .dispatch('userFieldConfigChange', {
+      store.userFieldConfigChange({
           contextDisplayFields: displayFieldNames.value,
         })
         .then(() => {
@@ -134,19 +149,18 @@ export default defineComponent({
                   <span>{displayFieldNames.value.length}</span>
                 </i18n>
               </div>
-              <vue-draggable
+              <FieldDraggable
                 {...dragOptions}
-                value={displayFieldNames.value}
-                onInput={(newValue: string[]) => {
+                tag='transition-group'
+                componentData={{tag: 'ul'}}
+                itemKey={(field: string) => field}
+                modelValue={displayFieldNames.value}
+                onUpdate:modelValue={(newValue: string[]) => {
                   displayFieldNames.value = newValue;
                 }}
-              >
-                <transition-group>
-                  {displayFieldNames.value.map((field, index) => (
-                    <li
-                      key={index}
-                      class='list-item display-item'
-                    >
+                v-slots={{
+                  item: ({element: field, index}: {element: string; index: number}) => (
+                    <li key={index} class='list-item display-item'>
                       <span class='icon bklog-icon bklog-drag-dots'></span>
                       <div class='field_name'>{field}</div>
                       <div
@@ -156,9 +170,9 @@ export default defineComponent({
                         {t('删除')}
                       </div>
                     </li>
-                  ))}
-                </transition-group>
-              </vue-draggable>
+                  ),
+                }}
+              />
             </div>
             <div class='field-list'>
               <div class='list-title'>{t('其他字段')}</div>

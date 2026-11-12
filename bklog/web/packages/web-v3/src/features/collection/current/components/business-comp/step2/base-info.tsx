@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import {
   Button as TButton,
   Form as TForm,
@@ -38,7 +43,7 @@ import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, computed, watch, nextTick, type PropType, type VNode } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import InfoTips from '../../common-comp/info-tips';
 import IndexSetSelect from './index-set-select';
 
@@ -84,7 +89,7 @@ export default defineComponent({
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     // ==================== 响应式数据 ====================
     /** 表单数据 */
@@ -108,7 +113,7 @@ export default defineComponent({
     // ==================== 全局数据 ====================
     /** 全局数据（包含自定义上报类型列表） */
     const globalsData = computed(
-      () => store.getters['globals/globalsData'] as { databus_custom?: { id: string; name: string }[] },
+      () => useGlobalsStore().globalsData as { databus_custom?: { id: string; name: string }[] },
     );
 
     const disabled = computed(() => props.isEdit);
@@ -161,7 +166,7 @@ export default defineComponent({
     const getEnNameIsRepeat = async () => {
       try {
         const res = await ServicesInstance.collect.getPreCheck({
-          params: { collector_config_name_en: getCollectorConfigNameEn(), bk_biz_id: store.state.bkBizId },
+          params: { collector_config_name_en: getCollectorConfigNameEn(), bk_biz_id: store.bkBizId },
         });
         if (res.data) {
           enNameErrorMessage.value = res.data.message;

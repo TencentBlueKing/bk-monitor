@@ -58,6 +58,8 @@
   </div>
 </template>
 <script>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -200,7 +202,7 @@ import { ServicesInstance } from '@/platform/services';
         }
         ServicesInstance.container.yamlJudgement({
             data: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
               bcs_cluster_id: this.clusterId,
               yaml_config: yaml,
             },

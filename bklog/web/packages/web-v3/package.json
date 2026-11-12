@@ -15,7 +15,7 @@
     "ai:impact": "node tools/ai-native.mjs impact",
     "ai:index": "node tools/ai-native.mjs index",
     "typecheck:regression": "node tools/typecheck-regression.mjs",
-    "verify": "pnpm --ignore-workspace check:boundaries && pnpm --ignore-workspace ai:check && pnpm --ignore-workspace test && pnpm --ignore-workspace build",
+    "verify": "pnpm --ignore-workspace check:native-state && pnpm --ignore-workspace check:boundaries && pnpm --ignore-workspace ai:check && pnpm --ignore-workspace test && pnpm --ignore-workspace build",
     "build:apm": "MONITOR_APP=apm node --max-old-space-size=8192 ./node_modules/vite/bin/vite.js build --config vite.monitor.config.ts && node tools/verify-monitor-build.mjs apm",
     "build:trace": "MONITOR_APP=trace node --max-old-space-size=8192 ./node_modules/vite/bin/vite.js build --config vite.monitor.config.ts && node tools/verify-monitor-build.mjs trace",
     "check:source": "node tools/check-source-layout.mjs",
@@ -23,7 +23,8 @@
     "package:trace": "node tools/package-monitor.mjs trace",
     "i18n:compile": "node tools/compile-messages.mjs",
     "check:tdesign": "node tools/business-control-audit.mjs",
-    "check:boundaries": "node tools/third-party-boundary-audit.mjs"
+    "check:boundaries": "node tools/third-party-boundary-audit.mjs",
+    "check:native-state": "node tools/native-state-audit.mjs"
   },
   "dependencies": {
     "@blueking/ai-blueking": "1.3.0-beta.2",
@@ -112,8 +113,7 @@
     "typescript": "^5.7.3",
     "vite": "^6.0.11",
     "vue-i18n": "11.4.16",
-    "vue-tsc": "^3.3.13",
-    "vuex": "4.1.0"
+    "vue-tsc": "^3.3.13"
   },
   "imports": {
     "#paraglide/*": "./.paraglide/*"
@@ -127,8 +127,7 @@
       ],
       "allowedVersions": {
         "vue": "3",
-        "vue-router": "4",
-        "vuex": "4"
+        "vue-router": "4"
       }
     }
   }

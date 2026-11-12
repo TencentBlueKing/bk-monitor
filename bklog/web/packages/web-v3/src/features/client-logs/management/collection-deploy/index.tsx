@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 import useUtils from '@/shared/composables/use-utils';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import { t } from '@/shared/composables/use-locale';
@@ -74,7 +76,7 @@ export default defineComponent({
   },
   emits: ['update-total', "updateTotal"],
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
 
     const tableData = ref<CollectionTaskList>({
       total: 0,
@@ -208,7 +210,7 @@ export default defineComponent({
       try {
         const response = await ServicesInstance.collect.getUsernameList<{ data: string[] }>({
           query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+            bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
           },
         });
         // 将接口返回的数据转换为过滤器所需的格式，text 和 value 均使用接口返回的值
@@ -240,7 +242,7 @@ export default defineComponent({
     const buildQueryParams = () => {
       return {
         query: {
-          bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+          bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
           page: queryParams.value.page,
           pagesize: queryParams.value.pagesize,
           ...(queryParams.value.ordering && { ordering: queryParams.value.ordering }),
@@ -375,12 +377,12 @@ export default defineComponent({
           resources: [
             {
               type: 'space',
-              id: store.state.spaceUid,
+              id: store.spaceUid,
             },
           ],
         };
-        const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateState', { authDialogData: res.data });
+        const res = await store.getApplyData(paramData);
+        store.updateState({ authDialogData: res.data });
       }
     };
 

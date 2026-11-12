@@ -12,33 +12,43 @@ import { isSceneRetrieve } from '../helper.ts';
 import { mergeMenuWithDefaultConfig } from '../menu-config.ts';
 
 const cacheApi = (name, scope, data, meta = {}) => {
-  storeCacheService.setApiCache(name, scope || 'default', data, meta).catch(error => {
+  storeCacheService.setApiCache(name, scope || 'default', data, meta).catch((error) => {
     console.warn('[store-cache] cache api failed', name, error);
   });
 };
 
-export function userInfoAction({ commit }, params, config = {}) {
-  return ServicesInstance.userInfo.getUserInfo({ query: params, config }).then(response => {
+export function userInfoAction(application, params, config = {}) {
+  const state = application;
+  const getters = application;
+
+  return ServicesInstance.userInfo.getUserInfo({ query: params, config }).then((response) => {
     const userData = response.data || {};
-    commit('updateState', { user: userData });
+    application.updateState({ user: userData });
     cacheApi('userInfo/getUserInfo', 'current', userData);
     return userData;
   });
 }
 
-export function getMenuListAction(_, spaceUid) {
-  return ServicesInstance.meta.menu({
+export function getMenuListAction(application, spaceUid) {
+  const state = application;
+  const getters = application;
+
+  return ServicesInstance.meta
+    .menu({
       query: {
         space_uid: spaceUid,
       },
     })
-    .then(res => {
+    .then((res) => {
       cacheApi('meta/menu/raw', spaceUid || 'default', res.data || []);
       return res;
     });
 }
 
-export function requestMenuListAction({ commit }, spaceUid) {
+export function requestMenuListAction(application, spaceUid) {
+  const state = application;
+  const getters = application;
+
   if (!spaceUid) {
     return Promise.resolve([]);
   }
@@ -53,8 +63,8 @@ export function requestMenuListAction({ commit }, spaceUid) {
     manage_extract: 'manageExtract',
   };
 
-  const replaceMenuId = list => {
-    list.forEach(item => {
+  const replaceMenuId = (list) => {
+    list.forEach((item) => {
       if (item.id === 'search') {
         item.id = 'retrieve';
       }
@@ -74,9 +84,9 @@ export function requestMenuListAction({ commit }, spaceUid) {
     resMenu.isDashboard = oldMenu.isDashboard;
     if (resMenu.children) {
       if (oldMenu.children) {
-        resMenu.children.forEach(item => {
+        resMenu.children.forEach((item) => {
           item.id = routeMap[item.id] || item.id;
-          const menu = oldMenu.children.find(menuItem => menuItem.id === item.id);
+          const menu = oldMenu.children.find((menuItem) => menuItem.id === item.id);
           if (menu) {
             deepUpdateMenu(menu, item);
           }
@@ -87,39 +97,47 @@ export function requestMenuListAction({ commit }, spaceUid) {
     }
   };
 
-  return ServicesInstance.meta.menu({
+  return ServicesInstance.meta
+    .menu({
       query: {
         space_uid: spaceUid,
       },
     })
-    .then(res => {
+    .then((res) => {
       const rawMenu = res.data || [];
       const menuList = replaceMenuId(rawMenu);
 
       mergeMenuWithDefaultConfig(menuList, routeMap, deepUpdateMenu);
 
-      commit('updateState', { topMenu: menuList });
-      commit('updateState', { menuProject: rawMenu });
+      application.updateState({ topMenu: menuList });
+      application.updateState({ menuProject: rawMenu });
       cacheApi('meta/menu', spaceUid, { topMenu: menuList, menuProject: rawMenu });
 
       return menuList;
     });
 }
 
-export function getGlobalsDataAction({ commit }) {
-  return ServicesInstance.collect.globals({ query: {} }).then(response => {
+export function getGlobalsDataAction(application) {
+  const state = application;
+  const getters = application;
+
+  return ServicesInstance.collect.globals({ query: {} }).then((response) => {
     const globalsData = response.data || {};
-    commit('updateGlobalsData', globalsData);
+    application.updateGlobalsData(globalsData);
     cacheApi('collect/globals', 'default', globalsData);
     return globalsData;
   });
 }
 
-export function checkAllowedAction(context, paramData) {
-  return ServicesInstance.auth.checkAllowed({
+export function checkAllowedAction(application, paramData) {
+  const state = application;
+  const getters = application;
+
+  return ServicesInstance.auth
+    .checkAllowed({
       data: paramData,
     })
-    .then(checkRes => {
+    .then((checkRes) => {
       cacheApi('auth/checkAllowed', JSON.stringify(paramData || {}), checkRes.data || []);
       for (const item of checkRes.data) {
         if (item.is_allowed === false) {
@@ -132,31 +150,40 @@ export function checkAllowedAction(context, paramData) {
         isAllowed: true,
       };
     })
-    .catch(err => Promise.reject(err));
+    .catch((err) => Promise.reject(err));
 }
 
-export function getApplyDataAction(context, paramData) {
-  return ServicesInstance.auth.getApplyData({
+export function getApplyDataAction(application, paramData) {
+  const state = application;
+  const getters = application;
+
+  return ServicesInstance.auth
+    .getApplyData({
       data: paramData,
     })
-    .then(res => {
+    .then((res) => {
       cacheApi('auth/getApplyData', JSON.stringify(paramData || {}), res.data || {});
       return res;
     });
 }
 
-export function checkAndGetDataAction(context, paramData) {
-  return ServicesInstance.auth.checkAllowed({
+export function checkAndGetDataAction(application, paramData) {
+  const state = application;
+  const getters = application;
+
+  return ServicesInstance.auth
+    .checkAllowed({
       data: paramData,
     })
-    .then(checkRes => {
+    .then((checkRes) => {
       cacheApi('auth/checkAllowed', JSON.stringify(paramData || {}), checkRes.data || []);
       for (const item of checkRes.data) {
         if (item.is_allowed === false) {
-          return ServicesInstance.auth.getApplyData({
+          return ServicesInstance.auth
+            .getApplyData({
               data: paramData,
             })
-            .then(applyDataRes => {
+            .then((applyDataRes) => {
               cacheApi('auth/getApplyData', JSON.stringify(paramData || {}), applyDataRes.data || {});
               return {
                 isAllowed: false,
@@ -169,11 +196,14 @@ export function checkAndGetDataAction(context, paramData) {
         isAllowed: true,
       };
     })
-    .catch(err => Promise.reject(err));
+    .catch((err) => Promise.reject(err));
 }
 
-export function requestFavoriteListAction({ commit, state }, payload) {
-  commit('updateFavoriteList', []);
+export function requestFavoriteListAction(application, payload) {
+  const state = application;
+  const getters = application;
+
+  application.updateFavoriteList([]);
   const favoriteSortType = payload?.sort ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC');
   storeCacheService.setLocalStorageMirror('favoriteSortType', favoriteSortType).catch(() => {});
   const timeZone = state.userMeta.time_zone || 'Asia/Shanghai';
@@ -190,22 +220,21 @@ export function requestFavoriteListAction({ commit, state }, payload) {
       }),
     });
   }
-  return ServicesInstance.favorite.getFavoriteByGroupList({ query })
-    .then(resp => {
-      const results = (resp.data || []).map(item => {
-        item.favorites?.forEach(sub => {
-          sub.full_name = `${item.group_name}/${sub.name}`;
-          sub.created_at = formatTimeZoneString(sub.created_at, timeZone);
-          sub.updated_at = formatTimeZoneString(sub.updated_at, timeZone);
-        });
-        return item;
+  return ServicesInstance.favorite.getFavoriteByGroupList({ query }).then((resp) => {
+    const results = (resp.data || []).map((item) => {
+      item.favorites?.forEach((sub) => {
+        sub.full_name = `${item.group_name}/${sub.name}`;
+        sub.created_at = formatTimeZoneString(sub.created_at, timeZone);
+        sub.updated_at = formatTimeZoneString(sub.updated_at, timeZone);
       });
-      commit('updateFavoriteList', results);
-      cacheApi(
-        'favorite/getFavoriteByGroupList',
-        `${payload?.spaceUid ?? state.spaceUid}:${payload?.sort ?? 'NAME_ASC'}`,
-        results,
-      );
-      return resp;
+      return item;
     });
+    application.updateFavoriteList(results);
+    cacheApi(
+      'favorite/getFavoriteByGroupList',
+      `${payload?.spaceUid ?? state.spaceUid}:${payload?.sort ?? 'NAME_ASC'}`,
+      results,
+    );
+    return resp;
+  });
 }

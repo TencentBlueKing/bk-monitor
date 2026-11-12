@@ -20,6 +20,12 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
 import { Switch as TSwitch } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
@@ -92,10 +98,10 @@ export default class LogFilter extends tsc<LogFilterProps> {
   logOriginalLoading = false;
 
   get globalDataDelimiter() {
-    return this.$store.getters['globals/globalsData']?.data_delimiter || [];
+    return (useGlobalsStore().globalsData?.data_delimiter as { id: string; name: string }[] | undefined) || [];
   }
   get curCollect() {
-    return this.$store.getters['collect/curCollect'] || {};
+    return useCollectionStore().curCollect || {};
   }
   /** 是否是字符串类型 */
   get isMatchType() {
@@ -334,7 +340,7 @@ export default class LogFilter extends tsc<LogFilterProps> {
           etl_config: 'bk_log_delimiter',
           etl_params: { separator: this.separator },
           data: this.logOriginal,
-          bk_biz_id: this.$store.state.bkBizId,
+          bk_biz_id: useApplicationStore().bkBizId,
         },
       });
       this.originalFilterItemSelect = res.data.fields.map((item: { field_index: any; value: any; }) => ({
@@ -424,7 +430,7 @@ export default class LogFilter extends tsc<LogFilterProps> {
           <TSwitch
             v-model={this.filterSwitcher}
             size='large'
-            
+
           />
           <div class='switcher-tips'>
             <i class='bk-icon icon-info-circle' />

@@ -24,11 +24,17 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
+
 import { computed, ref } from 'vue';
 
 import * as authorityMap from '@/shared/lib/authority-map';
 import { projectManages } from '@/shared/lib/util';
-import useStore from '@/shared/composables/use-store';
+
 import { useRouter, useRoute } from "vue-router";
 import { getOperatorCanClick } from '../utils';
 import type {
@@ -58,17 +64,17 @@ type RouteName =
  * 采集列表的自定义 Hook
  */
 export const useCollectList = () => {
-  const store = useStore();
+  const store = useApplicationStore();
   const router = useRouter();
   const route = useRoute();
   const loadingStatus = ref(false);
   const isAllowedCreate = ref<boolean | null>(null);
   const isTableLoading = ref(false);
-  const spaceUid = computed(() => store.getters.spaceUid);
-  const bkBizId = computed(() => store.getters.bkBizId);
-  const authGlobalInfo = computed(() => store.getters['globals/authContainerInfo']);
-  const isShowMaskingTemplate = computed(() => store.getters.isShowMaskingTemplate);
-  const collectProject = computed(() => projectManages(store.state.topMenu, 'collection-item'));
+  const spaceUid = computed(() => store.spaceUid);
+  const bkBizId = computed(() => store.bkBizId);
+  const authGlobalInfo = computed(() => useGlobalsStore().authContainerInfo);
+  const isShowMaskingTemplate = computed(() => store.isShowMaskingTemplate);
+  const collectProject = computed(() => projectManages(store.topMenu, 'collection-item'));
   /**
    * 跳转到采集项列表
    */
@@ -89,7 +95,7 @@ export const useCollectList = () => {
    */
   const checkCreateAuth = async () => {
     try {
-      const res = (await store.dispatch('checkAllowed', {
+      const res = (await store.checkAllowed({
         action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
         resources: [
           {
@@ -126,8 +132,8 @@ export const useCollectList = () => {
   const getOptionApplyData = async (paramData: IAuthApplyDataParams) => {
     try {
       isTableLoading.value = true;
-      const res = (await store.dispatch('getApplyData', paramData)) as IGetApplyDataResponse;
-      store.commit('updateState', { authDialogData: res.data });
+      const res = (await store.getApplyData(paramData)) as IGetApplyDataResponse;
+      store.updateState({ authDialogData: res.data });
     } catch (err) {
       console.log(err);
     } finally {
@@ -290,11 +296,11 @@ export const useCollectList = () => {
     }
 
     // 记录当前操作对象，供目标页回显/继续编辑使用
-    store.commit('collect/setCurCollect', row);
+    useCollectionStore().setCurCollect(row);
 
     const finalQuery = {
       ...query,
-      spaceUid: String(store.state.spaceUid),
+      spaceUid: String(store.spaceUid),
       backRoute: backRoute ?? undefined,
     };
     // 新增还是仔当前页打开

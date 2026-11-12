@@ -39,8 +39,11 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
   import stepField from '@/features/collection/access/step-field';
-  import { mapState } from '@/app/state/map-helpers';
+
 
   export default {
     name: 'LogCleanCreate',
@@ -52,7 +55,7 @@
       };
     },
     computed: {
-      ...mapState({
+      ...mapPiniaState(useApplicationStore, {
         showRouterLeaveTip: state => state.showRouterLeaveTip,
       }),
     },

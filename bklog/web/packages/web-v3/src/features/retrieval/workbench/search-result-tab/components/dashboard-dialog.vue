@@ -1,15 +1,17 @@
-<script setup>import { ServicesInstance } from '@/platform/services';
+<script setup>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { watch, ref, computed } from 'vue';
-  import useStore from '@/shared/composables/use-store';
-  
+
+
   import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
   import { Dialog, Form, FormItem, Input, Select, Option, Button, MessagePlugin } from 'tdesign-vue-next';
   import { filterWithPinyin } from '@/platform/compat/tdesign/select-filter';
   import 'tdesign-vue-next/es/style/index.css';
   import useLocale from '@/shared/composables/use-locale';
   const { t } = useLocale();
-  const store = useStore();
+  const store = useApplicationStore();
   const props = defineProps({
     isShow: {
       type: Boolean,
@@ -69,7 +71,7 @@
   });
 
   const currentSearchType = computed(() => {
-    return store.state.storage?.[BK_LOG_STORAGE.SEARCH_TYPE];
+    return store.storage?.[BK_LOG_STORAGE.SEARCH_TYPE];
   });
 
   // 获取树状目录数据&& 仪表盘数据
@@ -77,7 +79,7 @@
     basicLoading.value = true;
     ServicesInstance.dashboard.getDashboardDirectoryTree({
         query: {
-          bk_biz_id: store.state.bkBizId || 0,
+          bk_biz_id: store.bkBizId || 0,
         },
       })
       .then(res => {
@@ -121,7 +123,7 @@
   const generateQueryStringData = async () => {
     const result = await ServicesInstance.retrieve.generateQueryString({
       data: {
-        addition: store.getters.retrieveParams?.addition || [],
+        addition: store.retrieveParams?.addition || [],
       },
     });
     queryStringData.value = result.data?.querystring || '';
@@ -174,7 +176,7 @@
         const data = {
           title: inputValue.trim(),
           type: 'folder',
-          bk_biz_id: store.state.bkBizId || 0,
+          bk_biz_id: store.bkBizId || 0,
         };
         const res = await ServicesInstance.dashboard.createDashboardDirectory({
           data,
@@ -200,7 +202,7 @@
             title: inputValue.trim(),
             type: 'dashboard',
             folderId: folderId || '',
-            bk_biz_id: store.state.bkBizId || 0,
+            bk_biz_id: store.bkBizId || 0,
           },
         });
 
@@ -283,7 +285,7 @@
       // 判断当前的模式是UI模式还是SQL模式
       currentSearchType.value === 0
         ? await generateQueryStringData()
-        : (queryStringData.value = store.getters.retrieveParams?.keyword || '');
+        : (queryStringData.value = store.retrieveParams?.keyword || '');
       await saveChartToDashboard(dashboardUids);
     } catch (error) {
       console.log('表单验证失败:', error);
@@ -297,7 +299,7 @@
         data: {
           panel_name: formData.value.chartName || '',
           query_string: queryStringData.value || '',
-          index_set_id: Number(store.state.indexItem.ids?.join(',')) || 0,
+          index_set_id: Number(store.indexItem.ids?.join(',')) || 0,
           // "panels": [
           //   {
           //     "name": formData.value.chartName || '', // 图表名称
@@ -325,7 +327,7 @@
           //   }
           // ],
           dashboard_uids: dashboardUids || [], // 使用仪表盘UID列表
-          bk_biz_id: store.state.bkBizId || 0,
+          bk_biz_id: store.bkBizId || 0,
         },
       });
       if (result.result) {
@@ -334,7 +336,7 @@
           content: '添加到仪表盘保存成功',
         });
         handleClose();
-        const url = `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#${result.data[0]?.url}`;
+        const url = `${window.MONITOR_URL}/?bizId=${store.bkBizId}#${result.data[0]?.url}`;
         window.open(url, '_blank', 'noopener,noreferrer');
       } else {
         MessagePlugin({
@@ -353,6 +355,7 @@
 <template>
   <Dialog
     v-model:visible="visible"
+    data-testid="retrieve-dashboard-dialog"
     :close-on-overlay-click="false"
     :destroy-on-close="false"
     :header="t('添加到仪表盘')"
@@ -376,6 +379,7 @@
         <Input
           v-model="formData.chartName"
           class="dashboard-input-full"
+          data-testid="retrieve-dashboard-chart-name"
           :placeholder="t('请输入图表名称')"
           :maxlength="255"
           :clearable="true"
@@ -389,6 +393,7 @@
         <Select
           v-model="formData.directory"
           class="dashboard-input-full"
+          data-testid="retrieve-dashboard-directory"
           :filter="filterWithPinyin"
           filterable
         >
@@ -442,6 +447,7 @@
         <Select
           v-model="formData.dashboard"
           class="dashboard-input-full"
+          data-testid="retrieve-dashboard-target"
           :filter="filterWithPinyin"
           filterable
         >
@@ -490,11 +496,12 @@
     <template #footer>
       <Button
         theme="primary"
+        data-testid="retrieve-dashboard-submit"
         @click="handleSubmit"
       >
         {{ t('确定') }}
       </Button>
-      <Button theme="default" @click="handleClose">
+      <Button theme="default" data-testid="retrieve-dashboard-cancel" @click="handleClose">
         {{ t('取消') }}
       </Button>
     </template>

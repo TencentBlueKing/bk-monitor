@@ -96,12 +96,17 @@
   </section>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { ServicesInstance } from '@/platform/services';
 
   import advanceCleanLand from '@/features/collection/access/advance-clean-land';
   import AuthContainerPage from '@/shared/ui/common/auth-container-page';
   import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
-  import { mapState, mapGetters } from '@/app/state/map-helpers';
+
 
   import * as authorityMap from '../../../shared/lib/authority-map';
   import stepAdd from './step-add';
@@ -134,8 +139,8 @@
         isSubmit: false,
         isUpdate: false, // 判断第一步是否是处于编辑状态
         isItsm: isFeatureToggleOn('collect_itsm', [
-          String(this.$store.state.bkBizId),
-          String(this.$store.state.spaceUid),
+          String(useApplicationStore().bkBizId),
+          String(useApplicationStore().spaceUid),
         ]),
         operateType: '',
         curStep: 1, // 组件步骤
@@ -172,13 +177,13 @@
       };
     },
     computed: {
-      ...mapState({
+      ...mapPiniaState(useApplicationStore, {
         showRouterLeaveTip: state => state.showRouterLeaveTip,
       }),
-      ...mapGetters('collect', ['curCollect']),
-      ...mapGetters(['bkBizId']),
-      ...mapGetters(['spaceUid']),
-      ...mapGetters(['isShowMaskingTemplate']),
+      ...mapPiniaState(useCollectionStore, ['curCollect']),
+      ...mapPiniaState(useApplicationStore, {"bkBizId": "bkBizId"}),
+      ...mapPiniaState(useApplicationStore, {"spaceUid": "spaceUid"}),
+      ...mapPiniaState(useApplicationStore, {"isShowMaskingTemplate": "isShowMaskingTemplate"}),
       /** 是否是启停状态 */
       isSwitch() {
         return ['start', 'stop'].some(item => item === this.operateType);
@@ -239,7 +244,7 @@
         return;
       }
       // 离开路由时清空采集配置导入数据
-      this.$store.commit('collect/updateExportCollectObj', {
+      useCollectionStore().updateExportCollectObj({
         collectID: null,
         syncType: [],
         collect: {},
@@ -270,7 +275,7 @@
                     },
                   ],
                 };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
+          const res = await useApplicationStore().checkAndGetData(paramData);
           if (res.isAllowed === false) {
             this.authPageInfo = res.data;
             this.basicLoading = false;
@@ -346,7 +351,7 @@
           this.$router.push({
             name: 'log-collection',
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
             },
           });
           return;
@@ -370,7 +375,7 @@
                   collect.params.paths = collect.params.paths.map(item => ({ value: item }));
                 }
                 this.itsmTicketIsApplying = false;
-                this.$store.commit('collect/setCurCollect', collect);
+                useCollectionStore().setCurCollect(collect);
                 resolve(res.data);
               }
             })

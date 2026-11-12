@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import { ServicesInstance } from '@/platform/services';
 import type { IndexSetOption } from '@/app/state/retrieval-state.type';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -32,10 +37,9 @@ import { VIEW_BUSINESS } from '@/shared/lib/authority-map';
 import { isMonitorIframeContext } from '@/shared/lib/embed-layout-query';
 import useResizeObserve from '@/shared/composables/use-resize-observe';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
-import useStore from '@/shared/composables/use-store';
+
 import { getDefaultRetrieveParams, updateURLArgs as updateUrlArgs } from '@/app/state/default-values';
 import { BK_LOG_STORAGE, type RouteParams, SEARCH_MODE_DIC } from '@/app/state/store.type.ts';
-import RequestPool from '@/app/state/request-pool';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/app/state/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 import { retrieveRowCacheService, storageHealthService } from '@/platform/persistence/index';
@@ -60,19 +64,19 @@ import { shouldStripIndexIdOnEmptyScene } from './scene-empty-view';
 import { RetrieveType } from '../workbench/sub-bar/retrieve-type-switch';
 
 export default () => {
-  const store = useStore();
+  const store = useApplicationStore();
   const router = useRouter();
   const route = useRoute();
   const searchBarHeight = ref(52);
   const isPreApiLoaded = ref(false);
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
-  const trendGraphHeight = ref(store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] ? 40 : 170);
+  const trendGraphHeight = ref(store.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] ? 40 : 170);
   // 场景筛选面板高度，用于判断吸顶状态
   const sceneFilterPanelHeight = ref(0);
 
   const leftFieldSettingWidth = computed(() => {
-    const { width, show } = store.state.storage[BK_LOG_STORAGE.FIELD_SETTING];
+    const { width, show } = store.storage[BK_LOG_STORAGE.FIELD_SETTING];
     return show ? width : 0;
   });
 
@@ -84,9 +88,9 @@ export default () => {
   const reoverRouteParams = () => {
     updateUrlArgs(route);
     const routeParams = getDefaultRetrieveParams({
-      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
-      bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-      search_mode: SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
+      spaceUid: store.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+      bkBizId: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+      search_mode: SEARCH_MODE_DIC[store.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
     });
     // 场景筛选值由 requestSceneConfigs 独立从 URL 解析处理，此处不覆盖
     delete routeParams.scene_filter_values;
@@ -112,12 +116,12 @@ export default () => {
       activeTab = 'union';
     }
 
-    store.commit('updateIndexItem', routeParams);
-    store.commit('updateSpace', routeParams.spaceUid);
+    store.updateIndexItem(routeParams);
+    store.updateSpace(routeParams.spaceUid);
     if (routeParams.index_id !== undefined) {
-      store.commit('updateState', { indexId: routeParams.index_id });
+      store.updateState({ indexId: routeParams.index_id });
     }
-    store.commit('updateStorage', {
+    store.updateStorage({
       [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
     });
   };
@@ -151,16 +155,16 @@ export default () => {
   addEvent(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, handleGraphHeightChange);
   addEvent(RetrieveEvent.SCENE_FILTER_PANEL_HEIGHT_CHANGE, handleSceneFilterPanelHeightChange);
 
-  const spaceUid = computed(() => store.state.spaceUid);
-  const bkBizId = computed(() => store.state.bkBizId);
+  const spaceUid = computed(() => store.spaceUid);
+  const bkBizId = computed(() => store.bkBizId);
 
-  const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
+  const indexSetIdList = computed(() => store.indexItem.ids.filter(id => id?.length ?? false));
   const isMonitorIframe = computed(() => isMonitorIframeContext(route.query));
 
   /**
    * 扁平化索引集列表
    */
-  const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
+  const flatIndexSetList = computed(() => useRetrieveStore().$state.flatIndexSetList);
 
   const stickyStyle = computed(() => {
     return {
@@ -189,7 +193,7 @@ export default () => {
     const { search_mode: searchMode, addition, keyword } = route.query;
 
     if (!searchMode && addition?.length > 4 && keyword?.length > 0) {
-      store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+      store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
 
       const resolver = new RouteUrlResolver({
         route,
@@ -204,7 +208,7 @@ export default () => {
           .then(res => {
             if (res.result) {
               const newKeyword = `${keyword} AND ${res.data?.querystring}`;
-              store.commit('updateIndexItemParams', { keyword: newKeyword });
+              store.updateIndexItemParams({ keyword: newKeyword });
             }
           })
           .catch(err => {
@@ -221,7 +225,7 @@ export default () => {
 
     if (!searchMode) {
       if (addition?.length > 4 && keyword?.length > 0) {
-        const mergedKeyword = store.state.indexItem.keyword;
+        const mergedKeyword = store.indexItem.keyword;
         router.push({
           query: {
             ...route.query,
@@ -241,7 +245,7 @@ export default () => {
       router.push({
         query: {
           ...route.query,
-          search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
+          search_mode: store.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
         },
       });
     }
@@ -252,7 +256,7 @@ export default () => {
    * @param beforeResolveFn 在结果返回解析之后，尚未进行路由解析之前的处理函数
    */
   const getIndexSetList = (beforeResolveFn?: () => void, options: { isSpaceChanging?: boolean } = {}) => {
-    store.commit('updateIndexSetQueryResult', {
+    store.updateIndexSetQueryResult({
       row_keys: [],
       row_query_key: '',
       cached_count: 0,
@@ -270,7 +274,7 @@ export default () => {
 
     const commitIdexId = (idexs: string[], others: any = {}) => {
       // 优先使用 store 中已有的 pid（从URL解析出来的）
-      const existingPid = store.state.indexItem.pid ?? [];
+      const existingPid = store.indexItem.pid ?? [];
       const items = (others as any)?.items ?? [];
 
       const [pid, ids] = idexs
@@ -318,11 +322,10 @@ export default () => {
           [[], []],
         );
 
-      store.commit('updateIndexItem', { ids, pid, ...(others ?? {}) });
+      store.updateIndexItem({ ids, pid, ...(others ?? {}) });
     };
 
-    return store
-      .dispatch('retrieve/getIndexSetList', {
+    return useRetrieveStore().getIndexSetList({
         spaceUid: spaceUid.value,
         bkBizId: bkBizId.value,
         is_group: true,
@@ -354,15 +357,15 @@ export default () => {
             .filter((item) => item.tags.some((tag: { name: LocationQueryValue; }) => tagList.includes(tag.name)))
             .map((val) => val.index_set_id);
           if (indexSetMatch.length) {
-            store.commit('updateIndexItem', {
+            store.updateIndexItem({
               ids: indexSetMatch,
               isUnionIndex: true,
               selectIsUnionSearch: true,
             });
-            store.commit('updateState', {
+            store.updateState({
               unionIndexItemList: tagList,
             });
-            store.commit('updateStorage', {
+            store.updateStorage({
               [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'union',
             });
           }
@@ -371,17 +374,17 @@ export default () => {
         // 如果当前地址参数没有indexSetId，则默认取缓存中的索引信息
         // 同时，更新索引信息到store中
         if (!indexSetIdList.value.length) {
-          const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
+          const lastIndexSetIds = store.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
           if (lastIndexSetIds?.length) {
             const firstFilterFn = (id: string) => flatIndexSetList.value.some((item: Record<string,unknown>) => filterFn(id, item));
             const validateIndexSetIds = lastIndexSetIds.filter(firstFilterFn);
             if (validateIndexSetIds.length) {
               commitIdexId(validateIndexSetIds);
-              store.commit('updateStorage', {
+              store.updateStorage({
                 [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: validateIndexSetIds.length > 1 ? 'union' : 'single',
               });
             } else {
-              store.commit('updateStorage', {
+              store.updateStorage({
                 [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'single',
               });
             }
@@ -409,8 +412,8 @@ export default () => {
           });
 
           if (emptyIndexSetList.length) {
-            store.commit('updateIndexItem', { ids: [], items: [] });
-            store.commit('updateState', { indexId: '' });
+            store.updateIndexItem({ ids: [], items: [] });
+            store.updateState({ indexId: '' });
           }
 
           if (indexSetItems.length) {
@@ -429,16 +432,16 @@ export default () => {
           if (defaultId) {
             const strId = `${defIndexItem?.index_set_id}`;
             commitIdexId(defaultId, { items: [defIndexItem] });
-            store.commit('updateState', { indexId: strId });
+            store.updateState({ indexId: strId });
           }
         }
 
         const indexId =
-          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
-            ? store.state.indexItem.ids[0]
+          store.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+            ? store.indexItem.ids[0]
             : undefined;
         const unionList =
-          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
+          store.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.indexItem.ids : undefined;
 
         // 修复：当 URL 中的 indexId 无效时，已经在上面选择了默认索引
         // 这里应该判断当前是否有有效的索引ID，而不是判断 emptyIndexSetList
@@ -448,36 +451,36 @@ export default () => {
 
           const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
-            store.commit('updateState', { indexId });
-            store.commit('updateUnionIndexList', {
+            store.updateState({ indexId });
+            store.updateUnionIndexList({
               updateIndexItem: false,
               list: [],
             });
           }
 
           if (type === 'union') {
-            store.commit('updateUnionIndexList', {
+            store.updateUnionIndexList({
               updateIndexItem: false,
               list: [...(unionList ?? [])],
             });
           }
 
-          store.commit('updateIndexItem', { isUnionIndex: type === 'union' });
+          store.updateIndexItem({ isUnionIndex: type === 'union' });
 
-          RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
+          RetrieveHelper.setIndexsetId(store.indexItem.ids, type, false);
 
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_PENDING);
 
           resolveAdditionKeyword().then(async () => {
-            const isExternal = store.state.isExternal;
+            const isExternal = store.isExternal;
             if (
               !isExternal &&
-              isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])
+              isFeatureToggleOn('scene_search', [String(store.bkBizId), String(store.spaceUid)])
             ) {
-              if (store.state.indexItem.retrieve_type === RetrieveType.Scene) {
+              if (store.indexItem.retrieve_type === RetrieveType.Scene) {
                 // 场景化检索：请求场景配置，从URL获取筛选参数
                 const sceneCleared = await requestSceneConfigs();
-                if (!sceneCleared && store.getters.isSceneFilterEmpty) {
+                if (!sceneCleared && store.isSceneFilterEmpty) {
                   RetrieveHelper.setSearchingValue(false);
                   resetRetrieveData(store);
                   // 首屏/刷新保留分享 URL；切业务才摘旧业务 indexId，避免子组件用旧 ID 拉数。
@@ -494,13 +497,12 @@ export default () => {
               } else {
                 requestSceneConfigs();
               }
-            } else if (isExternal && store.state.indexItem.retrieve_type === RetrieveType.Scene) {
+            } else if (isExternal && store.indexItem.retrieve_type === RetrieveType.Scene) {
               // PO 环境下隐藏场景化检索，若 URL 携带 retrieve_type=scene 则回退到常规检索
-              clearSceneRetrieveToNormal(store.getters['retrieve/sceneConfigList']);
+              clearSceneRetrieveToNormal(useRetrieveStore().sceneConfigList);
             }
 
-            store
-              .dispatch('requestIndexSetFieldInfo')
+            store.requestIndexSetFieldInfo()
               .then(resp => {
                 RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
@@ -511,8 +513,7 @@ export default () => {
                   route.query.tab === ''
                 ) {
                   if (resp?.data?.fields?.length) {
-                    store
-                      .dispatch('requestIndexSetQuery')
+                    store.requestIndexSetQuery()
                       .catch(err => {
                         console.error('requestIndexSetQuery failed:', err);
                       })
@@ -522,7 +523,7 @@ export default () => {
                   }
 
                   if (!resp?.data?.fields?.length) {
-                    store.commit('updateIndexSetQueryResult', {
+                    store.updateIndexSetQueryResult({
                       is_error: true,
                       exception_msg: 'index-set-field-not-found',
                     });
@@ -538,7 +539,7 @@ export default () => {
                 RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
                 setSearchMode();
                 setDefaultRouteUrl();
-                const { ids, isUnionIndex, items } = store.state.indexItem;
+                const { ids, isUnionIndex, items } = store.indexItem;
                 const currentQueryTab = RetrieveHelper.routeQueryTabValueFix(items?.[0], route.query.tab, isUnionIndex);
                 syncIndexIdToRoute(isUnionIndex ? undefined : ids[0], isUnionIndex ? ids : undefined, currentQueryTab);
               })
@@ -556,11 +557,11 @@ export default () => {
 
           if (defaultId) {
             const strId = `${defaultId}`;
-            store.commit('updateIndexItem', {
+            store.updateIndexItem({
               ids: [strId],
               items: [flatIndexSetList.value[0]],
             });
-            store.commit('updateState', { indexId: strId });
+            store.updateState({ indexId: strId });
           }
         }
 
@@ -576,7 +577,7 @@ export default () => {
         console.error('getIndexSetList failed:', err);
         isPreApiLoaded.value = true;
         RetrieveHelper.setSearchingValue(false);
-        store.commit('updateIndexSetQueryResult', {
+        store.updateIndexSetQueryResult({
           is_error: true,
           exception_msg: err?.message || 'get-index-set-list-failed',
         });
@@ -613,11 +614,11 @@ export default () => {
   // 解析默认URL为前端参数
   // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
   const setDefaultRouteUrl = () => {
-    const routeParams = store.getters.retrieveParams;
+    const routeParams = store.retrieveParams;
     const resolver = new RetrieveUrlResolver({
       ...routeParams,
-      datePickerValue: store.state.indexItem.datePickerValue,
-      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+      datePickerValue: store.indexItem.datePickerValue,
+      spaceUid: store.storage[BK_LOG_STORAGE.BK_SPACE_UID],
     });
 
     router.replace({
@@ -629,14 +630,14 @@ export default () => {
    * 清空场景化检索条件并回退到常规检索
    */
   const clearSceneRetrieveToNormal = (configs: any[]) => {
-    store.commit('updateIndexItemParams', {
+    store.updateIndexItemParams({
       retrieve_type: 'normal',
       scene_active: '',
       scene_filter_values: {},
       keyword: '',
       addition: [],
     });
-    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
+    store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
 
     resetRetrieveData(store);
 
@@ -655,9 +656,9 @@ export default () => {
    * 请求场景配置数据，接口返回后从 URL query 中回填场景筛选值
    */
   const requestSceneConfigs = async (): Promise<boolean> => {
-    await store.dispatch('retrieve/requestSceneConfigs');
-    const configs = store.getters['retrieve/sceneConfigList'];
-    const sceneActive = store.state.indexItem.scene_active;
+    await useRetrieveStore().requestSceneConfigs();
+    const configs = useRetrieveStore().sceneConfigList;
+    const sceneActive = store.indexItem.scene_active;
 
     // 当前是场景化检索模式但不在灰度业务中，清空场景化检索条件并回退到常规检索
     if (sceneActive && !isFeatureToggleOn('scene_search', [String(bkBizId.value), String(spaceUid.value)])) {
@@ -671,7 +672,7 @@ export default () => {
     if (!sceneFieldKeys.length) return false;
 
     // 读取当前业务的场景显示字段配置，以显示字段为主过滤回填值
-    const allDisplayFields = store.state.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
+    const allDisplayFields = store.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
     const bizDisplayFields = allDisplayFields[bkBizId.value] ?? {};
     // 格式: Array<[fieldKey, op]> | null
     const sceneDisplayFields: Array<[string, string]> | null | undefined = bizDisplayFields[sceneActive];
@@ -699,7 +700,7 @@ export default () => {
     }
 
     if (Object.keys(result).length) {
-      store.commit('updateIndexItem', { scene_filter_values: result });
+      store.updateIndexItem({ scene_filter_values: result });
     }
 
     return false;
@@ -710,14 +711,14 @@ export default () => {
   });
 
   const handleSpaceIdChange = () => {
-    cancelPendingRetrieveRequests();
+    cancelPendingRetrieveRequests(store);
     // 与切换场景 tab 相同：取消请求后必须清字段/结果 loading，否则空筛选提前返回会永久转圈
     resetRetrieveData(store);
 
-    const keepScene = shouldKeepSceneOnSpaceChange(store.state.indexItem.retrieve_type, route.query.retrieve_type);
+    const keepScene = shouldKeepSceneOnSpaceChange(store.indexItem.retrieve_type, route.query.retrieve_type);
 
-    const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
-    store.commit('resetIndexsetItemParams', {
+    const { start_time, end_time, timezone, datePickerValue } = store.indexItem;
+    store.resetIndexsetItemParams({
       start_time,
       end_time,
       timezone,
@@ -726,16 +727,16 @@ export default () => {
       scene_active: keepScene ? DEFAULT_SCENE_ACTIVE : '',
       scene_filter_values: {},
     });
-    store.commit('updateState', { indexId: '' });
-    store.commit('updateUnionIndexList', []);
+    store.updateState({ indexId: '' });
+    store.updateUnionIndexList([]);
     RetrieveHelper.setIndexsetId([], null);
 
     getIndexSetList(undefined, { isSpaceChanging: true });
-    store.dispatch('requestFavoriteList');
+    store.requestFavoriteList();
   };
 
   watch(spaceUid, () => {
-    const keepScene = shouldKeepSceneOnSpaceChange(store.state.indexItem.retrieve_type, route.query.retrieve_type);
+    const keepScene = shouldKeepSceneOnSpaceChange(store.indexItem.retrieve_type, route.query.retrieve_type);
 
     handleSpaceIdChange();
     const routeQuery = route.query ?? {};
@@ -779,12 +780,12 @@ export default () => {
   // 场景模式下记录原始滚动距离，用于与字段面板高度比较判断吸顶
   const sceneScrollTop = ref(0);
 
-  const isSceneMode = computed(() => store.getters.isSceneMode);
+  const isSceneMode = computed(() => store.isSceneMode);
 
   // 判断场景模式下是否存在筛选标签（吸顶时标签栏占 34px）
   const hasSceneFilterTags = computed(() => {
     if (!isSceneMode.value) return false;
-    return !store.getters.isSceneFilterEmpty;
+    return !store.isSceneFilterEmpty;
   });
 
   addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
@@ -836,32 +837,32 @@ export default () => {
   /** * 结束计算 ***/
   onMounted(() => {
     RetrieveHelper.onMounted();
-    store.dispatch('requestFavoriteList');
+    store.requestFavoriteList();
   });
 
   onUnmounted(() => {
-    RequestPool.cancelAll();
+    store.requestPool.cancelAll();
     RetrieveHelper.destroy();
-    const activeRowQueryKey = store.state.indexSetQueryResult.row_query_key;
+    const activeRowQueryKey = store.indexSetQueryResult.row_query_key;
     if (activeRowQueryKey) {
       storageHealthService.clearActiveQuery(activeRowQueryKey);
       retrieveRowCacheService.releaseQuery(activeRowQueryKey);
     }
     // 清理掉当前查询结果，避免下次进入空白展示，同时释放检索页大对象引用。
-    store.commit('resetIndexSetQueryResult', {
+    store.resetIndexSetQueryResult({
       row_keys: [],
       row_query_key: '',
       cached_count: 0,
       is_error: false,
       exception_msg: '',
     });
-    store.commit('updateSqlQueryFieldList', []);
-    store.commit('resetIndexFieldInfo', {
+    store.updateSqlQueryFieldList([]);
+    store.resetIndexFieldInfo({
       fields: [],
       is_loading: false,
     });
-    store.commit('retrieve/updateIndexSetList', []);
-    store.commit('retrieve/resetRuntimeState');
+    useRetrieveStore().updateIndexSetList([]);
+    useRetrieveStore().resetRuntimeState();
   });
 
   return {

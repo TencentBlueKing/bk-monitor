@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { RetrieveUrlResolver } from '@/app/state/url-resolver';
-import useStore from './use-store';
+
 import { useRoute, useRouter } from "vue-router";
 
 export default () => {
-  const store = useStore();
+  const store = useApplicationStore();
   const route = useRoute();
   const router = useRouter();
 
@@ -37,8 +39,8 @@ export default () => {
     const query = { ...route.query };
 
     const resolver = new RetrieveUrlResolver({
-      keyword: store.getters.retrieveParams.keyword,
-      addition: store.getters.retrieveParams.addition,
+      keyword: store.retrieveParams.keyword,
+      addition: store.retrieveParams.addition,
     });
 
     Object.assign(query, resolver.resolveParamsToUrl());

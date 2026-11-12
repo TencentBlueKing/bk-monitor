@@ -24,12 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import { asDictionary } from '@/shared/utils/typed-record';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
 import { computed, nextTick, onMounted, onBeforeUnmount, type Ref, watch } from 'vue';
 
 import { formatNumberWithRegex } from '@/shared/lib/util';
-import useStore from '@/shared/composables/use-store';
+
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import * as Echarts from 'echarts';
 import { cloneDeep, debounce } from 'lodash-es';
@@ -79,23 +82,23 @@ export type EchartData = {
 export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption) => {
   let chartInstance: Echarts.ECharts | null = null;
   const options: any = { ...chartOption };
-  const store = useStore();
+  const store = useApplicationStore();
   const router = useRouter();
   const route = useRoute();
 
-  const retrieveParams = computed(() => store.getters.retrieveParams);
+  const retrieveParams = computed(() => store.retrieveParams);
   const gradeOptionsGroups = computed(() => {
-    return (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? []).filter(setting => setting.enable);
+    return (store.indexFieldInfo.custom_config?.grade_options?.settings ?? []).filter(setting => setting.enable);
   });
 
-  const timezone = computed(() => store.state.indexItem.timezone);
+  const timezone = computed(() => store.indexItem.timezone);
 
   /**
    * 匹配规则是否为值匹配
    * 可选值：value、regex
    */
   const isGradeMatchValue = computed(() => {
-    return store.state.indexFieldInfo.custom_config?.grade_options?.valueType === 'value';
+    return store.indexFieldInfo.custom_config?.grade_options?.valueType === 'value';
   });
 
   // ======= Worker 相关 =======
@@ -330,7 +333,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   // 监听loading, 在接口请求结束时再补充数据
-  const loading = computed(() => store.state.retrieve.isTrendDataLoading);
+  const loading = computed(() => useRetrieveStore().isTrendDataLoading);
   watch(loading, val => {
     if (val === false) {
       const intervalMs = getIntervalValue(runningInterval) * 1000;
@@ -553,11 +556,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
           return `
           <div style="display: flex; align-items: center; margin-top: 4px;">
             <span style="
-              display: inline-block; 
-              width: 10px; 
-              height: 10px; 
-              background-color: ${color}; 
-              border-radius: 50%; 
+              display: inline-block;
+              width: 10px;
+              height: 10px;
+              background-color: ${color};
+              border-radius: 50%;
             "></span>
             <span style="flex: 1; margin-left: 6px;">${seriesName}</span>
             <span style="font-weight: bold;">${getShowTotalNum(value)}</span>
@@ -584,7 +587,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     });
   };
 
-  const cachedBatch = computed(() => store.state.storage[BK_LOG_STORAGE.CACHED_BATCH_LIST] || []);
+  const cachedBatch = computed(() => store.storage[BK_LOG_STORAGE.CACHED_BATCH_LIST] || []);
   const canGoBack = computed(() => cachedBatch.value.length > 1);
 
   const handleDataZoom = debounce(event => {
@@ -592,14 +595,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
     // 初始化时，存入初始时间范围
     if (cachedBatch.value.length === 0 && !batch.dblclick && !batch.isBack) {
-      const { start_time: startTime, end_time: endTime } = store.state.indexItem;
+      const { start_time: startTime, end_time: endTime } = store.indexItem;
       cachedBatch.value.push({
         startValue: startTime,
         endValue: endTime,
         start: startTime,
         end: endTime,
       });
-      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
+      store.updateStorage({ [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
 
     // 每次有效选择都 push
@@ -610,7 +613,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         start: batch.startValue,
         end: batch.endValue,
       });
-      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
+      store.updateStorage({ [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
 
     const formatStr = 'YYYY-MM-DD HH:mm:ss';
@@ -624,8 +627,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       } else {
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
         // 更新Store中的时间范围
-        store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true }).then(() => {
-          store.dispatch('requestIndexSetQuery');
+        store.handleTrendDataZoom({ start_time: timeFrom, end_time: timeTo, format: true }).then(() => {
+          store.requestIndexSetQuery();
           // 更新URL
           router.replace({
             query: {
@@ -650,7 +653,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         isBack: true, // 标记本次是回退,避免点击回退时触发handleDataZoom的push操作
       });
       cachedBatch.value.pop();
-      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
+      store.updateStorage({ [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
   };
 
@@ -669,7 +672,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         batch: [first],
       });
       cachedBatch.value.splice(0, cachedBatch.value.length); // 清空缓存时间组
-      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
+      store.updateStorage({ [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
   };
 

@@ -1,13 +1,15 @@
 <script setup>
-  import { ref, onUnmounted } from 'vue';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ref, onUnmounted } from 'vue';
   import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper.tsx';
   import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
-  import useStore from '@/shared/composables/use-store';
+
 
   const isDropdownShow = ref(false);
   const dropdown = ref(null);
   const selectedValue = ref('off');
-  const store = useStore();
+  const store = useApplicationStore();
 
   const datasource = ref([
     { label: '关闭(off)', value: 'off' },
@@ -53,11 +55,11 @@
   };
 
   const handleRefresh = () => {
-    const formatValue = store.getters.retrieveParams.format;
-    const val = store.state.indexItem.datePickerValue;
+    const formatValue = store.retrieveParams.format;
+    const val = store.indexItem.datePickerValue;
     const result = handleTransformToTimestamp(val, formatValue.value);
 
-    store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1] });
+    store.updateIndexItemParams({ start_time: result[0], end_time: result[1] });
     RetrieveHelper.fire(RetrieveEvent.AUTO_REFRESH);
   };
 

@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -31,7 +36,7 @@ import { defineComponent, ref, reactive, computed, watch, onMounted, nextTick } 
 
 import * as authorityMap from '@/shared/lib/authority-map';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
@@ -58,7 +63,7 @@ export default defineComponent({
   emits: ['handleCancelSlider', 'handleUpdatedTable'],
 
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale(); // 获取国际化函数
     const validateForm = ref<any>(null); // 表单验证引用
 
@@ -87,8 +92,8 @@ export default defineComponent({
       trigger: 'blur',
     };
 
-    const bkBizId = computed(() => store.getters.bkBizId); // 业务ID
-    const globalsData = computed(() => store.getters['globals/globalsData']); // 全局数据
+    const bkBizId = computed(() => store.bkBizId); // 业务ID
+    const globalsData = computed(() => useGlobalsStore().globalsData); // 全局数据
     const authorityMapComputed = computed(() => authorityMap); // 权限映射
 
     // 是否为编辑模式

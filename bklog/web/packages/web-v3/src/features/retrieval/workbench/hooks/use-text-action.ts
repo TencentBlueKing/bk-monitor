@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
 import { copyMessage, formatDate, getRowFieldValue } from '@/shared/lib/util';
 import { resolveAddToSearch } from '@/shared/composables/log-query-compiler/index';
-import useStore from '@/shared/composables/use-store';
+
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/app/state/store.type.ts';
 import { RetrieveUrlResolver } from '@/app/state/url-resolver';
 
@@ -52,12 +54,12 @@ const formatScalarFullPlain = (raw: any): string | undefined => {
 };
 
 export default (emit?: (_event: string, ..._args: any[]) => void, from?: string) => {
-  const store = useStore();
+  const store = useApplicationStore();
   const router = useRouter();
   const route = useRoute();
 
   const getSearchMode = (): 'ui' | 'sql' => {
-    const mode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]];
+    const mode = SEARCH_MODE_DIC[store.storage[BK_LOG_STORAGE.SEARCH_TYPE]];
     return mode === 'sql' ? 'sql' : 'ui';
   };
 
@@ -93,9 +95,9 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     // 始终按字段名从 store 取类型，避免 Object 叶子落到父级 object 类型
     const fieldType =
       (fieldName
-        ? (store.getters.filteredFieldList?.find?.((item: { field_name: any; }) => item.field_name === fieldName)?.field_type ??
-          store.getters.visibleFields?.find?.((item: { field_name: any; }) => item.field_name === fieldName)?.field_type ??
-          store.state.indexFieldInfo?.fields?.find?.((item: { field_name: any; }) => item.field_name === fieldName)?.field_type)
+        ? (store.filteredFieldList?.find?.((item: { field_name: any; }) => item.field_name === fieldName)?.field_type ??
+          store.resolvedVisibleFields?.find?.((item: { field_name: any; }) => item.field_name === fieldName)?.field_type ??
+          store.indexFieldInfo?.fields?.find?.((item: { field_name: any; }) => item.field_name === fieldName)?.field_type)
         : undefined) ?? (typeof field === 'object' ? field?.field_type : undefined);
 
     if (value === '--') {
@@ -145,8 +147,8 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     const query = { ...route.query };
 
     const resolver = new RetrieveUrlResolver({
-      keyword: store.getters.retrieveParams.keyword,
-      addition: store.getters.retrieveParams.addition,
+      keyword: store.retrieveParams.keyword,
+      addition: store.retrieveParams.addition,
     });
 
     Object.assign(query, resolver.resolveParamsToUrl());
@@ -166,8 +168,7 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     isNestedField = 'false',
     meta: { fullPlain?: string; fieldType?: string; queryString?: string } = {},
   ) => {
-    return store
-      .dispatch('setQueryCondition', {
+    return store.setQueryCondition({
         field,
         operator,
         value,
@@ -195,7 +196,7 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
 
   // 处理Trace ID点击
   const handleTraceIdClick = (traceId: string) => {
-    const apmRelation = store.state.indexSetFieldConfig.apm_relation;
+    const apmRelation = store.indexSetFieldConfig.apm_relation;
     if (apmRelation?.is_active) {
       const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
       const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;

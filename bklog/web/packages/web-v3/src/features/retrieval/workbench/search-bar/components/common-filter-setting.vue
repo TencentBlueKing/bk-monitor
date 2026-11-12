@@ -161,39 +161,48 @@
   </t-popup>
 </template>
 <script setup>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
   import { ref, computed, nextTick } from 'vue';
 
   import { getRegExp } from '@/shared/lib/util';
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import { Input as TInput, Popup as TPopup } from 'tdesign-vue-next';
   import VueDraggable from 'vuedraggable-vue3';
+  import { preserveVue3ComponentModel } from '@/platform/compat/vue3-component-model';
 
   import { excludesFields } from '../utils/const.common.ts';
   import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
+  preserveVue3ComponentModel(VueDraggable);
+
   // 获取 store
-  const store = useStore();
+  const store = useApplicationStore();
   const { $t } = useLocale();
   const searchKeyword = ref('');
   const popoverVisible = ref(false);
-  const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+  const isStartTextEllipsis = computed(() => store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
 
   // 定义响应式数据
   const isLoading = ref(false);
   const fieldList = computed(() => {
-    return store.getters.filteredFieldList;
+    return store.filteredFieldList;
   });
 
   const filterFieldsList = computed(() => {
-    if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
-      return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
+    if (Array.isArray(useRetrieveStore().$state.catchFieldCustomConfig?.filterSetting)) {
+      return useRetrieveStore().$state.catchFieldCustomConfig?.filterSetting ?? [];
     }
 
     return [];
   });
 
   const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+    const textEllipsisDir = store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
   });
 
@@ -221,7 +230,7 @@
     return shadowTotal.value.length;
   });
 
-  const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
+  const fieldTypeMap = computed(() => useGlobalsStore().$state.fieldTypeMap);
   const getFieldIcon = fieldType => {
     return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
   };
@@ -242,7 +251,7 @@
     };
     isLoading.value = true;
 
-    store.dispatch('userFieldConfigChange', param).finally(() => {
+    store.userFieldConfigChange(param).finally(() => {
       isLoading.value = false;
     });
   };

@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, defineAsyncComponent, type ComputedRef, defineComponent, KeepAlive, onBeforeUnmount, ref, watch } from 'vue';
 
 import { debounce } from 'lodash-es';
@@ -34,7 +36,7 @@ import SearchResultPanel from '../../workbench/search-result-panel/index.vue';
 import SearchResultTab from '../../workbench/search-result-tab/index.vue';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { RouteQueryTab } from '../index.type.tsx';
-import useStore from '@/shared/composables/use-store';
+
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
 
 import './index.scss';
@@ -81,7 +83,7 @@ export default defineComponent({
   setup() {
     const router = useRouter();
     const route = useRoute();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const debounceUpdateTabValue = debounce(value => {
       const isClustering = value === 'clustering';
@@ -109,7 +111,7 @@ export default defineComponent({
       debounceUpdateTabValue(tab);
 
       if (triggerTrend) {
-        store.dispatch('requestIndexSetQuery');
+        store.requestIndexSetQuery();
         if (trendSearchTimer) {
           clearTimeout(trendSearchTimer);
         }

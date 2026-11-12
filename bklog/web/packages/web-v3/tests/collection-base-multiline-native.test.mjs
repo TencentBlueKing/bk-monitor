@@ -32,6 +32,7 @@ function base(extra = {}, response = { data: { allowed: true, message: '' } }) {
           },
         },
       },
+      '@/app/state/domains/globals-store': { useGlobalsStore: () => ({ globalsData: { databus_custom: [{ id: 'log', name: '\u65e5\u5fd7' }] } }) },
       '@/shared/composables/use-locale': () => ({ t }),
       '@/shared/composables/use-store': () => ({
         state: { bkBizId: 5000140 },
@@ -141,6 +142,7 @@ function multiline(extra = {}, response = { data: { match_lines: 2 } }) {
         },
       },
       '@/platform/i18n/translation': { name: 'Translation' },
+      '@/app/state/domains/globals-store': { useGlobalsStore: () => ({ globalsData: { databus_custom: [{ id: 'log', name: '\u65e5\u5fd7' }] } }) },
       '@/shared/composables/use-locale': () => ({ t }),
       '@/shared/composables/use-store': () => ({ getters: { isEnLanguage: false } }),
       'vue-router': { useRoute: () => ({ params: { collectorId: '10663' } }) },
@@ -224,6 +226,7 @@ test('line-rule native inputs preserve all collection parameters and required va
     {
       vue: Vue,
       'tdesign-vue-next': native,
+      '@/app/state/domains/globals-store': { useGlobalsStore: () => ({ globalsData: { databus_custom: [{ id: 'log', name: '\u65e5\u5fd7' }] } }) },
       '@/shared/composables/use-locale': () => ({ t }),
       './multiline-reg-dialog': { name: 'Multiline' },
       '../../common-comp/info-tips': { name: 'InfoTips' },

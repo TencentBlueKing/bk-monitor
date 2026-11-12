@@ -216,10 +216,10 @@
                 >
                   <t-button :variant="(true) ? 'outline' : 'base'"
                     :disabled="!formData.bcs_cluster_id"
-                    
+
                     size="small"
                     theme="primary"
-                    
+
                   ><template #icon><span :class="`bk-icon icon-${'plus'}`"></span></template>
                     {{ $t('添加范围') }}
                   </t-button>
@@ -274,14 +274,17 @@
     />
   </div>
 </template>
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import containerTargetItem from './container-target-item';
   import configLogSetItem from './config-log-set-item';
   import labelTargetDialog from './label-target-dialog';
   import configViewDialog from './config-view-dialog';
   import ConfigLogSetEditItem from './config-log-set-edit-item';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   export default {
   emits: ["update:formData"],
@@ -357,7 +360,7 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         bkBizId: 'bkBizId',
       }),
     },

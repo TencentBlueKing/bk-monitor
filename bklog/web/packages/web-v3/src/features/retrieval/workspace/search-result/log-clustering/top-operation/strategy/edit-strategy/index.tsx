@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
@@ -31,7 +33,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { defineComponent, ref, computed, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 
-import useStore from '@/shared/composables/use-store';
+
 
 import { StrategyType } from '../index';
 import { type UserGroupList } from '@/features/retrieval/services/retrieve';
@@ -67,7 +69,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const rules = {
       interval: [
@@ -134,7 +136,7 @@ export default defineComponent({
     const formData = ref({} as any);
 
     const isAlarmType = computed(() => props.type === StrategyType.NEW_CLASS);
-    const bkBizId = computed(() => store.state.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
 
     watch(
       () => [props.configData, isAlarmType.value, isShowDialog.value],

@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "scope": "SOURCE_DISCOVERY_ONLY",
+  "issues": [
+    {
+      "file": "components/monitor-echarts/value-formats-package/arithmetic-formatters.ts",
+      "specifier": "../types/display-value",
+      "typeOnly": true,
+      "line": 29,
+      "sha256": "d165ec01570dc19296caf4637295bfd288ec524d2ac68117af0dab8049ec0a9d",
+      "mainStaticReachable": false,
+      "status": "UNRESOLVED_NOT_REMOVED",
+      "interpretation": "Type-only source dependency"
+    },
+    {
+      "file": "components/monitor-echarts/value-formats-package/date-time-formatters.ts",
+      "specifier": "../datetime/moment-wrapper",
+      "typeOnly": false,
+      "line": 27,
+      "sha256": "b9401cd41520cb3ba491a22b448cf1de75273c76b57e386ab832759d5d43ed3a",
+      "mainStaticReachable": false,
+      "status": "UNRESOLVED_NOT_REMOVED",
+      "interpretation": "Runtime import candidate; non-reachability does not prove dead code because dynamic/build entries remain"
+    },
+    {
+      "file": "components/monitor-echarts/value-formats-package/date-time-formatters.ts",
+      "specifier": "../types/display-value",
+      "typeOnly": true,
+      "line": 30,
+      "sha256": "b9401cd41520cb3ba491a22b448cf1de75273c76b57e386ab832759d5d43ed3a",
+      "mainStaticReachable": false,
+      "status": "UNRESOLVED_NOT_REMOVED",
+      "interpretation": "Type-only source dependency"
+    },
+    {
+      "file": "components/monitor-echarts/value-formats-package/symbol-formatters.ts",
+      "specifier": "../types/display-value",
+      "typeOnly": true,
+      "line": 29,
+      "sha256": "c520ae40d45785cccef051ec9ab769ecc3330976e7f32a0c4172d04c4d0eaa85",
+      "mainStaticReachable": false,
+      "status": "UNRESOLVED_NOT_REMOVED",
+      "interpretation": "Type-only source dependency"
+    },
+    {
+      "file": "components/monitor-echarts/value-formats-package/value-formats.ts",
+      "specifier": "../types/display-value",
+      "typeOnly": true,
+      "line": 31,
+      "sha256": "a714b1de4a8d60c6e335f7ae8892d71011a5fd70eda7a318bc217ce6c2062bd6",
+      "mainStaticReachable": false,
+      "status": "UNRESOLVED_NOT_REMOVED",
+      "interpretation": "Type-only source dependency"
+    },
+    {
+      "file": "views/manage/log-archive/archive-list/list.vue",
+      "specifier": "./components/archive-slider",
+      "typeOnly": false,
+      "line": 207,
+      "sha256": "27f226f9da841b67d522868ccea6ba1800f7410d225788d016bc580bf617ed5a",
+      "mainStaticReachable": false,
+      "status": "UNRESOLVED_NOT_REMOVED",
+      "interpretation": "Runtime import candidate; non-reachability does not prove dead code because dynamic/build entries remain"
+    },
+    {
+      "file": "views/retrieve-v2/condition-comp/retrieve-detail-input.vue",
+      "specifier": "../search-comp/retrieve-detail-input-editor.tsx",
+      "typeOnly": false,
+      "line": 222,
+      "sha256": "60b0078a5b2257e353bb4428a340b796819f86c25df3f3d53c2ced1cacbf3851",
+      "mainStaticReachable": false,
+      "status": "UNRESOLVED_NOT_REMOVED",
+      "interpretation": "Runtime import candidate; non-reachability does not prove dead code because dynamic/build entries remain"
+    }
+  ],
+  "diagnostics": [
+    {
+      "file": "views/404.vue",
+      "phase": "sfc",
+      "message": "<template functional> is no longer supported in Vue 3, since functional components no longer have significant performance difference from stateful ones. Just use a normal <template> instead.",
+      "classification": "SUPPORTED_VUE2_FUNCTIONAL_SYNTAX",
+      "templateAstAvailable": true
+    }
+  ]
+}

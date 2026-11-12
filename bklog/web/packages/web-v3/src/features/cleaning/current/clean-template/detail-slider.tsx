@@ -23,6 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { useApplicationStore } from '@/app/state/domains/application-store';
+
+
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
 
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -36,7 +41,7 @@ import {
   resolveCleanTemplateDraft,
 } from '@/features/management/manage-v2/utils/clean-template';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import CollectorTable from './collector-table';
 import DeleteConfirmPopover from './delete-confirm-popover';
@@ -122,7 +127,7 @@ export default defineComponent({
   emits: ['close', 'delete', 'edit', 'sync'],
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const activeTab = ref<DetailTab>('fields');
     const isLoading = ref(false);
     const keyword = ref('');
@@ -131,7 +136,7 @@ export default defineComponent({
 
     const currentTemplate = computed(() => detail.value ?? props.template);
     const fields = computed(() => detail.value?.etl_fields?.filter(item => !item.is_delete) ?? []);
-    const globalsData = computed(() => store.getters['globals/globalsData'] ?? {});
+    const globalsData = computed(() => useGlobalsStore().globalsData ?? {});
     const canSync = computed(
       () => collectors.value.length > 0 && props.template?.status === 'DRAFT' && !isCollectorsLoading.value,
     );

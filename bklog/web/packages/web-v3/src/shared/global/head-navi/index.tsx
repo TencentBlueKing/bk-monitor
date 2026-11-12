@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
 import { includesValue } from '@/shared/utils/typed-record';
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useJSONP } from '@/shared/lib/jsonp';
@@ -32,7 +35,7 @@ import BizMenuSelect from '@/shared/global/bk-space-choice/index';
 import useLocale from '@/shared/composables/use-locale';
 import { useNavMenu } from '@/shared/composables/use-nav-menu';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 import logoImg from '@/shared/assets/images/log-logo.png';
 import platformConfigStore from '@/app/state/modules/platform-config';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
@@ -68,14 +71,14 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const router = useRouter();
     const route = useRoute();
-    const userMeta = store.state.userMeta || {};
+    const userMeta = store.userMeta || {};
 
     const activeTopMenu = computed<Partial<import('@/app/state/menu-config').MenuConfigItem>>(() => {
       const matchedList = route.matched;
-      const menuList = store.state.menuList;
+      const menuList = store.menuList;
       return (
         menuList.find(item => {
           return matchedList.some(record => record.name === item.id);
@@ -83,7 +86,7 @@ export default defineComponent({
       );
     });
 
-    const bkBizId = computed(() => store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID]);
+    const bkBizId = computed(() => store.storage[BK_LOG_STORAGE.BK_BIZ_ID]);
 
     // i18n 函数：优先使用全局 $t，兜底返回原文
     const { t } = useLocale();
@@ -124,8 +127,8 @@ export default defineComponent({
       (window as any).bus?.$off('showGlobalDialog', handleGoToMyReport);
     });
 
-    const globalsData = computed(() => store.getters['globals/globalsData']);
-    const isExternal = computed(() => store.state.isExternal);
+    const globalsData = computed(() => useGlobalsStore().globalsData);
+    const isExternal = computed(() => store.isExternal);
 
     // 平台展示信息（名称 / logo），支持动态配置
     const platformData = computed(() => {
@@ -149,7 +152,7 @@ export default defineComponent({
      */
     async function getUserInfo() {
       try {
-        const res = store.state.userMeta;
+        const res = store.userMeta;
         state.username = res?.username || '';
         state.bk_tenant_id = res?.bk_tenant_id || null;
         state.timezone = res?.time_zone || 'Asia/Shanghai';
@@ -167,9 +170,9 @@ export default defineComponent({
      * 点击 Logo 返回首页（外部版跳“管理”）
      */
     function jumpToHome() {
-      store.commit('updateState', { isShowGlobalDialog: false });
+      store.updateState({ isShowGlobalDialog: false });
       if ((window as any).IS_EXTERNAL) {
-        const externalMenu = (store.state.externalMenu as string[]) || [];
+        const externalMenu = (store.externalMenu as string[]) || [];
         // 外部版优先跳转管理，无管理权限再考虑检索或客户端日志检索
         let defaultRoute = 'manage';
         if (externalMenu.includes('manage')) defaultRoute = 'manage';
@@ -178,23 +181,23 @@ export default defineComponent({
         router.push({
           name: defaultRoute,
           query: {
-            spaceUid: store.state.spaceUid,
+            spaceUid: store.spaceUid,
             bizId: bkBizId.value,
           },
         });
         return;
       }
-      router.push({ name: 'retrieve', query: { spaceUid: store.state.spaceUid } });
+      router.push({ name: 'retrieve', query: { spaceUid: store.spaceUid } });
     }
 
     /**
      * 顶部菜单点击：使用策略映射处理相同菜单二次点击与普通跳转
      */
     function routerHandler(menu: any) {
-      store.commit('updateState', { isShowGlobalDialog: false });
+      store.updateState({ isShowGlobalDialog: false });
 
       const currentRoute = (router as any).currentRoute.value;
-      const spaceUidQuery = { spaceUid: store.state.spaceUid };
+      const spaceUidQuery = { spaceUid: store.spaceUid };
 
       // 相同菜单再次点击时的处理策略
       const sameMenuHandlers: Record<string, () => void> = {
@@ -398,8 +401,8 @@ export default defineComponent({
         handleGoToMyReport();
         return;
       }
-      store.commit('updateState', { globalActiveLabel: id });
-      store.commit('updateState', { isShowGlobalDialog: true });
+      store.updateState({ globalActiveLabel: id });
+      store.updateState({ isShowGlobalDialog: true });
     }
 
     const dropdownHelpRef = ref();
@@ -472,11 +475,11 @@ export default defineComponent({
       const list =
         (navMenu.topMenu as any).value?.filter((menu: any) => {
           const baseFilter =
-            menu.feature === 'on' && (isExternal.value ? includesValue(store.state.externalMenu, menu.id) : true);
+            menu.feature === 'on' && (isExternal.value ? includesValue(store.externalMenu, menu.id) : true);
           if (!baseFilter) return false;
           // 客户端日志菜单项需要检查 tgpa_task 功能开关
           if (menu.id === 'client-log-search') {
-            return isFeatureToggleOn('tgpa_task', [String(bkBizId.value), String(store.state.spaceUid)]);
+            return isFeatureToggleOn('tgpa_task', [String(bkBizId.value), String(store.spaceUid)]);
           }
           return true;
         }) || [];
@@ -544,14 +547,14 @@ export default defineComponent({
                     <span
                       class={{
                         'setting bk-icon icon-cog-shape icon-language-container': true,
-                        active: store.state.isShowGlobalDialog || state.isShowGlobalDropdown,
+                        active: store.isShowGlobalDialog || state.isShowGlobalDropdown,
                       }}
                     ></span>
                   </div>
                 ),
                 content: () => (
                   <ul class='bk-dropdown-list'>
-                    {(store.state.globalSettingList || []).map((item: any) => (
+                    {(store.globalSettingList || []).map((item: any) => (
                       <li
                         key={item.id}
                         class='language-btn'

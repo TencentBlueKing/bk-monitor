@@ -1,11 +1,13 @@
 <script setup>
-  import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ref, watch, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
   import UseJsonFormatter from '@/shared/composables/use-json-formatter';
   import useTruncateText from '@/shared/composables/use-truncate-text';
   import useIntersectionObserver from '@/shared/composables/use-intersection-observer';
   import { BK_LOG_STORAGE } from '../../../../app/state/store.type.ts';
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import RetrieveHelper from '@/features/retrieval/retrieve-helper';
   import { debounce } from 'lodash-es';
 
@@ -19,10 +21,10 @@
 
   const refContent = ref();
   const refFieldValue = ref();
-  const store = useStore();
+  const store = useApplicationStore();
   const { $t } = useLocale();
-  const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
-  const isLimitExpandView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
+  const isWrap = computed(() => store.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+  const isLimitExpandView = computed(() => store.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
   const showAll = ref(false);
   const maxWidth = ref(0);
   const isIntersecting = ref(false);

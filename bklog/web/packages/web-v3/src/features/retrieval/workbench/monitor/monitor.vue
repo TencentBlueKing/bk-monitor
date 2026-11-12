@@ -25,11 +25,15 @@
 -->
 
 <script setup>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
   import { computed, ref, watch, provide } from 'vue';
 
   import * as authorityMap from '@/shared/lib/authority-map';
   import { handleTransformToTimestamp } from '@/shared/ui/time-range/utils';
-  import useStore from '@/shared/composables/use-store';
+
   import { updateTimezone } from '@/platform/i18n/dayjs';
   import { ConditionOperator } from '@/app/state/condition-operator';
   import RouteUrlResolver, { RetrieveUrlResolver } from '@/app/state/url-resolver';
@@ -72,10 +76,10 @@
 
   provide('handleChartDataZoom', props.handleChartDataZoom);
 
-  const store = useStore();
+  const store = useApplicationStore();
   const router = useRouter();
   const route = useRoute();
-  const indexSetParams = computed(() => store.state.indexItem);
+  const indexSetParams = computed(() => store.indexItem);
   const initLoading = ref(true);
 
   // 解析默认URL为前端参数
@@ -106,8 +110,8 @@
   // };
 
   const getApmIndexSetList = async () => {
-    store.commit('retrieve/updateIndexSetLoading', true);
-    store.commit('retrieve/updateIndexSetList', []);
+    useRetrieveStore().updateIndexSetLoading(true);
+    useRetrieveStore().updateIndexSetList([]);
     return props
       .indexSetApi()
       .then(res => {
@@ -131,13 +135,13 @@
             item.indexName = item.index_set_name;
             item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
           });
-          store.commit('retrieve/updateIndexSetList', indexSetList);
+          useRetrieveStore().updateIndexSetList(indexSetList);
           return indexSetList;
         }
       })
       .finally(() => {
         initLoading.value = false;
-        store.commit('retrieve/updateIndexSetLoading', false);
+        useRetrieveStore().updateIndexSetLoading(false);
       });
   };
 
@@ -166,7 +170,7 @@
       return;
     }
     const routeQuery = { ...route.query };
-    const { keyword, addition, ip_chooser, search_mode, begin, size } = store.getters.retrieveParams;
+    const { keyword, addition, ip_chooser, search_mode, begin, size } = store.retrieveParams;
     const resolver = new RetrieveUrlResolver({
       keyword,
       addition,
@@ -193,10 +197,10 @@
         return;
       }
       setRouteQuery({ ...route.query, indexId: payload.ids[0], unionList: undefined, clusterParams: undefined });
-      store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
-      store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
-        store.commit('retrieve/updateChartKey');
-        store.dispatch('requestIndexSetQuery');
+      store.updateUnionIndexList(payload.isUnionIndex ? (payload.ids ?? []) : []);
+      store.requestIndexSetItemChanged(payload ?? {}).then(() => {
+        useRetrieveStore().updateChartKey();
+        store.requestIndexSetQuery();
       });
     }
   };
@@ -214,7 +218,7 @@
 
     setRouteQuery();
 
-    store.commit('updateIndexItemParams', {
+    store.updateIndexItemParams({
       keyword,
       addition: foramtAddition,
       ip_chooser,
@@ -223,14 +227,14 @@
     });
 
     setTimeout(() => {
-      store.dispatch('requestIndexSetQuery');
+      store.requestIndexSetQuery();
     });
   };
 
   const init = () => {
-    const result = handleTransformToTimestamp(props.timeRange, store.getters.retrieveParams.format);
+    const result = handleTransformToTimestamp(props.timeRange, store.retrieveParams.format);
     const resolver = new RouteUrlResolver({ route });
-    store.commit('updateIndexItem', {
+    store.updateIndexItem({
       ...resolver.convertQueryToStore(),
       start_time: result[0],
       end_time: result[1],
@@ -245,11 +249,11 @@
     async val => {
       if (!val) return;
       getIndexSetList();
-      store.commit('updateIsSetDefaultTableColumn', false);
-      const result = handleTransformToTimestamp(val, store.getters.retrieveParams.format);
-      store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
-      await store.dispatch('requestIndexSetFieldInfo');
-      store.dispatch('requestIndexSetQuery');
+      store.updateIsSetDefaultTableColumn(false);
+      const result = handleTransformToTimestamp(val, store.retrieveParams.format);
+      store.updateIndexItemParams({ start_time: result[0], end_time: result[1], datePickerValue: val });
+      await store.requestIndexSetFieldInfo();
+      store.requestIndexSetQuery();
     },
   );
 
@@ -257,16 +261,16 @@
     () => props.timezone,
     val => {
       if (!val) return;
-      store.commit('updateIndexItemParams', { timezone: val });
+      store.updateIndexItemParams({ timezone: val });
       updateTimezone(val);
-      store.dispatch('requestIndexSetQuery');
+      store.requestIndexSetQuery();
     },
   );
 
   watch(
     () => props.refleshImmediate,
     () => {
-      store.dispatch('requestIndexSetQuery');
+      store.requestIndexSetQuery();
     },
   );
 
@@ -278,9 +282,9 @@
   };
 
   const initIsShowClusterWatch = watch(
-    () => store.state.clusterParams,
+    () => store.clusterParams,
     () => {
-      if (store.state.clusterParams) {
+      if (store.clusterParams) {
         activeTab.value = 'clustering';
         initIsShowClusterWatch();
       }
@@ -289,9 +293,9 @@
   );
 
   watch(
-    () => store.state.indexItem.isUnionIndex,
+    () => store.indexItem.isUnionIndex,
     () => {
-      if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
+      if (store.indexItem.isUnionIndex && activeTab.value === 'clustering') {
         activeTab.value = 'origin';
       }
     },

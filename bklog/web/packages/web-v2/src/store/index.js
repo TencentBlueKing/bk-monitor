@@ -31,6 +31,8 @@
 import Vue from 'vue';
 
 import { unifyObjectStyle } from '@/common/util';
+import { isAnalyzeEnabled, nextSpanId, recordAnalyze, summarizePayload } from '@/common/analyze-trace';
+import { observeCall } from '@/common/observe-call';
 import * as pinyin from 'tiny-pinyin';
 import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
 import Vuex from 'vuex';
@@ -102,7 +104,24 @@ store.dispatch = function (_type, _payload, config = {}) {
     .forEach(sub => sub.before(action, store.state));
   // store._actionSubscribers.forEach(sub => sub(action, store.state));
 
-  return entry.length > 1 ? Promise.all(entry.map(handler => handler(payload, config))) : entry[0](payload, config);
+  const analyzeOn = isAnalyzeEnabled();
+  const actionSpanId = analyzeOn ? nextSpanId('act') : '';
+  return observeCall(
+    () => (entry.length > 1 ? Promise.all(entry.map(handler => handler(payload, config))) : entry[0](payload, config)),
+    {
+      enabled: analyzeOn,
+      record: (phase, value) =>
+        recordAnalyze({
+          kind: 'action',
+          name: `${type}:${phase}`,
+          spanId: actionSpanId,
+          summary:
+            phase === 'error'
+              ? { message: value?.message || String(value) }
+              : summarizePayload(phase === 'start' ? payload : value),
+        }),
+    },
+  );
 };
 
 export default store;

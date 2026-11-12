@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { Component, Model, Prop } from 'vue-property-decorator';
@@ -85,7 +87,7 @@ class QuickCreateSubscription extends tsc<IProps> {
           is_enabled: true,
           subscribers: [
             {
-              id: this.$store.state.userMeta?.username || '',
+              id: useApplicationStore().userMeta?.username || '',
               type: 'user',
               is_enabled: true,
             },
@@ -137,7 +139,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     style='width: 88px; margin-right: 8px;'
                     loading={this.isSending}
                     theme='primary'
-                    
+
                     onClick={() => this.testSending('self')} variant={(true) ? 'outline' : 'base'}
                   >
                     {this.$t('测试发送')}

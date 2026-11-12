@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ref } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 
 export function useDrag() {
-  const store = useStore();
+  const store = useApplicationStore();
 
   const minIntroWidth = ref(300); // 最小宽度
   const maxIntroWidth = ref(480); // 默认最大宽度
@@ -63,7 +65,7 @@ export function useDrag() {
     currentScreenX.value = null;
     window.removeEventListener('mousemove', dragMoving);
     window.removeEventListener('mouseup', dragStop);
-    store.commit('updateChartSize');
+    store.updateChartSize();
   }
 
   return {

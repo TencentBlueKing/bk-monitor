@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -33,7 +35,7 @@ import * as authorityMap from '@/shared/lib/authority-map';
 import { formatFileSize, clearTableFilter } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { bkInfoBox as InfoBox } from '@/platform/compat/tdesign/info-box';
 
@@ -53,7 +55,7 @@ export default defineComponent({
     EmptyStatus,
   },
   setup() {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale(); // 获取国际化函数
     const archiveTable = ref<any>(null); // 表格引用
 
@@ -74,7 +76,7 @@ export default defineComponent({
       limitList: [10, 20, 50, 100],
     });
 
-    const bkBizId = computed(() => store.getters.bkBizId); // 业务ID
+    const bkBizId = computed(() => store.bkBizId); // 业务ID
     const authorityMapComputed = computed(() => authorityMap); // 权限映射计算属性
 
     // 获取文件大小
@@ -228,8 +230,8 @@ export default defineComponent({
     const getOptionApplyData = async (paramData: any) => {
       try {
         isTableLoading.value = true;
-        const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateState', { authDialogData: res.data });
+        const res = await store.getApplyData(paramData);
+        store.updateState({ authDialogData: res.data });
       } catch (err) {
         console.warn(err);
       } finally {
@@ -374,7 +376,7 @@ export default defineComponent({
                       class='mr10 king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
                       theme='primary'
-                      
+
                       onClick={() => operateHandler(props.row, 'restore')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('回溯')}
@@ -384,7 +386,7 @@ export default defineComponent({
                       class='mr10 king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
                       theme='primary'
-                      
+
                       onClick={() => operateHandler(props.row, 'edit')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('编辑')}
@@ -394,7 +396,7 @@ export default defineComponent({
                       class='mr10 king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
                       theme='primary'
-                      
+
                       onClick={() => operateHandler(props.row, 'delete')} variant={(true) ? 'text' : ('base')}
                     >
                       {t('删除')}

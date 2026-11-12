@@ -61,6 +61,10 @@
 </template>
 
 <script>
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+
   export default {
     props: {
       name: {
@@ -132,7 +136,7 @@
           this.$router.push({
             name: id,
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
             },
           });
         }
@@ -145,7 +149,7 @@
           this.$router.push({
             name: backRoute ? backRoute : this.$route.meta.backName,
             query: {
-              spaceUid: this.$store.state.spaceUid,
+              spaceUid: useApplicationStore().spaceUid,
               typeKey,
               indexSetId,
             },
@@ -195,9 +199,9 @@
         return map[this.$route.name];
       },
       getBaseName() {
-        const collectionName = this.$store.state.collect.curCollect?.collector_config_name ?? '';
+        const collectionName = useCollectionStore().$state.curCollect?.collector_config_name ?? '';
         const routerEditName = this.$route.query.editName ?? '';
-        const storeIndexSetName = this.$store.state.collect.curIndexSet?.index_set_name ?? '';
+        const storeIndexSetName = useCollectionStore().$state.curIndexSet?.index_set_name ?? '';
         const map = {
           'log-index-set-manage': storeIndexSetName,
           'bkdata-index-set-manage': storeIndexSetName,

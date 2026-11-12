@@ -185,7 +185,7 @@
             <t-button :variant="(true) ? 'text' : ('base')"
               :disabled="pagedIndexesList.length === 1"
               theme="primary"
-              
+
               @click="removeIndex(row)"
             >
               {{ $t('删除') }}
@@ -247,10 +247,17 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { formatFileSize, utcFormatDate } from '@/shared/lib/util';
-  import { mapState } from '@/app/state/map-helpers';
+
   import useUtils from '@/shared/composables/use-utils';
   import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 
@@ -295,8 +302,8 @@
       };
     },
     computed: {
-      ...mapState(['spaceUid', 'bkBizId']),
-      ...mapState('collect', ['scenarioMap']),
+      ...mapPiniaState(useApplicationStore, ['spaceUid', 'bkBizId']),
+      ...mapPiniaState(useCollectionStore, ['scenarioMap']),
       isV2Enabled() {
         return isFeatureToggleOn('log_manage_v2', [String(this.bkBizId), String(this.spaceUid)]);
       },
@@ -307,7 +314,7 @@
       },
       categoryMap() {
         const map = {};
-        this.$store.state.globals.globalsData.category.forEach(child => {
+        useGlobalsStore().$state.globalsData.category.forEach(child => {
           child.children.forEach(item => {
             map[item.id] = item.name;
           });
@@ -381,7 +388,7 @@
       },
       handleClickEdit() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateState', { authDialogData: this.editAuthData });
+          useApplicationStore().updateState({ authDialogData: this.editAuthData });
           return;
         }
         const params = {};
@@ -392,7 +399,7 @@
           name: 'collectEdit',
           params,
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
             backRoute,
             type: 'basicInfo',
             typeKey: this.$route.query.typeKey,
@@ -464,7 +471,7 @@
                 1,
               );
               this.indexesPagination.count -= 1;
-              this.$store.commit('collect/updateCurIndexSet', res.data);
+              useCollectionStore().updateCurIndexSet(res.data);
               this.messageSuccess(this.$t('删除成功'));
             } catch (e) {
               console.warn(e);

@@ -24,17 +24,19 @@
 * IN THE SOFTWARE.
 -->
 
-<script setup>import { ServicesInstance } from '@/platform/services';
+<script setup>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { computed, ref } from 'vue';
 
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import { useRoute } from "vue-router";
 
-  
 
-  const store = useStore();
+
+  const store = useApplicationStore();
   const route = useRoute();
   const { $t } = useLocale();
 
@@ -44,9 +46,9 @@
   const isLoading = ref(false);
   const configList = ref([]);
 
-  const unionIndexList = computed(() => store.state.unionIndexList);
-  const isUnionSearch = computed(() => store.state.isUnionSearch);
-  const isSceneMode = computed(() => store.getters.isSceneMode);
+  const unionIndexList = computed(() => store.unionIndexList);
+  const isUnionSearch = computed(() => store.isUnionSearch);
+  const isSceneMode = computed(() => store.isSceneMode);
 
   const dropdownShow = () => {
     isDropdownShow.value = true;
@@ -62,8 +64,8 @@
       const requestName = (isSceneMode.value ? ServicesInstance.retrieve.sceneListConfig : ServicesInstance.retrieve.getFieldsListConfig);
       const data = isSceneMode.value
         ? {
-            bk_biz_id: store.state.bkBizId,
-            scene_id: store.state.indexItem.scene_active,
+            bk_biz_id: store.bkBizId,
+            scene_id: store.indexItem.scene_active,
             scope: 'default',
           }
         : {
@@ -82,19 +84,18 @@
     }
   };
   const handleClickManagementConfig = () => {
-    store.commit('updateShowFieldsConfigPopoverNum', 1);
+    store.updateShowFieldsConfigPopoverNum(1);
   };
 
   const handleClickSelectConfig = item => {
-    store.commit('updateIsSetDefaultTableColumn', false);
-    store
-      .dispatch('userFieldConfigChange', {
+    store.updateIsSetDefaultTableColumn(false);
+    store.userFieldConfigChange({
         displayFields: item.display_fields,
         fieldsWidth: {},
       })
       .then(() => {
-        store.commit('resetVisibleFields', item.display_fields);
-        store.commit('updateIsSetDefaultTableColumn');
+        store.resetVisibleFields(item.display_fields);
+        store.updateIsSetDefaultTableColumn();
         emit('select-fields-config', item.display_fields);
       });
   };

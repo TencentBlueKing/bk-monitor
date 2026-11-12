@@ -115,7 +115,21 @@
   text-align: center;
   flex: 1;
 
+  .exception-wrap-item {
+    width: 100%;
+    padding: 0;
+
+    .empty-text-content {
+      margin-top: 0;
+
+      > .empty-text {
+        margin-bottom: 0;
+      }
+    }
+  }
+
   &-title {
+    line-height: normal;
     color: #313238;
     font-size: 22px;
     font-weight: 700;
@@ -123,12 +137,14 @@
   }
 
   &-desc {
+    line-height: normal;
     color: #313238;
     font-size: 17px;
     margin-bottom: 24px;
   }
 
   &-detail {
+    line-height: normal;
     font-size: 14px;
     // color: #c4c6cc;
     color: #4d4f56;

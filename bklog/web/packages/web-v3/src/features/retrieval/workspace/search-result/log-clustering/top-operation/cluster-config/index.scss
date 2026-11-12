@@ -18,3 +18,10 @@
     margin-right: 5px;
   }
 }
+
+.cluster-settings-drawer {
+  .t-drawer__header { height: 52px; min-height: 52px; padding: 0; }
+  .t-drawer__body { padding: 0; overflow: hidden; }
+  .cluster-settings-header { display: flex; align-items: center; height: 52px; font-size: 16px; font-weight: 400; }
+  .cluster-settings-header button { display: flex; align-items: center; justify-content: center; width: 30px; height: 52px; padding: 0; margin-right: 16px; border: 0; background: #3a84ff; color: #fff; cursor: pointer; }
+}

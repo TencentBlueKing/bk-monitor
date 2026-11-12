@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, ref, computed } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { blobDownload, formatDate } from '@/shared/lib/util';
 
 import './index.scss';
@@ -50,7 +52,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const isDownloading = ref(false);
 
     // 计算下载按钮是否禁用
@@ -72,7 +74,7 @@ export default defineComponent({
 
     // 获取当前索引集信息
     const currentIndexItem = computed(() => {
-      return store.state.indexItem.items?.find((item) => item.index_set_id === props.indexId);
+      return store.indexItem.items?.find((item) => item.index_set_id === props.indexId);
     });
 
     // 生成文件名
@@ -80,7 +82,7 @@ export default defineComponent({
       const indexSetName = currentIndexItem.value?.index_set_name || 'cluster';
 
       // 获取开始时间
-      const { start_time } = store.state.indexItem;
+      const { start_time } = store.indexItem;
 
       // 格式化时间为文件名格式（将冒号替换为横线以避免文件名非法字符）
       const startTimeStr = formatDate(start_time).replace(/:/g, '-');

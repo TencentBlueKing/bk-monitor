@@ -24,10 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, onMounted, ref } from 'vue';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute } from 'vue-router';
 import { debounce } from 'throttle-debounce';
 
@@ -54,14 +56,14 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const store = useStore();
+    const store = useApplicationStore();
     const route = useRoute();
     const { t } = useLocale();
 
     const isCurrentIndexSetIdCreateSubscription = ref(false);
     const isShowQuickCreateSubscriptionDrawer = ref(false);
 
-    const bkBizId = computed(() => store.state.bkBizId);
+    const bkBizId = computed(() => store.bkBizId);
 
     const goToMySubscription = () => {
       window.bus.$emit('showGlobalDialog');

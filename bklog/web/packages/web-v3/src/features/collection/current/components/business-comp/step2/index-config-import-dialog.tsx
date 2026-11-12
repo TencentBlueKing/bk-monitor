@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
@@ -34,7 +36,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { computed, defineComponent, ref, watch, type PropType, onBeforeUnmount } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import axios from 'axios';
 
@@ -109,7 +111,7 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     // const route = useRoute();
     const etlConfigEnum = asDictionary({
       bk_log_text: t('直接入库'),
@@ -449,7 +451,7 @@ export default defineComponent({
       ServicesInstance.collect.newCollectList(
           {
             data: {
-              space_uid: store.getters.spaceUid,
+              space_uid: store.spaceUid,
               page: current,
               pagesize: pageSize,
               keyword: searchKeyword.value,

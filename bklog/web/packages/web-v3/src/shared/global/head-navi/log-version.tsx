@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { PropType, computed, defineComponent, onBeforeUnmount, ref, watch } from 'vue';
 
-import useStore from '@/shared/composables/use-store';
+
 // 版本日志对话框（Composition API + TSX）
 import { Dialog as TDialog } from 'tdesign-vue-next';
 
@@ -51,7 +53,7 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const t = (msg: string) => ((window as any).$t ? (window as any).$t(msg) : msg);
 
     // state
@@ -61,8 +63,8 @@ export default defineComponent({
     const logList = ref<VersionItem[]>([]);
     const loading = ref<boolean>(false);
 
-    const isExternal = computed<boolean>(() => store.state.isExternal);
-    const spaceUid = computed<string>(() => store.state.spaceUid);
+    const isExternal = computed<boolean>(() => store.isExternal);
+    const spaceUid = computed<string>(() => store.spaceUid);
 
     // computed
     const currentLog = computed<VersionItem>(() => {

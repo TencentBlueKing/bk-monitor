@@ -124,7 +124,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { formatFileSize } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
@@ -192,7 +194,7 @@
       },
       handleClickEdit() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateState', { authDialogData: this.editAuthData });
+          useApplicationStore().updateState({ authDialogData: this.editAuthData });
           return;
         }
         const params = {
@@ -202,7 +204,7 @@
           name: 'collectStorage',
           params,
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
             backRoute: 'manage-collection',
             type: 'dataStorage',
             step: '3',

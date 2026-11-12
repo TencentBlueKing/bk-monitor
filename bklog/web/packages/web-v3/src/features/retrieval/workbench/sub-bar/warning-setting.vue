@@ -36,7 +36,7 @@
               >
                 {{ $t('我的') }}
                 <t-switch
-                  v-model="filterOwner"
+                  v-model:value="filterOwner"
                   class="selector-owner-switch"
                   size="small"
                 ></t-switch>
@@ -126,7 +126,6 @@
               </template>
               <template #alert_name="{ row }">
                 <div
-                  v-log-overflow-tips="row.alert_name"
                   class="bklog-table-col-alert-name"
                   :style="{
                     color: '#3a84ff',
@@ -208,24 +207,26 @@
   </div>
 </template>
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import {
   MessagePlugin as TDesignMessage,
   Table as TTable,
   Tabs as TTabs,
   TabPanel as TTabPanel,
+  type TableProps,
 } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 
   import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
   import axios from 'axios';
-  
+
   import { formatDate } from '@/shared/lib/util';
   import PopInstanceUtil from '@/shared/global/pop-instance-util';
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
-  import RequestPool from '@/app/state/request-pool';
-  
+
+
 
   import { ConditionOperator } from '../../../../app/state/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
@@ -237,7 +238,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
   const STRATEGY_LIST_CANCEL_KEY = 'retrieveStrategyListCancelToken';
 
   const { t } = useLocale();
-  const store = useStore();
+  const store = useApplicationStore();
 
   const { resolveQueryParams, resolveCommonParams } = useRetrieveHook();
 
@@ -260,8 +261,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
     { name: 'mission', label: '最近告警记录', count: 0 },
     { name: 'config', label: '策略', count: 0 },
   ]);
-  const indexId = computed(() => store.state.indexId);
-  const userMeta = computed(() => store.state.userMeta);
+  const indexId = computed(() => store.indexId);
+  const userMeta = computed(() => store.userMeta);
   // const alertText = computed(() => {
   //   if (active.value === 'mission') {
   //     return t('最多展示近10条告警，点击查看更多');
@@ -361,12 +362,12 @@ import { asDictionary } from '@/shared/utils/typed-record';
 
   // 固定布局下 col 的 minWidth 不生效，「首次发生时间」会被均分挤窄后换行。
   // 给这一列明确宽度，表头再强制单行。
-  const missionColumns = computed(() => [
-    { colKey: 'alert_name', title: t('告警名称'), minWidth: 120 },
-    { colKey: 'first_anomaly_time', title: t('首次发生时间'), width: 168, sorter: true },
-    { colKey: 'duration', title: t('持续时间'), width: 96, align: 'right' },
-    { colKey: 'status', title: t('状态'), width: 96 },
-    { colKey: 'operation', title: t('操作'), width: 88 },
+  const missionColumns = computed<TableProps['columns']>(() => [
+    { colKey: 'alert_name', title: t('告警名称'), minWidth: 120, ellipsis: (_h, { row }) => row.alert_name },
+    { colKey: 'first_anomaly_time', title: t('首次发生时间'), width: 168, sorter: true, ellipsis: true },
+    { colKey: 'duration', title: t('持续时间'), width: 96, align: 'right', ellipsis: true },
+    { colKey: 'status', title: t('状态'), width: 96, ellipsis: true },
+    { colKey: 'operation', title: t('操作'), width: 88, ellipsis: true },
   ]);
   const configColumns = computed(() => [
     { colKey: 'name', title: t('策略'), ellipsis: true, minWidth: 180 },
@@ -410,10 +411,10 @@ import { asDictionary } from '@/shared/utils/typed-record';
   };
 
   const getQueryString = () => {
-    const timezone = store.state.indexItem.timezone;
-    const [startTime, endTime] = store.state.indexItem.datePickerValue;
+    const timezone = store.indexItem.timezone;
+    const [startTime, endTime] = store.indexItem.datePickerValue;
 
-    return `queryString=metric:bk_log_search.index_set.${store.state.indexId}&from=${startTime}&to=${endTime}&timezone=${timezone}`;
+    return `queryString=metric:bk_log_search.index_set.${store.indexId}&from=${startTime}&to=${endTime}&timezone=${timezone}`;
   };
 
   const handleJumpMonitor = () => {
@@ -424,7 +425,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
     if (active.value === 'mission') {
       const res = getQueryString();
       window.open(
-        `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
+        `${window.MONITOR_URL}/?bizId=${store.bkBizId}#/${addressMap[active.value]}?${res}`,
         '_blank',
         'noopener,noreferrer',
       );
@@ -432,7 +433,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
     }
 
     window.open(
-      `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?filters=[{"key":"metric_id","value":["bk_log_search.index_set.${store.state.indexId}"]}]`,
+      `${window.MONITOR_URL}/?bizId=${store.bkBizId}#/${addressMap[active.value]}?filters=[{"key":"metric_id","value":["bk_log_search.index_set.${store.indexId}"]}]`,
       '_blank',
       'noopener,noreferrer',
     );
@@ -440,7 +441,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 
   const handleViewWarningDetail = (row: { id: any; }) => {
     window.open(
-      `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/event-center/detail/${row.id}`,
+      `${window.MONITOR_URL}/?bizId=${store.bkBizId}#/event-center/detail/${row.id}`,
       '_blank',
       'noopener,noreferrer',
     );
@@ -448,7 +449,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 
   const handleStrategyInfoClick = (row: { strategy_id: any; }) => {
     window.open(
-      `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
+      `${window.MONITOR_URL}/?bizId=${store.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
       '_blank',
       'noopener,noreferrer',
     );
@@ -457,7 +458,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
   const isCurrentIndexRequest = (requestIndexId: string | number) => requestIndexId === indexId.value;
 
   const requestAlertList = (status: string, requestIndexId: string | number, cancelTokenKey: string) => {
-    RequestPool.execCanceToken(cancelTokenKey);
+    store.requestPool.execCanceToken(cancelTokenKey);
     return ServicesInstance.alertStrategy.alertList(
       {
         params: {
@@ -466,10 +467,10 @@ import { asDictionary } from '@/shared/utils/typed-record';
         data: {
           status,
           page_size: pageSize,
-          space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+          space_uid: store.storage[BK_LOG_STORAGE.BK_SPACE_UID],
         },
       },
-      { cancelToken: RequestPool.getCancelToken(cancelTokenKey) },
+      { cancelToken: store.requestPool.getCancelToken(cancelTokenKey) },
     );
   };
 
@@ -554,7 +555,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 
     const requestSeq = ++strategyRequestSeq;
     strategyList.value = [];
-    RequestPool.execCanceToken(STRATEGY_LIST_CANCEL_KEY);
+    store.requestPool.execCanceToken(STRATEGY_LIST_CANCEL_KEY);
     strategyLoading.value = true;
 
     try {
@@ -565,10 +566,10 @@ import { asDictionary } from '@/shared/utils/typed-record';
           },
           data: {
             page_size: pageSize,
-            space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+            space_uid: store.storage[BK_LOG_STORAGE.BK_SPACE_UID],
           },
         },
-        { cancelToken: RequestPool.getCancelToken(STRATEGY_LIST_CANCEL_KEY) },
+        { cancelToken: store.requestPool.getCancelToken(STRATEGY_LIST_CANCEL_KEY) },
       );
       if (requestSeq !== strategyRequestSeq || !isCurrentIndexRequest(requestIndexId)) {
         return;
@@ -596,9 +597,9 @@ import { asDictionary } from '@/shared/utils/typed-record';
   };
 
   const cancelAlertRequests = () => {
-    RequestPool.execCanceToken(ALERT_BADGE_CANCEL_KEY);
-    RequestPool.execCanceToken(ALERT_LIST_CANCEL_KEY);
-    RequestPool.execCanceToken(STRATEGY_LIST_CANCEL_KEY);
+    store.requestPool.execCanceToken(ALERT_BADGE_CANCEL_KEY);
+    store.requestPool.execCanceToken(ALERT_LIST_CANCEL_KEY);
+    store.requestPool.execCanceToken(STRATEGY_LIST_CANCEL_KEY);
   };
 
   const resetAlertPanelData = () => {
@@ -628,7 +629,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
         },
         query: {
           alert_id: row.id,
-          bk_biz_id: store.state.bkBizId,
+          bk_biz_id: store.bkBizId,
         },
       })
       .then(resp => {
@@ -651,13 +652,13 @@ import { asDictionary } from '@/shared/utils/typed-record';
           resolveCommonParams(params).then(() => {
             resolveQueryParams(params, true).then(res => {
               if (res) {
-                store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
-                store.commit('updateIndexItemParams', {
+                store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+                store.updateIndexItemParams({
                   start_time: startTime,
                   end_time: endTime,
                   datePickerValue: [startTime, endTime],
                 });
-                store.dispatch('requestIndexSetQuery', { isPagination: false });
+                store.requestIndexSetQuery({ isPagination: false });
                 RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
                 PopInstanceUtilInstance.hide();
               }

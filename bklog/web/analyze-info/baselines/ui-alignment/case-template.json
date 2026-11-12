@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "REPLACE_WITH_STABLE_SCENARIO_ID",
+  "status": "PENDING_ANALYSIS",
+  "source": { "version": "v2", "commit": "", "files": [], "behaviorEvidence": [] },
+  "implementation": { "files": [], "dependencies": [], "impactGroups": [] },
+  "contract": {
+    "entryRoute": "", "preconditions": [], "operations": [], "expectedEvents": [],
+    "modelPropsAndEvents": [], "slotArguments": [], "requestEffects": [],
+    "validation": [], "errorAndCancel": [], "unmountCleanup": []
+  },
+  "ui": {
+    "viewports": [{ "width": 1440, "height": 900 }, { "width": 1280, "height": 800 }],
+    "states": [], "teleportedRoots": [], "focusAndKeyboard": [], "scrollAndZIndex": [],
+    "v2Screenshots": [], "v3Screenshots": [], "diffArtifacts": []
+  },
+  "verification": { "commands": [], "requiredCaseIds": [], "reports": [], "sourceDigests": [] },
+  "resourcePolicy": { "existingResourcesReadOnly": true, "createdResourceIds": [], "cleanup": [] },
+  "acceptance": { "business": "PENDING", "visual": "PENDING", "release": "PENDING", "remaining": [] }
+}

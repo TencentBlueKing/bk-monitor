@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
+
 import {
   Button as TButton,
   Loading as TLoading,
@@ -42,7 +47,7 @@ import axios from 'axios';
 import { messageWarn } from '@/shared/lib/message';
 import BklogPopover from '@/shared/ui/bklog-popover/index';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import {
   SceneType,
   type FilterFieldConfig,
@@ -95,13 +100,13 @@ export default defineComponent({
   emits: ['scene-change', 'filter-change', 'clear', 'display-fields-change', 'operator-change', 'option-labels-change', "filterChange", "displayFieldsChange", "sceneChange", "operatorChange", "optionLabelsChange"],
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     /** 场景配置列表 */
-    const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
+    const sceneConfigs = computed(() => useRetrieveStore().sceneConfigList);
 
     /** 场景配置加载状态 */
-    const sceneLoading = computed(() => store.state.retrieve.sceneConfigs?.is_loading ?? false);
+    const sceneLoading = computed(() => useRetrieveStore().$state.sceneConfigs?.is_loading ?? false);
 
     /** 按需翻译：skipI18n 为 true 时跳过翻译，直接返回原文 */
     const translateLabel = (label: string, skipI18n?: boolean) => (skipI18n ? label : t(label));
@@ -174,7 +179,7 @@ export default defineComponent({
 
         const res = await ServicesInstance.retrieve.getSceneDimensionValues({
           data: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
             scene: props.activeScene,
             dimension_key: field.key,
             filters: filters.length > 0 ? filters : undefined,
@@ -386,7 +391,7 @@ export default defineComponent({
       try {
         const res = await ServicesInstance.retrieve.getSceneDimensionValues({
           data: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
             scene: SceneType.Container,
             dimension_key: 'cluster_id',
           },
@@ -412,7 +417,7 @@ export default defineComponent({
     // 监听业务与场景变化：切换业务时清空缓存；容器场景下预加载全量集群列表
     // 切换业务时场景可能同时被重置为容器场景，合并为一个监听以避免重复请求
     watch(
-      [() => store.state.spaceUid, () => props.activeScene],
+      [() => store.spaceUid, () => props.activeScene],
       ([newSpaceUid, newScene], oldValues) => {
         if (oldValues?.length && newSpaceUid !== oldValues[0]) {
           resetSpaceRelatedCache();
@@ -573,8 +578,8 @@ export default defineComponent({
         suggestionState.loading = true;
 
         const params: ListFieldCandidatesParams = {
-          space_uid: store.state.indexItem.spaceUid,
-          bk_biz_id: store.state.bkBizId,
+          space_uid: store.indexItem.spaceUid,
+          bk_biz_id: store.bkBizId,
           scene: props.activeScene,
           resource_type: suggestionState.currentFieldKey,
           conditions: buildSuggestionConditions(),
@@ -602,8 +607,8 @@ export default defineComponent({
         // 主机/PaaS/服务场景：必传 table_id_conditions、start_time、end_time
         // table_id_conditions 复用 buildTableIdConditions：固定场景条件 + static/dynamic 已选值字段
         if (TABLE_ID_CONDITION_SCENES.includes(props.activeScene as SceneType)) {
-          const retrieveParams = store.getters.retrieveParams;
-          params.table_id_conditions = buildTableIdConditions(store.state, sceneConfigs.value).table_id_conditions;
+          const retrieveParams = store.retrieveParams;
+          params.table_id_conditions = buildTableIdConditions(store, sceneConfigs.value).table_id_conditions;
           params.start_time = retrieveParams.start_time;
           params.end_time = retrieveParams.end_time;
         }
@@ -936,7 +941,7 @@ export default defineComponent({
                 fieldType: field.fieldType,
               })}
             </div>
-            <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
+            <div class={['scene-filter-field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
               <div class='field-input-placeholder' />
               <bk-select
                 value={getSelectValue(field)}
@@ -993,7 +998,7 @@ export default defineComponent({
               fieldType: field.fieldType,
             })}
           </div>
-          <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
+          <div class={['scene-filter-field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
             <div class='field-input-placeholder' />
             <div class='tag-input-wrapper'>
               <bk-tag-input
@@ -1002,7 +1007,7 @@ export default defineComponent({
                   tagInputRefs.value[field.key] = el;
                 }}
                 value={getLocalTagValues(field.key)}
-                placeholder={field.placeholder}
+                placeholder={field.placeholder ?? t('请输入并按Enter结束')}
                 allow-create={true}
                 has-delete-icon={true}
                 allow-next-focus={true}

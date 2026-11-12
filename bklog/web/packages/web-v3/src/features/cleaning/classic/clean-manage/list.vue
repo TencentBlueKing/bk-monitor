@@ -144,7 +144,7 @@
                 v-if="props.row.bkdata_auth_url"
                 class="mr10 king-button"
                 theme="primary"
-                
+
                 @click="handleAuth(props.row)"
               >
                 {{ $t('授权') }}
@@ -169,7 +169,7 @@
                 }"
                 class="mr10 king-button"
                 theme="primary"
-                
+
                 @click.stop="operateHandler(props.row, 'edit')"
               >
                 {{ $t('编辑') }}
@@ -202,11 +202,15 @@
   </section>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { clearTableFilter, updateLastSelectedIndexId } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
-  import { mapGetters } from '@/app/state/map-helpers';
+
   import useUtils from '@/shared/composables/use-utils';
 
   import * as authorityMap from '../../../../shared/lib/authority-map';
@@ -237,10 +241,10 @@
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         spaceUid: 'spaceUid',
         bkBizId: 'bkBizId',
-        globalsData: 'globals/globalsData',
+        globalsData: state => state.globals.globalsData,
       }),
       authorityMap() {
         return authorityMap;
@@ -261,7 +265,7 @@
         return target;
       },
       operateWidth() {
-        return this.$store.state.isEnLanguage ? '240' : '200';
+        return useApplicationStore().isEnLanguage ? '240' : '200';
       },
     },
     mounted() {
@@ -336,15 +340,15 @@
         this.$router.push({
           name: 'clean-create',
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },
       async getOptionApplyData(paramData) {
         try {
           this.isTableLoading = true;
-          const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateState', { authDialogData: res.data });
+          const res = await useApplicationStore().getApplyData(paramData);
+          useApplicationStore().updateState({ authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {
@@ -428,7 +432,7 @@
         const query = {};
         if (operateType === 'edit') {
           routeName = 'clean-edit';
-          query.spaceUid = this.$store.state.spaceUid;
+          query.spaceUid = useApplicationStore().spaceUid;
           query.editName = row.collector_config_name;
           params.collectorId = row.collector_config_id;
         } else if (operateType === 'search') {

@@ -1,0 +1,2628 @@
+[
+  {
+    "id": "app/router/dashboard.ts:route:1963",
+    "localPath": "/dashboard",
+    "pathExpression": "'/dashboard'",
+    "name": "dashboard",
+    "component": "DashboardTempView",
+    "redirect": "'/dashboard/home'",
+    "meta": null,
+    "file": "app/router/dashboard.ts",
+    "sha256": "48fb1af5601e011ca18e09ec90dc67f6f7ced59f6d5058d3cfea428dcae271ad",
+    "start": 1963,
+    "end": 3332,
+    "line": 40,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/dashboard",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/dashboards/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "DashboardTempView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/dashboard.ts:route:2116",
+    "localPath": "home",
+    "pathExpression": "'home'",
+    "name": "home",
+    "component": "home",
+    "redirect": null,
+    "meta": "{\n          title: '仪表盘',\n          navId: 'dashboard-home',\n        }",
+    "file": "app/router/dashboard.ts",
+    "sha256": "48fb1af5601e011ca18e09ec90dc67f6f7ced59f6d5058d3cfea428dcae271ad",
+    "start": 2116,
+    "end": 2280,
+    "line": 47,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/dashboard.ts:route:1963",
+    "path": "/dashboard/home",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/dashboards/home.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "home"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/dashboard.ts:route:2303",
+    "localPath": "default-dashboard",
+    "pathExpression": "'default-dashboard'",
+    "name": "default-dashboard",
+    "component": "dashboard",
+    "redirect": null,
+    "meta": "{\n          title: '仪表盘',\n          navId: 'dashboard',\n        }",
+    "file": "app/router/dashboard.ts",
+    "sha256": "48fb1af5601e011ca18e09ec90dc67f6f7ced59f6d5058d3cfea428dcae271ad",
+    "start": 2303,
+    "end": 2493,
+    "line": 57,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/dashboard.ts:route:1963",
+    "path": "/dashboard/default-dashboard",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/dashboards/old-index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "dashboard"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/dashboard.ts:route:2516",
+    "localPath": "create-dashboard",
+    "pathExpression": "'create-dashboard'",
+    "name": "create-dashboard",
+    "component": "dashboard",
+    "redirect": null,
+    "meta": "{\n          title: '仪表盘',\n          needBack: true,\n          backName: 'default-dashboard',\n          navId: 'dashboard',\n        }",
+    "file": "app/router/dashboard.ts",
+    "sha256": "48fb1af5601e011ca18e09ec90dc67f6f7ced59f6d5058d3cfea428dcae271ad",
+    "start": 2516,
+    "end": 2771,
+    "line": 67,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/dashboard.ts:route:1963",
+    "path": "/dashboard/create-dashboard",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/dashboards/old-index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "dashboard"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/dashboard.ts:route:2793",
+    "localPath": "create-folder",
+    "pathExpression": "'create-folder'",
+    "name": "create-folder",
+    "component": "dashboard",
+    "redirect": null,
+    "meta": "{\n          title: '仪表盘',\n          needBack: true,\n          backName: 'default-dashboard',\n          navId: 'dashboard',\n        }",
+    "file": "app/router/dashboard.ts",
+    "sha256": "48fb1af5601e011ca18e09ec90dc67f6f7ced59f6d5058d3cfea428dcae271ad",
+    "start": 2793,
+    "end": 3042,
+    "line": 79,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/dashboard.ts:route:1963",
+    "path": "/dashboard/create-folder",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/dashboards/old-index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "dashboard"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/dashboard.ts:route:3065",
+    "localPath": "import-dashboard",
+    "pathExpression": "'import-dashboard'",
+    "name": "import-dashboard",
+    "component": "dashboard",
+    "redirect": null,
+    "meta": "{\n          title: '仪表盘',\n          needBack: true,\n          backName: 'default-dashboard',\n          navId: 'dashboard',\n        }",
+    "file": "app/router/dashboard.ts",
+    "sha256": "48fb1af5601e011ca18e09ec90dc67f6f7ced59f6d5058d3cfea428dcae271ad",
+    "start": 3065,
+    "end": 3320,
+    "line": 91,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/dashboard.ts:route:1963",
+    "path": "/dashboard/import-dashboard",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/dashboards/old-index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "dashboard"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/index.js:route:3033",
+    "localPath": "/",
+    "pathExpression": "'/'",
+    "name": null,
+    "component": null,
+    "redirect": "to => {\n        const targetRoute = {\n          name: getDefRouteName(),\n          query: {\n            ...(to?.query || {}),\n            spaceUid: spaceId,\n            bizId: bkBizId,\n          },\n        };\n        return targetRoute;\n      }",
+    "meta": "{ title: '检索', navId: 'retrieve' }",
+    "file": "app/router/index.js",
+    "sha256": "7d3bdaba23a6105053d6814c196f9a423e75bd46385c9cebf87b71a0c1bcd2e6",
+    "start": 3033,
+    "end": 3367,
+    "line": 78,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/",
+    "entryKind": "REDIRECT_OR_CONTAINER",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/index.js:route:3528",
+    "localPath": "/un-authorized",
+    "pathExpression": "'/un-authorized'",
+    "name": "un-authorized",
+    "component": "unAuthorized",
+    "redirect": null,
+    "meta": "{\n        navId: 'un-authorized',\n        title: '无权限页面',\n      }",
+    "file": "app/router/index.js",
+    "sha256": "7d3bdaba23a6105053d6814c196f9a423e75bd46385c9cebf87b71a0c1bcd2e6",
+    "start": 3528,
+    "end": 3704,
+    "line": 101,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/un-authorized",
+    "entryKind": "IMPORTED_COMPONENT",
+    "componentSources": [
+      "features/authorization/denied/index.tsx"
+    ],
+    "referencedDependencies": [
+      "features/authorization/denied/index.tsx"
+    ],
+    "declarationChain": [],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/index.js:route:3725",
+    "localPath": "/:pathMatch(.*)*",
+    "pathExpression": "'/:pathMatch(.*)*'",
+    "name": "exception",
+    "component": "exception",
+    "redirect": null,
+    "meta": "{\n        navId: 'exception',\n        title: '无权限页面',\n      }",
+    "file": "app/router/index.js",
+    "sha256": "7d3bdaba23a6105053d6814c196f9a423e75bd46385c9cebf87b71a0c1bcd2e6",
+    "start": 3725,
+    "end": 3892,
+    "line": 111,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/:pathMatch(.*)*",
+    "entryKind": "IMPORTED_COMPONENT",
+    "componentSources": [
+      "app/shell/not-found.vue"
+    ],
+    "referencedDependencies": [
+      "app/shell/not-found.vue"
+    ],
+    "declarationChain": [],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:8065",
+    "localPath": "/manage",
+    "pathExpression": "'/manage'",
+    "name": "manage",
+    "component": "ManageWrapper",
+    "redirect": "to => {\n      // 外部版:跳转到“日志提取任务”\n      if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL as string)) {\n        return {\n          path: '/manage/log-extract-task',\n          query: {\n            spaceUid: to.query.spaceUid,\n            bizId: to.query.bizId,\n          },\n        };\n      }\n      // 内部版:跳转到“采集项列表”\n      return {\n        path: '/manage/log-collection/collection-item',\n        query: {\n          spaceUid: to.query.spaceUid,\n          bizId: to.query.bizId,\n        },\n      };\n    }",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 8065,
+    "end": 30703,
+    "line": 136,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/manage",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/management/manage/index.vue"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts"
+    ],
+    "declarationChain": [
+      "Manage",
+      "ManageWrapper"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:8738",
+    "localPath": "log-collection",
+    "pathExpression": "'log-collection'",
+    "name": "log-collection",
+    "component": "LogCollectionView",
+    "redirect": "'/manage/log-collection/collection-item'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 8738,
+    "end": 15135,
+    "line": 163,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/log-collection",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "LogCollectionView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:8949",
+    "localPath": "collection-item",
+    "pathExpression": "'collection-item'",
+    "name": "collection-item",
+    "component": "CollectionItemView",
+    "redirect": "'/manage/log-collection/collection-item/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 8949,
+    "end": 12991,
+    "line": 170,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8738",
+    "path": "/manage/log-collection/collection-item",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CollectionItemView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:9217",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "collection-item-list",
+    "component": "createVersionedComponent(CollectionItem, OldCollectionItem)",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 9217,
+    "end": 9517,
+    "line": 177,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8949",
+    "path": "/manage/log-collection/collection-item/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/current/index.tsx",
+      "features/index-sets/log-collection/collection-item/index.vue"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "CollectionItem",
+      "OldCollectionItem",
+      "createVersionedComponent"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:9556",
+    "localPath": "manage/:collectorId",
+    "pathExpression": "'manage/:collectorId'",
+    "name": "manage-collection",
+    "component": "ManageCollection",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'collection-item',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 9556,
+    "end": 9906,
+    "line": 187,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8949",
+    "path": "/manage/log-collection/collection-item/manage/:collectorId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/log-collection/collection-item/manage-collection/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ManageCollection"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:9964",
+    "localPath": "add",
+    "pathExpression": "'add'",
+    "name": "collectAdd",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'collection-item',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 9964,
+    "end": 10328,
+    "line": 199,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8949",
+    "path": "/manage/log-collection/collection-item/add",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/access/index.vue",
+      "features/collection/current/components/create-operation/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "AccessSteps",
+      "createVersionedComponent",
+      "oldAccessSteps"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:10386",
+    "localPath": "edit/:collectorId",
+    "pathExpression": "'edit/:collectorId'",
+    "name": "collectEdit",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'collection-item',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 10386,
+    "end": 10765,
+    "line": 211,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8949",
+    "path": "/manage/log-collection/collection-item/edit/:collectorId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/access/index.vue",
+      "features/collection/current/components/create-operation/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "AccessSteps",
+      "createVersionedComponent",
+      "oldAccessSteps"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:10822",
+    "localPath": "field/:collectorId",
+    "pathExpression": "'field/:collectorId'",
+    "name": "collectField",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'collection-item',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 10822,
+    "end": 11203,
+    "line": 223,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8949",
+    "path": "/manage/log-collection/collection-item/field/:collectorId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/access/index.vue",
+      "features/collection/current/components/create-operation/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "AccessSteps",
+      "createVersionedComponent",
+      "oldAccessSteps"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:11260",
+    "localPath": "storage/:collectorId",
+    "pathExpression": "'storage/:collectorId'",
+    "name": "collectStorage",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'collection-item',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 11260,
+    "end": 11645,
+    "line": 235,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8949",
+    "path": "/manage/log-collection/collection-item/storage/:collectorId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/access/index.vue",
+      "features/collection/current/components/create-operation/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "AccessSteps",
+      "createVersionedComponent",
+      "oldAccessSteps"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:11702",
+    "localPath": "masking/:collectorId",
+    "pathExpression": "'masking/:collectorId'",
+    "name": "collectMasking",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'collection-item',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 11702,
+    "end": 12087,
+    "line": 247,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8949",
+    "path": "/manage/log-collection/collection-item/masking/:collectorId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/access/index.vue",
+      "features/collection/current/components/create-operation/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "AccessSteps",
+      "createVersionedComponent",
+      "oldAccessSteps"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:12145",
+    "localPath": "start/:collectorId",
+    "pathExpression": "'start/:collectorId'",
+    "name": "collectStart",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'collection-item',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 12145,
+    "end": 12526,
+    "line": 259,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8949",
+    "path": "/manage/log-collection/collection-item/start/:collectorId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/access/index.vue",
+      "features/collection/current/components/create-operation/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "AccessSteps",
+      "createVersionedComponent",
+      "oldAccessSteps"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:12584",
+    "localPath": "stop/:collectorId",
+    "pathExpression": "'stop/:collectorId'",
+    "name": "collectStop",
+    "component": "createVersionedComponent(AccessSteps, oldAccessSteps)",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'collection-item',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 12584,
+    "end": 12963,
+    "line": 271,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8949",
+    "path": "/manage/log-collection/collection-item/stop/:collectorId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/access/index.vue",
+      "features/collection/current/components/create-operation/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "AccessSteps",
+      "createVersionedComponent",
+      "oldAccessSteps"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:13020",
+    "localPath": "log-index-set",
+    "pathExpression": "'log-index-set'",
+    "name": "log-index-set",
+    "component": "IndexSetView",
+    "redirect": "'/manage/log-collection/log-index-set/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 13020,
+    "end": 15115,
+    "line": 285,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8738",
+    "path": "/manage/log-collection/log-index-set",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "IndexSetView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:13257",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "log-index-set-list",
+    "component": "IndexList",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 13257,
+    "end": 13505,
+    "line": 292,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:13020",
+    "path": "/manage/log-collection/log-index-set/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/list/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "IndexList"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:13544",
+    "localPath": "manage/:indexSetId",
+    "pathExpression": "'manage/:indexSetId'",
+    "name": "log-index-set-manage",
+    "component": "ManageIndex",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'log-index-set-list',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 13544,
+    "end": 13894,
+    "line": 302,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:13020",
+    "path": "/manage/log-collection/log-index-set/manage/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/manage/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ManageIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:13933",
+    "localPath": "create",
+    "pathExpression": "'create'",
+    "name": "log-index-set-create",
+    "component": "CreateIndex",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'log-index-set-list',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 13933,
+    "end": 14271,
+    "line": 314,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:13020",
+    "path": "/manage/log-collection/log-index-set/create",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/create/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CreateIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:14310",
+    "localPath": "edit/:indexSetId",
+    "pathExpression": "'edit/:indexSetId'",
+    "name": "log-index-set-edit",
+    "component": "CreateIndex",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'log-index-set-list',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 14310,
+    "end": 14656,
+    "line": 326,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:13020",
+    "path": "/manage/log-collection/log-index-set/edit/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/create/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CreateIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:14694",
+    "localPath": "masking/:indexSetId",
+    "pathExpression": "'masking/:indexSetId'",
+    "name": "log-index-set-masking",
+    "component": "createVersionedComponent(V2MaskingEdit, MaskingEdit)",
+    "redirect": null,
+    "meta": "{\n                  title: '日志采集',\n                  needBack: true,\n                  backName: 'log-index-set-list',\n                  navId: 'log-collection',\n                }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 14694,
+    "end": 15087,
+    "line": 338,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:13020",
+    "path": "/manage/log-collection/log-index-set/masking/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/current/components/masking-operation/index.tsx",
+      "features/masking/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "MaskingEdit",
+      "V2MaskingEdit",
+      "createVersionedComponent"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:15143",
+    "localPath": "tgpa-task",
+    "pathExpression": "'tgpa-task'",
+    "name": "tgpa-task",
+    "component": "ClientLogView",
+    "redirect": "'/manage/tgpa-task/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 15143,
+    "end": 15873,
+    "line": 353,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/tgpa-task",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ClientLogView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:15328",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "tgpa-task-list",
+    "component": "ClientLog",
+    "redirect": null,
+    "meta": "{\n              title: '客户端日志',\n              navId: 'tgpa-task',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 15328,
+    "end": 15536,
+    "line": 360,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:15143",
+    "path": "/manage/tgpa-task/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/client-logs/management/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ClientLog"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:15566",
+    "localPath": "clean-config",
+    "pathExpression": "'clean-config'",
+    "name": "clean-config",
+    "component": "cleanCreate",
+    "redirect": null,
+    "meta": "{\n              title: '清洗配置',\n              needBack: true,\n              backName: 'tgpa-task-list',\n              navId: 'tgpa-task',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 15566,
+    "end": 15853,
+    "line": 370,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:15143",
+    "path": "/manage/tgpa-task/clean-config",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/cleaning/classic/clean-manage/create.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "cleanCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:15900",
+    "localPath": "bk-data-collection",
+    "pathExpression": "'bk-data-collection'",
+    "name": "bk-data-collection",
+    "component": "IndexSetView",
+    "redirect": "'/manage/bk-data-collection/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 15900,
+    "end": 17782,
+    "line": 384,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/bk-data-collection",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "IndexSetView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:16110",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "bkdata-index-set-list",
+    "component": "IndexList",
+    "redirect": null,
+    "meta": "{\n              title: '计算平台',\n              navId: 'bk-data-collection',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 16110,
+    "end": 16333,
+    "line": 391,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:15900",
+    "path": "/manage/bk-data-collection/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/list/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "IndexList"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:16363",
+    "localPath": "manage/:indexSetId",
+    "pathExpression": "'manage/:indexSetId'",
+    "name": "bkdata-index-set-manage",
+    "component": "ManageIndex",
+    "redirect": null,
+    "meta": "{\n              title: '计算平台',\n              needBack: true,\n              backName: 'bkdata-index-set-list',\n              navId: 'bk-data-collection',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 16363,
+    "end": 16683,
+    "line": 401,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:15900",
+    "path": "/manage/bk-data-collection/manage/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/manage/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ManageIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:16714",
+    "localPath": "create",
+    "pathExpression": "'create'",
+    "name": "bkdata-index-set-create",
+    "component": "CreateIndex",
+    "redirect": null,
+    "meta": "{\n              title: '计算平台',\n              needBack: true,\n              backName: 'bkdata-index-set-list',\n              navId: 'bk-data-collection',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 16714,
+    "end": 17022,
+    "line": 413,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:15900",
+    "path": "/manage/bk-data-collection/create",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/create/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CreateIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:17053",
+    "localPath": "edit/:indexSetId",
+    "pathExpression": "'edit/:indexSetId'",
+    "name": "bkdata-index-set-edit",
+    "component": "CreateIndex",
+    "redirect": null,
+    "meta": "{\n              title: '计算平台',\n              needBack: true,\n              backName: 'bkdata-index-set-list',\n              navId: 'bk-data-collection',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 17053,
+    "end": 17369,
+    "line": 425,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:15900",
+    "path": "/manage/bk-data-collection/edit/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/create/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CreateIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:17399",
+    "localPath": "masking/:indexSetId",
+    "pathExpression": "'masking/:indexSetId'",
+    "name": "bkdata-index-set-masking",
+    "component": "createVersionedComponent(V2MaskingEdit, MaskingEdit)",
+    "redirect": null,
+    "meta": "{\n              title: '计算平台',\n              needBack: true,\n              backName: 'bkdata-index-set-list',\n              navId: 'bk-data-collection',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 17399,
+    "end": 17762,
+    "line": 437,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:15900",
+    "path": "/manage/bk-data-collection/masking/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/current/components/masking-operation/index.tsx",
+      "features/masking/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "MaskingEdit",
+      "V2MaskingEdit",
+      "createVersionedComponent"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:17810",
+    "localPath": "es-collection",
+    "pathExpression": "'es-collection'",
+    "name": "es-collection",
+    "component": "IndexSetView",
+    "redirect": "'/manage/es-collection/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 17810,
+    "end": 19622,
+    "line": 451,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/es-collection",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "IndexSetView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:18006",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "es-index-set-list",
+    "component": "IndexList",
+    "redirect": null,
+    "meta": "{\n              title: '第三方ES',\n              navId: 'es-collection',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 18006,
+    "end": 18221,
+    "line": 458,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:17810",
+    "path": "/manage/es-collection/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/list/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "IndexList"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:18251",
+    "localPath": "manage/:indexSetId",
+    "pathExpression": "'manage/:indexSetId'",
+    "name": "es-index-set-manage",
+    "component": "ManageIndex",
+    "redirect": null,
+    "meta": "{\n              title: '第三方ES',\n              needBack: true,\n              backName: 'es-index-set-list',\n              navId: 'es-collection',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 18251,
+    "end": 18559,
+    "line": 468,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:17810",
+    "path": "/manage/es-collection/manage/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/manage/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ManageIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:18590",
+    "localPath": "create",
+    "pathExpression": "'create'",
+    "name": "es-index-set-create",
+    "component": "CreateIndex",
+    "redirect": null,
+    "meta": "{\n              title: '第三方ES',\n              needBack: true,\n              backName: 'es-index-set-list',\n              navId: 'es-collection',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 18590,
+    "end": 18886,
+    "line": 480,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:17810",
+    "path": "/manage/es-collection/create",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/create/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CreateIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:18917",
+    "localPath": "edit/:indexSetId",
+    "pathExpression": "'edit/:indexSetId'",
+    "name": "es-index-set-edit",
+    "component": "CreateIndex",
+    "redirect": null,
+    "meta": "{\n              title: '第三方ES',\n              needBack: true,\n              backName: 'es-index-set-list',\n              navId: 'es-collection',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 18917,
+    "end": 19221,
+    "line": 492,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:17810",
+    "path": "/manage/es-collection/edit/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/create/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CreateIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:19251",
+    "localPath": "masking/:indexSetId",
+    "pathExpression": "'masking/:indexSetId'",
+    "name": "es-index-set-masking",
+    "component": "createVersionedComponent(V2MaskingEdit, MaskingEdit)",
+    "redirect": null,
+    "meta": "{\n              title: '第三方ES',\n              needBack: true,\n              backName: 'es-index-set-list',\n              navId: 'es-collection',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 19251,
+    "end": 19602,
+    "line": 504,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:17810",
+    "path": "/manage/es-collection/masking/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/current/components/masking-operation/index.tsx",
+      "features/masking/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "MaskingEdit",
+      "V2MaskingEdit",
+      "createVersionedComponent"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:19650",
+    "localPath": "custom-report",
+    "pathExpression": "'custom-report'",
+    "name": "custom-report",
+    "component": "CustomReportView",
+    "redirect": "'/manage/custom-report/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 19650,
+    "end": 21519,
+    "line": 518,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/custom-report",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CustomReportView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:19850",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "custom-report-list",
+    "component": "CustomReportList",
+    "redirect": null,
+    "meta": "{\n              title: '自定义上报',\n              navId: 'custom-report',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 19850,
+    "end": 20073,
+    "line": 525,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:19650",
+    "path": "/manage/custom-report/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/custom-report/list.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CustomReportList"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:20106",
+    "localPath": "create",
+    "pathExpression": "'create'",
+    "name": "custom-report-create",
+    "component": "CustomReportCreate",
+    "redirect": null,
+    "meta": "{\n              title: '自定义上报',\n              needBack: true,\n              backName: 'custom-report-list',\n              navId: 'custom-report',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 20106,
+    "end": 20411,
+    "line": 535,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:19650",
+    "path": "/manage/custom-report/create",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/custom-report/create.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CustomReportCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:20444",
+    "localPath": "edit/:collectorId",
+    "pathExpression": "'edit/:collectorId'",
+    "name": "custom-report-edit",
+    "component": "CustomReportCreate",
+    "redirect": null,
+    "meta": "{\n              title: '自定义上报',\n              needBack: true,\n              backName: 'custom-report-list',\n              navId: 'custom-report',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 20444,
+    "end": 20758,
+    "line": 547,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:19650",
+    "path": "/manage/custom-report/edit/:collectorId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/custom-report/create.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CustomReportCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:20793",
+    "localPath": "detail/:collectorId",
+    "pathExpression": "'detail/:collectorId'",
+    "name": "custom-report-detail",
+    "component": "CustomReportDetail",
+    "redirect": null,
+    "meta": "{\n              title: '自定义上报',\n              needBack: true,\n              backName: 'custom-report-list',\n              navId: 'custom-report',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 20793,
+    "end": 21111,
+    "line": 559,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:19650",
+    "path": "/manage/custom-report/detail/:collectorId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/custom-report/detail.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CustomReportDetail"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:21146",
+    "localPath": "masking/:indexSetId",
+    "pathExpression": "'masking/:indexSetId'",
+    "name": "custom-report-masking",
+    "component": "createVersionedComponent(V2MaskingEdit, MaskingEdit)",
+    "redirect": null,
+    "meta": "{\n              title: '自定义上报',\n              needBack: true,\n              backName: 'custom-report-list',\n              navId: 'custom-report',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 21146,
+    "end": 21499,
+    "line": 571,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:19650",
+    "path": "/manage/custom-report/masking/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/collection/current/components/masking-operation/index.tsx",
+      "features/masking/index.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "MaskingEdit",
+      "V2MaskingEdit",
+      "createVersionedComponent"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:21546",
+    "localPath": "clean-list",
+    "pathExpression": "'clean-list'",
+    "name": "clean-list",
+    "component": "LogCleanView",
+    "redirect": "'/manage/clean-list/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 21546,
+    "end": 22711,
+    "line": 585,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/clean-list",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "LogCleanView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:21730",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "log-clean-list",
+    "component": "cleanList",
+    "redirect": null,
+    "meta": "{\n              title: '日志清洗',\n              navId: 'clean-list',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 21730,
+    "end": 21938,
+    "line": 592,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:21546",
+    "path": "/manage/clean-list/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/cleaning/classic/clean-manage/list.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "cleanList"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:21987",
+    "localPath": "create",
+    "pathExpression": "'create'",
+    "name": "clean-create",
+    "component": "createVersionedComponent(v2CleanCreate, cleanCreate)",
+    "redirect": null,
+    "meta": "{\n              title: '日志清洗',\n              needBack: true,\n              backName: 'log-clean-list',\n              navId: 'clean-list',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 21987,
+    "end": 22310,
+    "line": 602,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:21546",
+    "path": "/manage/clean-list/create",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/cleaning/classic/clean-manage/create.vue",
+      "features/cleaning/current/create-clean.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "cleanCreate",
+      "createVersionedComponent",
+      "v2CleanCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:22359",
+    "localPath": "edit/:collectorId",
+    "pathExpression": "'edit/:collectorId'",
+    "name": "clean-edit",
+    "component": "createVersionedComponent(v2CleanCreate, cleanCreate)",
+    "redirect": null,
+    "meta": "{\n              title: '日志清洗',\n              needBack: true,\n              backName: 'log-clean-list',\n              navId: 'clean-list',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 22359,
+    "end": 22691,
+    "line": 614,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:21546",
+    "path": "/manage/clean-list/edit/:collectorId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/cleaning/classic/clean-manage/create.vue",
+      "features/cleaning/current/create-clean.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "cleanCreate",
+      "createVersionedComponent",
+      "v2CleanCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:22738",
+    "localPath": "clean-templates",
+    "pathExpression": "'clean-templates'",
+    "name": "clean-templates",
+    "component": "LogCleanTempView",
+    "redirect": "'/manage/clean-templates/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 22738,
+    "end": 23989,
+    "line": 628,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/clean-templates",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "LogCleanTempView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:22941",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "log-clean-templates",
+    "component": "cleanTemplate",
+    "redirect": null,
+    "meta": "{\n              title: '日志清洗',\n              navId: 'clean-templates',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 22941,
+    "end": 23163,
+    "line": 635,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:22738",
+    "path": "/manage/clean-templates/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/cleaning/current/clean-template/list.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "cleanTemplate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:23212",
+    "localPath": "create",
+    "pathExpression": "'create'",
+    "name": "clean-template-create",
+    "component": "createVersionedComponent(v2CleanTempCreate, cleanTempCreate)",
+    "redirect": null,
+    "meta": "{\n              title: '日志清洗',\n              needBack: true,\n              backName: 'log-clean-templates',\n              navId: 'clean-templates',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 23212,
+    "end": 23562,
+    "line": 645,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:22738",
+    "path": "/manage/clean-templates/create",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/cleaning/classic/clean-template/create.vue",
+      "features/cleaning/current/create-temp-clean.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "cleanTempCreate",
+      "createVersionedComponent",
+      "v2CleanTempCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:23611",
+    "localPath": "edit/:templateId",
+    "pathExpression": "'edit/:templateId'",
+    "name": "clean-template-edit",
+    "component": "createVersionedComponent(v2CleanTempCreate, cleanTempCreate)",
+    "redirect": null,
+    "meta": "{\n              title: '日志清洗',\n              needBack: true,\n              backName: 'log-clean-templates',\n              navId: 'clean-templates',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 23611,
+    "end": 23969,
+    "line": 657,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:22738",
+    "path": "/manage/clean-templates/edit/:templateId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/cleaning/classic/clean-template/create.vue",
+      "features/cleaning/current/create-temp-clean.tsx"
+    ],
+    "referencedDependencies": [
+      "app/router/async-view.ts",
+      "app/router/use-manage-version.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "cleanTempCreate",
+      "createVersionedComponent",
+      "v2CleanTempCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:24016",
+    "localPath": "log-desensitize",
+    "pathExpression": "'log-desensitize'",
+    "name": "log-desensitize",
+    "component": "LogDesensitizeView",
+    "redirect": "'/manage/log-desensitize/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 24016,
+    "end": 24462,
+    "line": 671,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/log-desensitize",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "LogDesensitizeView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:24221",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "log-desensitize-list",
+    "component": "MaskingList",
+    "redirect": null,
+    "meta": "{\n              title: '日志清洗',\n              navId: 'log-desensitize',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 24221,
+    "end": 24442,
+    "line": 678,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:24016",
+    "path": "/manage/log-desensitize/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/cleaning/classic/clean-masking/list.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "MaskingList"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:24486",
+    "localPath": "grok-manage",
+    "pathExpression": "'grok-manage'",
+    "name": "grok-manage",
+    "component": "GrokManage",
+    "redirect": null,
+    "meta": "{\n          title: 'Grok管理',\n          navId: 'grok-manage',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 24486,
+    "end": 24670,
+    "line": 690,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/grok-manage",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/grok/current/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "GrokManage"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:24697",
+    "localPath": "archive-repository",
+    "pathExpression": "'archive-repository'",
+    "name": "archive-repository",
+    "component": "ArchiveRepository",
+    "redirect": null,
+    "meta": "{\n          title: '日志归档',\n          navId: 'archive-repository',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 24697,
+    "end": 24907,
+    "line": 700,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/archive-repository",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/archive/current/archive-repository/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ArchiveRepository"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:24934",
+    "localPath": "archive-list",
+    "pathExpression": "'archive-list'",
+    "name": "archive-list",
+    "component": "ArchiveList",
+    "redirect": null,
+    "meta": "{\n          title: '日志归档',\n          navId: 'archive-list',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 24934,
+    "end": 25120,
+    "line": 710,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/archive-list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/archive/current/archive-list/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ArchiveList"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:25147",
+    "localPath": "archive-restore",
+    "pathExpression": "'archive-restore'",
+    "name": "archive-restore",
+    "component": "ArchiveRestore",
+    "redirect": null,
+    "meta": "{\n          title: '日志归档',\n          navId: 'archive-restore',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 25147,
+    "end": 25345,
+    "line": 720,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/archive-restore",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/archive/current/archive-restore/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ArchiveRestore"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:25372",
+    "localPath": "manage-log-extract",
+    "pathExpression": "'manage-log-extract'",
+    "name": "manage-log-extract",
+    "component": "ExtractConfig",
+    "redirect": null,
+    "meta": "{\n          title: '日志提取',\n          navId: 'manage-log-extract',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 25372,
+    "end": 25578,
+    "line": 730,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/manage-log-extract",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/extraction/current/extract-config/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ExtractConfig"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:25605",
+    "localPath": "log-extract-task",
+    "pathExpression": "'log-extract-task'",
+    "name": "log-extract-task",
+    "component": "extract",
+    "redirect": "'/manage/log-extract-task'",
+    "meta": "{\n          title: '日志提取',\n          navId: 'log-extract-task',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 25605,
+    "end": 26784,
+    "line": 740,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/log-extract-task",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/extraction/current/extract-task/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "extract"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:25888",
+    "localPath": "",
+    "pathExpression": "''",
+    "name": "extract-home",
+    "component": "extractHome",
+    "redirect": null,
+    "meta": "{\n              title: '日志提取',\n              navId: 'log-extract-task',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 25888,
+    "end": 26098,
+    "line": 751,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:25605",
+    "path": "/manage/log-extract-task/",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/extraction/current/extract-task/task-list/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "extractHome"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:26130",
+    "localPath": "extract-create",
+    "pathExpression": "'extract-create'",
+    "name": "extract-create",
+    "component": "extractCreate",
+    "redirect": null,
+    "meta": "{\n              title: '日志提取',\n              needBack: true,\n              backName: 'log-extract-task',\n              navId: 'log-extract-task',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 26130,
+    "end": 26432,
+    "line": 761,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:25605",
+    "path": "/manage/log-extract-task/extract-create",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/extraction/current/extract-task/task-create/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "extractCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:26464",
+    "localPath": "extract-clone",
+    "pathExpression": "'extract-clone'",
+    "name": "extract-clone",
+    "component": "extractCreate",
+    "redirect": null,
+    "meta": "{\n              title: '日志提取',\n              needBack: true,\n              backName: 'log-extract-task',\n              navId: 'log-extract-task',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 26464,
+    "end": 26764,
+    "line": 773,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:25605",
+    "path": "/manage/log-extract-task/extract-clone",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/extraction/current/extract-task/task-create/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "extractCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:26811",
+    "localPath": "extract-link-manage",
+    "pathExpression": "'extract-link-manage'",
+    "name": "extract-link-manage",
+    "component": "ExtractLinkView",
+    "redirect": "'/manage/extract-link-manage/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 26811,
+    "end": 27951,
+    "line": 787,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/extract-link-manage",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ExtractLinkView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:27027",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "extract-link-list",
+    "component": "ExtractLinkList",
+    "redirect": null,
+    "meta": "{\n              title: '日志提取',\n              navId: 'extract-link-manage',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 27027,
+    "end": 27253,
+    "line": 794,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:26811",
+    "path": "/manage/extract-link-manage/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/extraction/current/extract-link/link-list.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ExtractLinkList"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:27283",
+    "localPath": "edit/:linkId",
+    "pathExpression": "'edit/:linkId'",
+    "name": "extract-link-edit",
+    "component": "ExtractLinkCreate",
+    "redirect": null,
+    "meta": "{\n              title: '日志提取',\n              needBack: true,\n              backName: 'extract-link-list',\n              navId: 'extract-link-manage',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 27283,
+    "end": 27594,
+    "line": 804,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:26811",
+    "path": "/manage/extract-link-manage/edit/:linkId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/extraction/current/extract-link/link-create.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ExtractLinkCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:27624",
+    "localPath": "create",
+    "pathExpression": "'create'",
+    "name": "extract-link-create",
+    "component": "ExtractLinkCreate",
+    "redirect": null,
+    "meta": "{\n              title: '日志提取',\n              needBack: true,\n              backName: 'extract-link-list',\n              navId: 'extract-link-manage',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 27624,
+    "end": 27931,
+    "line": 816,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:26811",
+    "path": "/manage/extract-link-manage/create",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/extraction/current/extract-link/link-create.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ExtractLinkCreate"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:27978",
+    "localPath": "es-cluster-manage",
+    "pathExpression": "'es-cluster-manage'",
+    "name": "es-cluster-manage",
+    "component": "ClusterMess",
+    "redirect": null,
+    "meta": "{\n          title: 'ES集群',\n          navId: 'es-cluster-manage',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 27978,
+    "end": 28179,
+    "line": 830,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/es-cluster-manage",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/clusters/current/cluster-manage/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ClusterMess"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:28204",
+    "localPath": "report-manage",
+    "pathExpression": "'report-manage'",
+    "name": "report-manage",
+    "component": "ReportManage",
+    "redirect": null,
+    "meta": "{\n          title: '订阅管理',\n          navId: 'report-manage',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 28204,
+    "end": 28394,
+    "line": 840,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/report-manage",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/reporting/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ReportManage"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:28422",
+    "localPath": "collection-track",
+    "pathExpression": "'collection-track'",
+    "name": "collection-track",
+    "component": "CollectionTrack",
+    "redirect": null,
+    "meta": "{\n          title: '采集接入',\n          navId: 'collection-track',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 28422,
+    "end": 28624,
+    "line": 850,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/collection-track",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/tracing/collection-track/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CollectionTrack"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:28656",
+    "localPath": "bk-data-track",
+    "pathExpression": "'bk-data-track'",
+    "name": "bk-data-track",
+    "component": "IndexSetView",
+    "redirect": "'/manage/bk-data-track/list'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 28656,
+    "end": 30092,
+    "line": 860,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/bk-data-track",
+    "entryKind": "LOCAL_LAYOUT",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "IndexSetView"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:28851",
+    "localPath": "list",
+    "pathExpression": "'list'",
+    "name": "bkdata-track-list",
+    "component": "IndexList",
+    "redirect": null,
+    "meta": "{\n              title: '数据平台接入',\n              navId: 'bk-data-track',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 28851,
+    "end": 29067,
+    "line": 867,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:28656",
+    "path": "/manage/bk-data-track/list",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/list/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "IndexList"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:29097",
+    "localPath": "manage/:indexSetId",
+    "pathExpression": "'manage/:indexSetId'",
+    "name": "bkdata-track-manage",
+    "component": "ManageIndex",
+    "redirect": null,
+    "meta": "{\n              title: '数据平台接入',\n              needBack: true,\n              backName: 'bkdata-track-list',\n              navId: 'bk-data-track',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 29097,
+    "end": 29406,
+    "line": 877,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:28656",
+    "path": "/manage/bk-data-track/manage/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/manage/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ManageIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:29438",
+    "localPath": "create",
+    "pathExpression": "'create'",
+    "name": "bkdata-track-create",
+    "component": "CreateIndex",
+    "redirect": null,
+    "meta": "{\n              title: '数据平台接入',\n              needBack: true,\n              backName: 'bkdata-track-list',\n              navId: 'bk-data-track',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 29438,
+    "end": 29735,
+    "line": 889,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:28656",
+    "path": "/manage/bk-data-track/create",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/create/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CreateIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:29767",
+    "localPath": "edit/:indexSetId",
+    "pathExpression": "'edit/:indexSetId'",
+    "name": "bkdata-track-edit",
+    "component": "CreateIndex",
+    "redirect": null,
+    "meta": "{\n              title: '数据平台接入',\n              needBack: true,\n              backName: 'bkdata-track-list',\n              navId: 'bk-data-track',\n            }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 29767,
+    "end": 30072,
+    "line": 901,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:28656",
+    "path": "/manage/bk-data-track/edit/:indexSetId",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/index-sets/components/index-set/create/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "CreateIndex"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:30123",
+    "localPath": "sdk-track",
+    "pathExpression": "'sdk-track'",
+    "name": "sdk-track",
+    "component": "SdkTrack",
+    "redirect": null,
+    "meta": "{\n          title: 'SDK接入',\n          navId: 'sdk-track',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 30123,
+    "end": 30298,
+    "line": 915,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/sdk-track",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/tracing/sdk-track/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "SdkTrack"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:30325",
+    "localPath": "manage-data-link-conf",
+    "pathExpression": "'manage-data-link-conf'",
+    "name": "manage-data-link-conf",
+    "component": "DataLinkConf",
+    "redirect": null,
+    "meta": "{\n          title: '设置',\n          navId: 'manage-data-link-conf',\n        }",
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 30325,
+    "end": 30537,
+    "line": 925,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/manage-data-link-conf",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/data-links/manage-data-link-conf/index.vue"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "DataLinkConf"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/manage.ts:route:30597",
+    "localPath": "collect",
+    "pathExpression": "'collect'",
+    "name": null,
+    "component": null,
+    "redirect": "'/manage/log-collection/collection-item'",
+    "meta": null,
+    "file": "app/router/manage.ts",
+    "sha256": "138e9de9fe2f1195ad9623740ed4c64b047fc6e8d2b6ba91eaca09e007144e4b",
+    "start": 30597,
+    "end": 30691,
+    "line": 935,
+    "state": "UNREVIEWED",
+    "parentId": "app/router/manage.ts:route:8065",
+    "path": "/manage/collect",
+    "entryKind": "REDIRECT_OR_CONTAINER",
+    "componentSources": [],
+    "referencedDependencies": [],
+    "declarationChain": [],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/monitor.ts:route:1935",
+    "localPath": "/monitor-apm-log/:indexId?",
+    "pathExpression": "'/monitor-apm-log/:indexId?'",
+    "name": "monitor-apm-log",
+    "component": "MonitorApmLog",
+    "redirect": null,
+    "meta": "{\n      title: 'APM检索-日志',\n      navId: 'monitor-apm-log',\n    }",
+    "file": "app/router/monitor.ts",
+    "sha256": "0f11bc0ca8fe5d1cd98b1f3d36736734be2fcc573260a430f0bde3872b5d60c3",
+    "start": 1935,
+    "end": 2115,
+    "line": 40,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/monitor-apm-log/:indexId?",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/retrieval/workspace/monitor/monitor.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "MonitorApmLog"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/monitor.ts:route:2164",
+    "localPath": "/monitor-trace-log/:indexId?",
+    "pathExpression": "'/monitor-trace-log/:indexId?'",
+    "name": "monitor-trace-log",
+    "component": "MonitorTraceLog",
+    "redirect": null,
+    "meta": "{\n      title: 'Trace检索-日志',\n      navId: 'monitor-trace-log',\n    }",
+    "file": "app/router/monitor.ts",
+    "sha256": "0f11bc0ca8fe5d1cd98b1f3d36736734be2fcc573260a430f0bde3872b5d60c3",
+    "start": 2164,
+    "end": 2354,
+    "line": 51,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/monitor-trace-log/:indexId?",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/retrieval/workspace/monitor/monitor.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "MonitorTraceLog"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/retrieve.ts:route:4654",
+    "localPath": "/retrieve/:indexId?",
+    "pathExpression": "'/retrieve/:indexId?'",
+    "name": "retrieve",
+    "component": "Retrieve",
+    "redirect": null,
+    "meta": "{\n      title: '检索',\n      navId: 'retrieve',\n    }",
+    "file": "app/router/retrieve.ts",
+    "sha256": "b309a5c77f6d2179f90aa8a939d1381dba162fdf7f495fc4d3757234c83c360c",
+    "start": 4654,
+    "end": 4802,
+    "line": 115,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/retrieve/:indexId?",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/retrieval/loading-queue.ts",
+      "features/retrieval/retrieve-helper.tsx",
+      "features/retrieval/retrieve-hub.tsx"
+    ],
+    "referencedDependencies": [
+      "app/bootstrap/shell-gate.ts",
+      "app/skeleton/retrieve-page-skeleton.vue",
+      "app/state/store.type.ts",
+      "features/retrieval/loading-queue.ts",
+      "features/retrieval/retrieve-helper.tsx",
+      "shared/composables/use-store.ts",
+      "vue"
+    ],
+    "declarationChain": [
+      "Retrieve",
+      "RetrieveView",
+      "contentReady",
+      "fieldSetting",
+      "fieldWidth",
+      "markContentReady",
+      "menuReady",
+      "railWidth",
+      "releasePageLoading",
+      "revealShell",
+      "shellReady",
+      "store",
+      "trendHeight"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/retrieve.ts:route:4819",
+    "localPath": "/client-log-search",
+    "pathExpression": "'/client-log-search'",
+    "name": "client-log-search",
+    "component": "ClientLogSearch",
+    "redirect": null,
+    "meta": "{\n      title: '客户端日志',\n      navId: 'client-log-search',\n    }",
+    "file": "app/router/retrieve.ts",
+    "sha256": "b309a5c77f6d2179f90aa8a939d1381dba162fdf7f495fc4d3757234c83c360c",
+    "start": 4819,
+    "end": 4994,
+    "line": 125,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/client-log-search",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/client-logs/search/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ClientLogSearch"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/retrieve.ts:route:5008",
+    "localPath": "/template-manage",
+    "pathExpression": "'/template-manage'",
+    "name": "templateManage",
+    "component": "TemplateManage",
+    "redirect": null,
+    "meta": null,
+    "file": "app/router/retrieve.ts",
+    "sha256": "b309a5c77f6d2179f90aa8a939d1381dba162fdf7f495fc4d3757234c83c360c",
+    "start": 5008,
+    "end": 5102,
+    "line": 135,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/template-manage",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/retrieval/workspace/search-result/template-manage/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "TemplateManage"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/retrieve.ts:route:5116",
+    "localPath": "/external-auth/:activeNav?",
+    "pathExpression": "'/external-auth/:activeNav?'",
+    "name": "externalAuth",
+    "component": "ExternalAuth",
+    "redirect": null,
+    "meta": "{\n      title: '授权列表',\n      navId: 'external-auth',\n    }",
+    "file": "app/router/retrieve.ts",
+    "sha256": "b309a5c77f6d2179f90aa8a939d1381dba162fdf7f495fc4d3757234c83c360c",
+    "start": 5116,
+    "end": 5286,
+    "line": 141,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/external-auth/:activeNav?",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/authorization/authorization-list.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ExternalAuth"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/retrieve.ts:route:5300",
+    "localPath": "/share/:linkId?",
+    "pathExpression": "'/share/:linkId?'",
+    "name": "share",
+    "component": "ShareLink",
+    "redirect": null,
+    "meta": "{\n      title: '分享链接',\n      navId: 'share',\n    }",
+    "file": "app/router/retrieve.ts",
+    "sha256": "b309a5c77f6d2179f90aa8a939d1381dba162fdf7f495fc4d3757234c83c360c",
+    "start": 5300,
+    "end": 5441,
+    "line": 151,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/share/:linkId?",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/sharing/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "ShareLink"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  },
+  {
+    "id": "app/router/retrieve.ts:route:5477",
+    "localPath": "/data_id/:id?",
+    "pathExpression": "'/data_id/:id?'",
+    "name": "data_id",
+    "component": "DataIdUrl",
+    "redirect": null,
+    "meta": "{\n      title: '根据 bk_data_id 获取采集项和索引集信息',\n      navId: 'data_id',\n    }",
+    "file": "app/router/retrieve.ts",
+    "sha256": "b309a5c77f6d2179f90aa8a939d1381dba162fdf7f495fc4d3757234c83c360c",
+    "start": 5477,
+    "end": 5641,
+    "line": 162,
+    "state": "UNREVIEWED",
+    "parentId": null,
+    "path": "/data_id/:id?",
+    "entryKind": "LAZY_OR_VERSIONED_COMPONENT",
+    "componentSources": [
+      "features/data-id/index.tsx"
+    ],
+    "referencedDependencies": [],
+    "declarationChain": [
+      "DataIdUrl"
+    ],
+    "unresolvedFactories": [],
+    "contractStatus": "UNREVIEWED",
+    "runtimeAccepted": false
+  }
+]

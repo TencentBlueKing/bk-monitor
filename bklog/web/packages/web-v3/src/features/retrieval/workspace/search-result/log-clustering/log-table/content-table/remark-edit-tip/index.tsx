@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, ref, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 
 import { formatDate } from '@/shared/lib/util';
 
@@ -63,7 +65,7 @@ export default defineComponent({
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const remarkTipsRef = ref<HTMLElement>();
     const formRef = ref<any>(null);
@@ -75,7 +77,7 @@ export default defineComponent({
       textInputStr: '',
     });
 
-    const username = computed(() => store.state.userMeta?.username);
+    const username = computed(() => store.userMeta?.username);
 
     const rules = {
       textInputStr: [
@@ -255,7 +257,7 @@ export default defineComponent({
             }}
           >
             <TButton
-              
+
               theme='primary'
               size='small'
               onClick={() => handleEditRemark(null, 'add')} variant={(true) ? 'text' : ('base')}

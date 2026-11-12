@@ -24,6 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+
 import { Tag as TTag } from 'tdesign-vue-next';
 
 import { Button as Button } from 'tdesign-vue-next';
@@ -110,15 +115,15 @@ export default class FieldInfo extends tsc<IProps> {
   segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
 
   get spaceUid() {
-    return this.$store.state.spaceUid;
+    return useApplicationStore().spaceUid;
   }
 
   get isShowMaskingTemplate() {
-    return this.$store.getters.isShowMaskingTemplate;
+    return useApplicationStore().isShowMaskingTemplate;
   }
 
   get globalsData() {
-    return this.$store.getters['globals/globalsData'];
+    return useGlobalsStore().globalsData;
   }
 
   // cmdb元数据
@@ -384,7 +389,7 @@ export default class FieldInfo extends tsc<IProps> {
 
   handleClickEdit() {
     if (!this.editAuth && this.editAuthData) {
-      this.$store.commit('updateState', { authDialogData: this.editAuthData });
+      useApplicationStore().updateState({ authDialogData: this.editAuthData });
       return;
     }
     const params = {
@@ -394,7 +399,7 @@ export default class FieldInfo extends tsc<IProps> {
       name: 'collectField',
       params,
       query: {
-        spaceUid: this.$store.state.spaceUid,
+        spaceUid: useApplicationStore().spaceUid,
         backRoute: 'manage-collection',
         type: 'fieldInfo',
         step: '2',
@@ -405,7 +410,7 @@ export default class FieldInfo extends tsc<IProps> {
   }
 
   getTimeZoneName(timeZone: string) {
-    const foundItem = this.globalsData.time_zone.find((item: { id: string; }) => item.id === timeZone);
+    const foundItem = (this.globalsData.time_zone as { id: string; name: string }[]).find((item: { id: string; }) => item.id === timeZone);
     return foundItem ? foundItem.name : '';
   }
 

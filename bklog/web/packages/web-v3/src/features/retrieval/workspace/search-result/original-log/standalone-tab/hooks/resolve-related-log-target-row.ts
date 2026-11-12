@@ -1,3 +1,6 @@
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import { parseTableRowData } from '@/shared/lib/util';
 import { relatedLogSearchRowCacheService, retrieveRowCacheService } from '@/platform/persistence/index';
 import type { ApplicationStore } from '@/app/state/application-store.type';
@@ -59,8 +62,8 @@ export function getRelatedLogIndexSetId(row: Record<string, any>, store: Applica
     return Number(rowIndexSetId);
   }
 
-  if (store.getters.isSceneMode && row.__result_table) {
-    const flatIndexSetList = store.state.retrieve?.flatIndexSetList ?? [];
+  if (store.isSceneMode && row.__result_table) {
+    const flatIndexSetList = useRetrieveStore().$state?.flatIndexSetList ?? [];
     for (const indexSet of flatIndexSetList) {
       const matchedIndex = (indexSet.indices || []).find(
         (index: { result_table_id?: string }) => index.result_table_id === row.__result_table,
@@ -71,12 +74,12 @@ export function getRelatedLogIndexSetId(row: Record<string, any>, store: Applica
     }
   }
 
-  const storeIndexId = store.getters.indexId;
+  const storeIndexId = store.indexId;
   if (storeIndexId !== undefined && storeIndexId !== null && storeIndexId !== '') {
     return Number(storeIndexId);
   }
 
-  return Number(store.getters.indexId || 0);
+  return Number(store.indexId || 0);
 }
 
 export async function resolveRelatedLogTargetRow(
@@ -97,8 +100,8 @@ export function getRelatedLogResolveOptions(
   store: ApplicationStore,
 ): Omit<RelatedLogTargetRowOptions, 'rowKey' | 'fallbackRow'> {
   return {
-    contextFields: store.state.indexSetOperatorConfig?.contextAndRealtime?.extra?.context_fields,
-    timeField: store.state.indexFieldInfo?.time_field,
-    isFormatDate: store.state.isFormatDate,
+    contextFields: store.indexSetOperatorConfig?.contextAndRealtime?.extra?.context_fields,
+    timeField: store.indexFieldInfo?.time_field,
+    isFormatDate: store.isFormatDate,
   };
 }

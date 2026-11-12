@@ -12,18 +12,17 @@
     </div>
     <bk-sideslider
       v-model:is-show="showSlider"
+      drawer-class-name="index-config-slider"
       :quick-close="true"
-      :title="$t('索引配置')"
       attach="body"
       :width="800"
       @animation-end="closeSlider"
     >
       <template #header>
-        <div>
+        <div class="index-config-slider-header">
           {{ t('索引配置') }}
           <t-button
             v-if="!isEdit"
-            class="mt10 fr"
             data-test-id="fieldSettingSlider_button_edit"
             theme="default"
             @click="handleEdit"
@@ -55,7 +54,10 @@
               :required="isEdit || isEditConfigName"
               :rules="basicRules.collector_config_name"
             >
-              <div @click.stop="() => ({})">
+              <div
+                class="field-setting-input-wrap"
+                @click.stop="() => ({})"
+              >
                 <t-input
                   v-if="isEdit || isEditConfigName"
                   v-model="formData.collector_config_name"
@@ -81,7 +83,7 @@
               :required="isEdit"
               :rules="basicRules.collector_config_name_en"
             >
-              <div class="en-name-box">
+              <div class="en-name-box field-setting-input-wrap">
                 <t-input
                   v-if="isEdit"
                   v-model="formData.collector_config_name_en"
@@ -225,7 +227,7 @@
           <div class="submit-container">
             <t-button
               v-if="isEdit"
-              class="king-button mr10"
+              class="king-button"
               :loading="confirmLoading"
               data-test-id="fieldSettingSlider_button_confirm"
               theme="primary"
@@ -236,6 +238,7 @@
             <t-button
               v-if="isEdit"
               data-test-id="fieldSettingSlider_button_cancel"
+              theme="default"
               @click="handleCancel"
               >{{ $t('取消') }}</t-button
             >
@@ -246,23 +249,27 @@
   </div>
 </template>
 
-<script setup lang="ts">import { ServicesInstance } from '@/platform/services';
+<script setup lang="ts">
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
+import { ServicesInstance } from '@/platform/services';
 
   import { computed, ref, nextTick } from 'vue';
 
   import { builtInInitHiddenList } from '@/shared/constants/index.ts';
   import useLocale from '@/shared/composables/use-locale';
-  import useStore from '@/shared/composables/use-store';
+
   import { useRoute, useRouter } from "vue-router";
 
   import * as authorityMap from '../lib/authority-map';
   import settingTable from './setting-table.vue';
-  
+
   import { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
   import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
 
   const { t } = useLocale();
-  const store = useStore();
+  const store = useApplicationStore();
   const route = useRoute();
   const router = useRouter();
   const showSlider = ref(false);
@@ -343,7 +350,7 @@
         collectorId: collectorConfigId.value,
       },
       query: {
-        spaceUid: store.state.spaceUid,
+        spaceUid: store.spaceUid,
       },
     });
     window.open(newURL.href, '_blank', 'noopener,noreferrer');
@@ -388,7 +395,7 @@
       },
       {
         validator: () => {
-          return formData.value.storage_cluster_id;
+          return Boolean(formData.value.storage_cluster_id);
         },
         message: t('请先选择集群'),
         trigger: 'blur',
@@ -405,6 +412,7 @@
             }
             return val <= maxRetention.value;
           }
+          return false;
         },
         message() {
           return t(`超出集群最大可保存天数，当前最大可保存{n}天`, { n: maxRetention.value });
@@ -418,11 +426,11 @@
     return cleanType.value === 'bk_log_json';
   });
   const labelWidth = computed(() => {
-    return store.state.isEnLanguage ? 130 : 94;
+    return store.isEnLanguage ? 130 : 94;
   });
   const indexfieldTable = ref(null);
   const addNewField = () => {
-    const fields = structuredClone(indexfieldTable.value.getData());
+    const fields = cloneReactiveData(indexfieldTable.value.getData());
     const newBaseFieldObj = {
       ...baseFieldObj.value,
       field_index: tableField.value.length + 1,
@@ -445,14 +453,14 @@
   }
 
   const handleEdit = () => {
-    formDataCopy.value = structuredClone(formData.value);
-    fieldsCopy.value = structuredClone(indexfieldTable.value.getData());
+    formDataCopy.value = cloneReactiveData(formData.value);
+    fieldsCopy.value = cloneReactiveData(indexfieldTable.value.getData());
     isEdit.value = true;
   };
 
   const handleCancel = async () => {
-    formData.value = structuredClone(formDataCopy.value);
-    tableField.value = structuredClone(fieldsCopy.value);
+    formData.value = cloneReactiveData(formDataCopy.value);
+    tableField.value = cloneReactiveData(fieldsCopy.value);
     nextTick(() => {
       isEdit.value = false;
     });
@@ -472,7 +480,7 @@
   const indexBuiltField = ref([]);
 
   const initFormData = async () => {
-    const indexSetList = store.state.retrieve.flatIndexSetList;
+    const indexSetList = useRetrieveStore().flatIndexSetList;
     const indexSetId = route.params?.indexId;
     const currentIndexSet = indexSetList.find((item) => item.index_set_id === `${indexSetId}`);
     if (!currentIndexSet?.collector_config_id) return;
@@ -649,6 +657,17 @@
 </script>
 
 <style lang="scss">
+  .index-config-slider-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .index-config-slider .t-drawer__body {
+    padding: 0;
+  }
+
   .bklog-v3 {
     &.field-setting-wrap {
       display: flex;
@@ -696,6 +715,10 @@
 
       .field-setting-form {
         padding: 4px 40px 36px;
+
+        .field-setting-input-wrap {
+          width: 100%;
+        }
 
         .form-flex-container {
           display: flex;
@@ -757,14 +780,16 @@
       }
 
       .field-preview-form {
-        .bk-form-item {
-          margin-top: 5px;
+        > .t-form__item {
+          margin: 5px 0 0;
         }
       }
 
       .submit-container {
         position: fixed;
         bottom: 0;
+        display: flex;
+        gap: 10px;
         padding: 16px 36px 16px;
       }
     }

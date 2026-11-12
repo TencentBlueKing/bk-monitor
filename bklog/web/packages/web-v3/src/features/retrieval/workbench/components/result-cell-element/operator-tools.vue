@@ -175,10 +175,14 @@
 </template>
 
 <script>
+import { mapState as mapPiniaState } from 'pinia';
+
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
   import nativeAsset0 from '@/shared/assets/images/rowAiNew.svg';
-  import { mapGetters } from '@/app/state/map-helpers';
+
   export default {
     props: {
       index: {
@@ -216,7 +220,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       };
     },
     computed: {
-      ...mapGetters({
+      ...mapPiniaState(useApplicationStore, {
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
       }),
@@ -257,7 +261,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         return true;
       },
       isAiAssistanceActive() {
-        return this.$store.getters.isAiAssistantActive;
+        return useApplicationStore().isAiAssistantActive;
       },
       toolMessage() {
         return (
@@ -270,7 +274,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       },
       /** 当前行存在可解析的 Trace ID 时才展示入口 */
       showTraceInput() {
-        const isApmActive = this.$store.state.indexSetFieldConfig?.apm_relation?.is_active ?? false;
+        const isApmActive = useApplicationStore().indexSetFieldConfig?.apm_relation?.is_active ?? false;
         if (!isApmActive) {
           return false;
         }
@@ -356,7 +360,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         if (!isActive) return;
 
         if (clickType === 'trace_id') {
-          const apmRelation = this.$store.state.indexSetFieldConfig?.apm_relation;
+          const apmRelation = useApplicationStore().indexSetFieldConfig?.apm_relation;
           const traceId = this.getTraceIdFromRowData();
           if (apmRelation?.is_active && traceId) {
             const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;

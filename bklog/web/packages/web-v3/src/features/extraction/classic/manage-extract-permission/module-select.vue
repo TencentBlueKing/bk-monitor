@@ -89,7 +89,9 @@
   </bk-dialog>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   export default {
   emits: ["update:show-select-dialog","update:showSelectDialog","confirm"],
@@ -136,7 +138,7 @@
           this.isLoading = true;
           const res = await ServicesInstance.collect.getExtractBizTopo({
             query: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
             },
           });
           this.topoList = res.data;

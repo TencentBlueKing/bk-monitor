@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
@@ -37,7 +39,7 @@ import LogIpSelector, { toSelectorNode, toTransformNode } from '@/features/colle
 import useLocale from '@/shared/composables/use-locale';
 import useRoute from '@/shared/composables/use-route';
 import useRouter from '@/shared/composables/use-router';
-import useStore from '@/shared/composables/use-store';
+
 import { manageDraftCacheService } from '@/platform/persistence/index';
 
 
@@ -60,7 +62,7 @@ export default defineComponent({
     PreviewFiles,
   },
   setup(_props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const { t } = useLocale();
     const router = useRouter();
     const route = useRoute();
@@ -133,7 +135,7 @@ export default defineComponent({
     });
 
     // 获取全局数据
-    const globalsData = computed(() => store.getters.globalsData);
+    const globalsData = computed(() => store.globalsData);
 
     // 检查是否为克隆模式并初始化克隆数据
     const checkIsClone = async () => {
@@ -199,7 +201,7 @@ export default defineComponent({
             host_list: requestIpList,
           },
           params: {
-            bk_biz_id: store.state.bkBizId,
+            bk_biz_id: store.bkBizId,
           },
         })
         .then(res => {
@@ -214,7 +216,7 @@ export default defineComponent({
     // 获取提取链路列表
     const getExtractLinkList = () => {
       ServicesInstance.extract.getExtractLinkList({
-          data: { bk_biz_id: store.state.bkBizId },
+          data: { bk_biz_id: store.bkBizId },
         })
         .then(res => {
           extractLinks.value = res.data;
@@ -229,7 +231,7 @@ export default defineComponent({
     const handleCloneAvailablePaths = (cloneData: any) => {
       const cloneNodeType = cloneData.target_node_type || 'INSTANCE';
       const requestData: any = {
-        bk_biz_id: store.state.bkBizId,
+        bk_biz_id: store.bkBizId,
         target_node_type: cloneNodeType,
       };
       if (cloneData.target_nodes?.length) {
@@ -269,7 +271,7 @@ export default defineComponent({
       });
       ServicesInstance.extract.getIpListDisplayName({
           data: { host_list: requestIpList },
-          params: { bk_biz_id: store.state.bkBizId },
+          params: { bk_biz_id: store.bkBizId },
         })
         .then(res => {
           initSelectNewNameList(res.data, true);
@@ -309,7 +311,7 @@ export default defineComponent({
           }));
           const strategies = await ServicesInstance.extract.getAvailableExplorerPath({
             data: {
-              bk_biz_id: store.state.bkBizId,
+              bk_biz_id: store.bkBizId,
               ip_list: newIpList,
               target_nodes: newTargetNodes,
               target_node_type: 'INSTANCE',
@@ -325,7 +327,7 @@ export default defineComponent({
           const newTargetNodes = toTransformNode(rawNodes, nodeType as any);
           const strategies = await ServicesInstance.extract.getAvailableExplorerPath({
             data: {
-              bk_biz_id: store.state.bkBizId,
+              bk_biz_id: store.bkBizId,
               target_nodes: newTargetNodes,
               target_node_type: nodeType,
             },
@@ -370,7 +372,7 @@ export default defineComponent({
         return;
       }
       const requestData: any = {
-        bk_biz_id: store.state.bkBizId,
+        bk_biz_id: store.bkBizId,
         ip_list: ipList.value,
         target_node_type: targetNodeType.value,
         target_nodes: targetNodes.value,
@@ -424,7 +426,7 @@ export default defineComponent({
       router.push({
         name: 'log-extract-task',
         query: {
-          spaceUid: store.state.spaceUid,
+          spaceUid: store.spaceUid,
         },
       });
     };
@@ -577,7 +579,7 @@ export default defineComponent({
             disabled={canSubmit.value || isSubmitLoading.value}
             loading={isSubmitLoading.value}
             theme='primary'
-            
+
             onClick={handlePreview} variant={(true) ? 'outline' : 'base'}
           >
             {t('预览')}

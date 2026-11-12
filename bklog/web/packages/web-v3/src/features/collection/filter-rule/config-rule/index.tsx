@@ -24,14 +24,19 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useGlobalsStore } from '@/app/state/domains/globals-store';
+
+import { Popup as TPopup } from 'tdesign-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 
-import { defineComponent, ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { defineComponent, ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue';
 
 import { getRegExp } from '@/shared/lib/util';
 import useFieldEgges from '@/shared/composables/use-field-egges';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { storeRuntimeCacheService } from '@/app/state/services/runtime-cache.service.js';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 
@@ -41,7 +46,7 @@ import RuleTrigger from './rule-trigger/index';
 import './index.scss';
 
 export default defineComponent({
-  emits: ["confirm","click-trigger","clickTrigger","delete"],
+  emits: ['confirm', 'click-trigger', 'clickTrigger', 'delete'],
 
   name: 'ConfigRule',
   components: {
@@ -60,13 +65,16 @@ export default defineComponent({
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
+    const store = useApplicationStore();
     const { isRequesting, isValidateItem, requestFieldEgges, setIsRequesting, isValidateEgges } = useFieldEgges();
 
     const fieldListMainRef = ref(null);
-    const popoverRef = ref(null);
-    const formRef = ref<import("@/shared/types/legacy-form").LegacyFormInstance | null>(null);
-    const controlOperateRef = ref(null);
+    const popoverVisible = ref(false);
+    const formRef = ref<import('@/shared/types/legacy-form').LegacyFormInstance | null>(null);
+    const controlOperateRef = ref<{
+      bindKeyEvent(): void;
+      unbindKeyEvent(): void;
+    } | null>(null);
     const contentInputWrapperRef = ref(null);
     const formData = ref({
       op: '',
@@ -85,18 +93,18 @@ export default defineComponent({
     const isMatchListShown = ref(true);
     const fieldValueCache = ref<Record<string, string[]>>({});
 
-    const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
-    const fieldList = computed(() => store.getters.filteredFieldList ?? []);
-    const isFieldListEmpty = computed(() => !store.state.indexFieldInfo.is_loading && !fieldList.value.length);
+    const fieldTypeMap = computed(() => useGlobalsStore().$state.fieldTypeMap);
+    const fieldList = computed(() => store.filteredFieldList ?? []);
+    const isFieldListEmpty = computed(() => !store.indexFieldInfo.is_loading && !fieldList.value.length);
     const isSearchEmpty = computed(() => !(isFieldListEmpty.value || filterFieldList.value.length));
     const exceptionType = computed(() => (isFieldListEmpty.value ? 'empty' : 'search-empty'));
     const textDir = computed(() => {
-      const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+      const textEllipsisDir = store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
       return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
     });
     const filterFieldList = computed(() => {
       const regExp = getRegExp(searchValue.value.trim());
-      const filterFn = (field: { field_name: string; field_type: string; field_alias: string; query_alias: string; }) =>
+      const filterFn = (field: { field_name: string; field_type: string; field_alias: string; query_alias: string }) =>
         !/^__dist/.test(field.field_name) &&
         field.field_type !== '__virtual__' &&
         !['dtEventTimeStamp', 'time', 'iterationIndex', 'gseIndex'].includes(field.field_name) &&
@@ -106,13 +114,13 @@ export default defineComponent({
     const isConfirmEnable = computed(() => formData.value.op && formData.value.values.length);
     const currentFieldInfo = computed(() => filterFieldList.value[activeIndex.value]);
     const fieldAggsItems = computed(() => {
-      void store.state.fieldAggsItemsVersion;
-      return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
+      void store.fieldAggsItemsVersion;
+      return storeRuntimeCacheService.getFieldAggsItems(store.indexId || 'default');
     });
 
     const activeItemMatchList = computed(() => {
       return (fieldAggsItems.value[currentFieldInfo.value.field_name] ?? []).filter(
-(        item: unknown) => !includesValue((formData.value.values ?? []), item),
+        (item: unknown) => !includesValue(formData.value.values ?? [], item),
       );
     });
 
@@ -157,7 +165,8 @@ export default defineComponent({
       if (props.data && filterFieldList.value.length) {
         activeIndex.value =
           filterFieldList.value.findIndex(
-(            item: { field_name: any; }) => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
+            (item: { field_name: any }) =>
+              item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
           ) || 0;
 
         hoverIndex.value = activeIndex.value;
@@ -274,11 +283,10 @@ export default defineComponent({
 
     const handleClickTrigger = () => {
       emit('click-trigger');
-      popoverRef.value.showHandler();
     };
 
     const handleClickCancel = () => {
-      popoverRef.value.hideHandler();
+      popoverVisible.value = false;
     };
 
     const handleClickDelete = () => {
@@ -287,7 +295,7 @@ export default defineComponent({
 
     const handlePopoverShow = () => {
       formRef.value?.clearError();
-      controlOperateRef.value.bindKeyEvent();
+      controlOperateRef.value?.bindKeyEvent();
       isMatchListShown.value = true;
       initData();
       setTimeout(() => {
@@ -299,8 +307,17 @@ export default defineComponent({
     };
 
     const handlePopoverHide = () => {
-      controlOperateRef.value.unbindKeyEvent();
+      controlOperateRef.value?.unbindKeyEvent();
     };
+
+    watch(
+      popoverVisible,
+      (visible) => {
+        if (visible) handlePopoverShow();
+        else handlePopoverHide();
+      },
+      { flush: 'post' },
+    );
 
     const handleDocumentClick = (e: MouseEvent) => {
       if (!isMatchListShown.value || !contentInputWrapperRef.value) {
@@ -319,6 +336,8 @@ export default defineComponent({
       document.addEventListener('click', handleDocumentClick, true);
     });
 
+    onBeforeUnmount(() => controlOperateRef.value?.unbindKeyEvent());
+
     onUnmounted(() => {
       document.removeEventListener('click', handleDocumentClick, true);
     });
@@ -328,7 +347,7 @@ export default defineComponent({
     });
 
     return () => (
-      <bk-popover
+      <TPopup
         v-slots={{
           content: () => (
             <div>
@@ -348,50 +367,53 @@ export default defineComponent({
                         }}
                       />
                     </div>
-                    <div
-                      ref={fieldListMainRef}
-                      class='field-list-main'
-                    >
-                      {filterFieldList.value.map((item: { field_name: string|number|symbol|undefined; field_type: string; field_alias: string; }, index: number) => (
-                        <div
-                          key={item.field_name}
-                          class={[
-                            'config-rule-field-row',
-                            {
-                              'is-active': activeIndex.value === index,
-                              'is-locate': hoverIndex.value === index,
-                            },
-                          ]}
-                          data-tab-index={index}
-                          onClick={() => handleFieldItemClick(index)}
-                          onMouseenter={() => {
-                            hoverIndex.value = activeIndex.value;
-                          }}
-                        >
-                          <span
-                            style={{
-                              backgroundColor: getFieldIconColor(item.field_type),
-                              color: getFieldIconTextColor(item.field_type),
-                            }}
-                            class={[getFieldIcon(item.field_type), 'field-type-icon']}
-                          />
+                    <div ref={fieldListMainRef} class='field-list-main'>
+                      {filterFieldList.value.map(
+                        (
+                          item: {
+                            field_name: string | number | symbol | undefined;
+                            field_type: string;
+                            field_alias: string;
+                          },
+                          index: number,
+                        ) => (
                           <div
-                            class='display-container rtl-text'
-                            dir={textDir.value}
+                            key={item.field_name}
+                            class={[
+                              'config-rule-field-row',
+                              {
+                                'is-active': activeIndex.value === index,
+                                'is-locate': hoverIndex.value === index,
+                              },
+                            ]}
+                            data-tab-index={index}
+                            onClick={() => handleFieldItemClick(index)}
+                            onMouseenter={() => {
+                              hoverIndex.value = activeIndex.value;
+                            }}
                           >
-                            {item.field_alias !== '' ? (
-                              <bdi>
-                                <span class='field-alias'>{item.field_alias}</span>
-                                <span class='field-name'>({item.field_name})</span>
-                              </bdi>
-                            ) : (
-                              <bdi>
-                                <span class='field-alias'>{item.field_name}</span>
-                              </bdi>
-                            )}
+                            <span
+                              style={{
+                                backgroundColor: getFieldIconColor(item.field_type),
+                                color: getFieldIconTextColor(item.field_type),
+                              }}
+                              class={[getFieldIcon(item.field_type), 'field-type-icon']}
+                            />
+                            <div class='display-container rtl-text' dir={textDir.value}>
+                              {item.field_alias !== '' ? (
+                                <bdi>
+                                  <span class='field-alias'>{item.field_alias}</span>
+                                  <span class='field-name'>({item.field_name})</span>
+                                </bdi>
+                              ) : (
+                                <bdi>
+                                  <span class='field-alias'>{item.field_name}</span>
+                                </bdi>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ),
+                      )}
                       {(isFieldListEmpty.value || isSearchEmpty.value) && (
                         <bk-exception
                           style='justify-content: center; height: 260px'
@@ -412,11 +434,7 @@ export default defineComponent({
                         },
                       }}
                     >
-                      <bk-form-item
-                        label={t('条件')}
-                        property='op'
-                        required
-                      >
+                      <bk-form-item label={t('条件')} property='op' required>
                         <div class='setting-item'>
                           <bk-select
                             style='width: 314px'
@@ -426,25 +444,14 @@ export default defineComponent({
                               formData.value.op = value;
                             }}
                           >
-                            {conditionList.map(option => (
-                              <bk-option
-                                id={option.id}
-                                key={option.id}
-                                name={option.name}
-                              />
+                            {conditionList.map((option) => (
+                              <bk-option id={option.id} key={option.id} name={option.name} />
                             ))}
                           </bk-select>
                         </div>
                       </bk-form-item>
-                      <bk-form-item
-                        label={t('检索值')}
-                        property='values'
-                        required
-                      >
-                        <div
-                          ref={contentInputWrapperRef}
-                          class='content-input-wraper'
-                        >
+                      <bk-form-item label={t('检索值')} property='values' required>
+                        <div ref={contentInputWrapperRef} class='content-input-wraper'>
                           <bk-tag-input
                             clearable={false}
                             content-width={232}
@@ -464,19 +471,21 @@ export default defineComponent({
                           {isValidateItem.value && (
                             <div
                               class='match-list-main'
-                              style={{ display: isMatchListShown.value ? 'block' : 'none' }}
+                              style={{
+                                display: isMatchListShown.value ? 'block' : 'none',
+                              }}
                               v-loading={{
                                 loading: isRequesting.value,
                                 size: 'small',
                               }}
                             >
                               {activeItemMatchList.value.length > 0 ? (
-                                activeItemMatchList.value.map((item: string|number|symbol|undefined) => (
+                                activeItemMatchList.value.map((item: string | number | symbol | undefined) => (
                                   <div
                                     key={item}
                                     class='match-item'
                                     v-log-overflow-tips
-                                    onClick={e => handleChooseMatchItem(e, item)}
+                                    onClick={(e) => handleChooseMatchItem(e, item)}
                                   >
                                     {item}
                                   </div>
@@ -506,17 +515,14 @@ export default defineComponent({
             </div>
           ),
         }}
-        ref={popoverRef}
-        width={720}
-        ext-cls='config-rule-popover'
-        tippy-options={{
-          theme: 'light',
-          trigger: 'click',
-          hideOnClick: false,
-        }}
+        visible={popoverVisible.value}
+        trigger='click'
+        overlayClassName='config-rule-popover'
+        overlayInnerStyle={{ width: '720px', padding: 0 }}
         placement='bottom'
-        onHide={handlePopoverHide}
-        onShow={handlePopoverShow}
+        onVisibleChange={(value) => {
+          popoverVisible.value = value;
+        }}
       >
         <RuleTrigger
           data={localFormData.value}
@@ -524,7 +530,7 @@ export default defineComponent({
           onClick={handleClickTrigger}
           onDelete={handleClickDelete}
         />
-      </bk-popover>
+      </TPopup>
     );
   },
 });

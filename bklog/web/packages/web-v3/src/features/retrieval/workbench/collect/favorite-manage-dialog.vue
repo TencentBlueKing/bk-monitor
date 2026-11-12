@@ -30,7 +30,7 @@
     width="100%"
     :top="0"
     attach="body"
-    :dialog-class-name="`favorite-management-dialog${store.state.showAlert ? ' is-show-notice' : ''}`"
+    :dialog-class-name="`favorite-management-dialog${store.showAlert ? ' is-show-notice' : ''}`"
     :header="false"
     :close-btn="false"
     :footer="false"
@@ -224,6 +224,8 @@
 </template>
 
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import {
   Dialog as TDialog,
   Popup as TPopup,
@@ -249,7 +251,7 @@ import { ServicesInstance } from '@/platform/services';
 import { computed, ref, nextTick, watch, h, onBeforeUnmount } from 'vue';
 import { useDialogVisible } from '@/shared/global/overlay/index';
 
-import useStore from '@/shared/composables/use-store';
+
 import useLocale from '@/shared/composables/use-locale';
 import BatchOperationMenu from './batch-operation-menu.vue';
 import FavoriteDetail from './favorite-detail.vue';
@@ -265,9 +267,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close']);
-const store = useStore();
+const store = useApplicationStore();
 const { $t } = useLocale();
-const spaceUid = computed(() => store.state.spaceUid);
+const spaceUid = computed(() => store.spaceUid);
 const groups = computed(() => {
   return localFavoriteList.value.map((item) => ({
     id: item.id,
@@ -452,7 +454,7 @@ const getGroupList = async () => {
   try {
     const query = {
       space_uid: spaceUid.value,
-      source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
+      source_type: store.isSceneMode ? 'scene' : 'index_set',
     };
     if (window.__IS_MONITOR_APM__) {
       Object.assign(query, {
@@ -488,7 +490,7 @@ const getFavoriteList = async (showAll = true) => {
     const query = {
       space_uid: spaceUid.value,
       order_type: 'NAME_ASC',
-      source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
+      source_type: store.isSceneMode ? 'scene' : 'index_set',
     };
     if (window.__IS_MONITOR_APM__) {
       Object.assign(query, {
@@ -598,7 +600,7 @@ const handleAddGroupConfirm = async () => {
     const data = {
       name: addGroupData.value.name,
       space_uid: spaceUid.value,
-      source_type: store.getters.isSceneMode ? 'scene' : 'index_set',
+      source_type: store.isSceneMode ? 'scene' : 'index_set',
     };
     if (window.__IS_MONITOR_APM__) {
       Object.assign(data, {

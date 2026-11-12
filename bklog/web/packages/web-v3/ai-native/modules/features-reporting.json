@@ -11,8 +11,8 @@
     "features/reporting/services/new-report.ts"
   ],
   "dependsOn": [
-    "platform",
-    "shared"
+    "app",
+    "platform"
   ],
   "tests": [],
   "sourceMap": "ai-native/source-map.json",

@@ -25,6 +25,10 @@
 -->
 
 <script setup lang="ts">
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
 import { BK_LOG_STORAGE } from '@/app/state/store.type';
 import { ServicesInstance } from '@/platform/services';
 
@@ -35,7 +39,7 @@ import type { Props as TippyProps } from 'tippy.js';
 import BklogLoading from '@/shared/ui/loading';
 import type { SortPair } from '../../result-comp/update/field-settings.types';
 import useLocale from '@/shared/composables/use-locale';
-import useStore from '@/shared/composables/use-store';
+
 import { useRoute } from 'vue-router';
 
 import FieldsSetting from '../../result-comp/update/fields-setting.vue';
@@ -53,7 +57,7 @@ interface SettingPopover {
   hide: () => void;
 }
 
-const store = useStore();
+const store = useApplicationStore();
 const route = useRoute();
 const { $t } = useLocale();
 
@@ -77,16 +81,16 @@ const popoverLazyLoaded = ref({
   setting: false,
 });
 
-const unionIndexList = computed(() => store.state.unionIndexList);
-const isUnionSearch = computed(() => store.getters.isUnionSearch);
-const isSceneMode = computed(() => store.getters.isSceneMode);
-const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+const unionIndexList = computed(() => store.unionIndexList);
+const isUnionSearch = computed(() => store.isUnionSearch);
+const isSceneMode = computed(() => store.isSceneMode);
+const isStartTextEllipsis = computed(() => store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
 
 /** 字段配置管理组件所需参数 */
-const retrieveParams = computed(() => store.getters.retrieveParams);
+const retrieveParams = computed(() => store.retrieveParams);
 /** 字段配置管理组件所需参数 */
 const fieldAliasMap = computed(() => {
-  return store.getters.fieldAliasMap;
+  return store.fieldAliasMap;
 });
 
 const searchConfigList = computed(() => {
@@ -187,8 +191,8 @@ const getFiledConfigList = async () => {
       : ServicesInstance.retrieve.getFieldsListConfig;
     const data = isSceneMode.value
       ? {
-          bk_biz_id: store.state.bkBizId,
-          scene_id: store.state.indexItem.scene_active,
+          bk_biz_id: store.bkBizId,
+          scene_id: store.indexItem.scene_active,
           scope: 'default',
         }
       : {
@@ -209,25 +213,25 @@ const getFiledConfigList = async () => {
 
 const handleClickSelectConfig = async (item: FieldConfig) => {
   handlePopoverHide();
-  store.commit('retrieve/updateFiledSettingConfigID', item.id);
-  store.commit('updateState', { localSort: false });
-  store.commit('updateIsSetDefaultTableColumn', false);
+  useRetrieveStore().updateFiledSettingConfigID(item.id);
+  store.updateState({ localSort: false });
+  store.updateIsSetDefaultTableColumn(false);
 
   // 先等待用户配置保存完成
-  await store.dispatch('userFieldConfigChange', {
+  await store.userFieldConfigChange({
     displayFields: item.display_fields,
     sortList: item.sort_list,
     fieldsWidth: {},
   });
 
   // 更新本地显示字段状态
-  store.commit('resetVisibleFields', item.display_fields);
-  store.commit('updateIsSetDefaultTableColumn');
+  store.resetVisibleFields(item.display_fields);
+  store.updateIsSetDefaultTableColumn();
   emit('select-fields-config', item.display_fields);
 
   // 应用模板后重新请求数据
-  await store.dispatch('requestIndexSetFieldInfo');
-  await store.dispatch('requestIndexSetQuery');
+  await store.requestIndexSetFieldInfo();
+  await store.requestIndexSetQuery();
   RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
 };
 

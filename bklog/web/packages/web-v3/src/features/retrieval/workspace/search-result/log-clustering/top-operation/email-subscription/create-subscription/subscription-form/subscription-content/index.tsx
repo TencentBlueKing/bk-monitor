@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Checkbox as TCheckbox } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
@@ -33,7 +35,7 @@ import { useRoute } from 'vue-router';
 import { defineComponent, ref, computed, onMounted, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 
-import useStore from '@/shared/composables/use-store';
+
 import { type IndexSetDataList } from '@/features/retrieval/services/retrieve';
 import { transformDataKey } from '@/features/charts/utils';
 
@@ -58,7 +60,7 @@ export default defineComponent({
   setup(props, { expose }) {
     const { t } = useLocale();
     const route = useRoute();
-    const store = useStore();
+    const store = useApplicationStore();
 
     const formRef = ref<any>(null);
     const formData = ref({
@@ -168,7 +170,7 @@ export default defineComponent({
     const getIndexSetList = () => {
       ServicesInstance.retrieve.getIndexSetList({
           query: {
-            space_uid: store.state.space.space_uid,
+            space_uid: store.space.space_uid,
           },
         })
         .then(response => {
@@ -247,7 +249,7 @@ export default defineComponent({
             <TButton
               theme='primary'
               size='small'
-              
+
               onClick={() => (isShowAdvancedOption.value = !isShowAdvancedOption.value)} variant={(true) ? 'text' : ('base')}
             >
               <div style='display: flex; align-items: center;'>

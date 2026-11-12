@@ -250,7 +250,9 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   import { getCurrentInstance } from 'vue';
   import { useSidebarDiff } from '@/shared/composables/use-sidebar-diff';
@@ -280,7 +282,7 @@
       // ValidateUserSelector,
       BkUserSelector,
     },
-    
+
     props: {
       strategyData: {
         type: Object,
@@ -332,7 +334,7 @@
         );
       },
       isExternal() {
-        return this.$store.state.isExternal;
+        return useApplicationStore().isExternal;
       },
     },
     mounted() {
@@ -385,7 +387,7 @@
         this.manageStrategyData.modules = modules;
       },
       async changeOperator() {
-        const { operator } = this.$store.state.userMeta;
+        const { operator } = useApplicationStore().userMeta;
         if (operator) {
           this.manageStrategyData.operator = operator;
           return;
@@ -394,7 +396,7 @@
         try {
           this.isChangeOperatorLoading = true;
           const res = await ServicesInstance.userInfo.getUsername();
-          this.$store.commit('updateState', { userMeta: res.data });
+          useApplicationStore().updateState({ userMeta: res.data });
           this.manageStrategyData.operator = res.data.operator;
         } catch (e) {
           console.warn(e);

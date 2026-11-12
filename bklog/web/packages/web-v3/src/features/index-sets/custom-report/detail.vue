@@ -95,7 +95,10 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useCollectionStore } from '@/app/state/domains/collection-store';
+import { ServicesInstance } from '@/platform/services';
 
   import BasicTab from '@/shared/ui/basic-tab/index';
   import AuthContainerPage from '@/shared/ui/common/auth-container-page';
@@ -174,7 +177,7 @@
               },
             ],
           };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
+          const res = await useApplicationStore().checkAndGetData(paramData);
           if (res.isAllowed === false) {
             this.authPageInfo = res.data;
             // 显示无权限页面
@@ -186,7 +189,7 @@
               },
             });
             this.reportDetail = reportDetail;
-            this.$store.commit('collect/setCurCollect', reportDetail);
+            useCollectionStore().setCurCollect(reportDetail);
           }
         } catch (err) {
           console.warn(err);
@@ -208,8 +211,8 @@
           name: 'retrieve',
           params,
           query: {
-            spaceUid: this.$store.state.spaceUid,
-            bizId: this.$store.state.bkBizId,
+            spaceUid: useApplicationStore().spaceUid,
+            bizId: useApplicationStore().bkBizId,
           },
         });
       },
@@ -224,7 +227,7 @@
               },
             ],
           };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
+          const res = await useApplicationStore().checkAndGetData(paramData);
           if (!res.isAllowed) this.editAuthData = res.data;
           this.editAuth = res.isAllowed;
         } catch {

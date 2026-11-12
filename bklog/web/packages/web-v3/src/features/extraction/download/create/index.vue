@@ -164,7 +164,11 @@
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+import { mapState as mapPiniaState } from 'pinia';
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import { ServicesInstance } from '@/platform/services';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import { manageDraftCacheService } from '@/platform/persistence/index';
@@ -176,7 +180,7 @@
   import FilesInput from '@/features/extraction/download/create/files-input';
   import PreviewFiles from '@/features/extraction/download/create/preview-files';
   import TextFilter from '@/features/extraction/download/create/test-filter';
-  import { mapGetters } from '@/app/state/map-helpers';
+
 
   export default {
   emits: ["loading"],
@@ -205,8 +209,8 @@
       };
     },
     computed: {
-      ...mapGetters({
-        globalsData: 'globals/globalsData',
+      ...mapPiniaState(useApplicationStore, {
+        globalsData: state => state.globals.globalsData,
       }),
       canSubmit() {
         return (
@@ -264,7 +268,7 @@
               host_list: requestIpList,
             },
             params: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
             },
           })
           .then(res => {
@@ -277,7 +281,7 @@
       },
       getExtractLinkList() {
         ServicesInstance.extract.getExtractLinkList({
-            data: { bk_biz_id: this.$store.state.bkBizId },
+            data: { bk_biz_id: useApplicationStore().bkBizId },
           })
           .then(res => {
             this.extractLinks = res.data;
@@ -290,7 +294,7 @@
       handleCloneAvailablePaths(cloneData) {
         ServicesInstance.extract.getAvailableExplorerPath({
             data: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
               ip_list: cloneData.ip_list,
             },
           })
@@ -314,7 +318,7 @@
         // 选择服务器后，获取可预览的路径
         const strategies = await ServicesInstance.extract.getAvailableExplorerPath({
           data: {
-            bk_biz_id: this.$store.state.bkBizId,
+            bk_biz_id: useApplicationStore().bkBizId,
             ip_list: ipList,
           },
         });
@@ -358,7 +362,7 @@
         // 根据预览地址选择的文件提交下载任务
         ServicesInstance.extract.createDownloadTask({
             data: {
-              bk_biz_id: this.$store.state.bkBizId,
+              bk_biz_id: useApplicationStore().bkBizId,
               ip_list: this.ipList, // 下载目标
               preview_directory: this.fileOrPath, // 目录
               preview_ip_list: this.$refs.preview.getFindIpList(), // 预览地址
@@ -385,7 +389,7 @@
         this.$router.push({
           name: 'log-extract-task',
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            spaceUid: useApplicationStore().spaceUid,
           },
         });
       },

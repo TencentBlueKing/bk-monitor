@@ -85,12 +85,13 @@ export default defineComponent({
       props.showDialog ? (
       <TDialog
         width={480}
+        top={200}
+        attach="body"
         dialogClassName='stop-type-dialog'
         header={t('请确认停用类型')}
         visible={props.showDialog}
         closeOnOverlayClick={false}
         confirmBtn={props.isCustomReport ? t('确定') : t('下一步')}
-        onCancel={handleCancel}
         onClose={handleCancel}
         onConfirm={handleSave}
       >

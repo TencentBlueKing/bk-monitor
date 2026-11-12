@@ -23,11 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
+import type { IndexSetOption } from '@/app/state/retrieval-state.type';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 
 import * as authorityMap from '@/shared/lib/authority-map';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
-import useStore from '@/shared/composables/use-store';
+
 import { RetrieveUrlResolver } from '@/app/state/url-resolver';
 import { useRoute, useRouter } from "vue-router";
 import { getLocationQueryParams } from '@/shared/utils/index';
@@ -38,7 +43,7 @@ import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../../app/state/store.typ
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 
 export default (indexSetApi: () => Promise<any>) => {
-  const store = useStore();
+  const store = useApplicationStore();
   const router = useRouter();
   const route = useRoute();
   const searchBarHeight = ref(0);
@@ -64,7 +69,7 @@ export default (indexSetApi: () => Promise<any>) => {
     trendGraphHeight.value = height;
   });
 
-  const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
+  const indexSetIdList = computed(() => store.indexItem.ids.filter(id => id?.length ?? false));
   const fromMonitor = computed(() => route.query.from === 'monitor');
 
   const stickyStyle = computed(() => {
@@ -85,9 +90,9 @@ export default (indexSetApi: () => Promise<any>) => {
   const reoverRouteParams = () => {
     updateURLArgs(route);
     const routeParams = getDefaultRetrieveParams({
-      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
-      bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-      search_mode: SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
+      spaceUid: store.storage[BK_LOG_STORAGE.BK_SPACE_UID],
+      bkBizId: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+      search_mode: SEARCH_MODE_DIC[store.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
     });
     let activeTab = 'single';
     Object.assign(routeParams, { ids: [] });
@@ -102,13 +107,13 @@ export default (indexSetApi: () => Promise<any>) => {
       activeTab = 'union';
     }
 
-    store.commit('updateIndexItem', routeParams);
-    store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
+    store.updateIndexItem(routeParams);
+    store.updateStorage({ [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
   };
 
   const getApmIndexSetList = () => {
-    store.commit('retrieve/updateIndexSetLoading', true);
-    store.commit('retrieve/updateIndexSetList', []);
+    useRetrieveStore().updateIndexSetLoading(true);
+    useRetrieveStore().updateIndexSetList([]);
     return indexSetApi()
       .then((res: string|any[]) => {
         let indexSetList: Record<string, any>[] = [];
@@ -132,12 +137,12 @@ export default (indexSetApi: () => Promise<any>) => {
             item.lightenName = ` (${item.indices.map((newItem: { result_table_id: any; }) => newItem.result_table_id).join(';')})`;
             item.unique_id = `#_${item.index_set_id}`;
           }
-          store.commit('retrieve/updateIndexSetList', indexSetList);
+          useRetrieveStore().updateIndexSetList(indexSetList as IndexSetOption[]);
           return indexSetList;
         }
       })
       .finally(() => {
-        store.commit('retrieve/updateIndexSetLoading', false);
+        useRetrieveStore().updateIndexSetLoading(false);
       });
   };
 
@@ -189,8 +194,8 @@ export default (indexSetApi: () => Promise<any>) => {
             defaultId = `${resp[0].index_set_id}`;
           }
         }
-        store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
-        store.commit('updateState', { indexId: defaultId });
+        store.updateIndexItem({ ids: [defaultId], items: [resp[0]] });
+        store.updateState({ indexId: defaultId });
         router.replace({
           query: { ...route.query, indexId: defaultId, unionList: undefined },
         });
@@ -219,26 +224,26 @@ export default (indexSetApi: () => Promise<any>) => {
           const dataValidItem = resp.find((item) => item.tags.every((tag: { tag_id: number; }) => tag.tag_id !== 4));
           if (dataValidItem) {
             const defaultId = `${dataValidItem.index_set_id}`;
-            store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
-            store.commit('updateState', { indexId: defaultId });
+            store.updateIndexItem({ ids: [defaultId], items: [resp[0]] });
+            store.updateState({ indexId: defaultId });
             router.replace({
               query: { ...route.query, indexId: defaultId, unionList: undefined },
             });
           } else {
-            store.commit('updateIndexItem', { ids: [], items: [] });
-            store.commit('updateState', { indexId: '' });
-            store.commit('updateIndexSetQueryResult', {
+            store.updateIndexItem({ ids: [], items: [] });
+            store.updateState({ indexId: '' });
+            store.updateIndexSetQueryResult({
               is_error: true,
               exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
             });
           }
         }
         if (indexSetItems.length) {
-          store.commit('updateIndexItem', { ids: [...indexSetIds], items: [...indexSetItems] });
+          store.updateIndexItem({ ids: [...indexSetIds], items: [...indexSetItems] });
         }
       }
 
-      const { addition, keyword, items } = store.state.indexItem;
+      const { addition, keyword, items } = store.indexItem;
       // 初始化时，判断当前单选索引集是否有默认条件
       if (items.length === 1 && !addition.length && !keyword) {
         let searchMode = 'ui';
@@ -251,8 +256,8 @@ export default (indexSetApi: () => Promise<any>) => {
           defaultAddition = [...items[0].addition];
           searchMode = 'ui';
         }
-        store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(searchMode ?? 'ui') });
-        store.commit('updateIndexItem', {
+        store.updateStorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(searchMode ?? 'ui') });
+        store.updateIndexItem({
           addition: defaultAddition,
           keyword: defaultKeyword,
           search_mode: searchMode,
@@ -269,9 +274,9 @@ export default (indexSetApi: () => Promise<any>) => {
 
       RetrieveHelper.setSearchingValue(true);
       const type = route.query.indexId ? 'single' : 'union';
-      RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
-      store.dispatch('requestIndexSetFieldInfo').then(() => {
-        store.dispatch('requestIndexSetQuery').then(() => {
+      RetrieveHelper.setIndexsetId(store.indexItem.ids, type);
+      store.requestIndexSetFieldInfo().then(() => {
+        store.requestIndexSetQuery().then(() => {
           RetrieveHelper.setSearchingValue(false);
         });
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
@@ -282,10 +287,10 @@ export default (indexSetApi: () => Promise<any>) => {
   // 解析默认URL为前端参数
   // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
   const setDefaultRouteUrl = () => {
-    const routeParams = store.getters.retrieveParams;
+    const routeParams = store.retrieveParams;
     const resolver = new RetrieveUrlResolver({
       ...routeParams,
-      datePickerValue: store.state.indexItem.datePickerValue,
+      datePickerValue: store.indexItem.datePickerValue,
     });
     router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
   };

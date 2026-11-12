@@ -23,10 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, ref, computed, watch, nextTick } from 'vue';
 import { RecycleScroller } from 'vue-virtual-scroller';
 
-import useStore from '../../composables/use-store';
+
 import { SPACE_TYPE_MAP } from '../../../app/state/constant';
 
 import './list.scss';
@@ -107,11 +109,11 @@ export default defineComponent({
   },
   emits: ['handleClickOutSide', 'handleClickMenuItem', 'openDialog'],
   setup(props, { emit }) {
-    const store = useStore();
+    const store = useApplicationStore();
     const scrollerRef = ref<{ scrollToItem?: (index: number) => void } | null>(null);
     const defaultSpace = ref<IListItem | null>(null); // 当前弹窗中选中的业务
     const isSetBizIdDefault = ref(true); // 设为默认or取消默认
-    const defaultBizId = computed(() => store.getters.defaultBizId); // 当前默认业务ID
+    const defaultBizId = computed(() => store.defaultBizId); // 当前默认业务ID
 
     // 点击设置/取消默认
     const handleDefaultBizIdDialog = (e: MouseEvent, data: IListItem, isSetDefault: boolean) => {
@@ -128,6 +130,15 @@ export default defineComponent({
     // 选中业务项时触发
     const handleSelected = (item: IListItem) => {
       emit('handleClickMenuItem', item);
+    };
+
+    // 常用分组的分隔线落在常用列表最后一项上，不依赖它前面是否还有置顶结果
+    const isLastCommonItem = (item: IListItem) => {
+      if (!props.commonList.length || item.type === 'group-title') {
+        return false;
+      }
+      const last = props.commonList[props.commonList.length - 1];
+      return item.id === last.id && item.space_uid === last.space_uid;
     };
 
     // 判断当前项是否被键盘选中
@@ -206,7 +217,7 @@ export default defineComponent({
                     props.theme,
                     { checked: item.space_uid === props.checked },
                     { 'keyboard-selected': isKeyboardSelected(item) },
-                    props.commonList.length > 0 && index === props.commonList.length ? 'last-common-item' : '',
+                    isLastCommonItem(item) ? 'last-common-item' : '',
                   ]}
                   onClick={() => handleSelected(item)}
                 >
