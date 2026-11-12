@@ -61,7 +61,7 @@ import {
 } from '@/components/collection-access/ext-json-expand-depth';
 import { getCleanTypeLabel, getCleanTypeIcon } from '../business-comp/step3/clean-type';
 import { isCollectionEditRoute } from './route-utils';
-import { useLogTimeZone } from './log-timezone';
+import { normalizeTimestampTimeZones, useLogTimeZone } from './log-timezone';
 
 import type { ISelectItem, ISubmitOptions } from '../../type';
 
@@ -324,7 +324,7 @@ export default defineComponent({
       time_format: '',
       time_zone: '' as number | string,
     });
-    const { formatHasTimeZone, parsedTimeZone, isTimeZoneLocked, changeTimeFormat } = useLogTimeZone(
+    const { isTimestamp, formatHasTimeZone, parsedTimeZone, isTimeZoneLocked, changeTimeFormat } = useLogTimeZone(
       formData,
       fieldDateFormat,
       timeZone,
@@ -616,7 +616,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
 
     /** 提取实际生效的字段配置，排除日志样例值及表格 UI 状态 */
     const buildTemplateEtlFieldsSnapshot = (fields: EtlField[]): EtlField[] =>
-      fields.map(field => ({
+      normalizeTimestampTimeZones(fields).map(field => ({
         field_index: field.field_index,
         field_name: field.field_name,
         alias_name: field.alias_name,
@@ -1985,37 +1985,39 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                     ))}
                   </bk-select>
                 </div>
-                <div class='select-item time-zone-item'>
-                  <div class='time-zone-control'>
-                    <span class='select-title'>{t('时区选择')}</span>
-                    <bk-select
-                      class='time-zone-select'
-                      disabled={isTemplateBound.value || isTimeZoneLocked.value}
-                      value={formData.value.time_zone}
-                      on-selected={val => {
-                        if (!isTemplateBound.value && !isTimeZoneLocked.value) {
-                          formData.value.time_zone = val;
-                        }
-                      }}
-                    >
-                      {timeZone.value.map(item => (
-                        <bk-option
-                          id={item.id}
-                          key={item.id}
-                          name={item.name}
-                        />
-                      ))}
-                    </bk-select>
-                  </div>
-                  {timeZoneTip.value && (
-                    <div
-                      class={['time-zone-tip', { 'is-success': isTimeZoneLocked.value }]}
-                      role='status'
-                    >
-                      {timeZoneTip.value}
+                {!isTimestamp.value && (
+                  <div class='select-item time-zone-item'>
+                    <div class='time-zone-control'>
+                      <span class='select-title'>{t('时区选择')}</span>
+                      <bk-select
+                        class='time-zone-select'
+                        disabled={isTemplateBound.value || isTimeZoneLocked.value}
+                        value={formData.value.time_zone}
+                        on-selected={val => {
+                          if (!isTemplateBound.value && !isTimeZoneLocked.value) {
+                            formData.value.time_zone = val;
+                          }
+                        }}
+                      >
+                        {timeZone.value.map(item => (
+                          <bk-option
+                            id={item.id}
+                            key={item.id}
+                            name={item.name}
+                          />
+                        ))}
+                      </bk-select>
                     </div>
-                  )}
-                </div>
+                    {timeZoneTip.value && (
+                      <div
+                        class={['time-zone-tip', { 'is-success': isTimeZoneLocked.value }]}
+                        role='status'
+                      >
+                        {timeZoneTip.value}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
