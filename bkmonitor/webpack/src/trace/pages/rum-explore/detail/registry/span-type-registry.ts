@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { RumModeEnum } from '../../constants';
 import { RumCardToneEnum, RumSectionTypeEnum, RumTimelineFilterCategoryEnum, SectionKeyEnum } from '../constants';
 import { getActionRelated, getErrorRelated, getLongTaskRelated, getViewRelated } from '../services';
 import { EMPTY_TEXT, formatCount } from './card-registry';
@@ -242,8 +243,9 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
         ),
       ],
     },
-    loadRelated: (context, mode, detail) => {
-      return getViewRelated(context, mode, detail);
+    /** 三项计数都是「当前 View 下原始 Span」的统计，必须走 span 层级；传 view 会被后端限定 span_type=view 而恒为空 */
+    loadRelated: (context, _mode, detail) => {
+      return getViewRelated(context, RumModeEnum.SPAN, detail);
     },
   },
 };

@@ -150,6 +150,8 @@ export interface IRumOverviewItemVM {
   isLink?: boolean;
   key: string;
   label: string;
+  /** 原始值：点击「添加为检索条件」时回传，避免把展示文本当作检索值 */
+  rawValue?: unknown;
   value: string;
 }
 

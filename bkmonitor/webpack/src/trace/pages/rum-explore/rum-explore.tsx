@@ -254,6 +254,12 @@ export default defineComponent({
       return extraFields.length ? [...current, ...extraFields] : current;
     });
 
+    /**
+     * 详情头部可点击的字段：只有属于当前视角检索字段的项，点击后生成的条件才能被当前视角解析。
+     * 检索字段取自 view_config 中 is_searched 为 true 的字段（源自接口 is_searchable），与检索条件区的候选字段同源。
+     */
+    const retrievalFieldNames = computed(() => viewConfigCtx.retrievalFields.value.map(field => field.name));
+
     const favoriteBoxRef = useTemplateRef<InstanceType<typeof FavoriteBox>>('favoriteBoxRef');
     /** 检索视图容器 ref，其根节点即表格的滚动容器，也是吸顶表头锚定的容器 */
     const rumExploreViewRef = useTemplateRef<InstanceType<typeof RumExploreView>>('rumExploreViewRef');
@@ -661,6 +667,7 @@ export default defineComponent({
       detailShow,
       detailMode,
       detailFields,
+      retrievalFieldNames,
       emptyType,
       layoutPreset,
       isSpanSpecialPerspective,
@@ -903,6 +910,7 @@ export default defineComponent({
           fields={this.detailFields}
           isShow={this.detailShow}
           mode={this.detailMode}
+          retrievalFieldNames={this.retrievalFieldNames}
           onConditionAdd={(key, value) =>
             this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
           }
