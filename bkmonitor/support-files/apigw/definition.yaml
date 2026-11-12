@@ -5,7 +5,7 @@ spec_version: 2
 release:
   # 发布版本号；
   # 资源配置更新，需更新此版本号才会发布资源版本，此版本号和 sdk 版本号一致，错误设置会影响调用方使用
-  version: 0.0.8
+  version: 0.0.9
   # 版本标题
   title: "自动同步监控 MCP Server"
   # 版本描述
@@ -177,6 +177,9 @@ stages:
           - get_trace_detail
           - get_span_detail
           - apm_mcp_calculate_by_range
+          - llm_mcp_search_traces
+          - llm_mcp_search_flows
+          - llm_mcp_calculate_by_range
       - <<: *public_mcp_server
         name: "profiling-query"
         title: "蓝鲸观测-Profiling数据查询MCP"
