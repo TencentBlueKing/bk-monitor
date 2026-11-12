@@ -158,7 +158,7 @@ def repair_truncated_json(value: Any) -> Any:
 
 def recover_front_truncated_messages(value: Any) -> Any:
     """前截断时只恢复后续完整消息；不能确认边界就保留原文。"""
-    if not isinstance(value, str):
+    if not isinstance(value, str) or value.lstrip().startswith("["):
         return value
     # 有时只丢失数组开头的 '['，首个消息仍完整。
     candidate_starts = [len(value) - len(value.lstrip())] if value.lstrip().startswith("{") else []

@@ -353,6 +353,8 @@ class TruncatedContentTests(TestCase):
             recover_front_truncated_messages('{"role":"user","parts":[]}]'),
             [{"role": "user", "parts": []}],
         )
+        intact = '[{"role":"user","parts":[]}, {"role":"tool","parts":[]}]'
+        self.assertEqual(recover_front_truncated_messages(intact), intact)
 
     def test_valid_json_plain_text_and_invalid_nontruncation_are_preserved(self):
         for value in ('{"a":1}', "普通文本", 'prefix {"a":1', '{"a": @bad}', '{"a":1} trailing', None):
