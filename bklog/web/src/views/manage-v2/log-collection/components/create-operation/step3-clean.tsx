@@ -1507,14 +1507,18 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               class='option-slot-container no-authority'
               on-click={(event: MouseEvent) => {
                 event.stopPropagation();
-                applyProjectAccess(option);
               }}
             >
               <span class='text'>
                 <span>{option.collector_config_name}</span>
                 <span style='color: #979ba5'>（{`#${option.collector_config_id}`}）</span>
               </span>
-              <span class='apply-text'>{t('申请权限')}</span>
+              <span
+                class='apply-text'
+                on-click={() => applyProjectAccess(option)}
+              >
+                {t('申请权限')}
+              </span>
             </div>
           ) : (
             <div
