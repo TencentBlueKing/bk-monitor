@@ -48,6 +48,7 @@ from bkmonitor.utils.time_tools import (
 )
 from constants.alert import EventStatus
 from constants.apm import OtlpKey, PreCalculateSpecificField, DEFAULT_DATA_LABEL as APM_METRIC_DATA_LABEL
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import RECOVERY, DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
 from constants.strategy import (
     AGG_METHOD_REAL_TIME,
@@ -2218,16 +2219,20 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
         return "bklog"
 
     def _get_unify_query_table_suffix(self) -> str:
-        suffix: str = ""
-        for cond in self._get_conditions().get("field_list", []):
-            field_name: str = cond.get("field_name", "")
-            if field_name.startswith("__dist"):
-                suffix = "_clustered"
-                pass
+        condition_fields: set[str] = {
+            cond.get("field_name", "") for cond in self._get_conditions().get("field_list", [])
+        }
+        if any(field.startswith("__dist") for field in condition_fields) or "__dist_05" in (self.query_string or ""):
+            return "_clustered"
 
-        if "__dist_05" in (self.query_string or ""):
-            suffix = "_clustered"
-        return suffix
+        # 日志聚类小型化以 signature 为签名字段，仅在已注册聚类路由时改查聚类表，避免误伤同名业务字段。
+        if (
+            self.index_set_id
+            and LOG_CLUSTERING_SIGNATURE_FIELD in condition_fields | set(self.group_by)
+            and has_log_clustered_route(self.bk_tenant_id or DEFAULT_TENANT_ID, str(self.index_set_id))
+        ):
+            return "_clustered"
+        return ""
 
     def _get_unify_query_table(self) -> str:
         """获取 unify-query 查询表名
@@ -3088,6 +3093,23 @@ class BkRumDataSource(BkApmTraceDataSource):
 class BkRumTimeSeriesDataSource(BkRumDataSource):
     data_source_label = DataSourceLabel.BK_RUM
     data_type_label = DataTypeLabel.TIME_SERIES
+
+
+LOG_CLUSTERING_SIGNATURE_FIELD = "signature"
+
+
+@lru_cache_with_ttl(ttl=60)
+def has_log_clustered_route(bk_tenant_id: str, index_set_id: str) -> bool:
+    """索引集是否已注册聚类结果路由，日志聚类小型化通过该路由查询 signature。"""
+    from metadata.models import ResultTable
+
+    return ResultTable.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        table_id__startswith=f"bklog_index_set_{index_set_id}_",
+        data_label=f"bklog_index_set_{index_set_id}_clustered",
+        is_deleted=False,
+        is_enable=True,
+    ).exists()
 
 
 @lru_cache_with_ttl(ttl=120)

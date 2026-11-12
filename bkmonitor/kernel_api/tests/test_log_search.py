@@ -8,8 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
 
+from kernel_api.resource import log_search
 from kernel_api.resource.log_search import get_log_unify_query_table
 
 TEST_INDEX_SET_ID = 0
@@ -40,3 +43,26 @@ TEST_SIGNATURE = "test-signature"
 )
 def test_get_log_unify_query_table(conditions, query_string, expected_table):
     assert get_log_unify_query_table(TEST_INDEX_SET_ID, conditions, query_string) == expected_table
+
+
+@pytest.mark.parametrize(
+    ("conditions", "dimensions", "has_route", "expected_table"),
+    [
+        (
+            {"field_list": [{"field_name": "signature", "op": "eq", "value": [TEST_SIGNATURE]}]},
+            None,
+            True,
+            "bklog_index_set_0_clustered",
+        ),
+        (None, ["signature"], True, "bklog_index_set_0_clustered"),
+        # 未注册聚类路由时，同名业务字段仍查普通表。
+        (None, ["signature"], False, "bklog_index_set_0"),
+    ],
+)
+def test_get_log_unify_query_table_by_signature(monkeypatch, conditions, dimensions, has_route, expected_table):
+    has_log_clustered_route = MagicMock(return_value=has_route)
+    monkeypatch.setattr(log_search, "has_log_clustered_route", has_log_clustered_route)
+    monkeypatch.setattr(log_search, "bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "system")
+
+    assert get_log_unify_query_table(TEST_INDEX_SET_ID, conditions, "*", 2, dimensions) == expected_table
+    has_log_clustered_route.assert_called_once_with("system", "0")

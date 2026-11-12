@@ -29,6 +29,7 @@ class TestClusteringMonitorHandler(TestCase):
         self.handler.get_notice = Mock(return_value={"signal": ["abnormal"]})
         self.handler.save_strategy_infos = Mock(return_value=9527)
         self.handler.is_new_class_new_series_enabled = Mock(return_value=True)
+        self.handler.is_quix = False
 
     @patch(
         "apps.log_clustering.handlers.dataflow.dataflow_handler.DataFlowHandler.sync_clustered_route",
@@ -127,6 +128,16 @@ class TestClusteringMonitorHandler(TestCase):
             params={"interval": 30, "threshold": 5},
         )
         self.handler.save_new_cls_clustering_strategy.assert_not_called()
+
+    def test_legacy_normal_strategy_keeps_dist_field(self):
+        self.handler.save_normal_clustering_strategy(params={"sensitivity": 5})
+
+        query_config = self.handler.save_strategy_infos.call_args.kwargs["request_params"]["items"][0]["query_configs"][
+            0
+        ]
+        self.assertEqual(query_config["agg_dimension"], ["__dist_05"])
+        self.assertEqual(query_config["agg_condition"][0]["key"], "__dist_05")
+        self.assertEqual(query_config["agg_condition"][0]["method"], "neq")
 
     def test_create_or_update_uses_new_series_for_new_config(self):
         self.handler.save_legacy_new_cls_clustering_strategy = Mock()
@@ -299,3 +310,90 @@ class TestClusteringMonitorHandler(TestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn("threshold", serializer.errors)
+
+
+QUIX_SIGNATURE_EXISTS_CONDITION = [
+    {"key": "signature", "dimension_name": "signature", "value": [""], "method": "exists", "condition": "and"}
+]
+
+
+class TestQuixClusteringMonitorHandler(TestCase):
+    """小型化索引集的三类聚类告警统一使用 signature，旧聚类保持 __dist_05。"""
+
+    def setUp(self):
+        TestClusteringMonitorHandler.setUp(self)
+        self.handler.is_quix = True
+        self.handler.clustering_config.log_count_aggregation_flow = None
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.DataFlowHandler.sync_clustered_route")
+    def test_quix_new_class_strategy_uses_signature_without_route_sync(self, mock_sync_clustered_route):
+        self.handler.save_new_cls_clustering_strategy(params={"interval": 30, "threshold": 5})
+
+        query_config = self.handler.save_strategy_infos.call_args.kwargs["request_params"]["items"][0]["query_configs"][
+            0
+        ]
+        self.assertEqual(query_config["agg_dimension"], ["signature", "service_name"])
+        self.assertEqual(query_config["agg_condition"], QUIX_SIGNATURE_EXISTS_CONDITION)
+        mock_sync_clustered_route.assert_not_called()
+
+    def test_quix_normal_strategy_uses_signature(self):
+        self.handler.save_normal_clustering_strategy(params={"sensitivity": 5})
+
+        query_config = self.handler.save_strategy_infos.call_args.kwargs["request_params"]["items"][0]["query_configs"][
+            0
+        ]
+        self.assertEqual(query_config["agg_dimension"], ["signature"])
+        self.assertEqual(query_config["agg_condition"], QUIX_SIGNATURE_EXISTS_CONDITION)
+        self.assertEqual(self.handler.get_notice.call_args.kwargs["dimensions"], ["signature"])
+
+    def test_new_class_uses_new_series_without_aggregation_flow_when_gray_switch_is_off(self):
+        self.handler.is_new_class_new_series_enabled.return_value = False
+        self.handler.save_legacy_new_cls_clustering_strategy = Mock()
+        self.handler.save_new_cls_clustering_strategy = Mock(return_value={"strategy_id": 2})
+        params = {"interval": 30, "threshold": 5}
+
+        result = self.handler.create_or_update_clustering_strategy(StrategiesType.NEW_CLS_strategy, params)
+
+        self.assertEqual(result, {"strategy_id": 2})
+        self.handler.save_new_cls_clustering_strategy.assert_called_once_with(params=params)
+        self.handler.save_legacy_new_cls_clustering_strategy.assert_not_called()
+
+
+class TestPatternStrategySignatureField(TestCase):
+    def _save_pattern_strategy(self, is_quix):
+        handler = ClusteringMonitorHandler.__new__(ClusteringMonitorHandler)
+        handler.index_set_id = 123
+        handler.index_set = SimpleNamespace(index_set_name="test-index-set", time_field="dtEventTimeStamp")
+        handler.clustering_config = SimpleNamespace(new_cls_index_set_id=None, group_fields=[], bk_biz_id=2)
+        handler.bk_biz_id = 2
+        handler.conf = {}
+        handler.is_quix = is_quix
+        remark = Mock(id=7, strategy_id=0, owners=["admin"], notice_group_id=42)
+        with (
+            patch(
+                "apps.log_clustering.handlers.clustering_monitor.ClusteringRemark.materialize_inherited_remark",
+                return_value=remark,
+            ),
+            patch("apps.log_clustering.handlers.clustering_monitor.is_remark_group_inherit_allowed", return_value=True),
+            patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi") as monitor_api,
+        ):
+            monitor_api.search_user_groups.return_value = [{"id": 42}]
+            monitor_api.save_alarm_strategy_v3.return_value = {"id": 9527}
+            handler.save_pattern_strategy(
+                table_id="2_bklog.rt_create",
+                params={"signature": "abc", "groups": {}, "strategy_enabled": True},
+            )
+        return monitor_api.save_alarm_strategy_v3.call_args.kwargs["params"]["items"][0]["query_configs"][0]
+
+    def test_quix_pattern_strategy_uses_signature(self):
+        query_config = self._save_pattern_strategy(is_quix=True)
+
+        self.assertEqual(query_config["agg_dimension"], ["signature"])
+        self.assertEqual(query_config["agg_condition"][0]["key"], "signature")
+        self.assertEqual(query_config["agg_condition"][0]["value"], ["abc"])
+
+    def test_legacy_pattern_strategy_keeps_dist_field(self):
+        query_config = self._save_pattern_strategy(is_quix=False)
+
+        self.assertEqual(query_config["agg_dimension"], ["__dist_05"])
+        self.assertEqual(query_config["agg_condition"][0]["key"], "__dist_05")

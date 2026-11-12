@@ -97,6 +97,11 @@ AGG_DIMENSION_NORMAL = ["__dist_05"]
 CLUSTERED_LOG_AGG_CONDITION = [
     {"key": "__dist_05", "dimension_name": "__dist_05", "value": [""], "method": "neq", "condition": "and"}
 ]
+# 日志聚类小型化告警统一使用 signature 签名字段
+QUIX_AGG_DIMENSION_NORMAL = [SIGNATURE_FIELD]
+QUIX_CLUSTERED_LOG_AGG_CONDITION = [
+    {"key": SIGNATURE_FIELD, "dimension_name": SIGNATURE_FIELD, "value": [""], "method": "exists", "condition": "and"}
+]
 # 新类告警
 LEGACY_NEW_CLASS_AGG_DIMENSION = ["sensitivity", SIGNATURE_FIELD]
 LEGACY_NEW_CLASS_AGG_CONDITION = [
