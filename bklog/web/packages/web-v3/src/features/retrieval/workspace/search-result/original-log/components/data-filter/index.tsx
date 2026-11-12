@@ -384,7 +384,10 @@ export default defineComponent({
                 </div>
               ))}
             </div>
-            <TButton onClick={() => emit('fix-current-row')}>
+            <TButton
+              class='locate-current-row-button'
+              onClick={() => emit('fix-current-row')}
+            >
               <span
                 style='font-size:14px;margin-right:5px'
                 class='icon bklog-icon bklog-position'

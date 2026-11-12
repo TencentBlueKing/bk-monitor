@@ -124,6 +124,10 @@
       align-items: center;
       gap: 8px;
 
+      .locate-current-row-button .t-button__text {
+        align-items: center;
+      }
+
       .color-tip-main {
         display: flex;
         align-items: center;

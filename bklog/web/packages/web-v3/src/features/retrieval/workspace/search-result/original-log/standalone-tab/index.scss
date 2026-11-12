@@ -10,6 +10,34 @@
   }
 }
 
+.log-context-dialog-main,
+.log-realtime-dialog-main {
+  // Keep the native close action without reserving a second title row.
+  > .t-dialog__header--fullscreen {
+    flex: 0 0 0;
+    height: 0;
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+
+    > .t-dialog__header-content {
+      display: none;
+    }
+
+    > .t-dialog__close {
+      position: absolute;
+      top: 33px;
+      right: 24px;
+      z-index: var(--bklog-z-raised);
+      transform: translateY(-50%);
+    }
+  }
+
+  .common-header-main {
+    padding-right: 40px;
+  }
+}
+
 .standalone-related-log-page {
   height: 100%;
   background: #f5f7fa;
