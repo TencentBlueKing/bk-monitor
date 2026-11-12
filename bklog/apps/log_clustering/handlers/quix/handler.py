@@ -356,7 +356,7 @@ class QuixClusteringHandler:
         if "confirm_model_parameters" not in completed:
             completed.discard("update_model_parameters")
         unconfirmed = set(operation.request_payloads) - completed
-        if operation.step in ("enable_clustering", "attach") and operation.step not in completed:
+        if operation.step == "enable_clustering" and operation.step not in completed:
             unconfirmed.add(operation.step)
         if unconfirmed & {
             "create_task",
@@ -364,7 +364,6 @@ class QuixClusteringHandler:
             "metadata_set",
             "restart",
             "enable_clustering",
-            "attach",
         }:
             raise QuixClusteringParamsInvalidException(
                 QuixClusteringParamsInvalidException.MESSAGE.format(

@@ -38,6 +38,8 @@ from metadata.tests.data_link.test_log_clustering_sink import (
 pytestmark = pytest.mark.django_db(databases="__all__")
 
 PATTERN_CLUSTER_ID = 710103
+PATTERN_TARGET = {"table_id": f"2_bklog.{BINDING['index_id']}_pattern", "cluster_id": PATTERN_CLUSTER_ID}
+CLUSTERED_TARGET = {"table_id": f"2_bklog.{BINDING['index_id']}_clustered", "cluster_id": PATTERN_CLUSTER_ID}
 
 
 @pytest.fixture(autouse=True)
@@ -97,7 +99,7 @@ def bkbase(mocker):
     )
 
     def prepare(sink):
-        sink.pattern_store = copy.deepcopy(PATTERN_STORE)
+        sink.pattern_store = {**sink.pattern_store, **copy.deepcopy(PATTERN_STORE)}
         sink.save(update_fields=["pattern_store"])
         return []
 
@@ -117,6 +119,7 @@ def build_params(**overrides) -> dict:
         "kafka_resource": dict(KAFKA_RESOURCE),
         "runtime_cluster": dict(RUNTIME_CLUSTER),
         "recovery_resource": dict(RECOVERY_RESOURCE),
+        "pattern_store": dict(PATTERN_TARGET),
     }
     params.update(overrides)
     return params
@@ -211,11 +214,35 @@ def test_first_set_creates_sink_and_applies_whole_datalink(clustering_datalink, 
 
 
 def test_result_mode_is_kept_unless_requested(clustering_datalink, bkbase):
-    set_config(result_mode="append")
-    assert get_sink().result == {"mode": "append"}
+    set_config(result_mode="append", result_store=CLUSTERED_TARGET)
+    assert get_sink().result == {"mode": "append", **CLUSTERED_TARGET}
     # 日志平台只在首次开启时传入写入模式，重试和更新不传时沿用。
     set_config()
-    assert get_sink().result == {"mode": "append"}
+    assert get_sink().result == {"mode": "append", **CLUSTERED_TARGET}
+
+
+def test_store_tables_are_declared_by_caller(clustering_datalink, bkbase):
+    set_config()
+    sink = get_sink()
+    assert sink.pattern_store == {**PATTERN_TARGET, **PATTERN_STORE}
+    assert sink.result == {"mode": "update_original"}
+    # 调用方声明新集群时覆盖登记值，已准备的资源引用保留到重新准备。
+    set_config(pattern_store={**PATTERN_TARGET, "cluster_id": 710101})
+    assert get_sink().pattern_store == {**PATTERN_TARGET, "cluster_id": 710101, **PATTERN_STORE}
+
+
+@pytest.mark.parametrize(
+    "overrides, field",
+    [({"pattern_store": None}, "pattern_store"), ({"result_mode": "append"}, "result_store")],
+    ids=["pattern", "append-result"],
+)
+def test_store_tables_are_required(clustering_datalink, bkbase, overrides, field):
+    params = build_params(**overrides)
+    params = {key: value for key, value in params.items() if value is not None}
+    serializer = SetLogClusteringConfigResource.RequestSerializer(data=params)
+    assert not serializer.is_valid()
+    assert field in serializer.errors
+    assert not models.LogClusteringSinkConfig.objects.exists()
 
 
 def test_binding_is_forwarded_as_is(clustering_datalink, bkbase):
@@ -450,12 +477,6 @@ def test_filter_update_preserves_remote_disabled_state(clustering_datalink, bkba
     assert bkbase["apply_log_datalink"].call_count == 1
 
 
-def get_targets(**params) -> dict:
-    return GetLogClusteringStatusResource().request(
-        {"bk_tenant_id": "system", "table_id": LOG_TABLE_ID, "include_query_targets": True, **params}
-    )
-
-
 def test_status_summarizes_link_state(clustering_datalink, bkbase):
     set_config()
     attach_remotely(bkbase)
@@ -513,64 +534,6 @@ def test_status_keeps_databus_when_sink_query_fails(clustering_datalink, bkbase,
 
     assert (result["ready"], result["detached"]) == (False, True)
     assert result["errors"] == [{"source": "sink_resource", "message": "resource unavailable"}]
-
-
-@pytest.mark.parametrize("mode", ["update_original", "append"])
-def test_query_targets_use_registered_storage(clustering_datalink, bkbase, mode):
-    set_config(result_mode=mode)
-    attach_remotely(bkbase)
-    models.ESStorage.objects.filter(table_id=LOG_TABLE_ID).update(source_type="log", need_create_index=True)
-    clustered_table_id = LOG_TABLE_ID
-    if mode == "append":
-        clustered_table_id = "2_bklog.42_clustered"
-        sink = get_sink()
-        sink.result = {
-            "mode": "append",
-            "result_table": {"kind": "ResultTable", "name": "predict", "namespace": "bklog"},
-            "es_binding": {"kind": "ElasticSearchBinding", "name": "predict-es", "namespace": "bklog"},
-        }
-        sink.save(update_fields=["result"])
-        models.ResultTableConfig.objects.create(
-            name="predict", namespace="bklog", bk_tenant_id="system", table_id=clustered_table_id, bk_biz_id=2
-        )
-        models.ESStorage.objects.create(
-            bk_tenant_id="system",
-            table_id=clustered_table_id,
-            storage_cluster_id=PATTERN_CLUSTER_ID,
-            source_type="log",
-            need_create_index=True,
-        )
-
-    targets = get_targets()["query_targets"]
-
-    assert targets["clustered"] == {
-        "table_id": clustered_table_id,
-        "storage_type": "elasticsearch",
-        "source_type": "log",
-        "cluster_id": 710101 if mode == "update_original" else PATTERN_CLUSTER_ID,
-        "query_index": clustered_table_id.replace(".", "_"),
-        "need_add_time": True,
-    }
-    assert targets["pattern"] == {
-        "table_id": "bklog.pattern",
-        "storage_type": "elasticsearch",
-        "source_type": "log",
-        "cluster_id": PATTERN_CLUSTER_ID,
-        "query_index": "bklog_pattern",
-        "need_add_time": True,
-    }
-
-
-def test_query_targets_report_unprepared_store(clustering_datalink, bkbase):
-    set_config()
-    sink = get_sink()
-    sink.pattern_store = {}
-    sink.save(update_fields=["pattern_store"])
-
-    status = get_targets()
-
-    assert status["query_targets"] is None
-    assert status["errors"][0]["source"] == "query_targets"
 
 
 @pytest.mark.parametrize("field", ["kafka_resource", "runtime_cluster", "recovery_resource"])

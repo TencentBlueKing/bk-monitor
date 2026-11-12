@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 
 from apps.log_clustering.exceptions import QuixClusteringParamsInvalidException
 from apps.log_clustering.models import LogClusteringRuntime
+from apps.log_search.models import LogIndexSet
 
 # 日志平台过滤操作符 -> BKBase LogClusteringSink 过滤方法
 FILTER_OP_TO_METHOD = {
@@ -142,3 +143,20 @@ def build_binding(runtime: LogClusteringRuntime, clustering_config: dict, max_me
     if max_message_bytes:
         binding["max_message_bytes"] = max_message_bytes
     return binding
+
+
+def build_store_targets(runtime: LogClusteringRuntime, result_mode: str) -> dict:
+    """
+    按源日志表的命名规则生成 Pattern 表与独立结果表，集群跟随索引集当前存储。
+    默认回写时聚类结果即源日志表。
+    """
+    database = runtime.table_id.split(".", 1)[0]
+    cluster_id = LogIndexSet.objects.get(index_set_id=runtime.index_set_id).storage_cluster_id
+
+    def store(suffix):
+        return {"table_id": f"{database}.{runtime.index_set_id}_{suffix}", "cluster_id": cluster_id}
+
+    clustered = (
+        store("clustered") if result_mode == "append" else {"table_id": runtime.table_id, "cluster_id": cluster_id}
+    )
+    return {"pattern": store("pattern"), "clustered": clustered}

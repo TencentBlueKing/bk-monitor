@@ -1434,8 +1434,8 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,
             "raw_sink": json.dumps(raw_sink),
             "kafka_resource": json.dumps(self.kafka_resource),
-            "pattern_store": json.dumps(self.pattern_store),
-            "result": json.dumps(self.result or {"mode": "update_original"}),
+            "pattern_store": json.dumps(self._bkbase_refs(self.pattern_store)),
+            "result": json.dumps(self._bkbase_refs(self.result or {"mode": "update_original"})),
             "runtime_cluster": json.dumps(self.runtime_cluster),
             "recovery_resource": json.dumps(self.recovery_resource),
             "binding": json.dumps(self.binding),
@@ -1449,6 +1449,11 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
             render_params=render_params,
             err_msg_prefix="compose log clustering sink config",
         )
+
+    @staticmethod
+    def _bkbase_refs(store: dict[str, Any]) -> dict[str, Any]:
+        """调用方登记的 table_id、cluster_id 只在 metadata 内使用，不下发给 BKBase。"""
+        return {key: value for key, value in store.items() if key not in ("table_id", "cluster_id")}
 
     @property
     def reference(self) -> dict[str, str]:

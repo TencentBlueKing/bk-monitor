@@ -257,42 +257,71 @@ class TestQuixClusteringHandlerUpdate(TestCase):
             self.assertEqual((self.runtime.phase, self.runtime.pending_config), ("running", None))
         self.assertTrue(handler.disable())
 
-    def test_storage_switch_requires_stopped_runtime(self, mock_delay):
+    def test_storage_switch_triggers_clustering_follow(self, mock_delay):
         from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 
         self.index_set.storage_cluster_id = 1
         self.index_set.save()
         etl = TransferEtlHandler()
-        etl.data = Mock(index_set_id=INDEX_SET_ID, clean_template_id=None)
+        etl.data = Mock(index_set_id=INDEX_SET_ID, clean_template_id=None, is_clustering=False, table_id="logs")
+        etl.collector_config_id = None
         params = dict(etl_config="bk_log_text", table_id="logs", retention=7, allocation_min_days=0, storage_replies=1)
-        with patch("apps.log_databus.handlers.etl.transfer.StorageHandler", side_effect=LookupError("storage lookup")):
-            with self.assertRaises(QuixClusteringParamsInvalidException):
-                etl.update_or_create(storage_cluster_id=2, **params)
-            with self.assertRaisesRegex(LookupError, "storage lookup"):
-                etl.update_or_create(storage_cluster_id=1, **params)
-            self.runtime.phase = ClusteringRuntimePhaseEnum.STOPPED.value
-            self.runtime.save()
-            with self.assertRaisesRegex(LookupError, "storage lookup"):
-                etl.update_or_create(storage_cluster_id=2, **params)
+        cluster_info = {"cluster_type": "elasticsearch", "cluster_config": {"version": "7.10", "custom_option": {}}}
+        storage = Mock()
+        storage.return_value.get_cluster_info_by_id.return_value = cluster_info
+        with (
+            patch("apps.log_databus.handlers.etl.transfer.StorageHandler", storage),
+            patch.object(TransferEtlHandler, "check_es_storage_capacity"),
+            patch("apps.log_databus.handlers.etl.transfer.EtlStorage"),
+            patch.object(
+                TransferEtlHandler,
+                "_update_or_create_index_set",
+                return_value={"index_set_id": INDEX_SET_ID, "scenario_id": "log"},
+            ),
+            patch("apps.log_databus.handlers.etl.transfer.user_operation_record"),
+            patch("apps.log_databus.handlers.etl.transfer.CollectorHandler"),
+            patch("apps.log_clustering.tasks.quix.follow_quix_clustering_storage.delay") as follow,
+        ):
+            # 切存储不再要求先关闭聚类，提交后触发聚类表跟随；未切换时不触发。
+            for cluster_id, expected in ((1, 0), (2, 1)):
+                with self.captureOnCommitCallbacks(execute=True):
+                    etl.update_or_create(storage_cluster_id=cluster_id, **params)
+                self.assertEqual(follow.call_count, expected)
+            follow.assert_called_with(INDEX_SET_ID)
 
-    def test_bulk_switch_rejects_before_changing_cluster_default(self, mock_delay):
-        from apps.log_databus.models import BcsStorageClusterConfig, CollectorConfig
-        from apps.log_databus.tasks.collector import switch_bcs_collector_storage
+    def test_follow_storage_redeclares_running_clustering(self, mock_delay):
+        from apps.log_clustering.tasks.quix import follow_quix_clustering_storage
 
-        self.index_set.storage_cluster_id = 1
-        self.index_set.save()
-        CollectorConfig.objects.create(
-            index_set_id=INDEX_SET_ID,
-            bk_biz_id=2,
-            bcs_cluster_id="test-cluster",
-            bk_app_code="test",
-            collector_config_name="test",
-            collector_scenario_id="row",
-            category_id="application",
+        self.runtime.sink = {"name": "sink"}
+        self.runtime.save(update_fields=["sink"])
+        follow_quix_clustering_storage(INDEX_SET_ID)
+        operation = LogClusteringOperation.objects.get(
+            index_set_id=INDEX_SET_ID, operation_type=ClusteringOperationTypeEnum.UPDATE.value
         )
-        with self.assertRaises(QuixClusteringParamsInvalidException):
-            switch_bcs_collector_storage(2, "test-cluster", 2, "test")
-        self.assertFalse(BcsStorageClusterConfig.objects.filter(bcs_cluster_id="test-cluster").exists())
+        self.assertEqual(operation.request_snapshot, {"filter_rules": ERROR_RULES, "update_model": False})
+        self.runtime.refresh_from_db()
+        self.assertEqual(self.runtime.phase, ClusteringRuntimePhaseEnum.UPDATING.value)
+        mock_delay.assert_called_once_with(operation.operation_id)
+
+        # 已有在途操作或非运行阶段时跳过，不影响切存储本身。
+        mock_delay.reset_mock()
+        follow_quix_clustering_storage(INDEX_SET_ID)
+        LogClusteringOperation.objects.filter(pk=operation.pk).update(
+            status=ClusteringOperationStatusEnum.SUCCESS.value
+        )
+        LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
+        follow_quix_clustering_storage(INDEX_SET_ID)
+        mock_delay.assert_not_called()
+
+    def test_follow_storage_skips_runtime_without_sink(self, mock_delay):
+        from apps.log_clustering.tasks.quix import follow_quix_clustering_storage
+
+        follow_quix_clustering_storage(INDEX_SET_ID)
+        follow_quix_clustering_storage(INDEX_SET_ID + 1)
+        self.assertFalse(
+            LogClusteringOperation.objects.filter(operation_type=ClusteringOperationTypeEnum.UPDATE.value).exists()
+        )
+        mock_delay.assert_not_called()
 
     def test_changed_rules_start_update(self, mock_delay):
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)

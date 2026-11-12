@@ -41,25 +41,8 @@ ADOPTED_STATUS = {
     "enabled": True,
     "sink_phase": "Ok",
     "errors": [],
-    "query_targets": {
-        "clustered": {
-            "storage_type": "elasticsearch",
-            "cluster_id": 3,
-            "table_id": "2_bklog.demo",
-            "query_index": "2_bklog_demo",
-            "need_add_time": True,
-            "source_type": "log",
-        },
-        "pattern": {
-            "table_id": "bklog.pattern",
-            "storage_type": "elasticsearch",
-            "source_type": "es",
-            "cluster_id": 7,
-            "query_index": "shared-patterns",
-            "need_add_time": True,
-        },
-    },
 }
+STORAGE_CLUSTER_ID = 3
 
 
 def create_enable_operation():
@@ -93,7 +76,9 @@ class TestQuixWorkerRegistration(SimpleTestCase):
 
 class TestQuixEnableRunner(TestCase):
     def setUp(self):
-        LogIndexSet.objects.create(index_set_id=INDEX_SET_ID, space_uid="bkcc__2")
+        LogIndexSet.objects.create(
+            index_set_id=INDEX_SET_ID, space_uid="bkcc__2", storage_cluster_id=STORAGE_CLUSTER_ID
+        )
         self.operation = create_enable_operation()
         self.bkfara = MagicMock()
         self.bkfara.create_task.return_value = {"task_id": TASK_ID}
@@ -132,9 +117,18 @@ class TestQuixEnableRunner(TestCase):
         runtime.save()
         runner = QuixClusteringOperationRunner(self.operation.operation_id)
         runner._step_metadata_set()
-        self.assertEqual(self.transfer.set_log_clustering_config.call_args.args[0]["result_mode"], "append")
+        params = self.transfer.set_log_clustering_config.call_args.args[0]
+        self.assertEqual(params["result_mode"], "append")
+        self.assertEqual(params["result_store"], {"table_id": "2_bklog.42_clustered", "cluster_id": STORAGE_CLUSTER_ID})
         runner._step_metadata_set()
-        self.assertEqual(self.transfer.set_log_clustering_config.call_args.args[0]["result_mode"], "append")
+        self.assertEqual(self.transfer.set_log_clustering_config.call_args.args[0], params)
+
+    def test_store_tables_follow_source_database_and_index_set_cluster(self):
+        runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        runner._step_metadata_set()
+        params = self.transfer.set_log_clustering_config.call_args.args[0]
+        self.assertEqual(params["pattern_store"], {"table_id": "2_bklog.42_pattern", "cluster_id": STORAGE_CLUSTER_ID})
+        self.assertNotIn("result_store", params)
 
     def create_clustering_config(self):
         ClusteringConfig.objects.create(
@@ -177,7 +171,7 @@ class TestQuixEnableRunner(TestCase):
 
     def test_register_routes_records_metadata_errors_and_only_waits_when_pending(self):
         ready = self.transfer.get_log_clustering_status.return_value
-        error = {"source": "query_targets", "message": "pattern store is not prepared"}
+        error = {"source": "sink_resource", "message": "resource unavailable"}
         self.transfer.get_log_clustering_status.side_effect = [{**ready, "ready": False}, {**ready, "errors": [error]}]
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
         self.operation.refresh_from_db()
@@ -188,7 +182,7 @@ class TestQuixEnableRunner(TestCase):
         self.assertGreater(self.run_operation(), POLL_INTERVAL_SECONDS)
         self.operation.refresh_from_db()
         # metadata 返回的具体原因记入操作，按步骤重试上限结束。
-        self.assertIn("query_targets: pattern store is not prepared", self.operation.last_error)
+        self.assertIn("sink_resource: resource unavailable", self.operation.last_error)
         self.assertEqual(self.operation.retry_count, 1)
         self.transfer.bulk_create_or_update_log_router.assert_not_called()
 
@@ -210,62 +204,44 @@ class TestQuixEnableRunner(TestCase):
         self.assertEqual(clustered["data_label"], "bklog_index_set_42_clustered")
         self.assertEqual(clustered["table_info"][0]["source_type"], "log")
         self.assertEqual(clustered["table_info"][0]["index_set"], "2_bklog_demo")
+        self.assertEqual(clustered["table_info"][0]["cluster_id"], STORAGE_CLUSTER_ID)
         self.assertEqual(
             clustered["table_info"][0]["query_alias_settings"],
             [{"field_name": "__log_signature", "query_alias": "signature"}],
         )
         self.assertEqual(pattern["data_label"], "bklog_index_set_42_pattern")
         self.assertEqual((pattern["space_type"], pattern["space_id"]), ("bkcc", "2"))
-        self.assertEqual(pattern["table_info"][0]["index_set"], "shared-patterns")
-        self.assertEqual(pattern["table_info"][0]["origin_table_id"], "bklog.pattern")
+        self.assertEqual(pattern["table_info"][0]["index_set"], "2_bklog_42_pattern")
+        self.assertEqual(pattern["table_info"][0]["origin_table_id"], "2_bklog.42_pattern")
+        self.assertEqual(pattern["table_info"][0]["cluster_id"], STORAGE_CLUSTER_ID)
         self.assertEqual(pattern["table_info"][0]["options"][0]["value"], "true")
         self.transfer.set_log_clustering_config.assert_called_once()
 
     def test_append_routes_clustered_label_to_independent_result(self):
-        targets = ADOPTED_STATUS["query_targets"]
-        self.transfer.get_log_clustering_status.return_value = {
-            **ADOPTED_STATUS,
-            "clustering_status": {"configuration_applied": True},
-            "query_targets": {
-                **targets,
-                "clustered": {
-                    **targets["clustered"],
-                    "table_id": "2_bklog.predict",
-                    "query_index": "custom-predict-write",
-                    "need_add_time": False,
-                    "source_type": "bkdata",
-                    "cluster_id": 9,
-                },
-            },
-        }
-        self.run_operation()
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        runtime.pending_config["result_mode"] = "append"
+        runtime.save()
+        sync = Mock()
+        with patch("apps.log_clustering.handlers.quix.operation.BaseIndexSetHandler.sync_router", sync):
+            self.run_operation()
         clustered, pattern = [call.args[0] for call in self.transfer.bulk_create_or_update_log_router.call_args_list]
         self.assertEqual(clustered["data_label"], "bklog_index_set_42_clustered")
         table = clustered["table_info"][0]
         self.assertEqual(
-            (table["index_set"], table["cluster_id"]),
-            ("custom-predict-write", 9),
+            (table["origin_table_id"], table["index_set"], table["cluster_id"]),
+            ("2_bklog.42_clustered", "2_bklog_42_clustered", STORAGE_CLUSTER_ID),
         )
-        self.assertEqual(table["source_type"], "bkdata")
         self.assertEqual(table["query_alias_settings"], [{"field_name": "__log_signature", "query_alias": "signature"}])
-        self.assertEqual(pattern["table_info"][0]["index_set"], targets["pattern"]["query_index"])
+        self.assertEqual(pattern["table_info"][0]["origin_table_id"], "2_bklog.42_pattern")
+        # 独立结果表不改普通检索路由。
+        sync.assert_not_called()
 
-    def test_route_registration_syncs_normal_router_only_for_source_write(self):
+    def test_route_registration_syncs_normal_router_for_source_write(self):
         sync = Mock()
         with patch("apps.log_clustering.handlers.quix.operation.BaseIndexSetHandler.sync_router", sync):
             self.run_operation()
-            sync.assert_called_once()
-            self.assertTrue(sync.call_args.kwargs["raise_exception"])
-
-            sync.reset_mock()
-            targets = ADOPTED_STATUS["query_targets"]
-            self.transfer.get_log_clustering_status.return_value = {
-                **ADOPTED_STATUS,
-                "query_targets": {**targets, "clustered": {**targets["clustered"], "table_id": "2_bklog.42_clustered"}},
-            }
-            runner = QuixClusteringOperationRunner(self.operation.operation_id)
-            self.assertTrue(runner._step_register_query_routes())
-            sync.assert_not_called()
+        sync.assert_called_once()
+        self.assertTrue(sync.call_args.kwargs["raise_exception"])
 
     def test_enable_activates_config_after_route_registration(self):
         self.create_clustering_config()

@@ -12,14 +12,12 @@ metadata 按 BKBase 回读的聚类 Sink 与 Databus 汇总链路状态：`ready
 |--------------|--------|----|-----------------|
 | bk_tenant_id | string | 否  | 租户ID，缺省时取请求租户   |
 | table_id     | string | 是  | 日志采集项对应的监控结果表ID |
-| include_query_targets | bool | 否 | 默认 false；设为 true 时返回聚类结果和 Pattern 在 metadata 登记的存储 |
 
 ### 请求参数示例
 
 ```json
 {
-    "table_id": "2_bklog.demo",
-    "include_query_targets": true
+    "table_id": "2_bklog.demo"
 }
 ```
 
@@ -36,10 +34,7 @@ metadata 按 BKBase 回读的聚类 Sink 与 Databus 汇总链路状态：`ready
 | ready             | bool   | Databus 已引用聚类 Sink，且两者 phase 均为 Ok |
 | detached          | bool   | Databus 已恢复引用原 ES 存储绑定且 phase 为 Ok |
 | clustering_status | dict   | 聚类 Sink `status.message` 解析出的 JSON 对象；无进度或解析失败时为 null |
-| query_targets     | dict   | 仅 `include_query_targets=true` 时返回，见下文；无法解析时为 null 并在 errors 中返回原因 |
-| errors            | list   | 远端查询或存储解析失败信息，元素包含 source、message |
-
-`query_targets.clustered` 与 `query_targets.pattern` 分别返回聚类结果表和 Pattern 表在 metadata 登记的 ES 存储：`table_id`、`storage_type`、`source_type`、`cluster_id`、`query_index`（ESStorage 索引名）和 `need_add_time`（是否按日期轮转）。`update_original` 模式下 `clustered` 指向原日志表，`append` 模式下指向独立结果表。切存储后两张表跟随源表切换，调用方注册路由时将 `table_id` 作为 `origin_table_id`，即可复用实体表的历史分段。查询路由、`signature` 别名由调用方注册。
+| errors            | list   | 远端查询失败信息，元素包含 source、message |
 
 ### 响应参数示例
 
@@ -58,10 +53,6 @@ metadata 按 BKBase 回读的聚类 Sink 与 Databus 汇总链路状态：`ready
         "ready": true,
         "detached": false,
         "clustering_status": null,
-        "query_targets": {
-            "clustered": {"table_id": "2_bklog.demo", "storage_type": "elasticsearch", "source_type": "log", "cluster_id": 3, "query_index": "2_bklog_demo", "need_add_time": true},
-            "pattern": {"table_id": "2_bklog.42_pattern", "storage_type": "elasticsearch", "source_type": "log", "cluster_id": 3, "query_index": "2_bklog_42_pattern", "need_add_time": true}
-        },
         "errors": []
     }
 }

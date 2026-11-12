@@ -23,14 +23,11 @@ import copy
 
 from django.conf import settings
 from django.db import transaction
-from django.utils.translation import gettext as _
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 
-from apps.log_clustering.constants import ClusteringRuntimePhaseEnum
-from apps.log_clustering.exceptions import QuixClusteringParamsInvalidException
-from apps.log_clustering.models import ClusteringConfig, LogClusteringRuntime
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.exceptions import CleanTemplateNotExistException
@@ -50,17 +47,6 @@ _CLEAN_TEMPLATE_ID_NOT_PROVIDED = object()
 
 
 class TransferEtlHandler(EtlHandler):
-    @staticmethod
-    def validate_storage_switch(changed_index_set_ids):
-        if (
-            LogClusteringRuntime.objects.filter(index_set_id__in=changed_index_set_ids)
-            .exclude(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
-            .exists()
-        ):
-            raise QuixClusteringParamsInvalidException(
-                QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("请先关闭轻量化聚类，再切换存储集群"))
-            )
-
     def _validate_clean_template(self, clean_template_id):
         if clean_template_id is None:
             return None
@@ -175,8 +161,7 @@ class TransferEtlHandler(EtlHandler):
         user_fields = copy.deepcopy(fields)
 
         index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
-        if index_set_obj and index_set_obj.storage_cluster_id != storage_cluster_id:
-            self.validate_storage_switch([index_set_obj.index_set_id])
+        storage_switched = bool(index_set_obj and index_set_obj.storage_cluster_id != storage_cluster_id)
 
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
@@ -260,6 +245,12 @@ class TransferEtlHandler(EtlHandler):
             platform_index_visibility=platform_index_visibility,
             platform_index_filter=platform_index_filter,
         )
+
+        if storage_switched:
+            from apps.log_clustering.tasks.quix import follow_quix_clustering_storage
+
+            # 轻量化聚类的 Pattern/独立结果表及路由跟随索引集的新集群
+            transaction.on_commit(lambda: follow_quix_clustering_storage.delay(self.data.index_set_id))
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次
         LogIndexSet.objects.filter(index_set_id=index_set["index_set_id"]).update(fields_snapshot={})

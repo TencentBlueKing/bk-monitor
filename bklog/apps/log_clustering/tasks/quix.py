@@ -24,12 +24,22 @@ import datetime
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.log_clustering.constants import ClusteringOperationStatusEnum
+from apps.log_clustering.constants import (
+    ClusteringOperationStatusEnum,
+    ClusteringOperationTypeEnum,
+    ClusteringRuntimePhaseEnum,
+)
+from apps.log_clustering.exceptions import (
+    ClusteringOperationConflictException,
+    QuixClusteringParamsInvalidException,
+)
 from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
-from apps.log_clustering.models import LogClusteringOperation
+from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
+from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 
 OPERATION_LOCK_TTL_SECONDS = 600
@@ -59,3 +69,30 @@ def resume_stale_quix_clustering_operations():
     ).values_list("operation_id", flat=True)
     for operation_id in operation_ids:
         run_quix_clustering_operation.delay(operation_id)
+
+
+@high_priority_task(ignore_result=True)
+def follow_quix_clustering_storage(index_set_id: int):
+    """索引集切存储后，重新下发聚类配置和路由，使 Pattern、独立结果表跟随新集群。
+
+    仅处理运行中的聚类；已关闭的在重开时按当前集群下发。已有在途操作时跳过，
+    该操作尚未下发配置时会读取当前集群，否则需在其结束后修改一次配置。
+    """
+    runtime = LogClusteringRuntime.objects.filter(index_set_id=index_set_id).first()
+    if not runtime or not runtime.sink:
+        logger.info("[quix_clustering] index_set(%s) storage switched, skip following", index_set_id)
+        return
+    filter_rules = ClusteringConfig.objects.get(index_set_id=index_set_id).filter_rules or []
+    try:
+        with transaction.atomic():
+            _runtime, operation = LogClusteringRuntime.start_operation(
+                index_set_id,
+                ClusteringOperationTypeEnum.UPDATE.value,
+                {"filter_rules": filter_rules, "update_model": False},
+                allowed_phases=(ClusteringRuntimePhaseEnum.RUNNING.value,),
+                updates={"phase": ClusteringRuntimePhaseEnum.UPDATING.value},
+            )
+    except (ClusteringOperationConflictException, QuixClusteringParamsInvalidException) as exc:
+        logger.warning("[quix_clustering] index_set(%s) storage switched, skip following: %s", index_set_id, exc)
+        return
+    run_quix_clustering_operation.delay(operation.operation_id)

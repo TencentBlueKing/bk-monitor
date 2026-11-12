@@ -18,7 +18,7 @@ from apps.log_clustering.handlers.quix.handler import QuixClusteringHandler
 from apps.log_clustering.handlers.quix.operation import POLL_INTERVAL_SECONDS, QuixClusteringOperationRunner
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
 from apps.log_search.models import LogIndexSet
-from apps.tests.log_clustering.test_quix_operation import INDEX_SET_ID, KAFKA, QUIX_CONFIG
+from apps.tests.log_clustering.test_quix_operation import INDEX_SET_ID, KAFKA, QUIX_CONFIG, STORAGE_CLUSTER_ID
 from apps.tests.log_clustering.test_quix_update import create_running_runtime
 
 ADOPTED = {
@@ -37,6 +37,9 @@ ADOPTED = {
 class TestQuixReopenRunner(TestCase):
     def setUp(self):
         create_running_runtime()
+        LogIndexSet.objects.create(
+            index_set_id=INDEX_SET_ID, space_uid="bkcc__2", storage_cluster_id=STORAGE_CLUSTER_ID
+        )
         LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(
             phase=ClusteringRuntimePhaseEnum.REOPENING.value,
             candidate_boundary={"0": 10},
@@ -59,6 +62,7 @@ class TestQuixReopenRunner(TestCase):
         }
         self.transfer = MagicMock()
         self.transfer.get_log_clustering_status.return_value = ADOPTED
+        self.transfer.set_log_clustering_config.return_value = {"sink": {"name": "existing-sink"}}
         self.bkfara.restart_clustering.return_value = {"state": "RUNNING", "control_version": 6}
         for target, value in (
             ("apps.log_clustering.handlers.quix.operation.BkFaraApi", self.bkfara),
@@ -99,7 +103,7 @@ class TestQuixReopenRunner(TestCase):
         self.assertEqual(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).input_revision, 1)
         self.transfer.operate_log_clustering.assert_not_called()
 
-    def test_reopen_enables_and_attaches_while_worker_is_not_ready(self):
+    def test_reopen_redeclares_tables_while_worker_is_not_ready(self):
         self.assertIsNone(self.run_operation())
 
         self.bkfara.restart_clustering.assert_called_once_with(
@@ -111,7 +115,11 @@ class TestQuixReopenRunner(TestCase):
         )
         self.bkfara.create_task.assert_not_called()
         actions = [call.args[0]["action"] for call in self.transfer.operate_log_clustering.call_args_list]
-        self.assertEqual(actions, ["enable", "attach"])
+        self.assertEqual(actions, ["enable"])
+        # 重新声明当前集群的 Pattern 表并按声明注册路由，由 metadata 完成 Databus 接入。
+        params = self.transfer.set_log_clustering_config.call_args.args[0]
+        self.assertEqual(params["pattern_store"], {"table_id": "2_bklog.42_pattern", "cluster_id": STORAGE_CLUSTER_ID})
+        self.assertEqual(self.transfer.bulk_create_or_update_log_router.call_count, 2)
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.RUNNING.value)
         self.assertIsNone(runtime.candidate_boundary)
@@ -130,9 +138,8 @@ class TestQuixReopenRunner(TestCase):
             self.assertEqual((runtime.phase, runtime.candidate_boundary), ("reopening", {"0": 10}))
         self.assertIsNone(self.run_operation())
         self.bkfara.restart_clustering.assert_called_once()
-        self.assertEqual(
-            [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list], ["enable", "attach"]
-        )
+        self.assertEqual([c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list], ["enable"])
+        self.transfer.set_log_clustering_config.assert_called_once()
 
     def test_restart_timeout_blocks_close_and_replays_original_request(self):
         self.bkfara.restart_clustering.side_effect = [ApiRequestError("timeout"), {"control_version": 6}]
@@ -221,10 +228,14 @@ class TestQuixClusteringHandlerReopen(TestCase):
         operation_id = QuixClusteringHandler(self.index_set).reopen()
         operation = LogClusteringOperation.objects.get(operation_id=operation_id)
         mock_delay.reset_mock()
-        for step in ("enable_clustering", "attach"):
+        for step in ("enable_clustering", "metadata_set"):
             with self.subTest(step=step):
                 operation.status = ClusteringOperationStatusEnum.FAILED.value
                 operation.step = step
+                # metadata_set 已固定请求体但未确认成功，关闭不能接替。
+                operation.request_payloads = (
+                    {"metadata_set": {"table_id": "2_bklog.demo"}} if step == "metadata_set" else {}
+                )
                 operation.save()
                 with self.assertRaises(QuixClusteringParamsInvalidException):
                     QuixClusteringHandler(self.index_set).disable()

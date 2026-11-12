@@ -55,12 +55,13 @@ def register_result_fields(table_id, tenant):
 
 
 def prepare_clustering_stores(sink):
-    """准备 Pattern，以及首次开启时选择的独立结果表。"""
+    """按调用方登记的表名和集群，准备 Pattern 表及独立结果表。"""
     from metadata.models.data_link.utils import generate_result_table_field_list
 
-    configs, refs, pattern_table_id = _prepare_store(sink, "pattern", PATTERN_FIELDS)
-    sink.pattern_store = refs
-    clustered_table_id = sink.table_id
+    if not (sink.pattern_store or {}).get("table_id"):
+        raise ValueError(f"log clustering sink({sink.name}) pattern storage is not declared")
+    configs, refs = _prepare_store(sink, "pattern", PATTERN_FIELDS, sink.pattern_store)
+    sink.pattern_store = {**sink.pattern_store, **refs}
     if sink.result.get("mode") == "append":
         from metadata import models
         from metadata.models.result_table import LogV4DataLinkOption
@@ -78,8 +79,8 @@ def prepare_clustering_stores(sink):
             )
         }
         fields.update(RESULT_FIELDS)
-        result_configs, result_refs, clustered_table_id = _prepare_store(sink, "clustered", fields, es_config=es_config)
-        sink.result = {"mode": "append", **result_refs}
+        result_configs, result_refs = _prepare_store(sink, "clustered", fields, sink.result, es_config=es_config)
+        sink.result = {**sink.result, **result_refs}
         configs.extend(result_configs)
     else:
         from metadata import models
@@ -89,26 +90,11 @@ def prepare_clustering_stores(sink):
         if source.update_index_and_aliases(ahead_time=0, strict=True) is False:
             raise RuntimeError(f"{sink.table_id} ES 索引或写别名未准备完成")
     sink.save(update_fields=["pattern_store", "result"])
-    refresh_dependent_routes(sink.bk_tenant_id, [pattern_table_id, clustered_table_id])
     return configs
 
 
-def refresh_dependent_routes(bk_tenant_id, table_ids):
-    """已注册的查询路由跟随实体表的当前存储，切存储后连同历史分段重新发布。"""
-    from metadata import models
-    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-
-    route_ids = list(table_ids)
-    for table_id in table_ids:
-        cluster_id = models.ESStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id).storage_cluster_id
-        routes = models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, origin_table_id=table_id)
-        route_ids.extend(routes.values_list("table_id", flat=True))
-        routes.exclude(storage_cluster_id=cluster_id).update(storage_cluster_id=cluster_id)
-    SpaceTableIDRedis().push_table_id_detail(table_id_list=route_ids, bk_tenant_id=bk_tenant_id, is_publish=True)
-
-
-def _prepare_store(sink, suffix, fields, *, es_config=None):
-    """每个租户、索引集登记聚类结果或 Pattern 表，跟随源日志的 ES 存储。
+def _prepare_store(sink, suffix, fields, target, *, es_config=None):
+    """按调用方声明的 table_id 与 ES 集群登记聚类结果或 Pattern 表，保留和轮转设置沿用源日志。
 
     资源单独归组，避免被原日志链路的单 RT/Binding 认领和清理逻辑误处理。
     不创建 DataID、Databus 或源数据关联，只有聚类算子向该表写入。
@@ -117,11 +103,10 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
 
     tenant = sink.bk_tenant_id
     name = f"bklog_{sink.binding['index_id']}_{suffix}"
-    # 与 BKBase 物理表名 <bizId>_<RT 名称> 一致，ESStorage 默认索引名即可对上写别名。
-    table_id = f"{sink.datalink_biz_ids.data_biz_id}_bklog.{sink.binding['index_id']}_{suffix}"
+    table_id = target["table_id"]
     source = models.ESStorage.objects.get(bk_tenant_id=tenant, table_id=sink.table_id)
     cluster = models.ClusterInfo.objects.get(
-        bk_tenant_id=tenant, cluster_id=source.storage_cluster_id, cluster_type=models.ClusterInfo.TYPE_ES
+        bk_tenant_id=tenant, cluster_id=target["cluster_id"], cluster_type=models.ClusterInfo.TYPE_ES
     )
     with transaction.atomic(using=DATABASE_CONNECTION_NAME):
         table, _ = models.ResultTable.objects.get_or_create(
@@ -242,9 +227,8 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
                 "timezone": source.time_zone,
             },
         )
-        # 在不同集群使用同一个固定物理名称，历史路由可以复用原来的查询目标。
-        # 与 BKBase ResultTable.result_table_id() 的业务前缀保持一致。
-        physical_name = f"{rt_config['spec']['bizId']}_{rt.name}"
+        # 与原日志表相同，物理名称由 table_id 推导；不同集群使用同一名称，历史路由可复用原查询目标。
+        physical_name = table_id.replace(".", "_")
         storage = models.ESStorage.objects.filter(bk_tenant_id=tenant, table_id=table_id).first()
         is_moving_cluster = storage is None or storage.storage_cluster_id != cluster.cluster_id
         storage_options = {
@@ -326,4 +310,4 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
             unique_field_list=es_config.unique_field_list,
             json_field_list=es_config.json_field_list,
         )
-    return [rt_config, binding_config], refs, table_id
+    return [rt_config, binding_config], refs

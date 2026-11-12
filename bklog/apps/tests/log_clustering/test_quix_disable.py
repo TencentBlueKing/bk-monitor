@@ -63,6 +63,7 @@ class TestQuixDisableRunner(TestCase):
             ("apps.log_clustering.handlers.quix.operation.BkFaraApi", self.bkfara),
             ("apps.log_clustering.handlers.quix.operation.TransferApi", self.transfer),
             ("apps.log_clustering.handlers.quix.operation.LogIndexSet.delete_tag_by_name", self.delete_tag),
+            ("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=QUIX_CONFIG)),
         ):
             patcher = patch(target, value)
             patcher.start()
@@ -108,14 +109,17 @@ class TestQuixDisableRunner(TestCase):
         self.bkfara.stop_clustering.assert_not_called()
         binding = {"input_topic": "original"}
         LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(kafka_binding=binding, input_revision=1)
+        LogIndexSet.objects.create(index_set_id=INDEX_SET_ID, space_uid="bkcc__2", storage_cluster_id=3)
         self.bkfara.get_clustering.return_value = {"kafka": binding, "input_revision": 1, "state": "RUNNING"}
         self.transfer.get_log_clustering_status.return_value = {"ready": True}
+        self.transfer.set_log_clustering_config.return_value = {"sink": SINK}
         self.assertIsNone(QuixClusteringOperationRunner(reopen).run())
         self.bkfara.restart_clustering.assert_not_called()
         self.assertEqual(
             [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list],
-            ["disable", "enable", "attach"],
+            ["disable", "enable"],
         )
+        self.transfer.set_log_clustering_config.assert_called_once()
 
     @patch("apps.log_clustering.handlers.quix.handler.QuixClusteringHandler._get_bkfara_clustering", return_value={})
     def test_disable_timeout_does_not_report_stopped(self, get_clustering):

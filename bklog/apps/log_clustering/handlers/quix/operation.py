@@ -38,13 +38,14 @@ from apps.log_clustering.exceptions import (
     QuixClusteringConfigInvalidException,
     QuixClusteringParamsInvalidException,
 )
-from apps.log_clustering.handlers.quix.adapter import build_binding
+from apps.log_clustering.handlers.quix.adapter import build_binding, build_store_targets
 from apps.log_clustering.handlers.quix.payload import build_create_task_payload
 from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_search.constants import InnerTag
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Scenario
 from bkm_space.utils import parse_space_uid
 from apps.utils.log import logger
 
@@ -110,8 +111,9 @@ class QuixClusteringOperationRunner:
             "restart",
             "check_reopen_binding",
             "enable_clustering",
-            "attach",
-            "wait_link",
+            # 重新声明当前集群的 Pattern/结果表并接入 Databus，关闭期间切过存储也能跟随
+            "metadata_set",
+            "register_query_routes",
         ],
     }
 
@@ -295,7 +297,7 @@ class QuixClusteringOperationRunner:
         clustering_config = self.runtime.pending_config or self.runtime.active_config
         params = self.operation.get_request_payload(
             "metadata_set",
-            lambda: self._metadata_params(
+            lambda: self._clustering_config_params(
                 binding=build_binding(self.runtime, clustering_config, self.quix_config.get("max_message_bytes")),
                 kafka_resource=self.quix_config["kafka_resource"],
                 runtime_cluster=self.quix_config["runtime_cluster"],
@@ -307,56 +309,63 @@ class QuixClusteringOperationRunner:
         self._save_runtime(sink=result["sink"])
         return True
 
+    def _clustering_config_params(self, result_mode: str, **params) -> dict:
+        """聚类配置请求：Pattern 表与独立结果表的名称和集群由日志平台决定。"""
+        targets = build_store_targets(self.runtime, result_mode)
+        params.update(result_mode=result_mode, pattern_store=targets["pattern"])
+        if result_mode == "append":
+            params["result_store"] = targets["clustered"]
+        return self._metadata_params(**params)
+
     def _step_register_query_routes(self) -> bool:
-        status = TransferApi.get_log_clustering_status(self._metadata_params(include_query_targets=True))
+        status = TransferApi.get_log_clustering_status(self._metadata_params())
         errors = status.get("errors") or []
         if errors:
             # 记录 metadata 返回的具体原因，按步骤重试上限结束。
             raise RuntimeError("; ".join(f"{error['source']}: {error['message']}" for error in errors))
         if not link_is_ready(status):
             return False
-        targets = status["query_targets"]
+        # 路由指向本次下发给 metadata 的表与集群
+        request = self.operation.request_payloads["metadata_set"]
         index_set = LogIndexSet.objects.get(index_set_id=self.runtime.index_set_id)
+        clustered = request.get("result_store") or {
+            "table_id": self.runtime.table_id,
+            "cluster_id": index_set.storage_cluster_id,
+        }
         space_type, space_id = parse_space_uid(index_set.space_uid)
-        result, pattern = targets["clustered"], targets["pattern"]
         clustered_label = BaseIndexSetHandler.get_data_label(index_set.index_set_id, clustered_rt=True)
         pattern_label = f"{BaseIndexSetHandler.get_data_label(index_set.index_set_id)}_pattern"
         # 每个 Data Label 关联独立的虚拟 RT；原表回写时也不能改写源日志 RT 的标签。
-        routes = {
-            clustered_label: {
-                "origin_table_id": result["table_id"],
-                "storage_type": result["storage_type"],
-                "source_type": result["source_type"],
-                "cluster_id": result["cluster_id"],
-                "index_set": result["query_index"],
-                "query_alias_settings": [{"field_name": QUIX_SIGNATURE_FIELD, "query_alias": SIGNATURE_FIELD}],
-            },
-            pattern_label: {
-                "origin_table_id": pattern["table_id"],
-                "storage_type": pattern["storage_type"],
-                "source_type": pattern["source_type"],
-                "cluster_id": pattern["cluster_id"],
-                "index_set": pattern["query_index"],
-            },
-        }
-        for label, table in routes.items():
-            target = result if label == clustered_label else pattern
-            table["options"] = [
-                {
-                    "name": "need_add_time",
-                    "value_type": "bool",
-                    "value": "true" if target.get("need_add_time") else "false",
-                }
-            ]
+        routes = [
+            (
+                clustered_label,
+                clustered,
+                {"query_alias_settings": [{"field_name": QUIX_SIGNATURE_FIELD, "query_alias": SIGNATURE_FIELD}]},
+            ),
+            (pattern_label, request["pattern_store"], {}),
+        ]
+        for label, target, extra in routes:
             TransferApi.bulk_create_or_update_log_router(
                 {
                     "space_type": space_type,
                     "space_id": space_id,
                     "data_label": label,
-                    "table_info": [{"table_id": f"{label}.__default__", "is_enable": True, **table}],
+                    "table_info": [
+                        {
+                            "table_id": f"{label}.__default__",
+                            "is_enable": True,
+                            "origin_table_id": target["table_id"],
+                            "storage_type": STORAGE_CLUSTER_TYPE,
+                            "source_type": Scenario.LOG,
+                            "cluster_id": target["cluster_id"],
+                            "index_set": target["table_id"].replace(".", "_"),
+                            "options": [{"name": "need_add_time", "value_type": "bool", "value": "true"}],
+                            **extra,
+                        }
+                    ],
                 }
             )
-        if result["table_id"] == self.runtime.table_id:
+        if clustered["table_id"] == self.runtime.table_id:
             # 默认回写时普通检索路由同步补上 signature 别名。
             BaseIndexSetHandler.sync_router(index_set, raise_exception=True)
         return True
@@ -529,12 +538,6 @@ class QuixClusteringOperationRunner:
 
     def _step_enable_clustering(self) -> bool:
         return self._operate_metadata("enable")
-
-    def _step_attach(self) -> bool:
-        return self._operate_metadata("attach")
-
-    def _step_wait_link(self) -> bool:
-        return link_is_ready(TransferApi.get_log_clustering_status(self._metadata_params()))
 
     def _finish_reopen(self):
         self._save_runtime(phase=ClusteringRuntimePhaseEnum.RUNNING.value, candidate_boundary=None)

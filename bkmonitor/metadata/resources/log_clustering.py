@@ -41,6 +41,11 @@ SINK_REFERENCE_ACTIONS = {"detach": False, "attach": True}
 RESULT_MODES = ["update_original", "append"]
 
 
+class LogClusteringStoreSerializer(serializers.Serializer):
+    table_id = serializers.CharField(label="结果表ID")
+    cluster_id = serializers.IntegerField(label="ES 集群ID")
+
+
 class LogClusteringResourceRefSerializer(serializers.Serializer):
     kind = serializers.CharField(label="资源类型")
     name = serializers.CharField(label="资源名称")
@@ -198,10 +203,14 @@ class SetLogClusteringConfigResource(Resource):
         runtime_cluster = LogClusteringResourceRefSerializer(label="专用 Databus 集群")
         recovery_resource = LogClusteringResourceRefSerializer(label="结果关联存储资源")
         result_mode = serializers.ChoiceField(choices=RESULT_MODES, required=False)
+        pattern_store = LogClusteringStoreSerializer(label="Pattern 表")
+        result_store = LogClusteringStoreSerializer(label="独立聚类结果表", required=False)
 
         def validate(self, attrs):
             if not attrs["binding"].get("index_id"):
                 raise ValidationError({"binding": "index_id is required"})
+            if attrs.get("result_mode") == "append" and not attrs.get("result_store"):
+                raise ValidationError({"result_store": "required when result_mode is append"})
             references = [
                 ("kafka_resource", attrs["kafka_resource"], "Kafka"),
                 ("runtime_cluster", attrs["runtime_cluster"], "DatabusCluster"),
@@ -247,9 +256,18 @@ class SetLogClusteringConfigResource(Resource):
                     bk_biz_id=databus.bk_biz_id,
                     table_id=table_id,
                 )
-            requested_mode = validated_request_data.get("result_mode")
-            if not sink.result or (requested_mode and requested_mode != sink.result.get("mode")):
-                sink.result = {"mode": requested_mode or "update_original"}
+            mode = validated_request_data.get("result_mode") or sink.result.get("mode") or "update_original"
+            result = {"mode": mode}
+            if mode == "append":
+                result_store = validated_request_data.get("result_store") or {
+                    key: sink.result[key] for key in ("table_id", "cluster_id") if key in sink.result
+                }
+                if not result_store:
+                    raise ValidationError({"result_store": "required when result_mode is append"})
+                # 同一结果表的已登记引用由准备存储时按当前集群覆盖
+                result = {**sink.result, **result_store, "mode": mode}
+            sink.result = result
+            sink.pattern_store = {**sink.pattern_store, **validated_request_data["pattern_store"]}
             for field, value in config_fields.items():
                 setattr(sink, field, value)
             sink.attached = True
@@ -344,47 +362,17 @@ class OperateLogClusteringResource(Resource):
         }
 
 
-def get_log_clustering_query_targets(sink: models.LogClusteringSinkConfig) -> dict:
-    """返回聚类结果和 Pattern 在 metadata 登记的实际存储，调用方据此注册查询路由。"""
-
-    def resolve(table_id):
-        storage = models.ESStorage.objects.get(bk_tenant_id=sink.bk_tenant_id, table_id=table_id)
-        cluster = models.ClusterInfo.objects.get(bk_tenant_id=sink.bk_tenant_id, cluster_id=storage.storage_cluster_id)
-        return {
-            "table_id": table_id,
-            "storage_type": cluster.cluster_type,
-            "source_type": storage.source_type,
-            "cluster_id": cluster.cluster_id,
-            "query_index": storage.index_name,
-            "need_add_time": storage.need_create_index,
-        }
-
-    def store_table_id(store):
-        ref = store["result_table"]
-        return models.ResultTableConfig.objects.get(
-            bk_tenant_id=sink.bk_tenant_id, namespace=ref["namespace"], name=ref["name"]
-        ).table_id
-
-    if not sink.pattern_store:
-        raise ValidationError("pattern store is not prepared")
-    result = sink.result or {}
-    clustered_table_id = store_table_id(result) if result.get("mode") == "append" else sink.table_id
-    return {"clustered": resolve(clustered_table_id), "pattern": resolve(store_table_id(sink.pattern_store))}
-
-
 class GetLogClusteringStatusResource(Resource):
     """
     查询日志聚类链路状态
 
-    按 BKBase 回读的聚类 Sink 与 Databus 汇总链路是否就绪、是否已恢复原存储绑定；
-    query_targets 返回聚类结果和 Pattern 在 metadata 登记的存储，由调用方注册查询路由。
+    按 BKBase 回读的聚类 Sink 与 Databus 汇总链路是否就绪、是否已恢复原存储绑定。
     远端查询失败不影响其他字段返回，错误记录在 errors 中。
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(label="监控结果表ID")
-        include_query_targets = serializers.BooleanField(default=False)
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id = validated_request_data["bk_tenant_id"]
@@ -442,8 +430,6 @@ class GetLogClusteringStatusResource(Resource):
             "clustering_status": parse_clustering_status(sink_resource),
             "errors": errors,
         }
-        if validated_request_data["include_query_targets"]:
-            result["query_targets"] = fetch("query_targets", lambda: get_log_clustering_query_targets(sink))
         return result
 
 
