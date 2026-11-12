@@ -172,50 +172,44 @@ class AdapterTests(TestCase):
         self.assertNotIn("gen_ai.usage.output_tokens", attributes)
         self.assertNotIn("vendor.debug", attributes)
 
-    def test_default_adapter_appends_missing_system_messages_without_duplicates(self) -> None:
+    def test_default_adapter_extracts_system_instructions_without_duplicates(self) -> None:
         span = agentlens_span()
         span["attributes"] = {
             "gen_ai.operation.name": "chat",
+            "gen_ai.system_instructions": [{"type": "text", "content": "existing"}],
             "gen_ai.input.messages": [
                 {"role": "user", "parts": [{"type": "text", "content": "question"}]},
                 {"role": "system", "parts": [{"type": "text", "content": "existing"}]},
+                {"role": "system", "parts": [{"type": "text", "content": "missing"}]},
+                {"role": "system", "parts": [{"type": "text", "content": "missing"}]},
             ],
-            "llm.input": json.dumps(
-                [
-                    {"type": "system", "data": {"content": "existing"}},
-                    {"type": "system", "data": {"content": "missing"}},
-                    {"type": "system", "data": {"content": "missing"}},
-                    {"type": "human", "data": {"content": "question"}},
-                ]
-            ),
         }
 
         attributes = adapt_spans([span], "default")[0]["attributes"]
 
         self.assertEqual(
-            attributes["gen_ai.input.messages"],
+            attributes["gen_ai.system_instructions"],
             [
-                {"role": "user", "parts": [{"type": "text", "content": "question"}]},
-                {"role": "system", "parts": [{"type": "text", "content": "existing"}]},
-                {"role": "system", "parts": [{"type": "text", "content": "missing"}]},
+                {"type": "text", "content": "existing"},
+                {"type": "text", "content": "missing"},
             ],
         )
-        self.assertNotIn("llm.input", attributes)
+        self.assertEqual(
+            attributes["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+        )
 
     def test_default_adapter_keeps_front_truncated_input_unchanged(self) -> None:
         span = agentlens_span()
         span["attributes"] = {
             "gen_ai.operation.name": "chat",
-            "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
-            "llm.input": 'truncated prefix",{"type":"system","data":{"content":"hidden"}}]',
+            "gen_ai.input.messages": 'truncated prefix",{"role":"system","parts":[{"type":"text","content":"hidden"}]}]',
         }
 
         attributes = adapt_spans([span], "default")[0]["attributes"]
 
-        self.assertEqual(
-            attributes["gen_ai.input.messages"],
-            [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
-        )
+        self.assertEqual(attributes["gen_ai.input.messages"], span["attributes"]["gen_ai.input.messages"])
+        self.assertNotIn("gen_ai.system_instructions", attributes)
 
     def test_langfuse_root_maps_conversation_and_content(self) -> None:
         span = langfuse_span(observation_type="span")
@@ -1164,7 +1158,7 @@ class AdapterTests(TestCase):
 
         self.assertEqual(parts, [{"type": "tool_call", "id": "canonical-call", "name": "canonical", "arguments": {}}])
 
-    def test_standard_system_instructions_win_over_dialect_sources(self) -> None:
+    def test_standard_system_instructions_are_preserved_across_adapters(self) -> None:
         standard = [{"type": "text", "content": "standard"}]
 
         default = agentlens_span("1" * 16)
@@ -1214,7 +1208,14 @@ class AdapterTests(TestCase):
         ):
             with self.subTest(span_name=source["span_name"]):
                 attributes = adapt_spans([source], product)[0]["attributes"]
-                self.assertEqual(attributes["gen_ai.system_instructions"], standard)
+                if product == "default":
+                    self.assertEqual(
+                        attributes["gen_ai.system_instructions"],
+                        [*standard, {"type": "text", "content": "history"}],
+                    )
+                    self.assertNotIn("gen_ai.input.messages", attributes)
+                else:
+                    self.assertEqual(attributes["gen_ai.system_instructions"], standard)
 
     def test_bkaidev_llm_spans_are_not_deduplicated(self) -> None:
         base = agentlens_span()

@@ -14,26 +14,37 @@ from typing import Any
 
 from apm_web.llm.constants import STANDARD_FIELDS
 
-from .utils import safe_parse, standard_content, text_message
+from .utils import standard_content
 
 
-def append_system_messages(attrs: dict[str, Any], content: dict[str, Any]) -> None:
+def extract_system_instructions(content: dict[str, Any]) -> None:
     messages = content.get("gen_ai.input.messages")
-    source = safe_parse(attrs.get("llm.input"))
-    if not isinstance(messages, list) or not isinstance(source, list):
+    if not isinstance(messages, list):
         return
 
-    merged = list(messages)
-    for item in source:
-        if not isinstance(item, dict) or item.get("type") != "system":
+    regular: list[Any] = []
+    extracted: list[dict[str, Any]] = []
+    for message in messages:
+        if not isinstance(message, dict) or message.get("role") != "system":
+            regular.append(message)
             continue
-        data = item.get("data")
-        if not isinstance(data, dict) or not isinstance(data.get("content"), str):
+        parts = message.get("parts")
+        if not isinstance(parts, list) or not parts or any(not isinstance(part, dict) for part in parts):
+            regular.append(message)
             continue
-        message = text_message("system", data["content"])
-        if message not in merged:
-            merged.append(message)
-    content["gen_ai.input.messages"] = merged
+        extracted.extend(parts)
+
+    if not extracted:
+        return
+    instructions: list[Any] = []
+    for part in [*(content.get("gen_ai.system_instructions") or []), *extracted]:
+        if part not in instructions:
+            instructions.append(part)
+    content["gen_ai.system_instructions"] = instructions
+    if regular:
+        content["gen_ai.input.messages"] = regular
+    else:
+        content.pop("gen_ai.input.messages", None)
 
 
 def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -44,7 +55,7 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
             key: value for key, value in attrs.items() if key in STANDARD_FIELDS and value not in (None, "", [])
         }
         attributes.update(standard_content(attrs))
-        append_system_messages(attrs, attributes)
+        extract_system_instructions(attributes)
         if not attributes:
             continue
         spans.append(
