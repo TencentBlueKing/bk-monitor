@@ -52,6 +52,13 @@ class ActionConfigViewSet(viewsets.ModelViewSet):
             return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
         return [BusinessActionPermission([ActionEnum.MANAGE_RULE])]
 
+    def get_queryset(self):
+        # BusinessActionPermission 只校验请求业务（未带业务时直接放行），对象鉴权不会按套餐所属业务生效，
+        # 因此数据范围必须收敛到公共套餐和请求业务
+        request_biz_id = getattr(self.request, "biz_id", None)
+        biz_ids = [GLOBAL_BIZ_ID, request_biz_id] if request_biz_id else [GLOBAL_BIZ_ID]
+        return super().get_queryset().filter(bk_biz_id__in=biz_ids)
+
     def get_serializer_class(self):
         if self.action == "list":
             return serializers.ActionConfigListSlz
@@ -60,16 +67,15 @@ class ActionConfigViewSet(viewsets.ModelViewSet):
         return self.serializer_class
 
     def list(self, request, *args, **kwargs):
-        request_biz_id = request.query_params.get("bk_biz_id", 0)
-        if request_biz_id:
-            self.queryset = self.queryset.filter(bk_biz_id__in=[GLOBAL_BIZ_ID, request_biz_id])
+        # 统计范围需与 get_queryset 一致，业务可能来自 bk_biz_id 之外的别名参数
+        request_biz_id = getattr(request, "biz_id", None) or 0
         response = super().list(request, *args, **kwargs)
 
         if request.query_params.get("with_advance_fields") == "no":
             # 不需要高级字段直接不做统计
             return response
 
-        config_ids = list(self.queryset.values_list("id", flat=True))
+        config_ids = list(self.get_queryset().values_list("id", flat=True))
 
         related_strategy_count = get_action_config_strategy_dict(
             config_ids,
@@ -114,7 +120,7 @@ class ActionConfigViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
-        request_biz_id = request.query_params.get("bk_biz_id", GLOBAL_BIZ_ID)
+        request_biz_id = getattr(request, "biz_id", None) or GLOBAL_BIZ_ID
         instance_id = response.data["id"]
         config_strategy_dict = get_action_config_strategy_dict(
             [instance_id],
