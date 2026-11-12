@@ -330,7 +330,7 @@ def configmap_form():
         {
             "name": "access_key",
             "description": "Secret ID",
-            "mode": "plugin",
+            "mode": "env",
             "type": "password",
             "required": True,
             "default": "",
@@ -338,7 +338,7 @@ def configmap_form():
         {
             "name": "secret_key",
             "description": "Secret Key",
-            "mode": "plugin",
+            "mode": "env",
             "type": "password",
             "required": True,
             "default": "",
@@ -346,7 +346,7 @@ def configmap_form():
         {
             "name": "configmaps",
             "description": "ConfigMap",
-            "mode": "plugin",
+            "mode": "opt_cmd",
             "type": "file",
             "multiple": True,
             "accept": ".yaml,.yml",

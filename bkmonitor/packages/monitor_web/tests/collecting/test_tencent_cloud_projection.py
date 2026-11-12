@@ -152,7 +152,11 @@ def test_edit_and_display(config, mocker):
     assert first == detail(params_format="configmap")
     assert first["deployment_id"] == source.id and first["update_time"] == "original"
     assert first["params"]["collector"] == before[0]["collector"]
-    assert [f["type"] for f in first["plugin_info"]["config_json"]] == ["password", "password", "file"]
+    assert [(f["type"], f["mode"]) for f in first["plugin_info"]["config_json"]] == [
+        ("password", "env"),
+        ("password", "env"),
+        ("file", "opt_cmd"),
+    ]
     plugin = first["params"]["plugin"]
     assert plugin["access_key"] is plugin["secret_key"] is True
     file = plugin["configmaps"][0]
