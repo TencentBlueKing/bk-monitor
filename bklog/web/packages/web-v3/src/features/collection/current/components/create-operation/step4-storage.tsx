@@ -868,7 +868,7 @@ export default defineComponent({
       <div class='operation-step4-storage'>
         {cardRender(cardConfig)}
         <div class='classify-btns-fixed'>
-          <TButton
+          <TButton theme='default' variant='outline'
             class='mr-8'
             onClick={() => {
               emit('prev');

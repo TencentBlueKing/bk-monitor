@@ -938,7 +938,7 @@ export default defineComponent({
         <div class='classify-btns-fixed'>
           {/* 非编辑模式显示上一步按钮 */}
           {!props.isEdit && (
-            <TButton
+            <TButton theme='default' variant='outline'
               class='mr-8'
               onClick={() => {
                 emit('prev');

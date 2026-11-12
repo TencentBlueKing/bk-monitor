@@ -312,8 +312,11 @@ export default defineComponent({
           <div class='word-breaker'>
             <span
               class='word-breaker-edit'
+              aria-label={t('分词设置')}
               data-field-index={row.field_index}
               data-field-name={row.field_name}
+              data-testid='collection-clean-tokenize-trigger'
+              role='button'
             >
               {renderWordBreakerValue(row)}
               <i class='select-angle bk-icon icon-angle-down' />
@@ -346,6 +349,7 @@ export default defineComponent({
                           'is-selected': currentParticipleState.value === option.id,
                         }}
                         data-test-id={`fieldExtractionBox_button_filterMethod${option.id}`}
+                        data-testid={`collection-clean-tokenize-${option.id}`}
                         disabled={!cacheData.value.is_analyzed}
                         size='small'
                         onClick={() => handleChangeParticipleState(option.id)}
@@ -380,6 +384,7 @@ export default defineComponent({
                   <TButton
                     data-row-index={row.field_index}
                     data-row-name={row.field_name}
+                    data-testid='collection-clean-tokenize-confirm'
                     size='small'
                     theme='primary'
                     onClick={() => {
@@ -397,6 +402,7 @@ export default defineComponent({
                     {t('确定')}
                   </TButton>
                   <TButton theme="default"
+                    data-testid='collection-clean-tokenize-cancel'
                     size='small'
                     onClick={handleWordBreakerCancelClick}
                   >

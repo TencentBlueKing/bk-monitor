@@ -168,9 +168,12 @@
   import useStore from '@/shared/composables/use-store';
   import { Input as TInput, Popup as TPopup } from 'tdesign-vue-next';
   import VueDraggable from 'vuedraggable-vue3';
+  import { preserveVue3ComponentModel } from '@/platform/compat/vue3-component-model';
 
   import { excludesFields } from '../utils/const.common.ts';
   import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
+  preserveVue3ComponentModel(VueDraggable);
+
   // 获取 store
   const store = useStore();
   const { $t } = useLocale();

@@ -24,10 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { Checkbox as TCheckbox } from 'tdesign-vue-next';
+import {
+  Checkbox as TCheckbox,
+  Select as TSelect,
+  TagInput as TTagInput,
+  Tag as TTag,
+  InputNumber as TInputNumber,
+} from 'tdesign-vue-next';
+import type { TagInputChangeContext } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
-import { computed, defineComponent, ref, watch, nextTick, onBeforeUnmount } from 'vue';
+import { computed, defineComponent, ref, watch, onBeforeUnmount } from 'vue';
 
 import { deepClone, contextHighlightColor } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
@@ -58,7 +65,6 @@ export default defineComponent({
 
     const fieldConfigRef = ref<any>(null);
     const highlightControlRef = ref<any>(null);
-    const tagInputRef = ref<any>(null);
     const filterType = ref('include');
     const filterKey = ref<string[]>([]);
     const catchFilterKey = ref<string[]>([]);
@@ -140,10 +146,6 @@ export default defineComponent({
           color: contextHighlightColor[colorIndex],
         };
       });
-      // 更新input输入框的颜色
-      nextTick(() => {
-        initTagInputColor();
-      });
       emit('handle-filter', 'highlightList', colorHighlightList.value);
     };
     const handleFilterType = (val: string) => {
@@ -176,19 +178,11 @@ export default defineComponent({
       }
       return [];
     };
-    /** 更新taginput组件中的颜色 */
-    const initTagInputColor = () => {
-      const childEl = tagInputRef.value.$el.querySelectorAll('.key-node');
-      childEl.forEach((child: { querySelectorAll: (arg0: string) => any[]; }) => {
-        const tag = child.querySelectorAll('.tag')[0];
-        const colorObj = colorHighlightList.value.find(item => item.heightKey === tag.innerText);
-        [child, tag].forEach(item => {
-          Object.assign(item.style, {
-            backgroundColor: colorObj.color.light,
-          });
-        });
-      });
-    };
+    // The old tag input rejects duplicate custom entries. TDesign emits the
+    // proposed list before the consumer accepts it, so retain the old list for
+    // duplicate Enter while still emitting the source component's change event.
+    const acceptTagChange = (current: string[], proposed: (string | number)[], context: TagInputChangeContext) =>
+      context.trigger === 'enter' && current.includes(String(context.item)) ? [...current] : proposed.map(String);
 
     const handleOpenFieldsConfig = (e: any) => {
       if (!fieldConfigPopoverInstance) {
@@ -209,7 +203,7 @@ export default defineComponent({
             id: 'retrieve-data-filter-fields',
             type: 'popover',
             group: 'retrieve-data-filter',
-            rootSelector: '.field-config-popover',
+            rootSelector: '.tippy-box[data-theme~="field-config-popover"]',
             ignoreSelector: '.bk-select-dropdown-menu, .bk-option',
           },
         );
@@ -248,45 +242,51 @@ export default defineComponent({
       <div class='filter-bar-main'>
         <div class='filter-item-top'>
           <div class='filter-main'>
-            <bk-select
+            <TSelect
               class='filter-select-main'
               clearable={false}
               value={filterType.value}
-              onChange={handleFilterType}
-            >
-              {filterTypeList.map((option, index) => (
-                <bk-option
-                  id={option.id}
-                  key={index}
-                  name={option.name}
-                />
-              ))}
-            </bk-select>
-            <bk-tag-input
+              options={filterTypeList.map(option => ({value: option.id, label: option.name}))}
+              onChange={value => handleFilterType(String(value))}
+            />
+            <TTagInput
               class='filter-key-input'
               placeholder={t('输入关键字进行过滤')}
               value={filterKey.value}
-              allow-create
-              has-delete-icon
-              paste-fn={filterPasteFn}
-              onChange={(value: string[]) => {
-                filterKey.value = value;
+              clearable
+              onPaste={({e, pasteValue}) => {
+                e.preventDefault();
+                filterPasteFn(pasteValue);
+              }}
+              onChange={(value, context) => {
+                filterKey.value = acceptTagChange(filterKey.value, value, context);
                 filterLog();
               }}
             />
           </div>
           <div class='highlight-main'>
             <div class='prefix-text'>{t('label-高亮').replace('label-', '')}</div>
-            <bk-tag-input
-              ref={tagInputRef}
+            <TTagInput
               class='highlight-tag-input'
-              max-data={5}
-              paste-fn={pasteFn}
+              placeholder=''
+              max={5}
+              onPaste={({e, pasteValue}) => {
+                e.preventDefault();
+                pasteFn(pasteValue);
+              }}
               value={highlightList.value}
-              allow-create
-              has-delete-icon
-              onChange={(value: string[]) => {
-                highlightList.value = value;
+              clearable
+              valueDisplay={(_h, {value, onClose}) => value.map((item, index) => (
+                <TTag
+                  key={String(item)}
+                  closable
+                  class='context-highlight-tag'
+                  style={{backgroundColor: colorHighlightList.value.find(color => color.heightKey === item)?.color.light}}
+                  onClose={() => onClose(index)}
+                >{item}</TTag>
+              ))}
+              onChange={(value, context) => {
+                highlightList.value = acceptTagChange(highlightList.value, value, context);
                 changeLightList();
               }}
             />
@@ -318,6 +318,7 @@ export default defineComponent({
         <div class='filter-item-bottom'>
           <div class='operate-left'>
             <TCheckbox
+              class='context-filter-checkbox'
               style='margin-right: 6px'
               checked={ignoreCase.value}
               onChange={(value: boolean) => {
@@ -331,19 +332,19 @@ export default defineComponent({
                 class='row-control'
               >
                 <TCheckbox
+                  class='context-filter-checkbox'
                   style='margin-right: 6px'
                   checked={intervalSwitcher.value}
                   onChange={handleChangeIntervalShow}
                 />
                 <span>{t('显示前')}</span>
-                <bk-input
+                <TInputNumber
                   class='row-control-input'
                   max={100}
                   min={0}
                   placeholder='0'
-                  show-controls={false}
+                  theme='normal'
                   size='small'
-                  type='number'
                   value={interval.value.prev}
                   onChange={(value: unknown) => {
                     interval.value.prev = Number(value);
@@ -352,14 +353,13 @@ export default defineComponent({
                 <span>{t('行')}</span>
                 <span>，</span>
                 <span>{t('后')}</span>
-                <bk-input
+                <TInputNumber
                   class='row-control-input'
                   max={100}
                   min={0}
                   placeholder='0'
-                  show-controls={false}
+                  theme='normal'
                   size='small'
-                  type='number'
                   value={interval.value.next}
                   onChange={(value: unknown) => {
                     interval.value.next = Number(value);
@@ -384,7 +384,7 @@ export default defineComponent({
                 </div>
               ))}
             </div>
-            <TButton onClick={() => emit('fix-current-row')}>
+            <TButton class='context-locate-button' theme='default' variant='outline' onClick={() => emit('fix-current-row')}>
               <span
                 style='font-size:14px;margin-right:5px'
                 class='icon bklog-icon bklog-position'

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "scope": "MANAGEMENT_MENU_PREVIEW_CANCEL_ONLY_NOT_FULL_ACCEPTANCE",
+  "version": "v2",
+  "status": "PILOT_SELF_REPLAY_PASSED",
+  "runtimeErrors": [],
+  "captureDigest": "17825d53be1e85e2b33924ba709894bf7a00f8379183faf6a64acd98e6fe1064",
+  "privateInput": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-0FECT3",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-wwezmm",
+  "fixtureReadRecords": 16,
+  "consumedRecords": 16,
+  "businessRequestsForwarded": 0,
+  "networkAudit": {
+    "scope": "CONTEXT_ROUTE_HANDLER_AUDIT",
+    "interceptedBusiness": 17,
+    "forwardedStatic": 72
+  },
+  "checkpoints": [
+    {
+      "id": "list-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "menu-open",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "stop-type-preview",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "cancel-restored-list",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    }
+  ],
+  "cancellations": [],
+  "uiDifferences": [],
+  "failures": []
+}

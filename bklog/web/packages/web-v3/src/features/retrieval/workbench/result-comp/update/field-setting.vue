@@ -101,8 +101,9 @@ import useStore from '@/shared/composables/use-store';
 import type { FieldDefinition, FieldView, FieldTypeStyle } from './field-settings.types';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import VueDraggable from 'vuedraggable-vue3';
+import { preserveVue3ComponentModel } from '@/platform/compat/vue3-component-model';
 import { Input as TInput, Empty as TEmpty, Tooltip as TTooltip } from 'tdesign-vue-next';
-Object.assign(VueDraggable, { compatConfig: { MODE: 3 } });
+preserveVue3ComponentModel(VueDraggable);
 
 // 获取 store
 const store = useStore();

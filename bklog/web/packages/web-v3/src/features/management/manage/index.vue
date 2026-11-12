@@ -38,16 +38,17 @@
           <template v-for="groupItem in menuList" :key="groupItem.id">
             <t-menu-group
               v-if="getGroupChildren(groupItem.children).length"
-              :title="isExpand ? groupItem.name : ''"
+              :title="isExpand ? groupItem.name : groupItem.keyword"
             >
               <template v-for="navItem in getGroupChildren(groupItem.children)" :key="navItem.id">
                 <a
                   v-if="shouldShowMenuItem(navItem.id)"
                   class="nav-item"
+                  :data-test-id="`navBox_nav_${navItem.id}`"
                   :href="getRouteHref(navItem.id)"
                   @click="handleMenuAnchorClick($event, navItem.id)"
                 >
-                  <t-menu-item :value="navItem.id" :data-test-id="`navBox_nav_${navItem.id}`">
+                  <t-menu-item :value="navItem.id">
                     <template #icon><i :class="getMenuIcon(navItem)"></i></template>
                     <span v-show="isExpand">{{ navItem.name }}</span>
                   </t-menu-item>
@@ -421,6 +422,58 @@ export default {
     --td-gray-color-10: #3b4660;
   }
 
+  // V2 navigation metrics: list gutter 12px, group headings 40/48px,
+  // and 40px menu rows with 2px vertical space on each side.
+  :deep(.t-default-menu .t-menu) {
+    padding: 12px 0 4px;
+  }
+
+  :deep(.t-default-menu .t-menu-group__title) {
+    display: block;
+    padding: 26px 18px 6px;
+    margin: 0;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    color: #66748f;
+    white-space: nowrap;
+  }
+
+  :deep(.t-default-menu .t-menu-group:first-child .t-menu-group__title) {
+    padding-top: 18px;
+  }
+
+  :deep(.t-default-menu.t-is-collapsed .t-menu-group:first-child .t-menu-group__title) {
+    display: block;
+  }
+
+  :deep(.t-default-menu.t-is-collapsed .t-menu-group__title::after) {
+    display: none;
+  }
+
+  :deep(.t-default-menu .t-menu .t-menu-group > .nav-item) {
+    height: 44px;
+    padding: 2px 0;
+    margin: 0;
+  }
+
+  :deep(.t-default-menu .t-menu .t-menu__item) {
+    justify-content: flex-start;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 12px 0 22px;
+    margin: 0;
+    font-size: 14px;
+    border-radius: 0;
+
+    > i {
+      flex: 0 0 16px;
+      width: 16px;
+      margin-right: 22px;
+      font-size: 16px;
+    }
+  }
+
   .nav-item {
     display: block;
     color: inherit;
@@ -428,10 +481,6 @@ export default {
   }
 
   &:not(.is-expanded) {
-    :deep(.t-menu__group-title) {
-      display: none;
-    }
-
     :deep(.t-menu__item) {
       justify-content: center;
       overflow: hidden;

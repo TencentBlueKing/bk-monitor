@@ -24,18 +24,33 @@
  * IN THE SOFTWARE.
  */
 
+import {
+  Form as TForm,
+  FormItem as TFormItem,
+  Input as TInput,
+  Option as TOption,
+  Select as TSelect,
+  Tooltip as TTooltip,
+  type FormInstanceFunctions,
+  type FormRules,
+} from 'tdesign-vue-next';
+
 import { ServicesInstance } from '@/platform/services';
 import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref, type VNode } from 'vue';
+
+import { SearchIcon } from 'tdesign-icons-vue-next';
 
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 
 import useStore from '@/shared/composables/use-store';
+import useVisibleInputFocus from '@/shared/composables/use-visible-input-focus';
 import { showMessage } from '../../utils';
 
 import 'tippy.js/dist/tippy.css';
 import './tag-more.scss';
 import { t } from '@/shared/composables/use-locale';
+import useLabelPickerKeyboard from './use-label-picker-keyboard';
 
 /**
  * 标签项数据结构
@@ -199,8 +214,18 @@ export default defineComponent({
     const isShowNewGroupInput = ref(false); // 是否显示新增标签输入框
     const verifyData = ref({ labelEditName: '' }); // 新增标签表单数据
     const selectedLabelId = ref<number | string>(''); // 标签选择器的临时选中值
-    const tagSelectRef = ref<{ close(): void; } | null>(null); // Select组件引用
-    const checkInputFormRef = ref<import("@/shared/types/legacy-form").LegacyFormInstance | null>(null); // Form组件引用
+    const labelTriggerRef = ref<HTMLElement>();
+    const labelSearchRef = ref<{ focus(): void; blur(): void; inputRef?: HTMLInputElement } | null>(null);
+    const labelSearch = ref('');
+    const checkInputFormRef = ref<FormInstanceFunctions | null>(null); // Form组件引用
+    const labelError = ref('');
+    const validateLabel = async (trigger: 'all' | 'blur' = 'all') => {
+      const result = await checkInputFormRef.value?.validate({fields: ['labelEditName'], trigger});
+      const errors = result && typeof result === 'object' ? result.labelEditName : undefined;
+      labelError.value = Array.isArray(errors) ? errors.find(item => item.result === false)?.message ?? '' : '';
+      return result;
+    };
+    watch(isShowNewGroupInput, visible => { if (!visible) labelError.value = ''; });
     const labelEditInputRef = ref<{ focus(): void; } | null>(null); // 新增标签输入框引用
 
     /** 是否为标签模式 */
@@ -242,7 +267,7 @@ export default defineComponent({
       return !builtInList.value.some(item => item.name === verifyData.value.labelEditName.trim());
     };
 
-    const rules = {
+    const rules: FormRules = {
       labelEditName: [
         {
           required: true,
@@ -263,7 +288,7 @@ export default defineComponent({
     };
 
     /** 给索引集添加标签 */
-    const addLabelToIndexSet = (tagID: number) => {
+    const addLabelToIndexSet = (tagID: number | string) => {
       if (!tagID) return;
       ServicesInstance.unionSearch.unionAddLabel({
           params: { index_set_id: props.rowData?.index_set_id },
@@ -299,8 +324,10 @@ export default defineComponent({
     /** 新增标签 */
     const handleChangeLabelStatus = (operate: string) => {
       if (operate === 'add') {
-        checkInputFormRef.value?.validate().then(
-          () => {
+        validateLabel().then(
+          result => {
+            // TDesign resolves validation errors; only true authorizes submission.
+            if (result !== true) return;
             ServicesInstance.unionSearch.unionCreateLabel({
                 data: { name: verifyData.value.labelEditName.trim(), space_uid: store.state.spaceUid },
               })
@@ -311,7 +338,7 @@ export default defineComponent({
               .finally(() => {
                 verifyData.value.labelEditName = '';
                 isShowNewGroupInput.value = false;
-                tagSelectRef.value?.close();
+                toggleSelect(false);
               });
           },
           () => {},
@@ -333,6 +360,25 @@ export default defineComponent({
         verifyData.value.labelEditName = '';
       }
     };
+
+    // V2 bk-select's custom trigger uses a search field inside the popup.
+    // Keep that contract instead of replacing the cell with TSelect's default input.
+    const chooseLabel = (id: number | string) => {
+      const option = showGroupSelectLabelList.value.find(item => item.tag_id === id);
+      if (!option || option.disabled || isDisabledAddNewTag.value) return;
+      selectedLabelId.value = id;
+      toggleSelect(false);
+      nextTick(() => addLabelToIndexSet(id));
+    };
+    const activeLabelId = useLabelPickerKeyboard({
+      open: isSelectOpen,
+      disabled: isDisabledAddNewTag,
+      options: showGroupSelectLabelList,
+      searchInput: labelSearchRef,
+      select: chooseLabel,
+    });
+    watch(isSelectOpen, open => { if (!open) labelSearch.value = ''; });
+    useVisibleInputFocus(isSelectOpen, computed(() => labelSearchRef.value?.inputRef), '.collection-label-picker');
 
     // Tippy实例
     let tippyInstance: Instance | null = null;
@@ -448,7 +494,7 @@ export default defineComponent({
         Number.parseFloat(containerStyle.paddingLeft) + Number.parseFloat(containerStyle.paddingRight);
       const containerWidth = Math.max(0, containerRef.value.clientWidth - horizontalPadding);
       const maxRows = Math.max(1, Math.floor(props.maxRows || 1));
-      const gap = props.gap;
+      const gap = props.gap ?? 8;
       const tagWidths = tagList.map(tag => measureItemWidth(tag.name));
       const minVisibleCount = props.keepFirstTag ? 1 : 0;
 
@@ -802,56 +848,115 @@ export default defineComponent({
     const renderLabelSelect = (trigger?: () => VNode) => {
       if (!isLabelMode.value) return null;
       return (
-        <bk-select
-          ref={tagSelectRef}
+        <TSelect
           class={{ 'tag-more-cell-select': hasCustomTrigger.value }}
+          disabled={isDisabledAddNewTag.value}
+          value={selectedLabelId.value}
+          popupVisible={isSelectOpen.value}
+          inputValue={labelSearch.value}
+          filterable
+          filter={(word, option) => String(option.label).toLowerCase().includes(word.trim().toLowerCase())}
+          onChange={value => {
+            if (typeof value === 'number' || typeof value === 'string') chooseLabel(value);
+          }}
+          onPopupVisibleChange={toggleSelect}
+          label={() => (
+            <div
+              ref={labelTriggerRef}
+              class='collection-label-trigger'
+              role='combobox'
+              aria-expanded={isSelectOpen.value}
+              aria-haspopup='listbox'
+              tabindex={isDisabledAddNewTag.value ? -1 : 0}
+              onKeydown={event => {
+                if (isDisabledAddNewTag.value) return;
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  if (!isSelectOpen.value) { event.stopPropagation();toggleSelect(true); }
+                } else if (event.key === 'Escape' || event.key === 'Tab') {
+                  if (event.key === 'Escape') { event.preventDefault();event.stopPropagation(); }
+                  toggleSelect(false);
+                }
+              }}
+            >
+              {trigger ? trigger() : (
+                <div
+                  class={['tag-more-add-btn', { disabled: isDisabledAddNewTag.value }]}
+                  v-log-tooltip={{ disabled: !isDisabledAddNewTag.value, content: t('停用状态下无法添加标签'), delay: 300 }}
+                >
+                  <i class='bk-icon icon-plus-line' />
+                </div>
+              )}
+            </div>
+          )}
+          showArrow={false}
+          placeholder=''
+          inputProps={{ inputClass: 'tag-more-native-trigger', readonly: true }}
+          popupProps={{
+            attach: 'body',
+            overlayClassName: 'collection-label-picker',
+            overlayInnerStyle: { minWidth: '240px' },
+            popperOptions: { modifiers: [{ name: 'preventOverflow', options: { boundary: 'viewport' } }, { name: 'offset', options: {offset: [0, 5]} }] },
+          }}
           v-slots={{
-            ...{
-              trigger:
-                trigger ||
-                (() => (
-                  <div
-                    class={['tag-more-add-btn', { disabled: isDisabledAddNewTag.value }]}
-                    v-log-tooltip={{
-                      disabled: !isDisabledAddNewTag.value,
-                      content: t('停用状态下无法添加标签'),
-                      delay: 300,
-                    }}
-                  >
-                    <i class='bk-icon icon-plus-line' />
-                  </div>
-                )),
-            },
-            extension: () => (
+            panelTopContent: () => (
+              <TInput
+                ref={labelSearchRef}
+                class='collection-label-search'
+                value={labelSearch.value}
+                placeholder={t('输入关键字搜索')}
+                prefixIcon={() => <SearchIcon />}
+                onChange={value => { labelSearch.value = String(value); }}
+                onKeydown={(_, {e}) => {
+                  if (e.key === 'Escape' || e.key === 'Tab') {
+                    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); }
+                    toggleSelect(false);
+                    labelTriggerRef.value?.focus();
+                  }
+                }}
+                onEnter={() => {
+                  const option = showGroupSelectLabelList.value.find(item => item.name.includes(labelSearch.value));
+                  if (option?.tag_id !== undefined) chooseLabel(option.tag_id);
+                }}
+              />
+            ),
+            panelBottomContent: () => (
               <div class='new-label-container'>
                 {isShowNewGroupInput.value ? (
-                  <div class='new-label-input'>
-                    <bk-form
+                  <div key='new-label-draft' class='new-label-input'>
+                    <TForm
                       ref={checkInputFormRef}
                       style={{ width: '100%' }}
-                      label-width={0}
+                      labelWidth={0}
+                      showErrorMessage={false}
                       {...{
                         ...{
-                          model: verifyData.value,
+                          data: verifyData.value,
                           rules,
                         },
                       }}
                     >
-                      <bk-form-item property='labelEditName'>
-                        <bk-input
+                      <TFormItem name='labelEditName'>
+                        <TInput
                           ref={labelEditInputRef}
+                          status={labelError.value ? 'error' : undefined}
+                          onBlur={() => { void validateLabel('blur'); }}
+                          v-slots={{suffix: () => labelError.value ? (
+                            <TTooltip content={labelError.value} placement='top-right'>
+                              <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
+                            </TTooltip>
+                          ) : null}}
                           value={verifyData.value.labelEditName}
-                          onChange={(val: string) => (verifyData.value.labelEditName = val)}
+                          onChange={value => { verifyData.value.labelEditName = String(value); }}
                           clearable
-                          onKeydown={(_: string, e: KeyboardEvent) => {
-                            if (e.key === 'Enter') {
-                              e.stopPropagation();
-                              handleLabelKeyDown(verifyData.value.labelEditName);
-                            }
+                          onEnter={(_, { e }) => {
+                            // TDesign excludes Enter from onKeydown.
+                            e.stopPropagation();
+                            handleLabelKeyDown(verifyData.value.labelEditName);
                           }}
                         />
-                      </bk-form-item>
-                    </bk-form>
+                      </TFormItem>
+                    </TForm>
                     <div class='operate-button'>
                       <span
                         class='bk-icon icon-check-line'
@@ -865,6 +970,7 @@ export default defineComponent({
                   </div>
                 ) : (
                   <div
+                    key='new-label-add'
                     class='add-new-label'
                     onClick={() => {
                       isShowNewGroupInput.value = true;
@@ -880,29 +986,22 @@ export default defineComponent({
               </div>
             ),
           }}
-          disabled={isDisabledAddNewTag.value}
-          popover-min-width={240}
-          popover-options={{ boundary: 'window' }}
-          searchable
-          value={selectedLabelId.value}
-          onInput={(value: number | string) => {
-            selectedLabelId.value = value;
-          }}
-          onSelected={addLabelToIndexSet}
-          onToggle={toggleSelect}
         >
-          <div class='group-list'>
-            {showGroupSelectLabelList.value.map(item => (
-              <bk-option
-                id={item.tag_id}
-                key={item.tag_id}
-                class='label-option'
-                disabled={item.disabled}
-                name={item.name}
-              />
-            ))}
-          </div>
-        </bk-select>
+          {showGroupSelectLabelList.value.map(item => (
+            <TOption
+              key={item.tag_id}
+              value={item.tag_id}
+              label={item.name}
+              disabled={item.disabled}
+              class={['label-option', { 'is-keyboard-active': activeLabelId.value === item.tag_id }]}
+            >
+              <span
+                onMouseenter={() => { activeLabelId.value = item.tag_id ?? ''; }}
+                onMouseleave={() => { activeLabelId.value = ''; }}
+              >{item.name}</span>
+            </TOption>
+          ))}
+        </TSelect>
       );
     };
 

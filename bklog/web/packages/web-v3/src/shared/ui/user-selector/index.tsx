@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, h, ref, watch } from 'vue';
+import { computed, defineComponent, h, ref, toRaw, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
@@ -84,7 +84,7 @@ export default defineComponent({
     watch(
       () => props.value,
       () => {
-        localValue.value = structuredClone(props.value);
+        localValue.value = structuredClone(toRaw(props.value));
       },
       {
         immediate: true,

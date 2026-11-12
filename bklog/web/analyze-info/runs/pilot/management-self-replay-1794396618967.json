@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "scope": "MANAGEMENT_COLLAPSED_NAV_CLUSTER_READ_ONLY_NOT_FULL_ACCEPTANCE",
+  "version": "v2",
+  "oraclePin": "599dbc2098366ad1f2a0c0273c20a70fef3c72101fbf6bdc41763a0eac42c497",
+  "status": "PILOT_SELF_REPLAY_PASSED",
+  "runtimeErrors": [],
+  "captureDigest": "b25e991a9a84c17df49663dd6c4e0c1c22b12f533305fc7555f48e8de71a2072",
+  "privateInput": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q",
+  "fixtureReadRecords": 18,
+  "consumedRecords": 18,
+  "businessRequestsForwarded": 0,
+  "networkAudit": {
+    "scope": "CONTEXT_ROUTE_HANDLER_AUDIT",
+    "interceptedBusiness": 20,
+    "forwardedStatic": 78
+  },
+  "checkpoints": [
+    {
+      "id": "list-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "menu-open",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "stop-type-preview",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "cancel-restored-list",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "collapsed-nav-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "nav-cluster-ready",
+      "route": "#/manage/es-cluster-manage?spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "cluster-search-empty",
+      "route": "#/manage/es-cluster-manage?spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "cluster-search-restored",
+      "route": "#/manage/es-cluster-manage?spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    }
+  ],
+  "cancellations": [],
+  "uiDifferences": [],
+  "failures": []
+}

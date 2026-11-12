@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-12",
+  "scope": "RELATED_SOURCE_EVENT_CONTRACTS_AND_SHARED_OVERLAY_REGRESSION_NOT_FULL_UI",
+  "status": "PASSED_SCOPE_ONLY",
+  "checks": [
+    "context-filter-paste-preserves-source-phrase-and-deduplication",
+    "context-filter-enter-rejects-duplicate-without-changing-source-payload",
+    "context-highlight-paste-limit-and-existing-color-retention",
+    "context-highlight-native-tag-color-and-removal-use-public-contract",
+    "context-source-empty-paste-is-preserved-not-silently-normalized",
+    "context-native-interval-range-clear-and-disabled-interval-payload",
+    "context-filter-mode-preserves-state-and-hides-interval-controls",
+    "context-default-locate-button-retains-v2-theme-and-event",
+    "context-reset-restores-local-input-mode-and-interval",
+    "context-realtime-polling-toggle-and-copy-remain-source-events",
+    "context-fields-native-drag-keeps-source-order-and-slot-contract",
+    "context-fields-last-display-field-cannot-be-removed",
+    "context-fields-add-reorder-cancel-restores-draft-without-write",
+    "context-fields-confirm-writes-complete-order-once-and-resolves-loading",
+    "context-fields-external-config-updates-cancel-snapshot",
+    "favorite management uses native controls, explicit columns and Vue3 model contract",
+    "ordinary and scene list initialization preserve space and source type",
+    "APM list requests preserve JSON scope and group creation preserves object scope",
+    "group, search, column filters and time sorting retain all rows and metadata",
+    "native validation failure never creates a group in manager or batch submenu",
+    "batch move forwards every V2 update field and emits the destination",
+    "batch menu cleanup closes both layers and clears only the local group draft",
+    "manager edits preserve query settings and update local data only after request",
+    "single deletion is deferred until native confirmation and affects only selected id",
+    "detail group string comparison avoids a spurious update and preserves null group protocol",
+    "opening batch delete closes both menu layers before showing confirmation",
+    "inline native input keeps a local draft and saves the entered name rather than the controlled old value",
+    "sidebar group and favorite editor render native controls without legacy command services",
+    "inline group creation validates before original create/update operation",
+    "inline group cancel clears validation and restores the original name for rename",
+    "favorite editor loads original data and localized groups only when opened",
+    "favorite editor blocks invalid saves and preserves saved settings for inactive favorite",
+    "active scene favorite preserves converted scene conditions over current index state",
+    "favorite feedback uses native MessagePlugin and retains original error text",
+    "user display SDK stays a real Custom Element in SFC and JSX compilation",
+    "group rename opens its popover without entering destructive confirmation; dismiss retains confirmation",
+    "native-dialog-uses-registry-layer-below-its-child-popover",
+    "native-dialog-internal-close-keeps-visible-and-registry-in-sync",
+    "native-dialog-initially-visible-allocates-registered-layer",
+    "same group overlays are mutually exclusive",
+    "hiding parent hides children first",
+    "opening a child does not hide its parent even in the same group",
+    "anchor lost is treated as hide",
+    "dispose removes the record after hide",
+    "click-outside uses closest instead of classList.contains",
+    "invalid anchor rect must not be forwarded to popper",
+    "z-index comes from bk manager or registry fallback, never a hardcoded 99999",
+    "findParentIdByElement resolves the visible ancestor overlay",
+    "raw tippy lifecycle hides when the anchor rect is invalid",
+    "raw tippy lifecycle opens, hides and disposes through the registry",
+    "hideTop closes only the last opened overlay",
+    "escape hides only the stack top when nested overlays are open",
+    "escape does not intercept a single overlay",
+    "open relinks parentId so children close with the parent",
+    "dialog visible writes back false so the next open is a real change",
+    "same group overlays are mutually exclusive",
+    "hiding parent hides children first",
+    "opening a child does not hide its parent even in the same group",
+    "anchor lost is treated as hide",
+    "dispose removes the record after hide",
+    "click-outside uses closest instead of classList.contains",
+    "invalid anchor rect must not be forwarded to popper",
+    "z-index comes from bk manager or registry fallback, never a hardcoded 99999",
+    "findParentIdByElement resolves the visible ancestor overlay",
+    "raw tippy lifecycle hides when the anchor rect is invalid",
+    "raw tippy lifecycle opens, hides and disposes through the registry",
+    "hideTop closes only the last opened overlay",
+    "escape hides only the stack top when nested overlays are open",
+    "escape does not intercept a single overlay",
+    "open relinks parentId so children close with the parent",
+    "dialog visible writes back false so the next open is a real change",
+    "context and realtime dialogs sync internal close, reopen the same row, and ignore stale leave events"
+  ],
+  "passed": 72,
+  "sourceManifest": [
+    {
+      "file": "src/shared/global/overlay/use-dialog-visible.ts",
+      "sha256": "600836838f297196eeb765536c0e58bed2054872a4952b66df36482d44d0170a"
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/original-log/context-log/index.tsx",
+      "sha256": "42d454581e9456390a73b0144f16b4cc262c29e1583b1480507f6fde3c9fa801"
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/original-log/real-time-log/index.tsx",
+      "sha256": "f691e43586c9bad6796d1d66d2e2d3bad2497fd1a421de9b32ef3687022dac5c"
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/original-log/components/data-filter/index.tsx",
+      "sha256": "0eb1c023b5ec610a577366bedd62786819e15b6ecec6d6fc28afd7ff49cae616"
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/original-log/components/data-filter/index.scss",
+      "sha256": "5f8490e552be2e05c71d08b68d18af80f378fe4859b4aaad3f81451089d69967"
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/original-log/components/data-filter/fields-config/index.tsx",
+      "sha256": "f6360cd0a8f841b076fe7fdf0efccbf0766b7e0df53417a06eb70e86b7d06ddd"
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/original-log/components/origin-log-result/index.tsx",
+      "sha256": "9219ca9d3b26595282bea7983b7f26f15cc0ba118d2167a1a7804b512581344d"
+    },
+    {
+      "file": "src/features/retrieval/workspace/search-result/original-log/components/origin-log-result/index.scss",
+      "sha256": "3ecb627ba036a9ee093d7869c064abe31ff8a2ed83ecb042c58f2b7cc9bd4384"
+    },
+    {
+      "file": "tests/overlay-registry.test.mjs",
+      "sha256": "b594285bd42493a2c58a84bee5642fc1a40f4f2ce8db0c7d75fca3dcfddd3a80"
+    },
+    {
+      "file": "tests/overlay-registry-complete.test.mjs",
+      "sha256": "87493e6dd049609664381a504d5b66c5fd4b4194320d74b3097d149d72974f00"
+    },
+    {
+      "file": "tests/native-dialog-layer.test.mjs",
+      "sha256": "e237dbe0ac9944c85fe968259a4383a97ef99a6e462086cb8b558a244af53a8a"
+    },
+    {
+      "file": "tests/context-data-filter-native.test.mjs",
+      "sha256": "de29b8f57361780f71b997f5887e30060eec37b7199192c15e4070c87a146570"
+    },
+    {
+      "file": "tests/context-fields-native.test.mjs",
+      "sha256": "af3ded0b11bf4c8b35747d168f88fb5a9183e86ef5e1c22be1433c3078353809"
+    },
+    {
+      "file": "tests/related-dialog-state.test.mjs",
+      "sha256": "2d07a38db7c144d720be98d6f9377609a1f8b6d93ad255b444275827ae6f4011"
+    },
+    {
+      "file": "tests/favorite-management-native.test.mjs",
+      "sha256": "2973cb06c7cead994759a2b962b05f37c95aad0b4ba8368bb2988a7f46859027"
+    },
+    {
+      "file": "tests/favorite-sidebar-native.test.mjs",
+      "sha256": "1cd5a664714a0bcba371eda8cdf55b1e7a4bd698002ed5d57da7c46d51cdc9ae"
+    }
+  ],
+  "backendWrites": 0,
+  "tapSha256": "380945086776cf569a2abcd9967c8f300abda0b10b717f8771f1aa97e3dba644",
+  "businessAccepted": false,
+  "uiAccepted": false
+}

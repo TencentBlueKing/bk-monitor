@@ -1063,7 +1063,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
        */
       if (cleaningMode.value === 'bk_log_json') {
         return (
-          <TButton
+          <TButton theme='default' variant='outline'
             class='clean-btn'
             disabled={!logOriginal.value}
             onClick={() => debugHandler()}
@@ -1098,7 +1098,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 ))}
               </bk-select>
             </div>
-            <TButton
+            <TButton theme='default' variant='outline'
               class='clean-btn'
               disabled={!logOriginal.value || !delimiter.value}
               onClick={() => debugHandler()}
@@ -1147,7 +1147,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 };
               }}
             />
-            <TButton
+            <TButton theme='default' variant='outline'
               class='clean-btn'
               disabled={!(logOriginal.value && separatorRegexp.value)}
               onClick={() => debugHandler()}
@@ -1571,7 +1571,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               />
               {isClean.value && (
                 <div class='bk-button-group clean-rule-mode-group'>
-                  <TButton
+                  <TButton theme='default' variant='outline'
                     class={{ 'is-selected': cleanRuleMode.value === 'manual' }}
                     onClick={() => {
                       cleanRuleMode.value = 'manual';
@@ -1579,7 +1579,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                   >
                     {t('手动配置清洗规则')}
                   </TButton>
-                  <TButton
+                  <TButton theme='default' variant='outline'
                     class={{ 'is-selected': cleanRuleMode.value === 'template' }}
                     onClick={() => {
                       cleanRuleMode.value = 'template';
@@ -2064,7 +2064,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                     };
                   }}
                 />
-                <TButton
+                <TButton theme='default' variant='outline'
                   class='debug-btn'
                   disabled={isTemplateBound.value || !showDebugPathRegexBtn.value || isPathDebugLoading.value}
                   onClick={debuggerPathRegex}
@@ -2626,7 +2626,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         </bk-dialog>
         <div class='classify-btns-fixed'>
           {!props.isTempField && !props.isCleanField && (
-            <TButton
+            <TButton theme='default' variant='outline'
               class='mr-8'
               onClick={() => {
                 emit('prev', props.configData);
@@ -2667,7 +2667,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               {isEditTemp.value ? t('保存') : t('提交')}
             </TButton>
           ) : (
-            <TButton
+            <TButton theme='default' variant='outline'
               class='template-btn'
               disabled={formData.value.etl_fields.length === 0}
               onClick={() => {
@@ -2681,7 +2681,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             </TButton>
           )}
           {!props.isTempField && !props.isCleanField && (
-            <TButton
+            <TButton theme='default' variant='outline'
               class='mr-8'
               onClick={async () => {
                 formData.value = deepClone(cacheTemplateData.value);
@@ -2776,7 +2776,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
               >
                 {t('同步所有采集项')}
               </TButton>
-              <TButton
+              <TButton theme='default' variant='outline'
                 disabled={loading.value}
                 onClick={() => handleTempConfirm(false)}
               >

@@ -26,90 +26,68 @@
 
 <template>
   <div class="empty-status-container">
-    <div class="empty-status-body">
-      <div class="empty-text-content">
-        <p
-          v-if="showText"
-          class="empty-text"
-        >
-          {{ typeText }}
-        </p>
-        <template v-if="$slots.default">
-          <p class="empty-text">
-            <slot />
-          </p>
-        </template>
-        <template v-else>
-          <i18n
-            v-if="emptyType === 'search-empty'"
-            class="operation-text"
-            path="可以尝试{0}或{1}"
-          >
-            <span style="margin: 0 3px">{{ $t('调整关键词') }}</span>
-            <div
-              style="margin-left: 3px"
-              class="operation-btn"
-              @click="handleOperation('clear-filter')"
-            >
-              {{ $t('清空筛选条件') }}
-            </div>
-          </i18n>
-          <span
-            v-if="emptyType === '500'"
-            class="operation-btn"
-            @click="handleOperation('refresh')"
-          >
-            {{ $t('刷新') }}
-          </span>
-        </template>
-      </div>
-    </div>
+    <!-- TEmpty caches description in a computed; slot presence itself is not reactive. -->
+    <TEmpty :key="slots.default ? 'custom-content' : 'default-content'" class="empty-status-body" :class="{ 'is-part': scene === 'part' }">
+      <template #image>
+        <img v-if="imageSource" :src="imageSource" class="exception-image" alt="" />
+      </template>
+      <template #title><span /></template>
+      <template #description>
+        <div class="empty-text-content">
+          <p v-if="showText" class="empty-text">{{ typeText }}</p>
+          <template v-if="slots.default">
+            <p class="empty-text"><slot /></p>
+          </template>
+          <template v-else>
+            <SourceTranslation v-if="emptyType === 'search-empty'" class="operation-text" path="可以尝试{0}或{1}">
+              <span style="margin: 0 3px">{{ t('调整关键词') }}</span>
+              <div style="margin-left: 3px" class="operation-btn" @click="handleOperation('clear-filter')">
+                {{ t('清空筛选条件') }}
+              </div>
+            </SourceTranslation>
+            <span v-if="emptyType === '500'" class="operation-btn" @click="handleOperation('refresh')">
+              {{ t('刷新') }}
+            </span>
+          </template>
+        </div>
+      </template>
+    </TEmpty>
   </div>
 </template>
 
-<script>
-  export default {
-  emits: ["operation"],
+<script setup lang="ts">
+import {computed, useSlots} from 'vue';
+import {Empty as TEmpty} from 'tdesign-vue-next';
+import useLocale from '@/shared/composables/use-locale';
+import SourceTranslation from '@/platform/i18n/translation';
+import type {EmptyStatusOperation} from './types';
+import forbidden from '@/shared/assets/exception/403.svg';
+import notFound from '@/shared/assets/exception/404.svg';
+import serverError from '@/shared/assets/exception/500.svg';
+import building from '@/shared/assets/exception/building.svg';
+import empty from '@/shared/assets/exception/empty.svg';
+import searchEmpty from '@/shared/assets/exception/search-empty.svg';
+import login from '@/shared/assets/exception/login.svg';
 
-    props: {
-      emptyType: {
-        type: String,
-        default: 'empty',
-      },
-      scene: {
-        type: String,
-        default: 'part',
-      },
-      showOperation: {
-        type: Boolean,
-        default: true,
-      },
-      showText: {
-        type: Boolean,
-        default: true,
-      },
-    },
-    data() {
-      return {
-        defaultTextMap: {
-          empty: this.$t('暂无数据'),
-          'search-empty': this.$t('搜索结果为空'),
-          500: this.$t('数据获取异常'),
-          403: this.$t('无业务权限'),
-        },
-      };
-    },
-    computed: {
-      typeText() {
-        return this.defaultTextMap[this.emptyType];
-      },
-    },
-    methods: {
-      handleOperation(type) {
-        this.$emit('operation', type);
-      },
-    },
-  };
+const props = withDefaults(defineProps<{
+  emptyType?: string;
+  scene?: string;
+  showOperation?: boolean;
+  showText?: boolean;
+}>(), {emptyType: 'empty', scene: 'part', showOperation: true, showText: true});
+const emit = defineEmits<{(event: 'operation', operation: EmptyStatusOperation): void}>();
+const {t} = useLocale();
+const slots = useSlots();
+const images: Record<string, string> = {'403': forbidden, '404': notFound, '500': serverError, building, empty, 'search-empty': searchEmpty, login};
+const defaultTextMap: Record<string, string> = {
+  empty: t('暂无数据'),
+  'search-empty': t('搜索结果为空'),
+  '500': t('数据获取异常'),
+  '403': t('无业务权限'),
+};
+const imageSource = computed(() => images[props.emptyType]);
+const typeText = computed(() => defaultTextMap[props.emptyType]);
+const handleOperation = (operation: EmptyStatusOperation) => emit('operation', operation);
 </script>
 
 <style lang="scss">
@@ -118,11 +96,26 @@
 
     .empty-status-body {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
       width: 100%;
-      min-height: 120px;
       text-align: center;
+
+      .t-empty__image {
+        margin-bottom: 8px;
+      }
+
+      .t-empty__title {
+        display: none;
+      }
+
+      .t-empty__description {
+        margin: 0;
+      }
+
+      &.is-part .exception-image {
+        height: 100px;
+      }
     }
 
     .exception-image {

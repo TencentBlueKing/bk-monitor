@@ -24,7 +24,21 @@
  * IN THE SOFTWARE.
  */
 
+import { observeCall } from '../common/observe-call';
+import { isAnalyzeEnabled, markStageReady, nextSpanId, recordAnalyze, summarizePayload } from '../common/analyze-trace';
 const qs = require('qs');
+
+const STAGE_BY_SERVICE = {
+  'retrieve/getIndexSetList': '02-index-set',
+  'retrieve/getLogTableHead': '03-fields',
+  'retrieve/getSceneFields': '03-fields',
+  'retrieve/getLogChartList': '04-trend',
+  'retrieve/getLogTableList': '05-result',
+  'collect/getIndexGroupList': '02-index-groups',
+  'collect/newCollectList': '03-table-list',
+  'collect/getCollectorStatus': '04-status-storage',
+  'collect/getStorageUsage': '04-status-storage',
+};
 
 class HttpRequst {
   constructor(axios, options) {
@@ -46,7 +60,35 @@ class HttpRequst {
 
     this.__initServices(_options);
     const _service = this.__getHttpService(service, _options);
-    return this.__resolveSericeRequset(_service, _options, config);
+    const analyzeOn = isAnalyzeEnabled();
+    const httpSpanId = analyzeOn ? nextSpanId('http') : '';
+    return observeCall(() => this.__resolveSericeRequset(_service, _options, config), {
+      enabled: analyzeOn,
+      record: (phase, value) => {
+        recordAnalyze({
+          kind: 'http',
+          name: `${service}:${phase}`,
+          spanId: httpSpanId,
+          summary:
+            phase === 'start'
+              ? {
+                  service,
+                  url: _service?.url,
+                  method: _service?.method || _options?.method || 'get',
+                  params: summarizePayload(_options?.params),
+                  query: summarizePayload(_options?.query),
+                  data: summarizePayload(_options?.data),
+                }
+              : phase === 'error'
+                ? { service, message: value?.message || String(value) }
+                : { service, result: value?.result, code: value?.code, data: summarizePayload(value?.data ?? value) },
+        });
+        // A service completion is a diagnostic hint, not a UI readiness assertion.
+        if (phase === 'done' && STAGE_BY_SERVICE[service]) {
+          markStageReady(STAGE_BY_SERVICE[service], { service });
+        }
+      },
+    });
   }
 
   __resolveSericeRequset(service, options, config) {

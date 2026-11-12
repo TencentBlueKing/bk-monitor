@@ -102,7 +102,7 @@ export default defineComponent({
       return t('操作失败');
     };
 
-    const handleRequest = async (config: { method: ServiceOperation; params?: unknown; data?: unknown; message: string }) => {
+    const handleRequest = async (config: { method: ServiceOperation; params?: Record<string, unknown>; data?: unknown; message: string }) => {
       loading.value = true;
       submitError.value = '';
       try {
@@ -231,15 +231,10 @@ export default defineComponent({
                 editData.value.index_set_name = val == null ? '' : String(val);
                 submitError.value = '';
               }}
-              onEnter={() => {
+              onEnter={(_value, { e }) => {
+                e.stopPropagation();
+                e.preventDefault();
                 handleEditGroupSubmit();
-              }}
-              onKeydown={(_value: string | number, context: { e?: KeyboardEvent }) => {
-                const event = context?.e;
-                if (event && (event.keyCode === 13 || event.key === 'Enter')) {
-                  event.stopPropagation();
-                  event.preventDefault();
-                }
               }}
             />
           </TFormItem>

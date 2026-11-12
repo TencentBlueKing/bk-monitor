@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -86,7 +87,7 @@ export default defineComponent({
       isShowDialog.value = true;
       chatName.value = adminList.chat_name;
       formDataAdmin.value = adminList.users.concat([userMeta.value.username]);
-      baseAdmin.value = structuredClone(formDataAdmin.value);
+      baseAdmin.value = cloneReactiveData(formDataAdmin.value);
     };
 
     const handleSubmitQWGroup = async () => {

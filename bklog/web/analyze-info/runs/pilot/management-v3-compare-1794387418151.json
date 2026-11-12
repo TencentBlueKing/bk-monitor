@@ -1,0 +1,247 @@
+{
+  "schemaVersion": 1,
+  "scope": "MANAGEMENT_MENU_PREVIEW_CANCEL_ONLY_NOT_FULL_ACCEPTANCE",
+  "version": "v3",
+  "status": "V3_PILOT_REQUIRES_REVIEW",
+  "baselineProof": {
+    "schemaVersion": 1,
+    "capabilities": [
+      "management-menu-stop-preview-cancel"
+    ],
+    "scope": "MANAGEMENT_MENU_PREVIEW_CANCEL_ONLY",
+    "status": "PILOT_BASELINE_PROVEN",
+    "captureDigest": "7a699bc400c074791899d81d33cbd871738b1e62de1eeb831fbea76bf2dc46db",
+    "sourceDigest": "a7cd5e2b50b1cefb71549c86a5ea622794fc05e4f2660a85c710a474bbfe0176",
+    "report": {
+      "path": "bklog/web/analyze-info/runs/pilot/management-self-replay-1794387347284.json",
+      "sha256": "d2d2643540a0de458dc9ade95c2889273b5fadff99d3aaca1909e7191a1841b3"
+    },
+    "artifacts": [
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/list-ready.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/list-ready.png",
+        "sha256": "6042107c09f55ae8589ed6043f731979c00d43a1f47a8660373295923da581aa",
+        "bytes": 186375
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/list-ready.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/list-ready.png",
+        "sha256": "6042107c09f55ae8589ed6043f731979c00d43a1f47a8660373295923da581aa",
+        "bytes": 186375
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/menu-open.ui.json",
+        "sha256": "261e806a00a2cf03aaad398f6275a13cc27678cf77fef1794eb79f1078cbaafa",
+        "bytes": 3529
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/menu-open.png",
+        "sha256": "ac0384f655f9238f6123ca1db990e7b848a620040c8521b55a85c856ea5e76f2",
+        "bytes": 191374
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/menu-open.ui.json",
+        "sha256": "261e806a00a2cf03aaad398f6275a13cc27678cf77fef1794eb79f1078cbaafa",
+        "bytes": 3529
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/menu-open.png",
+        "sha256": "ac0384f655f9238f6123ca1db990e7b848a620040c8521b55a85c856ea5e76f2",
+        "bytes": 191374
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/stop-type-preview.ui.json",
+        "sha256": "8d0ce8024501f776522a8edb184728c09988c2410a6fe06799d4c577fc07bb4e",
+        "bytes": 6839
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/stop-type-preview.png",
+        "sha256": "2f239912d559178ef3aafbe20bebb2cd0d71e688d1a0f6094ddc4fe143cea4e6",
+        "bytes": 160263
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/stop-type-preview.ui.json",
+        "sha256": "8d0ce8024501f776522a8edb184728c09988c2410a6fe06799d4c577fc07bb4e",
+        "bytes": 6839
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/stop-type-preview.png",
+        "sha256": "2f239912d559178ef3aafbe20bebb2cd0d71e688d1a0f6094ddc4fe143cea4e6",
+        "bytes": 160263
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/cancel-restored-list.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/cancel-restored-list.png",
+        "sha256": "6042107c09f55ae8589ed6043f731979c00d43a1f47a8660373295923da581aa",
+        "bytes": 186375
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/cancel-restored-list.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/cancel-restored-list.png",
+        "sha256": "6042107c09f55ae8589ed6043f731979c00d43a1f47a8660373295923da581aa",
+        "bytes": 186375
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/label-popup-preview.ui.json",
+        "sha256": "8db83bf52a3d4fb9dda497699f725930e94fa86f20712aa64cfb8ea78f8f73af",
+        "bytes": 4050
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/label-popup-preview.png",
+        "sha256": "6b1a51205bbe30b706062208da4d0ae387ad95b4f5922648df82c9747362876a",
+        "bytes": 190327
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/label-popup-preview.ui.json",
+        "sha256": "cb76b4a7db68187ffe96e234d68c4c0bc2047802f0674448e056cdb5e4fa6008",
+        "bytes": 4053
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/label-popup-preview.png",
+        "sha256": "6b1a51205bbe30b706062208da4d0ae387ad95b4f5922648df82c9747362876a",
+        "bytes": 190327
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/label-filter-no-match.ui.json",
+        "sha256": "efa8a5183b2e1f71fd5164fc36a612a58927d5fa4d397b84233d7c47abfb225d",
+        "bytes": 4080
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/label-filter-no-match.png",
+        "sha256": "be64a6df0f703ad51c9a9757c6a8bda1c460ca9e53f93918c806b298e32096b7",
+        "bytes": 193496
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/label-filter-no-match.ui.json",
+        "sha256": "de34435b9887e840f79e8d35078fbccb2e9c680c6e3630bb43fb2ad3a70b3357",
+        "bytes": 4081
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/label-filter-no-match.png",
+        "sha256": "ecb88a4613346551178bec46c179b055ef02902f6d4ee204a056516c2b8534e3",
+        "bytes": 193450
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/label-required-validation.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/label-required-validation.png",
+        "sha256": "16e5f8cd20ebcbaba2cb8e305ebd0585d3fe43d942532e6dd7712049fe5f38f8",
+        "bytes": 194527
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/label-required-validation.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/label-required-validation.png",
+        "sha256": "11fc14709428fd1fe6684713e692b5fa3d4417f403f22d3cb60ef2ec7403b9ed",
+        "bytes": 194527
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/label-cancel-restored.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq/label-cancel-restored.png",
+        "sha256": "6042107c09f55ae8589ed6043f731979c00d43a1f47a8660373295923da581aa",
+        "bytes": 186375
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/label-cancel-restored.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-yiAc1R/label-cancel-restored.png",
+        "sha256": "6042107c09f55ae8589ed6043f731979c00d43a1f47a8660373295923da581aa",
+        "bytes": 186375
+      }
+    ],
+    "exclusions": [
+      {
+        "path": "/api/v1/frontend_event/report/",
+        "method": "POST",
+        "ruleId": "telemetry-excluded"
+      }
+    ],
+    "fullProductAccepted": false
+  },
+  "runtimeErrors": [],
+  "captureDigest": "7a699bc400c074791899d81d33cbd871738b1e62de1eeb831fbea76bf2dc46db",
+  "privateInput": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-vzpkiq",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-pH5ezz",
+  "fixtureReadRecords": 16,
+  "consumedRecords": 16,
+  "businessRequestsForwarded": 0,
+  "networkAudit": {
+    "scope": "CONTEXT_ROUTE_HANDLER_AUDIT",
+    "interceptedBusiness": 17,
+    "forwardedStatic": 454
+  },
+  "checkpoints": [
+    {
+      "id": "list-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "menu-open",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "stop-type-preview",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "cancel-restored-list",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "label-popup-preview",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    },
+    {
+      "id": "label-filter-no-match",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 10663,
+      "dataId": 1579687
+    }
+  ],
+  "cancellations": [],
+  "uiDifferences": [],
+  "failures": [
+    {
+      "reason": "expect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.new-label-container:visible').locator('.bk-form-item.is-error, .t-form__item.t-is-error')\nExpected: 1\nReceived: 0\nTimeout:  5000ms\n\nCall log:\n  - Expect \"toHaveCount\" locator('.new-label-container:visible').locator('.bk-form-item.is-error, .t-form__item.t-is-error') with timeout 5000ms\n  - waiting for locator('.new-label-container:visible').locator('.bk-form-item.is-error, .t-form__item.t-is-error')\n    14 × locator resolved to 0 elements\n       - unexpected value \"0\"\n"
+    }
+  ]
+}

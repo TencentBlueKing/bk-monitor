@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "id": "management-collapsed-nav-cluster-read",
+  "sourceRefs": [
+    {
+      "file": "views/manage-v2/log-collection/components/list-main/table-list/table-list-v2.tsx",
+      "symbol": "renderMenu/handleMenuClick/getTableList",
+      "line": 1961,
+      "sha256": "5391803932b907a9cda1950230308e1cc4e83789a6573cf808bae65f1c465eca"
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/list-main/table-list/row-more-menu.tsx",
+      "symbol": "handleSelect",
+      "line": 55,
+      "sha256": "0cdb531382e1447cd12861c11321edb24c64b99a4caea0233657afd8576aa767"
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/list-main/stop-type-dialog.tsx",
+      "symbol": "activeKey/handleCancel/handleSave",
+      "line": 62,
+      "sha256": "8a02f31f97dc3b998202a99f060b002a62108f5bfadf9b3f23d5bac732077a41"
+    },
+    {
+      "file": "views/manage-v2/log-collection/utils.ts",
+      "symbol": "MENU_LIST/getOperatorCanClick",
+      "line": 276,
+      "sha256": "cfe30ba4ab754fd8dba7498143a6d7ea5a533d9b9e538260ab6879951cf9c777"
+    },
+    {
+      "file": "views/manage-v2/log-collection/components/common-comp/tag-more.tsx",
+      "symbol": "renderLabelSelect/checkTagName/checkBuiltInTagName/handleChangeLabelStatus/toggleSelect",
+      "sha256": "b411b0084a0aa732ee22c0f2ac39b761359a55a169d01fe12244c1fc8681dd5f"
+    },
+    {
+      "file": "views/manage/index.vue",
+      "symbol": "handleClickNavItem/getRouteHref/menuList",
+      "sha256": "f925e384f758c02c4bc5f5af365f7902a46354c858f8809f868a5bd9022e1918"
+    },
+    {
+      "file": "views/manage-v2/es-cluster/cluster-manage/index.tsx",
+      "symbol": "getTableData/checkCreateAuth/onMounted",
+      "sha256": "edf9b1dc5ec61c86be29043594b1331d559729c67b99629a398d2a841527a89c"
+    }
+  ],
+  "context": {
+    "bizId": "5000140",
+    "spaceUid": "bkcc__5000140",
+    "clockEpochMs": 1794355200000,
+    "timezone": "Asia/Shanghai",
+    "locale": "zh-CN",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    }
+  },
+  "actions": [
+    {
+      "id": "list-ready-by-response-and-identity",
+      "target": {
+        "scope": "collection list / captured Linux row",
+        "semanticId": "collection.list"
+      },
+      "ready": [
+        {
+          "id": "collector-list-complete"
+        }
+      ],
+      "expected": [
+        {
+          "id": "unique-linux-row-and-data-id"
+        }
+      ]
+    },
+    {
+      "id": "open-row-menu",
+      "target": {
+        "scope": "collection list / captured Linux row",
+        "semanticId": "collection.row.more-menu"
+      },
+      "ready": [
+        {
+          "id": "unique-enabled-trigger"
+        }
+      ],
+      "expected": [
+        {
+          "id": "menu-items-from-source"
+        }
+      ]
+    },
+    {
+      "id": "preview-stop-type",
+      "target": {
+        "scope": "collection list / captured Linux row",
+        "semanticId": "collection.stop-type.dialog"
+      },
+      "ready": [
+        {
+          "id": "enabled-stop-action"
+        }
+      ],
+      "expected": [
+        {
+          "id": "dialog-shown-menu-hidden"
+        }
+      ]
+    },
+    {
+      "id": "select-local-stop-collection-option",
+      "target": {
+        "scope": "collection list / captured Linux row",
+        "semanticId": "collection.stop-type.choice"
+      },
+      "ready": [
+        {
+          "id": "visible-choice"
+        }
+      ],
+      "expected": [
+        {
+          "id": "local-active-choice-without-request"
+        }
+      ]
+    },
+    {
+      "id": "cancel-without-next-or-confirm",
+      "target": {
+        "scope": "collection list / captured Linux row",
+        "semanticId": "collection.stop-type.cancel"
+      },
+      "ready": [
+        {
+          "id": "visible-enabled-cancel"
+        }
+      ],
+      "expected": [
+        {
+          "id": "contents-hidden-and-reopen-possible"
+        }
+      ]
+    },
+    {
+      "id": "assert-same-list-and-zero-mutating-requests",
+      "target": {
+        "scope": "collection list / captured Linux row",
+        "semanticId": "collection.list"
+      },
+      "ready": [
+        {
+          "id": "dialog-closed"
+        }
+      ],
+      "expected": [
+        {
+          "id": "same-row-count-and-no-writes"
+        }
+      ]
+    },
+    {
+      "id": "nav-open-cluster",
+      "target": {
+        "scope": "collapsed management sidebar icon",
+        "semanticId": "management.navigation.es-cluster"
+      },
+      "ready": [
+        {
+          "id": "unique-icon-hittable-in-collapsed-sidebar"
+        }
+      ],
+      "expected": [
+        {
+          "id": "route-es-cluster-manage"
+        },
+        {
+          "id": "space-and-api-biz-preserved"
+        },
+        {
+          "id": "complete-list-and-status-response"
+        },
+        {
+          "id": "visible-first-cluster-id-and-name"
+        }
+      ]
+    }
+  ],
+  "guardObligations": [
+    "Linux row only; related-space row excluded",
+    "Stop item must be enabled after status read",
+    "No Next/Confirm action on an existing resource",
+    "Source custom_report branch uses direct stop and is a separate scenario",
+    "Permission denial and terminated states remain separate unexecuted branches",
+    "Label preview allows search, validation failure, draft cancel only; do not select an option or submit a valid label on existing resources",
+    "Start from collapsed sidebar; click real icon, do not call router.push or page.goto target route",
+    "Cluster list and status are read-only; do not open resource add/edit/delete actions",
+    "Return navigation, modified-link clicks, expanded/fixed nav, external/headless remain separate unexecuted branches"
+  ],
+  "status": "SOURCE_CONTRACT_READY_V2_CAPTURE_PENDING",
+  "businessAccepted": false,
+  "sourceDigest": "a7cd5e2b50b1cefb71549c86a5ea622794fc05e4f2660a85c710a474bbfe0176",
+  "contextDigest": "4f89381ca5b22d722549d59b364711368389a01746a29c38f6bada34b7c2cc01",
+  "protocolStatus": "SCHEMA_VALID_RUNTIME_ORACLE_MAPPING_PARTIAL"
+}

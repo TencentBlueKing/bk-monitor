@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "scope": "CONTROLLED_REAL_COMPONENT_CONTRACT_NOT_BACKEND_ACCEPTANCE",
+  "status": "LABEL_CONTRACT_FAILED",
+  "checks": [],
+  "missing": [
+    "label-render-nonbuiltin",
+    "label-required-cancel",
+    "label-duplicate-validation",
+    "label-builtin-validation",
+    "label-create-enter",
+    "label-disabled-add-delete",
+    "label-keyboard-cycle",
+    "label-terminated"
+  ],
+  "failures": [
+    {
+      "id": "fixture-initialization",
+      "reason": "expect(locator).toBeVisible() failed\n\nLocator: getByRole('heading', { name: '采集标签组件契约（隔离接口）', exact: true })\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" getByRole('heading', { name: '采集标签组件契约（隔离接口）', exact: true }) with timeout 20000ms\n  - waiting for getByRole('heading', { name: '采集标签组件契约（隔离接口）', exact: true })\n"
+    },
+    {
+      "id": "isolated-boundary",
+      "reason": "UNEXPECTED_NETWORK_OR_RUNTIME_ERROR"
+    }
+  ],
+  "blocked": [],
+  "runtimeErrors": [
+    "Cannot read properties of undefined (reading '$t')"
+  ],
+  "sourceDigests": [
+    {
+      "path": "fixtures/collection-label-contract.tsx",
+      "sha256": "bf60848cf0263925720ce2c06597fbbb648e5a228cf01bc157f8669b9dd5e19e"
+    },
+    {
+      "path": "fixtures/collection-label-contract.html",
+      "sha256": "154a369794fcbea5871c678989529c7edfdc63a2b6d9feb4ab73082410b9b3df"
+    },
+    {
+      "path": "src/features/collection/current/components/common-comp/tag-more.tsx",
+      "sha256": "96dc4c12582e9179e0544068e1d0c3eea0bc9c48be263dd098e4a4f0f1474ac8"
+    },
+    {
+      "path": "src/features/collection/current/components/common-comp/tag-more.scss",
+      "sha256": "a3efb1f33197d2921157bb73617756c3eaade714f801fa8ea4eb205f1dd9f60d"
+    },
+    {
+      "path": "src/shared/composables/use-visible-input-focus.ts",
+      "sha256": "0cd8dc0210add16f279a4a9a1f5fa684d89177a200338c5f8027181b15bb4cbc"
+    }
+  ]
+}

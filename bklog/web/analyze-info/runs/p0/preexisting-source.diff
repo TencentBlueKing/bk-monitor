@@ -1,0 +1,624 @@
+diff --git a/bklog/web/packages/web-v2/src/api/_httpRequest.js b/bklog/web/packages/web-v2/src/api/_httpRequest.js
+index ab9f54125d..cb169f9d29 100644
+--- a/bklog/web/packages/web-v2/src/api/_httpRequest.js
++++ b/bklog/web/packages/web-v2/src/api/_httpRequest.js
+@@ -25,6 +25,26 @@
+  */
+ 
+ const qs = require('qs');
++import { random } from '../common/util';
++import {
++  isAnalyzeEnabled,
++  markStageReady,
++  nextSpanId,
++  recordAnalyze,
++  summarizePayload,
++} from '../common/analyze-trace';
++
++const STAGE_BY_SERVICE = {
++  'retrieve/getIndexSetList': '02-index-set',
++  'retrieve/getLogTableHead': '03-fields',
++  'retrieve/getSceneFields': '03-fields',
++  'retrieve/getLogChartList': '04-trend',
++  'retrieve/getLogTableList': '05-result',
++  'collect/getIndexGroupList': '02-index-groups',
++  'collect/newCollectList': '03-table-list',
++  'collect/getCollectorStatus': '04-status-storage',
++  'collect/getStorageUsage': '04-status-storage',
++};
+ 
+ class HttpRequst {
+   constructor(axios, options) {
+@@ -46,7 +66,68 @@ class HttpRequst {
+ 
+     this.__initServices(_options);
+     const _service = this.__getHttpService(service, _options);
+-    return this.__resolveSericeRequset(_service, _options, config);
++    const analyzeOn = isAnalyzeEnabled();
++    const httpSpanId = analyzeOn ? nextSpanId('http') : '';
++    const traceparent = analyzeOn
++      ? `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`
++      : undefined;
++    const nextConfig = traceparent ? Object.assign({}, config, { __bklogTraceparent: traceparent }) : config;
++
++    if (analyzeOn) {
++      recordAnalyze({
++        kind: 'http',
++        name: `${service}:start`,
++        spanId: httpSpanId,
++        traceparent,
++        summary: {
++          service,
++          url: _service?.url,
++          method: _service?.method || _options?.method || 'get',
++          params: summarizePayload(_options?.params),
++          query: summarizePayload(_options?.query),
++          data: summarizePayload(_options?.data),
++        },
++      });
++    }
++
++    const reqPromise = this.__resolveSericeRequset(_service, _options, nextConfig);
++    if (!analyzeOn) {
++      return reqPromise;
++    }
++
++    return Promise.resolve(reqPromise)
++      .then(res => {
++        recordAnalyze({
++          kind: 'http',
++          name: `${service}:done`,
++          spanId: httpSpanId,
++          traceparent,
++          summary: {
++            service,
++            result: res?.result,
++            code: res?.code,
++            data: summarizePayload(res?.data ?? res),
++          },
++        });
++        const mappedStage = STAGE_BY_SERVICE[service];
++        if (mappedStage) {
++          markStageReady(mappedStage, { service, traceparent });
++        }
++        return res;
++      })
++      .catch(err => {
++        recordAnalyze({
++          kind: 'http',
++          name: `${service}:error`,
++          spanId: httpSpanId,
++          traceparent,
++          summary: {
++            service,
++            message: err?.message || String(err),
++          },
++        });
++        throw err;
++      });
+   }
+ 
+   __resolveSericeRequset(service, options, config) {
+diff --git a/bklog/web/packages/web-v2/src/api/index.js b/bklog/web/packages/web-v2/src/api/index.js
+index 2a32f950f6..f51872405f 100644
+--- a/bklog/web/packages/web-v2/src/api/index.js
++++ b/bklog/web/packages/web-v2/src/api/index.js
+@@ -75,7 +75,8 @@ axiosInstance.interceptors.request.use(
+     }
+     // if (window.__IS_MONITOR_COMPONENT__) {
+     // 监控上层并没有使用 OT 这里直接自己生成traceparent id
+-    const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
++    const traceparent =
++      config.__bklogTraceparent || `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+     config.headers.Traceparent = traceparent;
+     // }
+     // 检索模块使用时间选择器设置的时区，其它模块使用用户个人设置的时区
+diff --git a/bklog/web/packages/web-v2/src/main.js b/bklog/web/packages/web-v2/src/main.js
+index fe64bcf9b3..80a6446aba 100644
+--- a/bklog/web/packages/web-v2/src/main.js
++++ b/bklog/web/packages/web-v2/src/main.js
+@@ -49,6 +49,7 @@ import preload, { getAllSpaceList, getExternalMenuListBySpace, requestUserGuideD
+ import getRouter from './router';
+ import store from './store';
+ import { performanceMonitorService } from './storage';
++import { installRouterAnalyze, installStoreAnalyze, markBranch } from './common/analyze-trace';
+ 
+ import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
+ import './scss/theme/theme-dark.scss';
+@@ -134,6 +135,12 @@ const mountedVueInstance = () => {
+ 
+     const { space, spaceUid, bkBizId } = spaceRequest.value ?? {};
+     store.commit('updateState', { spaceResolveFailed: !space });
++    markBranch('preload.spaceResolved', {
++      hasSpace: Boolean(space),
++      spaceUid,
++      bkBizId,
++      spaceResolveFailed: !space,
++    });
+ 
+     let externalMenu = [];
+     if (window.IS_EXTERNAL && space) {
+@@ -146,6 +153,8 @@ const mountedVueInstance = () => {
+ 
+     const router = getRouter(spaceUid, bkBizId, externalMenu);
+     setRouterErrorHandle(router);
++    installStoreAnalyze(store);
++    installRouterAnalyze(router);
+     performanceMonitorService.init(router);
+ 
+     if (!store.state.topMenu?.length) {
+diff --git a/bklog/web/packages/web-v2/src/router/manage.js b/bklog/web/packages/web-v2/src/router/manage.js
+index c7474dafce..8d92b95d6e 100644
+--- a/bklog/web/packages/web-v2/src/router/manage.js
++++ b/bklog/web/packages/web-v2/src/router/manage.js
+@@ -25,6 +25,7 @@
+  */
+ 
+ import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
++import { markBranch, markStageReady } from '@/common/analyze-trace';
+ 
+ // 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位）
+ const LogCollectionView = { name: 'LogCollection', template: '<router-view></router-view>' };
+@@ -136,7 +137,15 @@ const logManageV2Mixin = {
+ const createVersionedComponent = (newComponent, oldComponent) => ({
+   mixins: [logManageV2Mixin],
+   render(h) {
+-    return h(this.isV2Enabled ? newComponent : oldComponent);
++    const enabled = Boolean(this.isV2Enabled);
++    markBranch('manage.createVersionedComponent', {
++      routeName: this.$route?.name,
++      isV2Enabled: enabled,
++    });
++    if (this.$route?.name === 'collection-item-list') {
++      markStageReady('01-feature-toggle', { isV2Enabled: enabled });
++    }
++    return h(enabled ? newComponent : oldComponent);
+   },
+ });
+ 
+diff --git a/bklog/web/packages/web-v2/src/store/actions/retrieve-search-actions.js b/bklog/web/packages/web-v2/src/store/actions/retrieve-search-actions.js
+index 661cbfdf62..a9b045c693 100644
+--- a/bklog/web/packages/web-v2/src/store/actions/retrieve-search-actions.js
++++ b/bklog/web/packages/web-v2/src/store/actions/retrieve-search-actions.js
+@@ -21,7 +21,14 @@
+ import axios from 'axios';
+ 
+ import http from '@/api';
+-import { parseBigNumberList } from '@/common/util';
++import { parseBigNumberList, random } from '@/common/util';
++import {
++  isAnalyzeEnabled,
++  markStageReady,
++  nextSpanId,
++  recordAnalyze,
++  summarizePayload,
++} from '@/common/analyze-trace';
+ import { handleTransformToTimestamp } from '@/components/time-range/utils';
+ import {
+   retrieveFieldCacheService,
+@@ -491,6 +498,28 @@ export async function requestIndexSetQueryAction(
+       : requestRowQueryKey === currentRetrieveRowQueryKey;
+ 
+   const searchHeaders = buildSearchRequestHeaders(state);
++  const analyzeOn = isAnalyzeEnabled();
++  const streamSpanId = analyzeOn ? nextSpanId('http') : '';
++  const streamTraceparent = analyzeOn
++    ? `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`
++    : undefined;
++  if (streamTraceparent) {
++    searchHeaders.Traceparent = streamTraceparent;
++  }
++  if (analyzeOn) {
++    recordAnalyze({
++      kind: 'http',
++      name: 'retrieve/getLogTableList:start',
++      spanId: streamSpanId,
++      traceparent: streamTraceparent,
++      summary: {
++        service: 'retrieve/getLogTableList',
++        url: `${searchUrl}?stream=true`,
++        method: 'post',
++        data: summarizePayload(queryData),
++      },
++    });
++  }
+   let thisMainSearchRequestId = '';
+ 
+   return retrieveSearchWorkerService
+@@ -592,6 +621,28 @@ export async function requestIndexSetQueryAction(
+         //   stage: 'complete',
+         // });
+ 
++        if (analyzeOn) {
++          recordAnalyze({
++            kind: 'http',
++            name: 'retrieve/getLogTableList:done',
++            spanId: streamSpanId,
++            traceparent: streamTraceparent,
++            summary: {
++              service: 'retrieve/getLogTableList',
++              result,
++              code,
++              total: rsolvedData.total,
++              cachedCount: rsolvedData.cached_count,
++              took: rsolvedData.took,
++            },
++          });
++          markStageReady('05-result', {
++            service: 'retrieve/getLogTableList',
++            traceparent: streamTraceparent,
++            cachedCount: rsolvedData.cached_count,
++          });
++        }
++
+         return {
+           data: rsolvedData,
+           message,
+diff --git a/bklog/web/packages/web-v2/src/store/index.js b/bklog/web/packages/web-v2/src/store/index.js
+index d1dd7a3988..f4d50ee6de 100644
+--- a/bklog/web/packages/web-v2/src/store/index.js
++++ b/bklog/web/packages/web-v2/src/store/index.js
+@@ -31,6 +31,14 @@
+ import Vue from 'vue';
+ 
+ import { unifyObjectStyle } from '@/common/util';
++import {
++  isAnalyzeEnabled,
++  nextSpanId,
++  popActiveSpan,
++  pushActiveSpan,
++  recordAnalyze,
++  summarizePayload,
++} from '@/common/analyze-trace';
+ import * as pinyin from 'tiny-pinyin';
+ import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
+ import Vuex from 'vuex';
+@@ -102,7 +110,53 @@ store.dispatch = function (_type, _payload, config = {}) {
+     .forEach(sub => sub.before(action, store.state));
+   // store._actionSubscribers.forEach(sub => sub(action, store.state));
+ 
+-  return entry.length > 1 ? Promise.all(entry.map(handler => handler(payload, config))) : entry[0](payload, config);
++  const analyzeOn = isAnalyzeEnabled();
++  const actionSpanId = analyzeOn ? nextSpanId('act') : '';
++  if (analyzeOn) {
++    recordAnalyze({
++      kind: 'action',
++      name: `${type}:start`,
++      spanId: actionSpanId,
++      summary: summarizePayload(payload),
++    });
++    pushActiveSpan(actionSpanId);
++  }
++
++  const result = entry.length > 1 ? Promise.all(entry.map(handler => handler(payload, config))) : entry[0](payload, config);
++
++  return Promise.resolve(result)
++    .then(res => {
++      if (analyzeOn) {
++        popActiveSpan(actionSpanId);
++        recordAnalyze({
++          kind: 'action',
++          name: `${type}:done`,
++          spanId: actionSpanId,
++          summary: summarizePayload(res),
++        });
++      }
++      store._actionSubscribers
++        .slice()
++        .filter(sub => sub.after)
++        .forEach(sub => sub.after(action, store.state, res));
++      return res;
++    })
++    .catch(err => {
++      if (analyzeOn) {
++        popActiveSpan(actionSpanId);
++        recordAnalyze({
++          kind: 'action',
++          name: `${type}:error`,
++          spanId: actionSpanId,
++          summary: { message: err?.message || String(err) },
++        });
++      }
++      store._actionSubscribers
++        .slice()
++        .filter(sub => sub.error)
++        .forEach(sub => sub.error(action, store.state, err));
++      throw err;
++    });
+ };
+ 
+ export default store;
+diff --git a/bklog/web/packages/web-v2/src/store/url-resolver.ts b/bklog/web/packages/web-v2/src/store/url-resolver.ts
+index b48de30c38..7eb918cae6 100644
+--- a/bklog/web/packages/web-v2/src/store/url-resolver.ts
++++ b/bklog/web/packages/web-v2/src/store/url-resolver.ts
+@@ -30,6 +30,7 @@ import { getAllSceneFieldOpKeys } from '@/store/scene-filter-config';
+ import { ConditionOperator } from './condition-operator';
+ import { isEmptyFilterValue } from './helper';
+ import { BK_LOG_STORAGE } from './store.type';
++import { markBranch, summarizePayload } from '@/common/analyze-trace';
+ 
+ import type { Route } from 'vue-router';
+ 
+@@ -83,7 +84,7 @@ class RouteUrlResolver {
+    * 将URL参数解析为store里面缓存的数据结构
+    */
+   public convertQueryToStore<T>(): T {
+-    return this.resolveFieldList.reduce((output, key) => {
++    const resolved = this.resolveFieldList.reduce((output, key) => {
+       let value;
+       try {
+         value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
+@@ -105,6 +106,9 @@ class RouteUrlResolver {
+ 
+       return output;
+     }, {}) as T;
++
++    markBranch('RouteUrlResolver.convertQueryToStore', summarizePayload(resolved));
++    return resolved;
+   }
+ 
+   /**
+diff --git a/bklog/web/packages/web-v2/src/views/manage-v2/log-collection/components/list-main/table-list/table-list-v2.tsx b/bklog/web/packages/web-v2/src/views/manage-v2/log-collection/components/list-main/table-list/table-list-v2.tsx
+index 76b162e78d..1ff3d7e751 100644
+--- a/bklog/web/packages/web-v2/src/views/manage-v2/log-collection/components/list-main/table-list/table-list-v2.tsx
++++ b/bklog/web/packages/web-v2/src/views/manage-v2/log-collection/components/list-main/table-list/table-list-v2.tsx
+@@ -28,6 +28,7 @@ import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, comp
+ import { useRouter, useRoute } from 'vue-router/composables';
+ import useLocale from '@/hooks/use-locale';
+ import useStore from '@/hooks/use-store';
++import { markBranch } from '@/common/analyze-trace';
+ import * as authorityMap from '@/common/authority-map';
+ import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
+ import axios from 'axios';
+@@ -1679,6 +1680,10 @@ export default defineComponent({
+           }
+           const shouldContinuePolling =
+             res.data.filter(item => ['running', 'unknown'].includes(item.status)).length > 0;
++          markBranch('tableListV2.getCollectStatus', {
++            total: Array.isArray(res.data) ? res.data.length : 0,
++            shouldContinuePolling,
++          });
+           tableList.value = tableList.value.map(item => {
+             const info = res.data.find(val => val.collector_id === item.collector_config_id);
+             if (!info?.status) return item;
+diff --git a/bklog/web/packages/web-v2/src/views/retrieve-core/event.ts b/bklog/web/packages/web-v2/src/views/retrieve-core/event.ts
+index 62e75ca3b5..78d4ff9399 100644
+--- a/bklog/web/packages/web-v2/src/views/retrieve-core/event.ts
++++ b/bklog/web/packages/web-v2/src/views/retrieve-core/event.ts
+@@ -24,6 +24,8 @@
+  * IN THE SOFTWARE.
+  */
+ 
++import { isAnalyzeEnabled, recordAnalyze, summarizePayload } from '@/common/analyze-trace';
++
+ /**
+  * 事件发射器基类
+  * 提供通用的事件监听和触发功能
+@@ -106,6 +108,13 @@ export class EventEmitter<TEvent extends string = string> {
+    * @param args 事件参数
+    */
+   fire(event: TEvent, ...args: any[]): void {
++    if (isAnalyzeEnabled()) {
++      recordAnalyze({
++        kind: 'event',
++        name: String(event),
++        summary: args.length > 0 ? summarizePayload(args[0]) : undefined,
++      });
++    }
+     this.emit(event, ...args);
+   }
+ 
+diff --git a/bklog/web/packages/web-v2/src/views/retrieve-hub.tsx b/bklog/web/packages/web-v2/src/views/retrieve-hub.tsx
+index 64509ce507..b5d6a9f7f8 100644
+--- a/bklog/web/packages/web-v2/src/views/retrieve-hub.tsx
++++ b/bklog/web/packages/web-v2/src/views/retrieve-hub.tsx
+@@ -27,6 +27,7 @@ import { defineComponent } from 'vue';
+ 
+ import { useRoute } from 'vue-router/composables';
+ import useStore from '@/hooks/use-store';
++import { markBranch } from '@/common/analyze-trace';
+ import UnAuthorized from '@/views/un-authorized';
+ const RetrieveV3 = () => import(/* webpackChunkName: 'logRetrieve-v3' */ '@/views/retrieve-v3/index');
+ const RetrieveV1 = () => import(/* webpackChunkName: 'logRetrieve-v1' */ '@/views/retrieve/container');
+@@ -45,15 +46,21 @@ export default defineComponent({
+     return () => {
+       // 恢复空间前不挂载检索页，避免初始化请求及 URL 适配丢失原始索引信息。
+       if (store.state.spaceResolveFailed) {
++        markBranch('RetrieveHub.spaceResolveFailed', {
++          target: 'UnAuthorized',
++          routeName: route.name,
++        });
+         return <UnAuthorized type='space' />;
+       }
+ 
+       if (route.name === 'retrieve') {
+         if (version === 'v1') {
++          markBranch('RetrieveHub.version', { target: 'RetrieveV1', version });
+           return <retrieve-v1></retrieve-v1>;
+         }
+       }
+ 
++      markBranch('RetrieveHub.version', { target: 'RetrieveV3', version });
+       return <retrieve-v3></retrieve-v3>;
+     };
+   },
+diff --git a/bklog/web/packages/web-v2/src/views/retrieve-v3/index.tsx b/bklog/web/packages/web-v2/src/views/retrieve-v3/index.tsx
+index 5e11e8d0d8..c5aea84ff0 100644
+--- a/bklog/web/packages/web-v2/src/views/retrieve-v3/index.tsx
++++ b/bklog/web/packages/web-v2/src/views/retrieve-v3/index.tsx
+@@ -40,6 +40,7 @@ import V3Toolbar from './toolbar';
+ import useAppInit from './use-app-init';
+ import { resolveSceneEmptyView } from './scene-empty-view';
+ import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
++import { markBranch } from '@/common/analyze-trace';
+ 
+ import './global-en.scss';
+ import './index.scss';
+@@ -97,15 +98,21 @@ export default defineComponent({
+     // 字段列表已请求完成但返回为空
+     const isFieldListEmpty = computed(() => isFieldListFetched.value && store.getters.rawFieldList.length === 0);
+ 
+-    const sceneEmptyView = computed(() =>
+-      resolveSceneEmptyView({
++    const sceneEmptyView = computed(() => {
++      const view = resolveSceneEmptyView({
+         isSceneMode: isSceneMode.value,
+         isSceneFilterEmpty: isSceneFilterEmpty.value,
+         isFieldListFetched: isFieldListFetched.value,
+         isFieldListEmpty: isFieldListEmpty.value,
+         isSceneLoading: isSceneLoading.value,
+-      }),
+-    );
++      });
++      markBranch('RetrieveV3.resolveSceneEmptyView', {
++        isSceneMode: isSceneMode.value,
++        isFieldListFetched: isFieldListFetched.value,
++        hideSearchResult: view.hideSearchResult,
++      });
++      return view;
++    });
+ 
+     // 场景化模式下：未过滤 / 字段未就绪 / 字段为空时隐藏检索结果（含趋势图）
+     const hideSearchResult = computed(() => sceneEmptyView.value.hideSearchResult);
+diff --git a/bklog/web/packages/web-v3/src/features/collection/current/components/business-comp/step3/field-list.tsx b/bklog/web/packages/web-v3/src/features/collection/current/components/business-comp/step3/field-list.tsx
+index d9780680ef..c24db69e97 100644
+--- a/bklog/web/packages/web-v3/src/features/collection/current/components/business-comp/step3/field-list.tsx
++++ b/bklog/web/packages/web-v3/src/features/collection/current/components/business-comp/step3/field-list.tsx
+@@ -312,8 +312,11 @@ export default defineComponent({
+           <div class='word-breaker'>
+             <span
+               class='word-breaker-edit'
++              aria-label={t('分词设置')}
+               data-field-index={row.field_index}
+               data-field-name={row.field_name}
++              data-testid='collection-clean-tokenize-trigger'
++              role='button'
+             >
+               {renderWordBreakerValue(row)}
+               <i class='select-angle bk-icon icon-angle-down' />
+@@ -346,6 +349,7 @@ export default defineComponent({
+                           'is-selected': currentParticipleState.value === option.id,
+                         }}
+                         data-test-id={`fieldExtractionBox_button_filterMethod${option.id}`}
++                        data-testid={`collection-clean-tokenize-${option.id}`}
+                         disabled={!cacheData.value.is_analyzed}
+                         size='small'
+                         onClick={() => handleChangeParticipleState(option.id)}
+@@ -380,6 +384,7 @@ export default defineComponent({
+                   <TButton
+                     data-row-index={row.field_index}
+                     data-row-name={row.field_name}
++                    data-testid='collection-clean-tokenize-confirm'
+                     size='small'
+                     theme='primary'
+                     onClick={() => {
+@@ -397,6 +402,7 @@ export default defineComponent({
+                     {t('确定')}
+                   </TButton>
+                   <TButton theme="default"
++                    data-testid='collection-clean-tokenize-cancel'
+                     size='small'
+                     onClick={handleWordBreakerCancelClick}
+                   >
+diff --git a/bklog/web/packages/web-v3/src/features/collection/current/components/list-main/table-list/row-more-menu.tsx b/bklog/web/packages/web-v3/src/features/collection/current/components/list-main/table-list/row-more-menu.tsx
+index 7dc0d3558c..6f8796c56f 100644
+--- a/bklog/web/packages/web-v3/src/features/collection/current/components/list-main/table-list/row-more-menu.tsx
++++ b/bklog/web/packages/web-v3/src/features/collection/current/components/list-main/table-list/row-more-menu.tsx
+@@ -84,8 +84,11 @@ export default defineComponent({
+             {props.items.map(item => (
+               <span
+                 key={item.key}
++                role='button'
++                data-testid={`collection-row-menu-${item.key}`}
+                 v-cursor={{ active: !props.hasPermission }}
+                 class={{ 'menu-item': true, disabled: item.disabled }}
++                aria-disabled={item.disabled ? 'true' : 'false'}
+                 onClick={() => handleSelect(item)}
+               >
+                 {item.label}
+@@ -94,7 +97,13 @@ export default defineComponent({
+           </div>
+         )}
+       >
+-        <span class={{ 'bk-icon icon-more more-btn table-more-btn': true, 'is-hover': isVisible.value }} />
++        <span
++          aria-label='更多'
++          class={{ 'bk-icon icon-more more-btn table-more-btn': true, 'is-hover': isVisible.value }}
++          data-testid='collection-row-more-menu'
++          role='button'
++          title='更多'
++        />
+       </BklogPopover>
+     );
+   },
+diff --git a/bklog/web/packages/web-v3/src/features/retrieval/workbench/search-result-tab/components/dashboard-dialog.vue b/bklog/web/packages/web-v3/src/features/retrieval/workbench/search-result-tab/components/dashboard-dialog.vue
+index 11037bd54f..295e988cf9 100644
+--- a/bklog/web/packages/web-v3/src/features/retrieval/workbench/search-result-tab/components/dashboard-dialog.vue
++++ b/bklog/web/packages/web-v3/src/features/retrieval/workbench/search-result-tab/components/dashboard-dialog.vue
+@@ -353,6 +353,7 @@
+ <template>
+   <Dialog
+     v-model:visible="visible"
++    data-testid="retrieve-dashboard-dialog"
+     :close-on-overlay-click="false"
+     :destroy-on-close="false"
+     :header="t('添加到仪表盘')"
+@@ -376,6 +377,7 @@
+         <Input
+           v-model="formData.chartName"
+           class="dashboard-input-full"
++          data-testid="retrieve-dashboard-chart-name"
+           :placeholder="t('请输入图表名称')"
+           :maxlength="255"
+           :clearable="true"
+@@ -389,6 +391,7 @@
+         <Select
+           v-model="formData.directory"
+           class="dashboard-input-full"
++          data-testid="retrieve-dashboard-directory"
+           :filter="filterWithPinyin"
+           filterable
+         >
+@@ -442,6 +445,7 @@
+         <Select
+           v-model="formData.dashboard"
+           class="dashboard-input-full"
++          data-testid="retrieve-dashboard-target"
+           :filter="filterWithPinyin"
+           filterable
+         >
+@@ -490,11 +494,12 @@
+     <template #footer>
+       <Button
+         theme="primary"
++        data-testid="retrieve-dashboard-submit"
+         @click="handleSubmit"
+       >
+         {{ t('确定') }}
+       </Button>
+-      <Button theme="default" @click="handleClose">
++      <Button theme="default" data-testid="retrieve-dashboard-cancel" @click="handleClose">
+         {{ t('取消') }}
+       </Button>
+     </template>
+diff --git a/bklog/web/packages/web-v3/src/features/retrieval/workbench/search-result-tab/index.vue b/bklog/web/packages/web-v3/src/features/retrieval/workbench/search-result-tab/index.vue
+index 06c5adc6b5..931b93da69 100644
+--- a/bklog/web/packages/web-v3/src/features/retrieval/workbench/search-result-tab/index.vue
++++ b/bklog/web/packages/web-v3/src/features/retrieval/workbench/search-result-tab/index.vue
+@@ -199,6 +199,7 @@
+       <div
+         v-if="!isExternal && !isSceneMode"
+         class="btn-alert-dashboard btn-spacing"
++        data-testid="retrieve-add-dashboard"
+         @click="handleAddAlertDashboard"
+       >
+         <span
+@@ -221,6 +222,7 @@
+     </div>
+     <DashboardDialog
+       :is-show="showDialog"
++      data-testid="retrieve-dashboard-dialog"
+       @update:isShow="handleDialogUpdate"
+       @on-collection-success="handleCollectionSuccess"
+     />

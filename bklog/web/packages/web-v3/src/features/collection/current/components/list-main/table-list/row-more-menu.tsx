@@ -84,8 +84,11 @@ export default defineComponent({
             {props.items.map(item => (
               <span
                 key={item.key}
+                role='button'
+                data-testid={`collection-row-menu-${item.key}`}
                 v-cursor={{ active: !props.hasPermission }}
                 class={{ 'menu-item': true, disabled: item.disabled }}
+                aria-disabled={item.disabled ? 'true' : 'false'}
                 onClick={() => handleSelect(item)}
               >
                 {item.label}
@@ -94,7 +97,13 @@ export default defineComponent({
           </div>
         )}
       >
-        <span class={{ 'bk-icon icon-more more-btn table-more-btn': true, 'is-hover': isVisible.value }} />
+        <span
+          aria-label='更多'
+          class={{ 'bk-icon icon-more more-btn table-more-btn': true, 'is-hover': isVisible.value }}
+          data-testid='collection-row-more-menu'
+          role='button'
+          title='更多'
+        />
       </BklogPopover>
     );
   },

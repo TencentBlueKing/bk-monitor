@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "scope": "CONTROLLED_NATIVE_MODEL_CONTRACT_NOT_PRODUCT_ACCEPTANCE",
+  "status": "NATIVE_MODEL_CONTRACT_PASSED",
+  "checks": [
+    {
+      "id": "native-clock-svg-bubbling",
+      "passed": true
+    },
+    {
+      "id": "native-checkbox-model",
+      "passed": true
+    },
+    {
+      "id": "native-checkbox-group-model",
+      "passed": true
+    },
+    {
+      "id": "native-radio-group-model",
+      "passed": true
+    },
+    {
+      "id": "native-input-trim-enter-model",
+      "passed": true
+    },
+    {
+      "id": "native-select-model",
+      "passed": true
+    },
+    {
+      "id": "native-switch-model",
+      "passed": true
+    },
+    {
+      "id": "native-tag-input-model",
+      "passed": true
+    },
+    {
+      "id": "native-model-reset",
+      "passed": true
+    },
+    {
+      "id": "popup-visible-focus",
+      "passed": true
+    },
+    {
+      "id": "popup-focus-cleanup",
+      "passed": true
+    }
+  ],
+  "failures": [],
+  "blocked": [],
+  "runtimeErrors": []
+}

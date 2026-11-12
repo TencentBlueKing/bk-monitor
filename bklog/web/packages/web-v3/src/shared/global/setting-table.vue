@@ -394,7 +394,8 @@
   </div>
 </template>
 <script>
-  import { mapGetters } from '@/app/state/map-helpers';
+  import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
+import { mapGetters } from '@/app/state/map-helpers';
   import { isFieldTypeDisabled, judgeNumber } from '@/shared/lib/util';
   import BklogPopover from '@/shared/ui/bklog-popover/index';
 
@@ -599,7 +600,7 @@
     methods: {
       reset() {
         const arr = [];
-        const copyFields = structuredClone(this.fields); // option指向地址bug
+        const copyFields = cloneReactiveData(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
           typeErr: false,
@@ -751,7 +752,7 @@
       },
       judgeNumber,
       getData() {
-        const data = structuredClone(this.changeTableList);
+        const data = cloneReactiveData(this.changeTableList);
 
         data.forEach(item => {
           if (Object.prototype.hasOwnProperty.call(item, 'fieldErr')) {
@@ -768,7 +769,7 @@
         return data;
       },
       getAllData() {
-        const data = structuredClone(this.tableAllList);
+        const data = cloneReactiveData(this.tableAllList);
         data.forEach(field => {
           if (Object.prototype.hasOwnProperty.call(field, 'expand')) {
             if (field.expand === false) {
@@ -1042,7 +1043,7 @@
         }
       },
       addObject() {
-        const fieldsObjectData = structuredClone(
+        const fieldsObjectData = cloneReactiveData(
           this.$store.getters.rawFieldList.filter(item => item.field_name.includes('.')),
         );
         fieldsObjectData.forEach(item => {

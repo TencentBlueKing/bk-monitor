@@ -789,10 +789,10 @@ export default defineComponent({
             common
           />
         </div>
-        <div class='title-main'>
-          <div class='title'>{t('原始日志检索结果')}</div>
-          <div class='split-line'></div>
-          <div class='desc'>{t('可切换原始日志，查看该日志的上下文')}</div>
+        <div class='origin-log-title-bar'>
+          <div class='origin-log-title'>{t('原始日志检索结果')}</div>
+          <div class='origin-log-title-divider'></div>
+          <div class='origin-log-title-description'>{t('可切换原始日志，查看该日志的上下文')}</div>
         </div>
         <div class={['search-main', { 'is-monitor-apm': isMonitorApm }]}>
           <SearchBar

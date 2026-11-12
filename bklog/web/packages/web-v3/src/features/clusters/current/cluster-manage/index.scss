@@ -10,6 +10,20 @@
   }
 
   .king-table {
+    thead th {
+      height: 43px;
+      padding: 0 15px;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 42px;
+      color: #313238;
+      background: #fafbfd;
+    }
+
+    .t-table__empty {
+      padding: 60px 0;
+    }
+
     .state-container {
       display: flex;
       flex-wrap: nowrap;
@@ -122,4 +136,15 @@
     padding-top: 12px;
     border-top: 1px solid #dcdee5;
   }
+}
+
+// The business search commits on Enter/search icon; clearing re-runs source filtering.
+.es-access-container .cluster-search-submit {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #979ba5;
+  cursor: pointer;
 }

@@ -31,19 +31,30 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import { messageSuccess } from '@/shared/lib/message';
 import useLocale from '@/shared/composables/use-locale';
 import useStore from '@/shared/composables/use-store';
-import VueDraggable from 'vuedraggable';
+import VueDraggable from 'vuedraggable-vue3';
+import { preserveVue3ComponentModel } from '@/platform/compat/vue3-component-model';
 
 import { getDefaultDisplayFields } from './default-display-fields';
 
 import './index.scss';
 
+// Isolate native options so this popup does not alter other draggable instances.
+// Native Vue.Draggable reads function slots from $slots in its Options render.
+// The installed declaration omits the update:modelValue event that 4.1 emits.
+type FieldDragInstance = InstanceType<typeof VueDraggable> & {
+  $props: InstanceType<typeof VueDraggable>['$props'] & {
+    'onUpdate:modelValue'?: (fields: string[]) => void;
+  };
+};
+const FieldDraggable = {...VueDraggable} as typeof VueDraggable &
+  (new () => FieldDragInstance) & {compatConfig?: Record<string, unknown>};
+preserveVue3ComponentModel(FieldDraggable);
+FieldDraggable.compatConfig = {...FieldDraggable.compatConfig, RENDER_FUNCTION: false};
+
 export default defineComponent({
   emits: ["success","cancel"],
 
   name: 'FieldsConfig',
-  components: {
-    VueDraggable,
-  },
   setup(_, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
@@ -134,19 +145,18 @@ export default defineComponent({
                   <span>{displayFieldNames.value.length}</span>
                 </i18n>
               </div>
-              <vue-draggable
+              <FieldDraggable
                 {...dragOptions}
-                value={displayFieldNames.value}
-                onInput={(newValue: string[]) => {
+                tag='transition-group'
+                componentData={{tag: 'ul'}}
+                itemKey={(field: string) => field}
+                modelValue={displayFieldNames.value}
+                onUpdate:modelValue={(newValue: string[]) => {
                   displayFieldNames.value = newValue;
                 }}
-              >
-                <transition-group>
-                  {displayFieldNames.value.map((field, index) => (
-                    <li
-                      key={index}
-                      class='list-item display-item'
-                    >
+                v-slots={{
+                  item: ({element: field, index}: {element: string; index: number}) => (
+                    <li key={index} class='list-item display-item'>
                       <span class='icon bklog-icon bklog-drag-dots'></span>
                       <div class='field_name'>{field}</div>
                       <div
@@ -156,9 +166,9 @@ export default defineComponent({
                         {t('删除')}
                       </div>
                     </li>
-                  ))}
-                </transition-group>
-              </vue-draggable>
+                  ),
+                }}
+              />
             </div>
             <div class='field-list'>
               <div class='list-title'>{t('其他字段')}</div>

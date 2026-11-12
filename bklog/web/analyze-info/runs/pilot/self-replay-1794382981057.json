@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "scope": "SINGLE_ROW_PILOT_ONLY_NOT_FULL_V2_V3_ACCEPTANCE",
+  "version": "v2",
+  "status": "PILOT_SELF_REPLAY_PASSED",
+  "runtimeErrors": [],
+  "captureDigest": "ee329bee0f0265d1178056498cba0d0b2713305fb93686c199724ce0c1d988c7",
+  "privateInput": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-pilot-k2Jvz2",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-YYPCtU",
+  "fixtureReadRecords": 20,
+  "consumedRecords": 20,
+  "businessRequestsForwarded": 0,
+  "networkAudit": {
+    "scope": "CONTEXT_ROUTE_HANDLER_AUDIT",
+    "interceptedBusiness": 23,
+    "forwardedStatic": 88
+  },
+  "checkpoints": [
+    {
+      "id": "query-ready",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794382980415
+    },
+    {
+      "id": "expanded-kv-filter",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794382980615
+    },
+    {
+      "id": "expanded-json",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794382980733
+    },
+    {
+      "id": "collapsed-restored",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794382980901
+    }
+  ],
+  "cancellations": [],
+  "uiDifferences": [],
+  "failures": []
+}

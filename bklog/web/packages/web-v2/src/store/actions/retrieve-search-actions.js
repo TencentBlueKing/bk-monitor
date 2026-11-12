@@ -22,6 +22,7 @@ import axios from 'axios';
 
 import http from '@/api';
 import { parseBigNumberList } from '@/common/util';
+import { isAnalyzeEnabled, markStageReady, nextSpanId, recordAnalyze, summarizePayload } from '@/common/analyze-trace';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import {
   retrieveFieldCacheService,
@@ -491,6 +492,24 @@ export async function requestIndexSetQueryAction(
       : requestRowQueryKey === currentRetrieveRowQueryKey;
 
   const searchHeaders = buildSearchRequestHeaders(state);
+  const analyzeOn = isAnalyzeEnabled();
+  const streamSpanId = analyzeOn ? nextSpanId('http') : '';
+  // Observe the existing transport context; never replace it for diagnostics.
+  const streamTraceparent = searchHeaders.Traceparent;
+  if (analyzeOn) {
+    recordAnalyze({
+      kind: 'http',
+      name: 'retrieve/getLogTableList:start',
+      spanId: streamSpanId,
+      traceparent: streamTraceparent,
+      summary: {
+        service: 'retrieve/getLogTableList',
+        url: `${searchUrl}?stream=true`,
+        method: 'post',
+        data: summarizePayload(queryData),
+      },
+    });
+  }
   let thisMainSearchRequestId = '';
 
   return retrieveSearchWorkerService
@@ -591,6 +610,28 @@ export async function requestIndexSetQueryAction(
         //   source,
         //   stage: 'complete',
         // });
+
+        if (analyzeOn) {
+          recordAnalyze({
+            kind: 'http',
+            name: 'retrieve/getLogTableList:done',
+            spanId: streamSpanId,
+            traceparent: streamTraceparent,
+            summary: {
+              service: 'retrieve/getLogTableList',
+              result,
+              code,
+              total: rsolvedData.total,
+              cachedCount: rsolvedData.cached_count,
+              took: rsolvedData.took,
+            },
+          });
+          markStageReady('05-result', {
+            service: 'retrieve/getLogTableList',
+            traceparent: streamTraceparent,
+            cachedCount: rsolvedData.cached_count,
+          });
+        }
 
         return {
           data: rsolvedData,

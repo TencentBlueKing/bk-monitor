@@ -1,0 +1,267 @@
+{
+  "schemaVersion": 1,
+  "overall": "IMPLEMENTING",
+  "phases": [
+    {
+      "id": "P0",
+      "state": "PASSED",
+      "businessAccepted": false
+    },
+    {
+      "id": "P1",
+      "state": "IMPLEMENTING",
+      "businessAccepted": false
+    },
+    {
+      "id": "P2",
+      "state": "IMPLEMENTING",
+      "businessAccepted": false
+    },
+    {
+      "id": "P3",
+      "state": "PASSED",
+      "businessAccepted": false,
+      "scope": "HARNESS_CALIBRATION_ONLY"
+    },
+    {
+      "id": "P4",
+      "state": "IMPLEMENTING",
+      "businessAccepted": false
+    },
+    {
+      "id": "P5",
+      "state": "IMPLEMENTING",
+      "businessAccepted": false,
+      "scope": "LIMITED_RETRIEVAL_AND_MANAGEMENT_PILOTS_ONLY"
+    },
+    {
+      "id": "P6",
+      "state": "IMPLEMENTING",
+      "businessAccepted": false,
+      "scope": "LIMITED_RETRIEVAL_AND_MANAGEMENT_PILOTS_ONLY"
+    },
+    {
+      "id": "P7",
+      "state": "PENDING",
+      "businessAccepted": false
+    },
+    {
+      "id": "P8",
+      "state": "IMPLEMENTING",
+      "businessAccepted": false,
+      "scope": "LIMITED_PILOT_COMPARISON_AND_FIXES_ONLY"
+    },
+    {
+      "id": "P9",
+      "state": "IMPLEMENTING",
+      "businessAccepted": false,
+      "scope": "LIMITED_PILOT_COMPARISON_AND_FIXES_ONLY"
+    },
+    {
+      "id": "P10",
+      "state": "IMPLEMENTING",
+      "businessAccepted": false,
+      "scope": "LIMITED_PILOT_COMPARISON_AND_FIXES_ONLY"
+    }
+  ],
+  "baselineAccepted": false,
+  "v3Accepted": false,
+  "oldResultsImported": false,
+  "unitCalibration": {
+    "required": 48,
+    "passed": 48,
+    "scope": "TOOL_ONLY"
+  },
+  "browserCalibration": {
+    "required": 15,
+    "passed": 15,
+    "scope": "CONTROLLED_FIXTURE_NOT_PRODUCT_ACCEPTANCE",
+    "backendWrites": 0
+  },
+  "updatedAt": "2026-11-12",
+  "pilot": {
+    "id": "retrieve-row-expand-filter-json-restore",
+    "revision": 6,
+    "v2LiveRecipe": "TEN_CHECKPOINTS_CAPTURED",
+    "v2SelfReplay": "PASSED_SCOPE_ONLY",
+    "v3Oracles": "PASSED_SCOPE_ONLY",
+    "readRecords": 19,
+    "selectedFields": 12,
+    "cancelRegressionReadRecords": 19,
+    "businessAccepted": false,
+    "remaining": [
+      "field drag persistence and field operations",
+      "all other retrieval branches",
+      "full visual comparison",
+      "empty/error/permission/cancel and complete result modes",
+      "full JSON view values and field value operations"
+    ],
+    "checkpoints": 10,
+    "state": "LIMITED_ORACLES_PASSED",
+    "expectedCheckpoints": 10,
+    "lastProvenRevision": {
+      "revision": 5,
+      "checkpoints": 7,
+      "v2Report": "runs/pilot/self-replay-1794393839327.json",
+      "v3Report": "runs/pilot/v3-compare-1794393936449.json",
+      "capability": "native copy event payload and existing six local row checkpoints",
+      "businessAccepted": false
+    },
+    "sharedChangeRegressionReport": "runs/pilot/v3-compare-1794392922192.json",
+    "v2SelfReplayReport": "runs/pilot/self-replay-1794395101778.json",
+    "oraclePin": "0a68ddc2e8eb4c6474a6cdc376e72bae6489feb39eb98a7c775430004e093573",
+    "v3Report": "runs/pilot/v3-compare-1794396520430.json"
+  },
+  "nativeModelCalibration": {
+    "required": 12,
+    "passed": 12,
+    "scope": "CONTROLLED_NATIVE_MODEL_CONTRACT_NOT_PRODUCT_ACCEPTANCE",
+    "report": "runs/calibration/native-model/result-1794395799634.json"
+  },
+  "managementPilot": {
+    "id": "management-linux-menu-stop-preview-label-search-required-close",
+    "state": "LIMITED_ORACLES_PASSED",
+    "checkpoints": 8,
+    "readRecords": 16,
+    "businessRequestsForwarded": 0,
+    "existingResourcesMutated": false,
+    "v2SelfReplayReport": "runs/pilot/management-self-replay-1794387766100.json",
+    "v3Report": "runs/pilot/management-v3-compare-1794389210103.json",
+    "businessAccepted": false,
+    "remaining": [
+      "full list filter/sort/pagination/permission states",
+      "real create/edit lifecycle on new resources",
+      "all management modules"
+    ],
+    "v2CancelQuirk": {
+      "state": "UNSTABLE_V2_BASELINE_RETAINED_SEPARATELY",
+      "reason": "same click reopens draft through reused div listener",
+      "v3Contract": "cancel repeated twice passed controlled real-component contract; no backend"
+    },
+    "legacyRecipeStatus": "HISTORICAL_UNPINNED_REQUIRES_RECAPTURE_UNDER_CURRENT_TOOLS"
+  },
+  "strictTypecheck": {
+    "errors": 1675,
+    "passed": false,
+    "log": "/private/tmp/bklog-v3-typecheck-20261112-overlay.log",
+    "currentBatchNewErrors": 0
+  },
+  "collectionComponentContracts": {
+    "required": 29,
+    "passed": 29,
+    "scope": "CONTROLLED_REAL_COMPONENT_CONTRACT_NOT_BACKEND_ACCEPTANCE",
+    "report": "runs/calibration/collection-label/result-1794396534366.json",
+    "backendWrites": 0
+  },
+  "legacyBusinessControlCandidates": {
+    "files": 252,
+    "total": 1552,
+    "assessment": "SOURCE_CANDIDATES_NOT_COVERAGE",
+    "report": "source/v3-legacy-control-candidates.json",
+    "state": "HISTORICAL_AUDIT_NEEDS_REFRESH_AFTER_CURRENT_BATCH"
+  },
+  "navigationPilot": {
+    "id": "management-collapsed-nav-cluster-read",
+    "state": "LIMITED_ORACLES_PASSED",
+    "readRecords": 18,
+    "checkpoints": 8,
+    "source": "scenarios/management-nav-cluster-read.json",
+    "businessAccepted": false,
+    "clusterRows": 0,
+    "covered": "collapsed actual icon navigation, genuine ES empty state, search-icon/Enter/local clear only",
+    "remaining": [
+      "nonempty ES cluster list and connectivity status",
+      "return/expanded/fixed/modifier navigation",
+      "clear-filter re-fetch empty response source quirk"
+    ],
+    "businessRequestsForwarded": 0,
+    "v2SelfReplayReport": "runs/pilot/management-self-replay-1794396618967.json",
+    "v3Report": "runs/pilot/management-v3-compare-1794396901436.json",
+    "sharedChangeRegressionReport": "runs/pilot/management-v3-compare-1794392924734.json",
+    "oraclePin": "599dbc2098366ad1f2a0c0273c20a70fef3c72101fbf6bdc41763a0eac42c497"
+  },
+  "sharedEmptyStatus": {
+    "state": "CONTROLLED_CONTRACT_PASSED",
+    "originalAssets": 7,
+    "backendAcceptance": false,
+    "report": "reports/p6/navigation-empty-contract.md"
+  },
+  "clockCalibration": {
+    "state": "PASSED_SCOPE_ONLY",
+    "negative": "fixed Date blocks Vue SVG bubbling; not a product defect",
+    "positive": "resume Date after bootstrap, actual pointer click succeeds",
+    "limits": "other time-sensitive scenarios need independent clock contracts"
+  },
+  "reactiveCloneContracts": {
+    "state": "PASSED_DATA_BOUNDARY_ONLY",
+    "required": 7,
+    "passed": 7,
+    "report": "runs/calibration/reactive-clone/result.json",
+    "fullCallerAcceptance": false,
+    "callers": [
+      "shared/global/setting-table.vue",
+      "shared/global/field-setting.vue",
+      "features/clusters/current/cluster-manage/intro-panel.tsx",
+      "features/collection/current/components/create-operation/step2-custom-report.tsx"
+    ]
+  },
+  "routeMapping": {
+    "scope": "STATIC_ROUTE_MAPPING_NOT_ACCEPTANCE",
+    "v2Routes": 90,
+    "v3Routes": 90,
+    "exactSingleCandidates": 89,
+    "unmatchedRootRedirect": 1,
+    "wildcardPathDifferences": 1,
+    "report": "source/route-migration-map.json",
+    "allRuntimeAccepted": false
+  },
+  "overlayStylePilot": {
+    "state": "LIMITED_LIVE_UI_VERIFIED",
+    "scope": "CONTEXT_AND_REALTIME_LAYOUT_NOT_FULL_BUSINESS_ACCEPTANCE",
+    "referenceIndex": 16176,
+    "observedViewport": {
+      "width": 1728,
+      "height": 817
+    },
+    "report": "reports/p9/component-differences-20261112.md",
+    "businessAccepted": false,
+    "otherViewportsAccepted": false,
+    "latestRun": "runs/pilot/context-ui-20261112.json",
+    "testedV3Viewports": [
+      {
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "width": 1280,
+        "height": 800
+      }
+    ],
+    "latestScope": "CONTEXT_UI_AND_SHARED_SOURCE_REGRESSION_REALTIME_LIVE_PENDING"
+  },
+  "relatedControlRegression": {
+    "state": "PASSED_SCOPE_ONLY",
+    "passed": 72,
+    "newSourceContractCases": 18,
+    "report": "runs/calibration/context-native-20261112.json",
+    "businessAccepted": false,
+    "extendedExistingStateCases": 1
+  },
+  "buttonThemeAlignment": {
+    "state": "SOURCE_PROPS_FIXED_UI_PENDING",
+    "controls": 22,
+    "files": 10,
+    "nonThemeAstUnchanged": true,
+    "report": "runs/pilot/button-source-alignment-20261112.json",
+    "remainingCandidateReport": "source/v3-button-theme-candidates.json",
+    "remainingCandidates": 2,
+    "unpairedCases": 27,
+    "businessAccepted": false,
+    "uiAccepted": false
+  },
+  "historicalReplayArtifacts": {
+    "report": "runs/pilot/self-replay-1794395101778.json",
+    "privateInputAvailableNow": false,
+    "currentBatchDidNotReuseHistoricalPass": true
+  }
+}

@@ -1,0 +1,464 @@
+{
+  "schemaVersion": 1,
+  "scope": "READ_ONLY_DISCOVERY",
+  "rules": [
+    {
+      "id": "bootstrap-environment",
+      "method": "GET",
+      "path": "/api/v1/meta/index_html_environment/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "main.js initEnv reads runtime environment; _httpRequest defaults to GET, no mutation submission.",
+      "source": {
+        "file": "services/meta.js",
+        "symbol": "getEnvConstant",
+        "line": 78,
+        "sha256": "fc14bb3646e33c4d018de981dd63f8d01daeed6729428610e112cc545afdd288"
+      },
+      "consumer": {
+        "file": "main.js",
+        "line": 294
+      }
+    },
+    {
+      "id": "getUsername",
+      "method": "GET",
+      "path": "/api/v1/meta/mine/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Read-only initialization service: getUsername; fields consumed by app bootstrap/space/menu/user state; mutation sibling is not authorized.",
+      "source": {
+        "file": "services/userInfo.js",
+        "line": 32,
+        "symbol": "getUsername",
+        "sha256": "cb155c3177c50b9a783c8908add272f9328fa9934899bededea46657084b31e8"
+      }
+    },
+    {
+      "id": "globals",
+      "method": "GET",
+      "path": "/api/v1/meta/globals/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Read-only initialization service: globals; fields consumed by app bootstrap/space/menu/user state; mutation sibling is not authorized.",
+      "source": {
+        "file": "services/collect.js",
+        "line": 33,
+        "symbol": "globals",
+        "sha256": "5dc1b45b592137bd0a4f9942a59df69150a1065cb9a5085f9742287b36dfe668"
+      }
+    },
+    {
+      "id": "getMySpaceList",
+      "method": "GET",
+      "path": "/api/v1/meta/spaces/mine/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Read-only initialization service: getMySpaceList; fields consumed by app bootstrap/space/menu/user state; mutation sibling is not authorized.",
+      "source": {
+        "file": "services/index.js",
+        "line": 66,
+        "symbol": "getMySpaceList",
+        "sha256": "a7526ece1f66aa2ed9d4c72dd4de9f8bd18c7ae8816f57790708e98ebb0a2af9"
+      }
+    },
+    {
+      "id": "menu",
+      "method": "GET",
+      "path": "/api/v1/meta/menu/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Read-only initialization service: menu; fields consumed by app bootstrap/space/menu/user state; mutation sibling is not authorized.",
+      "source": {
+        "file": "services/meta.js",
+        "line": 54,
+        "symbol": "menu",
+        "sha256": "fc14bb3646e33c4d018de981dd63f8d01daeed6729428610e112cc545afdd288"
+      }
+    },
+    {
+      "id": "getUserGuide",
+      "method": "GET",
+      "path": "/api/v1/meta/user_guide/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Read-only initialization service: getUserGuide; fields consumed by app bootstrap/space/menu/user state; mutation sibling is not authorized.",
+      "source": {
+        "file": "services/meta.js",
+        "line": 66,
+        "symbol": "getUserGuide",
+        "sha256": "fc14bb3646e33c4d018de981dd63f8d01daeed6729428610e112cc545afdd288"
+      }
+    },
+    {
+      "id": "notice-list",
+      "method": "GET",
+      "path": "/notice/announcements/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Notice component list endpoint provided by app render; GET only, no dismiss/read-mark authorization.",
+      "source": {
+        "file": "app.tsx",
+        "symbol": "api-url",
+        "line": 140,
+        "sha256": "5c3b8d78030cf271408080ff719fd9b30389984d4a995b0741f28f639f8fadbe"
+      }
+    },
+    {
+      "id": "telemetry-excluded",
+      "method": "POST",
+      "path": "/api/v1/frontend_event/report/",
+      "semantics": "TELEMETRY",
+      "reviewed": true,
+      "rationale": "frontendEventReport analytics is explicitly excluded from business baseline; abort, never synthesize success.",
+      "source": {
+        "file": "services/index.js",
+        "line": 71,
+        "symbol": "frontendEventReport",
+        "sha256": "a7526ece1f66aa2ed9d4c72dd4de9f8bd18c7ae8816f57790708e98ebb0a2af9"
+      }
+    },
+    {
+      "id": "getIndexSetList",
+      "method": "GET",
+      "path": "/api/v1/search/index_set/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Index set list consumed by retrieval selector, read only.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 64,
+        "symbol": "getIndexSetList",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "getFavoriteByGroupList",
+      "method": "GET",
+      "path": "/api/v1/search/favorite/list_by_group/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Grouped favorites list, mutation endpoints remain blocked.",
+      "source": {
+        "file": "services/favorite.js",
+        "line": 44,
+        "symbol": "getFavoriteByGroupList",
+        "sha256": "089a457047862384ba180c17a2fe610ec2fe8a0c9e531e26b0ba478b8b39de0a"
+      }
+    },
+    {
+      "id": "alertList",
+      "method": "POST",
+      "path": "/api/v1/alert_strategy/16176/alert_records/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "warning-setting.vue requestAlertList passes status/page_size to read list and badge; not a write despite POST.",
+      "source": {
+        "file": "services/alert_strategy.js",
+        "line": 31,
+        "symbol": "alertList",
+        "sha256": "138f9566dd7a8de992ce140dd362eaca26a75a056d7a455451b2c19b49048612"
+      }
+    },
+    {
+      "id": "ai-session-read",
+      "method": "GET",
+      "path": "/api/v1/ai_assistant/session/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "SDK getSessions calls http.get and maps existing sessions; plusSession/modifySession use other methods and are NOT allowed. Application global/ai-assitant/index.tsx provides prefix.",
+      "source": {
+        "file": "../node_modules/@blueking/ai-blueking/dist/vue2/index.umd.min.js",
+        "symbol": "getSessions",
+        "sha256": "e1f95151708b9e2c03f38cc585d4893df2c7fd2c5a428ada95dc03193395821e"
+      }
+    },
+    {
+      "id": "ai-session-create",
+      "method": "POST",
+      "path": "/api/v1/ai_assistant/session/",
+      "semantics": "WRITE",
+      "reviewed": true,
+      "rationale": "SDK plusSession persists a new AI session automatically on mount. Not part of read-only capture; block, do not return fake success.",
+      "source": {
+        "file": "../node_modules/@blueking/ai-blueking/dist/vue2/index.umd.min.js",
+        "symbol": "getSessions",
+        "sha256": "e1f95151708b9e2c03f38cc585d4893df2c7fd2c5a428ada95dc03193395821e"
+      }
+    },
+    {
+      "id": "getLogTableHead",
+      "method": "GET",
+      "path": "/api/v1/search/index_set/16176/fields/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Field metadata read by getLogTableHead action and selection restoration.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 69,
+        "symbol": "getLogTableHead",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "getExportHistoryList",
+      "method": "GET",
+      "path": "/api/v1/search/index_set/16176/export_history/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Read export history; creating export tasks is not allowed.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 231,
+        "symbol": "getExportHistoryList",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "getSceneConfigs",
+      "method": "GET",
+      "path": "/api/v1/search/scene/scenes/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Read configured scenes, no scene update.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 445,
+        "symbol": "getSceneConfigs",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "getLogTableList",
+      "method": "POST",
+      "path": "/api/v1/search/index_set/16176/search/",
+      "semantics": "READ_STREAM",
+      "reviewed": true,
+      "rationale": "Worker searchStream posts query data and consumes NDJSON result; full stream required.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 127,
+        "symbol": "getLogTableList",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "getLogChartList",
+      "method": "POST",
+      "path": "/api/v1/search/index_set/16176/aggs/date_histogram/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Histogram query posts same filter/time context and renders buckets; no resource mutation.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 144,
+        "symbol": "getLogChartList",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "fieldStatisticsTotal",
+      "method": "POST",
+      "path": "/api/v1/field/index_set/statistics/total/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Field aggregation query: service comment and retrieval consumer read statistical values; POST is query payload, not resource update.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 270,
+        "symbol": "fieldStatisticsTotal",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "fieldStatisticsInfo",
+      "method": "POST",
+      "path": "/api/v1/field/index_set/statistics/info/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Field aggregation query: service comment and retrieval consumer read statistical values; POST is query payload, not resource update.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 265,
+        "symbol": "fieldStatisticsInfo",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "fieldStatisticsGraph",
+      "method": "POST",
+      "path": "/api/v1/field/index_set/statistics/graph/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Field aggregation query: service comment and retrieval consumer read statistical values; POST is query payload, not resource update.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 275,
+        "symbol": "fieldStatisticsGraph",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "fieldFetchTopList",
+      "method": "POST",
+      "path": "/api/v1/field/index_set/fetch_topk_list/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Field aggregation query: service comment and retrieval consumer read statistical values; POST is query payload, not resource update.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 260,
+        "symbol": "fieldFetchTopList",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "getAggsTerms",
+      "method": "POST",
+      "path": "/api/v1/search/index_set/16176/aggs/terms/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Field aggregation query: service comment and retrieval consumer read statistical values; POST is query payload, not resource update.",
+      "source": {
+        "file": "services/retrieve.ts",
+        "line": 255,
+        "symbol": "getAggsTerms",
+        "sha256": "a39d212eba90ad04332d1041bf491fb1c91932a92cd70703c24d118435957d15"
+      }
+    },
+    {
+      "id": "collectorFieldEnums",
+      "method": "GET",
+      "path": "/api/v1/databus/log_access/collector_field_enums/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Collection list filter enum read, no setting update.",
+      "source": {
+        "file": "services/collect.js",
+        "line": 288,
+        "symbol": "collectorFieldEnums",
+        "sha256": "5dc1b45b592137bd0a4f9942a59df69150a1065cb9a5085f9742287b36dfe668"
+      }
+    },
+    {
+      "id": "unionLabelList",
+      "method": "GET",
+      "path": "/api/v1/index_set/tag/list/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Tag list read, not tag creation/removal.",
+      "source": {
+        "file": "services/union-search.js",
+        "line": 64,
+        "symbol": "unionLabelList",
+        "sha256": "62e7ed30e4d10afbd3a6de21085d29c0924850293bd31bf84f795c3e87472e43"
+      }
+    },
+    {
+      "id": "getIndexGroupList",
+      "method": "GET",
+      "path": "/api/v1/index_group/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Collection sidebar group read; same-path POST group creation stays blocked.",
+      "source": {
+        "file": "services/collect.js",
+        "line": 241,
+        "symbol": "getIndexGroupList",
+        "sha256": "5dc1b45b592137bd0a4f9942a59df69150a1065cb9a5085f9742287b36dfe668"
+      }
+    },
+    {
+      "id": "checkAllowed",
+      "method": "POST",
+      "path": "/api/v1/iam/meta/check_allowed/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "IAM permission check returns authorization booleans, not permission grant.",
+      "source": {
+        "file": "services/auth.js",
+        "line": 49,
+        "symbol": "checkAllowed",
+        "sha256": "19351e5ffa35d6be958447d8e743a7cfc325c9bec83eb435d69a3ddaeeeda709"
+      }
+    },
+    {
+      "id": "newCollectList",
+      "method": "POST",
+      "path": "/api/v1/databus/log_access/collector/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Table list getTableList posts page/filter/ordering and consumes res.data.list; no collection create/update.",
+      "source": {
+        "file": "services/collect.js",
+        "line": 234,
+        "symbol": "newCollectList",
+        "sha256": "5dc1b45b592137bd0a4f9942a59df69150a1065cb9a5085f9742287b36dfe668"
+      }
+    },
+    {
+      "id": "getStorageUsage",
+      "method": "POST",
+      "path": "/api/v1/index_set/storage_usage/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Read storage usage for listed index IDs; source table only merges display counters, no storage configuration mutation.",
+      "source": {
+        "file": "services/collect.js",
+        "line": 227,
+        "symbol": "getStorageUsage",
+        "sha256": "5dc1b45b592137bd0a4f9942a59df69150a1065cb9a5085f9742287b36dfe668"
+      }
+    },
+    {
+      "id": "getCollectorStatus",
+      "method": "POST",
+      "path": "/api/v1/databus/log_access/collector_status/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Read listed collector states; source table merges state display, not start/stop operations.",
+      "source": {
+        "file": "services/collect.js",
+        "line": 295,
+        "symbol": "getCollectorStatus",
+        "sha256": "5dc1b45b592137bd0a4f9942a59df69150a1065cb9a5085f9742287b36dfe668"
+      }
+    },
+    {
+      "id": "cluster-source-list",
+      "method": "GET",
+      "path": "/api/v1/databus/storage/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Cluster list getTableData reads data sources for the active ES tab; source/list descriptor is GET and has no configuration write.",
+      "source": {
+        "file": "services/source.js",
+        "symbol": "list",
+        "line": 31,
+        "sha256": "e3b6ab2824b84203345478c372fbd7362d383be2a1d7878ee1877d68a6fd0ea7"
+      },
+      "consumer": {
+        "file": "views/manage-v2/es-cluster/cluster-manage/index.tsx",
+        "line": 211
+      }
+    },
+    {
+      "id": "cluster-connection-status",
+      "method": "POST",
+      "path": "/api/v1/databus/storage/batch_connectivity_detect/",
+      "semantics": "READ",
+      "reviewed": true,
+      "rationale": "Cluster list getTableData reads connection status for the returned cluster_list; this endpoint probes connectivity and does not edit configuration. Do not allow add/update/delete/detection wizard submissions.",
+      "source": {
+        "file": "services/source.js",
+        "symbol": "connectionStatus",
+        "line": 92,
+        "sha256": "e3b6ab2824b84203345478c372fbd7362d383be2a1d7878ee1877d68a6fd0ea7"
+      },
+      "consumer": {
+        "file": "views/manage-v2/es-cluster/cluster-manage/index.tsx",
+        "line": 229
+      }
+    }
+  ]
+}

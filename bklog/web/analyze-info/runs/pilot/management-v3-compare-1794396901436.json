@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "scope": "MANAGEMENT_COLLAPSED_NAV_CLUSTER_READ_ONLY_NOT_FULL_ACCEPTANCE",
+  "version": "v3",
+  "oraclePin": "599dbc2098366ad1f2a0c0273c20a70fef3c72101fbf6bdc41763a0eac42c497",
+  "status": "V3_PILOT_ORACLES_PASSED",
+  "baselineProof": {
+    "schemaVersion": 1,
+    "capabilities": [
+      "management-menu-stop-preview-cancel"
+    ],
+    "scope": "MANAGEMENT_MENU_PREVIEW_CANCEL_ONLY",
+    "status": "PILOT_BASELINE_PROVEN",
+    "captureDigest": "b25e991a9a84c17df49663dd6c4e0c1c22b12f533305fc7555f48e8de71a2072",
+    "sourceDigest": "a7cd5e2b50b1cefb71549c86a5ea622794fc05e4f2660a85c710a474bbfe0176",
+    "report": {
+      "path": "analyze-info/runs/pilot/management-self-replay-1794396618967.json",
+      "sha256": "2abe524513ca80f41683c636394ac81c2530398832e29f66ef715725c29eb365"
+    },
+    "artifacts": [
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/list-ready.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/list-ready.png",
+        "sha256": "a4aae8b0e7546b1c566b0af1cd21b1c6c913203234324ad3352958a439341f2c",
+        "bytes": 181682
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/list-ready.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/list-ready.png",
+        "sha256": "a4aae8b0e7546b1c566b0af1cd21b1c6c913203234324ad3352958a439341f2c",
+        "bytes": 181682
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/menu-open.ui.json",
+        "sha256": "a0c74f0972373796bf2a5abbd08c7222c21ffbd405d9558032b04a35711a2ad6",
+        "bytes": 3537
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/menu-open.png",
+        "sha256": "973960a52ca7dad81252558c85ec1a9f2714b48eeec7c74eebbf40ec24834171",
+        "bytes": 186507
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/menu-open.ui.json",
+        "sha256": "df10a80128f76e3525e8b79a485514b578e99fd7cb419f5c0bf6aab7cbd67ae5",
+        "bytes": 3537
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/menu-open.png",
+        "sha256": "973960a52ca7dad81252558c85ec1a9f2714b48eeec7c74eebbf40ec24834171",
+        "bytes": 186507
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/stop-type-preview.ui.json",
+        "sha256": "8d0ce8024501f776522a8edb184728c09988c2410a6fe06799d4c577fc07bb4e",
+        "bytes": 6839
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/stop-type-preview.png",
+        "sha256": "04614f84f7293e59382dc70897298310bbb654289ab1af7d99513f7ac2993883",
+        "bytes": 158896
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/stop-type-preview.ui.json",
+        "sha256": "8d0ce8024501f776522a8edb184728c09988c2410a6fe06799d4c577fc07bb4e",
+        "bytes": 6839
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/stop-type-preview.png",
+        "sha256": "04614f84f7293e59382dc70897298310bbb654289ab1af7d99513f7ac2993883",
+        "bytes": 158896
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/cancel-restored-list.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/cancel-restored-list.png",
+        "sha256": "a4aae8b0e7546b1c566b0af1cd21b1c6c913203234324ad3352958a439341f2c",
+        "bytes": 181682
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/cancel-restored-list.ui.json",
+        "sha256": "c91d2da57809cddc0274950cb6335578a7fe05eb8f5122331871e740ef253c8e",
+        "bytes": 248
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/cancel-restored-list.png",
+        "sha256": "a4aae8b0e7546b1c566b0af1cd21b1c6c913203234324ad3352958a439341f2c",
+        "bytes": 181682
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/collapsed-nav-ready.ui.json",
+        "sha256": "1cc967548f6b2c921319d3e3b28f9c780ad618f4db5429b592818c58a69b27de",
+        "bytes": 3524
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/collapsed-nav-ready.png",
+        "sha256": "a4aae8b0e7546b1c566b0af1cd21b1c6c913203234324ad3352958a439341f2c",
+        "bytes": 181682
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/collapsed-nav-ready.ui.json",
+        "sha256": "1cc967548f6b2c921319d3e3b28f9c780ad618f4db5429b592818c58a69b27de",
+        "bytes": 3524
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/collapsed-nav-ready.png",
+        "sha256": "a4aae8b0e7546b1c566b0af1cd21b1c6c913203234324ad3352958a439341f2c",
+        "bytes": 181682
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/nav-cluster-ready.ui.json",
+        "sha256": "dff77fb07c4391ae1b1911d9c2c3e82f76c0366d9c18d1795309f7b3b5ec96df",
+        "bytes": 9080
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/nav-cluster-ready.png",
+        "sha256": "d5eb31ff79fbc5728105fee10cb43efb1f350af08dd0a36012fd5b3747209c65",
+        "bytes": 45646
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/nav-cluster-ready.ui.json",
+        "sha256": "dff77fb07c4391ae1b1911d9c2c3e82f76c0366d9c18d1795309f7b3b5ec96df",
+        "bytes": 9080
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/nav-cluster-ready.png",
+        "sha256": "d5eb31ff79fbc5728105fee10cb43efb1f350af08dd0a36012fd5b3747209c65",
+        "bytes": 45646
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/cluster-search-empty.ui.json",
+        "sha256": "14360303f828325f3b34574a52328d43e2ae5e26763737e0f5b682d582bb7064",
+        "bytes": 4660
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/cluster-search-empty.png",
+        "sha256": "4c02a8f4f5e9bf573028f7dc0466206fe85889a5ab0314e5c8b796d55327caf1",
+        "bytes": 53107
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/cluster-search-empty.ui.json",
+        "sha256": "14360303f828325f3b34574a52328d43e2ae5e26763737e0f5b682d582bb7064",
+        "bytes": 4660
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/cluster-search-empty.png",
+        "sha256": "4c02a8f4f5e9bf573028f7dc0466206fe85889a5ab0314e5c8b796d55327caf1",
+        "bytes": 53107
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/cluster-search-restored.ui.json",
+        "sha256": "5c8551b992185c32c349a03d8a375b38b85bf8ff0f5b4f83c595352663ba3bd7",
+        "bytes": 4653
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8/cluster-search-restored.png",
+        "sha256": "88dbca586c8785b9aa7cfae165d729675173867e89f010474f8ff82ee5920d69",
+        "bytes": 45640
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/cluster-search-restored.ui.json",
+        "sha256": "5c8551b992185c32c349a03d8a375b38b85bf8ff0f5b4f83c595352663ba3bd7",
+        "bytes": 4653
+      },
+      {
+        "path": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-biHE3Q/cluster-search-restored.png",
+        "sha256": "88dbca586c8785b9aa7cfae165d729675173867e89f010474f8ff82ee5920d69",
+        "bytes": 45640
+      }
+    ],
+    "exclusions": [
+      {
+        "path": "/api/v1/frontend_event/report/",
+        "method": "POST",
+        "ruleId": "telemetry-excluded"
+      },
+      {
+        "path": "/api/v1/frontend_event/report/",
+        "method": "POST",
+        "ruleId": "telemetry-excluded"
+      }
+    ],
+    "fullProductAccepted": false
+  },
+  "runtimeErrors": [],
+  "captureDigest": "b25e991a9a84c17df49663dd6c4e0c1c22b12f533305fc7555f48e8de71a2072",
+  "privateInput": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-management-E0r5c8",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-self-replay-RpbFRu",
+  "fixtureReadRecords": 18,
+  "consumedRecords": 18,
+  "businessRequestsForwarded": 0,
+  "networkAudit": {
+    "scope": "CONTEXT_ROUTE_HANDLER_AUDIT",
+    "interceptedBusiness": 20,
+    "forwardedStatic": 488
+  },
+  "checkpoints": [
+    {
+      "id": "list-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "menu-open",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "stop-type-preview",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "cancel-restored-list",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "collapsed-nav-ready",
+      "route": "#/manage/log-collection/collection-item/list?bizId=5000140&spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "nav-cluster-ready",
+      "route": "#/manage/es-cluster-manage?spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "cluster-search-empty",
+      "route": "#/manage/es-cluster-manage?spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    },
+    {
+      "id": "cluster-search-restored",
+      "route": "#/manage/es-cluster-manage?spaceUid=bkcc__5000140",
+      "rowId": 33207,
+      "dataId": 1607471
+    }
+  ],
+  "cancellations": [],
+  "uiDifferences": [],
+  "failures": []
+}

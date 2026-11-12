@@ -246,7 +246,8 @@
   </div>
 </template>
 
-<script setup lang="ts">import { ServicesInstance } from '@/platform/services';
+<script setup lang="ts">import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
+import { ServicesInstance } from '@/platform/services';
 
   import { computed, ref, nextTick } from 'vue';
 
@@ -422,7 +423,7 @@
   });
   const indexfieldTable = ref(null);
   const addNewField = () => {
-    const fields = structuredClone(indexfieldTable.value.getData());
+    const fields = cloneReactiveData(indexfieldTable.value.getData());
     const newBaseFieldObj = {
       ...baseFieldObj.value,
       field_index: tableField.value.length + 1,
@@ -445,14 +446,14 @@
   }
 
   const handleEdit = () => {
-    formDataCopy.value = structuredClone(formData.value);
-    fieldsCopy.value = structuredClone(indexfieldTable.value.getData());
+    formDataCopy.value = cloneReactiveData(formData.value);
+    fieldsCopy.value = cloneReactiveData(indexfieldTable.value.getData());
     isEdit.value = true;
   };
 
   const handleCancel = async () => {
-    formData.value = structuredClone(formDataCopy.value);
-    tableField.value = structuredClone(fieldsCopy.value);
+    formData.value = cloneReactiveData(formDataCopy.value);
+    tableField.value = cloneReactiveData(fieldsCopy.value);
     nextTick(() => {
       isEdit.value = false;
     });

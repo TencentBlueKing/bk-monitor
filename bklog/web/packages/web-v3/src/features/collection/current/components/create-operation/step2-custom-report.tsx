@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
 import { Alert as TAlert, Loading as TLoading } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
@@ -75,7 +76,7 @@ export default defineComponent({
      * 保存初始表单数据快照
      */
     const saveInitialFormData = () => {
-      initialFormData.value = structuredClone(configData.value);
+      initialFormData.value = cloneReactiveData(configData.value);
     };
     /**
      * 判断配置是否有变更
@@ -490,7 +491,7 @@ export default defineComponent({
           {cardRender(cardConfig.value)}
           <div class='classify-btns'>
             {!props.isEdit && (
-              <TButton
+              <TButton theme='default' variant='outline'
                 class='mr-8'
                 onClick={() => {
                   emit('prev');

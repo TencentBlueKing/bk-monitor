@@ -33,7 +33,8 @@ import {
 } from 'tdesign-vue-next';
 import { Progress as TProgress } from 'tdesign-vue-next';
 
-import { Button as TButton } from 'tdesign-vue-next';
+import { Input as TInput, Button as TButton } from 'tdesign-vue-next';
+import { SearchIcon } from 'tdesign-icons-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, computed, onMounted, nextTick } from 'vue';
@@ -925,17 +926,21 @@ export default defineComponent({
               </TButton>
             )}
 
-            <bk-input
+            <TInput
               style='float: right; width: 360px'
               clearable={true}
               data-test-id='esAccessBox_input_search'
               placeholder={t('搜索名称、英文名称、地址、创建人')}
-              right-icon='bk-icon icon-search'
               value={params.value.keyword}
-              onRightIconClick={handleSearch}
-              onChange={(val: string) => (params.value.keyword = val)}
+              onChange={(val) => { params.value.keyword = String(val); }}
               onClear={handleSearch}
               onEnter={handleSearch}
+              v-slots={{suffix: () => (
+                <button type='button' class='cluster-search-submit' aria-label={t('搜索')}
+                  onMousedown={(event: MouseEvent) => event.preventDefault()} onClick={handleSearch}>
+                  <SearchIcon />
+                </button>
+              )}}
             />
           </div>
           <BklogLoading data-testid='cluster-table-loading' loading={tableLoading.value}>
@@ -953,12 +958,12 @@ export default defineComponent({
               }}
               data={tableDataPaged.value}
               data-test-id='esAccessBox_table_esAccessTableBox'
-              pagination={{
+              pagination={tableDataPaged.value.length && pagination.value.count > 0 ? {
                 current: pagination.value.current,
                 pageSize: pagination.value.limit,
                 total: pagination.value.count,
                 pageSizeOptions: pagination.value.limitList,
-              }}
+              } : undefined}
               onFilterChange={handleNativeFilterChange}
               onPageChange={({ current, pageSize }) => {
                 if (pageSize !== pagination.value.limit) handleLimitChange(pageSize);

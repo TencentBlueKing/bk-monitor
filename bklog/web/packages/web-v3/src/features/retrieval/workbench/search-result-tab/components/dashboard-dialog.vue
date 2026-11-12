@@ -353,6 +353,7 @@
 <template>
   <Dialog
     v-model:visible="visible"
+    data-testid="retrieve-dashboard-dialog"
     :close-on-overlay-click="false"
     :destroy-on-close="false"
     :header="t('添加到仪表盘')"
@@ -376,6 +377,7 @@
         <Input
           v-model="formData.chartName"
           class="dashboard-input-full"
+          data-testid="retrieve-dashboard-chart-name"
           :placeholder="t('请输入图表名称')"
           :maxlength="255"
           :clearable="true"
@@ -389,6 +391,7 @@
         <Select
           v-model="formData.directory"
           class="dashboard-input-full"
+          data-testid="retrieve-dashboard-directory"
           :filter="filterWithPinyin"
           filterable
         >
@@ -442,6 +445,7 @@
         <Select
           v-model="formData.dashboard"
           class="dashboard-input-full"
+          data-testid="retrieve-dashboard-target"
           :filter="filterWithPinyin"
           filterable
         >
@@ -490,11 +494,12 @@
     <template #footer>
       <Button
         theme="primary"
+        data-testid="retrieve-dashboard-submit"
         @click="handleSubmit"
       >
         {{ t('确定') }}
       </Button>
-      <Button theme="default" @click="handleClose">
+      <Button theme="default" data-testid="retrieve-dashboard-cancel" @click="handleClose">
         {{ t('取消') }}
       </Button>
     </template>

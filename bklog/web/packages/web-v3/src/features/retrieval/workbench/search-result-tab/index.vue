@@ -199,6 +199,7 @@
       <div
         v-if="!isExternal && !isSceneMode"
         class="btn-alert-dashboard btn-spacing"
+        data-testid="retrieve-add-dashboard"
         @click="handleAddAlertDashboard"
       >
         <span
@@ -221,6 +222,7 @@
     </div>
     <DashboardDialog
       :is-show="showDialog"
+      data-testid="retrieve-dashboard-dialog"
       @update:isShow="handleDialogUpdate"
       @on-collection-success="handleCollectionSuccess"
     />

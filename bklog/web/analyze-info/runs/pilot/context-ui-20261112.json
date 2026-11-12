@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-12",
+  "scope": "LIMITED_LIVE_CONTEXT_UI_NOT_FULL_MODULE_ACCEPTANCE",
+  "referenceIndex": 16176,
+  "v2Port": 8001,
+  "v3Port": 4175,
+  "testedV3Viewports": [
+    {
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "width": 1280,
+      "height": 800
+    }
+  ],
+  "restoredViewport": {
+    "width": 1728,
+    "height": 817
+  },
+  "intrinsicV2V3Measurements": {
+    "filterSelect": {
+      "width": 72,
+      "height": 32
+    },
+    "standaloneCheckbox": {
+      "width": 16,
+      "height": 18
+    },
+    "intervalInput": {
+      "width": 48,
+      "height": 26
+    },
+    "errorHighlightTag": {
+      "width": 71.3359375,
+      "height": 22,
+      "background": "rgb(255, 235, 204)"
+    },
+    "relatedTitleDivider": {
+      "width": 1,
+      "height": 14
+    }
+  },
+  "overlayBefore": {
+    "dialogZIndex": 3000,
+    "popoverZIndex": 2004,
+    "clickedFieldTargetOccluded": true
+  },
+  "overlayAfter": {
+    "dialogZIndex": 2002,
+    "popoverZIndex": 2004,
+    "fieldAddCounterChanged": true
+  },
+  "verified": [
+    "filter paste trims and creates one phrase without Enter",
+    "duplicate pasted filter does not add a second tag",
+    "duplicate Enter does not add a second highlight",
+    "five highlight limit through actual Enter and actual paste",
+    "five original palette colors and single tag deletion",
+    "1440x900 and 1280x800 controls and result title stay inside viewport",
+    "field add and delete drafts, one-field minimum, cancellation restores original one field",
+    "Escape hides child popover while parent remains visible",
+    "native draggable renders UL and data-draggable items without slot error"
+  ],
+  "remaining": [
+    "real drag gesture did not produce a proven reorder in two attempts; source model-event tests pass but real drag remains unverified",
+    "Vue2 inter-tag caret insertion and other implicit library keyboard behaviors require dedicated comparison",
+    "full success/error/permission/cancel scenarios and persisted field settings on isolated resources",
+    "same-data V2/V3 screenshots and exportable screenshot artifacts; current evidence is interactive DOM inspection and displayed screenshots",
+    "all other routes, modules and nested overlay states"
+  ],
+  "businessAccepted": false,
+  "uiAccepted": false
+}

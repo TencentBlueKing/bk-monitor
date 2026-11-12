@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "scope": "CONTROLLED_NATIVE_MODEL_CONTRACT_NOT_PRODUCT_ACCEPTANCE",
+  "status": "NATIVE_MODEL_CONTRACT_FAILED",
+  "checks": [
+    {
+      "id": "native-checkbox-model",
+      "passed": true
+    },
+    {
+      "id": "native-checkbox-group-model",
+      "passed": true
+    },
+    {
+      "id": "native-radio-group-model",
+      "passed": true
+    },
+    {
+      "id": "native-input-trim-enter-model",
+      "passed": true
+    },
+    {
+      "id": "native-select-model",
+      "passed": true
+    },
+    {
+      "id": "native-switch-model",
+      "passed": false
+    },
+    {
+      "id": "native-tag-input-model",
+      "passed": true
+    },
+    {
+      "id": "native-model-reset",
+      "passed": true
+    }
+  ],
+  "failures": [
+    {
+      "id": "native-switch-model",
+      "reason": "locator.click: Timeout 7000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('switch', { name: '启用自动刷新', exact: true })\u001b[22m\n"
+    }
+  ],
+  "blocked": [],
+  "runtimeErrors": []
+}

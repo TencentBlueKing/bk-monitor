@@ -902,7 +902,7 @@ export default defineComponent({
           <div class='label-form-box'>
             <span class='label-title'>{t('采集目标')}</span>
             <div class='form-box'>
-              <TButton
+              <TButton theme='default' variant='outline'
                 class={{
                   'target-btn': true,
                   error: isTargetNodesEmpty.value,

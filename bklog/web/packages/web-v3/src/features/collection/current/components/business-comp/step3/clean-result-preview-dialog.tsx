@@ -921,7 +921,7 @@ export default defineComponent({
                 logExampleText.value = val;
               }}
             />
-            <TButton
+            <TButton theme='default' variant='outline'
               class='re-debug-btn'
               disabled={!logExampleText.value || isDebugLoading.value}
               onClick={handleDebug}

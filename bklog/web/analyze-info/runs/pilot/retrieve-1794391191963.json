@@ -1,0 +1,610 @@
+{
+  "schemaVersion": 1,
+  "scope": "V2_PILOT_CAPTURE_NOT_ACCEPTED_BASELINE",
+  "status": "CAPTURED_NEEDS_SELF_REPLAY",
+  "privateDir": "/var/folders/wq/4k5tmrf90nxdmlzqcffwlfcc0000gn/T/bklog-v2-pilot-4USduA",
+  "checkpoints": [
+    {
+      "id": "query-ready",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391191037
+    },
+    {
+      "id": "expanded-kv-filter",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391191265
+    },
+    {
+      "id": "expanded-no-match",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391191382
+    },
+    {
+      "id": "expanded-clear-restored",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391191547
+    },
+    {
+      "id": "expanded-json",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391191781
+    },
+    {
+      "id": "collapsed-restored",
+      "route": "#/retrieve/16176?spaceUid=bkcc__5000140&bizId=5000140&start_time=1794240000000&end_time=1794247199000&interval=auto&timezone=Asia%2FShanghai",
+      "rowCount": 50,
+      "capturedAt": 1794391191961
+    }
+  ],
+  "failures": [],
+  "requests": [
+    {
+      "id": "request-1",
+      "path": "/api/v1/meta/index_html_environment/",
+      "method": "GET",
+      "signature": "a0e934b2874256a1b3b3cc2e0cc7b7b6500d7d29c8a644b911b4ab54137ef7cc",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "bootstrap-environment"
+      },
+      "startedAt": 1794391184208,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "f9c29da0923f7504d7de085fceecfe34531704c891888b667986f94d1e6e896e",
+          "bytes": 23286
+        }
+      },
+      "finishedAt": 1794391184536
+    },
+    {
+      "id": "request-2",
+      "path": "/api/v1/meta/mine/",
+      "method": "GET",
+      "signature": "ea547cf4659b16b9633fcd2c95bd23a142bba3ab821dfa96139016ac552a673c",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getUsername"
+      },
+      "startedAt": 1794391184533,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "f38fffb2d099e44d9087230af1a5abbd2faf2b1ae75f2617d769f084fb12e72e",
+          "bytes": 178
+        }
+      },
+      "finishedAt": 1794391184926
+    },
+    {
+      "id": "request-3",
+      "path": "/api/v1/meta/globals/",
+      "method": "GET",
+      "signature": "f15ed6e063edd89b30587ef4e06ad21eaeb11af59800fc08ca1cb9b3b2e0fea4",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "globals"
+      },
+      "startedAt": 1794391184534,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "39d1a4484317f2a3e9d2f3a1dd62122581860d771a75941dab8d94de66e0f273",
+          "bytes": 22469
+        }
+      },
+      "finishedAt": 1794391184774
+    },
+    {
+      "id": "request-4",
+      "path": "/api/v1/meta/spaces/mine/",
+      "method": "GET",
+      "signature": "c87b502c3177d8c83b860a08efd93bb3358f06fd03cfc277d32e5d6bbcdf1ee7",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getMySpaceList"
+      },
+      "startedAt": 1794391184534,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "651146c20f484eaa43e2f0eb2c0bf83ad8bfadce4b6fd575395497b5fe9ac5e5",
+          "bytes": 329
+        }
+      },
+      "finishedAt": 1794391184804
+    },
+    {
+      "id": "request-5",
+      "path": "/api/v1/meta/spaces/mine/",
+      "method": "GET",
+      "signature": "b36bb8cad51623129b08b79cfea61014edd532585a24c03115f4f0b160f3df8b",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getMySpaceList"
+      },
+      "startedAt": 1794391184923,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "3dac6906da0532514093107f6ca7f5055f6c1b7cd25aec3e8bf2cb86212b905f",
+          "bytes": 41614537
+        }
+      },
+      "finishedAt": 1794391190321
+    },
+    {
+      "id": "request-6",
+      "path": "/notice/announcements/",
+      "method": "GET",
+      "signature": "ee1b87d664ce439d809dee9b91100ec8c69afa521433044ae551a0dc00dead85",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "notice-list"
+      },
+      "startedAt": 1794391184935,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 404,
+        "contentType": "text/html; charset=utf-8",
+        "classification": "HTTP_ERROR",
+        "body": {
+          "sha256": "85c4af702b109121cebbea5d5a07524d654f43c81e35701eb8971a7c3e14dd8e",
+          "bytes": 160
+        }
+      },
+      "finishedAt": 1794391185000
+    },
+    {
+      "id": "request-7",
+      "path": "/api/v1/frontend_event/report/",
+      "method": "POST",
+      "signature": "28f6e8da30c55759088d7c8b144fdcc82c030728fdbcc4b17b934e68e0daae6c",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "BLOCK",
+        "reason": "EXCLUDED_TELEMETRY",
+        "ruleId": "telemetry-excluded"
+      },
+      "startedAt": 1794391184944,
+      "complete": false,
+      "finishedAt": 1794391184951,
+      "failure": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "cancelled": false
+    },
+    {
+      "id": "request-8",
+      "path": "/api/v1/meta/menu/",
+      "method": "GET",
+      "signature": "718a254161a8ca889e32d2730e15fc3c2a67b7d1024a0157f7ea8cf6c8bfa2a2",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "menu"
+      },
+      "startedAt": 1794391184953,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "4a230dc8f4f66c29aa54489fe07303cfd45080dd1f7654fd647d3139d20c59fc",
+          "bytes": 3486
+        }
+      },
+      "finishedAt": 1794391185431
+    },
+    {
+      "id": "request-9",
+      "path": "/api/v1/meta/user_guide/",
+      "method": "GET",
+      "signature": "dfd8648a7d30130f3d710907fd61917644ec0c8afa29d86e1b348078f422b6ff",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getUserGuide"
+      },
+      "startedAt": 1794391184994,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "bdd636a9b8e11261102ca4674cd9abbc0cf1db65c7bae13982b78801ef9f4747",
+          "bytes": 397
+        }
+      },
+      "finishedAt": 1794391185432
+    },
+    {
+      "id": "request-10",
+      "path": "/api/v1/ai_assistant/session/",
+      "method": "GET",
+      "signature": "030cb53cc19ccb392d090312430afb08cf488c9b412bcf7c5ade2afe61922689",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "ai-session-read"
+      },
+      "startedAt": 1794391185427,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "8b26d337ec0ea6e2d8c342e3abc0d97a433fbba4c8356502f6ebf2d5b454c757",
+          "bytes": 162
+        }
+      },
+      "finishedAt": 1794391185796
+    },
+    {
+      "id": "request-11",
+      "path": "/api/v1/search/index_set/",
+      "method": "GET",
+      "signature": "a9155509d37185fb22df76add440fe63cf53e660e745cb0487558b298be3e232",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getIndexSetList"
+      },
+      "startedAt": 1794391185428,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "ed870feffb93ecb30b4b5c5430c60da33005284ae82e8fdf4c48d641e728570d",
+          "bytes": 204533
+        }
+      },
+      "finishedAt": 1794391186733
+    },
+    {
+      "id": "request-12",
+      "path": "/api/v1/search/favorite/list_by_group/",
+      "method": "GET",
+      "signature": "f733bf30c2df0aa3a90f5f386c0d82e2a99c7e366794cba22a4107967e96d009",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getFavoriteByGroupList"
+      },
+      "startedAt": 1794391185428,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "6ee53a6e8acb31b7e100b6993507de8217322a0fcf38c86ae3cfc3c092f95f20",
+          "bytes": 4408
+        }
+      },
+      "finishedAt": 1794391185779
+    },
+    {
+      "id": "request-13",
+      "path": "/api/v1/ai_assistant/session/",
+      "method": "POST",
+      "signature": "b9e57a6ffa8b15a92cbe4dd00dc964e80ea5720664f334a25760b097f3462359",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "BLOCK",
+        "reason": "WRITE_NOT_AUTHORIZED",
+        "ruleId": "ai-session-create"
+      },
+      "startedAt": 1794391185796,
+      "complete": false,
+      "finishedAt": 1794391185797,
+      "failure": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "cancelled": false
+    },
+    {
+      "id": "request-14",
+      "path": "/api/v1/search/index_set/16176/export_history/",
+      "method": "GET",
+      "signature": "45f6d59865f8dc802d5feb1206821402805c4b8ff7a0b856ddc01eec226303d3",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getExportHistoryList"
+      },
+      "startedAt": 1794391186727,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "b0a2be2aeb22535a724ddf74b011b0fde51f60c7f4210dd6d40267e77ba1e57d",
+          "bytes": 2649
+        }
+      },
+      "finishedAt": 1794391187054
+    },
+    {
+      "id": "request-15",
+      "path": "/api/v1/alert_strategy/16176/alert_records/",
+      "method": "POST",
+      "signature": "59420a32ffd7ee619c3f3a694ba34bb0ae8ba925493d08408428a10753129028",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "alertList"
+      },
+      "startedAt": 1794391186728,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "cb6b53990957c5ce5efe63f87a22ec58d96c51b524a012ca8282f791bb3fb917",
+          "bytes": 330
+        }
+      },
+      "finishedAt": 1794391187538
+    },
+    {
+      "id": "request-16",
+      "path": "/api/v1/search/scene/scenes/",
+      "method": "GET",
+      "signature": "a937d9e03c8c23ceaae8e88e024c66ed2479ab65d6d005552b9a72baaf5ef2e2",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getSceneConfigs"
+      },
+      "startedAt": 1794391186728,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "36182c1e05bdc6e97a5a4005e64687992b7a356b079998bed52717b91b1695a0",
+          "bytes": 3085
+        }
+      },
+      "finishedAt": 1794391186994
+    },
+    {
+      "id": "request-17",
+      "path": "/api/v1/search/index_set/16176/fields/",
+      "method": "GET",
+      "signature": "120951e6c5e510d27de4062d6e96bc8938746d2b9dbf4cdd2060792ebac0def5",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getLogTableHead"
+      },
+      "startedAt": 1794391186729,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "09173f4fef6c045366b273760951e9aa5e0ca7a23338288e8985b36c7fc560b4",
+          "bytes": 46627
+        }
+      },
+      "finishedAt": 1794391187593
+    },
+    {
+      "id": "request-18",
+      "path": "/api/v1/field/index_set/statistics/total/",
+      "method": "POST",
+      "signature": "63b059ddb08273d481b78f16d73b990c57dafd616b556432d040ed3fc63102db",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "fieldStatisticsTotal"
+      },
+      "startedAt": 1794391186973,
+      "complete": false,
+      "finishedAt": 1794391187617,
+      "failure": "net::ERR_ABORTED",
+      "cancelled": true
+    },
+    {
+      "id": "request-19",
+      "path": "/api/v1/field/index_set/statistics/total/",
+      "method": "POST",
+      "signature": "5482651939299c55919da39b51af119c6158a1d6a8fa269d4db8912cea51113f",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "fieldStatisticsTotal"
+      },
+      "startedAt": 1794391187617,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "8e1cf990b1c506b055919bd48971426d8be62ca36998978e1fb01f42d8decd43",
+          "bytes": 66
+        }
+      },
+      "finishedAt": 1794391188325
+    },
+    {
+      "id": "request-20",
+      "path": "/api/v1/search/index_set/16176/search/",
+      "method": "POST",
+      "signature": "04029939858b11d8e52001d20a09ae589a9a1da339b49d769812b28d30b03158",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getLogTableList"
+      },
+      "startedAt": 1794391187674,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/x-ndjson; charset=utf-8",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "ef0ecfcf0371897b87942135d97e472a9d42bd9aeced51ba7bf822afdc9e173b",
+          "bytes": 225610
+        }
+      },
+      "finishedAt": 1794391188403,
+      "stream": {
+        "events": 52,
+        "errors": [],
+        "terminalObserved": true,
+        "complete": true
+      }
+    },
+    {
+      "id": "request-21",
+      "path": "/api/v1/search/index_set/16176/aggs/date_histogram/",
+      "method": "POST",
+      "signature": "0e6844135dbbd056a711f43686cedf36d1934e8bd4001c6dab205189d284af94",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "ALLOW",
+        "ruleId": "getLogChartList"
+      },
+      "startedAt": 1794391188323,
+      "complete": true,
+      "response": {
+        "transport": {
+          "source": "PLAYWRIGHT_REQUEST_OBJECT"
+        },
+        "status": 200,
+        "contentType": "application/json",
+        "classification": "RESPONSE_OBSERVED",
+        "body": {
+          "sha256": "317992bee16034d1c4ef69a7286ef660432642f099885626ffb002e70015efc0",
+          "bytes": 21908
+        }
+      },
+      "finishedAt": 1794391188791
+    },
+    {
+      "id": "request-22",
+      "path": "/api/v1/frontend_event/report/",
+      "method": "POST",
+      "signature": "2d6d98f326f739edeb8c31a2ad0173cbf361b62728036f9851a025df31220399",
+      "observedDuring": "bootstrap",
+      "causality": "UNPROVEN_OBSERVATION_WINDOW",
+      "policy": {
+        "decision": "BLOCK",
+        "reason": "EXCLUDED_TELEMETRY",
+        "ruleId": "telemetry-excluded"
+      },
+      "startedAt": 1794391188433,
+      "complete": false,
+      "finishedAt": 1794391188434,
+      "failure": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+      "cancelled": false
+    }
+  ]
+}

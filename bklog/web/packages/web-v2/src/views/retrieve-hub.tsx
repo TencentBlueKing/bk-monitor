@@ -27,6 +27,7 @@ import { defineComponent } from 'vue';
 
 import { useRoute } from 'vue-router/composables';
 import useStore from '@/hooks/use-store';
+import { markBranch } from '@/common/analyze-trace';
 import UnAuthorized from '@/views/un-authorized';
 const RetrieveV3 = () => import(/* webpackChunkName: 'logRetrieve-v3' */ '@/views/retrieve-v3/index');
 const RetrieveV1 = () => import(/* webpackChunkName: 'logRetrieve-v1' */ '@/views/retrieve/container');
@@ -45,15 +46,21 @@ export default defineComponent({
     return () => {
       // 恢复空间前不挂载检索页，避免初始化请求及 URL 适配丢失原始索引信息。
       if (store.state.spaceResolveFailed) {
+        markBranch('RetrieveHub.spaceResolveFailed', {
+          target: 'UnAuthorized',
+          routeName: route.name,
+        });
         return <UnAuthorized type='space' />;
       }
 
       if (route.name === 'retrieve') {
         if (version === 'v1') {
+          markBranch('RetrieveHub.version', { target: 'RetrieveV1', version });
           return <retrieve-v1></retrieve-v1>;
         }
       }
 
+      markBranch('RetrieveHub.version', { target: 'RetrieveV3', version });
       return <retrieve-v3></retrieve-v3>;
     };
   },

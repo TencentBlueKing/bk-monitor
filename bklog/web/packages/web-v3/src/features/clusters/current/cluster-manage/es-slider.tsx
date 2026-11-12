@@ -35,6 +35,7 @@ import {
   Form as TForm,
   FormItem as TFormItem,
   Input as TInput,
+  Textarea as TTextarea,
   InputNumber as TInputNumber,
   Select as TSelect,
   Option as TOption,
@@ -224,6 +225,7 @@ export default defineComponent({
     const retentionDaysList = ref<RetentionOption[]>([]); // 默认过期时间列表
     const maxDaysList = ref<RetentionOption[]>([]); // 最大过期时间列表
     const customRetentionDay = ref(''); // 默认过期时间输入框
+    const defaultRetentionPopupVisible = ref(false), maxRetentionPopupVisible = ref(false);
     const customMaxDay = ref(''); // 最大过期时间输入框
     const bizSelectID = ref(''); // 选中的当前按照业务属性选择
     const bizInputStr = ref(''); // 按照业务属性选择输入值
@@ -692,7 +694,7 @@ export default defineComponent({
           : formData.value.setup_config.retention_days_default > numberVal;
         if (isExceed) {
           messageError(t('默认天数不能大于最大天数'));
-          return;
+          return false;
         }
         if (isRetention) {
           if (!retentionDaysList.value.some((item) => item.id === stringVal)) {
@@ -714,9 +716,11 @@ export default defineComponent({
           customMaxDay.value = '';
         }
         document.body.click();
+        return true;
       } else {
         isRetention ? (customRetentionDay.value = '') : (customMaxDay.value = '');
         messageError(t('请输入有效数值'));
+        return false;
       }
     };
 
@@ -811,6 +815,8 @@ export default defineComponent({
           }
           updateDaysList();
         } else {
+          defaultRetentionPopupVisible.value = false;
+          maxRetentionPopupVisible.value = false;
           Object.assign(formData.value, {
             cluster_name: '',
             display_name: '',
@@ -976,68 +982,61 @@ export default defineComponent({
         <div class='flex-space'>
           <div class='flex-space-item'>
             <div class='space-item-label'>{t('默认')}</div>
-            <bk-select
-              v-slots={{
-                trigger: () => (
-                  <div class='bk-select-name'>
-                    {String(formData.value.setup_config.retention_days_default) + t('天')}
-                  </div>
-                ),
-                extension: () => (
-                  <div style='padding: 8px 0'>
-                    <bk-input
-                      placeholder={t('输入自定义天数，按 Enter 确认')}
-                      show-controls={false}
-                      size='small'
-                      type='number'
-                      value={customRetentionDay.value}
-                      onChange={(val: string) => (customRetentionDay.value = val)}
-                      onEnter={(val: string) => enterCustomDay(val, 'retention')}
-                    />
-                  </div>
-                ),
-              }}
+            <TSelect
               clearable={false}
               data-test-id='storageBox_select_selectExpiration'
+              popupProps={{overlayClassName: 'cluster-retention-default-options', zIndex: selectZIndex.value + 1}}
+              popupVisible={defaultRetentionPopupVisible.value}
+              onPopupVisibleChange={visible => (defaultRetentionPopupVisible.value = visible)}
               value={formData.value.setup_config.retention_days_default}
-              onChange={(val: string) => (formData.value.setup_config.retention_days_default = val)}
-            >
-              {retentionDaysList.value.map((option, index) => (
-                <bk-option id={option.id} key={index} disabled={option.disabled} name={option.name} />
-              ))}
-            </bk-select>
+              valueDisplay={() => String(formData.value.setup_config.retention_days_default) + t('天')}
+              options={retentionDaysList.value.map(option => ({value: option.id, label: option.name, disabled: option.disabled}))}
+              onChange={value => (formData.value.setup_config.retention_days_default = value)}
+              panelBottomContent={() => (
+                <div style='padding: 8px 0'>
+                  <TInput
+                    placeholder={t('输入自定义天数，按 Enter 确认')}
+                    size='small'
+                    type='number'
+                    value={customRetentionDay.value}
+                    onChange={value => (customRetentionDay.value = value == null ? '' : String(value))}
+                    onEnter={(value, {e}) => {
+                      e.stopPropagation();
+                      if (enterCustomDay(value == null ? '' : String(value), 'retention')) defaultRetentionPopupVisible.value = false;
+                    }}
+                  />
+                </div>
+              )}
+            />
           </div>
-
           <div class='flex-space-item'>
             <div class='space-item-label'>{t('最大')}</div>
-            <bk-select
-              v-slots={{
-                extension: () => (
-                  <div style='padding: 8px 0'>
-                    <bk-input
-                      placeholder={t('输入自定义天数，按 Enter 确认')}
-                      show-controls={false}
-                      size='small'
-                      type='number'
-                      value={customMaxDay.value}
-                      onChange={(val: string) => (customMaxDay.value = val)}
-                      onEnter={(val: string) => enterCustomDay(val, 'max')}
-                    />
-                  </div>
-                ),
-                trigger: () => (
-                  <div class='bk-select-name'>{String(formData.value.setup_config.retention_days_max) + t('天')}</div>
-                ),
-              }}
+            <TSelect
               clearable={false}
               data-test-id='storageBox_select_selectExpiration'
+              popupProps={{overlayClassName: 'cluster-retention-max-options', zIndex: selectZIndex.value + 1}}
+              popupVisible={maxRetentionPopupVisible.value}
+              onPopupVisibleChange={visible => (maxRetentionPopupVisible.value = visible)}
               value={formData.value.setup_config.retention_days_max}
-              onChange={(val: string) => (formData.value.setup_config.retention_days_max = val)}
-            >
-              {maxDaysList.value.map((option, index) => (
-                <bk-option id={option.id} key={index} disabled={option.disabled} name={option.name} />
-              ))}
-            </bk-select>
+              valueDisplay={() => String(formData.value.setup_config.retention_days_max) + t('天')}
+              options={maxDaysList.value.map(option => ({value: option.id, label: option.name, disabled: option.disabled}))}
+              onChange={value => (formData.value.setup_config.retention_days_max = value)}
+              panelBottomContent={() => (
+                <div style='padding: 8px 0'>
+                  <TInput
+                    placeholder={t('输入自定义天数，按 Enter 确认')}
+                    size='small'
+                    type='number'
+                    value={customMaxDay.value}
+                    onChange={value => (customMaxDay.value = value == null ? '' : String(value))}
+                    onEnter={(value, {e}) => {
+                      e.stopPropagation();
+                      if (enterCustomDay(value == null ? '' : String(value), 'max')) maxRetentionPopupVisible.value = false;
+                    }}
+                  />
+                </div>
+              )}
+            />
           </div>
         </div>
       </TFormItem>
@@ -1267,24 +1266,24 @@ export default defineComponent({
                             <div class='flex-space'>
                               <div class='flex-space-item'>
                                 <div class='space-item-label'>{t('默认')}</div>
-                                <bk-input
+                                <TInputNumber
                                   max={Number(formData.value.setup_config.number_of_replicas_max)}
                                   min={0}
-                                  type='number'
                                   value={formData.value.setup_config.number_of_replicas_default}
-                                  onChange={(val: number | string) =>
-                                    (formData.value.setup_config.number_of_replicas_default = Number(val))
+                                  style={{width: '100%'}}
+                                  onChange={(val) =>
+                                    (formData.value.setup_config.number_of_replicas_default = Number(val ?? ''))
                                   }
                                 />
                               </div>
                               <div class='flex-space-item'>
                                 <div class='space-item-label'>{t('最大')}</div>
-                                <bk-input
+                                <TInputNumber
                                   min={Number(formData.value.setup_config.number_of_replicas_default)}
-                                  type='number'
                                   value={formData.value.setup_config.number_of_replicas_max}
-                                  onChange={(val: number | string) =>
-                                    (formData.value.setup_config.number_of_replicas_max = Number(val))
+                                  style={{width: '100%'}}
+                                  onChange={(val) =>
+                                    (formData.value.setup_config.number_of_replicas_max = Number(val ?? ''))
                                   }
                                 />
                               </div>
@@ -1296,24 +1295,24 @@ export default defineComponent({
                             <div class='flex-space'>
                               <div class='flex-space-item'>
                                 <div class='space-item-label'>{t('默认')}</div>
-                                <bk-input
+                                <TInputNumber
                                   max={Number(formData.value.setup_config.es_shards_max)}
                                   min={1}
-                                  type='number'
                                   value={formData.value.setup_config.es_shards_default}
-                                  onChange={(val: number | string) =>
-                                    (formData.value.setup_config.es_shards_default = Number(val))
+                                  style={{width: '100%'}}
+                                  onChange={(val) =>
+                                    (formData.value.setup_config.es_shards_default = Number(val ?? ''))
                                   }
                                 />
                               </div>
                               <div class='flex-space-item'>
                                 <div class='space-item-label'>{t('最大')}</div>
-                                <bk-input
+                                <TInputNumber
                                   min={Number(formData.value.setup_config.es_shards_default)}
-                                  type='number'
                                   value={formData.value.setup_config.es_shards_max}
-                                  onChange={(val: number | string) =>
-                                    (formData.value.setup_config.es_shards_max = Number(val))
+                                  style={{width: '100%'}}
+                                  onChange={(val) =>
+                                    (formData.value.setup_config.es_shards_max = Number(val ?? ''))
                                   }
                                 />
                               </div>
@@ -1362,16 +1361,17 @@ export default defineComponent({
                                     </div>
                                   )}
                                 </div>
-                                <bk-select value={selectedHotId.value} onChange={(v: string) => handleHotSelected(v)}>
-                                  {hotColdAttrSet.value.map((option) => (
-                                    <bk-option
-                                      id={option.computedId}
-                                      key={option.computedId}
-                                      disabled={option.isSelected}
-                                      name={`${option.computedName}(${option.computedCounts})`}
-                                    />
-                                  ))}
-                                </bk-select>
+                                <TSelect
+                                  clearable
+                                  popupProps={{overlayClassName: 'cluster-hot-node-options', zIndex: selectZIndex.value + 1}}
+                                  value={selectedHotId.value}
+                                  options={hotColdAttrSet.value.map(option => ({
+                                    value: option.computedId,
+                                    label: `${option.computedName}(${option.computedCounts})`,
+                                    disabled: option.isSelected,
+                                  }))}
+                                  onChange={value => handleHotSelected(value == null ? '' : String(value))}
+                                />
                               </div>
 
                               {/* 冷数据标签 */}
@@ -1385,16 +1385,17 @@ export default defineComponent({
                                     </div>
                                   )}
                                 </div>
-                                <bk-select value={selectedColdId.value} onChange={(v: string) => handleColdSelected(v)}>
-                                  {hotColdAttrSet.value.map((option) => (
-                                    <bk-option
-                                      id={option.computedId}
-                                      key={option.computedId}
-                                      disabled={option.isSelected}
-                                      name={`${option.computedName}(${option.computedCounts})`}
-                                    />
-                                  ))}
-                                </bk-select>
+                                <TSelect
+                                  clearable
+                                  popupProps={{overlayClassName: 'cluster-cold-node-options', zIndex: selectZIndex.value + 1}}
+                                  value={selectedColdId.value}
+                                  options={hotColdAttrSet.value.map(option => ({
+                                    value: option.computedId,
+                                    label: `${option.computedName}(${option.computedCounts})`,
+                                    disabled: option.isSelected,
+                                  }))}
+                                  onChange={value => handleColdSelected(value == null ? '' : String(value))}
+                                />
                               </div>
                             </div>
                           )}
@@ -1449,12 +1450,12 @@ export default defineComponent({
 
                           {/* 集群说明 */}
                           <TFormItem class='illustrate' label={t('说明')}>
-                            <bk-input
+                            <TTextarea
                               maxlength={100}
-                              rows={3}
-                              type='textarea'
+                              class='cluster-description-textarea'
+                              autosize={{minRows: 3, maxRows: 3}}
                               value={formData.value.description}
-                              onChange={(val: string) => (formData.value.description = val)}
+                              onChange={(value) => (formData.value.description = String(value))}
                             />
                           </TFormItem>
                         </div>

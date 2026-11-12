@@ -352,7 +352,7 @@ export default defineComponent({
                 v-slots={{
                   'dropdown-trigger': () => (
                     <div>
-                      <TButton
+                      <TButton theme='default' variant='outline'
                         class='operate-btn'
                         data-test-id='LogCluster_button_addNewRules'
                       >
@@ -384,14 +384,14 @@ export default defineComponent({
                   ),
                 }}
               ></bk-dropdown-menu>
-              <TButton
+              <TButton theme='default' variant='outline'
                 class='operate-btn'
                 onClick={handleExportRule}
               >
                 {t('导出')}
               </TButton>
               {!isOriginTemplateConfig.value && (
-                <TButton
+                <TButton theme='default' variant='outline'
                   style='min-width: 72px'
                   class='operate-btn'
                   onClick={() => initDefaultConfig(false)}

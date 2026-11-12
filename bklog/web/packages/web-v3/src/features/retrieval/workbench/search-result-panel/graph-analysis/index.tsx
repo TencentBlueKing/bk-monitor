@@ -581,7 +581,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                   >
                     {this.$t('查询')}
                   </TButton>
-                  <TButton
+                  <TButton theme='default' variant='outline'
                     class='mr10'
                     size='small'
                     onClick={() => {
