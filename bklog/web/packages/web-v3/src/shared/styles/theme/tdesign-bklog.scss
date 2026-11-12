@@ -1,3 +1,4 @@
+@use '../../ui/loading/skeleton.scss';
 // V2 dialog footer buttons: 64×32, 14px, padding 0 15px, adjacent gap 10px (mr10).
 @mixin bklog-dialog-footer-buttons {
   .t-button {
@@ -298,72 +299,6 @@ body .t-notification {
       font-size: 12px;
       line-height: 24px;
     }
-  }
-}
-
-// Original four-dot indicator, supplied through TDesign Loading's indicator
-// slot. Request, delay, retry and unmount behavior stays in loading-contract.js.
-.bklog-loading-dots {
-  position: relative;
-  display: inline-block;
-  width: 75px;
-  height: 14px;
-
-  > span {
-    position: absolute;
-    top: 0;
-    width: 14px;
-    height: 14px;
-    border-radius: 19px;
-    transform: scale(0.6);
-    animation: bklog-loading-scale 0.8s infinite alternate;
-  }
-
-  @each $index, $color, $delay in (1, #fd6154, 0.1s), (2, #ffb726, 0.25s), (3, #4cd084, 0.4s), (4, #57a3f1, 0.55s) {
-    > span:nth-child(#{$index}) {
-      left: ($index - 1) * 20px;
-      background-color: $color;
-      animation-delay: $delay;
-    }
-  }
-
-  &--small {
-    width: 45px;
-
-    > span {
-      width: 10px;
-      height: 10px;
-    }
-
-    @for $index from 1 through 4 {
-      > span:nth-child(#{$index}) {
-        left: ($index - 1) * 15px;
-      }
-    }
-  }
-
-  &--mini {
-    width: 30px;
-
-    > span {
-      width: 6px;
-      height: 6px;
-    }
-
-    @for $index from 1 through 4 {
-      > span:nth-child(#{$index}) {
-        left: ($index - 1) * 10px;
-      }
-    }
-  }
-}
-
-@keyframes bklog-loading-scale {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(0.6);
   }
 }
 

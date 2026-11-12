@@ -1,3 +1,5 @@
+import { bindTargetContracts } from './runtime-target.mjs';
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -37,9 +39,9 @@ const require = createRequire(new URL('../../packages/web-v3/package.json', impo
 const {chromium} = require('@playwright/test');
 const target = process.argv[2];
 if (!target || new URL(target).hostname !== 'appdev.woa.com') throw new Error('DEV_HOST_REQUIRED');
-const scenario = JSON.parse(readFileSync(new URL(process.env.BKLOG_NAV_CLUSTER_PREVIEW === '1' ? '../scenarios/management-nav-cluster-read.json' : '../scenarios/management-menu-cancel.json', import.meta.url), 'utf8'));
-const graph = JSON.parse(readFileSync(new URL('../source/entry-graph.json', import.meta.url), 'utf8'));
-const rules = JSON.parse(readFileSync(new URL('../spec/read-policy.json', import.meta.url), 'utf8')).rules;
+const scenario = JSON.parse(readFileSync(localArtifactUrl(process.env.BKLOG_NAV_CLUSTER_PREVIEW === '1' ? 'scenarios/management-nav-cluster-read.json' : 'scenarios/management-menu-cancel.json'), 'utf8'));
+const graph = JSON.parse(readFileSync(localArtifactUrl('source/entry-graph.json'), 'utf8'));
+const rules = bindTargetContracts(JSON.parse(readFileSync(new URL('../spec/read-policy.json', import.meta.url), 'utf8')).rules, target);
 for (const ref of [...graph.files, ...scenario.sourceRefs, ...rules.map(rule => rule.source)]) {
   const body = readFileSync(new URL('../../packages/web-v2/src/' + ref.file, import.meta.url));
   if (createHash('sha256').update(body).digest('hex') !== ref.sha256) throw new Error('CAPTURE_SOURCE_CHANGED');
@@ -53,9 +55,9 @@ try {
   const context = await browser.newContext({viewport: scenario.context.viewport, timezoneId: scenario.context.timezone, locale: scenario.context.locale, serviceWorkers: 'block'});
   const transport = await createCaptureTransport(context, scenario.context.clockEpochMs);page = transport.page;
   page.on('pageerror', error => runtimeErrors.push(error.message.replace(/https?:[^ ]+/g, '<url>').slice(0, 300)));
-  recorder = await installRecorder(context, {origin: new URL(target).origin, rules, privateDir, businessContext: {spaceUid: 'bkcc__5000140', bizId: '5000140'}, bodyFallback: transport.bodyFallback});
+  recorder = await installRecorder(context, {origin: new URL(target).origin, rules, privateDir, businessContext: scenario.context, bodyFallback: transport.bodyFallback});
   await page.goto(target, {waitUntil: 'domcontentloaded', timeout: 60000});
-  await runManagementMenuPilot(page, {entries: recorder.entries, privateDir, checkpoints, readBody: entry => readFileSync(resolve(privateDir, entry.response.body.path), 'utf8'), readRequest: entry => JSON.parse(readFileSync(resolve(privateDir, entry.request.path), 'utf8')), setPhase: id => recorder.phase(id), labelPreview: process.env.BKLOG_LABEL_PREVIEW === '1', labelCancelPreview: process.env.BKLOG_LABEL_CANCEL_PREVIEW === '1', clusterSearchPreview: process.env.BKLOG_CLUSTER_SEARCH_PREVIEW === '1', navClusterPreview: process.env.BKLOG_NAV_CLUSTER_PREVIEW === '1'});
+  await runManagementMenuPilot(page, {entries: recorder.entries, privateDir, checkpoints, expectedContext: scenario.context, readBody: entry => readFileSync(resolve(privateDir, entry.response.body.path), 'utf8'), readRequest: entry => JSON.parse(readFileSync(resolve(privateDir, entry.request.path), 'utf8')), setPhase: id => recorder.phase(id), labelPreview: process.env.BKLOG_LABEL_PREVIEW === '1', labelCancelPreview: process.env.BKLOG_LABEL_CANCEL_PREVIEW === '1', clusterSearchPreview: process.env.BKLOG_CLUSTER_SEARCH_PREVIEW === '1', navClusterPreview: process.env.BKLOG_NAV_CLUSTER_PREVIEW === '1'});
 } catch (error) {
   failures.push({reason: error.message.slice(0, 700)});
   await page?.screenshot({path: resolve(privateDir, 'failure.png')}).catch(() => {});
@@ -65,9 +67,9 @@ try {
   if (runtimeErrors.length) failures.push({reason: 'UNCAUGHT_RUNTIME_ERRORS', count: runtimeErrors.length});
   recorder?.save('capture.json', {contractPin, clusterSearchPreview: process.env.BKLOG_CLUSTER_SEARCH_PREVIEW === '1', pilotMode: process.env.BKLOG_NAV_CLUSTER_PREVIEW === '1' ? 'navigation' : process.env.BKLOG_LABEL_CANCEL_PREVIEW === '1' ? 'labels-cancel' : process.env.BKLOG_LABEL_PREVIEW === '1' ? 'labels' : 'menu', scenarioId: scenario.id, scenarioRevision: scenario.revision, sourceRefs: scenario.sourceRefs, sourceManifest: graph.files, sourceDigest: graph.sourceDigest, context: scenario.context});
   await browser.close();
-  const out = new URL('../runs/pilot/', import.meta.url);mkdirSync(out, {recursive: true});
+  const out = localArtifactUrl('runs/pilot/');mkdirSync(out, {recursive: true});
   const result = {schemaVersion: 1, scope: 'MANAGEMENT_PREVIEW_CANCEL_NO_RESOURCE_MUTATION', status: failures.length ? 'INVALID_RUN' : 'CAPTURED_NEEDS_SELF_REPLAY', privateDir, checkpoints, failures, runtimeErrors, oraclePin: contractPin.digest, requests: recorder?.publicSummary()};
   writeFileSync(new URL(`management-${Date.now()}.json`, out), JSON.stringify(result, null, 2) + '\n');
-  console.log(JSON.stringify({...result, requests: recorder?.entries.length, checkpoints: checkpoints.map(c => c.id)}));
+  console.log(JSON.stringify({status: result.status, details: 'PRIVATE_LOCAL_REPORT'}));
   if (failures.length) process.exitCode = 1;
 }

@@ -1,3 +1,4 @@
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -75,9 +76,9 @@ export function routeEntries(graph, routes, readSource, {componentPrefixes = ['v
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = fileURLToPath(new URL('../../packages/web-v2/src/', import.meta.url));
-  const graph = JSON.parse(readFileSync(new URL('../source/entry-graph.json', import.meta.url), 'utf8'));
-  const routes = JSON.parse(readFileSync(new URL('../source/routes.json', import.meta.url), 'utf8'));
+  const graph = JSON.parse(readFileSync(localArtifactUrl('source/entry-graph.json'), 'utf8'));
+  const routes = JSON.parse(readFileSync(localArtifactUrl('source/routes.json'), 'utf8'));
   const entries = routeEntries(graph, routes, file => readFileSync(resolve(root, file), 'utf8'));
-  writeFileSync(new URL('../source/route-entries.json', import.meta.url), JSON.stringify(entries, null, 2) + '\n');
+  writeFileSync(localArtifactUrl('source/route-entries.json'), JSON.stringify(entries, null, 2) + '\n');
   console.log(JSON.stringify({routes: entries.length, withComponents: entries.filter(e => e.componentSources.length).length, localLayouts: entries.filter(e => e.entryKind === 'LOCAL_LAYOUT').length, unresolvedFactories: entries.flatMap(e => e.unresolvedFactories).length, scope: 'SOURCE_PROVENANCE_NOT_ACCEPTANCE'}));
 }

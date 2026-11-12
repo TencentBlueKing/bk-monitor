@@ -291,9 +291,9 @@ test('template list keeps ordinary, union, scene and embedded request contracts'
       const calls = [];
       const localStore = {
         state: {
-          bkBizId: 5000140,
+          bkBizId: 900001,
           indexItem: { scene_active: 'test-scene' },
-          unionIndexList: [16176, 16462],
+          unionIndexList: [900101, 900105],
           isUnionSearch: mode === 'union',
           storage: {},
         },
@@ -302,7 +302,7 @@ test('template list keeps ordinary, union, scene and embedded request contracts'
       const component = loadScriptSetup(source, {
         useStore: () => localStore,
         useLocale: () => ({ $t: (value) => value }),
-        useRoute: () => ({ params: { indexId: '16176' }, query: { indexId: '16462' } }),
+        useRoute: () => ({ params: { indexId: '900101' }, query: { indexId: '900105' } }),
         ServicesInstance: {
           retrieve: {
             sceneListConfig: async (options) => {
@@ -320,11 +320,11 @@ test('template list keeps ordinary, union, scene and embedded request contracts'
       await model.getFiledConfigList();
       const expected =
         mode === 'scene'
-          ? { bk_biz_id: 5000140, scene_id: 'test-scene', scope: 'default' }
+          ? { bk_biz_id: 900001, scene_id: 'test-scene', scope: 'default' }
           : {
               ...(mode === 'union'
-                ? { index_set_ids: [16176, 16462] }
-                : { index_set_id: mode === 'embedded' ? '16462' : '16176' }),
+                ? { index_set_ids: [900101, 900105] }
+                : { index_set_id: mode === 'embedded' ? '900105' : '900101' }),
               scope: 'default',
               index_set_type: mode === 'union' ? 'union' : 'single',
             };
@@ -372,7 +372,7 @@ function setupAliases() {
         getters: { rawFieldList: original },
         dispatch: async (name) => calls.push(['dispatch', name]),
       }),
-      useRoute: () => ({ params: { indexId: '16176' } }),
+      useRoute: () => ({ params: { indexId: '900101' } }),
       useLocale: () => ({ t: (value) => value }),
       useRetrieveEvent: () => ({ addEvent: (name, fn) => events.set(name, fn) }),
       RetrieveEvent: { ALIAS_CONFIG_OPEN: 'alias-open' },
@@ -429,7 +429,7 @@ test('alias validation preserves V2 naming restrictions and submission includes 
   assert.equal(log.aliasErr, '');
   await model.submit();
   assert.deepEqual(calls.find((row) => row[0] === 'save')[1], {
-    params: { index_set_id: '16176' },
+    params: { index_set_id: '900101' },
     data: {
       alias_settings: [
         { field_name: '__ext.pod', query_alias: 'pod', path_type: 'keyword' },

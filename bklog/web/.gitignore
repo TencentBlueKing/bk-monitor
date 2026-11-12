@@ -179,3 +179,25 @@ packages/web-v3/tests/helpers/*
 !packages/web-v3/tests/search-select-focus-native.test.mjs
 
 !packages/web-v3/tests/collection-tag-filter-native.test.mjs
+
+# V3 unified skeleton lifecycle and loading entry regression contracts.
+!packages/web-v3/tests/loading-contract.test.mjs
+!packages/web-v3/tests/collection-loading-pilot.test.mjs
+!packages/web-v3/tests/retrieval-loading-pilot.test.mjs
+!packages/web-v3/tests/domain-loading-small.test.mjs
+!packages/web-v3/tests/command-loading-pilot.test.mjs
+!packages/web-v3/tests/collection-index-set-cell-native.test.mjs
+!packages/web-v3/tests/trend-chart-skeleton-native.test.mjs
+!packages/web-v3/tests/trend-progressive-loading-native.test.mjs
+
+# Private developer configuration (also matches local symlinks).
+.cookie
+.cookie.*
+.env.local
+.env.*.local
+
+# Historical local capture inputs: never package or commit.
+/.aafe/docs/architecture-chema/mock
+/.aafe/runtime
+/packages/e2e-skills/assets/architecture-chema/mock
+/migration-project/evidence

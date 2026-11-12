@@ -29,10 +29,10 @@ function fixture(handler = async () => ({ data: [] })) {
   const context = Vue.reactive({
     isSceneMode: false,
     isUnionSearch: false,
-    indexId: 16176,
-    unionIndexList: [16176, 38131],
+    indexId: 900101,
+    unionIndexList: [900101, 900104],
     retrieveParams: {
-      space_uid: 'bkcc__5000140',
+      space_uid: 'bkcc__900001',
       table_id_conditions: [{ table_id: 'a' }],
       scene_filter_values: { x: ['y'] },
     },
@@ -64,18 +64,18 @@ const row = (query = 'log:"Error"') => ({
 test('ordinary/union/scene history retain V2 endpoints and their distinct request envelopes', async () => {
   const f = fixture();
   await f.history.requestSearchHistory();
-  assert.deepEqual(f.calls.pop(), { name: 'ordinary', options: { params: { index_set_id: 16176 } } });
+  assert.deepEqual(f.calls.pop(), { name: 'ordinary', options: { params: { index_set_id: 900101 } } });
   f.context.isUnionSearch = true;
   await flush();
   await f.history.requestSearchHistory();
-  assert.deepEqual(f.calls.pop(), { name: 'union', options: { params: { index_set_ids: [16176, 38131] } } });
+  assert.deepEqual(f.calls.pop(), { name: 'union', options: { params: { index_set_ids: [900101, 900104] } } });
   f.context.isSceneMode = true;
   await flush();
   await f.history.requestSearchHistory();
   assert.deepEqual(f.calls.pop(), {
     name: 'scene',
     options: {
-      data: { space_uid: 'bkcc__5000140', table_id_conditions: [{ table_id: 'a' }], scene_filter_values: { x: ['y'] } },
+      data: { space_uid: 'bkcc__900001', table_id_conditions: [{ table_id: 'a' }], scene_filter_values: { x: ['y'] } },
     },
   });
   f.scope.stop();
@@ -142,7 +142,7 @@ test('closing, changing index and unmounting reject late history responses', asy
   assert.deepEqual(f.history.historyRecords.value, []);
   f.history.handleVisibleChange(true);
   f.history.bookmarkPopRefsShow.value = true;
-  f.context.indexId = 38131;
+  f.context.indexId = 900104;
   await flush();
   resolve({ data: [row()] });
   await flush();

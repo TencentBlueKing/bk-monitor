@@ -782,6 +782,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+@use '@/shared/ui/loading/shimmer' as *;
 @use '@/shared/styles/mixins/flex.scss' as *;
 @use '@/shared/styles/conf' as *;
 
@@ -834,7 +835,10 @@ export default {
 
   &.status-null i {
     display: inline-block;
-    animation: button-icon-loading 1s linear infinite;
+    @include loading-shimmer;
+          color: transparent;
+          border: 0;
+          border-radius: 4px;
   }
 
   &.status-success i {

@@ -1,3 +1,4 @@
+import { localArtifactUrl } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,14 +30,14 @@ import {createHash} from 'node:crypto';
 
 const files = [
   'harness/contract-pin.mjs', 'harness/retrieve-row-pilot.mjs', 'harness/ui-snapshot.mjs',
-  'harness/protocol.mjs', 'harness/network-recorder.mjs', 'harness/response-classifier.mjs',
+  'harness/protocol.mjs', 'harness/network-recorder.mjs', 'harness/runtime-target.mjs', 'harness/local-artifacts.mjs', 'harness/response-classifier.mjs',
   'harness/capture-retrieve-pilot.mjs', 'harness/self-replay-retrieve.mjs',
   'harness/replay-capture.mjs', 'harness/replay-transport.mjs', 'harness/pilot-baseline.mjs',
   'spec/read-policy.json', 'spec/cancel-contracts.json', 'spec/sequence-contracts.json',
   'scenarios/retrieve-row-expand.json',
 ];
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
-export function snapshotRetrieveContract(read = path => readFileSync(new URL('../' + path, import.meta.url))) {
+export function snapshotRetrieveContract(read = path => readFileSync(path.startsWith('scenarios/') ? localArtifactUrl(path) : new URL('../' + path, import.meta.url))) {
   const entries = files.map(path => ({path, sha256: sha(read(path))}));
   return {schemaVersion: 1, kind: 'RETRIEVE_ORACLE_TOOL_POLICY_SCENARIO', entries, digest: sha(JSON.stringify(entries))};
 }

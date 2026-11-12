@@ -1,3 +1,5 @@
+import { bindTargetContracts } from './runtime-target.mjs';
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -39,10 +41,10 @@ const {chromium} = require('@playwright/test');
 const [privateInput, target, version = 'v2', baselineReport] = process.argv.slice(2);
 if (!['v2', 'v3'].includes(version)) throw new Error('TARGET_VERSION_REQUIRED');
 if (!target || new URL(target).hostname !== 'appdev.woa.com') throw new Error('DEV_HOST_REQUIRED');
-const rules = JSON.parse(readFileSync(new URL('../spec/read-policy.json', import.meta.url), 'utf8')).rules;
-const cancelContracts = JSON.parse(readFileSync(new URL('../spec/cancel-contracts.json', import.meta.url), 'utf8')).contracts;
+const rules = bindTargetContracts(JSON.parse(readFileSync(new URL('../spec/read-policy.json', import.meta.url), 'utf8')).rules, target);
+const cancelContracts = bindTargetContracts(JSON.parse(readFileSync(new URL('../spec/cancel-contracts.json', import.meta.url), 'utf8')).contracts, target);
 const sourceRoot = fileURLToPath(new URL('../../packages/web-v2/src/', import.meta.url));
-const expectedSourceDigest = JSON.parse(readFileSync(new URL('../source/entry-graph.json', import.meta.url), 'utf8')).sourceDigest;
+const expectedSourceDigest = JSON.parse(readFileSync(localArtifactUrl('source/entry-graph.json'), 'utf8')).sourceDigest;
 const fixture = loadCapture(privateInput, {sourceRoot, rules, cancelContracts, expectedSourceDigest});
 if (fixture.capture.scenarioRevision >= 3 || fixture.capture.contractPin) verifyRetrieveContract(fixture.capture.contractPin);
 let baselineProof;
@@ -95,8 +97,8 @@ finally {
   await browser.close();
   if(runtimeErrors.length) failures.push({reason:'RUNTIME_ERRORS_OBSERVED',count:runtimeErrors.length});
   const result = {schemaVersion: 1, scope: 'SINGLE_ROW_PILOT_ONLY_NOT_FULL_V2_V3_ACCEPTANCE', version, oraclePin: fixture.capture.contractPin?.digest ?? 'LEGACY_UNPINNED_SCOPE_ONLY', status: failures.length ? (version === 'v2' ? 'INVALID_SELF_REPLAY' : 'V3_PILOT_REQUIRES_REVIEW') : (version === 'v2' ? 'PILOT_SELF_REPLAY_PASSED' : 'V3_PILOT_ORACLES_PASSED'), baselineProof, runtimeErrors, captureDigest: fixture.captureDigest, privateInput, privateDir, fixtureReadRecords: fixture.records.length, consumedRecords: sequence.used.size, businessRequestsForwarded: routeDecisions.filter(e => e.action === 'FORWARD' && e.kind === 'BUSINESS').length, networkAudit: {scope: 'CONTEXT_ROUTE_HANDLER_AUDIT', interceptedBusiness: routeDecisions.filter(e => e.kind === 'BUSINESS').length, forwardedStatic: routeDecisions.filter(e => e.kind === 'STATIC').length}, checkpoints, cancellations, uiDifferences, failures};
-  const dir = new URL('../runs/pilot/', import.meta.url);mkdirSync(dir, {recursive: true});
+  const dir = localArtifactUrl('runs/pilot/');mkdirSync(dir, {recursive: true});
   writeFileSync(new URL(`${version === 'v2' ? 'self-replay' : 'v3-compare'}-${Date.now()}.json`, dir), JSON.stringify(result, null, 2) + '\n');
-  console.log(JSON.stringify({...result, baselineProof: baselineProof && {status: baselineProof.status, scope: baselineProof.scope, captureDigest: baselineProof.captureDigest}, checkpoints: checkpoints.map(c => c.id), uiDifferences: undefined}));
+  console.log(JSON.stringify({status: result.status, details: 'PRIVATE_LOCAL_REPORT'}));
   if (failures.length) process.exitCode = 1;
 }

@@ -47,7 +47,7 @@ function setup(file, props = {}, options = {}) {
       },
     ]),
   );
-  const store = { state: { spaceUid: 'bkcc__5000140' }, getters: { isSceneMode: options.scene ?? false } };
+  const store = { state: { spaceUid: 'bkcc__900001' }, getters: { isSceneMode: options.scene ?? false } };
   const oldWindow = globalThis.window;
   globalThis.window = {
     __IS_MONITOR_APM__: options.apm ?? false,
@@ -126,7 +126,7 @@ test('ordinary and scene list initialization preserve space and source type', as
       assert.equal(c.model.allGroupList.value.length, 2);
       assert.equal(c.model.searchResultFavorites.value.length, 2);
       for (const { request } of c.calls) assert.deepEqual(request.query.source_type, scene ? 'scene' : 'index_set');
-      assert.equal(c.calls[0].request.query.space_uid, 'bkcc__5000140');
+      assert.equal(c.calls[0].request.query.space_uid, 'bkcc__900001');
     } finally {
       c.stop();
     }

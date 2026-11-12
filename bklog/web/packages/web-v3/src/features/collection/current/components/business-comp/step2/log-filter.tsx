@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
 import { useCollectionStore } from '@/app/state/domains/collection-store';
 
 
-import { Switch as TSwitch, Select as TSelect, Textarea as TTextarea, Loading as TLoading } from 'tdesign-vue-next';
+import { Switch as TSwitch, Select as TSelect, Textarea as TTextarea } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';

@@ -339,3 +339,33 @@
   width: 100%;
   outline: 0;
 }
+
+// Collection table index-set picker uses the V2 TagMore cell, not native tag-input chrome.
+.index-set-inline-select:has(.tag-more-native-trigger) {
+  .t-input {
+    height: auto;
+    min-height: 58px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  // TDesign adds 8px suffix padding only when tags exist. Match V2's full
+  // content width so two-row wrapping and the measured hover frame stay equal.
+  .t-tag-input.t-tag-input--break-line .t-input {
+    padding: 0;
+    // Override borderless SelectInput's whole-input hover background. V2 only
+    // highlights the measured TagMore content frame, including in the open state.
+    background-color: transparent;
+    box-shadow: none;
+  }
+  .t-input__prefix, .t-input__label { width: 100%; min-width: 0; flex: 1; margin: 0; }
+  .t-input__inner, .t-input__suffix { display: none; }
+  .tag-more-select-trigger { flex: 1; min-width: 0; }
+}
+
+.collection-index-set-picker .collection-index-set-search {
+  box-sizing: border-box;
+  width: calc(100% - 16px);
+  margin: 8px;
+}

@@ -1,3 +1,4 @@
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -194,7 +195,7 @@ try {
   const port=drawer.locator('.t-form__item').filter({has:page.getByText('端口',{exact:true})}).locator('input');await port.fill('9200');await port.press('Tab');
   await drawer.locator('[data-test-id="esAccessFromBox_button_connectivityTest"]').click();
   await expect.poll(async()=> (await calls()).map(call=>call.method)).toEqual(['property-read','connectivity-read','node-attrs-read']);
-  const records=await calls(), expected={bk_biz_id:5000140,cluster_name:'fixture-cluster',display_name:'fixture cluster',domain_name:'es.example.invalid',port:'9200',schema:'http',es_auth_info:{username:'',password:''}};
+  const records=await calls(), expected={bk_biz_id:900001,cluster_name:'fixture-cluster',display_name:'fixture cluster',domain_name:'es.example.invalid',port:'9200',schema:'http',es_auth_info:{username:'',password:''}};
   assert.deepEqual(records[1].options,{data:expected});assert.deepEqual(records[2].options,{data:expected});
   await expect(drawer.locator('[data-test-id="esAccessFromBox_button_confirm"]')).toBeEnabled();
   return drawer;
@@ -315,7 +316,7 @@ finally {
  if (JSON.stringify(initial) !== JSON.stringify(sourceDigests())) failures.push({id:'source-integrity',reason:'SOURCE_CHANGED_DURING_RUN'});
  if (blocked.length || runtimeErrors.length) failures.push({id:'isolated-boundary',reason:'UNEXPECTED_NETWORK_OR_RUNTIME_ERROR'});
  const missing = required.filter(id => checks.filter(check => check.id === id && check.passed).length !== 1);
- const out = fileURLToPath(new URL('../runs/calibration/collection-label/', import.meta.url));mkdirSync(out,{recursive:true});
+ const out = fileURLToPath(localArtifactUrl('runs/calibration/collection-label/'));mkdirSync(out,{recursive:true});
  await page?.screenshot({path:out + `/screen-${Date.now()}.png`}).catch(()=>{});await browser.close();
  const result = {schemaVersion:1,scope:'CONTROLLED_REAL_COMPONENT_CONTRACT_NOT_BACKEND_ACCEPTANCE',status:failures.length || missing.length?'LABEL_CONTRACT_FAILED':'LABEL_CONTRACT_PASSED',checks,missing,failures,blocked,runtimeErrors,sourceDigests:initial};
  writeFileSync(out + `/result-${Date.now()}.json`,JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));if(failures.length || missing.length)process.exitCode=1;

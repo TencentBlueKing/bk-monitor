@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { Loading as TLoading } from 'tdesign-vue-next';
+
 
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -868,7 +870,7 @@ export default defineComponent({
               </bk-exception>
             ) : null}
             {/* 触底加载状态 */}
-            {isLoadMore.value && <div class='log-load-more'>loading...</div>}
+            {isLoadMore.value && <div class='log-load-more'><span class='bklog-loading-mark' role='status' aria-label='Loading' /></div>}
           </div>
           {/* 回到顶部按钮 */}
           {showScrollTop.value && (

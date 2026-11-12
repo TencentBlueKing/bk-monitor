@@ -3,7 +3,7 @@
   "id": "shared",
   "purpose": "跨域共享组件、hooks、样式与资源",
   "root": "src/shared",
-  "files": 317,
+  "files": 322,
   "entryPoints": [
     "shared/composables/log-query-compiler/detectors/index.ts",
     "shared/composables/log-query-compiler/index.ts",

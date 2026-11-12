@@ -1,3 +1,5 @@
+import { bindTargetContracts } from './runtime-target.mjs';
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -36,17 +38,17 @@ const require = createRequire(new URL('../../packages/web-v3/package.json', impo
 const {chromium, expect} = require('@playwright/test');
 const target = process.argv[2];
 if (!target || new URL(target).hostname !== 'appdev.woa.com') throw new Error('DEV_HOST_REQUIRED');
-const rules = JSON.parse(readFileSync(new URL('../spec/read-policy.json', import.meta.url), 'utf8')).rules;
+const rules = bindTargetContracts(JSON.parse(readFileSync(new URL('../spec/read-policy.json', import.meta.url), 'utf8')).rules, target);
 for (const rule of rules) {
   const body = readFileSync(new URL('../../packages/web-v2/src/' + rule.source.file, import.meta.url));
   if (createHash('sha256').update(body).digest('hex') !== rule.source.sha256) throw new Error('POLICY_SOURCE_CHANGED');
 }
-const scenario = JSON.parse(readFileSync(new URL('../scenarios/retrieve-row-expand.json', import.meta.url), 'utf8'));
+const scenario = JSON.parse(readFileSync(localArtifactUrl('scenarios/retrieve-row-expand.json'), 'utf8'));
 for (const ref of scenario.sourceRefs) {
   const bytes = readFileSync(new URL('../../packages/web-v2/src/' + ref.file, import.meta.url));
   if (createHash('sha256').update(bytes).digest('hex') !== ref.sha256) throw new Error('SCENARIO_SOURCE_CHANGED');
 }
-const sourceGraph = JSON.parse(readFileSync(new URL('../source/entry-graph.json', import.meta.url), 'utf8'));
+const sourceGraph = JSON.parse(readFileSync(localArtifactUrl('source/entry-graph.json'), 'utf8'));
 for (const ref of sourceGraph.files) {
   const bytes = readFileSync(new URL('../../packages/web-v2/src/' + ref.file, import.meta.url));
   if (createHash('sha256').update(bytes).digest('hex') !== ref.sha256) throw new Error('INVENTORY_SOURCE_CHANGED');
@@ -68,7 +70,7 @@ try {
   await cdp.send('Network.enable', {maxTotalBufferSize: 256 * 1024 * 1024, maxResourceBufferSize: 128 * 1024 * 1024, enableDurableMessages: true});
   recorder = await installRecorder(context, {
     origin: new URL(target).origin, rules, privateDir,
-    businessContext: {spaceUid: 'bkcc__5000140', bizId: '5000140', indexId: '16176'},
+    businessContext: scenario.context,
     async bodyFallback(request) {
       const candidates = transportRequests.filter(r => r.url === request.url() && r.method === request.method() && r.body === request.postData());
       const ids = [...new Set(candidates.map(r => r.id))];
@@ -90,10 +92,10 @@ finally {
   if(runtimeErrors.length)failures.push({reason:'RUNTIME_ERRORS_OBSERVED',count:runtimeErrors.length});
   try {verifyRetrieveContract(contractPin);} catch (error) {failures.push({reason: error.message});}
   recorder?.save('capture.json', {contractPin, sourceManifest: sourceGraph.files, sourceDigest: sourceGraph.sourceDigest, scenarioId: scenario.id, scenarioRevision: scenario.revision, sourceRefs: scenario.sourceRefs, context: scenario.context});
-  const out = new URL('../runs/pilot/', import.meta.url);mkdirSync(out, {recursive: true});
+  const out = localArtifactUrl('runs/pilot/');mkdirSync(out, {recursive: true});
   const result = {schemaVersion: 1, scope: 'V2_PILOT_CAPTURE_NOT_ACCEPTED_BASELINE', status: failures.length ? 'INVALID_RUN' : 'CAPTURED_NEEDS_SELF_REPLAY', privateDir, checkpoints, failures, requests: recorder?.publicSummary()};
   const filename = new URL(`retrieve-${Date.now()}.json`, out);
   writeFileSync(filename, JSON.stringify(result, null, 2) + '\n');
-  console.log(JSON.stringify({status: result.status, privateDir, checkpoints: checkpoints.map(c => c.id), failures, requests: recorder?.entries.length}));
+  console.log(JSON.stringify({status: result.status, details: 'PRIVATE_LOCAL_REPORT'}));
   await browser.close();
 }

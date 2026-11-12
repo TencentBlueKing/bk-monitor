@@ -44,7 +44,7 @@ function fixture(configured) {
     '../index': { StrategyType: { NEW_CLASS: 'new_cls_strategy', SUDDEN_INCREASE: 'normal_strategy' } },
     './index.scss': {},
   }, { jsx: ts.JsxEmit.ReactJSX, jsxImportSource: 'vue' });
-  const props = { configured, type: 'normal_strategy', indexId: '16176', bkBizId: '5000140', labelName: ['source-label'], configData: { strategy_id: 12 } };
+  const props = { configured, type: 'normal_strategy', indexId: '900101', bkBizId: '900001', labelName: ['source-label'], configData: { strategy_id: 12 } };
   const render = component.setup(props, { emit: (...args) => emitted.push(args) });
   const tree = () => render();
   const popup = tree().children.find(n => n.type === Popup);
@@ -65,12 +65,12 @@ test('configured clustering menu retains edit/view/delete actions and deletes on
   const opened = [];
   globalThis.window = { MONITOR_URL: 'https://monitor.example', open: (...args) => opened.push(args) };
   try { items[1].props.onClick(); } finally { globalThis.window = previous; }
-  assert.deepEqual(opened, [['https://monitor.example/?bizId=5000140#/strategy-config?strategyLabels=["source-label"]', '_blank', 'noopener,noreferrer']]);
+  assert.deepEqual(opened, [['https://monitor.example/?bizId=900001#/strategy-config?strategyLabels=["source-label"]', '_blank', 'noopener,noreferrer']]);
   items[2].props.onClick();
   assert.equal(f.requests.length, 0);
   assert.equal(f.confirmations[0].theme, 'danger');
   await f.confirmations[0].confirmFn();
-  assert.deepEqual(f.requests, [{ params: { index_set_id: '16176' }, data: { strategy_type: 'normal_strategy' } }]);
+  assert.deepEqual(f.requests, [{ params: { index_set_id: '900101' }, data: { strategy_type: 'normal_strategy' } }]);
   assert.deepEqual(f.emitted, [['refresh-strategy-info']]);
 });
 

@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { Loading as TLoading, RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount, shallowRef, markRaw } from 'vue';
 
@@ -725,12 +727,6 @@ export default defineComponent({
       );
     };
 
-    const renderLoadingIndicator = () => (
-      <span class='bklog-loading-dots bklog-loading-dots--large'>
-        {[0, 1, 2, 3].map(index => <span key={index} />)}
-      </span>
-    );
-
     return () => (
       <div
         class='log-table-main'
@@ -760,9 +756,9 @@ export default defineComponent({
         <TLoading
           class='cluster-table-loading'
           data-testid='cluster-table-loading'
-          indicator={renderLoadingIndicator}
           loading={tableLoading.value}
-          showOverlay
+          indicator={false}
+          showOverlay={false}
           size='large'
           zIndex={0}
         >

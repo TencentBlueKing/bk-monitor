@@ -120,8 +120,8 @@
                   <span @click="reset(props.row)">
                     <i
                       v-if="props.row.status !== 'SUCCESS' && props.row.status !== 'FAILED'"
-                      style="display: inline-block; animation: button-icon-loading 1s linear infinite"
-                      class="bk-icon icon-refresh"
+                      style="display: inline-block; "
+                      class="bk-icon icon-refresh bklog-loading-mark"
                     ></i>
                     <span
                       v-if="props.row.status === 'SUCCESS'"

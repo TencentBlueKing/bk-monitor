@@ -29,7 +29,7 @@ function setup(file, props, options = {}) {
     events = [];
   const store = {
     state: {
-      spaceUid: 'bkcc__5000140',
+      spaceUid: 'bkcc__900001',
       indexItem: { keyword: 'current query', display_fields: ['log'], table_id_conditions: ['unconverted'] },
     },
     getters: {
@@ -128,7 +128,7 @@ test('inline group creation validates before original create/update operation', 
       assert.deepEqual(c.calls[0], {
         method: 'group',
         params: isCreate ? { group_new_name: 'New group' } : { group_new_name: 'New group', group_id: 2 },
-        spaceUid: 'bkcc__5000140',
+        spaceUid: 'bkcc__900001',
         isCreate,
       });
       assert.deepEqual(c.events, [['submit', 77, 'New group']]);

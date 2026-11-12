@@ -1,3 +1,4 @@
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -120,6 +121,6 @@ export function inspectSources(sourceRoot,{routePrefixes=['router/']}={}){
  graph.routes.forEach(r=>{r.path=full(r);});graph.sourceDigest=sha(JSON.stringify(graph.files));graph.summary=Object.fromEntries(['files','routes','functions','eventBindings','effects','branches','endpoints','unresolved','diagnostics'].map(k=>[k,graph[k].length]));return graph;
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const graph=inspectSources(fileURLToPath(new URL('../../packages/web-v2/src',import.meta.url))),out=fileURLToPath(new URL('../source/',import.meta.url));
+ const graph=inspectSources(fileURLToPath(new URL('../../packages/web-v2/src',import.meta.url))),out=fileURLToPath(localArtifactUrl('source/'));
  const{routes,eventBindings,branches,unresolved,endpoints,...rest}=graph;for(const[name,data]of Object.entries({'entry-graph':rest,routes,'capability-candidates':eventBindings,'branch-obligations':branches,unresolved,'endpoint-candidates':endpoints}))writeFileSync(resolve(out,name+'.json'),JSON.stringify(data,null,2)+'\n');console.log(JSON.stringify(graph.summary));
 }

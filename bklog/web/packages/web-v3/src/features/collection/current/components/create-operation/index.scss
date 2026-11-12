@@ -1,3 +1,4 @@
+@use '@/shared/ui/loading/shimmer' as *;
 @use "./global.scss" as *;
 .create-operation-main {
   .block {
@@ -164,7 +165,7 @@
       height: 30px;
       will-change: transform;
       transform-origin: 50% 50%;
-      animation: spin 2s linear infinite;
+      @include loading-shimmer;
     }
 
     .status-icon {
@@ -179,11 +180,10 @@
 
     &.running {
       .status-icon-box {
-        background: url("@/shared/assets/images/log-collection/loading.svg")
-          no-repeat center;
-        background-size: 32px 32px;
+        @include loading-shimmer;
+
         /* 固定像素，避免 contain 的细微重采样 */
-        animation: spin 2s linear infinite;
+
       }
 
       .status-icon {

@@ -462,7 +462,7 @@ export default defineComponent({
       return (
         <div class='bk-search-list'>
           <div class='bk-search-list-menu'>
-            {childLoading.value ? <div class='bk-search-list-loading'>{loadingText}</div> : null}
+            {childLoading.value ? <div class='bk-search-list-loading'><span class='bklog-loading-mark' role='status' aria-label={loadingText} /></div> : null}
             {!childLoading.value && !list.length ? <div class='bk-search-list-error'>{emptyText}</div> : null}
             {list.map((item, index) => (
               <div

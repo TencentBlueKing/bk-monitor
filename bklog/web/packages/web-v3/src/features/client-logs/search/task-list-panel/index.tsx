@@ -24,7 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { Checkbox as TCheckbox, Loading as TLoading } from 'tdesign-vue-next';
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
+import { Checkbox as TCheckbox } from 'tdesign-vue-next';
 
 import { defineComponent, ref, watch, type PropType } from 'vue';
 
@@ -328,7 +330,7 @@ export default defineComponent({
                 <span>{t('暂无数据')}</span>
               </bk-exception>
             )}
-            {props.isLoading && props.hasMore && <div class='task-list-loading'>loading...</div>}
+            {props.isLoading && props.hasMore && <div class='task-list-loading'><span class='bklog-loading-mark' role='status' aria-label='Loading' /></div>}
           </div>
         </div>
       );

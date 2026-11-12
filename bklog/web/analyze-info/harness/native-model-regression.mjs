@@ -1,3 +1,4 @@
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -130,7 +131,7 @@ try {
 } catch (error) {failures.push({id: 'fixture-initialization', reason: error.message.slice(0, 700)});}
 finally {
   if (JSON.stringify(initialSource) !== JSON.stringify(sourceDigests())) failures.push({id: 'source-integrity', reason: 'SOURCE_CHANGED_DURING_CALIBRATION'});
-  const out = fileURLToPath(new URL('../runs/calibration/native-model/', import.meta.url));mkdirSync(out, {recursive: true});
+  const out = fileURLToPath(localArtifactUrl('runs/calibration/native-model/'));mkdirSync(out, {recursive: true});
   await page?.screenshot({path: out + `/screen-${Date.now()}.png`}).catch(() => {});
   await browser.close();
   const requiredIds = ['native-tree-scoped-label', 'native-clock-svg-bubbling','native-checkbox-model','native-checkbox-group-model','native-radio-group-model','native-input-trim-enter-model','native-select-model','native-switch-model','native-tag-input-model','native-model-reset','popup-visible-focus','popup-focus-cleanup'];

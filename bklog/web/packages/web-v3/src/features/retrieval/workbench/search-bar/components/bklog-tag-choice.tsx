@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { dropdownWidthModifier } from '@/shared/global/dropdown-width';
+import { DropdownLoadingSkeleton } from '@/shared/ui/loading/skeleton';
 import { computed, defineComponent, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from 'vue';
 
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
@@ -209,6 +212,9 @@ export default defineComponent({
           interactive: true,
           appendTo: document.body,
           placement: 'bottom-start',
+          maxWidth: 'none',
+          onCreate: instance => instance.popper.classList.add('bklog-condition-values-popup'),
+          popperOptions: { modifiers: [dropdownWidthModifier] },
           onShown: () => {
             popInstance?.setIsShowing(false);
           },
@@ -1170,9 +1176,8 @@ export default defineComponent({
         <div
           key='bklog-choice-value'
           class='bklog-choice-value-container'
-          v-loading={{ loading: props.loading, size: 'small' }}
         >
-          {renderOptionList()}
+          {props.loading ? <DropdownLoadingSkeleton /> : renderOptionList()}
         </div>,
       ];
     };
@@ -1232,7 +1237,7 @@ export default defineComponent({
         <div v-show={false}>
           <div
             ref={refChoiceList}
-            style={containerStyle.value}
+            style={props.foucsFixed ? containerStyle.value : { width: '100%' }}
             class='bklog-tag-choice-list'
           >
             {getTagOptionsRender()}

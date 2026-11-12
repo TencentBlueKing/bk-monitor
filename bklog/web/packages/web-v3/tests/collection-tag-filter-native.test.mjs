@@ -40,7 +40,7 @@ const Component = loadTypeScript(new URL('../src/features/retrieval/workbench/se
 function fixture() {
   const toggles = [], selected = [];
   const vm = new Component();
-  Object.assign(vm, { title: '标签', searchable: true, popoverMinWidth: 200, select: ['all'], selectList: [{ id: 'all', name: '全部' }, { id: 'cluster-1', name: 'BCS-K8S-26888' }], loading: false, isActive: false, toggle: value => toggles.push(value), $t: value => value });
+  Object.assign(vm, { title: '标签', searchable: true, popoverMinWidth: 200, select: ['all'], selectList: [{ id: 'all', name: '全部' }, { id: 'cluster-1', name: 'synthetic-cluster-two' }], loading: false, isActive: false, toggle: value => toggles.push(value), $t: value => value });
   vm.handleSelectedOption = value => selected.push(value);
   vm.watchSelectValue(vm.select);
   return { vm, toggles, selected };
@@ -65,12 +65,12 @@ test('controlled filter accepts outside close, clears keyword and reports one cl
 test('popup focus inside does not reset draft; search and selected events preserve values', () => {
   const { vm, toggles, selected } = fixture();
   vm.toggleSelect(true);
-  vm.keyword = 'k8s';
+  vm.keyword = 'TWO';
   vm.selectValue = ['cluster-1'];
   vm.render().props.onVisibleChange(true);
   assert.deepEqual(toggles, [true]);
-  assert.equal(vm.keyword, 'k8s');
-  assert.deepEqual(vm.getVisibleOptions(), [{ id: 'cluster-1', name: 'BCS-K8S-26888' }]);
+  assert.equal(vm.keyword, 'TWO');
+  assert.deepEqual(vm.getVisibleOptions(), [{ id: 'cluster-1', name: 'synthetic-cluster-two' }]);
   vm.handleOptionChange('cluster-1', false);
   assert.deepEqual(selected, [[]]);
   assert.deepEqual(vm.select, ['all']);

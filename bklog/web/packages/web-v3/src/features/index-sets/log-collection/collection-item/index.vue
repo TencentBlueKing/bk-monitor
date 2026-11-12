@@ -1317,6 +1317,7 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style lang="scss">
+@use '@/shared/ui/loading/shimmer' as *;
 @use '../../../../shared/styles/mixins/clearfix' as *;
   @use '../../../../shared/styles/conf' as *;
   @use '../../../../shared/styles/devops-common.scss' as *;
@@ -1409,7 +1410,10 @@ import { ServicesInstance } from '@/platform/services';
 
       &.status-running i {
         display: inline-block;
-        animation: button-icon-loading 1s linear infinite;
+        @include loading-shimmer;
+          color: transparent;
+          border: 0;
+          border-radius: 4px;
       }
 
       &.status-success i {

@@ -98,11 +98,11 @@ test('selecting a field places caret after prefix, preserves search payload and 
     await Vue.nextTick();
     assert.equal(f.model.input.value, '采集名：');
     assert.deepEqual(actions, [['focus'], ['select', editor], ['collapse', false], ['clear'], ['range', range]]);
-    f.model.updateInput('采集名：主机采集示例');
+    f.model.updateInput('采集名：合成采集样本');
     await f.model.handleKeyEnter();
     const change = f.events.find(([name]) => name === 'change');
     assert.equal(change[1][0].id, 'collector_config_name');
-    assert.deepEqual(change[1][0].values, [{ id: '主机采集示例', name: '主机采集示例' }]);
+    assert.deepEqual(change[1][0].values, [{ id: '合成采集样本', name: '合成采集样本' }]);
     f.model.handleBlur();
     assert.equal(f.model.input.focus, false);
     f.model.handleVisibleChange(false, { trigger: 'document' });

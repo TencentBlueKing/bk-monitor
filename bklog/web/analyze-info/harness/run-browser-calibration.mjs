@@ -1,3 +1,4 @@
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -33,7 +34,7 @@ import { captureUi, waitForUiIdle } from './ui-snapshot.mjs';
 import { compareSemanticNodes, requestPolicy, requestSignature, parseStream, evaluateRun } from './protocol.mjs';
 const require=createRequire(new URL('../../packages/web-v3/package.json',import.meta.url));
 const {chromium,expect}=require('@playwright/test');
-const out=fileURLToPath(new URL('../runs/calibration/browser/',import.meta.url));mkdirSync(out,{recursive:true});
+const out=fileURLToPath(localArtifactUrl('runs/calibration/browser/'));mkdirSync(out,{recursive:true});
 const html=`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><style>
 body{font:14px Arial;margin:20px}button,input{font:inherit}#nav{position:relative;z-index:1;width:100px;height:40px}#cover{position:absolute;z-index:100;left:20px;top:20px;width:100px;height:40px;background:#333;display:none}#low{position:absolute;left:20px;top:20px;z-index:0}#low div{position:absolute;width:100px;height:40px;z-index:99999;background:#bbb}section{margin-top:20px}label{display:block}#panel{width:180px}#duplicate button{margin:10px}
 </style><body><button id="nav" aria-label="日志采集" aria-expanded="false">采</button><div id="cover"></div><div id="low" hidden><div></div></div>
