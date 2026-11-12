@@ -25,6 +25,7 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
+from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
 from metadata.models.ping_server import PingServerSubscriptionConfig
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 
@@ -59,7 +60,7 @@ def refresh_ping_server_2_node_man():
     logger.info(f"end refresh ping server to node man, cost time: {cost_time}")
 
 
-def refresh_ping_conf(plugin_name: str):
+def refresh_ping_conf(plugin_name: str, bk_tenant_id: str | None = None):
     """
     刷新Ping Server的ip列表配置
 
@@ -67,22 +68,24 @@ def refresh_ping_conf(plugin_name: str):
     2. 获取云区域下的所有ProxyIP
     3. 根据Hash环，将同一云区域下的ip分配到不同的Proxy
     4. 通过节点管理订阅任务将分配好的ip下发到机器
+
+    :param bk_tenant_id: 只刷新该租户；为空时遍历全部租户（定时任务）
     """
+    tenant_ids = [bk_tenant_id] if bk_tenant_id else [tenant["id"] for tenant in api.bk_login.list_tenant()]
+
     if not settings.ENABLE_PING_ALARM:
-        for tenant in api.bk_login.list_tenant():
-            cloud_areas: list[dict[str, Any]] = api.cmdb.search_cloud_area(bk_tenant_id=tenant["id"])
+        for tenant_id in tenant_ids:
+            cloud_areas: list[dict[str, Any]] = api.cmdb.search_cloud_area(bk_tenant_id=tenant_id)
             for cloud_area in cloud_areas:
                 PingServerSubscriptionConfig.create_subscription(
-                    tenant["id"], cloud_area["bk_cloud_id"], {}, [], plugin_name
+                    tenant_id, cloud_area["bk_cloud_id"], {}, [], plugin_name
                 )
         return
 
     # metadata模块不应该引入alarm_backends下的文件，这里通过函数内引用，避免循环引用问题
     from alarm_backends.core.cache.cmdb.host import HostManager
 
-    for tenant in api.bk_login.list_tenant():
-        bk_tenant_id: str = tenant["id"]
-
+    for bk_tenant_id in tenant_ids:
         exists_host_ids: set[int] = set()
         cloud_to_hosts: dict[int, list[dict[str, Any]]] = defaultdict(list)
 
@@ -341,6 +344,13 @@ def _create_multi_tenant_ping_subscription(
             bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id, plugin_name=plugin_name
         ).values_list("bk_biz_id", flat=True)
     )
+    if plugin_name == BkCollectorDeployPolicy.PLUGIN_NAME and BkCollectorDeployPolicy.is_enabled():
+        # V3 部署策略不写订阅表，已下发的业务从策略绑定表获取，保证下线业务的配置会被回收
+        existing_biz_ids |= set(
+            BkCollectorDeployPolicy.objects.filter(
+                bk_tenant_id=bk_tenant_id, scene=BkCollectorDeployScene.PING_SERVER, bk_cloud_id=bk_cloud_id
+            ).values_list("bk_biz_id", flat=True)
+        )
 
     data_id_cache: dict[int, int | None] = {}
     for target_bk_biz_id in set(biz_items) | existing_biz_ids:

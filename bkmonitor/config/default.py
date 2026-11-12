@@ -542,7 +542,7 @@ BKMONITOR_EXTERNAL_PROXY_TOKEN = os.getenv(
     "BKAPP_BKMONITOR_EXTERNAL_PROXY_TOKEN", os.getenv("BKMONITOR_EXTERNAL_PROXY_TOKEN", "")
 )
 
-IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
+IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = False
 
 # 集群内上报服务配置
 CUSTOM_REPORT_ENDPOINTS = [
@@ -1330,6 +1330,11 @@ BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
 ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
 BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
+# bk-collector 子配置（APM 平台/应用、自定义上报、自定义日志、PingServer）改走节点管理 V3 部署策略下发。
+# 仅用于 bk-collector 以 V3 插件包手动安装的环境；关闭时保持 V2 订阅下发，两条链路不能在同一环境同时启用。
+# 开启后下发链路（目标主机查询、部署策略）全部走 V3，不再调用节点管理 V2 接口；
+# 部署时应与 ENABLE_NODEMAN_V3 同时开启，主机查询在任一开关开启时都走 V3。
+ENABLE_BK_COLLECTOR_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_BK_COLLECTOR_NODEMAN_V3", "false").lower() == "true"
 BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
@@ -2109,3 +2114,6 @@ BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"
 # DynamicSettings 先读取静态 settings，此处不定义会在读取时抛 AttributeError；
 # 查询侧部署在 web 角色，因此放在 default.py 而不是只对 worker 生效的 role 配置。
 ALERT_NOTICE_WAY_BY_RECORDS = False
+
+# 同一联邦子链路配置连续收敛失败上限（按轮次，不含投递/抢锁失败）。
+BCS_FEDERATION_RECONCILE_MAX_FAILURES = 5

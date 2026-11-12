@@ -158,14 +158,11 @@ class StrategyConfigUpdater:
         ]
         if query_item_patches:
             candidate_items: dict[int, Item] = {item.id: item for item in candidate.items}
-            current_items: dict[int, Item] = {item.id: item for item in current.items}
             for item_patch in query_item_patches:
                 item: Item = cls._get_patch_item(candidate.items, candidate_items, item_patch)
                 candidate.supplement_inst_target_dimension(items=[item])
-                # 只去掉这次从查询维度里删掉的字段。
-                previous_item: Item | None = current_items.get(item.id)
-                previous_configs = previous_item.query_configs if previous_item is not None else []
-                cls._align_no_data_dimensions(item, previous_configs)
+                item.normalize_query_dimensions(candidate.bk_biz_id)
+                item.align_no_data_dimensions(candidate.bk_biz_id)
 
         # 完整序列化器检查字段之间的约束，其默认值不用于回写。优先级分组键留到差异判断后按需计算。
         strategy_dict: dict[str, Any] = candidate.to_dict(convert_dashboard=False, generate_priority_group_key=False)
@@ -299,8 +296,6 @@ class StrategyConfigUpdater:
                 raise ValidationError(detail=_("不支持的查询配置数据源类型")) from error
             # 查询集合整体替换时复用 ID，具体增删交给公共组件保存方法。
             query_config.id = current_configs[index].id if index < len(current_configs) else 0
-            query_config._clean_empty_dimension()
-            query_config.supplement_adv_condition_dimension(item)
             if not query_config.metric_id:
                 query_config.metric_id = query_config.get_metric_id()
             built_configs.append(query_config)
@@ -442,33 +437,6 @@ class StrategyConfigUpdater:
             if change.query_configs or {"expression", "functions"} & change.fields:
                 return True
         return False
-
-    @staticmethod
-    def _align_no_data_dimensions(item: Item, previous_query_configs: list) -> None:
-        config = getattr(item, "no_data_config", None)
-        if not isinstance(config, dict):
-            return
-        dimensions = config.get("agg_dimension")
-        if not isinstance(dimensions, list) or not dimensions:
-            return
-        # PromQL 等没有 agg_dimension 的查询，输出维度无法从配置得知，保留原无数据维度。
-        if any(not hasattr(query_config, "agg_dimension") for query_config in item.query_configs):
-            return
-        previous: set[str] = set()
-        for query_config in previous_query_configs:
-            previous.update(getattr(query_config, "agg_dimension", None) or [])
-        current: set[str] = set()
-        for query_config in item.query_configs:
-            current.update(getattr(query_config, "agg_dimension", None) or [])
-        removed = previous - current
-        if not removed:
-            return
-        kept = [dimension for dimension in dimensions if dimension not in removed]
-        if kept == dimensions:
-            return
-        updated = dict(config)
-        updated["agg_dimension"] = kept
-        item.no_data_config = updated
 
     @staticmethod
     def _save_item(change: ItemPatchChange) -> None:

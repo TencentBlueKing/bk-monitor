@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
 """
 纯函数单元测试：EtlStorage._convert_v3_to_v4_time_format
 覆盖 _convert_v3_to_v4_time_format 中所有 40+ 时间格式映射 + 未知格式回退。
 """
+
 from unittest import TestCase
 
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE
@@ -49,6 +49,7 @@ class TestConvertV3ToV4TimeFormat(TestCase):
         ("yyyy-MM-ddTHH:mm:ssZ", "%Y-%m-%dT%H:%M:%S%:z", None),
         ("yyyy-MM-ddTHH:mm:ss.SSSSSSZZ", "%Y-%m-%dT%H:%M:%S.%6f%:z", None),
         ("yyyy.MM.dd-HH.mm.ss:SSS", "%Y.%m.%d-%H.%M.%S:%3f", 0),
+        ("YYYY.MM.dd-HH.mm.ss:SSS", "%Y.%m.%d-%H.%M.%S:%3f", 0),
         # ES 内置名称
         ("date_hour_minute_second", "%Y-%m-%dT%H:%M:%S", 0),
         ("date_hour_minute_second_millis", "%Y-%m-%dT%H:%M:%S.%3f", 0),
@@ -70,10 +71,8 @@ class TestConvertV3ToV4TimeFormat(TestCase):
         for v3_fmt, expected_format, expected_zone in self.TIME_FORMAT_CASES:
             with self.subTest(v3_format=v3_fmt):
                 result = EtlStorage._convert_v3_to_v4_time_format(v3_fmt)
-                self.assertEqual(result["from"]["format"], expected_format,
-                                 f"format mismatch for {v3_fmt!r}")
-                self.assertEqual(result["from"]["zone"], expected_zone,
-                                 f"zone mismatch for {v3_fmt!r}")
+                self.assertEqual(result["from"]["format"], expected_format, f"format mismatch for {v3_fmt!r}")
+                self.assertEqual(result["from"]["zone"], expected_zone, f"zone mismatch for {v3_fmt!r}")
                 self.assertIsNone(result["interval_format"])
                 self.assertEqual(result["to"], "millis")
                 self.assertTrue(result["now_if_parse_failed"])
@@ -91,22 +90,32 @@ class TestConvertV3ToV4TimeFormat(TestCase):
         result = EtlStorage._convert_v3_to_v4_time_format("")
         self.assertEqual(result["from"]["format"], "%Y-%m-%d %H:%M:%S")
 
+    def test_uppercase_year_dot_format_preserves_timezone_and_milliseconds(self):
+        from datetime import datetime
+
+        for storage in (None, DORIS_CLUSTER_TYPE):
+            with self.subTest(storage=storage):
+                config = EtlStorage._convert_v3_to_v4_time_format(
+                    "YYYY.MM.dd-HH.mm.ss:SSS", time_zone=8, storage_cluster_type=storage
+                )
+                source = config if storage == DORIS_CLUSTER_TYPE else config["from"]
+                self.assertEqual(source, {"format": "%Y.%m.%d-%H.%M.%S:%3f", "zone": 8})
+                # Python's %f accepts fractional seconds; BKBase's %3f fixes millisecond precision.
+                parsed = datetime.strptime("2026.01.02-03.04.05:678", source["format"].replace("%3f", "%f"))
+                self.assertEqual(parsed, datetime(2026, 1, 2, 3, 4, 5, 678000))
+
     def test_doris_known_format_returns_flat_structure(self):
         """doris 使用扁平的 time_format 结构，不含 ES 的 in_place_time_parsing 键"""
         for v3_fmt, expected_format, expected_zone in self.TIME_FORMAT_CASES:
             with self.subTest(v3_format=v3_fmt):
-                result = EtlStorage._convert_v3_to_v4_time_format(
-                    v3_fmt, storage_cluster_type=DORIS_CLUSTER_TYPE
-                )
+                result = EtlStorage._convert_v3_to_v4_time_format(v3_fmt, storage_cluster_type=DORIS_CLUSTER_TYPE)
                 self.assertEqual(result, {"format": expected_format, "zone": expected_zone})
 
     def test_doris_unknown_format_fallback_returns_flat_structure(self):
         """未知格式在 doris 下同样回退为扁平结构，不能落回 ES 形态"""
         for unknown_fmt in ("xyz_unknown_format", ""):
             with self.subTest(v3_format=unknown_fmt):
-                result = EtlStorage._convert_v3_to_v4_time_format(
-                    unknown_fmt, storage_cluster_type=DORIS_CLUSTER_TYPE
-                )
+                result = EtlStorage._convert_v3_to_v4_time_format(unknown_fmt, storage_cluster_type=DORIS_CLUSTER_TYPE)
                 self.assertEqual(result, {"format": "%Y-%m-%d %H:%M:%S", "zone": 0})
 
     def test_doris_unknown_format_fallback_respects_time_zone(self):
@@ -127,9 +136,7 @@ class TestConvertV3ToV4TimeFormat(TestCase):
         for v3_fmt in self.LITERAL_Z_FORMATS:
             with self.subTest(v3_format=v3_fmt):
                 for storage_cluster_type in (None, DORIS_CLUSTER_TYPE):
-                    result = EtlStorage._convert_v3_to_v4_time_format(
-                        v3_fmt, storage_cluster_type=storage_cluster_type
-                    )
+                    result = EtlStorage._convert_v3_to_v4_time_format(v3_fmt, storage_cluster_type=storage_cluster_type)
                     zone = result["zone"] if "zone" in result else result["from"]["zone"]
                     self.assertIsNotNone(zone, f"{v3_fmt!r} zone must not be None")
 
@@ -154,7 +161,8 @@ class TestConvertV3ToV4TimeFormat(TestCase):
                 continue
             with self.subTest(v3_format=v3_fmt):
                 self.assertRegex(
-                    expected_format, r"%:?z|%\+",
+                    expected_format,
+                    r"%:?z|%\+",
                     f"{v3_fmt!r} zone=None 但 format 不含时区占位，bkbase 会判解析失败",
                 )
                 result = EtlStorage._convert_v3_to_v4_time_format(v3_fmt, time_zone=8)

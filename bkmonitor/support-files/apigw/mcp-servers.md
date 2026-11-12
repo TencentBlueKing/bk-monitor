@@ -37,7 +37,7 @@ Server 的个人令牌开关与每个 API 资源的 `oauth2PersonalClientEnabled
 | alarm-handling | 18 | 17 | — | 18 |
 | dashboard-query | — | — | 2 | 2 |
 | dashboard-edit | — | — | 2 | 2 |
-| tracing | — | — | 7 | 7 |
+| tracing | — | — | 7 | 10 |
 | profiling-query | 4 | 4 | 4 | 4 |
 | relation-query | — | — | 2 | 2 |
 | log-collector | 17 | 17 | — | 17 |
@@ -70,7 +70,7 @@ python -m pytest -c /dev/null -p no:cacheprovider \
 
 线上验收需在每个环境发布后单独完成：
 
-1. 确认资源版本 `0.0.8` 已在目标 stage 生效，MCP 同步日志中的 Server 名称和数量与声明一致。
+1. 确认资源版本 `0.0.9` 已在目标 stage 生效，MCP 同步日志中的 Server 名称和数量与声明一致。
 2. 若网关返回 `pending`，等待网关异步同步完成，回读 Server 清单；命令退出成功不等于异步同步已经完成。
 3. 对照声明检查 `tools/list`，确认补充工具可见、现有应用授权保留，且内部运营入口未被新增注册。
 4. 使用当前用户凭据执行指标、日志、告警等只读查询，分别验证业务成功与权限不足时的响应。

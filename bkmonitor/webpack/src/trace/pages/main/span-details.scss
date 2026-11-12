@@ -249,6 +249,7 @@
   &:has(.content-list.is-llm-tab) {
     height: auto;
     min-height: calc(100vh - 52px);
+    background: #fff;
   }
 
   // padding: 24px 40px;

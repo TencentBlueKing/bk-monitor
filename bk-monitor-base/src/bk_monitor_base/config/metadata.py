@@ -198,7 +198,7 @@ class MetadataConfig(BaseConfigSettings):
 
     # 自定义上报相关配置
     is_auto_deploy_custom_report_server: bool = Field(
-        default=True, alias="METADATA_IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER", description="是否自动部署自定义上报服务"
+        default=False, alias="METADATA_IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER", description="是否自动部署自定义上报服务"
     )
     custom_report_default_proxy_ip: list[str] = Field(
         default_factory=list, alias="METADATA_CUSTOM_REPORT_DEFAULT_PROXY_IP", description="自定义上报默认服务器"

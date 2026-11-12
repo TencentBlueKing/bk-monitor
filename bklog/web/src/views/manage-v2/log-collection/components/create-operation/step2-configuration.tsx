@@ -1113,7 +1113,7 @@ export default defineComponent({
     /** 链路配置 */
     const renderLinkConfig = () => (
       <div class='link-config label-form-box'>
-        <span class='label-title'>{t('上报链路')}</span>
+        <span class='label-title no-require'>{t('上报链路')}</span>
         <bk-select
           class='form-box'
           clearable={false}

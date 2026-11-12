@@ -33,7 +33,7 @@ import ViewDetail from 'monitor-pc/pages/view-detail/index';
 import { isEnFn } from 'monitor-pc/utils';
 
 import { reviewInterval } from '../../utils';
-import { VariablesService } from '../../utils/variable';
+import { getPromqlUnitOverride, VariablesService } from '../../utils/variable';
 
 import type { CallOptions } from '../../plugins/apm-service-caller-callee/type';
 import type { IPanelModel, IViewOptions, ObservablePanelField, PanelModel } from '../../typings';
@@ -90,20 +90,24 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
         dayjs.tz(endTime).unix() - dayjs.tz(startTime).unix(),
         panel.collect_interval
       );
+      const scopedVars = {
+        ...this.viewOptions.filters,
+        ...(this.viewOptions.filters?.current_target || {}),
+        ...this.viewOptions,
+        ...this.viewOptions.variables,
+        ...this.callOptions,
+        interval,
+      };
       return {
         ...panel,
         targets: panel.targets.map(target => ({
           ...target,
           data: {
             ...target.data,
-            ...variablesService.transformVariables(target.data, {
-              ...this.viewOptions.filters,
-              ...(this.viewOptions.filters?.current_target || {}),
-              ...this.viewOptions,
-              ...this.viewOptions.variables,
-              ...this.callOptions,
-              interval,
-            }),
+            ...variablesService.transformVariables(target.data, scopedVars),
+            ...(getPromqlUnitOverride(target.data, variablesService.replace('$method', scopedVars)) !== undefined
+              ? { unit: 'none' }
+              : {}),
           },
         })),
       };
