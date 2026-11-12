@@ -384,7 +384,8 @@ def _load_node_runtime(
     if not nodes:
         return {}, {}, {}, warnings
 
-    from core.drf_resource import api, resource
+    from bkmonitor.utils.nodeman import host_queries
+    from core.drf_resource import resource
     from monitor_web.uptime_check.resources import get_node_host_dict
 
     try:
@@ -397,14 +398,13 @@ def _load_node_runtime(
     beat_versions: dict[Any, str] = {}
     if bk_host_ids:
         try:
-            plugin_result = api.node_man.plugin_search(
+            # 公共节点的主机属于其他业务，按主机所属业务查询
+            plugin_list = host_queries.beat_plugin_status(
+                bk_biz_ids=[getattr(host, "bk_biz_id", None) for host in hosts_by_id.values()],
+                bk_host_ids=bk_host_ids,
                 bk_tenant_id=bk_tenant_id,
-                page=1,
-                pagesize=len(bk_host_ids),
-                conditions=[],
-                bk_host_id=bk_host_ids,
             )
-            for plugin in plugin_result.get("list", []):
+            for plugin in plugin_list:
                 beat_plugin = [
                     item
                     for item in plugin.get("plugin_status", [])
