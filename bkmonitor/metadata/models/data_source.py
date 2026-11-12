@@ -346,6 +346,29 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
+    def apply_to_namespace(self, source_namespace: str, target_namespace: str) -> dict:
+        """将 DataSource 下发到指定 namespace，仍引用源 namespace 的 DataId。"""
+        from metadata.models.data_link import DataIdConfig, utils
+
+        name = utils.get_registered_bkdata_data_id_name(self, namespace=source_namespace)
+        data_id_config = DataIdConfig.objects.get(bk_tenant_id=self.bk_tenant_id, namespace=source_namespace, name=name)
+        data_source_config = data_id_config.compose_data_source_config(
+            data_source_alias=self.data_name,
+            description=self.data_description,
+            created_by=self.creator,
+            created_at=self.create_time,
+            updated_by=self.last_modify_user,
+            updated_at=self.last_modify_time,
+        )
+        data_source_config["metadata"]["namespace"] = target_namespace
+        api.bkdata.apply_data_link(config=[data_source_config], bk_tenant_id=self.bk_tenant_id)
+        return {
+            "bk_data_id": self.bk_data_id,
+            "name": name,
+            "source_namespace": source_namespace,
+            "target_namespace": target_namespace,
+        }
+
     def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor", bkbase_data_name: str = ""):
         """
         将当前data_id注册到计算平台
