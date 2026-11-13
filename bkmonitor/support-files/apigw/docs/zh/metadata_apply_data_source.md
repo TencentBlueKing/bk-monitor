@@ -1,8 +1,8 @@
 ### 功能描述
 
-将已有数据源的 BKBase DataSource 资源下发到指定 namespace，仍引用源 namespace 的 DataId。仅供内部应用调用，需要应用认证和资源权限。
+基于监控 DataSource 元信息生成独立的 BKBase DataSource 配置，并下发到指定 namespace。通过 `metadata.labels.raw_data_id` 标识已有数据源，不依赖 DataIdConfig 登记，不携带 DataId 引用。仅供内部应用调用，需要应用认证和资源权限。
 
-此接口不会创建 DataId 或复制采集链路，不修改本地数据源，不持续同步后续配置。重复调用更新同名目标资源，允许已有 DataId 与目标 namespace 相同。内部按当前租户和数据源 ID 选择最近更新的 DataId 登记（更新时间相同时按记录 ID 倒序），自动使用其名称和 namespace。BKBase 必须支持跨 namespace 的 DataId 引用。
+此接口不会创建 DataId 或复制采集链路，不修改本地数据源，不持续同步后续配置。资源名称固定为 `bkm_datasource_{bk_data_id}`，重复调用更新目标 namespace 中的同名资源。
 
 ### 请求方法与路径
 
@@ -34,10 +34,10 @@
   "message": "OK",
   "data": {
     "bk_data_id": 1605502,
-    "name": "bkm_existing_source",
+    "name": "bkm_datasource_1605502",
     "target_namespace": "shared"
   }
 }
 ```
 
-`name` 为源 DataId 的已注册名称，同时作为目标 DataSource 名称。成功仅表示 BKBase 接受下发请求，不代表资源已就绪。数据源不存在、源 DataId 未登记或 BKBase 下发失败时返回错误。
+`name` 为生成的目标 DataSource 名称。成功仅表示 BKBase 接受下发请求，不代表资源已就绪。数据源不存在或 BKBase 下发失败时返回错误。

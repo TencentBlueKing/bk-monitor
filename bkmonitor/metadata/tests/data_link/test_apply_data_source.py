@@ -1,4 +1,4 @@
-"""DataSource 跨 namespace 下发，不复制 DataId 或修改本地数据源。"""
+"""独立 DataSource 配置下发，不依赖 DataId 登记。"""
 
 import ast
 from pathlib import Path
@@ -23,11 +23,8 @@ def source():
 def test_apply_to_namespace(mocker, settings, source, multi_tenant, target_namespace):
     settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
-    config = models.DataIdConfig(
-        bk_tenant_id="system", namespace="bkmonitor", name="registered_source", bk_data_id=960001, bk_biz_id=2
-    )
-    query = mocker.patch.object(models.DataIdConfig.objects, "filter")
-    query.return_value.exclude.return_value.order_by.return_value.first.return_value = config
+    mocker.patch("metadata.models.data_source.get_space_uid_and_bk_biz_id_by_bk_data_id", return_value=(2, "bkcc__2"))
+    query = mocker.patch.object(models.DataIdConfig.objects, "filter", side_effect=AssertionError("无需查询 DataId"))
     apply = mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link")
     save = mocker.patch.object(source, "save")
     for _ in range(2):
@@ -36,34 +33,26 @@ def test_apply_to_namespace(mocker, settings, source, multi_tenant, target_names
         assert len(payload) == 1
         assert payload[0]["kind"] == "DataSource"
         assert payload[0]["metadata"]["namespace"] == target_namespace
-        assert payload[0]["metadata"]["name"] == "registered_source"
-        assert payload[0]["spec"]["data_id"]["namespace"] == "bkmonitor"
-        assert payload[0]["spec"]["data_id"]["name"] == "registered_source"
+        assert payload[0]["metadata"]["name"] == "bkm_datasource_960001"
+        assert "data_id" not in payload[0]["spec"]
+        assert payload[0]["metadata"]["labels"] == {"raw_data_id": "960001"}
+        assert payload[0]["spec"]["basic_info"]["data_source_alias"] == source.data_name
+        assert payload[0]["spec"]["basic_info"]["description"] == source.data_description
+        assert payload[0]["spec"]["basic_info"]["bk_biz_id"] == 2
         assert ("tenant" in payload[0]["metadata"]) is multi_tenant
-        assert ("tenant" in payload[0]["spec"]["data_id"]) is multi_tenant
-        assert result == dict(bk_data_id=960001, name="registered_source", target_namespace=target_namespace)
-    query.assert_called_with(bk_tenant_id="system", bk_data_id=960001)
-    query.return_value.exclude.return_value.order_by.assert_called_with("-last_modify_time", "-id")
+        assert result == dict(bk_data_id=960001, name="bkm_datasource_960001", target_namespace=target_namespace)
+    query.assert_not_called()
     save.assert_not_called()
     apply.side_effect = RuntimeError("BKBase unavailable")
     with pytest.raises(RuntimeError, match="BKBase unavailable"):
         source.apply_to_namespace(target_namespace)
 
 
-def test_missing_registration(mocker, source):
-    query = mocker.patch.object(models.DataIdConfig.objects, "filter")
-    query.return_value.exclude.return_value.order_by.return_value.first.return_value = None
-    apply = mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link")
-    with pytest.raises(models.DataIdConfig.DoesNotExist, match="DataIdConfig not found"):
-        source.apply_to_namespace("shared")
-    apply.assert_not_called()
-
-
 def test_resource_tenant_scope(mocker, source):
     get = mocker.patch.object(models.DataSource.objects, "get", return_value=source)
-    apply = mocker.patch.object(source, "apply_to_namespace", return_value={"name": "registered_source"})
+    apply = mocker.patch.object(source, "apply_to_namespace", return_value={"name": "bkm_datasource_960001"})
     params = dict(bk_tenant_id="system", bk_data_id=960001, target_namespace="shared")
-    assert ApplyDataSourceResource().perform_request(params) == {"name": "registered_source"}
+    assert ApplyDataSourceResource().perform_request(params) == {"name": "bkm_datasource_960001"}
     get.assert_called_once_with(bk_tenant_id="system", bk_data_id=960001)
     apply.assert_called_once_with(target_namespace="shared")
     get.side_effect = models.DataSource.DoesNotExist
