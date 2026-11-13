@@ -131,14 +131,19 @@ def test_help_uses_current_repo_for_new_and_existing_configs(config, settings, m
         "description_md": "old description",
     }
     mocker.patch("monitor_web.plugin.views.resource.commons.get_label_msg", return_value={})
-    for url in ("https://example.org/personal/skills", "https://example.org/team/skills.git", ""):
+    for url in (
+        "https://example.org/personal/skills",
+        "https://example.org/team/skills.git",
+        '"https://example.org/x" onclick="alert(1)',
+        "",
+    ):
         settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG["skill_repository_url"] = url
         new = CollectorPluginViewSet.get_virtual_plugins(with_detail=True)[0]["description_md"]
         assert detail(params_format="configmap")["plugin_info"]["description_md"] == new
         assert detail()["plugin_info"]["description_md"] == new
-        if url:
+        if url.startswith("https://"):
             assert f"npx skills add {url} -g" in new
-            assert f"[查看 Skill 仓库]({url})" in new
+            assert f'<a href="{url}" target="_blank" rel="noopener noreferrer">查看 Skill 仓库</a>' in new
         else:
             assert "上传已有的 ConfigMap YAML" in new
             assert "npx" not in new and "查看 Skill 仓库" not in new
