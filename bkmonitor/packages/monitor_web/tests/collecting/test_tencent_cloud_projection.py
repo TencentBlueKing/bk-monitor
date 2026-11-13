@@ -131,7 +131,7 @@ def test_help_uses_current_repo_for_new_and_existing_configs(config, settings, m
         "description_md": "old description",
     }
     mocker.patch("monitor_web.plugin.views.resource.commons.get_label_msg", return_value={})
-    for url in ("https://example.org/personal/skills", "https://example.org/team/skills", ""):
+    for url in ("https://example.org/personal/skills", "https://example.org/team/skills.git", ""):
         settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG["skill_repository_url"] = url
         new = CollectorPluginViewSet.get_virtual_plugins(with_detail=True)[0]["description_md"]
         assert detail(params_format="configmap")["plugin_info"]["description_md"] == new
