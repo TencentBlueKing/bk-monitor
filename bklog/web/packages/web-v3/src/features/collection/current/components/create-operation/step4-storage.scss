@@ -6,10 +6,35 @@
     .cluster-type-tabs {
       margin-left: 10px;
     }
+    .t-collapse {
+      background: transparent;
+      border: none;
+    }
+    .t-collapse-panel__wrapper {
+      .t-collapse-panel__header,
+      .t-collapse-panel__body {
+        background: transparent;
+        border: none;
+      }
+      .t-collapse-panel__header,
+      .t-collapse-panel__content {
+        padding: 0;
+      }
+      .t-collapse-panel__header {
+        display: block;
+        font: inherit;
+      }
+    }
+
     .cluster-title {
-      background: #eaebf0;
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 8px;
+      font-size: 12px;
       color: #313238;
-      padding-left: 8px;
+      cursor: pointer;
+      background: #eaebf0;
       border: 1px solid #dcdee5;
       .title {
         font-weight: 700;
@@ -29,13 +54,15 @@
         color: #4d4f56;
         font-size: 14px;
         margin-right: 8px;
+        transform: rotateZ(-90deg);
         &.expand {
-          transform: rotate(90deg);
+          transform: rotateZ(0);
         }
       }
     }
     .cluster-content {
       border: 1px solid #dcdee5;
+      border-top: none;
       margin-bottom: 17px;
       font-size: 12px;
     }
