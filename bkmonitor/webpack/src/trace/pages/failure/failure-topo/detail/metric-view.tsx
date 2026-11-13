@@ -33,9 +33,9 @@ import { useI18n } from 'vue-i18n';
 
 import ExceptionComp from '../../../../components/exception';
 import { allowsRealtimeEvents } from '../snapshot-analysis';
-import useMetrics from './useMetrics';
 import CustomEventMenu from './custom-event-menu';
 import MetricChart from './metric-chart';
+import useMetrics from './useMetrics';
 
 import type { IEventTagsItem, IMetricItem } from '../types/topo';
 
@@ -86,7 +86,9 @@ export default defineComponent({
     // 指标类型
     const metricType = computed(() => (isNodeView.value ? 'node' : props.data.edge_type));
     // 节点类型
-    const nodeType = computed(() => props.data.entity?.properties?.entity_category || props.data.entity?.rank_name || '');
+    const nodeType = computed(
+      () => props.data.entity?.properties?.entity_category || props.data.entity?.rank_name || ''
+    );
     // 边的指标数据
     const edgeMetricData = computed(() => props.data.events ?? []);
     const snapshotAnalysis = computed(() => props.data.graph_analysis);
@@ -616,6 +618,7 @@ export default defineComponent({
           isDarkTheme={true}
           isError={type === 'error'}
           title={type === 'noData' ? msg : t('查询异常')}
+          titleSize={type === 'noData' ? 12 : 14}
         />
       );
     };
@@ -671,15 +674,16 @@ export default defineComponent({
     }
     if (this.exceptionData.showException) {
       return (
-        <div>
+        <div class='metric-view-exception'>
           {this.handleException()}
-          {this.isNodeView && this.eventDataMessage && <p>{this.eventDataMessage}</p>}
-          {this.isNodeView && this.allEventsData.map(event => (
-            <p key={JSON.stringify([event.event_source, event.event_level, event.event_name])}>
-              {event.event_name} · {event.event_source} · {event.event_level} · {this.t('事件数量')}：
-              {event.series[0].datapoints.length}
-            </p>
-          ))}
+          {/* {this.isNodeView && this.eventDataMessage && <p>{this.eventDataMessage}</p>} */}
+          {this.isNodeView &&
+            this.allEventsData.map(event => (
+              <p key={JSON.stringify([event.event_source, event.event_level, event.event_name])}>
+                {event.event_name} · {event.event_source} · {event.event_level} · {this.t('事件数量')}：
+                {event.series[0].datapoints.length}
+              </p>
+            ))}
         </div>
       );
     }

@@ -4780,53 +4780,38 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info(f"table_id->[{self.table_id}] index->[{index_name}] field config same.")
         return True
 
-    def get_tag_values(self, tag_name):
-        """
-        curl -XGET  http://es.service.consul:10004/2_bklog_abcde_20200608_0/_search?pretty -d '
-        {
-            "aggs" : {
-                "field_values" : {
-                    "terms" : { "field" : "serverIp", "size":10000 }
-                }
-            },
-            "size" : 0
-        }'
-        response ==>
-        {
-            "took" : 301,
-            "timed_out" : false,
-            "_shards" : {
-                "total" : 5,
-                "successful" : 5,
-                "failed" : 0
-            },
-            "hits" : {
-                "total" : 2124190,
-                "max_score" : 0.0,
-                "hits" : [ ]
-            },
-            "aggregations" : {
-                "field_values" : {
-                    "doc_count_error_upper_bound" : 0,
-                    "sum_other_doc_count" : 0,
-                    "buckets" : [{
-                        "key" : "127.0.0.1",
-                        "doc_count" : 2124190
-                    }]
-                }
-            }
-        }
-        """
-        index_list = self.es_client.indices.get(f"{self.index_name}*")
+    def get_tag_values(self, tag_name, start_time=None, end_time=None, time_field="time"):
+        """查询维度值；带时间窗时使用 Unix 秒，ES7+ 分页返回所有唯一值。"""
+        if (start_time is None) != (end_time is None):
+            raise ValueError("start_time and end_time must be provided together")
+        if start_time is not None and start_time > end_time:
+            raise ValueError("start_time must not exceed end_time")
 
+        index_pattern = f"{self.index_name}*"
+        query = None
+        if start_time is not None:
+            query = {"range": {time_field: {"gte": start_time, "lte": end_time, "format": "epoch_second"}}}
         result = []
+        if query is not None and self.es_version >= 7:
+            composite = {"size": 1000, "sources": [{"value": {"terms": {"field": tag_name}}}]}
+            while True:
+                body = {"size": 0, "query": query, "aggs": {"field_values": {"composite": composite}}}
+                res = self.es_client.search(index=index_pattern, body=body, allow_no_indices=True)
+                values = res.get("aggregations", {}).get("field_values", {"buckets": []})
+                result.extend(bucket["key"]["value"] for bucket in values["buckets"])
+                if len(values["buckets"]) < composite["size"] or not values.get("after_key"):
+                    break
+                composite = {**composite, "after": values["after_key"]}
+            return result
+
+        # 保持无时间窗请求与 ES5/6 的逐索引 terms 查询兼容。
+        index_list = self.es_client.indices.get(index_pattern)
         for index_name in index_list:
             body = {"aggs": {"field_values": {"terms": {"field": tag_name, "size": 10000}}}, "size": 0}
+            if query is not None:
+                body["query"] = query
             res = self.es_client.search(index=index_name, body=body)
-            buckets = res["aggregations"]["field_values"]["buckets"]
-            tag_values = [bucket["key"] for bucket in buckets]
-            result += tag_values
-
+            result.extend(bucket["key"] for bucket in res["aggregations"]["field_values"]["buckets"])
         return result
 
     def group_expired_alias(self, alias_list, expired_days, need_delay_delete_alias: bool | None = True):
@@ -6110,6 +6095,8 @@ class StorageClusterRecord(models.Model):
 
     table_id = models.CharField(max_length=128, db_index=True, verbose_name="采集项结果表名")
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+    bkbase_table_id = models.CharField("BKBase结果表ID", max_length=255, default="", blank=True)
+    physical_tables = models.JSONField("物理表用途映射", default=dict)
     cluster_id = models.BigIntegerField(db_index=True, verbose_name="存储集群ID")
     is_deleted = models.BooleanField(default=False, verbose_name="是否删除/停用")
     is_current = models.BooleanField(default=False, verbose_name="是否是当前最新存储集群")
@@ -6313,6 +6300,7 @@ class DorisStorage(models.Model, StorageResultTable):
     bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
     bkbase_table_id = models.CharField("bkbase表名", max_length=128, null=True)
     origin_table_id = models.CharField("原始结果表名", max_length=128, blank=True, null=True)
+    physical_tables = models.JSONField("物理表用途映射", default=dict)
     source_type = models.CharField("数据源类型", max_length=32, default="log")
 
     index_set = models.TextField("索引集", blank=True, null=True)

@@ -27,6 +27,14 @@ import dayjs from 'dayjs';
 
 import { downFile } from '../../utils';
 
+/** 原生查询的 Step 仅支持 auto 或正整数秒。 */
+export const normalizePromqlStep = (value: unknown): string | undefined => {
+  const step = String(value ?? '').trim();
+  return step === 'auto' || (/^\d+$/.test(step) && Number.isSafeInteger(Number(step)) && Number(step) > 0)
+    ? step
+    : undefined;
+};
+
 export interface IUnifyQuerySeriesItem {
   datapoints: Array<[number, number]>;
   key: string;

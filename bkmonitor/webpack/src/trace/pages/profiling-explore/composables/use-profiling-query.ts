@@ -26,14 +26,19 @@
 import { computed, nextTick, onMounted, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { type DateValue, DateRange } from '@blueking/date-picker';
+import { Message } from 'bkui-vue';
+import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { getApplications, getFavorite, getLabelKeys, getLabelValues, getServiceDetail } from '../services/profiling';
+import { createHistoryFilters, executionKey } from '../utils/collection-history';
+import { createCollectionResultsState } from '../utils/collection-results';
 import {
   buildProfileQuery,
   clampSelection,
   createQueryState,
+  createViewState,
   restoreQueryState,
   restoreSelection,
 } from '../utils/query';
@@ -54,6 +59,7 @@ import type {
   SelectionRange,
   ServiceDetail,
 } from '../types';
+import type { CollectionResultSelection } from '../types/collection-history';
 
 export type UseProfilingQueryReturn = ReturnType<typeof useProfilingQuery>;
 
@@ -75,6 +81,13 @@ export function useProfilingQuery() {
   const initialFavorite = shallowRef<null | ProfilingFavorite>(null);
   const revision = shallowRef(0);
   const refreshBusy = shallowRef(false);
+  const collectionRevision = shallowRef(0);
+  const collectionBusy = shallowRef(false);
+  const collectionRange = shallowRef<null | SelectionRange>(null);
+  const collectionError = shallowRef('');
+  const collectionActive = computed(
+    () => state.value.view.tab === 'collection' && ['history', 'results'].includes(state.value.collection.tab)
+  );
   const bounds = computed(() => state.value.resolvedTimeRange);
   const active = computed(() => state.value.view.tab === 'application');
   let controller: AbortController;
@@ -139,9 +152,8 @@ export function useProfilingQuery() {
   function syncUrl() {
     if (!initialized || restoring || loading.value || disposed) return;
     try {
-      const range = bounds.value || resolveRange();
-      // 收藏读取 state 中的原始时间表达式；只有 URL 快照固定为绝对时间。
-      const snapshot = JSON.stringify({ ...state.value, timeRange: range, resolvedTimeRange: range });
+      // 时间表达式原样写入，刷新后仍能回填“近 N 分钟/小时”；resolvedTimeRange 记录本次绝对边界，供框选随相对时间平移。
+      const snapshot = JSON.stringify({ ...state.value, resolvedTimeRange: bounds.value || resolveRange() });
       if (snapshot === route.query.profiling || snapshot === writingQuery) return;
       writingQuery = snapshot;
       pendingWrites.add(snapshot);
@@ -183,7 +195,7 @@ export function useProfilingQuery() {
           isEnableOptions: true,
           methods: [{ value: EMethod.eq, alias: '=' }],
         }));
-    } catch (e) {
+    } catch (_e) {
       if (!current.signal.aborted) labelError.value = t('标签加载失败，请重试');
     } finally {
       if (!current.signal.aborted) labelsLoading.value = false;
@@ -193,6 +205,20 @@ export function useProfilingQuery() {
   function executeQuery(refreshLabels = false, refreshTrends = true) {
     // 搜索按钮/快捷键已提交时，取消本轮条件变更排队的查询。
     filterQueryPending = false;
+    if (collectionActive.value) {
+      try {
+        const range = resolveRange();
+        collectionRange.value = range;
+        patch({ resolvedTimeRange: range });
+        collectionRevision.value += 1;
+        collectionError.value = '';
+        syncUrl();
+      } catch (e) {
+        collectionRange.value = null;
+        collectionError.value = t((e as Error).message);
+      }
+      return;
+    }
     if (files.active.value) {
       files.executeQuery(refreshLabels);
       if (refreshLabels) files.refreshRecords();
@@ -274,6 +300,14 @@ export function useProfilingQuery() {
     }
   }
 
+  // 未灰度主动采集的业务忽略链接/收藏中的采集视图，避免挂载采集页并触发其请求。
+  function guardCollectionTab(next: QueryState): QueryState {
+    if (next.view.tab !== 'collection' || (window.active_profiling_biz_list ?? []).includes(Number(app.bizId))) {
+      return next;
+    }
+    return { ...next, view: { ...next.view, tab: 'application' } };
+  }
+
   async function initialize() {
     initialized = false;
     writingQuery = '';
@@ -295,6 +329,7 @@ export function useProfilingQuery() {
         initialFavorite.value = favorite;
         next = restoreQueryState(favorite.config.profiling, next.timezone);
       }
+      next = guardCollectionTab(next);
       state.value = next;
       updateTimezone(next.timezone);
       if (next.view.tab !== 'application') {
@@ -414,7 +449,7 @@ export function useProfilingQuery() {
   async function applyState(value: unknown) {
     restoring += 1;
     try {
-      state.value = restoreQueryState(value, getDefaultTimezone());
+      state.value = guardCollectionTab(restoreQueryState(value, getDefaultTimezone()));
       updateTimezone(state.value.timezone);
       controller?.abort();
       labelController?.abort();
@@ -460,11 +495,20 @@ export function useProfilingQuery() {
 
   function scheduleRefresh() {
     clearTimeout(timer);
-    if (disposed || (!active.value && !files.active.value) || state.value.refreshInterval < 60000) return;
+    if (
+      disposed ||
+      (!active.value && !files.active.value && !collectionActive.value) ||
+      state.value.refreshInterval < 60000
+    )
+      return;
     timer = setTimeout(() => {
       if (
         !document.hidden &&
-        !(files.active.value ? files.refreshBusy.value || files.loading.value : refreshBusy.value)
+        !(collectionActive.value
+          ? collectionBusy.value
+          : files.active.value
+            ? files.refreshBusy.value || files.loading.value
+            : refreshBusy.value)
       ) {
         executeQuery();
         if (files.active.value) files.refreshRecords();
@@ -473,9 +517,75 @@ export function useProfilingQuery() {
     }, state.value.refreshInterval);
   }
 
+  function collectionCreated() {
+    patch({
+      timeRange: ['now-15m', 'now'],
+      collection: {
+        ...state.value.collection,
+        tab: 'history',
+        history: createHistoryFilters(),
+        historyTaskId: null,
+        historyTaskName: '',
+        result: null,
+        results: createCollectionResultsState(),
+      },
+    });
+  }
+
+  // 打开结果与分享结果共用同一份「结果 tab 落地状态」，避免调整落地字段时两处漂移
+  function resultCollection(result: CollectionResultSelection) {
+    return {
+      ...state.value.collection,
+      tab: 'results' as const,
+      result,
+      results: {
+        ...state.value.collection.results,
+        execution: executionKey(result),
+        filters: createHistoryFilters(),
+        dataType: '',
+        view: createViewState(),
+      },
+    };
+  }
+
+  function openCollectionResult(result: CollectionResultSelection, newPage: boolean) {
+    const collection = resultCollection(result);
+    if (!newPage) {
+      patch({ collection });
+      return;
+    }
+    const range = bounds.value || resolveRange();
+    const snapshot = { ...state.value, collection, timeRange: range, resolvedTimeRange: range };
+    const { href } = router.resolve({
+      path: route.path,
+      query: { ...route.query, profiling: JSON.stringify(snapshot) },
+    });
+    window.open(`${location.pathname}?bizId=${app.bizId}${href}`, '_blank', 'noopener,noreferrer');
+  }
+
+  // 从执行详情叠加层分享时带上结果选择，打开链接直接定位到结果页对应主机的采集结果侧弹
+  function shareCollectionResult(result?: CollectionResultSelection | null) {
+    const range = bounds.value || resolveRange();
+    const collection = result ? resultCollection(result) : state.value.collection;
+    const snapshot = { ...state.value, collection, timeRange: range, resolvedTimeRange: range };
+    const { href } = router.resolve({
+      path: route.path,
+      query: { ...route.query, profiling: JSON.stringify(snapshot) },
+    });
+    let failed = false;
+    copyText(`${location.origin}${location.pathname}?bizId=${app.bizId}${href}`, (message: string) => {
+      failed = true;
+      Message({ theme: 'error', message });
+    });
+    if (!failed) Message({ theme: 'success', message: t('复制成功') });
+  }
+
   // 展示状态与未提交的筛选条件同样可分享，但不驱动数据请求。
   watch([state, loading], syncUrl, { flush: 'post' });
-  watch(() => [state.value.refreshInterval, state.value.view.tab], scheduleRefresh);
+  watch(() => [state.value.refreshInterval, state.value.view.tab, state.value.collection.tab], scheduleRefresh);
+  watch([collectionActive, () => state.value.timeRange, () => state.value.timezone], () => {
+    if (collectionActive.value) executeQuery();
+  });
   watch(
     () => app.bizId,
     () => {
@@ -526,7 +636,16 @@ export function useProfilingQuery() {
     initialFavorite,
     revision,
     refreshBusy,
+    collectionRevision,
+    collectionBusy,
+    collectionRange,
+    collectionError,
+    collectionCreated,
+    openCollectionResult,
+    shareCollectionResult,
     bounds,
+    // 只解析不写页面状态，供采集历史列表每次查询刷新时间边界
+    resolveRange,
     patch,
     patchView,
     changeFilters,

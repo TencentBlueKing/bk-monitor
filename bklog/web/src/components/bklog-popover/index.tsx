@@ -140,6 +140,10 @@ export default defineComponent({
         },
         onHidden: (...args) => {
           props.options.onHidden?.(...args);
+          // 重建实例时旧实例被销毁也会触发 onHidden，此时新实例即将显示，不能改登记状态或解绑监听
+          if (instance.isDestroyingInstance(args[0])) {
+            return;
+          }
           overlayRegistry.hide(resolvedOverlayId);
           if (props.options.hideOnClick === false && props.trigger === 'click' && isDocumentClickBinded) {
             document.removeEventListener('click', hanldeDocumentClick);

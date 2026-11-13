@@ -73,6 +73,10 @@ def log_backend(mocker):
         return deepcopy(selected[offset : offset + query_body["limit"]])
 
     query = mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=execute)
+    mocker.patch(
+        "bkmonitor.data_source.unify_query.builder.QueryHelper.query_log_with_total",
+        side_effect=lambda body: (execute("unifyquery", body), None),
+    )
     return source, query, queries
 
 

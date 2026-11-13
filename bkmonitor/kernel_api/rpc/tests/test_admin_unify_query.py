@@ -33,12 +33,13 @@ def test_defaults_business_and_preserves_partial_results(monkeypatch):
     assert response["meta"]["safety_level"] == "read"
 
 
-def test_explicit_query_business_and_tenant(monkeypatch):
+@pytest.mark.parametrize("business_id", [12, -4228598])
+def test_explicit_query_business_and_tenant(monkeypatch, business_id):
     provider = Mock(return_value={"series": []})
     monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
-    response = unify_query.query(params(bk_biz_id=12, bk_tenant_id="query-tenant"))
+    response = unify_query.query(params(bk_biz_id=business_id, bk_tenant_id="query-tenant"))
     assert provider.call_args.kwargs["bk_tenant_id"] == "query-tenant"
-    assert provider.call_args.kwargs["bk_biz_ids"] == ["12"]
+    assert provider.call_args.kwargs["bk_biz_ids"] == [str(business_id)]
     assert response["data"]["source"]["bk_tenant_id"] == "query-tenant"
 
 

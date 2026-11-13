@@ -74,6 +74,11 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
   /* 刷新时间列表 */
   refreshList: IRefreshItem[] = [];
   refreshInterval = -1;
+  // 图表不继承宿主刷新周期。本地下拉用 timer 重挂载图表并刷新表格，绑到下拉值会和图表自身定时器叠刷。
+  @ProvideReactive('refreshInterval')
+  get chartRefreshInterval() {
+    return -1;
+  }
   /** 自动刷新定时器 */
   timer = null;
   panelData = {

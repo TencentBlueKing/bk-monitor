@@ -35,6 +35,7 @@ from constants.apm import SpanKindKey
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
 
 logger = logging.getLogger("apm")
 
@@ -426,6 +427,21 @@ class PlatformConfig(BkCollectorConfig):
         if not bk_host_ids:
             logger.info("no bk-collector node, otlp is disabled")
             return
+
+        if BkCollectorDeployPolicy.is_enabled():
+            try:
+                return BkCollectorDeployPolicy.deploy(
+                    bk_tenant_id=bk_tenant_id,
+                    scene=BkCollectorDeployScene.APM_PLATFORM,
+                    resource_key="platform",
+                    template_name=cls.PLUGIN_PLATFORM_CONFIG_TEMPLATE_NAME,
+                    context=platform_config,
+                    bk_host_ids=bk_host_ids,
+                    bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID,
+                )
+            except Exception as e:  # noqa
+                logger.exception(f"deploy apm platform config by nodeman v3 error: {e}, tenant: {bk_tenant_id}")
+                return
 
         scope = {
             "object_type": "HOST",

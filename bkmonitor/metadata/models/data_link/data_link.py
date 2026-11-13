@@ -2985,6 +2985,7 @@ class DataLink(models.Model):
         databus_option_labels = self._get_databus_option_labels()
         consumer_group: str | None = kwargs.pop("consumer_group", None)
         force_cleanup_absent_components = kwargs.pop("cleanup_absent_components", False)
+        raise_on_cleanup_error = kwargs.pop("raise_on_cleanup_error", False)
         storage_type = kwargs.pop("storage_type", None)
         compose_arguments = inspect.signature(self._get_compose_method()).bind_partial(*args, **kwargs).arguments
         data_source = compose_arguments.get("data_source")
@@ -3157,7 +3158,7 @@ class DataLink(models.Model):
             self.data_link_strategy,
             response,
         )
-        self._cleanup_absent_components(components_to_delete)
+        self._cleanup_absent_components(components_to_delete, raise_on_error=raise_on_cleanup_error)
         # 仅在远端下发成功后解除停用状态，交由周期任务汇总组件状态。
         BkBaseResultTable.objects.filter(
             bk_tenant_id=self.bk_tenant_id,
@@ -3431,8 +3432,13 @@ class DataLink(models.Model):
             return code in {"404", "not_found", "resource_not_found"} or "not found" in message
         return False
 
-    def _cleanup_absent_components(self, components: list["DataLinkResourceConfigBase"]) -> None:
-        """BKBase apply 成功后尽力清理不再属于期望状态的组件。"""
+    def _cleanup_absent_components(
+        self,
+        components: list["DataLinkResourceConfigBase"],
+        *,
+        raise_on_error: bool = False,
+    ) -> None:
+        """清理多余组件；联邦调用要求清理失败上抛，保留本地记录供下轮重试。"""
         for component in components:
             try:
                 component.delete_config()
@@ -3455,6 +3461,8 @@ class DataLink(models.Model):
                     component.name,
                     error,
                 )
+                if raise_on_error:
+                    raise
 
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
     def apply_data_link_with_retry(self, configs: list[dict[str, Any]]):
@@ -3488,7 +3496,7 @@ class DataLink(models.Model):
         不变式：
         - ``bkbase_rt_name == ResultTableConfig.name``
         - ``bkbase_table_id == f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"``
-        - 联邦子集链路不声明独立 ResultTable，兼容使用 ``ConditionalSinkConfig.name`` 回填上述两个字段
+        - 联邦子集链路没有独立 ResultTable 时，上述两个字段置空
         - ``bkbase_data_name == DataBusConfig.data_id_name``
         - ``storage_type`` / ``storage_cluster_id`` 与 ``ClusterInfo`` 实际记录保持一致。
         """
@@ -3530,7 +3538,7 @@ class DataLink(models.Model):
         rt_queryset = rt_queryset.order_by("-last_modify_time", "-id")
         rt_count = rt_queryset.count()
         rt = rt_queryset.first()
-        if rt_count == 0:
+        if rt_count == 0 and self.data_link_strategy != self.BCS_FEDERAL_SUBSET_TIME_SERIES:
             logger.warning(
                 "sync_metadata: data_link_name->[%s] table_id->[%s] ResultTableConfig not found, "
                 "will record partial BkBaseResultTable",
@@ -3598,23 +3606,8 @@ class DataLink(models.Model):
                 }
             )
         elif self.data_link_strategy == self.BCS_FEDERAL_SUBSET_TIME_SERIES:
-            conditional_sink = (
-                ConditionalSinkConfig.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id,
-                    namespace=self.namespace,
-                    data_link_name=self.data_link_name,
-                )
-                .order_by("-last_modify_time", "-id")
-                .first()
-            )
-            if conditional_sink:
-                bkbase_rt_name = conditional_sink.name
-                defaults.update(
-                    {
-                        "bkbase_rt_name": bkbase_rt_name,
-                        "bkbase_table_id": f"{conditional_sink.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
-                    }
-                )
+            # Subset 只有 ConditionalSink/Databus，不能将复制组件名登记为独立结果表。
+            defaults.update(bkbase_rt_name=None, bkbase_table_id=None)
         if databus:
             defaults["bkbase_data_name"] = databus.data_id_name
 

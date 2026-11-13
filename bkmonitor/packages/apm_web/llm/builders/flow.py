@@ -46,6 +46,7 @@ class FlowBuilder:
     def __init__(self, raw_spans: list[dict[str, Any]], spans: list[dict[str, Any]]):
         self.raw_spans = raw_spans
         self.spans = spans
+        self.token_matrix: dict[str, Any] | None = None
         # 执行线根节点，build() 后可用
         self.flow: list[dict[str, Any]] = []
         # 各 Agent 的 Token 统计，key 为 span_id，build() 后可用
@@ -96,7 +97,7 @@ class FlowBuilder:
         roots: list[dict[str, Any]] = []
 
         def project(span: dict[str, Any], parent: dict[str, Any] | None) -> None:
-            node = nodes_by_span_id.get(span.get(OtlpKey.SPAN_ID))
+            node = nodes_by_span_id.get(span[OtlpKey.SPAN_ID])
             if node is not None:
                 if parent is None:
                     roots.append(node)
@@ -104,7 +105,7 @@ class FlowBuilder:
                     parent["childs"].append(node)
                 parent = node
 
-            for child in children_by_parent_id.get(span.get(OtlpKey.SPAN_ID), []):
+            for child in children_by_parent_id.get(span[OtlpKey.SPAN_ID], []):
                 project(child, parent)
 
         for raw_root in raw_roots:
@@ -139,9 +140,7 @@ class FlowBuilder:
         """按字段解析 Agent Token：自报值优先，缺失字段回填子树统计，缺失与显式 0 区分对待。"""
         attributes = node[OtlpKey.ATTRIBUTES]
         reported = {field: _read_token(attributes, field) for field in TOKEN_ATTRIBUTES}
-        totals = {
-            field: child_totals[field] if reported[field] is None else reported[field] for field in TOKEN_ATTRIBUTES
-        }
+        totals = {field: child_totals[field] if value is None else value for field, value in reported.items()}
 
         # 只回填缺失字段，不覆盖 Agent 已上报的取值；回填值全为 0 时不写入，避免污染属性
         missing = {field: totals[field] for field in TOKEN_ATTRIBUTES if reported[field] is None}

@@ -1,4 +1,5 @@
 import contextlib
+from copy import deepcopy
 from threading import Barrier, get_ident
 from unittest import TestCase, mock
 
@@ -23,6 +24,7 @@ from apm_web.llm.resources import (
     CalculateByRangeResource,
     ListFlowsResource,
     ListSpansResource,
+    ListToolCallsResource,
     ListTracesResource,
     TokenStatisticsResource,
     TimeSeriesResource,
@@ -450,7 +452,8 @@ class ListTracesResourceTestCase(TestCase):
                     ["trace-2", "trace-3", "trace-1"],
                     extra_filter=operation_query(
                         "aidev", [name for name, kind in SPAN_TYPES.items() if kind in {"AGENT", "LLM"}]
-                    ),
+                    )
+                    & Q(span_name__neq=["agent.execution"]),
                     sort=["end_time desc"],
                 ),
             ],
@@ -1033,6 +1036,99 @@ class ListTracesResourceTestCase(TestCase):
         self.assertEqual(item_for([tool_response_span])["output"], "file contents")
 
 
+class ListToolCallsResourceTestCase(TestCase):
+    def test_returns_core_fields_and_preserves_parallel_calls_and_events(self):
+        event = {"name": "exception", "attributes": {"exception.message": "tool failed"}}
+        spans = [
+            {
+                "span_id": "tool-1",
+                "attributes": {"gen_ai.tool.call.id": "call-1", "gen_ai.tool.name": "search"},
+                "start_time": 1234567,
+                "elapsed_time": 0,
+                "status": {"code": 2, "message": "tool failed"},
+                "events": [event],
+            },
+            {
+                "span_id": "tool-2",
+                "attributes": {"gen_ai.tool.call.id": "call-1", "gen_ai.tool.name": "search"},
+                "start_time": 1234568,
+                "elapsed_time": 10,
+                "status": {"code": 0, "message": ""},
+            },
+            {"span_id": "tool-without-call-id"},
+        ]
+        application = mock.Mock()
+        query = mock.Mock()
+        query.query_trace_tool_calls.return_value = spans
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_app,
+            mock.patch("apm_web.llm.resources.get_query", return_value=query) as get_query,
+        ):
+            result = ListToolCallsResource().request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
+
+        get_app.assert_called_once_with(bk_biz_id=11, app_name="demo")
+        get_query.assert_called_once_with(application.build_data_sources.return_value)
+        query.query_trace_tool_calls.assert_called_once_with("trace-1")
+        self.assertEqual(result["trace_id"], "trace-1")
+        self.assertEqual(result["total"], 3)
+        self.assertEqual(
+            result["tool_calls"][0],
+            {
+                "span_id": "tool-1",
+                "tool_call_id": "call-1",
+                "tool_name": "search",
+                "start_time": 1234567,
+                "elapsed_time": 0,
+                "status": {"code": 2, "message": "tool failed"},
+                "events": [event],
+            },
+        )
+        self.assertEqual(result["tool_calls"][1]["tool_call_id"], "call-1")
+        self.assertEqual(result["tool_calls"][1]["status"], {"code": 0, "message": ""})
+        self.assertEqual(result["tool_calls"][1]["events"], [])
+        self.assertIsNone(result["tool_calls"][2]["tool_call_id"])
+
+    def test_empty_trace_returns_empty_list(self):
+        query = mock.Mock()
+        query.query_trace_tool_calls.return_value = []
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get"),
+            mock.patch("apm_web.llm.resources.get_query", return_value=query),
+        ):
+            result = ListToolCallsResource().request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
+        self.assertEqual(result, {"trace_id": "trace-1", "total": 0, "tool_calls": []})
+
+    def test_query_failures_are_not_reported_as_empty_trace(self):
+        query = mock.Mock()
+        query.query_trace_tool_calls.side_effect = RuntimeError("query failed")
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get"),
+            mock.patch("apm_web.llm.resources.get_query", return_value=query),
+            self.assertRaisesRegex(RuntimeError, "query failed"),
+        ):
+            ListToolCallsResource().perform_request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
+
+    def test_trace_id_is_required_and_cannot_be_blank(self):
+        for values in ({}, {"trace_id": ""}, {"trace_id": "   "}):
+            with self.subTest(values=values):
+                serializer = ListToolCallsResource.RequestSerializer(
+                    data={"bk_biz_id": 11, "app_name": "demo", **values}
+                )
+                self.assertFalse(serializer.is_valid())
+                self.assertIn("trace_id", serializer.errors)
+        fields = ListToolCallsResource.RequestSerializer().fields
+        self.assertNotIn("limit", fields)
+        self.assertNotIn("offset", fields)
+
+    def test_route_uses_existing_application_permissions(self):
+        from apm_web.llm.views import LLMViewSet
+
+        route = next(route for route in LLMViewSet.resource_routes if route.endpoint == "list_tool_calls")
+        self.assertEqual(route.method, "POST")
+        self.assertIs(route.resource_class, ListToolCallsResource)
+        self.assertEqual(len(LLMViewSet().get_permissions()), 1)
+
+
 class ListSpansResourceTestCase(TestCase):
     def test_adapts_standard_span(self):
         trace_id = "a" * 32
@@ -1195,6 +1291,143 @@ class ListFlowsResourceTestCase(TestCase):
     def setUp(self):
         self.enterContext(override_settings(LLM_BIZ_LIST=[11]))
 
+    def test_duplicate_spans_do_not_repeat_flow_or_token_statistics(self):
+        def span(span_id, parent_span_id, operation, start_time, attributes=None):
+            return {
+                "trace_id": "trace-1",
+                "span_id": span_id,
+                "parent_span_id": parent_span_id,
+                "span_name": operation or "framework",
+                "start_time": start_time,
+                "end_time": start_time + 10,
+                "elapsed_time": 10,
+                "attributes": {"gen_ai.operation.name": operation, **(attributes or {})},
+                "status": {"code": 1},
+                "resource": {"service.name": "agent-service"},
+            }
+
+        raw_spans = [
+            span(
+                "agent",
+                "",
+                "invoke_agent",
+                100,
+                {
+                    "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+                    "gen_ai.output.messages": [{"role": "assistant", "parts": [{"type": "text", "content": "answer"}]}],
+                },
+            ),
+            span("framework", "agent", "", 110),
+            span(
+                "llm-1",
+                "framework",
+                "chat",
+                120,
+                {
+                    "gen_ai.usage.input_tokens": 10,
+                    "gen_ai.usage.output_tokens": 3,
+                    "gen_ai.usage.cache_read.input_tokens": 2,
+                },
+            ),
+            span("tool", "llm-1", "execute_tool", 130),
+            span(
+                "llm-2",
+                "agent",
+                "chat",
+                140,
+                {
+                    "gen_ai.usage.input_tokens": 20,
+                    "gen_ai.usage.output_tokens": 7,
+                    "gen_ai.usage.cache_write.input_tokens": 4,
+                },
+            ),
+        ]
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
+        span_query = mock.Mock()
+        request_data = {"bk_biz_id": 11, "app_name": "demo", "group_field": "trace_id", "group_id": "trace-1"}
+        expected_tokens = {
+            "input_tokens": 30,
+            "output_tokens": 10,
+            "total_tokens": 40,
+            "cache_read_input_tokens": 2,
+            "cache_write_input_tokens": 4,
+        }
+        for include_input_output, preview in ((True, False), (True, True), (False, False)):
+            with (
+                self.subTest(include_input_output=include_input_output, preview=preview),
+                mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+                mock.patch("apm_web.llm.resources.Application.objects.get"),
+                mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            ):
+                data = {**request_data, "include_input_output": include_input_output, "input_output_preview": preview}
+                span_query.query_by_group_ids.return_value = deepcopy(raw_spans)
+                expected = ListFlowsResource().request(data)
+                duplicated = deepcopy(raw_spans + raw_spans)
+                original = deepcopy(duplicated)
+                span_query.query_by_group_ids.return_value = duplicated
+                result = ListFlowsResource().request(data)
+                self.assertEqual(result, expected)
+                self.assertEqual(duplicated, original)
+                flow = result["traces"][0]["flow"]
+                self.assertEqual([node["span_id"] for node in flow], ["agent"])
+                self.assertEqual([node["span_id"] for node in flow[0]["childs"]], ["llm-1", "llm-2"])
+                self.assertEqual([node["span_id"] for node in flow[0]["childs"][0]["childs"]], ["tool"])
+                self.assertEqual({name: result[name] for name in expected_tokens}, expected_tokens)
+                if include_input_output:
+                    self.assertEqual(result["traces"][0]["input"], "question")
+                    self.assertEqual(result["traces"][0]["output"], "answer")
+                statistics = TokenStatisticsResource().request(
+                    {"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"}
+                )
+                self.assertEqual(statistics["statistics"], {"agent": expected_tokens})
+
+    def test_flow_deduplication_preserves_first_record_and_trace_identity(self):
+        records = [
+            {"trace_id": "trace-1", "span_id": "span-1", "attributes": {"value": "first"}},
+            {"trace_id": "trace-1", "span_id": "span-2"},
+            {"trace_id": "trace-1", "span_id": "span-1", "attributes": {"value": "later"}},
+            {"trace_id": "trace-2", "span_id": "span-1"},
+        ]
+        expected = [records[0], records[1], records[3]]
+        original = deepcopy(records)
+        span_query = mock.Mock()
+        span_query.query_by_group_ids.return_value = records
+        entity_set = mock.Mock(service_names=[])
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get"),
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            mock.patch("apm_web.llm.resources.prepare_flow_spans", return_value=[]) as prepare,
+            mock.patch("apm_web.llm.resources.FlowBuilder") as builder,
+        ):
+            ListFlowsResource.build_trace_flow(11, "demo", "trace-1", entity_set)
+        retained = prepare.call_args.args[0]
+        self.assertEqual(retained, expected)
+        for actual, first in zip(retained, expected):
+            self.assertIs(actual, first)
+        builder.assert_called_once_with(retained, [])
+        self.assertEqual(records, original)
+
+    def test_flow_deduplication_keeps_missing_or_invalid_span_identity(self):
+        for field in ("trace_id", "span_id"):
+            for value in (None, "", 0, [], {}):
+                record = {"trace_id": "trace-1", "span_id": "span-1", field: value}
+                records = [record, deepcopy(record)]
+                if value is None:
+                    for item in records:
+                        item.pop(field)
+                span_query = mock.Mock()
+                span_query.query_by_group_ids.return_value = records
+                with (
+                    self.subTest(field=field, value=value),
+                    mock.patch("apm_web.llm.resources.Application.objects.get"),
+                    mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+                    mock.patch("apm_web.llm.resources.prepare_flow_spans", return_value=[]) as prepare,
+                    mock.patch("apm_web.llm.resources.FlowBuilder"),
+                ):
+                    ListFlowsResource.build_trace_flow(11, "demo", "trace-1", mock.Mock(service_names=[]))
+                self.assertEqual(prepare.call_args.args[0], records)
+
     def test_disabled_grayscale_skips_topology_and_span_queries(self):
         for biz_list in ([], [22]):
             for group_field in ("trace_id", "attributes.gen_ai.conversation.id"):
@@ -1340,6 +1573,8 @@ class ListFlowsResourceTestCase(TestCase):
             )
         trace = result["traces"][0]
         flow = trace.pop("flow")
+        matrix = trace.pop("token_matrix")
+        self.assertEqual([node["value"] for node in matrix["nodes"]], [30, 10])
         self.assertEqual(
             trace,
             {
@@ -1585,7 +1820,9 @@ class ListFlowsResourceTestCase(TestCase):
         def flatten(nodes):
             flattened = []
             for node in nodes:
-                flattened.append({key: value for key, value in node.items() if key != "childs"})
+                flattened.append(
+                    {key: value for key, value in node.items() if key not in {"childs", "token_categories"}}
+                )
                 flattened.extend(flatten(node["childs"]))
             return flattened
 
@@ -2394,7 +2631,7 @@ class CalculateByRangeResourceTestCase(TestCase):
             "galileo": "attributes.gen_ai.operation.name",
             "agentlens": "attributes.gen_ai.span.kind",
             "langfuse": "attributes.langfuse.observation.type",
-            "aidev": "attributes.llm.request.type",
+            "aidev": "attributes.gen_ai.operation.name",
         }
         for product, field in operation_fields.items():
             for group_by in ([], ["gen_ai.operation.name"]):
@@ -2424,8 +2661,8 @@ class CalculateByRangeResourceTestCase(TestCase):
             ),
             (
                 "aidev",
-                "attributes.llm.request.type",
-                [("chat", 20), ("", 12627), ("completion", 5)],
+                "attributes.gen_ai.operation.name",
+                [("chat", 20), ("", 12627), ("text_completion", 5)],
                 [("chat", 20), ("text_completion", 5)],
             ),
             (
@@ -2521,7 +2758,7 @@ class CalculateByRangeResourceTestCase(TestCase):
         self.assertEqual(
             layer_query(query),
             Q(**{"attributes.gen_ai.operation.name": ["chat", "generate_content", "text_completion", "embeddings"]})
-            | Q(span_name="chat_model.generate"),
+            | Q(span_name=["chat_model.generate", "ChatModel.chat"]),
         )
 
     def test_bkaidev_request_count_includes_standard_and_legacy_agents(self):
@@ -2757,9 +2994,12 @@ class TimeSeriesResourceTestCase(TestCase):
         grafana = mock.Mock()
         grafana.grafana.graph_unify_query.return_value = {
             "series": [
-                {"dimensions": {"attributes.llm.request.type": ""}, "datapoints": [[100, 1700000000000]]},
-                {"dimensions": {"attributes.llm.request.type": "completion"}, "datapoints": [[5, 1700000000000]]},
-                {"dimensions": {"attributes.llm.request.type": "chat"}, "datapoints": [[20, 1700000000000]]},
+                {"dimensions": {"attributes.gen_ai.operation.name": ""}, "datapoints": [[100, 1700000000000]]},
+                {
+                    "dimensions": {"attributes.gen_ai.operation.name": "text_completion"},
+                    "datapoints": [[5, 1700000000000]],
+                },
+                {"dimensions": {"attributes.gen_ai.operation.name": "chat"}, "datapoints": [[20, 1700000000000]]},
             ]
         }
         with patch_llm_metric_group(query, product="aidev"), mock.patch(f"{GROUP_MODULE}.resource", grafana):

@@ -1594,6 +1594,8 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
 
     RESERVED_FIELDS: list[str] = ["_after_key_"]
     INNER_DIMENSIONS: list[str] = []
+    # 加上 dimensions. 前缀之后才从下推条件里去掉。日志检索不加前缀，顶层 bk_collect_config_id 仍会下推。
+    DROPPED_WHERE_KEY = "dimensions.bk_collect_config_id"
     DISTINCT_METHODS: set[str] = {"AVG", "SUM", "COUNT"}
 
     EXTRA_DISTINCT_FIELD: str | None = None
@@ -1827,6 +1829,13 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         return field not in self.INNER_DIMENSIONS and not field.startswith("dimensions")
 
     @classmethod
+    def drops_where_key(cls, key: str) -> bool:
+        """agg_condition 中的 key 经 _get_where 改写后是否会被丢掉。"""
+        if cls.is_dimensions_field(cls, key):
+            key = f"dimensions.{key}"
+        return key == cls.DROPPED_WHERE_KEY
+
+    @classmethod
     def _get_datasource(cls) -> str:
         return "bkapm"
 
@@ -1873,9 +1882,8 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             if self.is_dimensions_field(condition["key"]):
                 condition["key"] = f"dimensions.{condition['key']}"
 
-        # 去除采集配置ID条件
-        where = [c for c in where if c["key"] != "dimensions.bk_collect_config_id"]
-        return where
+        # 只去掉已经写成 dimensions.bk_collect_config_id 的条件。日志检索不加前缀，顶层字段名保持下推。
+        return [condition for condition in where if condition["key"] != self.DROPPED_WHERE_KEY]
 
     def _add_dimension_prefix(self, filter_dict: dict) -> dict:
         """
@@ -2190,6 +2198,11 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
 
         return settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV
 
+    @classmethod
+    def is_unify_query_black_biz(cls, bk_biz_id: int | None) -> bool:
+        black_list: list[str | int] = cls._fetch_black_list()
+        return bk_biz_id in black_list or str(bk_biz_id) in black_list
+
     def _get_unify_query_string(self) -> str:
         # 背景：没有切换 UnifyQuery 的场景直调日志平台 API，此处对其日志平台对 query_string 的处理逻辑。
         # Ref：https://github.com/TencentBlueKing/bk-monitor/blob/master/bklog/apps/log_esquery/esquery/builder/query_string_builder.py#L46
@@ -2210,8 +2223,7 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
             return True
 
         # 黑名单机制，命中的业务不使用 unify-query 查询，其他业务默认使用。
-        black_list: list[str | int] = self._fetch_black_list()
-        return bk_biz_id not in black_list and str(bk_biz_id) not in black_list
+        return not self.is_unify_query_black_biz(bk_biz_id)
 
     @classmethod
     def _get_datasource(cls) -> str:

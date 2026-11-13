@@ -219,7 +219,7 @@ class QueryRawResource(UnifyQueryAPIResource):
 
     class RequestSerializer(serializers.Serializer):
         query_list = serializers.ListField()
-        metric_merge = serializers.CharField()
+        metric_merge = serializers.CharField(required=False)
         start_time = serializers.CharField()
         end_time = serializers.CharField()
         step = serializers.CharField()
@@ -593,6 +593,32 @@ class QueryMultiResourceV1Beta3(QueryMultiResource):
 
     path = RELATION_MULTI_RESOURCE_V1BETA3_PATH
     v1beta3_path = ""
+
+
+class QueryMultiResourceRangeV1Beta3(QueryMultiResourceRange):
+    """Explicit v1beta3 range probe, independent of the business rollout switch."""
+
+    path = RELATION_MULTI_RESOURCE_RANGE_V1BETA3_PATH
+    v1beta3_path = ""
+
+
+class GetRelationSchemaResource(UnifyQueryAPIResource):
+    """
+    查询关联关系定义在 namespace 下的生效结果、每条定义的来源与 Redis 覆盖层状态（只读）
+    """
+
+    method = "GET"
+    path = "/relation_schema_print"
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(required=False, allow_blank=True, help_text="用于选择 UQ 集群与请求头")
+        namespace = serializers.CharField(default="__all__", help_text="__all__ 或空间 UID")
+        content = serializers.BooleanField(default=False, help_text="为 true 时附带每条定义的内容")
+
+        def validate(self, attrs):
+            attrs["content"] = "true" if attrs["content"] else "false"
+            attrs["format"] = "json"
+            return attrs
 
 
 class QueryInfoFieldMapResource(UnifyQueryAPIResource):

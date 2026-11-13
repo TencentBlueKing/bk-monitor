@@ -39,7 +39,7 @@ from alarm_backends.core.storage.redis import Cache
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.management.hashring import HashRing
 from alarm_backends.service.access import base
-from alarm_backends.service.access.data.duplicate import ZERO_VALUE_RECORD_SUFFIX, Duplicate
+from alarm_backends.service.access.data.duplicate import VALUE_RECORD_SUFFIX, Duplicate
 from alarm_backends.service.access.data.filters import (
     ExpireFilter,
     HostStatusFilter,
@@ -654,6 +654,8 @@ class AccessDataProcess(BaseAccessDataProcess):
             from alarm_backends.core.alarmd.v2_access import export_access_batch_context
 
             alarmd_v2_context = export_access_batch_context(self)
+        # 子任务会重建 Item/UnifyQuery，查询不完整标记需随批次传过去。
+        query_is_partial = bool(getattr(getattr(self.items[0], "query", None), "is_partial", False))
         first_batch_points = []  # 第一批数据，原地处理
         latest_record_timestamp = None  # 上一个记录的时间戳，用于判断是否遇到新时间点
         last_batch_index, batch_count = 0, 0  # last_batch_index: 上一批次的结束位置，batch_count: 批次计数
@@ -700,11 +702,12 @@ class AccessDataProcess(BaseAccessDataProcess):
 
                 # 数据压缩：使用 gzip + base64 压缩数据，减少 Redis 存储空间
                 batch_payload = batch_points
-                if alarmd_v2_context:
+                if alarmd_v2_context or query_is_partial:
                     batch_payload = {
                         "format": "access-batch-v2-shadow-context",
                         "points": batch_points,
                         "alarmd_v2": alarmd_v2_context,
+                        "is_partial": query_is_partial,
                     }
                 compress_batch_points = base64.b64encode(gzip.compress(json.dumps(batch_payload).encode("utf-8")))
                 client.set(data_key, compress_batch_points, ex=key.ACCESS_BATCH_DATA_KEY.ttl)
@@ -750,12 +753,12 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 用于在去重后 record_list 为空时，仍然能够更新 checkpoint，避免死循环
         max_queried_data_time = 0
 
-        # 日志关键字计数的 0 只表示暂未查到日志：在静态阈值下判为正常时，去重缓存只记“该点读到过 0”，
-        # 回看窗口内迟到的日志使计数变为非零后仍会被检测。非零值照常按 record_id 去重：
-        # 检测结果缓存按成员条数裁剪，同一时间点多次写入不同的值会挤掉恢复判断仍需要的旧点
-        log_count_detectors = self._build_log_count_threshold_detectors()
-        mark_zero = log_count_detectors is not None and self._is_threshold_normal(log_count_detectors, 0)
-        zero_record_ids = defaultdict(list)
+        # 日志计数的 0 只表示暂未查到日志：按取值去重，回看窗口内计数变化后仍会送检。
+        # 同一取值不重复送检。新取值由检测侧覆盖该时间点的旧结果，避免成员数把恢复窗口裁掉。
+        value_item_ids = self._log_count_value_dedupe_item_ids()
+        # 整批查询不完整时，不能用偏低的计数覆盖已经送检过的完整结果。
+        query_is_partial = bool(getattr(getattr(first_item, "query", None), "is_partial", False))
+        value_record_ids = defaultdict(list)
 
         non_duplicate_records = []
 
@@ -773,12 +776,40 @@ class AccessDataProcess(BaseAccessDataProcess):
             if record_time > max_queried_data_time:
                 max_queried_data_time = record_time
 
-            zero_record_id = f"{record_id}{ZERO_VALUE_RECORD_SUFFIX}" if mark_zero and value == 0 else None
+            if value_item_ids is not None:
+                value_token = str(int(value)) if isinstance(value, float) and value.is_integer() else str(value)
+                value_record_id = f"{record_id}{VALUE_RECORD_SUFFIX}{value_token}"
+                if query_is_partial and dup_obj.is_duplicate_by_id(record_id, record_time):
+                    duplicate_counts += 1
+                    if have_priority:
+                        point = DataRecord(self.items, record)
+                        point.is_duplicate = True
+                        records.append(point)
+                    continue
+                if dup_obj.is_duplicate_by_id(value_record_id, record_time):
+                    duplicate_counts += 1
+                    if have_priority:
+                        point = DataRecord(self.items, record)
+                        point.is_duplicate = True
+                        records.append(point)
+                else:
+                    point = DataRecord(self.items, record)
+                    # record_id 本身表示这个时间点已经送检过，下一次不同取值要覆盖旧结果。
+                    if dup_obj.is_duplicate_by_id(record_id, record_time):
+                        point.replaces_check_result = True
+                        for item in self.items:
+                            if item.id not in value_item_ids:
+                                point.is_retains[item.id] = False
+                    else:
+                        non_duplicate_records.append(point)
+                    records.append(point)
+                    value_record_ids[record_time].append(value_record_id)
+                    if point.time > max_data_time:
+                        max_data_time = point.time
+                continue
 
             # 去重判断
-            if dup_obj.is_duplicate_by_id(record_id, record_time) or (
-                zero_record_id and dup_obj.is_duplicate_by_id(zero_record_id, record_time)
-            ):
+            if dup_obj.is_duplicate_by_id(record_id, record_time):
                 duplicate_counts += 1
                 # 有优先级的策略，重复数据需要保留，后续再过滤
                 if have_priority:
@@ -789,10 +820,7 @@ class AccessDataProcess(BaseAccessDataProcess):
                 # 非重复数据创建 DataRecord
                 point = DataRecord(self.items, record)
                 records.append(point)
-                if zero_record_id:
-                    zero_record_ids[record_time].append(zero_record_id)
-                else:
-                    non_duplicate_records.append(point)
+                non_duplicate_records.append(point)
 
                 # 只观察非重复数据
                 if point.time > max_data_time:
@@ -801,8 +829,8 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 批量添加非重复记录到去重缓存
         if non_duplicate_records:
             dup_obj.add_records_batch(non_duplicate_records)
-        if zero_record_ids:
-            dup_obj.add_record_ids_batch(zero_record_ids)
+        if value_record_ids:
+            dup_obj.add_record_ids_batch(value_record_ids)
 
         # 保存到实例变量，供 push 方法使用
         self.max_queried_data_time = max_queried_data_time
@@ -932,18 +960,17 @@ class AccessDataProcess(BaseAccessDataProcess):
                 return False
         return True
 
-    def _build_log_count_threshold_detectors(self) -> list | None:
+    def _log_count_value_dedupe_item_ids(self) -> set | None:
         """
-        拉取组内的 Item 均为日志关键字计数且只用静态阈值时，返回每个 Item 按级别分组的 Threshold 检测器；否则返回 None。
-        去重缓存由拉取组内的 Item 共用，任一 Item 不满足都需按原逻辑去重。
+        拉取组内的 Item 均为日志计数时，返回只用静态阈值的 Item id；不是日志计数或没有这类 Item 时返回 None。
+        同一时间点的改写取值只送给这些 Item，其他算法的 Item 仍按 record_id 只收一次。
         """
-        from alarm_backends.service.detect.strategy.threshold import Threshold
-
         log_keyword_sources = {
             (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
             (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
         }
-        item_detectors = []
+        item_ids = set()
         for item in self.items:
             if len(item.data_sources) != 1 or not item.algorithms or not item.data_source_types <= log_keyword_sources:
                 return None
@@ -954,38 +981,9 @@ class AccessDataProcess(BaseAccessDataProcess):
             # 采集器日志关键字的 COUNT 在数据源构造时被改写为 SUM(event.count)，同样是命中次数
             if not (method == "COUNT" or (method == "SUM" and metrics[0].get("field") == "event.count")):
                 return None
-            if not self._is_all_static_threshold(item):
-                return None
-
-            level_detectors = defaultdict(list)
-            try:
-                for algorithm in item.algorithms:
-                    detector = Threshold(algorithm["config"], algorithm.get("unit_prefix", ""))
-                    level_detectors[int(algorithm["level"])].append(detector)
-            except Exception as e:
-                logger.warning(f"strategy({item.strategy.id}) item({item.id}) build threshold detectors failed: {e}")
-                return None
-            item_detectors.append((item, level_detectors))
-        return item_detectors
-
-    def _is_threshold_normal(self, item_detectors: list, value) -> bool:
-        """
-        判断值在各 Item 各级别的静态阈值下是否都正常。
-        与检测一致：同级别多个算法按连接符组合，未配置或非 or 时按 and。
-        """
-        from alarm_backends.service.detect import DataPoint
-
-        try:
-            for item, level_detectors in item_detectors:
-                data_point = DataPoint({"value": value, "time": 0, "record_id": ""}, item)
-                for level, detectors in level_detectors.items():
-                    results = [bool(detector.detect(data_point)) for detector in detectors]
-                    if any(results) if item.algorithm_connectors[level] == "or" else all(results):
-                        return False
-        except Exception as e:
-            logger.warning(f"strategy_group_key({self.strategy_group_key}) threshold check failed: {e}")
-            return False
-        return True
+            if self._is_all_static_threshold(item):
+                item_ids.add(item.id)
+        return item_ids or None
 
     def _can_merge_access_detect(self) -> bool:
         """
@@ -1528,6 +1526,9 @@ class AccessBatchDataProcess(AccessDataProcess):
 
                 points = batch_payload.get("points") or []
                 apply_access_batch_context(self, batch_payload.get("alarmd_v2"))
+                if batch_payload.get("is_partial"):
+                    for item in self.items:
+                        item.query.is_partial = True
             else:
                 points = batch_payload
         else:

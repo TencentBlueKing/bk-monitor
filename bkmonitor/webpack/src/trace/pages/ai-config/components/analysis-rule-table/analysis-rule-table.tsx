@@ -158,177 +158,203 @@ export default defineComponent({
     /** 空状态类型：搜索无结果时为 search-empty，否则为 empty */
     const emptyType = computed(() => (props.searchValue ? 'search-empty' : 'empty'));
 
-    /** 表格列配置 */
-    const tableColumns = shallowRef<BaseTableColumn[]>([
-      {
-        /** 匹配方式列 */
-        colKey: 'conditions',
-        ellipsis: false,
-        resizable: true,
-        width: 440,
-        minWidth: 440,
-        sorter: false,
-        cellRenderer: row =>
-          row.is_default ? (
-            <span class='match-rule-default'>
-              {t('所有策略')} <span class='green-tag'>{t('默认')}</span>
+    /**
+     * 构造表格列配置
+     * @param matchRuleKey 字段加载状态对应的 key，变化时触发 MatchRule 重建以刷新字段与条件展示名
+     */
+    const getTableColumns = (matchRuleKey: string): BaseTableColumn[] =>
+      [
+        {
+          /** 匹配方式列 */
+          colKey: 'conditions',
+          ellipsis: false,
+          resizable: true,
+          width: 440,
+          minWidth: 440,
+          sorter: false,
+          // cellRenderer: row =>
+          //   row.is_default ? (
+          //     <span class='match-rule-default'>
+          //       {t('所有策略')} <span class='green-tag'>{t('默认')}</span>
+          //     </span>
+          //   ) : props.matchRuleFieldsLoading ? (
+          //     <div
+          //       style='height: 40px'
+          //       class='skeleton-element'
+          //     />
+          //   ) : (
+          //     <MatchRule
+          //       fields={props.matchRuleFields}
+          //       readonly={true}
+          //       tagValueDisplayFormatter={props.tagValueDisplayFormatter}
+          //       value={toWhereItems(row.conditions)}
+          //     />
+          //   ),
+          cellRenderer: row =>
+            row.is_default ? (
+              <span class='match-rule-default'>
+                {t('所有策略')} <span class='green-tag'>{t('默认')}</span>
+              </span>
+            ) : (
+              <MatchRule
+                key={matchRuleKey}
+                fields={props.matchRuleFields}
+                readonly={true}
+                tagValueDisplayFormatter={props.tagValueDisplayFormatter}
+                value={toWhereItems(row.conditions)}
+              />
+            ),
+          title: () => <span>{t('匹配方式')}</span>,
+        },
+        {
+          /** 优先级列 */
+          colKey: 'priority',
+          ellipsis: false,
+          resizable: true,
+          width: 105,
+          minWidth: 105,
+          sorter: true,
+          cellRenderer: (row: SourceAnalysisRuleDto) => <div class='priority-tag'>{row.priority}</div>,
+          title: () => (
+            <span class='priority-col-title'>
+              <span>{t('优先级')}</span>
+              {/* 优先级说明提示图标：hover 展示数值区间说明 */}
+              <span
+                class='icon-monitor icon-hint'
+                v-bk-tooltips={{
+                  placement: 'top',
+                  content: t('数值越高，优先级越高，最大值为10000'),
+                }}
+              />
             </span>
-          ) : props.matchRuleFieldsLoading ? (
-            <div
-              style='height: 40px'
-              class='skeleton-element'
-            />
-          ) : (
-            <MatchRule
-              fields={props.matchRuleFields}
-              readonly={true}
-              tagValueDisplayFormatter={props.tagValueDisplayFormatter}
-              value={toWhereItems(row.conditions)}
+          ),
+        },
+        {
+          /** 智能体列 */
+          colKey: 'agent_id',
+          ellipsis: false,
+          resizable: true,
+          width: 224,
+          minWidth: 224,
+          sorter: false,
+          cellRenderer: row => (
+            <TagCell
+              nameMap={props.agentNameMap}
+              tags={[row.agent_id]}
             />
           ),
-        title: () => <span>{t('匹配方式')}</span>,
-      },
-      {
-        /** 优先级列 */
-        colKey: 'priority',
-        ellipsis: false,
-        resizable: true,
-        width: 105,
-        minWidth: 105,
-        sorter: true,
-        cellRenderer: (row: SourceAnalysisRuleDto) => <div class='priority-tag'>{row.priority}</div>,
-        title: () => (
-          <span class='priority-col-title'>
-            <span>{t('优先级')}</span>
-            {/* 优先级说明提示图标：hover 展示数值区间说明 */}
-            <span
-              class='icon-monitor icon-hint'
-              v-bk-tooltips={{
-                placement: 'top',
-                content: t('数值越高，优先级越高，最大值为10000'),
-              }}
-            />
-          </span>
-        ),
-      },
-      {
-        /** 智能体列 */
-        colKey: 'agent_id',
-        ellipsis: false,
-        resizable: true,
-        width: 224,
-        minWidth: 224,
-        sorter: false,
-        cellRenderer: row => (
-          <TagCell
-            nameMap={props.agentNameMap}
-            tags={[row.agent_id]}
-          />
-        ),
-        title: () => <span>{t('智能体')}</span>,
-      },
-      {
-        colKey: 'knowledge_base_ids',
-        ellipsis: false,
-        resizable: true,
-        width: 224,
-        minWidth: 224,
-        sorter: false,
-        cellRenderer: row => (
-          <TagCell
-            nameMap={props.knowledgeNameMap}
-            tags={row.knowledge_base_ids}
-          />
-        ),
-        title: () => <span>{t('知识库')}</span>,
-      },
-      {
-        /** 关联 skill 列 */
-        colKey: 'skill_ids',
-        ellipsis: false,
-        resizable: true,
-        width: 224,
-        minWidth: 224,
-        sorter: false,
-        cellRenderer: row => (
-          <TagCell
-            nameMap={props.skillNameMap}
-            tags={row.skill_ids}
-          />
-        ),
-        title: () => <span>skill</span>,
-      },
-      {
-        /** 启用状态列 */
-        colKey: 'is_enabled',
-        ellipsis: false,
-        resizable: true,
-        width: 73,
-        minWidth: 73,
-        sorter: false,
-        filter: {
-          list: [
-            {
-              label: t('启用'),
-              value: true,
-              checked: false,
-            },
-            {
-              label: t('停用'),
-              value: false,
-              checked: false,
-            },
-          ],
-          type: 'multiple',
-          showConfirmAndReset: true,
-          resetValue: [],
+          title: () => <span>{t('智能体')}</span>,
         },
-        cellRenderer: row => (
-          <Switcher
-            beforeChange={() => handleEnableChange(row)}
-            modelValue={row.is_enabled}
-            size='small'
-            theme='primary'
-          />
-        ),
-        title: t('启/停'),
-      },
-      {
-        /** 操作列 */
-        colKey: 'operate',
-        ellipsis: false,
-        resizable: true,
-        width: 72,
-        minWidth: 72,
-        sorter: false,
-        cellRenderer: (row: SourceAnalysisRuleDto) => (
-          <span class='operate-col-wrap'>
-            {/* 编辑规则按钮 */}
-            <span
-              class='icon-monitor icon-bianji'
-              onClick={() => {
-                emit('editRule', row);
-              }}
+        {
+          colKey: 'knowledge_base_ids',
+          ellipsis: false,
+          resizable: true,
+          width: 224,
+          minWidth: 224,
+          sorter: false,
+          cellRenderer: row => (
+            <TagCell
+              nameMap={props.knowledgeNameMap}
+              tags={row.knowledge_base_ids}
             />
-            {/* 删除规则按钮：默认策略置灰不可删除 */}
-            <span
-              class={['icon-monitor icon-mc-delete-line', { 'is-disabled': row.is_default }]}
-              v-bk-tooltips={{
-                placement: 'top',
-                content: t('默认策略不可删除'),
-                disabled: !row.is_default,
-              }}
-              onClick={() => {
-                if (!row.is_default) {
-                  emit('deleteRule', row);
-                }
-              }}
+          ),
+          title: () => <span>{t('知识库')}</span>,
+        },
+        {
+          /** 关联 skill 列 */
+          colKey: 'skill_ids',
+          ellipsis: false,
+          resizable: true,
+          width: 224,
+          minWidth: 224,
+          sorter: false,
+          cellRenderer: row => (
+            <TagCell
+              nameMap={props.skillNameMap}
+              tags={row.skill_ids}
             />
-          </span>
-        ),
-        title: () => '',
-      },
-    ] as any[]);
+          ),
+          title: () => <span>skill</span>,
+        },
+        {
+          /** 启用状态列 */
+          colKey: 'is_enabled',
+          ellipsis: false,
+          resizable: true,
+          width: 73,
+          minWidth: 73,
+          sorter: false,
+          filter: {
+            list: [
+              {
+                label: t('启用'),
+                value: true,
+                checked: false,
+              },
+              {
+                label: t('停用'),
+                value: false,
+                checked: false,
+              },
+            ],
+            type: 'multiple',
+            showConfirmAndReset: true,
+            resetValue: [],
+          },
+          cellRenderer: row => (
+            <Switcher
+              beforeChange={() => handleEnableChange(row)}
+              modelValue={row.is_enabled}
+              size='small'
+              theme='primary'
+            />
+          ),
+          title: t('启/停'),
+        },
+        {
+          /** 操作列 */
+          colKey: 'operate',
+          ellipsis: false,
+          resizable: true,
+          width: 72,
+          minWidth: 72,
+          sorter: false,
+          cellRenderer: (row: SourceAnalysisRuleDto) => (
+            <span class='operate-col-wrap'>
+              {/* 编辑规则按钮 */}
+              <span
+                class='icon-monitor icon-bianji'
+                onClick={() => {
+                  emit('editRule', row);
+                }}
+              />
+              {/* 删除规则按钮：默认策略置灰不可删除 */}
+              <span
+                class={['icon-monitor icon-mc-delete-line', { 'is-disabled': row.is_default }]}
+                v-bk-tooltips={{
+                  placement: 'top',
+                  content: t('默认策略不可删除'),
+                  disabled: !row.is_default,
+                }}
+                onClick={() => {
+                  if (!row.is_default) {
+                    emit('deleteRule', row);
+                  }
+                }}
+              />
+            </span>
+          ),
+          title: () => '',
+        },
+      ] as any[];
+
+    /**
+     * 表格列配置
+     * @description 依赖 matchRuleFieldsLoading：字段加载状态变化时重建列，驱动「匹配方式」单元格重新渲染
+     */
+    const tableColumns = computed<BaseTableColumn[]>(() =>
+      getTableColumns(props.matchRuleFieldsLoading ? 'loading' : 'ready')
+    );
 
     /**
      * @description 表头列筛选变化：记录筛选值并驱动表格数据过滤

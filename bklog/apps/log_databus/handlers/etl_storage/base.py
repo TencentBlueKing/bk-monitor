@@ -301,6 +301,7 @@ class EtlStorage:
             "yyyy-MM-ddTHH:mm:ssZ": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
             "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
             "yyyy.MM.dd-HH.mm.ss:SSS": {"format": "%Y.%m.%d-%H.%M.%S:%3f", "zone": 0},
+            "YYYY.MM.dd-HH.mm.ss:SSS": {"format": "%Y.%m.%d-%H.%M.%S:%3f", "zone": 0},
             "date_hour_minute_second": {"format": "%Y-%m-%dT%H:%M:%S", "zone": 0},
             "date_hour_minute_second_millis": {"format": "%Y-%m-%dT%H:%M:%S.%3f", "zone": 0},
             "basic_date_time": {"format": "%Y%m%dT%H%M%S.%3f%z", "zone": None},

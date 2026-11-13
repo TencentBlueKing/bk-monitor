@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from unittest import TestCase, mock
 
 from django.test import override_settings
@@ -61,6 +62,37 @@ class AttachLLMDetailTests(TestCase):
         topology.assert_called_once()
         self.assertEqual(len(result["trace_tree"]["spans"]), 1)
         self.assertNotIn("lazy", result["trace_tree"]["spans"][0])
+
+    @override_settings(LLM_BIZ_LIST=[11])
+    def test_span_endpoint_returns_repaired_json_and_estimated_usage_without_changing_origin(self):
+        from apm_web.trace.resources import SpanDetailResource
+
+        source = raw_span("1" * 16, "chat")
+        source.update({"kind": 1, "trace_state": "", "links": []})
+        source["attributes"].update(
+            {
+                "gen_ai.input.messages": '[{"role":"user","parts":[{"type":"text","content":"修复后的输入',
+                "gen_ai.output.messages": '[{"role":"assistant","parts":[{"type":"text","content":"修复后的输出',
+            }
+        )
+        original = deepcopy(source)
+        with (
+            mock.patch(f"{DETAIL_MODULE}.EntitySet", return_value=entity_set("agent-service")),
+            mock.patch("apm_web.trace.resources.api.apm_api.query_span_detail", return_value=source),
+        ):
+            result = SpanDetailResource().perform_request(
+                {"bk_biz_id": 11, "app_name": "agent-app", "span_id": source["span_id"]}
+            )
+        detail = result["trace_tree"]["spans"][0]["llm_detail"]
+        self.assertNotIn("estimated_token_fields", detail)
+        for side, expected in (("input", "修复后的输入"), ("output", "修复后的输出")):
+            self.assertEqual(detail["attributes"][f"gen_ai.{side}.messages"][0]["parts"][0]["content"], expected)
+            root = next(node for node in detail["token_matrix"]["nodes"] if node["id"] == side)
+            self.assertGreater(root["value"], 0)
+            self.assertNotIn(f"gen_ai.usage.{side}_tokens", detail["attributes"])
+        self.assertTrue(all(set(category) == {"key", "label", "tokens"} for category in detail["token_categories"]))
+        self.assertEqual(result["origin_data"]["attributes"], original["attributes"])
+        self.assertEqual(source, original)
 
     @override_settings(LLM_BIZ_LIST=[11])
     def test_trace_resource_is_lean_and_span_resource_returns_complete_content(self):

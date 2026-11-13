@@ -32,6 +32,7 @@ import { isMonitorIframeContext } from './common/embed-layout-query';
 import useLocale from './hooks/use-locale';
 import useStore from './hooks/use-store';
 import { join } from '@/global/utils/path';
+import platformConfigStore from '@/store/modules/platform-config';
 
 import './app.scss';
 
@@ -60,6 +61,10 @@ export default defineComponent({
     const route = useRoute();
     const store = useStore();
     const { $t } = useLocale();
+
+    // 延续旧 App.vue created() 中的初始化，通过 base.js 加载平台名称、Logo、favicon 和标题配置。
+    // 导航只读取配置，不会主动加载；需保留在根组件初始化阶段，避免路由切换时重复请求。
+    platformConfigStore.fetchConfig();
 
     const noticeComponentHeight = ref(0);
     const refNoticeComponent: Ref<any | null> = ref(null);

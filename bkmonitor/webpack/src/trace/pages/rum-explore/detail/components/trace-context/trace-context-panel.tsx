@@ -23,17 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent, inject, onMounted, shallowRef, watch } from 'vue';
 import type { PropType } from 'vue';
 
 import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { TRACE_CONTEXT_ROW_OBSERVER_KEY } from '../../composables';
 import WaterfallChart from '../detail-sections/waterfall-chart';
 import TimelineFoldRow from './timeline-fold-row';
 import TimelineSpanRow from './timeline-span-row';
 import TimelineViewHeader from './timeline-view-header';
 
+import type { IRumTraceInfo } from '../../services';
 import type { IRumTimelineItemVM, IRumTimelineSpanVM, IRumTimelineViewVM } from '../../typings';
 
 import './trace-context-panel.scss';
@@ -73,14 +75,29 @@ export default defineComponent({
     expandFold: (_key: string) => true,
     toggleNode: (_spanId: string) => true,
     spanClick: (_span: IRumTimelineSpanVM) => true,
-    traceClick: (_traceId: string) => true,
+    traceClick: (_trace: IRumTraceInfo) => true,
     viewClick: (_view: IRumTimelineViewVM) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    /** 卡片展开状态：默认折叠，只展示 View 头部摘要 */
-    const expanded = shallowRef(false);
+    /** 瀑布图展开状态：收起时只隐藏 WaterfallChart，View 头部与 Span 时间线保持展示 */
+    const expanded = shallowRef(true);
+
+    /** 行可见性注册由链路上下文抽屉提供，面板在列表渲染后整批同步 */
+    const observeRows = inject(TRACE_CONTEXT_ROW_OBSERVER_KEY);
+    const timelineRef = shallowRef<HTMLElement | null>(null);
+    const setTimelineRef = (el: unknown) => {
+      timelineRef.value = (el as HTMLElement) ?? null;
+    };
+
+    /** 首屏、展开折叠行与筛选都走这里：DOM 更新后按容器一次性同步行元素 */
+    function syncRows() {
+      if (timelineRef.value) observeRows?.(timelineRef.value);
+    }
+
+    onMounted(syncRows);
+    watch(() => props.items, syncRows, { flush: 'post' });
 
     function renderSkeleton() {
       return (
@@ -128,7 +145,7 @@ export default defineComponent({
             data={item.data}
             onSpanClick={span => emit('spanClick', span)}
             onToggle={spanId => emit('toggleNode', spanId)}
-            onTraceClick={traceId => emit('traceClick', traceId)}
+            onTraceClick={trace => emit('traceClick', trace)}
           />
         )
       );
@@ -161,6 +178,7 @@ export default defineComponent({
           <TimelineViewHeader
             data={props.view}
             expanded={expanded.value}
+            showToggle={Boolean(props.view.waterfall?.rows?.length)}
             spanType={props.spanType}
             onToggle={() => {
               expanded.value = !expanded.value;
@@ -168,7 +186,12 @@ export default defineComponent({
             onViewClick={view => emit('viewClick', view)}
           />
           {expanded.value && props.view.waterfall ? <WaterfallChart data={props.view.waterfall} /> : null}
-          {expanded.value ? <div class='trace-context-timeline'>{renderItems()}</div> : null}
+          <div
+            ref={setTimelineRef}
+            class='trace-context-timeline'
+          >
+            {renderItems()}
+          </div>
         </div>
       );
     }

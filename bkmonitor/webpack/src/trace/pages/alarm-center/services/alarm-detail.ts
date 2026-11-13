@@ -32,8 +32,7 @@ import {
   alertK8sTarget,
   listAlertFeedback,
 } from 'monitor-api/modules/alert_v2';
-import { scenarioMetricList } from 'monitor-api/modules/k8s';
-import { listK8sResources } from 'monitor-api/modules/k8s';
+import { listK8sResourcesWithoutFederatedCharts, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -202,7 +201,7 @@ export const fetchWorkloadPodList = async (
   options?: RequestOptions
 ): Promise<AlertK8sTargetItem[]> => {
   const { bk_biz_id, bcs_cluster_id, scenario, filter_dict, start_time, end_time, page_size = 10 } = params;
-  return listK8sResources(
+  return listK8sResourcesWithoutFederatedCharts(
     {
       bk_biz_id,
       bcs_cluster_id,
@@ -218,7 +217,6 @@ export const fetchWorkloadPodList = async (
       order_by: 'desc',
     },
     options
-  )
-    .then(res => res?.items ?? []);
+  ).then(res => res?.items ?? []);
 };
 // ==============================end 详情-容器-相关接口 end==============================

@@ -9,7 +9,7 @@
 
 业务未开启 LLM 灰度、查询范围内不包含 LLM 服务，或按 Trace ID 查询得到的执行线为空时，仅返回 `{"traces": []}`。
 
-前端打开 Trace 详情时即按 Trace ID 请求 `list_flows`，仅在 `traces` 非空时展示「LLM 观测」Tab。前端使用 `include_input_output=false` 获取结构，再使用 `include_input_output=true`、`input_output_preview=true` 获取输入输出概要；面板复用查询结果，切换 Tab 无需重复请求。
+前端打开 Trace 详情时即按 Trace ID 请求 `list_flows`，仅在 `traces` 非空时展示「LLM 观测」Tab。前端使用 `include_input_output=false` 获取结构，再使用 `include_input_output=true`、`input_output_preview=true` 获取输入输出概要及 Token 矩阵；面板复用查询结果，切换 Tab 无需重复请求。
 
 ### 查看同会话完整时间线
 
@@ -19,6 +19,15 @@
 2. 用户点开某一条 Trace 时，再次调用 `list_flows`，设置 `group_field = trace_id`、`group_id = 对应 Trace ID`，获取该 Trace 的概览和完整执行线。
 
 当会话概览返回的 Trace 数量不超过 `5` 条（`data.traces.length <= 5`）时，前端可以主动按 Trace ID 分别异步调用 `list_flows`，预加载详情，无需等待用户展开。概览展示无需等待这些异步请求完成。
+
+### Token 统计
+
+| 字段 | 内容 |
+| --- | --- |
+| `traces[].token_matrix` | 当前 Trace 的矩阵与工具占用 |
+| `traces[].flow[].token_categories` | 模型节点的分类总数 |
+
+- *[1] 按 Trace 加载正文时返回，包含正文预览模式。完整 JSON 样例和字段定义见 [LLM Token 统计](https://github.com/TencentBlueKing/bk-monitor/blob/master/bkmonitor/packages/apm_web/llm/docs/llm_token_matrix.md)。*
 
 ### 请求参数
 

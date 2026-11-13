@@ -1127,6 +1127,8 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
     bkbase_result_table_name = models.CharField(verbose_name="BKBase结果表名称", max_length=255, default="")
     doris_cluster_name = models.CharField(verbose_name="Doris集群名称", max_length=255, default="")
 
+    physical_tables = models.JSONField("物理表用途映射", default=dict)
+
     class Meta:
         verbose_name: ClassVar[str] = "Doris存储绑定配置"
         verbose_name_plural = verbose_name

@@ -15,6 +15,8 @@ import json
 import re
 from typing import Any
 
+from pydantic_core import from_json
+
 CONTENT_FIELDS = (
     "gen_ai.system_instructions",
     "gen_ai.input.messages",
@@ -49,7 +51,7 @@ def put(target: dict[str, Any], key: str, value: Any) -> None:
 
 
 def safe_parse(value: Any) -> Any:
-    """解析 JSON/Python 字面量；无法解析时保留原值。"""
+    """解析 JSON/Python 字面量并恢复截断 JSON；无法解析时保留原值。"""
     if not isinstance(value, str):
         return value
     for parser in (json.loads, ast.literal_eval):
@@ -58,7 +60,7 @@ def safe_parse(value: Any) -> Any:
             return parsed if isinstance(parsed, dict | list) else value
         except (ValueError, SyntaxError):
             continue
-    return value
+    return repair_truncated_json(value)
 
 
 def indexed(attrs: dict[str, Any], prefix: str) -> list[dict[str, Any]]:
@@ -79,7 +81,10 @@ def standard_content(attrs: dict[str, Any]) -> dict[str, Any]:
         instructions = [{"type": "text", "content": str(instructions)}]
     put(content, "gen_ai.system_instructions", instructions)
     for key in CONTENT_FIELDS[1:]:
-        put(content, key, safe_parse(attrs.get(key)))
+        value = safe_parse(attrs.get(key))
+        if key == "gen_ai.input.messages":
+            value = recover_front_truncated_messages(value)
+        put(content, key, value)
     return content
 
 
@@ -99,7 +104,9 @@ def text_message(role: str, content: Any) -> dict[str, Any]:
 
 
 def tool_call_part(call: dict[str, Any]) -> dict[str, Any]:
-    function = call.get("function") if isinstance(call.get("function"), dict) else call
+    function: dict[str, Any] = call
+    if isinstance(nested := call.get("function"), dict):
+        function = nested
     name = function.get("name", call.get("function.name", ""))
     arguments = function.get("arguments", function.get("args", call.get("function.arguments", {})))
     part = {"type": "tool_call", "name": str(name), "arguments": safe_parse(arguments)}
@@ -124,3 +131,82 @@ def normalize_schema(value: Any) -> Any:
             for key, item in value.items()
         }
     return value
+
+
+def repair_truncated_json(value: Any) -> Any:
+    """只恢复截断的 JSON 容器；普通文本、有效 JSON 和无法解析的内容保持原样。"""
+    if not isinstance(value, str) or not value.lstrip().startswith(("[", "{")):
+        return value
+    try:
+        json.loads(value)
+    except json.JSONDecodeError as error:
+        if error.msg == "Extra data":
+            return value
+        try:
+            partial = value
+            # 不完整转义会让解析器丢弃整段字符串，只移除尚未收全的尾部转义。
+            escape = re.search(r"(\\+)(?:u[0-9a-fA-F]{0,3})?$", partial)
+            if escape and len(escape[1]) % 2:
+                partial = partial[: escape.start() + len(escape[1]) - 1]
+            repaired = from_json(partial, allow_partial="trailing-strings", cache_strings=False)
+        except ValueError:
+            return value
+        if isinstance(repaired, dict | list) and repaired:
+            return repaired
+    return value
+
+
+def recover_front_truncated_messages(value: Any) -> Any:
+    """前截断时只恢复后续完整消息；不能确认边界就保留原文。"""
+    if not isinstance(value, str) or value.lstrip().startswith("["):
+        return value
+    # 有时只丢失数组开头的 '['，首个消息仍完整。
+    candidate_starts = [len(value) - len(value.lstrip())] if value.lstrip().startswith("{") else []
+    candidate_starts.extend(boundary.end() for boundary in re.finditer(r'\}\s*,\s*(?=\{\s*"role"\s*:)', value))
+    for start in candidate_starts:
+        try:
+            messages = json.loads("[" + value[start:])
+        except json.JSONDecodeError:
+            continue
+        if (
+            isinstance(messages, list)
+            and messages
+            and all(
+                isinstance(message, dict)
+                and isinstance(message.get("role"), str)
+                and isinstance(message.get("parts"), list)
+                and all(isinstance(part, dict) for part in message["parts"])
+                for message in messages
+            )
+        ):
+            return messages
+    return value
+
+
+def repair_span_content(span: dict[str, Any]) -> dict[str, Any]:
+    """复制被修复的字段，保留 origin_data；不把正文中的普通 JSON 文本当成协议解析。"""
+    attributes: dict[str, Any] = dict(span.get("attributes") or {})
+    for field in CONTENT_FIELDS:
+        if field not in attributes:
+            continue
+        value = repair_truncated_json(attributes[field])
+        if isinstance(value, list):
+            items: list[Any] = []
+            for item in value:
+                if not isinstance(item, dict) or not isinstance(item.get("parts"), list):
+                    items.append(item)
+                    continue
+                parts: list[Any] = []
+                for part in item["parts"]:
+                    if not isinstance(part, dict):
+                        parts.append(part)
+                        continue
+                    part = dict(part)
+                    for key in ("arguments", "response", "result"):
+                        if key in part:
+                            part[key] = repair_truncated_json(part[key])
+                    parts.append(part)
+                items.append({**item, "parts": parts})
+            value = items
+        attributes[field] = value
+    return {**span, "attributes": attributes}

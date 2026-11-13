@@ -305,13 +305,25 @@ def get_federal_vm_table_id(bk_tenant_id: str, namespace: str, table_id: str) ->
             continue
         if record.bkbase_table_id:
             table_ids.add(record.bkbase_table_id)
-    # V3 路由也保存完整 VMRT；两个持久化来源必须一致，不能任选一个来认领历史组件。
+    configured_table_ids = table_ids.copy()
+    # AccessVMRecord 可能同时保留旧清洗表和当前联邦输出表。
     table_ids.update(
         models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id)
         .exclude(vm_result_table_id="")
         .values_list("vm_result_table_id", flat=True)
     )
     if len(table_ids) > 1:
+        # 优先使用当前命名空间中实际存在的 RT；Binding 的归属与存储由调用方继续确认。
+        component_table_ids = set(
+            models.ResultTableConfig.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                namespace=namespace,
+                bkbase_table_id__in=table_ids,
+                data_type="metric",
+            ).values_list("bkbase_table_id", flat=True)
+        )
+        if len(component_table_ids) == 1 and configured_table_ids <= component_table_ids:
+            return component_table_ids.pop()
         raise ValueError(f"conflicting federation VMRTs: table={table_id}, vmrts={sorted(table_ids)}")
     return next(iter(table_ids), "")
 

@@ -27,6 +27,7 @@
 import { computed, defineComponent, reactive, shallowRef, watch } from 'vue';
 
 import { getBizRouteHref } from 'monitor-common/utils';
+import { getAlarmCenterDetailHash } from 'monitor-common/utils/alarm-center-router';
 // import {
 //   type ILegacyAlarmCenterQuery,
 //   getAlarmCenterListHash,
@@ -149,7 +150,8 @@ export default defineComponent({
 
     const formatShareTokenParams = params => {
       params.data.name = 'alarm-center-detail';
-      params.data.path = '/trace/alarm-center/detail/:alarmId';
+      // 分享页会直接把 path 拼进跳转地址，需存实际告警路径而非路由模板
+      params.data.path = getAlarmCenterDetailHash(alarmId.value).slice(1);
       params.data.params = {
         alarmId: alarmId.value,
       };

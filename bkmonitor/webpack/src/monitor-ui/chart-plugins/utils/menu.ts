@@ -36,8 +36,10 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
     for (const target of panel.targets) {
       if (target.data?.query_configs?.length) {
         for (const item of target.data.query_configs) {
-          if (item.promql) {
-            promqlSet.add(String(item.promql));
+          if (item.related_metric_ids?.length) {
+            for (const metricId of item.related_metric_ids) metricIdMap[metricId] = 'true';
+          } else if (item.promql) {
+            promqlSet.add(String(item.related_promql || item.promql));
           } else {
             const metricId = getMetricId(
               item.data_source_label,

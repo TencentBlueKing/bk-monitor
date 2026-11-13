@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import re
+from json.encoder import encode_basestring
 
 from monitor_web.k8s.core.errors import K8sResourceNotFound, MultiWorkloadError
 
@@ -32,7 +33,7 @@ def escape_promql_regex(value: str) -> str:
     # 第一层：正则转义（元字符前加 \）
     escaped = _PROMQL_REGEX_METACHAR.sub(r"\\\1", value)
     # 第二层：字符串字面量转义（反斜杠成对），否则 PromQL 解析失败
-    return escaped.replace("\\", "\\\\")
+    return encode_basestring(escaped)[1:-1]
 
 
 def register_filter(filter_cls):
@@ -71,12 +72,12 @@ class ResourceFilter:
         if self.fuzzy:
             return self.fuzzy_filter_string()
         if len(self.value) == 1:
-            return f'{self.filter_field}="{self.value[0]}"'
+            return f"{self.filter_field}={encode_basestring(self.value[0])}"
         value_regex = "|".join(escape_promql_regex(value) for value in self.value)
         return f'{self.filter_field}=~"^({value_regex})$"'
 
     def fuzzy_filter_string(self) -> str:
-        return f'''{self.filter_field}=~"({"|".join(self.value)})"'''
+        return f"{self.filter_field}=~{encode_basestring('(' + '|'.join(self.value) + ')')}"
 
 
 @register_filter
@@ -131,11 +132,11 @@ class WorkloadFilter(ResourceFilter):
 
     def filter_string(self):
         if self.fuzzy:
-            return f'''workload_name=~"{self.value[0].strip()}"'''
+            return f"workload_name=~{encode_basestring(self.value[0].strip())}"
         where = ""
         for field, value in self.filter_dict.items():
             where += "," if where else ""
-            where += f'{field}="{value}"'
+            where += f"{field}={encode_basestring(value)}"
         return where
 
 

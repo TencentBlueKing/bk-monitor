@@ -20,6 +20,7 @@ from constants.apm import LLMProduct, OtlpKey
 
 from . import adapter_agentlens, adapter_bkaidev, adapter_default, adapter_galileo, adapter_langfuse
 from .fields import resolve_product, resolve_span_type
+from .utils import repair_span_content
 
 if TYPE_CHECKING:
     from apm_web.strategy.dispatch.entity import EntitySet
@@ -52,7 +53,8 @@ def adapt_spans(
         for span in ADAPTERS.get(product, adapter_default.convert)(product_spans)
         if isinstance(operation := span["attributes"].get("gen_ai.operation.name"), str) and operation.strip()
     ]
-    for span in spans:
+    for index, span in enumerate(spans):
+        span = spans[index] = repair_span_content(span)
         # 识别不出语义层级的 Span 不带该字段，调用方据此决定是否展示 LLM 观测
         if span_type := resolve_span_type(span["attributes"]):
             span["span_type"] = span_type

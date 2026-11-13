@@ -1638,10 +1638,20 @@ POST /rum/search/timeline/
 
 | 参数名称       | 类型             | 描述                                                                                                                    |
 | ---------- | -------------- | --------------------------------------------------------------------------------------------------------------------- |
-| start_time | Integer / Null | 开始时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话开始时间，按 `view_id` 查询时为 View 开始时间，缺失时为 `null` |
-| end_time   | Integer / Null | 结束时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话结束时间，按 `view_id` 查询时为 View 结束时间，未结束时为 `null` |
+| start_time | Number | 会话或 View 的开始时间，Unix 毫秒级时间戳 |
+| end_time   | Number | 会话或 View 的结束或观测截止时间，Unix 毫秒级时间戳 |
+| duration | Number | 会话或 View 的持续时长，单位毫秒 |
+| status | String | 会话或 View 的状态，见下表 |
 | tree       | Array[Node]    | 节点树，顶层为 View 节点，按开始时间升序，按 `view_id` 查询时只有一个 View 节点，见 Node |
 | records    | Array[RecordDetail] | 节点详情，每项与同一 `span_id` 的 `record_detail` 返回一致 |
+
+| status | 含义 |
+| --- | --- |
+| `ended` | 已结束 |
+| `expired` | 已过期 |
+| `active` | 存活中（推定） |
+
+无匹配记录时返回“记录不存在”错误。
 
 - Node
 
@@ -1652,8 +1662,10 @@ POST /rum/search/timeline/
 
 ```json
 {
-  "start_time": 1788451565857000,
-  "end_time": 1788451625500000,
+  "start_time": 1788451565857,
+  "end_time": 1788451625500,
+  "duration": 59643,
+  "status": "ended",
   "tree": [
     {
       "span_id": "34e3b6ff1943346c",

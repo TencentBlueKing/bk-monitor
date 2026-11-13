@@ -61,7 +61,7 @@ KIND_EXTRA_FIELDS = {
     "ChannelBinding": ["bkbase_result_table_name", "channel_name"],
     "VmStorageBinding": ["vm_cluster_name", "bkbase_result_table_name", "table_id"],
     "ElasticSearchBinding": ["es_cluster_name", "table_id", "bkbase_result_table_name", "timezone"],
-    "DorisBinding": ["table_id", "bkbase_result_table_name", "doris_cluster_name"],
+    "DorisBinding": ["table_id", "bkbase_result_table_name", "doris_cluster_name", "physical_tables"],
     "SurrealDBBinding": ["table_id", "bkbase_result_table_name", "surrealdb_cluster_name"],
     "Databus": [
         "data_id_name",
@@ -71,6 +71,7 @@ KIND_EXTRA_FIELDS = {
         "role",
         "sink_names",
         "consumer_group",
+        "options",
     ],
     "ConditionalSink": [],
     "BasereportSink": ["vm_storage_binding_names", "result_table_ids"],

@@ -133,7 +133,7 @@ class CreateConfigResource(RecordingRuleResource):
         apply = serializers.BooleanField(default=False)
 
     def perform_request(self, params):
-        rule = recording_rule.save_declaration(self.get_space(params), params["config"])
+        rule, _ = recording_rule.save_declaration(self.get_space(params), params["config"])
         execution = recording_rule.execute_rule(rule) if params["apply"] else None
         rule.refresh_from_db()
         return {"saved": True, "rule": serialize_rule(rule), "config": dump_rule(rule), "execution": execution}
@@ -152,7 +152,7 @@ class UpdateConfigResource(RecordingRuleResource):
             rule = recording_rule.active_rules(space).get(pk=params["id"])
         except RecordRuleV4.DoesNotExist as error:
             raise serializers.ValidationError("RecordingRule 不存在") from error
-        rule = recording_rule.save_declaration(space, params["config"], rule=rule)
+        rule, _ = recording_rule.save_declaration(space, params["config"], rule=rule)
         execution = recording_rule.execute_rule(rule) if params["apply"] else None
         rule.refresh_from_db()
         return {"saved": True, "rule": serialize_rule(rule), "config": dump_rule(rule), "execution": execution}

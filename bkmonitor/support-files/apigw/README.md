@@ -123,9 +123,10 @@ MCP 来源 Header。命中工具必须具有已验证的网关用户与租户，
 
 ### MCP 与应用共用接口的后端隔离
 
-以下七个工具改用 `/api/v4/mcp/<工具名>/`。网关 `/mcp/...` 路径、operationId、
+以下工具改用 `/api/v4/mcp/<工具名>/`。网关 `/mcp/...` 路径、operationId、
 参数和个人令牌配置保持不变；应用资源的网关路径及后端路径均保持原样。
-`calculate_by_range` 的网关 operationId 仍为 `apm_mcp_calculate_by_range`。
+`calculate_by_range` 的网关 operationId 仍为 `apm_mcp_calculate_by_range`；三个 LLM 工具的网关路径不带 `mcp`，
+operationId 与后端路由统一为 `llm_mcp_*`，挂载在 `tracing` Server。
 
 | MCP 工具 | 保留的应用后端路径 |
 | --- | --- |
@@ -136,6 +137,9 @@ MCP 来源 Header。命中工具必须具有已验证的网关用户与租户，
 | `get_dashboard_detail_by_uid` | `/api/v4/grafana/get_dashboard_detail/` |
 | `list_apm_services` | `/api/v4/service_web/service_list/` |
 | `calculate_by_range` | `/api/v4/apm_metric_web/calculate_by_range/` |
+| `llm_mcp_search_traces`（`/mcp/llm_search_traces/`） | `/api/v4/apm_llm_web/list_traces/` |
+| `llm_mcp_search_flows`（`/mcp/llm_search_flows/`） | `/api/v4/apm_llm_web/list_flows/` |
+| `llm_mcp_calculate_by_range`（`/mcp/llm_calculate_by_range/`） | `/api/v4/apm_llm_web/calculate_by_range/` |
 
 新 MCP 路径复用原业务 Resource，并由目录强制验证网关用户、租户和工具权限；删除 MCP
 Header 不能跳过检查。`search_spaces` 保留现有发现工具的权限豁免，但仍须验证用户，
@@ -149,3 +153,7 @@ Header 不能跳过检查。`search_spaces` 保留现有发现工具的权限豁
 
 `lookup_permissions` 是预检，不是后续请求的授权凭据。实际执行的 `MCP_USAGE` 日志包含
 工具、入口、权限来源、权限动作和网关请求 ID；不得记录 Token、请求正文或业务结果。
+
+## MCP Server 自动同步
+
+MCP Server 已纳入 `sync_apigw`，在资源版本发布后按声明同步。Server 清单、三环境核对记录和发布验收方式见 [MCP Server 同步说明](mcp-servers.md)。

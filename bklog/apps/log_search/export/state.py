@@ -24,7 +24,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Max, Q, Sum
+from django.db.models import Count, F, Max, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -80,6 +80,24 @@ def leaf_counts_annotation():
         "leaf_total": Count("parts", filter=~Q(parts__status__in=ExportPartStatus.NON_LEAF), distinct=True),
         "leaf_success": Count("parts", filter=Q(parts__status=ExportPartStatus.SUCCESS), distinct=True),
     }
+
+
+def unfinished_leaf_exists(job_id):
+    """是否还有未成功的叶子分片；供收尾前的廉价短路判定，避免每次都做全量叶子计数。"""
+    return (
+        ExportPart.objects.filter(job_id=job_id)
+        .exclude(status__in=[ExportPartStatus.SUCCESS, *ExportPartStatus.NON_LEAF])
+        .exists()
+    )
+
+
+def finalizable_jobs():
+    """叶子分片全部成功的任务；收尾判定的唯一口径。"""
+    return (
+        ExportJob.objects.filter(plan_version__gt=0)
+        .annotate(**leaf_counts_annotation())
+        .filter(leaf_total__gt=0, leaf_success=F("leaf_total"))
+    )
 
 
 def sync_actual_total(job):

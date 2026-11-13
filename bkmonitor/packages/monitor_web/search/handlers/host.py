@@ -101,6 +101,8 @@ class HostSearchHandler(BaseSearchHandler):
             params["bk_biz_id"] = self.bk_biz_id
 
         hosts: Host = api.cmdb.get_host_without_biz(params)["hosts"]
+        # 临时分享 token 会授予主机详情访问能力，必须在生成前排除无权业务的主机
+        hosts = [host for host in hosts if self.is_allowed_biz(host.bk_biz_id)]
 
         search_results = []
 

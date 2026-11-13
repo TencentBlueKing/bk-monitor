@@ -12,6 +12,7 @@ import logging
 
 from kafka import KafkaConsumer
 
+from alarm_backends.core.storage.kafka_sasl import SaslKafkaConsumer, get_kafka_sasl_config
 from alarm_backends.management.story.color import ConsoleColor
 
 logger = logging.getLogger("self_monitor")
@@ -30,6 +31,9 @@ def create_healthz_kafka_consumer(*topics, **kwargs):
         kwargs.pop("request_timeout_ms", HEALTHZ_KAFKA_TIMEOUT_MS), kwargs["session_timeout_ms"]
     )
     kwargs.setdefault("api_version_auto_timeout_ms", HEALTHZ_KAFKA_TIMEOUT_MS)
+    sasl_config = None if topics else get_kafka_sasl_config(kwargs.get("bootstrap_servers"))
+    if sasl_config:
+        return SaslKafkaConsumer(kwargs.pop("bootstrap_servers"), sasl_config, **kwargs)
     return KafkaConsumer(*topics, **kwargs)
 
 

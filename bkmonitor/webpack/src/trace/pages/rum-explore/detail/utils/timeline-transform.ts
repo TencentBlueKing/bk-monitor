@@ -44,6 +44,7 @@ import { getTimelineSpanTypeConfig } from '../registry/timeline-span-registry';
 import { RumSectionTypeEnum } from '../typings';
 import { formatDuration } from '@/components/trace-view/utils/date';
 
+import type { IRumTraceInfo } from '../services';
 import type { IRumWaterfallData } from '../typings';
 import type {
   IRumTimelineItemVM,
@@ -69,6 +70,8 @@ export interface IRumTimelineBuildCtx {
   recordMap: Map<string, IRumTimelineRecord>;
   /** 筛选生效时的平铺模式：不生成折叠段，子级展开仍由 expandedNodes 控制 */
   showAll?: boolean;
+  /** 已检索到所属应用的关联 Trace，未命中的 trace_id 不展示入口 */
+  traceInfoMap: Map<string, IRumTraceInfo>;
 }
 
 const isValidNumber = (value: unknown) => value !== null && value !== undefined && Number.isFinite(Number(value));
@@ -194,6 +197,8 @@ function buildSpanVM(node: IRumTimelineNode, ctx: IRumTimelineBuildCtx, level: n
   const config = getTimelineSpanTypeConfig(spanType);
   const statusCode = attributes['http.response.status_code'];
   const expandable = !!node.children?.length;
+  /** 原始关联的 trace_id 与检索结果分开：先渲染行，检索到所属应用后才展示入口 */
+  const traceId = String(origin.links?.[0]?.trace_id ?? '');
   return {
     spanId: node.span_id,
     spanType,
@@ -215,7 +220,8 @@ function buildSpanVM(node: IRumTimelineNode, ctx: IRumTimelineBuildCtx, level: n
               TIMELINE_STATUS_CODE_FALLBACK_COLOR),
           }
         : undefined,
-    traceId: origin.links?.[0]?.trace_id || '',
+    traceId,
+    trace: ctx.traceInfoMap.get(traceId),
     isCurrent: node.span_id === ctx.currentSpanId,
     expandable,
     expanded: expandable && ctx.expandedNodes.has(node.span_id),

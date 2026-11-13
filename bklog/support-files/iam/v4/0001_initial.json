@@ -6,7 +6,8 @@
         "clients": [
             "bk_log_search",
             "log-search-4",
-            "bk_bklog"
+            "bk_bklog",
+            "bk_ms"
         ],
         "removed_clients": [
             "paasv3cli",

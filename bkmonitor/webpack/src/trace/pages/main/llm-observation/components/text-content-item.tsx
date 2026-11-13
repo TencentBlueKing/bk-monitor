@@ -57,6 +57,11 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 时间流展开正文复用本组件时不再重复画 [n] */
+    showIndex: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: {
     viewAlone: (_content: string) => true,
@@ -124,7 +129,7 @@ export default defineComponent({
         ]}
       >
         <div class='llm-text-content-row'>
-          <span class='llm-text-content-index'>[{props.index}]</span>
+          {props.showIndex ? <span class='llm-text-content-index'>[{props.index}]</span> : null}
           <div class='llm-text-content-main'>
             <div class='llm-text-content-actions'>
               <div
