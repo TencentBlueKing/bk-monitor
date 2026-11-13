@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
@@ -28,6 +28,9 @@ class CollectingConfigViewSet(ResourceViewSet):
         return [BusinessActionPermission([ActionEnum.MANAGE_COLLECTION])]
 
     resource_routes = [
+        ResourceRoute(
+            "POST", resource.collecting.validate_tencent_cloud_configmap, endpoint="validate_tencent_cloud_configmap"
+        ),
         # 获取采集配置列表信息
         ResourceRoute("POST", resource.collecting.collect_config_list, endpoint="config_list"),
         # 获取采集配置详情信息

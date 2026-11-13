@@ -43,6 +43,8 @@ from monitor_web.collecting.constant import (
     TaskStatus,
 )
 from monitor_web.collecting.deploy import fetch_collection_statistics, get_collect_installer
+from monitor_web.collecting.params import stored_detail, update_password_inplace
+from monitor_web.collecting.resources import tencent_cloud
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, DeploymentConfigVersion, PluginVersionHistory
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
@@ -52,6 +54,11 @@ from monitor_web.strategies.loader.datalink_loader import (
 from monitor_web.tasks import append_metric_list_cache
 
 logger = logging.getLogger(__name__)
+
+
+def prepare_edit_params(config, params):
+    if tencent_cloud.is_tencent_cloud_config(config):
+        tencent_cloud.prepare_edit_params(config, params)
 
 
 class CollectConfigListResource(Resource):
@@ -164,9 +171,16 @@ class CollectConfigListResource(Resource):
                 "total_instance_count": total_count,
             }
             if collect_config.cache_data != cache_data or collect_config.operation_result != operation_result:
-                collect_config.cache_data = cache_data
-                collect_config.operation_result = operation_result
-                updated_configs.append(collect_config)
+                # 资源观察发生在事务外。切换部署版本或操作后，丢弃上一轮的状态。
+                changed = CollectConfigMeta.objects.filter(
+                    pk=collect_config.pk,
+                    deployment_config_id=collect_config.deployment_config_id,
+                    last_operation=collect_config.last_operation,
+                    operation_result=collect_config.operation_result,
+                ).update(cache_data=cache_data, operation_result=operation_result)
+                if changed:
+                    collect_config.cache_data = cache_data
+                    collect_config.operation_result = operation_result
 
         CollectConfigMeta.objects.bulk_update(updated_configs, ["cache_data", "operation_result"])
 
@@ -452,32 +466,18 @@ class CollectConfigDetailResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(label="采集配置ID")
+        params_format = serializers.ChoiceField(choices=("stored", "configmap"), default="stored")
         resolve_target = serializers.BooleanField(label="是否解析采集目标", default=True)
         with_agent_status = serializers.BooleanField(label="是否查询Agent状态", default=True)
-
-    @staticmethod
-    def password_convert(collect_config_meta):
-        """
-        将密码类型的参数转换为一个bool值，用于规避f12可以看到明文密码
-        @param collect_config_meta:
-        @return:
-        """
-        config_json = collect_config_meta.deployment_config.plugin_version.config.config_json
-        params = collect_config_meta.deployment_config.params
-        for item in config_json:
-            if item["mode"] != "collector":
-                item["mode"] = "plugin"
-            value = params.get(item["mode"], {}).get(item.get("key", item["name"])) or item["default"]
-            # 获取敏感信息时采用bool值表示用户是否设置密码
-            if item["type"] in ["password", "encrypt"]:
-                params[item["mode"]][item["name"]] = bool(value)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         config_id = validated_request_data["id"]
+        projected = validated_request_data.get("params_format") == "configmap"
+        scope = {"bk_tenant_id": get_request_tenant_id()} if projected else {}
         try:
             collect_config_meta = CollectConfigMeta.objects.select_related("deployment_config").get(
-                id=config_id, bk_biz_id=bk_biz_id
+                id=config_id, bk_biz_id=bk_biz_id, **scope
             )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
@@ -503,7 +503,8 @@ class CollectConfigDetailResource(Resource):
                 and collect_config_meta.deployment_config.target_node_type == TargetNodeType.TOPO
             ):
                 node_list = []
-                for item in collect_config_meta.deployment_config.target_nodes:
+                for target in collect_config_meta.deployment_config.target_nodes:
+                    item = dict(target)
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     node_list.append(item)
                 target_result = resource.commons.get_host_instance_by_node(
@@ -531,7 +532,8 @@ class CollectConfigDetailResource(Resource):
                         )
                     ).get("children", [])
                 }
-                for item in collect_config_meta.deployment_config.target_nodes:
+                for target in collect_config_meta.deployment_config.target_nodes:
+                    item = dict(target)
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     item.update({"bk_inst_name": templates.get(item["bk_inst_id"])})
                     target_result.append(item)
@@ -551,7 +553,8 @@ class CollectConfigDetailResource(Resource):
 
             else:
                 node_list = []
-                for item in collect_config_meta.deployment_config.target_nodes:
+                for target in collect_config_meta.deployment_config.target_nodes:
+                    item = dict(target)
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     node_list.append(item)
                 target_result = resource.commons.get_service_instance_by_node(
@@ -561,10 +564,12 @@ class CollectConfigDetailResource(Resource):
                         "with_agent_status": validated_request_data["with_agent_status"],
                     }
                 )
-        config_version = collect_config_meta.deployment_config.plugin_version.config_version
-        release_version = collect_config_meta.plugin.get_release_ver_by_config_ver(config_version)
-        # 密码转为非明文
-        self.password_convert(collect_config_meta)
+        if tencent_cloud.is_tencent_cloud_config(collect_config_meta):
+            params, plugin_info = tencent_cloud.form_detail(
+                collect_config_meta, validated_request_data.get("params_format", "stored")
+            )
+        else:
+            params, plugin_info = stored_detail(collect_config_meta)
         result = {
             "id": collect_config_meta.id,
             "deployment_id": collect_config_meta.deployment_config_id,
@@ -575,9 +580,9 @@ class CollectConfigDetailResource(Resource):
             "target_object_type": collect_config_meta.target_object_type,
             "target_node_type": collect_config_meta.deployment_config.target_node_type,
             "target_nodes": collect_config_meta.deployment_config.target_nodes,
-            "params": collect_config_meta.deployment_config.params,
+            "params": params,
             "remote_collecting_host": collect_config_meta.deployment_config.remote_collecting_host,
-            "plugin_info": release_version.get_plugin_version_detail(),
+            "plugin_info": plugin_info,
             "target": target_result,
             "subscription_id": collect_config_meta.deployment_config.subscription_id,
             "label_info": collect_config_meta.label_info,
@@ -705,13 +710,20 @@ class CloneCollectConfigResource(Resource):
 
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
-                id=data["id"], bk_biz_id=data["bk_biz_id"]
+                id=data["id"], bk_biz_id=data["bk_biz_id"], bk_tenant_id=get_request_tenant_id()
             )
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
 
         with transaction.atomic():
-            # 克隆部署配置
+            new_name = name = collect_config.name + "_copy"
+            i = 1
+            while CollectConfigMeta.objects.filter(bk_biz_id=data["bk_biz_id"], name=new_name).exists():
+                new_name = f"{name}({i})"
+                i += 1
+            if tencent_cloud.is_tencent_cloud_config(collect_config):
+                tencent_cloud.clone_config(collect_config, new_name)
+                return
             deployment_config = copy(collect_config.deployment_config)
             deployment_config.id = None
             # 克隆任务不克隆目标节点
@@ -722,12 +734,6 @@ class CloneCollectConfigResource(Resource):
             collect_config.id = None
             collect_config.deployment_config = deployment_config
 
-            #  判断重名
-            new_name = name = collect_config.name + "_copy"
-            i = 1
-            while CollectConfigMeta.objects.filter(bk_biz_id=data["bk_biz_id"], name=new_name):
-                new_name = f"{name}({i})"
-                i += 1
             collect_config.name = new_name
 
             # 清除目标节点统计
@@ -928,6 +934,7 @@ class SaveCollectConfigResource(Resource):
             target_label = serializers.CharField(required=False, label="目标标签")
             replacement = serializers.CharField(required=False, label="替换内容")
 
+        deployment_id = serializers.IntegerField(required=False, min_value=1)
         id = serializers.IntegerField(required=False, label="采集配置ID")
         name = serializers.CharField(required=True, label="采集配置名称")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -1032,6 +1039,20 @@ class SaveCollectConfigResource(Resource):
             return attrs
 
     def perform_request(self, data):
+        collect_config = None
+        if data.get("id"):
+            try:
+                collect_config = CollectConfigMeta.objects.get(
+                    bk_tenant_id=get_request_tenant_id(), bk_biz_id=data["bk_biz_id"], id=data["id"]
+                )
+            except CollectConfigMeta.DoesNotExist:
+                raise CollectConfigNotExist({"msg": data["id"]})
+        if tencent_cloud.uses_configmap_request(data, collect_config):
+            config, result = tencent_cloud.save_configmap(data, collect_config, self.get_collector_plugin)
+            return self.after_save(config, config.plugin, result)
+        if collect_config is not None:
+            prepare_edit_params(collect_config, data["params"])
+
         try:
             collector_plugin = self.get_collector_plugin(data)
         except CollectorPluginMeta.DoesNotExist:
@@ -1041,14 +1062,9 @@ class SaveCollectConfigResource(Resource):
         data["params"]["target_object_type"] = data["target_object_type"]
         data["params"]["collector"]["metric_relabel_configs"] = data.pop("metric_relabel_configs")
 
-        # 获取或新建采集配置
-        if data.get("id"):
-            try:
-                collect_config = CollectConfigMeta.objects.get(bk_biz_id=data["bk_biz_id"], id=data["id"])
-            except CollectConfigMeta.DoesNotExist:
-                raise CollectConfigNotExist({"msg": data["id"]})
+        if collect_config is not None:
             # 密码字段处理
-            self.update_password_inplace(data, collect_config)
+            update_password_inplace(data, collect_config)
             collect_config.name = data["name"]
         else:
             collect_config = CollectConfigMeta(
@@ -1076,6 +1092,9 @@ class SaveCollectConfigResource(Resource):
                 self.roll_back_result_table(collector_plugin)
             raise err
 
+        return self.after_save(collect_config, collector_plugin, result)
+
+    def after_save(self, collect_config, collector_plugin, result):
         # 添加完成采集配置，主动更新指标缓存表
         self.update_metric_cache(collector_plugin)
 
@@ -1086,28 +1105,6 @@ class SaveCollectConfigResource(Resource):
             logger.error(f"自动创建默认告警策略 DatalinkDefaultAlarmStrategyLoader error {str(error)}")
 
         return result
-
-    @staticmethod
-    def update_password_inplace(data: dict, config_meta: "CollectConfigMeta") -> None:
-        """将密码参数的值替换为实际值。"""
-        config_params = config_meta.plugin.current_version.config.config_json
-        deployment_params = config_meta.deployment_config.params
-
-        for param in config_params:
-            if param["type"] not in ["password", "encrypt"]:
-                continue
-
-            param_name = param["name"]
-            param_mode = "plugin" if param["mode"] != "collector" else "collector"
-            received_password = data["params"][param_mode].get(param_name)
-
-            # mode 为 "plugin" 时，如果密码不改变，不会传入，获取到 None
-            # mode 为 "collector" 时，如果密码不改变，传入值为 bool 类型（由详情接口返回的）
-            # 这两种情况要替换为实际值（默认值兜底）
-            if isinstance(received_password, type(None) | bool):
-                default_password = param["default"]
-                actual_password = deployment_params[param_mode].get(param_name, default_password)
-                data["params"][param_mode][param_name] = actual_password
 
     @staticmethod
     def get_collector_plugin(data) -> CollectorPluginMeta:
@@ -1212,6 +1209,7 @@ class UpgradeCollectPluginResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        deployment_id = serializers.IntegerField(required=False, min_value=1)
         id = serializers.IntegerField(required=True, label="采集配置id")
         params = serializers.DictField(required=True, label="采集配置参数")
         realtime = serializers.BooleanField(required=False, default=False, label=_("是否实时刷新缓存"))
@@ -1226,15 +1224,17 @@ class UpgradeCollectPluginResource(Resource):
 
         try:
             collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
-                pk=data["id"], bk_biz_id=data["bk_biz_id"]
+                pk=data["id"], bk_biz_id=data["bk_biz_id"], bk_tenant_id=get_request_tenant_id()
             )
-            SaveCollectConfigResource.update_password_inplace(data, collect_config)
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": data["id"]})
-
-        # 安装器执行升级操作
-        installer = get_collect_installer(collect_config)
-        result = installer.upgrade(data["params"])
+        if tencent_cloud.uses_configmap_request(data, collect_config):
+            _, result = tencent_cloud.save_configmap(data, collect_config)
+        else:
+            installer = get_collect_installer(collect_config)
+            prepare_edit_params(collect_config, data["params"])
+            update_password_inplace(data, collect_config)
+            result = installer.upgrade(data["params"])
 
         # 升级采集配置，主动更新指标缓存表
         result_table_id_list = [

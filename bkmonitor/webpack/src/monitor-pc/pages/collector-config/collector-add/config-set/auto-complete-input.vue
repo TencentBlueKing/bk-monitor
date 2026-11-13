@@ -361,7 +361,11 @@ export default class StrategySetTarget extends Vue {
   }
 
   created() {
-    this.passwordInputReadonly = !(this.$route.name === 'collect-config-add'); // 新建时，默认可输入
+    // 新建时，默认可输入；克隆且凭据已被清空（如腾讯云 ConfigMap）时同样需要直接输入
+    this.passwordInputReadonly = !(
+      this.$route.name === 'collect-config-add' ||
+      (this.$route.name === 'collect-config-clone' && this.isPasswordInput && !this.config?.default)
+    );
   }
 
   beforeDestroy() {
@@ -610,14 +614,6 @@ export default class StrategySetTarget extends Vue {
     top: 0;
     right: -9999px;
     opacity: 0;
-  }
-
-  :deep(.input-text) {
-    &.password {
-      .control-icon {
-        display: none;
-      }
-    }
   }
 
   &-list {
