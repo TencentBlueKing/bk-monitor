@@ -15,6 +15,7 @@ from unittest.mock import Mock
 import pytest
 from pytest_mock import MockerFixture
 
+from apm_web.handlers import metric_group
 from apm_web.metric import resources as metric_resources
 from apm_web.metric.resources import ServiceListAsyncResource
 from apm_web.metric_handler import AvgDurationInstance
@@ -33,8 +34,13 @@ FIRST_POINT = (START_TIME + 60) * 1000
 
 @pytest.fixture
 def application_lookup(mocker: MockerFixture) -> Mock:
-    application = Application(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME, metric_result_table_id="demo.bk_apm_count")
+    application = Application(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME, metric_result_table_id="demo.__default__")
     return mocker.patch.object(Application.objects, "get", return_value=application)
+
+
+@pytest.fixture(autouse=True)
+def metric_table_lookup(mocker: MockerFixture) -> Mock:
+    return mocker.patch.object(Application, "get_metric_table_id", return_value="demo.__default__")
 
 
 @pytest.fixture(autouse=True)
@@ -101,9 +107,7 @@ def test_error_rate_uses_expression_and_preserves_ratio(mocker: MockerFixture, a
     assert {"field_name": "status_code", "op": "ncontains", "value": [""]} in total["conditions"]["field_list"]
 
 
-def test_request_count_filters_targets_and_keeps_merge_order(
-    mocker: MockerFixture, application_lookup: Mock, metric_info_lookup: Mock
-) -> None:
+def test_request_count_filters_targets_and_keeps_merge_order(mocker: MockerFixture, application_lookup: Mock) -> None:
     remote_started = Event()
     workers: set[int] = set()
     requests = {}
@@ -158,7 +162,6 @@ def test_request_count_filters_targets_and_keeps_merge_order(
     ]
     assert len(workers) == 2
     assert fill.call_count == 2
-    metric_info_lookup.assert_called_once()
     assert requests == {
         ("service_name",): {("service_name", "contains", tuple(dict.fromkeys(targets)))},
         ("service_name", "db_system"): {
@@ -174,13 +177,13 @@ def test_request_count_filters_targets_and_keeps_merge_order(
 
 
 def test_metric_column_propagates_query_failure(mocker: MockerFixture, application_lookup: Mock) -> None:
-    def graph_response(params: dict[str, Any], *, metric_infos: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    def graph_response(params: dict[str, Any]) -> dict[str, Any]:
         if params["query_configs"][0]["group_by"] == ["service_name", "db_system"]:
             raise RuntimeError("db metric query failed")
         return {"series": []}
 
     mocker.patch(
-        "apm_web.handlers.metric_group.groups.span.resource.grafana.graph_unify_query.query_with_metric_info",
+        "apm_web.handlers.service_handler.resource.grafana.graph_unify_query",
         side_effect=graph_response,
     )
 
@@ -205,7 +208,7 @@ def test_component_target_preserves_all_hyphen_pairings(
     predicate: str,
     component_field: str,
 ) -> None:
-    def graph_response(params: dict[str, Any], *, metric_infos: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    def graph_response(params: dict[str, Any]) -> dict[str, Any]:
         [query] = params["query_configs"]
         if query["group_by"] != ["service_name", component_field]:
             return {"series": []}
@@ -223,7 +226,7 @@ def test_component_target_preserves_all_hyphen_pairings(
         }
 
     mocker.patch(
-        "apm_web.handlers.metric_group.groups.span.resource.grafana.graph_unify_query.query_with_metric_info",
+        "apm_web.handlers.service_handler.resource.grafana.graph_unify_query",
         side_effect=graph_response,
     )
     target = f"{service_name}-{predicate}"
@@ -235,33 +238,20 @@ def test_component_target_preserves_all_hyphen_pairings(
 
 
 @pytest.mark.parametrize("column", ["request_count", "error_rate"])
-def test_count_columns_preload_metric_info_in_request_thread(
-    mocker: MockerFixture, application_lookup: Mock, metric_info_lookup: Mock, column: str
+def test_count_columns_share_metric_helper(
+    mocker: MockerFixture, application_lookup: Mock, metric_table_lookup: Mock, column: str
 ) -> None:
-    parent_thread = get_ident()
-    prefetched = [{"metric_field": "bk_apm_count"}]
-
-    def lookup(params: dict[str, Any]) -> list[dict[str, Any]]:
-        assert get_ident() == parent_thread
-        assert params["bk_biz_id"] == BK_BIZ_ID
-        assert params["query_configs"][0]["metrics"][0]["field"] == "bk_apm_count"
-        return prefetched
-
-    def query(params: dict[str, Any], *, metric_infos: list[dict[str, Any]] | None) -> dict[str, Any]:
-        assert get_ident() != parent_thread
-        assert metric_infos is prefetched
-        return {"series": []}
-
-    metric_info_lookup.side_effect = lookup
-    graph = mocker.patch(
-        "apm_web.handlers.metric_group.groups.span.resource.grafana.graph_unify_query.query_with_metric_info",
-        side_effect=query,
-    )
+    groups = mocker.spy(metric_group, "SpanMetricGroup")
+    mocker.patch("bkmonitor.data_source.unify_query.query.api.unify_query.query_data", return_value={"series": []})
+    mocker.patch("monitor_web.grafana.resources.unify_query.safe_push_to_gateway")
+    mocker.patch("bkmonitor.data_source.unify_query.query.metrics.report_all")
 
     request_column(column, ["collector-mysql"])
 
-    metric_info_lookup.assert_called_once()
-    assert graph.call_count == 3
+    metric_table_lookup.assert_called_once_with(BK_BIZ_ID, APP_NAME)
+    helpers = [call.kwargs["metric_helper"] for call in groups.call_args_list]
+    assert len(helpers) > 1
+    assert all(helper is helpers[0] for helper in helpers)
 
 
 def test_average_duration_preserves_precision_step_and_end_point(
@@ -348,7 +338,7 @@ def test_error_rate_preserves_sparse_trend_timestamps(mocker: MockerFixture, app
 
 @pytest.mark.parametrize("values", [None, [], [0], [1]])
 def test_error_rate_distinguishes_no_data_from_zero(
-    mocker: MockerFixture, application_lookup: Mock, metric_info_lookup: Mock, values: list[int] | None
+    mocker: MockerFixture, application_lookup: Mock, values: list[int] | None
 ) -> None:
     timestamp = time_interval_align(START_TIME, 120) + 120
     # UQ 对缺失分母返回空 series，对零分母的 NaN 返回空 values；有效零值不能丢弃。
@@ -381,7 +371,6 @@ def test_error_rate_distinguishes_no_data_from_zero(
     else:
         assert row["error_rate"]["datapoints"] is None
     query.assert_called_once()
-    metric_info_lookup.assert_called_once()
 
 
 @pytest.mark.parametrize(("component_values", "expected_value"), [([0], 0), ([], 0.5)])
@@ -419,3 +408,35 @@ def test_error_rate_merges_available_series_when_names_collide(
     assert [point for point in row["error_rate"]["datapoints"] if point[0] is not None] == [
         [expected_value, timestamp * 1000]
     ]
+
+
+@pytest.mark.parametrize("column", ["request_count", "error_rate"])
+def test_graph_preserves_service_named_all_marker(mocker: MockerFixture, application_lookup: Mock, column: str) -> None:
+    timestamp = time_interval_align(START_TIME, 120) + 120
+    target = "__BKMONITOR_ALL__"
+
+    def response(**params: Any) -> dict[str, Any]:
+        for query in params["query_list"]:
+            assert {"field_name": "service_name", "op": "contains", "value": [target]} in query["conditions"][
+                "field_list"
+            ]
+        return {
+            "series": [
+                {
+                    "columns": ["_time", "_value"],
+                    "types": ["time", "double"],
+                    "group_keys": ["service_name"],
+                    "group_values": [target],
+                    "values": [[timestamp, 0]],
+                }
+            ]
+        }
+
+    query = mocker.patch("bkmonitor.data_source.unify_query.query.api.unify_query.query_data", side_effect=response)
+    mocker.patch("monitor_web.grafana.resources.unify_query.safe_push_to_gateway")
+    mocker.patch("bkmonitor.data_source.unify_query.query.metrics.report_all")
+
+    [row] = request_column(column, [target])["data"]
+
+    assert [point for point in row[column]["datapoints"] if point[0] is not None] == [[0, timestamp * 1000]]
+    query.assert_called_once()

@@ -60,7 +60,6 @@ from constants.data_source import (
 )
 from constants.strategy import SYSTEM_EVENT_RT_TABLE_ID, UPTIMECHECK_ERROR_CODE_MAP
 from core.drf_resource import Resource, api, resource
-from core.drf_resource.models import ResourceData
 from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
 from core.prometheus.metrics import safe_push_to_gateway
@@ -940,10 +939,8 @@ class UnifyQueryRawResource(ApiAuthResource):
         # 拨测指标处理
         self.handle_special_uptime_check_metric(params["query_configs"])
 
-        # None 表示未预读，沿用默认读取流程。空列表是可复用的预读结果。
-        metrics = self.context.get("metric_infos") if self.context else None
-        if metrics is None:
-            metrics = self.get_metric_info(params)
+        # 指标信息查询
+        metrics = self.get_metric_info(params)
 
         # 配置预处理
         for query_config in params["query_configs"]:
@@ -1050,15 +1047,6 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
     CUSTOM_METRIC_METHODS = {
         "INC": {"method": "SUM", "function": {"id": "increase", "params": [{"id": "window", "value": "1m"}]}}
     }
-
-    @classmethod
-    def query_with_metric_info(
-        cls, params: dict[str, Any], *, metric_infos: list[dict[str, Any]] | None = None
-    ) -> dict[str, Any]:
-        """复用调用方预读的指标元数据，沿用原校验、鉴权和请求记录。"""
-        query = cls(context={"metric_infos": metric_infos})
-        # Resource.__call__ 会重建实例，直接传入 query 以保留本次调用的 context。
-        return ResourceData.objects.request(query, (params,), {})
 
     def get_api_auth_request_data(self, request_data, validated_request_data):
         # 主机目标会在 serializer 中按业务 IP 模式规范化，鉴权必须校验实际执行参数。

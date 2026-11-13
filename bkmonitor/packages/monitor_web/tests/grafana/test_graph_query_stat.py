@@ -8,18 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import json
-from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource.exceptions import CustomException
-from core.drf_resource.models import ResourceData
 from monitor_web.grafana.resources.unify_query import (
     GraphPromqlQueryResource,
     GraphUnifyQueryResource,
@@ -29,7 +22,7 @@ from monitor_web.grafana.resources.unify_query import (
 pytestmark = pytest.mark.django_db
 
 
-def build_graph_unify_params() -> dict[str, Any]:
+def build_graph_unify_params():
     return {
         "bk_biz_id": 2,
         "query_configs": [
@@ -38,7 +31,6 @@ def build_graph_unify_params() -> dict[str, Any]:
                 "data_type_label": DataTypeLabel.TIME_SERIES,
                 "metrics": [{"field": "cpu_usage", "method": "AVG", "alias": "a", "display": False}],
                 "functions": [],
-                "filter_dict": {},
                 "group_by": [],
                 "interval": 60,
             }
@@ -138,80 +130,6 @@ class TestGraphPromqlQueryResource:
 
 
 class TestGraphUnifyQueryResource:
-    @pytest.mark.parametrize("metric_infos", [None, []])
-    def test_preloaded_metadata_keeps_none_and_empty_distinct(
-        self, mocker: MockerFixture, metric_infos: list[dict[str, Any]] | None
-    ) -> None:
-        mocker.patch("monitor_web.grafana.resources.unify_query.get_cookies_filter", return_value={})
-        mocker.patch.object(GraphUnifyQueryResource, "get_target_instance", return_value=False)
-        lookup = mocker.patch.object(GraphUnifyQueryResource, "get_metric_info", return_value=[])
-
-        assert GraphUnifyQueryResource.query_with_metric_info(
-            build_graph_unify_params(), metric_infos=metric_infos
-        ) == {"series": [], "metrics": []}
-
-        assert lookup.call_count == (1 if metric_infos is None else 0)
-
-    def test_preloaded_metadata_is_isolated_between_requests(self, mocker: MockerFixture, settings: Any) -> None:
-        settings.ENABLE_RESOURCE_DATA_COLLECT = False
-        barrier = Barrier(2)
-
-        def synchronize_requests() -> dict[str, Any]:
-            barrier.wait(timeout=5)
-            return {}
-
-        mocker.patch("monitor_web.grafana.resources.unify_query.get_cookies_filter", side_effect=synchronize_requests)
-        mocker.patch.object(GraphUnifyQueryResource, "get_target_instance", return_value=False)
-        lookup = mocker.patch.object(GraphUnifyQueryResource, "get_metric_info", return_value=[])
-        metric = {
-            "result_table_id": "system.cpu_summary",
-            "data_label": "",
-            "related_id": "",
-            "metric_field": "cpu_usage",
-            "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
-            "data_type_label": DataTypeLabel.TIME_SERIES,
-            "extend_fields": {"time_field": "time"},
-        }
-        metadata = [[{**metric, "unit": unit}] for unit in ["percent", "percentunit"]]
-
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = [
-                pool.submit(
-                    GraphUnifyQueryResource.query_with_metric_info, build_graph_unify_params(), metric_infos=info
-                )
-                for info in metadata
-            ]
-            results = [future.result() for future in futures]
-
-        assert [result["metrics"] for result in results] == metadata
-        lookup.assert_not_called()
-
-    def test_preloaded_metadata_preserves_validation_and_call_records(
-        self, mocker: MockerFixture, settings: Any
-    ) -> None:
-        settings.ENABLE_RESOURCE_DATA_COLLECT = True
-        settings.RESOURCE_DATA_COLLECT_RATIO = 1
-        mocker.patch("monitor_web.grafana.resources.unify_query.get_cookies_filter", return_value={})
-        target = mocker.patch.object(GraphUnifyQueryResource, "get_target_instance", return_value=False)
-        create_record = mocker.patch.object(ResourceData.objects, "create")
-        params = build_graph_unify_params()
-
-        result = GraphUnifyQueryResource.query_with_metric_info(params, metric_infos=[])
-
-        create_record.assert_called_once()
-        record = create_record.call_args.kwargs
-        assert record["name"] == "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource"
-        assert json.loads(record["request_data"]) == {"args": [params], "kwargs": {}}
-        assert json.loads(record["response_data"]) == result
-        invalid_params = build_graph_unify_params()
-        invalid_params.pop("start_time")
-
-        with pytest.raises(CustomException):
-            GraphUnifyQueryResource.query_with_metric_info(invalid_params, metric_infos=[])
-
-        assert create_record.call_count == 2
-        target.assert_called_once()
-
     def test_graph_unify_query_transfers_series_stat(self, mocker):
         perform_query = mocker.patch.object(
             GraphUnifyQueryResource,

@@ -7,9 +7,11 @@
 import math
 import os
 import unittest
+from unittest.mock import patch
 from typing import Any
 
 from apm_web.handlers.metric_group import MetricHelper, SpanMetricGroup
+from apm_web.models import Application
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.data_source.promql_expression import compile_promql_expression
 from core.drf_resource import api
@@ -17,6 +19,12 @@ from core.drf_resource import api
 
 @unittest.skipUnless(os.getenv("BK_APM_UQ_TEST_BIZ_ID"), "需要配置真实 UQ 测试业务")
 class TestSpanMetricGroupExpressions(unittest.TestCase):
+    def setUp(self) -> None:
+        # 仅隔离应用表名读取，表达式编译和计算仍调用真实 UQ。
+        table_lookup = patch.object(Application, "get_metric_table_id", return_value="demo.__default__")
+        table_lookup.start()
+        self.addCleanup(table_lookup.stop)
+
     @staticmethod
     def vector(value: float | None, **labels: str) -> str:
         expression = f"vector({value})" if value is not None else "(vector(1) > 2)"
@@ -30,7 +38,8 @@ class TestSpanMetricGroupExpressions(unittest.TestCase):
             bk_biz_id,
             "demo",
             group_by=["service_name", "db_system"],
-            metric_helper=MetricHelper(bk_biz_id, "demo", table_id="demo.__default__"),
+            metric_helper=MetricHelper(bk_biz_id, "demo"),
+            for_service_list=True,
         )
         return group.query_config(calculation_type, raw=True)["expression"]
 
@@ -131,7 +140,8 @@ class TestSpanMetricGroupExpressions(unittest.TestCase):
             bk_biz_id,
             "demo",
             group_by=["service_name", "db_system"],
-            metric_helper=MetricHelper(bk_biz_id, "demo", table_id="demo.__default__"),
+            metric_helper=MetricHelper(bk_biz_id, "demo"),
+            for_service_list=True,
         )
         config = group.query_config("exception_rate", raw=True)
         query = UnifyQuery(

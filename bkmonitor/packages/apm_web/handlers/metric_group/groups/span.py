@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections import defaultdict
 from collections.abc import Callable
 from functools import partial
 from typing import Any
@@ -20,7 +19,6 @@ from bkmonitor.data_source import UnifyQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import CallSide, SpanKind, TraceMetric
-from core.drf_resource import resource
 
 from .. import base, define
 
@@ -37,28 +35,21 @@ class SpanMetricGroup(base.BaseMetricGroup):
         interval: int | None = None,
         service_name: str | None = None,
         kind: str | None = None,
+        for_service_list: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(bk_biz_id, app_name, group_by, filter_dict, **kwargs)
         self.interval: int = interval or self.DEFAULT_INTERVAL
         self.service_name: str | None = service_name
         self.kind: str | None = kind
+        # 默认沿用 Trace 的错误率口径，服务列表在构造时显式切换。
+        self.for_service_list: bool = for_service_list
 
     class Meta:
         name = define.GroupEnum.SPAN.value
 
-    def handle(
-        self,
-        calculation_type: str,
-        *,
-        start_time: int,
-        end_time: int,
-        metric_infos: list[dict[str, Any]] | None = None,
-        **kwargs: Any,
-    ) -> list[dict[str, Any]]:
-        return self.get_calculation_method(calculation_type)(
-            start_time=start_time, end_time=end_time, metric_infos=metric_infos, **kwargs
-        )
+    def handle(self, calculation_type: str, **kwargs: Any) -> list[dict[str, Any]]:
+        return self.get_calculation_method(calculation_type)(**kwargs)
 
     def get_calculation_method(self, calculation_type: str) -> Callable[..., list[dict[str, Any]]]:
         support_calculation_methods = {
@@ -70,51 +61,23 @@ class SpanMetricGroup(base.BaseMetricGroup):
             raise ValueError(f"Unsupported range calculation type -> {calculation_type}")
         return support_calculation_methods[calculation_type]
 
-    def _request_total(
-        self, start_time: int, end_time: int, metric_infos: list[dict[str, Any]] | None = None, **kwargs: Any
-    ) -> list[dict[str, Any]]:
-        return self._query_graph_series(self._request_total_qs(start_time, end_time), metric_infos=metric_infos)
+    def _request_total(self, start_time: int | None = None, end_time: int | None = None) -> list[dict[str, Any]]:
+        return list(self._request_total_qs(start_time, end_time))
 
-    def _error_rate(
-        self, start_time: int, end_time: int, metric_infos: list[dict[str, Any]] | None = None, **kwargs: Any
-    ) -> list[dict[str, Any]]:
-        return self._query_graph_series(
-            self._error_rate_qs(start_time, end_time), metric_infos=metric_infos, include_null_points=False
-        )
+    def _error_rate(self, start_time: int | None = None, end_time: int | None = None) -> list[dict[str, Any]]:
+        return list(self._error_rate_qs(start_time, end_time))
 
-    def _avg_duration(self, start_time: int, end_time: int, **kwargs: Any) -> list[dict[str, Any]]:
-        return self._query_series(self._avg_duration_qs(start_time, end_time))
+    def _avg_duration(self, start_time: int | None = None, end_time: int | None = None) -> list[dict[str, Any]]:
+        return list(self._avg_duration_qs(start_time, end_time))
 
-    def _query_graph_series(
-        self, qs: UnifyQuerySet, *, metric_infos: list[dict[str, Any]] | None, include_null_points: bool = True
-    ) -> list[dict[str, Any]]:
-        # Graph 会移除 where 中的全选条件。保留 filter_dict 可精确匹配与全选标记同名的服务。
-        config = qs.config
-        series = resource.grafana.graph_unify_query.query_with_metric_info(
-            {**config, "start_time": config["start_time"] // 1000, "end_time": config["end_time"] // 1000},
-            metric_infos=metric_infos,
-        )["series"]
-        if not include_null_points:
-            # 列表自行补点，避免 Graph 的占位点改变原有空桶时间戳。
-            for item in series:
-                item["datapoints"] = [point for point in item["datapoints"] if point[0] is not None]
-        return series
-
-    def _query_series(self, qs: UnifyQuerySet) -> list[dict[str, Any]]:
-        """将 QuerySet 记录转换为趋势序列，保留 UQ 原始数值精度。"""
-        points_by_group = defaultdict(list)
-        for point in qs:
-            key = tuple(point.get(field) for field in self.group_by)
-            points_by_group[key].append([point["_result_"], point["_time_"]])
-        return [
-            {"dimensions": dict(zip(self.group_by, key)), "datapoints": points}
-            for key, points in points_by_group.items()
-        ]
-
-    def query_config(self, calculation_type: str, raw: bool = False, **kwargs: Any) -> dict[str, Any]:
-        return self._export_qs(
-            self._get_qs(calculation_type, kwargs.get("start_time"), kwargs.get("end_time")), raw=raw
-        )
+    def query_config(
+        self, calculation_type: str, raw: bool = False, preserve_filter_dict: bool = False, **kwargs
+    ) -> dict[str, Any]:
+        qs = self._get_qs(calculation_type, kwargs.get("start_time"), kwargs.get("end_time"))
+        # 服务列表使用原始 filter_dict，其他调用方沿用现有配置导出格式。
+        if raw and preserve_filter_dict:
+            return qs.config
+        return self._export_qs(qs, raw=raw)
 
     def _get_qs(
         self, calculation_type: str, start_time: int | None = None, end_time: int | None = None
@@ -172,24 +135,29 @@ class SpanMetricGroup(base.BaseMetricGroup):
 
     def _error_rate_qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
         error_q = self._error_count_q()
-        # 缺少状态码的调用不计入分母；UQ 将空标签视为缺失标签。
-        total_q = (
-            self._q().metric(field=TraceMetric.BK_APM_COUNT, method="SUM", alias="b").filter(Q(status_code__neq=""))
-        )
-        # 按分母维度补齐无错误的零值，分母为零或缺失时仍不返回有效点。
-        return self._qs(start_time, end_time).add_query(error_q).add_query(total_q).expression("(a or b < bool 0) / b")
+        total_q = self._q().metric(field=TraceMetric.BK_APM_COUNT, method="SUM", alias="b")
+        expression = "a / b"
+        if self.for_service_list:
+            # 服务列表仅将状态码非空的调用计入分母。
+            total_q = total_q.filter(Q(status_code__neq=""))
+            # b 为非负调用次数，b < bool 0 按相同分组生成零值，补齐缺失的错误调用序列。
+            # 有调用、无错误时返回 0%；分母为 0 时保持无有效数据。
+            expression = "(a or b < bool 0) / b"
+        return self._qs(start_time, end_time).add_query(error_q).add_query(total_q).expression(expression)
 
     def _avg_duration_qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
         qs = self._qs(start_time, end_time)
         start_ms, end_ms = UnifyQuery.process_time_range(qs.query.start_time, qs.query.end_time)
-        # 先对齐结束时间，由 QuerySet 公共查询层剔除末点；0 仍保留原有默认时间处理。
+        # 结束时间按查询步长对齐，由公共查询层丢弃该时刻的数据点。
         aligned_end_ms = time_interval_align(end_ms // 1000, self.interval) * 1000
         qs = qs.start_time(start_ms).end_time(aligned_end_ms or end_ms)
-        # 累计耗时和调用计数共用分组、过滤条件与增量窗口，分母取 bk_apm_total 的计数器增量。
+        # 累计耗时与调用次数在相同窗口内取增量后相除，保留耗时指标的原始单位。
+        # 分母使用累加计数器 bk_apm_total，分子、分母共用分组和过滤条件。
         q = self._q().func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
         sum_q = q.metric(field=TraceMetric.BK_APM_DURATION_SUM, method="SUM", alias="a")
         total_q = q.metric(field=TraceMetric.BK_APM_TOTAL, method="SUM", alias="b")
-        # 零分母保留无有效数据语义；vector(0) 仅兼容无分组查询，缺少服务耗时样本不补 0。
+        # b != 0 排除零分母，保持无有效数据语义。
+        # vector(0) 仅兼容无分组查询，不为缺少耗时样本的服务分组补 0。
         return qs.add_query(sum_q).add_query(total_q).expression("(a or vector(0)) / (b != 0)")
 
     def _histogram_quantile_duration_qs(
