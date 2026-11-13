@@ -5,6 +5,7 @@
 ```json
 {
   "token_matrix": {
+    "estimated_to_reported_ratio": 0.17666666666666667,
     "nodes": [
       {
         "id": "input", "name": "输入", "value": 1000,
@@ -75,15 +76,16 @@
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
+| `token_matrix.estimated_to_reported_ratio` | `number` | 是 | 输入、输出校准前估算量合计 ÷ 上报量合计 *[2]* |
 | `token_matrix.nodes` | `array<object>` | 是 | 输入、输出根节点，可直接传入 ECharts Treemap 的 `series.data` *[4]* |
 | `<node>.id` | `string` | 是 | 树内唯一、跨请求稳定的节点标识 |
 | `<node>.name` | `string` | 是 | 展示名称 |
 | `<node>.value` | `int` | 是 | 校准后的估算量 *[1]* |
 | `<node>.children` | `array<object>` | 是 | 同结构子节点，叶子为 `[]` |
-| `<node>.estimated_to_reported_ratio` | `number / null` | 否 | 仅根节点返回：校准前估算总量 ÷ 上报总量 *[2]* |
+| `<node>.estimated_to_reported_ratio` | `number` | 否 | 仅根节点返回：校准前估算总量 ÷ 上报总量 *[2]* |
 
 - *[1] 父节点等于子节点之和；已上报的用量用于校准，缺失用量时仅矩阵使用正文估算值。*
-- *[2] `1` 表示两者相等，该侧存在未上报用量的模型或上报总量为 `0` 时返回 `null`。*
+- *[2] `1` 表示两者相等；顶层按输入与输出合计计算，根节点按各侧计算。统计范围存在未上报用量的模型或上报总量为 `0` 时返回 `0`。*
 - *[3] 已上报推理量计入输出比例的分子，输出校准时优先保留推理量，其余分配给内容。*
 - *[4] 节点采用 [ECharts Treemap 数据结构](https://echarts.apache.org/en/option.html#series-treemap.data)，`estimated_to_reported_ratio` 为业务扩展字段。*
 - *[5] 会话内容的 `other` 仅在非零时返回，承接角色无法归类的正文或无可计数正文的上报输入量。*

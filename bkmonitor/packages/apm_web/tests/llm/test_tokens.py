@@ -97,7 +97,7 @@ class TokenMatrixTests(TestCase):
         self.assertEqual(tools["children"][-1]["id"], "tool_calls/other")
         self.assertEqual(tools["value"], 400)
         self.assertEqual(sum(node["value"] for node in tools["children"]), tools["value"])
-        self.assertEqual(set(matrix), {"nodes"})
+        self.assertEqual(set(matrix), {"nodes", "estimated_to_reported_ratio"})
         self.assertEqual([node["call_count"] for node in tools["children"]], [2, 1, 1, 2])
         for child in tools["children"]:
             self.assertEqual(set(child), {"id", "name", "value", "children", "call_count"})
@@ -161,7 +161,8 @@ class TokenMatrixTests(TestCase):
                 input_node, output_node = matrix["nodes"]
                 self.assertEqual(input_node["value"], reported)
                 self.assertEqual(sum(leaves(input_node).values()), reported)
-                self.assertEqual(input_node["estimated_to_reported_ratio"], 2 / reported if reported else None)
+                self.assertEqual(input_node["estimated_to_reported_ratio"], 2 / reported if reported else 0)
+                self.assertEqual(matrix["estimated_to_reported_ratio"], 3 / (reported + 7))
                 sections = span["token_categories"]
                 self.assertTrue(all(set(section) == {"key", "label", "tokens"} for section in sections))
                 self.assertEqual(sum(item["tokens"] for item in sections[:3]), reported)
@@ -174,7 +175,8 @@ class TokenMatrixTests(TestCase):
         matrix = build_token_matrix([span])
         self.assertEqual(span["attributes"], original_attributes)
         self.assertEqual(matrix["nodes"][0]["value"], 2)
-        self.assertIsNone(matrix["nodes"][0]["estimated_to_reported_ratio"])
+        self.assertEqual(matrix["nodes"][0]["estimated_to_reported_ratio"], 0)
+        self.assertEqual(matrix["estimated_to_reported_ratio"], 0)
         self.assertEqual(matrix, build_token_matrix([span]))
         self.assertEqual(span["attributes"]["gen_ai.usage.output_tokens"], 0)
 
@@ -300,10 +302,15 @@ class TokenMatrixTests(TestCase):
         self.assertEqual([n["value"] for n in matrix["nodes"]], [5, 4])
         self.assertNotIn("token_categories", agent)
 
-    def test_mixed_reported_and_estimated_usage_has_no_accuracy_ratio(self):
+    def test_mixed_reported_and_estimated_usage_returns_zero_ratio(self):
         matrix = build_token_matrix([model_span(input_tokens=5), model_span(span_id="model-2")])
         self.assertEqual(matrix["nodes"][0]["value"], 7)
-        self.assertIsNone(matrix["nodes"][0]["estimated_to_reported_ratio"])
+        self.assertEqual(matrix["nodes"][0]["estimated_to_reported_ratio"], 0)
+        self.assertEqual(matrix["estimated_to_reported_ratio"], 0)
+
+    def test_all_reported_zero_returns_zero_overall_ratio(self):
+        matrix = build_token_matrix([model_span(input_tokens=0, output_tokens=0)])
+        self.assertEqual(matrix["estimated_to_reported_ratio"], 0)
 
 
 class TruncatedContentTests(TestCase):

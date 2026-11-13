@@ -233,9 +233,16 @@ class TokenUsageBuilder:
         for root in nodes:
             estimated = self.estimated_totals[root["id"]]
             root["estimated_to_reported_ratio"] = (
-                estimated / root["value"] if estimated is not None and root["value"] else None
+                estimated / root["value"] if estimated is not None and root["value"] else 0
             )
-        return {"nodes": nodes}
+        reported_total = sum(root["value"] for root in nodes)
+        estimated_total = sum(value for value in self.estimated_totals.values() if value is not None)
+        return {
+            "nodes": nodes,
+            "estimated_to_reported_ratio": estimated_total / reported_total
+            if reported_total and all(value is not None for value in self.estimated_totals.values())
+            else 0,
+        }
 
 
 def build_token_matrix(spans: Iterable[dict[str, Any]]) -> dict[str, Any]:
