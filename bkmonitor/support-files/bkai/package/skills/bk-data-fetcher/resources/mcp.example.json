@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "bk-monitor-prod-metrics-query": {
+      "type": "streamableHttp",
+      "url": "https://gateway.example.com/api/v2/mcp-servers/bk-monitor-prod-metrics-query/mcp/",
+      "headers": {"Authorization": "Bearer <access-token>"}
+    },
+    "bk-monitor-prod-log-query": {
+      "type": "streamableHttp",
+      "url": "https://gateway.example.com/api/v2/mcp-servers/bk-monitor-prod-log-query/mcp/",
+      "headers": {"Authorization": "Bearer <access-token>"}
+    }
+  }
+}

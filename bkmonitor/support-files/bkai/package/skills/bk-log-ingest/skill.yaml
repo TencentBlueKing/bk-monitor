@@ -1,0 +1,9 @@
+apiVersion: bkai.tencent.com/v1
+kind: Skill
+metadata:
+  code: bk-log-ingest
+  name: bk-log-ingest
+spec:
+  generate_type: space
+  is_public: false
+  tag_names: []

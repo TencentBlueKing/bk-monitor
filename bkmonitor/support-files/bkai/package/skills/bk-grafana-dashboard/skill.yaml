@@ -1,0 +1,9 @@
+apiVersion: bkai.tencent.com/v1
+kind: Skill
+metadata:
+  code: bk-grafana-dashboard
+  name: bk-grafana-dashboard
+spec:
+  generate_type: space
+  is_public: false
+  tag_names: []
