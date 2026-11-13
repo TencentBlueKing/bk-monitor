@@ -38,8 +38,8 @@ from apm_web.metrics import APPLICATION_LIST
 from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomService
 from bkmonitor.utils.cache import CacheType, lru_cache_with_ttl, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
-from bkmonitor.utils.time_tools import get_datetime_range
-from core.drf_resource import api
+from bkmonitor.utils.time_tools import get_datetime_range, time_interval_align
+from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 
 logger = logging.getLogger(__name__)
@@ -545,66 +545,103 @@ class ServiceHandler:
     @classmethod
     def get_service_metric_range_mapping(
         cls,
-        metric,
-        application,
-        start_time,
-        end_time,
-        ignore_keys=None,
-        extra_params=None,
-    ):
-        """获取服务的指标数据(range查询)（兼容自定义服务、组件类服务名称）"""
-        if not extra_params:
-            extra_params = {}
+        calculation_type: str,
+        application: Application,
+        start_time: int,
+        end_time: int,
+        service_names: list[str],
+        interval: int,
+    ) -> dict[str, list]:
+        """查询本次请求指定服务的指标趋势。"""
+        service_names = list(dict.fromkeys(service_names))
+        service_group = ("service_name",)
+        db_group = ("service_name", "db_system")
+        messaging_group = ("service_name", "messaging_system")
+        remote_group = ("peer_service",)
+        # 同一名称可能命中多个分支，普通服务始终按请求名称匹配。
+        filters_by_group: dict[tuple[str, ...], dict[str, list[str]]] = {
+            service_group: {"service_name__eq": service_names}
+        }
 
-        # 查询普通服务
-        response = metric(
-            **{
-                "application": application,
-                "start_time": start_time,
-                "end_time": end_time,
-                # index: 0
-                "group_by": ["service_name"],
-                **extra_params,
+        # 服务名和组件类型都可能包含连字符，需按每个连字符位置提取候选服务名。
+        candidate_services = sorted(
+            {name[:index] for name in service_names for index, char in enumerate(name) if char == "-" and index > 0}
+        )
+        if candidate_services:
+            # 空组件维度不参与结果合并，在 UQ 聚合前过滤。
+            filters_by_group[db_group] = {"service_name__eq": candidate_services, "db_system__neq": [""]}
+            filters_by_group[messaging_group] = {
+                "service_name__eq": candidate_services,
+                "messaging_system__neq": [""],
             }
-        ).get_range_calculate_values_mapping(ignore_keys)
-        # 查询组件类服务: DB
-        component_db_service_response = metric(
-            **{
-                "application": application,
-                "start_time": start_time,
-                "end_time": end_time,
-                # index: 0, 1, 2
-                "group_by": ["service_name", "db_system"],
-                **extra_params,
-            }
-        ).get_range_calculate_values_mapping(ignore_keys)
-        # 查询组件类服务: MESSAGING
-        component_messaging_service_response = metric(
-            **{
-                "application": application,
-                "start_time": start_time,
-                "end_time": end_time,
-                # index: 0, 1, 2
-                "group_by": ["service_name", "messaging_system"],
-                **extra_params,
-            }
-        ).get_range_calculate_values_mapping(ignore_keys)
-        # 单独查询自定义服务指标 (因为不同service_name可以访问同一个自定义服务)
-        remote_service_response = metric(
-            **{
-                "application": application,
-                "start_time": start_time,
-                "end_time": end_time,
-                # index: 0
-                "group_by": ["peer_service"],
-                **extra_params,
-            }
-        ).get_range_calculate_values_mapping(ignore_keys)
+
+        # 远程服务只按被调方 peer_service 筛选，汇总所有调用方的指标。
+        remote_prefix = cls.generate_remote_service_name("")
+        remote_names = [
+            cls.get_remote_service_origin_name(name)
+            for name in service_names
+            if name.startswith(remote_prefix) and name != remote_prefix
+        ]
+        if remote_names:
+            filters_by_group[remote_group] = {"peer_service__eq": remote_names}
+
+        # 分支查询启动前获取指标结果表，各分支复用同一个 MetricHelper。
+        metric_helper = metric_group.MetricHelper(application.bk_biz_id, application.app_name)
+
+        def query_group(group_by: tuple[str, ...], filters: dict[str, list[str]]) -> dict[tuple[str | None, ...], list]:
+            group = metric_group.SpanMetricGroup(
+                application.bk_biz_id,
+                application.app_name,
+                group_by=list(group_by),
+                filter_dict=filters,
+                interval=interval,
+                metric_helper=metric_helper,
+            )
+            points_by_group = {}
+            if calculation_type == metric_group.CalculationType.AVG_DURATION.value:
+                # 平均耗时直接读取 QuerySet 记录，保留原始精度，并按维度组合归集数据点。
+                # 公共查询层只剔除等于请求结束时间的点，传入对齐后的时间以排除末桶。
+                for point in group.handle(
+                    calculation_type, start_time=start_time, end_time=time_interval_align(end_time, interval)
+                ):
+                    key = tuple(point.get(field) for field in group_by)
+                    points_by_group.setdefault(key, []).append([point["_result_"], point["_time_"]])
+                return points_by_group
+
+            # Graph 会移除 where 中的 __BKMONITOR_ALL__ 条件，保留 filter_dict 以精确匹配同名服务。
+            config = group.query_config(calculation_type, raw=True, preserve_filter_dict=True)
+            # Graph 以原始请求时间为基准处理取数、精度和补点。
+            series = resource.grafana.graph_unify_query({**config, "start_time": start_time, "end_time": end_time})[
+                "series"
+            ]
+            for item in series:
+                key = tuple(item["dimensions"].get(field) for field in group_by)
+                points = item["datapoints"]
+                if calculation_type == metric_group.CalculationType.EXCEPTION_RATE.value:
+                    # 移除 Graph 的占位空点，由列表按原有时间戳规则统一补点。
+                    # 值为 0 的有效错误率数据点仍需保留。
+                    points = [point for point in points if point[0] is not None]
+                points_by_group[key] = points
+            return points_by_group
+
+        results: dict[tuple[str, ...], dict[tuple[str | None, ...], list]]
+        if len(filters_by_group) == 1:
+            results = {service_group: query_group(service_group, filters_by_group[service_group])}
+        else:
+            with ThreadPool(processes=2) as pool:
+                futures = {
+                    group: pool.apply_async(query_group, args=(group, filters))
+                    for group, filters in filters_by_group.items()
+                }
+                # 分支查询异常通过 get() 向外抛出，由指标列统一处理失败。
+                results = {group: future.get() for group, future in futures.items()}
+
+        # 同名结果按普通服务、数据库组件、消息组件和远程服务的顺序覆盖。
         return cls._combine_metric_data(
-            response,
-            component_db_service_response,
-            component_messaging_service_response,
-            remote_service_response,
+            results[service_group],
+            results.get(db_group, {}),
+            results.get(messaging_group, {}),
+            results.get(remote_group, {}),
         )
 
     @classmethod
