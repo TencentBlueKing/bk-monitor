@@ -56,3 +56,16 @@ def test_issue_list_renders_before_trend_is_loaded():
     assert alarm_table.index("loading.value = false") < alarm_table.index("getIssueTrend")
     assert issues_table.index("data.value = res.data") < issues_table.index("getIssueTrend")
     assert issues_table.index("loading.value = false") < issues_table.index("getIssueTrend")
+
+
+def test_trend_query_reuses_outer_authorization():
+    """第二次权限计算复用外层 handler 已解析的鉴权结果。
+
+    IssueAlertDateHistogramResultResource 无 RequestSerializer，入参原样透传给
+    AlertQueryHandler，parse_biz_item 命中 authorized_bizs 分支后不再做 O(全租户空间)
+    的鉴权计算（实测 1.6~2.1s/次）。
+    """
+    handler = (ISSUE_PACKAGE / "handlers" / "issue.py").read_text()
+
+    assert "authorized_bizs=self.authorized_bizs" in handler
+    assert "unauthorized_bizs=self.unauthorized_bizs" in handler

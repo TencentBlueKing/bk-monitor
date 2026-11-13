@@ -147,6 +147,19 @@ class BaseDocument(Document):
         return f"{cls.Index.name}_*_read"
 
     @classmethod
+    def build_read_index_name_by_timestamp(cls, timestamp: int) -> str:
+        """按时间戳推导数据所在的读索引名。
+
+        索引按天拆分，日期串必须与写入路径 `_get_index` 保持同一口径：后者用
+        `arrow.get(index_time).strftime(INDEX_TIME_FORMAT)`（arrow 默认 UTC）。
+        若改用本地时区，跨天边界会错一天，导致查询落到不存在的索引上。
+
+        :param timestamp: 决定索引归属的时间戳（秒），需与写入时的 get_index_time 同源
+        """
+        date_str = arrow.get(int(timestamp)).strftime(cls.INDEX_TIME_FORMAT)
+        return cls.get_read_index_name(cls.Index.name, date_str)
+
+    @classmethod
     def search(cls, using=None, index=None, start_time=None, end_time=None, days=0, all_indices=False):
         if index:
             # 如果提供了特定的索引，则直接用它来查询

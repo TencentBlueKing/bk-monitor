@@ -1113,3 +1113,142 @@ class TestIssueTopNResource:
         assert captured["request_data"]["end_time"] == self.END_TIME
         assert all(issue_resources.IssueQueryHandler(**params).bucket_count_suffix == "" for params in sliced_params)
         assert result == {"doc_count": 0, "fields": []}
+
+
+class TestIssueTrendResourceIndexScoping:
+    """IssueTrendResource 归属校验：按 id 内嵌时间戳定位天索引。
+
+    背景：原实现用 all_indices=True 查询 bkfta_issue_*_read（全部历史天索引），
+    实测单次 454~2218ms。issue_id 内嵌 create_time，可直接定位到天索引。
+    """
+
+    # 两条 id 分属不同天索引：2026-11-10 与 2026-06-17
+    ISSUE_IDS = ["1794285361616afe83", "17816902556b8cd53d"]
+    DAY_INDEXES = ["bkfta_issue_20260617_read", "bkfta_issue_20261110_read"]
+
+    @staticmethod
+    def _hit(issue_id: str):
+        from unittest.mock import MagicMock
+
+        hit = MagicMock()
+        hit.meta.id = issue_id
+        return hit
+
+    @staticmethod
+    def _fake_search(monkeypatch, hits, captured: dict):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from fta_web.issue import resources
+
+        search = MagicMock()
+        search.filter.return_value = search
+        search.source.return_value = search
+        search.params.return_value = search
+        search.execute.return_value = SimpleNamespace(hits=hits)
+
+        def _search(**kwargs):
+            captured.update(kwargs)
+            return search
+
+        monkeypatch.setattr(resources.IssueDocument, "search", _search)
+        return search
+
+    def test_queries_day_indices_derived_from_issue_id(self, monkeypatch):
+        from fta_web.issue.resources import IssueTrendResource
+
+        captured = {}
+        self._fake_search(monkeypatch, [self._hit(i) for i in self.ISSUE_IDS], captured)
+
+        allowed = IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, [5000140])
+
+        assert allowed == set(self.ISSUE_IDS)
+        # 只查各 id 所在的天索引，不再走全索引通配
+        assert captured["index"] == self.DAY_INDEXES
+        assert "all_indices" not in captured
+
+    def test_keeps_bk_biz_id_filter(self, monkeypatch):
+        """bk_biz_id 条件就是归属校验本身，不能被优化掉。"""
+        from fta_web.issue.resources import IssueTrendResource
+
+        captured = {}
+        search = self._fake_search(monkeypatch, [], captured)
+
+        IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, [5000140])
+
+        kwargs_list = [call.kwargs for call in search.filter.call_args_list]
+        assert any("_id" in kw for kw in kwargs_list)
+        assert any(kw.get("bk_biz_id") == [5000140] for kw in kwargs_list)
+
+    def test_unauthorized_issue_is_dropped(self, monkeypatch):
+        from fta_web.issue.resources import IssueTrendResource
+
+        # 只命中第一条；第二条可能属于其他业务
+        captured = {}
+        self._fake_search(monkeypatch, [self._hit(self.ISSUE_IDS[0])], captured)
+
+        allowed = IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, [5000140])
+
+        assert allowed == {self.ISSUE_IDS[0]}
+
+    def test_unparsable_id_falls_back_to_all_indices(self, monkeypatch):
+        from fta_web.issue import resources as res
+
+        captured = {}
+        self._fake_search(monkeypatch, [], captured)
+
+        def _raise(_):
+            raise ValueError("bad issue id")
+
+        monkeypatch.setattr(res.IssueDocument, "parse_timestamp_by_id", _raise)
+
+        res.IssueTrendResource._get_allowed_issue_ids(["bad-issue-id"], [5000140])
+
+        assert captured.get("all_indices") is True
+
+    def test_missing_id_logs_warning_without_full_scan(self, monkeypatch, caplog):
+        """未命中的 id 只告警，不回退全索引（否则一个越权 id 就会打回 2 秒）。"""
+        import logging
+
+        from fta_web.issue.resources import IssueTrendResource
+
+        captured = {}
+        self._fake_search(monkeypatch, [self._hit(self.ISSUE_IDS[0])], captured)
+
+        with caplog.at_level(logging.WARNING):
+            IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, [5000140])
+
+        assert any("unmatched in day indices" in record.getMessage() for record in caplog.records)
+        assert "all_indices" not in captured
+
+    # ---- 天索引数量上限：避免 URL 超过 ES http.max_initial_line_length(4KB) ----
+
+    @staticmethod
+    def _ids_spanning_days(days: int) -> list[str]:
+        base = 1794200000
+        return [f"{base - index * 86400}{'a' * 8}" for index in range(days)]
+
+    def test_day_index_count_at_limit_still_uses_day_indices(self, monkeypatch):
+        from fta_web.issue.resources import MAX_DAY_INDEXES_PER_QUERY, IssueTrendResource
+
+        ids = self._ids_spanning_days(MAX_DAY_INDEXES_PER_QUERY)
+        captured = {}
+        self._fake_search(monkeypatch, [], captured)
+
+        IssueTrendResource._get_allowed_issue_ids(ids, [5000140])
+
+        assert "index" in captured
+        assert len(captured["index"]) == MAX_DAY_INDEXES_PER_QUERY
+        assert "all_indices" not in captured
+
+    def test_too_many_day_indices_falls_back_to_all_indices(self, monkeypatch):
+        from fta_web.issue.resources import MAX_DAY_INDEXES_PER_QUERY, IssueTrendResource
+
+        ids = self._ids_spanning_days(MAX_DAY_INDEXES_PER_QUERY + 1)
+        captured = {}
+        self._fake_search(monkeypatch, [], captured)
+
+        IssueTrendResource._get_allowed_issue_ids(ids, [5000140])
+
+        assert captured.get("all_indices") is True
+        assert "index" not in captured
