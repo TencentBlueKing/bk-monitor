@@ -176,13 +176,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("QOS_INTERVAL_EXPAND", slz.IntegerField(label="access模块触发流控后周期放大倍数", default=3)),
         ("RSA_PRIVATE_KEY", slz.CharField(label="RSA PRIVATE KEY", default=settings.RSA_PRIVATE_KEY)),
         ("SKIP_PLUGIN_DEBUG", slz.BooleanField(label="跳过插件调试", default=False)),
-        (
-            "ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3",
-            slz.BooleanField(
-                label="bkmonitorbeat 进程状态查询是否走节点管理V3兼容接口(关闭时走V2 plugin_search)",
-                default=settings.ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3,
-            ),
-        ),
         ("BKUNIFYLOGBEAT_METRIC_BIZ", slz.IntegerField(label="日志采集器指标所属业务", default=0)),
         ("EVENT_RELATED_INFO_LENGTH", slz.IntegerField(label="事件关联信息截断长度", default=1024)),
         (
@@ -909,6 +902,11 @@ STANDARD_CONFIGS = OrderedDict(
         ("ACTIVE_PROFILING_PLUGIN_VERSION", slz.CharField(label=_("Profiling 主动采集插件版本"), default="latest")),
         # LLM 观测灰度业务列表
         ("LLM_BIZ_LIST", slz.ListField(label=_("LLM 观测灰度业务列表"), default=[])),
+        # bkmonitorbeat 进程状态查询是否走节点管理 V3 兼容接口；关闭时走 V2 plugin_search
+        (
+            "ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3",
+            slz.BooleanField(label=_("beat 插件状态查询走节点管理V3"), default=False),
+        ),
     ]
 )
 

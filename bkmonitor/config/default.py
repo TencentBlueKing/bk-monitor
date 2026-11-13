@@ -1336,9 +1336,7 @@ BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
 # 部署时应与 ENABLE_NODEMAN_V3 同时开启，主机查询在任一开关开启时都走 V3。
 ENABLE_BK_COLLECTOR_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_BK_COLLECTOR_NODEMAN_V3", "false").lower() == "true"
 # 存量 beat 的进程元数据迁移到节点管理 V3 之前，兼容接口查不到版本，因此默认关闭、继续走 V2 plugin_search。
-ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3 = (
-    os.getenv("BKAPP_ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3", "false").lower() == "true"
-)
+ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3 = False
 BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")

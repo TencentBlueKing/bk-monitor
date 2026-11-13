@@ -313,13 +313,14 @@ def test_beat_switch_is_independent_of_other_switches(nodeman_v3, collector_v3, 
 
 
 def test_beat_switch_registered_as_global_config_and_defaults_to_v2():
-    """开关注册为高级全局配置，默认关闭即走 V2 plugin_search，与改动前一致。"""
+    """开关注册为可在全局配置页修改的标准配置，默认关闭即走 V2 plugin_search，与改动前一致。"""
     from django.conf import settings
 
-    from bkmonitor.define.global_config import ADVANCED_OPTIONS
+    from bkmonitor.define.global_config import ADVANCED_OPTIONS, STANDARD_CONFIGS
 
-    assert "ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3" in ADVANCED_OPTIONS
-    assert ADVANCED_OPTIONS["ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3"].default is False
+    assert "ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3" in STANDARD_CONFIGS
+    assert "ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3" not in ADVANCED_OPTIONS
+    assert STANDARD_CONFIGS["ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3"].default is False
     # DynamicSettings 先读静态值，静态默认值必须存在
     assert settings.ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3 is False
 
