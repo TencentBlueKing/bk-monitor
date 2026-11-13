@@ -81,6 +81,7 @@
     .overflow-tips-field-name {
       display: flex;
       height: 100%;
+      min-height: 48px;
       align-items: center;
       padding: 0 15px;
       background-color: rgb(250, 251, 253);
@@ -97,8 +98,10 @@
     }
 
     .participle-form-item {
+      position: relative;
       display: flex;
       align-items: center;
+      min-height: 48px;
 
       .ext-btn {
         cursor: pointer;
@@ -112,7 +115,7 @@
         transform: rotate(-90deg);
       }
 
-      .t-input__inner[disabled] {
+      .t-input.t-is-disabled {
         border-color: transparent !important;
       }
 
@@ -123,11 +126,7 @@
 
       // 错误样式
       &.is-error {
-        .t-input__inner {
-          border: 1px solid #ea3636 !important;
-        }
-
-        .bk-select {
+        .t-input {
           border-color: #ea3636 !important;
         }
       }
@@ -164,13 +163,9 @@
     .participle-alias-name-input {
       width: 50%;
 
-      .t-input__inner {
-        padding-left: 15px;
-      }
-
       // 别名输入框错误样式
       &.input-error {
-        .t-input__inner {
+        .t-input {
           border-color: #ea3636 !important;
         }
       }
@@ -190,15 +185,10 @@
       }
     }
 
-    .participle-field-name-input-pl5 {
-      input {
-        padding-left: 15px;
-      }
-    }
-
     .tooltips-icon {
       position: absolute;
-      top: 14px;
+      top: 50%;
+      transform: translateY(-50%);
       color: #ea3636;
       font-size: 16px;
     }
@@ -235,7 +225,7 @@
       td.fields-value-column,
       td.fields-analyzed-column {
         padding: 0 !important;
-        height: 32px;
+        height: 48px;
         vertical-align: top;
 
         .cell {
@@ -256,34 +246,37 @@
     .fields-table-column,
     .fields-value-column,
     .fields-analyzed-column {
-      .t-input__inner {
-        border: none;
+      .t-input {
         height: 48px;
-        line-height: 48px;
+        padding: 0 15px;
+        background-color: #fff;
+        border: 1px solid transparent;
+        border-radius: 0;
+        box-shadow: none;
+
+        &.t-is-disabled {
+          background-color: #fafbfd;
+        }
+
+        &:hover:not(.t-is-disabled),
+        &.t-input--focused {
+          border-color: #3a84ff;
+        }
       }
 
-      .bk-select {
-        background: #fff;
+      .t-input__inner {
+        height: 100%;
+        padding: 0;
+        line-height: normal;
         border: none;
+      }
+
+      .t-select__wrap {
         height: 48px;
-        line-height: 48px;
-
-        .bk-select-angle {
-          top: 11px;
-        }
-
-        &.is-disabled {
-          background: #fafbfd;
-        }
-
-        .bk-select-name {
-          height: 42px;
-          line-height: 42px;
-        }
 
         // 类型选择器错误样式
-        &.type-error {
-          border: 1px solid #ea3636 !important;
+        &.type-error .t-input {
+          border-color: #ea3636 !important;
         }
       }
 
@@ -294,7 +287,7 @@
         .type-error-icon {
           position: absolute;
           right: 22px;
-          top: 14px;
+          top: 50%;
           color: #ea3636;
           font-size: 16px;
         }
