@@ -11,7 +11,8 @@
   "services": [],
   "dependsOn": [
     "app",
-    "features/masking"
+    "features/masking",
+    "shared"
   ],
   "tests": [],
   "sourceMap": "ai-native/source-map.json",

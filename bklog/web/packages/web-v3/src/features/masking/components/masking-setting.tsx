@@ -45,6 +45,7 @@ import EmptyStatus from '../../../shared/ui/empty-status/index.vue';
 import MaskingAddRule from './masking-add-rule';
 
 import './masking-setting.scss';
+import { allocateOverlayZIndex, Z_INDEX_LAYERS } from '@/shared/global/overlay';
 import useUtils from '@/shared/composables/use-utils';
 
 const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
@@ -117,6 +118,19 @@ export default class MaskingSetting extends tsc<IProps> {
   accessTableLoading = false;
 
   /** 是否显示接入对话框 */
+  accessDialogZIndex: number = Z_INDEX_LAYERS.DIALOG;
+  confirmDialogZIndex: number = Z_INDEX_LAYERS.DIALOG;
+
+  @Watch('isShowAccessDialog')
+  updateAccessDialogLayer(visible: boolean) {
+    if (visible) this.accessDialogZIndex = allocateOverlayZIndex();
+  }
+
+  @Watch('isShowStopOrDeleteAccessDialog')
+  updateConfirmDialogLayer(visible: boolean) {
+    if (visible) this.confirmDialogZIndex = allocateOverlayZIndex();
+  }
+
   isShowAccessDialog = false;
 
   /** 是否显示停止或删除接入对话框 */
@@ -947,21 +961,24 @@ export default class MaskingSetting extends tsc<IProps> {
         </Table>
 
         <Dialog
-          width='480'
-          v-model={this.isShowAccessDialog}
-          headerPosition='left'
-          renderDirective='if'
-          showFooter={false}
-          title={this.$t('接入项详情')}
+          width={480}
+          visible={this.isShowAccessDialog}
+          onClose={() => (this.isShowAccessDialog = false)}
+          zIndex={this.accessDialogZIndex}
+          destroyOnClose
+          footer={false}
+          header={this.$t('接入项详情')}
         >
           {accessTableSlot()}
         </Dialog>
 
         <Dialog
-          width='400'
-          v-model={this.isShowStopOrDeleteAccessDialog}
-          renderDirective='if'
-          showFooter={false}
+          width={400}
+          visible={this.isShowStopOrDeleteAccessDialog}
+          onClose={() => (this.isShowStopOrDeleteAccessDialog = false)}
+          zIndex={this.confirmDialogZIndex}
+          destroyOnClose
+          footer={false}
         >
           <div class='delete-dialog-container'>
             <span class='delete-title'>

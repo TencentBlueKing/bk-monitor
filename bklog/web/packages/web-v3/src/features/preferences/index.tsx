@@ -29,6 +29,7 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, type PropType } from 'vue';
 
 import { Dialog } from 'tdesign-vue-next';
+import { useOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
 
 import MaskingSetting from '../masking/components/masking-setting';
 
@@ -55,6 +56,9 @@ props: {value: { type: Boolean, default: false },
 menuList: { type: Array as PropType<IMenuItem[]>, default: () => [] },
 activeMenu: { type: String, default: '' }},
 emits: ['change', 'menu-change', "menuChange"],
+setup(props) {
+  return { overlayZIndex: useOverlayZIndex(() => props.value) };
+},
 computed: {showAlert() {
     return useApplicationStore().showAlert;
   }},
@@ -77,7 +81,7 @@ render() {
       <Dialog
         width='100%'
         dialogClassName='masking-dialog'
-        zIndex={2999}
+        zIndex={this.overlayZIndex}
         top={0}
         header={false}
         closeBtn={false}
