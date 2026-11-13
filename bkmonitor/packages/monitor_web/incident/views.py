@@ -10,6 +10,14 @@ specific language governing permissions and limitations under the License.
 
 from django.conf import settings
 
+from ai_whale.resources.alert_analysis import (
+    AlertAnalysisResultsResource,
+    AlertAnalysisRelatedIncidentResource,
+    AlertAnalysisDiagnosisResource,
+    AlertAnalysisPanelDetailResource,
+    AlertAnalysisSessionContextResource,
+)
+
 from bkmonitor.iam.drf import ViewBusinessPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -86,4 +94,16 @@ class IncidentViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.incident.fetch_global_variables, endpoint="fetch_global_variables"),
         # 监控故障id转换接口
         ResourceRoute("GET", resource.incident.get_incident_doc_id, endpoint="get_incident_doc_id"),
+    ]
+
+
+class AlertAnalysisViewSet(ResourceViewSet):
+    """Alert authorization is enforced by each resource, including internal calls."""
+
+    resource_routes = [
+        ResourceRoute("GET", AlertAnalysisRelatedIncidentResource, endpoint="related_incident"),
+        ResourceRoute("GET", AlertAnalysisResultsResource, endpoint="results"),
+        ResourceRoute("POST", AlertAnalysisDiagnosisResource, endpoint="diagnosis"),
+        ResourceRoute("POST", AlertAnalysisPanelDetailResource, endpoint="panel_detail"),
+        ResourceRoute("POST", AlertAnalysisSessionContextResource, endpoint="session_context"),
     ]
