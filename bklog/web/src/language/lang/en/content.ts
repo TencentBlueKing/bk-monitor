@@ -1627,4 +1627,5 @@ export default {
   '已从预览值解析为 {timezone}。': 'Parsed from the preview value as {timezone}.',
   '时间格式包含时区，但预览值中未识别到，请手动选择。':
     'The time format includes a timezone, but none was recognized in the preview value. Select one manually.',
+  请先选择业务: 'Please select a business first',
 };
