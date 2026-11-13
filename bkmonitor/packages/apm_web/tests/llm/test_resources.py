@@ -1068,7 +1068,7 @@ class ListToolCallsResourceTestCase(TestCase):
 
         get_app.assert_called_once_with(bk_biz_id=11, app_name="demo")
         get_query.assert_called_once_with(application.build_data_sources.return_value)
-        query.query_trace_tool_calls.assert_called_once_with("trace-1")
+        query.query_trace_tool_calls.assert_called_once_with("trace-1", session_id="")
         self.assertEqual(result["trace_id"], "trace-1")
         self.assertEqual(result["total"], 3)
         self.assertEqual(
@@ -1096,7 +1096,7 @@ class ListToolCallsResourceTestCase(TestCase):
             mock.patch("apm_web.llm.resources.get_query", return_value=query),
         ):
             result = ListToolCallsResource().request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
-        self.assertEqual(result, {"trace_id": "trace-1", "total": 0, "tool_calls": []})
+        self.assertEqual(result, {"trace_id": "trace-1", "session_id": "", "total": 0, "tool_calls": []})
 
     def test_query_failures_are_not_reported_as_empty_trace(self):
         query = mock.Mock()
@@ -1108,17 +1108,34 @@ class ListToolCallsResourceTestCase(TestCase):
         ):
             ListToolCallsResource().perform_request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
 
-    def test_trace_id_is_required_and_cannot_be_blank(self):
-        for values in ({}, {"trace_id": ""}, {"trace_id": "   "}):
+    def test_trace_or_session_id_is_required(self):
+        for values in ({}, {"trace_id": ""}, {"trace_id": "   "}, {"session_id": "   "}):
             with self.subTest(values=values):
                 serializer = ListToolCallsResource.RequestSerializer(
                     data={"bk_biz_id": 11, "app_name": "demo", **values}
                 )
                 self.assertFalse(serializer.is_valid())
-                self.assertIn("trace_id", serializer.errors)
+                self.assertIn("non_field_errors", serializer.errors)
         fields = ListToolCallsResource.RequestSerializer().fields
         self.assertNotIn("limit", fields)
         self.assertNotIn("offset", fields)
+
+    def test_session_query_and_combined_filters(self):
+        for trace_id in ("", "trace-1"):
+            with self.subTest(trace_id=trace_id):
+                query = mock.Mock()
+                query.query_trace_tool_calls.return_value = [{"span_id": "tool-1"}]
+                with (
+                    mock.patch("apm_web.llm.resources.Application.objects.get"),
+                    mock.patch("apm_web.llm.resources.get_query", return_value=query),
+                ):
+                    params = {"bk_biz_id": 11, "app_name": "demo", "session_id": "session-1"}
+                    if trace_id:
+                        params["trace_id"] = trace_id
+                    result = ListToolCallsResource().request(params)
+                query.query_trace_tool_calls.assert_called_once_with(trace_id, session_id="session-1")
+                self.assertEqual(result["session_id"], "session-1")
+                self.assertEqual(result["total"], 1)
 
     def test_route_uses_existing_application_permissions(self):
         from apm_web.llm.views import LLMViewSet
@@ -1821,13 +1838,14 @@ class ListFlowsResourceTestCase(TestCase):
             flattened = []
             for node in nodes:
                 flattened.append(
-                    {key: value for key, value in node.items() if key not in {"childs", "token_categories"}}
+                    {key: value for key, value in node.items() if key not in {"childs", "token_categories", "tokens"}}
                 )
                 flattened.extend(flatten(node["childs"]))
             return flattened
 
         spans = spans_result["spans"]
         flow = flows_result["traces"][0]["flow"]
+        self.assertGreater(flow[0]["childs"][0]["childs"][0]["tokens"], 0)
         flattened_flow = flatten(flow)
         self.assertEqual(spans_result["total"], 4)
         self.assertEqual(flattened_flow[1:], spans[1:])

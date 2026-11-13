@@ -260,7 +260,7 @@ class LLMQuery(SpanQuery):
         ]
         return self._query_list(queries, None, None, 0, len(trace_ids))
 
-    def query_trace_tool_calls(self, trace_id: str) -> list[dict[str, Any]]:
+    def query_trace_tool_calls(self, trace_id: str = "", session_id: str = "") -> list[dict[str, Any]]:
         """只查询标准工具执行摘要，不加载消息、调用参数或返回结果。"""
         fields: tuple[str, ...] = (
             OtlpKey.SPAN_ID,
@@ -271,10 +271,15 @@ class LLMQuery(SpanQuery):
             OtlpKey.STATUS,
             OtlpKey.EVENTS,
         )
+        if not trace_id and not session_id:
+            raise ValueError("trace_id 和 session_id 至少传一个")
+        filters: dict[str, list[str]] = {"attributes.gen_ai.operation.name__eq": ["execute_tool"]}
+        if trace_id:
+            filters["trace_id__eq"] = [trace_id]
+        if session_id:
+            filters["attributes.gen_ai.conversation.id__eq"] = [session_id]
         queries: list[QueryConfigBuilder] = [
-            query.filter(trace_id__eq=[trace_id], **{"attributes.gen_ai.operation.name__eq": ["execute_tool"]})
-            .values(*fields)
-            .order_by(f"{OtlpKey.START_TIME} asc", f"{OtlpKey.SPAN_ID} asc")
+            query.filter(**filters).values(*fields).order_by(f"{OtlpKey.START_TIME} asc", f"{OtlpKey.SPAN_ID} asc")
             for query in self.build_queries(time_field=OtlpKey.START_TIME)
         ]
         return self._query_list(queries, None, None, 0, self.QUERY_MAX_LIMIT)

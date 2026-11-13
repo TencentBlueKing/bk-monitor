@@ -45,6 +45,26 @@ class LLMQueryTestCase(TestCase):
         self.assertIn("demo", serialized)
         self.assertEqual(config["bk_biz_id"], 11)
 
+    def test_tool_calls_session_filter_and_trace_intersection(self):
+        for trace_id in ("", "trace-1"):
+            with self.subTest(trace_id=trace_id):
+                with mock.patch.object(self.query, "_query_list", return_value=[]) as query_list:
+                    self.query.query_trace_tool_calls(trace_id, session_id="session-1")
+                queries = query_list.call_args.args[0]
+                where = queries[0].query.where
+                expected = {
+                    "attributes.gen_ai.operation.name__eq": ["execute_tool"],
+                    "attributes.gen_ai.conversation.id__eq": ["session-1"],
+                }
+                if trace_id:
+                    expected["trace_id__eq"] = [trace_id]
+                reference = self.query.build_queries(time_field=OtlpKey.START_TIME)[0].filter(**expected)
+                self.assertEqual(where, reference.query.where)
+
+    def test_tool_calls_rejects_missing_scope(self):
+        with self.assertRaises(ValueError):
+            self.query.query_trace_tool_calls()
+
     def test_tool_calls_query_includes_all_application_data_sources(self):
         source = TraceDatasourceTarget.build(
             bk_biz_id=11, app_name="demo", table_id="11_bkapm.trace_demo_second", retention=7

@@ -397,19 +397,27 @@ class ListSpansResource(Resource):
 
 
 class ListToolCallsResource(Resource):
-    """按 Trace 查询标准工具调用的执行摘要。"""
+    """按 Trace 或会话查询标准工具调用的执行摘要。"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         app_name = serializers.CharField(required=True, label="应用名称")
-        trace_id = serializers.CharField(required=True, label="Trace ID")
+        trace_id = serializers.CharField(required=False, allow_blank=True, default="", label="Trace ID")
+        session_id = serializers.CharField(required=False, allow_blank=True, default="", label="会话 ID")
+
+        def validate(self, attrs):
+            if not attrs["trace_id"] and not attrs["session_id"]:
+                raise serializers.ValidationError("trace_id 和 session_id 至少传一个")
+            return attrs
 
     def perform_request(self, validated_request_data):
         application = Application.objects.get(
             bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
         )
         span_query: LLMQuery = get_query(application.build_data_sources())
-        spans: list[dict[str, Any]] = span_query.query_trace_tool_calls(validated_request_data["trace_id"])
+        spans: list[dict[str, Any]] = span_query.query_trace_tool_calls(
+            validated_request_data["trace_id"], session_id=validated_request_data.get("session_id", "")
+        )
         tool_calls: list[dict[str, Any]] = [
             {
                 "span_id": span.get(OtlpKey.SPAN_ID),
@@ -422,7 +430,12 @@ class ListToolCallsResource(Resource):
             }
             for span in spans
         ]
-        return {"trace_id": validated_request_data["trace_id"], "total": len(tool_calls), "tool_calls": tool_calls}
+        return {
+            "trace_id": validated_request_data["trace_id"],
+            "session_id": validated_request_data.get("session_id", ""),
+            "total": len(tool_calls),
+            "tool_calls": tool_calls,
+        }
 
 
 class ListFlowsResource(Resource):
