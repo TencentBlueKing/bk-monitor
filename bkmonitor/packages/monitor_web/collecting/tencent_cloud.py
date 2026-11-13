@@ -360,7 +360,7 @@ def configmap_description():
     url = settings.TENCENT_CLOUD_METRIC_PLUGIN_CONFIG.get("skill_repository_url", "")
     title = "### 如何获取 ConfigMap"
     credentials = "腾讯云密钥请填写在采集表单中，勿写入 YAML。"
-    # 地址同时进入终端命令和 Markdown 链接，只接受无凭据的 HTTPS 仓库路径。
+    # 地址同时进入终端命令和 HTML 链接，只接受无凭据的 HTTPS 仓库路径。
     if not isinstance(url, str) or not re.fullmatch(r"https://[A-Za-z0-9.-]+(?::[0-9]+)?/[A-Za-z0-9._~/-]+", url):
         return f"{title}\n\n上传已有的 ConfigMap YAML 文件，校验通过后可预览有效配置。\n\n{credentials}"
 
@@ -380,7 +380,7 @@ npx skills add {url} -g -s bk-tencentcloud-configmap -a '*' -y
 
 需 Node.js 22.20+、Git 与 Skill 仓库访问权限。{credentials}
 
-[查看 Skill 仓库]({url})"""
+<a href="{url}" target="_blank" rel="noopener noreferrer">查看 Skill 仓库</a>"""
 
 
 def new_form_definition(detail):
