@@ -34,9 +34,15 @@ class Command(BaseCommand):
     --refresh 全量刷新：同步执行各场景的定时下发逻辑，按当前 Proxy 列表与 CUSTOM_REPORT_DEFAULT_PROXY_IP
     重新计算目标主机，新建或更新策略，最后对本轮未变化的策略再执行一次。
     运维把新主机设为 Proxy（或填入全局配置）并装好 V3 bk-collector 后执行，不必等待定时任务。
+
+    策略执行分批进行（含刷新中新建、更新策略后的立即执行）：每执行 --batch_size 条等待 --batch_interval 秒。
+    节点管理按主机逐个渲染子配置，单步超时 60 秒，短时间触发大量策略会导致渲染超时、子配置未下发。
     """
 
     help = "execute bk-collector nodeman v3 deploy policies immediately, use --refresh to recalculate all scenes"
+
+    DEFAULT_BATCH_SIZE = 10
+    DEFAULT_BATCH_INTERVAL = 30
 
     def add_arguments(self, parser):
         parser.add_argument("--bk_tenant_id", type=str, default=None, help="only handle this tenant")
@@ -52,6 +58,18 @@ class Command(BaseCommand):
             action="store_true",
             help="recalculate target hosts and create/update policies of all scenes before executing",
         )
+        parser.add_argument(
+            "--batch_size",
+            type=int,
+            default=self.DEFAULT_BATCH_SIZE,
+            help=f"execute policies in batches of this size, 0 means no batching (default {self.DEFAULT_BATCH_SIZE})",
+        )
+        parser.add_argument(
+            "--batch_interval",
+            type=float,
+            default=self.DEFAULT_BATCH_INTERVAL,
+            help=f"seconds to wait between batches (default {self.DEFAULT_BATCH_INTERVAL})",
+        )
 
     def handle(self, *args, **options):
         if not BkCollectorDeployPolicy.is_enabled():
@@ -61,7 +79,18 @@ class Command(BaseCommand):
 
         bk_tenant_id = options.get("bk_tenant_id")
         scene = options.get("scene")
+        batch_size = options.get("batch_size")
+        batch_interval = options.get("batch_interval")
+        if batch_size < 0 or batch_interval < 0:
+            raise CommandError("--batch_size and --batch_interval must not be negative")
 
+        with BkCollectorDeployPolicy.execute_in_batches(batch_size, batch_interval, on_wait=self._on_batch_wait):
+            self._handle(bk_tenant_id=bk_tenant_id, scene=scene, refresh=options.get("refresh"))
+
+    def _on_batch_wait(self, executed: int, interval: float):
+        self.stdout.write(f"[batch] {executed} policies executed, wait {interval:g}s before next batch")
+
+    def _handle(self, bk_tenant_id: str | None, scene: str | None, refresh: bool):
         policies = BkCollectorDeployPolicy.objects.all()
         if bk_tenant_id:
             policies = policies.filter(bk_tenant_id=bk_tenant_id)
@@ -71,7 +100,7 @@ class Command(BaseCommand):
         # 刷新前记录各策略的最近一次执行，刷新中已执行过的策略不再重复执行
         last_workflow_ids = dict(policies.values_list("id", "last_workflow_id"))
 
-        if options.get("refresh"):
+        if refresh:
             origin_tenant_id = get_local_tenant_id()
             try:
                 self._refresh(bk_tenant_id=bk_tenant_id, scene=scene)

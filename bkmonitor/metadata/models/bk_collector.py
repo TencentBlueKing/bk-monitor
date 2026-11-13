@@ -13,6 +13,10 @@ import json
 import logging
 import time
 from collections import defaultdict
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
@@ -32,6 +36,27 @@ class BkCollectorDeployScene:
     CUSTOM_REPORT = "custom_report"
     CUSTOM_LOG = "custom_log"
     PING_SERVER = "ping_server"
+
+
+@dataclass
+class _ExecuteBatch:
+    """分批执行部署策略：每执行 batch_size 条后等待 interval 秒，再执行下一批"""
+
+    batch_size: int
+    interval: float
+    on_wait: Callable[[int, float], None] | None = None
+    executed: int = 0
+
+    def before_execute(self):
+        if self.executed and self.executed % self.batch_size == 0:
+            if self.on_wait:
+                self.on_wait(self.executed, self.interval)
+            time.sleep(self.interval)
+        self.executed += 1
+
+
+# 仅在 execute_in_batches 上下文内生效，定时任务等其他调用方不受影响
+_execute_batch: ContextVar[_ExecuteBatch | None] = ContextVar("bk_collector_execute_batch", default=None)
 
 
 class BkCollectorDeployPolicy(models.Model):
@@ -164,10 +189,32 @@ class BkCollectorDeployPolicy(models.Model):
         # 策略已存在时只更新 scopes，保留原 specs
         return self._apply(specs=None, scopes=[], bk_host_ids=[])
 
+    @classmethod
+    @contextmanager
+    def execute_in_batches(
+        cls, batch_size: int, interval: float, on_wait: Callable[[int, float], None] | None = None
+    ) -> Iterator[None]:
+        """上下文内的策略执行按批进行，避免短时间触发大量执行导致节点管理渲染超时
+
+        覆盖上下文内所有 execute 调用，包括 deploy 新建、更新策略后的立即执行。
+        batch_size <= 0 或 interval <= 0 时不分批。
+        """
+        if batch_size <= 0 or interval <= 0:
+            yield
+            return
+        token = _execute_batch.set(_ExecuteBatch(batch_size=batch_size, interval=interval, on_wait=on_wait))
+        try:
+            yield
+        finally:
+            _execute_batch.reset(token)
+
     def execute(self) -> str:
         """立即执行一次策略（节点管理也会每小时自动执行全部启用的策略）。"""
         if not self.deploy_policy_id:
             return ""
+        batch = _execute_batch.get()
+        if batch:
+            batch.before_execute()
         result = api.node_man_v3.execute_deploy_policy(
             bk_tenant_id=self.bk_tenant_id, deploy_policy_id=self.deploy_policy_id
         )
