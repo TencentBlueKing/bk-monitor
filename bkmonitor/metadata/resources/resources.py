@@ -61,7 +61,7 @@ from metadata.models.constants import (
     STRICT_NANO_ES_FORMAT,
     DataIdCreatedFromSystem,
 )
-from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.data_link.utils import (
     find_registered_bkdata_data_id_name,
     get_bkbase_raw_data_name_for_v3_datalink,
@@ -654,6 +654,11 @@ class ApplyDataSourceResource(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.IntegerField(required=True, min_value=1, label="数据源ID")
         target_namespace = serializers.CharField(required=True, max_length=64, label="目标命名空间")
+
+        def validate_target_namespace(self, value):
+            if value in (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG):
+                raise serializers.ValidationError(_("独立 DataSource 不允许下发到受管命名空间 bkmonitor、bklog"))
+            return value
 
     def perform_request(self, request_data):
         try:

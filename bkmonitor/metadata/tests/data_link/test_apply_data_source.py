@@ -19,7 +19,7 @@ def source():
 
 
 @pytest.mark.parametrize("multi_tenant", [False, True])
-@pytest.mark.parametrize("target_namespace", ["shared", "bkmonitor"])
+@pytest.mark.parametrize("target_namespace", ["shared", "shared_other"])
 def test_apply_to_namespace(mocker, settings, source, multi_tenant, target_namespace):
     settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
@@ -75,6 +75,22 @@ def test_resource_parameters_without_source(mocker):
     serializer = ApplyDataSourceResource.RequestSerializer(data={"bk_data_id": 960001, "target_namespace": "shared"})
     assert serializer.is_valid(), serializer.errors
     assert serializer.validated_data == dict(bk_tenant_id="system", bk_data_id=960001, target_namespace="shared")
+
+
+@pytest.mark.parametrize("namespace", ["bkmonitor", "bklog", " bkmonitor ", " bklog "])
+def test_reject_managed_namespace(mocker, namespace):
+    mocker.patch("bkmonitor.utils.serializers.get_request_tenant_id", return_value="system")
+    serializer = ApplyDataSourceResource.RequestSerializer(data={"bk_data_id": 960001, "target_namespace": namespace})
+    assert not serializer.is_valid()
+    assert "受管命名空间" in str(serializer.errors["target_namespace"])
+
+
+@pytest.mark.parametrize("namespace", ["", "   "])
+def test_reject_blank_namespace(mocker, namespace):
+    mocker.patch("bkmonitor.utils.serializers.get_request_tenant_id", return_value="system")
+    serializer = ApplyDataSourceResource.RequestSerializer(data={"bk_data_id": 960001, "target_namespace": namespace})
+    assert not serializer.is_valid()
+    assert serializer.errors["target_namespace"][0].code == "blank"
 
 
 @pytest.mark.parametrize("missing", ["bk_data_id", "target_namespace"])

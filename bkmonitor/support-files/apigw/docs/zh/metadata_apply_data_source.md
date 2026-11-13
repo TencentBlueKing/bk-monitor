@@ -14,7 +14,7 @@
 | --- | --- | --- | --- |
 | bk_tenant_id | string | 否 | 沿用请求租户上下文；有请求租户时优先使用请求租户 |
 | bk_data_id | int | 是 | 当前租户已有的数据源 ID |
-| target_namespace | string | 是 | DataSource 的目标 namespace，最长 64 字符 |
+| target_namespace | string | 是 | DataSource 的目标 namespace，最长 64 字符；禁止使用受管命名空间 bkmonitor、bklog |
 
 ### 请求示例
 
