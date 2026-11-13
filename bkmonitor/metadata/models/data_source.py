@@ -346,12 +346,20 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
-    def apply_to_namespace(self, source_namespace: str, target_namespace: str) -> dict:
+    def apply_to_namespace(self, target_namespace: str) -> dict:
         """将 DataSource 下发到指定 namespace，仍引用源 namespace 的 DataId。"""
-        from metadata.models.data_link import DataIdConfig, utils
+        from metadata.models.data_link import DataIdConfig
 
-        name = utils.get_registered_bkdata_data_id_name(self, namespace=source_namespace)
-        data_id_config = DataIdConfig.objects.get(bk_tenant_id=self.bk_tenant_id, namespace=source_namespace, name=name)
+        data_id_config = (
+            DataIdConfig.objects.filter(bk_tenant_id=self.bk_tenant_id, bk_data_id=self.bk_data_id)
+            .exclude(name="")
+            .order_by("-last_modify_time", "-id")
+            .first()
+        )
+        if data_id_config is None:
+            raise DataIdConfig.DoesNotExist(
+                f"DataIdConfig not found, bk_tenant_id={self.bk_tenant_id}, bk_data_id={self.bk_data_id}"
+            )
         data_source_config = data_id_config.compose_data_source_config(
             data_source_alias=self.data_name,
             description=self.data_description,
@@ -364,8 +372,7 @@ class DataSource(models.Model):
         api.bkdata.apply_data_link(config=[data_source_config], bk_tenant_id=self.bk_tenant_id)
         return {
             "bk_data_id": self.bk_data_id,
-            "name": name,
-            "source_namespace": source_namespace,
+            "name": data_id_config.name,
             "target_namespace": target_namespace,
         }
 

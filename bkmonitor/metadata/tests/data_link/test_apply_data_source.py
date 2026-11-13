@@ -27,12 +27,11 @@ def test_apply_to_namespace(mocker, settings, source, multi_tenant, target_names
         bk_tenant_id="system", namespace="bkmonitor", name="registered_source", bk_data_id=960001, bk_biz_id=2
     )
     query = mocker.patch.object(models.DataIdConfig.objects, "filter")
-    query.return_value.exclude.return_value.only.return_value.order_by.return_value.first.return_value = config
-    get = mocker.patch.object(models.DataIdConfig.objects, "get", return_value=config)
+    query.return_value.exclude.return_value.order_by.return_value.first.return_value = config
     apply = mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link")
     save = mocker.patch.object(source, "save")
     for _ in range(2):
-        result = source.apply_to_namespace("bkmonitor", target_namespace)
+        result = source.apply_to_namespace(target_namespace)
         payload = apply.call_args.kwargs["config"]
         assert len(payload) == 1
         assert payload[0]["kind"] == "DataSource"
@@ -42,43 +41,47 @@ def test_apply_to_namespace(mocker, settings, source, multi_tenant, target_names
         assert payload[0]["spec"]["data_id"]["name"] == "registered_source"
         assert ("tenant" in payload[0]["metadata"]) is multi_tenant
         assert ("tenant" in payload[0]["spec"]["data_id"]) is multi_tenant
-        assert result == dict(
-            bk_data_id=960001, name="registered_source", source_namespace="bkmonitor", target_namespace=target_namespace
-        )
-    query.assert_called_with(bk_tenant_id="system", namespace="bkmonitor", bk_data_id=960001)
-    query.return_value.exclude.return_value.only.return_value.order_by.assert_called_with("-last_modify_time", "-id")
-    get.assert_called_with(bk_tenant_id="system", namespace="bkmonitor", name="registered_source")
+        assert result == dict(bk_data_id=960001, name="registered_source", target_namespace=target_namespace)
+    query.assert_called_with(bk_tenant_id="system", bk_data_id=960001)
+    query.return_value.exclude.return_value.order_by.assert_called_with("-last_modify_time", "-id")
     save.assert_not_called()
     apply.side_effect = RuntimeError("BKBase unavailable")
     with pytest.raises(RuntimeError, match="BKBase unavailable"):
-        source.apply_to_namespace("bkmonitor", target_namespace)
+        source.apply_to_namespace(target_namespace)
 
 
 def test_missing_registration(mocker, source):
     query = mocker.patch.object(models.DataIdConfig.objects, "filter")
-    query.return_value.exclude.return_value.only.return_value.order_by.return_value.first.return_value = None
+    query.return_value.exclude.return_value.order_by.return_value.first.return_value = None
     apply = mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link")
     with pytest.raises(models.DataIdConfig.DoesNotExist, match="DataIdConfig not found"):
-        source.apply_to_namespace("bkmonitor", "shared")
+        source.apply_to_namespace("shared")
     apply.assert_not_called()
 
 
 def test_resource_tenant_scope(mocker, source):
     get = mocker.patch.object(models.DataSource.objects, "get", return_value=source)
     apply = mocker.patch.object(source, "apply_to_namespace", return_value={"name": "registered_source"})
-    params = dict(bk_tenant_id="system", bk_data_id=960001, source_namespace="bkmonitor", target_namespace="shared")
+    params = dict(bk_tenant_id="system", bk_data_id=960001, target_namespace="shared")
     assert ApplyDataSourceResource().perform_request(params) == {"name": "registered_source"}
     get.assert_called_once_with(bk_tenant_id="system", bk_data_id=960001)
-    apply.assert_called_once_with(source_namespace="bkmonitor", target_namespace="shared")
+    apply.assert_called_once_with(target_namespace="shared")
     get.side_effect = models.DataSource.DoesNotExist
     with pytest.raises(ValueError, match="数据源不存在"):
         ApplyDataSourceResource().perform_request(params)
 
 
-@pytest.mark.parametrize("missing", ["bk_data_id", "source_namespace", "target_namespace"])
+def test_resource_parameters_without_source(mocker):
+    mocker.patch("bkmonitor.utils.serializers.get_request_tenant_id", return_value="system")
+    serializer = ApplyDataSourceResource.RequestSerializer(data={"bk_data_id": 960001, "target_namespace": "shared"})
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data == dict(bk_tenant_id="system", bk_data_id=960001, target_namespace="shared")
+
+
+@pytest.mark.parametrize("missing", ["bk_data_id", "target_namespace"])
 def test_required_parameters(mocker, missing):
     mocker.patch("bkmonitor.utils.serializers.get_request_tenant_id", return_value="system")
-    params = dict(bk_data_id=960001, source_namespace="bkmonitor", target_namespace="shared")
+    params = dict(bk_data_id=960001, target_namespace="shared")
     del params[missing]
     serializer = ApplyDataSourceResource.RequestSerializer(data=params)
     assert not serializer.is_valid()

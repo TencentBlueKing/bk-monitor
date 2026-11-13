@@ -653,7 +653,6 @@ class ApplyDataSourceResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.IntegerField(required=True, min_value=1, label="数据源ID")
-        source_namespace = serializers.CharField(required=True, max_length=64, label="源命名空间")
         target_namespace = serializers.CharField(required=True, max_length=64, label="目标命名空间")
 
     def perform_request(self, request_data):
@@ -663,10 +662,7 @@ class ApplyDataSourceResource(Resource):
             )
         except models.DataSource.DoesNotExist:
             raise ValueError(_("数据源不存在，请确认后重试"))
-        return data_source.apply_to_namespace(
-            source_namespace=request_data["source_namespace"],
-            target_namespace=request_data["target_namespace"],
-        )
+        return data_source.apply_to_namespace(target_namespace=request_data["target_namespace"])
 
 
 class QueryDataSourceResource(Resource):

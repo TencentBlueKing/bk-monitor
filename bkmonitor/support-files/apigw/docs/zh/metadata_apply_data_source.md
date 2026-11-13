@@ -2,7 +2,7 @@
 
 将已有数据源的 BKBase DataSource 资源下发到指定 namespace，仍引用源 namespace 的 DataId。仅供内部应用调用，需要应用认证和资源权限。
 
-此接口不会创建 DataId 或复制采集链路，不修改本地数据源，不持续同步后续配置。重复调用更新同名目标资源，允许源和目标 namespace 相同。BKBase 必须支持跨 namespace 的 DataId 引用。
+此接口不会创建 DataId 或复制采集链路，不修改本地数据源，不持续同步后续配置。重复调用更新同名目标资源，允许已有 DataId 与目标 namespace 相同。内部按当前租户和数据源 ID 选择最近更新的 DataId 登记（更新时间相同时按记录 ID 倒序），自动使用其名称和 namespace。BKBase 必须支持跨 namespace 的 DataId 引用。
 
 ### 请求方法与路径
 
@@ -14,7 +14,6 @@
 | --- | --- | --- | --- |
 | bk_tenant_id | string | 否 | 沿用请求租户上下文；有请求租户时优先使用请求租户 |
 | bk_data_id | int | 是 | 当前租户已有的数据源 ID |
-| source_namespace | string | 是 | 已注册 DataId 所在 namespace，最长 64 字符 |
 | target_namespace | string | 是 | DataSource 的目标 namespace，最长 64 字符 |
 
 ### 请求示例
@@ -22,7 +21,6 @@
 ```json
 {
   "bk_data_id": 1605502,
-  "source_namespace": "bkmonitor",
   "target_namespace": "shared"
 }
 ```
@@ -37,7 +35,6 @@
   "data": {
     "bk_data_id": 1605502,
     "name": "bkm_existing_source",
-    "source_namespace": "bkmonitor",
     "target_namespace": "shared"
   }
 }
