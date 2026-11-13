@@ -2,7 +2,7 @@ import copy
 import json
 from unittest.mock import patch
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
@@ -19,6 +19,7 @@ from apps.log_admin_resource.handlers.log_query import (
     _context_time_bounds,
     _field_compatibility,
     _index_set_fields,
+    _project_record,
     _resolve_field_type,
     _resolve_source,
     _result_table_index_set_map,
@@ -530,6 +531,131 @@ class LogQueryHandlerTest(TestCase):
         self.assertEqual(called_query["keyword"], "error")
         self.assertEqual(called_query["addition"][0]["condition"], "and")
         self.assertTrue(called_query["is_desensitize"])
+
+    @patch("apps.log_admin_resource.handlers.log_query._index_set_search")
+    def test_search_projects_kept_conflict_field(self, mock_search):
+        """标量父键与 dotted 子路径并存时，投影不能丢掉 keep 保留的字段。"""
+        mock_search.return_value = {
+            "list": [{**copy.deepcopy(self.record), "body": "plain", "body.player.id": "1***5"}],
+            "total": 1,
+            "took": 0.1,
+            "fields": {},
+            "result_table_id": ["2_bklog_app"],
+        }
+
+        result = search_logs(
+            {
+                "source": {"type": "index_set", "index_set_id": 300},
+                "start_time": 1767225600000,
+                "end_time": 1767229200000,
+                "keyword": "*",
+                "addition": [],
+                "begin": 0,
+                "size": 10,
+                "fields": ["body", "body.player.id", "log"],
+                "track_total_hits": True,
+                "is_desensitize": True,
+            }
+        )
+
+        self.assertEqual(
+            result["items"][0]["record"],
+            {"body": "plain", "body.player.id": "1***5", "log": "request failed"},
+        )
+        self.assertEqual(result["items"][0]["context_anchor"]["index_set_id"], 300)
+        validate_params(result, FUNCTIONS["bklog.log.search"]["response_schema"], "response")
+
+    def test_scene_search_projects_kept_conflict_field(self):
+        """场景源同样经过 keep 折叠，投影出口不能丢冲突字段。"""
+        source = {
+            "type": "scene",
+            "space_uid": "bkcc__2",
+            "bk_biz_id": 2,
+            "table_id_conditions": [[{"field_name": "scene", "op": "eq", "value": ["k8s"]}]],
+            "scene_filter_values": [],
+            "related_space_uids": ["bkcc__2"],
+        }
+        route_plan = {
+            "runtime": {},
+            "scope": {},
+            "result_table_ids": ["2_bklog_app"],
+            "index_set_ids": [300],
+            "warnings": [],
+        }
+        scene_result = {
+            "list": [
+                {
+                    **copy.deepcopy(self.record),
+                    "body": "plain",
+                    "body.player.id": "1***5",
+                    "__result_table": "2_bklog_app",
+                    "__index_set_id__": 300,
+                }
+            ],
+            "origin_log_list": [],
+            "result_table_id": ["2_bklog_app"],
+            "total": 1,
+            "took": 0.1,
+            "fields": {},
+        }
+        with (
+            patch("apps.log_admin_resource.handlers.log_query._resolve_source", return_value=source),
+            patch("apps.log_admin_resource.handlers.log_query._resolve_scene_route_plan", return_value=route_plan),
+            patch("apps.log_admin_resource.handlers.log_query.ResourceSceneUnifyQueryHandler") as mock_handler,
+        ):
+            mock_handler.return_value.search.return_value = scene_result
+
+            result = search_logs(
+                {
+                    "source": {"type": "scene"},
+                    "start_time": 1767225600000,
+                    "end_time": 1767229200000,
+                    "keyword": "*",
+                    "addition": [],
+                    "begin": 0,
+                    "size": 1,
+                    "fields": ["body", "body.player.id"],
+                    "is_desensitize": True,
+                }
+            )
+
+        self.assertEqual(result["items"][0]["record"], {"body": "plain", "body.player.id": "1***5"})
+        self.assertEqual(result["items"][0]["context_anchor"]["index_set_id"], 300)
+
+    @patch("apps.log_admin_resource.handlers.log_query._index_set_search")
+    def test_search_projects_nested_dotted_field(self, mock_search):
+        """嵌套结构投影保持「父字段返回子树、子路径返回叶子」的既有形态。"""
+        mock_search.return_value = {
+            "list": [{**copy.deepcopy(self.record), "body": {"player": {"id": "1***5"}}}],
+            "total": 1,
+            "took": 0.1,
+            "fields": {},
+            "result_table_id": ["2_bklog_app"],
+        }
+
+        result = search_logs(
+            {
+                "source": {"type": "index_set", "index_set_id": 300},
+                "start_time": 1767225600000,
+                "end_time": 1767229200000,
+                "keyword": "*",
+                "addition": [],
+                "begin": 0,
+                "size": 10,
+                "fields": ["body", "body.player.id", "log"],
+                "track_total_hits": True,
+                "is_desensitize": True,
+            }
+        )
+
+        self.assertEqual(
+            result["items"][0]["record"],
+            {
+                "body": {"player": {"id": "1***5"}},
+                "body.player.id": "1***5",
+                "log": "request failed",
+            },
+        )
 
     def test_scene_search_pins_valid_routes_before_pagination(self):
         source = {
@@ -1090,6 +1216,62 @@ class LogQueryHandlerTest(TestCase):
 
         expected = len(str(first).replace("'", '"').encode("utf-8"))
         self.assertGreater(truncation["original_size_bytes"], expected)
+
+
+class LogProjectRecordTest(SimpleTestCase):
+    """管理资源字段投影对扁平、嵌套及冲突结构的取值行为。"""
+
+    def test_conflict_flat_key_is_projected(self):
+        """标量父键与同名 dotted 子路径并存时，投影必须保留扁平键的值。"""
+        record = {"a": "plain", "a.b": "1***5"}
+
+        self.assertEqual(
+            _project_record(record, ["a", "a.b"]),
+            {"a": "plain", "a.b": "1***5"},
+        )
+
+    def test_nested_path_is_projected(self):
+        """嵌套结构仍按点号路径取值。"""
+        self.assertEqual(_project_record({"a": {"b": 1}}, ["a.b"]), {"a.b": 1})
+
+    def test_flat_dotted_key_is_projected(self):
+        """独立 ES flattened 的纯扁平 dotted key 也能被投影。"""
+        self.assertEqual(_project_record({"a.b": 1}, ["a.b"]), {"a.b": 1})
+
+    def test_flat_key_precedes_nested_path(self):
+        """扁平键与嵌套父键并存时，按 get_field_value 契约优先取扁平键。"""
+        record = {"a": {"b": "nested"}, "a.b": "flat"}
+
+        self.assertEqual(_project_record(record, ["a.b"]), {"a.b": "flat"})
+
+    def test_missing_field_is_empty_string(self):
+        """字段缺失仍返回空串，已有字段取值不变。"""
+        self.assertEqual(
+            _project_record({"x": 1}, ["a.missing", "x"]),
+            {"a.missing": "", "x": 1},
+        )
+
+    def test_none_value_preserved(self):
+        """值为 None 时不能被误判成字段缺失。"""
+        self.assertEqual(_project_record({"a": None}, ["a"]), {"a": None})
+
+    def test_no_projected_fields_returns_deepcopy(self):
+        """未指定投影字段时返回全量深拷贝，嵌套对象不共享引用。"""
+        record = {"a": {"b": 1}}
+
+        for fields in (None, []):
+            projected = _project_record(record, fields)
+            self.assertEqual(projected, record)
+            self.assertIsNot(projected, record)
+            self.assertIsNot(projected["a"], record["a"])
+
+    def test_projection_does_not_mutate_record(self):
+        """投影过程不能修改调用方传入的日志。"""
+        record = {"a": "plain", "a.b": "1***5"}
+
+        _project_record(record, ["a.b"])
+
+        self.assertEqual(record, {"a": "plain", "a.b": "1***5"})
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=False)

@@ -1819,16 +1819,8 @@ def _search_result_items(source, records, projected_fields=None):
 def _project_record(record, projected_fields):
     if not projected_fields:
         return copy.deepcopy(record)
-    projected = {}
-    for field in projected_fields:
-        value = record
-        for part in field.split("."):
-            if not isinstance(value, dict) or part not in value:
-                value = ""
-                break
-            value = value[part]
-        projected[field] = value
-    return projected
+    # 脱敏后的 record 可能同时存在嵌套结构与冲突保留的扁平 dotted key，按字段别名兼容两种形态取值
+    return {field: get_field_value(record, field) for field in projected_fields}
 
 
 def _build_context_anchor(source, index_set, record):
