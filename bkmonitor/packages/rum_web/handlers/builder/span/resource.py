@@ -20,13 +20,7 @@ from rum_web.handlers.builder.base import BaseSection, KeyInfoSection, KeyValueI
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.hover import RESOURCE_PHASE_HOVERS
 from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
-from rum_web.handlers.builder.span.resource_timing import (
-    CrossOriginLayout,
-    LocalLayout,
-    NetworkLayout,
-    ReusedLayout,
-    ServiceWorkerLayout,
-)
+from rum_web.handlers.builder.span.resource_timing import classify_resource_timing
 from rum_web.handlers.builder.utils import get_safe_number, safe_diff, waterfall
 
 
@@ -92,9 +86,6 @@ class LoadingTimingSection(WaterfallSection):
         "download": _("内容下载"),
     }
 
-    # 按 A→E 顺序匹配，E 的「未匹配 A–D」由顺序保证；ReusedLayout 继承 NetworkLayout，必须排在其前。
-    LAYOUTS = (CrossOriginLayout, ServiceWorkerLayout, LocalLayout, ReusedLayout, NetworkLayout)
-
     def get_data(self) -> dict[str, Any] | None:
         start = self.numeric_or_none("attributes.resource.timing.start_time")
         end = self.numeric_or_none("attributes.resource.timing.response_end")
@@ -102,12 +93,7 @@ class LoadingTimingSection(WaterfallSection):
             return self._legacy_waterfall()
         if end <= start:
             return None
-        for layout_cls in self.LAYOUTS:
-            if (layout := layout_cls(self.flatten_data)).matches():
-                break
-        else:
-            # 未匹配任何类型时只展示总耗时。
-            layout = CrossOriginLayout(self.flatten_data)
+        layout = classify_resource_timing(self.flatten_data)
         # 可选阶段（如未发生重定向）、乱序阶段在 span 中返回 None，这里统一过滤。
         specs = [spec for spec in layout.phases() if spec is not None]
         return waterfall(self.phases(specs), total=end - start)
