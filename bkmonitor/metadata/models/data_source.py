@@ -350,7 +350,7 @@ class DataSource(models.Model):
         """根据当前数据源元信息下发独立的 BKBase DataSource 配置。"""
         from django.utils import timezone
 
-        from metadata.models.data_link.data_link_configs import _format_data_source_datetime
+        from metadata.models.data_link.data_link_configs import DataIdConfig, _format_data_source_datetime
 
         name = f"bkm_datasource_{self.bk_data_id}"
         bk_biz_id, _ = get_space_uid_and_bk_biz_id_by_bk_data_id(self.bk_tenant_id, self.bk_data_id)
@@ -388,6 +388,12 @@ class DataSource(models.Model):
             },
         }
         api.bkdata.apply_data_link(config=[data_source_config], bk_tenant_id=self.bk_tenant_id)
+        DataIdConfig.objects.update_or_create(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=target_namespace,
+            name=name,
+            defaults={"bk_data_id": self.bk_data_id, "bk_biz_id": bk_biz_id},
+        )
         return {"bk_data_id": self.bk_data_id, "name": name, "target_namespace": target_namespace}
 
     def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor", bkbase_data_name: str = ""):

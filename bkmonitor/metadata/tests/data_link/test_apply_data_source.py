@@ -26,6 +26,7 @@ def test_apply_to_namespace(mocker, settings, source, multi_tenant, target_names
     mocker.patch("metadata.models.data_source.get_space_uid_and_bk_biz_id_by_bk_data_id", return_value=(2, "bkcc__2"))
     query = mocker.patch.object(models.DataIdConfig.objects, "filter", side_effect=AssertionError("无需查询 DataId"))
     apply = mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link")
+    register = mocker.patch.object(models.DataIdConfig.objects, "update_or_create")
     save = mocker.patch.object(source, "save")
     for _ in range(2):
         result = source.apply_to_namespace(target_namespace)
@@ -41,11 +42,20 @@ def test_apply_to_namespace(mocker, settings, source, multi_tenant, target_names
         assert payload[0]["spec"]["basic_info"]["bk_biz_id"] == 2
         assert ("tenant" in payload[0]["metadata"]) is multi_tenant
         assert result == dict(bk_data_id=960001, name="bkm_datasource_960001", target_namespace=target_namespace)
+    register.assert_called_with(
+        bk_tenant_id="system",
+        namespace=target_namespace,
+        name="bkm_datasource_960001",
+        defaults={"bk_data_id": 960001, "bk_biz_id": 2},
+    )
+    assert register.call_count == 2
+    register.reset_mock()
     query.assert_not_called()
     save.assert_not_called()
     apply.side_effect = RuntimeError("BKBase unavailable")
     with pytest.raises(RuntimeError, match="BKBase unavailable"):
         source.apply_to_namespace(target_namespace)
+    register.assert_not_called()
 
 
 def test_resource_tenant_scope(mocker, source):
