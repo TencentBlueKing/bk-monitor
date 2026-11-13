@@ -1671,7 +1671,11 @@ def _reconcile_data_link_components() -> tuple[
     )
     for kind, component_class in component_items:
         components_by_batch: dict[ComponentBatchKey, list[Any]] = defaultdict(list)
-        for component in component_class.objects.all().iterator(chunk_size=1000):
+        components = component_class.objects.all()
+        if kind == DataLinkKind.DATAID.value:
+            # 其他 namespace 的 DataIdConfig 可用于独立 DataSource 登记，不作为 DataId 同步。
+            components = components.filter(namespace__in=DATA_LINK_DISCOVERY_NAMESPACES)
+        for component in components.iterator(chunk_size=1000):
             batch_key = (
                 _normalize_data_link_tenant_id(component.bk_tenant_id),
                 component.namespace,
