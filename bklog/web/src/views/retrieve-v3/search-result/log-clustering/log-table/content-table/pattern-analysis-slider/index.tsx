@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, ref, watch, nextTick, type PropType } from 'vue';
+import { computed, defineComponent, inject, onBeforeUnmount, ref, watch, nextTick, type PropType } from 'vue';
 import * as echarts from 'echarts';
 import dayjs from 'dayjs';
 import useStore from '@/hooks/use-store';
@@ -34,6 +34,7 @@ import $http, { axiosInstance } from '@/api';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { blobDownload } from '@/common/util';
 import { getConditionRouterParams } from '../utils';
+import { quixPage } from '../../../quix-status';
 import { type ClusteringConfigData } from '../index';
 import './index.scss';
 
@@ -73,6 +74,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const store = useStore();
     const { t } = useLocale();
+    const quix = inject(quixPage, undefined);
     const retrieveParams = computed(() => store.getters.retrieveParams);
     // 直接从 state.indexItem 获取 datePickerValue
     const datePickerValue = computed(() => store.state.indexItem.datePickerValue);
@@ -662,7 +664,8 @@ export default defineComponent({
       // 添加聚类签名条件
       if (signature) {
         additionList.push({
-          field: `__dist_${patternLevel}`,
+          // 小型化聚类以 signature 作为签名字段
+          field: quix?.status.value ? 'signature' : `__dist_${patternLevel}`,
           operator: 'is',
           value: [signature.toString()],
           isLink: true,

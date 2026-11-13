@@ -14,6 +14,7 @@ from typing import Any
 from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.data_source.data_source import LOG_CLUSTERING_SIGNATURE_FIELD, has_log_clustered_route
 from core.drf_resource import api
 from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.resource.mcp_response import is_mcp_request
@@ -77,15 +78,23 @@ class SceneRouteConditionSerializer(serializers.Serializer):
 
 
 def get_log_unify_query_table(
-    index_set_id: int | str, conditions: dict[str, Any] | None = None, query_string: str | None = None
+    index_set_id: int | str,
+    conditions: dict[str, Any] | None = None,
+    query_string: str | None = None,
+    dimensions: list[str] | None = None,
 ) -> str:
     """根据查询条件选择日志索引集的普通表或聚类表。"""
     field_list = (conditions or {}).get("field_list") or []
-    has_clustering_condition = any(
-        isinstance(condition, dict) and str(condition.get("field_name", "")).startswith(CLUSTERING_FIELD_PREFIX)
-        for condition in field_list
-    )
+    condition_fields = {str(condition.get("field_name", "")) for condition in field_list if isinstance(condition, dict)}
+    has_clustering_condition = any(field.startswith(CLUSTERING_FIELD_PREFIX) for field in condition_fields)
     suffix = "_clustered" if has_clustering_condition or CLUSTERING_QUERY_FIELD in (query_string or "") else ""
+    # 日志聚类小型化以 signature 为签名字段，仅在已注册聚类路由时改查聚类表，避免误伤同名业务字段。
+    if (
+        not suffix
+        and LOG_CLUSTERING_SIGNATURE_FIELD in condition_fields | set(dimensions or [])
+        and has_log_clustered_route(str(index_set_id))
+    ):
+        suffix = "_clustered"
     return f"bklog_index_set_{index_set_id}{suffix}"
 
 
@@ -554,7 +563,7 @@ class FieldAnalyzeResource(Resource):
         )
 
         # 构建查询参数
-        table_id = get_log_unify_query_table(index_set_id, conditions, query_string)
+        table_id = get_log_unify_query_table(index_set_id, conditions, query_string, [field_name])
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)
         aggregation_function = self._build_aggregation_function(field_name, group_by)
         query_item = self._build_query_item(table_id, field_name, query_string, conditions, aggregation_function, limit)
