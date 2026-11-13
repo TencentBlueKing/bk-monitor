@@ -129,6 +129,10 @@ class PlatformConfig(BkCollectorConfig):
             "attribute_config": cls.get_attribute_config(),
         }
 
+        if settings.BK_COLLECTOR_METRIC_METADATA_ENABLED:
+            # 联调阶段复用 collector 自监控数据源 datalink_stats。
+            plat_config["metric_metadata"] = {"enabled": True, "dataid": 1100014}
+
         if settings.APM_FIELD_NORMALIZER_ENABLED:
             plat_config["field_normalizer_config"] = cls.get_field_normalizer_config()
 

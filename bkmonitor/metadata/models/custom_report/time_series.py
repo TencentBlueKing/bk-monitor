@@ -1229,6 +1229,10 @@ class TimeSeriesScope(models.Model):
 
     scope_name = models.CharField(verbose_name="指标分组名", max_length=255, db_collation="utf8_bin")
 
+    # NULL 与空哈希表示全局分组，服务分组开放前保持现有读写方式。
+    selector = models.JSONField(verbose_name="分组选择器", null=True)
+    selector_hash = models.CharField(verbose_name="选择器指纹", max_length=32, default="", db_collation="ascii_bin")
+
     # 维度字段配置，可配置的选项，需要在 DimensionConfigFields 中定义
     dimension_config = models.JSONField(verbose_name="分组下的维度配置", default=dict)
 
@@ -1246,7 +1250,7 @@ class TimeSeriesScope(models.Model):
     last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
 
     class Meta:
-        unique_together = ("group_id", "scope_name")
+        unique_together = ("group_id", "selector_hash", "scope_name")
         verbose_name = "自定义时序数据分组记录"
         verbose_name_plural = "自定义时序数据分组记录表"
 
