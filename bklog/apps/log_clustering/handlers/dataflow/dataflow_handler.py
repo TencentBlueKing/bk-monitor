@@ -148,6 +148,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @param consuming_mode 数据处理模式
         @param action 操作flow
         """
+        self._use_biz_config(bk_biz_id)
         cluster_group = self.conf.get("aiops_default_cluster_group", cluster_group)
         bk_biz_id = bk_biz_id if bk_biz_id is not None else self.conf.get("bk_biz_id")
         start_request = OperatorFlowCls(flow_id=flow_id, consuming_mode=consuming_mode, cluster_group=cluster_group)
