@@ -403,11 +403,19 @@ class ListToolCallsResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         app_name = serializers.CharField(required=True, label="应用名称")
         trace_id = serializers.CharField(required=False, allow_blank=True, default="", label="Trace ID")
-        session_id = serializers.CharField(required=False, allow_blank=True, default="", label="会话 ID")
+        group_field = serializers.CharField(
+            required=False, default="attributes.gen_ai.conversation.id", label="分组字段"
+        )
+        group_id = serializers.CharField(required=False, allow_blank=True, default="", label="分组值")
+        offset = serializers.IntegerField(required=False, min_value=0, default=0, label="分页偏移")
+        limit = serializers.IntegerField(required=False, min_value=1, max_value=10000, default=10000, label="分页大小")
 
         def validate(self, attrs):
-            if not attrs["trace_id"] and not attrs["session_id"]:
-                raise serializers.ValidationError("trace_id 和 session_id 至少传一个")
+            if attrs["trace_id"]:
+                attrs["group_field"] = OtlpKey.TRACE_ID
+                attrs["group_id"] = attrs["trace_id"]
+            if not attrs["group_id"]:
+                raise serializers.ValidationError("group_id 和 trace_id 至少传一个")
             return attrs
 
     def perform_request(self, validated_request_data):
@@ -415,8 +423,11 @@ class ListToolCallsResource(Resource):
             bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
         )
         span_query: LLMQuery = get_query(application.build_data_sources())
-        spans: list[dict[str, Any]] = span_query.query_trace_tool_calls(
-            validated_request_data["trace_id"], session_id=validated_request_data.get("session_id", "")
+        spans: list[dict[str, Any]] = span_query.query_tool_calls(
+            group_field=validated_request_data["group_field"],
+            group_id=validated_request_data["group_id"],
+            offset=validated_request_data["offset"],
+            limit=validated_request_data["limit"],
         )
         tool_calls: list[dict[str, Any]] = [
             {
@@ -432,7 +443,8 @@ class ListToolCallsResource(Resource):
         ]
         return {
             "trace_id": validated_request_data["trace_id"],
-            "session_id": validated_request_data.get("session_id", ""),
+            "group_field": validated_request_data["group_field"],
+            "group_id": validated_request_data["group_id"],
             "total": len(tool_calls),
             "tool_calls": tool_calls,
         }

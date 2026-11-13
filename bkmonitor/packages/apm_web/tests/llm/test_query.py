@@ -17,7 +17,7 @@ from apm_web.llm.query import LLMQuery
 class LLMQueryTestCase(TestCase):
     def test_tool_calls_query_filters_and_projects_without_collapsing(self):
         with mock.patch.object(self.query, "_query_list", return_value=[]) as query_list:
-            self.assertEqual(self.query.query_trace_tool_calls("trace-1"), [])
+            self.assertEqual(self.query.query_tool_calls("trace_id", "trace-1"), [])
 
         query_list.assert_called_once()
         queries, start_time, end_time, offset, limit = query_list.call_args.args
@@ -45,21 +45,19 @@ class LLMQueryTestCase(TestCase):
         self.assertIn("demo", serialized)
         self.assertEqual(config["bk_biz_id"], 11)
 
-    def test_tool_calls_session_filter_and_trace_intersection(self):
-        for trace_id in ("", "trace-1"):
-            with self.subTest(trace_id=trace_id):
+    def test_tool_calls_group_filter_and_pagination(self):
+        for group_field in ("trace_id", "attributes.gen_ai.conversation.id"):
+            with self.subTest(group_field=group_field):
                 with mock.patch.object(self.query, "_query_list", return_value=[]) as query_list:
-                    self.query.query_trace_tool_calls(trace_id, session_id="session-1")
-                queries = query_list.call_args.args[0]
-                where = queries[0].query.where
+                    self.query.query_tool_calls(group_field, "group-1", offset=20, limit=10)
+                queries, start, end, offset, limit = query_list.call_args.args
+                self.assertEqual((offset, limit), (20, 10))
                 expected = {
                     "attributes.gen_ai.operation.name__eq": ["execute_tool"],
-                    "attributes.gen_ai.conversation.id__eq": ["session-1"],
+                    f"{group_field}__eq": ["group-1"],
                 }
-                if trace_id:
-                    expected["trace_id__eq"] = [trace_id]
                 reference = self.query.build_queries(time_field=OtlpKey.START_TIME)[0].filter(**expected)
-                self.assertEqual(where, reference.query.where)
+                self.assertEqual(queries[0].query.where, reference.query.where)
 
     def test_tool_calls_query_includes_all_application_data_sources(self):
         source = TraceDatasourceTarget.build(
@@ -68,7 +66,7 @@ class LLMQueryTestCase(TestCase):
         query = LLMQuery([*self.query.data_sources, source])
         records = [{"span_id": "span-1"}, {"span_id": "span-2"}]
         with mock.patch.object(query, "_query_list", return_value=records) as query_list:
-            self.assertEqual(query.query_trace_tool_calls("trace-1"), records)
+            self.assertEqual(query.query_tool_calls("trace_id", "trace-1"), records)
         self.assertEqual(len(query_list.call_args.args[0]), 2)
 
     def test_service_fallback_filter_keeps_trace_and_application_scope(self):

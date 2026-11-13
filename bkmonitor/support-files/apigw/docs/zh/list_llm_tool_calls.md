@@ -2,7 +2,7 @@
 
 按 Trace ID 或会话 ID 查询工具调用的开始时间、耗时、执行状态和事件。
 
-单次最多返回 `10000` 条记录，按 `start_time`、`span_id` 正序排列，不提供分页参数。
+按 `start_time`、`span_id` 正序排列，使用 `offset`、`limit` 分页，`limit` 默认 `10000`。
 
 ### 请求地址
 
@@ -14,11 +14,14 @@
 | --- | --- | --- | --- |
 | bk_biz_id | int | 是 | 业务 ID |
 | app_name | string | 是 | APM 应用名称 |
-| trace_id | string | 否 | Trace ID，精确匹配 |
-| session_id | string | 否 | 会话 ID，精确匹配 `gen_ai.conversation.id` |
+| group_field | string | 否 | 分组字段，默认 `attributes.gen_ai.conversation.id`；按 Trace 查询时传 `trace_id` |
+| group_id | string | 否 | 分组值，精确匹配 |
+| trace_id | string | 否 | 兼容旧请求；非空时在序列化器中覆盖 `group_field=trace_id`、`group_id=trace_id` 的值 |
+| offset | int | 否 | 分页偏移，默认 `0`，最小 `0` |
+| limit | int | 否 | 分页大小，默认 `10000`，范围 `1～10000` |
 
-- *[1] 两个 ID 至少填写一个非空值；同时填写时取交集。*
-- *[2] 会话过滤要求工具 Span 自身上报 `gen_ai.conversation.id`。*
+- *[1] `group_id` 和兼容参数 `trace_id` 至少填写一个非空值。*
+- *[2] 默认会话过滤匹配工具 Span 自身的 `gen_ai.conversation.id`。*
 
 ### 请求参数示例
 
@@ -33,7 +36,7 @@
 按会话查询：
 
 ```json
-{"bk_biz_id": 11, "app_name": "demo_app", "session_id": "session-001"}
+{"bk_biz_id": 11, "app_name": "demo_app", "group_id": "session-001", "offset": 0, "limit": 100}
 ```
 
 ### 响应参数
@@ -50,7 +53,8 @@
 | 字段名 | 类型 | 描述 |
 | --- | --- | --- |
 | trace_id | string | 请求的 Trace ID，未传时为空字符串 |
-| session_id | string | 请求的会话 ID，未传时为空字符串 |
+| group_field | string | 序列化器归一后的分组字段 |
+| group_id | string | 序列化器归一后的分组值 |
 | total | int | 本次返回的记录数，与 `tool_calls` 长度一致 |
 | tool_calls | list | 工具执行记录；无匹配记录时为空列表 |
 
@@ -100,7 +104,8 @@
   "message": "",
   "data": {
     "trace_id": "0123456789abcdef0123456789abcdef",
-    "session_id": "",
+    "group_field": "trace_id",
+    "group_id": "0123456789abcdef0123456789abcdef",
     "total": 2,
     "tool_calls": [
       {
@@ -150,7 +155,8 @@
   "message": "",
   "data": {
     "trace_id": "0123456789abcdef0123456789abcdef",
-    "session_id": "",
+    "group_field": "trace_id",
+    "group_id": "0123456789abcdef0123456789abcdef",
     "total": 0,
     "tool_calls": []
   }
