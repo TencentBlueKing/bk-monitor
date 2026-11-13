@@ -13,15 +13,22 @@ from apps.log_clustering.tasks.flow import restart_flow
 class TestOnlineTenantFlow(SimpleTestCase):
     def setUp(self):
         super().setUp()
+        global_config = {"project_id": 1, "bk_biz_id": 2, "bk_username": "system_admin"}
         switch_patcher = patch("apps.log_clustering.handlers.aiops.base.FeatureToggleObject.switch", return_value=True)
         toggle_patcher = patch(
             "apps.log_clustering.handlers.aiops.base.FeatureToggleObject.toggle",
-            return_value=Mock(feature_config={"project_id": 1, "bk_biz_id": 2, "bk_username": "system_admin"}),
+            return_value=Mock(feature_config=global_config),
+        )
+        resolve_patcher = patch(
+            "apps.log_clustering.handlers.aiops.base.get_online_clustering_config",
+            side_effect=lambda bk_biz_id: dict(global_config),
         )
         self.addCleanup(switch_patcher.stop)
         self.addCleanup(toggle_patcher.stop)
+        self.addCleanup(resolve_patcher.stop)
         switch_patcher.start()
         toggle_patcher.start()
+        resolve_patcher.start()
 
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.ActionHandler.get_action_handler")
     def test_operator_flow_passes_business_id_for_tenant_getter(self, mock_get_action):
@@ -36,6 +43,39 @@ class TestOnlineTenantFlow(SimpleTestCase):
         self.assertEqual(request_params["operator"], "system_admin")
         self.assertTrue(request_params["no_request"])
         self.assertNotIn("bk_tenant_id", action.call_args.kwargs)
+
+    @patch("apps.log_clustering.handlers.aiops.base.get_online_clustering_config")
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.ActionHandler.get_action_handler")
+    def test_operator_flow_uses_tenant_cluster_group(self, mock_get_action, mock_resolve):
+        mock_resolve.return_value = {
+            "project_id": 1001,
+            "bk_biz_id": 2001,
+            "bk_username": "tenant_admin",
+            "aiops_default_cluster_group": "tenant_flink",
+        }
+        action = mock_get_action.return_value
+
+        DataFlowHandler().operator_flow(flow_id=11, action=ActionEnum.START, bk_biz_id=2)
+
+        mock_resolve.assert_called_once_with(2)
+        request_params = action.call_args.args[0]
+        self.assertEqual(request_params["cluster_group"], "tenant_flink")
+        self.assertEqual(request_params["bk_biz_id"], 2)
+        self.assertEqual(request_params["bk_username"], "tenant_admin")
+
+    @patch("apps.log_clustering.handlers.aiops.base.get_online_clustering_config")
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.ActionHandler.get_action_handler")
+    def test_operator_flow_without_business_id_keeps_global_cluster_group(self, mock_get_action, mock_resolve):
+        handler = DataFlowHandler()
+        handler.conf = {"bk_biz_id": 2, "bk_username": "system_admin", "aiops_default_cluster_group": "global_flink"}
+        action = mock_get_action.return_value
+
+        handler.operator_flow(flow_id=11, action=ActionEnum.RESTART)
+
+        mock_resolve.assert_not_called()
+        request_params = action.call_args.args[0]
+        self.assertEqual(request_params["cluster_group"], "global_flink")
+        self.assertEqual(request_params["bk_biz_id"], 2)
 
     @patch("retrying.time.sleep", return_value=None)
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.ActionHandler.get_action_handler")
