@@ -3068,19 +3068,35 @@
       "pendingNormalization": 0
     },
     {
-      "file": "features/retrieval/workbench/components/batch-input/index.tsx",
+      "file": "features/retrieval/workbench/components/batch-input/index.scss",
       "owner": "business-context",
       "inline": {
-        "nativeStyleSites": 2,
+        "nativeStyleSites": 0,
         "dynamicStyleSites": 0,
         "pendingInlineNormalization": 0
       },
-      "componentClasses": [],
+      "componentClasses": [
+        ".t-button",
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__close",
+        ".t-dialog__footer",
+        ".t-dialog__footer--fullscreen",
+        ".t-dialog__header",
+        ".t-table__empty",
+        ".t-table__empty-row",
+        ".t-textarea__inner"
+      ],
       "sharedContracts": [],
-      "semanticDeclarations": 0,
-      "contextualDeclarations": 0,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "semanticDeclarations": 12,
+      "contextualDeclarations": 37,
+      "localVisualProperties": [
+        "border",
+        "font-size",
+        "font-weight",
+        "line-height"
+      ],
+      "localVisualDeclarations": 6,
       "pendingNormalization": 0
     },
     {
@@ -3335,10 +3351,14 @@
         ".t-popup__content"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 7,
+      "semanticDeclarations": 5,
       "contextualDeclarations": 4,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "localVisualProperties": [
+        "border",
+        "border-radius",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 3,
       "pendingNormalization": 0
     },
     {
@@ -3420,19 +3440,26 @@
       },
       "componentClasses": [
         ".t-alert",
+        ".t-alert--info",
+        ".t-alert__icon",
         ".t-button",
-        ".t-dialog__header",
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__close",
+        ".t-dialog__footer",
+        ".t-dialog__footer--fullscreen",
         ".t-radio",
         ".t-radio__label",
         ".t-select__wrap"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 2,
-      "contextualDeclarations": 5,
+      "semanticDeclarations": 7,
+      "contextualDeclarations": 19,
       "localVisualProperties": [
-        "color"
+        "border",
+        "border-radius"
       ],
-      "localVisualDeclarations": 1,
+      "localVisualDeclarations": 2,
       "pendingNormalization": 0
     },
     {
@@ -3517,13 +3544,29 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-input__inner"
+        ".t-button",
+        ".t-button__text",
+        ".t-is-active",
+        ".t-tabs__bar",
+        ".t-tabs__content",
+        ".t-tabs__header",
+        ".t-tabs__nav",
+        ".t-tabs__nav-container",
+        ".t-tabs__nav-item",
+        ".t-tabs__nav-item-text-wrapper",
+        ".t-tabs__nav-item-wrapper",
+        ".t-tabs__nav-scroll",
+        ".t-tabs__nav-wrap"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 1,
-      "contextualDeclarations": 0,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "semanticDeclarations": 6,
+      "contextualDeclarations": 17,
+      "localVisualProperties": [
+        "background",
+        "border-radius",
+        "line-height"
+      ],
+      "localVisualDeclarations": 3,
       "pendingNormalization": 0
     },
     {
@@ -3694,16 +3737,20 @@
       },
       "componentClasses": [
         ".t-button",
-        ".t-input__inner",
-        ".t-input__wrap"
+        ".t-input",
+        ".t-input__wrap",
+        ".t-textarea__info_wrapper",
+        ".t-textarea__inner"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 3,
-      "contextualDeclarations": 6,
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 8,
       "localVisualProperties": [
-        "font-size"
+        "border",
+        "border-radius",
+        "box-shadow"
       ],
-      "localVisualDeclarations": 1,
+      "localVisualDeclarations": 3,
       "pendingNormalization": 0
     },
     {
@@ -3750,14 +3797,18 @@
       },
       "componentClasses": [
         ".t-input",
+        ".t-input--focused",
         ".t-input__inner",
         ".t-select"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 1,
-      "contextualDeclarations": 4,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [
+        "border-color",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 2,
       "pendingNormalization": 0
     },
     {
@@ -4472,14 +4523,18 @@
       },
       "componentClasses": [
         ".t-input",
+        ".t-input--prefix",
+        ".t-input__prefix",
         ".t-loading--full",
         ".t-select",
         ".t-select__wrap",
+        ".t-tag",
+        ".t-tag--text",
         ".t-tag-input"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 2,
-      "contextualDeclarations": 6,
+      "contextualDeclarations": 15,
       "localVisualProperties": [
         "border"
       ],
@@ -5127,6 +5182,7 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
+        ".t-button__text",
         ".t-checkbox__label",
         ".t-input",
         ".t-tag__icon-close"
@@ -5136,7 +5192,7 @@
         "join-previous"
       ],
       "semanticDeclarations": 1,
-      "contextualDeclarations": 6,
+      "contextualDeclarations": 9,
       "localVisualProperties": [
         "border",
         "border-radius",
@@ -5212,18 +5268,20 @@
         ".t-dialog__ctx",
         ".t-dialog__fullscreen",
         ".t-dialog__header",
+        ".t-dialog__header--fullscreen",
         ".t-dialog__header-content",
         ".t-dialog__position_fullscreen",
         ".t-dialog__wrap"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 0,
-      "contextualDeclarations": 18,
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 28,
       "localVisualProperties": [
+        "background",
         "border",
         "border-radius"
       ],
-      "localVisualDeclarations": 3,
+      "localVisualDeclarations": 4,
       "pendingNormalization": 0
     },
     {
@@ -5707,6 +5765,27 @@
       "contextualDeclarations": 1,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/common/auth-dialog.vue",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-dialog__footer",
+        ".t-dialog__header"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [
+        "font-weight"
+      ],
+      "localVisualDeclarations": 1,
       "pendingNormalization": 0
     },
     {

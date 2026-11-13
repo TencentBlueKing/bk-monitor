@@ -1,0 +1,117 @@
+.batch-input-dialog.t-dialog {
+  padding: 0;
+  border: 0;
+  color: var(--bklog-text-secondary, #63656e);
+
+  .t-dialog__header {
+    padding: 16px 24px 8px;
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 29px;
+    color: var(--bklog-text-primary, #313238);
+  }
+
+  .t-dialog__close {
+    top: 5px;
+    right: 5px;
+    width: 26px;
+    height: 26px;
+    color: var(--bklog-text-placeholder, #979ba5);
+  }
+
+  .t-dialog__body {
+    padding: 3px 24px 24px;
+  }
+
+  .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
+    margin: 0;
+  }
+
+  .batch-input-content {
+    display: flex;
+    gap: 16px;
+    padding-top: 16px;
+  }
+
+  .batch-input-source {
+    flex: 400 1 0;
+    min-width: 0;
+  }
+
+  .batch-input-result {
+    flex: 460 1 0;
+    min-width: 0;
+  }
+
+  .batch-input-label {
+    padding-bottom: 6px;
+    font-size: var(--bklog-font-action, 14px);
+    line-height: var(--bklog-line-height-body, 20px);
+  }
+
+  .batch-input-required {
+    padding-left: 2px;
+    color: var(--bklog-status-error, #ea3636);
+  }
+
+  .batch-input-textarea .t-textarea__inner {
+    padding: 5px 10px;
+    line-height: 18px;
+    resize: none;
+
+    &::placeholder {
+      color: var(--bklog-text-disabled, #c4c6cc);
+    }
+  }
+
+  .batch-input-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 16px;
+
+    .batch-input-parse {
+      width: 280px;
+      max-width: calc(100% - 72px);
+    }
+
+    .t-button {
+      height: 32px;
+      min-width: 64px;
+      font-size: var(--bklog-font-action, 14px);
+    }
+  }
+
+  .batch-input-table {
+    overflow: hidden;
+    border: 1px solid var(--bklog-border-muted, #dcdee5);
+    border-radius: var(--bklog-radius-control, 2px);
+
+    th {
+      height: 42px;
+      padding: 0 16px;
+      font-weight: 400;
+      color: var(--bklog-text-primary, #313238);
+      background: var(--bklog-surface-disabled, #fafbfd);
+    }
+
+    td {
+      padding: 11px 16px;
+    }
+
+    .t-table__empty-row td {
+      padding: 0;
+    }
+
+    .t-table__empty {
+      padding: 0;
+    }
+  }
+
+  .batch-input-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 248px;
+  }
+}

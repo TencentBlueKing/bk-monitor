@@ -15,6 +15,7 @@
       flex: 1;
       min-width: 0;
       display: flex;
+      min-width: 0;
 
       .filter-select-main {
         flex: 0 0 72px;
@@ -29,8 +30,9 @@
         border-bottom-right-radius: 0;
         margin-right: -1px;
 
-        &.is-focus {
-          margin-right: 0;
+        .t-input {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
         }
       }
 
@@ -172,12 +174,17 @@
     }
 
     .operate-right {
-      .context-locate-button {
-        color: #63656e;
-      }
       display: flex;
       align-items: center;
       gap: 8px;
+
+      .context-locate-button {
+        color: #63656e;
+
+        .t-button__text {
+          align-items: center;
+        }
+      }
 
       .color-tip-main {
         display: flex;

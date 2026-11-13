@@ -80,8 +80,9 @@
 
       .t-input {
         height: 32px;
-        border-color: var(--bklog-border-control, #c4c6cc);
-        border-radius: var(--bklog-radius-control, 2px);
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
       }
 
       .t-input__inner {

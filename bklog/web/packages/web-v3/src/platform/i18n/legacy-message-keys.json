@@ -1163,7 +1163,7 @@
   "请输入名称": "label_please_enter_a_name_effa003332b6",
   "时间格式化": "label_time_formatting_c5becb824e1b",
   "批量输入": "label_batch_input_83928b95f21d",
-  "请先在右侧输入并解析": "label_please_enter_and_parse_on_the_right_first_e9cbcfcfaa0b",
+  "请先在左侧输入并解析": "label_please_enter_and_parse_on_the_right_first_e9cbcfcfaa0b",
   "数量突增策略": "label_surge_strategy_18153b282563",
   "已配置": "label_open_de8184da1ef8",
   "未配置": "label_close_80a57e03f071",

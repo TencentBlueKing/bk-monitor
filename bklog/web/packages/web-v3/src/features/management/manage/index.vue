@@ -101,6 +101,7 @@ import SubNav from '@/features/navigation/manage-nav';
 import AuthContainerPage from '@/shared/ui/common/auth-container-page.vue';
 
 import { isFeatureToggleOn } from '@/app/state/helper';
+import '@/shared/styles/theme/management-lists.scss';
 
 export default {
   name: 'ManageIndex',

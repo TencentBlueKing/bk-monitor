@@ -50,14 +50,7 @@ export const Input = defineComponent({
       },
     });
     return () =>
-      h(
-        TInput,
-        { ...attrs, ref: input },
-        {
-          ...slots,
-          prefixIcon: props.prefix ? () => h('span', props.prefix) : slots.prefixIcon,
-        },
-      );
+      h(TInput, { ...attrs, ref: input, ...(props.prefix ? { label: props.prefix } : {}) }, slots);
   },
 });
 export const Exception = Empty;
@@ -231,6 +224,7 @@ export const Select = Object.assign(
           {
             ...attrs,
             ref: select,
+            ...(props.prefix ? { label: props.prefix } : {}),
             popupVisible: popupVisible.value,
             filter: props.filterOption
               ? (word, option) =>
@@ -242,6 +236,11 @@ export const Select = Object.assign(
               if (typeof attrs.onToggle === 'function') attrs.onToggle(value);
             },
             popupProps: {
+              attach:
+                props.popoverOptions?.boundary === 'parent'
+                  ? () => select.value?.$el?.parentElement ?? document.body
+                  : undefined,
+              zIndex: props.popoverOptions?.zIndex,
               overlayClassName:
                 [
                   datePickerPopup.value ? '__bk-date-picker-popper__' : '',
@@ -254,7 +253,6 @@ export const Select = Object.assign(
           },
           {
             ...slots,
-            prefixIcon: props.prefix ? () => h('span', props.prefix) : slots.prefixIcon,
             default: () => sdkOptions(slots.default?.() ?? [], metadata),
           },
         );

@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref } from 'vue';
+import { Tooltip as TTooltip } from 'tdesign-vue-next';
 
-import BklogPopover from '@/shared/ui/bklog-popover/index';
 import useLocale from '@/shared/composables/use-locale';
 
 import './index.scss';
@@ -83,10 +83,9 @@ export default defineComponent({
 
     return () => (
       <div class={['bklog-g_components-match-mode', { border: props.border }]}>
-        <BklogPopover
+        <TTooltip
           content={t('大小写匹配')}
-          options={{ theme: 'material', appendTo: document.body } as any}
-          trigger='hover'
+          placement='bottom-left'
         >
           <span
             class={[
@@ -97,23 +96,21 @@ export default defineComponent({
             ]}
             onClick={toggleCaseSensitive}
           />
-        </BklogPopover>
+        </TTooltip>
 
-        <BklogPopover
+        <TTooltip
           content={t('精确匹配')}
-          options={{ theme: 'material', appendTo: document.body } as any}
-          trigger='hover'
+          placement='bottom-left'
         >
           <span
             class={['bklog-g_components-match-mode-icon', 'bklog-icon', 'bklog-ab', { active: isWordMatch.value }]}
             onClick={toggleWordMatch}
           />
-        </BklogPopover>
+        </TTooltip>
 
-        <BklogPopover
+        <TTooltip
           content={t('正则匹配')}
-          options={{ placement: 'top', theme: 'material', appendTo: document.body } as any}
-          trigger='hover'
+          placement='top'
         >
           <span
             class={[
@@ -124,7 +121,7 @@ export default defineComponent({
             ]}
             onClick={toggleRegexMode}
           />
-        </BklogPopover>
+        </TTooltip>
       </div>
     );
   },

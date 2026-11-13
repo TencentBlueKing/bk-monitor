@@ -239,7 +239,7 @@ test('SDK relative input preserves its prefix and model update contract', () => 
   );
   const input = render();
   assert.equal(input.type, controls.Input);
-  assert.equal(input.children.prefixIcon().children, '的最近');
+  assert.equal(input.props.label, '的最近');
   input.props['onUpdate:modelValue']('20');
   assert.deepEqual(values, ['20']);
   let focused = 0;

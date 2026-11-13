@@ -566,6 +566,7 @@
     "features/retrieval/workbench/collect/favorite-detail.vue",
     "features/retrieval/workbench/collect/favorite-manage-dialog.vue",
     "features/retrieval/workbench/collect/favorite.types.ts",
+    "features/retrieval/workbench/components/batch-input/index.scss",
     "features/retrieval/workbench/components/batch-input/index.tsx",
     "features/retrieval/workbench/components/batch-input/style.scss",
     "features/retrieval/workbench/components/index-set-choice/common-list.scss",
@@ -13027,6 +13028,11 @@
     },
     {
       "from": "features/management/manage/index.vue",
+      "to": "shared/styles/theme/management-lists.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/management/manage/index.vue",
       "to": "shared/styles/mixins/scroller.scss",
       "kind": "style-or-asset"
     },
@@ -13793,6 +13799,11 @@
     {
       "from": "features/retrieval/workbench/components/batch-input/index.tsx",
       "to": "features/retrieval/workbench/components/batch-input/style.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/components/batch-input/index.tsx",
+      "to": "features/retrieval/workbench/components/batch-input/index.scss",
       "kind": "module"
     },
     {
@@ -22251,6 +22262,11 @@
       "kind": "module"
     },
     {
+      "from": "platform/compat/tdesign/legacy-control-styles.ts",
+      "to": "shared/styles/theme/compat-drawer.scss",
+      "kind": "module"
+    },
+    {
       "from": "platform/compat/tdesign/legacy-functional.ts",
       "to": "platform/compat/tdesign/legacy-slot.ts",
       "kind": "module"
@@ -24023,11 +24039,6 @@
     {
       "from": "shared/global/json-view/index.ts",
       "to": "features/retrieval/core/marked-json.ts",
-      "kind": "module"
-    },
-    {
-      "from": "shared/global/match-mode/index.tsx",
-      "to": "shared/ui/bklog-popover/index.tsx",
       "kind": "module"
     },
     {
