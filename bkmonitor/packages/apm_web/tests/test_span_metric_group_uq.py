@@ -12,7 +12,6 @@ from typing import Any
 
 from apm_web.handlers.metric_group import MetricHelper, SpanMetricGroup
 from apm_web.models import Application
-from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.data_source.promql_expression import compile_promql_expression
 from core.drf_resource import api
 
@@ -39,7 +38,6 @@ class TestSpanMetricGroupExpressions(unittest.TestCase):
             "demo",
             group_by=["service_name", "db_system"],
             metric_helper=MetricHelper(bk_biz_id, "demo"),
-            for_service_list=True,
         )
         return group.query_config(calculation_type, raw=True)["expression"]
 
@@ -91,7 +89,6 @@ class TestSpanMetricGroupExpressions(unittest.TestCase):
             ("positive_sum_zero_total", self.vector(5, **collector), self.vector(0, **collector), {}),
             ("missing_sum", self.vector(None), self.vector(3, **collector), {}),
             ("missing_total", self.vector(5, **collector), self.vector(None), {}),
-            ("missing_sum_without_labels", self.vector(None), self.vector(3), {(): [0] * 3}),
             ("zero_duration", self.vector(0, **collector), self.vector(3, **collector), {collector_key: [0] * 3}),
             (
                 "multiple_services",
@@ -108,6 +105,12 @@ class TestSpanMetricGroupExpressions(unittest.TestCase):
                 actual = self.query(expression, numerator, denominator)
                 self.assertEqual(legacy, expected)
                 self.assertEqual(actual, legacy)
+
+    def test_average_duration_distinguishes_zero_from_missing_without_grouping(self) -> None:
+        expression = self.expression("avg_duration")
+        denominator = self.vector(3)
+        self.assertEqual(self.query(expression, self.vector(None), denominator), {})
+        self.assertEqual(self.query(expression, self.vector(0), denominator), {(): [0] * 3})
 
     def test_error_rate_distinguishes_zero_from_missing(self) -> None:
         collector = {"service_name": "collector", "db_system": "mysql"}
@@ -132,34 +135,3 @@ class TestSpanMetricGroupExpressions(unittest.TestCase):
         for name, numerator, denominator, expected in cases:
             with self.subTest(case=name):
                 self.assertEqual(self.query(expression, numerator, denominator), expected)
-                self.assertEqual(self.query("(a or (0 * b)) / (b > 0)", numerator, denominator), expected)
-
-    def test_error_rate_compiles_nonempty_status_filter(self) -> None:
-        bk_biz_id = int(os.environ["BK_APM_UQ_TEST_BIZ_ID"])
-        group = SpanMetricGroup(
-            bk_biz_id,
-            "demo",
-            group_by=["service_name", "db_system"],
-            metric_helper=MetricHelper(bk_biz_id, "demo"),
-            for_service_list=True,
-        )
-        config = group.query_config("exception_rate", raw=True)
-        query = UnifyQuery(
-            bk_biz_id=bk_biz_id,
-            data_sources=[
-                load_data_source(q["data_source_label"], q["data_type_label"])(bk_biz_id=bk_biz_id, **q)
-                for q in config["query_configs"]
-            ],
-            expression=config["expression"],
-        )
-        params = query.get_unify_query_params(1700000040000, 1700000160000, True)
-        compiled = api.unify_query.struct_to_promql(
-            **{key: params[key] for key in ("query_list", "metric_merge", "step", "space_uid")}
-        )["promql"]
-        self.assertIn('status_code="2"', compiled)
-        self.assertIn('status_code!=""', compiled)
-        # UQ 会去掉空标签；与缺失标签一起由非空选择器排除。
-        self.assertEqual(
-            self.query("a", self.vector(10, service_name="collector", status_code=""), self.vector(0)),
-            {(("service_name", "collector"),): [10] * 3},
-        )

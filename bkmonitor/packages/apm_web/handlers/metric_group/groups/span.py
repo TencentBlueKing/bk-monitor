@@ -15,9 +15,7 @@ from typing import Any
 from django.db.models import Q
 from opentelemetry.trace import StatusCode
 
-from bkmonitor.data_source import UnifyQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import CallSide, SpanKind, TraceMetric
 
 from .. import base, define
@@ -35,15 +33,12 @@ class SpanMetricGroup(base.BaseMetricGroup):
         interval: int | None = None,
         service_name: str | None = None,
         kind: str | None = None,
-        for_service_list: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(bk_biz_id, app_name, group_by, filter_dict, **kwargs)
         self.interval: int = interval or self.DEFAULT_INTERVAL
         self.service_name: str | None = service_name
         self.kind: str | None = kind
-        # 默认沿用 Trace 的错误率口径，服务列表在构造时显式切换。
-        self.for_service_list: bool = for_service_list
 
     class Meta:
         name = define.GroupEnum.SPAN.value
@@ -74,7 +69,7 @@ class SpanMetricGroup(base.BaseMetricGroup):
         self, calculation_type: str, raw: bool = False, preserve_filter_dict: bool = False, **kwargs
     ) -> dict[str, Any]:
         qs = self._get_qs(calculation_type, kwargs.get("start_time"), kwargs.get("end_time"))
-        # 服务列表使用原始 filter_dict，其他调用方沿用现有配置导出格式。
+        # 保留精确匹配条件，避免在 Graph 中被解释为全选条件。
         if raw and preserve_filter_dict:
             return qs.config
         return self._export_qs(qs, raw=raw)
@@ -96,17 +91,10 @@ class SpanMetricGroup(base.BaseMetricGroup):
         return support_get_qs_methods[calculation_type](start_time, end_time)
 
     def _qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
-        if start_time is None or end_time is None:
-            return self.metric_helper.time_range_qs(start_time, end_time).scope(self.bk_biz_id)
-        return UnifyQuerySet().scope(self.bk_biz_id).start_time(start_time * 1000).end_time(end_time * 1000)
+        return self.metric_helper.time_range_qs(start_time, end_time).scope(self.bk_biz_id)
 
     def _q(self) -> QueryConfigBuilder:
-        q = (
-            self.metric_helper.q.group_by(*self.group_by)
-            .filter(self._filter_dict_to_q())
-            .time_field(self.metric_helper.TIME_FIELD)
-            .interval(self.interval)
-        )
+        q = self.metric_helper.q.group_by(*self.group_by).filter(self._filter_dict_to_q()).interval(self.interval)
 
         if self.service_name:
             q = q.filter(Q(service_name__eq=self.service_name))
@@ -136,29 +124,17 @@ class SpanMetricGroup(base.BaseMetricGroup):
     def _error_rate_qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
         error_q = self._error_count_q()
         total_q = self._q().metric(field=TraceMetric.BK_APM_COUNT, method="SUM", alias="b")
-        expression = "a / b"
-        if self.for_service_list:
-            # 服务列表仅将状态码非空的调用计入分母。
-            total_q = total_q.filter(Q(status_code__neq=""))
-            # b 为非负调用次数，b < bool 0 按相同分组生成零值，补齐缺失的错误调用序列。
-            # 有调用、无错误时返回 0%；分母为 0 时保持无有效数据。
-            expression = "(a or b < bool 0) / b"
-        return self._qs(start_time, end_time).add_query(error_q).add_query(total_q).expression(expression)
+        # b < bool 0 为有调用的分组补齐缺失的错误次数，零分母不产生有效错误率。
+        return self._qs(start_time, end_time).add_query(error_q).add_query(total_q).expression("(a or b < bool 0) / b")
 
     def _avg_duration_qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
-        qs = self._qs(start_time, end_time)
-        start_ms, end_ms = UnifyQuery.process_time_range(qs.query.start_time, qs.query.end_time)
-        # 结束时间按查询步长对齐，由公共查询层丢弃该时刻的数据点。
-        aligned_end_ms = time_interval_align(end_ms // 1000, self.interval) * 1000
-        qs = qs.start_time(start_ms).end_time(aligned_end_ms or end_ms)
         # 累计耗时与调用次数在相同窗口内取增量后相除，保留耗时指标的原始单位。
         # 分母使用累加计数器 bk_apm_total，分子、分母共用分组和过滤条件。
         q = self._q().func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
         sum_q = q.metric(field=TraceMetric.BK_APM_DURATION_SUM, method="SUM", alias="a")
         total_q = q.metric(field=TraceMetric.BK_APM_TOTAL, method="SUM", alias="b")
-        # b != 0 排除零分母，保持无有效数据语义。
-        # vector(0) 仅兼容无分组查询，不为缺少耗时样本的服务分组补 0。
-        return qs.add_query(sum_q).add_query(total_q).expression("(a or vector(0)) / (b != 0)")
+        # 调用次数为零或缺少耗时样本时，平均耗时留空。
+        return self._qs(start_time, end_time).add_query(sum_q).add_query(total_q).expression("a / (b != 0)")
 
     def _histogram_quantile_duration_qs(
         self, scalar: float, start_time: int | None = None, end_time: int | None = None

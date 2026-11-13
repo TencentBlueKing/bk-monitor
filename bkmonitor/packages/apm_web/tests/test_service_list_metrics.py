@@ -20,7 +20,7 @@ from apm_web.metric import resources as metric_resources
 from apm_web.metric.resources import ServiceListAsyncResource
 from apm_web.metric_handler import AvgDurationInstance
 from apm_web.models import Application
-from apm_web.utils import fill_series
+from apm_web.utils import fill_series, get_bar_interval_number
 from bkmonitor.data_source import filter_dict_to_conditions
 from bkmonitor.utils.time_tools import time_interval_align
 from monitor_web.grafana.resources.unify_query import GraphUnifyQueryResource
@@ -104,7 +104,7 @@ def test_error_rate_uses_expression_and_preserves_ratio(mocker: MockerFixture, a
             "field_list"
         ]
     assert {"field_name": "status_code", "op": "contains", "value": ["2"]} in error["conditions"]["field_list"]
-    assert {"field_name": "status_code", "op": "ncontains", "value": [""]} in total["conditions"]["field_list"]
+    assert all(condition["field_name"] != "status_code" for condition in total["conditions"]["field_list"])
 
 
 def test_request_count_filters_targets_and_keeps_merge_order(mocker: MockerFixture, application_lookup: Mock) -> None:
@@ -254,11 +254,14 @@ def test_count_columns_share_metric_helper(
     assert all(helper is helpers[0] for helper in helpers)
 
 
+@pytest.mark.parametrize(("interval", "offset"), [(60, 0), (60, 13), (300, 0), (300, 73)])
 def test_average_duration_preserves_precision_step_and_end_point(
-    mocker: MockerFixture, application_lookup: Mock, metric_info_lookup: Mock
+    mocker: MockerFixture, application_lookup: Mock, metric_info_lookup: Mock, interval: int, offset: int
 ) -> None:
-    aligned_start = time_interval_align(START_TIME, 60)
-    aligned_end = time_interval_align(END_TIME, 60)
+    start_time = time_interval_align(START_TIME, interval)
+    end_time = start_time + (3600 if interval == 60 else 7200) + offset
+    aligned_start = start_time
+    aligned_end = time_interval_align(end_time, interval)
     uq_response = {
         "series": [
             {
@@ -266,7 +269,11 @@ def test_average_duration_preserves_precision_step_and_end_point(
                 "types": ["time", "double"],
                 "group_keys": ["service_name"],
                 "group_values": ["collector"],
-                "values": [[aligned_start + 60, 1.123456789], [aligned_start + 240, 2.987654321], [aligned_end, 999]],
+                "values": [
+                    [aligned_start + interval, 1.123456789],
+                    [aligned_start + 4 * interval, 2.987654321],
+                    [aligned_end, 999],
+                ],
             }
         ]
     }
@@ -274,13 +281,27 @@ def test_average_duration_preserves_precision_step_and_end_point(
     mocker.patch("bkmonitor.data_source.unify_query.query.metrics.report_all")
     mocker.patch("bkmonitor.data_source.data_source.api.unify_query.query_data_by_promql", return_value=uq_response)
     legacy_points = AvgDurationInstance(
-        application_lookup.return_value, START_TIME, END_TIME, group_by=["service_name"]
+        application_lookup.return_value, start_time, end_time, group_by=["service_name"]
     ).get_range_calculate_values_mapping()[("collector",)]
 
-    [row] = request_column("avg_duration", ["collector"])["data"]
+    [row] = ServiceListAsyncResource().request(
+        {
+            "bk_biz_id": BK_BIZ_ID,
+            "app_name": APP_NAME,
+            "start_time": start_time,
+            "end_time": end_time,
+            "column": "avg_duration",
+            "service_names": ["collector"],
+        }
+    )["data"]
 
     assert row["avg_duration"] == {
-        "datapoints": fill_series([{"datapoints": legacy_points}], START_TIME, END_TIME, interval=120)[0]["datapoints"],
+        "datapoints": fill_series(
+            [{"datapoints": legacy_points}],
+            start_time,
+            end_time,
+            interval=get_bar_interval_number(start_time, end_time),
+        )[0]["datapoints"],
         "unit": "ns",
     }
     assert [point[0] for point in row["avg_duration"]["datapoints"] if point[0] is not None] == [
@@ -294,13 +315,13 @@ def test_average_duration_preserves_precision_step_and_end_point(
         "bkcc__2",
         str(aligned_start),
         str(aligned_end),
-        "60s",
+        f"{interval}s",
     )
-    assert params["metric_merge"] == "(a or vector(0)) / (b != 0)"
+    assert params["metric_merge"] == "a / (b != 0)"
     assert [item["field_name"] for item in params["query_list"]] == ["bk_apm_duration_sum", "bk_apm_total"]
     for item in params["query_list"]:
         assert item["time_aggregation"]["function"] == "increase"
-        assert item["time_aggregation"]["window"] == "60s"
+        assert item["time_aggregation"]["window"] == f"{interval}s"
         assert item["dimensions"] == ["service_name"]
         assert item["conditions"]["field_list"] == [
             {"field_name": "service_name", "value": ["collector"], "op": "contains"}

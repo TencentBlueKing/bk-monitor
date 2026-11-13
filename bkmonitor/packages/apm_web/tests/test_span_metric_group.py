@@ -44,7 +44,6 @@ def make_group(group_by: list[str], **kwargs: Any) -> SpanMetricGroup:
 
 
 @pytest.mark.parametrize("calculation_type", ["request_total", "exception_rate", "avg_duration"])
-@pytest.mark.parametrize("for_service_list", [False, True])
 @pytest.mark.parametrize(
     ("group_by", "filter_value"),
     [
@@ -55,11 +54,9 @@ def make_group(group_by: list[str], **kwargs: Any) -> SpanMetricGroup:
     ],
 )
 def test_exported_config_and_handle_execute_same_query(
-    uq_query: Mock, calculation_type: str, for_service_list: bool, group_by: list[str], filter_value: str
+    uq_query: Mock, calculation_type: str, group_by: list[str], filter_value: str
 ) -> None:
-    group = make_group(
-        group_by, filter_dict={f"{group_by[-1]}__eq": [filter_value]}, interval=120, for_service_list=for_service_list
-    )
+    group = make_group(group_by, filter_dict={f"{group_by[-1]}__eq": [filter_value]}, interval=120)
     options = {"start_time": START_TIME, "end_time": END_TIME}
     raw = group.query_config(calculation_type, raw=True, **options)
     config = group.query_config(calculation_type, **options)
@@ -81,9 +78,9 @@ def test_exported_config_and_handle_execute_same_query(
     for field in ("query_list", "metric_merge", "start_time", "end_time", "step", "space_uid"):
         assert actual[field] == exported[field]
     if calculation_type == "exception_rate":
-        assert actual["metric_merge"] == ("(a or b < bool 0) / b" if for_service_list else "a / b")
+        assert actual["metric_merge"] == "(a or b < bool 0) / b"
         total_conditions = actual["query_list"][1]["conditions"]["field_list"]
-        assert ({"field_name": "status_code", "op": "ncontains", "value": [""]} in total_conditions) == for_service_list
+        assert all(condition["field_name"] != "status_code" for condition in total_conditions)
     assert config["expression"] == raw["expression"]
     for panel, q in zip(config["query_configs"], raw["query_configs"]):
         assert panel["agg_dimension"] == q["group_by"] == group_by
@@ -94,9 +91,8 @@ def test_exported_config_and_handle_execute_same_query(
         assert panel["metric_field"] == q["metrics"][0]["field"]
         assert panel["agg_method"] == q["metrics"][0]["method"] == "SUM"
         assert panel["alias"] == q["metrics"][0]["alias"]
-    assert raw["start_time"] == START_TIME * 1000
-    expected_end = time_interval_align(END_TIME, 120) if calculation_type == "avg_duration" else END_TIME
-    assert raw["end_time"] == expected_end * 1000
+    assert raw["start_time"] == time_interval_align(START_TIME, 60) * 1000
+    assert raw["end_time"] == time_interval_align(END_TIME, 60) * 1000
 
 
 @pytest.mark.parametrize(
@@ -118,75 +114,6 @@ def test_subqueries_preserve_service_kind_and_filters(calculation_type: str, kin
         assert any(c["key"] == "service_name" and c["value"] == ["collector"] for c in conditions)
         assert any(c["key"] == "kind" and set(c["value"]) == {str(k) for k in kinds} for c in conditions)
         assert query["time_field"] == "time"
-
-
-@pytest.mark.parametrize("offset", [0, 13, 59])
-@pytest.mark.parametrize("interval", [60, 120])
-def test_average_duration_preserves_precision_and_excludes_aligned_end(
-    uq_query: Mock, offset: int, interval: int
-) -> None:
-    start = time_interval_align(START_TIME, interval) + offset
-    end = start + 3600
-    aligned_start = time_interval_align(start, interval)
-    aligned_end = time_interval_align(end, interval)
-    uq_query.return_value = {
-        "series": [
-            {
-                "columns": ["_time", "_value"],
-                "types": ["time", "double"],
-                "group_keys": ["service_name"],
-                "group_values": ["collector"],
-                "values": [
-                    [aligned_start + interval, 1.123456789],
-                    [aligned_end - interval, 2.987654321],
-                    [aligned_end, 999],
-                ],
-            },
-            {
-                "columns": ["_time", "_value"],
-                "types": ["time", "double"],
-                "group_keys": ["service_name"],
-                "group_values": ["query"],
-                "values": [[aligned_start + interval, 0], [aligned_end, 999]],
-            },
-            {
-                "columns": ["_time", "_value"],
-                "types": ["time", "double"],
-                "group_keys": ["service_name"],
-                "group_values": ["transfer"],
-                "values": [],
-            },
-        ]
-    }
-    group = make_group(["service_name"], interval=interval)
-
-    result = group.handle("avg_duration", start_time=start, end_time=end)
-
-    assert result == [
-        {"service_name": "collector", "_result_": 1.123456789, "_time_": (aligned_start + interval) * 1000},
-        {"service_name": "collector", "_result_": 2.987654321, "_time_": (aligned_end - interval) * 1000},
-        {"service_name": "query", "_result_": 0, "_time_": (aligned_start + interval) * 1000},
-    ]
-    params = uq_query.call_args.kwargs
-    assert params["start_time"] == str(aligned_start)
-    assert params["end_time"] == str(aligned_end)
-    assert params["metric_merge"] == "(a or vector(0)) / (b != 0)"
-    for query in params["query_list"]:
-        assert query["time_aggregation"]["window"] == f"{interval}s"
-
-
-def test_average_duration_keeps_zero_time_fallback(mocker: MockerFixture, uq_query: Mock) -> None:
-    now = END_TIME + 17
-    mocker.patch("bkmonitor.data_source.unify_query.query.time.time", return_value=now)
-    group = make_group(["service_name"], interval=60)
-
-    group.handle("avg_duration", start_time=0, end_time=3600)
-
-    assert uq_query.call_args.kwargs["start_time"] == str(time_interval_align(now - 3600, 60))
-    assert uq_query.call_args.kwargs["end_time"] == str(time_interval_align(now, 60))
-    config = group.query_config("avg_duration", raw=True, start_time=1, end_time=50)
-    assert config["start_time"] == 1000
-    assert config["end_time"] == 50000
 
 
 @pytest.mark.parametrize("calculation_type", ["error_count", "p50_duration", "p95_duration", "p99_duration"])
@@ -254,7 +181,7 @@ def test_trace_chart_target_preserves_exported_filters(calculation_type: str) ->
         assert actual["metrics"] == [{**metric, "display": False} for metric in expected["metrics"]]
 
 
-def test_trace_error_rate_keeps_all_calls_in_denominator(mocker: MockerFixture) -> None:
+def test_trace_error_rate_uses_same_definition_as_service_list(mocker: MockerFixture) -> None:
     app = Application(bk_biz_id=2, app_name="demo")
     mocker.patch.object(Application.objects, "get", return_value=app)
 
@@ -263,9 +190,10 @@ def test_trace_error_rate_keeps_all_calls_in_denominator(mocker: MockerFixture) 
         target["data"] for panel in panels for target in panel["targets"] if target["data"].get("unit") == "percentunit"
     ]
 
-    # 图表展示与实际取数使用的两份配置都保持 Trace 原有口径。
+    # 图表展示与实际取数使用同一份错误率定义。
     for config in (data, data["unify_query_param"]):
-        assert config["expression"] == "a / b"
+        assert config["expression"] == "(a or b < bool 0) / b"
         error, total = config["query_configs"]
-        assert total["where"] == [{"key": "service_name", "method": "eq", "value": ["collector"]}]
+        assert {"key": "service_name", "method": "eq", "value": ["collector"]} in total["where"]
+        assert all(condition["key"] != "status_code" for condition in total["where"])
         assert {"condition": "and", "key": "status_code", "method": "eq", "value": ["2"]} in error["where"]

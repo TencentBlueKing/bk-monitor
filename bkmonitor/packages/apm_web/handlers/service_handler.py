@@ -38,7 +38,7 @@ from apm_web.metrics import APPLICATION_LIST
 from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomService
 from bkmonitor.utils.cache import CacheType, lru_cache_with_ttl, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
-from bkmonitor.utils.time_tools import get_datetime_range
+from bkmonitor.utils.time_tools import get_datetime_range, time_interval_align
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 
@@ -596,24 +596,24 @@ class ServiceHandler:
                 filter_dict=filters,
                 interval=interval,
                 metric_helper=metric_helper,
-                for_service_list=True,
             )
             points_by_group = {}
             if calculation_type == metric_group.CalculationType.AVG_DURATION.value:
                 # 平均耗时直接读取 QuerySet 记录，保留原始精度，并按维度组合归集数据点。
-                for point in group.handle(calculation_type, start_time=start_time, end_time=end_time):
+                # 公共查询层只剔除等于请求结束时间的点，传入对齐后的时间以排除末桶。
+                for point in group.handle(
+                    calculation_type, start_time=start_time, end_time=time_interval_align(end_time, interval)
+                ):
                     key = tuple(point.get(field) for field in group_by)
                     points_by_group.setdefault(key, []).append([point["_result_"], point["_time_"]])
                 return points_by_group
 
             # Graph 会移除 where 中的 __BKMONITOR_ALL__ 条件，保留 filter_dict 以精确匹配同名服务。
-            config = group.query_config(
-                calculation_type, raw=True, preserve_filter_dict=True, start_time=start_time, end_time=end_time
-            )
-            # 调用次数和错误率沿用 Graph 的精度、时间处理；QuerySet 的毫秒时间需转为 Graph 入参的秒。
-            series = resource.grafana.graph_unify_query(
-                {**config, "start_time": config["start_time"] // 1000, "end_time": config["end_time"] // 1000}
-            )["series"]
+            config = group.query_config(calculation_type, raw=True, preserve_filter_dict=True)
+            # Graph 以原始请求时间为基准处理取数、精度和补点。
+            series = resource.grafana.graph_unify_query({**config, "start_time": start_time, "end_time": end_time})[
+                "series"
+            ]
             for item in series:
                 key = tuple(item["dimensions"].get(field) for field in group_by)
                 points = item["datapoints"]
@@ -621,7 +621,7 @@ class ServiceHandler:
                     # 移除 Graph 的占位空点，由列表按原有时间戳规则统一补点。
                     # 值为 0 的有效错误率数据点仍需保留。
                     points = [point for point in points if point[0] is not None]
-                points_by_group.setdefault(key, points)
+                points_by_group[key] = points
             return points_by_group
 
         results: dict[tuple[str, ...], dict[tuple[str | None, ...], list]]
