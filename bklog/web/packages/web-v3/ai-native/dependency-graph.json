@@ -2448,6 +2448,11 @@
     },
     {
       "from": "app/shell/app.tsx",
+      "to": "app/state/modules/platform-config.ts",
+      "kind": "module"
+    },
+    {
+      "from": "app/shell/app.tsx",
       "to": "shared/global/head-navi/index.tsx",
       "kind": "module"
     },

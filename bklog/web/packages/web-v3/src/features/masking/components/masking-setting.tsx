@@ -34,7 +34,7 @@ import { MessagePlugin as TDesignMessage, Button as Button } from 'tdesign-vue-n
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Input, Table, Dialog } from 'tdesign-vue-next';
@@ -282,12 +282,25 @@ export default class MaskingSetting extends tsc<IProps> {
         };
   }
 
-  created() {
+  @Watch('$route.query.spaceUid', { immediate: true })
+  handleSpaceUidChange() {
     this.initTableList();
   }
 
   async initTableList() {
     try {
+      if (!this.spaceUid) {
+        this.tableList = [];
+        this.tableSearchList = [];
+        this.tableShowList = [];
+        this.tableStrList = [];
+        this.updateSourceFilters = [];
+        this.changePagination({ current: 1, count: 0 });
+        this.emptyType = 'empty';
+        this.isAllowed = false;
+        TDesignMessage.warning(this.$t('请先选择业务'));
+        return;
+      }
       this.tableLoading = true;
       const params = { space_uid: this.spaceUid, rule_type: this.isPublicList ? 'public' : 'all' }; // 非全局列表 传业务id
       const authorityRes = await useApplicationStore().checkAndGetData(this.authorityData);

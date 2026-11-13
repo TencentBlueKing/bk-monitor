@@ -77,6 +77,7 @@ render() {
       <Dialog
         width='100%'
         dialogClassName='masking-dialog'
+        zIndex={2999}
         top={0}
         header={false}
         closeBtn={false}

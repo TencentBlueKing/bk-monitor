@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Alert, Button, Input, Table, TableColumn, Tag, Switcher, TableSettingContent, Dialog } from 'bk-magic-vue';
@@ -264,12 +264,28 @@ export default class MaskingSetting extends tsc<IProps> {
         };
   }
 
-  created() {
+  @Watch('$route.query.spaceUid', { immediate: true })
+  handleSpaceUidChange() {
     this.initTableList();
   }
 
   async initTableList() {
     try {
+      if (!this.spaceUid) {
+        this.tableList = [];
+        this.tableSearchList = [];
+        this.tableShowList = [];
+        this.tableStrList = [];
+        this.updateSourceFilters = [];
+        this.changePagination({ current: 1, count: 0 });
+        this.emptyType = 'empty';
+        this.isAllowed = false;
+        this.$bkMessage({
+          theme: 'warning',
+          message: this.$t('请先选择业务'),
+        });
+        return;
+      }
       this.tableLoading = true;
       const params = { space_uid: this.spaceUid, rule_type: this.isPublicList ? 'public' : 'all' }; // 非全局列表 传业务id
       const authorityRes = await this.$store.dispatch('checkAndGetData', this.authorityData);

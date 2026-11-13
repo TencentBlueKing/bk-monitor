@@ -75,6 +75,7 @@ export default class MaskingDialog extends tsc<IProps> {
       <Dialog
         width='100%'
         ext-cls='masking-dialog'
+        zIndex={2999}
         position={{
           top: this.showAlert ? 90 : 50,
           left: 0,

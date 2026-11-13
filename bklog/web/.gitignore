@@ -214,3 +214,5 @@ packages/web-v3/tests/helpers/*
 !packages/web-v3/tests/theme-contract-native.test.mjs
 
 !packages/web-v3/tests/theme-normalization-native.test.mjs
+
+!packages/web-v3/tests/master-sync-20261113.test.mjs
