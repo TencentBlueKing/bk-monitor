@@ -61,10 +61,6 @@ class LLMQueryTestCase(TestCase):
                 reference = self.query.build_queries(time_field=OtlpKey.START_TIME)[0].filter(**expected)
                 self.assertEqual(where, reference.query.where)
 
-    def test_tool_calls_rejects_missing_scope(self):
-        with self.assertRaises(ValueError):
-            self.query.query_trace_tool_calls()
-
     def test_tool_calls_query_includes_all_application_data_sources(self):
         source = TraceDatasourceTarget.build(
             bk_biz_id=11, app_name="demo", table_id="11_bkapm.trace_demo_second", retention=7

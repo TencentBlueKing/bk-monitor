@@ -271,8 +271,6 @@ class LLMQuery(SpanQuery):
             OtlpKey.STATUS,
             OtlpKey.EVENTS,
         )
-        if not trace_id and not session_id:
-            raise ValueError("trace_id 和 session_id 至少传一个")
         filters: dict[str, list[str]] = {"attributes.gen_ai.operation.name__eq": ["execute_tool"]}
         if trace_id:
             filters["trace_id__eq"] = [trace_id]
