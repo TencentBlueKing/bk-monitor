@@ -8,6 +8,7 @@ from typing import Any
 from bk_monitor_base.infras.nodeman_control import unique_ids
 from bk_monitor_base.infras.nodeman_control.contracts import HostQueries, OfficialPlugins, PluginOperation
 from bk_monitor_base.infras.nodeman_control.v3 import V3HostQueries, V3OfficialPlugins
+from bk_monitor_base.infras.nodeman_runtime import beat_plugin_search_v3_enabled
 from django.conf import settings
 
 from bkm_space.errors import NoRelatedResourceError
@@ -34,6 +35,11 @@ def get_host_queries() -> HostQueries:
     if settings.ENABLE_NODEMAN_V3 or settings.ENABLE_BK_COLLECTOR_NODEMAN_V3:
         return _v3_hosts
     return _v2_hosts
+
+
+def get_beat_host_queries() -> HostQueries:
+    # beat 进程状态查询只看独立开关，与 ENABLE_NODEMAN_V3、ENABLE_BK_COLLECTOR_NODEMAN_V3 相互独立
+    return _v3_hosts if beat_plugin_search_v3_enabled() else _v2_hosts
 
 
 def get_official_plugins() -> OfficialPlugins:
@@ -90,8 +96,10 @@ class HostQueryService:
             return []
         raw_biz_ids = unique_ids(bk_biz_ids)
         tenant = _tenant(bk_tenant_id, raw_biz_ids[0] if raw_biz_ids else None)
-        # V2 不使用业务；V3 业务为空时由实现报错
-        return get_host_queries().beat_plugin_status(tenant, _cmdb_biz_ids(raw_biz_ids), host_ids)
+        queries = get_beat_host_queries()
+        # V2 只按主机查询、不使用业务，不做空间转换，保持原 plugin_search 行为；V3 业务为空时由实现报错
+        biz_ids = _cmdb_biz_ids(raw_biz_ids) if queries is _v3_hosts else raw_biz_ids
+        return queries.beat_plugin_status(tenant, biz_ids, host_ids)
 
 
 class OfficialPluginService:

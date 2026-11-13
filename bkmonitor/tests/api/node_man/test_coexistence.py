@@ -289,9 +289,44 @@ def test_v3_compatible_process_api_registration_and_serializer():
         assert not v3.ListV2CompatibleProcessesResource.RequestSerializer(data=payload).is_valid()
 
 
+@pytest.mark.parametrize(
+    ("nodeman_v3", "collector_v3", "beat_v3"),
+    [
+        (False, False, False),
+        (True, False, False),
+        (False, True, False),
+        (True, True, False),
+        (False, False, True),
+        (True, True, True),
+    ],
+)
+def test_beat_switch_is_independent_of_other_switches(nodeman_v3, collector_v3, beat_v3):
+    """beat 查询只看独立开关；Proxy 等主机查询、官方插件仍按原有开关选择，互不影响。"""
+    with override_settings(
+        ENABLE_NODEMAN_V3=nodeman_v3,
+        ENABLE_BK_COLLECTOR_NODEMAN_V3=collector_v3,
+        ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=beat_v3,
+    ):
+        assert nodeman.get_beat_host_queries() is (nodeman._v3_hosts if beat_v3 else nodeman._v2_hosts)
+        assert nodeman.get_host_queries() is (nodeman._v3_hosts if nodeman_v3 or collector_v3 else nodeman._v2_hosts)
+        assert nodeman.get_official_plugins() is (nodeman._v3_plugins if nodeman_v3 else nodeman._v2_plugins)
+
+
+def test_beat_switch_registered_as_global_config_and_defaults_to_v2():
+    """开关注册为高级全局配置，默认关闭即走 V2 plugin_search，与改动前一致。"""
+    from django.conf import settings
+
+    from bkmonitor.define.global_config import ADVANCED_OPTIONS
+
+    assert "ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3" in ADVANCED_OPTIONS
+    assert ADVANCED_OPTIONS["ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3"].default is False
+    # DynamicSettings 先读静态值，静态默认值必须存在
+    assert settings.ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3 is False
+
+
 @pytest.mark.parametrize("enabled", [False, True])
 def test_beat_plugin_status_selects_backend_and_converts_business(enabled):
-    """入口把空间转换为 CMDB 业务并按开关选择接口，返回结构保持 V2 插件检索。"""
+    """V3 时入口把空间转换为 CMDB 业务；V2 时不做空间转换，按主机调用 plugin_search，与改动前一致。"""
     host = {
         "bk_host_id": 1,
         "inner_ip": "127.0.0.1,127.0.0.2",
@@ -301,9 +336,12 @@ def test_beat_plugin_status_selects_backend_and_converts_business(enabled):
         "plugin_status": [{"name": "bkmonitorbeat", "version": "3.6.0", "status": "running"}],
     }
     with (
-        override_settings(ENABLE_NODEMAN_V3=enabled),
+        # ENABLE_NODEMAN_V3 取相反值，证明 beat 查询只看独立开关
+        override_settings(ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=enabled, ENABLE_NODEMAN_V3=not enabled),
         # 负数空间 -5 关联 CMDB 业务 3
-        mock.patch.object(nodeman, "validate_bk_biz_id", side_effect=lambda biz_id: 3 if biz_id < 0 else biz_id),
+        mock.patch.object(
+            nodeman, "validate_bk_biz_id", side_effect=lambda biz_id: 3 if biz_id < 0 else biz_id
+        ) as to_cmdb_biz,
         mock.patch.object(
             api.node_man_v3, "list_v2_compatible_processes", return_value={"total": 1, "list": [host]}
         ) as compatible,
@@ -320,10 +358,12 @@ def test_beat_plugin_status_selects_backend_and_converts_business(enabled):
     else:
         search.assert_called_once_with(bk_tenant_id="t", page=1, pagesize=1, conditions=[], bk_host_id=[1])
         compatible.assert_not_called()
+        # V2 不使用业务，不做空间转换
+        to_cmdb_biz.assert_not_called()
         assert result == [host]
 
 
-@override_settings(ENABLE_NODEMAN_V3=True)
+@override_settings(ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=True)
 def test_beat_plugin_status_infers_tenant_and_skips_empty_hosts():
     """未传租户时按业务推断；没有有效主机时不发请求。"""
     with (
@@ -358,8 +398,8 @@ def test_beat_plugin_status_skips_space_without_cmdb_business(enabled, bk_biz_id
         return biz_id
 
     with (
-        override_settings(ENABLE_NODEMAN_V3=enabled),
-        mock.patch.object(nodeman, "validate_bk_biz_id", side_effect=to_cmdb_biz),
+        override_settings(ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=enabled),
+        mock.patch.object(nodeman, "validate_bk_biz_id", side_effect=to_cmdb_biz) as validate,
         mock.patch.object(nodeman, "bk_biz_id_to_bk_tenant_id", return_value="t"),
         mock.patch.object(
             api.node_man_v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}
@@ -379,3 +419,5 @@ def test_beat_plugin_status_skips_space_without_cmdb_business(enabled, bk_biz_id
         search.assert_not_called()
     else:
         search.assert_called_once_with(bk_tenant_id="t", page=1, pagesize=1, conditions=[], bk_host_id=[1])
+        # V2 不做空间转换，无关联业务的空间也不会触发查询或告警
+        validate.assert_not_called()

@@ -10,6 +10,16 @@ def nodeman_v3_enabled() -> bool:
     return django_settings.configured and getattr(django_settings, "ENABLE_NODEMAN_V3", False) is True
 
 
+def beat_plugin_search_v3_enabled() -> bool:
+    """bkmonitorbeat 进程状态查询单独切换：只看这个开关，与 ENABLE_NODEMAN_V3 相互独立。
+
+    存量 beat 的进程元数据迁移到节点管理 V3 之前，兼容接口查不到版本，默认仍走 V2 plugin_search。
+    """
+    return (
+        django_settings.configured and getattr(django_settings, "ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3", False) is True
+    )
+
+
 def nodeman_v3_base_url(bk_api_url: str) -> str:
     """沿用监控 settings 的可选覆盖地址，否则从网关根地址推导。"""
     if django_settings.configured:

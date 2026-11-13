@@ -5,7 +5,7 @@ from typing import Any
 
 from typing_extensions import override
 
-from bk_monitor_base.infras.nodeman_runtime import nodeman_v3_enabled
+from bk_monitor_base.infras.nodeman_runtime import beat_plugin_search_v3_enabled, nodeman_v3_enabled
 from bk_monitor_base.infras.third_party_api.cmdb.api import find_host_biz_relation
 from bk_monitor_base.infras.third_party_api.nodeman import v3 as api_v3
 
@@ -37,6 +37,11 @@ _v2_plugins, _v3_plugins = V2OfficialPlugins(), V3OfficialPlugins(_request_v3)
 def get_host_queries() -> HostQueries:
     """由统一环境开关选择节点控制面。"""
     return _v3_hosts if nodeman_v3_enabled() else _v2_hosts
+
+
+def get_beat_host_queries() -> HostQueries:
+    """beat 进程状态查询由独立开关选择后端，不跟随 ENABLE_NODEMAN_V3。"""
+    return _v3_hosts if beat_plugin_search_v3_enabled() else _v2_hosts
 
 
 def get_official_plugins() -> OfficialPlugins:
@@ -74,7 +79,7 @@ class HostQueryService(HostQueries):
         if not host_ids:
             return []
         biz_ids = None if bk_biz_ids is None else unique_ids(bk_biz_ids)
-        return get_host_queries().beat_plugin_status(bk_tenant_id, biz_ids, host_ids)
+        return get_beat_host_queries().beat_plugin_status(bk_tenant_id, biz_ids, host_ids)
 
 
 class OfficialPluginService(OfficialPlugins):

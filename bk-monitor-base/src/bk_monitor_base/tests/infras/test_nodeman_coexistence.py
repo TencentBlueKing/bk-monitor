@@ -180,11 +180,63 @@ def test_v2_beat_plugin_status_keeps_plugin_search_protocol():
     )
 
 
+def beat_switch_settings(enabled: bool) -> mock.Mock:
+    """beat 开关取 enabled，ENABLE_NODEMAN_V3 故意取相反值，用来证明 beat 查询只看自己的开关。"""
+    return mock.Mock(configured=True, ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=enabled, ENABLE_NODEMAN_V3=not enabled)
+
+
+@pytest.mark.parametrize(
+    ("nodeman_v3", "beat_v3"),
+    [(False, False), (False, True), (True, False), (True, True)],
+)
+def test_beat_switch_is_independent_of_nodeman_switch(nodeman_v3, beat_v3):
+    """beat 查询只看独立开关；其他主机查询、官方插件仍只看 ENABLE_NODEMAN_V3，互不影响。"""
+    django_settings = mock.Mock(
+        configured=True, ENABLE_NODEMAN_V3=nodeman_v3, ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=beat_v3
+    )
+    with mock.patch.object(nodeman_runtime, "django_settings", django_settings):
+        assert isinstance(nodeman_control.get_beat_host_queries(), V3HostQueries if beat_v3 else V2HostQueries)
+        assert isinstance(nodeman_control.get_host_queries(), V3HostQueries if nodeman_v3 else V2HostQueries)
+        assert isinstance(
+            nodeman_control.get_official_plugins(), V3OfficialPlugins if nodeman_v3 else V2OfficialPlugins
+        )
+
+
+@pytest.mark.parametrize(
+    "django_settings",
+    [
+        pytest.param(mock.Mock(configured=True, spec=["configured"]), id="unset"),
+        pytest.param(mock.Mock(configured=False), id="without-monitor-settings"),
+        pytest.param(mock.Mock(configured=True, ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3="true"), id="non-bool"),
+    ],
+)
+def test_beat_switch_defaults_to_v2(django_settings):
+    """未配置、没有监控 settings 或取值不是 True 时，beat 查询保持 V2 plugin_search。"""
+    with mock.patch.object(nodeman_runtime, "django_settings", django_settings):
+        assert nodeman_runtime.beat_plugin_search_v3_enabled() is False
+        assert isinstance(nodeman_control.get_beat_host_queries(), V2HostQueries)
+
+
+def test_beat_switch_takes_effect_on_next_call():
+    """开关在每次调用时读取，同一进程内切换后下一次查询即换后端（全局配置可在线切换）。"""
+    django_settings = mock.Mock(configured=True, ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=False)
+    with (
+        mock.patch.object(nodeman_runtime, "django_settings", django_settings),
+        mock.patch.object(v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}) as compatible,
+        mock.patch.object(api, "plugin_search", return_value={"total": 0, "list": []}) as search,
+    ):
+        nodeman_control.host_queries.beat_plugin_status("t", [2], [1])
+        django_settings.ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3 = True
+        nodeman_control.host_queries.beat_plugin_status("t", [2], [1])
+    search.assert_called_once()
+    compatible.assert_called_once()
+
+
 @pytest.mark.parametrize("enabled", [False, True])
 def test_beat_plugin_status_facade_normalizes_and_selects_backend(enabled):
     """入口去掉空值并去重；开启 V3 时走兼容接口且不再调用 V2 插件检索。"""
     with (
-        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True, ENABLE_NODEMAN_V3=enabled)),
+        mock.patch.object(nodeman_runtime, "django_settings", beat_switch_settings(enabled)),
         mock.patch.object(v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}) as compatible,
         mock.patch.object(api, "plugin_search", return_value={"total": 0, "list": []}) as search,
     ):
@@ -208,7 +260,7 @@ def test_beat_plugin_status_facade_resolves_business_only_for_v3(enabled):
         {"bk_host_id": 5, "bk_biz_id": 3, "bk_module_id": 3},
     ]
     with (
-        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True, ENABLE_NODEMAN_V3=enabled)),
+        mock.patch.object(nodeman_runtime, "django_settings", beat_switch_settings(enabled)),
         mock.patch.object(nodeman_control, "find_host_biz_relation", return_value=relations) as relation,
         mock.patch.object(v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}) as compatible,
         mock.patch.object(api, "plugin_search", return_value={"total": 0, "list": []}) as search,
@@ -230,7 +282,7 @@ def test_beat_plugin_status_facade_resolves_business_only_for_v3(enabled):
 def test_beat_plugin_status_facade_skips_request_without_hosts(enabled):
     """没有有效主机时两种后端都不发请求。"""
     with (
-        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True, ENABLE_NODEMAN_V3=enabled)),
+        mock.patch.object(nodeman_runtime, "django_settings", beat_switch_settings(enabled)),
         mock.patch.object(v3, "list_v2_compatible_processes") as compatible,
         mock.patch.object(api, "plugin_search") as search,
     ):

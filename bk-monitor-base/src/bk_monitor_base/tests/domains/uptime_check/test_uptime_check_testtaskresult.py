@@ -787,7 +787,9 @@ class TestBeatVersionCheck:
 
         manager = TaskManager(task=task)
         with (
-            patch.object(nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_NODEMAN_V3=True)),
+            patch.object(
+                nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=True)
+            ),
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
             patch.object(
                 nodeman_v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}
@@ -816,7 +818,9 @@ class TestBeatVersionCheck:
 
         manager = TaskManager(task=task)
         with (
-            patch.object(nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_NODEMAN_V3=False)),
+            patch.object(
+                nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=False)
+            ),
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
             patch.object(nodeman_api, "plugin_search", return_value={"total": 0, "list": []}) as plugin_search,
             patch(
@@ -848,7 +852,9 @@ class TestBeatVersionCheck:
 
         manager = TaskManager(task=task)
         with (
-            patch.object(nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_NODEMAN_V3=enabled)),
+            patch.object(
+                nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=enabled)
+            ),
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
             patch.object(nodeman_api, "plugin_search", return_value={"total": 0, "list": []}) as plugin_search,
             patch.object(nodeman_v3, "list_v2_compatible_processes") as compatible,
@@ -908,7 +914,9 @@ class TestBeatVersionCheck:
 
         manager = TaskManager(task=task)
         with (
-            patch.object(nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_NODEMAN_V3=True)),
+            patch.object(
+                nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_BEAT_PLUGIN_SEARCH_NODEMAN_V3=True)
+            ),
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
             patch.object(nodeman_v3, "list_v2_compatible_processes", return_value=compatible_result) as compatible,
             patch(
