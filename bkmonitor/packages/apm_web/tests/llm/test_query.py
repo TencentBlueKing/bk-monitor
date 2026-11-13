@@ -46,17 +46,17 @@ class LLMQueryTestCase(TestCase):
         self.assertEqual(config["bk_biz_id"], 11)
 
     def test_tool_calls_group_filter_and_pagination(self):
-        for group_field in ("trace_id", "attributes.gen_ai.conversation.id"):
+        for group_field in ("trace_id", "attributes.gen_ai.conversation.id", "attributes.gen_ai.operation.name"):
             with self.subTest(group_field=group_field):
                 with mock.patch.object(self.query, "_query_list", return_value=[]) as query_list:
                     self.query.query_tool_calls(group_field, "group-1", offset=20, limit=10)
                 queries, start, end, offset, limit = query_list.call_args.args
                 self.assertEqual((offset, limit), (20, 10))
-                expected = {
-                    "attributes.gen_ai.operation.name__eq": ["execute_tool"],
-                    f"{group_field}__eq": ["group-1"],
-                }
-                reference = self.query.build_queries(time_field=OtlpKey.START_TIME)[0].filter(**expected)
+                reference = (
+                    self.query.build_queries(time_field=OtlpKey.START_TIME)[0]
+                    .filter(**{f"{group_field}__eq": ["group-1"]})
+                    .filter(**{"attributes.gen_ai.operation.name__eq": ["execute_tool"]})
+                )
                 self.assertEqual(queries[0].query.where, reference.query.where)
 
     def test_tool_calls_query_includes_all_application_data_sources(self):

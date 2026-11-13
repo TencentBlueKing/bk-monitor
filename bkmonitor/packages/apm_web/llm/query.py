@@ -273,12 +273,11 @@ class LLMQuery(SpanQuery):
             OtlpKey.STATUS,
             OtlpKey.EVENTS,
         )
-        filters: dict[str, list[str]] = {
-            "attributes.gen_ai.operation.name__eq": ["execute_tool"],
-            f"{group_field}__eq": [group_id],
-        }
         queries: list[QueryConfigBuilder] = [
-            query.filter(**filters).values(*fields).order_by(f"{OtlpKey.START_TIME} asc", f"{OtlpKey.SPAN_ID} asc")
+            query.filter(**{f"{group_field}__eq": [group_id]})
+            .filter(**{"attributes.gen_ai.operation.name__eq": ["execute_tool"]})
+            .values(*fields)
+            .order_by(f"{OtlpKey.START_TIME} asc", f"{OtlpKey.SPAN_ID} asc")
             for query in self.build_queries(time_field=OtlpKey.START_TIME)
         ]
         return self._query_list(queries, None, None, offset, limit)
