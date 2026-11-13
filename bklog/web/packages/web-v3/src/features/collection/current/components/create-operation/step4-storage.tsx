@@ -29,7 +29,7 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useCollectionStore } from '@/app/state/domains/collection-store';
 
 
-import { Button as TButton } from 'tdesign-vue-next';
+import { Button as TButton, InputNumber as TInputNumber } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { IClusterItem } from '../business-comp/step4/cluster-table';
 import type { IFormData } from '../../type';
@@ -242,24 +242,24 @@ export default defineComponent({
       retention: [
         {
           validator: (val: unknown) => Number(val) <= daysMax.value,
-          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+          message: t('最大自定义天数为{n}', { n: daysMax.value }),
           trigger: 'blur',
         },
         {
           validator: (val: unknown) => Number(val) <= daysMax.value,
-          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+          message: t('最大自定义天数为{n}', { n: daysMax.value }),
           trigger: 'change',
         },
       ],
       allocation_min_days: [
         {
           validator: (val: unknown) => Number(val) <= daysMax.value,
-          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+          message: t('最大自定义天数为{n}', { n: daysMax.value }),
           trigger: 'blur',
         },
         {
           validator: (val: unknown) => Number(val) <= daysMax.value,
-          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+          message: t('最大自定义天数为{n}', { n: daysMax.value }),
           trigger: 'change',
         },
         {
@@ -271,24 +271,24 @@ export default defineComponent({
       storage_replies: [
         {
           validator: (val: unknown) => Number(val) <= numberOfReplicasMax.value,
-          message: () => t('最大自定义副本数为: {n}', { n: numberOfReplicasMax.value }),
+          message: t('最大自定义副本数为: {n}', { n: numberOfReplicasMax.value }),
           trigger: 'blur',
         },
         {
           validator: (val: unknown) => Number(val) <= numberOfReplicasMax.value,
-          message: () => t('最大自定义副本数为: {n}', { n: numberOfReplicasMax.value }),
+          message: t('最大自定义副本数为: {n}', { n: numberOfReplicasMax.value }),
           trigger: 'change',
         },
       ],
       es_shards: [
         {
           validator: (val: unknown) => Number(val) <= esShardsMax.value,
-          message: () => t('最大自定义分片数为: {n}', { n: esShardsMax.value }),
+          message: t('最大自定义分片数为: {n}', { n: esShardsMax.value }),
           trigger: 'blur',
         },
         {
           validator: (val: unknown) => Number(val) <= esShardsMax.value,
-          message: () => t('最大自定义分片数为: {n}', { n: esShardsMax.value }),
+          message: t('最大自定义分片数为: {n}', { n: esShardsMax.value }),
           trigger: 'change',
         },
       ],
@@ -517,7 +517,14 @@ export default defineComponent({
           onTabClick={handleTabClick}
         />
 
-        <bk-collapse value={activeName.value} onChange={(value: string[]) => { activeName.value = value; }}>{collapseList.value.map(item => renderCollapseItem(item))}</bk-collapse>
+        <bk-collapse
+          value={activeName.value}
+          onChange={(value: string[]) => {
+            activeName.value = value;
+          }}
+        >
+          {collapseList.value.map(item => renderCollapseItem(item))}
+        </bk-collapse>
       </div>
     );
 
@@ -548,28 +555,24 @@ export default defineComponent({
             label={t('过期时间')}
             property='retention'
           >
-            <bk-input
-              v-slots={{
-                append: () => (
-                  <>
-                    <div class='group-text'>{t('天')}</div>
-                  </>
-                ),
-              }}
+            <TInputNumber
+              suffix={t('天')}
               class='number-input'
-              type='number'
+              theme='normal'
+              decimalPlaces={0}
+              allowInputOverLimit={false}
               value={formData.value.retention}
               min={1}
-              onInput={(val: string|number) => {
-                formData.value.retention = val;
+              onChange={val => {
+                formData.value.retention = val ?? '';
               }}
-              onBlur={(val: string) => {
-                if (val === '') {
+              onBlur={val => {
+                if (val == null || val === '') {
                   formData.value.retention =
                     clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
                 }
               }}
-            ></bk-input>
+            />
           </bk-form-item>
           {!isDorisMode.value && [
             clusterData.value.enable_hot_warm && (
@@ -577,44 +580,42 @@ export default defineComponent({
                 label={t('热数据天数')}
                 property='allocation_min_days'
               >
-                <bk-input
-                  v-slots={{
-                    append: () => (
-                      <>
-                        <div class='group-text'>{t('天')}</div>
-                      </>
-                    ),
-                  }}
+                <TInputNumber
+                  suffix={t('天')}
                   class='number-input'
-                  type='number'
+                  theme='normal'
+                  decimalPlaces={0}
+                  allowInputOverLimit={false}
                   min={0}
                   value={formData.value.allocation_min_days}
-                  onInput={(val: string|number) => {
-                    formData.value.allocation_min_days = val;
+                  onChange={val => {
+                    formData.value.allocation_min_days = val ?? '';
                   }}
-                  onBlur={(val: string) => {
-                    if (val === '') {
+                  onBlur={val => {
+                    if (val == null || val === '') {
                       formData.value.allocation_min_days =
                         clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
                     }
                   }}
-                ></bk-input>
+                />
               </bk-form-item>
             ),
             <bk-form-item
               label={t('副本数')}
               property='storage_replies'
             >
-              <bk-input
+              <TInputNumber
                 class='number-input'
-                type='number'
+                theme='normal'
+                decimalPlaces={0}
+                allowInputOverLimit={false}
                 min={0}
                 value={formData.value.storage_replies}
-                onInput={(val: string|number) => {
-                  formData.value.storage_replies = val;
+                onChange={val => {
+                  formData.value.storage_replies = val ?? '';
                 }}
-                onBlur={(val: string) => {
-                  if (val === '') {
+                onBlur={val => {
+                  if (val == null || val === '') {
                     formData.value.storage_replies =
                       clusterData.value?.setup_config?.number_of_replicas_default ?? STORAGE_DEFAULTS.storage_replies;
                   }
@@ -625,16 +626,18 @@ export default defineComponent({
               label={t('分片数')}
               property='es_shards'
             >
-              <bk-input
+              <TInputNumber
                 class='number-input'
-                type='number'
+                theme='normal'
+                decimalPlaces={0}
+                allowInputOverLimit={false}
                 min={1}
                 value={formData.value.es_shards}
-                onInput={(val: string|number) => {
-                  formData.value.es_shards = val;
+                onChange={val => {
+                  formData.value.es_shards = val ?? '';
                 }}
-                onBlur={(val: string) => {
-                  if (val === '') {
+                onBlur={val => {
+                  if (val == null || val === '') {
                     formData.value.es_shards =
                       clusterData.value?.setup_config?.es_shards_default ?? STORAGE_DEFAULTS.es_shards;
                   }

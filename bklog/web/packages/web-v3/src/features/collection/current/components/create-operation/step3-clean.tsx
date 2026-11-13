@@ -1595,7 +1595,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 })(value); }}
               />
               {isClean.value && (
-                <div class='bk-button-group clean-rule-mode-group'>
+                <div class='bk-button-group clean-button-group clean-rule-mode-group'>
                   <TButton theme='default' variant='outline'
                     class={{ 'is-selected': cleanRuleMode.value === 'manual' }}
                     onClick={() => {
@@ -1621,10 +1621,12 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           <div class='label-form-box'>
             <span class='label-title no-require'>{t('清洗模式')}</span>
             <div class='form-box'>
-              <div class='bk-button-group'>
+              <div class='bk-button-group clean-button-group'>
                 {cleaningModeList.map(mode => (
                   <TButton
                     key={mode.value}
+                    theme='default'
+                    variant='outline'
                     class={{ 'is-selected': mode.value === cleaningMode.value }}
                     onClick={() => handleChangeCleaningMode(mode)}
                   >

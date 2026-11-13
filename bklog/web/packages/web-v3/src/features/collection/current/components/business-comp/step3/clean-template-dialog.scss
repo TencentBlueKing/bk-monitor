@@ -1,3 +1,5 @@
+@use '@/shared/styles/mixins/overflow-tips.scss' as *;
+
 .clean-template-dialog {
   display: flex;
   height: 480px;
@@ -66,20 +68,18 @@
       }
     }
 
-    .bk-table.fields-table {
+    .fields-table {
       flex: none;
 
-      .bk-table-row td {
+      td {
         height: 42px;
       }
 
       .field-name-cell,
       .value-cell {
-        width: 100%;
-        overflow: hidden;
+        @include overflow-tips;
+
         font-size: 12px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
       }
 
       .value-cell {

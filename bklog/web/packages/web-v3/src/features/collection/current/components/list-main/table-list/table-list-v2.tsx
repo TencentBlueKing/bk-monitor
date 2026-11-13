@@ -2446,10 +2446,10 @@ export default defineComponent({
 
                 theme='primary'
                 v-cursor={{ active: isAllowedCreate }}
+                icon={() => <i class='bklog-icon bklog-link-guanlian' />}
                 disabled={!collectProject.value || isLoading.value || isAllowedCreate === null}
                 v-show={(props.indexSet as IListItemData)?.index_set_id !== 'all'} variant={(true) ? 'outline' : 'base'}
               >
-                <i class='bklog-icon bklog-link-guanlian' />
                 {t('关联采集项管理')}
               </TButton>
             </AddExistingCollectDialog>
