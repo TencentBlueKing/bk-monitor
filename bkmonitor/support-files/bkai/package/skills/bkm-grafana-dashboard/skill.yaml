@@ -1,0 +1,9 @@
+apiVersion: bkai.tencent.com/v1
+kind: Skill
+metadata:
+  code: bkm-grafana-dashboard
+  name: 监控平台-Grafana仪表盘
+spec:
+  generate_type: global
+  is_public: true
+  tag_names: []

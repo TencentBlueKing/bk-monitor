@@ -1,0 +1,9 @@
+apiVersion: bkai.tencent.com/v1
+kind: Skill
+metadata:
+  code: bkm-alert-assign
+  name: 监控平台-告警分派
+spec:
+  generate_type: global
+  is_public: true
+  tag_names: []

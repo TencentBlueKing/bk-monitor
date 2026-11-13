@@ -1,0 +1,9 @@
+apiVersion: bkai.tencent.com/v1
+kind: Skill
+metadata:
+  code: bkm-alert-create-verify
+  name: 监控平台-告警创建与验证
+spec:
+  generate_type: global
+  is_public: true
+  tag_names: []

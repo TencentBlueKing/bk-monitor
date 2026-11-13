@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+dist/
+.ruff_cache/
+.venv/
+bkmonitor-files/
+.storage/

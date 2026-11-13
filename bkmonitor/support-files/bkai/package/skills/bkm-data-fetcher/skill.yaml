@@ -1,0 +1,9 @@
+apiVersion: bkai.tencent.com/v1
+kind: Skill
+metadata:
+  code: bkm-data-fetcher
+  name: 监控平台-观测数据提取
+spec:
+  generate_type: global
+  is_public: true
+  tag_names: []

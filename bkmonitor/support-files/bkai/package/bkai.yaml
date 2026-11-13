@@ -1,0 +1,12 @@
+apiVersion: bkai.tencent.com/v1
+kind: AgentPackage
+metadata:
+  name: bk-monitor-skills
+  version: 1.0.0
+resources:
+- skills/bkm-grafana-dashboard
+- skills/bklog-query
+- skills/bklog-ingest
+- skills/bkm-alert-assign
+- skills/bkm-alert-create-verify
+- skills/bkm-data-fetcher
