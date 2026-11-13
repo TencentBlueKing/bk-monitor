@@ -49,6 +49,7 @@ from apps.log_desensitize.models import (
     DesensitizeFieldConfig,
     DesensitizeRule,
 )
+from apps.log_clustering.constants import QUIX_SIGNATURE_FIELD, SIGNATURE_FIELD
 from apps.log_esquery.utils.es_route import EsRoute
 from apps.log_search.constants import (
     BKDATA_INDEX_RE,
@@ -2160,6 +2161,11 @@ class BaseIndexSetHandler:
                     table_info.setdefault("query_alias_settings", []).append(
                         {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
                     )
+                # 轻量化聚类默认回写原表时，普通检索同样通过 signature 查询 BKBase 写入的字段。
+                if alias_settings_resolved and cls._writes_signature_to_source(index_set.index_set_id):
+                    table_info.setdefault("query_alias_settings", []).append(
+                        {"field_name": QUIX_SIGNATURE_FIELD, "query_alias": SIGNATURE_FIELD}
+                    )
             table_info_list.append(table_info)
 
             # 纳秒采集新旧链路迁移路由补充
@@ -2182,13 +2188,22 @@ class BaseIndexSetHandler:
                 table_info_list.append(old_nano_table_info)
         return table_info_list
 
+    @staticmethod
+    def _writes_signature_to_source(index_set_id) -> bool:
+        from apps.log_clustering.models import LogClusteringRuntime
+
+        runtime = LogClusteringRuntime.objects.filter(index_set_id=index_set_id).first()
+        config = (runtime.active_config or runtime.pending_config or {}) if runtime else {}
+        return bool(config) and config.get("result_mode", "update_original") == "update_original"
+
     @classmethod
-    def sync_router(cls, index_sets: LogIndexSet | list[LogIndexSet]):
+    def sync_router(cls, index_sets: LogIndexSet | list[LogIndexSet], raise_exception: bool = False):
         """创建结果表路由信息。
 
         平台级索引集的跨空间数据隔离完全靠这里下发的 query_router_config 生效，静默失败会让
         可见范围和 IAM 入口先开放、过滤却没落地，形成越权窗口，所以这类索引集失败即抛出，
-        由调用方连同配置一起回滚。普通索引集维持原有「记日志并继续」的行为。
+        由调用方连同配置一起回滚。普通索引集维持原有「记日志并继续」的行为，
+        raise_exception 为 True 时同样失败即抛，供需要重试的调用方使用。
         """
         if not isinstance(index_sets, list):
             index_sets = [index_sets]
@@ -2259,7 +2274,7 @@ class BaseIndexSetHandler:
                         routed_index_sets[data_label] = index_set
             except Exception as e:
                 logger.exception("create or update index set(%s) router failed：%s", index_set.index_set_id, e)
-                if index_set.is_platform_index:
+                if index_set.is_platform_index or raise_exception:
                     failed_platform_index_set_ids.add(index_set.index_set_id)
 
         # MultiExecuteFunc 默认会把 worker 异常直接吞掉，必须显式取回才能判断路由是否真的落库
@@ -2268,7 +2283,7 @@ class BaseIndexSetHandler:
                 continue
             logger.error("create or update log router(%s) failed：%s", data_label, result)
             failed_index_set = routed_index_sets.get(data_label)
-            if failed_index_set is not None and failed_index_set.is_platform_index:
+            if failed_index_set is not None and (failed_index_set.is_platform_index or raise_exception):
                 failed_platform_index_set_ids.add(failed_index_set.index_set_id)
 
         if failed_platform_index_set_ids:

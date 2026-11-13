@@ -11,13 +11,14 @@ from metadata.models.data_link.log_clustering import (
     PATTERN_KEYS,
     RESULT_FIELDS,
     prepare_clustering_stores,
-    publish_clustering_routes,
 )
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-from metadata.resources.log_clustering import apply_log_clustering_sink_only, get_log_clustering_query_targets
+from metadata.resources.log_clustering import apply_log_clustering_sink_only
 from metadata.tests.data_link.test_log_clustering_sink import (
     BINDING,
+    CLUSTERED_TARGET,
     LOG_TABLE_ID,
+    PATTERN_TARGET,
     RAW_SINK,
     compose,
     create_clustering_sink,
@@ -82,16 +83,22 @@ def test_log_source_and_append_table_match_es_document_keys(log_datalink, timest
 
 @pytest.mark.parametrize("result", [{"mode": "update_original"}, {"mode": "append"}])
 def test_first_full_apply_composes_sink_with_prepared_pattern_store(log_datalink, result):
-    """首次开启走完整下发时，Sink 尚未保存 Pattern 存储引用，组装须使用本轮准备的结果。"""
-    sink = create_clustering_sink(pattern_store={}, result=result)
+    """首次开启走完整下发时，Sink 只有日志平台声明的表，组装须使用本轮准备的引用。"""
+    sink = create_clustering_sink(result=result)
 
     configs, _ = compose(*log_datalink)
 
     sink.refresh_from_db()
     assert sink.pattern_store["result_table"]["name"] == f"bklog_{BINDING['index_id']}_pattern"
     clustering = next(c for c in configs if c["kind"] == "LogClusteringSink")["spec"]["clustering"]
-    assert clustering["pattern_store"] == sink.pattern_store
+    assert clustering["pattern_store"] == bkbase_refs(sink.pattern_store)
     assert next(c for c in configs if c["kind"] == "Databus")["spec"]["sinks"][0]["kind"] == "LogClusteringSink"
+
+
+def test_pattern_table_must_be_declared(log_datalink):
+    sink = create_clustering_sink(pattern_store={})
+    with pytest.raises(ValueError, match="pattern storage is not declared"):
+        prepare_clustering_stores(sink)
 
 
 def test_existing_log_source_corrects_metric_without_clustering(log_datalink):
@@ -137,17 +144,11 @@ def test_append_registers_original_fields_and_separate_targets(log_datalink, moc
     assert storage.index_body["mappings"]["properties"]["message"]["type"] == "text"
     assert storage.index_body["mappings"]["properties"]["__log_signature"]["type"] == "keyword"
     assert storage.index_body["mappings"]["properties"]["__log_cluster_publish_revision"]["type"] == "long"
-    assert sink.compose_config(RAW_SINK)["spec"]["clustering"]["result"] == sink.result
-    remote = {(c["kind"], c["metadata"]["name"]): {**c, "status": {"phase": "Ok"}} for c in configs}
-    datalink, _ = log_datalink
-    mocker.patch.object(
-        datalink, "get_existing_component_config", side_effect=lambda kind, name, ns: remote[kind, name]
-    )
-    targets = get_log_clustering_query_targets(datalink, LOG_TABLE_ID, sink.compose_config(RAW_SINK)["spec"])
-    assert targets["clustered"]["query_index"] == storage.index_name
-    assert targets["clustered"]["need_add_time"] is True
-    assert targets["pattern"]["query_index"] == f"2_bklog_{BINDING['index_id']}_pattern"
-    assert targets["pattern"]["need_add_time"] is True
+    assert sink.compose_config(RAW_SINK)["spec"]["clustering"]["result"] == bkbase_refs(sink.result)
+    # 表名由日志平台声明，物理名与原日志表一样由 table_id 推导。
+    assert rt_model.table_id == CLUSTERED_TARGET["table_id"]
+    assert storage.index_name == CLUSTERED_TARGET["table_id"].replace(".", "_")
+    assert pattern_storage(sink).index_name == PATTERN_TARGET["table_id"].replace(".", "_")
     assert set(fields) == {"message", "__log_signature", "__log_cluster_publish_revision"}
     # 旧表重新生成时补齐系统字段，保留原日志中与旧系统字段同名的业务列。
     models.ResultTableField.objects.filter(table_id=rt_model.table_id, field_name__in=RESULT_FIELDS).delete()
@@ -168,16 +169,16 @@ def test_append_registers_original_fields_and_separate_targets(log_datalink, moc
     old_pattern = copy.deepcopy(sink.pattern_store)
     old_config = sink.compose_config(RAW_SINK)
     switch_source(710102, timezone.now())
+    declare_cluster(sink, 710102)
     prepare_clustering_stores(sink)
     assert sink.result["result_table"] == old_result["result_table"]
     assert sink.result["es_binding"] != old_result["es_binding"]
     assert sink.pattern_store["es_binding"] != old_pattern["es_binding"]
     merged = models.DataLink.merge_component_config(old_config, sink.compose_config(RAW_SINK))
-    assert merged["spec"]["clustering"]["result"] == sink.result
+    assert merged["spec"]["clustering"]["result"] == bkbase_refs(sink.result)
 
 
-def test_append_publish_keeps_both_tables_history(log_datalink, mocker):
-    datalink, _ = log_datalink
+def test_declared_cluster_switch_leaves_routes_to_caller(log_datalink, mocker):
     sink = create_clustering_sink(result={"mode": "append"})
     prepare_clustering_stores(sink)
     routes = []
@@ -197,10 +198,18 @@ def test_append_publish_keeps_both_tables_history(log_datalink, mocker):
             index_set=storage.index_set,
             storage_cluster_id=storage.storage_cluster_id,
         )
+    publish = mocker.patch.object(SpaceTableIDRedis, "push_table_id_detail")
     switch_source(710102, timezone.now())
+    declare_cluster(sink, 710102)
     prepare_clustering_stores(sink)
-    mocker.patch.object(SpaceTableIDRedis, "push_table_id_detail")
-    publish_clustering_routes(datalink)
+
+    # metadata 只切换实体表存储，不改写也不发布日志平台注册的路由。
+    publish.assert_not_called()
+    assert set(models.ESStorage.objects.filter(table_id__in=routes).values_list("storage_cluster_id", flat=True)) == {
+        710101
+    }
+    # 日志平台按新集群重新注册后，路由带上实体表的全部历史分段。
+    models.ESStorage.objects.filter(table_id__in=routes).update(storage_cluster_id=710102)
     detail, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=routes)
     assert len(detail) == 2
     for route, suffix in zip(routes, ("pattern", "clustered")):
@@ -227,7 +236,7 @@ def test_append_index_preparation_failure_retries_before_apply(log_datalink, moc
     assert prepare_index.call_args.kwargs["strict"] is True
     configs = apply.call_args.args[0]
     assert len(configs) == 5
-    assert configs[-1]["spec"]["clustering"]["result"] == sink.result
+    assert configs[-1]["spec"]["clustering"]["result"] == bkbase_refs(sink.result)
 
 
 @pytest.fixture
@@ -235,6 +244,17 @@ def log_datalink(mocker):
     mocker.patch.object(models.ESStorage, "update_index_and_aliases", return_value=True)
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
     return create_log_datalink()
+
+
+def bkbase_refs(store):
+    return {key: value for key, value in store.items() if key not in ("table_id", "cluster_id")}
+
+
+def declare_cluster(sink, cluster_id):
+    """模拟日志平台切存储后按索引集当前集群重新声明聚类表。"""
+    sink.pattern_store = {**sink.pattern_store, "cluster_id": cluster_id}
+    if sink.result.get("mode") == "append":
+        sink.result = {**sink.result, "cluster_id": cluster_id}
 
 
 def pattern_storage(sink):
@@ -279,7 +299,7 @@ def test_register_managed_pattern_once_per_index(log_datalink):
     rt, binding = first
     assert rt["spec"]["dataType"] == "log"
     assert rt["metadata"]["name"] == f"bklog_{BINDING['index_id']}_pattern"
-    expected_index = f"{rt['spec']['bizId']}_{rt['metadata']['name']}"
+    expected_index = PATTERN_TARGET["table_id"].replace(".", "_")
     assert binding["metadata"]["annotations"]["physical_table_name"] == expected_index
     assert {field["field_name"]: field["field_type"] for field in rt["spec"]["fields"]} == PATTERN_FIELDS
     assert binding["spec"]["data"] == sink.pattern_store["result_table"]
@@ -306,7 +326,10 @@ def test_register_managed_pattern_once_per_index(log_datalink):
     assert models.StorageClusterRecord.objects.filter(table_id=storage.table_id).count() == 1
     assert not models.DataSourceResultTable.objects.filter(table_id=storage.table_id).exists()
     other = create_clustering_sink(
-        name="other-pattern", data_link_name="other-link", binding={**BINDING, "index_id": "other"}
+        name="other-pattern",
+        data_link_name="other-link",
+        binding={**BINDING, "index_id": "other"},
+        pattern_store={**PATTERN_TARGET, "table_id": "2_bklog.other_pattern"},
     )
     prepare_clustering_stores(other)
     assert pattern_storage(other).table_id != storage.table_id
@@ -344,6 +367,7 @@ def test_switch_storage_keeps_fixed_name_and_all_history(log_datalink):
     original_cluster = storage.storage_cluster_id
     second_time = timezone.now()
     switch_source(710102, second_time)
+    declare_cluster(sink, 710102)
     second = prepare_clustering_stores(sink)
     assert second[0] == first[0]
     assert second[1]["metadata"]["annotations"] == first[1]["metadata"]["annotations"]
@@ -352,6 +376,7 @@ def test_switch_storage_keeps_fixed_name_and_all_history(log_datalink):
     prepare_clustering_stores(sink)
     third_time = second_time + datetime.timedelta(seconds=30)
     switch_source(original_cluster, third_time)
+    declare_cluster(sink, original_cluster)
     prepare_clustering_stores(sink)
     records = list(models.StorageClusterRecord.objects.filter(table_id=storage.table_id).order_by("enable_time"))
     assert [r.cluster_id for r in records] == [original_cluster, 710102, original_cluster]
@@ -361,52 +386,21 @@ def test_switch_storage_keeps_fixed_name_and_all_history(log_datalink):
 
 
 @pytest.mark.parametrize("multi_tenant, expected_biz", [(False, 91), (True, 17)])
-def test_pattern_index_uses_bkbase_storage_business_id(log_datalink, settings, multi_tenant, expected_biz):
+def test_pattern_physical_name_follows_declared_table(log_datalink, settings, multi_tenant, expected_biz):
     settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
     settings.DEFAULT_BKDATA_BIZ_ID = 91
-    sink = create_clustering_sink(bk_biz_id=17, binding={**BINDING, "index_id": "42"})
+    sink = create_clustering_sink(
+        bk_biz_id=17,
+        binding={**BINDING, "index_id": "42"},
+        pattern_store={"table_id": "17_bklog.42_pattern", "cluster_id": 710101},
+    )
     rt, binding = prepare_clustering_stores(sink)
     assert rt["metadata"]["name"] == "bklog_42_pattern"
     assert rt["spec"]["bizId"] == expected_biz
-    expected_index = f"{expected_biz}_bklog_42_pattern"
-    assert binding["metadata"]["annotations"]["physical_table_name"] == expected_index
-    assert pattern_storage(sink).index_set == expected_index
-
-
-def test_publish_retry_preserves_history_and_routes(log_datalink, mocker):
-    datalink, _ = log_datalink
-    sink = create_clustering_sink()
-    prepare_clustering_stores(sink)
-    storage = pattern_storage(sink)
-    route = "bklog_index_set_test_pattern.__default__"
-    models.ResultTable.objects.create(
-        table_id=route, bk_tenant_id="system", default_storage="elasticsearch", bk_biz_id=2, is_custom_table=True
-    )
-    models.ESStorage.objects.create(
-        table_id=route,
-        bk_tenant_id="system",
-        origin_table_id=storage.table_id,
-        source_type="es",
-        index_set=storage.index_set,
-        storage_cluster_id=storage.storage_cluster_id,
-    )
-    switch_source(710102, timezone.now())
-    prepare_clustering_stores(sink)
-    publish = mocker.patch.object(
-        SpaceTableIDRedis, "push_table_id_detail", side_effect=[RuntimeError("publish failed"), None]
-    )
-    with pytest.raises(RuntimeError, match="publish failed"):
-        publish_clustering_routes(datalink)
-    publish_clustering_routes(datalink)
-    assert publish.call_args.kwargs["is_publish"] is True
-    assert publish.call_args.kwargs["raise_on_log_write_error"] is True
-    routes, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=[route])
-    assert routes[route]["storage_id"] == 710102
-    assert len(routes[route]["storage_cluster_records"]) == 2
-    expected_index = f"2_bklog_{BINDING['index_id']}_pattern"
-    assert routes[route]["db"] == expected_index
-    assert {r["db"] for r in routes[route]["storage_cluster_records"]} == {expected_index}
-    assert models.StorageClusterRecord.objects.filter(table_id=storage.table_id).count() == 2
+    # 物理名通过注解指定，与 BKBase 侧业务 ID 无关。
+    assert binding["metadata"]["annotations"]["physical_table_name"] == "17_bklog_42_pattern"
+    assert pattern_storage(sink).table_id == "17_bklog.42_pattern"
+    assert pattern_storage(sink).index_set == "17_bklog_42_pattern"
 
 
 def test_failed_apply_retries_same_pattern_resources(log_datalink, mocker):
@@ -417,10 +411,8 @@ def test_failed_apply_retries_same_pattern_resources(log_datalink, mocker):
     apply = mocker.patch.object(
         datalink, "apply_data_link_with_retry", side_effect=[RuntimeError("apply failed"), None]
     )
-    publish = mocker.patch("metadata.models.data_link.log_clustering.publish_clustering_routes")
     with pytest.raises(RuntimeError, match="apply failed"):
         apply_log_clustering_sink_only(datalink, sink, RAW_SINK)
-    publish.assert_not_called()
     payload = copy.deepcopy(apply.call_args.args[0])
     apply_log_clustering_sink_only(datalink, sink, RAW_SINK)
     assert apply.call_args.args[0] == payload
@@ -428,27 +420,25 @@ def test_failed_apply_retries_same_pattern_resources(log_datalink, mocker):
     assert payload[-1]["spec"]["clustering"]["result"]["mode"] == "update_original"
     assert set(RESULT_FIELDS) <= {field["field_name"] for field in payload[0]["spec"]["fields"]}
     assert not any(config["kind"] == "Databus" for config in payload)
-    publish.assert_called_once_with(datalink)
 
 
 @pytest.mark.parametrize("mode", ["update_original", "append"])
-def test_regular_save_and_disabled_clustering_follow_source_storage(log_datalink, mode):
+def test_detached_clustering_does_not_prepare_stores(log_datalink, mode):
     sink = create_clustering_sink(result={"mode": mode})
-    configs, _ = compose(*log_datalink)
+    compose(*log_datalink)
     sink.refresh_from_db()
-    stored_ref = copy.deepcopy(sink.pattern_store)
+    original_cluster = pattern_storage(sink).storage_cluster_id
     sink.attached = False
     sink.save()
     switch_source(710102, timezone.now())
     configs, context = compose(*log_datalink)
-    sink.refresh_from_db()
-    assert sink.pattern_store["result_table"] == stored_ref["result_table"]
-    assert sink.pattern_store["es_binding"] != stored_ref["es_binding"]
     assert not any(c["kind"] == "LogClusteringSink" for c in configs)
+    assert not any(c["metadata"]["name"].endswith(("_pattern", "_clustered")) for c in configs)
     databus = next(c for c in configs if c["kind"] == "Databus")
     assert databus["spec"]["sinks"][0]["kind"] == "ElasticSearchBinding"
-    assert pattern_storage(sink).storage_cluster_id == 710102
-    # Pattern 资源独立归组，不占用原日志唯一 RT/Binding 的认领名额。
+    assert "preferCluster" not in databus["spec"]
+    # 未接入聚类时普通下发不处理聚类资源。
+    assert pattern_storage(sink).storage_cluster_id == original_cluster
     assert not context.leftover().get(models.ResultTableConfig)
     assert not context.leftover().get(models.ESStorageBindingConfig)
 
@@ -467,35 +457,39 @@ def test_same_index_in_different_tenants_gets_separate_pattern_table(log_datalin
         is_default_cluster=False,
     )
     models.ESStorage.objects.create(bk_tenant_id="other", table_id=LOG_TABLE_ID, storage_cluster_id=710103)
-    other = create_clustering_sink(bk_tenant_id="other", name="other-sink", data_link_name="other-link")
+    other = create_clustering_sink(
+        bk_tenant_id="other",
+        name="other-sink",
+        data_link_name="other-link",
+        pattern_store={**PATTERN_TARGET, "cluster_id": 710103},
+    )
     configs = prepare_clustering_stores(other)
     assert other.pattern_store["result_table"]["name"] == first.pattern_store["result_table"]["name"]
     assert pattern_storage(other).pk != pattern_storage(first).pk
-    assert all(ref["tenant"] == "other" for ref in other.pattern_store.values())
+    assert all(ref["tenant"] == "other" for ref in bkbase_refs(other.pattern_store).values())
     assert configs[1]["spec"]["storage"]["name"] == "other-es"
 
 
-def test_full_apply_publishes_routes_only_after_success(log_datalink, mocker):
+def test_full_apply_retries_with_clustering_stores(log_datalink, mocker):
     datalink, data_source = log_datalink
     create_clustering_sink()
     mocker.patch.object(datalink, "get_existing_component_config", return_value=None)
     apply = mocker.patch.object(datalink, "apply_data_link_with_retry", side_effect=[RuntimeError("apply failed"), {}])
-    publish = mocker.patch("metadata.models.data_link.log_clustering.publish_clustering_routes")
     with pytest.raises(RuntimeError, match="apply failed"):
         datalink.apply_data_link(bk_biz_id=2, data_source=data_source, table_id=LOG_TABLE_ID)
-    publish.assert_not_called()
     datalink.apply_data_link(bk_biz_id=2, data_source=data_source, table_id=LOG_TABLE_ID)
     configs = apply.call_args.args[0]
     sink = next(c for c in configs if c["kind"] == "LogClusteringSink")
     assert sink["spec"]["clustering"]["result"]["mode"] == "update_original"
     assert len([c for c in configs if c["kind"] == "ResultTable"]) == 2
     assert len([c for c in configs if c["kind"] == "ElasticSearchBinding"]) == 2
-    publish.assert_called_once_with(datalink)
+    databus = next(c for c in configs if c["kind"] == "Databus")
+    assert [ref["kind"] for ref in databus["spec"]["sinks"]] == ["LogClusteringSink"]
+    assert databus["spec"]["preferCluster"]["kind"] == "DatabusCluster"
 
 
 @pytest.mark.parametrize("mode", ["update_original", "append"])
 def test_result_schema_and_normal_query_alias_survive_reapply(log_datalink, mocker, mode):
-    datalink, _ = log_datalink
     models.ESStorage.objects.filter(table_id=LOG_TABLE_ID).update(index_settings="{}", mapping_settings="{}")
     models.ResultTableField.objects.create(
         table_id=LOG_TABLE_ID,
@@ -545,13 +539,11 @@ def test_result_schema_and_normal_query_alias_survive_reapply(log_datalink, mock
             assert mapping["__log_cluster_publish_revision"]["type"] == "long"
         else:
             assert "__log_signature" not in mapping
-        publish_clustering_routes(datalink)
         detail, _ = SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="system", table_id_list=[route])
-        expected = {"body": "message"}
-        if mode == "update_original":
-            expected["signature"] = "__log_signature"
-        assert detail[route]["field_alias"] == expected
-        assert {route, LOG_TABLE_ID} <= set(publish.call_args.kwargs["table_id_list"])
+        # signature 别名由日志平台随路由下发，metadata 不改业务别名。
+        assert detail[route]["field_alias"] == {"body": "message"}
+        # 查询路由由日志平台注册和发布，metadata 不重新发布源表路由。
+        assert not any(route in call.kwargs.get("table_id_list", []) for call in publish.call_args_list)
 
 
 def test_pattern_timestamp_added_to_existing_table_and_rotation(log_datalink, mocker):

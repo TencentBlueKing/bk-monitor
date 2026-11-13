@@ -1,12 +1,10 @@
 ### 功能描述
 
-查询日志链路的聚类配置与运行状态。
+查询日志链路的聚类状态。
 
-返回本地保存的绑定，并原样透传 BKBase 回读的聚类 Sink、Databus 资源。聚类进度从 LogClusteringSink 的 `status.message` JSON 对象解析，不请求专用 Databus 状态接口。
-sink_referenced、raw_sink_referenced 只说明远端 Databus 配置的引用情况，不代表 Runtime 已实际采用。
-远端查询错误记录在 errors 中。普通文本状态消息保留在资源中，clustering_status 返回 null。
+metadata 按 BKBase 回读的聚类 Sink 与 Databus 汇总链路状态：`ready` 表示 Databus 已引用聚类 Sink，且两者 phase 均为 Ok；`detached` 表示 Databus 已恢复引用原 ES 存储绑定，不再引用聚类 Sink。业务开关以 `enabled` 回读，本地 `attached` 仅表示目标引用状态。远端查询失败不影响其他字段返回，错误记录在 `errors` 中。
 
-资源不存在、status 缺失或 message 为空时，clustering_status 为 null，表示暂无进度，不能视为已完成。解析结果保留 BKBase 返回的全部字段，包括 configuration_applied、clustering_closed 等；旧版回执供后台收尾核对。产品开启、更新和重开在 Databus 引用目标 Sink 且两者 phase 均为 Ok 时确认链路就绪。资源 phase=Ok 或 Databus 引用存在均不代表本次配置已实际采用。业务开关以 sink_resource.spec.clustering.enabled 回读，本地 attached 仅表示目标引用状态。
+`clustering_status` 为聚类 Sink `status.message` 中的 JSON 进度，仅供停用收尾核对；普通文本或为空时为 null。
 
 ### 请求参数
 
@@ -14,7 +12,6 @@ sink_referenced、raw_sink_referenced 只说明远端 Databus 配置的引用情
 |--------------|--------|----|-----------------|
 | bk_tenant_id | string | 否  | 租户ID，缺省时取请求租户   |
 | table_id     | string | 是  | 日志采集项对应的监控结果表ID |
-| include_query_targets | bool | 否 | 默认 false；设为 true 时从远端 Sink 配置解析实际查询目标 |
 
 ### 请求参数示例
 
@@ -26,24 +23,18 @@ sink_referenced、raw_sink_referenced 只说明远端 Databus 配置的引用情
 
 ### 响应参数
 
-| 字段                  | 类型     | 描述                                   |
-|---------------------|--------|--------------------------------------|
-| configured          | bool   | 是否已保存聚类配置；为 false 时不返回其他字段           |
-| attached            | bool   | 本地保存的 Databus 目标引用状态            |
-| binding             | dict   | 本地保存的目标聚类绑定，不等于远端实际采用                            |
-| raw_sink            | dict   | 本链路当前唯一的 ES 存储绑定引用，无法唯一确定时为 null   |
-| sink                | dict   | 聚类 Sink 身份：tenant、namespace、name      |
-| databus             | dict   | Databus 身份：tenant、namespace、name      |
-| sink_resource       | dict   | BKBase 回读的聚类 Sink 资源，不存在时为 null      |
-| databus_resource    | dict   | BKBase 回读的 Databus 资源，不存在时为 null     |
-| sink_referenced     | bool   | 远端 Databus.spec.sinks 是否引用聚类 Sink     |
-| raw_sink_referenced | bool   | 远端 Databus.spec.sinks 是否引用 raw_sink；raw_sink 为 null 时为 false |
-| clustering_status   | dict   | 聚类 Sink 的 status.message 解析出的 JSON 对象；暂无进度或解析失败时为 null                   |
-| errors              | list   | 远端查询失败信息，元素包含 source、message          |
-
-传入 `include_query_targets=true` 时，`query_targets.clustered` 返回实际结果表的 `table_id`、`cluster_id`、`storage_type`、`source_type`、`query_index` 和 `need_add_time`。`update_original` 指向原日志表，`append` 按 Sink 的 `result_table` 和 `es_binding` 解析独立结果表；无法解析时在 `errors` 中返回原因。集群从已就绪 ES binding 的 `spec.storage` 解析。`source_type` 取自实际结果表的查询来源。固定写别名直接查询；标准日写别名使用对应的按日读别名。未指定写别名时先取 binding 的 `physical_table_name` 注解，再取实际 BKBase 结果表 ID。ES binding 尚未就绪时，返回空查询目标，调用方继续等待。目标配置错误时，`errors` 返回具体原因和 `retryable=false`；其他读取异常由调用方记录原因并有限重试。日写别名的时区必须与查询来源一致（bkdata 为 UTC+8，其他为 UTC）；不一致或无法映射时间格式时，状态接口返回错误。下游用 `bklog_index_set_<id>_clustered` 查询日志，`signature` 在两种模式下均映射到 BKBase 写入的物理字段 `__log_signature`。签名筛选、聚合和样例折叠通过 UnifyQuery 使用 `signature` 别名，Pattern 映射表直接读取自身的 `signature` 字段。
-
-`query_targets.pattern` 单独返回 `table_id`（metadata 登记的 Pattern 实体表）、`cluster_id`、`storage_type`、`source_type`、`query_index` 和 `need_add_time`（false），用于登记 `bklog_index_set_<id>_pattern`。该标签指向签名与模板的映射表，独立于 `_clustered`。集群来自 pattern_store.es_binding 的 storage；索引优先取 physical_table_name 注解，否则按 BKBase ResultTable ID 规则解析。Pattern 只允许固定索引，不按日期追加读别名；绑定与结果表须已就绪且引用一致。每个索引集单独注册 Pattern 表，查询保留源索引集 ID 和距离档位过滤，签名下钻同样保留源索引集鉴权，所有数据查询经 UnifyQuery。注册 `_pattern` 路由时将该 table_id 作为 origin_table_id，切存储后复用实体表的历史分段；`_clustered` 同样关联其实际结果表。
+| 字段                | 类型     | 描述                                   |
+|-------------------|--------|--------------------------------------|
+| configured        | bool   | 是否已保存聚类配置；为 false 时不返回其他字段           |
+| attached          | bool   | 本地保存的 Databus 目标引用状态            |
+| sink              | dict   | 聚类 Sink 身份：tenant、namespace、name      |
+| databus           | dict   | Databus 身份：tenant、namespace、name      |
+| enabled           | bool   | 远端聚类 Sink 的 `spec.clustering.enabled`，资源不存在时为 null |
+| sink_phase        | string | 远端聚类 Sink 的 `status.phase`，资源不存在时为 null |
+| ready             | bool   | Databus 已引用聚类 Sink，且两者 phase 均为 Ok |
+| detached          | bool   | Databus 已恢复引用原 ES 存储绑定且 phase 为 Ok |
+| clustering_status | dict   | 聚类 Sink `status.message` 解析出的 JSON 对象；无进度或解析失败时为 null |
+| errors            | list   | 远端查询失败信息，元素包含 source、message |
 
 ### 响应参数示例
 
@@ -55,15 +46,13 @@ sink_referenced、raw_sink_referenced 只说明远端 Databus 配置的引用情
     "data": {
         "configured": true,
         "attached": true,
-        "binding": {"task_id": "0f1d2c3b-4a59-4e6f-8a7b-9c0d1e2f3a4b", "distance_threshold": "0.5"},
-        "raw_sink": {"kind": "ElasticSearchBinding", "namespace": "bklog", "name": "bklog_2_abcdefghijklmnop"},
         "sink": {"tenant": "system", "namespace": "bklog", "name": "bkm_lcs_50010_a1b2c3d4e5f6"},
         "databus": {"tenant": "system", "namespace": "bklog", "name": "bklog_2_abcdefghijklmnop"},
-        "sink_resource": {"kind": "LogClusteringSink", "metadata": {}, "spec": {"clustering": {"enabled": true}}, "status": {"phase": "Ok", "message": "{\"configuration_applied\":true,\"clustering_closed\":false}"}},
-        "databus_resource": {"kind": "Databus", "metadata": {}, "spec": {}, "status": {"phase": "Ok"}},
-        "sink_referenced": true,
-        "raw_sink_referenced": false,
-        "clustering_status": {"configuration_applied": true, "clustering_closed": false},
+        "enabled": true,
+        "sink_phase": "Ok",
+        "ready": true,
+        "detached": false,
+        "clustering_status": null,
         "errors": []
     }
 }

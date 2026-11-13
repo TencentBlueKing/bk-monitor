@@ -50,17 +50,6 @@ _CLEAN_TEMPLATE_ID_NOT_PROVIDED = object()
 
 
 class TransferEtlHandler(EtlHandler):
-    @staticmethod
-    def validate_storage_switch(changed_index_set_ids):
-        if (
-            LogClusteringRuntime.objects.filter(index_set_id__in=changed_index_set_ids)
-            .exclude(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
-            .exists()
-        ):
-            raise QuixClusteringParamsInvalidException(
-                QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("请先关闭轻量化聚类，再切换存储集群"))
-            )
-
     def _validate_clean_template(self, clean_template_id):
         if clean_template_id is None:
             return None
@@ -175,14 +164,27 @@ class TransferEtlHandler(EtlHandler):
         user_fields = copy.deepcopy(fields)
 
         index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
-        if index_set_obj and index_set_obj.storage_cluster_id != storage_cluster_id:
-            self.validate_storage_switch([index_set_obj.index_set_id])
+        storage_switched = bool(index_set_obj and index_set_obj.storage_cluster_id != storage_cluster_id)
 
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
 
         if not storage_cluster_type:
             storage_cluster_type = cluster_info.get("cluster_type") or STORAGE_CLUSTER_TYPE
+
+        # 轻量化聚类的结果表只支持 ES 存储，聚类未关闭时不能切到其他类型的集群
+        if (
+            storage_switched
+            and storage_cluster_type != STORAGE_CLUSTER_TYPE
+            and LogClusteringRuntime.objects.filter(index_set_id=index_set_obj.index_set_id)
+            .exclude(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
+            .exists()
+        ):
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(
+                    detail=_("轻量化聚类仅支持 ES 存储，请先关闭聚类再切换到其他类型的存储集群")
+                )
+            )
 
         # es 集群获取 es 版本, doris 集群将 es 版本设置为空
         if not cluster_info["cluster_config"]["version"] or storage_cluster_type != STORAGE_CLUSTER_TYPE:
@@ -260,6 +262,12 @@ class TransferEtlHandler(EtlHandler):
             platform_index_visibility=platform_index_visibility,
             platform_index_filter=platform_index_filter,
         )
+
+        if storage_switched:
+            from apps.log_clustering.tasks.quix import follow_quix_clustering_storage
+
+            # 轻量化聚类的 Pattern/独立结果表及路由跟随索引集的新集群
+            transaction.on_commit(lambda: follow_quix_clustering_storage.delay(self.data.index_set_id))
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次
         LogIndexSet.objects.filter(index_set_id=index_set["index_set_id"]).update(fields_snapshot={})

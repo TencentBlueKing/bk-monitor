@@ -13,7 +13,7 @@ BKBase 成功受理 disable（enabled=false）即为产品停用。后台在取�
 
 动作成功只表示本次下发成功，不代表实际收尾、采用或解绑已完成；通过 `get_log_clustering_status` 回读。过滤更新直接使用 `set_log_clustering_config`，不执行这些业务关闭动作。旧 `drain/finish/resume` 动作不再支持。
 
-同一链路的聚类变更全程互斥，有其他变更进行中时直接返回错误。动作失败时，可重试同一动作；本地 `attached` 是保存的目标引用状态，不是 Runtime 回执。
+同一索引集的变更由调用方串行发起。动作失败时，可重试同一动作；本地 `attached` 是保存的目标引用状态，不是 Runtime 回执。
 
 ### 请求参数
 

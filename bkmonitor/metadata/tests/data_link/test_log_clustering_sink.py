@@ -70,7 +70,8 @@ def build_sink(**overrides) -> LogClusteringSinkConfig:
         "table_id": "2_bklog.demo",
         "binding": BINDING,
         "kafka_resource": KAFKA_RESOURCE,
-        "pattern_store": PATTERN_STORE,
+        # table_id、cluster_id 是日志平台登记的表名和集群，只在 metadata 内使用
+        "pattern_store": {**PATTERN_STORE, "table_id": "2_bklog.24466_pattern", "cluster_id": 710101},
         "runtime_cluster": RUNTIME_CLUSTER,
         "recovery_resource": RECOVERY_RESOURCE,
     }
@@ -100,6 +101,17 @@ def test_compose_config_outputs_raw_sink_and_clustering(default_biz):
             },
         },
     }
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=False)
+def test_compose_config_omits_declared_append_table(default_biz):
+    refs = {"result_table": {"name": "predict"}, "es_binding": {"name": "predict-es"}}
+    result = {"mode": "append", "table_id": "2_bklog.24466_clustered", "cluster_id": 710101, **refs}
+
+    clustering = build_sink(result=result).compose_config(RAW_SINK)["spec"]["clustering"]
+
+    assert clustering["result"] == {"mode": "append", **refs}
+    assert clustering["pattern_store"] == PATTERN_STORE
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True)
@@ -276,9 +288,21 @@ def find_config(configs: list[dict], kind: str) -> dict:
     return next(config for config in configs if config["kind"] == kind)
 
 
+PATTERN_TARGET = {"table_id": f"2_bklog.{BINDING['index_id']}_pattern", "cluster_id": 710101}
+CLUSTERED_TARGET = {"table_id": f"2_bklog.{BINDING['index_id']}_clustered", "cluster_id": 710101}
+
+
 def create_clustering_sink(**overrides) -> LogClusteringSinkConfig:
-    fields = {"data_link_name": LOG_DATA_LINK_NAME, "table_id": LOG_TABLE_ID, "attached": True}
+    """按日志平台的声明创建已接入的 Sink：Pattern 表及 append 模式的独立结果表位于源日志集群。"""
+    fields = {
+        "data_link_name": LOG_DATA_LINK_NAME,
+        "table_id": LOG_TABLE_ID,
+        "attached": True,
+        "pattern_store": dict(PATTERN_TARGET),
+    }
     fields.update(overrides)
+    if (fields.get("result") or {}).get("mode") == "append":
+        fields["result"] = {**CLUSTERED_TARGET, **fields["result"]}
     sink = build_sink(**fields)
     sink.save()
     return sink
@@ -323,7 +347,7 @@ def test_compose_log_configs_with_attached_sink_only_replaces_databus_sinks(log_
     assert {key: value for key, value in databus_config["spec"].items() if key not in ("sinks", "preferCluster")} == {
         key: value for key, value in plain_databus_config["spec"].items() if key not in ("sinks", "preferCluster")
     }
-    assert databus_config["spec"]["preferCluster"] == RUNTIME_CLUSTER
+    # preferCluster 由 apply_data_link 统一读取已接入 Sink 的专用集群。
     assert databus_config["spec"]["consumerGroup"] == "raw_consumer_group"
     assert databus_config["metadata"] == plain_databus_config["metadata"]
 
@@ -417,7 +441,8 @@ def test_regeneration_preserves_remote_clustering_switch(enabled, default_biz):
 
     merged = DataLink.merge_component_config(remote, generated)
 
-    assert merged["spec"]["clustering"]["result"] == result
+    # 写入目标以 metadata 登记的 Sink 配置为准，开关沿用远端。
+    assert merged["spec"]["clustering"]["result"] == generated["spec"]["clustering"]["result"]
     assert merged["spec"]["clustering"]["enabled"] is enabled
     assert merged["spec"]["clustering"]["binding"] == BINDING
     assert "status" not in merged

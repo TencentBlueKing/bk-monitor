@@ -41,6 +41,7 @@ from apps.log_clustering.handlers.quix.config import get_quix_config
 from apps.log_clustering.handlers.quix.operation import QuixClusteringOperationRunner
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import LogIndexSet, Space
 from apps.models import model_to_dict
@@ -119,6 +120,10 @@ class QuixClusteringHandler:
         clustering_config["result_mode"] = result_mode
 
         collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
+        if collector_config.storage_cluster_type != STORAGE_CLUSTER_TYPE:
+            raise QuixClusteringParamsInvalidException(
+                QuixClusteringParamsInvalidException.MESSAGE.format(detail=_("当前仅支持 ES 存储的索引集"))
+            )
         etl_config = collector_config.get_etl_config()
         ClusteringConfigHandler.pre_check_fields(
             fields=etl_config["fields"],
@@ -352,7 +357,7 @@ class QuixClusteringHandler:
         if "confirm_model_parameters" not in completed:
             completed.discard("update_model_parameters")
         unconfirmed = set(operation.request_payloads) - completed
-        if operation.step in ("enable_clustering", "attach") and operation.step not in completed:
+        if operation.step == "enable_clustering" and operation.step not in completed:
             unconfirmed.add(operation.step)
         if unconfirmed & {
             "create_task",
@@ -360,7 +365,6 @@ class QuixClusteringHandler:
             "metadata_set",
             "restart",
             "enable_clustering",
-            "attach",
         }:
             raise QuixClusteringParamsInvalidException(
                 QuixClusteringParamsInvalidException.MESSAGE.format(

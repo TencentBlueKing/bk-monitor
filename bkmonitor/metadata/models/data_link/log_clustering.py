@@ -29,7 +29,7 @@ RESULT_FIELDS = {
 
 
 def register_result_fields(table_id, tenant):
-    """两种写入目标使用相同的聚类字段和查询别名，不覆盖业务字段选项。"""
+    """登记 BKBase 回写的聚类字段，不覆盖业务字段选项；查询别名由日志平台随路由下发。"""
     from metadata import models
 
     for field, kind in RESULT_FIELDS.items():
@@ -52,26 +52,16 @@ def register_result_fields(table_id, tenant):
             bk_tenant_id=tenant,
             defaults={"value": "long" if kind == "long" else "keyword", "value_type": "string", "creator": "system"},
         )
-    register_signature_alias(table_id, tenant)
-
-
-def register_signature_alias(table_id, tenant):
-    from metadata import models
-
-    models.ESFieldQueryAliasOption.objects.update_or_create(
-        table_id=table_id,
-        bk_tenant_id=tenant,
-        query_alias="signature",
-        defaults={"field_path": "__log_signature", "path_type": "keyword", "is_deleted": False},
-    )
 
 
 def prepare_clustering_stores(sink):
-    """准备 Pattern，以及首次开启时选择的独立结果表。"""
+    """按调用方登记的表名和集群，准备 Pattern 表及独立结果表。"""
     from metadata.models.data_link.utils import generate_result_table_field_list
 
-    configs, refs = _prepare_store(sink, "pattern", PATTERN_FIELDS)
-    sink.pattern_store = refs
+    if not (sink.pattern_store or {}).get("table_id"):
+        raise ValueError(f"log clustering sink({sink.name}) pattern storage is not declared")
+    configs, refs = _prepare_store(sink, "pattern", PATTERN_FIELDS, sink.pattern_store)
+    sink.pattern_store = {**sink.pattern_store, **refs}
     if sink.result.get("mode") == "append":
         from metadata import models
         from metadata.models.result_table import LogV4DataLinkOption
@@ -89,8 +79,8 @@ def prepare_clustering_stores(sink):
             )
         }
         fields.update(RESULT_FIELDS)
-        result_configs, result_refs = _prepare_store(sink, "clustered", fields, es_config=es_config)
-        sink.result = {"mode": "append", **result_refs}
+        result_configs, result_refs = _prepare_store(sink, "clustered", fields, sink.result, es_config=es_config)
+        sink.result = {**sink.result, **result_refs}
         configs.extend(result_configs)
     else:
         from metadata import models
@@ -103,8 +93,8 @@ def prepare_clustering_stores(sink):
     return configs
 
 
-def _prepare_store(sink, suffix, fields, *, es_config=None):
-    """每个租户、索引集登记聚类结果或 Pattern 表，跟随源日志的 ES 存储。
+def _prepare_store(sink, suffix, fields, target, *, es_config=None):
+    """按调用方声明的 table_id 与 ES 集群登记聚类结果或 Pattern 表，保留和轮转设置沿用源日志。
 
     资源单独归组，避免被原日志链路的单 RT/Binding 认领和清理逻辑误处理。
     不创建 DataID、Databus 或源数据关联，只有聚类算子向该表写入。
@@ -113,14 +103,10 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
 
     tenant = sink.bk_tenant_id
     name = f"bklog_{sink.binding['index_id']}_{suffix}"
-    table_id = (
-        f"bklog.{name}"
-        if suffix == "pattern"
-        else f"{sink.datalink_biz_ids.data_biz_id}_bklog.{sink.binding['index_id']}_clustered"
-    )
+    table_id = target["table_id"]
     source = models.ESStorage.objects.get(bk_tenant_id=tenant, table_id=sink.table_id)
     cluster = models.ClusterInfo.objects.get(
-        bk_tenant_id=tenant, cluster_id=source.storage_cluster_id, cluster_type=models.ClusterInfo.TYPE_ES
+        bk_tenant_id=tenant, cluster_id=target["cluster_id"], cluster_type=models.ClusterInfo.TYPE_ES
     )
     with transaction.atomic(using=DATABASE_CONNECTION_NAME):
         table, _ = models.ResultTable.objects.get_or_create(
@@ -209,7 +195,7 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
                     option.table_id = table_id
                     option.save()
             register_result_fields(table_id, tenant)
-        rt, _ = models.ResultTableConfig.objects.get_or_create(
+        rt, _ = models.ResultTableConfig.objects.update_or_create(
             bk_tenant_id=tenant,
             namespace=sink.namespace,
             name=name,
@@ -241,9 +227,8 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
                 "timezone": source.time_zone,
             },
         )
-        # 在不同集群使用同一个固定物理名称，历史路由可以复用原来的查询目标。
-        # 与 BKBase ResultTable.result_table_id() 的业务前缀保持一致。
-        physical_name = f"{rt_config['spec']['bizId']}_{rt.name}"
+        # 与原日志表相同，物理名称由 table_id 推导；不同集群使用同一名称，历史路由可复用原查询目标。
+        physical_name = table_id.replace(".", "_")
         storage = models.ESStorage.objects.filter(bk_tenant_id=tenant, table_id=table_id).first()
         is_moving_cluster = storage is None or storage.storage_cluster_id != cluster.cluster_id
         storage_options = {
@@ -326,49 +311,3 @@ def _prepare_store(sink, suffix, fields, *, es_config=None):
             json_field_list=es_config.json_field_list,
         )
     return [rt_config, binding_config], refs
-
-
-def publish_clustering_routes(datalink):
-    """完整链路或 Sink 下发成功后，刷新已存在的聚类路由；失败由原操作重试补发。"""
-    from metadata import models
-    from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
-
-    sink = models.LogClusteringSinkConfig.objects.filter(
-        bk_tenant_id=datalink.bk_tenant_id,
-        namespace=datalink.namespace,
-        data_link_name=datalink.data_link_name,
-    ).first()
-    if sink is None or not sink.pattern_store:
-        return
-    ref = sink.pattern_store["result_table"]
-    rt = models.ResultTableConfig.objects.get(
-        bk_tenant_id=datalink.bk_tenant_id, namespace=ref["namespace"], name=ref["name"]
-    )
-    table_ids = [rt.table_id, sink.table_id]
-    if sink.result.get("mode") == "append":
-        ref = sink.result["result_table"]
-        table_ids.append(
-            models.ResultTableConfig.objects.get(
-                bk_tenant_id=datalink.bk_tenant_id, namespace=ref["namespace"], name=ref["name"]
-            ).table_id
-        )
-    route_ids = list(table_ids)
-    for table_id in table_ids:
-        storage = models.ESStorage.objects.get(bk_tenant_id=datalink.bk_tenant_id, table_id=table_id)
-        routes = models.ESStorage.objects.filter(
-            bk_tenant_id=datalink.bk_tenant_id,
-            origin_table_id=table_id,
-        )
-        related_ids = list(routes.values_list("table_id", flat=True))
-        # 普通检索的虚拟 RT 可有其他别名；增量补签名，避免其遮住源表别名。
-        if table_id != rt.table_id and (
-            table_id != sink.table_id or sink.result.get("mode", "update_original") == "update_original"
-        ):
-            for route_id in related_ids:
-                register_signature_alias(route_id, sink.bk_tenant_id)
-        route_ids.extend(related_ids)
-        routes.update(storage_cluster_id=storage.storage_cluster_id)
-    if route_ids:
-        SpaceTableIDRedis().push_table_id_detail(
-            table_id_list=route_ids, bk_tenant_id=datalink.bk_tenant_id, is_publish=True, raise_on_log_write_error=True
-        )

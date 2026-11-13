@@ -22,6 +22,7 @@ class TestQuixClusteringHandler(TestCase):
             bk_biz_id=2,
             table_id="2_bklog.demo",
             bk_data_id=1001,
+            storage_cluster_type="elasticsearch",
         )
         self.collector_config = collector_config
         collector_config.get_etl_config.return_value = {"fields": [{"field_name": "message", "alias_name": "content"}]}
@@ -80,6 +81,20 @@ class TestQuixClusteringHandler(TestCase):
             QuixClusteringHandler(self.index_set).enable({"clustering_fields": "log"})
         self.assertFalse(LogClusteringRuntime.objects.exists())
         mock_delay.assert_not_called()
+
+    def test_doris_storage_rejected_before_start(self, mock_delay):
+        self.collector_config.storage_cluster_type = "doris"
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            QuixClusteringHandler(self.index_set).enable({"clustering_fields": "log"})
+        self.assertFalse(LogClusteringRuntime.objects.exists())
+        mock_delay.assert_not_called()
+
+    def test_es_index_set_with_doris_analysis_copy_is_accepted(self, mock_delay):
+        # 额外接入 Doris 分析副本的 ES 索引集，主存储仍是 ES
+        self.index_set.support_doris = True
+        self.index_set.doris_table_id = "db.doris_table"
+        result = QuixClusteringHandler(self.index_set).enable({"clustering_fields": "log"})
+        mock_delay.assert_called_once_with(result["operation_id"])
 
     def test_custom_field_alias_is_accepted(self, mock_delay):
         QuixClusteringHandler(self.index_set).enable({"clustering_fields": "content"})

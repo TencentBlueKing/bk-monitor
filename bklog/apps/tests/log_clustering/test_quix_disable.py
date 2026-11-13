@@ -30,7 +30,8 @@ SINK = {"name": "sink"}
 CLOSED = {
     "configured": True,
     "attached": True,
-    "sink_resource": {"spec": {"clustering": {"enabled": False}}, "status": {"phase": "Ok"}},
+    "enabled": False,
+    "sink_phase": "Ok",
     "clustering_status": {
         "requested_epoch": "20",
         "applied_epoch": "20",
@@ -42,9 +43,7 @@ CLOSED = {
 DETACHED = {
     "configured": True,
     "attached": False,
-    "sink_referenced": False,
-    "raw_sink_referenced": True,
-    "databus_resource": {"status": {"phase": "Ok"}},
+    "detached": True,
 }
 
 
@@ -64,6 +63,7 @@ class TestQuixDisableRunner(TestCase):
             ("apps.log_clustering.handlers.quix.operation.BkFaraApi", self.bkfara),
             ("apps.log_clustering.handlers.quix.operation.TransferApi", self.transfer),
             ("apps.log_clustering.handlers.quix.operation.LogIndexSet.delete_tag_by_name", self.delete_tag),
+            ("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=QUIX_CONFIG)),
         ):
             patcher = patch(target, value)
             patcher.start()
@@ -109,18 +109,17 @@ class TestQuixDisableRunner(TestCase):
         self.bkfara.stop_clustering.assert_not_called()
         binding = {"input_topic": "original"}
         LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(kafka_binding=binding, input_revision=1)
+        LogIndexSet.objects.create(index_set_id=INDEX_SET_ID, space_uid="bkcc__2", storage_cluster_id=3)
         self.bkfara.get_clustering.return_value = {"kafka": binding, "input_revision": 1, "state": "RUNNING"}
-        self.transfer.get_log_clustering_status.return_value = {
-            "sink_referenced": True,
-            "sink_resource": {"status": {"phase": "Ok"}},
-            "databus_resource": {"status": {"phase": "Ok"}},
-        }
+        self.transfer.get_log_clustering_status.return_value = {"ready": True}
+        self.transfer.set_log_clustering_config.return_value = {"sink": SINK}
         self.assertIsNone(QuixClusteringOperationRunner(reopen).run())
         self.bkfara.restart_clustering.assert_not_called()
         self.assertEqual(
             [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list],
-            ["disable", "enable", "attach"],
+            ["disable", "enable"],
         )
+        self.transfer.set_log_clustering_config.assert_called_once()
 
     @patch("apps.log_clustering.handlers.quix.handler.QuixClusteringHandler._get_bkfara_clustering", return_value={})
     def test_disable_timeout_does_not_report_stopped(self, get_clustering):
@@ -152,7 +151,7 @@ class TestQuixDisableRunner(TestCase):
         self.assertEqual(self.operation.status, "success")
 
     def test_reopen_cannot_overtake_inflight_detach(self):
-        self.transfer.get_log_clustering_status.side_effect = [CLOSED, {**DETACHED, "sink_referenced": True}]
+        self.transfer.get_log_clustering_status.side_effect = [CLOSED, {**DETACHED, "detached": False}]
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
         handler = QuixClusteringHandler(LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2"))
         with self.assertRaises(QuixClusteringParamsInvalidException):
@@ -164,7 +163,7 @@ class TestQuixDisableRunner(TestCase):
     def test_bound_stop_waits_for_raw_binding_then_resumes_without_reapplying(self):
         self.transfer.get_log_clustering_status.side_effect = [
             CLOSED,
-            {**DETACHED, "sink_referenced": True},
+            {**DETACHED, "detached": False},
             DETACHED,
         ]
         self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
@@ -219,9 +218,9 @@ class TestQuixDisableRunner(TestCase):
         for case in ("enabled", "pending", "error"):
             status = deepcopy(CLOSED)
             if case == "enabled":
-                status["sink_resource"]["spec"]["clustering"]["enabled"] = True
+                status["enabled"] = True
             elif case == "pending":
-                status["sink_resource"]["status"]["phase"] = "Pending"
+                status["sink_phase"] = "Pending"
             else:
                 status["errors"] = [{"source": "sink_resource"}]
             self.transfer.get_log_clustering_status.return_value = status
@@ -248,9 +247,7 @@ class TestQuixDisableRunner(TestCase):
         runner = QuixClusteringOperationRunner(self.operation.operation_id)
         for patch_value in (
             {"errors": ["unavailable"]},
-            {"sink_referenced": True},
-            {"raw_sink_referenced": False},
-            {"databus_resource": {}},
+            {"detached": False},
         ):
             with self.subTest(patch_value=patch_value):
                 self.transfer.get_log_clustering_status.return_value = {**DETACHED, **patch_value}
@@ -402,7 +399,12 @@ class TestQuixClusteringHandlerDisable(TestCase):
             phase=ClusteringRuntimePhaseEnum.STOPPED.value, sink={}, bkfara_task_id="old-task"
         )
         collector_config = Mock(
-            collector_config_id=10, collector_config_name_en="demo", bk_biz_id=2, table_id="2_bklog.demo", bk_data_id=1
+            collector_config_id=10,
+            collector_config_name_en="demo",
+            bk_biz_id=2,
+            table_id="2_bklog.demo",
+            bk_data_id=1,
+            storage_cluster_type="elasticsearch",
         )
         collector_config.get_etl_config.return_value = {"fields": []}
         with (
