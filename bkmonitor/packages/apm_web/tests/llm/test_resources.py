@@ -1059,7 +1059,7 @@ class ListToolCallsResourceTestCase(TestCase):
         ]
         application = mock.Mock()
         query = mock.Mock()
-        query.query_trace_tool_calls.return_value = spans
+        query.query_tool_calls.return_value = spans
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application) as get_app,
             mock.patch("apm_web.llm.resources.get_query", return_value=query) as get_query,
@@ -1068,7 +1068,9 @@ class ListToolCallsResourceTestCase(TestCase):
 
         get_app.assert_called_once_with(bk_biz_id=11, app_name="demo")
         get_query.assert_called_once_with(application.build_data_sources.return_value)
-        query.query_trace_tool_calls.assert_called_once_with("trace-1")
+        query.query_tool_calls.assert_called_once_with(
+            group_field="trace_id", group_id="trace-1", offset=0, limit=10000
+        )
         self.assertEqual(result["trace_id"], "trace-1")
         self.assertEqual(result["total"], 3)
         self.assertEqual(
@@ -1090,35 +1092,76 @@ class ListToolCallsResourceTestCase(TestCase):
 
     def test_empty_trace_returns_empty_list(self):
         query = mock.Mock()
-        query.query_trace_tool_calls.return_value = []
+        query.query_tool_calls.return_value = []
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get"),
             mock.patch("apm_web.llm.resources.get_query", return_value=query),
         ):
             result = ListToolCallsResource().request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
-        self.assertEqual(result, {"trace_id": "trace-1", "total": 0, "tool_calls": []})
+        self.assertEqual(
+            result,
+            {"trace_id": "trace-1", "group_field": "trace_id", "group_id": "trace-1", "total": 0, "tool_calls": []},
+        )
 
     def test_query_failures_are_not_reported_as_empty_trace(self):
         query = mock.Mock()
-        query.query_trace_tool_calls.side_effect = RuntimeError("query failed")
+        query.query_tool_calls.side_effect = RuntimeError("query failed")
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get"),
             mock.patch("apm_web.llm.resources.get_query", return_value=query),
             self.assertRaisesRegex(RuntimeError, "query failed"),
         ):
-            ListToolCallsResource().perform_request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
+            ListToolCallsResource().request({"bk_biz_id": 11, "app_name": "demo", "trace_id": "trace-1"})
 
-    def test_trace_id_is_required_and_cannot_be_blank(self):
-        for values in ({}, {"trace_id": ""}, {"trace_id": "   "}):
+    def test_trace_or_group_id_is_required(self):
+        for values in ({}, {"trace_id": ""}, {"trace_id": "   "}, {"group_id": "   "}):
             with self.subTest(values=values):
                 serializer = ListToolCallsResource.RequestSerializer(
                     data={"bk_biz_id": 11, "app_name": "demo", **values}
                 )
                 self.assertFalse(serializer.is_valid())
-                self.assertIn("trace_id", serializer.errors)
-        fields = ListToolCallsResource.RequestSerializer().fields
-        self.assertNotIn("limit", fields)
-        self.assertNotIn("offset", fields)
+                self.assertIn("non_field_errors", serializer.errors)
+
+    def test_group_query_defaults_and_pagination(self):
+        query = mock.Mock()
+        query.query_tool_calls.return_value = [{"span_id": "tool-1"}]
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get"),
+            mock.patch("apm_web.llm.resources.get_query", return_value=query),
+        ):
+            result = ListToolCallsResource().request(
+                {"bk_biz_id": 11, "app_name": "demo", "group_id": "session-1", "offset": 10, "limit": 5}
+            )
+        query.query_tool_calls.assert_called_once_with(
+            group_field="attributes.gen_ai.conversation.id", group_id="session-1", offset=10, limit=5
+        )
+        self.assertEqual(result["group_id"], "session-1")
+        self.assertEqual(result["total"], 1)
+
+    def test_trace_alias_normalizes_in_serializer(self):
+        serializer = ListToolCallsResource.RequestSerializer(
+            data={
+                "bk_biz_id": 11,
+                "app_name": "demo",
+                "trace_id": "trace-1",
+                "group_field": "attributes.gen_ai.conversation.id",
+                "group_id": "session-1",
+            }
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["group_field"], "trace_id")
+        self.assertEqual(serializer.validated_data["group_id"], "trace-1")
+        self.assertEqual(serializer.validated_data["limit"], 10000)
+        self.assertEqual(serializer.validated_data["offset"], 0)
+
+    def test_explicit_trace_group_and_invalid_pagination(self):
+        base = {"bk_biz_id": 11, "app_name": "demo", "group_field": "trace_id", "group_id": "trace-1"}
+        serializer = ListToolCallsResource.RequestSerializer(data=base)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        for pagination in ({"offset": -1}, {"limit": 0}, {"limit": 10001}):
+            with self.subTest(pagination=pagination):
+                serializer = ListToolCallsResource.RequestSerializer(data={**base, **pagination})
+                self.assertFalse(serializer.is_valid())
 
     def test_route_uses_existing_application_permissions(self):
         from apm_web.llm.views import LLMViewSet
@@ -1821,13 +1864,14 @@ class ListFlowsResourceTestCase(TestCase):
             flattened = []
             for node in nodes:
                 flattened.append(
-                    {key: value for key, value in node.items() if key not in {"childs", "token_categories"}}
+                    {key: value for key, value in node.items() if key not in {"childs", "token_categories", "tokens"}}
                 )
                 flattened.extend(flatten(node["childs"]))
             return flattened
 
         spans = spans_result["spans"]
         flow = flows_result["traces"][0]["flow"]
+        self.assertGreater(flow[0]["childs"][0]["childs"][0]["tokens"], 0)
         flattened_flow = flatten(flow)
         self.assertEqual(spans_result["total"], 4)
         self.assertEqual(flattened_flow[1:], spans[1:])

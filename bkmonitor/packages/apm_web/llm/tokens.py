@@ -43,7 +43,7 @@ class TokenCounter:
         self.encoding = tiktoken.get_encoding(name if name == "o200k_base" else "cl100k_base")
         encode = self.encoding.encode_ordinary
         # 超长无空白片段的 BPE 编码可能呈二次耗时，分段限制延迟。
-        self._count = lru_cache(maxsize=128)(
+        self._count = lru_cache(maxsize=512)(
             lambda text: sum(len(encode(text[start : start + 8192])) for start in range(0, len(text), 8192))
         )
 
