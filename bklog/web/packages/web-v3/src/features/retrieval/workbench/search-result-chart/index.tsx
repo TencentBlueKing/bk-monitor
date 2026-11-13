@@ -44,6 +44,8 @@ import GradeOption from '@/features/charts/components/grade-option';
 import useLocale from '@/shared/composables/use-locale';
 import useRetrieveEvent from '@/shared/composables/use-retrieve-event';
 import { useRetrieveLoadingCovered } from '@/features/retrieval/use-retrieve-loading-queue';
+import { useSkeletonPresence } from '@/shared/ui/loading/presence';
+import '@/shared/ui/loading/presence.scss';
 
 import useTrendChart from '@/shared/composables/use-trend-chart';
 import { formatAdditionalFields, getCommonFilterAddition } from '@/app/state/helper';
@@ -102,6 +104,7 @@ export default defineComponent({
     const trendLoadingCovered = useRetrieveLoadingCovered('trend');
     const isLoading = computed(() => trendStatus.value === 'loading' || trendStatus.value === 'polling');
     const showTrendSkeleton = computed(() => trendStatus.value === 'loading' && !trendLoadingCovered.value);
+    const trendSkeletonPresence = useSkeletonPresence(showTrendSkeleton);
     const showTrendProgress = computed(() => trendStatus.value === 'polling' && !trendLoadingCovered.value && !isFold.value);
     const showEmpty = computed(() => trendStatus.value === 'empty');
     const finishPolling = computed(() => trendStatus.value === 'ready' || trendStatus.value === 'empty');
@@ -704,8 +707,8 @@ export default defineComponent({
           aria-busy={isLoading.value}
           v-show={!isFold.value}
         >
-          {showTrendSkeleton.value && (
-            <div class='trend-chart-loading-overlay' role='status' aria-label={t('加载中')} data-testid='trend-chart-skeleton'>
+          {trendSkeletonPresence.visible.value && (
+            <div class={['trend-chart-loading-overlay bklog-skeleton-presence', { 'is-leaving': trendSkeletonPresence.leaving.value }]} role='status' aria-label={t('加载中')} data-testid='trend-chart-skeleton'>
               <ChartSkeleton type='bar' height={dynamicHeight.value} length={40} />
             </div>
           )}

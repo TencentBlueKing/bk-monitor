@@ -13,6 +13,8 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 
   import { acquireRetrieveLoading } from '@/features/retrieval/loading-queue';
   import { useRetrieveLoadingPaint } from '@/features/retrieval/use-retrieve-loading-queue';
+  import { useSkeletonPresence } from '@/shared/ui/loading/presence';
+  import '@/shared/ui/loading/presence.scss';
 
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
@@ -72,6 +74,7 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
   const shouldRenderTrendChart = ref(false);
   const isTrendChartPending = ref(!shouldRenderTrendChart.value);
   const showTrendSkeleton = useRetrieveLoadingPaint('trend');
+  const trendSkeletonPresence = useSkeletonPresence(showTrendSkeleton);
   let releaseTrendLoading = null;
 
   const syncTrendLoading = pending => {
@@ -257,7 +260,6 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
       <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics, 'is-close': !isShowFieldStatistics }]">
         <FieldFilter
           v-show="isOriginShow"
-          v-loading="{ loading: isFilterLoading && isShowFieldStatistics }"
           v-log-drag="{
             minWidth: 160,
             maxWidth: 500,
@@ -297,8 +299,9 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
               @trend-ready="handleTrendReady"
             />
             <div
-              v-if="showTrendSkeleton"
-              class="trend-chart-skeleton"
+              v-if="trendSkeletonPresence.visible.value"
+              class="trend-chart-skeleton bklog-skeleton-presence"
+              :class="{ 'is-leaving': trendSkeletonPresence.leaving.value }"
               aria-hidden="true"
             >
               <div class="trend-chart-skeleton-title">

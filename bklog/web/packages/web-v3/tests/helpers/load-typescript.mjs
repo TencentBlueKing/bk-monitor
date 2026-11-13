@@ -19,7 +19,13 @@ export function loadTypeScript(file, dependencies = {}, compilerOptions = {}) {
   const exports = {};
   new Function('exports', 'require', outputText)(exports, id => {
     if (id in dependencies) return dependencies[id];
-    if (id === '@/shared/ui/loading/skeleton') return loadTypeScript(new URL('../../src/shared/ui/loading/skeleton.ts', import.meta.url), dependencies);
+    if (/\.(scss|css)$/.test(id)) return {};
+    if (id === './list-skeleton' || id === '@/shared/ui/loading/list-skeleton') return loadTypeScript(new URL('../../src/shared/ui/loading/list-skeleton.ts', import.meta.url), dependencies);
+    if (id === '@/platform/compat/native-sdk-vue') return loadTypeScript(new URL('../../src/platform/compat/native-sdk-vue.ts', import.meta.url), { ...dependencies, '@vue/compat': compilerRequire('vue') });
+    if (id === '@/shared/directives/log-tooltip') return loadTypeScript(new URL('../../src/shared/directives/log-tooltip.ts', import.meta.url), dependencies);
+    if (id === './log-popup') return loadTypeScript(new URL('../../src/shared/directives/log-popup.ts', import.meta.url), dependencies);
+    if (id === './presence' || id === '@/shared/ui/loading/presence') return loadTypeScript(new URL('../../src/shared/ui/loading/presence.ts', import.meta.url), dependencies);
+    if (id === './skeleton' || id === '@/shared/ui/loading/skeleton') return loadTypeScript(new URL('../../src/shared/ui/loading/skeleton.ts', import.meta.url), dependencies);
     if (id === '@/shared/global/dropdown-width') return loadTypeScript(new URL('../../src/shared/global/dropdown-width.ts', import.meta.url), dependencies);
     if (id === '@/shared/ui/loading/native') {
       return loadTypeScript(new URL('../../src/shared/ui/loading/native.ts', import.meta.url), {

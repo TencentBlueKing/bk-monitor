@@ -64,7 +64,7 @@
           }
 
           .t-input__inner {
-            font-size: 12px;
+            font-size: var(--bklog-font-body, 12px);
             text-align: center;
           }
         }

@@ -19,7 +19,7 @@
       }
 
       .t-checkbox__label {
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;

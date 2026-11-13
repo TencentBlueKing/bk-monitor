@@ -71,12 +71,12 @@
 body .t-dialog.stop-type-dialog {
   padding: 0;
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--bklog-radius-control, 2px);
 
   .t-dialog__header {
     height: 54px;
     padding: 0 24px;
-    color: #313238;
+    color: var(--bklog-text-primary, #313238);
     font-size: 20px;
     font-weight: 400;
     line-height: 24px;
@@ -85,7 +85,7 @@ body .t-dialog.stop-type-dialog {
   .t-dialog__body {
     padding: 3px 24px 24px;
     overflow: visible;
-    font-size: 14px;
+    font-size: var(--bklog-font-action, 14px);
     line-height: 1.5;
   }
 

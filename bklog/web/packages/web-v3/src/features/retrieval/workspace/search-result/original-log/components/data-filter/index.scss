@@ -1,3 +1,4 @@
+@use '../../../../../../../shared/styles/theme/components/contracts' as bklogControls;
 .filter-bar-main {
   // Match the source toolbar's text metrics without changing the global theme.
   --td-font-family: pingFang-SC, 'Microsoft Yahei', Helvetica, Aria, sans-serif;
@@ -22,8 +23,7 @@
         min-width: 72px;
 
         .t-input {
-          border-top-right-radius: 0;
-          border-bottom-right-radius: 0;
+          @include bklogControls.join-next;
         }
 
         border-top-right-radius: 0;
@@ -41,8 +41,7 @@
         min-width: 0;
 
         > .t-input {
-          border-top-left-radius: 0;
-          border-bottom-left-radius: 0;
+          @include bklogControls.join-previous;
         }
       }
     }
@@ -163,7 +162,7 @@
             padding: 0 4px;
             line-height: 24px;
             border: none;
-            border-bottom: solid 1px #dcdee5;
+            border-bottom: solid 1px var(--bklog-border-muted, #dcdee5);
             border-radius: 0;
           }
 

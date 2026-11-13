@@ -304,7 +304,7 @@
             required
           >
             <t-button
-              style="font-size: 12px"
+              style="font-size: var(--bklog-font-body, 12px)"
               :class="colorRules ? 'rulesColor' : ''"
               :disabled="!formData.category_id"
               :title="$t('新增')"
@@ -2090,7 +2090,7 @@ import { ServicesInstance } from '@/platform/services';
 
       .t-button {
         min-width: 106px;
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
 
         span {
           padding: 0 1px;
@@ -2301,7 +2301,7 @@ import { ServicesInstance } from '@/platform/services';
 
     .extra-error {
       .t-input__inner {
-        border-color: #ff5656;
+        border-color: var(--bklog-status-error-emphasis, #ff5656);
       }
     }
 

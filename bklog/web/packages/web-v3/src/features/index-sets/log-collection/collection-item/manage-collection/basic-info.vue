@@ -292,7 +292,7 @@
     <div>
       <t-button
         v-cursor="{ active: !editAuth }"
-        style="min-width: 88px; color: #3a84ff"
+        style="min-width: 88px; color: var(--bklog-brand-primary, #3a84ff)"
         class="mr10"
         :theme="'default'"
         @click="handleClickEdit"

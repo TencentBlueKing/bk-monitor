@@ -959,6 +959,7 @@ export default defineComponent({
                     </TCheckbox>
                   ))}
                   <bk-tag-input
+                    class='species-other-input'
                     allow-auto-match={true}
                     allow-create={true}
                     has-delete-icon={true}

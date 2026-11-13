@@ -1,6 +1,6 @@
-export type DatePickerValue = import('@blueking/date-picker').DateValue;
+export type DatePickerValue = import('@blueking/date-picker-js').DateValue;
 
-/** Plain values cross the temporary compat/native runtime boundary; never VNodes. */
+/** Plain configuration shared by Vue hosts and the framework-independent SDK. */
 export interface DatePickerState {
   modelValue: DatePickerValue;
   behavior: 'normal' | 'simplicity';

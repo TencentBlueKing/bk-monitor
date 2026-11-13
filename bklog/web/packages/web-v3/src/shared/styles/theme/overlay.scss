@@ -1,0 +1,61 @@
+// V2 business theme: theme.scss and bk-magic-vue/lib/ui/{button,input,loading}.css.
+// Higher specificity than TDesign's :root defaults keeps lazy-loaded CSS from
+// resetting the palette. Existing dark-mode variables remain independent.
+:root {
+  // 与 z-index-manager 的 Z_INDEX_LAYERS 保持一致。运行时由 installZIndexManager 再写入。
+  --bklog-z-base: 1;
+  --bklog-z-raised: 2;
+  --bklog-z-local: 3;
+  --bklog-z-toolbar: 5;
+  --bklog-z-sticky: 6;
+  --bklog-z-field-sticky: 8;
+  --bklog-z-page: 20;
+  --bklog-z-page-top: 40;
+  --bklog-z-float: 80;
+  --bklog-z-nav: 100;
+  --bklog-z-nav-top: 110;
+  --bklog-z-float-fixed: 200;
+  --bklog-z-dropdown: 2000;
+  --bklog-z-overlay: 2000;
+  --bklog-z-popup: 2000;
+  --bklog-z-drawer: 2500;
+  --bklog-z-dialog: 3000;
+  --bklog-z-message: 5000;
+  --bklog-z-message-current: 5000;
+}
+
+// TDesign 默认 popup 5500、dialog 2500、drawer 1500、message 6000，改走同一套变量。
+// 内联 z-index（管理器分配）优先于这里的样式。
+body .t-popup {
+  z-index: var(--bklog-z-popup);
+}
+
+body .t-drawer {
+  z-index: var(--bklog-z-drawer);
+}
+
+body .t-dialog__ctx.t-dialog__ctx--fixed {
+  z-index: var(--bklog-z-dialog);
+}
+
+body .t-message__list,
+body .t-notification {
+  z-index: var(--bklog-z-message-current);
+}
+
+// bk-exception 的 scene 只决定尺寸。文案放在标题里，避免再渲染 scene 字符串。
+.bk-exception {
+  .t-empty__title {
+    margin-top: 8px;
+    font-size: var(--bklog-font-action, 14px);
+    font-weight: 400;
+    line-height: 22px;
+    color: var(--bklog-text-secondary, #63656e);
+  }
+
+  .bk-exception-text {
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+  }
+}

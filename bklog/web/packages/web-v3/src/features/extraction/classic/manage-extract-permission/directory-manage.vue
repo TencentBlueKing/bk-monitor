@@ -261,7 +261,7 @@ import { ServicesInstance } from '@/platform/services';
   import ModuleSelect from './module-select';
   import ValidateInput from './validate-input';
   // import ValidateUserSelector from './validate-user-selector';
-  import BkUserSelector from '@blueking/user-selector';
+  import BkUserSelector from '@/shared/ui/user-selector/legacy-contract';
 
   export default {
     setup() {
@@ -475,7 +475,7 @@ import { ServicesInstance } from '@/platform/services';
           .is-input-error.t-input__wrap {
             :deep(.t-input__inner) {
               /* stylelint-disable-next-line declaration-no-important */
-              border-color: #ff5656 !important;
+              border-color: var(--bklog-status-error-emphasis, #ff5656) !important;
             }
           }
         }

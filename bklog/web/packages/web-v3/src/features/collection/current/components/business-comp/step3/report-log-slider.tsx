@@ -26,9 +26,11 @@
 
 import JsonFormatWrapper from '@/shared/global/json-format-wrapper.vue';
 
-import { defineComponent } from 'vue';
+import { defineComponent, ref, watch } from 'vue';
+import { overlayRegistry } from '@/shared/global/overlay/overlay-registry.js';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
+import { Drawer, Button } from 'tdesign-vue-next';
 
-import { copyText } from '@/features/charts/utils';
 import useLocale from '@/shared/composables/use-locale';
 
 import './report-log-slider.scss';
@@ -53,40 +55,68 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    const zIndex = ref<number>(Z_INDEX_LAYERS.DRAWER);
+    watch(() => props.isShow, visible => {
+      if (visible) zIndex.value = overlayRegistry.nextZIndex();
+    }, { immediate: true });
+    // Keep the fallback textarea inside the drawer's focus trap.
+    const handleCopy = async (event: MouseEvent) => {
+      const text = JSON.stringify(props.jsonText);
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
+          const host = (event.currentTarget as HTMLElement).closest('.t-drawer__content') || document.body;
+          host.appendChild(textarea);
+          try {
+            textarea.focus();
+            textarea.select();
+            if (!document.execCommand('copy')) throw new Error('copy failed');
+          } finally { textarea.remove(); }
+        }
+        showMessage(t('复制成功'));
+      } catch {
+        showMessage(t('复制失败'), 'error');
+      }
+    };
     return () => (
-      <bk-sideslider
-        width={596}
-        class='report-log-slider-main'
-        before-close={() => {
+      <Drawer
+        size='596px'
+        zIndex={zIndex.value}
+        drawerClassName='report-log-slider-main'
+        visible={props.isShow}
+        footer={false}
+        closeBtn={true}
+        closeOnOverlayClick
+        closeOnEscKeydown
+        onClose={() => {
           emit('change', false);
         }}
         v-slots={{
           header: () => (
             <div class='report-log-slider-header'>
               <span class='title'>{t('上报日志详情')}</span>
-              <span
+              <Button
+                variant='outline'
+                disabled={!Object.keys(props.jsonText).length}
                 class='copy-btn'
-                onClick={() => {
-                  copyText(JSON.stringify(props.jsonText));
-                  showMessage(t('复制成功'));
-                }}
+                onClick={handleCopy}
               >
                 {t('复制')}
-              </span>
+              </Button>
             </div>
           ),
-          content: () => (
+          body: () => props.isShow && (
             <div class='p20 json-text-style'>
-              <JsonFormatWrapper
-                data={props.jsonText}
-                deep={5}
-              />
+              {Object.keys(props.jsonText).length ? (
+                <JsonFormatWrapper data={props.jsonText} deep={5} />
+              ) : <div class='report-log-empty'>{t('暂无数据')}</div>}
             </div>
           ),
         }}
-        is-show={props.isShow}
-        quick-close={true}
-        transfer
       />
     );
   },

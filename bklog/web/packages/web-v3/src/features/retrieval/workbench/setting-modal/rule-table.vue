@@ -580,7 +580,7 @@
         }
 
         .t-button--variant-text {
-          font-size: 12px;
+          font-size: var(--bklog-font-body, 12px);
         }
       }
     }

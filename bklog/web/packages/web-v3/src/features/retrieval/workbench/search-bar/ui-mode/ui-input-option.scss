@@ -27,7 +27,7 @@
 
         :deep(.t-input) {
           border: 0;
-          border-bottom: 1px solid #eaebf0;
+          border-bottom: 1px solid var(--bklog-surface-component-hover, #eaebf0);
           border-radius: 0;
           box-shadow: none;
         }
@@ -328,7 +328,7 @@
 
       .t-button {
         min-width: 64px;
-        font-size: 14px;
+        font-size: var(--bklog-font-action, 14px);
 
         &.save-btn {
           min-width: 142px;

@@ -691,7 +691,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                           }}
                         >
                           <Button
-                            style='font-size: 12px;'
+                            style='font-size: var(--bklog-font-body, 12px);'
                             disabled={this.isCanClickDebugBtn}
                             theme='primary'
 

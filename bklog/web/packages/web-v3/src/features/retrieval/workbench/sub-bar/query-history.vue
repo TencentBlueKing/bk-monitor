@@ -109,7 +109,7 @@ const formatTime = (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm:ssZZ
 <style lang="scss">
 @use './query-history.scss' as *;
 .query-history-content .search-input .t-input {
-  border-color: transparent transparent #3a84ff;
+  border-color: transparent transparent var(--bklog-brand-primary, #3a84ff);
   box-shadow: none;
 }
 .query-history-content .item-text {

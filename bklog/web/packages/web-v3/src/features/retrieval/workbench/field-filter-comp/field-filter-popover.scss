@@ -13,7 +13,7 @@
 
     .t-radio {
       margin-right: 24px;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
     }
   }
 

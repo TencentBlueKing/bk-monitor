@@ -25,8 +25,8 @@
  */
 
 
-import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
+import { useApplicationStore } from '@/app/state/domains/application-store';
 
 
 import { computed, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
@@ -70,35 +70,9 @@ export default defineComponent({
       shellSettled = true;
       requestRetrieveShellSettle();
     };
-    // 每次进入检索页重新等这一轮字段、日志和趋势图，避免沿用上一次的完成标记把骨架提前揭掉。
+    // Retained host compatibility signals; not first-render readiness conditions.
     useRetrieveStore().updateResultShellReady(false);
     useRetrieveStore().updateTrendShellPending(true);
-    const sawFieldLoad = ref(false);
-    const sawSearchLoad = ref(false);
-    watch(
-      () => store.indexFieldInfo.is_loading,
-      loading => {
-        if (loading) {
-          sawFieldLoad.value = true;
-        }
-      },
-      { immediate: true },
-    );
-    watch(
-      () => store.indexSetQueryResult.is_loading,
-      loading => {
-        const result = store.indexSetQueryResult;
-        if (
-          (loading && !result.is_pagination_loading) ||
-          result.is_error ||
-          result.took > 0 ||
-          result.total > 0
-        ) {
-          sawSearchLoad.value = true;
-        }
-      },
-      { immediate: true },
-    );
 
     const isStartTextEllipsis = computed(() => store.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
     const isSceneMode = computed(() => store.isSceneMode);
@@ -261,44 +235,14 @@ export default defineComponent({
       </div>
     );
 
-    const retrieveShellReady = computed(() => {
-      if (!isPreApiLoaded.value) {
-        return false;
-      }
-      if (!useRetrieveStore().$state.flatIndexSetList.length) {
-        return true;
-      }
-      if (hideSearchResult.value && !isSceneLoading.value) {
-        return true;
-      }
-      const fieldsReady =
-        !store.indexFieldInfo.is_loading &&
-        (sawFieldLoad.value || store.rawFieldList.length > 0);
-      return (
-        fieldsReady &&
-        sawSearchLoad.value &&
-        !store.indexSetQueryResult.is_loading &&
-        useRetrieveStore().$state.resultShellReady &&
-        !useRetrieveStore().$state.trendShellPending
-      );
-    });
-    watch(retrieveShellReady, ready => {
-      if (ready) {
-        releaseRetrieveShell();
-      }
-    }, { immediate: true });
-    let shellBackstop = 0;
-    watch(isPreApiLoaded, loaded => {
-      if (!loaded || shellBackstop) {
-        return;
-      }
-      shellBackstop = window.setTimeout(releaseRetrieveShell, 10000);
-    }, { immediate: true });
-    onBeforeUnmount(() => {
-      if (shellBackstop) {
-        window.clearTimeout(shellBackstop);
-      }
-    });
+    // Hand over after modules and their local skeletons commit; never wait for results.
+    let shellDisposed = false;
+    watch(isPreApiLoaded, async loaded => {
+      if (!loaded) return;
+      await nextTick();
+      if (!shellDisposed) releaseRetrieveShell();
+    }, { immediate: true, flush: 'post' });
+    onBeforeUnmount(() => { shellDisposed = true; });
 
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {

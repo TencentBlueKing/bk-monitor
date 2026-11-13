@@ -37,7 +37,7 @@
   }
 
   .t-radio {
-    font-size: 12px;
+    font-size: var(--bklog-font-body, 12px);
   }
 
   .bk-label-text {
@@ -49,7 +49,7 @@
   }
 
   .t-checkbox__label {
-    font-size: 12px;
+    font-size: var(--bklog-font-body, 12px);
   }
 
   .bk-form-item.is-error {
@@ -68,7 +68,7 @@
 
       .t-input__inner:focus {
         /* stylelint-disable-next-line declaration-no-important */
-        border-color: #3a84ff !important;
+        border-color: var(--bklog-brand-primary, #3a84ff) !important;
       }
     }
   }

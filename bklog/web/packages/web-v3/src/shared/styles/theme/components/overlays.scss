@@ -1,0 +1,45 @@
+@use './actions' as actions;
+
+:root:not([theme-mode='dark']) {
+  // V2 bk-dialog-footer：灰底顶栏，确定在左、取消在右。
+  .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
+    width: auto;
+    margin: 0 -32px -32px;
+    padding: 7px 24px;
+    text-align: right;
+    background: var(--bklog-surface-disabled, #fafbfd);
+    border-top: 1px solid var(--bklog-border-muted, #dcdee5);
+
+    @include actions.bklog-dialog-footer-buttons;
+
+    > div:has(.t-dialog__cancel) {
+      display: inline-flex;
+      flex-direction: row-reverse;
+      gap: 10px;
+
+      .t-button + .t-button {
+        margin-left: 0;
+      }
+    }
+  }
+
+  // 字段显示等自定义页脚不在 .t-dialog__footer 里，按钮尺寸和间距与弹窗页脚保持一致。
+  .fields-button-container {
+    @include actions.bklog-dialog-footer-buttons;
+  }
+
+  .multiline-reg-dialog-box .t-dialog__footer {
+    margin: 0;
+  }
+
+  // V2 bk-sideslider 页脚同样右对齐，确定在前、取消在后。
+  .t-drawer__footer {
+    padding: 7px 24px;
+    text-align: right;
+    background: var(--bklog-surface-disabled, #fafbfd);
+    border-top: 1px solid var(--bklog-border-muted, #dcdee5);
+
+    @include actions.bklog-dialog-footer-buttons;
+  }
+
+}

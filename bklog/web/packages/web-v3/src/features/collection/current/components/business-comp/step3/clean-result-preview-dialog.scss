@@ -1,3 +1,4 @@
+@use '../../../../../../shared/styles/theme/components/contracts' as bklogControls;
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -400,8 +401,7 @@
 
         .t-input,
         .t-input__inner {
-          height: 26px;
-          line-height: 26px;
+          @include bklogControls.compact-control;
         }
       }
     }
@@ -437,9 +437,7 @@
       margin-bottom: 6px;
 
       .t-button {
-        min-width: 54px;
-        height: 24px;
-        line-height: 22px;
+        @include bklogControls.compact-action;
       }
 
       .t-button + .t-button {

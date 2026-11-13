@@ -1130,25 +1130,25 @@ export default {
 .mode-hint {
   :deep(.t-alert.t-alert--info) {
     padding: 8px 10px;
-    color: #63656e;
-    background: #f0f1f5;
+    color: var(--bklog-text-secondary, #63656e);
+    background: var(--bklog-surface-component, #f0f1f5);
     border: none;
     border-radius: 0;
   }
 
   :deep(.t-alert__icon) {
     margin-right: 8px;
-    font-size: 14px;
-    line-height: 16px;
-    color: #63656e;
+    font-size: var(--bklog-font-action, 14px);
+    line-height: var(--bklog-line-height-small, 16px);
+    color: var(--bklog-text-secondary, #63656e);
   }
 }
 
 :deep(.t-radio__label) {
   margin-left: 2px;
-  color: #63656e;
+  color: var(--bklog-text-secondary, #63656e);
   /* stylelint-disable-next-line declaration-no-important */
-  font-size: 12px !important;
+  font-size: var(--bklog-font-body, 12px) !important;
 }
 
 .async-export-dialog {

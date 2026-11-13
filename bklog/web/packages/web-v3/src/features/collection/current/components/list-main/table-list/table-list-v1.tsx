@@ -25,6 +25,7 @@
  */
 
 
+import { AddIcon } from 'tdesign-icons-vue-next';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -1988,7 +1989,7 @@ export default defineComponent({
         <div class='v2-log-collection-table-tool'>
           <div class='tool-btns'>
             <TButton
-              icon={() => <span class={`bk-icon icon-${'plus'}`} />}
+              icon={() => <AddIcon size='18px' />}
               theme='primary'
               onClick={handleCreateOperation}
               v-cursor={{ active: isAllowedCreate }}

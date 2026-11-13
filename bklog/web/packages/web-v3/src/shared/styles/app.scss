@@ -146,7 +146,7 @@
 .bk-form .bk-label,
 .t-radio .t-radio__label,
 .bk-form-checkbox .t-checkbox__label {
-  font-size: 12px;
+  font-size: var(--bklog-font-body, 12px);
 }
 
 .tippy-tooltip {

@@ -42,7 +42,7 @@
 </template>
 
 <script>
-  import BkUserSelector from '@blueking/user-selector';
+  import BkUserSelector from '@/shared/ui/user-selector/legacy-contract';
 
   export default {
   emits: ["change"],

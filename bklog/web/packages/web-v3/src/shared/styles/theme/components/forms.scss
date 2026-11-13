@@ -1,0 +1,38 @@
+// Explicit business form profiles. Do not change global Form layout/validation.
+.t-textarea.bklog-textarea--fill {
+  height: 100%;
+  min-height: 0;
+
+  > .t-textarea__inner {
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+  }
+}
+
+.bklog-form--drawer-stack {
+  --bklog-form-item-before: 0px;
+  --bklog-form-item-after: 24px;
+  --bklog-form-item-adjacent: 0px;
+  width: 100%;
+  min-width: 0;
+}
+.bklog-form--drawer-compact {
+  --bklog-form-item-before: 12px;
+  --bklog-form-item-after: 0px;
+  --bklog-form-item-adjacent: 12px;
+}
+.bklog-form--drawer-cluster {
+  --bklog-form-item-before: 18px;
+  --bklog-form-item-after: 0px;
+  --bklog-form-item-adjacent: 8px;
+}
+:is(.t-form.bklog-form--drawer-stack, .t-form.bklog-form--drawer-compact, .t-form.bklog-form--drawer-cluster) {
+  .t-form__item {
+    margin-top: var(--bklog-form-item-before);
+    margin-bottom: var(--bklog-form-item-after);
+    & + .t-form__item { margin-top: var(--bklog-form-item-adjacent); }
+  }
+}
+
+.t-form.bklog-form--drawer-stack .t-form__item:last-child { margin-bottom: 0; }

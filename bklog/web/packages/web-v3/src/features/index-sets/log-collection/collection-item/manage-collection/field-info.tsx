@@ -532,7 +532,7 @@ export default class FieldInfo extends tsc<IProps> {
         {this.isShowEditBtn && (
           <div class='edit-btn-container'>
             <Button
-              style='min-width: 88px; color: #3a84ff'
+              style='min-width: 88px; color: var(--bklog-brand-primary, #3a84ff)'
               v-cursor={{ active: !this.editAuth }}
               theme='default'
               onClick={() => this.handleClickEdit()}

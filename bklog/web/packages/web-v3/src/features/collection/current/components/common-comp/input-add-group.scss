@@ -17,7 +17,7 @@
         }
         .input-error {
             .t-input__inner {
-                border-color: #ea3636;
+                border-color: var(--bklog-status-error, #ea3636);
             }
         }
     }

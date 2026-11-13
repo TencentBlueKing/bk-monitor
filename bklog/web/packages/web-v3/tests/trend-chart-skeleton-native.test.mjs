@@ -14,6 +14,8 @@ function fixture() {
   const renderSource = source.slice(renderStart, renderEnd).replace('return () => (', 'const renderTrend = () => (');
   const context = {
     computed: Vue.computed,
+    // This test checks request phases; visual exit timing has its own fake-clock tests.
+    useSkeletonPresence: pending => ({ visible: pending, leaving: Vue.ref(false) }),
     trendStatus: Vue.ref('loading'), trendLoadingCovered: Vue.ref(false), dynamicHeight: Vue.ref(130),
     isFold: Vue.ref(false), chartContainer: Vue.ref(null), trendChartCanvas: Vue.ref(null),
     chartTitleContent: () => Vue.h('header', 'Toolbar'), t: value => value,
@@ -31,7 +33,7 @@ function find(node, predicate) {
     if (result) return result;
   }
 }
-const byClass = (root, name) => find(root, node => node.props?.class === name);
+const byClass = (root, name) => find(root, node => Vue.normalizeClass(node.props?.class).split(' ').includes(name));
 
 test('trend first response uses the full skeleton; progressive responses keep the canvas visible', () => {
   const f = fixture();

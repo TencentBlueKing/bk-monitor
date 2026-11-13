@@ -17,15 +17,36 @@
         z-index: 4000;
         display: flex;
         flex-direction: column;
-        background: #f5f7fa;
+        background: transparent;
+        pointer-events: none;
       }
 
       .bklog-bootstrap-loading__nav {
+        display: flex;
+        align-items: center;
+        flex: none;
+        box-sizing: border-box;
+        gap: 24px;
+        padding: 0 20px;
         height: 52px;
         background: #182132;
+        pointer-events: auto;
       }
+      .bklog-bootstrap-loading__nav span {
+        width: 72px;
+        height: 18px;
+        border-radius: 2px;
+        background: linear-gradient(90deg, #2c3548 25%, #414c61 50%, #2c3548 75%);
+        background-size: 400% 100%;
+        animation: bklog-bootstrap-shimmer 1.4s ease infinite;
+      }
+      .bklog-bootstrap-loading__nav span:first-child { width: 180px; }
+      .bklog-bootstrap-loading__nav span:nth-child(2) { width: 130px; }
+      .bklog-bootstrap-loading__nav span:last-child { margin-left: auto; }
 
       .bklog-bootstrap-loading__body {
+        background: #f5f7fa;
+        pointer-events: auto;
         display: flex;
         flex: 1;
         flex-direction: column;
@@ -85,6 +106,9 @@
           background-position: 0 50%;
         }
       }
+      @media (prefers-reduced-motion: reduce) {
+        .bklog-bootstrap-loading * { animation: none !important; transition: none !important; }
+      }
     </style>
   </head>
   <body>
@@ -97,7 +121,8 @@
         shell.className = 'bklog-bootstrap-loading';
         shell.setAttribute('aria-busy', 'true');
         shell.innerHTML =
-          '<div class="bklog-bootstrap-loading__nav"></div>' +
+          (new URLSearchParams(location.hash.split('?')[1] || '').get('hl') === '1' ? '' :
+          '<div class="bklog-bootstrap-loading__nav"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>') +
           '<div class="bklog-bootstrap-loading__body">' +
           '<div class="bklog-bootstrap-loading__toolbar"></div>' +
           '<div class="bklog-bootstrap-loading__search"></div>' +

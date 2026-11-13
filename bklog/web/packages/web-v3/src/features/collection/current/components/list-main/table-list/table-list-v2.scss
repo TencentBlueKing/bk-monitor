@@ -301,11 +301,11 @@
 
     .log-collection-table {
       .t-pagination__total {
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
       }
 
       .t-table__pagination .t-pagination__select .t-input__inner {
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
       }
 
       .collection-name-cell {
@@ -631,8 +631,8 @@
         width: 100%;
 
         .t-checkbox__label {
-          font-size: 12px;
-          color: #63656e;
+          font-size: var(--bklog-font-body, 12px);
+          color: var(--bklog-text-secondary, #63656e);
           white-space: nowrap;
         }
       }

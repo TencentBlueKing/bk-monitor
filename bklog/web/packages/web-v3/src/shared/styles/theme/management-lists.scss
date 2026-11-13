@@ -1,12 +1,8 @@
+@use './components/actions' as actions;
+
 // V2 management table density. Collection's purpose-built table keeps its own theme.
 .manage-ui-aligned {
-  .t-button:where(:not(.t-size-s):not(.t-size-l)) {
-    font-size: 14px;
-  }
-
-  .t-button--shape-rectangle:where(:not(.t-size-s):not(.t-size-l):not(.t-button--variant-text)) {
-    min-width: 64px;
-  }
+  @include actions.management-actions;
 
   .bklog-legacy-table,
   &.es-access-container .king-table {
@@ -21,10 +17,10 @@
       height: 43px;
       padding: 0 15px;
       line-height: 42px;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
       font-weight: 400;
-      color: #63656e;
-      background: #fafbfd;
+      color: var(--bklog-text-secondary, #63656e);
+      background: var(--bklog-surface-disabled, #fafbfd);
     }
 
     td {
@@ -47,7 +43,7 @@
       height: 22px;
       padding: 0;
       border: 0;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
       line-height: 22px;
       background: transparent;
     }
@@ -56,7 +52,7 @@
       padding: 15px;
       margin-top: -1px;
       border-top: 1px solid #dfe0e5;
-      background: #fafbfd;
+      background: var(--bklog-surface-disabled, #fafbfd);
     }
 
     .t-pagination__total {
@@ -77,23 +73,23 @@
       box-sizing: border-box;
       min-width: 32px;
       height: 32px;
-      border: 1px solid #c4c6cc;
-      border-radius: 2px;
-      color: #63656e;
-      background: #fff;
+      border: 1px solid var(--bklog-border-control, #c4c6cc);
+      border-radius: var(--bklog-radius-control, 2px);
+      color: var(--bklog-text-secondary, #63656e);
+      background: var(--bklog-surface, #fff);
     }
 
     .t-pagination__number.t-is-current {
-      border-color: #3a84ff;
-      color: #3a84ff;
-      background: #fff;
+      border-color: var(--bklog-brand-primary, #3a84ff);
+      color: var(--bklog-brand-primary, #3a84ff);
+      background: var(--bklog-surface, #fff);
     }
 
     .t-pagination__btn-prev.t-is-disabled,
     .t-pagination__btn-next.t-is-disabled {
-      border-color: #dcdee5;
-      color: #c4c6cc;
-      background: #fafbfd;
+      border-color: var(--bklog-border-muted, #dcdee5);
+      color: var(--bklog-text-disabled, #c4c6cc);
+      background: var(--bklog-surface-disabled, #fafbfd);
     }
 
     .t-pagination__pager li:not(:last-child),

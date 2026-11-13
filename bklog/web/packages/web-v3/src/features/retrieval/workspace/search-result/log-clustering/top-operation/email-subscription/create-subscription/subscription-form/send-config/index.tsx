@@ -33,7 +33,7 @@ import { RadioGroup as TRadioGroup, RadioButton as TRadioButton, Checkbox as TCh
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
-import BkUserSelector from '@blueking/user-selector';
+import BkUserSelector from '@/shared/ui/user-selector/legacy-contract';
 import { defineComponent, ref, onMounted, nextTick, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';

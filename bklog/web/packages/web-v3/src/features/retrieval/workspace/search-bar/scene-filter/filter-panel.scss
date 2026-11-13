@@ -185,7 +185,7 @@
             left: 0;
             width: 100%;
             z-index: var(--bklog-z-base);
-            background: #fff;
+            background: var(--bklog-surface, #fff);
           }
 
           &.is-active {

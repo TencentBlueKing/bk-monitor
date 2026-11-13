@@ -177,7 +177,7 @@
       }
 
       .t-input__prefix .left-icon {
-        color: #63656e;
+        color: var(--bklog-text-secondary, #63656e);
       }
 
       .t-input__inner {
@@ -332,20 +332,20 @@
 
     &-search {
       .t-input__inner {
-        color: #63656e;
-        background-color: #fff;
-        border-bottom: 1px solid #eaebf0;
+        color: var(--bklog-text-secondary, #63656e);
+        background-color: var(--bklog-surface, #fff);
+        border-bottom: 1px solid var(--bklog-surface-component-hover, #eaebf0);
 
         &::placeholder {
-          background-color: #fff;
+          background-color: var(--bklog-surface, #fff);
         }
 
         &:focus {
           /* stylelint-disable-next-line declaration-no-important */
-          background-color: #fff !important;
+          background-color: var(--bklog-surface, #fff) !important;
 
           /* stylelint-disable-next-line declaration-no-important */
-          border-color: #eaebf0 !important;
+          border-color: var(--bklog-surface-component-hover, #eaebf0) !important;
         }
       }
     }

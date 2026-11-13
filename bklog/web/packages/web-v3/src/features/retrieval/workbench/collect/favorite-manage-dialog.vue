@@ -846,11 +846,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
   background: #f5f6fa;
 }
 :global(.favorite-management-dialog .t-table__content) {
-  border: 1px solid #dcdee5;
+  border: 1px solid var(--bklog-border-muted, #dcdee5);
 }
 :global(.favorite-management-dialog .t-table th) {
-  background: #fafbfd;
-  color: #313238;
+  background: var(--bklog-surface-disabled, #fafbfd);
+  color: var(--bklog-text-primary, #313238);
   font-weight: normal;
 }
 :global(.favorite-management-dialog .t-table th),
@@ -1023,7 +1023,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
       :deep(.t-table__row) {
         &.row-hover {
           cursor: pointer;
-          background: #f5f7fa;
+          background: var(--bklog-surface-hover, #f5f7fa);
 
           .bklog-edit {
             display: block;
@@ -1039,7 +1039,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
         }
 
         .edit-favorite-group {
-          background-color: #fff;
+          background-color: var(--bklog-surface, #fff);
         }
       }
 

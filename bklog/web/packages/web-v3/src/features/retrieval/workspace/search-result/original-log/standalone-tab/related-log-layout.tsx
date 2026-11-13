@@ -1,3 +1,4 @@
+import { renderLogListSkeleton, renderListRefreshSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { defineComponent, nextTick, onMounted, ref, type PropType } from 'vue';
 
 import LogView from '@/features/retrieval/log-view/index.vue';
@@ -103,6 +104,8 @@ export default defineComponent({
                     class='dialog-log-markdown standalone-related-log-scroller'
                     v-loading={{
                       loading: vm.loading.value && !vm.isFilterEmpty.value,
+                      indicator: vm.logList.value.length ? renderListRefreshSkeleton : renderLogListSkeleton,
+                      showOverlay: !vm.logList.value.length,
                     }}
                   >
                     {vm.error.value ? (

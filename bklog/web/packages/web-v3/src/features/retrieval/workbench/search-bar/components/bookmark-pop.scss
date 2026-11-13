@@ -2,7 +2,7 @@
   .t-input__inner[readonly],
   .bk-form-textarea[readonly] {
     /* stylelint-disable-next-line declaration-no-important */
-    background-color: #f0f1f5 !important;
+    background-color: var(--bklog-surface-component, #f0f1f5) !important;
   }
 
   .popover-title-content {
@@ -205,12 +205,12 @@
   .t-form__label {
     min-height: 0;
     margin-bottom: 6px;
-    line-height: 20px;
+    line-height: var(--bklog-line-height-body, 20px);
   }
 
   .t-input.t-is-readonly,
   .t-textarea__inner[readonly] {
-    background-color: #f0f1f5;
+    background-color: var(--bklog-surface-component, #f0f1f5);
     border: 0;
   }
 

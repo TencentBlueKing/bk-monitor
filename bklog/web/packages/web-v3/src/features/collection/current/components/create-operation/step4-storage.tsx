@@ -509,7 +509,7 @@ export default defineComponent({
     const renderCluster = () => (
       <div
         class='cluster-box'
-        v-loading={{ loading: loading.value }}
+        aria-busy={loading.value}
       >
         <ClusterTypeTabs
           activeTab={activeTab.value}

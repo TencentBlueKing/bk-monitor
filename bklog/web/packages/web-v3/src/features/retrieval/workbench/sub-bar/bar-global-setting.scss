@@ -19,17 +19,17 @@
   /* stylelint-disable-next-line declaration-no-important */
   width: 238px !important;
   padding: 16px 14px;
-  color: #4d4f56;
-  background-color: #fff;
-  border: 1px solid #dcdee5;
-  border-radius: 2px;
+  color: var(--bklog-text-strong, #4d4f56);
+  background-color: var(--bklog-surface, #fff);
+  border: 1px solid var(--bklog-border-muted, #dcdee5);
+  border-radius: var(--bklog-radius-control, 2px);
   box-shadow: 0 0 6px 0 #dcdee5;
   box-sizing: border-box;
 
   .setting-container {
     .setting-content {
-      font-size: 12px;
-      color: #4d4f56;
+      font-size: var(--bklog-font-body, 12px);
+      color: var(--bklog-text-strong, #4d4f56);
 
       .setting-item {
         padding-bottom: 18px;
@@ -51,11 +51,11 @@
               height: 26px;
               margin: 0 0 0 -1px;
               padding: 0;
-              font-size: 12px;
+              font-size: var(--bklog-font-body, 12px);
               line-height: 24px;
-              color: #63656e;
-              background-color: #fff;
-              border: 1px solid #c4c6cc;
+              color: var(--bklog-text-secondary, #63656e);
+              background-color: var(--bklog-surface, #fff);
+              border: 1px solid var(--bklog-border-control, #c4c6cc);
               border-radius: 0;
               box-shadow: none;
 
@@ -71,28 +71,28 @@
               &.is-selected {
                 position: relative;
                 z-index: var(--bklog-z-base);
-                color: #3a84ff;
-                border-color: #3a84ff;
+                color: var(--bklog-brand-primary, #3a84ff);
+                border-color: var(--bklog-brand-primary, #3a84ff);
               }
 
               &.is-selected {
-                background-color: #e1ecff;
+                background-color: var(--bklog-brand-tint, #e1ecff);
               }
             }
           }
 
           .link {
             margin-top: 4px;
-            color: #3a84ff;
+            color: var(--bklog-brand-primary, #3a84ff);
             cursor: pointer;
 
             .link-text {
-              line-height: 20px;
+              line-height: var(--bklog-line-height-body, 20px);
             }
 
             .bklog-jump {
               margin-left: 4px;
-              font-size: 14px;
+              font-size: var(--bklog-font-action, 14px);
             }
           }
         }
@@ -107,8 +107,8 @@
         height: 26px;
         min-width: 64px;
         padding: 0 12px;
-        font-size: 12px;
-        border-radius: 2px;
+        font-size: var(--bklog-font-body, 12px);
+        border-radius: var(--bklog-radius-control, 2px);
       }
     }
   }

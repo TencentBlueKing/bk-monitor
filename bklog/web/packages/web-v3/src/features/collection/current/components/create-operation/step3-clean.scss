@@ -895,3 +895,8 @@
     }
   }
 }
+
+.operation-step3-clean .log-sample-box {
+  .example-box.is-loading { pointer-events: none; opacity: .6; }
+  .log-sample-editor { position: relative; width: 100%; min-height: 56px; }
+}

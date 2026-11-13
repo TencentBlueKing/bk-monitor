@@ -376,7 +376,7 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
             height: 32px;
             background: transparent;
             border: 0;
-            border-bottom: 1px solid #eaebf0;
+            border-bottom: 1px solid var(--bklog-surface-component-hover, #eaebf0);
             border-radius: 0;
             box-shadow: none;
           }

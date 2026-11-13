@@ -29,7 +29,7 @@
     <div class="flex-box">
       <bk-select
         v-model="previewIp"
-        style="width: 190px; margin-right: 20px; background-color: #fff"
+        style="width: 190px; margin-right: 20px; background-color: var(--bklog-surface, #fff)"
         :clearable="false"
         data-test-id="addNewExtraction_div_selectPreviewAddress"
         multiple
@@ -80,7 +80,7 @@
     >
       <bk-table
         ref="previewTable"
-        style="background-color: #fff"
+        style="background-color: var(--bklog-surface, #fff)"
         class="preview-scroll-table"
         :data="filteredExplorerList"
         :height="360"

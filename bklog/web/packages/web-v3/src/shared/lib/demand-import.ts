@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-/** 按需注册 TDesign 组件。日期选择仍由 @blueking/date-picker 在使用处引入。 */
+/** 按需注册 TDesign 组件。日期选择仍由 @blueking/date-picker-js 在使用处引入。 */
 import Vue from 'vue';
 import {
   Alert,

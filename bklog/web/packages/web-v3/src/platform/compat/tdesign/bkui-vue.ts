@@ -25,9 +25,10 @@
  */
 
 import { Loading } from '@/shared/ui/loading/native';
+export { default as bkTooltips } from '@/shared/directives/log-tooltip';
 
 /**
- * 仅供 NPM 包 @blueking/date-picker 解析 `bkui-vue` 导入。
+ * 仅供官方 SDK 解析 `bkui-vue` 导入，实际控件由 TDesign 提供。
  * 项目源码不要引用这个文件，也不要使用 bkui-vue 的组件名。
  */
 import tippy from 'tippy.js';

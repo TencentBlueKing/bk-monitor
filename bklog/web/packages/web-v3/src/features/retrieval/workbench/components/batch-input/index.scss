@@ -1,14 +1,14 @@
 .batch-input-dialog.t-dialog {
   padding: 0;
   border: 0;
-  color: #63656e;
+  color: var(--bklog-text-secondary, #63656e);
 
   .t-dialog__header {
     padding: 16px 24px 8px;
     font-size: 20px;
     font-weight: 400;
     line-height: 29px;
-    color: #313238;
+    color: var(--bklog-text-primary, #313238);
   }
 
   .t-dialog__close {
@@ -16,7 +16,7 @@
     right: 5px;
     width: 26px;
     height: 26px;
-    color: #979ba5;
+    color: var(--bklog-text-placeholder, #979ba5);
   }
 
   .t-dialog__body {
@@ -45,23 +45,22 @@
 
   .batch-input-label {
     padding-bottom: 6px;
-    font-size: 14px;
-    line-height: 20px;
+    font-size: var(--bklog-font-action, 14px);
+    line-height: var(--bklog-line-height-body, 20px);
   }
 
   .batch-input-required {
     padding-left: 2px;
-    color: #ea3636;
+    color: var(--bklog-status-error, #ea3636);
   }
 
   .batch-input-textarea .t-textarea__inner {
-    height: 300px;
     padding: 5px 10px;
     line-height: 18px;
     resize: none;
 
     &::placeholder {
-      color: #c4c6cc;
+      color: var(--bklog-text-disabled, #c4c6cc);
     }
   }
 
@@ -79,21 +78,21 @@
     .t-button {
       height: 32px;
       min-width: 64px;
-      font-size: 14px;
+      font-size: var(--bklog-font-action, 14px);
     }
   }
 
   .batch-input-table {
     overflow: hidden;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
+    border: 1px solid var(--bklog-border-muted, #dcdee5);
+    border-radius: var(--bklog-radius-control, 2px);
 
     th {
       height: 42px;
       padding: 0 16px;
       font-weight: 400;
-      color: #313238;
-      background: #fafbfd;
+      color: var(--bklog-text-primary, #313238);
+      background: var(--bklog-surface-disabled, #fafbfd);
     }
 
     td {

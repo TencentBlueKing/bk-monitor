@@ -23,7 +23,7 @@
   .bk-button-group {
     .t-button {
       width: 120px;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
       padding: 1px 15px;
     }
   }

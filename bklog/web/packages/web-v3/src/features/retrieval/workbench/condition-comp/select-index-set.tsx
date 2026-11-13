@@ -1195,7 +1195,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
             {this.selectedItemList.map((item: IndexSetOption) => (
               <TTag
                 key={item.id ?? item.index_set_id}
-                style='background: #FAFBFD;'
+                style='background: var(--bklog-surface-disabled, #FAFBFD);'
                 variant={"outline"}
                 closable
                 onClose={() => this.handleCloseSelectTag(item)} data-v2-display='tag'

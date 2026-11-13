@@ -1,0 +1,41 @@
+@use './theme' as base;
+
+// Single semantic source. TDesign mappings must not contain independent palette values.
+:root:not([theme-mode='dark']) {
+  --bklog-brand-tint-subtle: #eaf3ff;
+  --bklog-brand-tint: #e1ecff;
+  --bklog-brand-hover: #699df4;
+  --bklog-brand-primary: #{base.$primary-color};
+  --bklog-brand-active: #2761dd;
+  --bklog-border-muted: #{base.$border-color-base};
+  --bklog-status-success: #{base.$success-color};
+  --bklog-status-warning: #{base.$warning-color};
+  --bklog-status-error: #{base.$danger-color};
+  --bklog-text-inverse: #fff;
+  --bklog-border-hover: #979ba5;
+  --bklog-text-strong: #4d4f56;
+  --bklog-status-error-emphasis: #ff5656;
+  --bklog-status-error-active: #d7473f;
+  --bklog-border-focus-light: #a4c6fe;
+  --bklog-text-primary: #313238;
+  --bklog-text-secondary: #{base.$default-color};
+  --bklog-text-placeholder: #979ba5;
+  --bklog-text-disabled: #c4c6cc;
+  --bklog-border-control: #c4c6cc;
+  --bklog-surface: #fff;
+  --bklog-surface-hover: #f5f7fa;
+  --bklog-surface-component: #f0f1f5;
+  --bklog-surface-component-hover: #eaebf0;
+  --bklog-surface-disabled: #fafbfd;
+  --bklog-font-body: #{base.$font-size-base};
+  --bklog-line-height-small: 16px;
+  --bklog-line-height-body: 20px;
+  --bklog-control-size-small: #{base.$component-size-small};
+  --bklog-control-size-medium: #{base.$component-size-base};
+  --bklog-control-size-large: #{base.$component-size-large};
+  --bklog-radius-control: #{base.$border-radius-base};
+  --bklog-shadow-small: 0 2px 6px 0 #0000001a;
+  --bklog-shadow-popup: 0 3px 9px 0 #0000001a;
+  --bklog-font-large: #{base.$font-size-large};
+  --bklog-font-action: #{base.$font-size-medium};
+}

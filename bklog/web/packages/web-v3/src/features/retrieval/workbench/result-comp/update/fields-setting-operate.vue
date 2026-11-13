@@ -258,7 +258,7 @@ export default {
       text-align: right;
 
       .t-button--variant-text {
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
 
         &:first-child {
           margin-right: 4px;
