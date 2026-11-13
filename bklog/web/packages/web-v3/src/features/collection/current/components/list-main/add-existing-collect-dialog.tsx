@@ -468,7 +468,7 @@ export default defineComponent({
                     scene='part'
                   />
                 )}
-                {addListLoading.value && currentPage.value > 1 && <div class='list-loading'>loading...</div>}
+                {addListLoading.value && currentPage.value > 1 && <div class='list-loading'><span class='bklog-loading-mark' role='status' aria-label='Loading' /></div>}
               </div>
             </div>
           </div>
@@ -488,7 +488,7 @@ export default defineComponent({
                 </i18n>
               </div>
               <TButton
-                
+
                 theme='primary'
                 class='header-clear-btn'
                 onClick={() => {

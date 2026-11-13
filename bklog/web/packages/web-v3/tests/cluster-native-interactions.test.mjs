@@ -57,7 +57,7 @@ test('valid connectivity retains V2 payload, masked-password behavior and node d
   const connectLoading = ref(false);
   const call = actual(slider, 'handleTestConnect', {
     validateForm: ref({ validate: async () => true }),
-    bkBizId: ref(5000140),
+    bkBizId: ref(900001),
     basicFormData: ref({
       cluster_name: 'test',
       display_name: 'Test',
@@ -87,7 +87,7 @@ test('valid connectivity retains V2 payload, masked-password behavior and node d
   assert.deepEqual(calls[0], [
     {
       data: {
-        bk_biz_id: 5000140,
+        bk_biz_id: 900001,
         cluster_name: 'test',
         display_name: 'Test',
         domain_name: 'test.invalid',

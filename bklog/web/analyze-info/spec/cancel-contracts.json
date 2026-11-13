@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "contracts": [
     {
-      "path": "/api/v1/search/index_set/16176/aggs/date_histogram/",
+      "path": "/api/v1/search/index_set/{indexId}/aggs/date_histogram/",
       "method": "POST",
       "condition": "Superseded bootstrap query cancelled; a later request for same endpoint completes successfully",
       "source": {

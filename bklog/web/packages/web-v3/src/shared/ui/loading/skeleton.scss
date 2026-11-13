@@ -1,0 +1,131 @@
+@use './shimmer' as *;
+
+.bklog-loading-skeleton {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 6em;
+  max-width: 100%;
+  overflow: hidden;
+  vertical-align: middle;
+  flex-shrink: 1;
+
+  &__bar {
+    @include loading-shimmer;
+    display: block;
+    height: 4px;
+    flex-shrink: 0;
+  }
+}
+
+.t-loading--full > .bklog-loading-skeleton {
+  width: min(70%, 480px);
+  height: min(52px, 80%);
+  gap: 10%;
+  > span { height: 20%; }
+}
+
+// TDesign creates private Loading components inside select/table/button/dialog.
+// Keep their lifecycle and layout; replace only their default spinner visual.
+.t-loading:has(> .t-loading__gradient) {
+  > .t-loading__gradient { display: none; }
+  &::before {
+    @include loading-shimmer;
+    content: '';
+    display: inline-block;
+    width: 4em;
+    max-width: 100%;
+    height: 1em;
+    flex-shrink: 1;
+    mask-image: linear-gradient(to bottom, #000 0 20%, transparent 20% 40%, #000 40% 60%, transparent 60% 80%, #000 80%);
+  }
+}
+
+// Small controls must retain their original icon footprint.
+.t-button .t-loading,
+.t-input .t-loading,
+.t-select .t-loading {
+  &::before { width: 1em; }
+  .bklog-loading-skeleton { width: 1em; gap: 2px; }
+  .bklog-loading-skeleton__bar { height: 2px; }
+}
+
+@keyframes bklog-loading-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bklog-loading-skeleton__bar,
+  .t-loading:has(> .t-loading__gradient)::before { animation: none; }
+}
+
+.bklog-loading-mark {
+  @include loading-shimmer;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  color: transparent !important;
+  vertical-align: middle;
+  &::before { content: '' !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bklog-loading-mark { animation: none; }
+}
+
+.t-loading__fullscreen .bklog-loading-skeleton {
+  width: min(70vw, 480px);
+  height: 52px;
+  gap: 8px;
+  > span { height: 12px; }
+}
+
+// Select's portal uses text instead of a Loading component. Retain its row size.
+.t-select__loading-tips {
+  position: relative;
+  color: transparent;
+  &::after {
+    @include loading-shimmer;
+    content: '';
+    position: absolute;
+    width: 60%;
+    height: 12px;
+    left: 20%;
+    top: calc(50% - 6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t-select__loading-tips::after { animation: none; }
+}
+
+.bk-search-list-loading,
+.list-loading,
+.task-list-loading,
+.template-list-loading,
+.bklog-loading-footer {
+  > .bklog-loading-mark { width: min(60%, 180px); height: 12px; }
+}
+
+.bklog-dropdown-skeleton {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  &__item {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 8px;
+  }
+  &__bar {
+    @include loading-shimmer;
+    display: block;
+    height: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bklog-dropdown-skeleton__bar { animation: none; }
+}

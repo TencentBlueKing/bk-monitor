@@ -35,7 +35,7 @@ function base(extra = {}, response = { data: { allowed: true, message: '' } }) {
       '@/app/state/domains/globals-store': { useGlobalsStore: () => ({ globalsData: { databus_custom: [{ id: 'log', name: '\u65e5\u5fd7' }] } }) },
       '@/shared/composables/use-locale': () => ({ t }),
       '@/shared/composables/use-store': () => ({
-        state: { bkBizId: 5000140 },
+        state: { bkBizId: 900001 },
         getters: { 'globals/globalsData': { databus_custom: [{ id: 'log', name: '日志' }] } },
       }),
       '../../common-comp/info-tips': { name: 'InfoTips' },
@@ -53,7 +53,7 @@ function base(extra = {}, response = { data: { allowed: true, message: '' } }) {
     data: {
       index_set_name: 'owned draft',
       collector_config_name_en: 'ai_mig_draft',
-      parent_index_set_ids: [16176],
+      parent_index_set_ids: [900101],
       description: '',
     },
     isEdit: false,
@@ -80,7 +80,7 @@ test('base form native inputs emit exact values and keep textarea remarks and pa
   assert.equal(value.index_set_name, '采集草稿');
   assert.equal(value.collector_config_name_en, 'ai_mig_owned');
   assert.equal(value.description, 'line one\nline two');
-  assert.deepEqual(value.parent_index_set_ids, [16176]);
+  assert.deepEqual(value.parent_index_set_ids, [900101]);
   vm.scope.stop();
 });
 test('base form validation keeps reject-on-failure coordinator contract', async () => {
@@ -100,7 +100,7 @@ test('base data-name rules retain required/format/length/precheck and backend er
   assert.equal(rules[0].validator(), true);
   assert.equal(rules[1].validator(), true);
   assert.deepEqual(await rules[4].validator(), { result: false, message: 'owned fixture duplicate' });
-  assert.deepEqual(vm.requests, [{ params: { collector_config_name_en: 'ai_mig_draft', bk_biz_id: 5000140 } }]);
+  assert.deepEqual(vm.requests, [{ params: { collector_config_name_en: 'ai_mig_draft', bk_biz_id: 900001 } }]);
   vm.find(native.Input).props.onChange('still named');
   const name = all(vm.render()).filter((n) => n.type === native.Input)[1];
   name.props.onChange('bad-name');

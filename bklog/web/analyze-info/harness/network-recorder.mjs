@@ -1,3 +1,4 @@
+import { assertExternalPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -33,6 +34,7 @@ const hash = body => createHash('sha256').update(body).digest('hex');
 
 /** Never serialize request headers/cookies. Full bodies stay in a private local directory. */
 export async function installRecorder(context, {origin, rules, privateDir, businessContext, bodyFallback}) {
+  assertExternalPath(privateDir);
   mkdirSync(privateDir, {recursive: true, mode: 0o700});
   const entries = [], ids = new WeakMap(), pending = new Set();
   let observationPhase = 'bootstrap';

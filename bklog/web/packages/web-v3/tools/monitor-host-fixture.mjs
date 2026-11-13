@@ -32,6 +32,7 @@ export function monitorHostFixture(packageRoot) {
     name:'monitor-host-contract-fixture',apply:'serve',
     resolveId(id) {
       if(id==='/__fixtures__/collection-label-contract.tsx')return resolve(packageRoot,'fixtures/collection-label-contract.tsx');
+      if(id==='/__fixtures__/management-loading-contract.tsx')return resolve(packageRoot,'fixtures/management-loading-contract.tsx');
       if(id==='/__fixtures__/native-model-contract.ts')return resolve(packageRoot,'fixtures/native-model-contract.ts');
       if(id==='/__fixtures__/native-controls.ts')return resolve(packageRoot,'tests/browser/native-controls.ts');
       if(id==='/__fixtures__/state-i18n.ts')return resolve(packageRoot,'tests/browser/state-i18n.ts');
@@ -41,9 +42,9 @@ export function monitorHostFixture(packageRoot) {
     configureServer(server) {
       server.middlewares.use(async(req,res,next)=>{
         const route=new URL(req.url||'/','http://localhost').pathname;
-        if(!['/__fixtures__/monitor-host','/__fixtures__/state-i18n','/__fixtures__/native-controls','/__fixtures__/native-model-contract','/__fixtures__/collection-label-contract'].includes(route))return next();
+        if(!['/__fixtures__/monitor-host','/__fixtures__/state-i18n','/__fixtures__/native-controls','/__fixtures__/native-model-contract','/__fixtures__/collection-label-contract','/__fixtures__/management-loading-contract'].includes(route))return next();
         try {
-          const html=readFileSync(resolve(packageRoot,route==='/__fixtures__/collection-label-contract'?'fixtures/collection-label-contract.html':route==='/__fixtures__/native-model-contract'?'fixtures/native-model-contract.html':route==='/__fixtures__/native-controls'?'tests/browser/native-controls.html':route==='/__fixtures__/state-i18n'?'tests/browser/state-i18n.html':'tests/browser/monitor-host.html'),'utf8');
+          const html=readFileSync(resolve(packageRoot,route==='/__fixtures__/management-loading-contract'?'fixtures/management-loading-contract.html':route==='/__fixtures__/collection-label-contract'?'fixtures/collection-label-contract.html':route==='/__fixtures__/native-model-contract'?'fixtures/native-model-contract.html':route==='/__fixtures__/native-controls'?'tests/browser/native-controls.html':route==='/__fixtures__/state-i18n'?'tests/browser/state-i18n.html':'tests/browser/monitor-host.html'),'utf8');
           res.setHeader('Content-Type','text/html; charset=utf-8');
           res.end(await server.transformIndexHtml(req.url,html));
         }catch(error){next(error);}

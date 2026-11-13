@@ -1,3 +1,4 @@
+@use '@/shared/ui/loading/shimmer' as *;
 .grep-cli-container {
   position: sticky;
   top: var(--top-searchbar-height);
@@ -352,10 +353,10 @@
 .loading-spinner {
   width: 12px;
   height: 12px;
-  border: 2px solid #dcdee5;
-  border-top-color: #3a84ff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+
+
+  border-radius: 4px;
+  @include loading-shimmer;
 }
 
 @keyframes spin {

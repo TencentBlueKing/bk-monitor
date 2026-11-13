@@ -775,6 +775,7 @@ export default defineComponent({
                 >
                   <TButton
                     data-test-id='cleanTemplateBox_button_importCleanTemplate'
+                    theme='default'
                     loading={isImporting.value}
                   >
                     {t('导入')}
@@ -782,6 +783,7 @@ export default defineComponent({
                 </LogImport>
                 <TButton
                   data-test-id='cleanTemplateBox_button_exportCleanTemplate'
+                  theme='default'
                   onClick={() => (exportDialogVisible.value = true)}
                 >
                   {t('导出')}

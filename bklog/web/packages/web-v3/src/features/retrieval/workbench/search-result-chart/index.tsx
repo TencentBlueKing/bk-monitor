@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+import ChartSkeleton from '@/app/skeleton/chart-skeleton';
+
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 
 
-import { Loading as TLoading } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import type { ServiceOperation } from '@/platform/services/runtime/service-client';
 
@@ -51,7 +52,6 @@ import { getEffectiveSearchTotal, normalizeSearchTotal } from '@/platform/persis
 import RetrieveHelper, { RetrieveEvent } from '@/features/retrieval/retrieve-helper';
 import { throttle } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router';
-
 
 
 import './index.scss';
@@ -101,7 +101,8 @@ export default defineComponent({
     const isCurrentTrendLoad = (seq: number) => seq === trendLoadSeq;
     const trendLoadingCovered = useRetrieveLoadingCovered('trend');
     const isLoading = computed(() => trendStatus.value === 'loading' || trendStatus.value === 'polling');
-    const showTrendSpinner = computed(() => isLoading.value && !trendLoadingCovered.value);
+    const showTrendSkeleton = computed(() => trendStatus.value === 'loading' && !trendLoadingCovered.value);
+    const showTrendProgress = computed(() => trendStatus.value === 'polling' && !trendLoadingCovered.value && !isFold.value);
     const showEmpty = computed(() => trendStatus.value === 'empty');
     const finishPolling = computed(() => trendStatus.value === 'ready' || trendStatus.value === 'empty');
 
@@ -254,7 +255,6 @@ export default defineComponent({
 
     // 趋势图数据请求主函数
     const getSeriesData = async (startTimeStamp: number, endTimeStamp: number, seq: number) => {
-      setTrendStatus('polling', seq);
       let hasMarkedReady = false;
       const ensureTrendReady = () => {
         if (hasMarkedReady) return;
@@ -298,6 +298,8 @@ export default defineComponent({
                 if (!isCurrentTrendLoad(seq)) {
                   break;
                 }
+                // Worker 返回计算结果，不会更新 ECharts；使用现有回填入口提交本段数据。
+                setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
               } catch {
                 // Worker 处理失败，降级到主线程处理
                 if (isCurrentTrendLoad(seq)) {
@@ -308,6 +310,10 @@ export default defineComponent({
               setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
             }
             if (currentIsInit) {
+              // 首段绘制后才能露出图表；后续分段仅显示角落进度，不能继续遮住已回填的数据。
+              if (res?.result && requestInterval !== 0) {
+                setTrendStatus('polling', seq);
+              }
               ensureTrendReady();
             }
 
@@ -684,14 +690,25 @@ export default defineComponent({
         {/* 标题部分 */}
         <div class='title-wrapper'>
           {chartTitleContent()}
-          {showTrendSpinner.value && !isFold.value && <TLoading class='chart-spin' />}
+          {showTrendProgress.value && (
+            <span class='chart-spin trend-chart-progress' role='status' aria-label={t('加载中')} data-testid='trend-chart-progress'>
+              <svg width='16' height='16' viewBox='0 0 16 16' aria-hidden='true'>
+                <circle cx='8' cy='8' r='6' fill='none' stroke='currentColor' stroke-width='2' stroke-dasharray='28 10' />
+              </svg>
+            </span>
+          )}
         </div>
         {/* 图表部分：loading/polling 不展示空态；empty 为唯一空态终态 */}
         <div
           class='echart-wrapper'
-          v-loading={{ loading: trendStatus.value === 'loading' && !trendLoadingCovered.value, size: 'small' }}
+          aria-busy={isLoading.value}
           v-show={!isFold.value}
         >
+          {showTrendSkeleton.value && (
+            <div class='trend-chart-loading-overlay' role='status' aria-label={t('加载中')} data-testid='trend-chart-skeleton'>
+              <ChartSkeleton type='bar' height={dynamicHeight.value} length={40} />
+            </div>
+          )}
           {showEmpty.value ? (
             <div
               style={{ height: `${dynamicHeight.value}px` }}

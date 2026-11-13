@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-
+import { DropdownLoadingSkeleton } from '@/shared/ui/loading/skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 
@@ -503,10 +503,10 @@ export default defineComponent({
       if (suggestionState.items.length === 0) {
         return (
           <li
-            class='field-suggestion-empty'
+            class={['field-suggestion-empty', { 'is-loading': suggestionState.loading }]}
             onMousedown={(e: MouseEvent) => e.preventDefault()}
           >
-            {suggestionState.loading ? <TLoading size='16px' /> : t('暂无数据')}
+            {suggestionState.loading ? <DropdownLoadingSkeleton /> : t('暂无数据')}
           </li>
         );
       }
@@ -538,7 +538,7 @@ export default defineComponent({
                   class='field-suggestion-loading'
                   onMousedown={(e: MouseEvent) => e.preventDefault()}
                 >
-                  {t('loading...')}
+                  <DropdownLoadingSkeleton rows={1} />
                 </li>,
               ]
             : [],
@@ -1028,6 +1028,7 @@ export default defineComponent({
               {suggestionState.visible && suggestionState.currentFieldKey === field.key && (
                 <ul
                   class='field-suggestion-dropdown'
+                  v-loading={{ loading: suggestionState.loading, indicator: false, showOverlay: false }}
                   onScroll={(e: Event) => {
                     const target = e.target as HTMLElement;
                     if (target.scrollTop + target.clientHeight >= target.scrollHeight - 50) {

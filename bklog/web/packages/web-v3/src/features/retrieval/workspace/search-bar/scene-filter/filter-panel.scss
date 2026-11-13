@@ -209,6 +209,9 @@
           display: flex;
           flex-direction: column;
           gap: 2px;
+          position: relative;
+          width: 100%;
+          min-width: 0;
 
           .scene-filter-tag-input {
             width: 100%;
@@ -239,6 +242,11 @@
           }
 
           .field-suggestion-dropdown {
+            position: absolute;
+            top: calc(100% + 2px);
+            left: 0;
+            width: 100%;
+            box-sizing: border-box;
             padding: 4px 0;
             max-height: 300px;
             background: #fff;
@@ -317,6 +325,8 @@
                 background: #f0f5ff;
               }
             }
+
+            .field-suggestion-empty.is-loading { padding: 0; }
 
             .field-suggestion-loading {
               text-align: center;

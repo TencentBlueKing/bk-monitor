@@ -40,14 +40,14 @@ test('native collection keeps replacement merge and export semantics with isolat
   assert.deepEqual(b.curCollect, {});
   a.setCurCollect({ id: 9 });
   assert.deepEqual(a.curCollect, { id: 9 });
-  a.updateCurIndexSet({ index_set_id: 16176 });
+  a.updateCurIndexSet({ index_set_id: 900101 });
   a.updateScenarioMap({ host: 'host' });
   a.updateExportCollectObj({
     collectID: 9,
     syncType: ['all'],
     collect: { name: 'export' },
   });
-  assert.equal(a.curIndexSet.index_set_id, 16176);
+  assert.equal(a.curIndexSet.index_set_id, 900101);
   assert.equal(a.exportCollectObj.collectID, 9);
   assert.equal(a.$state.state, undefined, 'native state is flat, not nested behind Vuex-shaped state');
 });

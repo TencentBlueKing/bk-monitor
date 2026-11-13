@@ -1,3 +1,4 @@
+import { localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -70,7 +71,7 @@ try {
       'Retrieve / management: see 回归使用指南.md; fresh private capture and V2 self-replay required.',
     ],
   };
-  const dir = resolve(root, 'runs/regression');
+  const dir = localArtifactPath('runs/regression');
   mkdirSync(dir, { recursive: true });
   const output = resolve(dir, `${Date.now()}-${randomUUID().slice(0, 8)}.json`);
   writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);

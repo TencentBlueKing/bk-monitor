@@ -19,3 +19,16 @@
 /screenshots
 /artifacts
 /.local
+
+# Generated source snapshots may contain environment literals. Keep outside Git.
+/source
+*.mp4
+*.webm
+*.zip
+*.body
+*.clipboard.json
+*.request.json
+*.response.json
+*.ui.json
+*.ndjson
+*.ax.txt

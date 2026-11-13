@@ -24,10 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, defineComponent, ref, watch } from 'vue';
-import { Input as TInput, Empty as TEmpty, Loading as TLoading } from 'tdesign-vue-next';
+import { Input as TInput, Empty as TEmpty } from 'tdesign-vue-next';
 
 import useLocale from '@/shared/composables/use-locale';
 

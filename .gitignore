@@ -217,3 +217,16 @@ worktrees/
 .codebuddy
 .claude/
 bkmonitor-files/
+# Local agent runtime records and private validation exports
+/.aafe/runtime/
+
+# Private authentication and browser evidence
+.cookie
+.cookie.*
+.env.local
+.env.*.local
+*.har
+*.har.zip
+**/playwright-report/
+**/test-results/
+**/playwright/.auth/

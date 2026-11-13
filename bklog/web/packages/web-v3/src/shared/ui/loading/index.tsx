@@ -7,8 +7,10 @@
  * Licensed under the MIT License.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 import { computed, defineComponent, type CSSProperties } from 'vue';
-import { Loading as TLoading } from 'tdesign-vue-next';
+
 
 import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 
@@ -58,7 +60,6 @@ export default defineComponent({
     },
   },
   setup(props, { attrs, slots }) {
-    const indicatorSize = computed(() => (['mini', 'small'].includes(props.size) ? props.size : 'large'));
     const loadingSize = computed(() => (props.size === 'mini' ? '16px' : props.size));
     const rootStyle = computed(
       () =>
@@ -70,17 +71,10 @@ export default defineComponent({
         ] as CSSProperties[],
     );
 
-    const renderIndicator = () => (
-      <span class={['bklog-loading-dots', `bklog-loading-dots--${indicatorSize.value}`]}>
-        {[0, 1, 2, 3].map(index => <span key={index} />)}
-      </span>
-    );
-
     return () => (
       <TLoading
         {...attrs}
         class={['bklog-loading', attrs.class]}
-        indicator={renderIndicator}
         loading={props.loading}
         showOverlay
         size={loadingSize.value}

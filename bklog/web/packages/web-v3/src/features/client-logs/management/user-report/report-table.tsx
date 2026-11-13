@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { Loading as TLoading } from 'tdesign-vue-next';
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { Button as TButton } from 'tdesign-vue-next';
 
@@ -391,7 +392,7 @@ export default defineComponent({
             }}
           >
             <TButton
-              
+
               theme='primary'
               onClick={() => handleSearchTask(row)}
               disabled={row.status !== FileUploadStatus.SUCCESS} variant={(true) ? 'text' : ('base')}
@@ -407,7 +408,7 @@ export default defineComponent({
             }}
           >
             <TButton
-              
+
               theme='primary'
               onClick={() => handleUpload(row)}
               disabled={row.status !== FileUploadStatus.FAILED && row.status !== FileUploadStatus.PENDING} variant={(true) ? 'text' : ('base')}
@@ -417,7 +418,7 @@ export default defineComponent({
           </span>
           <span class='king-button'>
             <TButton
-              
+
               class={[
                 {
                   'disabled-download': !props.isAllowedDownload,
@@ -451,7 +452,7 @@ export default defineComponent({
           pagination={pagination.value}
           outer-border={false}
           ref={reportTableRef}
-          v-loading={{ loading: props.loading }}
+          loading={props.loading}
           onPage-change={handlePageChange}
           onPage-limit-change={handlePageLimitChange}
           onSort-change={handleSortChange}

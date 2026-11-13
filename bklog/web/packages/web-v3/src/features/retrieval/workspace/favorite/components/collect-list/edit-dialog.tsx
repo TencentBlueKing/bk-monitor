@@ -24,20 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 
 
-import {
-  Input as TInput,
-  Textarea as TTextarea,
-  Dialog as TDialog,
-  Form as TForm,
-  FormItem as TFormItem,
-  Select as TSelect,
-  Loading as TLoading,
-} from 'tdesign-vue-next';
+import { Input as TInput, Textarea as TTextarea, Dialog as TDialog, Form as TForm, FormItem as TFormItem, Select as TSelect } from 'tdesign-vue-next';
 import type { FormInstanceFunctions } from 'tdesign-vue-next';
 import { asDictionary } from '@/shared/utils/typed-record';
 

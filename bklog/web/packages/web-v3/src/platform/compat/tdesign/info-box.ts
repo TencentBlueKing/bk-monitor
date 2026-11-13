@@ -1,5 +1,6 @@
+import { Loading } from '@/shared/ui/loading/native';
 import { h } from 'vue';
-import { DialogPlugin, Loading } from 'tdesign-vue-next';
+import { DialogPlugin } from 'tdesign-vue-next';
 import { t } from '../../../shared/composables/use-locale';
 import { createInfoService } from './info-box-contract';
 import { overlayRegistry } from '../../../shared/global/overlay/overlay-registry.js';

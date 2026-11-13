@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading as TLoading } from '@/shared/ui/loading/native';
+
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Tag as TTag } from 'tdesign-vue-next';
 
-import { Loading as TLoading } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -395,7 +396,7 @@ export default defineComponent({
     return () => (
       <div
         class='extract-task-list-container'
-        v-loading={{ loading: isLoading.value }}
+        aria-busy={isLoading.value}
         data-test-id='logExtraction_div_fromBox'
       >
         {/* 新建和搜索框 */}
@@ -428,6 +429,7 @@ export default defineComponent({
           class='extract-task-table-container'
         >
           <bk-table
+          loading={isLoading.value}
             class='king-table'
             max-height={tableMaxHeight.value}
             v-slots={{

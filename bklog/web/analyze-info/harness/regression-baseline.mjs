@@ -1,3 +1,4 @@
+import { localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -93,7 +94,7 @@ export function verifyManifest(manifest, webRoot, baselineRoot) {
   }
   unique(files, 'test entrypoints');
   const evidence = manifest.evidence.map(item => {
-    const actual = hashFile(safePath(baselineRoot, item.path));
+    const actual = hashFile(/^(runs|source)\//.test(item.path) ? localArtifactPath(item.path) : safePath(baselineRoot, item.path));
     if (actual !== item.sha256) throw Error(`Evidence checksum mismatch: ${item.path}`);
     return { path: item.path, sha256: actual };
   });

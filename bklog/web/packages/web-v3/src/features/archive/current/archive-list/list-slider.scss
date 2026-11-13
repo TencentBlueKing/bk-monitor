@@ -1,16 +1,20 @@
 .archive-slider-content {
-  height: calc(100vh - 60px);
   min-height: 394px;
 
   .king-form {
     padding: 10px 0 36px 36px;
 
-    .bk-form-item {
+    .t-form__item {
       margin-top: 18px;
+      margin-bottom: 0;
+
+      & + .t-form__item {
+        margin-top: 8px;
+      }
     }
 
-    .bk-select {
+    .t-select__wrap {
       width: 300px;
     }
   }
-} 
+}

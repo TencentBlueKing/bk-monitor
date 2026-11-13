@@ -7,8 +7,11 @@
  * Licensed under the MIT License.
  */
 
+import { LoadingPlugin } from '@/shared/ui/loading/native';
+
+import { renderLoadingSkeleton } from '@/shared/ui/loading/skeleton';
 import { getCurrentInstance, h, onBeforeUnmount } from 'vue';
-import { LoadingPlugin, type LoadingInstance } from 'tdesign-vue-next';
+import { type LoadingInstance } from 'tdesign-vue-next';
 
 interface FullscreenLoadingOptions {
   opacity?: number;
@@ -48,14 +51,7 @@ export default function useFullscreenLoading() {
                   opacity,
                 },
               }),
-              h(
-                'span',
-                {
-                  class: 'bklog-loading-dots bklog-loading-dots--large',
-                  style: { position: 'relative', zIndex: 1 },
-                },
-                [0, 1, 2, 3].map(index => h('span', { key: index })),
-              ),
+              renderLoadingSkeleton(),
             ],
           ),
         showOverlay: false,

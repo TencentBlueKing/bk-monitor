@@ -22,6 +22,8 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
   import imgUpDownKey from '@/shared/assets/images/icons/up-down-key.svg';
   import { Props } from 'tippy.js';
 
+  import { DropdownLoadingSkeleton } from '@/shared/ui/loading/skeleton';
+  import { dropdownWidthModifier } from '@/shared/global/dropdown-width';
   import PopInstanceUtil from '@/shared/global/pop-instance-util';
   import useFieldEgges from '@/shared/composables/use-field-egges';
   import { storeRuntimeCacheService } from '@/app/state/services/runtime-cache.service.js';
@@ -83,11 +85,14 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
 
   const tippyOptions: Partial<Props> = {
     // flip: false,
-    placement: 'bottom',
+    placement: 'bottom-start',
+    maxWidth: 'none',
+    onCreate: instance => instance.popper.classList.add('bklog-condition-values-popup'),
     delay: [0, 300],
     popperOptions: {
-      placement: 'bottom', // 或者其他你想要的位置
+      placement: 'bottom-start',
       modifiers: [
+        dropdownWidthModifier,
         {
           name: 'preventOverflow',
           options: {
@@ -592,6 +597,8 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
         setIsRequesting(true);
 
         nextTick(() => {
+          // Switching fields updates this same popup; discard any previous close timer.
+          conditionValueInstance.cancelHide();
           if (!conditionValueInstance.isShown()) {
             const target = refConditionInput.value?.parentNode;
             target && conditionValueInstance.show(target, true);
@@ -599,7 +606,7 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
         });
 
         if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
-          requestFieldEgges(item, null, () => {
+          requestFieldEgges(item, null, () => nextTick(() => {
             if (!conditionValueInstance.repositionTippyInstance()) {
               if (!isOperatorInstanceActive()) {
                 if (!conditionValueInstance.isShown()) {
@@ -608,7 +615,7 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
                 }
               }
             }
-          });
+          }));
         } else {
           conditionValueInstance.hide(100);
           setIsRequesting(false);
@@ -1346,8 +1353,9 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
   };
 
   const handlePanelClick = (e: MouseEvent) => {
-    // 面板内部点空白：如果不在条件值输入/下拉区域，则收起下拉
-    if (isClickInConditionValueArea(e.target)) {
+    // Field selection owns the loading/result popup. Do not queue a close after
+    // handleFieldItemClick has opened it; only blank panel clicks should close it.
+    if (refSearchResultList.value?.contains(e.target as Node | null) || isClickInConditionValueArea(e.target)) {
       return;
     }
     hideConditionValueIfNeeded();
@@ -1649,10 +1657,10 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
                     </li>
                     <li
                       v-show="isRequesting || activeItemMatchList.length === 0"
-                      v-loading="{ loading: isRequesting, size: 'small' }"
-                      style="min-height: 32px"
+                      :class="{ 'is-loading': isRequesting }"
                     >
-                      {{ t('暂无数据') }}
+                      <DropdownLoadingSkeleton v-if="isRequesting" />
+                      <template v-else>{{ t('暂无数据') }}</template>
                     </li>
 
                     <template v-if="!isRequesting && activeItemMatchList.length > 0">

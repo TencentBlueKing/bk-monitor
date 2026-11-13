@@ -24,8 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import { Loading, LoadingPlugin, LoadingDirective } from '@/shared/ui/loading/native';
+
 import { ServicesInstance } from '@/platform/services';
-import { Button, Checkbox, CheckboxGroup, Radio, RadioButton, RadioGroup, Switch, Loading, Alert, Tag, Progress, Badge, Input, Dialog, LoadingPlugin, LoadingDirective } from 'tdesign-vue-next';
+import { Button, Checkbox, CheckboxGroup, Radio, RadioButton, RadioGroup, Switch, Alert, Tag, Progress, Badge, Input, Dialog } from 'tdesign-vue-next';
 import 'tdesign-vue-next/es/loading/style/index.css';
 
 import VueVirtualScroller from 'vue-virtual-scroller';

@@ -1,3 +1,4 @@
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -30,7 +31,7 @@ import {resolve} from 'node:path';
 import {createHash} from 'node:crypto';
 import {inspectSources} from './source-inventory.mjs';
 import {routeEntries} from './route-entries.mjs';
-const source = fileURLToPath(new URL('../source/',import.meta.url));
+const source = fileURLToPath(localArtifactUrl('source/'));
 const v2root = fileURLToPath(new URL('../../packages/web-v2/src/',import.meta.url));
 const v3root = fileURLToPath(new URL('../../packages/web-v3/src/',import.meta.url));
 const v2graph = JSON.parse(readFileSync(resolve(source,'entry-graph.json')));

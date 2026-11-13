@@ -59,7 +59,7 @@
       <template #suffix><i :class="'bk-icon icon-search'" /></template></t-input>
     </div>
     <bk-table
-      v-loading="{ loading: isTableLoading }"
+      :loading="isTableLoading"
       :data="indexSetList"
       :empty-text="$t('暂无内容')"
       :pagination="pagination"

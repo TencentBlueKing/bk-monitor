@@ -28,7 +28,8 @@
     }
 
     > .t-loading__overlay {
-      background-color: rgba(255, 255, 255, 0.9);
+      // Keep the existing ClusteringLoader visible; the transparent layer still blocks interaction.
+      background-color: transparent;
     }
   }
 

@@ -86,7 +86,7 @@ function setup(props) {
     type: 'single',
     value: [],
     textDir: 'ltr',
-    spaceUid: 'bkcc__5000140',
+    spaceUid: 'bkcc__900001',
     ...props,
   });
   const render = scope.run(() => component.setup(state, { emit: (...args) => calls.push(args) }));
@@ -110,7 +110,7 @@ test('index selector business controls use native input/form/empty/loading APIs'
     );
 });
 test('search has immediate draft, delayed filtering and immediate clear without stale results', () => {
-  const c = setup({ list: [node('16176', 'Demo'), node('16462', 'Other')] });
+  const c = setup({ list: [node('900101', 'Demo'), node('900105', 'Other')] });
   try {
     const input = find(c.render(), native.Input);
     input.props.onChange('Other');
@@ -156,10 +156,10 @@ test('permission veto and authorization event remain separate from selection', (
   }
 });
 test('single selection retains unique IDs and complete item metadata', () => {
-  const c = setup({ list: [node('#_16176', 'Demo', { collector_config_id: 99 })] });
+  const c = setup({ list: [node('#_900101', 'Demo', { collector_config_id: 99 })] });
   try {
     byClass(c.render(), 'index-set-item')[0].props.onClick(mouse());
-    assert.deepEqual(c.calls, [['value-change', ['#_16176']]]);
+    assert.deepEqual(c.calls, [['value-change', ['#_900101']]]);
     byClass(c.render(), 'favorite-icon')[0].props.onClick(mouse());
     assert.equal(c.calls[1][0], 'favorite-change');
     assert.equal(c.calls[1][1].collector_config_id, 99);
@@ -236,7 +236,8 @@ test('history list keeps loading, source row events and item/all delete semantic
   });
   try {
     const render = scope.run(() => component.setup(props, { emit: (...args) => events.push(args) }));
-    assert.equal(render().type, native.Loading);
+    assert.equal(render().type.name, 'SkeletonLoading');
+    assert.equal(render().props.loading, true);
     assert.equal(find(render(), native.Empty), undefined);
     props.isLoading = false;
     assert.equal(find(render(), native.Empty).props.title, '暂无数据');

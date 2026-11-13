@@ -199,7 +199,7 @@
     },
     {
       "path": "baselines/ui-alignment/2026-11-12-r1/ui-contracts.json",
-      "sha256": "680b0f558c4cd032136224bd0d0f73df614b23b4593a9ba0aabb9f9a49e6dc86"
+      "sha256": "5da85e39f1433f842c0507bc55ca5372d513af22cd711e2b2dbcec998a139770"
     },
     {
       "path": "source/entry-graph.json",
@@ -4294,7 +4294,8 @@
     "Passing these source tests does not prove real backend flows or visual equivalence.",
     "Historical private replay captures are not packaged; check availability and regenerate/self-replay before comparison.",
     "The global strict typecheck still has 1675 existing diagnostics; no blanket ignore is authorized.",
-    "V2 snapshot hashes come from the original frozen graph. Master synchronization invalidates affected source evidence; regenerate a versioned V2 graph and capture rather than reusing historical acceptance."
+    "V2 snapshot hashes come from the original frozen graph. Master synchronization invalidates affected source evidence; regenerate a versioned V2 graph and capture rather than reusing historical acceptance.",
+    "Runtime evidence and source inventories are external-only; a clean checkout must regenerate local evidence. Engineering contracts remain versioned."
   ],
   "counting": {
     "historicalExecutions": 72,

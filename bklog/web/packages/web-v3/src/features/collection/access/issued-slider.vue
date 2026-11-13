@@ -65,9 +65,9 @@
                     display: inline-block;
                     line-height: 16px;
                     color: #3a84ff;
-                    animation: button-icon-loading 1s linear infinite;
+
                   "
-                  class="bk-icon icon-refresh"
+                  class="bk-icon icon-refresh bklog-loading-mark"
                 ></i>
                 <span class="notice-text">{{ $t('正在下发...') }}</span>
                 <i18n
@@ -205,9 +205,9 @@
                                       display: inline-block;
                                       margin: 4px 5px 0 0;
                                       color: #3a84ff;
-                                      animation: button-icon-loading 1s linear infinite;
+
                                     "
-                                    class="bk-icon icon-refresh"
+                                    class="bk-icon icon-refresh bklog-loading-mark"
                                   >
                                   </i>
                                   <div style="width: 100px">{{ getShowIp(props.row) }}</div>

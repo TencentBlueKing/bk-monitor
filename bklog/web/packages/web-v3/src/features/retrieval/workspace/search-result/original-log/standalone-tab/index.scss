@@ -1,3 +1,4 @@
+@use '@/shared/ui/loading/shimmer' as *;
 // Both hosts teleport outside the application layout; scope by their own roots.
 .log-context-dialog-main,
 .log-realtime-dialog-main {
@@ -116,10 +117,10 @@
     width: 32px;
     height: 32px;
     margin: 0 auto 16px;
-    border: 3px solid #e1ecff;
-    border-top-color: #3a84ff;
-    border-radius: 50%;
-    animation: standalone-related-log-loading-spin .9s linear infinite;
+
+
+    border-radius: 4px;
+    @include loading-shimmer;
   }
 
   .standalone-related-log-loading-title {

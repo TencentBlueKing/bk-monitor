@@ -251,6 +251,7 @@ export default defineComponent({
       if (canClose) {
         emit('cancel');
       }
+      return canClose;
     };
 
     // 渲染调试状态

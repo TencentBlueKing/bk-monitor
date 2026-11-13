@@ -18,3 +18,13 @@ dist/
 /tests/**/*.png
 /tests/**/*.jpg
 /tests/**/*.webp
+
+# Private recordings, response bodies and browser storage must stay outside the checkout.
+**/captures/
+**/responses/
+**/screenshots/
+**/playwright/.auth/
+**/*.har
+**/*.har.zip
+**/*.body
+**/*.clipboard.json

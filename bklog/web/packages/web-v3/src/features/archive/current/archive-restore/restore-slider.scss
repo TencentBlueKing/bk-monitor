@@ -1,22 +1,25 @@
 .restore-slider-content {
-  height: calc(100vh - 60px);
   min-height: 394px;
 
-  .bk-form.bk-form-vertical {
+  .t-form {
     padding: 10px 0 36px 36px;
 
-    .bk-form-item {
+    .t-form__item {
       width: 500px;
+      max-width: calc(100% - 36px);
       margin-top: 18px;
+      margin-bottom: 0;
+
     }
 
     .t-alert {
       width: 500px;
+      max-width: calc(100% - 36px);
       margin-top: 12px;
     }
 
-    .bk-select,
-    .bk-date-picker {
+    .t-select__wrap,
+    .t-date-picker {
       width: 300px;
     }
 
@@ -25,4 +28,4 @@
       width: 500px !important;
     }
   }
-} 
+}

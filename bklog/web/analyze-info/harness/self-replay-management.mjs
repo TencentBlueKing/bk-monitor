@@ -1,3 +1,5 @@
+import { bindTargetContracts } from './runtime-target.mjs';
+import { localArtifactUrl, localArtifactPath } from './local-artifacts.mjs';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -39,10 +41,10 @@ const {chromium} = require('@playwright/test');
 const [privateInput, target, version = 'v2', baselineReport] = process.argv.slice(2);
 if (!['v2', 'v3'].includes(version)) throw new Error('TARGET_VERSION_REQUIRED');
 if (!target || new URL(target).hostname !== 'appdev.woa.com') throw new Error('DEV_HOST_REQUIRED');
-const rules = JSON.parse(readFileSync(new URL('../spec/read-policy.json', import.meta.url), 'utf8')).rules;
-const cancelContracts = JSON.parse(readFileSync(new URL('../spec/cancel-contracts.json', import.meta.url), 'utf8')).contracts;
+const rules = bindTargetContracts(JSON.parse(readFileSync(new URL('../spec/read-policy.json', import.meta.url), 'utf8')).rules, target);
+const cancelContracts = bindTargetContracts(JSON.parse(readFileSync(new URL('../spec/cancel-contracts.json', import.meta.url), 'utf8')).contracts, target);
 const sourceRoot = fileURLToPath(new URL('../../packages/web-v2/src/', import.meta.url));
-const expectedSourceDigest = JSON.parse(readFileSync(new URL('../source/entry-graph.json', import.meta.url), 'utf8')).sourceDigest;
+const expectedSourceDigest = JSON.parse(readFileSync(localArtifactUrl('source/entry-graph.json'), 'utf8')).sourceDigest;
 const sequenceContracts = JSON.parse(readFileSync(new URL('../spec/sequence-contracts.json', import.meta.url), 'utf8')).contracts;
 const fixture = loadCapture(privateInput, {sourceRoot, rules, cancelContracts, expectedSourceDigest, sequenceContracts});
 verifyManagementContract(fixture.capture.contractPin, fixture.capture.scenarioId);
@@ -65,7 +67,7 @@ try {
   if (!fixture.capture.context?.clockEpochMs) throw new Error('CAPTURE_CLOCK_NOT_FIXED');
   await page.clock.setFixedTime(new Date(fixture.capture.context.clockEpochMs));
   await page.goto(target, {waitUntil: 'domcontentloaded', timeout: 60000});
-  await runManagementMenuPilot(page, {entries, privateDir, checkpoints, setPhase: id => replayTransport.phase(id), readBody: entry => entry.fixtureRecord.body.toString('utf8'), readRequest: entry => entry.fixtureRecord.requestData, labelPreview: fixture.capture.pilotMode?.startsWith('labels'), labelCancelPreview: fixture.capture.pilotMode === 'labels-cancel', clusterSearchPreview: fixture.capture.clusterSearchPreview === true, navClusterPreview: fixture.capture.pilotMode === 'navigation'});
+  await runManagementMenuPilot(page, {entries, privateDir, checkpoints, expectedContext: fixture.capture.context, setPhase: id => replayTransport.phase(id), readBody: entry => entry.fixtureRecord.body.toString('utf8'), readRequest: entry => entry.fixtureRecord.requestData, labelPreview: fixture.capture.pilotMode?.startsWith('labels'), labelCancelPreview: fixture.capture.pilotMode === 'labels-cancel', clusterSearchPreview: fixture.capture.clusterSearchPreview === true, navClusterPreview: fixture.capture.pilotMode === 'navigation'});
   verifyManagementContract(fixture.capture.contractPin, fixture.capture.scenarioId);
   sequence.assertConsumed();
   for (const checkpoint of checkpoints) {
@@ -82,8 +84,8 @@ finally {
   await browser.close();
   if (runtimeErrors.length) failures.push({reason: 'UNCAUGHT_RUNTIME_ERRORS', count: runtimeErrors.length});
   const result = {schemaVersion: 1, scope: fixture.capture.pilotMode === 'navigation' ? 'MANAGEMENT_COLLAPSED_NAV_CLUSTER_READ_ONLY_NOT_FULL_ACCEPTANCE' : fixture.capture.pilotMode?.startsWith('labels') ? 'MANAGEMENT_MENU_AND_LABEL_READONLY_PREVIEW_NOT_FULL_ACCEPTANCE' : 'MANAGEMENT_MENU_PREVIEW_CANCEL_ONLY_NOT_FULL_ACCEPTANCE', version, oraclePin: fixture.capture.contractPin.digest, status: failures.length ? (version === 'v2' ? 'INVALID_SELF_REPLAY' : 'V3_PILOT_REQUIRES_REVIEW') : (version === 'v2' ? 'PILOT_SELF_REPLAY_PASSED' : 'V3_PILOT_ORACLES_PASSED'), baselineProof, runtimeErrors, captureDigest: fixture.captureDigest, privateInput, privateDir, fixtureReadRecords: fixture.records.length, consumedRecords: sequence.used.size, businessRequestsForwarded: routeDecisions.filter(e => e.action === 'FORWARD' && e.kind === 'BUSINESS').length, networkAudit: {scope: 'CONTEXT_ROUTE_HANDLER_AUDIT', interceptedBusiness: routeDecisions.filter(e => e.kind === 'BUSINESS').length, forwardedStatic: routeDecisions.filter(e => e.kind === 'STATIC').length}, checkpoints, cancellations, uiDifferences, failures};
-  const dir = new URL('../runs/pilot/', import.meta.url);mkdirSync(dir, {recursive: true});
+  const dir = localArtifactUrl('runs/pilot/');mkdirSync(dir, {recursive: true});
   writeFileSync(new URL(`${version === 'v2' ? 'management-self-replay' : 'management-v3-compare'}-${Date.now()}.json`, dir), JSON.stringify(result, null, 2) + '\n');
-  console.log(JSON.stringify({...result, baselineProof: baselineProof && {status: baselineProof.status, scope: baselineProof.scope, captureDigest: baselineProof.captureDigest}, checkpoints: checkpoints.map(c => c.id), uiDifferences: undefined}));
+  console.log(JSON.stringify({status: result.status, details: 'PRIVATE_LOCAL_REPORT'}));
   if (failures.length) process.exitCode = 1;
 }

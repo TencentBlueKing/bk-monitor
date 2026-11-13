@@ -1247,6 +1247,7 @@
     "shared/global/bk-space-choice/list.scss",
     "shared/global/bk-space-choice/list.tsx",
     "shared/global/bk-space-choice/space-switch-route.ts",
+    "shared/global/dropdown-width.ts",
     "shared/global/edit-input/index.scss",
     "shared/global/edit-input/index.ts",
     "shared/global/edit-input/index.tsx",
@@ -1344,7 +1345,9 @@
     "shared/styles/space-tag-option.scss",
     "shared/styles/storage.scss",
     "shared/styles/theme/common.scss",
+    "shared/styles/theme/compat-drawer.scss",
     "shared/styles/theme/index.scss",
+    "shared/styles/theme/management-lists.scss",
     "shared/styles/theme/mixin.scss",
     "shared/styles/theme/tdesign-bklog.scss",
     "shared/styles/theme/theme-dark.scss",
@@ -1374,8 +1377,14 @@
     "shared/ui/ellipsis-tag-list/index.tsx",
     "shared/ui/empty-status/index.vue",
     "shared/ui/empty-status/types.ts",
+    "shared/ui/loading/_shimmer.scss",
     "shared/ui/loading/index.scss",
     "shared/ui/loading/index.tsx",
+    "shared/ui/loading/management-list-loading.scss",
+    "shared/ui/loading/management-list-loading.tsx",
+    "shared/ui/loading/native.ts",
+    "shared/ui/loading/skeleton.scss",
+    "shared/ui/loading/skeleton.ts",
     "shared/ui/log-button/index.vue",
     "shared/ui/log-icon/index.scss",
     "shared/ui/log-icon/index.tsx",
@@ -1394,6 +1403,11 @@
     "shared/utils/url.ts"
   ],
   "edges": [
+    {
+      "from": "app/bootstrap/configure-app.ts",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
     {
       "from": "app/bootstrap/configure-app.ts",
       "to": "platform/services/index.ts",
@@ -4441,6 +4455,11 @@
     },
     {
       "from": "features/cleaning/classic/clean-manage/list.vue",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/cleaning/classic/clean-manage/list.vue",
       "to": "shared/styles/mixins/clearfix.scss",
       "kind": "style-or-asset"
     },
@@ -4921,6 +4940,11 @@
     },
     {
       "from": "features/cleaning/rule-table/add-rule/index.tsx",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/cleaning/rule-table/add-rule/index.tsx",
       "to": "platform/services/index.ts",
       "kind": "module"
     },
@@ -4982,6 +5006,11 @@
     {
       "from": "features/cleaning/services/clean.ts",
       "to": "platform/services/runtime/service-client.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
+      "to": "shared/ui/loading/native.ts",
       "kind": "module"
     },
     {
@@ -5356,6 +5385,11 @@
     },
     {
       "from": "features/client-logs/management/user-report/report-table.tsx",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/user-report/report-table.tsx",
       "to": "shared/lib/util.js",
       "kind": "module"
     },
@@ -5392,6 +5426,11 @@
     {
       "from": "features/client-logs/management/user-report/report-table.tsx",
       "to": "features/client-logs/management/user-report/report-table.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/user-report/upload-result.tsx",
+      "to": "shared/ui/loading/native.ts",
       "kind": "module"
     },
     {
@@ -5536,6 +5575,11 @@
     },
     {
       "from": "features/client-logs/search/log-detail-panel/index.tsx",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/log-detail-panel/index.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -5672,6 +5716,11 @@
     {
       "from": "features/client-logs/search/task-list-panel/batch-download-dialog.tsx",
       "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/task-list-panel/index.tsx",
+      "to": "shared/ui/loading/native.ts",
       "kind": "module"
     },
     {
@@ -5936,7 +5985,7 @@
     },
     {
       "from": "features/clusters/current/cluster-manage/index.tsx",
-      "to": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/management-list-loading.tsx",
       "kind": "module"
     },
     {
@@ -7791,6 +7840,11 @@
     },
     {
       "from": "features/collection/current/components/business-comp/step2/log-filter.tsx",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/business-comp/step2/log-filter.tsx",
       "to": "app/state/domains/globals-store.ts",
       "kind": "module"
     },
@@ -8116,7 +8170,7 @@
     },
     {
       "from": "features/collection/current/components/business-comp/step3/collect-issued-slider.scss",
-      "to": "shared/assets/images/loading.svg",
+      "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
     },
     {
@@ -8276,7 +8330,7 @@
     },
     {
       "from": "features/collection/current/components/common-comp/host-detail.scss",
-      "to": "shared/assets/images/loading.svg",
+      "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
     },
     {
@@ -8396,12 +8450,12 @@
     },
     {
       "from": "features/collection/current/components/create-operation/index.scss",
-      "to": "features/collection/current/components/create-operation/global.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
     },
     {
       "from": "features/collection/current/components/create-operation/index.scss",
-      "to": "shared/assets/images/log-collection/loading.svg",
+      "to": "features/collection/current/components/create-operation/global.scss",
       "kind": "style-or-asset"
     },
     {
@@ -8736,6 +8790,11 @@
     },
     {
       "from": "features/collection/current/components/create-operation/step2-custom-report.tsx",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step2-custom-report.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -8831,7 +8890,7 @@
     },
     {
       "from": "features/collection/current/components/create-operation/step3-clean.scss",
-      "to": "shared/assets/images/log-collection/loading.svg",
+      "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
     },
     {
@@ -9336,7 +9395,7 @@
     },
     {
       "from": "features/collection/current/components/list-main/table-list/table-list-v1.scss",
-      "to": "shared/assets/images/loading.svg",
+      "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
     },
     {
@@ -9506,12 +9565,12 @@
     },
     {
       "from": "features/collection/current/components/list-main/table-list/table-list-v2.scss",
-      "to": "features/collection/current/components/business-comp/step2/index-set-option.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
     },
     {
       "from": "features/collection/current/components/list-main/table-list/table-list-v2.scss",
-      "to": "shared/assets/images/loading.svg",
+      "to": "features/collection/current/components/business-comp/step2/index-set-option.scss",
       "kind": "style-or-asset"
     },
     {
@@ -10211,7 +10270,7 @@
     },
     {
       "from": "features/data-links/manage-data-link-conf/index.vue",
-      "to": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/management-list-loading.tsx",
       "kind": "module"
     },
     {
@@ -10776,6 +10835,11 @@
     },
     {
       "from": "features/extraction/current/extract-task/task-list/index.tsx",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/extraction/current/extract-task/task-list/index.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -11100,6 +11164,11 @@
       "kind": "service-call"
     },
     {
+      "from": "features/extraction/download/home/index.vue",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/extraction/download/index.vue",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
@@ -11261,7 +11330,7 @@
     },
     {
       "from": "features/grok/current/grok-table.tsx",
-      "to": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/management-list-loading.tsx",
       "kind": "module"
     },
     {
@@ -12271,6 +12340,11 @@
     },
     {
       "from": "features/index-sets/log-collection/collection-item/index.vue",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/index-sets/log-collection/collection-item/index.vue",
       "to": "shared/styles/mixins/clearfix.scss",
       "kind": "style-or-asset"
     },
@@ -12822,6 +12896,11 @@
     {
       "from": "features/management/manage/index.vue",
       "to": "app/state/helper.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/management/manage/index.vue",
+      "to": "shared/styles/theme/management-lists.scss",
       "kind": "module"
     },
     {
@@ -13587,6 +13666,11 @@
     {
       "from": "features/retrieval/workbench/components/batch-input/index.tsx",
       "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/components/index-set-choice/common-list.tsx",
+      "to": "shared/ui/loading/native.ts",
       "kind": "module"
     },
     {
@@ -14801,6 +14885,11 @@
     },
     {
       "from": "features/retrieval/workbench/result-comp/export-history.vue",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/retrieval/workbench/result-comp/export-history.vue",
       "to": "shared/styles/mixins/flex.scss",
       "kind": "style-or-asset"
     },
@@ -15336,6 +15425,16 @@
     },
     {
       "from": "features/retrieval/workbench/search-bar/components/bklog-tag-choice.tsx",
+      "to": "shared/global/dropdown-width.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-bar/components/bklog-tag-choice.tsx",
+      "to": "shared/ui/loading/skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-bar/components/bklog-tag-choice.tsx",
       "to": "shared/composables/use-retrieve-event.ts",
       "kind": "module"
     },
@@ -15816,6 +15915,16 @@
     },
     {
       "from": "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
+      "to": "shared/ui/loading/skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
+      "to": "shared/global/dropdown-width.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
       "to": "shared/global/pop-instance-util.ts",
       "kind": "module"
     },
@@ -15982,6 +16091,11 @@
     {
       "from": "features/retrieval/workbench/search-bar/utils/use-focus-input.ts",
       "to": "shared/global/overlay/index.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-chart/index.tsx",
+      "to": "app/skeleton/chart-skeleton.tsx",
       "kind": "module"
     },
     {
@@ -18231,6 +18345,11 @@
     },
     {
       "from": "features/retrieval/workspace/favorite/collect-main.tsx",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/favorite/collect-main.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -18336,6 +18455,11 @@
     },
     {
       "from": "features/retrieval/workspace/favorite/components/collect-list/collect-list.tsx",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/favorite/components/collect-list/collect-list.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -18397,6 +18521,11 @@
     {
       "from": "features/retrieval/workspace/favorite/components/collect-list/collect-list.tsx",
       "to": "features/retrieval/workspace/favorite/components/collect-list/collect-list.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/favorite/components/collect-list/edit-dialog.tsx",
+      "to": "shared/ui/loading/native.ts",
       "kind": "module"
     },
     {
@@ -18670,6 +18799,11 @@
       "kind": "module"
     },
     {
+      "from": "features/retrieval/workspace/grep/grep-cli.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/retrieval/workspace/grep/grep-cli.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
@@ -18787,6 +18921,11 @@
     {
       "from": "features/retrieval/workspace/index.tsx",
       "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/index.tsx",
+      "to": "shared/ui/empty-status/index.vue",
       "kind": "module"
     },
     {
@@ -18996,6 +19135,11 @@
     },
     {
       "from": "features/retrieval/workspace/monitor/trace.ts",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/monitor/trace.ts",
       "to": "app/state/index.ts",
       "kind": "module"
     },
@@ -19187,6 +19331,11 @@
     {
       "from": "features/retrieval/workspace/search-bar/index.tsx",
       "to": "features/retrieval/workspace/search-bar/index.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/search-bar/scene-filter/filter-panel.tsx",
+      "to": "shared/ui/loading/skeleton.ts",
       "kind": "module"
     },
     {
@@ -20002,6 +20151,11 @@
     {
       "from": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/utils.ts",
       "to": "shared/lib/embed-layout-query.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/search-result/log-clustering/log-table/index.tsx",
+      "to": "shared/ui/loading/native.ts",
       "kind": "module"
     },
     {
@@ -21335,6 +21489,11 @@
       "kind": "module"
     },
     {
+      "from": "features/retrieval/workspace/search-result/original-log/standalone-tab/index.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/retrieval/workspace/search-result/original-log/standalone-tab/related-log-dialog-panel.tsx",
       "to": "features/retrieval/workspace/search-result/original-log/standalone-tab/related-log-layout.tsx",
       "kind": "module"
@@ -21820,6 +21979,16 @@
       "kind": "type"
     },
     {
+      "from": "platform/compat/tdesign/bkui-vue.ts",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/info-box.ts",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
       "from": "platform/compat/tdesign/info-box.ts",
       "to": "shared/composables/use-locale.ts",
       "kind": "module"
@@ -21841,12 +22010,22 @@
     },
     {
       "from": "platform/compat/tdesign/legacy-bk-controls.tsx",
+      "to": "shared/ui/loading/management-list-loading.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/legacy-bk-controls.tsx",
       "to": "shared/global/overlay/overlay-registry.js",
       "kind": "module"
     },
     {
       "from": "platform/compat/tdesign/legacy-bk-controls.tsx",
       "to": "shared/global/overlay/z-index-manager.js",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/legacy-control-styles.ts",
+      "to": "shared/styles/theme/compat-drawer.scss",
       "kind": "module"
     },
     {
@@ -22737,6 +22916,16 @@
     {
       "from": "shared/composables/use-field-name.ts",
       "to": "app/state/store.type.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/composables/use-fullscreen-loading.ts",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/composables/use-fullscreen-loading.ts",
+      "to": "shared/ui/loading/skeleton.ts",
       "kind": "module"
     },
     {
@@ -23771,6 +23960,11 @@
     },
     {
       "from": "shared/lib/appload-import.ts",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/lib/appload-import.ts",
       "to": "shared/directives/log-click-outside.ts",
       "kind": "module"
     },
@@ -23902,6 +24096,11 @@
     {
       "from": "shared/styles/theme/index.scss",
       "to": "shared/styles/theme/common.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/ui/loading/skeleton.scss",
       "kind": "style-or-asset"
     },
     {
@@ -24051,6 +24250,11 @@
     },
     {
       "from": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/index.tsx",
       "to": "shared/global/overlay/z-index-manager.js",
       "kind": "module"
     },
@@ -24058,6 +24262,31 @@
       "from": "shared/ui/loading/index.tsx",
       "to": "shared/ui/loading/index.scss",
       "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/management-list-loading.tsx",
+      "to": "app/skeleton/item-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/management-list-loading.tsx",
+      "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/management-list-loading.tsx",
+      "to": "shared/ui/loading/management-list-loading.scss",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/native.ts",
+      "to": "shared/ui/loading/skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/skeleton.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "shared/ui/log-icon/index.tsx",
