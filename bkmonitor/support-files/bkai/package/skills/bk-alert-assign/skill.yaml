@@ -1,9 +1,0 @@
-apiVersion: bkai.tencent.com/v1
-kind: Skill
-metadata:
-  code: bk-alert-assign
-  name: bk-alert-assign
-spec:
-  generate_type: space
-  is_public: false
-  tag_names: []

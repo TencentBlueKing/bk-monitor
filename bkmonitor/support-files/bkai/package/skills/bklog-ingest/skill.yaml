@@ -1,0 +1,9 @@
+apiVersion: bkai.tencent.com/v1
+kind: Skill
+metadata:
+  code: bklog-ingest
+  name: 日志平台-日志接入
+spec:
+  generate_type: global
+  is_public: true
+  tag_names: []

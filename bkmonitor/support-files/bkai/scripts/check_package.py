@@ -15,12 +15,12 @@ import yaml
 
 SKILLS = frozenset(
     {
-        "bk-grafana-dashboard",
-        "bk-log-query",
-        "bk-log-ingest",
-        "bk-alert-assign",
-        "bk-alert-create-verify",
-        "bk-data-fetcher",
+        "bkm-grafana-dashboard",
+        "bklog-query",
+        "bklog-ingest",
+        "bkm-alert-assign",
+        "bkm-alert-create-verify",
+        "bkm-data-fetcher",
     }
 )
 PUBLIC_DOMAINS = frozenset({"github.com", "pypi.org", "opensource.org", "bkai.tencent.com", "kubernetes.io"})
@@ -41,6 +41,7 @@ FORBIDDEN_NAMES = frozenset(
         ".bkai-meta.json",
         ".DS_Store",
         "__pycache__",
+        "tests",
         "node_modules",
         "bkmonitor-files",
         ".storage",
@@ -81,7 +82,11 @@ def check_entry(name: str, data: bytes) -> list[str]:
     path = PurePosixPath(name)
     if path.is_absolute() or ".." in path.parts:
         return [f"{name}: entry escapes the package"]
-    if FORBIDDEN_NAMES.intersection(path.parts) or path.suffix in {".pyc", ".pyo", ".zip", ".pem", ".key"}:
+    if (
+        FORBIDDEN_NAMES.intersection(path.parts)
+        or path.name.startswith("test_")
+        or path.suffix in {".pyc", ".pyo", ".zip", ".pem", ".key"}
+    ):
         return [f"{name}: local, generated, or credential file"]
     try:
         content = data.decode("utf-8")
@@ -130,8 +135,10 @@ def check_directory(root: Path) -> list[str]:
             errors.append(f"{name}: mismatched Skill declaration")
         if metadata.keys() - {"code", "name", "description"}:
             errors.append(f"{name}: deployment identity and version belong outside the distributable metadata")
-        if options.get("generate_type") != "space" or options.get("is_public") is not False:
-            errors.append(f"{name}: synchronize into the explicitly selected space")
+        if options.get("generate_type") != "global" or options.get("is_public") is not True:
+            errors.append(f"{name}: official Skills must declare global visibility")
+        if not metadata.get("name", "").startswith(("监控平台-", "日志平台-")):
+            errors.append(f"{name}: use the product name followed by a Chinese resource name")
         content = (skill / "SKILL.md").read_text(encoding="utf-8")
         if not content.startswith("---\n"):
             errors.append(f"{name}: missing Skill frontmatter")

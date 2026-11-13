@@ -4,9 +4,9 @@ metadata:
   name: bk-monitor-skills
   version: 1.0.0
 resources:
-- skills/bk-grafana-dashboard
-- skills/bk-log-query
-- skills/bk-log-ingest
-- skills/bk-alert-assign
-- skills/bk-alert-create-verify
-- skills/bk-data-fetcher
+- skills/bkm-grafana-dashboard
+- skills/bklog-query
+- skills/bklog-ingest
+- skills/bkm-alert-assign
+- skills/bkm-alert-create-verify
+- skills/bkm-data-fetcher
