@@ -71,6 +71,7 @@
         :loading="isTableLoading"
         class="clean-table"
         :data="cleanList"
+        :filter-row="() => null"
         :limit-list="pagination.limitList"
         :pagination="pagination"
         :size="size"
