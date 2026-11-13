@@ -60,6 +60,7 @@
           align-items: center;
           border-top: 1px solid #dfe0e5;
           .item-select {
+            display: flex;
             width: 100%;
             border: none;
             height: 100%;
@@ -70,7 +71,10 @@
             .t-input,
             .t-input__wrap {
               height: 100%;
-              line-height: 42px;
+            }
+            .t-input {
+              border-color: transparent;
+              border-radius: 0;
             }
             .icon-angle-down {
               top: 10px;
