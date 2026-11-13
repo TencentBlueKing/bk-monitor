@@ -80,8 +80,9 @@
 
       .t-input {
         height: 32px;
-        border-color: #c4c6cc;
-        border-radius: 2px;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
       }
 
       .t-input__inner {

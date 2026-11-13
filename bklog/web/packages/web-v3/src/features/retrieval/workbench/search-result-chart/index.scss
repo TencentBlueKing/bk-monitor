@@ -37,15 +37,28 @@
 
       .select-custom {
         display: inline-block;
+        flex: 0 0 85px;
+        width: 85px;
         padding-left: 5px;
         color: #313238;
         vertical-align: middle;
         border: none;
 
-        &.t-select {
-          flex: 0 0 65px;
-          width: 65px;
+        .t-input {
+          &,
+          &:hover,
+          &:focus,
+          &.t-input--focused {
+            border-color: transparent;
+            box-shadow: none;
+          }
+        }
 
+        .t-input__inner {
+          caret-color: transparent;
+        }
+
+        &.t-select {
           .t-input {
             padding: 0 4px;
           }

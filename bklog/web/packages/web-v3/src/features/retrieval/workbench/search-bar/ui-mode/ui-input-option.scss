@@ -23,18 +23,13 @@
 
         :deep(.t-input__wrap) {
           padding: 0 8px;
+        }
 
-          .left-icon {
-            font-size: 18px;
-            color: #979ba5;
-          }
-
-          .bk-input-text {
-            .t-input__inner {
-              padding-left: 38px;
-              border-bottom-color: #eaebf0;
-            }
-          }
+        :deep(.t-input) {
+          border: 0;
+          border-bottom: 1px solid #eaebf0;
+          border-radius: 0;
+          box-shadow: none;
         }
       }
 
@@ -258,10 +253,17 @@
         }
 
         :deep(.ui-value-search-textarea) {
+          display: flex;
+          flex-direction: column;
           height: 291px;
 
-          .bk-textarea-wrapper {
-            height: 100%;
+          .t-textarea__inner {
+            flex: 1;
+            resize: none;
+          }
+
+          .t-textarea__info_wrapper {
+            flex-shrink: 0;
           }
         }
       }

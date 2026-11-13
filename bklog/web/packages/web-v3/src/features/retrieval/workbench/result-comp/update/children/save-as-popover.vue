@@ -10,7 +10,15 @@
       {{ $t('另存为模板') }}
     </span>
     <template #content>
-      <TForm ref="formRef" class="save-as-form" :data="formModel" :rules="rules" layout="vertical">
+      <TForm
+        ref="formRef"
+        class="save-as-form"
+        :data="formModel"
+        :rules="rules"
+        layout="vertical"
+        label-align="top"
+        required-mark-position="right"
+      >
         <TFormItem name="editStr" :required="true" :rules="rules.editStr" :label="$t('模板名称')">
           <TInput v-model="formModel.editStr" class="template-name-input" />
         </TFormItem>
@@ -98,7 +106,10 @@ const handleCancel = () => {
     margin-top: 8px;
 
     button {
+      min-width: 0;
+      padding: 0;
       font-size: 12px;
+      border: 0;
     }
   }
 }

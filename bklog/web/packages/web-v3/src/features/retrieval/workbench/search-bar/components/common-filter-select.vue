@@ -147,6 +147,11 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
     }
   };
 
+  const handleValueChange = (value: ConsitionItem['value'], index: number) => {
+    commonFilterAddition.value[index].value = value;
+    return handleChange();
+  };
+
   const focusIndex = ref(null);
   const handleRowFocus = (index: null, e: { target: Element|null; }) => {
     if (document.activeElement === e.target) {
@@ -228,7 +233,7 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
         </t-select>
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
           <bklogTagChoice
-            v-model="commonFilterAddition[index].value"
+            :value="commonFilterAddition[index].value"
             :class="['value-select', { 'is-focus': focusIndex === index }]"
             :foucs-fixed="true"
             :list="commonFilterAddition[index].list"
@@ -238,7 +243,7 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
             max-width="460px"
             @focus="() => handleChoiceFocus(index)"
             @blur="() => handleChoiceBlur(index)"
-            @change="handleChange"
+            @change="handleValueChange($event, index)"
             @input="val => handleInputVlaueChange(val, item, index)"
             @toggle="visible => handleToggle(visible, item, index)"
             @custom-tag-enter="() => handleToggle(true, item, index)"

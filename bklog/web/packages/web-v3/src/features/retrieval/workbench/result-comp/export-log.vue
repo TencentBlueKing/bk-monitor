@@ -132,26 +132,31 @@
         </div>
         <div class="filed-select-box">
           <span class="middle-title">{{ $t('下载模式') }}</span>
-          <t-radio-group v-model="downloadType" class="filed-radio-box">
+          <t-radio-group v-model:value="downloadType" class="filed-radio-box">
             <t-radio v-for="[key, val] in Object.entries(downloadTypeRadioMap)" :key="key" :value="key">
               {{ val }}
             </t-radio>
           </t-radio-group>
           <span v-if="!!typeTipsMap[downloadType]" class="mode-hint">
-            <t-alert data-v2-display="alert" :theme="'info'" :message="typeTipsMap[downloadType]"></t-alert>
+            <t-alert data-v2-display="alert" theme="info" :message="typeTipsMap[downloadType]">
+              <template #icon>
+                <span class="bk-icon icon-info" aria-hidden="true"></span>
+              </template>
+            </t-alert>
           </span>
         </div>
         <div v-if="downloadType !== 'quick'" class="filed-select-box">
           <span class="middle-title">{{ $t('下载范围') }}</span>
-          <t-radio-group v-model="selectFiledType" class="filed-radio-box">
+          <t-radio-group v-model:value="selectFiledType" class="filed-radio-box">
             <t-radio v-for="[key, val] in Object.entries(radioMap)" :key="key" :value="key">
               {{ val }}
             </t-radio>
           </t-radio-group>
           <TSelect
             v-if="selectFiledType === 'specify'"
-            v-model="selectFiledList"
+            v-model:value="selectFiledList"
             :placeholder="$t('未选择则默认为全部字段')"
+            :popup-props="{ attach: '.async-export-dialog' }"
             multiple
             clearable
             filterable
@@ -1038,11 +1043,6 @@ export default {
   }
 }
 
-:deep(.t-dialog__header) {
-  /* stylelint-disable-next-line declaration-no-important */
-  color: #000 !important;
-}
-
 .filed-select-box {
   margin-bottom: 10px;
   font-size: 12px;
@@ -1053,9 +1053,13 @@ export default {
   }
 
   .filed-radio-box {
+    display: flex;
+    width: 100%;
     margin: 8px 0 10px 0;
 
-    .t-radio {
+    :deep(.t-radio) {
+      display: inline-flex;
+      align-items: center;
       margin-right: 20px;
     }
   }
@@ -1076,8 +1080,10 @@ export default {
 }
 
 .middle-title {
+  display: block;
   font-size: 14px;
   font-weight: 700;
+  line-height: 20px;
 
   &::after {
     display: inline-block;
@@ -1107,15 +1113,12 @@ export default {
 
     @extend %num-box-extend;
 
-    .log-num,
-    log-unit {
-      color: #313238;
-    }
-
     .log-num {
       margin-right: 2px;
       font-size: 24px;
       font-weight: 700;
+      line-height: 32px;
+      color: #313238;
     }
   }
 
@@ -1125,22 +1128,25 @@ export default {
 }
 
 .mode-hint {
-  margin-top: 20px;
-
-  :deep(.icon-info) {
+  :deep(.t-alert.t-alert--info) {
+    padding: 8px 10px;
     color: #63656e;
-  }
-
-  :deep(.bk-alert-info) {
-    border: none;
-  }
-
-  :deep(.t-alert) {
     background: #f0f1f5;
+    border: none;
+    border-radius: 0;
+  }
+
+  :deep(.t-alert__icon) {
+    margin-right: 8px;
+    font-size: 14px;
+    line-height: 16px;
+    color: #63656e;
   }
 }
 
 :deep(.t-radio__label) {
+  margin-left: 2px;
+  color: #63656e;
   /* stylelint-disable-next-line declaration-no-important */
   font-size: 12px !important;
 }
@@ -1211,6 +1217,10 @@ export default {
     display: flex;
     align-items: center;
     width: 100%;
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 28px;
+    color: #000;
 
     .view-history-btn {
       z-index: var(--bklog-z-page);
@@ -1293,5 +1303,29 @@ export default {
   gap: 24px;
   padding: 16px 0;
   cursor: pointer;
+}
+</style>
+
+<style lang="scss">
+// The dialog is teleported to body; keep its TDesign layout overrides local to this dialog.
+.async-export-dialog.t-dialog {
+  padding: 16px 24px 0;
+
+  .t-dialog__body {
+    padding: 8px 0 36px;
+  }
+
+  .t-dialog__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+
+  .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
+    box-sizing: border-box;
+    width: calc(100% + 48px);
+    padding: 7px 20px;
+    margin: 0 -24px;
+  }
 }
 </style>

@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Button as TButton, Dialog as TDialog, Table as TTable, Textarea as TTextarea } from 'tdesign-vue-next';
+import { Button as TButton, Dialog as TDialog, Empty as TEmpty, Table as TTable, Textarea as TTextarea } from 'tdesign-vue-next';
 import { computed, defineComponent, ref, nextTick } from 'vue';
 
 import { messageError } from '@/shared/lib/message';
 import useLocale from '@/shared/composables/use-locale';
+
+import './index.scss';
 
 export default defineComponent({
   name: 'BatchInput',
@@ -129,7 +131,6 @@ export default defineComponent({
             footer: () => (
               <div>
                 <TButton
-                  style='margin-right: 8px'
                   class='btn-confirm'
                   disabled={!selectResult.value.length}
                   theme='primary'
@@ -137,8 +138,9 @@ export default defineComponent({
                 >
                   确认
                 </TButton>
-                <TButton theme="default"
+                <TButton
                   class='btn-cancel'
+                  theme='default'
                   onClick={() => handleDialogValueChange(false)}
                 >
                   取消
@@ -149,6 +151,7 @@ export default defineComponent({
           width='860px'
           attach='body'
           closeOnOverlayClick={false}
+          dialogClassName='batch-input-dialog'
           header={$t('批量输入')}
           mode='modal'
           placement='center'
@@ -156,38 +159,48 @@ export default defineComponent({
           zIndex={100000}
           onClose={() => handleDialogValueChange(false)}
         >
-          <div style='display: flex; padding: 16px 0px;'>
-            <div style='width: 400px; height: 358px;'>
-              <div style='padding-bottom: 6px'>
-                解析文本<span style='color: #EA3636; padding-left: 2px;'>*</span>
+          <div class='batch-input-content'>
+            <div class='batch-input-source'>
+              <div class='batch-input-label'>
+                解析文本<span class='batch-input-required'>*</span>
               </div>
               <TTextarea
+                class='batch-input-textarea'
                 placeholder='请使用，；｜换行等进行分隔'
-                style={{ height: '280px' }}
                 value={textValue.value}
                 onChange={handleInputTextChange}
               />
-              <div style='margin-top: 16px;display: flex;justify-content: space-between;'>
+              <div class='batch-input-actions'>
                 <TButton
-                  style='width: 280px;margin-right: 8px'
+                  class='batch-input-parse'
                   theme='primary'
                   variant='outline'
                   onClick={handleResolveBtnClick}
                 >
                   点击解析
                 </TButton>
-                <TButton onClick={handleClearBtnClick}>清空</TButton>
+                <TButton
+                  theme='default'
+                  onClick={handleClearBtnClick}
+                >
+                  清空
+                </TButton>
               </div>
             </div>
-            <div style='width: 460px; margin-left: 16px;'>
-              <div style='padding-bottom: 6px'>选择解析结果</div>
+            <div class='batch-input-result'>
+              <div class='batch-input-label'>选择解析结果</div>
               <TTable
+                class='batch-input-table'
                 columns={[
                   { colKey: 'row-select', type: 'multiple', width: 46 },
                   { colKey: 'text', title: '解析结果' },
                 ]}
                 data={tableData.value}
-                empty={$t('请先在右侧输入并解析')}
+                empty={() => (
+                  <div class='batch-input-empty'>
+                    <TEmpty type='empty' title={$t('请先在左侧输入并解析')} />
+                  </div>
+                )}
                 maxHeight={316}
                 rowKey='id'
                 selectedRowKeys={selectedRowKeys.value}
