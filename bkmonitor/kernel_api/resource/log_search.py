@@ -15,7 +15,6 @@ from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.data_source.data_source import LOG_CLUSTERING_SIGNATURE_FIELD, has_log_clustered_route
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.resource.mcp_response import is_mcp_request
@@ -82,7 +81,6 @@ def get_log_unify_query_table(
     index_set_id: int | str,
     conditions: dict[str, Any] | None = None,
     query_string: str | None = None,
-    bk_biz_id: int | None = None,
     dimensions: list[str] | None = None,
 ) -> str:
     """根据查询条件选择日志索引集的普通表或聚类表。"""
@@ -93,9 +91,8 @@ def get_log_unify_query_table(
     # 日志聚类小型化以 signature 为签名字段，仅在已注册聚类路由时改查聚类表，避免误伤同名业务字段。
     if (
         not suffix
-        and bk_biz_id is not None
         and LOG_CLUSTERING_SIGNATURE_FIELD in condition_fields | set(dimensions or [])
-        and has_log_clustered_route(bk_biz_id_to_bk_tenant_id(bk_biz_id), str(index_set_id))
+        and has_log_clustered_route(str(index_set_id))
     ):
         suffix = "_clustered"
     return f"bklog_index_set_{index_set_id}{suffix}"
@@ -357,7 +354,7 @@ class SearchLogResource(Resource):
         )
 
         # 构造 unify_query.query_raw 请求参数
-        table_id = get_log_unify_query_table(index_set_id, conditions, query_string, bk_biz_id)
+        table_id = get_log_unify_query_table(index_set_id, conditions, query_string)
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)  # 业务ID转SPACE_UID，用于构建Headers
 
         query_item = {
@@ -566,7 +563,7 @@ class FieldAnalyzeResource(Resource):
         )
 
         # 构建查询参数
-        table_id = get_log_unify_query_table(index_set_id, conditions, query_string, bk_biz_id, [field_name])
+        table_id = get_log_unify_query_table(index_set_id, conditions, query_string, [field_name])
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)
         aggregation_function = self._build_aggregation_function(field_name, group_by)
         query_item = self._build_query_item(table_id, field_name, query_string, conditions, aggregation_function, limit)

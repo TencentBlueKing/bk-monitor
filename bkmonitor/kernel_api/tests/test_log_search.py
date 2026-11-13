@@ -62,7 +62,6 @@ def test_get_log_unify_query_table(conditions, query_string, expected_table):
 def test_get_log_unify_query_table_by_signature(monkeypatch, conditions, dimensions, has_route, expected_table):
     has_log_clustered_route = MagicMock(return_value=has_route)
     monkeypatch.setattr(log_search, "has_log_clustered_route", has_log_clustered_route)
-    monkeypatch.setattr(log_search, "bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "system")
 
-    assert get_log_unify_query_table(TEST_INDEX_SET_ID, conditions, "*", 2, dimensions) == expected_table
-    has_log_clustered_route.assert_called_once_with("system", "0")
+    assert get_log_unify_query_table(TEST_INDEX_SET_ID, conditions, "*", dimensions) == expected_table
+    has_log_clustered_route.assert_called_once_with("0")

@@ -633,7 +633,7 @@ class TestDataSource:
         data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=2)
 
         assert data_source._get_unify_query_table() == f"bklog_index_set_1{expected_suffix}"
-        has_log_clustered_route.assert_called_with("system", "1")
+        has_log_clustered_route.assert_called_with("1")
 
     def test_log_search_time_series_without_signature_skips_route_lookup(self, monkeypatch: pytest.MonkeyPatch) -> None:
         query_config = {
@@ -657,14 +657,20 @@ class TestDataSource:
         from metadata.models import ResultTable
 
         has_log_clustered_route.cache_clear()
-        common = {"bk_tenant_id": "system", "default_storage": "elasticsearch", "is_custom_table": True}
+        common = {"default_storage": "elasticsearch", "is_custom_table": True}
         ResultTable.objects.create(
-            table_id="bklog_index_set_1_clustered.__default__", data_label="bklog_index_set_1_clustered", **common
+            table_id="bklog_index_set_1_clustered.__default__",
+            data_label="bklog_index_set_1_clustered",
+            bk_tenant_id="tenant-a",
+            **common,
         )
-        ResultTable.objects.create(table_id="bklog_index_set_2.__default__", data_label="bklog_index_set_2", **common)
+        ResultTable.objects.create(
+            table_id="bklog_index_set_2.__default__", data_label="bklog_index_set_2", bk_tenant_id="system", **common
+        )
 
-        assert has_log_clustered_route("system", "1") is True
-        assert has_log_clustered_route("system", "2") is False
+        # 索引集 ID 全局唯一，路由登记在哪个租户下都能命中。
+        assert has_log_clustered_route("1") is True
+        assert has_log_clustered_route("2") is False
         has_log_clustered_route.cache_clear()
 
     def test_log_search_log_query_data(self, mock_es_query_search):

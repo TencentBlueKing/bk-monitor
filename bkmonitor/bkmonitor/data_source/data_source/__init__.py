@@ -48,7 +48,6 @@ from bkmonitor.utils.time_tools import (
 )
 from constants.alert import EventStatus
 from constants.apm import OtlpKey, PreCalculateSpecificField, DEFAULT_DATA_LABEL as APM_METRIC_DATA_LABEL
-from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import RECOVERY, DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
 from constants.strategy import (
     AGG_METHOD_REAL_TIME,
@@ -2229,7 +2228,7 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
         if (
             self.index_set_id
             and LOG_CLUSTERING_SIGNATURE_FIELD in condition_fields | set(self.group_by)
-            and has_log_clustered_route(self.bk_tenant_id or DEFAULT_TENANT_ID, str(self.index_set_id))
+            and has_log_clustered_route(str(self.index_set_id))
         ):
             return "_clustered"
         return ""
@@ -3099,12 +3098,11 @@ LOG_CLUSTERING_SIGNATURE_FIELD = "signature"
 
 
 @lru_cache_with_ttl(ttl=60)
-def has_log_clustered_route(bk_tenant_id: str, index_set_id: str) -> bool:
-    """索引集是否已注册聚类结果路由，日志聚类小型化通过该路由查询 signature。"""
+def has_log_clustered_route(index_set_id: str) -> bool:
+    """索引集是否已注册聚类结果路由，日志聚类小型化通过该路由查询 signature。索引集 ID 全局唯一，无需区分租户。"""
     from metadata.models import ResultTable
 
     return ResultTable.objects.filter(
-        bk_tenant_id=bk_tenant_id,
         table_id__startswith=f"bklog_index_set_{index_set_id}_",
         data_label=f"bklog_index_set_{index_set_id}_clustered",
         is_deleted=False,
