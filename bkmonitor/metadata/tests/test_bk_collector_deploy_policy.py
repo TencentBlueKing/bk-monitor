@@ -561,3 +561,60 @@ def test_command_refresh_ping_server_only_touches_given_tenant(nodeman_v3):
         all_hosts.reset_mock()
         refresh_ping_conf("bk-collector")
         assert [c.kwargs["bk_tenant_id"] for c in all_hosts.call_args_list] == ["tenant_a", "tenant_b"]
+
+
+def test_execute_in_batches_waits_between_batches(nodeman_v3):
+    policies = [_policy(BkCollectorDeployScene.CUSTOM_REPORT, f"0-{i}", 100 + i) for i in range(5)]
+    waits = []
+
+    with mock.patch("metadata.models.bk_collector.time.sleep") as sleep:
+        with BkCollectorDeployPolicy.execute_in_batches(2, 5, on_wait=lambda n, s: waits.append((n, s))):
+            for policy in policies:
+                policy.execute()
+        # 上下文外不分批
+        policies[0].execute()
+
+    # 5 条分 3 批：第 3、5 条执行前各等待一次，最后一批之后不再等待
+    assert sleep.call_args_list == [mock.call(5), mock.call(5)]
+    assert waits == [(2, 5), (4, 5)]
+    assert nodeman_v3["execute_deploy_policy"].call_count == 6
+
+
+def test_execute_in_batches_disabled_when_batch_size_zero(nodeman_v3):
+    policies = [_policy(BkCollectorDeployScene.CUSTOM_REPORT, f"0-{i}", 100 + i) for i in range(3)]
+
+    with mock.patch("metadata.models.bk_collector.time.sleep") as sleep:
+        with BkCollectorDeployPolicy.execute_in_batches(0, 5):
+            for policy in policies:
+                policy.execute()
+
+    sleep.assert_not_called()
+    assert nodeman_v3["execute_deploy_policy"].call_count == 3
+
+
+def test_command_batches_refresh_and_final_executions(nodeman_v3, refresh_entries):
+    from django.core.management import call_command
+
+    for i in range(3):
+        _policy(BkCollectorDeployScene.APM_APPLICATION, f"2-app{i}", 10 + i, f"wf-{i}")
+
+    def refresh_platform(bk_tenant_id):
+        # 刷新中新建策略的立即执行同样计入分批
+        _deploy()
+
+    refresh_entries["platform"].side_effect = refresh_platform
+
+    with mock.patch("metadata.models.bk_collector.time.sleep") as sleep:
+        call_command("execute_bk_collector_deploy_policies", "--refresh", "--batch_size", "2", "--batch_interval", "3")
+
+    # 刷新中新建 1 条 + 补执行未变化的 3 条，共 4 次执行分 2 批
+    assert nodeman_v3["execute_deploy_policy"].call_count == 4
+    assert sleep.call_args_list == [mock.call(3)]
+
+
+def test_command_rejects_negative_batch_args(nodeman_v3):
+    from django.core.management import CommandError, call_command
+
+    with pytest.raises(CommandError):
+        call_command("execute_bk_collector_deploy_policies", "--batch_size", "-1")
+    nodeman_v3["execute_deploy_policy"].assert_not_called()
