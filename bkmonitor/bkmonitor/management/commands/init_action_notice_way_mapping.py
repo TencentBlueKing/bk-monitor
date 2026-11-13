@@ -29,8 +29,7 @@ class Command(BaseCommand):
     """为 bkfta_action 全部历史物理索引补齐字段（默认 dry-run，--apply 才写）。
 
     使用场景：
-      - 部署「按通知记录统计」新查询之前，先给历史索引加字段，
-        避免查询已上线但索引未映射的 400 窗口；
+      - 需要回填历史通知渠道时，为选定的历史索引补字段；
       - 漏跑或新增索引后补字段（幂等，可重复执行）。
 
     字段名固定为 NoticeWay.NOTICE_WAY_FIELD，不提供 --field：写入、回填、查询三处必须同名。
@@ -44,7 +43,7 @@ class Command(BaseCommand):
 
     help = (
         "为 bkfta_action 历史物理索引补齐字段（默认 dry-run）。"
-        "需在部署新查询代码之前执行，当前索引由 post_migrate 的 rollover 自动补齐"
+        "仅按需回填历史通知记录时执行，当前索引由 post_migrate 的 rollover 自动补齐"
     )
 
     def add_arguments(self, parser):

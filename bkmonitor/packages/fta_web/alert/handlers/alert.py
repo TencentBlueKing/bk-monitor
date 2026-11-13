@@ -17,7 +17,6 @@ from datetime import datetime, timezone
 from functools import reduce
 from itertools import chain
 
-from django.conf import settings
 from django.db.models import Q as DQ
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -656,8 +655,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
         self.is_finaly_partition = is_finaly_partition
         self.need_bucket_count = need_bucket_count
         self._notice_ways_cache: dict[str, set] | None = None
-        # 一次请求只读一次开关，避免筛选路径与聚合路径读到不同口径
-        self._notice_way_by_records = bool(settings.ALERT_NOTICE_WAY_BY_RECORDS)
         # 候选告警的最早 begin_time（秒级时间戳），作为通知历史检索下界
         self._notice_way_start_time: int | None = None
         self.allow_partial = kwargs.get("allow_partial", True)
@@ -1202,9 +1199,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         # 收集匹配告警的 id，供通知类型聚合使用
         search_object.aggs.bucket("alert_ids", "terms", field="id", size=self.NOTICE_WAY_CANDIDATE_LIMIT)
-        if self._notice_way_by_records:
-            # 仅新口径需要：候选告警的最早开始时间，作为通知历史检索下界（取用时毫秒转秒）
-            search_object.aggs.metric("min_begin_time", "min", field="begin_time")
+        search_object.aggs.metric("min_begin_time", "min", field="begin_time")
 
         return search_object
 
@@ -1376,90 +1371,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
             ],
         }
 
-    @staticmethod
-    def _parse_notice_ways_from_inputs(inputs: dict) -> set:
-        """从父任务的 inputs 中解析出有效的通知方式集合"""
-        notify_info = {
-            **inputs.get("notify_info", {}),
-            **inputs.get("follow_notify_info", {}),
-        }
-        exclude_notice_ways = set(inputs.get("exclude_notice_ways") or [])
-
-        notice_ways = set()
-        for way in notify_info:
-            if way == "wxbot_mention_users":
-                if NoticeWay.WX_BOT not in exclude_notice_ways:
-                    notice_ways.add(NoticeWay.WX_BOT)
-                continue
-            if way not in exclude_notice_ways:
-                notice_ways.add(way)
-        return notice_ways
-
-    def _query_alert_notice_ways(
-        self,
-        alert_ids: set | None = None,
-        partial_scopes: list[str] | None = None,
-    ) -> dict[str, set]:
-        """
-        查询通知父任务，返回每个 alert_id 对应的有效通知方式集合
-
-        开关打开时按「非父通知记录的渠道并集」统计（_query_notice_ways_by_records）；
-        开关关闭时保持现有实现，行为完全不变。
-
-        参数:
-            alert_ids: 限定查询范围的告警 ID 集合，为 None 时不限定
-
-        返回:
-            {alert_id: {notice_way1, notice_way2, ...}, ...}
-        """
-        if self._notice_way_by_records:
-            return self._query_notice_ways_by_records(alert_ids, partial_scopes)
-
-        result = {}
-
-        action_search = ActionInstanceDocument.search(start_time=self.start_time, end_time=self.end_time)
-        action_search = action_search.filter("term", action_plugin_type=ActionPluginType.NOTICE)
-        action_search = action_search.filter("term", is_parent_action=True)
-
-        if alert_ids is not None:
-            action_search = action_search.filter("terms", alert_id=list(alert_ids))
-
-        if self.authorized_bizs is not None and self.bk_biz_ids:
-            authorized_query = self.build_es_terms_query("bk_biz_id", self.authorized_bizs)
-            if authorized_query is not None:
-                action_search = action_search.filter(authorized_query)
-
-        action_search = action_search.extra(size=0)
-
-        # 按 alert_id 分桶，每桶取 update_time 最新的父任务
-        agg_size = len(alert_ids) if alert_ids else 10000
-        action_search.aggs.bucket("per_alert", "terms", field="alert_id", size=agg_size).metric(
-            "latest_action",
-            "top_hits",
-            size=1,
-            sort=[{"update_time": {"order": "desc"}}],
-            _source=["inputs"],
-        )
-
-        search_result = action_search.execute()
-        self._check_action_search_completeness(search_result, partial_scopes)
-
-        for bucket in search_result.aggregations.per_alert.buckets:
-            if alert_ids is not None and bucket.key not in alert_ids:
-                continue
-
-            hits = bucket.latest_action.hits.hits
-            if not hits:
-                continue
-
-            source = hits[0].to_dict().get("_source", {})
-            inputs = source.get("inputs", {})
-            notice_ways = self._parse_notice_ways_from_inputs(inputs)
-            if notice_ways:
-                result[bucket.key] = notice_ways
-
-        return result
-
     def _save_notice_way_start_time(self, aggs):
         """保存候选告警的最早开始时间（秒），作为通知历史检索下界"""
         # ES 对 date 字段的 min 聚合固定返回毫秒；项目锁定的 arrow 0.6.0 会把毫秒当秒解析，年份越界
@@ -1467,10 +1378,10 @@ class AlertQueryHandler(BaseBizQueryHandler):
         if value is not None and self._notice_way_start_time is None:
             self._notice_way_start_time = int(value // 1000)
 
-    def _query_notice_ways_by_records(
+    def _query_alert_notice_ways(
         self,
-        alert_ids: set | None,
-        partial_scopes: list[str] | None,
+        alert_ids: set,
+        partial_scopes: list[str] | None = None,
     ) -> dict[str, set]:
         """候选告警通知历史中产生过的渠道并集：非父通知记录，不限执行状态，按（告警，渠道）去重"""
         if not alert_ids:
@@ -1527,7 +1438,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             self._check_action_search_completeness(search_result, partial_scopes)
 
             if page_no == 0 and search_result.aggs.unfilled.doc_count:
-                # 回填未完成：标记结果不完整，不回退到最新父任务，也不静默少算
+                # 升级前的通知记录默认不回填；缺字段时显式标记结果不完整。
                 self._mark_partial(
                     code="notice_way_field_missing",
                     scopes=partial_scopes or ["alerts", "total", "overview", "aggs"],
@@ -1558,7 +1469,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             page_no += 1
 
     def _check_action_search_completeness(self, search_result, partial_scopes: list[str] | None):
-        """超时 / 分片失败标记（与现有实现一致），动作索引查询共用"""
+        """标记动作查询的超时或分片失败"""
         if getattr(search_result, "timed_out", False):
             self._mark_partial(
                 code="notice_way_action_timeout",
@@ -1575,11 +1486,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
     def _get_alert_ids_by_notice_way(self, notice_ways: list) -> list:
         """根据通知类型过滤，返回匹配的 alert_id 列表"""
-        target_ways = set(notice_ways)
-        if self._notice_way_by_records:
-            # 新口径按通知记录统计，筛选值同样归一（rtx -> qy_weixin）；
-            # 旧口径返回原始值，关闭开关时归一会让原本能命中的请求变空
-            target_ways = {NoticeWay.ALIASES.get(way, way) for way in target_ways}
+        target_ways = {NoticeWay.ALIASES.get(way, way) for way in notice_ways}
         matched_alert_ids = []
 
         # 先获取当前查询条件匹配的 alert_ids，限定查询范围
@@ -1614,8 +1521,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         search_object = self.add_query_string(search_object)
         search_object = search_object[:0]
         search_object.aggs.bucket("alert_ids", "terms", field="id", size=self.NOTICE_WAY_CANDIDATE_LIMIT)
-        if self._notice_way_by_records:
-            search_object.aggs.metric("min_begin_time", "min", field="begin_time")
+        search_object.aggs.metric("min_begin_time", "min", field="begin_time")
         # 该查询只取聚合结果，不需要 total
         result = search_object.extra(track_total_hits=False).execute()
         if getattr(result, "timed_out", False):

@@ -60,7 +60,6 @@ def make_handler(*, allow_partial=True):
     handler.end_time = 1711987200
     handler.query_context = {}
     handler._notice_ways_cache = None
-    handler._notice_way_by_records = False
     handler._notice_way_start_time = None
     return handler
 
@@ -422,13 +421,10 @@ def test_timed_out_candidate_search_marks_filter_result_partial(monkeypatch):
 
 def test_failed_action_shards_use_caller_partial_scope(monkeypatch):
     handler = make_handler()
-    result = SimpleNamespace(
-        aggregations=SimpleNamespace(per_alert=SimpleNamespace(buckets=[])),
-        _shards=SimpleNamespace(failed=1),
-    )
-    search = FakeSearch(result)
-    search.aggs = SimpleNamespace(bucket=lambda *args, **kwargs: SimpleNamespace(metric=lambda *args, **kwargs: None))
-    monkeypatch.setattr(alert_handler.ActionInstanceDocument, "search", lambda **kwargs: search)
+    handler._notice_way_start_time = handler.start_time
+    response = _composite_response([], unfilled=0)
+    response["_shards"] = {"total": 2, "successful": 1, "failed": 1}
+    _patch_search_pages(monkeypatch, [response])
 
     handler._query_alert_notice_ways(alert_ids={"1"}, partial_scopes=["aggs.notice_way"])
 
@@ -443,14 +439,10 @@ def test_failed_action_shards_use_caller_partial_scope(monkeypatch):
 
 def test_timed_out_action_search_uses_caller_partial_scope(monkeypatch):
     handler = make_handler()
-    result = SimpleNamespace(
-        aggregations=SimpleNamespace(per_alert=SimpleNamespace(buckets=[])),
-        timed_out=True,
-        _shards=SimpleNamespace(failed=0),
-    )
-    search = FakeSearch(result)
-    search.aggs = SimpleNamespace(bucket=lambda *args, **kwargs: SimpleNamespace(metric=lambda *args, **kwargs: None))
-    monkeypatch.setattr(alert_handler.ActionInstanceDocument, "search", lambda **kwargs: search)
+    handler._notice_way_start_time = handler.start_time
+    response = _composite_response([], unfilled=0)
+    response["timed_out"] = True
+    _patch_search_pages(monkeypatch, [response])
 
     handler._query_alert_notice_ways(alert_ids={"1"}, partial_scopes=["aggs.notice_way"])
 
@@ -505,7 +497,7 @@ def test_notice_way_aggregation_inherits_main_aggregation_partial_state(alert_id
 
 
 # ---------------------------------------------------------------------------
-# 按通知记录统计（开关 ALERT_NOTICE_WAY_BY_RECORDS 打开）
+# 按通知记录统计
 # ---------------------------------------------------------------------------
 
 
@@ -546,7 +538,6 @@ def _patch_search_pages(monkeypatch, pages, searches=None):
 
 def test_query_by_records_unions_channels_and_skips_sentinel(monkeypatch, caplog):
     handler = make_handler()
-    handler._notice_way_by_records = True
     handler._notice_way_start_time = 1711900800
 
     pages = [
@@ -565,7 +556,7 @@ def test_query_by_records_unions_channels_and_skips_sentinel(monkeypatch, caplog
     _patch_search_pages(monkeypatch, pages)
 
     with caplog.at_level(logging.INFO, logger="fta_web.alert.handlers.alert"):
-        result = handler._query_notice_ways_by_records({"1", "2"}, None)
+        result = handler._query_alert_notice_ways({"1", "2"}, None)
 
     assert result == {"1": {"voice", "mail"}, "2": {NoticeWay.QY_WEIXIN}}
     assert handler.partial_reasons == []
@@ -575,7 +566,6 @@ def test_query_by_records_unions_channels_and_skips_sentinel(monkeypatch, caplog
 
 def test_query_by_records_paginates_until_after_key_missing(monkeypatch):
     handler = make_handler()
-    handler._notice_way_by_records = True
     handler._notice_way_start_time = 1711900800
     handler.NOTICE_WAY_PAIRS_PAGE_SIZE = 2
 
@@ -592,17 +582,16 @@ def test_query_by_records_paginates_until_after_key_missing(monkeypatch):
     ]
     captured = _patch_search_pages(monkeypatch, pages)
 
-    assert handler._query_notice_ways_by_records({"1"}, None) == {"1": {"voice", "mail", "sms"}}
+    assert handler._query_alert_notice_ways({"1"}, None) == {"1": {"voice", "mail", "sms"}}
     assert captured == [1711900800, 1711900800]
 
 
 def test_unfilled_records_mark_partial_instead_of_silently_undercounting(monkeypatch):
     handler = make_handler()
-    handler._notice_way_by_records = True
     handler._notice_way_start_time = 1711900800
     _patch_search_pages(monkeypatch, [_composite_response([], unfilled=3)])
 
-    assert handler._query_notice_ways_by_records({"1"}, None) == {}
+    assert handler._query_alert_notice_ways({"1"}, None) == {}
     assert handler.partial_reasons == [
         {
             "code": "notice_way_field_missing",
@@ -612,13 +601,37 @@ def test_unfilled_records_mark_partial_instead_of_silently_undercounting(monkeyp
     ]
 
 
+@pytest.mark.parametrize(
+    ("method", "allow_partial", "error"),
+    [
+        ("eq", True, None),
+        ("neq", True, "排除条件"),
+        ("eq", False, "查询结果不完整"),
+    ],
+)
+def test_notice_way_filter_with_upgrade_history(monkeypatch, method, allow_partial, error):
+    handler = make_handler(allow_partial=allow_partial)
+    setup_candidate_search(monkeypatch, handler, bucket_count=2, sum_other_doc_count=0, min_begin_time=1711900800000.0)
+    _patch_search_pages(
+        monkeypatch,
+        [_composite_response([{"key": {"alert_id": "1", "notice_way": "voice"}, "doc_count": 1}], unfilled=1)],
+    )
+    condition = {"key": "notice_way", "origin_key": "notice_way", "value": ["voice"], "method": method}
+
+    if error:
+        with pytest.raises(ValidationError, match=error):
+            handler.parse_condition_item(condition)
+    else:
+        assert handler.parse_condition_item(condition).to_dict() == {"terms": {"id": ["1"]}}
+    assert handler.partial_reasons[0]["code"] == "notice_way_field_missing"
+
+
 def test_missing_start_time_marks_partial_and_falls_back_to_page_start(monkeypatch):
     handler = make_handler()
-    handler._notice_way_by_records = True
     handler._notice_way_start_time = None
     captured = _patch_search_pages(monkeypatch, [_composite_response([], unfilled=0)])
 
-    handler._query_notice_ways_by_records({"1"}, None)
+    handler._query_alert_notice_ways({"1"}, None)
 
     assert captured == [handler.start_time]
     assert handler.partial_reasons == [
@@ -646,14 +659,13 @@ def test_save_notice_way_start_time_converts_millis_and_keeps_first_value():
     assert handler._notice_way_start_time is None
 
 
-@pytest.mark.parametrize(("switch", "expected"), [(True, ["1"]), (False, [])])
-def test_filter_alias_normalization_follows_switch(monkeypatch, switch, expected):
+@pytest.mark.parametrize("way", ["rtx", NoticeWay.QY_WEIXIN])
+def test_filter_alias_normalization(monkeypatch, way):
     handler = make_handler()
-    handler._notice_way_by_records = switch
     monkeypatch.setattr(handler, "_collect_current_alert_ids", lambda: {"1"})
     monkeypatch.setattr(handler, "_query_alert_notice_ways", lambda **kwargs: {"1": {"qy_weixin"}})
 
-    assert handler._get_alert_ids_by_notice_way(["rtx"]) == expected
+    assert handler._get_alert_ids_by_notice_way([way]) == ["1"]
 
 
 # ---------------------------------------------------------------------------
@@ -742,7 +754,7 @@ def test_to_document_skips_non_notice_action(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 授权、分页终止、降级与开关读取
+# 授权、分页终止和降级
 # ---------------------------------------------------------------------------
 
 
@@ -750,38 +762,33 @@ def test_to_document_skips_non_notice_action(monkeypatch):
 def test_query_by_records_biz_terms_follow_tenant_wide_authorization(monkeypatch, tenant_wide, expect_biz_terms):
     """与主查询一致：租户级授权时省略业务 terms，否则必须带上"""
     handler = make_handler()
-    handler._notice_way_by_records = True
     handler._notice_way_start_time = 1711900800
     handler.authorized_bizs = [2]
     monkeypatch.setattr(handler, "is_tenant_wide_authorized", lambda: tenant_wide)
     searches = []
     _patch_search_pages(monkeypatch, [_composite_response([], unfilled=0)], searches=searches)
 
-    handler._query_notice_ways_by_records({"1"}, None)
+    handler._query_alert_notice_ways({"1"}, None)
 
     query = json.dumps(searches[0].to_dict()["query"], ensure_ascii=False)
     assert ("bk_biz_id" in query) is expect_biz_terms
 
 
-@pytest.mark.parametrize(("switch", "expected"), [(True, True), (False, False)])
-def test_add_aggs_gates_min_begin_time_by_switch(switch, expected):
-    """开关关闭时主查询不应挂载 min_begin_time 聚合"""
+def test_add_aggs_collects_notice_history_start():
     handler = make_handler()
-    handler._notice_way_by_records = switch
 
     search = handler.add_aggs(Search())
 
-    assert ("min_begin_time" in json.dumps(search.to_dict()["aggs"])) is expected
+    assert search.to_dict()["aggs"]["min_begin_time"] == {"min": {"field": "begin_time"}}
 
 
 def test_query_by_records_disables_total_hits(monkeypatch):
     handler = make_handler()
-    handler._notice_way_by_records = True
     handler._notice_way_start_time = 1711900800
     searches = []
     _patch_search_pages(monkeypatch, [_composite_response([], unfilled=0)], searches=searches)
 
-    handler._query_notice_ways_by_records({"1"}, None)
+    handler._query_alert_notice_ways({"1"}, None)
 
     body = searches[0].to_dict()
     assert body["size"] == 0
@@ -790,19 +797,17 @@ def test_query_by_records_disables_total_hits(monkeypatch):
 
 def test_query_by_records_logs_pages_pairs_and_took(monkeypatch, caplog):
     handler = make_handler()
-    handler._notice_way_by_records = True
     handler._notice_way_start_time = 1711900800
     _patch_search_pages(monkeypatch, [_composite_response([], unfilled=0)])
 
     with caplog.at_level(logging.INFO, logger="fta_web.alert.handlers.alert"):
-        handler._query_notice_ways_by_records({"1"}, None)
+        handler._query_alert_notice_ways({"1"}, None)
 
     assert "notice_way records: candidates=1 pages=1 pairs=0 took_ms=1" in caplog.text
 
 
 def test_query_by_records_terminates_on_full_page_without_after_key(monkeypatch):
     handler = make_handler()
-    handler._notice_way_by_records = True
     handler._notice_way_start_time = 1711900800
     handler.NOTICE_WAY_PAIRS_PAGE_SIZE = 2
 
@@ -817,7 +822,7 @@ def test_query_by_records_terminates_on_full_page_without_after_key(monkeypatch)
     ]
     captured = _patch_search_pages(monkeypatch, pages)
 
-    assert handler._query_notice_ways_by_records({"1"}, None) == {"1": {"voice", "mail"}}
+    assert handler._query_alert_notice_ways({"1"}, None) == {"1": {"voice", "mail"}}
     assert len(captured) == 1
 
 
@@ -863,7 +868,6 @@ def test_notice_way_aggregation_degrades_to_partial_when_query_raises(monkeypatc
 
 def test_collect_current_alert_ids_saves_history_start(monkeypatch):
     handler = make_handler()
-    handler._notice_way_by_records = True
     search = setup_candidate_search(
         monkeypatch,
         handler,
@@ -877,24 +881,6 @@ def test_collect_current_alert_ids_saves_history_start(monkeypatch):
     assert search.aggs.metric_calls == 1
     assert search.extra_kwargs["track_total_hits"] is False
     assert handler._notice_way_start_time == 1711900800
-
-
-def test_collect_current_alert_ids_skips_min_agg_when_switch_off(monkeypatch):
-    handler = make_handler()
-    search = setup_candidate_search(monkeypatch, handler, bucket_count=1, sum_other_doc_count=0)
-
-    handler._collect_current_alert_ids()
-
-    assert search.aggs.metric_calls == 0
-    assert search.extra_kwargs["track_total_hits"] is False
-
-
-def test_handler_reads_switch_once_from_settings(settings):
-    settings.ALERT_NOTICE_WAY_BY_RECORDS = True
-
-    handler = AlertQueryHandler(bk_biz_ids=None, username="tester", need_bucket_count=False)
-
-    assert handler._notice_way_by_records is True
 
 
 def test_document_field_name_matches_constant():
