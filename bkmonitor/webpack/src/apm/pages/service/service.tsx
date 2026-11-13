@@ -27,7 +27,7 @@ import { Component, InjectReactive, Prop, Provide, Ref } from 'vue-property-deco
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
-import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
+import { globalUrlFeatureMap, isAidevEmbed } from 'monitor-common/utils/global-feature-map';
 import { onExternalParams } from 'monitor-common/utils/iframe-bridge';
 import { random } from 'monitor-common/utils/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
@@ -416,7 +416,7 @@ export default class Service extends tsc<object> {
           >
             {/* CommonPage 命中 LLM 会话面板类型时才渲染该插槽，组件也只在那时挂载 */}
             <LlmSession slot='customContent' />
-            {globalUrlFeatureMap.APM_SUBMENU && (
+            {globalUrlFeatureMap.APM_SUBMENU && !isAidevEmbed() && (
               <ApmCommonNavBar
                 slot='nav'
                 needBack={false}

@@ -54,3 +54,9 @@ export const globalUrlFeatureMap = {
    */
   READONLY: getUrlParamFalseValue('readonly'),
 } as const;
+
+/**
+ * 是否由 AIDev 通过 iframe 嵌入。
+ * 只认 location.search 里的 from=aidev；hash 中的 from 是时间范围。
+ */
+export const isAidevEmbed = () => getUrlParam('from') === 'aidev';
