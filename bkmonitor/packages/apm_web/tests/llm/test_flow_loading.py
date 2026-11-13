@@ -1,12 +1,14 @@
 """执行线渐进加载与大正文预览回归。"""
 
 import json
+from copy import deepcopy
 from unittest import TestCase, mock
 
 from django.test import override_settings
 
 from apm_web.llm.adapter.utils import CONTENT_FIELDS
 from apm_web.llm.resources import ListFlowsResource
+from apm_web.llm.tokens import TokenCounter
 
 
 class FlowLoadingTests(TestCase):
@@ -45,6 +47,90 @@ class FlowLoadingTests(TestCase):
             {"bk_biz_id": 11, "app_name": "demo", "group_field": "trace_id", "group_id": "trace-1", **parameters}
         )
 
+    def test_content_request_returns_matrix_without_another_query_and_structure_does_not_count(self):
+        with mock.patch("apm_web.llm.tokens.TokenCounter", side_effect=AssertionError("should not count")):
+            structure = self.request(include_input_output=False)
+        self.assertNotIn("token_matrix", structure["traces"][0])
+        self.query.query_by_group_ids.reset_mock()
+        self.source["attributes"]["gen_ai.tool.definitions"] = [{"type": "function", "name": "search"}]
+        result = self.request(include_input_output=True, input_output_preview=True)
+        self.query.query_by_group_ids.assert_called_once()
+        self.assertEqual(self.query.query_by_group_ids.call_args.kwargs["fields"], ())
+        trace = result["traces"][0]
+        self.assertEqual(trace["token_matrix"]["nodes"][0]["value"], 37)
+        definitions = trace["token_matrix"]["nodes"][0]["children"][1]
+        self.assertGreater(definitions["value"], 0)
+        self.assertNotIn("gen_ai.tool.definitions", trace["flow"][0]["attributes"])
+        self.assertEqual(sum(c["tokens"] for c in trace["flow"][0]["token_categories"][:3]), 37)
+
+    def test_missing_usage_only_affects_matrix_and_categories(self):
+        self.source["attributes"].pop("gen_ai.usage.input_tokens")
+        result = self.request(input_output_preview=True)
+        trace = result["traces"][0]
+        model = trace["flow"][0]
+        self.assertEqual(trace["input_tokens"], 0)
+        self.assertGreater(trace["token_matrix"]["nodes"][0]["value"], 0)
+        self.assertEqual(
+            sum(category["tokens"] for category in model["token_categories"][:3]),
+            trace["token_matrix"]["nodes"][0]["value"],
+        )
+        self.assertNotIn("gen_ai.usage.input_tokens", model["attributes"])
+        for item in (result, trace, model):
+            self.assertNotIn("estimated_token_fields", item)
+        self.assertNotIn("gen_ai.usage.input_tokens", self.source["attributes"])
+
+    def test_content_loading_returns_repaired_json_without_filling_usage(self):
+        attrs = self.source["attributes"]
+        attrs.pop("gen_ai.usage.input_tokens")
+        attrs.pop("gen_ai.usage.output_tokens")
+        attrs["gen_ai.input.messages"] = '[{"role":"user","parts":[{"type":"text","content":"修复后的输入'
+        attrs["gen_ai.output.messages"] = '[{"role":"assistant","parts":[{"type":"text","content":"修复后的输出'
+        original = deepcopy(self.source)
+        for preview in (False, True):
+            with self.subTest(preview=preview):
+                self.query.query_by_group_ids.reset_mock()
+                result = self.request(include_input_output=True, input_output_preview=preview)
+                self.query.query_by_group_ids.assert_called_once()
+                trace = result["traces"][0]
+                node = trace["flow"][0]
+                for side, expected in (("input", "修复后的输入"), ("output", "修复后的输出")):
+                    self.assertNotIn(f"gen_ai.usage.{side}_tokens", node["attributes"])
+                    self.assertEqual(trace[f"{side}_tokens"], 0)
+                    root = next(root for root in trace["token_matrix"]["nodes"] if root["id"] == side)
+                    self.assertGreater(root["value"], 0)
+                    if preview:
+                        self.assertEqual(node[side], expected)
+                    else:
+                        self.assertEqual(
+                            node["attributes"][f"gen_ai.{side}.messages"][0]["parts"][0]["content"], expected
+                        )
+                self.assertTrue(
+                    all(set(category) == {"key", "label", "tokens"} for category in node["token_categories"])
+                )
+        self.assertEqual(self.source, original)
+
+    def test_missing_llm_usage_does_not_add_estimated_usage_to_agent(self):
+        model = deepcopy(self.source)
+        model["parent_span_id"] = "tool"
+        model["attributes"].pop("gen_ai.usage.input_tokens")
+        tool = {**deepcopy(model), "span_id": "tool", "parent_span_id": "agent"}
+        tool["attributes"] = {"gen_ai.operation.name": "execute_tool"}
+        agent = {**deepcopy(model), "span_id": "agent", "parent_span_id": ""}
+        agent["attributes"] = {"gen_ai.operation.name": "invoke_agent"}
+        self.query.query_by_group_ids.side_effect = lambda **kwargs: [agent, tool, model]
+        for reported in (None, 0):
+            with self.subTest(reported=reported):
+                if reported is not None:
+                    agent["attributes"]["gen_ai.usage.input_tokens"] = reported
+                result = self.request(input_output_preview=True)["traces"][0]["flow"][0]
+                self.assertNotIn("estimated_token_fields", result)
+                self.assertNotIn("estimated_token_fields", result["childs"][0])
+                self.assertNotIn("gen_ai.usage.input_tokens", result["childs"][0]["childs"][0]["attributes"])
+                if reported is None:
+                    self.assertEqual(result["attributes"]["gen_ai.usage.input_tokens"], 0)
+                else:
+                    self.assertEqual(result["attributes"]["gen_ai.usage.input_tokens"], reported)
+
     def test_default_and_explicit_full_mode_preserve_complete_content(self):
         content = "完整正文" * 1000
         messages = [{"role": "user", "parts": [{"type": "text", "content": content}]}]
@@ -75,16 +161,29 @@ class FlowLoadingTests(TestCase):
     def test_default_full_mode_preserves_tool_arguments_and_results(self):
         arguments = {"path": "a" * 1000, "nested": {"limit": 20}}
         result = [{"data": "b" * 1000}, {"data": "second"}]
+        name = "search"
         self.source["attributes"].update(
             {
                 "gen_ai.operation.name": "execute_tool",
+                "gen_ai.tool.name": name,
                 "gen_ai.tool.call.arguments": arguments,
                 "gen_ai.tool.call.result": result,
             }
         )
-        node = self.request()["traces"][0]["flow"][0]
-        self.assertEqual(node["attributes"]["gen_ai.tool.call.arguments"], arguments)
-        self.assertEqual(node["attributes"]["gen_ai.tool.call.result"], result)
+        counter = TokenCounter("")
+        expected = counter.count(name) + counter.count(arguments) + counter.count(result)
+        for preview in (False, True):
+            with self.subTest(preview=preview):
+                trace = self.request(input_output_preview=preview)["traces"][0]
+                node = trace["flow"][0]
+                self.assertEqual(node["tokens"], expected)
+                self.assertEqual(trace["total_tokens"], 0)
+                self.assertEqual([root["value"] for root in trace["token_matrix"]["nodes"]], [0, 0])
+                if not preview:
+                    self.assertEqual(node["attributes"]["gen_ai.tool.call.arguments"], arguments)
+                    self.assertEqual(node["attributes"]["gen_ai.tool.call.result"], result)
+        self.assertNotIn("tokens", self.request(include_input_output=False)["traces"][0]["flow"][0])
+        self.assertNotIn("tokens", self.source)
 
     def test_structure_mode_takes_precedence_over_preview(self):
         result = self.request(include_input_output=False, input_output_preview=True)

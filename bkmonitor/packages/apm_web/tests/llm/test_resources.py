@@ -452,7 +452,8 @@ class ListTracesResourceTestCase(TestCase):
                     ["trace-2", "trace-3", "trace-1"],
                     extra_filter=operation_query(
                         "aidev", [name for name, kind in SPAN_TYPES.items() if kind in {"AGENT", "LLM"}]
-                    ),
+                    )
+                    & Q(span_name__neq=["agent.execution"]),
                     sort=["end_time desc"],
                 ),
             ],
@@ -1572,6 +1573,8 @@ class ListFlowsResourceTestCase(TestCase):
             )
         trace = result["traces"][0]
         flow = trace.pop("flow")
+        matrix = trace.pop("token_matrix")
+        self.assertEqual([node["value"] for node in matrix["nodes"]], [30, 10])
         self.assertEqual(
             trace,
             {
@@ -1817,7 +1820,9 @@ class ListFlowsResourceTestCase(TestCase):
         def flatten(nodes):
             flattened = []
             for node in nodes:
-                flattened.append({key: value for key, value in node.items() if key != "childs"})
+                flattened.append(
+                    {key: value for key, value in node.items() if key not in {"childs", "token_categories"}}
+                )
                 flattened.extend(flatten(node["childs"]))
             return flattened
 
@@ -2626,7 +2631,7 @@ class CalculateByRangeResourceTestCase(TestCase):
             "galileo": "attributes.gen_ai.operation.name",
             "agentlens": "attributes.gen_ai.span.kind",
             "langfuse": "attributes.langfuse.observation.type",
-            "aidev": "attributes.llm.request.type",
+            "aidev": "attributes.gen_ai.operation.name",
         }
         for product, field in operation_fields.items():
             for group_by in ([], ["gen_ai.operation.name"]):
@@ -2656,8 +2661,8 @@ class CalculateByRangeResourceTestCase(TestCase):
             ),
             (
                 "aidev",
-                "attributes.llm.request.type",
-                [("chat", 20), ("", 12627), ("completion", 5)],
+                "attributes.gen_ai.operation.name",
+                [("chat", 20), ("", 12627), ("text_completion", 5)],
                 [("chat", 20), ("text_completion", 5)],
             ),
             (
@@ -2753,7 +2758,7 @@ class CalculateByRangeResourceTestCase(TestCase):
         self.assertEqual(
             layer_query(query),
             Q(**{"attributes.gen_ai.operation.name": ["chat", "generate_content", "text_completion", "embeddings"]})
-            | Q(span_name="chat_model.generate"),
+            | Q(span_name=["chat_model.generate", "ChatModel.chat"]),
         )
 
     def test_bkaidev_request_count_includes_standard_and_legacy_agents(self):
@@ -2989,9 +2994,12 @@ class TimeSeriesResourceTestCase(TestCase):
         grafana = mock.Mock()
         grafana.grafana.graph_unify_query.return_value = {
             "series": [
-                {"dimensions": {"attributes.llm.request.type": ""}, "datapoints": [[100, 1700000000000]]},
-                {"dimensions": {"attributes.llm.request.type": "completion"}, "datapoints": [[5, 1700000000000]]},
-                {"dimensions": {"attributes.llm.request.type": "chat"}, "datapoints": [[20, 1700000000000]]},
+                {"dimensions": {"attributes.gen_ai.operation.name": ""}, "datapoints": [[100, 1700000000000]]},
+                {
+                    "dimensions": {"attributes.gen_ai.operation.name": "text_completion"},
+                    "datapoints": [[5, 1700000000000]],
+                },
+                {"dimensions": {"attributes.gen_ai.operation.name": "chat"}, "datapoints": [[20, 1700000000000]]},
             ]
         }
         with patch_llm_metric_group(query, product="aidev"), mock.patch(f"{GROUP_MODULE}.resource", grafana):
