@@ -1463,6 +1463,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     const renderCollectorOptions = () =>
       cleanCollectorList.value.map(option => (
         <bk-option
+          disabled={!option.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]}
           id={option.collector_config_id}
           key={option.collector_config_id}
           name={option.collector_config_name}

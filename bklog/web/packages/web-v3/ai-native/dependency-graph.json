@@ -1275,6 +1275,7 @@
     "shared/global/overlay/overlay-registry.js",
     "shared/global/overlay/overlay-types.ts",
     "shared/global/overlay/use-dialog-visible.ts",
+    "shared/global/overlay/use-overlay-z-index.ts",
     "shared/global/overlay/use-overlay.ts",
     "shared/global/overlay/z-index-manager.js",
     "shared/global/pop-instance-util.scss",
@@ -2444,6 +2445,11 @@
     {
       "from": "app/shell/app.tsx",
       "to": "platform/i18n/locale-provider.ts",
+      "kind": "module"
+    },
+    {
+      "from": "app/shell/app.tsx",
+      "to": "app/state/modules/platform-config.ts",
       "kind": "module"
     },
     {
@@ -6003,6 +6009,11 @@
     },
     {
       "from": "features/clusters/current/cluster-manage/index.tsx",
+      "to": "shared/global/overlay/use-overlay-z-index.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/clusters/current/cluster-manage/index.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -8895,6 +8906,11 @@
       "from": "features/collection/current/components/create-operation/step2-configuration.tsx",
       "to": "features/collection/services/collect.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step2-custom-report.tsx",
+      "to": "shared/global/overlay/z-index-manager.js",
+      "kind": "module"
     },
     {
       "from": "features/collection/current/components/create-operation/step2-custom-report.tsx",
@@ -13078,6 +13094,11 @@
     },
     {
       "from": "features/masking/components/masking-add-rule.tsx",
+      "to": "shared/global/overlay/index.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/masking/components/masking-add-rule.tsx",
       "to": "features/masking/services/masking.ts",
       "kind": "service-call"
     },
@@ -13303,6 +13324,11 @@
     },
     {
       "from": "features/masking/components/masking-setting.tsx",
+      "to": "shared/global/overlay/index.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/masking/components/masking-setting.tsx",
       "to": "shared/composables/use-utils.ts",
       "kind": "module"
     },
@@ -13409,6 +13435,11 @@
     {
       "from": "features/preferences/index.tsx",
       "to": "app/state/domains/application-store.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/preferences/index.tsx",
+      "to": "shared/global/overlay/use-overlay-z-index.ts",
       "kind": "module"
     },
     {
@@ -13799,6 +13830,11 @@
     {
       "from": "features/retrieval/workbench/components/batch-input/index.tsx",
       "to": "features/retrieval/workbench/components/batch-input/style.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/components/batch-input/index.tsx",
+      "to": "shared/global/overlay/use-overlay-z-index.ts",
       "kind": "module"
     },
     {
@@ -24112,6 +24148,11 @@
       "kind": "module"
     },
     {
+      "from": "shared/global/overlay/index.ts",
+      "to": "shared/global/overlay/use-overlay-z-index.ts",
+      "kind": "module"
+    },
+    {
       "from": "shared/global/overlay/overlay-registry.d.ts",
       "to": "shared/global/overlay/overlay-types.ts",
       "kind": "type"
@@ -24130,6 +24171,11 @@
       "from": "shared/global/overlay/use-dialog-visible.ts",
       "to": "shared/global/overlay/overlay-types.ts",
       "kind": "type"
+    },
+    {
+      "from": "shared/global/overlay/use-overlay-z-index.ts",
+      "to": "shared/global/overlay/z-index-manager.js",
+      "kind": "module"
     },
     {
       "from": "shared/global/overlay/use-overlay.ts",

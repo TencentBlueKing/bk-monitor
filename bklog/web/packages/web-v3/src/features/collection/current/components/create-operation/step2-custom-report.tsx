@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 
 import { Loading as TLoading } from '@/shared/ui/loading/native';
 
@@ -486,7 +487,7 @@ export default defineComponent({
         loading={loading.value}
         showOverlay
         size='large'
-        zIndex={1000}
+        zIndex={Z_INDEX_LAYERS.PAGE}
       >
         <div class='operation-step2-custom-report'>
           {cardRender(cardConfig.value)}
