@@ -30,15 +30,6 @@
       }
     }
 
-    .t-form__item {
-      margin-top: 18px;
-      margin-bottom: 0;
-
-      & + .t-form__item {
-        margin-top: 8px;
-      }
-    }
-
     .source-item {
       display: flex;
     }
@@ -262,10 +253,6 @@
     background: #fafbfd;
     border-top: 1px solid #dcdee5;
   }
-}
-
-.bklog-cluster-drawer .t-drawer__body {
-  padding: 0;
 }
 
 // V2 limits the description to 100 characters without displaying a counter.

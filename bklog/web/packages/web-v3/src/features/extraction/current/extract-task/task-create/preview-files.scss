@@ -100,7 +100,7 @@
       margin-bottom: 7px;
 
       .t-checkbox__label {
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
       }
     }
 
@@ -203,7 +203,7 @@
     }
 
     .t-button--variant-text {
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
     }
   }
 
@@ -228,8 +228,8 @@
 
     .t-radio__label {
       margin-left: 6px;
-      font-size: 12px;
-      line-height: 20px;
+      font-size: var(--bklog-font-body, 12px);
+      line-height: var(--bklog-line-height-body, 20px);
     }
   }
 

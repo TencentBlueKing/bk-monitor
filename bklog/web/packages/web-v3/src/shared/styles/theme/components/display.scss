@@ -1,0 +1,28 @@
+// V2 display contracts, scoped to migrated business controls. SDK widgets retain
+// their own TDesign tokens and sizes (web-v2/lib/ui/{tag,alert}.css).
+[data-v2-display='tag'] {
+  --td-comp-size-xs: 22px;
+  --td-success-color: #14a568;
+  --td-success-color-light: rgba(20, 165, 104, 0.1);
+  --td-brand-color-light: rgba(58, 132, 255, 0.1);
+  --td-warning-color: #fe9c00;
+  --td-warning-color-light: rgba(254, 156, 0, 0.1);
+  --td-error-color: #ea3536;
+  --td-error-color-light: rgba(234, 53, 54, 0.1);
+  margin: 2px 0 2px 6px;
+  border-radius: 2px;
+}
+
+[data-v2-display='alert'] {
+  padding: 8px 10px;
+  border: 1px solid;
+  border-radius: 2px;
+  color: #63656e;
+
+  .t-alert__message { line-height: var(--bklog-line-height-small, 16px); }
+
+  &.t-alert--info { border-color: #c5daff; background-color: #f0f8ff; }
+  &.t-alert--warning { border-color: #ffdfac; background-color: #fff4e2; }
+  &.t-alert--success { border-color: #94f5a4; background-color: #f2fff4; }
+  &.t-alert--error { border-color: #ffd2d2; background-color: #ffeded; }
+}

@@ -1,3 +1,4 @@
+@use '../../../../../../../shared/styles/theme/components/contracts' as bklogControls;
 .label-item-choose-box {
     display: flex;
     align-items: center;
@@ -25,8 +26,7 @@
     margin-right: -1px;
 
     :deep(.t-input__inner) {
-      border-top-right-radius: 0;
-      border-bottom-right-radius: 0;
+      @include bklogControls.join-next;
     }
   }
 
@@ -49,8 +49,7 @@
     }
 
     :deep(.t-input__inner) {
-      border-top-left-radius: 0;
-      border-bottom-left-radius: 0;
+      @include bklogControls.join-previous;
     }
   }
 

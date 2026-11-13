@@ -69,7 +69,7 @@
                 .t-input {
                     height: 32px;
                     border-radius: 2px 0 0 2px;
-                    background: #FAFBFD;
+                    background: var(--bklog-surface-disabled, #FAFBFD);
                 }
                 .t-input__inner {
                     padding: 0;

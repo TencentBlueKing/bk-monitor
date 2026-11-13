@@ -1,0 +1,3415 @@
+{
+  "schemaVersion": 1,
+  "scope": "Source SCSS and Vue style blocks only; no runtime data; lexical inventory, not cascade or reachability proof.",
+  "tdesignVersion": "1.20.10",
+  "summary": {
+    "scssFilesWithClasses": 133,
+    "scssClassReferences": 650,
+    "importantInMatchedScssFiles": 169,
+    "vueStyleFilesWithClasses": 57,
+    "modules": {
+      "app/shell": 1,
+      "features/archive": 6,
+      "features/authorization": 2,
+      "features/cleaning": 3,
+      "features/client-logs": 5,
+      "features/clusters": 2,
+      "features/collection": 36,
+      "features/extraction": 5,
+      "features/grok": 2,
+      "features/index-sets": 2,
+      "features/masking": 6,
+      "features/preferences": 2,
+      "features/retrieval": 48,
+      "shared/global": 2,
+      "shared/styles": 4,
+      "shared/ui": 7
+    },
+    "families": {
+      ".t-input": 54,
+      ".t-button": 53,
+      ".t-form": 11,
+      ".t-select": 13,
+      ".t-alert": 6,
+      ".t-date-picker": 2,
+      ".t-switch": 2,
+      ".t-drawer": 7,
+      ".t-is-active": 1,
+      ".t-tabs": 1,
+      ".t-radio": 15,
+      ".t-tag": 7,
+      ".t-textarea": 5,
+      ".t-badge": 1,
+      ".t-table": 9,
+      ".t-input-number": 3,
+      ".t-fake-arrow": 1,
+      ".t-checkbox": 22,
+      ".t-pagination": 4,
+      ".t-select-option": 3,
+      ".t-dialog": 8,
+      ".t-is-checked": 1,
+      ".t-is-current": 2,
+      ".t-is-selected": 2,
+      ".t-popup": 12,
+      ".t-radio-group": 1,
+      ".t-tooltip": 1,
+      ".t-tag-input": 2,
+      ".t-icon": 1,
+      ".t-steps": 1,
+      ".t-steps-item": 1,
+      ".t-loading": 8,
+      ".t-collapse": 1,
+      ".t-collapse-panel": 1,
+      ".t-empty": 2,
+      ".t-size-s": 3,
+      ".t-tree": 1,
+      ".t-is-readonly": 1,
+      ".t-popconfirm": 2,
+      ".t-size-l": 2,
+      ".t-is-disabled": 2,
+      ".t-cascader": 1,
+      ".t-dropdown": 1,
+      ".t-message": 1,
+      ".t-notification": 1
+    },
+    "themeDeclaredTokens": 45,
+    "themeTokensWithoutInstalledCssConsumer": []
+  },
+  "files": [
+    {
+      "file": "app/shell/app.scss",
+      "kind": "scss",
+      "module": "app/shell",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 11
+    },
+    {
+      "file": "features/archive/classic/archive-list/list.vue",
+      "kind": "vue-style",
+      "module": "features/archive",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/archive/classic/archive-repository/list.vue",
+      "kind": "vue-style",
+      "module": "features/archive",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/archive/classic/archive-repository/repository-slider.vue",
+      "kind": "vue-style",
+      "module": "features/archive",
+      "classReferences": 3,
+      "classes": [
+        ".t-alert",
+        ".t-input__wrap",
+        ".t-switch"
+      ],
+      "componentFamilies": [
+        ".t-alert",
+        ".t-input",
+        ".t-switch"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/archive/classic/archive-restore/list.vue",
+      "kind": "vue-style",
+      "module": "features/archive",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/archive/classic/archive-restore/restore-slider.vue",
+      "kind": "vue-style",
+      "module": "features/archive",
+      "classReferences": 1,
+      "classes": [
+        ".t-alert"
+      ],
+      "componentFamilies": [
+        ".t-alert"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/archive/current/archive-list/index.scss",
+      "kind": "scss",
+      "module": "features/archive",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/archive/current/archive-list/list-slider.scss",
+      "kind": "scss",
+      "module": "features/archive",
+      "classReferences": 3,
+      "classes": [
+        ".t-form__item",
+        ".t-select__wrap"
+      ],
+      "componentFamilies": [
+        ".t-form",
+        ".t-select"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/archive/current/archive-repository/index.scss",
+      "kind": "scss",
+      "module": "features/archive",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/archive/current/archive-repository/repository-slider.scss",
+      "kind": "scss",
+      "module": "features/archive",
+      "classReferences": 11,
+      "classes": [
+        ".t-alert",
+        ".t-date-picker",
+        ".t-form",
+        ".t-form__controls",
+        ".t-form__item",
+        ".t-form__label",
+        ".t-input__wrap",
+        ".t-select__wrap",
+        ".t-switch"
+      ],
+      "componentFamilies": [
+        ".t-alert",
+        ".t-date-picker",
+        ".t-form",
+        ".t-input",
+        ".t-select",
+        ".t-switch"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/archive/current/archive-restore/index.scss",
+      "kind": "scss",
+      "module": "features/archive",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/archive/current/archive-restore/restore-slider.scss",
+      "kind": "scss",
+      "module": "features/archive",
+      "classReferences": 5,
+      "classes": [
+        ".t-alert",
+        ".t-date-picker",
+        ".t-form",
+        ".t-form__item",
+        ".t-select__wrap"
+      ],
+      "componentFamilies": [
+        ".t-alert",
+        ".t-date-picker",
+        ".t-form",
+        ".t-select"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/authorization/authorization-dialog.scss",
+      "kind": "scss",
+      "module": "features/authorization",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/authorization/denied/index.scss",
+      "kind": "scss",
+      "module": "features/authorization",
+      "classReferences": 2,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/cleaning/classic/clean-manage/list.vue",
+      "kind": "vue-style",
+      "module": "features/cleaning",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/cleaning/classic/clean-template/list.vue",
+      "kind": "vue-style",
+      "module": "features/cleaning",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/cleaning/current/clean-template/delete-confirm-popover.scss",
+      "kind": "scss",
+      "module": "features/cleaning",
+      "classReferences": 3,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/cleaning/current/clean-template/detail-slider.scss",
+      "kind": "scss",
+      "module": "features/cleaning",
+      "classReferences": 9,
+      "classes": [
+        ".t-button",
+        ".t-drawer__body",
+        ".t-input__wrap",
+        ".t-is-active",
+        ".t-tabs__bar",
+        ".t-tabs__content",
+        ".t-tabs__header",
+        ".t-tabs__nav-item"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-drawer",
+        ".t-input",
+        ".t-is-active",
+        ".t-tabs"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/cleaning/current/clean-template/sync-slider.scss",
+      "kind": "scss",
+      "module": "features/cleaning",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/client-logs/management/collection-slider/index.scss",
+      "kind": "scss",
+      "module": "features/client-logs",
+      "classReferences": 3,
+      "classes": [
+        ".t-button",
+        ".t-radio"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/client-logs/management/index.scss",
+      "kind": "scss",
+      "module": "features/client-logs",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/client-logs/management/user-report/upload-result.scss",
+      "kind": "scss",
+      "module": "features/client-logs",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/client-logs/search/log-detail-panel/index.scss",
+      "kind": "scss",
+      "module": "features/client-logs",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/client-logs/search/task-list-panel/index.scss",
+      "kind": "scss",
+      "module": "features/client-logs",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/clusters/current/cluster-manage/es-slider.scss",
+      "kind": "scss",
+      "module": "features/clusters",
+      "classReferences": 8,
+      "classes": [
+        ".t-drawer__body",
+        ".t-form__item",
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-tag",
+        ".t-textarea__info_wrapper"
+      ],
+      "componentFamilies": [
+        ".t-drawer",
+        ".t-form",
+        ".t-input",
+        ".t-tag",
+        ".t-textarea"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/clusters/current/cluster-manage/index.scss",
+      "kind": "scss",
+      "module": "features/clusters",
+      "classReferences": 2,
+      "classes": [
+        ".t-badge",
+        ".t-table__empty"
+      ],
+      "componentFamilies": [
+        ".t-badge",
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/clusters/status/es-cluster-mess/es-slider.vue",
+      "kind": "vue-style",
+      "module": "features/clusters",
+      "classReferences": 3,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-tag"
+      ],
+      "componentFamilies": [
+        ".t-input",
+        ".t-tag"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/clusters/status/es-cluster-mess/index.vue",
+      "kind": "vue-style",
+      "module": "features/clusters",
+      "classReferences": 1,
+      "classes": [
+        ".t-badge"
+      ],
+      "componentFamilies": [
+        ".t-badge"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/access/components/cluster-table.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "componentFamilies": [
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/collection/access/components/log-filter/index.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/collection/access/components/log-filter/validator-input.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 16,
+      "classes": [
+        ".t-form",
+        ".t-form__controls",
+        ".t-form__controls-content",
+        ".t-form__item",
+        ".t-input",
+        ".t-input-number",
+        ".t-input__suffix",
+        ".t-input__wrap",
+        ".t-select",
+        ".t-select__wrap"
+      ],
+      "componentFamilies": [
+        ".t-form",
+        ".t-input",
+        ".t-input-number",
+        ".t-select"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/config-log-set-item.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__wrap",
+        ".t-radio"
+      ],
+      "componentFamilies": [
+        ".t-input",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/collection/access/components/step-add/container-target-item.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/device-metadata.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/label-target-dialog.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-checkbox__label"
+      ],
+      "componentFamilies": [
+        ".t-checkbox"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/match-label-item.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 3,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/collection/access/components/step-add/match-label.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/access/field-table.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 6,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 5
+    },
+    {
+      "file": "features/collection/access/step-add.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 6,
+      "classes": [
+        ".t-button",
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 6
+    },
+    {
+      "file": "features/collection/access/step-field.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 3,
+      "classes": [
+        ".t-input__wrap",
+        ".t-size-s"
+      ],
+      "componentFamilies": [
+        ".t-input",
+        ".t-size-s"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 4
+    },
+    {
+      "file": "features/collection/access/step-masking.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/access/step-result.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/access/step-storage.vue",
+      "kind": "vue-style",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-checkbox__label"
+      ],
+      "componentFamilies": [
+        ".t-checkbox"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/add-group-table.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/add-index-set.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 4,
+      "classes": [
+        ".t-form",
+        ".t-form__controls",
+        ".t-form__controls-content",
+        ".t-form__item"
+      ],
+      "componentFamilies": [
+        ".t-form"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/container-collection/append-log-tags.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/container-collection/config-cluster-box.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 5,
+      "classes": [
+        ".t-fake-arrow",
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__suffix"
+      ],
+      "componentFamilies": [
+        ".t-fake-arrow",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/container-collection/label-choose-dialog.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-checkbox__label"
+      ],
+      "componentFamilies": [
+        ".t-checkbox"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/container-collection/label-item-choose.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/device-metadata.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/index-config-import-dialog.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-pagination__total",
+        ".t-table__pagination"
+      ],
+      "componentFamilies": [
+        ".t-pagination",
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/index-set-option.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 3,
+      "classes": [
+        ".t-checkbox__label",
+        ".t-select-option"
+      ],
+      "componentFamilies": [
+        ".t-checkbox",
+        ".t-select-option"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/line-rule-config.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/log-filter.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 12,
+      "classes": [
+        ".t-button",
+        ".t-button--theme-default",
+        ".t-input",
+        ".t-input--focused",
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-select",
+        ".t-select__wrap",
+        ".t-textarea__inner"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input",
+        ".t-select",
+        ".t-textarea"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 4
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/multiline-reg-dialog.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 10,
+      "classes": [
+        ".t-button",
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__close",
+        ".t-dialog__footer",
+        ".t-dialog__header",
+        ".t-form__label",
+        ".t-textarea__inner"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-dialog",
+        ".t-form",
+        ".t-textarea"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/validator-input.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 17,
+      "classes": [
+        ".t-form__controls",
+        ".t-form__controls-content",
+        ".t-form__item",
+        ".t-form__label",
+        ".t-input",
+        ".t-input-number",
+        ".t-input__wrap",
+        ".t-select"
+      ],
+      "componentFamilies": [
+        ".t-form",
+        ".t-input",
+        ".t-input-number",
+        ".t-select"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step3/clean-result-preview-dialog.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 4,
+      "classes": [
+        ".t-button",
+        ".t-input__inner",
+        ".t-table__body"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input",
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 8
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step3/field-list.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 12,
+      "classes": [
+        ".t-button",
+        ".t-input__inner",
+        ".t-table__body",
+        ".t-table__th-field_name",
+        ".t-table__th-field_type",
+        ".t-table__th-is_analyzed",
+        ".t-table__th-value"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input",
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 12
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step3/report-log-slider.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 3,
+      "classes": [
+        ".t-drawer__body",
+        ".t-drawer__header",
+        ".t-drawer__header-content"
+      ],
+      "componentFamilies": [
+        ".t-drawer"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/common-comp/input-add-group.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/common-comp/table-component.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 37,
+      "classes": [
+        ".t-input",
+        ".t-input--focused",
+        ".t-input__inner",
+        ".t-is-checked",
+        ".t-is-current",
+        ".t-is-selected",
+        ".t-pagination__number",
+        ".t-pagination__select",
+        ".t-pagination__total",
+        ".t-popup",
+        ".t-popup__content",
+        ".t-radio",
+        ".t-radio-group",
+        ".t-radio__input",
+        ".t-radio__label",
+        ".t-select-option",
+        ".t-select__dropdown",
+        ".t-select__list",
+        ".t-table__body",
+        ".t-table__cell--fixed-left-last",
+        ".t-table__cell--fixed-right-first",
+        ".t-table__content",
+        ".t-table__filter-pop",
+        ".t-table__filter-pop-content",
+        ".t-table__filter-pop-content-inner",
+        ".t-table__first-full-row",
+        ".t-table__header",
+        ".t-table__list-filter-input--sticky",
+        ".t-table__pagination",
+        ".t-table__sort-icon--active",
+        ".t-table__th-cell-inner",
+        ".t-tooltip__content"
+      ],
+      "componentFamilies": [
+        ".t-input",
+        ".t-is-checked",
+        ".t-is-current",
+        ".t-is-selected",
+        ".t-pagination",
+        ".t-popup",
+        ".t-radio",
+        ".t-radio-group",
+        ".t-select",
+        ".t-select-option",
+        ".t-table",
+        ".t-tooltip"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 7
+    },
+    {
+      "file": "features/collection/current/components/common-comp/tag-more.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 19,
+      "classes": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__label",
+        ".t-input__prefix",
+        ".t-input__suffix",
+        ".t-popup",
+        ".t-popup__content",
+        ".t-select__wrap",
+        ".t-tag-input",
+        ".t-tag-input--break-line"
+      ],
+      "componentFamilies": [
+        ".t-input",
+        ".t-popup",
+        ".t-select",
+        ".t-tag-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/global.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 3,
+      "classes": [
+        ".t-button",
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/index.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 21,
+      "classes": [
+        ".t-icon",
+        ".t-steps--default-anchor",
+        ".t-steps--horizontal",
+        ".t-steps-item",
+        ".t-steps-item--finish",
+        ".t-steps-item--process",
+        ".t-steps-item__description",
+        ".t-steps-item__icon",
+        ".t-steps-item__icon--number",
+        ".t-steps-item__inner",
+        ".t-steps-item__title"
+      ],
+      "componentFamilies": [
+        ".t-icon",
+        ".t-steps",
+        ".t-steps-item"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step2-configuration.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 3,
+      "classes": [
+        ".t-button",
+        ".t-checkbox",
+        ".t-checkbox__label"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-checkbox"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step2-custom-report.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-button",
+        ".t-loading__overlay"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-loading"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step3-clean.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 3,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 12
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step4-storage.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 5,
+      "classes": [
+        ".t-collapse",
+        ".t-collapse-panel__content",
+        ".t-collapse-panel__header",
+        ".t-collapse-panel__header-content",
+        ".t-collapse-panel__wrapper"
+      ],
+      "componentFamilies": [
+        ".t-collapse",
+        ".t-collapse-panel"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/list-main/add-existing-collect-dialog.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-checkbox"
+      ],
+      "componentFamilies": [
+        ".t-checkbox"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/list-main/stop-type-dialog.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 6,
+      "classes": [
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__close",
+        ".t-dialog__footer",
+        ".t-dialog__footer--fullscreen",
+        ".t-dialog__header"
+      ],
+      "componentFamilies": [
+        ".t-dialog"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/current/components/list-main/table-list/table-list-v1.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-checkbox",
+        ".t-checkbox__label"
+      ],
+      "componentFamilies": [
+        ".t-checkbox"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/collection/current/components/list-main/table-list/table-list-v2.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 7,
+      "classes": [
+        ".t-checkbox",
+        ".t-checkbox__label",
+        ".t-input",
+        ".t-input__inner",
+        ".t-pagination__select",
+        ".t-pagination__total",
+        ".t-table__pagination"
+      ],
+      "componentFamilies": [
+        ".t-checkbox",
+        ".t-input",
+        ".t-pagination",
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/collection/current/components/masking-operation/index.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/collection/filter-rule/config-rule/index.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 4
+    },
+    {
+      "file": "features/collection/filter-rule/index.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/collection/shared/sample-column-select.scss",
+      "kind": "scss",
+      "module": "features/collection",
+      "classReferences": 2,
+      "classes": [
+        ".t-empty",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-empty",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/extraction/classic/manage-extract-permission/directory-manage.vue",
+      "kind": "vue-style",
+      "module": "features/extraction",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/extraction/current/extract-config/config-slider.scss",
+      "kind": "scss",
+      "module": "features/extraction",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/extraction/current/extract-link/link-create.scss",
+      "kind": "scss",
+      "module": "features/extraction",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/extraction/current/extract-task/task-create/index.scss",
+      "kind": "scss",
+      "module": "features/extraction",
+      "classReferences": 4,
+      "classes": [
+        ".t-alert",
+        ".t-alert__message",
+        ".t-button",
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-alert",
+        ".t-button",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/extraction/current/extract-task/task-create/preview-files.scss",
+      "kind": "scss",
+      "module": "features/extraction",
+      "classReferences": 6,
+      "classes": [
+        ".t-alert",
+        ".t-alert__message",
+        ".t-button",
+        ".t-button--variant-text",
+        ".t-checkbox__label",
+        ".t-radio__label"
+      ],
+      "componentFamilies": [
+        ".t-alert",
+        ".t-button",
+        ".t-checkbox",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/extraction/current/extract-task/task-list/index.scss",
+      "kind": "scss",
+      "module": "features/extraction",
+      "classReferences": 2,
+      "classes": [
+        ".t-alert",
+        ".t-table__header"
+      ],
+      "componentFamilies": [
+        ".t-alert",
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/extraction/download/create/ip-select.vue",
+      "kind": "vue-style",
+      "module": "features/extraction",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/grok/current/grok-slider.scss",
+      "kind": "scss",
+      "module": "features/grok",
+      "classReferences": 6,
+      "classes": [
+        ".t-button",
+        ".t-form",
+        ".t-form__controls-content",
+        ".t-form__item",
+        ".t-textarea__inner",
+        ".t-textarea__limit"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-form",
+        ".t-textarea"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/grok/current/index.scss",
+      "kind": "scss",
+      "module": "features/grok",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/index-sets/components/index-set/create/index.vue",
+      "kind": "vue-style",
+      "module": "features/index-sets",
+      "classReferences": 3,
+      "classes": [
+        ".t-tag",
+        ".t-tag--primary",
+        ".t-tag__icon-close"
+      ],
+      "componentFamilies": [
+        ".t-tag"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/index-sets/custom-report/list.vue",
+      "kind": "vue-style",
+      "module": "features/index-sets",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/index-sets/import-from-other/index.scss",
+      "kind": "scss",
+      "module": "features/index-sets",
+      "classReferences": 1,
+      "classes": [
+        ".t-radio"
+      ],
+      "componentFamilies": [
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/index-sets/label-select/index.scss",
+      "kind": "scss",
+      "module": "features/index-sets",
+      "classReferences": 1,
+      "classes": [
+        ".t-tag"
+      ],
+      "componentFamilies": [
+        ".t-tag"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/index-sets/log-collection/collection-item/index.vue",
+      "kind": "vue-style",
+      "module": "features/index-sets",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 3
+    },
+    {
+      "file": "features/index-sets/log-collection/collection-item/manage-collection/collection-status.vue",
+      "kind": "vue-style",
+      "module": "features/index-sets",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/management/manage/index.vue",
+      "kind": "vue-style",
+      "module": "features/management",
+      "classReferences": 23,
+      "classes": [
+        ".t-default-menu",
+        ".t-is-collapsed",
+        ".t-menu",
+        ".t-menu-group",
+        ".t-menu-group__title",
+        ".t-menu__content",
+        ".t-menu__item"
+      ],
+      "componentFamilies": [
+        ".t-default-menu",
+        ".t-is-collapsed",
+        ".t-menu",
+        ".t-menu-group"
+      ],
+      "declaredTokens": [
+        "--td-gray-color-10",
+        "--td-gray-color-13"
+      ],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/masking/components/masking-add-rule.scss",
+      "kind": "scss",
+      "module": "features/masking",
+      "classReferences": 7,
+      "classes": [
+        ".t-button",
+        ".t-checkbox__label",
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-checkbox",
+        ".t-input",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/masking/components/masking-extract.scss",
+      "kind": "scss",
+      "module": "features/masking",
+      "classReferences": 3,
+      "classes": [
+        ".t-button",
+        ".t-checkbox__label",
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-checkbox",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 3
+    },
+    {
+      "file": "features/masking/components/masking-field.scss",
+      "kind": "scss",
+      "module": "features/masking",
+      "classReferences": 4,
+      "classes": [
+        ".t-button",
+        ".t-input__inner",
+        ".t-switch",
+        ".t-tag"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input",
+        ".t-switch",
+        ".t-tag"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 4
+    },
+    {
+      "file": "features/masking/components/masking-select-rule-table.scss",
+      "kind": "scss",
+      "module": "features/masking",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/masking/components/masking-setting.scss",
+      "kind": "scss",
+      "module": "features/masking",
+      "classReferences": 3,
+      "classes": [
+        ".t-button",
+        ".t-input__wrap",
+        ".t-size-s"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input",
+        ".t-size-s"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 3
+    },
+    {
+      "file": "features/masking/index.scss",
+      "kind": "scss",
+      "module": "features/masking",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/preferences/dialog/index.scss",
+      "kind": "scss",
+      "module": "features/preferences",
+      "classReferences": 12,
+      "classes": [
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__ctx",
+        ".t-dialog__mask",
+        ".t-dialog__position",
+        ".t-dialog__wrap"
+      ],
+      "componentFamilies": [
+        ".t-dialog"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/preferences/index.scss",
+      "kind": "scss",
+      "module": "features/preferences",
+      "classReferences": 12,
+      "classes": [
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__ctx",
+        ".t-dialog__mask",
+        ".t-dialog__position",
+        ".t-dialog__wrap"
+      ],
+      "componentFamilies": [
+        ".t-dialog"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/collect/batch-operation-menu.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/collect/favorite-manage-dialog.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 18,
+      "classes": [
+        ".t-button",
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__ctx",
+        ".t-dialog__mask",
+        ".t-dialog__position",
+        ".t-dialog__wrap",
+        ".t-table",
+        ".t-table__content",
+        ".t-table__row"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-dialog",
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/components/index-set-choice/index-set-list.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-checkbox"
+      ],
+      "componentFamilies": [
+        ".t-checkbox"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/components/result-cell-element/expand-view.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 4,
+      "classes": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__suffix",
+        ".t-input__suffix-icon"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/retrieval/workbench/components/result-storage/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 5,
+      "classes": [
+        ".t-button",
+        ".t-input",
+        ".t-input-number",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input",
+        ".t-input-number"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/condition-comp/select-index-set.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-button--variant-text",
+        ".t-tag"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-tag"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 19
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/field-filter-popover.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-button",
+        ".t-radio"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/field-item.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 7,
+      "classes": [
+        ".t-button--variant-text",
+        ".t-drawer__body",
+        ".t-drawer__header",
+        ".t-loading",
+        ".t-popup__content"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-drawer",
+        ".t-loading",
+        ".t-popup"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 5
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 12,
+      "classes": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-tree__icon",
+        ".t-tree__item",
+        ".t-tree__item--enter-active",
+        ".t-tree__item--hidden",
+        ".t-tree__item--leave-active",
+        ".t-tree__item--visible",
+        ".t-tree__label"
+      ],
+      "componentFamilies": [
+        ".t-input",
+        ".t-tree"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/update/field-alias.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 6,
+      "classes": [
+        ".t-drawer__body",
+        ".t-drawer__footer",
+        ".t-drawer__header",
+        ".t-input",
+        ".t-table__body",
+        ".t-table__header"
+      ],
+      "componentFamilies": [
+        ".t-drawer",
+        ".t-input",
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/update/field-list.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-popup__content"
+      ],
+      "componentFamilies": [
+        ".t-input",
+        ".t-popup"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/update/field-setting.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-popup__content"
+      ],
+      "componentFamilies": [
+        ".t-popup"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/monitor/monitor.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-checkbox__label",
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "componentFamilies": [
+        ".t-checkbox",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/export-history.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 15,
+      "classes": [
+        ".t-button--variant-text",
+        ".t-date-range-picker",
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__close",
+        ".t-dialog__header",
+        ".t-pagination__select",
+        ".t-pagination__total",
+        ".t-range-input__inner-right",
+        ".t-range-input__inner-separator",
+        ".t-table__body",
+        ".t-table__content",
+        ".t-table__empty",
+        ".t-table__header"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-date-range-picker",
+        ".t-dialog",
+        ".t-pagination",
+        ".t-range-input",
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/export-log.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 7,
+      "classes": [
+        ".t-alert",
+        ".t-button",
+        ".t-dialog__header",
+        ".t-radio",
+        ".t-radio__label",
+        ".t-select__wrap"
+      ],
+      "componentFamilies": [
+        ".t-alert",
+        ".t-button",
+        ".t-dialog",
+        ".t-radio",
+        ".t-select"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 3
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/fields-setting-operate.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-button--variant-text",
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/fields-setting.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/update/field-setting.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/update/fields-setting-operate.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button--variant-text"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/update/fields-setting.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/update/table-sort.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-select-option"
+      ],
+      "componentFamilies": [
+        ".t-select-option"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/components/bookmark-pop.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 14,
+      "classes": [
+        ".t-button",
+        ".t-form__item",
+        ".t-form__label",
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-is-readonly",
+        ".t-popup__content",
+        ".t-select__dropdown-inner",
+        ".t-textarea__inner"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-form",
+        ".t-input",
+        ".t-is-readonly",
+        ".t-popup",
+        ".t-select",
+        ".t-textarea"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/components/common-filter-select.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 6,
+      "classes": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__prefix",
+        ".t-input__suffix",
+        ".t-input__wrap",
+        ".t-select-input"
+      ],
+      "componentFamilies": [
+        ".t-input",
+        ".t-select-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/components/common-filter-setting.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-input",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/components/setting-pop.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/ui-mode/fuzzy-match-mode.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-radio",
+        ".t-radio-group"
+      ],
+      "componentFamilies": [
+        ".t-radio",
+        ".t-radio-group"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-button",
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/ui-mode/ui-input.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-popup"
+      ],
+      "componentFamilies": [
+        ".t-popup"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-chart/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-select"
+      ],
+      "componentFamilies": [
+        ".t-input",
+        ".t-select"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-operate.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-checkbox__label",
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-checkbox",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 4
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 6,
+      "classes": [
+        ".t-button",
+        ".t-checkbox__label",
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__prefix"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-checkbox",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-rule-dialog.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 4,
+      "classes": [
+        ".t-checkbox__label",
+        ".t-input__inner",
+        ".t-radio"
+      ],
+      "componentFamilies": [
+        ".t-checkbox",
+        ".t-input",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-open-cluster-step/filter-rule.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/strategy/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/index.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-alert"
+      ],
+      "componentFamilies": [
+        ".t-alert"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-result/full-row-viewer.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-drawer__body"
+      ],
+      "componentFamilies": [
+        ".t-drawer"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-result/index.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-tab/components/dashboard-dialog.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/setting-modal/component/rule-top-tools.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-button",
+        ".t-input__wrap",
+        ".t-radio"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/setting-modal/component/template-option.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-button--variant-text",
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/setting-modal/log-cluster.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/setting-modal/rule-table.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button--variant-text"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/retrieval/workbench/sub-bar/bar-global-setting.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-button",
+        ".t-popup__content"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-popup"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workbench/sub-bar/query-history.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/sub-bar/query-history.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-input"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workbench/sub-bar/warning-setting.vue",
+      "kind": "vue-style",
+      "module": "features/retrieval",
+      "classReferences": 22,
+      "classes": [
+        ".t-is-active",
+        ".t-tab-panel",
+        ".t-table",
+        ".t-table--striped",
+        ".t-table__cell--title",
+        ".t-table__content",
+        ".t-table__empty",
+        ".t-table__th-cell-inner",
+        ".t-tabs",
+        ".t-tabs__content",
+        ".t-tabs__header",
+        ".t-tabs__nav",
+        ".t-tabs__nav--card",
+        ".t-tabs__nav-container",
+        ".t-tabs__nav-item",
+        ".t-tabs__nav-item-wrapper",
+        ".t-tabs__operations",
+        ".t-tabs__operations--right"
+      ],
+      "componentFamilies": [
+        ".t-is-active",
+        ".t-tab-panel",
+        ".t-table",
+        ".t-tabs"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/favorite/collect-main.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-input",
+        ".t-input--focused",
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/favorite/components/collect-list/add-group.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/favorite/components/collect-tool/collect-tool.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-checkbox",
+        ".t-checkbox__label",
+        ".t-radio__label"
+      ],
+      "componentFamilies": [
+        ".t-checkbox",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/global-en.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-bar/scene-filter/filter-panel.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 6,
+      "classes": [
+        ".t-input",
+        ".t-loading--full",
+        ".t-select",
+        ".t-select__wrap",
+        ".t-tag-input"
+      ],
+      "componentFamilies": [
+        ".t-input",
+        ".t-loading",
+        ".t-select",
+        ".t-tag-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-input__inner"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/pattern-analysis-slider/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 6
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-loading__overlay",
+        ".t-radio"
+      ],
+      "componentFamilies": [
+        ".t-loading",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/main-header/filter-operate/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 6,
+      "classes": [
+        ".t-button",
+        ".t-checkbox",
+        ".t-checkbox__label",
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__prefix-icon"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-checkbox",
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/quick-open-cluster/cluster-access/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-form__item"
+      ],
+      "componentFamilies": [
+        ".t-form"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 21,
+      "classes": [
+        ".t-button",
+        ".t-popconfirm__buttons",
+        ".t-popconfirm__cancel",
+        ".t-popconfirm__confirm",
+        ".t-popconfirm__content",
+        ".t-popconfirm__icon--default",
+        ".t-popconfirm__inner",
+        ".t-popup",
+        ".t-popup__content",
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-popconfirm",
+        ".t-popup",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-drawer__body",
+        ".t-drawer__header"
+      ],
+      "componentFamilies": [
+        ".t-drawer"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/email-config/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-checkbox__label",
+        ".t-radio"
+      ],
+      "componentFamilies": [
+        ".t-checkbox",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 4
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 4,
+      "classes": [
+        ".t-checkbox__label",
+        ".t-input__inner",
+        ".t-radio"
+      ],
+      "componentFamilies": [
+        ".t-checkbox",
+        ".t-input",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 5
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/subscription-content/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-checkbox__label"
+      ],
+      "componentFamilies": [
+        ".t-checkbox"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 6
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-tag"
+      ],
+      "componentFamilies": [
+        ".t-tag"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 3,
+      "classes": [
+        ".t-checkbox__label"
+      ],
+      "componentFamilies": [
+        ".t-checkbox"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/time-compare/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 1
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/config-item/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-popup",
+        ".t-popup__content"
+      ],
+      "componentFamilies": [
+        ".t-popup"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/edit-strategy/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 1,
+      "classes": [
+        ".t-button"
+      ],
+      "componentFamilies": [
+        ".t-button"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/components/data-filter/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 6,
+      "classes": [
+        ".t-checkbox__label",
+        ".t-input",
+        ".t-tag__icon-close"
+      ],
+      "componentFamilies": [
+        ".t-checkbox",
+        ".t-input",
+        ".t-tag"
+      ],
+      "declaredTokens": [
+        "--td-font-family"
+      ],
+      "importantInFile": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/context-log/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-dialog__body",
+        ".t-dialog__fullscreen"
+      ],
+      "componentFamilies": [
+        ".t-dialog"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/real-time-log/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 2,
+      "classes": [
+        ".t-dialog__body",
+        ".t-dialog__fullscreen"
+      ],
+      "componentFamilies": [
+        ".t-dialog"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/standalone-tab/index.scss",
+      "kind": "scss",
+      "module": "features/retrieval",
+      "classReferences": 8,
+      "classes": [
+        ".t-dialog__close",
+        ".t-dialog__ctx",
+        ".t-dialog__fullscreen",
+        ".t-dialog__header",
+        ".t-dialog__header-content",
+        ".t-dialog__position_fullscreen",
+        ".t-dialog__wrap"
+      ],
+      "componentFamilies": [
+        ".t-dialog"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/global/bk-space-choice/index.scss",
+      "kind": "scss",
+      "module": "shared/global",
+      "classReferences": 7,
+      "classes": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__prefix",
+        ".t-input__wrap"
+      ],
+      "componentFamilies": [
+        ".t-input"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 6
+    },
+    {
+      "file": "shared/global/field-setting.vue",
+      "kind": "vue-style",
+      "module": "shared/global",
+      "classReferences": 2,
+      "classes": [
+        ".t-drawer__body",
+        ".t-form__item"
+      ],
+      "componentFamilies": [
+        ".t-drawer",
+        ".t-form"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/global/head-navi/index.scss",
+      "kind": "scss",
+      "module": "shared/global",
+      "classReferences": 1,
+      "classes": [
+        ".t-popup__content"
+      ],
+      "componentFamilies": [
+        ".t-popup"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "shared/global/setting-table.vue",
+      "kind": "vue-style",
+      "module": "shared/global",
+      "classReferences": 10,
+      "classes": [
+        ".t-form",
+        ".t-form__controls-content",
+        ".t-form__item",
+        ".t-form__label",
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-popconfirm",
+        ".t-popconfirm__buttons",
+        ".t-popup__content"
+      ],
+      "componentFamilies": [
+        ".t-form",
+        ".t-input",
+        ".t-popconfirm",
+        ".t-popup"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/styles/app.scss",
+      "kind": "scss",
+      "module": "shared/styles",
+      "classReferences": 3,
+      "classes": [
+        ".t-checkbox__label",
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "componentFamilies": [
+        ".t-checkbox",
+        ".t-radio"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 3
+    },
+    {
+      "file": "shared/styles/theme/compat-drawer.scss",
+      "kind": "scss",
+      "module": "shared/styles",
+      "classReferences": 11,
+      "classes": [
+        ".t-button",
+        ".t-button--shape-rectangle",
+        ".t-button--variant-text",
+        ".t-drawer__body",
+        ".t-drawer__content-wrapper",
+        ".t-drawer__header",
+        ".t-size-l",
+        ".t-size-s"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-drawer",
+        ".t-size-l",
+        ".t-size-s"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/styles/theme/management-lists.scss",
+      "kind": "scss",
+      "module": "shared/styles",
+      "classReferences": 25,
+      "classes": [
+        ".t-button",
+        ".t-button--shape-rectangle",
+        ".t-button--variant-text",
+        ".t-is-current",
+        ".t-is-disabled",
+        ".t-pagination__btn-next",
+        ".t-pagination__btn-prev",
+        ".t-pagination__number",
+        ".t-pagination__pager",
+        ".t-pagination__select",
+        ".t-pagination__total",
+        ".t-size-l",
+        ".t-size-s",
+        ".t-table__expanded-row",
+        ".t-table__header",
+        ".t-table__pagination"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-is-current",
+        ".t-is-disabled",
+        ".t-pagination",
+        ".t-size-l",
+        ".t-size-s",
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/styles/theme/tdesign-bklog.scss",
+      "kind": "scss",
+      "module": "shared/styles",
+      "classReferences": 72,
+      "classes": [
+        ".t-alert--error",
+        ".t-alert--info",
+        ".t-alert--success",
+        ".t-alert--warning",
+        ".t-alert__message",
+        ".t-button",
+        ".t-button--size-medium",
+        ".t-button--theme-default",
+        ".t-button--variant-base",
+        ".t-cascader__item",
+        ".t-cascader__item-label",
+        ".t-cascader__menu",
+        ".t-checkbox",
+        ".t-checkbox__label",
+        ".t-dialog__cancel",
+        ".t-dialog__ctx",
+        ".t-dialog__ctx--fixed",
+        ".t-dialog__footer",
+        ".t-dialog__footer--fullscreen",
+        ".t-drawer",
+        ".t-drawer__footer",
+        ".t-dropdown__item",
+        ".t-dropdown__item--active",
+        ".t-dropdown__item--disabled",
+        ".t-dropdown__item--theme-default",
+        ".t-dropdown__item-content",
+        ".t-dropdown__menu",
+        ".t-dropdown__submenu",
+        ".t-empty__title",
+        ".t-is-disabled",
+        ".t-is-selected",
+        ".t-message__list",
+        ".t-notification",
+        ".t-popconfirm__buttons",
+        ".t-popup",
+        ".t-select-option",
+        ".t-select-option--hover",
+        ".t-select-option__hover",
+        ".t-select__dropdown",
+        ".t-select__list"
+      ],
+      "componentFamilies": [
+        ".t-alert",
+        ".t-button",
+        ".t-cascader",
+        ".t-checkbox",
+        ".t-dialog",
+        ".t-drawer",
+        ".t-dropdown",
+        ".t-empty",
+        ".t-is-disabled",
+        ".t-is-selected",
+        ".t-message",
+        ".t-notification",
+        ".t-popconfirm",
+        ".t-popup",
+        ".t-select",
+        ".t-select-option"
+      ],
+      "declaredTokens": [
+        "--td-bg-color-component",
+        "--td-bg-color-component-disabled",
+        "--td-bg-color-component-hover",
+        "--td-bg-color-container",
+        "--td-bg-color-container-hover",
+        "--td-border-level-1-color",
+        "--td-border-level-2-color",
+        "--td-brand-color",
+        "--td-brand-color-1",
+        "--td-brand-color-2",
+        "--td-brand-color-6",
+        "--td-brand-color-7",
+        "--td-brand-color-8",
+        "--td-brand-color-active",
+        "--td-brand-color-disabled",
+        "--td-brand-color-focus",
+        "--td-brand-color-hover",
+        "--td-brand-color-light",
+        "--td-brand-color-light-hover",
+        "--td-comp-size-l",
+        "--td-comp-size-m",
+        "--td-comp-size-s",
+        "--td-comp-size-xs",
+        "--td-error-color",
+        "--td-error-color-light",
+        "--td-font-size-body-medium",
+        "--td-font-size-body-small",
+        "--td-line-height-body-medium",
+        "--td-line-height-body-small",
+        "--td-radius-default",
+        "--td-radius-extraLarge",
+        "--td-radius-large",
+        "--td-radius-medium",
+        "--td-shadow-1",
+        "--td-shadow-2",
+        "--td-success-color",
+        "--td-success-color-light",
+        "--td-text-color-brand",
+        "--td-text-color-disabled",
+        "--td-text-color-link",
+        "--td-text-color-placeholder",
+        "--td-text-color-primary",
+        "--td-text-color-secondary",
+        "--td-warning-color",
+        "--td-warning-color-light"
+      ],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/ui/bk-search-select/index.scss",
+      "kind": "scss",
+      "module": "shared/ui",
+      "classReferences": 1,
+      "classes": [
+        ".t-popup__content"
+      ],
+      "componentFamilies": [
+        ".t-popup"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/ui/empty-status/index.vue",
+      "kind": "vue-style",
+      "module": "shared/ui",
+      "classReferences": 3,
+      "classes": [
+        ".t-empty__description",
+        ".t-empty__image",
+        ".t-empty__title"
+      ],
+      "componentFamilies": [
+        ".t-empty"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/ui/loading/index.scss",
+      "kind": "scss",
+      "module": "shared/ui",
+      "classReferences": 1,
+      "classes": [
+        ".t-loading__overlay"
+      ],
+      "componentFamilies": [
+        ".t-loading"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/ui/loading/list-skeleton.scss",
+      "kind": "scss",
+      "module": "shared/ui",
+      "classReferences": 3,
+      "classes": [
+        ".t-loading"
+      ],
+      "componentFamilies": [
+        ".t-loading"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/ui/loading/management-list-loading.scss",
+      "kind": "scss",
+      "module": "shared/ui",
+      "classReferences": 2,
+      "classes": [
+        ".t-table__content",
+        ".t-table__loading"
+      ],
+      "componentFamilies": [
+        ".t-table"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/ui/loading/presence.scss",
+      "kind": "scss",
+      "module": "shared/ui",
+      "classReferences": 6,
+      "classes": [
+        ".t-loading"
+      ],
+      "componentFamilies": [
+        ".t-loading"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    },
+    {
+      "file": "shared/ui/loading/skeleton.scss",
+      "kind": "scss",
+      "module": "shared/ui",
+      "classReferences": 15,
+      "classes": [
+        ".t-button",
+        ".t-input",
+        ".t-loading",
+        ".t-loading--full",
+        ".t-loading__fullscreen",
+        ".t-loading__gradient",
+        ".t-select",
+        ".t-select__loading-tips"
+      ],
+      "componentFamilies": [
+        ".t-button",
+        ".t-input",
+        ".t-loading",
+        ".t-select"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 2
+    },
+    {
+      "file": "shared/ui/user-selector/legacy-contract.scss",
+      "kind": "scss",
+      "module": "shared/ui",
+      "classReferences": 1,
+      "classes": [
+        ".t-tag__icon-close"
+      ],
+      "componentFamilies": [
+        ".t-tag"
+      ],
+      "declaredTokens": [],
+      "importantInFile": 0
+    }
+  ]
+}

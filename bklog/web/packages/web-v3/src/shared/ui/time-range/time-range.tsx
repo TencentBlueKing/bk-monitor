@@ -28,13 +28,13 @@
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import { defineComponent, h, onMounted, onBeforeUnmount, onDeactivated, watch, ref, type PropType } from 'vue';
-import { mountDatePicker } from 'virtual:bklog-native-date-picker';
+import { mountDatePicker } from '@/platform/sdk/date-picker/native-entry';
 import type { DatePickerHandle, DatePickerState, DatePickerValue } from '@/platform/sdk/date-picker/contract';
 import { updateTimezone } from '../../../platform/i18n/dayjs';
 import { DEFAULT_TIME_RANGE } from './utils';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 
-import '@blueking/date-picker/vue3/vue3.css';
+import '@blueking/date-picker-js/style.css';
 
 export type TimeRangeType = [string, string];
 type TimeRangeDisplayType = 'normal' | 'simplicity';

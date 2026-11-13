@@ -236,7 +236,7 @@ export default defineComponent({
                               
                               theme='primary'
                               size='small'
-                              style='padding:0;color:#699DF4'
+                              style='padding:0;color:var(--bklog-brand-hover, #699DF4)'
                               onClick={handleOpenClusterConfig} variant={(true) ? 'text' : ('base')}
                             >
                               {t('聚类设置')}
@@ -269,7 +269,7 @@ export default defineComponent({
                               
                               theme='primary'
                               size='small'
-                              style='padding:0;color:#699DF4'
+                              style='padding:0;color:var(--bklog-brand-hover, #699DF4)'
                               onClick={handleOpenClusterConfig} variant={(true) ? 'text' : ('base')}
                             >
                               {t('聚类设置')}

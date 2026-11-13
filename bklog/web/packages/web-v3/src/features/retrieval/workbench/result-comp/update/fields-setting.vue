@@ -715,7 +715,7 @@ export default {
 
             &.t-button {
               padding: 0;
-              font-size: 14px;
+              font-size: var(--bklog-font-action, 14px);
 
               :deep(.t-button__text) {
                 align-items: center;
@@ -798,19 +798,19 @@ export default {
           width: 100%;
           height: 36px;
           padding: 0;
-          font-size: 12px;
+          font-size: var(--bklog-font-body, 12px);
           line-height: 36px;
-          color: #4d4f56;
+          color: var(--bklog-text-strong, #4d4f56);
           text-align: left;
 
           &:hover {
-            background: #eaebf0;
+            background: var(--bklog-surface-component-hover, #eaebf0);
           }
 
           &.t-is-active {
-            color: #3a84ff;
+            color: var(--bklog-brand-primary, #3a84ff);
             text-shadow: none;
-            background: #e1ecff;
+            background: var(--bklog-brand-tint, #e1ecff);
           }
         }
 

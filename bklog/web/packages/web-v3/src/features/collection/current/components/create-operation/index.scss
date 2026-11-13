@@ -50,8 +50,8 @@
       .t-steps-item__title {
         margin-bottom: 0;
         padding-right: 16px;
-        color: #63656e;
-        font-size: 14px;
+        color: var(--bklog-text-secondary, #63656e);
+        font-size: var(--bklog-font-action, 14px);
         font-weight: 400;
         line-height: 24px;
       }
@@ -78,16 +78,16 @@
         height: 24px;
         border: none;
         border-radius: 50%;
-        background: #eaebf0;
-        color: #979ba5;
-        font-size: 14px;
+        background: var(--bklog-surface-component-hover, #eaebf0);
+        color: var(--bklog-text-placeholder, #979ba5);
+        font-size: var(--bklog-font-action, 14px);
         font-weight: 400;
         line-height: 24px;
       }
 
       .t-steps-item--finish .t-steps-item__icon--number {
-        background: #e1ecff;
-        color: #3a84ff;
+        background: var(--bklog-brand-tint, #e1ecff);
+        color: var(--bklog-brand-primary, #3a84ff);
 
         .t-icon {
           width: 14px;
@@ -96,20 +96,20 @@
       }
 
       .t-steps-item--process .t-steps-item__icon--number {
-        background: #3a84ff;
-        color: #fff;
+        background: var(--bklog-brand-primary, #3a84ff);
+        color: var(--bklog-text-inverse, #fff);
       }
 
       &.t-steps--horizontal.t-steps--default-anchor
         .t-steps-item:not(:last-child)
         .t-steps-item__title::after {
-        border-bottom: 1px solid #c4c6cc;
+        border-bottom: 1px solid var(--bklog-border-control, #c4c6cc);
       }
 
       &.t-steps--horizontal.t-steps--default-anchor
         .t-steps-item--finish:not(:last-child)
         .t-steps-item__title::after {
-        border-bottom-color: #3a84ff;
+        border-bottom-color: var(--bklog-brand-primary, #3a84ff);
       }
     }
   }

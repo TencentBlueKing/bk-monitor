@@ -93,7 +93,7 @@
               width: 86%;
 
               :deep(.t-input__inner.error) {
-                border-color: #ea3636;
+                border-color: var(--bklog-status-error, #ea3636);
               }
             }
 

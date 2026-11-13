@@ -37,7 +37,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc, ofType } from 'vue-tsx-support';
 
-import BkUserSelector from '@blueking/user-selector';
+import BkUserSelector from '@/shared/ui/user-selector/legacy-contract';
 import dayjs from 'dayjs';
 
 import { copyText, transformDataKey } from '../../../../../../charts/utils';
@@ -740,7 +740,7 @@ class QuickCreateSubscription extends tsc<IProps> {
 
             <div>
               <TButton
-                style='margin-left: 120px; margin-bottom: 10px; margin-top: 20px;font-size: 12px;'
+                style='margin-left: 120px; margin-bottom: 10px; margin-top: 20px;font-size: var(--bklog-font-body, 12px);'
                 theme='primary'
 
                 onClick={() => (this.isShowAdvancedOption = !this.isShowAdvancedOption)} variant={(true) ? 'text' : ('base')}
@@ -982,7 +982,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                   trigger='click'
                 >
                   <TButton
-                    style='margin-left: 16px;font-size: 12px;'
+                    style='margin-left: 16px;font-size: var(--bklog-font-body, 12px);'
                     theme='primary'
                      variant={(true) ? 'text' : ('base')}
                   >

@@ -247,7 +247,7 @@
   .bk-label-text,
   .t-checkbox__label,
   .t-radio__label {
-    font-size: 12px;
+    font-size: var(--bklog-font-body, 12px);
   }
 
   .t-radio {

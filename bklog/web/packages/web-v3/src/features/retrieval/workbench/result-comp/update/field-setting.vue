@@ -290,7 +290,7 @@ defineExpose({ shadowVisible });
 
         .t-input__wrap {
           .left-icon {
-            color: #979ba5;
+            color: var(--bklog-text-placeholder, #979ba5);
           }
         }
       }

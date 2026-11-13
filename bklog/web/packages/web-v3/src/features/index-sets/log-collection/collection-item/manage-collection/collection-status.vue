@@ -670,7 +670,7 @@ import { ServicesInstance } from '@/platform/services';
 
       :deep(.t-button) {
         padding: 0 10px;
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
 
         .icon-right-turn-line {
           margin-right: 4px;

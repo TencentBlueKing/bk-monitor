@@ -1,0 +1,14 @@
+.username-selector {
+  min-width: 0;
+  &.is-fixed-height .multiple-selector:has(.tags-container.collapsed) { max-height: 32px; }
+  &.is-locked-tags .user-tag .t-tag__icon-close { display: none; }
+  .username-selector-label { display: inline-flex; align-items: center; gap: 4px; }
+  .username-selector-avatar {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    border-radius: 50%;
+    background: #c4c6cc center / cover;
+  }
+}

@@ -9,7 +9,8 @@
 
 import { Loading as TLoading } from '@/shared/ui/loading/native';
 
-import { computed, defineComponent, type CSSProperties } from 'vue';
+import { computed, defineComponent, type CSSProperties, type PropType } from 'vue';
+import { listSkeletonIndicators } from './list-skeleton';
 
 
 import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
@@ -34,6 +35,7 @@ const toOverlayColor = (color: string, opacity: number) => {
 export default defineComponent({
   name: 'BklogLoading',
   props: {
+    skeleton: { type: String as PropType<keyof typeof listSkeletonIndicators>, default: undefined },
     color: {
       type: String,
       default: '#fff',
@@ -76,6 +78,7 @@ export default defineComponent({
         {...attrs}
         class={['bklog-loading', attrs.class]}
         loading={props.loading}
+        indicator={props.skeleton ? listSkeletonIndicators[props.skeleton] : undefined}
         showOverlay
         size={loadingSize.value}
         style={rootStyle.value}

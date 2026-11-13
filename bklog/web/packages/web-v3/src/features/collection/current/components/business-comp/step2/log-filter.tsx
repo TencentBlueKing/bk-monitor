@@ -1,3 +1,4 @@
+import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -727,7 +728,7 @@ export default defineComponent({
                   </TButton>
                 </div>
                 <div class='input-style'>
-                  <TLoading loading={logOriginalLoading.value} style='width: 100%'>
+                  <TLoading loading={logOriginalLoading.value} indicator={renderCodeSampleSkeleton} style='width: 100%; --bklog-sample-background: #313238'>
                     <TTextarea
                       class='separator-box-bottom'
                       placeholder={t('请输入日志样例')}

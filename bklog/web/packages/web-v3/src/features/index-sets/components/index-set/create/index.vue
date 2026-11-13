@@ -973,12 +973,12 @@ import { ServicesInstance } from '@/platform/services';
             padding: 0 4px 0 10px;
             margin: 0 10px 10px 0;
             line-height: 32px;
-            background: #f0f1f5;
-            background-color: #f0f1f5;
+            background: var(--bklog-surface-component, #f0f1f5);
+            background-color: var(--bklog-surface-component, #f0f1f5);
 
             .t-tag__icon-close {
               font-size: 18px;
-              color: #63656e;
+              color: var(--bklog-text-secondary, #63656e);
             }
 
             &.t-tag--primary {

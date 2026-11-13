@@ -26,9 +26,9 @@
 
     .t-tag {
       margin: 0 4px 0 0;
-      background: #fafbfd;
-      border: 1px solid #dcdee5;
-      color: #4d4f56;
+      background: var(--bklog-surface-disabled, #fafbfd);
+      border: 1px solid var(--bklog-border-muted, #dcdee5);
+      color: var(--bklog-text-strong, #4d4f56);
     }
   }
 }

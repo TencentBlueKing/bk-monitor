@@ -801,7 +801,7 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
     }
 
     .t-radio {
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
     }
 
     :deep(.bk-form-content) {

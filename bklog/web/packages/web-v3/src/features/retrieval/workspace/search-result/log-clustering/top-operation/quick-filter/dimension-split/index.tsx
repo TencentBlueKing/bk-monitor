@@ -183,7 +183,7 @@ export default defineComponent({
                         <i18n path='如需根据某些维度拆分聚类结果，可将字段设置为维度；维度拆分是比较 {0} 的，根据拆分结果填写责任人和备注，较少改动（临时分组需求请使用“{1}”功能）'>
                           <span style='font-weight: 700'>{t('固化')}</span>
                           <TButton
-                            style='font-size: 12px'
+                            style='font-size: var(--bklog-font-body, 12px)'
                             theme='primary'
                             
                             onClick={() => emit('open-temp-group')} variant={(true) ? 'text' : ('base')}
@@ -194,7 +194,7 @@ export default defineComponent({
                       </div>
                     ),
                   }}
-                  style='color: #4D4F56'
+                  style='color: var(--bklog-text-strong, #4D4F56)'
                   theme={'info'} data-v2-display='alert'
                 ></TAlert>
                 <div class='piece-item'>

@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { datePickerIsland } from './tools/date-picker-island.ts';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import paraglideConfig from './project.inlang/paraglide.config.mjs';
 import { createRequire } from 'node:module';
@@ -58,7 +57,6 @@ export default {
     },
   },
   plugins: [
-    datePickerIsland(here),
     paraglideVitePlugin({ ...paraglideConfig, project: resolve(here, 'project.inlang'), outdir: resolve(here, '.paraglide') }),
     monitorHostFixture(here),
     legacyStaticEntry(),

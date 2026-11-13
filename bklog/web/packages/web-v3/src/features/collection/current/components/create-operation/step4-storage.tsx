@@ -509,7 +509,7 @@ export default defineComponent({
     const renderCluster = () => (
       <div
         class='cluster-box'
-        v-loading={{ loading: loading.value }}
+        aria-busy={loading.value}
       >
         <ClusterTypeTabs
           activeTab={activeTab.value}
@@ -517,7 +517,7 @@ export default defineComponent({
           onTabClick={handleTabClick}
         />
 
-        <bk-collapse value={activeName.value}>{collapseList.value.map(item => renderCollapseItem(item))}</bk-collapse>
+        <bk-collapse value={activeName.value} onChange={(value: string[]) => { activeName.value = value; }}>{collapseList.value.map(item => renderCollapseItem(item))}</bk-collapse>
       </div>
     );
 

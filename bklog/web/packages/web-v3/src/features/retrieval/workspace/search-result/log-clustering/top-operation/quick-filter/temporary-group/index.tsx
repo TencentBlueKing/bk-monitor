@@ -147,7 +147,7 @@ export default defineComponent({
                           <TButton
                             
                             theme='primary'
-                            style='font-size: 12px'
+                            style='font-size: var(--bklog-font-body, 12px)'
                             onClick={() => emit('open-dimension-split')} variant={(true) ? 'text' : ('base')}
                           >
                             {t('维度拆分')}
@@ -157,7 +157,7 @@ export default defineComponent({
                     ),
                   }}
                   theme={'info'}
-                  style='color: #4D4F56' data-v2-display='alert'
+                  style='color: var(--bklog-text-strong, #4D4F56)' data-v2-display='alert'
                 ></TAlert>
                 <div class='piece-item'>
                   <span class='title'>{t('分组')}</span>

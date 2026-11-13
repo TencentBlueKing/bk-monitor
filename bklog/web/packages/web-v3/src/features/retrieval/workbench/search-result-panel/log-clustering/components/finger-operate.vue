@@ -653,7 +653,7 @@ import { ServicesInstance } from '@/platform/services';
       overflow: hidden;
 
       /* stylelint-disable-next-line declaration-no-important */
-      font-size: 12px !important;
+      font-size: var(--bklog-font-body, 12px) !important;
       text-overflow: ellipsis;
       white-space: nowrap;
     }

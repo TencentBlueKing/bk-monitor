@@ -43,7 +43,7 @@
 }
 
 .t-radio {
-  font-size: 12px;
+  font-size: var(--bklog-font-body, 12px);
 }
 
 .bk-label-text {
@@ -55,5 +55,5 @@
 }
 
 .t-checkbox__label {
-  font-size: 12px;
+  font-size: var(--bklog-font-body, 12px);
 }

@@ -1,3 +1,5 @@
+@use './components/actions' as actions;
+
 // Only migrated legacy drawers: content components already own their V2 padding.
 .bklog-compat-drawer,
 .bklog-cluster-drawer {
@@ -8,13 +10,7 @@
     padding: 0 20px;
   }
 
-  .t-button:where(:not(.t-size-s):not(.t-size-l)) {
-    font-size: 14px;
-  }
-
-  .t-button--shape-rectangle:where(:not(.t-size-s):not(.t-size-l):not(.t-button--variant-text)) {
-    min-width: 64px;
-  }
+  @include actions.management-actions;
 
   // These are explicit V2 action classes, not a blanket gap for every drawer.
   .t-button.mr10 {
@@ -22,7 +18,8 @@
   }
 }
 
-.bklog-compat-drawer {
+.bklog-compat-drawer,
+.bklog-cluster-drawer {
   .t-drawer__content-wrapper {
     max-width: 100vw;
     min-width: 0;

@@ -267,8 +267,8 @@
 
         .distinct-count-label,
         .distinct-count-num {
-          font-size: 14px;
-          color: #979ba5;
+          font-size: var(--bklog-font-action, 14px);
+          color: var(--bklog-text-placeholder, #979ba5);
           white-space: nowrap;
         }
 
@@ -282,7 +282,7 @@
           height: 14px;
           margin-right: 8px;
           margin-left: 6px;
-          background: #dcdee5;
+          background: var(--bklog-border-muted, #dcdee5);
         }
       }
 
@@ -305,10 +305,10 @@
             display: flex;
             column-gap: 4px;
             align-items: center;
-            color: #4d4f56;
+            color: var(--bklog-text-strong, #4d4f56);
 
             .bklog-download {
-              font-size: 14px;
+              font-size: var(--bklog-font-action, 14px);
             }
           }
         }
@@ -344,7 +344,7 @@
 
 .analysis-chart-popup .t-popup__content {
   margin-left: 10px;
-  border: 1px solid #dcdee5;
+  border: 1px solid var(--bklog-border-muted, #dcdee5);
   box-shadow: 0 2px 12px #0003;
 }
 .agg-field-item-sideslider {

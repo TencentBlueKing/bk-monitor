@@ -1,0 +1,18 @@
+// The business panel owns geometry; TDesign's wrapper does not size its textarea.
+.batch-input-editor {
+  display: flex;
+  flex-direction: column;
+  width: 400px;
+  height: min(358px, calc(100dvh - 240px));
+  min-height: 160px;
+  min-width: 0;
+
+  > :not(.batch-input-editor__textarea) {
+    flex: none;
+  }
+
+  > .batch-input-editor__textarea {
+    flex: 1;
+    min-height: 0;
+  }
+}

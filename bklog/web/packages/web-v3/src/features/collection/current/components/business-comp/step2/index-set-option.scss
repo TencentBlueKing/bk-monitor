@@ -47,9 +47,9 @@
       min-width: 0;
       margin-left: 8px;
       overflow: hidden;
-      font-size: 12px;
-      line-height: 20px;
-      color: #4d4f56;
+      font-size: var(--bklog-font-body, 12px);
+      line-height: var(--bklog-line-height-body, 20px);
+      color: var(--bklog-text-strong, #4d4f56);
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -57,14 +57,14 @@
 
   .t-select-option {
     height: 32px;
-    color: #4d4f56;
+    color: var(--bklog-text-strong, #4d4f56);
 
     .t-checkbox__label {
       min-width: 0;
       overflow: hidden;
-      font-size: 12px;
-      line-height: 20px;
-      color: #4d4f56;
+      font-size: var(--bklog-font-body, 12px);
+      line-height: var(--bklog-line-height-body, 20px);
+      color: var(--bklog-text-strong, #4d4f56);
       text-overflow: ellipsis;
       white-space: nowrap;
     }

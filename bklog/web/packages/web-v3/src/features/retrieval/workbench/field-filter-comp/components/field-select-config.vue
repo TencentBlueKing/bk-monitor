@@ -25,6 +25,7 @@
 -->
 
 <script setup>
+import { renderDropdownListSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
@@ -117,7 +118,7 @@ import { ServicesInstance } from '@/platform/services';
       </template>
       <template #dropdown-content>
         <ul
-          v-loading="{ loading: isLoading, size: 'small' }"
+          v-loading="{ loading: isLoading, size: 'small', indicator: renderDropdownListSkeleton }"
           class="bk-dropdown-list"
         >
           <li

@@ -128,7 +128,7 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
-  import BkUserSelector from '@blueking/user-selector';
+  import BkUserSelector from '@/shared/ui/user-selector/legacy-contract';
 
 
   export default {

@@ -25,7 +25,7 @@
 -->
 
 <template>
-  <BklogLoading :loading="isLoading" class="fields-setting">
+  <BklogLoading skeleton="fields" :loading="isLoading" class="fields-setting">
     <!-- 设置列表字段 -->
     <div class="fields-container">
       <div class="fields-config-container">
@@ -675,7 +675,7 @@ export default {
 
         .input-error {
           :deep(.t-input__inner) {
-            border: 1px solid #d7473f;
+            border: 1px solid var(--bklog-status-error-active, #d7473f);
           }
         }
 

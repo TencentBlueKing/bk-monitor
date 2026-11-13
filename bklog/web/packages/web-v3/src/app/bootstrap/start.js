@@ -47,10 +47,8 @@ import '../../shared/lib/preload-import.ts';
 import '../../shared/directives/index';
 import preload, { getAllSpaceList, getExternalMenuListBySpace, requestUserGuideData } from './preload';
 import {
-  isBootstrapShellReleased,
   markTopMenuSettled,
   releaseBootstrapNavWhenReady,
-  releaseBootstrapShell,
 } from './shell-gate';
 import getRouter from '../router/index';
 
@@ -173,9 +171,6 @@ const mountedVueInstance = () => {
     const menuSignature = (list = []) => list.map(item => `${item?.id}:${item?.name}`).join('|');
     useApplicationStore().requestMenuList(spaceUid)
       .then((menuList = []) => {
-        if (isBootstrapShellReleased()) {
-          return;
-        }
         patchLogCollectionMenu(menuList);
         const nextMenu = structuredClone(menuList);
         if (menuSignature(nextMenu) !== menuSignature(useApplicationStore().topMenu)) {
@@ -242,9 +237,6 @@ const mountedVueInstance = () => {
           // }
         },
         mounted() {
-          if (document.querySelector('.bklog-bootstrap-loading')) {
-            window.setTimeout(releaseBootstrapShell, 12000);
-          }
           if (!isHeadlessRoute()) {
             getAllSpaceList(http, useApplicationStore());
             const requestUserGuide = () => {

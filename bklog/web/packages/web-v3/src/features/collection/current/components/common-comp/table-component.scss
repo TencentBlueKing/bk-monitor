@@ -69,7 +69,7 @@
     }
     .t-table__sort-icon--active {
       .sort-icon {
-        color: #3a84ff;
+        color: var(--bklog-brand-primary, #3a84ff);
       }
     }
     td {
@@ -78,21 +78,21 @@
     }
     .t-table__header th {
       line-height: 22px;
-      background-color: #f5f7fa !important;
+      background-color: var(--bklog-surface-hover, #f5f7fa) !important;
       padding: 8px 10px 6px 12px;
     }
     .t-table__content {
       border: none;
     }
     .t-table__header .t-table__th-cell-inner {
-      font-size: 12px;
-      color: #313238;
+      font-size: var(--bklog-font-body, 12px);
+      color: var(--bklog-text-primary, #313238);
     }
     .t-table__body {
       td {
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
         line-height: 22px;
-        color: #4D4F56;
+        color: var(--bklog-text-strong, #4D4F56);
         padding: 8px 8px 8px 10px;
       }
     }
@@ -117,26 +117,26 @@
             display: none !important;
           }
           &:hover {
-            background-color: #e1ecff;
+            background-color: var(--bklog-brand-tint, #e1ecff);
             .t-radio__label {
-              color: #3a84ff;
+              color: var(--bklog-brand-primary, #3a84ff);
             }
           }
           .t-radio__label {
-            font-size: 12px;
-            color: #63656e;
+            font-size: var(--bklog-font-body, 12px);
+            color: var(--bklog-text-secondary, #63656e);
             margin-left: 0 !important;
             cursor: pointer;
             transition: all 0.2s;
-            border-radius: 2px;
+            border-radius: var(--bklog-radius-control, 2px);
             
           }
           // 选中状态样式
           &.t-is-checked {
-            background-color: #e1ecff;
+            background-color: var(--bklog-brand-tint, #e1ecff);
             font-weight: 500;
             .t-radio__label {
-              color: #3a84ff;
+              color: var(--bklog-brand-primary, #3a84ff);
             }
           }
         }
@@ -163,18 +163,18 @@
         }
         .t-input__inner {
           font-size: 13px;
-          color: #63656e;
+          color: var(--bklog-text-secondary, #63656e);
         }
       }
       .t-pagination__number {
         border: none;
-        color: #4D4F56;
-        font-size: 12px;
+        color: var(--bklog-text-strong, #4D4F56);
+        font-size: var(--bklog-font-body, 12px);
       }
       .t-pagination__number.t-is-current {
-        background-color: #E1ECFF !important;
-        border-radius: 2px !important;
-        color: #3a84ff;
+        background-color: var(--bklog-brand-tint, #E1ECFF) !important;
+        border-radius: var(--bklog-radius-control, 2px) !important;
+        color: var(--bklog-brand-primary, #3a84ff);
         font-weight: 600;
       }
     }
@@ -183,9 +183,9 @@
 // 针对 TTable 组件超出内容显示的 tooltip
 .t-tooltip__content,
 .t-popup__content {
-  font-size: 12px !important;
+  font-size: var(--bklog-font-body, 12px) !important;
   .link {
-    color: #fff !important;
+    color: var(--bklog-text-inverse, #fff) !important;
   }
 }
 .t-select__dropdown.t-popup {
@@ -194,12 +194,12 @@
   }
   .t-select-option {
     font-size: 13px;
-    color: #63656e;
+    color: var(--bklog-text-secondary, #63656e);
     padding: 6px 16px;
     border-radius: 0;
     &.t-is-selected {
-      background-color: #eaf3ff;
-      color:#3a84ff;
+      background-color: var(--bklog-brand-tint-subtle, #eaf3ff);
+      color:var(--bklog-brand-primary, #3a84ff);
     }
   }
 }

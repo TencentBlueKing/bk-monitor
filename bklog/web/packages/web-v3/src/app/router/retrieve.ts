@@ -26,58 +26,60 @@
 
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { defineAsyncComponent, defineComponent, h, nextTick, onBeforeUnmount, ref, Suspense } from 'vue';
+import { defineAsyncComponent, defineComponent, h, computed, onBeforeUnmount, onMounted, ref, Suspense } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 
 import {
   bindRetrieveShellSettle,
   releaseBootstrapShell,
+  requestRetrieveShellSettle,
   unbindRetrieveShellSettle,
-  whenTopMenuSettled,
 } from '@/app/bootstrap/shell-gate';
+import { useSkeletonPresence } from '@/shared/ui/loading/presence';
+import '@/shared/ui/loading/presence.scss';
 import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import { acquireRetrieveLoading } from '@/features/retrieval/loading-queue';
 import RetrieveHelper from '@/features/retrieval/retrieve-helper';
+import useLocale from '@/shared/composables/use-locale';
 
 
 // 检索模块各组件异步声明（用于路由懒加载）
 const RetrieveView = defineAsyncComponent({
   loader: () => import(/* webpackChunkName: 'logRetrieve' */ '@/features/retrieval/retrieve-hub'),
   suspensible: true,
+  errorComponent: defineComponent({
+    name: 'RetrieveInitializationFailure',
+    setup() {
+      const { t } = useLocale();
+      onMounted(requestRetrieveShellSettle);
+      return () => h('div', { role: 'alert', style: { padding: '24px' } }, [
+        h('p', t('加载失败')),
+        h('button', { onClick: () => window.location.reload() }, t('重新加载')),
+      ]);
+    },
+  }),
 });
 const Retrieve = defineComponent({
   name: 'RetrieveRoute',
   setup() {
     const shellReady = ref(false);
-    let contentReady = false;
-    let menuReady = false;
+    const presence = useSkeletonPresence(computed(() => !shellReady.value));
     const releasePageLoading = acquireRetrieveLoading('page');
-    const revealShell = () => {
-      if (shellReady.value || !contentReady || !menuReady) {
-        return;
-      }
+    let disposed = false;
+    const markContentReady = () => {
+      if (disposed || shellReady.value) return;
       shellReady.value = true;
       releasePageLoading();
-      nextTick(() => releaseBootstrapShell());
-    };
-    const markContentReady = () => {
-      contentReady = true;
-      revealShell();
+      releaseBootstrapShell();
     };
     bindRetrieveShellSettle(markContentReady);
     onBeforeUnmount(() => {
+      disposed = true;
       releasePageLoading();
       unbindRetrieveShellSettle(markContentReady);
+      releaseBootstrapShell();
     });
-    whenTopMenuSettled(() => {
-      menuReady = true;
-      revealShell();
-    });
-    window.setTimeout(() => {
-      menuReady = true;
-      revealShell();
-    }, 8000);
     const store = useApplicationStore();
     const fieldSetting = store.storage?.[BK_LOG_STORAGE.FIELD_SETTING] ?? {};
     const fieldWidth = fieldSetting.show === false ? 0 : Number(fieldSetting.width) || 200;
@@ -90,13 +92,16 @@ const Retrieve = defineComponent({
 
     return () =>
       h('div', { class: 'retrieve-route-host' }, [
-        h(Suspense, null, {
+        h(Suspense, { onResolve: () => {
+          if (store.spaceResolveFailed || localStorage.getItem('retrieve_version') === 'v1') markContentReady();
+        } }, {
           default: () => h(RetrieveView),
           fallback: () => null,
         }),
-        shellReady.value
+        !presence.visible.value
           ? null
           : h(RetrievePageSkeleton, {
+              class: ['bklog-skeleton-presence', { 'is-leaving': presence.leaving.value }],
               cover: true,
               fieldWidth,
               railWidth,

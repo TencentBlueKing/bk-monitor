@@ -1,0 +1,5946 @@
+{
+  "schemaVersion": 1,
+  "scope": "SCSS, Vue style blocks and static inline visuals on native controls. Dynamic inline bindings retain business ownership. Local geometry, state adaptations, transparent/inherit values and special visuals retain their source selector; not a runtime acceptance ledger.",
+  "files": [
+    {
+      "file": "app/shell/app.scss",
+      "owner": "application-shell",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/classic/archive-list/list.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/classic/archive-repository/list.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/classic/archive-repository/repository-slider.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-alert",
+        ".t-input__wrap",
+        ".t-switch"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/classic/archive-restore/list.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/classic/archive-restore/restore-slider.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-alert"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/current/archive-list/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/current/archive-list/list-slider.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-form__item",
+        ".t-select__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/current/archive-list/list-slider.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/current/archive-repository/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/current/archive-repository/repository-slider.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-alert",
+        ".t-date-picker",
+        ".t-form",
+        ".t-form__controls",
+        ".t-form__item",
+        ".t-form__label",
+        ".t-input__wrap",
+        ".t-select__wrap",
+        ".t-switch"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 9,
+      "contextualDeclarations": 28,
+      "localVisualProperties": [
+        "border"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/current/archive-repository/repository-slider.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/current/archive-restore/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/current/archive-restore/restore-slider.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-alert",
+        ".t-date-picker",
+        ".t-form",
+        ".t-form__item",
+        ".t-select__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 10,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/archive/current/archive-restore/restore-slider.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/authorization/authorization-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/authorization/authorization-dialog.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/authorization/authorization-list.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/authorization/denied/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/charts/components/grade-option.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/cleaning/classic/clean-manage/list.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/cleaning/classic/clean-template/list.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/cleaning/current/clean-template/delete-confirm-popover.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/cleaning/current/clean-template/detail-slider.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-drawer__body",
+        ".t-input__wrap",
+        ".t-is-active",
+        ".t-tabs__bar",
+        ".t-tabs__content",
+        ".t-tabs__header",
+        ".t-tabs__nav-item"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 17,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-bottom",
+        "color"
+      ],
+      "localVisualDeclarations": 6,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/cleaning/current/clean-template/sync-slider.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/cleaning/rule-table/add-rule/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/cleaning/rule-table/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/management/collection-slider/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-radio"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/management/collection-slider/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/management/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/management/user-report/upload-result.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/search/log-detail-panel/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [
+        "border",
+        "border-radius"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/search/log-detail-panel/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/search/task-list-panel/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/search/task-list-panel/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/clusters/current/cluster-manage/es-slider.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-form__item",
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-tag",
+        ".t-textarea__info_wrapper"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 9,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/clusters/current/cluster-manage/es-slider.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 6,
+        "dynamicStyleSites": 4,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/clusters/current/cluster-manage/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-badge",
+        ".t-table__empty"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [
+        "border-radius"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/clusters/current/cluster-manage/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/clusters/status/es-cluster-mess/es-slider.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-tag"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/clusters/status/es-cluster-mess/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-badge"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [
+        "border-radius"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/cluster-table.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 7,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/index-import-modal/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/log-filter/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/log-filter/validator-input.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-form",
+        ".t-form__controls",
+        ".t-form__controls-content",
+        ".t-form__item",
+        ".t-input",
+        ".t-input-number",
+        ".t-input__suffix",
+        ".t-input__wrap",
+        ".t-select",
+        ".t-select__wrap"
+      ],
+      "sharedContracts": [
+        "cell-editor",
+        "control-fill"
+      ],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [
+        "border"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/config-log-set-item.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__wrap",
+        ".t-radio"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/configs-select.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/container-target-item.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/device-metadata.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/label-target-dialog.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/match-label-item.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/match-label.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/components/step-add/multiline-reg-dialog.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/field-table.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [
+        "border",
+        "border-color"
+      ],
+      "localVisualDeclarations": 3,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/issued-slider.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/step-add.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 7,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/step-field.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 12,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__wrap",
+        ".t-size-s"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 7,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/step-masking.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/step-result.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/access/step-storage.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 4,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/add-group-table.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [
+        "border",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/add-index-set.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-form",
+        ".t-form__controls",
+        ".t-form__controls-content",
+        ".t-form__item"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/container-collection/append-log-tags.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/container-collection/config-cluster-box.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-fake-arrow",
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__suffix"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [
+        "border-radius"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/container-collection/label-choose-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/container-collection/label-item-choose.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [
+        "join-next",
+        "join-previous"
+      ],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/device-metadata.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/index-config-import-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-pagination__total",
+        ".t-table__pagination"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [
+        "font-size"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/index-set-option.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label",
+        ".t-select-option"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 7,
+      "contextualDeclarations": 10,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/line-rule-config.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/log-filter.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-button--theme-default",
+        ".t-input",
+        ".t-input--focused",
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-select",
+        ".t-select__wrap",
+        ".t-textarea__inner"
+      ],
+      "sharedContracts": [
+        "control-fill"
+      ],
+      "semanticDeclarations": 8,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-color",
+        "border-radius",
+        "box-shadow",
+        "color",
+        "line-height"
+      ],
+      "localVisualDeclarations": 10,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/multiline-reg-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__close",
+        ".t-dialog__footer",
+        ".t-dialog__header",
+        ".t-form__label",
+        ".t-textarea__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 11,
+      "localVisualProperties": [
+        "border",
+        "font-size",
+        "line-height"
+      ],
+      "localVisualDeclarations": 4,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/multiline-reg-dialog.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/validator-input.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-form__controls",
+        ".t-form__controls-content",
+        ".t-form__item",
+        ".t-form__label",
+        ".t-input",
+        ".t-input-number",
+        ".t-input__wrap",
+        ".t-select"
+      ],
+      "sharedContracts": [
+        "cell-editor",
+        "control-fill"
+      ],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 17,
+      "localVisualProperties": [
+        "border",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step3/clean-result-preview-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-input__inner",
+        ".t-table__body"
+      ],
+      "sharedContracts": [
+        "compact-action",
+        "compact-control"
+      ],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 8,
+      "localVisualProperties": [
+        "border",
+        "box-shadow",
+        "line-height"
+      ],
+      "localVisualDeclarations": 4,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step3/field-list.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-input__inner",
+        ".t-table__body",
+        ".t-table__th-field_name",
+        ".t-table__th-field_type",
+        ".t-table__th-is_analyzed",
+        ".t-table__th-value"
+      ],
+      "sharedContracts": [
+        "compact-action",
+        "compact-control"
+      ],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 10,
+      "localVisualProperties": [
+        "border",
+        "border-color",
+        "line-height"
+      ],
+      "localVisualDeclarations": 3,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step3/report-log-slider.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-drawer__body",
+        ".t-drawer__header",
+        ".t-drawer__header-content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 8,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/common-comp/input-add-group.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/common-comp/table-component.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input--focused",
+        ".t-input__inner",
+        ".t-is-checked",
+        ".t-is-current",
+        ".t-is-selected",
+        ".t-pagination__number",
+        ".t-pagination__select",
+        ".t-pagination__total",
+        ".t-popup",
+        ".t-popup__content",
+        ".t-radio",
+        ".t-radio-group",
+        ".t-radio__input",
+        ".t-radio__label",
+        ".t-select-option",
+        ".t-select__dropdown",
+        ".t-select__list",
+        ".t-table__body",
+        ".t-table__cell--fixed-left-last",
+        ".t-table__cell--fixed-right-first",
+        ".t-table__content",
+        ".t-table__filter-pop",
+        ".t-table__filter-pop-content",
+        ".t-table__filter-pop-content-inner",
+        ".t-table__first-full-row",
+        ".t-table__header",
+        ".t-table__list-filter-input--sticky",
+        ".t-table__pagination",
+        ".t-table__sort-icon--active",
+        ".t-table__th-cell-inner",
+        ".t-tooltip__content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 24,
+      "contextualDeclarations": 16,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-left",
+        "border-radius",
+        "border-right",
+        "box-shadow",
+        "font-size",
+        "font-weight",
+        "line-height"
+      ],
+      "localVisualDeclarations": 15,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/common-comp/tag-more.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__label",
+        ".t-input__prefix",
+        ".t-input__suffix",
+        ".t-popup",
+        ".t-popup__content",
+        ".t-select__wrap",
+        ".t-tag-input",
+        ".t-tag-input--break-line"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 28,
+      "localVisualProperties": [
+        "background",
+        "background-color",
+        "border",
+        "border-radius",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 11,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/common-comp/tag-more.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/global.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-icon",
+        ".t-steps--default-anchor",
+        ".t-steps--horizontal",
+        ".t-steps-item",
+        ".t-steps-item--finish",
+        ".t-steps-item--process",
+        ".t-steps-item__description",
+        ".t-steps-item__icon",
+        ".t-steps-item__icon--number",
+        ".t-steps-item__inner",
+        ".t-steps-item__title"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 11,
+      "contextualDeclarations": 19,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-radius",
+        "font-weight",
+        "line-height"
+      ],
+      "localVisualDeclarations": 8,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step2-configuration.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-checkbox",
+        ".t-checkbox__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 8,
+      "contextualDeclarations": 13,
+      "localVisualProperties": [
+        "line-height"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step2-custom-report.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-loading__overlay"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [
+        "background-color"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step3-clean.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step3-clean.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/create-operation/step4-storage.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-collapse",
+        ".t-collapse-panel__content",
+        ".t-collapse-panel__header",
+        ".t-collapse-panel__header-content",
+        ".t-collapse-panel__wrapper"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [
+        "border"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/list-main/add-existing-collect-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/list-main/stop-type-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__close",
+        ".t-dialog__footer",
+        ".t-dialog__footer--fullscreen",
+        ".t-dialog__header"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 10,
+      "localVisualProperties": [
+        "border",
+        "font-size",
+        "font-weight",
+        "line-height"
+      ],
+      "localVisualDeclarations": 5,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/list-main/table-list/table-list-v1.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox",
+        ".t-checkbox__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/list-main/table-list/table-list-v2.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox",
+        ".t-checkbox__label",
+        ".t-input",
+        ".t-input__inner",
+        ".t-pagination__select",
+        ".t-pagination__total",
+        ".t-table__pagination"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [
+        "border-radius",
+        "line-height"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/masking-operation/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/filter-rule/config-rule/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [
+        "font-size"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/filter-rule/config-rule/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/filter-rule/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [
+        "filter-operator"
+      ],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/shared/sample-column-select.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-empty",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/data-id/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/data-links/manage-data-link-conf/config-dialog.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 6,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/data-links/manage-data-link-conf/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/classic/manage-extract-permission/directory-manage.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/classic/manage-extract-permission/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/classic/manage-extract-permission/module-select.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/classic/manage-extract-permission/validate-user-selector.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-config/config-slider.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-config/config-slider.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-config/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-config/module-select.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-link/link-create.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-link/link-create.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-link/link-list.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-task/task-create/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-alert",
+        ".t-alert__message",
+        ".t-button",
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [
+        "border-radius"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-task/task-create/preview-files.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-alert",
+        ".t-alert__message",
+        ".t-button",
+        ".t-button--variant-text",
+        ".t-checkbox__label",
+        ".t-radio__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 6,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-task/task-create/text-filter.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-task/task-list/download-url.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-task/task-list/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-alert",
+        ".t-table__header"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/current/extract-task/task-list/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/download/create/files-input.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/download/create/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 4,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/download/create/ip-select.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/download/create/preview-files.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/download/create/test-filter.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 8,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/download/home/download-url.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/extraction/download/home/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/grok/current/grok-slider.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-form__controls-content",
+        ".t-textarea__inner",
+        ".t-textarea__limit"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [
+        "line-height"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/grok/current/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/components/index-set/create/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-tag",
+        ".t-tag--primary",
+        ".t-tag__icon-close"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [
+        "background",
+        "font-size",
+        "line-height"
+      ],
+      "localVisualDeclarations": 3,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/components/index-set/list/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 5,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/components/index-set/manage/basic-info.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/components/usage-details/chart-component.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/custom-report/components/field-setting.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/custom-report/create.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 6,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/custom-report/list.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/import-from-other/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-radio"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/import-from-other/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/label-select/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-tag"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/label-select/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/log-collection/collection-item/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/log-collection/collection-item/manage-collection/basic-info.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/log-collection/collection-item/manage-collection/collection-status.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [
+        "font-size"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/log-collection/collection-item/manage-collection/data-status/data-sampling.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/log-collection/collection-item/manage-collection/data-storage.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/index-sets/log-collection/collection-item/manage-collection/field-info.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 2,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/management/manage/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-default-menu",
+        ".t-is-collapsed",
+        ".t-menu",
+        ".t-menu-group",
+        ".t-menu-group__title",
+        ".t-menu__content",
+        ".t-menu__item"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 30,
+      "localVisualProperties": [
+        "border-radius",
+        "color",
+        "font-weight"
+      ],
+      "localVisualDeclarations": 3,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/masking/components/masking-add-rule.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-checkbox__label",
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 9,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/masking/components/masking-add-rule.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/masking/components/masking-extract.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-checkbox__label",
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/masking/components/masking-field-input.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/masking/components/masking-field.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-input__inner",
+        ".t-switch",
+        ".t-tag"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [
+        "background"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/masking/components/masking-select-rule-table.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/masking/components/masking-setting.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-input__wrap",
+        ".t-size-s"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/masking/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/preferences/dialog/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__ctx",
+        ".t-dialog__mask",
+        ".t-dialog__position",
+        ".t-dialog__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 16,
+      "localVisualProperties": [
+        "border",
+        "border-radius"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/preferences/dialog/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/preferences/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__ctx",
+        ".t-dialog__mask",
+        ".t-dialog__position",
+        ".t-dialog__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 16,
+      "localVisualProperties": [
+        "border",
+        "border-radius"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/collect/batch-operation-menu.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/collect/favorite-manage-dialog.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__ctx",
+        ".t-dialog__mask",
+        ".t-dialog__position",
+        ".t-dialog__wrap",
+        ".t-table",
+        ".t-table__content",
+        ".t-table__row"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 5,
+      "contextualDeclarations": 22,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-radius",
+        "font-size",
+        "font-weight"
+      ],
+      "localVisualDeclarations": 6,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/components/batch-input/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__close",
+        ".t-dialog__footer",
+        ".t-dialog__footer--fullscreen",
+        ".t-dialog__header",
+        ".t-table__empty",
+        ".t-table__empty-row",
+        ".t-textarea__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 12,
+      "contextualDeclarations": 37,
+      "localVisualProperties": [
+        "border",
+        "font-size",
+        "font-weight",
+        "line-height"
+      ],
+      "localVisualDeclarations": 6,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/components/index-set-choice/index-set-list.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/components/index-set-choice/index-set-list.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 6,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/components/result-cell-element/expand-view.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__suffix",
+        ".t-input__suffix-icon"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 11,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-radius",
+        "box-shadow",
+        "line-height"
+      ],
+      "localVisualDeclarations": 5,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/components/result-storage/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-input",
+        ".t-input-number",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 11,
+      "localVisualProperties": [
+        "line-height"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/components/result-storage/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/condition-comp/select-index-set.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button--variant-text",
+        ".t-tag"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/condition-comp/select-index-set.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/field-filter-popover.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-radio"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/field-item.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button--variant-text",
+        ".t-drawer__body",
+        ".t-drawer__header",
+        ".t-loading",
+        ".t-popup__content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 6,
+      "contextualDeclarations": 38,
+      "localVisualProperties": [
+        "box-shadow",
+        "font-weight"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-tree__icon",
+        ".t-tree__item",
+        ".t-tree__item--enter-active",
+        ".t-tree__item--hidden",
+        ".t-tree__item--leave-active",
+        ".t-tree__item--visible",
+        ".t-tree__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 5,
+      "contextualDeclarations": 18,
+      "localVisualProperties": [
+        "background-color",
+        "border",
+        "line-height"
+      ],
+      "localVisualDeclarations": 5,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/update/field-alias.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-drawer__body",
+        ".t-drawer__footer",
+        ".t-drawer__header",
+        ".t-input",
+        ".t-table__body",
+        ".t-table__header"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 6,
+      "contextualDeclarations": 22,
+      "localVisualProperties": [
+        "border",
+        "border-radius",
+        "box-shadow",
+        "font-size",
+        "line-height"
+      ],
+      "localVisualDeclarations": 6,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/update/field-list.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-popup__content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 5,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [
+        "border",
+        "border-radius",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 3,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/field-filter-comp/update/field-setting.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-popup__content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/monitor/monitor.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label",
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/export-history.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button--variant-text",
+        ".t-date-range-picker",
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__close",
+        ".t-dialog__header",
+        ".t-pagination__select",
+        ".t-pagination__total",
+        ".t-range-input__inner-right",
+        ".t-range-input__inner-separator",
+        ".t-table__body",
+        ".t-table__content",
+        ".t-table__empty",
+        ".t-table__header"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 20,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/export-log.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-alert",
+        ".t-alert--info",
+        ".t-alert__icon",
+        ".t-button",
+        ".t-dialog",
+        ".t-dialog__body",
+        ".t-dialog__close",
+        ".t-dialog__footer",
+        ".t-dialog__footer--fullscreen",
+        ".t-radio",
+        ".t-radio__label",
+        ".t-select__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 7,
+      "contextualDeclarations": 19,
+      "localVisualProperties": [
+        "border",
+        "border-radius"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/fields-setting-operate.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button--variant-text",
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/fields-setting.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/update/field-setting.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/update/fields-setting-operate.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button--variant-text"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/update/fields-setting.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-button__text",
+        ".t-is-active",
+        ".t-tabs__bar",
+        ".t-tabs__content",
+        ".t-tabs__header",
+        ".t-tabs__nav",
+        ".t-tabs__nav-container",
+        ".t-tabs__nav-item",
+        ".t-tabs__nav-item-text-wrapper",
+        ".t-tabs__nav-item-wrapper",
+        ".t-tabs__nav-scroll",
+        ".t-tabs__nav-wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 6,
+      "contextualDeclarations": 17,
+      "localVisualProperties": [
+        "background",
+        "border-radius",
+        "line-height"
+      ],
+      "localVisualDeclarations": 3,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/result-comp/update/table-sort.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-select-option"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 6,
+      "localVisualProperties": [
+        "line-height"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/components/bookmark-pop.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-form__item",
+        ".t-form__label",
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-is-readonly",
+        ".t-popup__content",
+        ".t-select__dropdown-inner",
+        ".t-textarea__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 18,
+      "localVisualProperties": [
+        "border",
+        "font-family"
+      ],
+      "localVisualDeclarations": 6,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/components/bookmark-pop.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/components/common-filter-select.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__prefix",
+        ".t-input__suffix",
+        ".t-input__wrap",
+        ".t-select-input"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 8,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-radius",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 4,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/components/common-filter-setting.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-radius",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 4,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/components/setting-pop.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [
+        "border"
+      ],
+      "localVisualDeclarations": 3,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/ui-mode/fuzzy-match-mode.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-radio",
+        ".t-radio-group"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 6,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-input",
+        ".t-input__wrap",
+        ".t-textarea__info_wrapper",
+        ".t-textarea__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 8,
+      "localVisualProperties": [
+        "border",
+        "border-radius",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 3,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 6,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-bar/ui-mode/ui-input.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-popup"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-chart/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input--focused",
+        ".t-input__inner",
+        ".t-select"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [
+        "border-color",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/graph-analysis/chart/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/graph-analysis/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 4,
+        "dynamicStyleSites": 2,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-operate.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label",
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 7,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-checkbox__label",
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__prefix"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 7,
+      "contextualDeclarations": 11,
+      "localVisualProperties": [
+        "border",
+        "border-radius",
+        "box-shadow",
+        "color",
+        "line-height"
+      ],
+      "localVisualDeclarations": 6,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-rule-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label",
+        ".t-input__inner",
+        ".t-radio"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [
+        "line-height"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 25,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/quick-create-subscription.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-open-cluster-step/filter-rule.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [
+        "filter-operator"
+      ],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-open-cluster-step/quick-open-cluster.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/components/strategy/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/data-fingerprint.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-clustering/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-alert"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-result/full-row-viewer.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-drawer__body"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 6,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-result/index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 4,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-tab/components/dashboard-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/search-result-tab/components/dashboard-dialog.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/setting-modal/component/from-input.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/setting-modal/component/rule-top-tools.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 6,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-input__wrap",
+        ".t-radio"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [
+        "border-radius"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/setting-modal/component/template-option.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button--variant-text",
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/setting-modal/full-text-index.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/setting-modal/log-cluster.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/setting-modal/rule-table.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button--variant-text"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/sub-bar/bar-global-setting.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-popup__content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 19,
+      "contextualDeclarations": 23,
+      "localVisualProperties": [
+        "border-radius",
+        "box-shadow",
+        "font-size",
+        "line-height"
+      ],
+      "localVisualDeclarations": 7,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/sub-bar/query-history.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/sub-bar/query-history.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/sub-bar/share-link.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 5,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workbench/sub-bar/warning-setting.vue",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-is-active",
+        ".t-tab-panel",
+        ".t-table",
+        ".t-table--striped",
+        ".t-table__cell--title",
+        ".t-table__content",
+        ".t-table__empty",
+        ".t-table__th-cell-inner",
+        ".t-tabs",
+        ".t-tabs__content",
+        ".t-tabs__header",
+        ".t-tabs__nav",
+        ".t-tabs__nav--card",
+        ".t-tabs__nav-container",
+        ".t-tabs__nav-item",
+        ".t-tabs__nav-item-wrapper",
+        ".t-tabs__operations",
+        ".t-tabs__operations--right"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 18,
+      "contextualDeclarations": 36,
+      "localVisualProperties": [
+        "background",
+        "background-color",
+        "border",
+        "border-bottom",
+        "font-size",
+        "font-weight",
+        "line-height"
+      ],
+      "localVisualDeclarations": 10,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/favorite/collect-main.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input--focused",
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-radius",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 5,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/favorite/components/collect-list/add-group.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/favorite/components/collect-list/add-group.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/favorite/components/collect-tool/collect-tool.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox",
+        ".t-checkbox__label",
+        ".t-radio__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 6,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/global-en.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/grep/grep-cli-result.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/grep/grep-cli.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-bar/scene-filter/filter-panel.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input--prefix",
+        ".t-input__prefix",
+        ".t-loading--full",
+        ".t-select",
+        ".t-select__wrap",
+        ".t-tag",
+        ".t-tag--text",
+        ".t-tag-input"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 15,
+      "localVisualProperties": [
+        "border"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/cluster-popover/regex-match/regex-table/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/pattern-analysis-slider/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/pattern-analysis-slider/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 4,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/remark-edit-tip/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-loading__overlay",
+        ".t-radio"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [
+        "background-color",
+        "font-family",
+        "font-weight"
+      ],
+      "localVisualDeclarations": 3,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/main-header/filter-operate/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-checkbox",
+        ".t-checkbox__label",
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__prefix-icon"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 7,
+      "contextualDeclarations": 11,
+      "localVisualProperties": [
+        "border",
+        "border-radius",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 3,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/quick-open-cluster/cluster-access/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/quick-open-cluster/cluster-access/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/quick-open-cluster/cluster-access/preview-result/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/quick-open-cluster/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-form__item"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-popconfirm__buttons",
+        ".t-popconfirm__cancel",
+        ".t-popconfirm__confirm",
+        ".t-popconfirm__content",
+        ".t-popconfirm__icon--default",
+        ".t-popconfirm__inner",
+        ".t-popup",
+        ".t-popup__content",
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 9,
+      "contextualDeclarations": 31,
+      "localVisualProperties": [
+        "line-height"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/edit-config/rule-operate/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/cluster-config/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-drawer__body",
+        ".t-drawer__header"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/email-config/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label",
+        ".t-radio"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [
+        "line-height"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/email-config/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label",
+        ".t-input__inner",
+        ".t-radio"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [
+        "line-height"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 16,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/subscription-content/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/subscription-content/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 4,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-tag"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/dimension-split/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/temporary-group/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/time-compare/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__inner",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/quick-filter/time-compare/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/config-item/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-popup",
+        ".t-popup__content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/edit-strategy/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/top-operation/strategy/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/components/data-filter/fields-config/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/components/data-filter/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button__text",
+        ".t-checkbox__label",
+        ".t-input",
+        ".t-tag__icon-close"
+      ],
+      "sharedContracts": [
+        "join-next",
+        "join-previous"
+      ],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 9,
+      "localVisualProperties": [
+        "border",
+        "border-radius",
+        "line-height"
+      ],
+      "localVisualDeclarations": 4,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/components/data-filter/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/context-log/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-dialog__body",
+        ".t-dialog__fullscreen"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 11,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/real-time-log/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-dialog__body",
+        ".t-dialog__fullscreen"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 11,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/standalone-tab/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-dialog__close",
+        ".t-dialog__ctx",
+        ".t-dialog__fullscreen",
+        ".t-dialog__header",
+        ".t-dialog__header--fullscreen",
+        ".t-dialog__header-content",
+        ".t-dialog__position_fullscreen",
+        ".t-dialog__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 28,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-radius"
+      ],
+      "localVisualDeclarations": 4,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/original-log/standalone-tab/related-log-layout.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 4,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/template-manage/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/template-manage/template-list/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/sharing/index.tsx",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 1,
+        "dynamicStyleSites": 1,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "platform/compat/tdesign/legacy-bk-controls.tsx",
+      "owner": "application-shell",
+      "inline": {
+        "nativeStyleSites": 3,
+        "dynamicStyleSites": 3,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/global/bk-space-choice/index.scss",
+      "owner": "application-shell",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__prefix",
+        ".t-input__wrap"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 7,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [
+        "background-color",
+        "border",
+        "border-bottom",
+        "border-bottom-color",
+        "border-radius",
+        "box-shadow",
+        "color"
+      ],
+      "localVisualDeclarations": 16,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/global/field-setting.vue",
+      "owner": "application-shell",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-drawer__body",
+        ".t-form__item"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/global/head-navi/index.scss",
+      "owner": "application-shell",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-popup__content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 8,
+      "localVisualProperties": [
+        "color",
+        "line-height"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/global/setting-table.vue",
+      "owner": "application-shell",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-form",
+        ".t-form__controls-content",
+        ".t-form__item",
+        ".t-form__label",
+        ".t-input__inner",
+        ".t-input__wrap",
+        ".t-popconfirm",
+        ".t-popconfirm__buttons",
+        ".t-popup__content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 5,
+      "contextualDeclarations": 11,
+      "localVisualProperties": [
+        "border",
+        "border-color",
+        "border-radius"
+      ],
+      "localVisualDeclarations": 5,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/app.scss",
+      "owner": "application-shell",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-checkbox__label",
+        ".t-radio",
+        ".t-radio__label"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/compat-drawer.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-drawer__body",
+        ".t-drawer__content-wrapper",
+        ".t-drawer__header"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 10,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/components/actions.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-button--shape-rectangle",
+        ".t-button--variant-text",
+        ".t-size-l",
+        ".t-size-s"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 7,
+      "localVisualProperties": [
+        "line-height"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/components/buttons.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-button--theme-default",
+        ".t-button--variant-base",
+        ".t-is-disabled",
+        ".t-size-l",
+        ".t-size-s"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 11,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [
+        "background-color"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/components/display.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-alert--error",
+        ".t-alert--info",
+        ".t-alert--success",
+        ".t-alert--warning",
+        ".t-alert__message"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [
+        "background-color",
+        "border-color"
+      ],
+      "localVisualDeclarations": 8,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/components/forms.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-form",
+        ".t-form__item",
+        ".t-textarea",
+        ".t-textarea__inner"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 9,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/components/options.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-cascader__item",
+        ".t-cascader__item-label",
+        ".t-cascader__menu",
+        ".t-checkbox",
+        ".t-checkbox__label",
+        ".t-dropdown__item",
+        ".t-dropdown__item--active",
+        ".t-dropdown__item--disabled",
+        ".t-dropdown__item--theme-default",
+        ".t-dropdown__item-content",
+        ".t-dropdown__menu",
+        ".t-dropdown__submenu",
+        ".t-is-disabled",
+        ".t-is-selected",
+        ".t-popconfirm__buttons",
+        ".t-select-option",
+        ".t-select-option--hover",
+        ".t-select-option__hover",
+        ".t-select__dropdown",
+        ".t-select__list"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 11,
+      "contextualDeclarations": 28,
+      "localVisualProperties": [
+        "background-color",
+        "border-radius",
+        "color",
+        "line-height"
+      ],
+      "localVisualDeclarations": 6,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/components/overlays.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-dialog__cancel",
+        ".t-dialog__footer",
+        ".t-dialog__footer--fullscreen",
+        ".t-drawer__footer"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 10,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/components/query-action.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-button__text"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 15,
+      "localVisualProperties": [
+        "border-radius",
+        "line-height"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/management-lists.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button--variant-text",
+        ".t-is-current",
+        ".t-is-disabled",
+        ".t-pagination__btn-next",
+        ".t-pagination__btn-prev",
+        ".t-pagination__number",
+        ".t-pagination__pager",
+        ".t-pagination__select",
+        ".t-pagination__total",
+        ".t-table__expanded-row",
+        ".t-table__header",
+        ".t-table__pagination"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 15,
+      "contextualDeclarations": 18,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-top",
+        "color",
+        "font-weight",
+        "line-height"
+      ],
+      "localVisualDeclarations": 8,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/overlay.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-dialog__ctx",
+        ".t-dialog__ctx--fixed",
+        ".t-drawer",
+        ".t-empty__title",
+        ".t-message__list",
+        ".t-notification",
+        ".t-popup"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 6,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [
+        "font-weight",
+        "line-height"
+      ],
+      "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/bk-search-select/index.scss",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-popup__content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/common/auth-dialog.vue",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-dialog__footer",
+        ".t-dialog__header"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [
+        "font-weight"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/common/fields-config.vue",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/empty-status/index.vue",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-empty__description",
+        ".t-empty__image",
+        ".t-empty__title"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/loading/index.scss",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-loading__overlay"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/loading/list-skeleton.scss",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-loading"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/loading/management-list-loading.scss",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-table__content",
+        ".t-table__loading"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/loading/presence.scss",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-loading"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/loading/skeleton.scss",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-input",
+        ".t-loading",
+        ".t-loading--full",
+        ".t-loading__fullscreen",
+        ".t-loading__gradient",
+        ".t-select",
+        ".t-select__loading-tips"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 29,
+      "localVisualProperties": [
+        "color"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/user-selector/legacy-contract.scss",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-tag__icon-close"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    }
+  ]
+}

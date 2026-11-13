@@ -1,0 +1,23 @@
+// V2 dialog footer buttons: 64×32, 14px, padding 0 15px, adjacent gap 10px (mr10).
+@mixin bklog-dialog-footer-buttons {
+  .t-button {
+    box-sizing: border-box;
+    min-width: 64px;
+    height: 32px;
+    margin-right: 0;
+    padding: 0 15px;
+    font-size: var(--bklog-font-action, 14px);
+    line-height: 30px;
+    border-radius: var(--bklog-radius-control, 2px);
+  }
+
+  .t-button + .t-button {
+    margin-left: 10px;
+  }
+}
+
+
+@mixin management-actions {
+  .t-button:where(:not(.t-size-s):not(.t-size-l)) { font-size: var(--bklog-font-action, 14px); }
+  .t-button--shape-rectangle:where(:not(.t-size-s):not(.t-size-l):not(.t-button--variant-text)) { min-width: 64px; }
+}

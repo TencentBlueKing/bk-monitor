@@ -128,7 +128,7 @@
       <div class="content">
         <bk-select
           v-model="link_id"
-          style="width: 250px; margin-right: 20px; background-color: #fff"
+          style="width: 250px; margin-right: 20px; background-color: var(--bklog-surface, #fff)"
           :clearable="false"
           data-test-id="addNewExtraction_select_selectLink"
         >

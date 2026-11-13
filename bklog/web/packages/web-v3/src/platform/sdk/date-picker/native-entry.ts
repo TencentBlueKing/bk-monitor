@@ -1,43 +1,41 @@
-import { createApp, defineComponent, h, shallowReactive, shallowRef } from 'vue';
-import DatePicker from '@blueking/date-picker';
-import type { DatePickerState, DatePickerEvents, DatePickerHandle, DatePickerValue } from './contract';
+import { createDatePicker } from '@blueking/date-picker-js';
+import type { DatePickerState, DatePickerEvents, DatePickerHandle } from './contract';
 
-/** All dependencies in this entry are bundled against the same native Vue3 runtime. */
+/** Framework-independent SDK boundary; no second Vue runtime is needed. */
 export function mountDatePicker(
   host: HTMLElement,
   initial: DatePickerState,
   events: DatePickerEvents,
 ): DatePickerHandle {
-  const state = shallowReactive({ ...initial, modelValue: [...initial.modelValue] as DatePickerValue });
-  const picker = shallowRef<{ handleShowPanel(): void; handleHidePanel(): void }>();
-  const app = createApp(
-    defineComponent({
-      setup: () => () =>
-        h(DatePicker, {
-          ...state,
-          ref: picker,
-          enableFormatClick: true,
-          'onUpdate:modelValue': (value) => {
-            if (value) events.value(value);
-          },
-          'onUpdate:format': events.format,
-          'onUpdate:timezone': events.timezone,
-        }),
+  const clone = (state: DatePickerState): DatePickerState => ({ ...state, modelValue: [...state.modelValue] });
+  const picker = createDatePicker(host, { ...clone(initial), enableFormatClick: true });
+  const off = [
+    picker.on('update:modelValue', value => events.value(value)),
+    picker.on('update:format', format => {
+      picker.update({ format });
+      events.format(format);
     }),
-  );
-  app.mount(host);
+    picker.on('update:timezone', timezone => {
+      picker.update({ timezone });
+      events.timezone(timezone);
+    }),
+  ];
+  let destroyed = false;
   return {
-    update(value) {
-      Object.assign(state, value, { modelValue: [...value.modelValue] });
+    update(state) {
+      if (!destroyed) picker.update(clone(state));
     },
     handleShowPanel() {
-      picker.value?.handleShowPanel();
+      if (!destroyed) picker.show();
     },
     handleHidePanel() {
-      picker.value?.handleHidePanel();
+      if (!destroyed) picker.hide();
     },
     destroy() {
-      app.unmount();
+      if (destroyed) return;
+      destroyed = true;
+      off.forEach(unsubscribe => unsubscribe());
+      picker.destroy();
     },
   };
 }

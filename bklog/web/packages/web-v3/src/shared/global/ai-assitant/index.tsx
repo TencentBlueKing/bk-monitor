@@ -25,14 +25,26 @@
  */
 import { defineComponent, nextTick, ref } from 'vue';
 
-import AIBlueking from '@blueking/ai-blueking/vue2';
+import AIBlueking from '@blueking/ai-blueking';
+import { configureNativeSdkComponent } from '@/platform/compat/native-sdk-vue';
+configureNativeSdkComponent(AIBlueking);
 
 import { random } from '@/shared/lib/util';
 import { AI_BLUEKING_QUERY_STRING, AI_BLUEKING_SHORTCUTS } from './ai-type';
 
-import '@blueking/ai-blueking/dist/vue2/style.css';
+import '@blueking/ai-blueking/dist/vue3/style.css';
 import { isEqual } from 'lodash-es';
 import './ai-assistant.scss';
+
+// The Vue3 declarations require persisted agent-command fields for this method.
+// Its shipped use-shortcut implementation also accepts the existing custom
+// component shortcuts; keep that verified contract without inventing backend fields.
+type NativeAiInstance = Omit<InstanceType<typeof AIBlueking>, 'handleShortcutClick'> & {
+  handleShortcutClick(data: {
+    shortcut: (typeof AI_BLUEKING_SHORTCUTS)[number] | (typeof AI_BLUEKING_QUERY_STRING)[number];
+    source: 'popup' | 'main';
+  }): void;
+};
 
 export interface IRowSendData {
   space_uid: string;
@@ -86,7 +98,7 @@ export default defineComponent({
 
   name: 'BklogAiAssitant',
   setup(_props, { expose, emit }) {
-    const aiBlueking = ref<InstanceType<typeof AIBlueking> | null>(null);
+    const aiBlueking = ref<NativeAiInstance | null>(null);
 
     let chatid = random(10);
 
@@ -349,11 +361,13 @@ export default defineComponent({
           <AIBlueking
             ref={aiBlueking}
             requestOptions={{
-              beforeRequest: (data: { headers: any; }) => {
+              beforeRequest: data => {
                 return {
                   ...data,
                   headers: {
-                    ...(data?.headers || {}),
+                    // The shipped fetch runtime uses `headers`; its declaration
+                    // currently spells this field `header`.
+                    ...('headers' in data && data.headers && typeof data.headers === 'object' ? data.headers : {}),
                     Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
                   },
                 };

@@ -1,4 +1,5 @@
 import { defineComponent, type PropType } from 'vue';
+import { ListLoadingSkeleton } from '@/shared/ui/loading/list-skeleton';
 
 export default defineComponent({
   name: 'RelatedLogLoading',
@@ -23,8 +24,8 @@ export default defineComponent({
         role='status'
         aria-live='polite'
       >
+        <ListLoadingSkeleton variant='log-table' />
         <div class='standalone-related-log-loading-card'>
-          <div class='standalone-related-log-loading-spinner' />
           <div class='standalone-related-log-loading-title'>{props.title}</div>
           <div class='standalone-related-log-loading-text'>
             <transition

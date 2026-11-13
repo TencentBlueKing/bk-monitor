@@ -28,7 +28,7 @@
   <div class="text-filter-container">
     <bk-select
       v-model="filterType"
-      style="width: 174px; margin-right: 20px; background-color: #fff"
+      style="width: 174px; margin-right: 20px; background-color: var(--bklog-surface, #fff)"
     >
       <bk-option
         v-for="option in filterList"
@@ -53,7 +53,7 @@
       </t-input>
       <bk-select
         v-model="filterContent.keyword_type"
-        style="width: 70px; margin-right: 10px; background-color: #fff"
+        style="width: 70px; margin-right: 10px; background-color: var(--bklog-surface, #fff)"
         :clearable="false"
         data-test-id="addNewExtraction_select_filterCondition"
       >

@@ -31,7 +31,6 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 
 import {
   Button as TButton,
-  Loading as TLoading,
   Tag as TTag,
   Tooltip as TTooltip,
   type TagInputProps,

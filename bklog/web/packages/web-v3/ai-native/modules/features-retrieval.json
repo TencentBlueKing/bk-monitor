@@ -3,7 +3,7 @@
   "id": "features/retrieval",
   "purpose": "检索、查询、字段、结果、收藏、聚类及版本切换",
   "root": "src/features/retrieval",
-  "files": 456,
+  "files": 458,
   "entryPoints": [
     "features/retrieval/log-view/index.vue",
     "features/retrieval/log-view/log-view-control/index.tsx",

@@ -78,7 +78,7 @@
     .t-button .left-icon {
       top: 0;
       margin-right: 6px;
-      font-size: 14px;
+      font-size: var(--bklog-font-action, 14px);
     }
   }
 
@@ -86,7 +86,7 @@
     .bk-tab-header,
     .t-tabs__header {
       padding-left: 24px;
-      background: #fff;
+      background: var(--bklog-surface, #fff);
       border-bottom: 0;
     }
 
@@ -108,7 +108,7 @@
 
       &.active,
       &.t-is-active {
-        color: #3a84ff;
+        color: var(--bklog-brand-primary, #3a84ff);
       }
     }
 

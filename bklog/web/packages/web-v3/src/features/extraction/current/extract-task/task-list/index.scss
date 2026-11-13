@@ -70,8 +70,8 @@
     &.bklog-legacy-table {
       .t-table__header th {
         padding: 0 16px;
-        color: #313238;
-        background: #f5f7fa;
+        color: var(--bklog-text-primary, #313238);
+        background: var(--bklog-surface-hover, #f5f7fa);
       }
 
       td {

@@ -33,7 +33,7 @@
       <div class="title">{{ type }}</div>
       <t-button :variant="(true) ? 'text' : ('base')"
         v-if="type === $t('检索耗时统计') && retrieveTimeGuide"
-        style="font-size: 12px"
+        style="font-size: var(--bklog-font-body, 12px)"
         
         @click="goToGuide"
       >

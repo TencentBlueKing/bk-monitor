@@ -1,3 +1,4 @@
+import { renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -632,7 +633,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
             }}
           />
         </div>
-        <div ref='fieldFilter' class='field-filter-container-new'>
+        <div ref='fieldFilter' class='field-filter-container-new' v-loading={{ loading: this.isFieldLoading, indicator: renderFieldListSkeleton }}>
           {!this.isFieldLoading && !this.hasFilterVisibleFields && (
             <EmptyStatus
               style={{ marginTop: '20%' }}

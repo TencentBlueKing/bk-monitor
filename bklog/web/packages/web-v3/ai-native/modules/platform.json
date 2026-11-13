@@ -3,7 +3,7 @@
   "id": "platform",
   "purpose": "请求、持久化、语言、监控与兼容边界",
   "root": "src/platform",
-  "files": 86,
+  "files": 89,
   "entryPoints": [
     "platform/http/index.js",
     "platform/http/types/index.ts",

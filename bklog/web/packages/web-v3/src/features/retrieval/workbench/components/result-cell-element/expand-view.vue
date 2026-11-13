@@ -549,7 +549,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
             height: 22px;
             min-height: 0;
             padding: 0;
-            background: #f5f7fa;
+            background: var(--bklog-surface-hover, #f5f7fa);
             border: 0;
             border-radius: 0;
             box-shadow: inset 0 -1px #c4c6cc;
@@ -560,7 +560,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
             width: 200px;
             height: 22px;
             padding: 0 36px 0 0;
-            font-size: 12px;
+            font-size: var(--bklog-font-body, 12px);
             line-height: 22px;
             background: transparent;
           }

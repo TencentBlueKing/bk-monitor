@@ -1,0 +1,35 @@
+:root:not([theme-mode='dark']) {
+  // V2 normal buttons use 14px; inputs, table cells and small buttons use 12px.
+  :where(.t-button:not(.t-size-s):not(.t-size-l)) {
+    font-size: var(--bklog-font-action);
+  }
+
+  .t-button--theme-default.t-button--variant-base {
+    color: var(--bklog-text-secondary, #63656e);
+    background-color: var(--bklog-surface, #fff);
+    border-color: var(--bklog-border-control, #c4c6cc);
+
+    &:hover {
+      color: var(--bklog-text-secondary, #63656e);
+      background-color: var(--bklog-surface, #fff);
+      border-color: var(--bklog-border-hover, #979ba5);
+    }
+
+    &:active {
+      color: var(--bklog-brand-primary, #3a84ff);
+      border-color: var(--bklog-brand-primary, #3a84ff);
+    }
+
+    &.t-is-disabled {
+      color: var(--bklog-text-disabled, #c4c6cc);
+      background-color: #faf9fd;
+      border-color: var(--bklog-border-muted, #dcdee5);
+    }
+  }
+
+  // Button uses xs/xl, unlike Input and Select. Keep overrides on the control.
+  :where(.t-button) {
+    --td-comp-size-xs: var(--bklog-control-size-small);
+    --td-comp-size-xl: var(--bklog-control-size-large);
+  }
+}

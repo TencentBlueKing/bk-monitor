@@ -455,7 +455,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   import { copyMessage, formatDate, deepEqual } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
   import ClusteringLoader from '@/app/skeleton/clustering-loader';
-  import BkUserSelector from '@blueking/user-selector';
+  import BkUserSelector from '@/shared/ui/user-selector/legacy-contract';
 
   import ClusterEventPopover from './components/finger-tools/cluster-popover.tsx';
   import ClusterFilter from './components/finger-tools/cluster-filter';

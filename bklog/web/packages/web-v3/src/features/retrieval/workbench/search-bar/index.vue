@@ -974,8 +974,9 @@ import { ServicesInstance } from '@/platform/services';
           size="small"
           theme="primary"
           :disabled="isQueryBtnDisabled"
-          :class="isShowQueryText ? 'search-query-btn' : ''"
-        ><template #icon><span :class="`bk-icon icon-${btnIconName}`"></span></template>
+          :aria-label="isSearching ? $t('暂停') : $t('查询')"
+          :class="['bklog-query-action', { 'search-query-btn': isShowQueryText }]"
+        ><template #icon><span aria-hidden="true" :class="['bklog-query-action__icon', btnIconName]"></span></template>
           {{ isShowQueryText ? $t('查询') : '' }}
         </t-button>
       </div>

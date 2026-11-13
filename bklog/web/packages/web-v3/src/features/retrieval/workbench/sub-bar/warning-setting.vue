@@ -23,7 +23,7 @@
         class="bklog-warning-wrapper"
       >
         <t-tabs
-          style="width: 580px; background-color: #fff"
+          style="width: 580px; background-color: var(--bklog-surface, #fff)"
           :value="active"
           theme="card"
           @change="handleTabChange"
@@ -735,7 +735,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
     .t-tabs,
     .t-tabs__content,
     .t-tab-panel {
-      background-color: #fff;
+      background-color: var(--bklog-surface, #fff);
     }
 
     .t-tabs__header,
@@ -743,7 +743,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
     .t-tabs__operations,
     .t-tabs__nav-container.t-tabs__nav--card {
       height: 42px;
-      background-color: #f0f1f5;
+      background-color: var(--bklog-surface-component, #f0f1f5);
     }
 
     .t-tabs__operations--right {
@@ -755,7 +755,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
     .t-tabs__nav-item.t-tabs__nav--card {
       height: 42px;
       padding: 0 16px;
-      color: #313238;
+      color: var(--bklog-text-primary, #313238);
       background-color: transparent;
       border: none;
 
@@ -768,7 +768,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
       .panel-name {
         font-size: 13px;
         line-height: 42px;
-        color: #313238;
+        color: var(--bklog-text-primary, #313238);
       }
 
       &:hover:not(.t-is-active) {
@@ -776,8 +776,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
       }
 
       &.t-is-active {
-        color: #313238;
-        background-color: #fff;
+        color: var(--bklog-text-primary, #313238);
+        background-color: var(--bklog-surface, #fff);
 
         &::before {
           position: absolute;
@@ -787,7 +787,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
           width: 100%;
           height: 5px;
           content: '';
-          background-color: #3a84ff;
+          background-color: var(--bklog-brand-primary, #3a84ff);
         }
       }
     }
@@ -801,8 +801,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
     }
 
     .t-table {
-      font-size: 12px;
-      color: #63656e;
+      font-size: var(--bklog-font-body, 12px);
+      color: var(--bklog-text-secondary, #63656e);
 
       .t-table__content {
         border: none;
@@ -812,18 +812,18 @@ import { asDictionary } from '@/shared/utils/typed-record';
       td {
         height: 32px;
         padding: 0 16px;
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
         line-height: 32px;
         border-bottom: none;
       }
 
       thead th {
         font-weight: 400;
-        color: #63656e;
+        color: var(--bklog-text-secondary, #63656e);
         white-space: nowrap;
         overflow-wrap: normal;
-        background-color: #fff;
-        border-bottom: 1px solid #dcdee5;
+        background-color: var(--bklog-surface, #fff);
+        border-bottom: 1px solid var(--bklog-border-muted, #dcdee5);
 
         .t-table__th-cell-inner,
         .t-table__cell--title {
@@ -838,7 +838,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
       .warning-table-empty {
         display: block;
         padding: 48px 0;
-        color: #979ba5;
+        color: var(--bklog-text-placeholder, #979ba5);
       }
 
       .warning-table-skeleton-row {
@@ -853,7 +853,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
           height: 12px;
           background: linear-gradient(90deg, #f0f2f5 25%, #e6e9ed 50%, #f0f2f5 75%);
           background-size: 400% 100%;
-          border-radius: 2px;
+          border-radius: var(--bklog-radius-control, 2px);
           animation: warning-table-shimmer 1.4s infinite linear;
         }
       }
@@ -869,10 +869,10 @@ import { asDictionary } from '@/shared/utils/typed-record';
       }
 
       &.t-table--striped > .t-table__content > table > tbody > tr {
-        background-color: #fff;
+        background-color: var(--bklog-surface, #fff);
 
         &:nth-of-type(odd) {
-          background-color: #fafbfd;
+          background-color: var(--bklog-surface-disabled, #fafbfd);
         }
       }
     }

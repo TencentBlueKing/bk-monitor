@@ -50,7 +50,8 @@ const nativeConfig = mergeConfig(base, defineConfig({
  }, vueJsx()],
  resolve: { extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.vue'], alias: [
    { find: /^bkui-vue\/lib\/icon$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-icons.ts') },
-   { find: /^bkui-vue\/lib\/form$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-vue.ts') },
+   { find: /^bkui-vue\/lib\/form$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-form.ts') },
+   { find: /^bkui-vue\/lib\/select$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-select.ts') },
    { find: /^bkui-vue$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/bkui-vue.ts') },
    { find: /^bk-magic-vue$/, replacement: resolve(sourceRoot, 'platform/compat/tdesign/magic-controls.ts') },
    { find: '@', replacement: sourceRoot },

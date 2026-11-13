@@ -37,7 +37,7 @@ import TextHighlight from '@/shared/ui/text-highlight';
 import useLocale from '@/shared/composables/use-locale';
 
 // import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
-import BkUserSelector from '@blueking/user-selector';
+import BkUserSelector from '@/shared/ui/user-selector/legacy-contract';
 
 import { bkInfoBox as bkInfoBox } from '@/platform/compat/tdesign/info-box';
 import { createRawTippyOverlay } from '@/shared/global/overlay/index';

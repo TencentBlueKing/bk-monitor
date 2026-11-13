@@ -205,3 +205,12 @@ packages/web-v3/tests/helpers/*
 # Synthetic management layout regression contracts.
 !packages/web-v3/tests/management-overlays-native.test.mjs
 !packages/web-v3/tests/management-list-loading-native.test.mjs
+!packages/web-v3/tests/first-render-skeleton-native.test.mjs
+!packages/web-v3/tests/sdk-vue3-migration-native.test.mjs
+!packages/web-v3/tests/native-sdk-vue.test.mjs
+!packages/web-v3/tests/list-skeleton-native.test.mjs
+!packages/web-v3/tests/collection-create-ui-native.test.mjs
+
+!packages/web-v3/tests/theme-contract-native.test.mjs
+
+!packages/web-v3/tests/theme-normalization-native.test.mjs

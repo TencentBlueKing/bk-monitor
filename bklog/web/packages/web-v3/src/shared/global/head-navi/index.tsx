@@ -44,12 +44,16 @@ import { Popup, MessagePlugin } from 'tdesign-vue-next';
 import 'tdesign-vue-next/es/popup/style/index.css';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router';
-import BkLoginUserinfo from '@blueking/login-userinfo';
+import BkLoginUserinfo from '@blueking/login-userinfo/vue3';
+import { configureNativeSdkComponent } from '@/platform/compat/native-sdk-vue';
+configureNativeSdkComponent(BkLoginUserinfo);
 import '@blueking/login-userinfo/vue3/vue3.css';
 import LogVersion from './log-version';
 import './index.scss';
 import { requestJson } from '@/platform/request/index';
 import { join } from '../utils/path';
+import NavigationSkeleton from '@/shared/ui/loading/navigation-skeleton';
+import { isTopMenuSettled, whenTopMenuSettled, releaseBootstrapNavWhenReady } from '@/app/bootstrap/shell-gate';
 
 // 顶部导航（TSX重构版）：复用 use-nav-menu 的业务与路由逻辑，保持与 head-nav.vue 一致的交互与样式
 
@@ -118,6 +122,7 @@ export default defineComponent({
 
     // 初始化用户信息与 bus 事件
     onMounted(() => {
+      releaseBootstrapNavWhenReady();
       state.language = jsCookie.get('blueking_language') || 'zh-cn';
       getUserInfo();
       (window as any).bus?.$on('showGlobalDialog', handleGoToMyReport);
@@ -470,6 +475,10 @@ export default defineComponent({
       );
     }
 
+    const menuPending = ref(!isTopMenuSettled());
+    const stopMenuSettled = whenTopMenuSettled(() => { menuPending.value = false; });
+    onBeforeUnmount(stopMenuSettled);
+
     // 计算可见菜单（外部版根据 externalMenu 限制）
     const menuList = computed(() => {
       const list =
@@ -532,12 +541,13 @@ export default defineComponent({
               </li>
             ))}
           </ul>
+          <NavigationSkeleton loading={menuPending.value} count={4} />
         </div>
 
         <div
-          style={{ display: state.usernameRequested ? '' : 'none' }}
           class='nav-right fr'
         >
+          <NavigationSkeleton loading={!state.usernameRequested} count={2} />
           {/* 全局设置 */}
           {isShowGlobalSetIcon.value ? (
             <Popup

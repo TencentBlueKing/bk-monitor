@@ -16,23 +16,23 @@
       width: 100%;
 
       .t-input__inner {
-        background-color: #f0f1f5;
+        background-color: var(--bklog-surface-component, #f0f1f5);
         border: 1px solid transparent;
 
         &:hover {
           cursor: pointer;
-          background-color: #eaebf0;
+          background-color: var(--bklog-surface-component-hover, #eaebf0);
         }
       }
 
       .t-input {
-        font-size: 12px;
-        background-color: #f0f1f5;
+        font-size: var(--bklog-font-body, 12px);
+        background-color: var(--bklog-surface-component, #f0f1f5);
         border: 1px solid transparent;
 
         &:hover {
           cursor: pointer;
-          background-color: #eaebf0;
+          background-color: var(--bklog-surface-component-hover, #eaebf0);
         }
       }
     }

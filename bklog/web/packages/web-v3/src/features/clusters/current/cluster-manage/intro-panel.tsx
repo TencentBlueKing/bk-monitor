@@ -38,7 +38,7 @@ import { defineComponent, ref, computed } from 'vue';
 import { xssFilter } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
 
-import BkUserSelector from '@blueking/user-selector';
+import BkUserSelector from '@/shared/ui/user-selector/legacy-contract';
 
 
 
