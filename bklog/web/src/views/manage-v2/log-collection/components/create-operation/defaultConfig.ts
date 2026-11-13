@@ -143,6 +143,8 @@ export const initContainerConfig = (type = 'container_log_config') => {
     bcs_cluster_id: '',
     add_pod_label: false,
     add_pod_annotation: false,
+    pod_label_keys: [],
+    pod_annotation_keys: [],
     extra_labels: [
       // 附加日志标签
       {
