@@ -2,7 +2,7 @@
 .multiline-reg-dialog-box {
   .multiline-reg-dialog-content {
     .t-form__label {
-      color: #313238;
+      color: var(--bklog-text-primary, #313238);
     }
     .t-textarea__inner {
       @include scroller($backgroundColor: #c4c6cc, $width: 4px);
@@ -55,8 +55,8 @@
   }
   .t-dialog__footer {
     padding: 7px 24px;
-    border-top: 1px solid #dcdee5;
-    background: #fafbfd;
+    border-top: 1px solid var(--bklog-border-muted, #dcdee5);
+    background: var(--bklog-surface-disabled, #fafbfd);
   }
   .t-dialog__footer .t-button {
     min-width: 86px;

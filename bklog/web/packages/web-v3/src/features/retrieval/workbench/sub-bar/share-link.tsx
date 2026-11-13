@@ -252,7 +252,7 @@ export default defineComponent({
             <div>
               <div style='margin-bottom: 6px;'>
                 <TRadio
-                  style='font-size: 12px;'
+                  style='font-size: var(--bklog-font-body, 12px);'
                   checked={timeValueType.value === 'static'}
                   onChange={(val: unknown) => val && handleTimeValueTypeChange('static')}
                 >
@@ -264,7 +264,7 @@ export default defineComponent({
               </div>
               <div>
                 <TRadio
-                  style='font-size: 12px;'
+                  style='font-size: var(--bklog-font-body, 12px);'
                   checked={timeValueType.value === 'dynamic'}
                   onChange={(val: unknown) => val && handleTimeValueTypeChange('dynamic')}
                 >

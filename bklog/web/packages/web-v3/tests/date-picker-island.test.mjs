@@ -7,90 +7,83 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import * as Vue from 'vue';
 import { loadTypeScript } from './helpers/load-typescript.mjs';
-const { bundleDatePicker } = loadTypeScript(new URL('../tools/date-picker-island.ts', import.meta.url));
 const root = fileURLToPath(new URL('..', import.meta.url));
 
-test('official DatePicker and every SDK dependency bundle against native Vue3 only', async () => {
-  const result = await bundleDatePicker(root);
-  assert.ok(result.inputs.some((path) => path.includes('@blueking/date-picker/vue3/')));
-  assert.ok(result.inputs.some((path) => path.includes('@vue/runtime-dom')));
-  assert.ok(result.inputs.some((path) => path.includes('tdesign-vue-next')));
-  assert.ok(result.inputs.some((path) => path.includes('bkui-vue.ts')));
-  assert.ok(!result.inputs.some((path) => path.includes('@vue/compat') || path.includes('vue-runtime.mjs')));
-  assert.ok(result.code.includes('mountDatePicker'));
+test('date-picker-js bundles without Vue, compatibility runtime or UI libraries', async () => {
+  const { build } = await import('esbuild');
+  const result = await build({ entryPoints: [resolve(root, 'src/platform/sdk/date-picker/native-entry.ts')],
+    bundle: true, write: false, metafile: true, format: 'esm', platform: 'browser' });
+  const inputs = Object.keys(result.metafile.inputs);
+  assert.ok(inputs.some(path => path.includes('@blueking/date-picker-js/')));
+  assert.ok(!inputs.some(path => /@vue|tdesign-vue-next|bkui-vue|@blueking\/date-picker\//.test(path)));
+  assert.ok(result.outputFiles[0].text.includes('mountDatePicker'));
 });
 
-test('native bridge preserves values, clones range arrays, forwards events and unmounts the SDK', () => {
-  let render;
-  let mounted;
-  let unmounted = 0;
-  const { mountDatePicker } = loadTypeScript(
-    new URL('../src/platform/sdk/date-picker/native-entry.ts', import.meta.url),
-    {
-      vue: {
-        ...Vue,
-        createApp: (root) => ({
-          mount(host) {
-            mounted = host;
-            render = root.setup();
-          },
-          unmount() {
-            unmounted++;
-          },
-        }),
-      },
-      '@blueking/date-picker': { name: 'OfficialDatePicker' },
-    },
-  );
-  const initial = {
-    modelValue: ['now-15m', 'now'],
-    behavior: 'simplicity',
-    needTimezone: true,
-    timezone: 'Asia/Shanghai',
-    format: 'YYYY-MM-DD HH:mm:ss',
-  };
-  const values = [];
-  const formats = [];
-  const timezones = [];
-  const host = {};
+test('native JS bridge preserves controlled values, feedback, lifecycle and public methods', () => {
+  const handlers = new Map(); const updates = []; let options; let mounted;
+  let opened = 0, closed = 0, destroyed = 0, unsubscribed = 0;
+  const { mountDatePicker } = loadTypeScript(new URL('../src/platform/sdk/date-picker/native-entry.ts', import.meta.url), {
+    '@blueking/date-picker-js': { createDatePicker(host, initial) {
+      mounted = host; options = initial;
+      return {
+        on(event, callback) { handlers.set(event, callback); return () => { handlers.delete(event); unsubscribed++; }; },
+        update(value) { updates.push(value); },
+        show() { opened++; }, hide() { closed++; }, destroy() { destroyed++; },
+      };
+    } },
+  });
+  const initial = { modelValue: ['now-15m', 'now'], behavior: 'simplicity', needTimezone: true,
+    timezone: 'Asia/Shanghai', format: 'YYYY-MM-DD HH:mm:ss', maxDuration: 86400000 };
+  const values = [], formats = [], timezones = []; const host = {};
   const handle = mountDatePicker(host, initial, {
-    value: (v) => values.push(v),
-    format: (v) => formats.push(v),
-    timezone: (v) => timezones.push(v),
+    value: value => values.push(value),
+    format: value => { assert.deepEqual(updates.at(-1), { format: value }); formats.push(value); },
+    timezone: value => { assert.deepEqual(updates.at(-1), { timezone: value }); timezones.push(value); },
   });
   assert.equal(mounted, host);
-  let vnode = render();
-  assert.deepEqual(vnode.props.modelValue, initial.modelValue);
-  assert.notEqual(vnode.props.modelValue, initial.modelValue);
-  assert.equal(vnode.props.enableFormatClick, true);
-  vnode.props['onUpdate:modelValue']([1000, 2000]);
-  vnode.props['onUpdate:format']('x');
-  vnode.props['onUpdate:timezone']('UTC');
+  assert.deepEqual(options, { ...initial, enableFormatClick: true });
+  assert.notEqual(options.modelValue, initial.modelValue);
+  handlers.get('update:modelValue')([1000, 2000]);
+  handlers.get('update:format')('x'); handlers.get('update:timezone')('UTC');
   assert.deepEqual(values, [[1000, 2000]]);
-  assert.deepEqual(formats, ['x']);
-  assert.deepEqual(timezones, ['UTC']);
+  assert.deepEqual(formats, ['x']); assert.deepEqual(timezones, ['UTC']);
   const next = { ...initial, modelValue: ['now-30m', 'now'], timezone: 'UTC' };
   handle.update(next);
-  vnode = render();
-  assert.deepEqual(vnode.props.modelValue, next.modelValue);
-  assert.notEqual(vnode.props.modelValue, next.modelValue);
-  assert.equal(vnode.props.timezone, 'UTC');
-  let opened = 0,
-    closed = 0;
-  vnode.props.ref.value = {
-    handleShowPanel() {
-      opened++;
-    },
-    handleHidePanel() {
-      closed++;
-    },
-  };
-  handle.handleShowPanel();
-  handle.handleHidePanel();
-  handle.destroy();
-  assert.equal(opened, 1);
-  assert.equal(closed, 1);
-  assert.equal(unmounted, 1);
+  assert.deepEqual(updates.at(-1), next); assert.notEqual(updates.at(-1).modelValue, next.modelValue);
+  handle.handleShowPanel(); handle.handleHidePanel();
+  handle.destroy(); handle.destroy();
+  const updateCount = updates.length;
+  handle.handleShowPanel(); handle.handleHidePanel(); handle.update(initial);
+  assert.equal(opened, 1); assert.equal(closed, 1); assert.equal(destroyed, 1);
+  assert.equal(updates.length, updateCount); assert.equal(unsubscribed, 3); assert.equal(handlers.size, 0);
+});
+
+test('SDK Day.js preserves UTC calendar round trips in Shanghai and New York local time, in winter and summer', async () => {
+  const sdk = await import('@blueking/date-picker-js');
+  const oldTimezone = process.env.TZ;
+  try {
+    for (const local of ['Asia/Shanghai', 'America/New_York']) {
+      process.env.TZ = local;
+      for (const date of ['2025-01-02', '2025-07-02']) {
+        for (const zone of ['UTC', 'Europe/London', 'Asia/Shanghai', 'America/New_York']) {
+          const start = `${date} 09:30:00`;
+          let value = [start, `${date} 10:30:00`];
+          const expected = sdk.dayjs.tz(start, zone).valueOf();
+          for (let i = 0; i < 3; i++) {
+            const range = new sdk.DateRange(value, 'YYYY-MM-DD HH:mm:ss', zone);
+            assert.equal(range.startDate.valueOf(), expected);
+            assert.equal(range.startDate.format('YYYY-MM-DD HH:mm:ss'), start);
+            const calendarValue = sdk.applySecondsOfDay(range.startDate.startOf('day'), 34200);
+            assert.equal(calendarValue.valueOf(), expected);
+            assert.equal(calendarValue.format('YYYY-MM-DD HH:mm:ss'), start);
+            value = [range.startDate.format('YYYY-MM-DD HH:mm:ss'), range.endDate.format('YYYY-MM-DD HH:mm:ss')];
+          }
+        }
+      }
+    }
+  } finally {
+    if (oldTimezone === undefined) delete process.env.TZ; else process.env.TZ = oldTimezone;
+  }
 });
 
 const controls = Object.fromEntries(
@@ -270,7 +263,7 @@ test('boundary permits the single native DatePicker entry without allowing busin
     mkdirSync(resolve(root, 'platform/sdk/date-picker'), { recursive: true });
     writeFileSync(
       resolve(root, 'platform/sdk/date-picker/native-entry.ts'),
-      "import DatePicker from '@blueking/date-picker';",
+      "import { createDatePicker } from '@blueking/date-picker-js';",
     );
     assert.equal(auditThirdPartyBoundary(root).counts.violations, 0);
     writeFileSync(

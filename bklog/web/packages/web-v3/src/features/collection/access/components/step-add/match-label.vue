@@ -472,6 +472,6 @@
   }
 
   :deep(.input-error .t-input__inner) {
-    border-color: #ff5656;
+    border-color: var(--bklog-status-error-emphasis, #ff5656);
   }
 </style>

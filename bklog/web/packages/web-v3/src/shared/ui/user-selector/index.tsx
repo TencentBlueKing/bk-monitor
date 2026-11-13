@@ -29,7 +29,9 @@ import { computed, defineComponent, h, ref, toRaw, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 
-import BkUserSelector from '@blueking/bk-user-selector';
+import BkUserSelector from '@blueking/bk-user-selector/vue3';
+import { configureNativeSdkComponent } from '@/platform/compat/native-sdk-vue';
+configureNativeSdkComponent(BkUserSelector);
 
 import './index.scss';
 

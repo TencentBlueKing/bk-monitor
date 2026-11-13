@@ -116,7 +116,7 @@ export default defineComponent({
       <div class='extract-text-filter'>
         {/* 过滤类型选择器 */}
         <bk-select
-          style='width: 174px; margin-right: 20px; background-color: #fff'
+          style='width: 174px; margin-right: 20px; background-color: var(--bklog-surface, #fff)'
           value={filterType.value}
           onChange={(val: string) => (filterType.value = val)}
         >
@@ -141,7 +141,7 @@ export default defineComponent({
               onChange={(val: string) => (filterContent.value.keyword = val)}
             />
             <bk-select
-              style='width: 70px; margin-right: 10px; background-color: #fff'
+              style='width: 70px; margin-right: 10px; background-color: var(--bklog-surface, #fff)'
               clearable={false}
               data-test-id='addNewExtraction_select_filterCondition'
               value={filterContent.value.keyword_type}

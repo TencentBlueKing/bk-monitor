@@ -598,7 +598,7 @@ export default defineComponent({
                   {!sliderLoading.value && (
                     <bk-form
                       ref={validateForm}
-                      class='king-form'
+                      class='king-form bklog-form--drawer-compact'
                       form-type='vertical'
                       label-width={150}
                       {...{

@@ -30,13 +30,16 @@ import { Progress as TProgress } from 'tdesign-vue-next';
 
 import { Radio as TRadio } from 'tdesign-vue-next';
 
-import { computed, defineComponent, ref, watch, type PropType } from 'vue';
+import { computed, defineComponent, h, ref, watch, type PropType } from 'vue';
 
 import { formatFileSize } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
 
 import { useRouter } from 'vue-router';
 import TableComponent from '../../common-comp/table-component';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { Button as TButton } from 'tdesign-vue-next';
 
 import './cluster-table.scss';
 
@@ -338,13 +341,16 @@ export default defineComponent({
         style={{ width: isShowDesc.value ? '58%' : '100%' }}
         class='cluster-content-table'
       >
+        <ManagementListLoading loading={props.loading} rows={4} rowHeight={42}>
         <TableComponent
           class='cluster-table'
-          loading={props.loading}
+          loading={false}
+          slots={props.loading ? { empty: () => h('span', { 'aria-hidden': 'true' }) } : undefined}
           data={props.clusterList}
           columns={columns.value}
           onCellClick={handleSelectCluster}
         />
+        </ManagementListLoading>
       </div>
     );
 
@@ -354,22 +360,12 @@ export default defineComponent({
      * @returns JSX元素
      */
     const renderEmpty = () => (
-      <bk-exception
-        class='cluster-content-empty'
-        scene='part'
-        type='empty'
-      >
-        <span>
-          {t('暂无')}
-          {props.name ? t(props.name) : ''}
-        </span>
-        <div
-          class='text-wrap text-part'
-          onClick={handleCreateCluster}
-        >
-          <span class='text-btn'>{t('创建集群')}</span>
-        </div>
-      </bk-exception>
+      <EmptyStatus class='cluster-content-empty' emptyType='empty' showText={false}>
+        <span class='cluster-empty-label'>{t('暂无')}{props.name ? t(props.name) : ''}</span>
+        <TButton class='cluster-create-action' theme='primary' variant='text' size='small' onClick={handleCreateCluster}>
+          {t('创建集群')}
+        </TButton>
+      </EmptyStatus>
     );
 
     /**
@@ -398,7 +394,7 @@ export default defineComponent({
 
     return () => (
       <div class='cluster-table-box'>
-        {(props.clusterList || []).length === 0
+        {!props.loading && (props.clusterList || []).length === 0
           ? renderEmpty()
           : [renderClusterTable(), isShowDesc.value && renderClusterDesc()]}
       </div>

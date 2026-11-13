@@ -1,4 +1,5 @@
 @use './shimmer' as *;
+@use './presence';
 
 .bklog-loading-skeleton {
   display: inline-flex;

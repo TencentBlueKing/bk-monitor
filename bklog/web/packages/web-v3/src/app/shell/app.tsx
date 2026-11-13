@@ -25,7 +25,8 @@
  */
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { computed, defineAsyncComponent, defineComponent, KeepAlive, nextTick, onMounted, ref, type Ref } from 'vue';
+import { computed, defineAsyncComponent, defineComponent, KeepAlive, nextTick, onMounted, ref, watch, type Ref } from 'vue';
+import { releaseBootstrapShell } from '@/app/bootstrap/shell-gate';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router';
 
@@ -64,6 +65,12 @@ export default defineComponent({
   setup() {
     const route = useRoute();
     const store = useApplicationStore();
+    watch(() => route.name, async name => {
+      if (name && name !== 'retrieve') {
+        await nextTick();
+        if (route.name === name) releaseBootstrapShell();
+      }
+    }, { immediate: true, flush: 'post' });
     const { $t } = useLocale();
 
     const noticeComponentHeight = ref(0);

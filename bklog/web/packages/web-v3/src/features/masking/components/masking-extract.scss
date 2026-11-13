@@ -113,7 +113,7 @@
 
   .bk-label-text,
   .t-checkbox__label {
-    font-size: 12px;
+    font-size: var(--bklog-font-body, 12px);
   }
 
   .length-change-item {

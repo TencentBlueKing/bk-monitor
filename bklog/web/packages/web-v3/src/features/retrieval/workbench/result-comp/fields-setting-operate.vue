@@ -186,7 +186,7 @@ export default {
 
   .input-error {
     :deep(.t-input__inner) {
-      border: 1px solid #d7473f;
+      border: 1px solid var(--bklog-status-error-active, #d7473f);
     }
   }
 
@@ -202,7 +202,7 @@ export default {
       }
 
       .t-button--variant-text {
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
       }
     }
   }

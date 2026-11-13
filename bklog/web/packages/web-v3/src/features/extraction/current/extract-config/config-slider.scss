@@ -64,7 +64,7 @@
         .is-input-error.t-input__wrap {
           .t-input__inner {
             /* stylelint-disable-next-line declaration-no-important */
-            border-color: #ff5656 !important;
+            border-color: var(--bklog-status-error-emphasis, #ff5656) !important;
           }
         }
       }

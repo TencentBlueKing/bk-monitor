@@ -1416,7 +1416,7 @@ import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
 
     .participle-btn {
       padding: 0 8px;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
       border-radius: 0;
 
       + .participle-btn {
@@ -1434,9 +1434,9 @@ import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
       &.is-selected {
         position: relative;
         z-index: var(--bklog-z-base);
-        color: #3a84ff;
-        background-color: #e1ecff;
-        border-color: #3a84ff;
+        color: var(--bklog-brand-primary, #3a84ff);
+        background-color: var(--bklog-brand-tint, #e1ecff);
+        border-color: var(--bklog-brand-primary, #3a84ff);
       }
     }
   }

@@ -63,7 +63,7 @@
 
   .search-input{
     .t-input__inner{
-      border-color:transparent transparent #3A84FF
+      border-color:transparent transparent var(--bklog-brand-primary, #3A84FF)
     }
   }
 }
@@ -221,7 +221,7 @@
 
   .search-input{
     .t-input__inner{
-      border-color:transparent transparent #3A84FF
+      border-color:transparent transparent var(--bklog-brand-primary, #3A84FF)
     }
   }
 }

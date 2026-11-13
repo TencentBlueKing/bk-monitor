@@ -1,0 +1,44 @@
+// Verified against installed TDesign CSS; component-specific sizes live in profiles.
+:root:not([theme-mode='dark']) {
+  --td-brand-color-1: var(--bklog-brand-tint-subtle);
+  --td-brand-color-2: var(--bklog-brand-tint);
+  --td-brand-color-6: var(--bklog-brand-hover);
+  --td-brand-color-7: var(--bklog-brand-primary);
+  --td-brand-color-8: var(--bklog-brand-active);
+  --td-brand-color: var(--bklog-brand-primary);
+  --td-brand-color-hover: var(--bklog-brand-hover);
+  --td-brand-color-active: var(--bklog-brand-active);
+  --td-brand-color-focus: var(--bklog-brand-tint);
+  --td-brand-color-disabled: var(--bklog-border-muted);
+  --td-brand-color-light: var(--bklog-brand-tint);
+  --td-brand-color-light-hover: var(--bklog-brand-tint-subtle);
+  --td-text-color-brand: var(--bklog-brand-primary);
+  --td-text-color-link: var(--bklog-brand-primary);
+  --td-success-color: var(--bklog-status-success);
+  --td-warning-color: var(--bklog-status-warning);
+  --td-error-color: var(--bklog-status-error);
+  --td-text-color-primary: var(--bklog-text-primary);
+  --td-text-color-secondary: var(--bklog-text-secondary);
+  --td-text-color-placeholder: var(--bklog-text-placeholder);
+  --td-text-color-disabled: var(--bklog-text-disabled);
+  --td-border-level-1-color: var(--bklog-border-muted);
+  --td-border-level-2-color: var(--bklog-border-control);
+  --td-bg-color-container: var(--bklog-surface);
+  --td-bg-color-container-hover: var(--bklog-surface-hover);
+  --td-bg-color-component: var(--bklog-surface-component);
+  --td-bg-color-component-hover: var(--bklog-surface-component-hover);
+  --td-bg-color-component-disabled: var(--bklog-surface-disabled);
+  --td-font-size-body-small: var(--bklog-font-body);
+  --td-font-size-body-medium: var(--bklog-font-body);
+  --td-line-height-body-small: var(--bklog-line-height-small);
+  --td-line-height-body-medium: var(--bklog-line-height-body);
+  --td-comp-size-s: var(--bklog-control-size-small);
+  --td-comp-size-m: var(--bklog-control-size-medium);
+  --td-comp-size-l: var(--bklog-control-size-large);
+  --td-radius-default: var(--bklog-radius-control);
+  --td-radius-medium: var(--bklog-radius-control);
+  --td-radius-large: var(--bklog-radius-control);
+  --td-radius-extraLarge: var(--bklog-radius-control);
+  --td-shadow-1: var(--bklog-shadow-small);
+  --td-shadow-2: var(--bklog-shadow-popup);
+}

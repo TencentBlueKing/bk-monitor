@@ -59,8 +59,8 @@
 .clustering-strategy-operation-popup.t-popup[data-popper-placement] .t-popup__content {
   padding: 4px 0;
   margin-top: 4px;
-  border: 1px solid #dcdee5;
-  border-radius: 2px;
+  border: 1px solid var(--bklog-border-muted, #dcdee5);
+  border-radius: var(--bklog-radius-control, 2px);
   box-shadow: 0 2px 6px rgba(51, 60, 72, 0.1);
 }
 

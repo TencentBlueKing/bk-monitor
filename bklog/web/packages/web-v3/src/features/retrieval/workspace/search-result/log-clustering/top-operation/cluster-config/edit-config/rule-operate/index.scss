@@ -11,7 +11,7 @@
 
     .t-radio {
       margin-right: 0;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
     }
 
     .t-radio__label {
@@ -95,15 +95,15 @@
     padding: 0;
   }
   .switch-title {
-    font-size: 14px;
+    font-size: var(--bklog-font-action, 14px);
     line-height: 22px;
-    color: #313238;
+    color: var(--bklog-text-primary, #313238);
   }
   .switch-description {
     margin-top: 8px;
-    font-size: 12px;
-    line-height: 20px;
-    color: #63656e;
+    font-size: var(--bklog-font-body, 12px);
+    line-height: var(--bklog-line-height-body, 20px);
+    color: var(--bklog-text-secondary, #63656e);
   }
 }
 
@@ -118,9 +118,9 @@
   .t-popconfirm__inner {
     width: 100%;
     max-width: none;
-    font-size: 12px;
-    line-height: 20px;
-    color: #63656e;
+    font-size: var(--bklog-font-body, 12px);
+    line-height: var(--bklog-line-height-body, 20px);
+    color: var(--bklog-text-secondary, #63656e);
   }
   .warn-title {
     line-height: 22px;

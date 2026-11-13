@@ -6,7 +6,7 @@
 - `app/router`、`app/state`、`app/shell`：应用级路由、全局状态与根视图。
 - `features/<domain>`：业务页面、专用组件和后端服务定义。`retrieval/classic`、`workbench`、`workspace` 是业务实现代际，运行时都采用本包 Vue3 升级链路；不能用文件夹名称推断 Vue 版本。
 - `platform/http`：认证、空间头、请求队列、错误与服务查找；领域服务由 `app/bootstrap/service-definitions.js` 装配，传输层不直接依赖业务页面或聚合领域服务。
-- `platform/compat`：集中放置 Vue 兼容运行时与控件契约适配。`@blueking/date-picker` 保持官方 Vue3 组件；剩余 `bk-magic-vue`/Class 组件兼容是显式债务，不能据目录归档声称完成原生改写。
+- `platform/compat`：集中放置 Vue 兼容运行时与控件契约适配。`@blueking/date-picker-js` 通过原生 JavaScript 实例接入，不再需要单独的 Vue3 日期组件运行时；剩余 `bk-magic-vue`/Class 组件兼容是显式债务，不能据目录归档声称完成原生改写。
 - `platform/persistence`、`i18n`、`observability`：缓存/Worker、语言与监控协议。
 - `shared`：暂无法归属单一业务域的 UI、hooks、样式、资源和公共工具。现存跨域依赖记录于 `ai-native/boundary-debt.json`，新增依赖需评估，不能扩大耦合后直接更新基线。
 

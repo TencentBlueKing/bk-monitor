@@ -68,6 +68,8 @@
   }
 
   .standalone-related-log-loading-panel {
+    position: relative;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -76,6 +78,8 @@
   }
 
   .standalone-related-log-loading-card {
+    position: relative;
+    z-index: 1;
     width: 420px;
     padding: 28px 32px;
     text-align: center;

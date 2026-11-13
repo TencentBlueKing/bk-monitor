@@ -110,7 +110,7 @@ q
     border-bottom: 1px solid #f0f1f5;
 
     :deep(.t-input__wrap) .control-icon {
-      color: #979ba5;
+      color: var(--bklog-text-placeholder, #979ba5);
     }
   }
 

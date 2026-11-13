@@ -1,0 +1,30 @@
+// V2 search action: the caller owns 74px/48px width and stretch height.
+// Font icons do not receive TDesign's built-in .t-icon sibling spacing.
+.t-button.bklog-query-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border-radius: inherit;
+
+  > .bklog-query-action__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 14px;
+    height: 16px;
+    font-size: var(--bklog-font-action, 14px);
+    line-height: var(--bklog-line-height-small, 16px);
+  }
+
+  > .t-button__text {
+    margin: 0;
+    font-size: var(--bklog-font-action, 14px);
+    line-height: 24px;
+  }
+}

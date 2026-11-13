@@ -1,0 +1,13 @@
+// Shared declaration contracts. Call inside the existing business selector so
+// scoped Vue styles, pseudo states and specificity retain their original meaning.
+@mixin control-fill { width: 100%; height: 100%; }
+@mixin cell-editor {
+  border: 1px solid transparent;
+  border-radius: 0;
+  transition: border-color 0.3s ease-in-out;
+}
+@mixin join-next { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+@mixin join-previous { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+@mixin compact-control { height: 26px; line-height: 26px; }
+@mixin compact-action { height: 24px; min-width: 54px; line-height: 22px; }
+@mixin filter-operator { width: 140px; border-radius: 0; }

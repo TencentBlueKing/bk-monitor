@@ -1074,7 +1074,7 @@ export default defineComponent({
                   {!sliderLoading.value && (
                     <TForm
                       ref={validateForm}
-                      class='king-form'
+                      class='king-form bklog-form--drawer-cluster'
                       labelAlign='top'
                       labelWidth={170}
                       {...{

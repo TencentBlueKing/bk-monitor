@@ -854,7 +854,7 @@ export default {
   .fields-config-container {
     .input-error {
       .t-input__inner {
-        border: 1px solid #d7473f;
+        border: 1px solid var(--bklog-status-error-active, #d7473f);
       }
     }
 

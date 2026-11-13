@@ -1,0 +1,40 @@
+.bklog-skeleton-presence,
+.bklog-module-loading > .t-loading,
+.bklog-module-loading.t-loading {
+  transition: opacity 180ms ease-out;
+  opacity: 1;
+}
+.bklog-skeleton-presence.is-leaving,
+.bklog-module-loading.is-leaving > .t-loading,
+.bklog-module-loading.is-leaving.t-loading {
+  opacity: 0;
+  pointer-events: none;
+}
+.bklog-navigation-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: #182132;
+  pointer-events: auto;
+  span {
+    display: block;
+    width: 72px;
+    height: 18px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #2c3548 25%, #414c61 50%, #2c3548 75%);
+    background-size: 200% 100%;
+    animation: bklog-nav-shimmer 1.4s ease infinite;
+  }
+}
+@keyframes bklog-nav-shimmer { to { background-position: -200% 0; } }
+.log-search-nav .nav-center:has(> .bklog-navigation-skeleton) { min-width: 360px; }
+.biz-menu-select:has(> .bklog-navigation-skeleton) { position: relative; min-width: 130px; }
+@media (prefers-reduced-motion: reduce) {
+  .bklog-skeleton-presence,
+  .bklog-module-loading > .t-loading,
+  .bklog-module-loading.t-loading { transition: none; }
+  .bklog-navigation-skeleton span { animation: none; }
+}

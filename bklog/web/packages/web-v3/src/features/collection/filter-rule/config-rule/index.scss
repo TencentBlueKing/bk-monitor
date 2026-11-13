@@ -34,13 +34,13 @@
 
           .left-icon {
             font-size: 18px;
-            color: #979ba5;
+            color: var(--bklog-text-placeholder, #979ba5);
           }
 
           .bk-input-text {
             .t-input__inner {
               padding-left: 38px;
-              border-bottom-color: #eaebf0;
+              border-bottom-color: var(--bklog-surface-component-hover, #eaebf0);
             }
           }
         }

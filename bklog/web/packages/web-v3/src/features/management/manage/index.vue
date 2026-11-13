@@ -101,7 +101,6 @@ import SubNav from '@/features/navigation/manage-nav';
 import AuthContainerPage from '@/shared/ui/common/auth-container-page.vue';
 
 import { isFeatureToggleOn } from '@/app/state/helper';
-import '@/shared/styles/theme/management-lists.scss';
 
 export default {
   name: 'ManageIndex',
@@ -460,9 +459,9 @@ export default {
     display: block;
     padding: 26px 18px 6px;
     margin: 0;
-    font-size: 12px;
+    font-size: var(--bklog-font-body, 12px);
     font-weight: 400;
-    line-height: 16px;
+    line-height: var(--bklog-line-height-small, 16px);
     color: #66748f;
     white-space: nowrap;
   }
@@ -491,14 +490,14 @@ export default {
     min-height: 40px;
     padding: 0 12px 0 22px;
     margin: 0;
-    font-size: 14px;
+    font-size: var(--bklog-font-action, 14px);
     border-radius: 0;
 
     > i {
       flex: 0 0 16px;
       width: 16px;
       margin-right: 22px;
-      font-size: 16px;
+      font-size: var(--bklog-font-large, 16px);
     }
   }
 

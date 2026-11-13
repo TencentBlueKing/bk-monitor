@@ -264,7 +264,7 @@ defineExpose({
             </TInput>
           </div>
           <div class="underline-box"></div>
-          <BklogLoading :loading="isLoading">
+          <BklogLoading skeleton="dropdown" :loading="isLoading">
             <ul class="dropdown-list">
               <li
                 v-for="item in searchConfigList"

@@ -62,14 +62,12 @@ declare module 'mark.js' {
   }
   export default Mark;
 }
-declare module '@blueking/user-selector' {
-  import type { DefineComponent } from 'vue';
-  const UserSelector: DefineComponent<{ value?: string | string[]; api?: string; multiple?: boolean; placeholder?: string; disabled?: boolean; fixedHeight?: boolean; emptyText?: string; onChange?: (value: string[]) => void; onInput?: (value: string[]) => void }>;
-  export default UserSelector;
-}
 declare module '@blueking/ip-selector/dist/vue3.x' {
-  import type { DefineComponent } from 'vue';
-  const IpSelector: DefineComponent<{ value?: object; config?: object; onChange?: (value: object) => void; onConfirm?: (value: object) => void }> & { compatConfig?: { MODE: number } };
+  import type { ComponentOptions, Ref, SetupContext } from 'vue';
+  const IpSelector: (options: Record<string, unknown>) => ComponentOptions & {
+    compatConfig?: { MODE: number };
+    setup: (props: Record<string, unknown>, context: SetupContext) => { rootRef: Ref<HTMLElement | null>; app: unknown };
+  };
   export default IpSelector;
 }
 

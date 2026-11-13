@@ -24,91 +24,65 @@
  * IN THE SOFTWARE.
  */
 
+import { dissolveSkeleton } from '@/shared/ui/loading/presence';
+
 let topMenuSettled = false;
-let resolveTopMenuSettled: () => void = () => {};
-const topMenuSettledPromise = new Promise<void>(resolve => {
-  resolveTopMenuSettled = resolve;
-});
-
-/** 顶部菜单请求结束。检索首屏在此之前不揭开 HTML 骨架。 */
+const menuListeners = new Set<() => void>();
+export const isTopMenuSettled = () => topMenuSettled;
 export const markTopMenuSettled = () => {
-  if (topMenuSettled) {
-    return;
-  }
+  if (topMenuSettled) return;
   topMenuSettled = true;
-  resolveTopMenuSettled();
+  menuListeners.forEach(listener => listener());
+  menuListeners.clear();
 };
-
 export const whenTopMenuSettled = (callback: () => void) => {
-  if (topMenuSettled) {
-    callback();
-    return;
-  }
-  topMenuSettledPromise.then(callback);
+  if (topMenuSettled) { callback(); return () => {}; }
+  menuListeners.add(callback);
+  return () => { menuListeners.delete(callback); };
 };
 
 let bootstrapShellReleased = false;
-
 export const isBootstrapShellReleased = () => bootstrapShellReleased;
+const cleanupShell = (shell: HTMLElement) => {
+  if (shell.dataset.bodyReleased === '1' && shell.dataset.navReleased === '1') shell.remove();
+};
 
-/** 顶栏内容已经稳定后，只揭开导航，正文骨架继续盖住结果区。 */
+/** Mounted navigation takes ownership of its own independently pending regions. */
 export const releaseBootstrapNavWhenReady = () => {
-  const started = performance.now();
-  const attempt = () => {
-    if (bootstrapShellReleased || performance.now() - started > 8000) {
-      return;
-    }
-    const shell = document.querySelector('.bklog-bootstrap-loading');
-    if (!(shell instanceof HTMLElement)) {
-      return;
-    }
-    const nav = document.querySelector('.log-search-nav');
-    if (!(nav instanceof HTMLElement)) {
-      requestAnimationFrame(attempt);
-      return;
-    }
-    const bottom = Math.round(nav.getBoundingClientRect().bottom);
-    if (bottom < 40) {
-      requestAnimationFrame(attempt);
-      return;
-    }
-    if (shell.dataset.navReleased === '1') {
-      return;
-    }
+  const shell = document.querySelector<HTMLElement>('.bklog-bootstrap-loading');
+  if (!shell || shell.dataset.navReleased) return;
+  if (!document.querySelector('.log-search-nav') && !bootstrapShellReleased) return;
+  shell.dataset.navReleased = 'leaving';
+  const nav = shell.querySelector<HTMLElement>('.bklog-bootstrap-loading__nav');
+  const finish = () => {
+    if (nav) { nav.style.visibility = 'hidden'; nav.style.pointerEvents = 'none'; }
     shell.dataset.navReleased = '1';
-    shell.querySelector('.bklog-bootstrap-loading__nav')?.remove();
-    shell.style.top = `${bottom}px`;
+    cleanupShell(shell);
   };
-  attempt();
+  if (nav) dissolveSkeleton(nav, finish); else finish();
 };
 
 let retrieveShellSettler: (() => void) | null = null;
-
-/** 检索页在 setup 里登记揭开骨架的回调，避免 provide 落到已挂载实例上。 */
-export const bindRetrieveShellSettle = (settler: () => void) => {
-  retrieveShellSettler = settler;
-};
-
-export const requestRetrieveShellSettle = () => {
-  retrieveShellSettler?.();
-};
-
+export const bindRetrieveShellSettle = (settler: () => void) => { retrieveShellSettler = settler; };
+export const requestRetrieveShellSettle = () => { retrieveShellSettler?.(); };
 export const unbindRetrieveShellSettle = (settler: () => void) => {
-  if (retrieveShellSettler === settler) {
-    retrieveShellSettler = null;
-  }
+  if (retrieveShellSettler === settler) retrieveShellSettler = null;
 };
 
-/** 去掉首屏 HTML 骨架。只移除一次，避免顶栏被重复揭开。 */
+/** Body readiness is independent of menu/results. Dissolve only the HTML overlay. */
 export const releaseBootstrapShell = () => {
-  if (bootstrapShellReleased) {
-    return;
-  }
-  const loading = document.querySelector('.bklog-bootstrap-loading');
-  if (!loading) {
-    return;
-  }
+  if (bootstrapShellReleased) return;
   bootstrapShellReleased = true;
-  document.getElementById('app')?.classList.add('bklog-bootstrap-app-enter');
-  loading.remove();
+  const shell = document.querySelector<HTMLElement>('.bklog-bootstrap-loading');
+  if (!shell) return;
+  shell.dataset.bodyReleased = 'leaving';
+  const body = shell.querySelector<HTMLElement>('.bklog-bootstrap-loading__body');
+  const finish = () => {
+    body?.remove();
+    shell.dataset.bodyReleased = '1';
+    cleanupShell(shell);
+  };
+  if (body) dissolveSkeleton(body, finish); else finish();
+  // Headless / redirected routes may never mount the main navigation.
+  if (!document.querySelector('.log-search-nav')) releaseBootstrapNavWhenReady();
 };

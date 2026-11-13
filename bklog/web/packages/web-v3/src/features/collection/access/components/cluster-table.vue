@@ -446,6 +446,6 @@ import EmptyStatus from '@/shared/ui/empty-status/index';
   :deep(.t-radio__label) {
     display: inline;
     width: 100%;
-    font-size: 12px;
+    font-size: var(--bklog-font-body, 12px);
   }
 </style>

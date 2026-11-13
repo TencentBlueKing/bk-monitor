@@ -70,6 +70,8 @@
   }
 
   .nav-center {
+    position: relative;
+    min-height: 52px;
     font-size: 14px;
 
     ul {
@@ -117,6 +119,7 @@
   }
 
   .nav-right {
+    position: relative;
     display: flex;
     align-items: center;
     height: 100%;
@@ -229,7 +232,7 @@
 
 .t-popup__content.head-navi-dropdown {
   padding: 4px 0;
-  border: 1px solid #dcdee5;
+  border: 1px solid var(--bklog-border-muted, #dcdee5);
 
   .bk-dropdown-list {
     > li > a {
@@ -237,12 +240,12 @@
       height: 32px;
       padding: 0 16px;
       line-height: 33px;
-      color: #63656e;
+      color: var(--bklog-text-secondary, #63656e);
       white-space: nowrap;
 
       &:hover {
-        color: #3a84ff;
-        background-color: #f0f1f5;
+        color: var(--bklog-brand-primary, #3a84ff);
+        background-color: var(--bklog-surface-component, #f0f1f5);
       }
 
       &.active {

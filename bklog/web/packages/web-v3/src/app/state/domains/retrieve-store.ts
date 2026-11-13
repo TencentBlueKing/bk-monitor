@@ -105,9 +105,9 @@ export const createRetrieveState = () => ({
   flatIndexSetList: [] as IndexSetOption[],
   isIndexSetLoading: false,
   isTrendDataLoading: false,
-  /** 首屏趋势图仍在占位。结果面板挂载后会改写。 */
+  /** @deprecated Compatibility only; first-render readiness is owned by shell-gate. */
   trendShellPending: true,
-  /** 首屏日志已离开行骨架，可以和趋势图一起揭开。 */
+  /** @deprecated Compatibility only; result requests never gate the page shell. */
   resultShellReady: false,
   isTotalCountLoaded: false,
   trendDataCount: 0,

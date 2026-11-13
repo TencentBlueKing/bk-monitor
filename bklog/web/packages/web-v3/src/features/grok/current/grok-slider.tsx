@@ -351,6 +351,7 @@ export default defineComponent({
                 loading={props.loading}
               >
                 <bk-form
+                  class='bklog-form--drawer-stack'
                   ref={formRef}
                   form-type='vertical'
                   label-width={560}

@@ -1,3 +1,4 @@
+@use '../../../../../../shared/styles/theme/components/contracts' as bklogControls;
 .field-list-main-box {
   width: 100%;
 
@@ -124,7 +125,7 @@
       // 错误样式
       &.is-error {
         .t-input__inner {
-          border: 1px solid #ea3636 !important;
+          border: 1px solid var(--bklog-status-error, #ea3636) !important;
         }
 
         .bk-select {
@@ -171,7 +172,7 @@
       // 别名输入框错误样式
       &.input-error {
         .t-input__inner {
-          border-color: #ea3636 !important;
+          border-color: var(--bklog-status-error, #ea3636) !important;
         }
       }
     }
@@ -484,8 +485,7 @@
 
         .bk-input-text,
         .t-input__inner {
-          height: 26px;
-          line-height: 26px;
+          @include bklogControls.compact-control;
         }
       }
     }
@@ -496,9 +496,7 @@
       margin-bottom: 6px;
 
       .t-button {
-        min-width: 54px;
-        height: 24px;
-        line-height: 22px;
+        @include bklogControls.compact-action;
       }
 
       .bk-primary {

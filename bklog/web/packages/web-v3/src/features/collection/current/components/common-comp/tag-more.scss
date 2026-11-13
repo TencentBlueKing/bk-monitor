@@ -292,7 +292,7 @@
 .collection-label-picker {
   &.t-popup .t-popup__content {
     margin: 0;
-    border: 1px solid #dcdee5;
+    border: 1px solid var(--bklog-border-muted, #dcdee5);
     border-radius: 1px;
   }
   .collection-label-search {
@@ -308,14 +308,14 @@
     .t-input__inner {
       height: 32px;
       padding: 0 10px 0 30px;
-      font-size: 12px;
-      border-bottom: 1px solid #dcdee5;
+      font-size: var(--bklog-font-body, 12px);
+      border-bottom: 1px solid var(--bklog-border-muted, #dcdee5);
     }
 
     .t-input__prefix {
       position: absolute;
       left: 5px;
-      color: #979ba5;
+      color: var(--bklog-text-placeholder, #979ba5);
     }
   }
 

@@ -393,7 +393,7 @@ defineExpose({
         }
 
         .bklog-subnode {
-          font-size: 16px;
+          font-size: var(--bklog-font-large, 16px);
         }
 
         .rotate {
@@ -417,8 +417,8 @@ defineExpose({
           position: absolute;
           top: 14px;
           z-index: var(--bklog-z-page);
-          font-size: 16px;
-          color: #ea3636;
+          font-size: var(--bklog-font-large, 16px);
+          color: var(--bklog-status-error, #ea3636);
           cursor: pointer;
         }
       }
@@ -468,9 +468,9 @@ defineExpose({
     }
   }
   .t-table__header th {
-    background: #f0f1f5;
+    background: var(--bklog-surface-component, #f0f1f5);
     height: 43px;
-    color: #313238;
+    color: var(--bklog-text-primary, #313238);
   }
   .submit-container {
     text-align: left;

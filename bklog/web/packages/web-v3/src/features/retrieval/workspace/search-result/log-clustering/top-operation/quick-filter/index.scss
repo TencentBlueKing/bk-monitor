@@ -12,12 +12,12 @@
     line-height: 28px;
 
     .t-checkbox__label {
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
     }
   }
 
   .t-checkbox__label {
-    color: #4d4f56;
+    color: var(--bklog-text-strong, #4d4f56);
   }
 
   .split-line {
@@ -51,7 +51,7 @@
 .quick-filter-selected-ext {
   .bk-option {
     .t-checkbox__label {
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
     }
 
     &.is-selected {

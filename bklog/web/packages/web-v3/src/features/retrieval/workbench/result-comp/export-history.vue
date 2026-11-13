@@ -64,7 +64,7 @@
         </t-button>
       </span>
     </div>
-    <BklogLoading :loading="tableLoading" class="table-container">
+    <ManagementListLoading :loading="tableLoading" class="table-container">
       <TTable
         row-key="__taskKey"
         class="export-table"
@@ -170,7 +170,7 @@
           </t-button>
         </template>
       </TTable>
-    </BklogLoading>
+    </ManagementListLoading>
   </TDialog>
 </template>
 
@@ -187,7 +187,7 @@ import {
   DateRangePicker as TDateRangePicker,
   Tooltip as TTooltip,
 } from 'tdesign-vue-next';
-import BklogLoading from '@/shared/ui/loading';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import { ServicesInstance } from '@/platform/services';
 
 import axios from 'axios';
@@ -215,7 +215,7 @@ import {
 const HISTORY_PAGE_SIZE = 10;
 
 export default {
-  components: { TDialog, TTable, TPopup, TDateRangePicker, TTooltip, BklogLoading },
+  components: { TDialog, TTable, TPopup, TDateRangePicker, TTooltip, ManagementListLoading },
   emits: ['refresh-current-tasks', 'refreshCurrentTasks', 'handle-close-dialog', 'handleCloseDialog', 'sync-tracked-tasks', 'syncTrackedTasks'],
 
   props: {
@@ -885,7 +885,7 @@ export default {
     .t-table__header th {
       height: 43px;
       padding: 0 12px;
-      background: #f0f1f5;
+      background: var(--bklog-surface-component, #f0f1f5);
     }
     .t-table__body td {
       height: 42px;
@@ -897,7 +897,7 @@ export default {
     .t-button--variant-text {
       height: 24px;
       padding: 0;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
     }
     .t-pagination__total {
       flex: initial;

@@ -17,14 +17,14 @@
         border: none;
         box-shadow: none;
         &.t-input--focused {
-          background: #fff;
+          background: var(--bklog-surface, #fff);
         }
       }
       .t-input__inner {
         background: transparent;
         &::placeholder {
-          font-size: 12px;
-          color: #979ba5;
+          font-size: var(--bklog-font-body, 12px);
+          color: var(--bklog-text-placeholder, #979ba5);
         }
       }
     }

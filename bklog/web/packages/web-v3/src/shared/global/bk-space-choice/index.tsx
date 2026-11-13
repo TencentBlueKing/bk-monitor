@@ -47,6 +47,7 @@ import List from './list';
 import { buildSpaceRecoveryLocation, buildSpaceSwitchQuery, omitRouteIndexId } from './space-switch-route';
 
 import './index.scss';
+import NavigationSkeleton from '@/shared/ui/loading/navigation-skeleton';
 
 
 export type ThemeType = 'dark' | 'light';
@@ -112,6 +113,10 @@ export default defineComponent({
     const bizNameIcon = computed(() => {
       return bizName.value?.[0]?.toLocaleUpperCase() ?? '';
     });
+    // A resolved current space can render immediately; the full dropdown list loads independently.
+    const spaceLabelLoading = computed(() => spaceListLoading.value && !store.spaceResolveFailed
+      && !(props.isExternalAuth && exterlAuthSpaceName.value)
+      && !mySpaceList.value.some(item => item.space_uid === spaceUid.value && item.space_name));
 
     // 是否展示空间类型列表
     const showSpaceTypeIdList = computed(() => !isExternal.value && spaceTypeIdList.value.length > 1);
@@ -624,6 +629,7 @@ export default defineComponent({
         ref={refRootElement}
         class={['biz-menu-select', { 'light-theme': props.theme === 'light' }]}
       >
+        {props.theme === 'dark' && <NavigationSkeleton loading={spaceLabelLoading.value} />}
         {/* 图标+业务名称 */}
         <div class='menu-select'>
           {/* 图标 */}

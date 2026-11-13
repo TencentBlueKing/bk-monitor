@@ -38,19 +38,19 @@
       height: 33px;
       padding: 0 10px 0 7px;
       border: 0;
-      border-bottom: 1px solid #dcdee5;
+      border-bottom: 1px solid var(--bklog-border-muted, #dcdee5);
       border-radius: 0;
       box-shadow: none;
     }
 
     .t-input__prefix {
       margin-right: 8px;
-      color: #979ba5;
-      font-size: 14px;
+      color: var(--bklog-text-placeholder, #979ba5);
+      font-size: var(--bklog-font-action, 14px);
     }
 
     .t-input__inner {
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
 
       &::placeholder {
         color: #c3cdd7;
@@ -94,13 +94,13 @@
 
     .t-checkbox__label {
       margin-left: 6px;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
       line-height: 18px;
     }
   }
 
   .t-checkbox__label {
-    color: #63656e;
+    color: var(--bklog-text-secondary, #63656e);
     width: calc(100% - 20px);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -122,7 +122,7 @@
       min-width: 64px;
       height: 26px;
       padding: 0 12px;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
       line-height: 24px;
     }
 

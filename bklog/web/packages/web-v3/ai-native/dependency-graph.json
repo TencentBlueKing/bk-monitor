@@ -377,7 +377,7 @@
     "features/collection/filter-rule/index.scss",
     "features/collection/filter-rule/index.tsx",
     "features/collection/ip-select/right-panel.vue",
-    "features/collection/ip-selector/bk-ip-selector-vue3.js",
+    "features/collection/ip-selector/bk-ip-selector-vue3.ts",
     "features/collection/ip-selector/log-ip-selector.tsx",
     "features/collection/services/collect.ts",
     "features/collection/services/container.ts",
@@ -567,6 +567,7 @@
     "features/retrieval/workbench/collect/favorite-manage-dialog.vue",
     "features/retrieval/workbench/collect/favorite.types.ts",
     "features/retrieval/workbench/components/batch-input/index.tsx",
+    "features/retrieval/workbench/components/batch-input/style.scss",
     "features/retrieval/workbench/components/index-set-choice/common-list.scss",
     "features/retrieval/workbench/components/index-set-choice/common-list.tsx",
     "features/retrieval/workbench/components/index-set-choice/content.scss",
@@ -992,7 +993,9 @@
     "platform/compat/class-component-jsx.d.ts",
     "platform/compat/native-sdk-vue.ts",
     "platform/compat/polyfill.ts",
+    "platform/compat/tdesign/bkui-form.ts",
     "platform/compat/tdesign/bkui-icons.ts",
+    "platform/compat/tdesign/bkui-select.ts",
     "platform/compat/tdesign/bkui-vue.ts",
     "platform/compat/tdesign/info-box-contract.ts",
     "platform/compat/tdesign/info-box.ts",
@@ -1065,7 +1068,7 @@
     "platform/routing/source-router.ts",
     "platform/sdk/date-picker/contract.ts",
     "platform/sdk/date-picker/native-entry.ts",
-    "platform/sdk/date-picker/virtual.d.ts",
+    "platform/sdk/user-selector/lookup.ts",
     "platform/services/biz.ts",
     "platform/services/docs.ts",
     "platform/services/example.ts",
@@ -1075,6 +1078,7 @@
     "platform/services/runtime/service-client.ts",
     "platform/services/type.ts",
     "platform/services/userInfo.ts",
+    "platform/ui/tdesign-config.ts",
     "shared/assets/exception/403.svg",
     "shared/assets/exception/404.svg",
     "shared/assets/exception/500.svg",
@@ -1346,13 +1350,24 @@
     "shared/styles/storage.scss",
     "shared/styles/theme/common.scss",
     "shared/styles/theme/compat-drawer.scss",
+    "shared/styles/theme/components/actions.scss",
+    "shared/styles/theme/components/buttons.scss",
+    "shared/styles/theme/components/contracts.scss",
+    "shared/styles/theme/components/display.scss",
+    "shared/styles/theme/components/forms.scss",
+    "shared/styles/theme/components/options.scss",
+    "shared/styles/theme/components/overlays.scss",
+    "shared/styles/theme/components/query-action.scss",
     "shared/styles/theme/index.scss",
     "shared/styles/theme/management-lists.scss",
     "shared/styles/theme/mixin.scss",
+    "shared/styles/theme/overlay.scss",
     "shared/styles/theme/tdesign-bklog.scss",
+    "shared/styles/theme/tdesign-tokens.scss",
     "shared/styles/theme/theme-dark.scss",
     "shared/styles/theme/theme-light.scss",
     "shared/styles/theme/theme.scss",
+    "shared/styles/theme/tokens.scss",
     "shared/types/bk-magic-vue.d.ts",
     "shared/types/component-injections.d.ts",
     "shared/types/global-controls.d.ts",
@@ -1380,9 +1395,14 @@
     "shared/ui/loading/_shimmer.scss",
     "shared/ui/loading/index.scss",
     "shared/ui/loading/index.tsx",
+    "shared/ui/loading/list-skeleton.scss",
+    "shared/ui/loading/list-skeleton.ts",
     "shared/ui/loading/management-list-loading.scss",
     "shared/ui/loading/management-list-loading.tsx",
     "shared/ui/loading/native.ts",
+    "shared/ui/loading/navigation-skeleton.tsx",
+    "shared/ui/loading/presence.scss",
+    "shared/ui/loading/presence.ts",
     "shared/ui/loading/skeleton.scss",
     "shared/ui/loading/skeleton.ts",
     "shared/ui/log-button/index.vue",
@@ -1396,6 +1416,8 @@
     "shared/ui/time-range/utils.ts",
     "shared/ui/user-selector/index.scss",
     "shared/ui/user-selector/index.tsx",
+    "shared/ui/user-selector/legacy-contract.scss",
+    "shared/ui/user-selector/legacy-contract.tsx",
     "shared/utils/decode.ts",
     "shared/utils/index.ts",
     "shared/utils/performance-monitor.ts",
@@ -1736,6 +1758,11 @@
     {
       "from": "app/bootstrap/service-definitions.ts",
       "to": "features/dashboards/services/dashboard.ts",
+      "kind": "module"
+    },
+    {
+      "from": "app/bootstrap/shell-gate.ts",
+      "to": "shared/ui/loading/presence.ts",
       "kind": "module"
     },
     {
@@ -2270,6 +2297,16 @@
     },
     {
       "from": "app/router/retrieve.ts",
+      "to": "shared/ui/loading/presence.ts",
+      "kind": "module"
+    },
+    {
+      "from": "app/router/retrieve.ts",
+      "to": "shared/ui/loading/presence.scss",
+      "kind": "module"
+    },
+    {
+      "from": "app/router/retrieve.ts",
       "to": "app/skeleton/retrieve-page-skeleton.vue",
       "kind": "module"
     },
@@ -2286,6 +2323,11 @@
     {
       "from": "app/router/retrieve.ts",
       "to": "features/retrieval/retrieve-helper.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "app/router/retrieve.ts",
+      "to": "shared/composables/use-locale.ts",
       "kind": "module"
     },
     {
@@ -2371,6 +2413,11 @@
     {
       "from": "app/shell/app.tsx",
       "to": "app/state/domains/application-store.ts",
+      "kind": "module"
+    },
+    {
+      "from": "app/shell/app.tsx",
+      "to": "app/bootstrap/shell-gate.ts",
       "kind": "module"
     },
     {
@@ -6085,6 +6132,11 @@
     },
     {
       "from": "features/clusters/current/cluster-manage/intro-panel.tsx",
+      "to": "shared/ui/user-selector/legacy-contract.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/clusters/current/cluster-manage/intro-panel.tsx",
       "to": "features/clusters/current/cluster-manage/intro-panel.scss",
       "kind": "module"
     },
@@ -6106,6 +6158,11 @@
     {
       "from": "features/clusters/status/es-cluster-mess/components/intro-panel.vue",
       "to": "platform/services/index.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/clusters/status/es-cluster-mess/components/intro-panel.vue",
+      "to": "shared/ui/user-selector/legacy-contract.tsx",
       "kind": "module"
     },
     {
@@ -6417,6 +6474,11 @@
       "from": "features/collection/access/components/log-filter/type.ts",
       "to": "shared/utils/typed-record.ts",
       "kind": "module"
+    },
+    {
+      "from": "features/collection/access/components/log-filter/validator-input.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "features/collection/access/components/log-filter/validator-input.tsx",
@@ -7659,6 +7721,11 @@
       "kind": "service-call"
     },
     {
+      "from": "features/collection/current/components/business-comp/step2/container-collection/label-item-choose.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/collection/current/components/business-comp/step2/container-collection/label-item-choose.tsx",
       "to": "shared/composables/use-locale.ts",
       "kind": "module"
@@ -7836,6 +7903,16 @@
     {
       "from": "features/collection/current/components/business-comp/step2/line-rule-config.tsx",
       "to": "features/collection/current/components/business-comp/step2/line-rule-config.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/business-comp/step2/log-filter.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/collection/current/components/business-comp/step2/log-filter.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
       "kind": "module"
     },
     {
@@ -8049,6 +8126,11 @@
       "kind": "service-call"
     },
     {
+      "from": "features/collection/current/components/business-comp/step2/validator-input.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/collection/current/components/business-comp/step2/validator-input.tsx",
       "to": "features/collection/shared/sample-column-select.tsx",
       "kind": "module"
@@ -8062,6 +8144,11 @@
       "from": "features/collection/current/components/business-comp/step2/validator-input.tsx",
       "to": "features/collection/current/components/business-comp/step2/validator-input.scss",
       "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/business-comp/step3/clean-result-preview-dialog.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "features/collection/current/components/business-comp/step3/clean-result-preview-dialog.tsx",
@@ -8229,6 +8316,11 @@
       "kind": "service-call"
     },
     {
+      "from": "features/collection/current/components/business-comp/step3/field-list.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/collection/current/components/business-comp/step3/field-list.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
@@ -8270,7 +8362,12 @@
     },
     {
       "from": "features/collection/current/components/business-comp/step3/report-log-slider.tsx",
-      "to": "features/charts/utils.js",
+      "to": "shared/global/overlay/overlay-registry.js",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/business-comp/step3/report-log-slider.tsx",
+      "to": "shared/global/overlay/z-index-manager.js",
       "kind": "module"
     },
     {
@@ -8306,6 +8403,16 @@
     {
       "from": "features/collection/current/components/business-comp/step4/cluster-table.tsx",
       "to": "features/collection/current/components/common-comp/table-component.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/business-comp/step4/cluster-table.tsx",
+      "to": "shared/ui/loading/management-list-loading.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/business-comp/step4/cluster-table.tsx",
+      "to": "shared/ui/empty-status/index.vue",
       "kind": "module"
     },
     {
@@ -8892,6 +8999,11 @@
       "from": "features/collection/current/components/create-operation/step3-clean.scss",
       "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step3-clean.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/collection/current/components/create-operation/step3-clean.tsx",
@@ -10034,6 +10146,11 @@
       "kind": "module"
     },
     {
+      "from": "features/collection/filter-rule/index.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/collection/filter-rule/index.tsx",
       "to": "features/collection/filter-rule/config-rule/index.tsx",
       "kind": "module"
@@ -10060,7 +10177,7 @@
     },
     {
       "from": "features/collection/ip-selector/log-ip-selector.tsx",
-      "to": "features/collection/ip-selector/bk-ip-selector-vue3.js",
+      "to": "features/collection/ip-selector/bk-ip-selector-vue3.ts",
       "kind": "module"
     },
     {
@@ -10335,6 +10452,11 @@
     },
     {
       "from": "features/extraction/classic/manage-extract-permission/directory-manage.vue",
+      "to": "shared/ui/user-selector/legacy-contract.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/extraction/classic/manage-extract-permission/directory-manage.vue",
       "to": "platform/services/userInfo.ts",
       "kind": "service-call"
     },
@@ -10402,6 +10524,11 @@
       "from": "features/extraction/classic/manage-extract-permission/module-select.vue",
       "to": "features/collection/services/collect.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/extraction/classic/manage-extract-permission/validate-user-selector.vue",
+      "to": "shared/ui/user-selector/legacy-contract.tsx",
+      "kind": "module"
     },
     {
       "from": "features/extraction/current/extract-config/config-slider.tsx",
@@ -12900,11 +13027,6 @@
     },
     {
       "from": "features/management/manage/index.vue",
-      "to": "shared/styles/theme/management-lists.scss",
-      "kind": "module"
-    },
-    {
-      "from": "features/management/manage/index.vue",
       "to": "shared/styles/mixins/scroller.scss",
       "kind": "style-or-asset"
     },
@@ -13669,6 +13791,11 @@
       "kind": "module"
     },
     {
+      "from": "features/retrieval/workbench/components/batch-input/index.tsx",
+      "to": "features/retrieval/workbench/components/batch-input/style.scss",
+      "kind": "module"
+    },
+    {
       "from": "features/retrieval/workbench/components/index-set-choice/common-list.tsx",
       "to": "shared/ui/loading/native.ts",
       "kind": "module"
@@ -14195,6 +14322,11 @@
     },
     {
       "from": "features/retrieval/workbench/field-filter-comp/components/field-select-config.vue",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/field-filter-comp/components/field-select-config.vue",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -14367,6 +14499,11 @@
       "from": "features/retrieval/workbench/field-filter-comp/index.scss",
       "to": "shared/styles/mixins/flex.scss",
       "kind": "style-or-asset"
+    },
+    {
+      "from": "features/retrieval/workbench/field-filter-comp/index.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/retrieval/workbench/field-filter-comp/index.tsx",
@@ -14820,7 +14957,7 @@
     },
     {
       "from": "features/retrieval/workbench/result-comp/export-history.vue",
-      "to": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/management-list-loading.tsx",
       "kind": "module"
     },
     {
@@ -16150,6 +16287,16 @@
     },
     {
       "from": "features/retrieval/workbench/search-result-chart/index.tsx",
+      "to": "shared/ui/loading/presence.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-chart/index.tsx",
+      "to": "shared/ui/loading/presence.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-chart/index.tsx",
       "to": "shared/composables/use-trend-chart.ts",
       "kind": "module"
     },
@@ -16575,6 +16722,16 @@
     },
     {
       "from": "features/retrieval/workbench/search-result-panel/index.vue",
+      "to": "shared/ui/loading/presence.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/index.vue",
+      "to": "shared/ui/loading/presence.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/index.vue",
       "to": "features/retrieval/retrieve-helper.tsx",
       "kind": "module"
     },
@@ -16715,6 +16872,11 @@
     },
     {
       "from": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
+      "to": "shared/ui/user-selector/legacy-contract.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/create-subscription-form.tsx",
       "to": "features/charts/utils.js",
       "kind": "module"
     },
@@ -16772,6 +16934,11 @@
       "from": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-create-subscription-drawer/quick-create-subscription.tsx",
       "to": "features/reporting/services/new-report.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-open-cluster-step/filter-rule.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-open-cluster-step/filter-rule.scss",
@@ -16991,6 +17158,11 @@
     {
       "from": "features/retrieval/workbench/search-result-panel/log-clustering/data-fingerprint.vue",
       "to": "app/skeleton/clustering-loader.vue",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-clustering/data-fingerprint.vue",
+      "to": "shared/ui/user-selector/legacy-contract.tsx",
       "kind": "module"
     },
     {
@@ -17381,6 +17553,16 @@
     {
       "from": "features/retrieval/workbench/search-result-panel/log-result/log-rows.tsx",
       "to": "app/skeleton/retrieve-loader.vue",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-result/log-rows.tsx",
+      "to": "shared/ui/loading/presence.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-result/log-rows.tsx",
+      "to": "shared/ui/loading/presence.scss",
       "kind": "module"
     },
     {
@@ -18910,12 +19092,12 @@
     },
     {
       "from": "features/retrieval/workspace/index.tsx",
-      "to": "app/state/domains/application-store.ts",
+      "to": "app/state/domains/retrieve-store.ts",
       "kind": "module"
     },
     {
       "from": "features/retrieval/workspace/index.tsx",
-      "to": "app/state/domains/retrieve-store.ts",
+      "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
     {
@@ -19970,6 +20152,11 @@
     },
     {
       "from": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/index.tsx",
+      "to": "shared/ui/user-selector/legacy-contract.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/index.tsx",
       "to": "platform/compat/tdesign/info-box.ts",
       "kind": "module"
     },
@@ -20680,6 +20867,11 @@
     },
     {
       "from": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
+      "to": "shared/ui/user-selector/legacy-contract.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/search-result/log-clustering/top-operation/email-subscription/create-subscription/subscription-form/send-config/index.tsx",
       "to": "shared/composables/use-locale.ts",
       "kind": "module"
     },
@@ -21084,6 +21276,11 @@
       "kind": "module"
     },
     {
+      "from": "features/retrieval/workspace/search-result/original-log/components/data-filter/index.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/retrieval/workspace/search-result/original-log/components/data-filter/index.tsx",
       "to": "shared/lib/util.js",
       "kind": "module"
@@ -21121,6 +21318,11 @@
     {
       "from": "features/retrieval/workspace/search-result/original-log/components/origin-log-result/build-origin-log-search-fields.ts",
       "to": "features/retrieval/workspace/search-result/original-log/components/origin-log-result/build-origin-log-search-headers.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/search-result/original-log/components/origin-log-result/index.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
       "kind": "module"
     },
     {
@@ -21515,6 +21717,11 @@
     },
     {
       "from": "features/retrieval/workspace/search-result/original-log/standalone-tab/related-log-layout.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/search-result/original-log/standalone-tab/related-log-layout.tsx",
       "to": "features/retrieval/log-view/index.vue",
       "kind": "module"
     },
@@ -21531,6 +21738,11 @@
     {
       "from": "features/retrieval/workspace/search-result/original-log/standalone-tab/related-log-layout.tsx",
       "to": "features/retrieval/workspace/search-result/original-log/components/origin-log-result/index.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/search-result/original-log/standalone-tab/related-log-loading.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
       "kind": "module"
     },
     {
@@ -21979,8 +22191,23 @@
       "kind": "type"
     },
     {
+      "from": "platform/compat/tdesign/bkui-form.ts",
+      "to": "platform/compat/tdesign/bkui-vue.ts",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/bkui-select.ts",
+      "to": "platform/compat/tdesign/bkui-vue.ts",
+      "kind": "module"
+    },
+    {
       "from": "platform/compat/tdesign/bkui-vue.ts",
       "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/bkui-vue.ts",
+      "to": "shared/directives/log-tooltip.ts",
       "kind": "module"
     },
     {
@@ -22021,11 +22248,6 @@
     {
       "from": "platform/compat/tdesign/legacy-bk-controls.tsx",
       "to": "shared/global/overlay/z-index-manager.js",
-      "kind": "module"
-    },
-    {
-      "from": "platform/compat/tdesign/legacy-control-styles.ts",
-      "to": "shared/styles/theme/compat-drawer.scss",
       "kind": "module"
     },
     {
@@ -22161,6 +22383,11 @@
     {
       "from": "platform/i18n/locale-provider.ts",
       "to": "platform/i18n/i18n.ts",
+      "kind": "module"
+    },
+    {
+      "from": "platform/i18n/locale-provider.ts",
+      "to": "platform/ui/tdesign-config.ts",
       "kind": "module"
     },
     {
@@ -23355,6 +23582,11 @@
     },
     {
       "from": "shared/global/ai-assitant/index.tsx",
+      "to": "platform/compat/native-sdk-vue.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/global/ai-assitant/index.tsx",
       "to": "shared/lib/util.js",
       "kind": "module"
     },
@@ -23461,6 +23693,11 @@
     {
       "from": "shared/global/bk-space-choice/index.tsx",
       "to": "shared/global/bk-space-choice/index.scss",
+      "kind": "module"
+    },
+    {
+      "from": "shared/global/bk-space-choice/index.tsx",
+      "to": "shared/ui/loading/navigation-skeleton.tsx",
       "kind": "module"
     },
     {
@@ -23650,6 +23887,11 @@
     },
     {
       "from": "shared/global/head-navi/index.tsx",
+      "to": "platform/compat/native-sdk-vue.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/global/head-navi/index.tsx",
       "to": "shared/global/head-navi/log-version.tsx",
       "kind": "module"
     },
@@ -23666,6 +23908,16 @@
     {
       "from": "shared/global/head-navi/index.tsx",
       "to": "shared/global/utils/path.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/global/head-navi/index.tsx",
+      "to": "shared/ui/loading/navigation-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "shared/global/head-navi/index.tsx",
+      "to": "app/bootstrap/shell-gate.ts",
       "kind": "module"
     },
     {
@@ -24084,6 +24336,16 @@
       "kind": "style-or-asset"
     },
     {
+      "from": "shared/styles/theme/compat-drawer.scss",
+      "to": "shared/styles/theme/components/actions.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/components/overlays.scss",
+      "to": "shared/styles/theme/components/actions.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "shared/styles/theme/index.scss",
       "to": "shared/styles/theme/theme.scss",
       "kind": "style-or-asset"
@@ -24099,8 +24361,73 @@
       "kind": "style-or-asset"
     },
     {
+      "from": "shared/styles/theme/management-lists.scss",
+      "to": "shared/styles/theme/components/actions.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "shared/styles/theme/tdesign-bklog.scss",
       "to": "shared/ui/loading/skeleton.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/tokens.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/overlay.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/tdesign-tokens.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/components/buttons.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/components/overlays.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/components/options.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/components/display.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/components/forms.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/compat-drawer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/management-lists.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tdesign-bklog.scss",
+      "to": "shared/styles/theme/components/query-action.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/styles/theme/tokens.scss",
+      "to": "shared/styles/theme/theme.scss",
       "kind": "style-or-asset"
     },
     {
@@ -24255,12 +24582,32 @@
     },
     {
       "from": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/index.tsx",
       "to": "shared/global/overlay/z-index-manager.js",
       "kind": "module"
     },
     {
       "from": "shared/ui/loading/index.tsx",
       "to": "shared/ui/loading/index.scss",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/list-skeleton.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/ui/loading/list-skeleton.ts",
+      "to": "shared/ui/loading/skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/list-skeleton.ts",
+      "to": "shared/ui/loading/list-skeleton.scss",
       "kind": "module"
     },
     {
@@ -24280,12 +24627,32 @@
     },
     {
       "from": "shared/ui/loading/native.ts",
+      "to": "shared/ui/loading/presence.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/native.ts",
       "to": "shared/ui/loading/skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/navigation-skeleton.tsx",
+      "to": "shared/ui/loading/presence.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/navigation-skeleton.tsx",
+      "to": "shared/ui/loading/presence.scss",
       "kind": "module"
     },
     {
       "from": "shared/ui/loading/skeleton.scss",
       "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/ui/loading/skeleton.scss",
+      "to": "shared/ui/loading/presence.ts",
       "kind": "style-or-asset"
     },
     {
@@ -24306,6 +24673,11 @@
     {
       "from": "shared/ui/time-range/time-range.tsx",
       "to": "app/state/domains/retrieve-store.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/time-range/time-range.tsx",
+      "to": "platform/sdk/date-picker/native-entry.ts",
       "kind": "module"
     },
     {
@@ -24350,7 +24722,27 @@
     },
     {
       "from": "shared/ui/user-selector/index.tsx",
+      "to": "platform/compat/native-sdk-vue.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/user-selector/index.tsx",
       "to": "shared/ui/user-selector/index.scss",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/user-selector/legacy-contract.tsx",
+      "to": "platform/compat/native-sdk-vue.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/user-selector/legacy-contract.tsx",
+      "to": "platform/sdk/user-selector/lookup.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/user-selector/legacy-contract.tsx",
+      "to": "shared/ui/user-selector/legacy-contract.scss",
       "kind": "module"
     },
     {

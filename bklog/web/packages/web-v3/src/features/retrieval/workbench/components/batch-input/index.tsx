@@ -29,6 +29,7 @@ import { computed, defineComponent, ref, nextTick } from 'vue';
 
 import { messageError } from '@/shared/lib/message';
 import useLocale from '@/shared/composables/use-locale';
+import './style.scss';
 
 export default defineComponent({
   name: 'BatchInput',
@@ -157,13 +158,13 @@ export default defineComponent({
           onClose={() => handleDialogValueChange(false)}
         >
           <div style='display: flex; padding: 16px 0px;'>
-            <div style='width: 400px; height: 358px;'>
+            <div class='batch-input-editor'>
               <div style='padding-bottom: 6px'>
                 解析文本<span style='color: #EA3636; padding-left: 2px;'>*</span>
               </div>
               <TTextarea
                 placeholder='请使用，；｜换行等进行分隔'
-                style={{ height: '280px' }}
+                class='batch-input-editor__textarea bklog-textarea--fill'
                 value={textValue.value}
                 onChange={handleInputTextChange}
               />

@@ -27,19 +27,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadTypeScript } from './helpers/load-typescript.mjs';
-import { h } from 'vue';
+import { h, ref } from 'vue';
 
 test('IP selector dialog host does not inherit page height; inline mode retains sizing', () => {
-  const factory = loadTypeScript(new URL('../src/features/collection/ip-selector/bk-ip-selector-vue3.js', import.meta.url), {
+  const rootRef = ref(null);
+  const props = {}, events = ['confirm', 'change'];
+  const factory = loadTypeScript(new URL('../src/features/collection/ip-selector/bk-ip-selector-vue3.ts', import.meta.url), {
     vue: { h },
-    '@blueking/ip-selector/dist/vue2.6.x.esm': { merge() {}, Component: { props: {}, emits: [] } },
+    '@blueking/ip-selector/dist/vue3.x': () => ({ props, emits: events, setup: () => ({ rootRef, app: {} }) }),
   }).default;
   const component = factory({});
+  assert.equal(component.props, props);
+  assert.equal(component.emits, events);
+  const state = component.setup({}, {});
+  const host = { synthetic: true };
+  state.mountRoot(host);
+  assert.deepEqual(rootRef.value, host);
   for (const showDialog of [false, true]) {
-    const dialog = component.render.call({ mode: 'dialog', showDialog });
+    const dialog = component.render.call({ mode: 'dialog', showDialog, mountRoot: state.mountRoot });
     assert.equal(dialog.props.style.height, 'auto');
     assert.equal(dialog.props.role, 'bk-ip-selector');
-    assert.equal(dialog.ref.r, 'rootRef');
+    assert.equal(dialog.ref.r, state.mountRoot);
   }
   for (const mode of ['section', undefined]) {
     assert.equal(component.render.call({ mode }).props.style.height, 'inherit');

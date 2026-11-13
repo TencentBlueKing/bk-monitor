@@ -9,7 +9,7 @@ const digest=content=>createHash('sha256').update(content).digest('hex');
 function walk(dir){return readdirSync(dir,{withFileTypes:true}).flatMap(entry=>entry.isDirectory()?walk(resolve(dir,entry.name)):[resolve(dir,entry.name)]).sort();}
 export function monitorBuildIdentity() {
   const sourceDigest=digest(walk(resolve(packageRoot,'src')).map(file=>relative(packageRoot,file)+'\0'+digest(readFileSync(file))).join('\n'));
-  const configs=['vite.config.ts','vite.application.config.mjs','vite.application-source.config.ts','vite.base.config.ts','vite.monitor.config.ts','tools/monitor-style-scope.mjs','tools/native-sdk-vue.mjs','tools/date-picker-island.ts','tools/legacy-static-entry.mjs','tools/verify-legacy-deployment.mjs','tools/verify-monitor-build.mjs','tools/compile-messages.mjs','project.inlang/settings.json','project.inlang/paraglide.config.mjs','package.json','pnpm-lock.yaml'];
+  const configs=['vite.config.ts','vite.application.config.mjs','vite.application-source.config.ts','vite.base.config.ts','vite.monitor.config.ts','tools/monitor-style-scope.mjs','tools/native-sdk-vue.mjs','tools/legacy-static-entry.mjs','tools/verify-legacy-deployment.mjs','tools/verify-monitor-build.mjs','tools/compile-messages.mjs','project.inlang/settings.json','project.inlang/paraglide.config.mjs','package.json','pnpm-lock.yaml'];
   const inputs=[...configs.map(file=>resolve(packageRoot,file)).filter(existsSync),...walk(resolve(packageRoot,'migration-runtime'))];
   const buildConfigDigest=digest(inputs.sort().map(file=>relative(packageRoot,file)+'\0'+digest(readFileSync(file))).join('\n'));
   return {sourceDigest,buildConfigDigest};

@@ -27,15 +27,21 @@ function classifyImport(file, source, typeOnly) {
 }
 
 function sdkViolation(file, source) {
-  if (source.startsWith('@blueking/date-picker')) {
-    if (file === 'platform/sdk/date-picker/native-entry.ts' && source === '@blueking/date-picker') return '';
-    const validEntry = source === '@blueking/date-picker' || source === '@blueking/date-picker/vue3/vue3.css';
-    return !validEntry || !file.startsWith('shared/ui/time-range/') ? 'date-picker must use its Vue3 boundary' : '';
+  if (source === '@blueking/user-selector') return 'legacy user-selector has no Vue3 entry; use the username selector boundary';
+  if (source.startsWith('@blueking/ai-blueking/vue2')) return 'ai-blueking must use its Vue3 entry';
+  if (source.startsWith('@blueking/ip-selector/dist/vue2')) return 'ip-selector must use its official Vue3 factory';
+  if (source === '@blueking/date-picker' || source.startsWith('@blueking/date-picker/'))
+    return 'V3 must use date-picker-js through its native boundary';
+  if (source === '@blueking/date-picker-js' || source.startsWith('@blueking/date-picker-js/')) {
+    const valid = source === '@blueking/date-picker-js'
+      ? ['platform/sdk/date-picker/native-entry.ts', 'platform/sdk/date-picker/contract.ts'].includes(file)
+      : source === '@blueking/date-picker-js/style.css' && file === 'shared/ui/time-range/time-range.tsx';
+    return valid ? '' : 'date-picker-js must use its native boundary';
   }
   if (source.startsWith('@blueking/bk-user-selector')) {
     const valid =
-      source === '@blueking/bk-user-selector'
-        ? file === 'shared/ui/user-selector/index.tsx'
+      ['@blueking/bk-user-selector', '@blueking/bk-user-selector/vue3'].includes(source)
+        ? ['shared/ui/user-selector/index.tsx', 'shared/ui/user-selector/legacy-contract.tsx'].includes(file)
         : source === '@blueking/bk-user-selector/vue3/vue3.css' &&
           ['app/bootstrap/start.js', 'app/entries/monitor-bootstrap.ts'].includes(file);
     return valid ? '' : 'bk-user-selector must use its Vue3 boundary';
@@ -43,14 +49,14 @@ function sdkViolation(file, source) {
   if (source.startsWith('@blueking/login-userinfo')) {
     const valid =
       file === 'shared/global/head-navi/index.tsx' &&
-      (source === '@blueking/login-userinfo' || source === '@blueking/login-userinfo/vue3/vue3.css');
+      ['@blueking/login-userinfo', '@blueking/login-userinfo/vue3', '@blueking/login-userinfo/vue3/vue3.css'].includes(source);
     return valid ? '' : 'login-userinfo must use its Vue3 boundary';
   }
   const packageName = source.split('/').slice(0, 2).join('/');
   const owners = {
     '@blueking/ai-blueking': ['shared/global/ai-assitant/index.tsx'],
     '@blueking/bk-user-display-name': ['app/bootstrap/preload.ts'],
-    '@blueking/ip-selector': ['features/collection/ip-selector/log-ip-selector.tsx'],
+    '@blueking/ip-selector': ['features/collection/ip-selector/log-ip-selector.tsx', 'features/collection/ip-selector/bk-ip-selector-vue3.ts'],
     '@blueking/log-web': ['features/retrieval/classic/helper.ts'],
     '@blueking/login-modal': ['platform/http/index.js'],
     '@blueking/notice-component': ['app/shell/app.tsx'],

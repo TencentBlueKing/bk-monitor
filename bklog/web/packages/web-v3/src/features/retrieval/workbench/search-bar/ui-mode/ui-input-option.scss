@@ -26,13 +26,13 @@
 
           .left-icon {
             font-size: 18px;
-            color: #979ba5;
+            color: var(--bklog-text-placeholder, #979ba5);
           }
 
           .bk-input-text {
             .t-input__inner {
               padding-left: 38px;
-              border-bottom-color: #eaebf0;
+              border-bottom-color: var(--bklog-surface-component-hover, #eaebf0);
             }
           }
         }
@@ -326,7 +326,7 @@
 
       .t-button {
         min-width: 64px;
-        font-size: 14px;
+        font-size: var(--bklog-font-action, 14px);
 
         &.save-btn {
           min-width: 142px;

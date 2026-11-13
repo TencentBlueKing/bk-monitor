@@ -1,3 +1,4 @@
+import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -1522,10 +1523,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('日志样例')}</span>
           <div
-            class='form-box'
-            v-loading={{ loading: logOriginalLoading.value }}
+            class='form-box log-sample-box'
           >
-            <div class='example-box mt-5'>
+            <div class={['example-box mt-5', { 'is-loading': logOriginalLoading.value }]} aria-disabled={logOriginalLoading.value}>
               <span
                 class='form-link'
                 onClick={() => {
@@ -1557,6 +1557,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 tips={t('作为清洗调试的原始数据')}
               />
             </div>
+            <div class='log-sample-editor' v-loading={{ loading: logOriginalLoading.value, indicator: renderCodeSampleSkeleton }}>
             <bk-input
               type='textarea'
               value={logOriginal.value}
@@ -1564,6 +1565,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 logOriginal.value = val;
               }}
             />
+            </div>
           </div>
         </div>
         {!props.isTempField && (

@@ -1169,7 +1169,7 @@ import { ServicesInstance } from '@/platform/services';
 
       .t-checkbox__label {
         margin-right: 12px;
-        font-size: 12px;
+        font-size: var(--bklog-font-body, 12px);
       }
 
       .approval-alert {

@@ -50,6 +50,8 @@ import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
 import RetrieveLoader from '@/app/skeleton/retrieve-loader.vue';
+import { useSkeletonPresence } from '@/shared/ui/loading/presence';
+import '@/shared/ui/loading/presence.scss';
 import { retrieveFieldCacheService, retrieveRowCacheService } from '@/platform/persistence/index';
 import FullRowViewer from './full-row-viewer.vue';
 import ScrollTop from '../../components/scroll-top/index';
@@ -1874,6 +1876,16 @@ type?: undefined; class?: undefined;
       return shouldEnterFirstPageSkeleton.value || isFieldLoadingForFirstPage.value || isFirstPageLayoutPending.value;
     });
 
+    const firstSkeletonPresence = useSkeletonPresence(shouldShowFirstPageSkeleton);
+    const skeletonExitTop = ref(0);
+    watch(shouldShowFirstPageSkeleton, (pending, previous) => {
+      if (!pending && previous) {
+        const element = refRootElement.value?.querySelector<HTMLElement>('.bklog-first-page-skeleton');
+        if (element) skeletonExitTop.value = element.offsetTop;
+      }
+    }, { flush: 'sync' });
+
+    // Host compatibility signals only; the page shell never reads these flags.
     let sawQueryLoading = false;
     const markResultShellReady = () => {
       if (
@@ -2454,13 +2466,14 @@ type?: undefined; class?: undefined;
     };
 
     const renderFirstPageSkeleton = () => {
-      if (!shouldShowFirstPageSkeleton.value) {
+      if (!firstSkeletonPresence.visible.value) {
         return null;
       }
 
       return (
         <RetrieveLoader
-          class='bklog-first-page-skeleton'
+          class={['bklog-first-page-skeleton bklog-skeleton-presence', { 'is-leaving': firstSkeletonPresence.leaving.value }]}
+          style={firstSkeletonPresence.leaving.value ? { position: 'absolute', top: `${skeletonExitTop.value}px`, left: 0, zIndex: 1 } : undefined}
           isLoading={true}
           isOriginalField={showCtxType.value !== 'table'}
           maxLength={12}

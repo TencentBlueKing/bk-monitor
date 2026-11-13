@@ -11,8 +11,6 @@
 
     .t-form__item {
       padding-left: 34px;
-      margin-top: 12px;
-      margin-bottom: 0;
     }
 
     .t-alert {
@@ -45,8 +43,8 @@
 
       .es-source {
         margin-left: 10px;
-        font-size: 14px;
-        color: #63656e;
+        font-size: var(--bklog-font-action, 14px);
+        color: var(--bklog-text-secondary, #63656e);
       }
     }
 
@@ -61,20 +59,20 @@
       height: 76px;
       padding: 12px;
       margin-right: 12px;
-      font-size: 14px;
-      color: #63656e;
+      font-size: var(--bklog-font-action, 14px);
+      color: var(--bklog-text-secondary, #63656e);
       cursor: pointer;
-      background: #f5f7fa;
-      border: 1px solid #f5f7fa;
-      border-radius: 2px;
+      background: var(--bklog-surface-hover, #f5f7fa);
+      border: 1px solid var(--bklog-surface-hover, #f5f7fa);
+      border-radius: var(--bklog-radius-control, 2px);
 
       &:last-child {
         margin-right: 0;
       }
 
       &.is-active {
-        color: #3a84ff;
-        background: #e1ecff;
+        color: var(--bklog-brand-primary, #3a84ff);
+        background: var(--bklog-brand-tint, #e1ecff);
         border: 1px solid #a3c5fd;
       }
     }

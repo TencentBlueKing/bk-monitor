@@ -1136,13 +1136,13 @@ export default {
   }
 
   :deep(.t-alert) {
-    background: #f0f1f5;
+    background: var(--bklog-surface-component, #f0f1f5);
   }
 }
 
 :deep(.t-radio__label) {
   /* stylelint-disable-next-line declaration-no-important */
-  font-size: 12px !important;
+  font-size: var(--bklog-font-body, 12px) !important;
 }
 
 .async-export-dialog {

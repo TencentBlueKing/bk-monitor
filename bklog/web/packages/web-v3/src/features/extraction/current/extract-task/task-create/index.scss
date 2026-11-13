@@ -72,7 +72,7 @@
 
     .t-button {
       flex: 1;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
     }
 
     .is-selected {
@@ -245,7 +245,7 @@
     .t-alert__message {
       display: flex;
       gap: 8px;
-      line-height: 20px;
+      line-height: var(--bklog-line-height-body, 20px);
     }
 
     .icon-exclamation-circle {

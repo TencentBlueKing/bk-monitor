@@ -27,18 +27,18 @@
       height: 32px;
       padding: 0 6px;
       border: 0;
-      border-bottom: 1px solid #dcdee5;
+      border-bottom: 1px solid var(--bklog-border-muted, #dcdee5);
       border-radius: 0;
       box-shadow: none;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
     }
     .t-input__prefix-icon {
-      color: #c4c6cc;
-      font-size: 14px;
+      color: var(--bklog-text-disabled, #c4c6cc);
+      font-size: var(--bklog-font-action, 14px);
     }
     .t-input__inner {
       min-width: 0;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
     }
   }
   .cluster-header-filter-options {
@@ -56,8 +56,8 @@
   .t-checkbox__label {
     min-width: 0;
     margin-left: 6px;
-    font-size: 12px;
-    line-height: 16px;
+    font-size: var(--bklog-font-body, 12px);
+    line-height: var(--bklog-line-height-small, 16px);
   }
   .option-name {
     color: #63656e;

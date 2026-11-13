@@ -6,19 +6,6 @@
     padding: 24px 40px;
   }
 
-  .t-form {
-    width: 100%;
-    min-width: 0;
-
-    .t-form__item {
-      margin-bottom: 24px;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-    }
-  }
-
   .grok-pattern-label {
     display: flex;
     align-items: center;
@@ -31,12 +18,12 @@
 
     .t-textarea__inner {
       padding: 5px 10px;
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
       line-height: 18px;
     }
 
     .t-textarea__limit {
-      font-size: 12px;
+      font-size: var(--bklog-font-body, 12px);
       line-height: 18px;
     }
 
