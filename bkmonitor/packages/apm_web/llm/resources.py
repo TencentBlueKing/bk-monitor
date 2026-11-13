@@ -37,6 +37,7 @@ from apm_web.llm.adapter.fields import (
 from apm_web.llm.builders.flow import TOKEN_FIELDS, FlowBuilder
 from apm_web.llm.builders.preview import PREVIEW_LENGTH, prepare_flow_spans
 from apm_web.llm.builders.summary import TraceSummary
+from apm_web.llm.tokens import TokenUsageBuilder
 from apm_web.llm.constants import CalculationType, SpanType
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery, get_query
@@ -450,7 +451,8 @@ class ListFlowsResource(Resource):
             entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
         fields = flow_query_fields(
             include_input_output,
-            input_output_preview,
+            # 正文加载阶段同时计数，响应仍可使用轻量预览。
+            input_output_preview=False,
             products=tuple(resolve_product(entity_set, service) for service in entity_set.service_names),
         )
         span_query = get_query(application.build_data_sources())
@@ -474,10 +476,17 @@ class ListFlowsResource(Resource):
                 seen.add(key)
             unique_spans.append(span)
         raw_spans = unique_spans
+        token_usage = TokenUsageBuilder() if include_input_output else None
         spans = prepare_flow_spans(
-            raw_spans, entity_set, include_input_output=include_input_output, preview=input_output_preview
+            raw_spans,
+            entity_set,
+            include_input_output=include_input_output,
+            preview=input_output_preview,
+            token_usage=token_usage,
         )
         builder = FlowBuilder(raw_spans, spans)
+        if token_usage is not None:
+            builder.token_matrix = token_usage.build()
         builder.build()
         return builder
 
@@ -559,6 +568,8 @@ class ListFlowsResource(Resource):
                 ),
             )
             item["flow"] = builder.flow
+            if builder.token_matrix is not None:
+                item["token_matrix"] = builder.token_matrix
             if input_output_preview:
                 item["input"] = item["input"][:PREVIEW_LENGTH]
                 item["output"] = item["output"][:PREVIEW_LENGTH]

@@ -17,6 +17,36 @@ from apm_web.llm.constants import STANDARD_FIELDS
 from .utils import standard_content
 
 
+def extract_system_instructions(content: dict[str, Any]) -> None:
+    messages = content.get("gen_ai.input.messages")
+    if not isinstance(messages, list):
+        return
+
+    regular: list[Any] = []
+    extracted: list[dict[str, Any]] = []
+    for message in messages:
+        if not isinstance(message, dict) or message.get("role") != "system":
+            regular.append(message)
+            continue
+        parts = message.get("parts")
+        if not isinstance(parts, list) or not parts or any(not isinstance(part, dict) for part in parts):
+            regular.append(message)
+            continue
+        extracted.extend(parts)
+
+    if not extracted:
+        return
+    instructions: list[Any] = []
+    for part in [*(content.get("gen_ai.system_instructions") or []), *extracted]:
+        if part not in instructions:
+            instructions.append(part)
+    content["gen_ai.system_instructions"] = instructions
+    if regular:
+        content["gen_ai.input.messages"] = regular
+    else:
+        content.pop("gen_ai.input.messages", None)
+
+
 def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
     spans: list[dict[str, Any]] = []
     for span in raw:
@@ -25,6 +55,7 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
             key: value for key, value in attrs.items() if key in STANDARD_FIELDS and value not in (None, "", [])
         }
         attributes.update(standard_content(attrs))
+        extract_system_instructions(attributes)
         if not attributes:
             continue
         spans.append(

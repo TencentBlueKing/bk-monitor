@@ -27,6 +27,7 @@ class ActionDefinition(IdentifiedDefinition, Protocol):
 
 
 DefinitionRef = IdentifiedDefinition | str
+_EMPTY_MAPPING: Mapping[str, Any] = MappingProxyType({})
 
 
 def to_definition_id(definition: DefinitionRef) -> str:
@@ -38,7 +39,7 @@ def to_definition_id(definition: DefinitionRef) -> str:
 
 
 def _empty_mapping() -> Mapping[str, Any]:
-    return MappingProxyType({})
+    return _EMPTY_MAPPING
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,7 +67,9 @@ class ResourceInstance:
     attributes: Mapping[str, Any] = field(default_factory=_empty_mapping)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "attributes", MappingProxyType(dict(self.attributes)))
+        # Only the internal empty default is safe to reuse without a snapshot.
+        if self.attributes is not _EMPTY_MAPPING:
+            object.__setattr__(self, "attributes", MappingProxyType(dict(self.attributes)))
 
 
 @dataclass(frozen=True, slots=True)

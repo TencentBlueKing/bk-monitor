@@ -291,7 +291,7 @@ def convert_content(span: dict[str, Any]) -> dict[str, Any]:
     attrs = span["attributes"]
     content = standard_content(attrs)
 
-    standard_inputs = standard_messages(attrs.get("gen_ai.input.messages"))
+    standard_inputs = standard_messages(content.get("gen_ai.input.messages"))
     if standard_inputs is not None:
         content["gen_ai.input.messages"] = standard_inputs
     else:
@@ -307,7 +307,7 @@ def convert_content(span: dict[str, Any]) -> dict[str, Any]:
         put(content, "gen_ai.system_instructions", instructions)
         put(content, "gen_ai.input.messages", inputs)
 
-    standard_outputs = standard_messages(attrs.get("gen_ai.output.messages"))
+    standard_outputs = standard_messages(content.get("gen_ai.output.messages"))
     if standard_outputs is not None:
         content["gen_ai.output.messages"] = standard_outputs
     else:
