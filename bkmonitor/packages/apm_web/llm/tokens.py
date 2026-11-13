@@ -137,12 +137,20 @@ class TokenUsageBuilder:
         trace_id: str = span["trace_id"]
         if attrs.get("gen_ai.tool.call.id") and attrs.get("gen_ai.tool.name"):
             self.tool_names[trace_id, attrs["gen_ai.tool.call.id"]] = attrs["gen_ai.tool.name"]
-        if span.get("span_type") != SpanType.LLM:
+        span_type = span.get("span_type")
+        if span_type not in (SpanType.LLM, SpanType.TOOL):
             return
         model: str = attrs.get("gen_ai.response.model") or attrs.get("gen_ai.request.model") or ""
         if model not in self.counters:
             self.counters[model] = TokenCounter(model)
-        counts = count_span_tokens(span, self.counters[model])
+        counter = self.counters[model]
+        if span_type == SpanType.TOOL:
+            span["tokens"] = sum(
+                counter.count(attrs.get(field))
+                for field in ("gen_ai.tool.name", "gen_ai.tool.call.arguments", "gen_ai.tool.call.result")
+            )
+            return
+        counts = count_span_tokens(span, counter)
         for count in counts:
             if count.call_id and count.tool_name:
                 self.tool_names[trace_id, count.call_id] = count.tool_name

@@ -64,11 +64,13 @@
 | --- | --- | --- |
 | `list_flows` | `traces[].token_matrix` | 按 Trace 加载正文，`include_input_output=true` |
 | `list_flows` | `traces[].flow[].token_categories` | 模型节点，包含正文预览模式 *[1]* |
+| `list_flows` | `traces[].flow[].tokens` | 工具节点，`include_input_output=true` *[4]* |
 | `span_detail` | `trace_tree.spans[].llm_detail` | 模型 Span，包含样例中的两个字段 *[2]* |
 
 - *[1] `flow` 中的 `childs` 模型节点也返回分类统计。*
 - *[2] 完整正文执行线与 Span 详情返回修复后的 JSON，正文预览使用修复后的数据。*
 - *[3] `span_detail.origin_data` 保留原始上报内容。*
+- *[4] 工具节点的 `tokens` 估算名称、参数和结果的合计，不计入 Trace 的模型 Token 总量。*
 
 ## 0x03 字段
 

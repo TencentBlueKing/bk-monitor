@@ -8,6 +8,7 @@ from django.test import override_settings
 
 from apm_web.llm.adapter.utils import CONTENT_FIELDS
 from apm_web.llm.resources import ListFlowsResource
+from apm_web.llm.tokens import TokenCounter
 
 
 class FlowLoadingTests(TestCase):
@@ -160,16 +161,29 @@ class FlowLoadingTests(TestCase):
     def test_default_full_mode_preserves_tool_arguments_and_results(self):
         arguments = {"path": "a" * 1000, "nested": {"limit": 20}}
         result = [{"data": "b" * 1000}, {"data": "second"}]
+        name = "search"
         self.source["attributes"].update(
             {
                 "gen_ai.operation.name": "execute_tool",
+                "gen_ai.tool.name": name,
                 "gen_ai.tool.call.arguments": arguments,
                 "gen_ai.tool.call.result": result,
             }
         )
-        node = self.request()["traces"][0]["flow"][0]
-        self.assertEqual(node["attributes"]["gen_ai.tool.call.arguments"], arguments)
-        self.assertEqual(node["attributes"]["gen_ai.tool.call.result"], result)
+        counter = TokenCounter("")
+        expected = counter.count(name) + counter.count(arguments) + counter.count(result)
+        for preview in (False, True):
+            with self.subTest(preview=preview):
+                trace = self.request(input_output_preview=preview)["traces"][0]
+                node = trace["flow"][0]
+                self.assertEqual(node["tokens"], expected)
+                self.assertEqual(trace["total_tokens"], 0)
+                self.assertEqual([root["value"] for root in trace["token_matrix"]["nodes"]], [0, 0])
+                if not preview:
+                    self.assertEqual(node["attributes"]["gen_ai.tool.call.arguments"], arguments)
+                    self.assertEqual(node["attributes"]["gen_ai.tool.call.result"], result)
+        self.assertNotIn("tokens", self.request(include_input_output=False)["traces"][0]["flow"][0])
+        self.assertNotIn("tokens", self.source)
 
     def test_structure_mode_takes_precedence_over_preview(self):
         result = self.request(include_input_output=False, input_output_preview=True)
