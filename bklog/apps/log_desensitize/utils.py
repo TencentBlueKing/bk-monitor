@@ -86,22 +86,94 @@ def expand_nested_data(data: dict):
         raise DesensitizeDataErrorException(DesensitizeDataErrorException.MESSAGE.format(e=e))
 
 
-def merge_nested_data(data: dict):
+def _has_prefix_conflict(data: dict) -> bool:
+    """
+    判断是否存在「键」与「以其为前缀的子路径」并存
+
+    例如 {"a": 1, "a.b": 2}、{"a": {"c": 2}, "a.b": 1}：
+    父键无论是标量还是对象，与子路径并存时折叠顺序会影响结果（覆盖或丢失），需要稳定排序
+    """
+    keys = set(data)
+    dotted_keys = [key for key in keys if "." in key]
+    if not dotted_keys:
+        # 没有子路径就不可能与父键并存，快速短路
+        return False
+
+    for key in dotted_keys:
+        parts = key.split(".")
+        for index in range(1, len(parts)):
+            if ".".join(parts[:index]) in keys:
+                return True
+    return False
+
+
+def _clone_merge_value(value):
+    """
+    复制待写入的 dict 值，避免合并过程修改调用方传入的数据
+
+    list 等非 dict 值按引用写入（与既有行为一致），只保证 dict 结构隔离
+    """
+    if isinstance(value, dict):
+        return {key: _clone_merge_value(item) for key, item in value.items()}
+    return value
+
+
+def merge_nested_data(data: dict, on_conflict: str = "raise"):
     """
     将data中的object类型字段合并{"aaa.aa": 1, "aaa.bb": 2} -> {"aaa": {"aa": 1, "bb": 2}}
+
+    无冲突时保持原始字段顺序；存在「键 + 子路径」并存时按点号段数稳定排序，
+    保证「短 key 先于其子路径」、折叠结果与插入顺序无关。
+    同层「标量键 + 同名前缀子路径」冲突时按 on_conflict 决定是抛异常还是保留扁平键。
+    写入的 dict 值会递归复制，不会修改调用方传入的数据。
+
+    :param data: 待合并的扁平字典
+    :param on_conflict: 冲突处理方式
+                        raise: 抛出 DesensitizeDataErrorException（默认）
+                        keep: 保留冲突的扁平键并记录字段名，不中断检索
+    :return: 合并后的嵌套字典
     """
+    if on_conflict not in ("raise", "keep"):
+        raise ValueError(f"invalid on_conflict: {on_conflict}")
+
     try:
         merged_data = {}
-        for key, value in data.items():
+        # 无冲突时沿用原始顺序，不改变检索响应的字段顺序；
+        # 存在「键 + 子路径」并存时排序，保证 raise / keep 两种模式的结果都与插入顺序无关
+        if _has_prefix_conflict(data):
+            keys_order = sorted(data, key=lambda item: item.count("."))
+        else:
+            keys_order = data
+
+        for key in keys_order:
+            value = data[key]
             keys = key.split('.')
             current = merged_data
+            prefix_conflict = False
             for k in keys[:-1]:
                 if k not in current:
                     current[k] = {}
+                elif not isinstance(current[k], dict):
+                    # 前缀已经是标量，无法继续向下建对象
+                    prefix_conflict = True
+                    break
                 current = current[k]
-            current[keys[-1]] = value
+
+            if prefix_conflict:
+                if on_conflict == "raise":
+                    raise DesensitizeDataErrorException(
+                        DesensitizeDataErrorException.MESSAGE.format(e=f"prefix conflict: {key}")
+                    )
+                # 保留原始扁平键，避免字段丢失
+                logger.warning("[desensitize] merge nested data conflict, keep flat key: %s", key)
+                merged_data[key] = _clone_merge_value(value)
+                continue
+
+            current[keys[-1]] = _clone_merge_value(value)
 
         return merged_data
+    except DesensitizeDataErrorException:
+        raise
     except Exception as e:
         raise DesensitizeDataErrorException(DesensitizeDataErrorException.MESSAGE.format(e=e))
 

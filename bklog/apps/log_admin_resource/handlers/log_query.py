@@ -38,6 +38,7 @@ from apps.log_unifyquery.handler.scene_field import SceneFieldHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.log_unifyquery.handler.scene_terms_aggs import SceneTermsAggsHandler
 from apps.log_unifyquery.handler.terms_aggs import UnifyQueryTermsAggsHandler
+from apps.utils.function import get_field_value
 from apps.utils.local import (
     del_local_param,
     get_local_param,
@@ -1818,16 +1819,8 @@ def _search_result_items(source, records, projected_fields=None):
 def _project_record(record, projected_fields):
     if not projected_fields:
         return copy.deepcopy(record)
-    projected = {}
-    for field in projected_fields:
-        value = record
-        for part in field.split("."):
-            if not isinstance(value, dict) or part not in value:
-                value = ""
-                break
-            value = value[part]
-        projected[field] = value
-    return projected
+    # 脱敏后的 record 可能同时存在嵌套结构与冲突保留的扁平 dotted key，按字段别名兼容两种形态取值
+    return {field: get_field_value(record, field) for field in projected_fields}
 
 
 def _build_context_anchor(source, index_set, record):
@@ -1838,9 +1831,15 @@ def _build_context_anchor(source, index_set, record):
         sort_fields = ["dtEventTimeStamp", "gseIndex", "iterationIndex"]
     else:
         sort_fields = ["dtEventTimeStamp", "gseindex", "_iteration_idx"]
-    sort_values = {field: record.get(field) for field in dict.fromkeys(sort_fields)}
+    # 排序字段可能配置为 a.b.c 形式，且 record 可能是脱敏后的嵌套结构，需按路径取值
+    # 保持原 record.get 的缺失语义（None），避免改变 context_anchor.sort_values 的对外形态
+    sort_values = {field: get_field_value(record, field, default=None) for field in dict.fromkeys(sort_fields)}
     identity_fields = ["bk_host_id", "serverIp", "ip", "path", "container_id", "logfile"]
-    identity = {field: record.get(field) for field in identity_fields if record.get(field) not in (None, "")}
+    identity = {}
+    for field in identity_fields:
+        value = get_field_value(record, field)
+        if value not in (None, ""):
+            identity[field] = value
     result_table_id = record.get("__result_table")
     if source["type"] == SOURCE_CLUSTERING:
         result_table_id = result_table_id or source["route"]["clustered_rt"]

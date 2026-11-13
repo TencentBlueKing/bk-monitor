@@ -699,7 +699,8 @@ class DesensitizeRuleHandler:
 
             # 处理日志原文字段自身的脱敏逻辑
             result = text_fields_desensitize_handler.transform_dict(result)
-            merged_result = merge_nested_data(result)  # 用于处理flattened字段类型，合并成一个字段
+            # 用于处理flattened字段类型，合并成一个字段；冲突字段保留扁平键，避免预览接口失败
+            merged_result = merge_nested_data(result, on_conflict="keep")
 
             for _field_name in all_field_names:
                 if _field_name not in res:

@@ -682,3 +682,32 @@ class TestSearchHandlerDesensitize(TestCase):
         self.assertFalse(handler.is_desensitize)
         log = handler._deal_query_result(fake_hits(message="Hello World1234"))["list"][0]
         self.assertEqual(log["message"], "Hello World1234")
+
+    def test_no_text_fields_keeps_nested_structure(self):
+        """未配置原文字段：字段脱敏后返回结构仍为嵌套对象，不退化为点号扁平键。"""
+        self._put_config(field_configs=[ip_replace_config("__ext_json.http.client")])
+        handler = self._build_handler()
+        source = {
+            "dtEventTimeStamp": 1727452800000,
+            "__ext_json": {"http": {"client": {"ip": "10.20.30.40", "port": 12345}}},
+            "log": LOG_TEXT,
+        }
+
+        log = handler._deal_query_result(fake_hits_source(source))["list"][0]
+
+        self.assertEqual(log["__ext_json"], {"http": {"client": {"ip": "[IP]", "port": "12345"}}})
+        self.assertNotIn("__ext_json.http.client.ip", log)
+        # 未配置原文字段，log 不做原文同步
+        self.assertEqual(log["log"], LOG_TEXT)
+
+    def test_conflict_log_still_desensitized(self):
+        """日志同时存在标量键与前缀子路径：折叠冲突不中断检索，字段仍脱敏。"""
+        self._put_config(field_configs=[ip_replace_config("a.b")])
+        handler = self._build_handler()
+        source = {"dtEventTimeStamp": 1727452800000, "a": "10.20.30.40", "a.b": "10.20.30.41"}
+
+        log = handler._deal_query_result(fake_hits_source(source))["list"][0]
+
+        # 前缀冲突的扁平键被保留，未被丢弃也未被覆盖
+        self.assertEqual(log["a"], "10.20.30.40")
+        self.assertEqual(log["a.b"], "[IP]")
