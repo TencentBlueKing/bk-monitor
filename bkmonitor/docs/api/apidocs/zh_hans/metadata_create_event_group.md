@@ -19,6 +19,8 @@
 | label | string | 是 | 事件分组标签，用于表示事件监控对象，应该复用【result_table_label】类型下的标签 |
 | operator | string | 是 | 操作者 |
 | event_info_list | list | 否 | 事件列表 |
+| default_storage | string | 否 | 默认 elasticsearch；可显式选择 doris |
+| default_storage_config | dict | 否 | 对应存储配置；Doris 支持 storage_cluster_id、expire_days、table_type、doris_storage_config |
 
 #### event_info_list具体内容说明
 

@@ -172,7 +172,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 | `SYSTEM_PROC_PERF` | 系统进程性能 | `compose_system_proc_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `BasereportSinkConfig` + `DataBusConfig` | `VM` |
 | `SYSTEM_PROC_PORT` | 系统进程端口 | `compose_system_proc_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `BasereportSinkConfig` + `DataBusConfig` | `VM` |
 | `BK_LOG` | 日志链路 | `compose_log_configs` | `ResultTableConfig` + `ESStorageBindingConfig` + `DorisStorageBindingConfig` + `DataBusConfig` | `ES` |
-| `BK_STANDARD_V2_EVENT` | 标准自定义事件 | `compose_custom_event_configs` | `ResultTableConfig` + `ESStorageBindingConfig` + `DataBusConfig` | `ES` |
+| `BK_STANDARD_V2_EVENT` | 标准自定义事件 | `compose_custom_event_configs` | `ResultTableConfig` + ES/Doris Binding + `DataBusConfig` | 由 RT `default_storage` 选择 ES / Doris |
 
 说明：
 
@@ -457,3 +457,87 @@ Admin 使用现有 `admin.datalink.component_list`、`component_detail`、`compo
 - `metadata/models/data_link/service.py`
 - `metadata/models/data_link/utils.py`
 - `metadata/models/data_link/constants.py`
+
+
+## 自定义事件使用 Doris
+
+仅覆盖 metadata 接入与查询路由；页面、事件维度自动发现及告警业务逻辑不在本次支持范围。
+未传 `default_storage` 的事件仍按原流程创建 ES 存储；不新增 RT option。
+部署时先执行 metadata 迁移 `0285_doris_storage_config`，再启用新配置。
+
+### 新建事件
+
+调用 `metadata.create_event_group`（集群 ID 替换为目标租户下的 Doris 集群）：
+
+```json
+{
+  "bk_tenant_id": "system",
+  "bk_data_id": 123,
+  "bk_biz_id": 2,
+  "event_group_name": "doris_events",
+  "label": "other_rt",
+  "operator": "admin",
+  "default_storage": "doris",
+  "default_storage_config": {
+    "storage_cluster_id": 201,
+    "expire_days": 7,
+    "table_type": "duplicate_table",
+    "doris_storage_config": {
+      "storage_keys": ["time", "event_name", "target"],
+      "json_fields": ["event", "dimensions"],
+      "original_json_fields": [],
+      "field_config_group": {},
+      "flush_timeout": 10
+    }
+  }
+}
+```
+
+`doris_storage_config` 另支持 `tokenizers`，格式与现有日志 Doris Binding 参数一致。
+未传配置时保存为空对象，列表和字段组按空值下发，`tokenizers` 不下发，`flush_timeout` 为 null。
+需要保留嵌套对象时显式填写示例中的 `json_fields`。表类型默认仍为 `primary_table`；示例使用
+`duplicate_table` 保留重复事件，不将同一时间、名称、目标的不同事件覆盖。
+新建事件沿用现有默认启用事件 V4 链路的行为。
+
+### 切换已有 ES 事件
+
+调用 `metadata.modify_result_table`：
+
+```json
+{
+  "bk_tenant_id": "system",
+  "table_id": "2_bkmonitor_event_123.__default__",
+  "operator": "admin",
+  "default_storage": "doris",
+  "external_storage": {
+    "doris": {
+      "storage_cluster_id": 201,
+      "expire_days": 7,
+      "table_type": "duplicate_table",
+      "doris_storage_config": {
+        "storage_keys": ["time", "event_name", "target"],
+        "json_fields": ["event", "dimensions"]
+      }
+    }
+  }
+}
+```
+
+`table_id` 使用实际事件组结果表 ID。Transfer 事件须通过原有方式启用
+`enable_v4_event_group_data_link`，再切换到 Doris；不新增或隐式开启其他开关。
+若通过修改结果表的 `option` 参数启用开关，应读取并保留已有 options 后提交，因为该参数存在全量替换语义。
+
+切换后 Databus 仅写入当前目标；保留旧 ES Storage 和 Binding 供历史查询使用，不搬迁历史数据。
+查询路由沿用 `StorageClusterRecord` 时间分段，由 `default_storage` 决定当前存储。
+
+### 更新 Doris 参数
+
+仍调用 `metadata.modify_result_table`，只传 `external_storage.doris` 中需要更新的存储字段。
+例如修改刷新间隔时，提交完整的 `doris_storage_config` 对象并将 `flush_timeout` 改为新值；
+该 JSON 对象整体替换，省略该字段则保留原值。事件链路会重新下发。
+现有日志和自定义格式链路继续读取各自 RT options，不与这个字段合并。
+
+### 验证范围
+
+本地测试覆盖创建、配置更新、ES/Doris Binding 选择、重复刷新、历史资源保留、存储回填和租户路由。
+真实 Doris 写入及 UnifyQuery 跨时间段查询仍需在测试环境联调；不以配置生成测试代替在线验收。

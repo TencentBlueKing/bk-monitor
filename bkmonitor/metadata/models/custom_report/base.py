@@ -22,6 +22,7 @@ from metadata.models.common import Label
 from metadata.models.data_source import DataSource, DataSourceOption, DataSourceResultTable
 from metadata.models.result_table import ResultTable, ResultTableOption
 from metadata.models.space.constants import EtlConfigs
+from metadata.models.storage import ClusterInfo
 
 """
 base is base class of:
@@ -233,6 +234,7 @@ class CustomGroupBase(models.Model):
         data_label: str | None = None,
         bk_biz_id_alias: str | None = None,
         is_sync_db: bool = True,
+        default_storage: str | None = None,
         **kwargs,
     ):
         """
@@ -247,6 +249,7 @@ class CustomGroupBase(models.Model):
         :param is_builtin: 是否为内置指标
         :param is_split_measurement: 是否需要单指标单表存储，主要针对容器大量指标的情况适配
         :param is_need_deploy_collector_config: 是否需要下发 collector 配置
+        :param default_storage: 默认存储类型，省略时使用当前自定义组的默认存储
         :param default_storage_config: 默认存储的配置
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
@@ -319,9 +322,16 @@ class CustomGroupBase(models.Model):
         # 如果是旧版自定义上报逻辑，则该表作为该dataid的唯一写入表
 
         default_storage_config = dict(default_storage_config or {})
-        default_storage_config.update(cls.DEFAULT_STORAGE_CONFIG)
+        default_storage = default_storage or cls.DEFAULT_STORAGE
+        if default_storage == cls.DEFAULT_STORAGE:
+            default_storage_config.update(cls.DEFAULT_STORAGE_CONFIG)
+            cls.process_default_storage_config(custom_group, default_storage_config)
 
-        cls.process_default_storage_config(custom_group, default_storage_config)
+        field_list = cls.STORAGE_FIELD_LIST
+        time_option = cls.STORAGE_TIME_OPTION
+        if default_storage == ClusterInfo.TYPE_DORIS:
+            field_list = [{**field, "option": {}} for field in field_list]
+            time_option = {}
 
         option = {"is_split_measurement": is_split_measurement}
         option.update(additional_options or {})
@@ -334,13 +344,13 @@ class CustomGroupBase(models.Model):
             is_custom_table=True,
             schema_type=ResultTable.SCHEMA_TYPE_FREE,
             operator=operator,
-            default_storage=cls.DEFAULT_STORAGE,
+            default_storage=default_storage,
             default_storage_config=default_storage_config,
-            field_list=cls.STORAGE_FIELD_LIST,
+            field_list=field_list,
             is_builtin=is_builtin,
             # 自定义上报，都不需要业务属性、云区域、IP等内容，只需要保留时间字段即可
             is_time_field_only=True,
-            time_option=cls.STORAGE_TIME_OPTION,
+            time_option=time_option,
             label=label,
             option=option,
             data_label=data_label,

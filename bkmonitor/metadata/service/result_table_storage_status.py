@@ -340,6 +340,7 @@ def _serialize_doris_storage(storage: models.DorisStorage, warnings: list[dict[s
         "source_type": storage.source_type,
         "index_set": storage.index_set,
         "table_type": storage.table_type,
+        "doris_storage_config": storage.doris_storage_config,
         "field_config_mapping": _load_json_config(
             storage.field_config_mapping, "field_config_mapping", storage.table_id, warnings
         ),

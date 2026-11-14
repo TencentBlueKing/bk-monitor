@@ -1137,6 +1137,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         flush_timeout: int | None,
         rt_name: str | None = None,
         tokenizers: dict[str, str] | None = None,
+        table_type: str = "primary_table",
     ) -> dict[str, Any]:
         """
         组装Doris存储绑定配置
@@ -1176,7 +1177,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                     "kind": "Doris"
                 },
                 "storage_config": {
-                    "table_type": "primary_table",
+                    "table_type": "{{table_type}}",
                     "is_profiling": false,
                     "unique_partition_table": true,
                     "db": "mapleleaf_{{bk_biz_id}}",
@@ -1202,6 +1203,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             "bk_biz_id": self.datalink_biz_ids.data_biz_id,
             "monitor_biz_id": self.datalink_biz_ids.label_biz_id,
             "storage_cluster_name": storage_cluster_name,
+            "table_type": table_type,
             "storage_keys": json.dumps(storage_keys),
             "json_fields": json.dumps(json_fields),
             "field_config_group": json.dumps(field_config_group),
