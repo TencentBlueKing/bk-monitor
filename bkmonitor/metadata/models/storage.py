@@ -6332,9 +6332,15 @@ class DorisStorage(models.Model, StorageResultTable):
     Doris存储表
     """
 
-    UPGRADE_FIELD_CONFIG = ("expire_days", "index_set", "storage_cluster_id", "field_config_mapping")
+    UPGRADE_FIELD_CONFIG = (
+        "expire_days",
+        "index_set",
+        "storage_cluster_id",
+        "field_config_mapping",
+        "doris_storage_config",
+    )
 
-    JSON_FIELDS = ("field_config_mapping",)
+    JSON_FIELDS = ("field_config_mapping", "doris_storage_config")
 
     STORAGE_TYPE = ClusterInfo.TYPE_DORIS
 
@@ -6346,6 +6352,7 @@ class DorisStorage(models.Model, StorageResultTable):
     bkbase_table_id = models.CharField("bkbase表名", max_length=128, null=True)
     origin_table_id = models.CharField("原始结果表名", max_length=128, blank=True, null=True)
     physical_tables = models.JSONField("物理表用途映射", default=dict)
+    doris_storage_config = models.JSONField("Doris Binding 存储配置", default=dict)
     source_type = models.CharField("数据源类型", max_length=32, default="log")
 
     index_set = models.TextField("索引集", blank=True, null=True)
@@ -6418,6 +6425,7 @@ class DorisStorage(models.Model, StorageResultTable):
             "source_type": self.source_type,
             "index_set": self.index_set,
             "table_type": self.table_type,
+            "doris_storage_config": self.doris_storage_config,
             "field_config_mapping": self._load_json_config(self.field_config_mapping, warnings, "field_config_mapping"),
             "expire_days": self.expire_days,
             "storage_cluster_id": self.storage_cluster_id,
@@ -6907,6 +6915,7 @@ class DorisStorage(models.Model, StorageResultTable):
         expire_days=30,
         storage_cluster_id=None,
         create_storage_cluster_record=True,
+        doris_storage_config=None,
         **kwargs,
     ):
         """
@@ -6923,6 +6932,7 @@ class DorisStorage(models.Model, StorageResultTable):
         :param expire_days: 过期天数
         :param storage_cluster_id: 存储集群ID
         :param create_storage_cluster_record: 是否创建当前存储集群记录，非默认存储创建时应关闭
+        :param doris_storage_config: 自定义事件 Doris Binding 配置，不影响日志的 RT options
         :param kwargs: 其他参数
         """
         # 0. 判断是否需要使用默认集群信息
@@ -6952,6 +6962,7 @@ class DorisStorage(models.Model, StorageResultTable):
                     table_id=table_id,
                     bk_tenant_id=bk_tenant_id,
                     source_type=source_type,
+                    doris_storage_config=doris_storage_config or {},
                     bkbase_table_id=bkbase_table_id,
                     origin_table_id=origin_table_id,
                     index_set=index_set,
@@ -7002,6 +7013,7 @@ class DorisStorage(models.Model, StorageResultTable):
                 "index_set": self.index_set,
                 "table_type": self.table_type,
                 "field_config_mapping": field_config_mapping,
+                "doris_storage_config": self.doris_storage_config,
                 "expire_days": self.expire_days,
                 "bk_tenant_id": self.bk_tenant_id,
             }
