@@ -38,9 +38,20 @@ class SourceAnalysisOperationGroup(OperationGroup):
     )
 
 
+class DenoiseOperationGroup(OperationGroup):
+    list_decisions = bind_property(
+        Operation, name="list_decisions", method="POST", path="/core/v1/incident_denoise/list_decisions/"
+    )
+    get_alert_decisions = bind_property(
+        Operation, name="get_alert_decisions", method="POST", path="/core/v1/incident_denoise/get_alert_decisions/"
+    )
+    get_policy = bind_property(Operation, name="get_policy", method="GET", path="/core/v1/incident_denoise/get_policy/")
+
+
 class BKFaraClient(APIGatewayClient):
     """BKFara API Gateway 客户端。"""
 
     _api_name = "bkfara"
 
     source_analysis = bind_property(SourceAnalysisOperationGroup, name="source_analysis")
+    denoise = bind_property(DenoiseOperationGroup, name="denoise")

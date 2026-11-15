@@ -32,6 +32,25 @@ from constants.issue import (
 )
 from core.drf_resource.contrib.api import APIResource
 from core.errors.api import BKAPIError
+from api.bk_incident.denoise import DenoiseReadBaseResource
+
+
+class ListDenoiseDecisionsResource(DenoiseReadBaseResource):
+    action = "/core/v1/incident_denoise/list_decisions/"
+    method = "POST"
+    client_operation = "list_decisions"
+
+
+class GetAlertDenoiseDecisionsResource(DenoiseReadBaseResource):
+    action = "/core/v1/incident_denoise/get_alert_decisions/"
+    method = "POST"
+    client_operation = "get_alert_decisions"
+
+
+class GetDenoisePolicyResource(DenoiseReadBaseResource):
+    action = "/core/v1/incident_denoise/get_policy/"
+    method = "GET"
+    client_operation = "get_policy"
 
 
 class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):

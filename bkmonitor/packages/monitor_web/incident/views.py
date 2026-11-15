@@ -15,12 +15,20 @@ from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from packages.monitor_web.incident.metrics.views import IncidentMetricsViewSet  # noqa
 from packages.monitor_web.incident.events.views import IncidentEventsViewSet  # noqa
+from monitor_web.incident.denoise import (
+    DenoiseReadPermission,
+    GetAlertDenoiseDecisionsResource,
+    GetDenoisePolicyResource,
+    ListDenoiseDecisionsResource,
+)
 
 
 class IncidentViewSet(ResourceViewSet):
     query_post_actions = []
 
     def get_permissions(self):
+        if self.action in {"denoise_decisions", "alert_denoise_decisions", "denoise_policy"}:
+            return [DenoiseReadPermission()]
         if self.action in ["incident_overview"]:
             return []
 
@@ -30,6 +38,9 @@ class IncidentViewSet(ResourceViewSet):
         return []
 
     resource_routes = [
+        ResourceRoute("POST", ListDenoiseDecisionsResource(), endpoint="denoise_decisions"),
+        ResourceRoute("POST", GetAlertDenoiseDecisionsResource(), endpoint="alert_denoise_decisions"),
+        ResourceRoute("GET", GetDenoisePolicyResource(), endpoint="denoise_policy"),
         # 故障列表接口
         ResourceRoute("POST", resource.incident.incident_list, endpoint="incident_list"),
         # 故障导出接口
