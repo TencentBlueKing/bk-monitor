@@ -1,11 +1,14 @@
 """每次调用使用当前用户 OAuth 凭证，禁止复用 Resource 单例上的用户状态。"""
 
 from datetime import date, datetime
+from pathlib import Path
 from uuid import UUID
 
 from bkapi_client_core.exceptions import ResponseError
 from bkoauth.client import oauth_client
 from django.conf import settings
+from django.utils import translation
+from requests.exceptions import RequestException
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
@@ -17,9 +20,9 @@ from core.errors.api import BKAPIError
 
 class DenoiseTransportSerializer(serializers.Serializer):
     bk_tenant_id = serializers.CharField(max_length=256)
-    scope_id = serializers.CharField(max_length=64)
+    scope_id = serializers.CharField(max_length=193)
     scope_type = serializers.CharField(max_length=64)
-    scope_value = serializers.CharField(max_length=32)
+    scope_value = serializers.CharField(max_length=128)
 
     def to_internal_value(self, data):
         allowed = set(self.fields) | {
@@ -54,7 +57,7 @@ class DenoiseReadBaseResource(APIResource):
 
     @property
     def base_url(self):
-        return settings.BKFARA_APIGW_BASE_URL or settings.BK_INCIDENT_APIGW_URL
+        return settings.BKFARA_APIGW_BASE_URL
 
     def perform_request(self, validated_request_data):
         request = get_request(peaceful=True)
@@ -64,14 +67,34 @@ class DenoiseReadBaseResource(APIResource):
         tenant = getattr(user, "tenant_id", None) if settings.ENABLE_MULTI_TENANT_MODE else "system"
         if not tenant or validated_request_data["bk_tenant_id"] != tenant:
             raise PermissionDenied("Tenant mismatch")
+        endpoint = self.base_url
+        if not endpoint or not endpoint.strip():
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result={"message": "BKFARA_APIGW_BASE_URL is not configured"},
+            )
+        ca_bundle = getattr(settings, "BKFARA_CA_BUNDLE", "")
+        if ca_bundle and (not isinstance(ca_bundle, str) or not Path(ca_bundle).is_file()):
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result={"message": "BKFARA_CA_BUNDLE must reference a trusted CA file"},
+            )
         token = oauth_client.get_access_token(request)
         if not getattr(token, "access_token", None):
             raise PermissionDenied("User access token required")
-        client = BKFaraClient(endpoint=self.base_url, stage="")
+        client = BKFaraClient(endpoint=endpoint, stage="")
         client.update_bkapi_authorization(
             bk_app_code=settings.APP_CODE, bk_app_secret=settings.SECRET_KEY, access_token=token.access_token
         )
-        client.update_headers({"X-Bk-Tenant-Id": tenant})
+        # 支持内部 CA；没有专用 CA 时沿用 requests 的默认信任链和环境 CA 配置。
+        client.session.verify = ca_bundle or True
+        headers = {"X-Bk-Tenant-Id": tenant}
+        language = translation.get_language()
+        if language:
+            headers["blueking-language"] = language
+        client.update_headers(headers)
         payload = {
             key: value.isoformat()
             if isinstance(value, date | datetime)
@@ -83,11 +106,11 @@ class DenoiseReadBaseResource(APIResource):
         operation = getattr(client.denoise, self.client_operation)
         try:
             response = operation(**{"params" if self.method == "GET" else "data": payload}, timeout=self.TIMEOUT)
-        except ResponseError as error:
+        except (ResponseError, RequestException) as error:
             raise BKAPIError(
                 system_name=self.module_name,
                 url=self.action,
-                result={"code": error.response_status_code, "message": "BKFara denoise query failed"},
+                result={"code": getattr(error, "response_status_code", None), "message": "BKFara denoise query failed"},
             ) from error
         if (
             not isinstance(response, dict)

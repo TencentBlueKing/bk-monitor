@@ -3,6 +3,9 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
+from django.test import override_settings
+from django.utils import translation
+from requests.exceptions import SSLError, Timeout
 from rest_framework.exceptions import PermissionDenied
 
 from conftest import ROOT, load, module
@@ -114,7 +117,11 @@ def test_transport_uses_current_user_token_and_preserves_payload(boundary, trans
     transport.oauth.get_access_token.assert_called_once_with(boundary.request)
     auth = transport.client.update_bkapi_authorization.call_args.kwargs
     assert auth["access_token"] == "synthetic-user-token" and "bk_username" not in auth
-    transport.client.update_headers.assert_called_once_with({"X-Bk-Tenant-Id": "tenant-a"})
+    headers = {"X-Bk-Tenant-Id": "tenant-a"}
+    if translation.get_language():
+        headers["blueking-language"] = translation.get_language()
+    transport.client.update_headers.assert_called_once_with(headers)
+    assert transport.client.session.verify is True
     sent = transport.client.denoise.get_alert_decisions.call_args.kwargs["data"]
     assert sent["start_time"] == "2026-11-15T00:00:00+00:00"
     transport.client.disable_ssl_verify.assert_not_called()
@@ -156,3 +163,83 @@ def test_client_operations_bind_exact_native_read_paths():
         operation = getattr(client.DenoiseOperationGroup, name)
         assert operation.method == method
         assert operation.path == f"/core/v1/incident_denoise/{name}/"
+
+
+@pytest.mark.parametrize("action", ["denoise_decisions", "alert_denoise_decisions", "denoise_policy"])
+@pytest.mark.parametrize("multitenant", [False, True])
+def test_share_token_cannot_use_business_permission_bypass(boundary, action, multitenant):
+    boundary.request.token = "synthetic-share-token"
+    boundary.request.data = params()
+    if action == "denoise_policy":
+        boundary.request.method = "GET"
+        boundary.request.query_params = {"bk_biz_id": 2}
+    with override_settings(ENABLE_MULTI_TENANT_MODE=multitenant), pytest.raises(PermissionDenied):
+        boundary.web.DenoiseReadPermission().has_permission(boundary.request, SimpleNamespace(action=action))
+    boundary.iam.is_allowed.assert_not_called()
+    boundary.api.bk_incident.get_alert_denoise_decisions.assert_not_called()
+
+
+def test_batch_drops_list_controls_and_keeps_all_200_ids(boundary):
+    ids = [str(180000000000000000 + i) for i in range(200)]
+    serializer = boundary.web.AlertDenoiseQuerySerializer(
+        data={**params(), "alert_ids": ids, "page": 2, "page_size": 1}
+    )
+    assert serializer.is_valid(), serializer.errors
+    boundary.web.GetAlertDenoiseDecisionsResource().perform_request(serializer.validated_data)
+    payload = boundary.api.bk_incident.get_alert_denoise_decisions.call_args.args[0]
+    assert payload["alert_ids"] == ids
+    assert not {"page", "page_size", "view_mode"}.intersection(payload)
+
+
+@pytest.mark.parametrize("space_id", ["a" * 36, "a" * 128])
+def test_transport_does_not_shorten_monitor_space_identifiers(transport, space_id):
+    scope_type = "t" * 64
+    serializer = transport.module.DenoiseTransportSerializer(
+        data={
+            "bk_tenant_id": "tenant-a",
+            "scope_type": scope_type,
+            "scope_value": space_id,
+            "scope_id": f"{scope_type}_{space_id}",
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["scope_value"] == space_id
+
+
+def test_missing_bkfara_endpoint_never_falls_back_or_obtains_credentials(transport):
+    with override_settings(BKFARA_APIGW_BASE_URL="", BK_INCIDENT_APIGW_URL="https://legacy.example.test"):
+        with pytest.raises(transport.BKAPIError):
+            transport.resource.perform_request({"bk_tenant_id": "tenant-a"})
+    transport.oauth.get_access_token.assert_not_called()
+    transport.client_factory.assert_not_called()
+
+
+def test_ca_bundle_and_language_are_forwarded_without_disabling_tls(transport, tmp_path, monkeypatch):
+    ca_file = tmp_path / "ca.pem"
+    ca_file.write_text("synthetic-ca-placeholder")
+    monkeypatch.setattr(translation, "get_language", lambda: "en")
+    with override_settings(BKFARA_CA_BUNDLE=str(ca_file)):
+        transport.resource.perform_request({"bk_tenant_id": "tenant-a"})
+    assert transport.client.session.verify == str(ca_file)
+    transport.client.disable_ssl_verify.assert_not_called()
+    transport.client.update_headers.assert_called_once_with({"X-Bk-Tenant-Id": "tenant-a", "blueking-language": "en"})
+
+
+@pytest.mark.parametrize("ca_bundle", [False, "/nonexistent/denoise-test-ca.pem"])
+def test_invalid_ca_configuration_rejected_before_credentials(transport, ca_bundle):
+    if ca_bundle is False:
+        # False cannot disable verification; it selects the secure default.
+        with override_settings(BKFARA_CA_BUNDLE=False):
+            transport.resource.perform_request({"bk_tenant_id": "tenant-a"})
+        assert transport.client.session.verify is True
+    else:
+        with override_settings(BKFARA_CA_BUNDLE=ca_bundle), pytest.raises(transport.BKAPIError):
+            transport.resource.perform_request({"bk_tenant_id": "tenant-a"})
+        transport.oauth.get_access_token.assert_not_called()
+
+
+@pytest.mark.parametrize("error", [SSLError("synthetic certificate error"), Timeout("synthetic timeout")])
+def test_transport_network_failures_are_errors_not_empty_success(transport, error):
+    transport.client.denoise.get_alert_decisions.side_effect = error
+    with pytest.raises(transport.BKAPIError):
+        transport.resource.perform_request({"bk_tenant_id": "tenant-a"})

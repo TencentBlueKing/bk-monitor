@@ -83,11 +83,16 @@ class AlertDenoiseQuerySerializer(DenoiseQuerySerializer):
         }
         if restricted.intersection(attrs) or attrs.get("view_mode") == "history":
             raise serializers.ValidationError("批量查询只返回告警最新结果")
+        for field in ("view_mode", "page", "page_size"):
+            attrs.pop(field, None)
         attrs["alert_ids"] = list(dict.fromkeys(attrs["alert_ids"]))
         return attrs
 
 
 def authorize_scope(data, request):
+    # 分享令牌可豁免 VIEW_BUSINESS，但不授权读取整个业务的降噪规则快照。
+    if getattr(request, "token", None):
+        raise PermissionDenied("分享令牌不能查询业务降噪记录，请使用普通登录会话")
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated or not getattr(user, "username", ""):
         raise PermissionDenied("需要已登录用户")
