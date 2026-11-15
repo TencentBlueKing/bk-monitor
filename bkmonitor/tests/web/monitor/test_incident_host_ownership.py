@@ -99,6 +99,7 @@ class TestHostOwnershipAccess(SimpleTestCase):
         incident = _FakeIncidentDocument(
             incident_id=1001,
             assignees=["new-owner"],
+            status="recovering",
             extra_info={
                 NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE,
                 ASSIGNEE_SOURCE_KEY: CMDB_HOST_ASSIGNEE_SOURCE,
@@ -111,7 +112,10 @@ class TestHostOwnershipAccess(SimpleTestCase):
             sync.update(
                 event_id=event_id,
                 aggregate_revision=revision,
-                update_attributes={"assignees": {"from": [], "to": ["host-owner"]}},
+                update_attributes={
+                    "assignees": {"from": [], "to": ["host-owner"]},
+                    "status": {"from": "recovering", "to": "abnormal"},
+                },
             )
             with (
                 self.subTest(event_id=event_id),
@@ -125,6 +129,7 @@ class TestHostOwnershipAccess(SimpleTestCase):
             ):
                 self.processor.update_incident(sync)
                 self.assertEqual(incident.assignees, ["new-owner"])
+                self.assertEqual(incident.status, "recovering")
                 record.assert_not_called()
                 snapshot.assert_not_called()
 
@@ -218,3 +223,240 @@ class TestHostOwnershipNotice(SimpleTestCase):
                 self.assertEqual(send.call_count, expected)
                 if expected:
                     self.assertEqual(send.call_args.args[1], IncidentOperationType.UPDATE)
+
+
+class TestHostOwnershipReviewRegressions(TestHostOwnershipAccess):
+    def _run_update(self, sync, incident, record=None):
+        from unittest.mock import Mock
+
+        record = record or Mock()
+        with (
+            patch("alarm_backends.service.access.incident.processor.api") as api,
+            patch(
+                "alarm_backends.service.access.incident.processor.IncidentSnapshot",
+                side_effect=lambda payload: SimpleNamespace(alert_entity_mapping={}),
+            ),
+            patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument),
+            patch("alarm_backends.service.access.incident.processor.IncidentDocument.get", return_value=incident),
+            patch("alarm_backends.service.access.incident.processor.IncidentDocument.bulk_create"),
+            patch(
+                "alarm_backends.service.access.incident.processor.IncidentOperationManager.record_update_incident",
+                record,
+            ),
+            patch.object(_FakeIncidentDocument, "generate_assignees", IncidentDocument.generate_assignees),
+        ):
+            self.processor.update_incident(sync)
+        return record, api
+
+    def _existing(self):
+        incident = _FakeIncidentDocument(**self._base_sync_info()["incident_info"], incident_id=1001)
+        incident.assignees = ["saved-owner"]
+        incident.extra_info = {NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE, ASSIGNEE_SOURCE_KEY: CMDB_HOST_ASSIGNEE_SOURCE}
+        return incident
+
+    def test_partial_status_update_preserves_owner_and_remote_writeback(self):
+        sync = self._host_sync_info()
+        sync["incident_info"].pop("extra_info")
+        sync["update_attributes"] = {
+            "status": {"from": "abnormal", "to": "recovering"},
+            "assignees": {"from": ["saved-owner"], "to": []},
+        }
+        incident = self._existing()
+        _, api = self._run_update(sync, incident)
+        self.assertEqual(incident.assignees, ["saved-owner"])
+        self.assertEqual(incident.status, "recovering")
+        self.assertEqual(incident.extra_info[ASSIGNEE_SOURCE_KEY], CMDB_HOST_ASSIGNEE_SOURCE)
+        self.assertEqual(api.bk_incident.update_incident_detail.call_args.kwargs["assignees"], ["saved-owner"])
+
+    def test_invalid_claim_preserves_previous_owner(self):
+        for owners in (["alice,bob"], ["alice;bob"], ["<a>"], ["bad user"], [], None, "alice"):
+            with self.subTest(owners=owners):
+                incident = self._existing()
+                sync = self._host_sync_info()
+                sync["incident_info"]["assignees"] = owners
+                sync["update_attributes"] = {"assignees": {"from": ["saved-owner"], "to": owners}}
+                self._run_update(sync, incident)
+                self.assertEqual(incident.assignees, ["saved-owner"])
+                self.assertEqual(incident.extra_info[ASSIGNEE_SOURCE_KEY], CMDB_HOST_ASSIGNEE_SOURCE)
+
+    def test_explicit_null_revokes_ownership(self):
+        incident = self._existing()
+        sync = self._host_sync_info()
+        sync["incident_info"]["extra_info"][ASSIGNEE_SOURCE_KEY] = None
+        self.assertFalse(AccessIncidentProcess.apply_bkfara_host_ownership(sync, incident))
+        self.assertIsNone(incident.extra_info[ASSIGNEE_SOURCE_KEY])
+        IncidentDocument.generate_assignees(incident, SimpleNamespace(alert_entity_mapping={}))
+        self.assertEqual(incident.assignees, [])
+
+    def test_update_projection_cannot_overwrite_normalized_owners(self):
+        incident = self._existing()
+        sync = self._host_sync_info()
+        sync["incident_info"]["assignees"] = [" alice ", "alice", "bob"]
+        sync["update_attributes"] = {"assignees": {"from": [], "to": "unvalidated-owner"}}
+        record, api = self._run_update(sync, incident)
+        self.assertEqual(incident.assignees, ["alice", "bob"])
+        self.assertEqual(record.call_args.kwargs["to_value"], ["alice", "bob"])
+        self.assertEqual(record.call_args.kwargs["from_value"], ["saved-owner"])
+        self.assertEqual(api.bk_incident.update_incident_detail.call_args.kwargs["assignees"], ["alice", "bob"])
+
+    def test_delivery_retry_reaches_consumer_without_advancing_event_receipt(self):
+        from unittest.mock import Mock
+        from bkmonitor.aiops.incident.delivery import NoticeDeliveryRetry
+
+        sync = self._host_sync_info()
+        sync.update(
+            event_id="retry-event",
+            aggregate_revision=3,
+            update_attributes={"assignees": {"from": ["saved-owner"], "to": ["host-owner"]}},
+        )
+        incident = self._existing()
+        with self.assertRaises(NoticeDeliveryRetry):
+            self._run_update(sync, incident, Mock(side_effect=NoticeDeliveryRetry("retry")))
+        self.assertNotIn(HOST_OWNERSHIP_EVENT_ID_KEY, incident.extra_info)
+
+    def test_event_delivery_namespace_includes_scope_and_tenant(self):
+        sync = self._host_sync_info()
+        sync.update(event_id="same-event", bk_tenant_id="tenant-a", scope_id="bkcc_2")
+        first = self.processor.notice_event_key(sync)
+        sync["bk_tenant_id"] = "tenant-b"
+        self.assertNotEqual(first, self.processor.notice_event_key(sync))
+
+
+class TestNoticeContentSafety(SimpleTestCase):
+    def test_personal_markdown_escapes_untrusted_links(self):
+        from constants.action import NoticeWay
+
+        context = {
+            "incident_reason": "[click](https://example.invalid) <b>bad</b>",
+            "assignees": "alice",
+            "incident_name": "**fake**",
+            "url": "https://example.invalid/incident/1",
+        }
+        with (
+            patch.object(IncidentNoticeHelper, "get_incident_context", return_value=context),
+            patch("bkmonitor.aiops.incident.notice.IncidentSender") as sender,
+        ):
+            IncidentNoticeHelper._send_personal_notice(SimpleNamespace(incident_id=1), ["alice"], NoticeWay.QY_WEIXIN)
+        sent_context = sender.call_args.kwargs["context"]
+        self.assertIn(r"\[click\]\(", sent_context["incident_reason"])
+        self.assertNotIn("<b>", sent_context["incident_reason"])
+        self.assertEqual(sent_context["url"], "https://example.invalid/incident/1")
+
+    def test_mail_template_escapes_reason_and_owner(self):
+        from pathlib import Path
+        from jinja2 import Environment
+
+        template = Path(__file__).resolve().parents[3] / "templates/notice/incident/mail_content.jinja"
+        html = (
+            Environment(autoescape=False)
+            .from_string(template.read_text())
+            .render(
+                incident_reason='<a href="https://example.invalid">click</a>',
+                assignees="<b>alice</b>",
+                incident_name="<img src=x>",
+            )
+        )
+        self.assertNotIn('<a href="https://example.invalid">', html)
+        self.assertIn("&lt;b&gt;alice&lt;/b&gt;", html)
+
+
+class TestNoticeDeliveryRouting(SimpleTestCase):
+    def test_queue_retries_delivery_failure_without_ack(self):
+        from unittest.mock import Mock
+        from bkmonitor.aiops.incident.delivery import NoticeDeliveryRetry
+
+        processor = object.__new__(AccessIncidentProcess)
+        processor.queue_name = "incident-test"
+        processor.client = Mock()
+        processor.handle_sync_info = Mock(side_effect=NoticeDeliveryRetry("retry"))
+        processor.process()
+        callback = processor.client.start_consuming.call_args.kwargs["callback"]
+        channel = Mock()
+        with patch("alarm_backends.service.access.incident.processor.time.sleep"):
+            callback(channel, SimpleNamespace(delivery_tag=9), {}, '{"incident_id":1}')
+        channel.basic_ack.assert_not_called()
+        channel.basic_nack.assert_called_once_with(9, requeue=True)
+
+    def test_channel_receipts_are_scoped_per_recipient_and_operation(self):
+        from constants.action import NoticeWay
+
+        incident = SimpleNamespace(incident_id=1)
+        targets = [{"notice_way": NoticeWay.SMS, "receivers": ["alice", "bob"]}]
+
+        def dispatch(key, channel, recipient, send):
+            return send()
+
+        with (
+            patch.object(IncidentNoticeHelper, "_get_configured_notice_targets", return_value=targets),
+            patch.object(
+                IncidentNoticeHelper,
+                "_send_notice_by_way",
+                side_effect=lambda **kw: {user: {"result": True} for user in kw["receivers"]},
+            ) as send,
+            patch("bkmonitor.aiops.incident.notice.dispatch_once", side_effect=dispatch) as receipt,
+        ):
+            IncidentNoticeHelper.send_incident_notice(
+                incident,
+                operation_type=IncidentOperationType.UPDATE,
+                notice_event_key="event-key",
+                incident_key="assignees",
+            )
+            IncidentNoticeHelper.send_incident_notice(
+                incident, operation_type=IncidentOperationType.RECOVER, notice_event_key="event-key"
+            )
+        self.assertEqual(
+            [call.kwargs["receivers"] for call in send.call_args_list], [["alice"], ["bob"], ["alice"], ["bob"]]
+        )
+        self.assertNotEqual(receipt.call_args_list[0].args[0], receipt.call_args_list[2].args[0])
+
+    def test_delivery_failure_is_not_swallowed_by_operation_manager(self):
+        from bkmonitor.aiops.incident.delivery import NoticeDeliveryRetry
+
+        incident = SimpleNamespace(incident_id=1)
+        with (
+            patch.object(
+                IncidentNoticeHelper,
+                "_get_configured_notice_targets",
+                return_value=[{"notice_way": "sms", "receivers": ["alice"]}],
+            ),
+            patch.object(IncidentNoticeHelper, "send_incident_notice", side_effect=NoticeDeliveryRetry("retry")),
+        ):
+            with self.assertRaises(NoticeDeliveryRetry):
+                IncidentOperationManager._send_incident_notice(
+                    1,
+                    IncidentOperationType.UPDATE,
+                    incident_document=incident,
+                    notice_config={},
+                    notice_event_key="event",
+                )
+
+
+class TestOwnershipRevocationOrder(SimpleTestCase):
+    def test_old_revocation_cannot_clear_new_assignment_and_old_assignment_cannot_reactivate(self):
+        for incoming, stored in ((None, CMDB_HOST_ASSIGNEE_SOURCE), (CMDB_HOST_ASSIGNEE_SOURCE, None)):
+            incident = SimpleNamespace(
+                extra_info={
+                    NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE,
+                    ASSIGNEE_SOURCE_KEY: stored,
+                    HOST_OWNERSHIP_EVENT_ID_KEY: "new",
+                    HOST_OWNERSHIP_REVISION_KEY: 3,
+                }
+            )
+            event = {
+                NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE,
+                "event_id": "old",
+                "aggregate_revision": 2,
+                "incident_info": {"extra_info": {ASSIGNEE_SOURCE_KEY: incoming}},
+            }
+            self.assertTrue(AccessIncidentProcess.duplicate_host_ownership_event(event, incident))
+
+    def test_revocation_advances_receipt(self):
+        incident = SimpleNamespace(extra_info={NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE, ASSIGNEE_SOURCE_KEY: None})
+        event = {
+            NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE,
+            "event_id": "revoke",
+            "aggregate_revision": 4,
+            "incident_info": {"extra_info": {ASSIGNEE_SOURCE_KEY: None}},
+        }
+        AccessIncidentProcess.remember_host_ownership_event(event, incident)
+        self.assertEqual(incident.extra_info[HOST_OWNERSHIP_REVISION_KEY], 4)

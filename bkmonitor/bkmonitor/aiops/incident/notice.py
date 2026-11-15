@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import re
+from html import escape
 import time
 from datetime import datetime
 from urllib.parse import quote, urlencode
@@ -20,6 +22,8 @@ from django.utils.translation import gettext as _
 
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.incident import IncidentDocument
+from bkmonitor.aiops.incident.delivery import dispatch_once, digest
+from bkmonitor.aiops.incident.ownership import normalize_host_owners
 from bkmonitor.utils.send import IncidentSender
 from constants.action import NoticeWay
 from constants.alert import EventStatus
@@ -473,7 +477,7 @@ class IncidentNoticeHelper:
                 and extra_info.get(ASSIGNEE_SOURCE_KEY) == CMDB_HOST_ASSIGNEE_SOURCE
                 and notice_way in {NoticeWay.QY_WEIXIN, NoticeWay.MAIL, NoticeWay.SMS, NoticeWay.VOICE}
             ):
-                receivers = sorted(set(receivers) | set(incident.assignees or []))
+                receivers = sorted(set(receivers) | set(normalize_host_owners(incident.assignees)))
             if receivers:
                 targets.append(
                     {
@@ -537,16 +541,37 @@ class IncidentNoticeHelper:
         configured_targets = cls._get_configured_notice_targets(incident, notice_config=notice_config)
         if configured_targets:
             for target in configured_targets:
-                result = cls._send_notice_by_way(
-                    incident=incident,
-                    notice_way=target["notice_way"],
-                    receivers=target["receivers"],
-                    title=title,
-                    operation_type=operation_type,
-                    **kwargs,
-                )
+
+                def send(receivers):
+                    return cls._send_notice_by_way(
+                        incident=incident,
+                        notice_way=target["notice_way"],
+                        receivers=receivers,
+                        title=title,
+                        operation_type=operation_type,
+                        **kwargs,
+                    )
+
+                event_key = kwargs.get("notice_event_key")
+                if event_key:
+                    # One operation can share an event with another; isolate their receipts.
+                    operation_key = digest(
+                        [event_key, getattr(operation_type, "value", operation_type), kwargs.get("incident_key")]
+                    )
+                    result = {}
+                    for receiver in target["receivers"]:
+                        result.update(
+                            dispatch_once(
+                                operation_key,
+                                target["notice_way"],
+                                receiver,
+                                lambda receiver=receiver: send([receiver]),
+                            )
+                        )
+                else:
+                    result = send(target["receivers"])
                 if result:
-                    all_results[target["notice_way"]] = result
+                    all_results.setdefault(target["notice_way"], {}).update(result)
             return all_results
 
         # 1. 发送企业微信群机器人通知
@@ -677,6 +702,12 @@ class IncidentNoticeHelper:
                 title_template = "notice/incident/markdown_title.jinja"
                 content_template = "notice/incident/markdown_content.jinja"
 
+            # Escape untrusted text per channel while preserving application-generated links.
+            if notice_way not in {NoticeWay.MAIL, NoticeWay.SMS, NoticeWay.VOICE}:
+                for key in ("incident_reason", "assignees", "incident_name"):
+                    value = escape(str(context.get(key) or ""))
+                    context[key] = re.sub(r"([\\`*_{}\[\]()#+.!|>~-])", r"\\\1", value)
+            context["notice_way"] = notice_way
             # 创建发送器
             sender = IncidentSender(
                 context=context,

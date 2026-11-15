@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.aiops.incident.delivery import NoticeDeliveryRetry
 from bkmonitor.documents.incident import IncidentDocument
 import logging
 import time
@@ -232,6 +233,8 @@ class IncidentOperationManager:
                         f"Sent incident notice for incident {incident_id} (operation: {operation_type.value}) "
                         f"to {len(all_receivers)} receiver(s) via {len(all_results)} channel(s)"
                     )
+        except NoticeDeliveryRetry:
+            raise
         except Exception as e:
             logger.exception(f"Failed to send incident notice for incident {incident_id}: {e}")
 
@@ -273,6 +276,7 @@ class IncidentOperationManager:
         incident_name: str = None,
         should_send_notice: bool = None,
         notice_config: dict = None,
+        notice_event_key: str = None,
     ) -> IncidentOperationDocument:
         """记录生成故障
         文案: 生成故障，包含{alert_count}个告警，负责人为{handlers}
@@ -297,6 +301,7 @@ class IncidentOperationManager:
             assignees=assignees,
             incident_document=incident_document,
             notice_config=notice_config,
+            notice_event_key=notice_event_key,
         )
 
     @classmethod
@@ -371,6 +376,7 @@ class IncidentOperationManager:
                     merge_info=merge_info,
                     should_send_notice=should_send_notice,
                     notice_config=kwargs.get("notice_config"),
+                    notice_event_key=kwargs.get("notice_event_key"),
                 )
             if to_value == IncidentStatus.RECOVERED.value:
                 return cls.record_operation(
@@ -380,6 +386,7 @@ class IncidentOperationManager:
                     send_notice=cls.resolve_notice_switch(True, should_send_notice),
                     incident_document=kwargs.get("incident_document"),
                     notice_config=kwargs.get("notice_config"),
+                    notice_event_key=kwargs.get("notice_event_key"),
                 )
             if to_value == IncidentStatus.RECOVERING.value:
                 # 观察中事件：观察时长由 notice.py 中的 _format_observe_duration 从 end_time 实时计算
@@ -390,6 +397,7 @@ class IncidentOperationManager:
                     send_notice=cls.resolve_notice_switch(True, should_send_notice),
                     incident_document=kwargs.get("incident_document"),
                     notice_config=kwargs.get("notice_config"),
+                    notice_event_key=kwargs.get("notice_event_key"),
                 )
             # 故障重新打开：从观察中（RECOVERING）变为异常（ABNORMAL）
             if to_value == IncidentStatus.ABNORMAL.value and from_value == IncidentStatus.RECOVERING.value:
@@ -400,6 +408,7 @@ class IncidentOperationManager:
                     send_notice=cls.resolve_notice_switch(True, should_send_notice),
                     incident_document=kwargs.get("incident_document"),
                     notice_config=kwargs.get("notice_config"),
+                    notice_event_key=kwargs.get("notice_event_key"),
                 )
 
         enum_class = INCIDENT_ATTRIBUTE_VALUE_ENUMS.get(incident_key)
@@ -418,6 +427,7 @@ class IncidentOperationManager:
             notify_assignee_change=kwargs.get("notify_assignee_change") is True,
             incident_document=kwargs.get("incident_document"),
             notice_config=kwargs.get("notice_config"),
+            notice_event_key=kwargs.get("notice_event_key"),
         )
 
     @classmethod
@@ -445,6 +455,7 @@ class IncidentOperationManager:
         alert_count: int = None,
         should_send_notice: bool = None,
         notice_config: dict = None,
+        notice_event_key: str = None,
     ):
         """记录故障合并
         文案:
@@ -499,6 +510,7 @@ class IncidentOperationManager:
             link_incident_doc_id=target_incident_doc_id,
             action={"type": "link", "target": "incident", "params": ["link_incident_doc_id"]},
             notice_config=notice_config,
+            notice_event_key=notice_event_key,
         )
 
         # 给合并目标故障，记录 incident_merge 记录
@@ -515,6 +527,7 @@ class IncidentOperationManager:
             alert_count=alert_count,  # 传递告警数量
             action={"type": "link", "target": "incident", "params": ["link_incident_doc_id"]},
             notice_config=notice_config,
+            notice_event_key=notice_event_key,
         )
 
         return True

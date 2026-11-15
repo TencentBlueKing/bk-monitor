@@ -35,3 +35,4 @@ from .strategy import *  # noqa
 from .tapd import *  # noqa
 from .token import *  # noqa
 from .query_template import *  # noqa
+from .incident_delivery import IncidentNoticeDelivery  # noqa
