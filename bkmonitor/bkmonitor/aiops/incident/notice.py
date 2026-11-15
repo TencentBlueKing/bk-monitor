@@ -459,6 +459,13 @@ class IncidentNoticeHelper:
             if not notice_way or not isinstance(channel_config, dict) or not channel_config.get("is_select"):
                 continue
             receivers = cls._resolve_config_receivers(incident, channel_config)
+            extra_info = getattr(incident, "extra_info", None) or {}
+            if (
+                extra_info.get("notice_source") == "bkfara"
+                and extra_info.get("assignee_source") == "cmdb_host"
+                and notice_way in {NoticeWay.QY_WEIXIN, NoticeWay.MAIL, NoticeWay.SMS, NoticeWay.VOICE}
+            ):
+                receivers = sorted(set(receivers) | set(incident.assignees or []))
             if receivers:
                 targets.append(
                     {

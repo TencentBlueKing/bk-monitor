@@ -105,6 +105,12 @@ class IncidentOperationManager:
 
         # 从 kwargs 中提取 incident_document（不存入 extra_info）
         incident_document = kwargs.pop("incident_document", None)
+        notify_assignee_change = (
+            kwargs.pop("notify_assignee_change", False) is True
+            and operation_type == IncidentOperationType.UPDATE
+            and kwargs.get("incident_key") == "assignees"
+        )
+        notice_trigger = operation_type in cls.NOTICE_TRIGGER_OPERATIONS or notify_assignee_change
         operate_time = operate_time if operate_time else int(time.time())
 
         IncidentOperationDocument.bulk_create(
@@ -122,7 +128,7 @@ class IncidentOperationManager:
 
         # 根据操作类型决定是否发送通知
         notice_enabled = getattr(settings, "ENABLE_BK_INCIDENT_NOTICE", False)
-        if send_notice and operation_type in cls.NOTICE_TRIGGER_OPERATIONS:
+        if send_notice and notice_trigger:
             logger.info(
                 "[IncidentNotice][Trigger] incident_id=%s operation=%s notice_enabled=%s send_notice=%s "
                 "has_incident_document=%s",
@@ -133,7 +139,7 @@ class IncidentOperationManager:
                 bool(incident_document),
             )
         if notice_enabled and send_notice:
-            if operation_type in cls.NOTICE_TRIGGER_OPERATIONS:
+            if notice_trigger:
                 cls._send_incident_notice(
                     incident_id,
                     operation_type,
@@ -405,6 +411,13 @@ class IncidentOperationManager:
             from_value=str(enum_class(from_value).alias) if enum_class else from_value,
             to_value=str(enum_class(to_value).alias) if enum_class else to_value,
             incident_key_alias=INCIDENT_ATTRIBUTE_ALIAS_MAPPINGS.get(incident_key, incident_key),
+            send_notice=cls.resolve_notice_switch(
+                incident_key == "assignees" and kwargs.get("notify_assignee_change") is True,
+                kwargs.get("should_send_notice"),
+            ),
+            notify_assignee_change=kwargs.get("notify_assignee_change") is True,
+            incident_document=kwargs.get("incident_document"),
+            notice_config=kwargs.get("notice_config"),
         )
 
     @classmethod

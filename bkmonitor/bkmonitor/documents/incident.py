@@ -177,6 +177,14 @@ class IncidentDocument(IncidentBaseDocument):
 
         :param snapshot: 故障分析结果图谱快照信息
         """
+        extra_info = self.extra_info or {}
+        if (
+            extra_info.get("notice_source") == "bkfara"
+            and extra_info.get("assignee_source") == "cmdb_host"
+            and self.assignees
+        ):
+            # CMDB ownership is resolved by BKFara; alert owners must not overwrite it on snapshot refresh.
+            return
         assignees = set()
         for incident_alert in snapshot.alert_entity_mapping.values():
             if incident_alert.entity.is_root:
