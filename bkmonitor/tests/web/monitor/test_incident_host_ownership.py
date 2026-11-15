@@ -402,23 +402,47 @@ class TestNoticeContentSafety(SimpleTestCase):
         self.assertIn("[故障诊断详情](https://example.invalid/incident/1)", rendered)
         self.assertEqual(rendered_context["notice_way"], NoticeWay.WX_BOT)
 
+    def assert_mail_fields_explicitly_escaped(self, source):
+        from jinja2 import Environment, nodes
+
+        environment = Environment(autoescape=True)
+        fields = {"incident_reason", "assignees", "incident_name"}
+        found = set()
+        for output in environment.parse(source).find_all(nodes.Output):
+            for expression in output.nodes:
+                names = [expression] if isinstance(expression, nodes.Name) else expression.find_all(nodes.Name)
+                for name in names:
+                    if name.name not in fields:
+                        continue
+                    # Require explicit escaping even when the rendering environment is safe.
+                    self.assertIsInstance(expression, nodes.Filter)
+                    self.assertIn(expression.name, {"e", "escape"})
+                    self.assertIsInstance(expression.node, nodes.Name)
+                    found.add(name.name)
+        self.assertEqual(found, fields)
+        return environment.from_string(source)
+
     def test_mail_template_escapes_reason_and_owner(self):
         from pathlib import Path
-        from jinja2 import Environment
 
         template = Path(__file__).resolve().parents[3] / "templates/notice/incident/mail_content.jinja"
-        html = (
-            # Deliberately disable autoescape to verify the template itself escapes untrusted fields.
-            Environment(autoescape=False)
-            .from_string(template.read_text())
-            .render(
-                incident_reason='<a href="https://example.invalid">click</a>',
-                assignees="<b>alice</b>",
-                incident_name="<img src=x>",
-            )
+        html = self.assert_mail_fields_explicitly_escaped(template.read_text()).render(
+            incident_reason='<a href="https://example.invalid">click</a>',
+            assignees="<b>alice</b>",
+            incident_name="<img src=x>",
         )
         self.assertNotIn('<a href="https://example.invalid">', html)
         self.assertIn("&lt;b&gt;alice&lt;/b&gt;", html)
+        self.assertIn("&lt;img src=x&gt;", html)
+
+    def test_removing_explicit_mail_escape_fails_even_with_autoescape_enabled(self):
+        from pathlib import Path
+
+        template = Path(__file__).resolve().parents[3] / "templates/notice/incident/mail_content.jinja"
+        source = template.read_text()
+        for field in ("incident_reason", "assignees", "incident_name"):
+            with self.subTest(field=field), self.assertRaises(AssertionError):
+                self.assert_mail_fields_explicitly_escaped(source.replace(field + " | e", field))
 
 
 class TestNoticeDeliveryRouting(SimpleTestCase):
