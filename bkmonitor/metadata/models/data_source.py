@@ -35,10 +35,12 @@ from metadata.models.space.constants import (
     LOG_EVENT_ETL_CONFIGS,
     SPACE_UID_HYPHEN,
     SYSTEM_BASE_DATA_ETL_CONFIGS,
+    EtlConfigs,
     SpaceTypes,
 )
 from metadata.utils import consul_tools, hash_util
 from metadata.utils.basic import get_space_uid_and_bk_biz_id_by_bk_data_id
+from metadata.utils.default_cluster import get_scene_default_cluster
 
 from .common import Label, OptionBase
 from .constants import (
@@ -663,6 +665,9 @@ class DataSource(models.Model):
             )
             raise ValueError(_("数据源名称[%s]在租户[%s]下已经存在，请确认后重试"), data_name, bk_tenant_id)
 
+        if mq_cluster is None and etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
+            mq_cluster = get_scene_default_cluster("custom_event", ClusterInfo.TYPE_KAFKA)
+
         # TODO: 多租户 V4链路中,理论上用户不再能指定Kafka集群,且多租户场景下,Kafka集群需要读取SpaceRelatedStorageInfo关联信息
         try:
             # 如果集群信息无提供，则使用默认的MQ集群信息
@@ -687,7 +692,7 @@ class DataSource(models.Model):
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单表
             # 添加过滤条件，只接入单指标单表时序数据到V4链路
-            from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS, EtlConfigs
+            from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
 
             # 开启V4链路后，特定 etl_config 的 data_id 先由 GSE 分配，再注册到计算平台
             if (

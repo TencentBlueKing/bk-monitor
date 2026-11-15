@@ -795,6 +795,13 @@ STANDARD_CONFIGS = OrderedDict(
             "DEFAULT_KAFKA_STORAGE_CLUSTER_ID",
             slz.CharField(label=_("默认 kafka 存储集群ID"), default=None, allow_null=True),
         ),
+        (
+            "SCENE_DEFAULT_STORAGE_CLUSTERS",
+            slz.DictField(
+                label=_("场景默认存储集群（场景 -> 存储类型 -> 集群ID）"),
+                default={},
+            ),
+        ),
         ("BCS_KAFKA_STORAGE_CLUSTER_ID", slz.CharField(label=_("BCS kafka 存储集群ID"), default=None, allow_null=True)),
         (
             "BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID",

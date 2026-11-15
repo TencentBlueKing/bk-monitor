@@ -24,6 +24,7 @@ from bkmonitor.utils.db.fields import JsonField
 from metadata import config
 from metadata.models.result_table import ResultTableField, ResultTableOption
 from metadata.models.storage import ClusterInfo, ESStorage
+from metadata.utils.default_cluster import get_scene_default_cluster
 
 from ..constants import EventGroupStatus
 from .base import CustomGroupBase
@@ -152,6 +153,8 @@ class EventGroup(CustomGroupBase):
 
     @classmethod
     def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: dict[str, Any]):
+        if default_storage_config.get("cluster_id") is None:
+            default_storage_config["cluster_id"] = get_scene_default_cluster("custom_event", "es")
         # 补充索引集，用于 UnifyQuery 查询。
         default_storage_config["index_set"] = custom_group.table_id
         # 事件元数据登记不依赖 ES 即时可用，建索引失败后由周期任务补建。

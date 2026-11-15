@@ -15,6 +15,8 @@ from metadata.models import common
 from metadata.models.custom_report import EventGroup, TimeSeriesGroup
 from metadata.models.data_source import DataSource
 from metadata.models.result_table import ResultTableOption
+from metadata.models.storage import ClusterInfo
+from metadata.utils.default_cluster import get_scene_default_cluster
 
 from .replace import ReplaceConfig
 from .utils import ensure_data_id_resource, is_equal_config, is_missing_custom_resource_definition
@@ -233,13 +235,16 @@ class BCSClusterInfo(models.Model):
 
         # 3. 注册6个必要的data_id和自定义事件及自定义时序上报内容
         for usage, register_info in cluster.DATASOURCE_REGISTER_INFO.items():
+            mq_cluster_id = settings.BCS_KAFKA_STORAGE_CLUSTER_ID
+            if register_info["usage"] == "event":
+                mq_cluster_id = get_scene_default_cluster("bcs_event", ClusterInfo.TYPE_KAFKA, mq_cluster_id)
             # 注册data_id
             data_source = cluster.create_datasource(
                 usage=usage,
                 bk_tenant_id=bk_tenant_id,
                 etl_config=register_info["etl_config"],
                 operator=creator,
-                mq_cluster_id=settings.BCS_KAFKA_STORAGE_CLUSTER_ID,
+                mq_cluster_id=mq_cluster_id,
                 transfer_cluster_id=transfer_cluster_id,
             )
             logger.info(
@@ -258,7 +263,11 @@ class BCSClusterInfo(models.Model):
                     ResultTableOption.OPTION_CUSTOM_REPORT_DIMENSION_VALUES: cls.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM
                 }
             else:
-                default_storage_config = {"cluster_id": settings.BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID}
+                default_storage_config = {
+                    "cluster_id": get_scene_default_cluster(
+                        "bcs_event", "es", settings.BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID
+                    )
+                }
                 additional_options = copy.deepcopy(EventGroup.DEFAULT_RESULT_TABLE_OPTIONS)
                 field_names = [field["field_name"] for field in EventGroup.STORAGE_FIELD_LIST]
                 field_names.append("time")
