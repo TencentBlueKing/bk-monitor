@@ -163,7 +163,9 @@ class GetAlertDenoiseDecisionsResource(Resource):
     RequestSerializer = AlertDenoiseQuerySerializer
 
     def perform_request(self, validated_request_data):
-        return forward(validated_request_data, api.bk_incident.get_alert_denoise_decisions)
+        data = forward(validated_request_data, api.bk_incident.get_alert_denoise_decisions)
+        # 全局渲染器把顶层 results 识别为分页；显式封装以保留完整的批量查询业务对象。
+        return {"result": True, "code": 200, "message": "OK", "data": data}
 
 
 class GetDenoisePolicyResource(Resource):

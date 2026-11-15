@@ -1,4 +1,5 @@
 import ast
+import json
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -43,14 +44,14 @@ def test_web_rejects_all_business_sentinels(boundary, biz):
 
 def test_web_forwards_only_authorized_scope_and_preserves_result(boundary):
     expected = {
-        "schema_version": "1.1",
+        "schema_version": "2.0",
         "results": [{"alert_id": "180000000000000001", "found": False, "outcome": "unrecorded", "decision": None}],
     }
     boundary.api.bk_incident.get_alert_denoise_decisions.return_value = expected
     serializer = boundary.web.AlertDenoiseQuerySerializer(data=params())
     assert serializer.is_valid(), serializer.errors
     result = boundary.web.GetAlertDenoiseDecisionsResource().perform_request(serializer.validated_data)
-    assert result is expected
+    assert result["data"] is expected
     payload = boundary.api.bk_incident.get_alert_denoise_decisions.call_args.args[0]
     assert payload["bk_tenant_id"] == "tenant-a" and payload["scope_id"] == "bkcc_2"
     assert payload["alert_source"] == "bk_monitor"
@@ -283,3 +284,63 @@ def test_statistics_rejects_untrusted_source_and_scope(boundary, field):
     data = {key: value for key, value in params().items() if key != "alert_ids"}
     serializer = boundary.web.DenoiseStatisticsSerializer(data={**data, field: "injected"})
     assert not serializer.is_valid()
+
+
+@pytest.mark.parametrize(
+    "results", [[], [{"alert_id": "alert-demo-001", "found": False, "outcome": "unrecorded", "decision": None}]]
+)
+def test_batch_http_renderer_preserves_business_object(boundary, results):
+    from rest_framework.response import Response
+    from unittest.mock import patch
+
+    dependencies = {
+        "bkmonitor.utils.common_utils": module("bkmonitor.utils.common_utils", DatetimeEncoder=json.JSONEncoder),
+        "core.errors.iam": module(
+            "core.errors.iam", PermissionDeniedError=type("PermissionDeniedError", (Exception,), {})
+        ),
+        "core.drf_resource.exceptions": module(
+            "core.drf_resource.exceptions", CustomException=type("CustomException", (Exception,), {})
+        ),
+    }
+    renderer = load("denoise_monitor_renderer", ROOT / "bkmonitor/views/renderers.py", dependencies)
+    expected = {"schema_version": "2.0", "time_basis": "processed_at", "delivery": "best_effort", "results": results}
+    boundary.api.bk_incident.get_alert_denoise_decisions.return_value = expected
+    response = Response(boundary.web.GetAlertDenoiseDecisionsResource().perform_request(params()))
+    response.accepted_renderer = renderer.MonitorJSONRenderer()
+    response.accepted_media_type = "application/json"
+    response.renderer_context = {"response": response}
+    with patch.dict("sys.modules", dependencies):
+        response.render()
+    payload = json.loads(response.content)
+    assert payload == {"result": True, "code": 200, "message": "OK", "data": expected}
+    assert "_meta" not in payload
+
+
+@pytest.mark.parametrize(
+    "environment,expected",
+    [
+        ({}, ""),
+        ({"BKFARA_CA_BUNDLE": "/trusted/internal.pem"}, "/trusted/internal.pem"),
+        (
+            {"BKAPP_BKFARA_CA_BUNDLE": "/trusted/paas.pem", "BKFARA_CA_BUNDLE": "/trusted/internal.pem"},
+            "/trusted/paas.pem",
+        ),
+    ],
+)
+def test_ca_setting_reads_environment(environment, expected, monkeypatch):
+    import os
+
+    for name in ("BKAPP_BKFARA_CA_BUNDLE", "BKFARA_CA_BUNDLE"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
+    tree = ast.parse((ROOT / "config/default.py").read_text())
+    assignment = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "BKFARA_CA_BUNDLE" for target in node.targets)
+    )
+    namespace = {"os": os}
+    exec(compile(ast.Module(body=[assignment], type_ignores=[]), "ca-settings", "exec"), namespace)
+    assert namespace["BKFARA_CA_BUNDLE"] == expected
