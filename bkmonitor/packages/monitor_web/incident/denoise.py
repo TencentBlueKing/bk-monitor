@@ -50,8 +50,9 @@ class DenoiseQuerySerializer(DenoiseScopeSerializer):
     rule_id = serializers.CharField(max_length=128, required=False)
     cluster_id = serializers.CharField(required=False)
     run_id = serializers.UUIDField(required=False)
-    view_mode = serializers.ChoiceField(choices=["latest", "history"], default="latest")
-    page = serializers.IntegerField(default=1, min_value=1)
+    view_mode = serializers.ChoiceField(choices=["history"], default="history")
+    page = serializers.IntegerField(default=1, min_value=1, max_value=1)
+    cursor = serializers.CharField(required=False, max_length=4096)
     page_size = serializers.IntegerField(default=50, min_value=1, max_value=200)
 
     def validate(self, attrs):
@@ -64,6 +65,8 @@ class DenoiseQuerySerializer(DenoiseScopeSerializer):
 
 
 class AlertDenoiseQuerySerializer(DenoiseQuerySerializer):
+    view_mode = serializers.ChoiceField(choices=["latest"], default="latest")
+    page = serializers.IntegerField(default=1, min_value=1)
     alert_ids = serializers.ListField(child=serializers.CharField(max_length=255), min_length=1, max_length=200)
 
     def validate(self, attrs):
@@ -80,6 +83,7 @@ class AlertDenoiseQuerySerializer(DenoiseQuerySerializer):
             "rule_source",
             "cluster_id",
             "run_id",
+            "cursor",
         }
         if restricted.intersection(attrs) or attrs.get("view_mode") == "history":
             raise serializers.ValidationError("批量查询只返回告警最新结果")
@@ -128,11 +132,11 @@ def authorize_scope(data, request):
 
 class DenoiseReadPermission(BasePermission):
     def has_permission(self, request, view):
-        serializer_class = (
-            DenoiseScopeSerializer
-            if view.action == "denoise_policy"
-            else (AlertDenoiseQuerySerializer if view.action == "alert_denoise_decisions" else DenoiseQuerySerializer)
-        )
+        serializer_class = {
+            "denoise_policy": DenoiseScopeSerializer,
+            "alert_denoise_decisions": AlertDenoiseQuerySerializer,
+            "denoise_statistics": DenoiseStatisticsSerializer,
+        }.get(view.action, DenoiseQuerySerializer)
         serializer = serializer_class(data=request.query_params if request.method == "GET" else request.data)
         serializer.is_valid(raise_exception=True)
         authorize_scope(serializer.validated_data, request)
@@ -167,3 +171,23 @@ class GetDenoisePolicyResource(Resource):
 
     def perform_request(self, validated_request_data):
         return forward(validated_request_data, api.bk_incident.get_denoise_policy, query=False)
+
+
+class DenoiseStatisticsSerializer(DenoiseScopeSerializer):
+    include_trend = serializers.BooleanField(default=False)
+    start_time = serializers.DateTimeField()
+    end_time = serializers.DateTimeField()
+
+    def validate(self, attrs):
+        from datetime import timedelta
+
+        if not timedelta(seconds=60) <= attrs["end_time"] - attrs["start_time"] <= timedelta(days=31):
+            raise serializers.ValidationError("统计时间范围必须在 1 分钟至 31 天之间")
+        return attrs
+
+
+class GetDenoiseStatisticsResource(Resource):
+    RequestSerializer = DenoiseStatisticsSerializer
+
+    def perform_request(self, validated_request_data):
+        return forward(validated_request_data, api.bk_incident.get_denoise_statistics)

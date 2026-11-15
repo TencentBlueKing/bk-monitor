@@ -44,6 +44,8 @@ class DenoiseTransportSerializer(serializers.Serializer):
             "view_mode",
             "page",
             "page_size",
+            "cursor",
+            "include_trend",
         }
         if set(data) - allowed:
             raise serializers.ValidationError("Unexpected query fields")

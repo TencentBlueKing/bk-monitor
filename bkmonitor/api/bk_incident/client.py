@@ -39,6 +39,9 @@ class SourceAnalysisOperationGroup(OperationGroup):
 
 
 class DenoiseOperationGroup(OperationGroup):
+    get_statistics = bind_property(
+        Operation, name="get_statistics", method="POST", path="/core/v1/incident_denoise/get_statistics/"
+    )
     list_decisions = bind_property(
         Operation, name="list_decisions", method="POST", path="/core/v1/incident_denoise/list_decisions/"
     )

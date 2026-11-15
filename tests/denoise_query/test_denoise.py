@@ -159,17 +159,26 @@ def test_client_operations_bind_exact_native_read_paths():
         )
     }
     client = load("denoise_client_test", ROOT / "api/bk_incident/client.py", dependencies)
-    for name, method in [("list_decisions", "POST"), ("get_alert_decisions", "POST"), ("get_policy", "GET")]:
+    for name, method in [
+        ("list_decisions", "POST"),
+        ("get_alert_decisions", "POST"),
+        ("get_policy", "GET"),
+        ("get_statistics", "POST"),
+    ]:
         operation = getattr(client.DenoiseOperationGroup, name)
         assert operation.method == method
         assert operation.path == f"/core/v1/incident_denoise/{name}/"
 
 
-@pytest.mark.parametrize("action", ["denoise_decisions", "alert_denoise_decisions", "denoise_policy"])
+@pytest.mark.parametrize(
+    "action", ["denoise_decisions", "alert_denoise_decisions", "denoise_policy", "denoise_statistics"]
+)
 @pytest.mark.parametrize("multitenant", [False, True])
 def test_share_token_cannot_use_business_permission_bypass(boundary, action, multitenant):
     boundary.request.token = "synthetic-share-token"
     boundary.request.data = params()
+    if action == "denoise_statistics":
+        boundary.request.data.pop("alert_ids")
     if action == "denoise_policy":
         boundary.request.method = "GET"
         boundary.request.query_params = {"bk_biz_id": 2}
@@ -243,3 +252,34 @@ def test_transport_network_failures_are_errors_not_empty_success(transport, erro
     transport.client.denoise.get_alert_decisions.side_effect = error
     with pytest.raises(transport.BKAPIError):
         transport.resource.perform_request({"bk_tenant_id": "tenant-a"})
+
+
+def test_history_contract_uses_cursor_and_rejects_latest(boundary):
+    for changes in ({"view_mode": "latest"}, {"page": 2}):
+        serializer = boundary.web.DenoiseQuerySerializer(data={**params(), **changes})
+        assert not serializer.is_valid()
+    serializer = boundary.web.DenoiseQuerySerializer(data={**params(), "cursor": "signed-cursor"})
+    assert serializer.is_valid(), serializer.errors
+    boundary.web.ListDenoiseDecisionsResource().perform_request(serializer.validated_data)
+    payload = boundary.api.bk_incident.list_denoise_decisions.call_args.args[0]
+    assert payload["view_mode"] == "history" and payload["cursor"] == "signed-cursor"
+
+
+def test_statistics_uses_same_authorized_scope_and_preserves_no_data(boundary):
+    data = {key: value for key, value in params().items() if key != "alert_ids"}
+    serializer = boundary.web.DenoiseStatisticsSerializer(data=data)
+    assert serializer.is_valid(), serializer.errors
+    expected = {"schema_version": "2.0", "status": "no_data", "processed_count": None}
+    boundary.api.bk_incident.get_denoise_statistics.return_value = expected
+    result = boundary.web.GetDenoiseStatisticsResource().perform_request(serializer.validated_data)
+    assert result == expected
+    payload = boundary.api.bk_incident.get_denoise_statistics.call_args.args[0]
+    assert payload["scope_id"] == "bkcc_2" and payload["bk_tenant_id"] == "tenant-a"
+    assert payload["alert_source"] == "bk_monitor"
+
+
+@pytest.mark.parametrize("field", ["scope_id", "bk_tenant_id", "alert_source", "promql", "index_set_id"])
+def test_statistics_rejects_untrusted_source_and_scope(boundary, field):
+    data = {key: value for key, value in params().items() if key != "alert_ids"}
+    serializer = boundary.web.DenoiseStatisticsSerializer(data={**data, field: "injected"})
+    assert not serializer.is_valid()

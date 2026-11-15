@@ -47,6 +47,12 @@ class GetAlertDenoiseDecisionsResource(DenoiseReadBaseResource):
     client_operation = "get_alert_decisions"
 
 
+class GetDenoiseStatisticsResource(DenoiseReadBaseResource):
+    action = "/core/v1/incident_denoise/get_statistics/"
+    method = "POST"
+    client_operation = "get_statistics"
+
+
 class GetDenoisePolicyResource(DenoiseReadBaseResource):
     action = "/core/v1/incident_denoise/get_policy/"
     method = "GET"
