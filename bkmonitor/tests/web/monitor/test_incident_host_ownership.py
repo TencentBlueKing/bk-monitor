@@ -299,20 +299,40 @@ class TestHostOwnershipReviewRegressions(TestHostOwnershipAccess):
         self.assertEqual(record.call_args.kwargs["from_value"], ["saved-owner"])
         self.assertEqual(api.bk_incident.update_incident_detail.call_args.kwargs["assignees"], ["alice", "bob"])
 
-    def test_delivery_retry_reaches_consumer_without_advancing_event_receipt(self):
+    def test_notification_failure_completes_receipt_and_duplicate_skips_incident_writes(self):
+        from copy import deepcopy
         from unittest.mock import Mock
-        from bkmonitor.aiops.incident.delivery import NoticeDeliveryRetry
 
         sync = self._host_sync_info()
         sync.update(
-            event_id="retry-event",
+            event_id="failed-notice",
             aggregate_revision=3,
             update_attributes={"assignees": {"from": ["saved-owner"], "to": ["host-owner"]}},
         )
+        duplicate = deepcopy(sync)
         incident = self._existing()
-        with self.assertRaises(NoticeDeliveryRetry):
-            self._run_update(sync, incident, Mock(side_effect=NoticeDeliveryRetry("retry")))
-        self.assertNotIn(HOST_OWNERSHIP_EVENT_ID_KEY, incident.extra_info)
+        record, _ = self._run_update(sync, incident, Mock(return_value={"alice": {"result": False}}))
+        self.assertEqual(incident.extra_info[HOST_OWNERSHIP_EVENT_ID_KEY], "failed-notice")
+        self.assertEqual(record.call_count, 1)
+        record, api = self._run_update(duplicate, incident)
+        record.assert_not_called()
+        api.bk_incident.update_incident_detail.assert_not_called()
+
+    def test_invalid_claim_does_not_advance_receipt_and_corrected_event_can_apply(self):
+        for source, owners in ((CMDB_HOST_ASSIGNEE_SOURCE, ["alice,bob"]), ("unknown", ["alice"])):
+            incident = self._existing()
+            sync = self._host_sync_info()
+            sync.update(event_id="correctable", aggregate_revision=3, update_attributes={})
+            sync["incident_info"]["extra_info"][ASSIGNEE_SOURCE_KEY] = source
+            sync["incident_info"]["assignees"] = owners
+            self._run_update(sync, incident)
+            self.assertNotIn(HOST_OWNERSHIP_REVISION_KEY, incident.extra_info)
+            corrected = self._host_sync_info()
+            corrected.update(event_id="correctable", aggregate_revision=3, update_attributes={})
+            corrected["incident_info"]["assignees"] = ["alice"]
+            self._run_update(corrected, incident)
+            self.assertEqual(incident.assignees, ["alice"])
+            self.assertEqual(incident.extra_info[HOST_OWNERSHIP_REVISION_KEY], 3)
 
     def test_event_delivery_namespace_includes_scope_and_tenant(self):
         sync = self._host_sync_info()
@@ -335,6 +355,7 @@ class TestNoticeContentSafety(SimpleTestCase):
         with (
             patch.object(IncidentNoticeHelper, "get_incident_context", return_value=context),
             patch("bkmonitor.aiops.incident.notice.IncidentSender") as sender,
+            override_settings(MD_SUPPORTED_NOTICE_WAYS=[NoticeWay.QY_WEIXIN]),
         ):
             IncidentNoticeHelper._send_personal_notice(SimpleNamespace(incident_id=1), ["alice"], NoticeWay.QY_WEIXIN)
         sent_context = sender.call_args.kwargs["context"]
@@ -342,12 +363,52 @@ class TestNoticeContentSafety(SimpleTestCase):
         self.assertNotIn("<b>", sent_context["incident_reason"])
         self.assertEqual(sent_context["url"], "https://example.invalid/incident/1")
 
+    def test_plain_text_keeps_punctuation_and_addresses(self):
+        from constants.action import NoticeWay
+
+        context = {"incident_name": "MySQL-主从延迟", "incident_reason": "10.0.0.1 (timeout)!", "assignees": "alice"}
+        with (
+            patch.object(IncidentNoticeHelper, "get_incident_context", return_value=context),
+            patch("bkmonitor.aiops.incident.notice.IncidentSender") as sender,
+            override_settings(MD_SUPPORTED_NOTICE_WAYS=[NoticeWay.WX_BOT]),
+        ):
+            IncidentNoticeHelper._send_personal_notice(SimpleNamespace(incident_id=1), ["alice"], NoticeWay.QY_WEIXIN)
+        self.assertEqual(sender.call_args.kwargs["context"]["incident_reason"], "10.0.0.1 (timeout)!")
+        self.assertEqual(context["incident_name"], "MySQL-主从延迟")
+
+    def test_robot_markdown_escapes_text_but_preserves_template_links(self):
+        from constants.action import NoticeWay
+        from pathlib import Path
+        from jinja2 import Environment
+
+        context = {
+            "incident_name": "[name](https://example.invalid)",
+            "incident_reason": "[click](https://example.invalid)",
+            "assignees": "<b>alice</b>",
+            "url": "https://example.invalid/incident/1",
+        }
+        with (
+            patch.object(IncidentNoticeHelper, "get_incident_context", return_value=context),
+            patch("bkmonitor.aiops.incident.notice.IncidentSender") as sender,
+            override_settings(
+                WXWORK_BOT_WEBHOOK_URL="https://example.invalid", MD_SUPPORTED_NOTICE_WAYS=[NoticeWay.WX_BOT]
+            ),
+        ):
+            IncidentNoticeHelper._send_wxwork_bot_notice(SimpleNamespace(incident_id=1), ["chat"])
+        rendered_context = sender.call_args.kwargs["context"]
+        template = Path(__file__).resolve().parents[3] / "templates/notice/incident/markdown_content.jinja"
+        rendered = Environment(autoescape=True).from_string(template.read_text()).render(**rendered_context)
+        self.assertNotIn("[click](", rendered)
+        self.assertIn("[故障诊断详情](https://example.invalid/incident/1)", rendered)
+        self.assertEqual(rendered_context["notice_way"], NoticeWay.WX_BOT)
+
     def test_mail_template_escapes_reason_and_owner(self):
         from pathlib import Path
         from jinja2 import Environment
 
         template = Path(__file__).resolve().parents[3] / "templates/notice/incident/mail_content.jinja"
         html = (
+            # Deliberately disable autoescape to verify the template itself escapes untrusted fields.
             Environment(autoescape=False)
             .from_string(template.read_text())
             .render(
@@ -361,21 +422,21 @@ class TestNoticeContentSafety(SimpleTestCase):
 
 
 class TestNoticeDeliveryRouting(SimpleTestCase):
-    def test_queue_retries_delivery_failure_without_ack(self):
+    def test_queue_acknowledges_completed_sync_without_sleep_or_notification_requeue(self):
         from unittest.mock import Mock
-        from bkmonitor.aiops.incident.delivery import NoticeDeliveryRetry
 
         processor = object.__new__(AccessIncidentProcess)
         processor.queue_name = "incident-test"
         processor.client = Mock()
-        processor.handle_sync_info = Mock(side_effect=NoticeDeliveryRetry("retry"))
+        processor.handle_sync_info = Mock(return_value={"alice": {"result": False}})
         processor.process()
         callback = processor.client.start_consuming.call_args.kwargs["callback"]
         channel = Mock()
-        with patch("alarm_backends.service.access.incident.processor.time.sleep"):
+        with patch("alarm_backends.service.access.incident.processor.time.sleep") as sleep:
             callback(channel, SimpleNamespace(delivery_tag=9), {}, '{"incident_id":1}')
-        channel.basic_ack.assert_not_called()
-        channel.basic_nack.assert_called_once_with(9, requeue=True)
+        channel.basic_ack.assert_called_once_with(9)
+        channel.basic_nack.assert_not_called()
+        sleep.assert_not_called()
 
     def test_channel_receipts_are_scoped_per_recipient_and_operation(self):
         from constants.action import NoticeWay
@@ -408,27 +469,6 @@ class TestNoticeDeliveryRouting(SimpleTestCase):
             [call.kwargs["receivers"] for call in send.call_args_list], [["alice"], ["bob"], ["alice"], ["bob"]]
         )
         self.assertNotEqual(receipt.call_args_list[0].args[0], receipt.call_args_list[2].args[0])
-
-    def test_delivery_failure_is_not_swallowed_by_operation_manager(self):
-        from bkmonitor.aiops.incident.delivery import NoticeDeliveryRetry
-
-        incident = SimpleNamespace(incident_id=1)
-        with (
-            patch.object(
-                IncidentNoticeHelper,
-                "_get_configured_notice_targets",
-                return_value=[{"notice_way": "sms", "receivers": ["alice"]}],
-            ),
-            patch.object(IncidentNoticeHelper, "send_incident_notice", side_effect=NoticeDeliveryRetry("retry")),
-        ):
-            with self.assertRaises(NoticeDeliveryRetry):
-                IncidentOperationManager._send_incident_notice(
-                    1,
-                    IncidentOperationType.UPDATE,
-                    incident_document=incident,
-                    notice_config={},
-                    notice_event_key="event",
-                )
 
 
 class TestOwnershipRevocationOrder(SimpleTestCase):

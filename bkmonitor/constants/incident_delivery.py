@@ -13,5 +13,5 @@ class IncidentNoticeDeliveryStatus(TextChoices):
 
 DELIVERY_UNCERTAIN_AFTER_SECONDS = 600
 
-# These legacy senders also return False on transport exceptions.
-AMBIGUOUS_FAILURE_NOTICE_WAYS = {NoticeWay.VOICE, NoticeWay.WX_BOT}
+# CheckCMSIResource and these legacy senders fold transport errors into False.
+AMBIGUOUS_FAILURE_NOTICE_WAYS = {NoticeWay.VOICE, NoticeWay.WX_BOT, NoticeWay.SMS, NoticeWay.MAIL, NoticeWay.QY_WEIXIN}

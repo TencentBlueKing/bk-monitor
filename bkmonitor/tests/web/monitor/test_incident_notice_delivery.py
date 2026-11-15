@@ -1,11 +1,11 @@
 from datetime import timedelta
 from unittest import TestCase
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from django.utils import timezone
 
-from bkmonitor.aiops.incident.delivery import NoticeDeliveryRetry, dispatch_once
+from bkmonitor.aiops.incident.delivery import dispatch_once
 from bkmonitor.models.incident_delivery import IncidentNoticeDelivery
 
 
@@ -25,23 +25,22 @@ class TestIncidentNoticeDelivery(TestCase):
         def send():
             self.assertEqual(IncidentNoticeDelivery.objects.get().status, "sending")
             other = Mock()
-            with self.assertRaises(NoticeDeliveryRetry):
-                dispatch_once("event", "voice", "alice", other)
+            self.assertFalse(dispatch_once("event", "voice", "alice", other)["alice"]["result"])
             other.assert_not_called()
             return {"alice": {"result": True}}
 
         dispatch_once("event", "voice", "alice", send)
 
-    def test_known_failure_retries_only_failed_recipient(self):
-        alice = Mock(return_value={"alice": {"result": True}})
-        bob = Mock(side_effect=[{"bob": {"result": False}}, {"bob": {"result": True}}])
-        dispatch_once("event", "sms", "alice", alice)
-        with self.assertRaises(NoticeDeliveryRetry):
-            dispatch_once("event", "sms", "bob", bob)
-        dispatch_once("event", "sms", "alice", alice)
-        dispatch_once("event", "sms", "bob", bob)
-        self.assertEqual(alice.call_count, 1)
-        self.assertEqual(bob.call_count, 2)
+    def test_failure_is_terminal_and_does_not_block_other_recipients(self):
+        for channel in ("mail", "sms", "weixin", "custom"):
+            bob = Mock(return_value={"bob": {"result": False}})
+            alice = Mock(return_value={"alice": {"result": True}})
+            for _ in range(3):
+                self.assertFalse(dispatch_once("event", channel, "bob", bob)["bob"]["result"])
+                self.assertTrue(dispatch_once("event", channel, "alice", alice)["alice"]["result"])
+            self.assertEqual(bob.call_count, 1)
+            self.assertEqual(alice.call_count, 1)
+        self.assertEqual(IncidentNoticeDelivery.objects.get(channel="custom", recipient="bob").status, "failed")
 
     def test_exception_or_missing_result_is_uncertain_and_never_blindly_resent(self):
         for name, send in (("timeout", Mock(side_effect=TimeoutError)), ("empty", Mock(return_value={}))):
@@ -73,8 +72,8 @@ class TestIncidentNoticeDelivery(TestCase):
         from django.db import transaction
 
         send = Mock()
-        with transaction.atomic(), self.assertRaises(NoticeDeliveryRetry):
-            dispatch_once("event", "sms", "alice", send)
+        with transaction.atomic():
+            self.assertFalse(dispatch_once("event", "sms", "alice", send)["alice"]["result"])
         send.assert_not_called()
         self.assertFalse(IncidentNoticeDelivery.objects.exists())
 
@@ -102,8 +101,9 @@ class TestIncidentNoticeDelivery(TestCase):
 
         def second():
             try:
-                with self.assertRaises(NoticeDeliveryRetry):
-                    dispatch_once("concurrent", "voice", "alice", Mock())
+                send = Mock()
+                self.assertFalse(dispatch_once("concurrent", "voice", "alice", send)["alice"]["result"])
+                send.assert_not_called()
             finally:
                 close_old_connections()
 
@@ -126,3 +126,31 @@ class TestIncidentNoticeDelivery(TestCase):
             dispatch_once("ambiguous", channel, "alice", send)
             self.assertEqual(send.call_count, 1)
             self.assertEqual(IncidentNoticeDelivery.objects.get(channel=channel).status, Status.UNCERTAIN)
+
+    def test_receipt_database_failure_does_not_send_or_requeue_incident(self):
+        from django.db import OperationalError
+
+        send = Mock()
+        with patch.object(
+            IncidentNoticeDelivery.objects, "get_or_create", side_effect=OperationalError("missing table")
+        ):
+            self.assertFalse(dispatch_once("event", "sms", "alice", send)["alice"]["result"])
+        send.assert_not_called()
+
+    def test_result_write_failure_does_not_repeat_external_send(self):
+        from django.db import OperationalError
+        from django.db.models.query import QuerySet
+
+        send = Mock(return_value={"alice": {"result": True}})
+        original = QuerySet.update
+
+        def update(query, **kwargs):
+            if kwargs.get("status") == "sent":
+                raise OperationalError("receipt write failed")
+            return original(query, **kwargs)
+
+        with patch.object(QuerySet, "update", update):
+            dispatch_once("event", "sms", "alice", send)
+        dispatch_once("event", "sms", "alice", send)
+        send.assert_called_once()
+        self.assertEqual(IncidentNoticeDelivery.objects.get().status, "sending")

@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from bkmonitor.aiops.incident.delivery import NoticeDeliveryRetry
 from bkmonitor.documents.incident import IncidentDocument
 import logging
 import time
@@ -233,8 +232,6 @@ class IncidentOperationManager:
                         f"Sent incident notice for incident {incident_id} (operation: {operation_type.value}) "
                         f"to {len(all_receivers)} receiver(s) via {len(all_results)} channel(s)"
                     )
-        except NoticeDeliveryRetry:
-            raise
         except Exception as e:
             logger.exception(f"Failed to send incident notice for incident {incident_id}: {e}")
 

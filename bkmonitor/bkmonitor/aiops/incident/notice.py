@@ -601,6 +601,15 @@ class IncidentNoticeHelper:
 
         return all_results
 
+    @staticmethod
+    def prepare_notice_context(context, notice_way):
+        context["notice_way"] = notice_way
+        # Match Sender.msg_type: plain text must retain punctuation and IP addresses.
+        if notice_way in getattr(settings, "MD_SUPPORTED_NOTICE_WAYS", [NoticeWay.WX_BOT]):
+            for key in ("incident_reason", "assignees", "incident_name"):
+                value = escape(str(context.get(key) or ""))
+                context[key] = re.sub(r"([\\`*_{}\[\]()#+.!|>~-])", r"\\\1", value)
+
     @classmethod
     def _send_wxwork_bot_notice(
         cls,
@@ -630,6 +639,7 @@ class IncidentNoticeHelper:
         try:
             # 构建通知上下文
             context = cls.get_incident_context(incident, title, operation_type, **kwargs)
+            cls.prepare_notice_context(context, NoticeWay.WX_BOT)
 
             # 创建发送器
             sender = IncidentSender(
@@ -702,12 +712,7 @@ class IncidentNoticeHelper:
                 title_template = "notice/incident/markdown_title.jinja"
                 content_template = "notice/incident/markdown_content.jinja"
 
-            # Escape untrusted text per channel while preserving application-generated links.
-            if notice_way not in {NoticeWay.MAIL, NoticeWay.SMS, NoticeWay.VOICE}:
-                for key in ("incident_reason", "assignees", "incident_name"):
-                    value = escape(str(context.get(key) or ""))
-                    context[key] = re.sub(r"([\\`*_{}\[\]()#+.!|>~-])", r"\\\1", value)
-            context["notice_way"] = notice_way
+            cls.prepare_notice_context(context, notice_way)
             # 创建发送器
             sender = IncidentSender(
                 context=context,

@@ -20,7 +20,7 @@ from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.storage.rabbitmq import RabbitMQClient
 from alarm_backends.service.access.base import BaseAccessProcess
 from alarm_backends.service.composite.tasks import check_incident_action_and_composite
-from bkmonitor.aiops.incident.delivery import NoticeDeliveryRetry, digest
+from bkmonitor.aiops.incident.delivery import digest
 from bkmonitor.aiops.incident.models import IncidentSnapshot
 from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.aiops.incident.ownership import normalize_host_owners
@@ -79,10 +79,6 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             try:
                 self.handle_sync_info(sync_info)
                 ch.basic_ack(method.delivery_tag)
-            except NoticeDeliveryRetry:
-                logger.warning("Incident notification deferred: incident_id=%s", sync_info.get("incident_id"))
-                ch.basic_nack(method.delivery_tag, requeue=True)
-                time.sleep(1)
             finally:
                 logger.info(
                     "[PERF] incident_id=%s sync_type=%s alert_count=%s stage=callback cost_ms=%s",
@@ -220,6 +216,19 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
     @staticmethod
     def remember_host_ownership_event(sync_info: dict, incident_document: IncidentDocument) -> None:
         extra = incident_document.extra_info or {}
+        info = sync_info.get("incident_info") or {}
+        metadata = info.get("extra_info") or {}
+        if ASSIGNEE_SOURCE_KEY in metadata:
+            source = metadata[ASSIGNEE_SOURCE_KEY]
+            owners = normalize_host_owners(info.get("assignees"))
+            accepted = (source is None and extra.get(ASSIGNEE_SOURCE_KEY) is None) or (
+                source == CMDB_HOST_ASSIGNEE_SOURCE
+                and bool(owners)
+                and owners == incident_document.assignees
+                and extra.get(ASSIGNEE_SOURCE_KEY) == CMDB_HOST_ASSIGNEE_SOURCE
+            )
+            if not accepted:
+                return
         event_id, revision = sync_info.get("event_id"), sync_info.get("aggregate_revision")
         if (
             extra.get(NOTICE_SOURCE_KEY) == BKFARA_NOTICE_SOURCE
@@ -469,8 +478,6 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 incident_status=IncidentStatus(snapshot.status),
                 new_incident_id=sync_info["incident_id"],
             )
-        except NoticeDeliveryRetry:
-            raise
         except Exception as e:
             logger.error(f"[CREATE]Record incident operations error: {e}", exc_info=True)
             return
@@ -767,8 +774,6 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     log_extra={"timeout_seconds": self.get_incident_api(sync_info).update_incident_detail.TIMEOUT},
                     **remote_status_update,
                 )
-        except NoticeDeliveryRetry:
-            raise
         except Exception as e:
             logger.error(f"[UPDATE]Record incident operations error: {e}", exc_info=True)
             return
