@@ -16,6 +16,7 @@ from datetime import datetime
 from urllib.parse import quote, urlencode
 
 import arrow
+from markupsafe import Markup
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -155,6 +156,15 @@ class IncidentNoticeHelper:
             else link_incident_name
         )
 
+        markdown = kwargs.get("notice_way") in getattr(settings, "MD_SUPPORTED_NOTICE_WAYS", [NoticeWay.WX_BOT])
+        if markdown:
+            incident_display_name = cls.escape_markdown_text(incident_display_name)
+            link_incident_display_name = cls.escape_markdown_text(link_incident_display_name)
+            incident_key_alias = cls.escape_markdown_text(incident_key_alias)
+            from_value = cls.escape_markdown_text(from_value)
+            to_value = cls.escape_markdown_text(to_value)
+            merge_alert_count = cls.escape_markdown_text(merge_alert_count) if merge_alert_count else None
+
         # 构建故障详情URL
         url = cls._get_incident_url(incident)
         link_incident_url = (
@@ -213,7 +223,8 @@ class IncidentNoticeHelper:
 
         context = {
             "title": title,
-            "subtitle": subtitle,
+            # Names and update values were escaped before composing trusted diagnostic links.
+            "subtitle": Markup(subtitle) if markdown else subtitle,
             "incident_name": incident_display_name or _("未命名故障"),
             "level": level,
             "begin_time": duration_info["duration_range"][0],
@@ -602,13 +613,19 @@ class IncidentNoticeHelper:
         return all_results
 
     @staticmethod
-    def prepare_notice_context(context, notice_way):
+    def escape_markdown_text(value):
+        if isinstance(value, Markup):
+            return value
+        # The renderer recognizes Markup, so escaped text is not escaped a second time.
+        value = escape(str(value or ""))
+        return Markup(re.sub(r"([\\`*_{}\[\]()#+|>~])", r"\\\1", value))
+
+    @classmethod
+    def prepare_notice_context(cls, context, notice_way):
         context["notice_way"] = notice_way
-        # Match Sender.msg_type: plain text must retain punctuation and IP addresses.
         if notice_way in getattr(settings, "MD_SUPPORTED_NOTICE_WAYS", [NoticeWay.WX_BOT]):
             for key in ("incident_reason", "assignees", "incident_name"):
-                value = escape(str(context.get(key) or ""))
-                context[key] = re.sub(r"([\\`*_{}\[\]()#+.!|>~-])", r"\\\1", value)
+                context[key] = cls.escape_markdown_text(context.get(key))
 
     @classmethod
     def _send_wxwork_bot_notice(
@@ -638,7 +655,9 @@ class IncidentNoticeHelper:
 
         try:
             # 构建通知上下文
-            context = cls.get_incident_context(incident, title, operation_type, **kwargs)
+            context = cls.get_incident_context(
+                incident, title, operation_type, **{**kwargs, "notice_way": NoticeWay.WX_BOT}
+            )
             cls.prepare_notice_context(context, NoticeWay.WX_BOT)
 
             # 创建发送器
@@ -696,7 +715,7 @@ class IncidentNoticeHelper:
 
         try:
             # 构建通知上下文
-            context = cls.get_incident_context(incident, title, operation_type, **kwargs)
+            context = cls.get_incident_context(incident, title, operation_type, **{**kwargs, "notice_way": notice_way})
 
             # 根据通知方式选择模板
             if notice_way == NoticeWay.MAIL:

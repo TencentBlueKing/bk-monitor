@@ -7,6 +7,7 @@ from alarm_backends.service.access.incident.processor import AccessIncidentProce
 from bkmonitor.aiops.incident.notice import IncidentNoticeHelper
 from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.documents.incident import IncidentDocument
+from constants.action import NoticeWay
 from constants.incident import (
     ASSIGNEE_SOURCE_KEY,
     BKFARA_NOTICE_SOURCE,
@@ -141,7 +142,13 @@ class TestHostOwnershipAccess(SimpleTestCase):
     def test_host_create_preserves_owner_through_writeback_and_notice(self, record, snapshot, api):
         snapshot.side_effect = lambda payload: SimpleNamespace(alert_entity_mapping={})
         with patch.object(_FakeIncidentDocument, "generate_assignees", IncidentDocument.generate_assignees):
-            self.processor.create_incident(self._host_sync_info())
+            sync = self._host_sync_info()
+            sync.update(event_id="create-event", bk_tenant_id="tenant-a")
+            sync["incident_info"]["scope_id"] = "bkcc_132"
+            expected_key = self.processor.notice_event_key(sync)
+            self.processor.create_incident(sync)
+        self.assertEqual(record.call_args.kwargs["notice_event_key"], expected_key)
+        self.assertEqual(sync["incident_info"]["scope_id"], "bkcc_132")
         self.assertEqual(api.bk_incident.update_incident_detail.call_args.kwargs["assignees"], ["host-owner"])
         self.assertTrue(record.call_args.kwargs["should_send_notice"])
         self.assertEqual(record.call_args.kwargs["assignees"], ["host-owner"])
@@ -341,6 +348,36 @@ class TestHostOwnershipReviewRegressions(TestHostOwnershipAccess):
         sync["bk_tenant_id"] = "tenant-b"
         self.assertNotEqual(first, self.processor.notice_event_key(sync))
 
+    def test_nested_scope_precedes_legacy_top_level_and_isolates_delivery(self):
+        sync = self._host_sync_info()
+        sync.update(event_id="same-event", bk_tenant_id="tenant-a", scope_id="legacy")
+        sync["incident_info"]["scope_id"] = "bkcc_1"
+        first = self.processor.notice_event_key(sync)
+        sync["scope_id"] = "ignored"
+        self.assertEqual(first, self.processor.notice_event_key(sync))
+        sync["incident_info"]["scope_id"] = "bkcc_2"
+        self.assertNotEqual(first, self.processor.notice_event_key(sync))
+        del sync["incident_info"]["scope_id"]
+        sync["scope_id"] = "bkcc_1"
+        self.assertEqual(first, self.processor.notice_event_key(sync))
+
+    def test_partial_sync_cannot_move_receipt_or_allow_old_owner_replay(self):
+        for revision in (1, 10):
+            incident = self._existing()
+            incident.extra_info.update({HOST_OWNERSHIP_EVENT_ID_KEY: "current", HOST_OWNERSHIP_REVISION_KEY: 5})
+            sync = self._host_sync_info()
+            sync.update(event_id="partial", aggregate_revision=revision, update_attributes={})
+            sync["incident_info"].pop("extra_info")
+            self._run_update(sync, incident)
+            self.assertEqual(incident.extra_info[HOST_OWNERSHIP_REVISION_KEY], 5)
+            self.assertEqual(incident.extra_info[HOST_OWNERSHIP_EVENT_ID_KEY], "current")
+            replay = self._host_sync_info()
+            replay.update(event_id="old-owner", aggregate_revision=4, update_attributes={})
+            record, api = self._run_update(replay, incident)
+            record.assert_not_called()
+            api.bk_incident.update_incident_detail.assert_not_called()
+            self.assertEqual(incident.assignees, ["saved-owner"])
+
 
 class TestNoticeContentSafety(SimpleTestCase):
     def test_personal_markdown_escapes_untrusted_links(self):
@@ -379,7 +416,7 @@ class TestNoticeContentSafety(SimpleTestCase):
     def test_robot_markdown_escapes_text_but_preserves_template_links(self):
         from constants.action import NoticeWay
         from pathlib import Path
-        from jinja2 import Environment
+        from bkmonitor.utils.template import Jinja2Renderer
 
         context = {
             "incident_name": "[name](https://example.invalid)",
@@ -397,10 +434,83 @@ class TestNoticeContentSafety(SimpleTestCase):
             IncidentNoticeHelper._send_wxwork_bot_notice(SimpleNamespace(incident_id=1), ["chat"])
         rendered_context = sender.call_args.kwargs["context"]
         template = Path(__file__).resolve().parents[3] / "templates/notice/incident/markdown_content.jinja"
-        rendered = Environment(autoescape=True).from_string(template.read_text()).render(**rendered_context)
+        with override_settings(MD_SUPPORTED_NOTICE_WAYS=[NoticeWay.WX_BOT]):
+            rendered = Jinja2Renderer.render(template.read_text(), rendered_context)
         self.assertNotIn("[click](", rendered)
         self.assertIn("[故障诊断详情](https://example.invalid/incident/1)", rendered)
         self.assertEqual(rendered_context["notice_way"], NoticeWay.WX_BOT)
+
+    @override_settings(MD_SUPPORTED_NOTICE_WAYS=[NoticeWay.WX_BOT])
+    def test_real_markdown_renderer_escapes_once_and_preserves_readable_ip_and_name(self):
+        from constants.action import NoticeWay
+        from bkmonitor.utils.template import Jinja2Renderer
+
+        context = {
+            "incident_reason": "10.0.0.1 [click](https://example.invalid)",
+            "incident_name": "MySQL-主从延迟",
+            "assignees": "alice",
+        }
+        IncidentNoticeHelper.prepare_notice_context(context, NoticeWay.WX_BOT)
+        rendered = Jinja2Renderer.render("{{ incident_name }}: {{ incident_reason }}", context)
+        self.assertEqual(rendered, r"MySQL-主从延迟: 10.0.0.1 \[click\]\(https://example.invalid\)")
+
+    def test_subtitle_escapes_name_and_update_values_without_breaking_merge_links(self):
+        from constants.action import NoticeWay
+        from bkmonitor.utils.template import Jinja2Renderer
+
+        name = "[click](https://example.invalid/injected)"
+        incident = SimpleNamespace(
+            incident_name=name,
+            incident_reason=name,
+            bk_biz_id=1,
+            status="abnormal",
+            level="ERROR",
+            assignees=["alice"],
+            end_time=None,
+            begin_time=1,
+            snapshot=None,
+            alert_count=0,
+            incident_id=1,
+            id="doc-1",
+            extra_info={},
+        )
+        with (
+            override_settings(
+                MD_SUPPORTED_NOTICE_WAYS=[NoticeWay.WX_BOT],
+                BK_MONITOR_HOST="https://monitor.invalid",
+                BK_INCIDENT_SAAS_HOST="https://fara.invalid",
+            ),
+            patch("bkmonitor.aiops.incident.notice.api"),
+            patch.object(
+                IncidentNoticeHelper,
+                "_format_duration",
+                return_value={"duration_range": ["start"], "duration_msg": "1秒", "duration_range_msg": ""},
+            ),
+        ):
+            for operation in (
+                IncidentOperationType.CREATE,
+                IncidentOperationType.RECOVER,
+                IncidentOperationType.UPDATE,
+                IncidentOperationType.MERGE,
+            ):
+                with self.subTest(operation=operation):
+                    context = IncidentNoticeHelper.get_incident_context(
+                        incident,
+                        operation_type=operation,
+                        notice_way=NoticeWay.WX_BOT,
+                        incident_key="assignees",
+                        from_value=name,
+                        to_value=name,
+                        link_incident_name=name,
+                        link_incident_doc_id="doc-2",
+                    )
+                    IncidentNoticeHelper.prepare_notice_context(context, NoticeWay.WX_BOT)
+                    rendered = Jinja2Renderer.render("{{ subtitle }}", context)
+                    self.assertNotIn(name, rendered)
+                    self.assertIn(r"\[click\]\(https://example.invalid/injected\)", rendered)
+                    if operation == IncidentOperationType.MERGE:
+                        self.assertIn("](" + context["url"] + ")", rendered)
+                        self.assertIn("](https://monitor.invalid/?bizId=1#/trace/incident/detail/doc-2)", rendered)
 
     def assert_mail_fields_explicitly_escaped(self, source):
         from jinja2 import Environment, nodes
@@ -524,3 +634,26 @@ class TestOwnershipRevocationOrder(SimpleTestCase):
         }
         AccessIncidentProcess.remember_host_ownership_event(event, incident)
         self.assertEqual(incident.extra_info[HOST_OWNERSHIP_REVISION_KEY], 4)
+
+    def test_receipt_is_monotonic_even_when_called_after_an_accepted_assignment(self):
+        incident = SimpleNamespace(
+            assignees=["alice"],
+            extra_info={
+                NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE,
+                ASSIGNEE_SOURCE_KEY: CMDB_HOST_ASSIGNEE_SOURCE,
+                HOST_OWNERSHIP_EVENT_ID_KEY: "current",
+                HOST_OWNERSHIP_REVISION_KEY: 5,
+            },
+        )
+        for source in (CMDB_HOST_ASSIGNEE_SOURCE, None):
+            incident.extra_info[ASSIGNEE_SOURCE_KEY] = source
+            for revision in (4, 5, True, 0):
+                event = {
+                    NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE,
+                    "event_id": "older",
+                    "aggregate_revision": revision,
+                    "incident_info": {"assignees": ["alice"], "extra_info": {ASSIGNEE_SOURCE_KEY: source}},
+                }
+                AccessIncidentProcess.remember_host_ownership_event(event, incident)
+                self.assertEqual(incident.extra_info[HOST_OWNERSHIP_REVISION_KEY], 5)
+                self.assertEqual(incident.extra_info[HOST_OWNERSHIP_EVENT_ID_KEY], "current")

@@ -218,28 +218,27 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         extra = incident_document.extra_info or {}
         info = sync_info.get("incident_info") or {}
         metadata = info.get("extra_info") or {}
-        if ASSIGNEE_SOURCE_KEY in metadata:
-            source = metadata[ASSIGNEE_SOURCE_KEY]
-            owners = normalize_host_owners(info.get("assignees"))
-            accepted = (source is None and extra.get(ASSIGNEE_SOURCE_KEY) is None) or (
-                source == CMDB_HOST_ASSIGNEE_SOURCE
-                and bool(owners)
-                and owners == incident_document.assignees
-                and extra.get(ASSIGNEE_SOURCE_KEY) == CMDB_HOST_ASSIGNEE_SOURCE
-            )
-            if not accepted:
-                return
+        if ASSIGNEE_SOURCE_KEY not in metadata:
+            return
+        source = metadata[ASSIGNEE_SOURCE_KEY]
+        owners = normalize_host_owners(info.get("assignees"))
+        accepted = (source is None and extra.get(ASSIGNEE_SOURCE_KEY) is None) or (
+            source == CMDB_HOST_ASSIGNEE_SOURCE
+            and bool(owners)
+            and owners == incident_document.assignees
+            and extra.get(ASSIGNEE_SOURCE_KEY) == CMDB_HOST_ASSIGNEE_SOURCE
+        )
         event_id, revision = sync_info.get("event_id"), sync_info.get("aggregate_revision")
+        previous_revision = extra.get(HOST_OWNERSHIP_REVISION_KEY, 0)
+        previous_revision = previous_revision if type(previous_revision) is int else 0
         if (
-            extra.get(NOTICE_SOURCE_KEY) == BKFARA_NOTICE_SOURCE
-            and (
-                extra.get(ASSIGNEE_SOURCE_KEY) == CMDB_HOST_ASSIGNEE_SOURCE
-                or ASSIGNEE_SOURCE_KEY in ((sync_info.get("incident_info") or {}).get("extra_info") or {})
-            )
+            sync_info.get(NOTICE_SOURCE_KEY) == BKFARA_NOTICE_SOURCE
+            and extra.get(NOTICE_SOURCE_KEY) == BKFARA_NOTICE_SOURCE
+            and accepted
             and isinstance(event_id, str)
             and event_id
             and type(revision) is int
-            and revision > 0
+            and revision > max(previous_revision, 0)
         ):
             incident_document.extra_info[HOST_OWNERSHIP_EVENT_ID_KEY] = event_id
             incident_document.extra_info[HOST_OWNERSHIP_REVISION_KEY] = revision
@@ -249,7 +248,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         event_id = sync_info.get("event_id")
         if not cls.is_bkfara_notice(sync_info) or not isinstance(event_id, str) or not event_id:
             return None
-        return digest([sync_info.get("bk_tenant_id"), sync_info.get("scope_id"), sync_info["incident_id"], event_id])
+        process_info = cls.extract_bkfara_process_info(sync_info, sync_info.get("incident_info") or {})
+        return digest([sync_info.get("bk_tenant_id"), process_info.get("scope_id"), sync_info["incident_id"], event_id])
 
     def handle_sync_info(self, sync_info: dict) -> None:
         """处理rabbitmq中的内容.
@@ -327,7 +327,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 # Todo: alert级别故障页面展示开发未完成，暂不进行快照和前端展示
                 return
 
-            incident_info = sync_info["incident_info"]
+            incident_info = copy.deepcopy(sync_info["incident_info"])
             should_send_notice = incident_info.pop("send_notice", None)
             notice_config = incident_info.pop("notice_config", None)
             process_info = self.extract_bkfara_process_info(sync_info, incident_info, remove_from_incident_info=True)
