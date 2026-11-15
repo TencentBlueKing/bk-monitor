@@ -111,8 +111,8 @@ def test_incident_resources_route_remote_api_by_notice_source():
     resource_end = source.index("class IncidentListResource", resource_start)
     resource_source = source[resource_start:resource_end]
 
-    assert 'BKFARA_NOTICE_SOURCE = "bkfara"' in resource_source
-    assert 'get("notice_source") == cls.BKFARA_NOTICE_SOURCE' in resource_source
+    assert "BKFARA_NOTICE_SOURCE = BKFARA_NOTICE_SOURCE" in resource_source
+    assert "get(NOTICE_SOURCE_KEY) == cls.BKFARA_NOTICE_SOURCE" in resource_source
     assert "return api.bk_incident if cls.is_bkfara_incident(incident) else api.bkdata" in resource_source
     assert "api.bk_incident.get_incident_diagnosis" in resource_source
     assert "api.bkdata.get_incident_analysis_results" in resource_source
@@ -153,10 +153,10 @@ def test_access_processor_marks_bkfara_incident_source():
     resource_end = source.index("def update_remote_incident_detail", resource_start)
     resource_source = source[resource_start:resource_end]
 
-    assert 'BKFARA_NOTICE_SOURCE = "bkfara"' in resource_source
-    assert 'sync_info.get("notice_source") == cls.BKFARA_NOTICE_SOURCE' in resource_source
+    assert "BKFARA_NOTICE_SOURCE = BKFARA_NOTICE_SOURCE" in resource_source
+    assert "sync_info.get(NOTICE_SOURCE_KEY) == cls.BKFARA_NOTICE_SOURCE" in resource_source
     assert "def mark_incident_source" in resource_source
-    assert 'incident_document.extra_info["notice_source"] = cls.BKFARA_NOTICE_SOURCE' in resource_source
+    assert "incident_document.extra_info[NOTICE_SOURCE_KEY] = cls.BKFARA_NOTICE_SOURCE" in resource_source
 
 
 def test_get_incident_diagnosis_resource_supports_optional_bk_biz_id():

@@ -23,7 +23,15 @@ from bkmonitor.documents.incident import IncidentDocument
 from bkmonitor.utils.send import IncidentSender
 from constants.action import NoticeWay
 from constants.alert import EventStatus
-from constants.incident import IncidentStatus, IncidentLevel, IncidentOperationType
+from constants.incident import (
+    ASSIGNEE_SOURCE_KEY,
+    BKFARA_NOTICE_SOURCE,
+    CMDB_HOST_ASSIGNEE_SOURCE,
+    IncidentLevel,
+    IncidentOperationType,
+    IncidentStatus,
+    NOTICE_SOURCE_KEY,
+)
 from core.drf_resource import api
 from core.errors.alert import AlertNotFoundError
 
@@ -386,7 +394,7 @@ class IncidentNoticeHelper:
         extra_info = incident.extra_info or {}
         if hasattr(extra_info, "to_dict"):
             extra_info = extra_info.to_dict()
-        if extra_info.get("notice_source") != "bkfara":
+        if extra_info.get(NOTICE_SOURCE_KEY) != BKFARA_NOTICE_SOURCE:
             return ""
 
         scope_id = extra_info.get("scope_id")
@@ -407,7 +415,7 @@ class IncidentNoticeHelper:
             extra_info = extra_info.to_dict()
         scope_id = extra_info.get("scope_id")
         site_url = settings.BK_INCIDENT_SAAS_HOST.rstrip("/")
-        if extra_info.get("notice_source") != "bkfara" or not scope_id or not site_url:
+        if extra_info.get(NOTICE_SOURCE_KEY) != BKFARA_NOTICE_SOURCE or not scope_id or not site_url:
             return ""
 
         # 降噪配置属于空间，无需等待分析任务生成，也不能用监控业务 ID 推测空间。
@@ -461,8 +469,8 @@ class IncidentNoticeHelper:
             receivers = cls._resolve_config_receivers(incident, channel_config)
             extra_info = getattr(incident, "extra_info", None) or {}
             if (
-                extra_info.get("notice_source") == "bkfara"
-                and extra_info.get("assignee_source") == "cmdb_host"
+                extra_info.get(NOTICE_SOURCE_KEY) == BKFARA_NOTICE_SOURCE
+                and extra_info.get(ASSIGNEE_SOURCE_KEY) == CMDB_HOST_ASSIGNEE_SOURCE
                 and notice_way in {NoticeWay.QY_WEIXIN, NoticeWay.MAIL, NoticeWay.SMS, NoticeWay.VOICE}
             ):
                 receivers = sorted(set(receivers) | set(incident.assignees or []))

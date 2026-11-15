@@ -19,7 +19,13 @@ from elasticsearch_dsl import InnerDoc, Search, field
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BaseDocument, Date
 from bkmonitor.documents.constants import ES_INDEX_SETTINGS
-from constants.incident import IncidentStatus
+from constants.incident import (
+    ASSIGNEE_SOURCE_KEY,
+    BKFARA_NOTICE_SOURCE,
+    CMDB_HOST_ASSIGNEE_SOURCE,
+    IncidentStatus,
+    NOTICE_SOURCE_KEY,
+)
 from core.drf_resource import api
 from core.errors.incident import IncidentNotFoundError
 
@@ -179,8 +185,8 @@ class IncidentDocument(IncidentBaseDocument):
         """
         extra_info = self.extra_info or {}
         if (
-            extra_info.get("notice_source") == "bkfara"
-            and extra_info.get("assignee_source") == "cmdb_host"
+            extra_info.get(NOTICE_SOURCE_KEY) == BKFARA_NOTICE_SOURCE
+            and extra_info.get(ASSIGNEE_SOURCE_KEY) == CMDB_HOST_ASSIGNEE_SOURCE
             and self.assignees
         ):
             # CMDB ownership is resolved by BKFara; alert owners must not overwrite it on snapshot refresh.
@@ -235,7 +241,9 @@ class IncidentDocument(IncidentBaseDocument):
             try:
                 incident_id = cls.parse_incident_id_by_id(id)
                 extra_info = incident_document_info.get("extra_info") or {}
-                incident_api = api.bk_incident if extra_info.get("notice_source") == "bkfara" else api.bkdata
+                incident_api = (
+                    api.bk_incident if extra_info.get(NOTICE_SOURCE_KEY) == BKFARA_NOTICE_SOURCE else api.bkdata
+                )
                 incident_info = incident_api.get_incident_detail(incident_id=incident_id)
                 if isinstance(incident_info["dimensions"], str):
                     incident_info["dimensions"] = json.loads(incident_info["dimensions"])

@@ -7,7 +7,15 @@ from alarm_backends.service.access.incident.processor import AccessIncidentProce
 from bkmonitor.aiops.incident.notice import IncidentNoticeHelper
 from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.documents.incident import IncidentDocument
-from constants.incident import IncidentOperationType
+from constants.incident import (
+    ASSIGNEE_SOURCE_KEY,
+    BKFARA_NOTICE_SOURCE,
+    CMDB_HOST_ASSIGNEE_SOURCE,
+    HOST_OWNERSHIP_EVENT_ID_KEY,
+    HOST_OWNERSHIP_REVISION_KEY,
+    IncidentOperationType,
+    NOTICE_SOURCE_KEY,
+)
 from tests.web.monitor.test_access_incident_processor import (
     TestAccessIncidentProcessor as AccessFixtures,
     _FakeIncidentDocument,
@@ -19,7 +27,7 @@ class TestHostOwnershipDocument(SimpleTestCase):
     def test_snapshot_refresh_preserves_explicit_bkfara_host_owners(self):
         incident = IncidentDocument(
             assignees=["host-owner"],
-            extra_info={"notice_source": "bkfara", "assignee_source": "cmdb_host"},
+            extra_info={NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE, ASSIGNEE_SOURCE_KEY: CMDB_HOST_ASSIGNEE_SOURCE},
         )
         snapshot = SimpleNamespace(
             alert_entity_mapping={"a": SimpleNamespace(id="a", entity=SimpleNamespace(is_root=True))}
@@ -32,8 +40,8 @@ class TestHostOwnershipDocument(SimpleTestCase):
     def test_unmarked_or_legacy_sources_keep_original_alert_owner_rules(self):
         for extra_info in (
             {},
-            {"notice_source": "bkfara"},
-            {"notice_source": "bkdata", "assignee_source": "cmdb_host"},
+            {NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE},
+            {NOTICE_SOURCE_KEY: "bkdata", ASSIGNEE_SOURCE_KEY: CMDB_HOST_ASSIGNEE_SOURCE},
         ):
             with self.subTest(extra_info=extra_info):
                 incident = IncidentDocument(assignees=["host-owner"], extra_info=extra_info)
@@ -48,17 +56,21 @@ class TestHostOwnershipDocument(SimpleTestCase):
             with self.subTest(owners=owners):
                 document = SimpleNamespace(assignees=["old-owner"], extra_info={})
                 sync = {
-                    "notice_source": "bkfara",
-                    "incident_info": {"assignees": owners, "extra_info": {"assignee_source": "cmdb_host"}},
+                    NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE,
+                    "incident_info": {
+                        "assignees": owners,
+                        "extra_info": {ASSIGNEE_SOURCE_KEY: CMDB_HOST_ASSIGNEE_SOURCE},
+                    },
                 }
                 self.assertFalse(AccessIncidentProcess.apply_bkfara_host_ownership(sync, document))
                 self.assertEqual(document.assignees, ["old-owner"])
 
     def test_non_bkfara_message_cannot_claim_host_ownership_with_nested_source_marker(self):
         incident = IncidentDocument(
-            assignees=["injected-owner"], extra_info={"notice_source": "bkfara", "assignee_source": "cmdb_host"}
+            assignees=["injected-owner"],
+            extra_info={NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE, ASSIGNEE_SOURCE_KEY: CMDB_HOST_ASSIGNEE_SOURCE},
         )
-        self.assertFalse(AccessIncidentProcess.apply_bkfara_host_ownership({"notice_source": "bkdata"}, incident))
+        self.assertFalse(AccessIncidentProcess.apply_bkfara_host_ownership({NOTICE_SOURCE_KEY: "bkdata"}, incident))
         snapshot = SimpleNamespace(
             alert_entity_mapping={"a": SimpleNamespace(id="a", entity=SimpleNamespace(is_root=True))}
         )
@@ -72,12 +84,12 @@ class TestHostOwnershipAccess(SimpleTestCase):
 
     def _host_sync_info(self):
         sync = self._base_sync_info()
-        sync["notice_source"] = "bkfara"
+        sync[NOTICE_SOURCE_KEY] = BKFARA_NOTICE_SOURCE
         sync["incident_info"].update(
             {
                 "assignees": ["host-owner"],
                 "incident_reason": "disk full\n主机负责人：192.0.2.1（host-owner）",
-                "extra_info": {"assignee_source": "cmdb_host"},
+                "extra_info": {ASSIGNEE_SOURCE_KEY: CMDB_HOST_ASSIGNEE_SOURCE},
                 "send_notice": True,
             }
         )
@@ -88,10 +100,10 @@ class TestHostOwnershipAccess(SimpleTestCase):
             incident_id=1001,
             assignees=["new-owner"],
             extra_info={
-                "notice_source": "bkfara",
-                "assignee_source": "cmdb_host",
-                "host_ownership_event_id": "event-2",
-                "host_ownership_revision": 2,
+                NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE,
+                ASSIGNEE_SOURCE_KEY: CMDB_HOST_ASSIGNEE_SOURCE,
+                HOST_OWNERSHIP_EVENT_ID_KEY: "event-2",
+                HOST_OWNERSHIP_REVISION_KEY: 2,
             },
         )
         for event_id, revision in (("event-2", 2), ("event-1", 1)):
@@ -156,7 +168,8 @@ class TestHostOwnershipAccess(SimpleTestCase):
 class TestHostOwnershipNotice(SimpleTestCase):
     def test_enabled_personal_channel_includes_host_owner_with_explicit_receivers(self):
         incident = SimpleNamespace(
-            assignees=["host-owner"], extra_info={"notice_source": "bkfara", "assignee_source": "cmdb_host"}
+            assignees=["host-owner"],
+            extra_info={NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE, ASSIGNEE_SOURCE_KEY: CMDB_HOST_ASSIGNEE_SOURCE},
         )
         targets = IncidentNoticeHelper._get_configured_notice_targets(
             incident,
@@ -173,7 +186,7 @@ class TestHostOwnershipNotice(SimpleTestCase):
         self.assertEqual(len(targets), 2)
 
     def test_unmarked_incident_does_not_add_new_recipients(self):
-        incident = SimpleNamespace(assignees=["host-owner"], extra_info={"notice_source": "bkfara"})
+        incident = SimpleNamespace(assignees=["host-owner"], extra_info={NOTICE_SOURCE_KEY: BKFARA_NOTICE_SOURCE})
         targets = IncidentNoticeHelper._get_configured_notice_targets(
             incident, {"module": {"im": {"is_select": True, "users": ["configured-user"]}}}
         )
