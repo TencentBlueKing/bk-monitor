@@ -398,6 +398,8 @@ def test_query_hosts_orders_by_scheduled_at_and_derives_outdate(query_rows):
     assert rows[0]["started_at"] is None
     assert rows[2]["task"] == {"name": "go-cpu-legacy", "schedule_type": "immediate"}
     assert [row["status"] for row in rows[3:]] == ["failed", "outdate"]
+    # 只有失败的行带失败类型，供前端悬浮在状态上时展示
+    assert [row.get("error_type") for row in rows] == [None, None, None, "dispatch_failed", None]
 
     page = QueryActiveProfilingHostsResource().request({**TIME_RANGE, "offset": 1, "limit": 2})
     assert host_keys(page) == [(RECENT_AT, 456), (MID_AT, 459)]
@@ -1517,6 +1519,32 @@ def test_es_query_hosts_uses_latest_duplicated_event(host_query_apis):
     )
 
     assert [row["status"] for row in query_es_hosts(EVENT_LIST_REQUEST)] == ["failed"]
+
+
+def test_es_query_hosts_returns_error_type_only_on_failed_rows(host_query_apis):
+    legacy_failed = finished_event("failed", 1788210801000, 1788210802000, message="perf unsuccessful")
+    content = json.loads(legacy_failed["event"]["content"])
+    # 旧版采集端不上报 error_type
+    del content["error_type"]
+    legacy_failed["event"]["content"] = json.dumps(content)
+    legacy_failed["dimensions"]["scheduled_at"] = "1788210800000"
+    host_query_apis["events"].extend(
+        [
+            finished_event("failed", 1788411801000, 1788411802000, error_type="report_failed", message="send failed"),
+            finished_event("succeed", 1788310801000, 1788310832000, scheduled_at=1788310800000),
+            legacy_failed,
+        ]
+    )
+
+    rows = query_es_hosts(EVENT_LIST_REQUEST)
+
+    assert [(row["status"], row.get("error_type")) for row in rows] == [
+        ("failed", "report_failed"),
+        ("succeed", None),
+        ("failed", ""),
+    ]
+    # 列表不返回执行信息
+    assert all("message" not in row for row in rows)
 
 
 def test_es_query_hosts_treats_omitted_processes_as_empty(host_query_apis):

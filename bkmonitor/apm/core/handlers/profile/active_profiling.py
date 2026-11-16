@@ -682,7 +682,7 @@ class ActiveProfilingExecutionQueryHandler:
         task = {"name": execution.task_name, "schedule_type": execution.schedule_type}
         if execution.schedule_type != "immediate":
             task = {"task_id": execution.task_id, **task}
-        return {
+        row = {
             "bk_host_id": host.bk_host_id,
             "ip": host.ip,
             "processes": host.processes,
@@ -696,6 +696,10 @@ class ActiveProfilingExecutionQueryHandler:
             "creator": execution.creator,
             "scheduled_at": host.scheduled_at,
         }
+        # 只有失败的行带失败类型，前端悬浮在状态上时按类型给出展示文案；旧版采集端不上报，为空串
+        if host.status == "failed":
+            row["error_type"] = host.error_type
+        return row
 
     @staticmethod
     def _get_duration_ms(execution):

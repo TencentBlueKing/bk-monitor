@@ -135,8 +135,10 @@ class ActiveProfilingEventQueryHandler:
         task = {"name": dimensions["task_name"], "schedule_type": schedule_type}
         if task_id:
             task = {"task_id": int(task_id), **task}
-        # 列表不展示执行信息
-        del row["error_type"], row["message"]
+        # 列表不展示执行信息，只有失败的行带失败类型，与 MySQL 查询的口径一致
+        del row["message"]
+        if row["status"] != "failed":
+            del row["error_type"]
         row.update(
             status=self._display_host_status(row),
             task=task,
