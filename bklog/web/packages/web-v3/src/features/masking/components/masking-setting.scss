@@ -41,7 +41,11 @@
   }
 
   .operator-slot {
-    width: 66px;
+    gap: 8px;
+
+    .t-button {
+      padding: 0;
+    }
 
     @include flex-justify(space-between);
   }
@@ -61,48 +65,6 @@
   }
 }
 
-.access-table {
-  th,
-  th > .cell {
-    /* stylelint-disable-next-line declaration-no-important */
-    height: 32px !important;
-  }
-
-  td {
-    height: 32px;
-    border-bottom: none;
-  }
-}
-
-.delete-dialog-container {
-  flex-direction: column;
-  align-items: center;
-
-  @include flex-justify(space-between);
-
-  .delete-title {
-    font-size: 20px;
-    color: #313238;
-  }
-
-  .delete-text {
-    padding: 0 18px;
-    margin: 16px 0;
-    text-align: center;
-  }
-
-  .delete-button {
-    margin-top: 24px;
-
-    @include flex-justify(space-between);
-
-    .t-button {
-      padding: 0px 29px;
-      margin-right: 8px;
-    }
-  }
-}
-
 .bk-link-text {
   color: #3a84ff;
   cursor: pointer;
@@ -111,5 +73,41 @@
 .bk-table-setting-content {
   .content-line-height {
     display: none;
+  }
+}
+
+.masking-column-trigger {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--bklog-text-secondary, #63656e);
+  cursor: pointer;
+
+  .bk-icon {
+    font-size: 14px;
+  }
+}
+
+.masking-column-config {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  width: 320px;
+  box-sizing: border-box;
+  padding: 12px;
+
+  .t-checkbox {
+    margin: 0;
+  }
+
+  .masking-column-config-title {
+    grid-column: 1 / -1;
+    margin-bottom: 4px;
+    font-weight: 600;
   }
 }

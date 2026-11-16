@@ -1,0 +1,71 @@
+@use '../../../shared/styles/mixins/flex.scss' as *;
+
+.masking-access-table.t-table.t-size-s {
+  width: 100%;
+
+  th,
+  td {
+    height: 32px;
+    padding: 0 16px;
+    line-height: var(--bklog-line-height-body, 20px);
+  }
+
+  th {
+    background: var(--bklog-surface-hover, #f5f7fa);
+  }
+
+  td {
+    border-bottom: none;
+  }
+
+  .t-button {
+    height: 24px;
+    padding: 0;
+    line-height: 24px;
+  }
+}
+
+.masking-rule-confirm-dialog {
+  padding: 32px 24px 24px;
+
+  .t-dialog__header {
+    height: 0;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .t-dialog__body {
+    padding: 0;
+  }
+}
+
+.masking-rule-confirm-dialog .delete-dialog-container {
+  flex-direction: column;
+  align-items: center;
+
+  @include flex-justify(space-between);
+
+  .delete-title {
+    font-size: 20px;
+    color: var(--bklog-text-primary, #313238);
+  }
+
+  .delete-text {
+    padding: 0 18px;
+    margin: 16px 0;
+    text-align: center;
+  }
+
+  .delete-button {
+    margin-top: 24px;
+
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+
+    .t-button {
+      min-width: 88px;
+      padding: 0 24px;
+    }
+  }
+}
