@@ -12,7 +12,7 @@ from unittest.mock import Mock
 
 import fakeredis
 import pytest
-from redis.exceptions import ConnectionError, LockError, LockNotOwnedError, TimeoutError
+from redis.exceptions import ConnectionError, TimeoutError
 
 from alarm_backends.core.cache.mail_report import MailReportCacheManager
 from alarm_backends.service.report import handler
@@ -117,12 +117,10 @@ def test_missing_cache_keeps_api_read_only(group_cache, monkeypatch):
 
 @pytest.mark.parametrize("error", [ConnectionError, TimeoutError])
 def test_cache_read_failure_is_not_converted_to_empty_groups(group_cache, monkeypatch, refresh_sources, error):
-    original_get = group_cache.get
     monkeypatch.setattr(group_cache, "get", Mock(side_effect=error("cache unavailable")))
     with pytest.raises(error):
         parse_groups(graph_types(BuildInBizType.SETTINGS), ["alice"])
     refresh_sources[0].assert_not_called()
-    assert original_get(f"{MailReportCacheManager.MAIL_REPORT_CACHE_KEY}.refresh_failed") is None
 
 
 @pytest.fixture
@@ -157,59 +155,17 @@ def test_invalid_snapshot_propagates_without_rebuild(group_cache, refresh_source
     with pytest.raises(ValueError):
         MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
     refresh_sources[0].assert_not_called()
-    assert not group_cache.exists(f"{MailReportCacheManager.MAIL_REPORT_CACHE_KEY}.refresh_failed")
 
 
-def test_lock_contention_blocks_both_refresh_paths(group_cache, refresh_sources):
-    with group_cache.lock(f"{MailReportCacheManager.MAIL_REPORT_CACHE_KEY}.refresh_lock", timeout=1800):
-        with pytest.raises(LockError):
-            MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
-        with pytest.raises(LockError):
-            MailReportCacheManager.refresh()
-    refresh_sources[0].assert_not_called()
-
-
-def test_lock_reread_uses_snapshot_created_by_another_worker(group_cache, refresh_sources, monkeypatch):
-    original_lock = group_cache.lock
-
-    def acquire_after_refresh(*args, **kwargs):
-        set_groups(group_cache, controller={"alice": [8]})
-        return original_lock(*args, **kwargs)
-
-    monkeypatch.setattr(group_cache, "lock", acquire_after_refresh)
-    result = MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
-    assert result["controller_group"]["users_biz"] == {"alice": [8]}
-    refresh_sources[0].assert_not_called()
-
-
-def test_failure_cools_down_then_allows_retry(group_cache, refresh_sources):
+def test_failed_rebuild_can_retry_immediately(group_cache, refresh_sources):
     refresh_sources[0].side_effect = ValueError("source failed")
     with pytest.raises(ValueError, match="source failed"):
         MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
-    failure_key = f"{MailReportCacheManager.MAIL_REPORT_CACHE_KEY}.refresh_failed"
-    assert 0 < group_cache.ttl(failure_key) <= MailReportCacheManager.REFRESH_FAILURE_TIMEOUT
-    with pytest.raises(RuntimeError, match="cooling down"):
-        MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
-    refresh_sources[0].assert_called_once()
     assert group_cache.get(MailReportCacheManager.MAIL_REPORT_CACHE_KEY) is None
-    group_cache.delete(failure_key)
     refresh_sources[0].side_effect = None
-    MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
+    result = MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
+    assert set(result["controller_group"]["users_biz"]["alice"]) == {2, 3}
     assert refresh_sources[0].call_count == 2
-
-
-def test_expired_lock_does_not_publish_or_release_another_owner(group_cache, refresh_sources):
-    lock_key = f"{MailReportCacheManager.MAIL_REPORT_CACHE_KEY}.refresh_lock"
-
-    def lose_lock():
-        group_cache.set(lock_key, "another-owner")
-        return ["alice"], {"alice": {4}}
-
-    refresh_sources[1].side_effect = lose_lock
-    with pytest.raises(LockNotOwnedError):
-        MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
-    assert group_cache.get(MailReportCacheManager.MAIL_REPORT_CACHE_KEY) is None
-    assert group_cache.get(lock_key) == b"another-owner"
 
 
 @pytest.mark.parametrize("kind,expected", [(BuildInBizType.SETTINGS, {2, 3}), (BuildInBizType.NOTIFY, {4})])
@@ -243,3 +199,11 @@ def test_scheduled_refresh_replaces_existing_snapshot(group_cache, refresh_sourc
     result = MailReportCacheManager.fetch_groups_and_user_bizs()
     assert set(result["controller_group"]["users_biz"]["alice"]) == {2, 3}
     refresh_sources[0].assert_called_once()
+
+
+def test_serialization_failure_preserves_existing_snapshot(group_cache, refresh_sources):
+    set_groups(group_cache, controller={"alice": [9]})
+    refresh_sources[1].return_value = (["alice"], {"alice": object()})
+    with pytest.raises(TypeError):
+        MailReportCacheManager.refresh()
+    assert MailReportCacheManager.fetch_groups_and_user_bizs()["controller_group"]["users_biz"] == {"alice": [9]}

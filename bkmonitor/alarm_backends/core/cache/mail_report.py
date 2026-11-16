@@ -18,7 +18,6 @@ from metadata.models import EventGroup
 from alarm_backends.core.cache.key import MAIL_REPORT_GROUP_CACHE_KEY
 from alarm_backends.core.cache.base import CacheManager
 from bkmonitor.utils import extended_json
-from redis.exceptions import LockNotOwnedError
 
 
 class MailReportCacheManager(CacheManager):
@@ -29,15 +28,11 @@ class MailReportCacheManager(CacheManager):
     # 缓存key
     MAIL_REPORT_CACHE_KEY = MAIL_REPORT_GROUP_CACHE_KEY.get_key()
 
-    # Match the periodic refresh interval; failed rebuilds cool down for one minute.
-    REFRESH_LOCK_TIMEOUT = 30 * 60
-    REFRESH_FAILURE_TIMEOUT = 60
-
     @classmethod
     def fetch_groups_and_user_bizs(cls, ensure=False):
         """
         获取订阅报表配置管理组及其所辖业务、通知接收人及其所收通知业务
-        :param ensure: 仅后台消费端在缓存缺失时触发受控补建，默认保持纯读
+        :param ensure: 仅后台消费端在缓存缺失时同步补建，默认保持纯读
         :return: {
             "controller_group": {"users": [], "users_biz": []},
             "alert_group": {"users": [], "users_biz": []},
@@ -45,7 +40,7 @@ class MailReportCacheManager(CacheManager):
         """
         data = cls.cache.get(cls.MAIL_REPORT_CACHE_KEY)
         if data is None and ensure:
-            cls.refresh_mail_report_group(only_if_missing=True)
+            cls.refresh_mail_report_group()
             data = cls.cache.get(cls.MAIL_REPORT_CACHE_KEY)
             if data is None:
                 raise RuntimeError("mail report group cache missing after refresh")
@@ -176,32 +171,16 @@ class MailReportCacheManager(CacheManager):
         return list(filter(None, set(users))), users_bizs
 
     @classmethod
-    def refresh_mail_report_group(cls, only_if_missing=False):
-        """Serialize scheduled refreshes and on-demand rebuilds on the same cache route."""
-        failure_key = f"{cls.MAIL_REPORT_CACHE_KEY}.refresh_failed"
-        with cls.cache.lock(
-            f"{cls.MAIL_REPORT_CACHE_KEY}.refresh_lock", timeout=cls.REFRESH_LOCK_TIMEOUT, blocking=False
-        ) as lock:
-            # Another worker may have populated the snapshot before we acquired the lock.
-            if only_if_missing and cls.cache.get(cls.MAIL_REPORT_CACHE_KEY) is not None:
-                return
-            if cls.cache.get(failure_key) is not None:
-                raise RuntimeError("mail report group cache refresh is cooling down")
-            try:
-                controller_group, controller_group_user_biz = cls.fetch_controller_group()
-                alert_receiver_group, alert_receiver_user_biz = cls.fetch_notify_receiver_group()
-                data = {
-                    "controller_group": {"users": controller_group, "users_biz": controller_group_user_biz},
-                    "alert_group": {"users": alert_receiver_group, "users_biz": alert_receiver_user_biz},
-                }
-                snapshot = json.dumps(data)
-                # Check lease ownership before publishing the rebuilt snapshot.
-                if not lock.owned():
-                    raise LockNotOwnedError("mail report group cache refresh lock expired")
-                cls.cache.set(cls.MAIL_REPORT_CACHE_KEY, snapshot, cls.CACHE_TIMEOUT)
-            except Exception:
-                cls.cache.set(failure_key, "1", cls.REFRESH_FAILURE_TIMEOUT)
-                raise
+    def refresh_mail_report_group(cls):
+        """Build the complete snapshot before replacing the cached report groups."""
+        controller_group, controller_group_user_biz = cls.fetch_controller_group()
+        alert_receiver_group, alert_receiver_user_biz = cls.fetch_notify_receiver_group()
+        data = {
+            "controller_group": {"users": controller_group, "users_biz": controller_group_user_biz},
+            "alert_group": {"users": alert_receiver_group, "users_biz": alert_receiver_user_biz},
+        }
+        snapshot = json.dumps(data)
+        cls.cache.set(cls.MAIL_REPORT_CACHE_KEY, snapshot, cls.CACHE_TIMEOUT)
 
     @classmethod
     def refresh(cls):
