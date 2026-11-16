@@ -175,7 +175,6 @@ EXECUTION_DETAIL_HOST_COLUMNS = [
     {"field": "ip", "name": "目标 IP", "type": "text"},
     {"field": "processes", "name": "采集进程", "type": "process_list"},
     {"field": "status", "name": "状态", "type": "status"},
-    {"field": "message", "name": "执行信息", "type": "text"},
     {"field": "started_at", "name": "开始时间", "type": "datetime"},
     {"field": "finished_at", "name": "结束时间", "type": "datetime"},
     {"field": "duration_ms", "name": "采集时长", "type": "duration"},
