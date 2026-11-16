@@ -105,12 +105,6 @@ export default {
       ],
     }),
     {
-      name: 'migration-test-label',
-      transformIndexHtml(html) {
-        return html.replace('日志平台 · 原生 Vue3 升级测试', '日志平台 · Vue3 UI 对齐');
-      },
-    },
-    {
       name: 'migration-startup-diagnostics',
       apply: 'serve',
       transformIndexHtml: {
