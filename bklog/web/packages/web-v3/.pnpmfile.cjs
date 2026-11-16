@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-const removed = new Set(['bk-magic-vue', 'bkui-vue', 'babel-plugin-import-bk-magic-vue']);
+const removed = new Set(['bk-magic-vue', 'bkui-vue', 'babel-plugin-import-bk-magic-vue', 'vue-i18n']);
 
 function readPackage(pkg) {
   for (const field of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
