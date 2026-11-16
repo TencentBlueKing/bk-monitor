@@ -8,7 +8,8 @@ flowchart LR
     Platform --> Tools[按请求装配授权工具]
     Tools --> Hermes[Hermes SDK]
     Hermes --> SSE[流式响应]
-    Hermes --> Save[AIDEV 保存最终回复]
+    SSE --> Caller[现有前端更新已创建的 AI 消息]
+    Caller --> Platform
     Hermes --> Trace[宿主 OpenTelemetry Provider]
 ```
 
@@ -28,9 +29,9 @@ Hermes 只执行当前智能体挂载的 Python/MCP 工具及知识查询，不�
 
 本次恢复主 Agent、MCP 与平台指令映射的显式切换。平台关联子 Agent 的自动委派留作后续接入。
 
-平台历史会恢复用户约束和已保存的工具记录，缺少结果的历史工具调用标记为未确认。当前适配只将最终 AI 回复写回平台一次，工具过程通过 SSE 和 Trace 展示；不承诺把本轮全部工具结果持久化为下一轮历史。
+平台历史会恢复用户约束和已保存的工具记录，缺少结果的历史工具调用标记为未确认。会话写入沿用现有调用方职责：前端先创建 AI 消息，再根据流式响应更新它；执行适配层不另建 AI 消息。其他 API 调用方继续通过现有会话内容接口保存结果。工具过程通过 SSE 和 Trace 展示；不承诺把本轮全部工具结果持久化为下一轮历史。
 
-流式响应沿用前端的 `text`、`think`、`done`、`error` 事件及 `[DONE]` 终止标记，空闲时发送 SSE heartbeat。失败、截断和回复保存失败不发送成功完成事件。关闭 HTTP 响应会取消本轮 SDK 调用；已开始的外部工具是否立即停止，仍取决于其 transport 对取消的支持。
+流式响应沿用前端的 `text`、`think`、`done`、`error` 事件及 `[DONE]` 终止标记，空闲时发送 SSE heartbeat。执行失败或截断不发送成功完成事件；会话写入错误由原有内容接口反馈。关闭 HTTP 响应会取消本轮 SDK 调用；已开始的外部工具是否立即停止，仍取决于其 transport 对取消的支持。
 
 ## 私有运行时镜像
 
@@ -114,7 +115,7 @@ monitor:
 | `AI_AGENT_OTEL_ENABLED` | `false`；启用时复用监控已经初始化的 TracerProvider 与 exporter |
 | `AI_AGENT_OTEL_CAPTURE_CONTENT` | `false`；是否采集消息及工具内容，按环境要求选择 |
 
-不在适配层新建第二个 Provider 或复制其他应用的上报 Token。Trace 沿用宿主 HTTP/Celery 上下文，SDK 与观测插件产生 Agent、模型和工具 Span；平台回复保存另有 `ai_whale.persist_reply` Span。
+不在适配层新建第二个 Provider 或复制其他应用的上报 Token。Trace 沿用宿主 HTTP/Celery 上下文，SDK 与观测插件产生 Agent、模型和工具 Span；会话内容仍通过原有平台接口保存。
 
 ## 验证
 

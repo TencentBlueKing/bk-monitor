@@ -234,24 +234,12 @@ class HermesChatExecutor:
         )
         return agent, prompt or config.role_prompt or None, history, message
 
-    def persist(self, content):
-        if not content:
-            return
-        from opentelemetry import trace
-
-        with trace.get_tracer(__name__).start_as_current_span("ai_whale.persist_reply"):
-            result = self.interface.api_client.api.create_chat_session_content(
-                json={"session_code": self.session_code, "role": "ai", "content": content, "property": {}}
-            )
-            if isinstance(result, dict) and result.get("result") is False:
-                raise RuntimeError("智能体回复保存失败")
-
     def execute_invoke(self):
         agent = None
         try:
             agent, prompt, history, message = self.prepare()
             result = agent.run(message, history=history, system_prompt=prompt)
-            self.persist(result.text)
+            # 会话内容仍由现有调用方创建和更新，执行接口不能重复写入 AI 消息。
             return {
                 "choices": [{"delta": {"role": "assistant", "content": result.text}}],
                 "model": agent.config.model,
@@ -306,7 +294,6 @@ class HermesChatExecutor:
                         parts.append(event.result.text)
                         yield _sse("text", content=event.result.text, cover=False)
                     content = "".join(parts)
-                    self.persist(content)
                     completed = True
                     yield _sse("think", content="\n", cover=False, elapsed_time=(time.monotonic() - started) * 1000)
                     yield _sse("done", content=content, cover=False)
@@ -318,7 +305,7 @@ class HermesChatExecutor:
         except Exception as error:
             logger.error("Hermes completion failed (%s)", type(error).__name__)
             if self.on_error is not None:
-                self.on_error(RuntimeError("智能体执行或回复保存失败"))
+                self.on_error(RuntimeError("智能体执行失败"))
             yield _error()
         finally:
             try:

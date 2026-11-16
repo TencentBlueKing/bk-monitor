@@ -33,7 +33,7 @@ def executor():
     return HermesChatExecutor(interface, "session-a", "agent-a", "alice", [], Mock())
 
 
-def test_stream_persists_final_once_and_preserves_legacy_sse(executor):
+def test_stream_preserves_legacy_sse_and_caller_owned_persistence(executor):
     agent = Mock()
     agent.stream.return_value = iter(
         [
@@ -47,8 +47,7 @@ def test_stream_persists_final_once_and_preserves_legacy_sse(executor):
     assert output[-1] == "data: [DONE]\n\n"
     payloads = [json.loads(row[6:]) for row in output if row.startswith("data: {")]
     assert [row["event"] for row in payloads] == ["text", "think", "done"]
-    executor.interface.api_client.api.create_chat_session_content.assert_called_once()
-    assert executor.interface.api_client.api.create_chat_session_content.call_args.kwargs["json"]["content"] == "你好"
+    executor.interface.api_client.api.create_chat_session_content.assert_not_called()
     agent.close.assert_called_once()
 
 
@@ -86,14 +85,14 @@ def test_browser_close_interrupts_and_closes_sdk(executor):
     executor.interface.api_client.api.create_chat_session_content.assert_not_called()
 
 
-def test_storage_failure_does_not_report_done(executor):
+def test_completion_does_not_call_storage_owned_by_the_caller(executor):
     agent = Mock()
     agent.stream.return_value = iter([event("text_delta", delta="回答"), event("done", result=None)])
-    executor.interface.api_client.api.create_chat_session_content.return_value = {"result": False, "message": "secret"}
+    executor.interface.api_client.api.create_chat_session_content.side_effect = RuntimeError("storage-is-caller-owned")
     output = "".join(executor._stream(agent, None, [], "问题"))
-    assert '"event": "error"' in output
-    assert '"event": "done"' not in output
-    assert "secret" not in output
+    assert '"event": "error"' not in output
+    assert '"event": "done"' in output
+    executor.interface.api_client.api.create_chat_session_content.assert_not_called()
 
 
 def test_close_before_first_chunk_releases_prepared_sdk(executor):
@@ -268,7 +267,7 @@ def test_real_sdk_tool_roundtrip(executor, tmp_path, monkeypatch, tracing_runtim
         assert any(
             row.get("role") == "tool" and "cpu=25" in str(row.get("content")) for row in requests[-1]["messages"]
         )
-        executor.interface.api_client.api.create_chat_session_content.assert_called_once()
+        executor.interface.api_client.api.create_chat_session_content.assert_not_called()
         if tracing:
             spans = exporter.get_finished_spans()
             roots = [span for span in spans if span.name.startswith("invoke_agent")]
