@@ -63,7 +63,6 @@ import '@blueking/bk-user-selector/vue3/vue3.css';
 import { BK_LOG_STORAGE } from '../state/store.type.ts';
 import { urlArgs } from '../state/default-values.ts';
 import { DEFAULT_MENU_LISTS } from '../state/menu-config.ts';
-import '../../platform/compat/tdesign/runtime-contract';
 import { installZIndexManager } from '../../shared/global/overlay/z-index-manager.js';
 import '../../shared/global/bk-popover.js';
 import '../../shared/styles/theme/tdesign-bklog.scss';
@@ -264,6 +263,16 @@ const mountedVueInstance = () => {
   });
 };
 
+// RUM is optional; when enabled it must start before preload issues API calls.
+const startApplication = async () => {
+  try {
+    rumInstance = await initOpenTelemetry();
+  } catch (error) {
+    console.warn('[bklog-rum] initialization failed', error);
+  }
+  mountedVueInstance();
+};
+
 if (process.env.NODE_ENV === 'development') {
   ServicesInstance.meta.getEnvConstant().then(res => {
     const { data } = res;
@@ -275,12 +284,10 @@ if (process.env.NODE_ENV === 'development') {
     window.FEATURE_TOGGLE_BLACK_LIST = JSON.parse(data.FEATURE_TOGGLE_BLACK_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
-    rumInstance = initOpenTelemetry();
-    mountedVueInstance();
+    return startApplication();
   });
 } else {
-  rumInstance = initOpenTelemetry();
-  mountedVueInstance();
+  void startApplication();
 }
 
 const BaseResizeObserver = window.ResizeObserver;
