@@ -16,9 +16,7 @@ import pytest
 
 from rum_web.virtual_fields import VirtualField, get_virtual_fields
 from semconv.rum.field import FieldSpec
-from semconv.rum.session import SessionSpec
 from semconv.rum.trace import SpanSpec
-from semconv.rum.view import ViewSpec
 
 
 def make_field(template: str, pattern: str, **types: str) -> VirtualField:
@@ -60,44 +58,6 @@ def span_fields() -> dict[str, VirtualField]:
     return get_virtual_fields(SpanSpec.fields())
 
 
-@pytest.mark.parametrize(
-    "name,row,expected",
-    [
-        (
-            "virtual.viewport",
-            {"attributes.browser.viewport.width": 1440, "attributes.browser.viewport.height": 900},
-            "1440 x 900",
-        ),
-        ("virtual.viewport", {"attributes.browser.viewport.width": 1440}, "1440 x --"),
-        (
-            "virtual.browser",
-            {"resource.user_agent.name": "Chrome", "resource.user_agent.version": "131"},
-            "Chrome 131",
-        ),
-        (
-            "virtual.network",
-            {"attributes.network.connection.type": "wifi", "attributes.network.effective_type": "4g"},
-            "wifi / 4g",
-        ),
-    ],
-)
-def test_registered_fields_format_and_filter(span_fields, name, row, expected):
-    field = span_fields[name]
-    assert field.format(row) == expected
-    assert matches(field.build_filter(expected), row, field)
-
-
-def test_default_placeholder_matches_empty_only():
-    field = make_field("{name|--} {version|--}", r"(?P<name>.+) (?P<version>[^ ]+)", name="keyword", version="keyword")
-    condition = field.build_filter("Chrome --")
-    for version in (None, ""):
-        row = {"name": "Chrome", "version": version}
-        assert field.format(row) == "Chrome --"
-        assert matches(condition, row, field)
-    assert not matches(condition, {"name": "Chrome", "version": "131"}, field)
-    assert not matches(condition, {}, field)
-
-
 def test_all_empty_overrides_defaults():
     field = make_field("{a|--}/{b|--}", r"(?P<a>.*)/(?P<b>.*)", a="keyword", b="keyword")
     for row in ({}, {"a": None, "b": ""}):
@@ -115,14 +75,15 @@ def test_viewport_filter_preserves_zero_and_canonical_numbers(span_fields):
 
 
 @pytest.mark.parametrize("name,version", [("Mobile Safari", "131"), (r"A\B", "131"), ("a/b", None)])
-def test_browser_splits_once_from_right_without_escaping(name, version):
-    field = make_field("{name|--} {version|--}", r"(?P<name>.+) (?P<version>[^ ]+)", name="keyword", version="keyword")
-    row = {"name": name, "version": version}
+def test_browser_splits_once_from_right_without_escaping(span_fields, name, version):
+    field = span_fields["virtual.browser"]
+    name_key, version_key = field.field_names
+    row = {name_key: name, version_key: version}
     value = field.format(row)
     assert value == f"{name} {version or '--'}"
     assert matches(field.build_filter(value), row, field)
     if name == "Mobile Safari":
-        assert not matches(field.build_filter(value), {"name": "Mobile", "version": "Safari 131"}, field)
+        assert not matches(field.build_filter(value), {name_key: "Mobile", version_key: "Safari 131"}, field)
 
 
 def test_member_order_comes_from_template():
@@ -167,12 +128,3 @@ def test_configured_pattern_decides_member_boundaries(template, pattern, row, di
 def test_template_and_pattern_must_bind_the_same_members(template, pattern):
     with pytest.raises(ValueError):
         make_field(template, pattern, a="keyword", b="keyword")
-
-
-def test_registry_exposes_only_supported_virtual_dimensions(span_fields):
-    assert set(span_fields) == {"virtual.viewport", "virtual.browser", "virtual.network"}
-    assert set(get_virtual_fields(SessionSpec.fields())) == {"virtual.browser", "virtual.network"}
-    assert set(get_virtual_fields(ViewSpec.fields())) == {"virtual.browser", "virtual.network", "virtual.viewport"}
-    assert "virtual" not in {field.get_full_field_name() for field in SpanSpec.fields()}
-    assert SpanSpec.from_field("attributes.browser.viewport.width").field_type == "long"
-    assert SpanSpec.from_field("attributes.browser.viewport.height").field_type == "long"

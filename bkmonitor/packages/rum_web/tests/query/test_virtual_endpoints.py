@@ -30,7 +30,7 @@ def test_descending_browser_merge_uses_remaining_members_and_stable_tiebreak(moc
         {"span_id": "a", "end_time": 10, "resource.user_agent.name": "Chrome", "resource.user_agent.version": "131"},
         {
             "span_id": "b",
-            "end_time": 20,
+            "end_time": 20 if same_version else 5,
             "resource.user_agent.name": "Chrome",
             "resource.user_agent.version": "131" if same_version else "132",
         },

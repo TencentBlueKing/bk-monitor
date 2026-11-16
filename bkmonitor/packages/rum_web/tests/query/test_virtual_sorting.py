@@ -21,17 +21,6 @@ def direct_storage(mocker):
     mocker.patch("bkmonitor.data_source.data_source.bk_biz_id_to_bk_tenant_id", return_value="system")
 
 
-def test_numeric_sort_expands_to_raw_fields_and_stable_tiebreak():
-    query = make_query()
-    order_by = query.process_sort_fields(query.expand_sort_fields(["-virtual.viewport"]))
-    assert order_by == [
-        "attributes.browser.viewport.width desc",
-        "attributes.browser.viewport.height desc",
-        "end_time desc",
-        "span_id",
-    ]
-
-
 def test_sort_keeps_first_direction_when_a_member_or_default_is_explicit():
     width = "attributes.browser.viewport.width"
     height = "attributes.browser.viewport.height"

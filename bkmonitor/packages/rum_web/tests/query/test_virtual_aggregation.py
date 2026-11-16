@@ -14,7 +14,6 @@ from rum_web.handlers.level.span import SpanLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.handlers.query.virtual import (
     _weighted_percentile,
-    iter_joint_buckets,
     query_virtual_grouped_values,
     query_virtual_values,
 )
@@ -68,8 +67,10 @@ def test_pages_merge_before_topk_and_retain_guard_and_missing_members(query, es)
                 ({NAME: "Chrome", VERSION: "--"}, 1),
                 ({NAME: None, VERSION: "131"}, 2),
                 ({NAME: None, VERSION: None}, 5),
-            ]
+            ],
+            after={NAME: None, VERSION: None},
         ),
+        _page([]),
     ]
     topk = query.query_field_topk(
         START,
@@ -80,7 +81,7 @@ def test_pages_merge_before_topk_and_retain_guard_and_missing_members(query, es)
         query_string="span_name:api*",
     )
     assert topk == [{BROWSER: "Chrome --", "_result_": 6}]
-    assert es.call_count == 2
+    assert es.call_count == 3
     request = es.call_args_list[0].kwargs
     assert request["bk_tenant_id"] == "tenant-2"
     assert request["table_id"] == query.data_sources[0].table_id
@@ -106,13 +107,6 @@ def test_multi_source_merge_and_all_empty_value(query, es):
     ]
     assert query_virtual_values(query, query.get_queries(), START, END, BROWSER) == {"Chrome --": 7, None: 8}
     assert [call.kwargs["bk_tenant_id"] for call in es.call_args_list] == ["tenant-2", "tenant-3"]
-
-
-def test_empty_page_ends_iteration_without_losing_full_last_page(query, es):
-    after = {NAME: "Chrome", VERSION: "131"}
-    es.side_effect = [_page([(after, 2)], after), _page([])]
-    assert query_virtual_values(query, query.get_queries(), START, END, BROWSER) == {"Chrome 131": 2}
-    assert es.call_count == 2
 
 
 @pytest.mark.parametrize("partial", [{"timed_out": True}, {"_shards": {"failed": 1}}])
@@ -207,45 +201,33 @@ def test_real_distinct_enumerates_values_and_deduplicates_across_raw_groups(quer
     assert fetch.call_args.args[4] == [NAME, VERSION, WIDTH, HEIGHT, "user"]
 
 
-def test_time_buckets_keep_virtual_and_other_groups_with_timezone_alignment(query):
-    row = {WIDTH: 1440, HEIGHT: None, "status.code": 0, "total": 2, "_records": 2}
-    start = START + 10
-    with (
-        timezone.override("Asia/Shanghai"),
-        patch("rum_web.handlers.query.virtual.iter_joint_buckets", side_effect=lambda *args: iter([row])) as fetch,
-    ):
-        result = query_virtual_grouped_values(
-            query, query.get_queries(), start, END, "_index", "count", [VIEWPORT, "status.code", "time"], 60
-        )
-    assert result == [
-        {VIEWPORT: "1440 x --", "status.code": 0, "_result_": 2, "_time_": START * 1000},
-        {VIEWPORT: "1440 x --", "status.code": 0, "_result_": 2, "_time_": (START + 60) * 1000},
-    ]
-    assert [call.args[2:4] for call in fetch.call_args_list] == [(start, START + 60), (START + 60, END)]
-
-
-def test_time_group_windows_send_microsecond_ranges_to_actual_es_compiler(query, es):
+def test_time_windows_preserve_groups_and_send_microsecond_ranges_to_es(query, es):
     es.return_value = {
         "aggregations": {
             "_group_": {
                 "buckets": [
                     {
-                        "key": {WIDTH: 1440, HEIGHT: None},
-                        "_records": {"value": 2},
+                        "key": {WIDTH: 1440, HEIGHT: None, "status.code": 0},
                         "total": {"value": 2},
                     }
                 ]
             }
         }
     }
-    result = query_virtual_grouped_values(
-        query, query.get_queries(), START + 10, END, "_index", "count", [VIEWPORT, "time"], 60
-    )
-    assert [record["_time_"] for record in result] == [START * 1000, (START + 60) * 1000]
+    with timezone.override("Asia/Shanghai"):
+        result = query_virtual_grouped_values(
+            query, query.get_queries(), START + 10, END, "elapsed_time", "sum", [VIEWPORT, "status.code", "time"], 60
+        )
+    assert result == [
+        {VIEWPORT: "1440 x --", "status.code": 0, "_result_": 2, "_time_": START * 1000},
+        {VIEWPORT: "1440 x --", "status.code": 0, "_result_": 2, "_time_": (START + 60) * 1000},
+    ]
     for call, expected_start, expected_end in zip(
         es.call_args_list, [START + 10, START + 60], [START + 60, END], strict=True
     ):
-        encoded = json.dumps(call.kwargs["query_body"]["query"])
+        body = call.kwargs["query_body"]
+        assert body["aggregations"]["_group_"]["aggregations"] == {"total": {"sum": {"field": "elapsed_time"}}}
+        encoded = json.dumps(body["query"])
         assert json.dumps({"end_time": {"gte": expected_start * 1000000}}) in encoded
         assert json.dumps({"end_time": {"lt": expected_end * 1000000}}) in encoded
     assert query._get_time_range.call_args_list[1].args == (START + 10, START + 60)
@@ -327,18 +309,3 @@ def test_precomputed_targets_use_level_table_and_tenant(query, es):
     assert values == {"1440 x 900": 2}
     assert es.call_args.kwargs["table_id"] == "precomputed_view"
     assert es.call_args.kwargs["bk_tenant_id"] == "tenant-3"
-
-
-def test_joint_buckets_preserves_non_count_metrics(query, es):
-    es.return_value = {"aggregations": {"_group_": {"buckets": [{"key": {NAME: "Chrome"}, "total": {"value": 42}}]}}}
-    records = list(
-        iter_joint_buckets(
-            query,
-            query.get_queries(),
-            START,
-            END,
-            [NAME],
-            [{"field": "elapsed_time", "method": "SUM", "alias": "total"}],
-        )
-    )
-    assert records == [{NAME: "Chrome", "total": 42}]

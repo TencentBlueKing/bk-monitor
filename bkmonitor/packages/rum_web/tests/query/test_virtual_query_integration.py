@@ -95,20 +95,6 @@ def query() -> SpanQuery:
     return SpanQuery([target()])
 
 
-@pytest.mark.parametrize("operator", ["equal", "not_equal"])
-def test_multivalue_filter_preserves_tuple_pairing(query, operator):
-    filters = [{"key": "virtual.viewport", "operator": operator, "value": ["1440 x 900", "1920 x 1080"]}]
-    condition = query._build_filters(filters)
-    for row, expected in [
-        ({WIDTH: 1440, HEIGHT: 900}, True),
-        ({WIDTH: 1920, HEIGHT: 1080}, True),
-        ({WIDTH: 1440, HEIGHT: 1080}, False),
-        ({WIDTH: 1920, HEIGHT: 900}, False),
-        ({}, False),
-    ]:
-        assert matches(condition, row) == (expected if operator == "equal" else not expected)
-
-
 def test_virtual_filter_keeps_ordinary_conditions_and_input(query):
     filters = [equal_filter("virtual.browser", ["Chrome --"]), equal_filter("attributes.user.id", ["alice"])]
     original = deepcopy(filters)
@@ -126,19 +112,24 @@ def test_virtual_filter_rejects_unsupported_operations(query, operator):
 
 
 @pytest.mark.parametrize(
-    "field,value,rows",
+    "field,values,rows",
     [
         (
             "virtual.browser",
-            "Chrome --",
+            ["Chrome --"],
             [{NAME: "Chrome"}, {NAME: "Chrome", VERSION: ""}, {NAME: "Chrome", VERSION: "131"}, {}],
         ),
-        ("virtual.viewport", "1440 x --", [{WIDTH: 1440}, {WIDTH: 1440, HEIGHT: 900}, {}]),
+        ("virtual.viewport", ["1440 x --"], [{WIDTH: 1440}, {WIDTH: 1440, HEIGHT: 900}, {}]),
+        (
+            "virtual.viewport",
+            ["1440 x 900", "1920 x 1080"],
+            [{WIDTH: w, HEIGHT: h} for w in (1440, 1920) for h in (900, 1080)] + [{}],
+        ),
     ],
 )
 @pytest.mark.parametrize("operator", ["equal", "not_equal"])
-def test_storage_filter_serialization_preserves_virtual_semantics(query, field, value, rows, operator):
-    filters = [{"key": field, "operator": operator, "value": [value]}]
+def test_storage_filter_serialization_preserves_virtual_semantics(query, field, values, rows, operator):
+    filters = [{"key": field, "operator": operator, "value": values}]
     config = query.get_queries(filters)[0].query
     serialized = q_to_dict(config.where)
     assert "virtual." not in json.dumps(serialized)
@@ -149,9 +140,9 @@ def test_storage_filter_serialization_preserves_virtual_semantics(query, field, 
     for row in rows:
         row = {"app_name": "test", "bk_biz_id": 2, **row}
         actual: str | None = virtual.format(row)
-        expected: bool = actual == value if operator == "equal" else actual != value
+        expected: bool = actual in values if operator == "equal" else actual not in values
         wire_row = {key: str(item) if item is not None else None for key, item in row.items()}
-        assert matches(restored, wire_row) == expected, (operator, value, row, serialized)
+        assert matches(restored, wire_row) == expected, (operator, values, row, serialized)
 
 
 @pytest.mark.parametrize(
@@ -167,7 +158,12 @@ def test_view_config_exposes_supported_virtual_fields(mode, expected):
     with patch.object(BaseQuery, "_query_fields", return_value={}):
         config = handler.view_config(None, None)
     fields = {field["field_name"]: field for field in config["fields"]}
-    assert {name for name in fields if name.startswith("virtual.")} == {f"virtual.{name}" for name in expected}
+    expected_names = {f"virtual.{name}" for name in expected}
+    assert {name for name in fields if name.startswith("virtual.")} == expected_names
+    assert set(handler.query.virtual_fields) == expected_names
+    assert "virtual" not in fields
+    if "viewport" in expected:
+        assert fields[WIDTH]["field_type"] == fields[HEIGHT]["field_type"] == "long"
     for name in expected:
         field = fields[f"virtual.{name}"]
         assert field["is_searchable"] and field["is_list"] and field["is_agg"]
@@ -214,12 +210,7 @@ def test_materialization_supports_nested_and_flat_records_without_mutating_input
     assert set(result[2]["virtual"].values()) == {None}
 
 
-def test_list_handler_materializes_virtuals_after_storage_fetch(query):
-    handler = SpanLevelHandler([target()])
-    with patch.object(BaseQuery, "_query_list", return_value=[{NAME: "Chrome", VERSION: "131"}]) as execute:
-        rows = handler.list_records(10, 20, 3, 5)
-    assert execute.call_args.args[1:] == (10, 20, 3, 5)
-    assert rows[0]["virtual"]["browser"] == "Chrome 131"
+def test_raw_query_returns_unmaterialized_records(query):
     with patch.object(BaseQuery, "_query_list", return_value=[{NAME: "Chrome", VERSION: "131"}]):
         assert query.query_list(10, 20, 3, 5) == [{NAME: "Chrome", VERSION: "131"}]
 
