@@ -7,6 +7,7 @@
   "description": "BKLog Vue 3 workspace package",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "analyze:bundle": "node --max-old-space-size=8192 tools/analyze-bundle.mjs",
     "build": "node --max-old-space-size=8192 ./node_modules/vite/bin/vite.js build && node tools/verify-legacy-deployment.mjs && node tools/verify-production-build.mjs",
     "test": "pnpm --ignore-workspace i18n:compile && node --test tests/*.test.mjs",
     "typecheck": "pnpm --ignore-workspace i18n:compile && vue-tsc --noEmit",

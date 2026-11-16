@@ -1,5 +1,5 @@
 import { Ref, ref } from 'vue';
-import { IAssitantInstance, IAssitantOptions, IAssitantOptionsType, IQueryStringSendData, IRowSendData } from './index';
+import type { IAssitantInstance, IAssitantOptions, IAssitantOptionsType, IQueryStringSendData, IRowSendData } from './index';
 import { requestAIResult } from './ai-request';
 import { TextToQueryResponse } from './interface';
 
@@ -9,6 +9,13 @@ import { TextToQueryResponse } from './interface';
 class AiAssitantHelper {
   aiAssitantRef: Ref<IAssitantInstance | null>;
   activePosition: 'search-bar' | 'row-box' | 'text-selection';
+  private loadInstance?: () => Promise<void>;
+  private pendingPosition?: [number?, number?, number?, number?];
+
+  setAiAssitantLoader(loader: () => Promise<void>) {
+    this.loadInstance = loader;
+    return () => { if (this.loadInstance === loader) this.loadInstance = undefined; };
+  }
 
   constructor() {
     this.aiAssitantRef = ref<IAssitantInstance>(null);
@@ -37,7 +44,7 @@ class AiAssitantHelper {
    * @param options
    */
   showAiAssitant(options: Partial<IAssitantOptions> = {}, args: IQueryStringSendData) {
-    this.updateAiAssitantOptions(options, 'query_string_generate').then(() => {
+    return this.updateAiAssitantOptions(options, 'query_string_generate').then(() => {
       this.activePosition = 'search-bar';
       this.aiAssitantRef.value?.queryStringShowAiAssistant(args);
     });
@@ -47,8 +54,14 @@ class AiAssitantHelper {
    * 更新 AI 助手实例的选项
    * @param options
    */
-  updateAiAssitantOptions(options: Partial<IAssitantOptions> = {}, type: IAssitantOptionsType = 'log_analysis') {
-    return Promise.resolve(this.aiAssitantRef.value?.updateOptions(options, type));
+  async updateAiAssitantOptions(options: Partial<IAssitantOptions> = {}, type: IAssitantOptionsType = 'log_analysis') {
+    if (!this.aiAssitantRef.value) await this.loadInstance?.();
+    const result = await this.aiAssitantRef.value?.updateOptions(options, type);
+    if (this.pendingPosition && this.aiAssitantRef.value) {
+      this.aiAssitantRef.value.setPosition(...this.pendingPosition);
+      this.pendingPosition = undefined;
+    }
+    return result;
   }
 
   /**
@@ -57,7 +70,7 @@ class AiAssitantHelper {
    * @param args
    */
   openAiAssitant(sendMsg: boolean, args: IRowSendData) {
-    this.updateAiAssitantOptions(undefined, 'log_analysis').then(() => {
+    return this.updateAiAssitantOptions(undefined, 'log_analysis').then(() => {
       this.activePosition = 'row-box';
       this.aiAssitantRef.value?.open(sendMsg, args);
     });
@@ -68,7 +81,7 @@ class AiAssitantHelper {
    * @param text
    */
   setCiteText(text: string) {
-    this.updateAiAssitantOptions(undefined, 'log_analysis').then(() => {
+    return this.updateAiAssitantOptions(undefined, 'log_analysis').then(() => {
       this.activePosition = 'text-selection';
       this.aiAssitantRef.value?.setCiteText(text);
     });
@@ -110,7 +123,8 @@ class AiAssitantHelper {
    * @param height 高度
    */
   setPosition(x?: number, y?: number, width?: number, height?: number) {
-    this.aiAssitantRef.value?.setPosition(x, y, width, height);
+    if (this.aiAssitantRef.value) this.aiAssitantRef.value.setPosition(x, y, width, height);
+    else this.pendingPosition = [x, y, width, height];
   }
 
   /**
