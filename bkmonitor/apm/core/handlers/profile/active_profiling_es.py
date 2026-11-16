@@ -17,10 +17,12 @@ from django.utils.translation import gettext_lazy as _
 
 from apm.constants import (
     ACTIVE_PROFILING_ES_EXECUTION_BATCH_SIZE,
+    ACTIVE_PROFILING_ES_FALLBACK_MAX_HOST_TERMS,
     ACTIVE_PROFILING_ES_QUERY_BATCH_SIZE,
     ACTIVE_PROFILING_ES_QUERY_MAX_SIZE,
     ACTIVE_PROFILING_FINISHED_EVENT,
     ACTIVE_PROFILING_PARSING_MS,
+    ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES,
     ACTIVE_PROFILING_PROCESS_TOPK_RECENT_ROWS,
     ACTIVE_PROFILING_RUNNING_WINDOW_MS,
     ACTIVE_PROFILING_STARTED_EVENT,
@@ -368,7 +370,66 @@ class ActiveProfilingEventQueryHandler:
             dimensions["bk_host_id"],
         )
 
+    def resolve_hosts(self, keys):
+        """按主机执行键批量回查 Event，返回 {主机执行键: 主机执行行}，供 MySQL 查询校正预计算没按时写入的主机行。
+        键为 (schedule_type, scheduled_at, task_id, bk_host_id)，改造前上报的立即执行没有 task_id，记为 0；
+        状态保留原始终态，不派生 outdate，由调用方按自己的口径派生"""
+        keys = set(keys)
+        if not keys:
+            return {}
+        scheduled_ats = sorted({key[1] for key in keys})
+        bk_host_ids = sorted({key[3] for key in keys})
+        # dimension 都是 keyword；只按 scheduled_at 与主机筛选，执行方式与任务 ID 在内存中按执行键精确匹配
+        filter_dict = {"scheduled_at": [str(scheduled_at) for scheduled_at in scheduled_ats]}
+        # 主机多时不按主机下推，避免查询条件过长
+        if len(bk_host_ids) <= ACTIVE_PROFILING_ES_FALLBACK_MAX_HOST_TERMS:
+            filter_dict["bk_host_id"] = [str(bk_host_id) for bk_host_id in bk_host_ids]
+        # finished 可能在执行后很久才上报，窗口放到当前；两端各放宽一个运行窗口容忍上报端时钟偏差
+        queryset = self._build_queryset(
+            scheduled_ats[0] - ACTIVE_PROFILING_RUNNING_WINDOW_MS,
+            self.now + ACTIVE_PROFILING_RUNNING_WINDOW_MS,
+            filter_dict,
+        )
+        events = self._query_events(queryset, 0, ACTIVE_PROFILING_ES_QUERY_MAX_SIZE)
+        groups = [
+            (self._normalize_host_execution_key(key), list(host_events))
+            for key, host_events in groupby(events, key=self._host_execution_key)
+        ]
+        if len(events) >= ACTIVE_PROFILING_ES_QUERY_MAX_SIZE:
+            # 读满上限时最后一组可能不完整，不用它校正
+            groups = groups[:-1]
+        return {key: self._resolve_latest_host(host_events)[0] for key, host_events in groups if key in keys}
+
+    def query_latest_planned_execution(self, reported_after, reported_before):
+        """业务在 Event ES 里计划时间最晚的一次计划执行，只看 [reported_after, reported_before] 内上报的 Event；
+        返回执行键 (schedule_type, scheduled_at, task_id)，没有计划执行时返回 None"""
+        queryset = self._build_queryset(
+            reported_after, reported_before, {"schedule_type": list(ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES)}
+        )
+        # 按 scheduled_at 倒序，第一条即计划时间最晚的执行
+        events = self._query_events(queryset, 0, 1)
+        if not events:
+            return None
+        schedule_type, scheduled_at, task_id = self._execution_key(events[0])
+        return schedule_type, int(scheduled_at), int(task_id or 0)
+
+    @staticmethod
+    def _normalize_host_execution_key(key):
+        """Event 维度都是字符串，转为与执行表一致的类型"""
+        schedule_type, scheduled_at, task_id, bk_host_id = key
+        return schedule_type, int(scheduled_at), int(task_id or 0), int(bk_host_id)
+
     def _resolve_host(self, events):
+        """主机执行行在 Event 原始状态的基础上，成功类终态按 scheduled_at 超过保留期派生为 outdate"""
+        host, dimensions, config = self._resolve_latest_host(events)
+        if (
+            host["status"] in ACTIVE_PROFILING_SUCCEED_STATUSES
+            and int(dimensions["scheduled_at"]) + self.retention_ms < self.now
+        ):
+            host["status"] = "outdate"
+        return host, dimensions, config
+
+    def _resolve_latest_host(self, events):
         """重复上报时排在前面的是最新一条；finished 决定终态，只有 started 时按超时派生 running/unknown。
         返回主机执行行、维度和本机配置快照"""
         latest_events = {}
@@ -400,11 +461,6 @@ class ActiveProfilingEventQueryHandler:
                 message = _("采集成功")
             elif status == "cancelled":
                 message = _("采集已被用户取消")
-            if (
-                status in ACTIVE_PROFILING_SUCCEED_STATUSES
-                and int(dimensions["scheduled_at"]) + self.retention_ms < self.now
-            ):
-                status = "outdate"
             host.update(
                 # 旧版采集端没拿到进程时会省略 processes 字段，这类事件在 Event 保留期内仍会查到
                 processes=content.get("processes", []),

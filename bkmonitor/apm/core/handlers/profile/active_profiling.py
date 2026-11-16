@@ -16,9 +16,11 @@ import re
 import time
 from collections import Counter, defaultdict
 from dataclasses import asdict
+from functools import cached_property
 from itertools import islice
 
 from django.conf import settings
+from django.core.cache import caches
 from django.db import router, transaction
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
@@ -33,9 +35,13 @@ from apm.constants import (
     ACTIVE_PROFILING_DEPLOYMENT_FAILED,
     ACTIVE_PROFILING_DEPLOYMENT_SUCCESS,
     ACTIVE_PROFILING_ERROR_TYPE_DISPATCH_FAILED,
+    ACTIVE_PROFILING_ES_FALLBACK_SETTLE_MS,
     ACTIVE_PROFILING_EXPIRED_TASK_STOP_DELAY_MS,
     ACTIVE_PROFILING_IMMEDIATE_SCRIPT,
     ACTIVE_PROFILING_PARSING_MS,
+    ACTIVE_PROFILING_PRECALCULATE_LAG_CACHE_SEC,
+    ACTIVE_PROFILING_PRECALCULATE_LAG_LOOKBACK_MS,
+    ACTIVE_PROFILING_PRECALCULATE_LAG_MS,
     ACTIVE_PROFILING_PROCESS_TOPK_RECENT_ROWS,
     ACTIVE_PROFILING_PROFILE_SERVICE_NAME,
     ACTIVE_PROFILING_SUBSCRIPTION_STEP_ID,
@@ -48,6 +54,7 @@ from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from constants.apm import BUILTIN_EVENT_GROUP_NAME, BUILTIN_PROFILING_APP_NAME
 from core.drf_resource import api
+from core.prometheus import metrics
 from metadata.models import ClusterInfo, DataSource, EventGroup, KafkaTopicInfo
 from metadata.utils import consul_tools
 
@@ -61,6 +68,40 @@ STARTED_HOST_STATUSES = ("running", "unknown")
 
 # PID 候选的值是 进程名:PID；进程名里可能有冒号，PID 取最后一个冒号之后的数字
 PROCESS_CANDIDATE_PATTERN = re.compile(r"(?P<process_name>.+):(?P<pid>\d+)")
+
+# 缓存里没有该键；判定结果可能是 None（没落后），不能用 None 区分
+CACHE_MISS = object()
+
+# 查询时用 Event 校正主机行，覆盖这些字段；执行时 IP、进程筛选列保持库里的值
+EVENT_RECONCILED_HOST_FIELDS = ("status", "started_at", "finished_at", "processes", "error_type", "message")
+
+
+def aggregate_execution_status(statuses):
+    """仍有主机 running 时保持 running；状态都相同时沿用；有成功主机的混合为 partial_succeed；其余混合为 failed"""
+    distinct_statuses = set(statuses)
+    if "running" in distinct_statuses:
+        return "running"
+    if len(distinct_statuses) == 1:
+        return statuses[0]
+    if distinct_statuses & set(ACTIVE_PROFILING_SUCCEED_STATUSES):
+        return "partial_succeed"
+    return "failed"
+
+
+def summarize_execution_hosts(hosts):
+    """按一次执行的全部主机行汇总执行级字段，hosts 为 (status, started_at, finished_at)；
+    SaaS 写入后的重算与查询时按 Event 校正后的重算共用同一口径"""
+    statuses = [status for status, __, __ in hosts]
+    started_ats = [started_at for __, started_at, __ in hosts if started_at is not None]
+    finished_ats = [finished_at for __, __, finished_at in hosts if finished_at is not None]
+    execution_status = aggregate_execution_status(statuses)
+    return {
+        "execution_status": execution_status,
+        "status_summary": dict(Counter(statuses)),
+        "target_count": len(hosts),
+        "started_at": min(started_ats) if started_ats else None,
+        "finished_at": max(finished_ats) if finished_ats and execution_status != "running" else None,
+    }
 
 
 class ActiveProfilingConsulHandler:
@@ -141,19 +182,28 @@ class ActiveProfilingConsulHandler:
 
 
 class ActiveProfilingExecutionQueryHandler:
-    """读取预计算物化的执行表与主机执行表；outdate 不落库，按 Profiling 保留期在查询时由成功类终态派生"""
+    """读取预计算物化的执行表与主机执行表；outdate 不落库，按 Profiling 保留期在查询时由成功类终态派生。
+    预计算停摆或漏写时回退 Event ES，只改本次响应、不写回库：
+    - 预计算落后（Event ES 里 5 分钟前已上报的最新一次计划执行，执行表里没有）时，列表与候选整个改查 ES；
+      计划执行的行由预计算按 Event 建，停摆期间 MySQL 里没有，结果不为空时也会漏
+    - MySQL 一行都没有匹配时改查 ES；
+    - 页内待校正的主机行（已转 unknown，或采集时长过后仍为 running）一次回查 Event 补上终态，只补不切换，
+      立即执行由 SaaS 提交时建行，偶发的漏处理补上即可"""
 
     def __init__(self, bk_biz_id):
         self.bk_biz_id = bk_biz_id
         self.bk_tenant_id = get_request_tenant_id(peaceful=True) or bk_biz_id_to_bk_tenant_id(bk_biz_id)
-        now = int(time.time() * 1000)
+        self.now = int(time.time() * 1000)
         # 计划时间早于该时刻的成功类终态已过保留期
-        self.expire_before = now - self._get_retention_ms()
+        self.expire_before = self.now - self._get_retention_ms()
         # 结束时间晚于该时刻的成功类主机执行，Profiling 数据还在解析入库
-        self.parsing_after = now - ACTIVE_PROFILING_PARSING_MS
+        self.parsing_after = self.now - ACTIVE_PROFILING_PARSING_MS
 
     def query_hosts(self, params):
         """已采数据：一台主机的一次执行一行，按计划时间倒序分页"""
+        switched = self._switch_when_lagging("query_hosts", params)
+        if switched is not None:
+            return switched
         filters = params.get("filters", {})
         queryset = ActiveProfilingHostExecution.objects.filter(
             self._build_host_q(filters),
@@ -173,11 +223,17 @@ class ActiveProfilingExecutionQueryHandler:
         hosts = list(
             queryset.order_by("-scheduled_at", "-execution_id", "-bk_host_id")[offset : offset + params["limit"]]
         )
+        if not hosts:
+            return self._fallback_when_absent(queryset, params, "query_hosts")
         executions = ActiveProfilingExecution.objects.in_bulk({host.execution_id for host in hosts})
+        self._reconcile_hosts(hosts, executions, "query_hosts")
         return [self._build_host_row(host, executions[host.execution_id]) for host in hosts]
 
     def list_executions(self, params):
         """任务历史：一次执行一行；主机/进程条件只决定选中哪些执行，汇总仍按该执行的全部主机"""
+        switched = self._switch_when_lagging("list_executions", params)
+        if switched is not None:
+            return switched
         filters = params.get("filters", {})
         queryset = self._execution_queryset(params, self._build_execution_filter(filters))
         host_q = self._build_host_q(filters)
@@ -196,13 +252,24 @@ class ActiveProfilingExecutionQueryHandler:
         offset = params["offset"]
         # 同理补上 task_id 并同向倒序，同一业务内 task_id + scheduled_at 唯一
         executions = list(queryset.order_by("-scheduled_at", "-task_id")[offset : offset + params["limit"]])
-        hosts_by_execution = defaultdict(list)
-        for host in (
+        if not executions:
+            return self._fallback_when_absent(queryset, params, "list_executions")
+        # 主机列表本来就要读，顺带取状态判断是否待校正，没有待校正主机时不多查
+        hosts = list(
             ActiveProfilingHostExecution.objects.filter(execution_id__in=[execution.id for execution in executions])
             .order_by("bk_host_id")
-            .values("execution_id", "bk_host_id", "ip")
-        ):
-            hosts_by_execution[host.pop("execution_id")].append(host)
+            .values("execution_id", "bk_host_id", "ip", "status", "unknown_at")
+        )
+        overdue_execution_ids = {
+            host["execution_id"] for host in hosts if self._is_overdue(host["status"], host["unknown_at"])
+        }
+        if overdue_execution_ids:
+            self._reconcile_executions(
+                [execution for execution in executions if execution.id in overdue_execution_ids], "list_executions"
+            )
+        hosts_by_execution = defaultdict(list)
+        for host in hosts:
+            hosts_by_execution[host["execution_id"]].append({"bk_host_id": host["bk_host_id"], "ip": host["ip"]})
         return [
             {
                 **self._build_execution_fields(execution),
@@ -213,7 +280,17 @@ class ActiveProfilingExecutionQueryHandler:
         ]
 
     def query_topk(self, params):
-        """搜索框候选值，按计划时间范围选取；计数只用于排序，统一按主机执行数计，进程候选按最近出现排序。
+        """搜索框候选值；预计算落后或时间范围内 MySQL 一个候选都没有时改查 ES，ES 不支持关键字，带关键字时不改查"""
+        switched = self._switch_when_lagging("query_topk", params)
+        if switched is not None:
+            return switched
+        candidates = self._query_topk_candidates(params)
+        if candidates or params.get("keyword"):
+            return candidates
+        return self._query_es("query_topk", params, default=candidates, reason="no_rows")
+
+    def _query_topk_candidates(self, params):
+        """按计划时间范围选取；计数只用于排序，统一按主机执行数计，进程候选按最近出现排序。
         带关键字时只返回包含关键字的候选"""
         field = params["field"]
         limit = params["limit"]
@@ -240,11 +317,20 @@ class ActiveProfilingExecutionQueryHandler:
         return [{"value": value, "alias": value, "count": count} for value, count in rows]
 
     def query_execution_detail(self, params):
-        """单次执行及其全部主机，按执行定位键查找"""
-        execution = ActiveProfilingExecution.get_execution(
-            self.bk_tenant_id, self.bk_biz_id, params["scheduled_at"], params.get("task_id")
-        )
+        """单次执行及其全部主机，按执行定位键查找；计划执行的执行行由预计算建，查不到时按 Event 回查"""
+        try:
+            execution = ActiveProfilingExecution.get_execution(
+                self.bk_tenant_id, self.bk_biz_id, params["scheduled_at"], params.get("task_id")
+            )
+        except ValueError:
+            detail = self._query_es("query_execution_detail", params, default=None, reason="no_rows")
+            if detail is None:
+                raise
+            return detail
 
+        host_rows = list(ActiveProfilingHostExecution.objects.filter(execution_id=execution.id).order_by("bk_host_id"))
+        if self._reconcile_hosts(host_rows, {execution.id: execution}, "query_execution_detail"):
+            self._apply_execution_summary(execution, host_rows)
         fields = self._build_execution_fields(execution)
         hosts = [
             {
@@ -258,7 +344,7 @@ class ActiveProfilingExecutionQueryHandler:
                 "finished_at": host.finished_at,
                 "duration_ms": fields["duration_ms"],
             }
-            for host in ActiveProfilingHostExecution.objects.filter(execution_id=execution.id).order_by("bk_host_id")
+            for host in host_rows
         ]
         return {
             **fields,
@@ -357,11 +443,187 @@ class ActiveProfilingExecutionQueryHandler:
         return Q(**{field: status})
 
     def _build_host_status_q(self, status):
-        """主机行按成功类状态筛选时，还要排除仍在解析中的"""
+        """主机行按成功类状态筛选时，还要排除仍在解析中的；
+        过了 unknown_at 仍为 running 的行（预计算停摆时不会转 unknown）展示为 unknown，筛选同一口径"""
         q = self._build_status_q("status", status)
         if status in ACTIVE_PROFILING_SUCCEED_STATUSES:
             q &= Q(finished_at__lte=self.parsing_after)
+        elif status == "running":
+            q &= Q(unknown_at__isnull=True) | Q(unknown_at__gte=self.now)
+        elif status == "unknown":
+            q |= Q(status="running", unknown_at__lt=self.now)
         return q
+
+    def _is_overdue(self, status, unknown_at):
+        """预计算应已写入终态却还没有的主机行：已转 unknown，或采集时长过后一段时间仍为 running。
+        running 不等到 unknown_at（采集时长 + 300 秒），预计算停摆时尽早按 Event 展示已结束的主机"""
+        if status == "unknown":
+            return True
+        if status != "running" or unknown_at is None:
+            return False
+        # unknown_at 是开始时间 + 采集时长 + 宽限，减去宽限即预期结束时间
+        expected_finished_at = unknown_at - ACTIVE_PROFILING_UNKNOWN_GRACE_SEC * 1000
+        return expected_finished_at + ACTIVE_PROFILING_ES_FALLBACK_SETTLE_MS < self.now
+
+    def _reconcile_hosts(self, hosts, executions, method):
+        """待校正的主机行一次回查 Event，只改内存不落库，返回是否有待校正的行。
+        Event 中有该主机执行时以 Event 为准；没有时，过了 unknown_at 的 running 按超时派生为 unknown，与预计算口径一致"""
+        overdue_hosts = [host for host in hosts if self._is_overdue(host.status, host.unknown_at)]
+        if not overdue_hosts:
+            return False
+        keys = {host.id: self._host_execution_key(executions[host.execution_id], host) for host in overdue_hosts}
+        event_hosts = self._query_event_hosts(set(keys.values()))
+        reconciled_count = 0
+        for host in overdue_hosts:
+            event_host = event_hosts.get(keys[host.id])
+            if event_host:
+                reconciled_count += 1
+                for field in EVENT_RECONCILED_HOST_FIELDS:
+                    setattr(host, field, event_host[field])
+            elif host.status == "running" and host.unknown_at < self.now:
+                host.status = "unknown"
+        if reconciled_count:
+            # 预计算偶尔处理不过来也会走到这里，只记 info，告警按 switch 配置
+            logger.info(
+                "[ActiveProfiling] reconciled hosts by es, method->[%s], bk_biz_id->[%s], overdue->[%s], reconciled->[%s]",
+                method,
+                self.bk_biz_id,
+                len(overdue_hosts),
+                reconciled_count,
+            )
+            self._count_es_fallback(method, "reconcile", "overdue")
+        return True
+
+    def _reconcile_executions(self, executions, method):
+        """执行下有待校正的主机时，按全部主机校正后重算执行汇总，只改内存"""
+        executions = {execution.id: execution for execution in executions}
+        hosts_by_execution = defaultdict(list)
+        hosts = ActiveProfilingHostExecution.objects.filter(execution_id__in=list(executions)).only(
+            "execution_id", "bk_host_id", "status", "started_at", "finished_at", "unknown_at"
+        )
+        for host in hosts:
+            hosts_by_execution[host.execution_id].append(host)
+        self._reconcile_hosts([host for hosts in hosts_by_execution.values() for host in hosts], executions, method)
+        for execution_id, execution in executions.items():
+            self._apply_execution_summary(execution, hosts_by_execution[execution_id])
+
+    @staticmethod
+    def _apply_execution_summary(execution, hosts):
+        summary = summarize_execution_hosts([(host.status, host.started_at, host.finished_at) for host in hosts])
+        for field, value in summary.items():
+            setattr(execution, field, value)
+
+    @staticmethod
+    def _host_execution_key(execution, host):
+        """与 Event 维度对应的主机执行键；改造前上报的立即执行没有 task_id，执行表记为 0"""
+        return execution.schedule_type, execution.scheduled_at, execution.task_id, host.bk_host_id
+
+    def _query_event_hosts(self, keys):
+        """回查失败只记日志：待校正行按超时派生，不因回退让 MySQL 查询失败"""
+        try:
+            return self._event_handler.resolve_hosts(keys)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception(
+                "[ActiveProfiling] reconcile hosts by es failed, bk_biz_id->[%s], hosts->[%s]",
+                self.bk_biz_id,
+                len(keys),
+            )
+            return {}
+
+    def _fallback_when_absent(self, queryset, params, method):
+        """当前页没有行：MySQL 有匹配行说明已翻到末尾；一行都没有时改查 ES。
+        同一查询的各页按同一条件判断，翻页不会在两个数据源之间切换"""
+        if params["offset"] and queryset.exists():
+            return []
+        return self._query_es(method, params, default=[], reason="no_rows")
+
+    def _switch_when_lagging(self, method, params):
+        """预计算落后时整个查询改查 ES，返回 ES 的结果；没落后、ES 不支持该查询（按 unknown 筛选、带关键字的候选）
+        或查询失败时返回 None，仍查 MySQL 并按 Event 补上终态"""
+        if params.get("keyword") or params.get("filters", {}).get("status") == "unknown":
+            return None
+        missing_execution = self._missing_planned_execution
+        if missing_execution is None:
+            return None
+        return self._query_es(method, params, default=None, reason="lagging", missing_execution=missing_execution)
+
+    @cached_property
+    def _missing_planned_execution(self):
+        """预计算是否落后：Event ES 里 5 分钟前已上报的最新一次计划执行，执行表里没有，说明预计算没处理它，返回它的执行键；
+        没落后返回 None。只比最新一次，之前偶发漏掉的执行不影响判断；按业务缓存，期间翻页、换筛选都用同一个结论；
+        查询失败按没落后处理并同样缓存，避免每个请求都重试"""
+        cache = caches["locmem"]
+        cache_key = self.lag_cache_key(self.bk_tenant_id, self.bk_biz_id)
+        missing_execution = cache.get(cache_key, CACHE_MISS)
+        if missing_execution is not CACHE_MISS:
+            return missing_execution
+        missing_execution = None
+        try:
+            latest_execution = self._event_handler.query_latest_planned_execution(
+                self.now - ACTIVE_PROFILING_PRECALCULATE_LAG_LOOKBACK_MS,
+                self.now - ACTIVE_PROFILING_PRECALCULATE_LAG_MS,
+            )
+            if latest_execution:
+                __, scheduled_at, task_id = latest_execution
+                if not ActiveProfilingExecution.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id, task_id=task_id, scheduled_at=scheduled_at
+                ).exists():
+                    missing_execution = latest_execution
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[ActiveProfiling] check precalculate lag failed, bk_biz_id->[%s]", self.bk_biz_id)
+        cache.set(cache_key, missing_execution, ACTIVE_PROFILING_PRECALCULATE_LAG_CACHE_SEC)
+        return missing_execution
+
+    @staticmethod
+    def lag_cache_key(bk_tenant_id, bk_biz_id):
+        return f"apm:active_profiling:missing_planned_execution:{bk_tenant_id}:{bk_biz_id}"
+
+    def _query_es(self, method, params, default, reason, missing_execution=None):
+        """按同一请求改查 ES；ES 不支持该查询（如按 unknown 筛选）或查询失败时返回 default。
+        reason 为 lagging（预计算落后）或 no_rows（MySQL 没有匹配行，ES 有数据时才算切换）"""
+        try:
+            result = getattr(self._event_handler, method)(params)
+        except ValueError as error:
+            logger.info(
+                "[ActiveProfiling] es fallback %s skipped, bk_biz_id->[%s], reason->[%s]", method, self.bk_biz_id, error
+            )
+            return default
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[ActiveProfiling] es fallback %s failed, bk_biz_id->[%s]", method, self.bk_biz_id)
+            return default
+        if reason == "lagging" or result:
+            # 日志关键字 switched to es 与 switch 指标用于配置告警；落后时带上预计算没处理的那次执行，便于人工介入
+            logger.warning(
+                "[ActiveProfiling] switched to es, reason->[%s], method->[%s], bk_biz_id->[%s], "
+                "missing_execution->[%s], query->[%s]",
+                reason,
+                method,
+                self.bk_biz_id,
+                missing_execution,
+                {
+                    key: params[key]
+                    for key in ("start_time", "end_time", "offset", "scheduled_at", "task_id")
+                    if key in params
+                },
+            )
+            self._count_es_fallback(method, "switch", reason)
+        return result
+
+    def _count_es_fallback(self, method, action, reason):
+        """回退次数随请求结束推送到自监控，指标失败不影响查询"""
+        try:
+            metrics.APM_ACTIVE_PROFILING_ES_FALLBACK_TOTAL.labels(
+                bk_biz_id=self.bk_biz_id, method=method, action=action, reason=reason
+            ).inc()
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[ActiveProfiling] count es fallback failed, bk_biz_id->[%s]", self.bk_biz_id)
+
+    @cached_property
+    def _event_handler(self):
+        # active_profiling_es 引用了本模块的 PROCESS_CANDIDATE_PATTERN，用到时再导入，避免循环引用
+        from apm.core.handlers.profile.active_profiling_es import ActiveProfilingEventQueryHandler
+
+        return ActiveProfilingEventQueryHandler(self.bk_biz_id)
 
     def _display_status(self, status, scheduled_at):
         if status in ACTIVE_PROFILING_SUCCEED_STATUSES and scheduled_at < self.expire_before:
@@ -779,42 +1041,16 @@ class ActiveProfilingExecutionWriter:
 
     def _recalculate(self, execution):
         """按该执行的全部主机行重算汇总字段，不按内存中的旧状态计算"""
-        hosts = list(
-            ActiveProfilingHostExecution.objects.using(self.database)
-            .filter(execution_id=execution.id)
-            .values_list("status", "started_at", "finished_at")
+        summary = summarize_execution_hosts(
+            list(
+                ActiveProfilingHostExecution.objects.using(self.database)
+                .filter(execution_id=execution.id)
+                .values_list("status", "started_at", "finished_at")
+            )
         )
-        statuses = [status for status, __, __ in hosts]
-        started_ats = [started_at for __, started_at, __ in hosts if started_at is not None]
-        finished_ats = [finished_at for __, __, finished_at in hosts if finished_at is not None]
-        execution.execution_status = self._aggregate_status(statuses)
-        execution.status_summary = dict(Counter(statuses))
-        execution.target_count = len(hosts)
-        execution.started_at = min(started_ats) if started_ats else None
-        execution.finished_at = max(finished_ats) if finished_ats and execution.execution_status != "running" else None
-        execution.save(
-            using=self.database,
-            update_fields=[
-                "execution_status",
-                "status_summary",
-                "target_count",
-                "started_at",
-                "finished_at",
-                "updated_at",
-            ],
-        )
-
-    @staticmethod
-    def _aggregate_status(statuses):
-        """仍有主机 running 时保持 running；状态都相同时沿用；有成功主机的混合为 partial_succeed；其余混合为 failed"""
-        distinct_statuses = set(statuses)
-        if "running" in distinct_statuses:
-            return "running"
-        if len(distinct_statuses) == 1:
-            return statuses[0]
-        if distinct_statuses & set(ACTIVE_PROFILING_SUCCEED_STATUSES):
-            return "partial_succeed"
-        return "failed"
+        for field, value in summary.items():
+            setattr(execution, field, value)
+        execution.save(using=self.database, update_fields=[*summary, "updated_at"])
 
     @staticmethod
     def _unknown_at(started_at, collector_config):

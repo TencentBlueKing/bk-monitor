@@ -123,7 +123,7 @@ PROCESS_PREVIEW_COLUMNS = [
 TASK_LIST_COLUMNS = [
     {"field": "name", "name": "任务名称", "type": "text"},
     {"field": "schedule", "name": "执行方式", "type": "schedule"},
-    {"field": "schedule", "name": "执行时间", "type": "schedule_time"},
+    {"field": "schedule_time", "name": "执行时间", "type": "schedule_time"},
     {"field": "task_status", "name": "状态", "type": "status"},
     {"field": "deployment_status", "name": "部署状态", "type": "status"},
     {"field": "collection_method", "name": "采集方式", "type": "text"},
