@@ -20,6 +20,7 @@ from django.template import Context, Template
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.common_utils import host_key
+from bkmonitor.utils.nodeman import host_queries
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.user import get_admin_username
 from core.drf_resource import api, resource
@@ -154,9 +155,9 @@ class JobTaskClient:
             int(host["bk_host_id"]) if host.get("bk_host_id") else host_key_dict[f"{host['ip']}|{host['plat_id']}"]
             for host in hosts
         ]
-        host_info = api.node_man.plugin_search(
-            {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
-        )["list"]
+        host_info = host_queries.beat_plugin_status(
+            bk_biz_ids=[self.bk_biz_id], bk_host_ids=bk_host_ids, bk_tenant_id=self.bk_tenant_id
+        )
         host_path_dict = defaultdict()
         for host in host_info:
             if host.get("setup_path"):

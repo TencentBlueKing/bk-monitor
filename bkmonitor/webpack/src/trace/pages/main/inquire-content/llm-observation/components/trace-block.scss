@@ -197,9 +197,7 @@
 
 .llm-trace-table-head {
   position: sticky;
-  top: calc(
-    var(--llm-exec-row-height, 32px) + var(--llm-exec-sticky-gap, 16px) + var(--llm-trace-header-height, 42px)
-  );
+  top: calc(var(--llm-exec-row-height, 32px) + var(--llm-exec-sticky-gap, 16px) + var(--llm-trace-header-height, 42px));
   z-index: 15;
   height: 36px;
   font-family: 'PingFang SC', sans-serif;
@@ -241,12 +239,61 @@
     flex-shrink: 0;
   }
 
+  .is-duration,
+  .is-token {
+    gap: 4px;
+
+    @include flex-align(center);
+  }
+
   .is-duration {
     width: 104px;
+    cursor: pointer;
+
+    .icon-mc-statistical {
+      font-size: $font-size-base;
+      color: #979ba5;
+    }
+
+    &:hover,
+    &.is-active {
+      color: $primary-color;
+
+      .icon-mc-statistical {
+        color: $primary-color;
+      }
+    }
   }
 
   .is-token {
     width: 152px;
+    cursor: pointer;
+
+    .icon-mc-statistical {
+      font-size: $font-size-base;
+      color: #979ba5;
+    }
+
+    &:hover,
+    &.is-active {
+      color: $primary-color;
+
+      .icon-mc-statistical {
+        color: $primary-color;
+      }
+    }
+  }
+
+  .llm-duration-stats-trigger,
+  .llm-token-stats-trigger {
+    gap: 4px;
+    cursor: pointer;
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      color: #4d4f56;
+    }
   }
 
   .is-action {

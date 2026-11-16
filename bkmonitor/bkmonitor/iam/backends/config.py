@@ -19,7 +19,7 @@ _v3_clients_lock = RLock()
 
 def get_system_clients():
     """Keep V3 and V4 system callers aligned; resolve the SaaS identity at use time."""
-    return [get_saas_setting("SAAS_APP_CODE"), "bk_monitorv3", "bkci", "bk_paas3", "paasv3cli"]
+    return [get_saas_setting("SAAS_APP_CODE"), "bk_monitorv3", "bkci", "bk_ms", "bk_paas3", "paasv3cli"]
 
 
 def provider_options(name, tenant_id="system"):

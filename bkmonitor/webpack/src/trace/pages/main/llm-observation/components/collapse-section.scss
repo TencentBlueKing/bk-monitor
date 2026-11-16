@@ -20,6 +20,10 @@
 
     @include flex-align(center);
 
+    &:hover {
+      background: #C1CDE5;
+    }
+
     .llm-collapse-section-arrow {
       font-size: 20px;
       color: #979ba5;

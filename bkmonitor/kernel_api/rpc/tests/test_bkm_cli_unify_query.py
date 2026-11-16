@@ -146,6 +146,7 @@ def test_discover_lists_only_server_allowlisted_uq_operations():
         "query_ts_promql",
         "query_ts_raw",
         "query_ts_reference",
+        "relation_schema",
     ]
     assert out["meta"]["channel_version"] == "uq-query/v1"
     assert out["meta"]["catalog_revision"]
@@ -1294,3 +1295,88 @@ def test_promql_partial_named_response_is_preserved(monkeypatch):
     assert out["status"] == "ok"
     assert out["partial"] is True
     assert out["result"] is raw
+
+
+def _patch_relation_schema_request(monkeypatch, sent):
+    def fake_request(**kwargs):
+        sent.update(kwargs)
+        return SimpleNamespace(
+            status_code=200,
+            json=lambda: {
+                "provider": "redis",
+                "namespace": kwargs["params"]["namespace"],
+                "overlay": {"state": "loaded", "failures": {"client_missing": 0, "read_failed": 0, "decode_failed": 0}},
+                "resources": [{"name": "pod", "source": "override", "has_builtin": True, "matches_builtin": True}],
+                "relations": [],
+            },
+        )
+
+    default_module = "api.unify_query.default"
+    monkeypatch.setattr(f"{default_module}.requests.request", fake_request)
+    monkeypatch.setattr(f"{default_module}.get_unify_query_url", lambda space_uid: "http://unify-query/")
+    monkeypatch.setattr(f"{default_module}.space_uid_to_bk_tenant_id", lambda space_uid: "system")
+    monkeypatch.setattr(
+        f"{default_module}.SpaceApi",
+        SimpleNamespace(get_space_detail=lambda **kwargs: SimpleNamespace(is_global=False, bk_biz_id=2)),
+    )
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.bk_biz_id_to_space_uid", lambda bk_biz_id: f"bkcc__{bk_biz_id}"
+    )
+
+
+def test_describe_relation_schema_derives_scope_without_time_range():
+    out = query_unify_query({"mode": "describe", "operation": "relation_schema"})
+
+    assert out["status"] == "ok"
+    assert out["derived_params"] == ["space_uid", "bk_tenant_id"]
+    assert set(out["params_schema"]["properties"]) == {"namespace", "content"}
+    assert "max_time_range_seconds" not in out["limits"]
+    Draft7Validator(out["params_schema"]).validate(out["example_params"]["params"])
+
+
+@pytest.mark.parametrize(
+    "params, namespace, content",
+    [
+        ({}, "bkcc__2", "false"),
+        ({"namespace": "__all__"}, "__all__", "false"),
+        ({"namespace": "bkcc__2", "content": True}, "bkcc__2", "true"),
+    ],
+)
+def test_invoke_relation_schema_reads_uq_json_for_global_or_own_namespace(monkeypatch, params, namespace, content):
+    sent = {}
+    _patch_relation_schema_request(monkeypatch, sent)
+
+    out = query_unify_query({"mode": "invoke", "operation": "relation_schema", "bk_biz_id": 2, "params": params})
+
+    assert out["status"] == "ok"
+    assert out["partial"] is False
+    assert out["result"]["overlay"]["state"] == "loaded"
+    assert out["result"]["namespace"] == namespace
+    assert sent["method"] == "GET"
+    assert sent["url"] == "http://unify-query/relation_schema_print"
+    assert sent["params"]["namespace"] == namespace
+    assert sent["params"]["content"] == content
+    assert sent["params"]["format"] == "json"
+    assert sent["headers"]["X-Bk-Scope-Space-Uid"] == "bkcc__2"
+
+
+@pytest.mark.parametrize(
+    "params, message",
+    [
+        ({"namespace": "bkcc__3"}, "namespace 只能是"),
+        ({"namespace": ""}, "namespace 必须是非空字符串"),
+        ({"content": "true"}, "content 必须是布尔值"),
+        ({"space_uid": "bkcc__3"}, "服务端派生字段"),
+        ({"format": "text"}, "合同外字段"),
+    ],
+)
+def test_invoke_relation_schema_rejects_other_namespaces_and_invalid_params(monkeypatch, params, message):
+    sent = {}
+    _patch_relation_schema_request(monkeypatch, sent)
+
+    out = query_unify_query({"mode": "invoke", "operation": "relation_schema", "bk_biz_id": 2, "params": params})
+
+    assert out["status"] == "error"
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    assert message in out["error"]["message"]
+    assert not sent

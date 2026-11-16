@@ -183,12 +183,14 @@ def test_assignment_literal_is_safe_with_existing_api_renderer(assignment, name)
 
 
 @pytest.mark.parametrize("count", [1, 2])
-def test_assignment_preserves_legacy_and_other_channel_content(assignment, count):
+def test_assignment_preserves_legacy_and_other_channel_content(assignment, count, settings):
+    settings.ENVIRONMENT_CODE = "zone01"
     data = make_data(count)
     assignment.mget.return_value = [make_alert(f"alert-{index + 1}") for index in range(count)]
 
     with translation.override("zh-hans"):
         tasks.notify_to_appointee(copy.deepcopy(data))
+        assert assignment.sms.call_args.kwargs["content"].endswith("【zone01】")
         standard_mail = assignment.mail.call_args.kwargs.copy()
         standard_bot = assignment.post.call_args.kwargs["json"].copy()
         assignment.mode.return_value = "legacy"
@@ -219,6 +221,7 @@ def test_assignment_preserves_legacy_and_other_channel_content(assignment, count
 @pytest.mark.parametrize(("severity", "level"), [(1, "Emergency"), (2, "Critical")])
 def test_english_assignment_preserves_alert_name(assignment, settings, severity, level):
     settings.DEFAULT_LOCALE = "en"
+    settings.ENVIRONMENT_CODE = "zone01"
     data = make_data(name="CPU usage too high")
     data["sms_assign_time"] = "2026-12-31 23:59"
     data["sms_assign_alert"]["severity"] = severity
@@ -227,7 +230,7 @@ def test_english_assignment_preserves_alert_name(assignment, settings, severity,
         tasks.notify_to_appointee(data)
 
     body = assignment.sms.call_args.kwargs["content"]
-    assert body == f"2026-12-31 23:59 Assigned 1 {level} alert(CPU***igh). See WeCom/BK."
+    assert body == f"2026-12-31 23:59 Assigned 1 {level}:CPU***igh. See WeCom/BK.【zone01】"
     assert sms_utf16_length(body) <= 70
     assert assignment.created[-1].status == ActionStatus.SUCCESS
 

@@ -25,6 +25,7 @@ from bkmonitor.utils.template import AlarmNoticeTemplate, Jinja2Renderer
 logger = logging.getLogger("fta_action.run")
 
 SMS_STANDARD_MAX_LENGTH = 70
+SMS_ENVIRONMENT_CODE_MAX_LENGTH = 6
 SMS_TEMPLATE_KINDS = (
     "abnormal/action",
     "abnormal/converge",
@@ -138,6 +139,7 @@ def render_standard_sms(kind: str, values: dict, language: str | None = None) ->
     All fields are already structured display values. Only names and operator names may be
     shortened; event time, count, severity, status, duration and the full guidance are retained.
     Alert names use their first and last three characters, separated by three asterisks.
+    The deployment suffix is included in the length budget before shortening names.
     Values are passed to the template as data and never rendered as a second template.
     """
     if kind not in SMS_TEMPLATE_KINDS:
@@ -166,9 +168,13 @@ def render_standard_sms(kind: str, values: dict, language: str | None = None) ->
             operators = [operators]
         operators = list(dict.fromkeys(name for value in operators if (name := _plain_text(value))))
         context["operator"] = (", " if english else "、").join(operators)
+        environment_code = _plain_text(settings.ENVIRONMENT_CODE)
+        environment_suffix = ""
+        if environment_code and environment_code != "bk_monitor":
+            environment_suffix = f"【{_truncate(environment_code, SMS_ENVIRONMENT_CODE_MAX_LENGTH)}】"
 
         def render():
-            return Jinja2Renderer.render(template_source, context).strip()
+            return Jinja2Renderer.render(template_source, context).strip() + environment_suffix
 
         content = render()
         overflow = sms_utf16_length(content) - SMS_STANDARD_MAX_LENGTH

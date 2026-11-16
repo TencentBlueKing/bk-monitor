@@ -27,6 +27,16 @@
 'use strict';
 
 const FALLBACK_ZINDEX_START = 2000;
+/** 对齐独立站 $BK_EL / ensureMonitorOverlayZIndex，压过 Trace 侧滑 2500~2900 */
+const MONITOR_OVERLAY_ZINDEX_BASE = 3000;
+
+const getFallbackZIndexStart = () => {
+  const win = typeof globalThis !== 'undefined' ? globalThis.window : undefined;
+  if (win?.__IS_MONITOR_COMPONENT__) {
+    return MONITOR_OVERLAY_ZINDEX_BASE;
+  }
+  return FALLBACK_ZINDEX_START;
+};
 
 /**
  * 检索页弹出统一契约。业务实现必须满足这些规则，而不是各自 new tippy / 自管 visible。
@@ -172,6 +182,10 @@ class OverlayRegistry {
       return manager.nextZIndex();
     }
 
+    const fallbackStart = getFallbackZIndexStart();
+    if (this.fallbackZIndex < fallbackStart) {
+      this.fallbackZIndex = fallbackStart;
+    }
     this.fallbackZIndex += 1;
     return this.fallbackZIndex;
   }
@@ -446,6 +460,7 @@ const createRawTippyLifecycle = (id, options = {}, registry = overlayRegistry) =
 
 export {
   FALLBACK_ZINDEX_START,
+  MONITOR_OVERLAY_ZINDEX_BASE,
   OVERLAY_RULES,
   OverlayRegistry,
   overlayRegistry,

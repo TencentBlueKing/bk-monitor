@@ -31,6 +31,7 @@ import { buildWaterfall, matchRating } from '../composables/use-detail-sections'
 import {
   RATING_FALLBACK_META,
   RATING_META,
+  RUM_VIEW_LOADING_TYPE_ALIAS,
   SectionKeyEnum,
   TIMELINE_CONTEXT_SIZE,
   TIMELINE_HEAD_SIZE,
@@ -40,8 +41,8 @@ import {
   TIMELINE_TAG_BG_ALPHA,
   VITAL_METRIC_META,
 } from '../constants';
+import { RumSectionTypeEnum } from '../constants';
 import { getTimelineSpanTypeConfig } from '../registry/timeline-span-registry';
-import { RumSectionTypeEnum } from '../typings';
 import { formatDuration } from '@/components/trace-view/utils/date';
 
 import type { IRumTraceInfo } from '../services';
@@ -53,6 +54,7 @@ import type {
   IRumTimelineSpanVM,
   IRumTimelineViewVM,
   IRumTimelineVitalVM,
+  RumViewLoadingType,
 } from '../typings';
 
 /** 未登记类型的标签主色 */
@@ -162,11 +164,16 @@ export function buildViewVM(
   const waterfallData = record?.sections?.find(section => section.type === RumSectionTypeEnum.WATERFALL)?.data as
     | IRumWaterfallData
     | undefined;
+  /** loading_type 原始值与枚举别名：view_config 未配置别名时用前端枚举兜底 */
+  const loadingTypeValue = String(attributes['view.loading_type'] ?? '');
+  const loadingTypeText = formatField('attributes.view.loading_type', loadingTypeValue);
+  const loadingTypeAlias = RUM_VIEW_LOADING_TYPE_ALIAS[loadingTypeValue];
   return {
     spanId: viewNode.span_id,
     title: record?.origin_data?.span_name || viewNode.span_id,
     isCurrent: viewNode.span_id === currentSpanId,
-    loadingType: formatField('attributes.view.loading_type', attributes['view.loading_type']),
+    loadingType: loadingTypeText === loadingTypeValue && loadingTypeAlias ? loadingTypeAlias : loadingTypeText,
+    loadingTypeValue: loadingTypeAlias ? (loadingTypeValue as RumViewLoadingType) : '',
     vitalMetrics: buildVitalMetricsVM(getSectionData(record, SectionKeyEnum.WEB_VITALS)),
     waterfall: waterfallData?.phases?.length
       ? buildWaterfall(waterfallData, getAttributes(record).span_type)
@@ -175,6 +182,10 @@ export function buildViewVM(
       TIMELINE_REQUEST_RESOURCE_TYPES.has(getAttributes(item)['resource.type'])
     ),
     actionCount: children.filter(child => getAttributes(recordMap.get(child.span_id)).span_type === 'action').length,
+    errorCount: countSubtree(children, recordMap, item => {
+      const attributes = getAttributes(item);
+      return attributes.span_type === 'error' || attributes.error === true || attributes['outcome.type'] === 'error';
+    }),
     durationText: isValidNumber(duration) ? formatDuration(Number(duration), '', 2, 'ms') : '',
   };
 }
@@ -197,7 +208,7 @@ function buildSpanVM(node: IRumTimelineNode, ctx: IRumTimelineBuildCtx, level: n
   const config = getTimelineSpanTypeConfig(spanType);
   const statusCode = attributes['http.response.status_code'];
   const expandable = !!node.children?.length;
-  /** 有 links.trace_id 且检索到对应 Trace 才保留，避免跳转不到的空入口 */
+  /** 原始关联的 trace_id 与检索结果分开：先渲染行，检索到所属应用后才展示入口 */
   const traceId = String(origin.links?.[0]?.trace_id ?? '');
   return {
     spanId: node.span_id,
@@ -220,6 +231,7 @@ function buildSpanVM(node: IRumTimelineNode, ctx: IRumTimelineBuildCtx, level: n
               TIMELINE_STATUS_CODE_FALLBACK_COLOR),
           }
         : undefined,
+    traceId,
     trace: ctx.traceInfoMap.get(traceId),
     isCurrent: node.span_id === ctx.currentSpanId,
     expandable,

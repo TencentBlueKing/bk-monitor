@@ -208,6 +208,9 @@ for _name in (
     "query_graph_profile",
     "calculate_by_range",
     "list_apm_services",
+    "llm_mcp_search_traces",
+    "llm_mcp_search_flows",
+    "llm_mcp_calculate_by_range",
 ):
     NATIVE_PERMISSIONS[_name] = _native_permission(
         "view_apm_application_v2",
@@ -370,6 +373,10 @@ CAPABILITIES = {
     "query_graph_profile": ("query", "analysis"),
     "calculate_by_range": ("analysis",),
     "list_apm_services": ("discovery",),
+    # LLM 观测
+    "llm_mcp_search_traces": ("query",),
+    "llm_mcp_search_flows": ("detail",),
+    "llm_mcp_calculate_by_range": ("analysis",),
     # 仪表盘
     "get_dashboard_tree_list": ("discovery",),
     "get_dashboard_detail_by_uid": ("detail",),
@@ -523,6 +530,9 @@ TITLES = {
     "query_graph_profile": "查询 Profile 火焰图",
     "calculate_by_range": "分析 APM 指标",
     "list_apm_services": "列出 APM 服务",
+    "llm_mcp_search_traces": "查询 LLM 会话",
+    "llm_mcp_search_flows": "获取 LLM 执行线",
+    "llm_mcp_calculate_by_range": "分析 LLM 指标",
     "get_dashboard_tree_list": "获取仪表盘目录树",
     "get_dashboard_detail_by_uid": "获取仪表盘详情",
     "find_relations": "查询资源关联",
@@ -623,6 +633,9 @@ PREREQUISITES: dict[str, tuple[str, ...]] = {
     "query_graph_profile": ("get_profile_application_service", "get_profile_type"),
     "calculate_by_range": ("list_apm_applications",),
     "list_apm_services": ("list_apm_applications",),
+    "llm_mcp_search_traces": ("list_apm_services",),
+    "llm_mcp_search_flows": ("llm_mcp_search_traces",),
+    "llm_mcp_calculate_by_range": ("list_apm_services",),
     "get_dashboard_detail_by_uid": ("get_dashboard_tree_list",),
 }
 PREREQUISITES.update(

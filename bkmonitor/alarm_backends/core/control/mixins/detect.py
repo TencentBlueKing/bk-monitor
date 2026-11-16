@@ -54,6 +54,8 @@ class DetectMixin:
     def detect(self, data_points):
         if not data_points:
             return []
+        # 回看改写可能让同一 record_id 的多个取值进入同一批，只检测最后一条，异常输出与检测缓存保持一致。
+        data_points = list({point.record_id: point for point in data_points}.values())
 
         algorithm_group = defaultdict(list)
         for _config in self.algorithms:
@@ -194,6 +196,11 @@ class DetectMixin:
 
             try:
                 # 1. 缓存数据(检测结果缓存) type:SortedSet
+                # 回看改写同一时间点时先清掉该时间点的旧成员，避免成员数把恢复窗口裁掉。
+                if getattr(d, "replaces_check_result", False):
+                    check_result.CHECK_RESULT.zremrangebyscore(
+                        check_result.check_result_cache_key, timestamp, timestamp
+                    )
                 kwargs = {name: timestamp}
                 check_result.add_check_result_cache(ttl=strategy_ttl, **kwargs)
 

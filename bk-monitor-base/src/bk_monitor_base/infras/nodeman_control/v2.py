@@ -32,6 +32,17 @@ class V2HostQueries(HostQueries):
             ),
         )
 
+    @override
+    def beat_plugin_status(
+        self, bk_tenant_id: str, bk_biz_ids: list[int] | None, bk_host_ids: list[int]
+    ) -> list[dict[str, Any]]:
+        """沿用 V2 插件检索，仍只按主机过滤，不使用业务，也不查询 CMDB。"""
+        result = api.plugin_search(
+            bk_tenant_id=bk_tenant_id,
+            params=api.PluginSearchParams(page=1, pagesize=len(bk_host_ids), conditions=[], bk_host_id=bk_host_ids),
+        )
+        return cast(list[dict[str, Any]], result.get("list", []))
+
 
 class V2OfficialPlugins(OfficialPlugins):
     """V2 独立官方插件安装，不改变自动采集器安装入口。"""

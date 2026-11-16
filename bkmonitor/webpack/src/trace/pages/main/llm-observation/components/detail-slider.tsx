@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, type Ref, defineComponent, inject, shallowRef } from 'vue';
 
 import { Message, Sideslider } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 
-import { LLM_DETAIL_SLIDER_Z_INDEX } from '../../constants';
+import { LLM_DETAIL_SLIDER_Z_INDEX_GAP, SPAN_DETAILS_Z_INDEX } from '../../constants';
 import { beautifyJsonValue, stringifyContent } from '../utils/helpers';
 import JsonView from './json-view';
 
@@ -66,6 +66,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    const spanDetailsZIndex = inject<Ref<number>>('spanDetailsZIndex', shallowRef(SPAN_DETAILS_Z_INDEX));
+    const sliderZIndex = () => spanDetailsZIndex.value + LLM_DETAIL_SLIDER_Z_INDEX_GAP;
 
     /** 关闭独立查看：卸载 Sideslider，避免 teleport 到 body 的 .bk-modal 残留挡点击 */
     const closeDetail = () => {
@@ -91,7 +93,7 @@ export default defineComponent({
           isShow={true}
           quickClose={true}
           transfer={true}
-          zIndex={LLM_DETAIL_SLIDER_Z_INDEX}
+          zIndex={sliderZIndex()}
           onClosed={closeDetail}
           onHidden={closeDetail}
           onUpdate:isShow={(val: boolean) => {

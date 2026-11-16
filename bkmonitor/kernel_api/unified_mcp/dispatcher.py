@@ -7,6 +7,9 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from apm_web.llm.resources import CalculateByRangeResource as LLMCalculateByRangeResource
+from apm_web.llm.resources import ListFlowsResource as LLMListFlowsResource
+from apm_web.llm.resources import ListTracesResource as LLMListTracesResource
 from apm_web.metric.resources import CalculateByRangeResource
 from apm_web.models import Application
 from apm_web.service.resources import ServiceListResource
@@ -330,6 +333,9 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
     "query_graph_profile": _resource_executor(QueryGraphProfileResource),
     "calculate_by_range": _apm_application_resource_executor(CalculateByRangeResource),
     "list_apm_services": _apm_application_resource_executor(ServiceListResource),
+    "llm_mcp_search_traces": _apm_application_resource_executor(LLMListTracesResource),
+    "llm_mcp_search_flows": _apm_application_resource_executor(LLMListFlowsResource),
+    "llm_mcp_calculate_by_range": _apm_application_resource_executor(LLMCalculateByRangeResource),
     # 仪表盘
     "get_dashboard_tree_list": _resource_executor(GetDirectoryTree),
     "get_dashboard_detail_by_uid": _resource_executor(GetDashboardDetail),

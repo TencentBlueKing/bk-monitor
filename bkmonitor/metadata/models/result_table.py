@@ -571,7 +571,7 @@ class ResultTable(models.Model):
         return result_table
 
     def delete_datalink(self) -> None:
-        """删除链路的 Databus，保留结果表和存储等关联记录。"""
+        """停止链路的 Databus，保留所有组件及关联记录。"""
         from metadata.models.data_link.data_link import DataLink
 
         # 查询结果表对应的Datalink
@@ -580,7 +580,7 @@ class ResultTable(models.Model):
             logger.info("delete_datalink: tenant(%s) %s no bkbase record found", self.bk_tenant_id, self.table_id)
             return
 
-        # 只清理 Databus，保留链路及结果表映射。
+        # 只停止 Databus，保留链路及结果表映射。
         for record in records:
             data_link_name = record.data_link_name
             datalink = DataLink.objects.filter(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).first()
@@ -615,7 +615,7 @@ class ResultTable(models.Model):
         if datasource.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
             enable_option_name = ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK
             if not options.get(enable_option_name, False):
-                # 未配置开关不申请；显式关闭时仅清理该 ResultTable 对应的 Databus。
+                # 未配置开关不申请；显式关闭时仅停止该 ResultTable 对应的 Databus。
                 if enable_option_name in options:
                     self.delete_datalink()
                 return
@@ -2119,9 +2119,19 @@ class ResultTable(models.Model):
             "labels": self.labels or {},
         }
 
-    def get_tag_values(self, tag_name):
+    def get_tag_values(self, tag_name, start_time=None, end_time=None):
         for real_storage in self.real_storage_list:
             if hasattr(real_storage, "get_tag_values"):
+                if start_time is not None or end_time is not None:
+                    if not isinstance(real_storage, ESStorage):
+                        raise NotImplementedError("time range is only supported for ES storage")
+                    time_option = ResultTableOption.objects.filter(
+                        table_id=self.table_id, bk_tenant_id=self.bk_tenant_id, name="time_field"
+                    ).first()
+                    time_field = time_option.to_json()["time_field"]["name"] if time_option else "time"
+                    return real_storage.get_tag_values(
+                        tag_name, start_time=start_time, end_time=end_time, time_field=time_field
+                    )
                 return real_storage.get_tag_values(
                     tag_name
                 )  # 这里无需补充租户ID作为查询条件,因为real_storage已经进行了过滤

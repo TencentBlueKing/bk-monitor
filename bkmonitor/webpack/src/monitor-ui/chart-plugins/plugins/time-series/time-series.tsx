@@ -56,7 +56,7 @@ import {
 import { isShadowEqual, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { handleRelateAlert } from '../../utils/menu';
-import { VariablesService } from '../../utils/variable';
+import { getPromqlUnitOverride, VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
 
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
@@ -434,21 +434,18 @@ export class LineChart
       for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const list = this.panel.targets.map(item => {
-          const transformedData = variablesService.transformVariables(
-            item.data,
-            {
-              ...this.viewOptions.filters,
-              ...(this.viewOptions.filters?.current_target || {}),
-              ...this.viewOptions,
-              ...this.viewOptions.variables,
-              ...(this.viewOptions?.groupByVariables || {}),
-              time_shift,
-              interval,
-              ...this.customScopedVars,
-              ...(latestAppName ? { app_name: latestAppName } : {}),
-            },
-            noTransformVariables
-          );
+          const scopedVars = {
+            ...this.viewOptions.filters,
+            ...(this.viewOptions.filters?.current_target || {}),
+            ...this.viewOptions,
+            ...this.viewOptions.variables,
+            ...(this.viewOptions?.groupByVariables || {}),
+            time_shift,
+            interval,
+            ...this.customScopedVars,
+            ...(latestAppName ? { app_name: latestAppName } : {}),
+          };
+          const transformedData = variablesService.transformVariables(item.data, scopedVars, noTransformVariables);
           const newParams = {
             ...transformedData,
             ...params,
@@ -463,6 +460,8 @@ export class LineChart
               item.apiFunc
             ),
           };
+          const unit = getPromqlUnitOverride(item.data, variablesService.replace('$method', scopedVars));
+          if (unit !== undefined) newParams.unit = unit;
           // 主机监控ipv6特殊逻辑 用于去除不必要的group_by字段
           if (item.ignore_group_by?.length && newParams.query_configs.some(set => set.group_by?.length)) {
             newParams.query_configs = newParams.query_configs.map(config => ({
@@ -1119,7 +1118,7 @@ export class LineChart
           ),
           ...this.customScopedVars,
         });
-        copyPanel = variablesService.transformVariables(copyPanel);
+        copyPanel = variablesService.transformVariables(copyPanel, undefined, false, ['method', 'time_shift']);
         copyPanel.targets.forEach((t, tIndex) => {
           const queryConfigs = this.panel.targets[tIndex].data.query_configs;
           t.data.query_configs.forEach((q, qIndex) => {
@@ -1159,16 +1158,18 @@ export class LineChart
       case 'drill-down': // 下钻 默认主机
         this.handleDrillDown(menuItem.childValue);
         break;
-      case 'relate-alert':
-        for (const target of this.panel?.targets || []) {
+      case 'relate-alert': {
+        const copyPanel = { ...this.panel, targets: deepClone(this.panel?.targets || []) };
+        for (const target of copyPanel.targets) {
           if (target.data?.query_configs?.length) {
             let queryConfig = deepClone(target.data.query_configs);
             queryConfig = variablesService.transformVariables(queryConfig);
             target.data.query_configs = queryConfig;
           }
         }
-        handleRelateAlert(this.panel, this.timeRange);
+        handleRelateAlert(copyPanel as PanelModel, this.timeRange);
         break;
+      }
       default:
         break;
     }

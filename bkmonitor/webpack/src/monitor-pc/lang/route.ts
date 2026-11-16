@@ -180,7 +180,7 @@ export default {
 
   // 专有平台名称
   用户管理: 'User Management',
-  权限中心: 'Identity and Access Management',
+  权限中心: 'IAM',
   管控平台: 'Global Service Engine',
   配置平台: 'Configuration System',
   作业平台: 'Job System',

@@ -8353,3 +8353,24 @@ def test_compose_log_configs_falls_back_on_invalid_physical_table(log_doris_rota
     storage_config = doris_payload["spec"]["storage_config"]
     assert storage_config["db"] == "mapleleaf_2"
     assert storage_config["table"] == "no_dot_table_2"
+
+
+@pytest.mark.parametrize("strict", [False, True])
+def test_cleanup_failure_policy(mocker, strict):
+    component = mocker.Mock(kind="Databus", name="old-databus")
+    component.delete_config.side_effect = RuntimeError("delete failed")
+    link = SimpleNamespace(data_link_name="test", _is_remote_component_not_found=lambda error: False)
+    if strict:
+        with pytest.raises(RuntimeError, match="delete failed"):
+            DataLink._cleanup_absent_components(link, [component], raise_on_error=True)
+    else:
+        DataLink._cleanup_absent_components(link, [component])
+    component.delete.assert_not_called()
+
+
+def test_strict_cleanup_accepts_remote_absence(mocker):
+    component = mocker.Mock(kind="Databus", name="old-databus")
+    component.delete_config.side_effect = RuntimeError("not found")
+    link = SimpleNamespace(data_link_name="test", _is_remote_component_not_found=lambda error: True)
+    DataLink._cleanup_absent_components(link, [component], raise_on_error=True)
+    component.delete.assert_called_once()

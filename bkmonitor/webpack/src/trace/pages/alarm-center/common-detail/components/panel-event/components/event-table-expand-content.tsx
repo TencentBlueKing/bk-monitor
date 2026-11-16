@@ -176,10 +176,12 @@ export default defineComponent({
           v-show={!this.isKVTab}
         >
           <div class='content-operation'>
-            <i
-              class='icon-monitor icon-mc-copy'
-              v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
-            />
+            <i onClick={() => this.handleCopy(this.data?.origin_data || {})}>
+              <i
+                class='icon-monitor icon-mc-copy'
+                v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
+              />
+            </i>
           </div>
           <JsonPretty data={this.data?.origin_data || {}} />
         </div>

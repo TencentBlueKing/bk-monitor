@@ -1,0 +1,41 @@
+.bk-popover.message-tooltip {
+  padding: 0;
+  background: #000c;
+
+  .message-tooltip-content {
+    min-width: 102px;
+    max-width: 500px;
+    padding: 12px;
+    font-size: 12px;
+
+    &-title {
+      margin-bottom: 8px;
+      font-weight: 700;
+      line-height: 16px;
+      color: #fff;
+
+      .icon-mc-copy {
+        margin-left: 4px;
+        color: #699df4;
+        cursor: pointer;
+      }
+    }
+
+    &-main {
+      // 正文最多展示 6 行（行高 20px），超出纵向滚动
+      max-height: 120px;
+      overflow-y: auto;
+      font-family: inherit;
+      line-height: 20px;
+      color: #f0f1f5;
+      overflow-wrap: anywhere;
+
+      // 保留原始换行与缩进，同时允许超长内容换行
+      white-space: pre-wrap;
+
+      &.is-json {
+        font-family: 'Roboto Mono', menlo, monaco, consolas, monospace;
+      }
+    }
+  }
+}

@@ -33,6 +33,7 @@ import type {
 } from './overlay-types';
 
 export const FALLBACK_ZINDEX_START: number;
+export const MONITOR_OVERLAY_ZINDEX_BASE: number;
 export const OVERLAY_RULES: Readonly<Record<string, string>>;
 
 export class OverlayRegistry {

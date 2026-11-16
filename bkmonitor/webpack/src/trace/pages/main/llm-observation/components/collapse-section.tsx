@@ -53,10 +53,20 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    /** 每次变化（递增）时把展开态复位回 defaultExpand，用于页签切换后的初始态复位 */
+    resetToken: {
+      type: Number,
+      default: 0,
+    },
     /** 搜索定位所属分区，命中时自动展开 */
     sectionId: {
       type: String,
       default: '',
+    },
+    /** 标题旁数量徽标，时间流输入 / 输出标题已自带计数时可关掉 */
+    showCount: {
+      type: Boolean,
+      default: true,
     },
   },
   setup(props, { slots }) {
@@ -80,6 +90,14 @@ export default defineComponent({
       { immediate: true }
     );
 
+    // 页签切换后可见内容整体变化，把展开态复位为初始值，避免沿用上一轮的手动折叠结果
+    watch(
+      () => props.resetToken,
+      () => {
+        expanded.value = props.defaultExpand;
+      }
+    );
+
     return () => (
       <div class='llm-collapse-section'>
         <div
@@ -91,7 +109,8 @@ export default defineComponent({
           <div class='llm-collapse-section-title'>
             {props.icon ? <i class={['icon-monitor', 'llm-collapse-section-icon', props.icon]} /> : null}
             <span class='llm-collapse-section-label'>{props.title}</span>
-            <span class='llm-collapse-section-count'>{props.count}</span>
+            {props.showCount ? <span class='llm-collapse-section-count'>{props.count}</span> : null}
+            {slots.extra?.()}
           </div>
           <i class='icon-monitor icon-arrow-down llm-collapse-section-arrow' />
         </div>

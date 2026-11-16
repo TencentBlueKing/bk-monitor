@@ -48,8 +48,8 @@
     font-size: $font-size-base;
     line-height: 20px;
     color: $primary-color;
-    pointer-events: auto;
     white-space: nowrap;
+    pointer-events: auto;
     cursor: pointer;
     background: #fff;
     border: 1px solid #e9edf5;
@@ -97,9 +97,31 @@
     background: #f7f9fc;
     border-radius: 8px;
 
+    // 空插图占位：撑满一半卡片高度，文案与相邻面板基线对齐
+    &.is-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      max-height: none;
+      overflow: visible;
+
+      .bk-exception-part .bk-exception-img {
+        width: 100px;
+        height: 80px;
+      }
+
+      .bk-exception-description {
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #8f9fbd;
+      }
+    }
+
     &.is-expanded {
       flex: 1;
       min-height: 0;
+
       // 整块上限 − 标题 24 − 间距 8 − 收起 20，保证收起始终在容器外可见
       max-height: calc(var(--llm-expand-max-height, calc(100vh - 174px)) - 52px);
       overflow: auto;

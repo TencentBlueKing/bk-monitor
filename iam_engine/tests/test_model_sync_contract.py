@@ -66,7 +66,7 @@ def test_monitor_v4_rename_only_updates_name_and_converges(settings):
 def test_monitor_v4_excludes_paas_clients_without_changing_v3(settings, app_code):
     settings.SAAS_APP_CODE = app_code
     legacy = provider_options("v3")["system"]["clients"]
-    assert legacy == [app_code, "bk_monitorv3", "bkci", "bk_paas3", "paasv3cli"]
+    assert legacy == [app_code, "bk_monitorv3", "bkci", "bk_ms", "bk_paas3", "paasv3cli"]
     assert monitor.expected_v4_model().system.clients == tuple(dict.fromkeys(legacy[:-2]))
 
 
@@ -76,7 +76,7 @@ def test_monitor_clients_follow_current_saas_identity_and_return_fresh_lists(set
     assert monitor.expected_v4_model().system.clients[0] == "first-saas"
     first.append("caller-local-mutation")
     settings.SAAS_APP_CODE = "second-saas"
-    expected = ("second-saas", "bk_monitorv3", "bkci", "bk_paas3", "paasv3cli")
+    expected = ("second-saas", "bk_monitorv3", "bkci", "bk_ms", "bk_paas3", "paasv3cli")
     assert monitor.expected_v4_model().system.clients == expected[:-2]
     assert provider_options("v3")["system"]["clients"] == list(expected)
 
@@ -91,6 +91,7 @@ def test_monitor_v4_model_does_not_construct_v3_options_or_providers(settings):
             "model-saas",
             "bk_monitorv3",
             "bkci",
+            "bk_ms",
         )
 
 
@@ -123,6 +124,7 @@ def test_monitor_system_sync_sends_full_clients_and_preserves_remote_additions(s
         "model-saas",
         "bk_monitorv3",
         "bkci",
+        "bk_ms",
         *(["remote-extra"] if existing else []),
     ]
     if existing:

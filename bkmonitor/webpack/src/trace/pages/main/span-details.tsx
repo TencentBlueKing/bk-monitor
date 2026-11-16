@@ -85,12 +85,19 @@ import { downFile } from '../../utils';
 import { toUnixMilliseconds } from '../../utils/date';
 import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
-import { SPAN_DETAILS_Z_INDEX, TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
+import {
+  NESTED_SPAN_DETAILS_SLIDER_WIDTH,
+  NESTED_SPAN_DETAILS_Z_INDEX_GAP,
+  SPAN_DETAILS_SLIDER_WIDTH,
+  SPAN_DETAILS_Z_INDEX,
+  TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY,
+} from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import K8sContainer from './k8s-container';
 import LlmObservation from './llm-observation';
 import ObservationSearch from './llm-observation/components/observation-search';
+import { LLM_OPEN_SPAN_DETAIL_KEY } from './llm-observation/utils/open-span-detail';
 import { formatSpanLinks } from './utils/format-span-links';
 
 import type { Span } from '../../components/trace-view/typings';
@@ -140,7 +147,7 @@ type TabName =
 
 /** 不需要解码的属性名白名单 */
 const UNDECODED_PROPERTY_NAMES_WHITELIST = ['net.peer.port', 'span_id', 'trace_id'];
-export default defineComponent({
+const SpanDetails = defineComponent({
   name: 'SpanDetails',
   props: {
     show: { type: Boolean, default: false },
@@ -155,8 +162,12 @@ export default defineComponent({
     bizId: { type: [Number, String], default: undefined },
     /** 优先使用的应用名（与 TraceDetail 对齐） */
     appName: { type: String, default: undefined },
+    /** 侧滑层级，从当前详情再开一层时累加 */
+    zIndex: { type: Number, default: SPAN_DETAILS_Z_INDEX },
+    /** 由当前 Span 详情再开出的嵌套层，宽度收窄以便与父层区分 */
+    nested: { type: Boolean, default: false },
   },
-  emits: ['show', 'prevNextClicked'],
+  emits: ['show', 'prevNextClicked', 'changeSpan'],
   setup(props, { emit }) {
     const store = useTraceStore();
     /** 当前基础信息默认展开的项 */
@@ -310,6 +321,27 @@ export default defineComponent({
 
     const spanId = computed(() => props.spanDetails.span_id);
     provide('spanId', spanId);
+    provide('spanDetailsZIndex', computed(() => props.zIndex));
+    const nestedSpanDetails = shallowRef<Span | null>(null);
+    const showNestedSpanDetails = shallowRef(false);
+    const nestedSpanZIndex = computed(() => props.zIndex + NESTED_SPAN_DETAILS_Z_INDEX_GAP);
+    const closeNestedSpanDetails = () => {
+      showNestedSpanDetails.value = false;
+      nestedSpanDetails.value = null;
+    };
+    const handleNestedSpanShow = (visible: boolean) => {
+      showNestedSpanDetails.value = visible;
+      if (!visible) nestedSpanDetails.value = null;
+    };
+    provide(LLM_OPEN_SPAN_DETAIL_KEY, (span: Partial<Span>) => {
+      nestedSpanDetails.value = {
+        ...span,
+        traceID: span.traceID || traceId.value,
+        app_name: span.app_name || appName.value,
+        bk_biz_id: span.bk_biz_id ?? bizId.value,
+      } as Span;
+      showNestedSpanDetails.value = true;
+    });
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
     let spanLinksCancelToken: (() => void) | null = null;
@@ -1351,9 +1383,15 @@ export default defineComponent({
     /** 第一层 Tab 已吸顶（header 滚出后）才与第二层拉开 4px，默认贴紧内容 */
     const infoTabStuck = shallowRef(false);
     let unbindInfoTabSticky: (() => void) | undefined;
+    // 嵌套详情是独立实例，同一份 class 在文档里会有多份，必须按实例自身节点定位，
+    // 否则内层重置滚动时会命中外层内容节点，把外层列表滚回顶部
+    const contentRef = shallowRef<HTMLElement>();
+    const setContentRef = (el: unknown) => {
+      contentRef.value = el instanceof HTMLElement ? el : undefined;
+    };
 
     const syncInfoTabStuck = () => {
-      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      const content = contentRef.value;
       const header = content?.querySelector('.details-header') as HTMLElement | undefined;
       if (!content || !header) {
         infoTabStuck.value = false;
@@ -1365,7 +1403,7 @@ export default defineComponent({
 
     const bindInfoTabSticky = () => {
       unbindInfoTabSticky?.();
-      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      const content = contentRef.value;
       const scroller = (content?.closest('.bk-modal-content') as HTMLElement | null) || content;
       if (!scroller) return;
       scroller.addEventListener('scroll', syncInfoTabStuck, { passive: true });
@@ -1378,8 +1416,7 @@ export default defineComponent({
 
     /** LLM 观测外滚吸顶后切走，父级高度收回但祖先 scrollTop 仍在，整栏会被顶出视口 */
     const resetInfoTabScroll = () => {
-      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
-      let el: HTMLElement | null = content;
+      let el: HTMLElement | null = contentRef.value ?? null;
       while (el && el !== document.body) {
         if (el.scrollTop) {
           el.scrollTop = 0;
@@ -1663,7 +1700,10 @@ export default defineComponent({
               <VueJsonPretty data={originalData.value} />
             </div>
           ) : (
-            <div class={`span-details-sideslider-content ${!props.withSideSlider ? 'is-main' : ''}`}>
+            <div
+              ref={setContentRef}
+              class={`span-details-sideslider-content ${!props.withSideSlider ? 'is-main' : ''}`}
+            >
               {!props.withSideSlider && (
                 <div class='header-tool'>
                   <Switcher
@@ -2078,7 +2118,7 @@ export default defineComponent({
 
     const renderDom = () => (
       <Sideslider
-        width={fullscreen.value ? '100%' : '80%'}
+        width={fullscreen.value ? '100%' : props.nested ? NESTED_SPAN_DETAILS_SLIDER_WIDTH : SPAN_DETAILS_SLIDER_WIDTH}
         ext-cls={`span-details-sideslider ${props.isFullscreen ? 'full-screen' : ''}`}
         v-model={[localShow.value, 'isShow']}
         v-slots={{
@@ -2161,7 +2201,7 @@ export default defineComponent({
           ),
         }}
         transfer={(document.querySelector('.trace-list-wrapper') as HTMLDivElement) ?? true}
-        zIndex={SPAN_DETAILS_Z_INDEX}
+        zIndex={props.zIndex}
         quick-close
         show-mask
         onHidden={handleHiddenChange}
@@ -2200,6 +2240,7 @@ export default defineComponent({
           isTabPanelLoading.value = false;
           // countOfInfo.value = {};
           fullscreen.value = false;
+          closeNestedSpanDetails();
         }
       },
       {
@@ -2297,10 +2338,32 @@ export default defineComponent({
       renderDom,
       sceneData,
       isTabPanelLoading,
+      nestedSpanDetails,
+      showNestedSpanDetails,
+      nestedSpanZIndex,
+      handleNestedSpanShow,
       // countOfInfo,
     };
   },
   render() {
-    return this.$props.withSideSlider ? this.renderDom() : this.detailsMain();
+    return (
+      <>
+        {this.$props.withSideSlider ? this.renderDom() : this.detailsMain()}
+        {this.nestedSpanDetails ? (
+          <SpanDetails
+            appName={this.$props.appName}
+            bizId={this.$props.bizId}
+            isFullscreen={this.$props.isFullscreen}
+            nested
+            show={this.showNestedSpanDetails}
+            spanDetails={this.nestedSpanDetails}
+            zIndex={this.nestedSpanZIndex}
+            onShow={this.handleNestedSpanShow}
+          />
+        ) : null}
+      </>
+    );
   },
 });
+
+export default SpanDetails;

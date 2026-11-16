@@ -103,6 +103,7 @@ class BlueKingConfig(BaseConfigSettings):
         default=False,
         validation_alias=AliasChoices("enable_multi_tenancy", "ENABLE_MULTI_TENANT_MODE"),
     )
+    bk_admin_username: str = Field(default="bk_admin", description="查询租户虚拟管理员时使用的登录名")
     space_builtin_data_link_mode: str = Field(
         description="内置数据链路是按业务还是按租户申请，当为空时，按业务申请；当为 tenant 时，按租户申请",
         default="",

@@ -527,9 +527,9 @@ class TracePreviewQueryTestCase(TestCase):
             self.span(6, span_name="tool.execution", attributes={}),
         ]
         cases = [
-            (["chat"], ["span-1", "span-3"]),
+            (["chat"], ["span-1", "span-3", "span-5"]),
             (["invoke_agent"], ["span-2", "span-4"]),
-            (["chat", "invoke_agent"], ["span-1", "span-2", "span-3", "span-4"]),
+            (["chat", "invoke_agent"], ["span-1", "span-2", "span-3", "span-4", "span-5"]),
             (["execute_tool"], []),
             ([], []),
         ]
@@ -546,7 +546,7 @@ class TracePreviewQueryTestCase(TestCase):
         ]
         with mock.patch.object(self.query, "_query_list", side_effect=self.execute(spans)):
             self.assertEqual(self.preview(["trace-1"], "aidev", "input"), [spans[0]])
-            self.assertEqual(self.preview(["trace-1"], "aidev", "output"), [spans[1]])
+            self.assertEqual(self.preview(["trace-1"], "aidev", "output"), [spans[2]])
 
     def test_preview_does_not_require_message_fields(self):
         span = self.span(1)

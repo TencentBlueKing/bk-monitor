@@ -1047,8 +1047,9 @@ class BCSClusterSearchItem(SearchItem):
         if not bk_biz_ids:
             return
 
-        # 构建基础查询
+        # 构建基础查询，业务数过多时不下推 IN 条件，改为在遍历时过滤
         query_filter = Q(name__icontains=query) | Q(bcs_cluster_id__icontains=query)
+        allowed_biz_ids = set(bk_biz_ids)
         if len(bk_biz_ids) <= 20:
             query_filter &= Q(bk_biz_id__in=bk_biz_ids)
 
@@ -1061,6 +1062,9 @@ class BCSClusterSearchItem(SearchItem):
                 break
 
             for cluster in clusters:
+                if cluster.bk_biz_id not in allowed_biz_ids:
+                    continue
+
                 items.append(
                     {
                         "bk_biz_id": cluster.bk_biz_id,

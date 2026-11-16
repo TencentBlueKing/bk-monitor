@@ -28,6 +28,9 @@ import { type PropType, computed, defineComponent, nextTick, shallowRef, watch }
 
 import { useResizeObserver } from '@vueuse/core';
 import { Tag } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
+
+import MessageTooltip from '../../../../../components/message-tooltip/message-tooltip';
 
 import type { LlmKvPair } from '../../../llm-observation/utils/typings';
 import type { Instance } from 'tippy.js';
@@ -119,8 +122,11 @@ export default defineComponent({
       required: true,
     },
     toolPreview: { type: Boolean, default: false },
+    /** 裁切上限。传入后按该宽度判断能否放下，而不是按自身已被截断的 clientWidth 回算 */
+    availableWidth: { type: Number, default: 0 },
   },
   setup(props) {
+    const { t } = useI18n();
     const rootRef = shallowRef<HTMLElement>();
     const clipIndex = shallowRef(-1);
     const clipPart = shallowRef<KvClipPart>('');
@@ -159,7 +165,9 @@ export default defineComponent({
         return;
       }
 
-      const available = root.clientWidth;
+      const available = props.availableWidth > 0 ? props.availableWidth : root.clientWidth;
+      // 首帧宽度为 0 时不裁切，否则会按 0 把短内容打上省略号并锁死
+      if (available <= 0) return;
       const gap = Number.parseFloat(getComputedStyle(root).columnGap || getComputedStyle(root).gap) || 0;
       const canReadAll = hiddenFrom.value === Number.POSITIVE_INFINITY;
       const nextKeys =
@@ -216,6 +224,10 @@ export default defineComponent({
     };
 
     useResizeObserver(rootRef, measure);
+    watch(
+      () => props.availableWidth,
+      () => nextTick(measure)
+    );
     watch(pairsSignature, () => {
       clipIndex.value = -1;
       clipPart.value = '';
@@ -268,14 +280,20 @@ export default defineComponent({
               >
                 {item.key}
               </span>
-              <span
-                style={valueStyle}
-                class='llm-span-io-kv-value'
-                v-overflow-tips={{ content: sliceTooltipContent(item.value), placement: 'top' }}
+              <MessageTooltip
+                title={t('详细信息')}
+                detail={item.value}
+                placement='top'
+                onlyOnOverflow
               >
-                {props.toolPreview ? '' : ':'}
-                {item.value}
-              </span>
+                <span
+                  style={valueStyle}
+                  class='llm-span-io-kv-value'
+                >
+                  {props.toolPreview ? '' : ':'}
+                  {item.value}
+                </span>
+              </MessageTooltip>
             </span>
           );
         })}

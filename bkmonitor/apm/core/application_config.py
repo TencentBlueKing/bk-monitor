@@ -49,6 +49,7 @@ from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata.models import BCSClusterInfo
+from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
 
 logger = logging.getLogger("apm")
 
@@ -887,6 +888,24 @@ class ApplicationConfig(BkCollectorConfig):
         """
         下发bk-collector的应用配置
         """
+        if BkCollectorDeployPolicy.is_enabled():
+            try:
+                return BkCollectorDeployPolicy.deploy(
+                    bk_tenant_id=bk_tenant_id,
+                    scene=BkCollectorDeployScene.APM_APPLICATION,
+                    resource_key=f"{self._application.bk_biz_id}-{self._application.app_name}",
+                    template_name=self.PLUGIN_APPLICATION_CONFIG_TEMPLATE_NAME,
+                    context=application_config,
+                    bk_host_ids=bk_host_ids,
+                    bk_biz_id=self._application.bk_biz_id,
+                )
+            except Exception as e:  # noqa
+                logger.exception(
+                    f"deploy apm application config by nodeman v3 error: {e}, "
+                    f"app: {self._application.bk_biz_id}-{self._application.app_name}"
+                )
+                return
+
         scope = {
             "object_type": "HOST",
             "node_type": "INSTANCE",

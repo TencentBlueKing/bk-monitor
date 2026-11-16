@@ -468,35 +468,3 @@
   }
 }
 
-.bk-popover.span-error-icon {
-  padding: 0;
-  background: #000000cc;
-
-  .span-row-content-popover {
-    min-width: 102px;
-    max-width: 500px;
-    padding: 12px;
-    font-size: 12px;
-
-    &-title {
-      margin-bottom: 8px;
-      font-weight: 700;
-      line-height: 16px;
-      color: #ffffff;
-
-      .icon-mc-copy {
-        margin-left: 4px;
-        color: #699df4;
-        cursor: pointer;
-      }
-    }
-
-    &-main {
-      line-height: 20px;
-      color: #f0f1f5;
-      word-break: break-all;
-      word-wrap: break-word;
-      white-space: normal;
-    }
-  }
-}

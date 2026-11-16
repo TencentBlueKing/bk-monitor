@@ -57,7 +57,7 @@ class TestSyncBuiltInPlatformCollect(TestCase):
         mock_lookup.assert_not_called()
         self.assertFalse(CollectorConfig.objects.filter(bk_data_id=BUILT_IN_DATA_ID).exists())
 
-    @override_settings(ENABLE_MULTI_TENANT_MODE=True)
+    @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_ADMIN_USERNAME="custom-login")
     @patch(f"{COMMAND_MODULE}.Command.create_etl_handle_and_index_set")
     @patch(f"{COMMAND_MODULE}.TransferApi.create_data_id", return_value=BUILT_IN_DATA_ID)
     @patch("apps.utils.local.BKLoginApi.batch_lookup_virtual_user", return_value=[{"bk_username": "bk_admin_t1"}])
@@ -72,6 +72,7 @@ class TestSyncBuiltInPlatformCollect(TestCase):
         self.assertEqual(params["bk_username"], "bk_admin_t1")
         self.assertEqual(params["operator"], "bk_admin_t1")
         self.assertEqual(mock_lookup.call_args.kwargs["bk_tenant_id"], settings.BK_APP_TENANT_ID)
+        self.assertEqual(mock_lookup.call_args.args[0]["lookups"], "custom-login")
 
     @override_settings(ENABLE_MULTI_TENANT_MODE=False)
     @patch(f"{COMMAND_MODULE}.Command.create_etl_handle_and_index_set")
