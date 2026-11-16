@@ -48,6 +48,9 @@ import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 import { getExternalDefaultRoute } from '@/app/router/helper';
 import { useDownloadFile } from '../management/hooks/use-download-file';
 
+import ClientLogLoadingSkeleton from './loading-skeleton';
+import { useSkeletonPresence } from '@/shared/ui/loading/presence';
+
 import './index.scss';
 
 export default defineComponent({
@@ -239,6 +242,9 @@ export default defineComponent({
 
     /** 是否已经执行过搜索 */
     const hasSearched = ref(false);
+    const isContentPending = computed(() => !hasSearched.value || isPanelLoading.value);
+    const contentSkeleton = useSkeletonPresence(isContentPending);
+
 
     /** 任务列表来源 */
     const taskSource = ref<string>('');
@@ -275,7 +281,11 @@ export default defineComponent({
      * 请求任务列表
      * @param isLoadMore 是否为加载更多模式
      */
+    let taskListRequest = 0;
+
     const fetchTaskList = (params: SearchParams, isLoadMore = false) => {
+      const request = ++taskListRequest;
+      const requestedPage = isLoadMore ? page.value : 1;
       if (!isLoadMore) {
         page.value = 1;
         hasMore.value = true;
@@ -312,6 +322,7 @@ export default defineComponent({
 
       ServicesInstance.clientLog.getTaskList({ query })
         .then((res: any) => {
+          if (request !== taskListRequest || isComponentDestroyed.value) return;
           const list: LogItem[] = (res?.data?.list ?? []).map(withSelectionKey);
           const total = res?.data?.total ?? 0;
           if (isLoadMore) {
@@ -330,6 +341,9 @@ export default defineComponent({
               selectedLogItem.value = matchedItem || list[0];
               fetchClientInfo(selectedLogItem.value);
               syncSelectedFileName(selectedLogItem.value.file_name);
+            } else {
+              selectedLogItem.value = null;
+              userReportStats.value = null;
             }
           }
           reconcileBatchSelection();
@@ -341,6 +355,8 @@ export default defineComponent({
           }
         })
         .catch((_err: any) => {
+          if (request !== taskListRequest || isComponentDestroyed.value) return;
+          if (isLoadMore) page.value = requestedPage - 1;
           if (!isLoadMore) {
             taskList.value = [];
             selectedLogItem.value = null;
@@ -348,6 +364,7 @@ export default defineComponent({
           }
         })
         .finally(() => {
+          if (request !== taskListRequest || isComponentDestroyed.value) return;
           isPanelLoading.value = false;
           isTaskListLoading.value = false;
         });
@@ -862,10 +879,11 @@ export default defineComponent({
         {/* 用户信息展示区域 + 任务内容区域 */}
         <div
           ref={contentWrapperRef}
-          class='content-wrapper'
-          v-loading={{ loading: isPanelLoading.value }}
+          class={['content-wrapper', { 'is-pending': isContentPending.value }]}
+          aria-busy={isContentPending.value}
         >
-          {isEmptyState.value ? renderEmptyState() : renderContent()}
+          {isEmptyState.value ? (!isContentPending.value && renderEmptyState()) : renderContent()}
+          {contentSkeleton.visible.value && <ClientLogLoadingSkeleton leaving={contentSkeleton.leaving.value} />}
         </div>
         <BatchDownloadDialog
           visible={isBatchDownloadDialogVisible.value}
