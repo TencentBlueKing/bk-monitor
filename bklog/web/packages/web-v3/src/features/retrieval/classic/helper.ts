@@ -223,7 +223,7 @@ export const getLegacyAssetRoot = (base: string, pageHref: string) =>
   new URL(`${base.replace(/\/?$/, '/')}legacy-v1/assets/`, pageHref).href;
 
 export const getResourceUrl = (relativePath: string) =>
-  new URL(relativePath, getLegacyAssetRoot(import.meta.env.BASE_URL, window.location.href)).href;
+  new URL(relativePath, getLegacyAssetRoot(window.BK_STATIC_URL || import.meta.env.BASE_URL, window.location.href)).href;
 
 // The published CSS contains origin-root /fonts URLs. Keep the sealed files intact
 // and use isolated font families so lazy-loaded CSS cannot restore those URLs.
@@ -411,7 +411,7 @@ export const getEnvVariables = (isDev: boolean) => {
     .join('\n    ');
 
   // 设置 webpack public path
-  const publicPath = getLegacyAssetRoot(import.meta.env.BASE_URL, window.location.href);
+  const publicPath = getLegacyAssetRoot(window.BK_STATIC_URL || import.meta.env.BASE_URL, window.location.href);
   envScript += `window.__WEBPACK_PUBLIC_PATH__ = ${JSON.stringify(publicPath)};`;
 
   return envScript;
@@ -709,7 +709,7 @@ export const generateIframeSrcdoc = (isDev: boolean) => {
     }
   </style>
   <link rel="stylesheet" href="${cssUrl}">
-  <style>${getLegacyFontStyles(getLegacyAssetRoot(import.meta.env.BASE_URL, window.location.href))}</style>
+  <style>${getLegacyFontStyles(getLegacyAssetRoot(window.BK_STATIC_URL || import.meta.env.BASE_URL, window.location.href))}</style>
 </head>
 <body>
   <div id="app">

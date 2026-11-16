@@ -37,6 +37,7 @@ declare global {
     BK_LOG_ACCESS_GUIDE_URL?: string;
     BK_LOG_PERMISSION_GUIDE_URL?: string;
     BK_SHARED_RES_URL: string;
+    BK_STATIC_URL?: string;
     VERSION: string;
     AJAX_URL_PREFIX: string;
     FEATURE_TOGGLE_WHITE_LIST: Record<string, (number | string)[]>;

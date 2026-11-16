@@ -22805,7 +22805,7 @@
     {
       "from": "platform/persistence/workers/create-cluster-table-worker.ts",
       "to": "platform/persistence/workers/cluster-table.worker.ts",
-      "kind": "URL"
+      "kind": "module"
     },
     {
       "from": "platform/persistence/workers/create-cluster-table-worker.ts",
@@ -22815,7 +22815,7 @@
     {
       "from": "platform/persistence/workers/create-retrieve-search-worker.ts",
       "to": "platform/persistence/workers/retrieve-search.worker.ts",
-      "kind": "URL"
+      "kind": "module"
     },
     {
       "from": "platform/persistence/workers/create-retrieve-search-worker.ts",
