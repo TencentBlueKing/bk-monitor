@@ -145,6 +145,9 @@ importers:
       sql-formatter:
         specifier: 15.6.6
         version: 15.6.6
+      tdesign-icons-vue-next:
+        specifier: 0.4.11
+        version: 0.4.11(vue@3.5.44(typescript@5.9.3))
       tdesign-vue-next:
         specifier: ^1.20.10
         version: 1.20.10(vue@3.5.44(typescript@5.9.3))
