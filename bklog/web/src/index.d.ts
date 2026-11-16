@@ -44,6 +44,10 @@ declare global {
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
     __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
+    __bk_zIndex_manager?: {
+      zIndex?: number;
+      nextZIndex?: () => number;
+    };
     IS_EXTERNAL: boolean | string; // 开发环境是 'false'，生产环境是 boolean
     __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: boolean;
     bk_log_search_url: string;
@@ -92,5 +96,6 @@ declare module 'vue/types/vue' {
   interface Vue {
     $bkMessage?: (p: Partial<object>) => void;
     $bkPopover?: (...args: any[]) => void;
+    $BK_EL?: { zIndex?: number };
   }
 }

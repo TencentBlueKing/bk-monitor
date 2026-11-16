@@ -33,10 +33,12 @@ export {
   isValidAnchorRect,
   overlayRegistry,
   OverlayRegistry,
+  MONITOR_OVERLAY_ZINDEX_BASE,
   OVERLAY_RULES,
   resolvePopperPlacementRect,
   shouldHideOnOutsideClick,
 } from './overlay-registry';
+export { ensureMonitorOverlayZIndex } from './ensure-monitor-overlay-zindex';
 export { useOverlay } from './use-overlay';
 export { useDialogVisible } from './use-dialog-visible';
 export { createOverlayTippy, createRawTippyOverlay } from './adapters/tippy-adapter';
