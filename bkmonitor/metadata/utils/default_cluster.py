@@ -3,7 +3,18 @@
 from django.conf import settings
 
 
-def get_scene_default_cluster(scene: str, storage_type: str, default: int | None = None) -> int | None:
-    """返回 ClusterInfo ID；未配置或为 null 时沿用调用方的默认值。"""
+def get_scene_default_cluster(
+    scene: str, storage_type: str, bk_tenant_id: str, default: int | None = None
+) -> int | None:
+    """按租户和标准 ClusterType 查找场景集群，查不到时沿用原默认逻辑。"""
+    from metadata.models.storage import ClusterInfo
+
     cluster_id = settings.SCENE_DEFAULT_STORAGE_CLUSTERS.get(scene, {}).get(storage_type)
-    return default if cluster_id is None else cluster_id
+    if (
+        cluster_id is not None
+        and ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id, cluster_type=storage_type, cluster_id=cluster_id
+        ).exists()
+    ):
+        return cluster_id
+    return default

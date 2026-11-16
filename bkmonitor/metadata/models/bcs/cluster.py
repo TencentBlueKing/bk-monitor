@@ -237,7 +237,9 @@ class BCSClusterInfo(models.Model):
         for usage, register_info in cluster.DATASOURCE_REGISTER_INFO.items():
             mq_cluster_id = settings.BCS_KAFKA_STORAGE_CLUSTER_ID
             if register_info["usage"] == "event":
-                mq_cluster_id = get_scene_default_cluster("bcs_event", ClusterInfo.TYPE_KAFKA, mq_cluster_id)
+                mq_cluster_id = get_scene_default_cluster(
+                    "bcs_event", ClusterInfo.TYPE_KAFKA, bk_tenant_id, mq_cluster_id
+                )
             # 注册data_id
             data_source = cluster.create_datasource(
                 usage=usage,
@@ -265,7 +267,7 @@ class BCSClusterInfo(models.Model):
             else:
                 default_storage_config = {
                     "cluster_id": get_scene_default_cluster(
-                        "bcs_event", "es", settings.BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID
+                        "bcs_event", ClusterInfo.TYPE_ES, bk_tenant_id, settings.BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID
                     )
                 }
                 additional_options = copy.deepcopy(EventGroup.DEFAULT_RESULT_TABLE_OPTIONS)

@@ -666,7 +666,7 @@ class DataSource(models.Model):
             raise ValueError(_("数据源名称[%s]在租户[%s]下已经存在，请确认后重试"), data_name, bk_tenant_id)
 
         if mq_cluster is None and etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
-            mq_cluster = get_scene_default_cluster("custom_event", ClusterInfo.TYPE_KAFKA)
+            mq_cluster = get_scene_default_cluster("custom_event", ClusterInfo.TYPE_KAFKA, bk_tenant_id)
 
         # TODO: 多租户 V4链路中,理论上用户不再能指定Kafka集群,且多租户场景下,Kafka集群需要读取SpaceRelatedStorageInfo关联信息
         try:
