@@ -9,7 +9,6 @@ import '../bootstrap/register-services';
 import '@/platform/compat/tdesign/legacy-control-styles';
 import '@/shared/lib/preload-import';
 import '@/shared/directives';
-import '@/platform/compat/tdesign/runtime-contract';
 import '@/shared/styles/theme/theme-dark.scss';
 import '@/shared/styles/theme/theme-light.scss';
 import '@/shared/styles/theme/tdesign-bklog.scss';

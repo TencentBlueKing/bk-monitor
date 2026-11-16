@@ -35,10 +35,13 @@ async function main() {
       const owners = suffix => chunks.filter(chunk => chunk.modules.some(module => module.id.split('?')[0].endsWith(suffix))).map(chunk => chunk.file);
       const retrieval = owners('/features/retrieval/retrieve-hub.tsx');
       const trend = owners('/shared/composables/use-trend-chart.ts');
+      const rum = chunks.filter(chunk => chunk.modules.some(module => module.id.includes('/@blueking/open-telemetry/'))).map(chunk => chunk.file);
       const scenarios = {
         entry: summarizeChunks(chunks, entry),
+        entryWithRum: summarizeChunks(chunks, [...entry, ...rum]),
         retrieval: summarizeChunks(chunks, [...entry, ...retrieval]),
         retrievalWithTrend: summarizeChunks(chunks, [...entry, ...retrieval, ...trend]),
+        retrievalWithTrendWithRum: summarizeChunks(chunks, [...entry, ...retrieval, ...trend, ...rum]),
       };
       // Static source/build statistics only. Never read runtime API data or cookies.
       writeFileSync(output, JSON.stringify({ scope: 'JavaScript static dependency closures; excludes CSS, API and interaction-triggered imports',

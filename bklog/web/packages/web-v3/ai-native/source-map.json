@@ -41,10 +41,10 @@
     },
     {
       "source": "adapters/tdesign/runtime-contract.js",
-      "target": "platform/compat/tdesign/runtime-contract.ts",
+      "target": "platform/compat/tdesign/native-vue-runtime.ts",
       "sourceSha256": "8f2450e7c7a892ce9bc23995bdcd48cf6989dc03d5939b06776f8702dd3fb173",
-      "targetSha256": "8f2450e7c7a892ce9bc23995bdcd48cf6989dc03d5939b06776f8702dd3fb173",
-      "previousTarget": "platform/compat/tdesign/runtime-contract.js"
+      "targetSha256": "9aa9a00bccee76b6be9f2ac07279394aa740f1df5511255335ef9f60a5d95553",
+      "previousTarget": "platform/compat/tdesign/runtime-contract.ts"
     },
     {
       "source": "adapters/tdesign/select-filter.js",

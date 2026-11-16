@@ -1005,7 +1005,7 @@
     "platform/compat/tdesign/legacy-functional.ts",
     "platform/compat/tdesign/legacy-slot.ts",
     "platform/compat/tdesign/magic-controls.ts",
-    "platform/compat/tdesign/runtime-contract.ts",
+    "platform/compat/tdesign/native-vue-runtime.ts",
     "platform/compat/tdesign/select-filter.ts",
     "platform/compat/vue-runtime.d.mts",
     "platform/compat/vue-runtime.mjs",
@@ -1890,11 +1890,6 @@
     },
     {
       "from": "app/bootstrap/start.js",
-      "to": "platform/compat/tdesign/runtime-contract.ts",
-      "kind": "module"
-    },
-    {
-      "from": "app/bootstrap/start.js",
       "to": "shared/global/overlay/z-index-manager.js",
       "kind": "module"
     },
@@ -1956,11 +1951,6 @@
     {
       "from": "app/entries/monitor-bootstrap.ts",
       "to": "shared/directives/index.ts",
-      "kind": "module"
-    },
-    {
-      "from": "app/entries/monitor-bootstrap.ts",
-      "to": "platform/compat/tdesign/runtime-contract.ts",
       "kind": "module"
     },
     {
@@ -22329,7 +22319,22 @@
       "kind": "type"
     },
     {
-      "from": "platform/compat/tdesign/runtime-contract.ts",
+      "from": "platform/compat/tdesign/native-vue-runtime.ts",
+      "to": "platform/compat/vue-runtime.mjs",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/native-vue-runtime.ts",
+      "to": "platform/compat/vue-runtime.mjs",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/native-vue-runtime.ts",
+      "to": "platform/compat/vue-runtime.mjs",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/native-vue-runtime.ts",
       "to": "platform/compat/vue3-component-model.ts",
       "kind": "module"
     },

@@ -37,6 +37,7 @@ import { legacyStaticEntry } from './tools/legacy-static-entry.mjs';
 import { productionDelivery } from './tools/production-delivery.mjs';
 import { productionOutput } from './tools/production-paths.mjs';
 import { legacyRefsVitePlugin, legacyRefsEsbuildPlugin } from './migration-runtime/legacy-refs.mjs';
+import { tdesignVueCompatVitePlugin, tdesignVueCompatEsbuildPlugin } from './tools/tdesign-vue-compat.mjs';
 import { nativeSdkVueVitePlugin, nativeSdkVueEsbuildPlugin } from './tools/native-sdk-vue.mjs';
 import { runtimeWarningPatchesVitePlugin, runtimeWarningPatchesEsbuildPlugin } from './tools/runtime-warning-patches.mjs';
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -56,7 +57,7 @@ export default {
     esbuildOptions: {
       ...native.optimizeDeps.esbuildOptions,
       loader: { ...native.optimizeDeps.esbuildOptions.loader, '.js': 'jsx' },
-      plugins: [...(native.optimizeDeps.esbuildOptions.plugins || []), legacyRefsEsbuildPlugin(), nativeSdkVueEsbuildPlugin(here), runtimeWarningPatchesEsbuildPlugin()],
+      plugins: [...(native.optimizeDeps.esbuildOptions.plugins || []), legacyRefsEsbuildPlugin(), nativeSdkVueEsbuildPlugin(here), tdesignVueCompatEsbuildPlugin(here), runtimeWarningPatchesEsbuildPlugin()],
     },
   },
   plugins: [
@@ -73,6 +74,7 @@ export default {
     },
     legacyRefsVitePlugin(),
     nativeSdkVueVitePlugin(here),
+    tdesignVueCompatVitePlugin(here),
     runtimeWarningPatchesVitePlugin(),
     ...plugins,
     {
