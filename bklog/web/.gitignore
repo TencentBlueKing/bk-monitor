@@ -119,6 +119,7 @@ openspec/
 # Keep the cluster migration regression test reviewable without exposing local test drafts.
 !packages/web-v3/tests/
 packages/web-v3/tests/*
+!packages/web-v3/tests/initial-bundle-behavior.test.mjs
 !packages/web-v3/tests/cluster-native-interactions.test.mjs
 !packages/web-v3/tests/date-picker-island.test.mjs
 !packages/web-v3/tests/helpers/

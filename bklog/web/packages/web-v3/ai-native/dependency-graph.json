@@ -1194,6 +1194,7 @@
     "shared/composables/lucene.segment.ts",
     "shared/composables/optimized-split.ts",
     "shared/composables/trend-chart-options.ts",
+    "shared/composables/trend-echarts.ts",
     "shared/composables/use-dimension-resize.ts",
     "shared/composables/use-doc-links.ts",
     "shared/composables/use-element-event.ts",
@@ -19164,11 +19165,6 @@
     },
     {
       "from": "features/retrieval/workspace/index.tsx",
-      "to": "shared/global/ai-assitant/index.tsx",
-      "kind": "module"
-    },
-    {
-      "from": "features/retrieval/workspace/index.tsx",
       "to": "app/state/store.type.ts",
       "kind": "module"
     },
@@ -19241,6 +19237,11 @@
       "from": "features/retrieval/workspace/index.tsx",
       "to": "features/retrieval/workspace/segment-pop.scss",
       "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/index.tsx",
+      "to": "shared/global/ai-assitant/index.tsx",
+      "kind": "import"
     },
     {
       "from": "features/retrieval/workspace/monitor/apm.ts",
@@ -23509,6 +23510,11 @@
     },
     {
       "from": "shared/composables/use-trend-chart.ts",
+      "to": "shared/composables/trend-echarts.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/composables/use-trend-chart.ts",
       "to": "features/retrieval/retrieve-helper.tsx",
       "kind": "module"
     },
@@ -23615,7 +23621,7 @@
     {
       "from": "shared/global/ai-assitant/ai-assitant-helper.ts",
       "to": "shared/global/ai-assitant/index.tsx",
-      "kind": "module"
+      "kind": "type"
     },
     {
       "from": "shared/global/ai-assitant/ai-assitant-helper.ts",
