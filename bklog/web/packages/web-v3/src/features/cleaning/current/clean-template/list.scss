@@ -149,6 +149,13 @@
     display: flex;
     gap: 16px;
     align-items: center;
+    white-space: nowrap;
+
+    .t-button--variant-text {
+      min-width: 0;
+      padding: 0;
+      border: 0;
+    }
   }
 
   .template-table-container {

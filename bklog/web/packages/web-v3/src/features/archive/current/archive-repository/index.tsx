@@ -35,7 +35,6 @@ import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, reactive, computed, onMounted } from 'vue';
 
 import * as authorityMap from '@/shared/lib/authority-map';
-import { clearTableFilter } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
 
@@ -56,7 +55,6 @@ export default defineComponent({
   setup() {
     const store = useApplicationStore();
     const { t } = useLocale();
-    const repositoryTable = ref<any>(null);
 
     const isTableLoading = ref(false); // 表格加载状态
     const showSlider = ref(false); // 侧滑弹窗显示状态
@@ -66,8 +64,8 @@ export default defineComponent({
     const tableDataPaged = ref<any[]>([]); // 当前分页展示的数据
     const emptyType = ref('empty'); // 空状态类型
     const params = reactive({ keyword: '' }); // 搜索参数
-    const filterConditions = reactive({ type: '', cluster_source_type: '' }); // 过滤条件
-    const isFilterSearch = computed(() => !!(filterConditions.type || filterConditions.cluster_source_type));
+    const filterConditions = ref({ type: '', cluster_source_type: '' }); // 过滤条件
+    const isFilterSearch = computed(() => !!(filterConditions.value.type || filterConditions.value.cluster_source_type));
     const pagination = reactive({
       // 分页参数
       current: 1,
@@ -130,7 +128,7 @@ export default defineComponent({
     // 搜索、类型和来源始终共同过滤原始数据
     const applyTableFilters = (resetPage = true) => {
       const { keyword } = params;
-      const { type, cluster_source_type: clusterType } = filterConditions;
+      const { type, cluster_source_type: clusterType } = filterConditions.value;
       tableDataSearched.value = tableDataOrigin.value.filter(
         repo =>
           (!keyword || (repo.repository_name || '').includes(keyword)) &&
@@ -161,11 +159,13 @@ export default defineComponent({
 
     // 过滤条件变更处理
     const handleFilterChange = (data: Record<string, string[]>) => {
+      const nextFilters = { ...filterConditions.value };
       for (const key of ['type', 'cluster_source_type'] as const) {
         if (key in data) {
-          filterConditions[key] = data[key]?.[0] ?? '';
+          nextFilters[key] = data[key]?.[0] ?? '';
         }
       }
+      filterConditions.value = nextFilters;
       applyTableFilters();
     };
 
@@ -257,9 +257,7 @@ export default defineComponent({
     const handleOperation = (type: string) => {
       if (type === 'clear-filter') {
         params.keyword = '';
-        filterConditions.type = '';
-        filterConditions.cluster_source_type = '';
-        clearTableFilter(repositoryTable.value);
+        filterConditions.value = { type: '', cluster_source_type: '' };
         handleSearch();
         return;
       }
@@ -314,7 +312,8 @@ export default defineComponent({
           data-test-id='storehouseContainer_section_tableList'
         >
           <bk-table
-            ref={repositoryTable}
+            filterRow={() => null}
+            filterValue={filterConditions.value}
             class='repository-table'
             loading={isTableLoading.value}
             v-slots={{
@@ -358,7 +357,7 @@ export default defineComponent({
               class-name='filter-column'
               column-key='type'
               filter-multiple={false}
-              filters={repositoryFilters.value}
+              filters={[{ text: t('全部'), value: '' }, ...repositoryFilters.value]}
               label={t('类型')}
               prop='type'
               renderHeader={renderHeader}
@@ -369,7 +368,7 @@ export default defineComponent({
               class-name='filter-column'
               column-key='cluster_source_type'
               filter-multiple={false}
-              filters={sourceFilters.value}
+              filters={[{ text: t('全部'), value: '' }, ...sourceFilters.value]}
               label={t('来源')}
               prop='cluster_source_type'
               renderHeader={renderHeader}

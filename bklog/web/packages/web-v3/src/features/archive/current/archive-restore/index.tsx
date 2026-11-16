@@ -471,7 +471,7 @@ export default defineComponent({
                   <div class='restore-table-operate'>
                     {/* 检索 */}
                     <TButton
-                      class='mr10 king-button'
+                      class='king-button'
                       v-cursor={{
                         active: !props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
                       }}
@@ -484,7 +484,7 @@ export default defineComponent({
                     </TButton>
                     {/* 编辑 */}
                     <TButton
-                      class='mr10 king-button'
+                      class='king-button'
                       v-cursor={{
                         active: !props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
                       }}
@@ -497,7 +497,7 @@ export default defineComponent({
                     </TButton>
                     {/* 删除 */}
                     <TButton
-                      class='mr10 king-button'
+                      class='king-button'
                       v-cursor={{
                         active: !props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
                       }}

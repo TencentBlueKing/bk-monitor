@@ -297,6 +297,13 @@ export default defineComponent({
           <bk-table
             ref={archiveTable}
             class='archive-table'
+            rowKey='archive_config_id'
+            expandIcon={() => <i class='bk-icon icon-play-shape archive-expand-icon' aria-hidden='true' />}
+            expandedRow={(_h: unknown, { row }: { row: { archive_config_id: number } }) => (
+              <div class='state-table-wrapper'>
+                <StateTable archiveConfigId={row.archive_config_id} />
+              </div>
+            )}
             loading={isTableLoading.value}
             v-slots={{
               empty: () => (
@@ -315,19 +322,6 @@ export default defineComponent({
             onPage-change={handlePageChange}
             onPage-limit-change={handleLimitChange}
           >
-            <bk-table-column
-              nativeCellSlot={true}
-              width='30'
-              v-slots={{
-                default: (props: any) => (
-                  <div class='state-table-wrapper'>
-                    <StateTable archiveConfigId={props.row.archive_config_id} />
-                  </div>
-                ),
-              }}
-              align='center'
-              type='expand'
-            />
             <bk-table-column
               nativeCellSlot={true}
               width='100'
@@ -373,7 +367,7 @@ export default defineComponent({
                   <div class='collect-table-operate'>
                     {/* 回溯 */}
                     <TButton
-                      class='mr10 king-button'
+                      class='king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
                       theme='primary'
 
@@ -383,7 +377,7 @@ export default defineComponent({
                     </TButton>
                     {/* 编辑 */}
                     <TButton
-                      class='mr10 king-button'
+                      class='king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
                       theme='primary'
 
@@ -393,7 +387,7 @@ export default defineComponent({
                     </TButton>
                     {/* 删除 */}
                     <TButton
-                      class='mr10 king-button'
+                      class='king-button'
                       disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
                       theme='primary'
 

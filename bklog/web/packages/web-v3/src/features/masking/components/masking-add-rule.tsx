@@ -30,20 +30,20 @@ import { Checkbox as Checkbox, RadioGroup as RadioGroup, Radio as Radio } from '
 
 import { Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
-import type { LegacyFormInstance } from '@/shared/types/legacy-form';
+import { toRaw } from 'vue';
 import { asDictionary } from '@/shared/utils/typed-record';
 
 import TextHighlight from '@/shared/ui/text-highlight';
+import SourceTranslation from '@/platform/i18n/translation';
 
 import { Component, Model, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Drawer as Sideslider, Form, FormItem, Input, Collapse, CollapsePanel as CollapseItem, Table, Dialog, TagInput } from 'tdesign-vue-next';
+import { Drawer as Sideslider, Form, FormItem, Input, Tooltip, Textarea, InputNumber, type FormInstanceFunctions, type FormRules, Collapse, CollapsePanel as CollapseItem, Table, Dialog, TagInput } from 'tdesign-vue-next';
 
 import './masking-add-rule.scss';
+import './masking-confirm-dialog.scss';
 import { allocateOverlayZIndex, Z_INDEX_LAYERS } from '@/shared/global/overlay';
-
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 interface IProps {
   value: boolean;
@@ -167,15 +167,8 @@ export default class MaskingAddRule extends tsc<IProps> {
   /** 调试失败时候的提示 */
   debugErrorTipsStr = '';
 
-  inputStyle = {
-    'background-color': '#313238',
-    height: '94px',
-    'line-height': '24px',
-    color: '#C4C6CC',
-    borderRadius: '2px',
-  };
 
-  public rules = {
+  public rules: FormRules = {
     rule_name: [
       {
         required: true,
@@ -216,7 +209,7 @@ export default class MaskingAddRule extends tsc<IProps> {
     ],
   };
 
-  @Ref('submitForm') private readonly submitFormRef!: LegacyFormInstance;
+  @Ref('submitForm') private readonly submitFormRef!: FormInstanceFunctions;
 
   get markList() {
     let markVal = this.debugLog.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
@@ -240,7 +233,7 @@ export default class MaskingAddRule extends tsc<IProps> {
 
   @Emit('change')
   hiddenSlider() {
-    this.formData = structuredClone(this.baseFromData);
+    this.formData = structuredClone(toRaw(this.baseFromData));
     this.emitSubmitRule();
     this.debugLog = '';
     this.logOriginal = '';
@@ -253,7 +246,7 @@ export default class MaskingAddRule extends tsc<IProps> {
 
   /** 打开侧边栏 */
   showSlider() {
-    this.baseFromData = structuredClone(this.formData);
+    this.baseFromData = structuredClone(toRaw(this.formData));
     if (this.addRuleFieldValue.field) {
       this.initFiledValue();
     }
@@ -336,7 +329,8 @@ export default class MaskingAddRule extends tsc<IProps> {
   }
 
   handleSubmit() {
-    this.submitFormRef.validate().then(async () => {
+    this.submitFormRef.validate().then(async result => {
+      if (result !== true) return;
       if (this.isEdit) {
         this.isShowSecondConfirmDialog = true;
         return;
@@ -442,10 +436,6 @@ export default class MaskingAddRule extends tsc<IProps> {
     }
   }
 
-  getShowRowStyle(row: any) {
-    return { background: (row.rowIndex + 1) % 2 === 0 ? '#F5F7FA' : '#FFF' };
-  }
-
   handleValueBlur(val: string) {
     if (val !== '') {
       this.formData.match_fields.push(val);
@@ -479,41 +469,24 @@ export default class MaskingAddRule extends tsc<IProps> {
     const accessTableSlot = () => (
       <Table
         rowKey='scenario_id'
-        rowStyle={this.getShowRowStyle}
-        extCls='access-table'
-        border={false}
-        colBorder={false}
+        hideSortTips={true}
+        stripe={true}
+        class='masking-access-table'
+        size='small'
         data={this.editAccessValue.accessInfo}
-        headerBorder={false}
-        outerBorder={false}
-        rowBorder={false}
-      >
-        <TableColumn
-          key={'scenario_name'}
-          label={this.$t('日志来源')}
-          prop={'scenario_name'}
-        />
-
-        <TableColumn
-          nativeCellSlot={true}
-          key={'ids'}
-          width='125'
-          v-slots={{
-            default: ({ row }: import("@/shared/types/table-row-scope").TableRowScope<typeof this.editAccessValue.accessInfo>) => (
-              <Button
-
-                onClick={() => this.handleJumpAccess(row)} variant={(true) ? 'text' : ('base')}
-              >
+        onDataChange={data => { this.editAccessValue.accessInfo = data; }}
+        columns={[
+          { colKey: 'scenario_name', title: this.$t('日志来源') },
+          { colKey: 'ids', title: this.$t('应用次数'), width: 125, align: 'center',
+            sorter: (a, b) => a.ids.length - b.ids.length,
+            cell: (_h, { row }) => (
+              <Button size='small' theme='primary' variant='text'
+                onClick={() => this.handleJumpAccess(row as { ids: string[]; scenario_id: string })}>
                 {row.ids.length}
               </Button>
-            ),
-          }}
-          align='center'
-          label={this.$t('应用次数')}
-          prop={'ids'}
-          sortable
-        />
-      </Table>
+            ) },
+        ]}
+      />
     );
 
     return (
@@ -526,27 +499,27 @@ export default class MaskingAddRule extends tsc<IProps> {
             >
               <Form
                 ref='submitForm'
-                extCls='masking-form'
-                formType='vertical'
-                labelWidth={200}
+                class='masking-form'
+                labelAlign='top'
+                requiredMarkPosition='right'
                 {...{
                   ...{
-                    model: this.formData,
+                    data: this.formData,
                     rules: this.rules,
                   },
                 }}
               >
                 <FormItem
                   label={this.$t('规则名称')}
-                  property='rule_name'
-                  required
+                  name='rule_name'
+                  requiredMark
                 >
                   <Input v-model={this.formData.rule_name} />
                 </FormItem>
                 <FormItem
                   label={this.$t('匹配项')}
-                  property='match_fields'
-                  required
+                  name='match_fields'
+                  requiredMark
                 >
                   <div class='masking-field'>
                     <Checkbox
@@ -563,7 +536,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                       hasDeleteIcon={false}
                       allowCreate
                       freePaste
-                      onBlur={this.handleValueBlur}
+                      onBlur={(_value, { inputValue }) => this.handleValueBlur(inputValue)}
                     />
                   </div>
                   <div
@@ -582,7 +555,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                     />
                   </div>
                 </FormItem>
-                <FormItem property='match_pattern'>
+                <FormItem name='match_pattern' requiredMark={false}>
                   <div class='masking-expression'>
                     <Checkbox
                       class='group-check-box'
@@ -602,32 +575,29 @@ export default class MaskingAddRule extends tsc<IProps> {
                 </FormItem>
                 <FormItem
                   class='masking-rule'
-                  label={(this.$t('脱敏算子') as string).replace('label-', '')}
-                  property='params'
-                  required
-                >
-                  {this.formData.operator === 'text_replace' && (
-                    <div
-                      v-en-style='left: 175px;'
-                      class='regex-item-tips'
-                    >
-                      <i
-                        class='bklog-icon bklog-info-fill'
-                        v-log-tooltip={{
-                          allowHtml: true,
-                          content: '#rule-tips',
-                        }}
-                      />
-                      <div id='rule-tips'>
-                        <span>
-                          {`${this.$t('支持引用正则表达式中的命名分组。如正则表达式为 ')}(?P<` +
-                            'phone' +
-                            `>\\w{6,16})${this.$t('，可通过 ${phone} 进行引用')}`}
-                        </span>
-                      </div>
-                    </div>
+                  label={() => (
+                    <span class='masking-operator-label'>
+                      <span>{(this.$t('脱敏算子') as string).replace('label-', '')}</span>
+                      <span class='masking-operator-required' aria-hidden='true'>*</span>
+                      {this.formData.operator === 'text_replace' && (
+                      <Tooltip
+                        attach='body'
+                        placement='top-left'
+                        popperOptions={{ strategy: 'fixed' }}
+                        overlayClassName='masking-operator-tooltip'
+                        overlayInnerStyle={{ maxWidth: '320px', whiteSpace: 'normal' }}
+                        zIndex={this.drawerZIndex + 1}
+                        content={`${this.$t('支持引用正则表达式中的命名分组。如正则表达式为 ')}(?P<phone>\\w{6,16})${this.$t('，可通过 ${phone} 进行引用')}`}
+                      >
+                        <span class='regex-item-tips'><i class='bklog-icon bklog-info-fill' /></span>
+                      </Tooltip>
+                      )}
+                    </span>
                   )}
-                  <RadioGroup v-model={this.formData.operator}>
+                  name='params'
+                  requiredMark={false}
+                >
+                  <RadioGroup direction='horizontal' v-model={this.formData.operator}>
                     <Radio value={'text_replace'}>{this.$t('替换')}</Radio>
                     <Radio value={'mask_shield'}>{this.$t('掩码')}</Radio>
                   </RadioGroup>
@@ -640,59 +610,42 @@ export default class MaskingAddRule extends tsc<IProps> {
                       />
                     </div>
                   ) : (
-                    <i18n
-                      class='cover-item'
-                      path='保留前{0}位, 后{1}位'
-                    >
-                      <Input
+                    <SourceTranslation tag='div' class='cover-item' path='保留前{0}位, 后{1}位'>
+                      <InputNumber
                         v-model={this.formData.params.preserve_head}
                         min={0}
-                        type='number'
+                        decimalPlaces={0}
+                        theme='column'
                         onBlur={() => this.handleChangeCoverNumber()}
                       />
-                      <Input
+                      <InputNumber
                         v-model={this.formData.params.preserve_tail}
                         min={0}
-                        type='number'
+                        decimalPlaces={0}
+                        theme='column'
                         onBlur={() => this.handleChangeCoverNumber()}
                       />
-                    </i18n>
+                    </SourceTranslation>
                   )}
                 </FormItem>
               </Form>
-              <div class='submit-box'>
-                <Button
-                  theme='primary'
-                  onClick={() => this.handleSubmit()}
-                >
-                  {this.$t('提交')}
-                </Button>
-                <Button
-                  theme='default'
-                  onClick={() => this.hiddenSlider()}
-                >
-                  {this.$t('取消')}
-                </Button>
-              </div>
 
               <Collapse
-                extCls='regular-debugging'
+                class='regular-debugging'
                 v-model={this.activeCollapse}
               >
                 <CollapseItem
                   v-slots={{
-                    content: () => (
+                    default: () => (
                       <div class='debugging-box'>
                         <div class='debug-input'>
                           <span class='debug-title'>{this.$t('原始日志')}</span>
                           <div class='debugging-log'>
-                            <Input
-                              inputStyle={this.inputStyle}
+                            <Textarea
                               class='debugging-input'
                               v-model={this.logOriginal}
                               placeholder={this.$t('请输入')}
-                              rows={3}
-                              type='textarea'
+                              autosize={{ minRows: 3, maxRows: 6 }}
                             />
                             {!!this.debugErrorTipsStr && <span class='debug-error'>{this.debugErrorTipsStr}</span>}
                           </div>
@@ -732,17 +685,18 @@ export default class MaskingAddRule extends tsc<IProps> {
                     ),
                   }}
                   disabled={!this.matchExpressionCheckValue}
-                  name='1'
-                >
-                  <div class='debugging-title'>
-                    <i class={{ 'bk-icon icon-play-shape': true, 'is-active': this.activeCollapse.length }} />
-                    <span>{this.$t('脱敏结果预览')}</span>
-                  </div>
-                </CollapseItem>
+                  value='1'
+                  header={this.$t('脱敏结果预览')}
+                  expandIcon={() => (
+                    <span class={{ 'masking-preview-arrow': true, 'is-expanded': this.activeCollapse.includes('1') }} />
+                  )}
+                />
               </Collapse>
 
               <Dialog
                 width={400}
+                dialogClassName='masking-rule-confirm-dialog'
+                header={false}
                 visible={this.isShowSecondConfirmDialog}
                 onClose={() => (this.isShowSecondConfirmDialog = false)}
                 zIndex={this.confirmDialogZIndex}
@@ -774,15 +728,39 @@ export default class MaskingAddRule extends tsc<IProps> {
               </Dialog>
             </div>
           ),
+          footer: () => (
+            <div class='submit-box'>
+                <Button
+                  theme='primary'
+                  onClick={() => this.handleSubmit()}
+                >
+                  {this.$t('提交')}
+                </Button>
+                <Button
+                  theme='default'
+                  onClick={() => this.hiddenSlider()}
+                >
+                  {this.$t('取消')}
+                </Button>
+              </div>
+          ),
         }}
+        drawerClassName='masking-rule-drawer'
         size='640px'
         attach='body'
         visible={this.value}
         zIndex={this.drawerZIndex}
-        header={this.$t('{n}脱敏规则', { n: this.isEdit ? this.$t('编辑') : this.$t('新增') })}
+        header={() => (
+          <div class='masking-rule-drawer-header'>
+            <button type='button' class='masking-rule-drawer-close' aria-label={this.$t('关闭')} onClick={this.hiddenSlider}>
+              <span />
+            </button>
+            <span>{this.$t('{n}脱敏规则', { n: this.isEdit ? this.$t('编辑') : this.$t('新增') })}</span>
+          </div>
+        )}
         closeOnOverlayClick
         closeOnEscKeydown
-        footer={false}
+        footer={true}
         onBeforeOpen={this.showSlider}
         onClose={this.hiddenSlider}
       ></Sideslider>
