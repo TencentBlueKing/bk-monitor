@@ -27,11 +27,10 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OperatorGroupRelation
 from constants.otel_query import EnabledStatisticsDimension, FieldTypeEnum, OperatorEnum, StatisticsProperty
 from core.drf_resource import resource
-from rum_web.handlers.query.virtual import query_virtual_graph_configs
 from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RumQueryMode
 from rum_web.handlers.builder.span import BUILDERS, build as build_span_detail
 from rum_web.handlers.builder.span.resource_timing import resource_delivery
-from rum_web.handlers.query.base import BaseRumQuery
+from rum_web.handlers.query.base import BaseRumQuery, equal_filter
 from semconv.rum.trace import SpanSpec
 
 
@@ -326,11 +325,11 @@ class BaseRumLevelHandler:
                         start_time, end_time, field_name, 5, filters, query_string
                     )
                 ]
-            configs = query_virtual_graph_configs(
-                self.query, self.query.get_queries(filters, query_string), start_time, end_time, field_name, values
-            )
             result: dict[str, Any] = {"series": []}
-            for value, config in configs:
+            for value in dict.fromkeys(values):
+                config = self.query.query_graph_config(
+                    start_time, end_time, None, [*filters, equal_filter(field_name, [value])], query_string
+                )
                 data = query_graph(config)
                 result.update({key: item for key, item in data.items() if key != "series"})
                 for series in data.get("series", []):

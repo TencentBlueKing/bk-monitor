@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
@@ -26,16 +26,6 @@ if TYPE_CHECKING:
 
 BUCKET_PAGE_SIZE = 1000
 Record = dict[str, Any]
-
-
-def _raw_dimensions(fields: list[str], virtual_fields: dict[str, VirtualField]) -> list[str]:
-    return list(
-        dict.fromkeys(
-            member
-            for field in fields
-            for member in (virtual_fields[field].field_names if field in virtual_fields else [field])
-        )
-    )
 
 
 def iter_joint_buckets(
@@ -83,9 +73,6 @@ def iter_joint_buckets(
             .dsl_date_histogram(False)
             .dsl_group_hits(-1)
         )
-        if not dimensions:
-            yield from queryset.raw_data
-            continue
         after: Record = {}
         while True:
             records: list[Record] = queryset.dsl_search_after(after, missing_bucket=True).raw_data
@@ -123,33 +110,6 @@ def query_virtual_values(
     return dict(counts)
 
 
-def query_virtual_graph_configs(
-    owner: "BaseRumQuery",
-    queries: list[QueryConfigBuilder],
-    start_time: int,
-    end_time: int,
-    field: str,
-    values: list[str],
-) -> list[tuple[str, Record]]:
-    """每条曲线直接查询最终值的完整反解集合，避免原始成员缺失导致丢点。"""
-    virtual: VirtualField = owner.virtual_fields[field]
-    configs: list[tuple[str, Record]] = []
-    for value in dict.fromkeys(values):
-        condition = virtual.build_filter(value)
-        filtered: list[QueryConfigBuilder] = [
-            query.filter(condition)
-            .alias("a")
-            .interval(get_bar_interval_number(start_time, end_time))
-            .metric(field="_index", method="COUNT", alias="a")
-            for query in queries
-        ]
-        config: Record = owner._add_query(
-            owner.get_qs(start_time, end_time).expression("a").time_agg(False).instant(), filtered
-        ).config
-        configs.append((value, config))
-    return configs
-
-
 def _time_windows(
     owner: "BaseRumQuery",
     start_time: int | None,
@@ -167,13 +127,6 @@ def _time_windows(
     while bucket < end:
         yield max(start, bucket) // 1000, min(end, bucket + step) // 1000, bucket
         bucket += step
-
-
-def _final_dimensions(record: Record, dimensions: list[str], virtual_fields: dict[str, VirtualField]) -> Record:
-    return {
-        field: virtual_fields[field].format(record) if field in virtual_fields else record.get(field)
-        for field in dimensions
-    }
 
 
 def _weighted_percentile(frequencies: dict[int | float, int], percentile: int) -> int | float:
@@ -204,81 +157,65 @@ def _query_grouped_window(
     queries: list[QueryConfigBuilder],
     start_time: int,
     end_time: int,
-    fields: list[str],
+    field: str,
     method: str,
     dimensions: list[str],
 ) -> list[Record]:
-    virtual_fields: dict[str, VirtualField] = owner.virtual_fields
-    if any(field in virtual_fields for field in fields) and method not in {"count", "distinct"}:
+    virtual_fields = owner.virtual_fields
+    virtual = virtual_fields.get(field)
+    if virtual and method not in {"count", "distinct"}:
         raise ValidationError("虚拟字段是离散维度，仅支持 count 和 distinct 聚合")
-    percentile: int | None = int(method[2:]) if method.startswith("cp") else None
-    raw_fields: list[str] = [*dimensions]
-    metrics: list[Record] = [{"field": "_index", "method": "COUNT", "alias": "_records"}]
-    for index, field in enumerate(fields):
-        if field in virtual_fields or method == "distinct" or percentile is not None:
-            raw_fields.append(field)
-        elif method == "avg":
-            metrics.extend(
-                [
-                    {"field": field, "method": "SUM", "alias": f"m{index}"},
-                    {"field": field, "method": "COUNT", "alias": f"n{index}"},
-                ]
-            )
+    percentile = int(method[2:]) if method.startswith("cp") else None
+    raw_fields = list(dimensions)
+    if virtual or method == "distinct" or percentile is not None:
+        raw_fields.append(field)
+        metrics = [{"field": "_index", "method": "COUNT", "alias": "_records"}]
+    elif method == "avg":
+        metrics = [{"field": field, "method": op, "alias": alias} for op, alias in (("SUM", "total"), ("COUNT", "n"))]
+    else:
+        metrics = [{"field": field, "method": method, "alias": "total"}]
+
+    members = list(
+        dict.fromkeys(
+            member
+            for name in raw_fields
+            for member in (virtual_fields[name].field_names if name in virtual_fields else [name])
+        )
+    )
+    # 每个最终分组仅维护本次指标所需的状态。均值按样本数加权，百分位按样本频数合并。
+    totals: dict[tuple, int | float | None] = {}
+    weights = defaultdict(int)
+    frequencies = defaultdict(Counter)
+    for row in iter_joint_buckets(owner, queries, start_time, end_time, members, metrics):
+        key = tuple(virtual_fields[d].format(row) if d in virtual_fields else row.get(d) for d in dimensions)
+        previous = totals.setdefault(key, None)
+        if method == "distinct" or percentile is not None:
+            value = virtual.format(row) if virtual else row.get(field)
+            if value is not None:
+                frequencies[key][value] += row["_records"]
+        elif method in {"min", "max"}:
+            value = row["total"]
+            if value is not None:
+                compare = min if method == "min" else max
+                totals[key] = value if previous is None else compare(previous, value)
+        elif virtual:
+            if virtual.format(row) is not None:
+                totals[key] = (previous or 0) + row["_records"]
         else:
-            metrics.append({"field": field, "method": method, "alias": f"m{index}"})
-    states: dict[tuple, list[Record]] = {}
-    for record in iter_joint_buckets(
-        owner, queries, start_time, end_time, _raw_dimensions(raw_fields, virtual_fields), metrics
-    ):
-        group: Record = _final_dimensions(record, dimensions, virtual_fields)
-        key: tuple = tuple(group.items())
-        if key not in states:
-            states[key] = [
-                {"value": None, "sum": 0, "count": 0, "distinct": set(), "frequencies": defaultdict(int)}
-                for _ in fields
-            ]
-        accumulators: list[Record] = states[key]
-        for index, (field, accumulator) in enumerate(zip(fields, accumulators, strict=True)):
-            if method == "distinct":
-                value = virtual_fields[field].format(record) if field in virtual_fields else record.get(field)
-                if value is not None:
-                    accumulator["distinct"].add(value)
-            elif percentile is not None:
-                value = record.get(field)
-                if value is not None:
-                    accumulator["frequencies"][value] += int(record["_records"] or 0)
-            elif field in virtual_fields:
-                if virtual_fields[field].format(record) is not None:
-                    accumulator["sum"] += record["_records"] or 0
-            elif method == "avg":
-                accumulator["sum"] += record[f"m{index}"] or 0
-                accumulator["count"] += record[f"n{index}"] or 0
-            elif method in {"min", "max"}:
-                value = record[f"m{index}"]
-                if value is not None:
-                    previous = accumulator["value"]
-                    accumulator["value"] = (
-                        value
-                        if previous is None
-                        else (min(previous, value) if method == "min" else max(previous, value))
-                    )
-            else:
-                accumulator["sum"] += record[f"m{index}"] or 0
+            totals[key] = (previous or 0) + (row["total"] or 0)
+            if method == "avg":
+                weights[key] += row["n"] or 0
+
     result: list[Record] = []
-    for key, accumulators in states.items():
-        values: list[int | float] = []
-        for accumulator in accumulators:
-            if method == "distinct":
-                values.append(len(accumulator["distinct"]))
-            elif percentile is not None:
-                values.append(_weighted_percentile(accumulator["frequencies"], percentile))
-            elif method == "avg":
-                values.append(accumulator["sum"] / accumulator["count"] if accumulator["count"] else 0)
-            elif method in {"min", "max"}:
-                values.append(accumulator["value"] or 0)
-            else:
-                values.append(accumulator["sum"])
-        result.append({**dict(key), "_result_": sum(values)})
+    for key, total in totals.items():
+        value = total or 0
+        if method == "distinct":
+            value = len(frequencies[key])
+        elif percentile is not None:
+            value = _weighted_percentile(frequencies[key], percentile)
+        elif method == "avg" and weights[key]:
+            value /= weights[key]
+        result.append({**dict(zip(dimensions, key, strict=True)), "_result_": value})
     return result
 
 
@@ -287,17 +224,17 @@ def query_virtual_grouped_values(
     queries: list[QueryConfigBuilder],
     start_time: int | None,
     end_time: int | None,
-    fields: list[str],
+    field: str,
     method: str,
     group_by: list[str] | None = None,
     interval: int | None = None,
 ) -> list[Record]:
     """保留其他维度与时间桶，在最终虚拟值上计算统计指标。"""
     group_by = group_by or []
-    dimensions: list[str] = [field for field in group_by if field != owner.TIME_BUCKET_FIELD]
+    dimensions: list[str] = [dim for dim in group_by if dim != owner.TIME_BUCKET_FIELD]
     result: list[Record] = []
     for start, end, bucket in _time_windows(owner, start_time, end_time, owner.TIME_BUCKET_FIELD in group_by, interval):
-        records: list[Record] = _query_grouped_window(owner, queries, start, end, fields, method.lower(), dimensions)
+        records: list[Record] = _query_grouped_window(owner, queries, start, end, field, method.lower(), dimensions)
         if bucket is not None:
             records = [{**record, "_time_": bucket} for record in records]
         result.extend(records)

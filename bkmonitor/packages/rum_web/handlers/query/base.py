@@ -269,7 +269,7 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
         self,
         start_time: int,
         end_time: int,
-        field: str,
+        field: str | None,
         filters: list[types.Filter],
         query_string: str,
     ):
@@ -294,19 +294,19 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
             return sum(count for value, count in values.items() if value is not None)
         return super()._query_field_aggregated_value(queries, start_time, end_time, field, method)
 
-    def _query_fields_aggregated_group(
+    def _query_statistic_group(
         self,
         queries: list[QueryConfigBuilder],
-        start_time: int | None,
-        end_time: int | None,
-        fields: list[str],
+        start_time: int,
+        end_time: int,
+        field: str,
         method: str,
-        group_by: list[str] | None = None,
+        group_by: list[str],
         interval: int | None = None,
     ) -> list[dict[str, Any]]:
-        if any(field in self.virtual_fields for field in [*fields, *(group_by or [])]):
-            return query_virtual_grouped_values(self, queries, start_time, end_time, fields, method, group_by, interval)
-        return super()._query_fields_aggregated_group(queries, start_time, end_time, fields, method, group_by, interval)
+        if field in self.virtual_fields or any(dim in self.virtual_fields for dim in group_by):
+            return query_virtual_grouped_values(self, queries, start_time, end_time, field, method, group_by, interval)
+        return super()._query_statistic_group(queries, start_time, end_time, field, method, group_by, interval)
 
     def statistics(
         self,

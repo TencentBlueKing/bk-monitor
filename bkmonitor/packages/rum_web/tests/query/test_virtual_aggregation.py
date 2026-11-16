@@ -10,11 +10,11 @@ from bkmonitor.data_source.models.sql import query as sql_query
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from constants.apm import ApmGlobalTablePrefix
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from rum_web.handlers.level.span import SpanLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.handlers.query.virtual import (
     _weighted_percentile,
     iter_joint_buckets,
-    query_virtual_graph_configs,
     query_virtual_grouped_values,
     query_virtual_values,
 )
@@ -161,10 +161,10 @@ def test_virtual_count_and_distinct_are_based_on_final_values(query):
         {NAME: None, VERSION: None, "_records": 10},
     ]
     with patch("rum_web.handlers.query.virtual.iter_joint_buckets", side_effect=lambda *args: iter(rows)):
-        assert query_virtual_grouped_values(query, query.get_queries(), START, END, [BROWSER], "count") == [
+        assert query_virtual_grouped_values(query, query.get_queries(), START, END, BROWSER, "count") == [
             {"_result_": 10}
         ]
-        assert query_virtual_grouped_values(query, query.get_queries(), START, END, [BROWSER], "distinct") == [
+        assert query_virtual_grouped_values(query, query.get_queries(), START, END, BROWSER, "distinct") == [
             {"_result_": 2}
         ]
 
@@ -172,13 +172,13 @@ def test_virtual_count_and_distinct_are_based_on_final_values(query):
 @pytest.mark.parametrize("method,expected", [("sum", 40), ("count", 40), ("min", 10), ("max", 30), ("avg", 10)])
 def test_metric_merge_retains_other_dimension_and_uses_weighted_average(query, method, expected):
     rows = [
-        {NAME: "Chrome", VERSION: None, "status.code": 0, "_records": 3, "m0": 30, "n0": 3},
-        {NAME: "Chrome", VERSION: "--", "status.code": 0, "_records": 1, "m0": 10, "n0": 1},
-        {NAME: "Chrome", VERSION: "", "status.code": 2, "_records": 1, "m0": 5, "n0": 1},
+        {NAME: "Chrome", VERSION: None, "status.code": 0, "_records": 3, "total": 30, "n": 3},
+        {NAME: "Chrome", VERSION: "--", "status.code": 0, "_records": 1, "total": 10, "n": 1},
+        {NAME: "Chrome", VERSION: "", "status.code": 2, "_records": 1, "total": 5, "n": 1},
     ]
     with patch("rum_web.handlers.query.virtual.iter_joint_buckets", return_value=iter(rows)) as fetch:
         result = query_virtual_grouped_values(
-            query, query.get_queries(), START, END, ["elapsed_time"], method, [BROWSER, "status.code"]
+            query, query.get_queries(), START, END, "elapsed_time", method, [BROWSER, "status.code"]
         )
     assert result == [
         {BROWSER: "Chrome --", "status.code": 0, "_result_": expected},
@@ -187,33 +187,35 @@ def test_metric_merge_retains_other_dimension_and_uses_weighted_average(query, m
     assert fetch.call_args.args[4] == [NAME, VERSION, "status.code"]
     if method == "avg":
         assert fetch.call_args.args[5][-2:] == [
-            {"field": "elapsed_time", "method": "SUM", "alias": "m0"},
-            {"field": "elapsed_time", "method": "COUNT", "alias": "n0"},
+            {"field": "elapsed_time", "method": "SUM", "alias": "total"},
+            {"field": "elapsed_time", "method": "COUNT", "alias": "n"},
         ]
 
 
 def test_real_distinct_enumerates_values_and_deduplicates_across_raw_groups(query):
     rows = [
-        {NAME: "Chrome", VERSION: None, "user": "a", "_records": 3},
-        {NAME: "Chrome", VERSION: "--", "user": "a", "_records": 2},
-        {NAME: "Chrome", VERSION: "", "user": "b", "_records": 2},
-        {NAME: "Chrome", VERSION: None, "user": None, "_records": 2},
+        {NAME: "Chrome", VERSION: None, WIDTH: 900, "user": "a", "_records": 3},
+        {NAME: "Chrome", VERSION: "--", WIDTH: 900, "user": "a", "_records": 2},
+        {NAME: "Chrome", VERSION: "", WIDTH: 900, "user": "b", "_records": 2},
+        {NAME: "Chrome", VERSION: None, WIDTH: 900, "user": None, "_records": 2},
     ]
     with patch("rum_web.handlers.query.virtual.iter_joint_buckets", return_value=iter(rows)) as fetch:
-        result = query_virtual_grouped_values(query, query.get_queries(), START, END, ["user"], "distinct", [BROWSER])
-    assert result == [{BROWSER: "Chrome --", "_result_": 2}]
-    assert fetch.call_args.args[4] == [NAME, VERSION, "user"]
+        result = query.statistics(START, END, "user", "distinct", "0s", ["0s"], group_by=[BROWSER, VIEWPORT])
+    assert result["total"] == 1
+    assert result["data"][0]["dimensions"] == {BROWSER: "Chrome --", VIEWPORT: "900 x --"}
+    assert result["data"][0]["0s"] == 2
+    assert fetch.call_args.args[4] == [NAME, VERSION, WIDTH, HEIGHT, "user"]
 
 
 def test_time_buckets_keep_virtual_and_other_groups_with_timezone_alignment(query):
-    row = {WIDTH: 1440, HEIGHT: None, "status.code": 0, "m0": 2, "_records": 2}
+    row = {WIDTH: 1440, HEIGHT: None, "status.code": 0, "total": 2, "_records": 2}
     start = START + 10
     with (
         timezone.override("Asia/Shanghai"),
         patch("rum_web.handlers.query.virtual.iter_joint_buckets", side_effect=lambda *args: iter([row])) as fetch,
     ):
         result = query_virtual_grouped_values(
-            query, query.get_queries(), start, END, ["_index"], "count", [VIEWPORT, "status.code", "time"], 60
+            query, query.get_queries(), start, END, "_index", "count", [VIEWPORT, "status.code", "time"], 60
         )
     assert result == [
         {VIEWPORT: "1440 x --", "status.code": 0, "_result_": 2, "_time_": START * 1000},
@@ -230,14 +232,14 @@ def test_time_group_windows_send_microsecond_ranges_to_actual_es_compiler(query,
                     {
                         "key": {WIDTH: 1440, HEIGHT: None},
                         "_records": {"value": 2},
-                        "m0": {"value": 2},
+                        "total": {"value": 2},
                     }
                 ]
             }
         }
     }
     result = query_virtual_grouped_values(
-        query, query.get_queries(), START + 10, END, ["_index"], "count", [VIEWPORT, "time"], 60
+        query, query.get_queries(), START + 10, END, "_index", "count", [VIEWPORT, "time"], 60
     )
     assert [record["_time_"] for record in result] == [START * 1000, (START + 60) * 1000]
     for call, expected_start, expected_end in zip(
@@ -269,7 +271,7 @@ def test_percentiles_merge_sample_frequencies_across_pages_and_sources(query, es
             ]
         ),
     ]
-    result = query_virtual_grouped_values(query, query.get_queries(), START, END, ["elapsed_time"], "cp50", [BROWSER])
+    result = query_virtual_grouped_values(query, query.get_queries(), START, END, "elapsed_time", "cp50", [BROWSER])
     # Chrome 的第 10、11 个有效样本为 20、100，不能对两来源的中位数 10、200 求和或平均。
     assert result == [{BROWSER: "Chrome --", "_result_": 60}, {BROWSER: "Firefox --", "_result_": 750}]
     assert es.call_count == 3
@@ -299,10 +301,17 @@ def test_weighted_percentile_uses_sample_ranks_without_expanding_records(frequen
 
 
 def test_graph_counts_records_without_grouping_by_nullable_members(query):
-    graphs = query_virtual_graph_configs(query, query.get_queries(), START, END, BROWSER, ["Chrome --"])
-    assert len(graphs) == 1
-    value, config = graphs[0]
-    assert value == "Chrome --"
+    handler = SpanLevelHandler(query.data_sources)
+    handler.query = query
+    with patch(
+        "rum_web.handlers.level.base.resource.grafana.graph_unify_query", return_value={"series": [{}]}
+    ) as graph:
+        result = handler.field_statistics_graph(
+            START, END, {"field_name": BROWSER, "field_type": "keyword", "values": ["Chrome --", "Chrome --"]}
+        )
+    graph.assert_called_once()
+    assert result["series"] == [{"dimensions": {BROWSER: "Chrome --"}}]
+    config = graph.call_args.args[0]
     source = config["query_configs"][0]
     assert source["group_by"] == []
     assert source["metrics"] == [{"field": "_index", "method": "COUNT", "alias": "a"}]
