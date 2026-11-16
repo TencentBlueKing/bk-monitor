@@ -135,6 +135,9 @@
         width: calc(100% - 200px);
         height: 100%;
 
+        /** marker 覆盖层铺满轨道区，整层透传鼠标事件，命中只留给下方显式恢复的 marker 列 */
+        pointer-events: none;
+
         .marker-columns {
           position: relative;
           width: 100%;
@@ -148,6 +151,9 @@
         z-index: 2;
         width: 0;
         height: 100%;
+
+        /** 在透传的覆盖层里单独恢复命中：marker 文本的 hover 详情需要接收鼠标事件 */
+        pointer-events: all;
 
         .marker-line {
           position: absolute;

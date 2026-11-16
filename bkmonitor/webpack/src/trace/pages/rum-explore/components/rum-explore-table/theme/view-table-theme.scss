@@ -1,0 +1,67 @@
+/* view 场景专属样式（根类 + 场景类名同元素复合）：按 DOM 层级嵌套于 td */
+.rum-explore-table.view-table {
+  .explore-col {
+    /* Web Vitals 指标值：评级色对齐设计稿变量（#21a380 / #f59500 / #ea3636）；
+     * 数值排版走设计稿「12 辅助/EN-Bold」：Arial Bold 12px / 20px / letterSpacing 0 / 不换行 */
+    &.view-vital-col {
+      .view-vital-value {
+        --vital-value-color: #4d4f56;
+
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 20px;
+        color: var(--vital-value-color);
+        letter-spacing: 0;
+        overflow-wrap: break-word;
+        white-space: nowrap;
+
+        /* 挂了条件菜单委托类名后 hover 默认变主蓝，这里保持评级色（与 span 场景状态列的处理一致） */
+        &.explore-table-condition-menu:hover {
+          color: var(--vital-value-color);
+        }
+
+        &.is-good {
+          --vital-value-color: #21a380;
+        }
+
+        &.is-needs-improvement {
+          --vital-value-color: #f59500;
+        }
+
+        &.is-poor {
+          --vital-value-color: #ea3636;
+        }
+      }
+    }
+
+    /* 数量统计列根容器：右对齐（explore-col 是 flex 容器，td 的 text-align: right 不会作用于 flex item） */
+    &.view-count-col {
+      justify-content: flex-end;
+
+      /* 0 灰色无下钻，大于 0 红色下划线可点击；
+       * 数值排版走设计稿「12 辅助/EN-Regular」：Arial Regular 12px / 20px / letterSpacing 0 */
+      .view-count-value {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        line-height: 20px;
+        letter-spacing: 0;
+        overflow-wrap: break-word;
+        white-space: nowrap;
+
+        &.is-zero {
+          color: #c4c6cc;
+        }
+
+        /* 下划线与数字拉开距离，避免贴字 */
+        &.is-link {
+          color: #ea3636;
+          text-decoration: underline;
+          text-decoration-skip-ink: none;
+          text-underline-offset: 3px;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+}

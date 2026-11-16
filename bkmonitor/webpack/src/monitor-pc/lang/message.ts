@@ -620,6 +620,7 @@ export default {
 
   '确认重新分析？': 'Confirm to re-analyze?',
   '分析失败，请稍后重试': 'Analysis failed. Please try again later',
+  暂无时间轴数据: 'No timeline data',
   '缺少数据可用性校验信息，无法跳转': 'Missing data availability verification information, unable to jump',
   '数据可用性校验失败，已禁止跳转': 'Data availability verification failed, jump prohibited',
   '当前数据不可用，无法跳转': 'Current data is unavailable, unable to jump',

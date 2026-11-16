@@ -34,14 +34,13 @@ import ResourceIcon from '../../static/img/rum-explore/span-type/resource.svg';
 import ViewIcon from '../../static/img/rum-explore/span-type/view.svg';
 import VitalIcon from '../../static/img/rum-explore/span-type/vital.svg';
 import WebsocketIcon from '../../static/img/rum-explore/span-type/websocket.svg';
-import { RumCardToneEnum } from './detail';
 
 import type { IRumColumnLayoutPreset, RumModeType } from './typings';
 
 /** Span 调用类型（kind）列展示配置：与 trace 检索 kind 列同源，RUM 侧统一从此处引入 */
 export { SPAN_KIND_MAPS } from '../trace-explore/components/trace-explore-table/constants';
 
-/** 检索视角，取值需与检索接口的 mode 字段对齐（当前仅 span 有实现） */
+/** 检索视角，取值需与检索接口的 mode 字段对齐 */
 export const RumModeEnum = {
   /** 会话视角 */
   SESSION: 'session',
@@ -57,6 +56,19 @@ export const RumFieldDisplayEnum = {
   DATETIME: 'datetime',
   /** 耗时字段，按 duration 列渲染 */
   DURATION: 'duration',
+} as const;
+
+/**
+ * Web Vitals 指标评级，取值需与 view_config / record_detail 下发的 rating_config[].rating 对齐。
+ * 列表着色与详情评级展示共用同一协议枚举，统一收敛到 constants（详情侧通过 re-export 引用）。
+ */
+export const RumRatingEnum = {
+  /** 良好 */
+  GOOD: 'good',
+  /** 需改进 */
+  NEEDS_IMPROVEMENT: 'needs_improvement',
+  /** 差 */
+  POOR: 'poor',
 } as const;
 
 /**
@@ -132,6 +144,7 @@ export const SPAN_TYPE_META: Record<string, ISpanTypeMeta> = {
 
 export const SPAN_TYPE_META_ICON = {
   view: { icon: 'icon-View', label: 'View' },
+  session: { icon: 'icon-Session', label: 'Session' },
   resource: { icon: 'icon-Resource', label: 'Resource' },
   error: { icon: 'icon-ERROR', label: 'Error' },
   vital: { icon: 'icon-a-WebVital', label: 'Vital' },
@@ -171,6 +184,7 @@ export const RUM_TIME_FIELDS = new Set(['start_time', 'end_time', 'events.timest
 /** 支持排序的字段类型 */
 export const RUM_SORTABLE_FIELD_TYPES = new Set(['date', 'double', 'integer', 'long']);
 
+/** 可打开详情抽屉的 span 类型：列表 span_name 的可点判定与详情「上一条 / 下一条」跳转共用（session 打开会话详情） */
 export const RUM_DETAIL_SPAN_TYPES = new Set([
   'view',
   'resource',
@@ -180,6 +194,7 @@ export const RUM_DETAIL_SPAN_TYPES = new Set([
   'action',
   'websocket',
   'custom',
+  'session',
 ]);
 
 /** Span 视角列宽（视角私有），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
@@ -193,6 +208,62 @@ export const SPAN_COLUMN_WIDTH_MAP: Record<string, number> = {
   'attributes.view.url_template': 220,
   'resource.user_agent.name': 137,
   'attributes.user.id': 133,
+};
+
+/** View 视角列宽（对齐设计稿），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
+export const VIEW_COLUMN_WIDTH_MAP: Record<string, number> = {
+  start_time: 133,
+  'attributes.view.url_template': 116,
+  'attributes.view.loading_type': 140,
+  'web_vitals.fcp': 88,
+  'web_vitals.lcp': 88,
+  'web_vitals.cls': 88,
+  'web_vitals.inp': 88,
+  'web_vitals.ttfb': 88,
+  error_count: 88,
+  request_count: 88,
+  action_count: 88,
+  'resource.user_agent.name': 98,
+};
+
+/** Session 视角列宽（按字段 key 对齐设计稿，不依赖后端默认列顺序） */
+export const SESSION_COLUMN_WIDTH_MAP: Record<string, number> = {
+  'attributes.session.id': 149,
+  'attributes.user.id': 100,
+  'resource.user_agent.name': 176,
+  'resource.user_agent.os.name': 124,
+  enter_url_template: 156,
+  start_time: 140,
+  duration: 110,
+  view_count: 100,
+  action_count: 110,
+  error_count: 109,
+};
+
+/** View 视角的页面 ID 字段：表格行唯一键，同时是跨视角检索该页面的条件字段 */
+export const VIEW_ID_FIELD = 'attributes.view.id';
+
+/** View 视角的页面 URL 字段：链接列，点击打开 View 详情抽屉 */
+export const VIEW_URL_FIELD = 'attributes.view.url_template';
+
+/** View 视角的数量统计列：大于 0 时按红色链接展示，点击切到 Span 视角并按页面 ID 检索 */
+export const VIEW_COUNT_FIELDS = new Set(['error_count', 'request_count', 'action_count']);
+
+/** Session 视角的行唯一键，同时是跨视角检索该会话的条件字段 */
+export const SESSION_ID_FIELD = 'attributes.session.id';
+
+/** 各视角详情记录的唯一键字段：列表取 record_id 与详情标题的 ID 标签共用 */
+export const RUM_RECORD_ID_FIELD_MAP: Record<RumModeType, string> = {
+  [RumModeEnum.SESSION]: SESSION_ID_FIELD,
+  [RumModeEnum.VIEW]: VIEW_ID_FIELD,
+  [RumModeEnum.SPAN]: 'span_id',
+};
+
+/** Session 视角数量统计列 → 下钻目标视角；下钻条件统一带当前会话 ID */
+export const SESSION_COUNT_FIELDS: Record<string, RumModeType> = {
+  view_count: RumModeEnum.VIEW,
+  action_count: RumModeEnum.SPAN,
+  error_count: RumModeEnum.SPAN,
 };
 
 export const DEFAULT_COLUMN_WIDTH = 220;
@@ -221,9 +292,18 @@ export const RUM_FIELD_DEFAULT_COLUMN_WIDTH = {
  * 新增视角只需在此登记一条，无需改动 useRumColumnConfig。
  */
 export const RUM_COLUMN_LAYOUT_PRESET: Partial<Record<RumModeType, IRumColumnLayoutPreset>> = {
+  [RumModeEnum.SESSION]: {
+    widthMap: SESSION_COLUMN_WIDTH_MAP,
+    minWidth: DEFAULT_MIN_COLUMN_WIDTH,
+  },
   [RumModeEnum.SPAN]: {
     widthMap: SPAN_COLUMN_WIDTH_MAP,
     leftFixedColumns: new Set(['span_name']),
+  },
+  [RumModeEnum.VIEW]: {
+    widthMap: VIEW_COLUMN_WIDTH_MAP,
+    /** 设计稿中 Web Vitals 列为 88px，小于全局默认最小列宽，需按视角下调 */
+    minWidth: 88,
   },
 };
 
@@ -259,14 +339,6 @@ export const RUM_OUTCOME_TYPE_MAP: Record<string, { icon: string; label: string 
   error: { icon: 'icon-monitor icon-mc-close-fill outcome-type-icon-error', label: window.i18n.t('失败') },
   timeout: { icon: 'icon-monitor icon-Long-Task outcome-type-icon-timeout', label: window.i18n.t('超时') },
   abort: { icon: 'icon-monitor icon-mc-minus-plus outcome-type-icon-abort', label: window.i18n.t('中止') },
-};
-
-export const OUTCOME_TYPE_TONE_MAP = {
-  success: RumCardToneEnum.SUCCESS,
-  warning: RumCardToneEnum.WARNING,
-  error: RumCardToneEnum.DANGER,
-  timeout: RumCardToneEnum.DANGER,
-  abort: RumCardToneEnum.DEFAULT,
 };
 
 /** attributes.http.response.status_code 列按状态码分组的展示配置 */
