@@ -59,11 +59,16 @@ def test_apply_option_labels_to_all_databuses_last(mocker, has_data_source, opti
     )
     mocker.patch("metadata.models.data_link.data_link.is_reuse_enabled_for", return_value=False)
     mocker.patch("metadata.models.data_link.data_link.transaction.atomic", return_value=nullcontext())
+    mocker.patch.object(DataLink.objects, "select_for_update")
+    mocker.patch("metadata.models.data_link.data_link.ExistingComponentContext.from_datalink")
+    mocker.patch.object(link, "_get_databus_prefer_cluster", return_value=None)
+    mocker.patch("metadata.models.bkdata.result_table.BkBaseResultTable.objects.filter")
     mocker.patch.object(link, "_get_compose_method", return_value=lambda data_source=None: None)
     configs = [
         {"kind": kind, "metadata": {"labels": {"team": "old", "external": "keep"}}}
         for kind in [DataLinkKind.DATABUS.value, DataLinkKind.DATABUS.value, "ResultTable", "VMStorageBinding"]
     ]
+    configs[0]["metadata"]["annotations"] = {"task_stopped": "true", "owner": "monitor"}
     mocker.patch.object(link, "compose_configs", return_value=configs)
     mocker.patch.object(link, "merge_existing_component_configs", side_effect=lambda configs: configs)
     mocker.patch.object(link, "_get_databus_monitor_label_table", return_value=None)
@@ -76,6 +81,9 @@ def test_apply_option_labels_to_all_databuses_last(mocker, has_data_source, opti
     apply = mocker.patch.object(link, "apply_data_link_with_retry", return_value={})
     link.apply_data_link(data_source=SimpleNamespace() if has_data_source else None)
     payload = apply.call_args.args[0]
+    assert payload[0]["metadata"]["annotations"] == {"task_stopped": "false", "owner": "monitor"}
+    assert payload[1]["metadata"]["annotations"] == {"task_stopped": "false"}
+    assert all("annotations" not in config["metadata"] for config in payload[2:])
     expected = {"team": "old", "external": "keep"}
     if has_data_source:
         expected["bk-monitor/data-scene"] = "system"
