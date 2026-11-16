@@ -28,8 +28,10 @@ def get_metadata_datalink_fetcher(table_ids: Sequence[str] | None) -> list[Fetch
     ``ClusterConfig`` 已并入集群层 fetcher，不在这里重复导出。
     """
     normalized_table_ids = _normalize_table_ids(table_ids)
-    data_link_names = BkBaseResultTable.objects.filter(monitor_table_id__in=normalized_table_ids).values_list(
-        "data_link_name", flat=True
+    data_link_names = (
+        BkBaseResultTable.objects.filter(monitor_table_id__in=normalized_table_ids)
+        .exclude(data_link_name="")
+        .values_list("data_link_name", flat=True)
     )
 
     return [
