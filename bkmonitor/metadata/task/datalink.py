@@ -672,6 +672,8 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
     enabled_v4_datalink = enabled_v4_datalink_option and enabled_v4_datalink_option.get_value()
 
     if not enabled_v4_datalink:
+        if rt.default_storage == ClusterInfo.TYPE_DORIS:
+            raise ValueError("Doris 自定义事件需要启用现有事件组 V4 链路")
         if data_source_created_from != DataIdCreatedFromSystem.BKGSE.value:
             # 禁止从V4链路切换回transfer
             raise ValueError(
@@ -732,17 +734,17 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
     # 创建/更新链路配置
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id, consumer_group=consumer_group)
 
-    # 回填 BkBaseResultTable 的 bkbase_rt_name / bkbase_table_id / bkbase_data_name 等。
-    # 事件组 V4 链路使用 ES 存储，按 table_id 关联到 ESStorage 拿到 storage_cluster_id。
-    es_storage = ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
-    if es_storage is not None:
-        datalink.sync_metadata(table_id=table_id, storage_cluster_id=es_storage.storage_cluster_id)
-    else:
-        logger.warning(
-            "apply_event_group_datalink: tenant(%s) %s no ESStorage found, skip sync_metadata",
-            bk_tenant_id,
-            table_id,
-        )
+    # 按 RT 默认存储回填；历史 ES/Doris Binding 保留供分段查询使用。
+    storage = rt.get_storage(rt.default_storage)
+    datalink.sync_metadata(table_id=table_id, storage_cluster_id=storage.storage_cluster_id)
+    if rt.default_storage == ClusterInfo.TYPE_DORIS:
+        bkbase_rt = BkBaseResultTable.objects.get(bk_tenant_id=bk_tenant_id, data_link_name=datalink.data_link_name)
+        storage.bkbase_table_id = bkbase_rt.bkbase_table_id
+        storage.save(update_fields=["bkbase_table_id"])
+
+        from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+        SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True)
 
     # 清理transfer链路配置
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
