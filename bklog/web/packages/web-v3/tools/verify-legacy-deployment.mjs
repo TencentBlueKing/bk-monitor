@@ -3,6 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { productionOutput } from './production-paths.mjs';
 const packageRoot = fileURLToPath(new URL('../', import.meta.url));
 const hash = content => createHash('sha256').update(content).digest('hex');
 export function verifyLegacyDeployment(output, expectedRoot = resolve(packageRoot, 'public/legacy-v1')) {
@@ -34,4 +35,4 @@ export function verifyLegacyDeployment(output, expectedRoot = resolve(packageRoo
   };
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  console.log(JSON.stringify(verifyLegacyDeployment(resolve(packageRoot, 'dist')), null, 2));
+  console.log(JSON.stringify(verifyLegacyDeployment(productionOutput), null, 2));

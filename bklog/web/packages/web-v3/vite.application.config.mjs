@@ -34,6 +34,8 @@ import vueJsx from '@vitejs/plugin-vue-jsx';
 import native from './vite.application-source.config';
 import { monitorHostFixture } from './tools/monitor-host-fixture.mjs';
 import { legacyStaticEntry } from './tools/legacy-static-entry.mjs';
+import { productionDelivery } from './tools/production-delivery.mjs';
+import { productionOutput } from './tools/production-paths.mjs';
 import { legacyRefsVitePlugin, legacyRefsEsbuildPlugin } from './migration-runtime/legacy-refs.mjs';
 import { nativeSdkVueVitePlugin, nativeSdkVueEsbuildPlugin } from './tools/native-sdk-vue.mjs';
 import { runtimeWarningPatchesVitePlugin, runtimeWarningPatchesEsbuildPlugin } from './tools/runtime-warning-patches.mjs';
@@ -44,6 +46,7 @@ const plugins = native.plugins
   .filter(plugin => plugin && !['vite:vue', 'vite:vue-jsx'].includes(plugin.name));
 export default {
   ...native,
+  base: './',
   publicDir: resolve(here, 'public'),
   cacheDir: resolve(here, 'node_modules/.vite-application'),
   optimizeDeps: {
@@ -60,6 +63,7 @@ export default {
     paraglideVitePlugin({ ...paraglideConfig, project: resolve(here, 'project.inlang'), outdir: resolve(here, '.paraglide') }),
     monitorHostFixture(here),
     legacyStaticEntry(),
+    productionDelivery(),
     {
       name: 'application-source-boundary',
       generateBundle() {
@@ -146,5 +150,5 @@ export default {
     ),
   },
   server: { ...native.server, port: 4176, strictPort: true },
-  build: { ...native.build, outDir: resolve(here, 'dist') },
+  build: { ...native.build, outDir: productionOutput },
 };
