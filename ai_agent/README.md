@@ -54,7 +54,7 @@ uv pip compile --python-version 3.11 --python-platform x86_64-unknown-linux-gnu 
   -o /tmp/monitor-runtime.lock
 
 # 从仓库根构建；pip.conf 及锁清单只在对应 RUN 步骤挂载。
-docker build -f bkmonitor/Dockerfile \
+docker buildx build --platform linux/amd64 --load -f bkmonitor/Dockerfile \
   --build-context ai-agent-runtime-wheels="$PRIVATE_WHEEL_DIR" \
   --build-arg AI_AGENT_HERMES_ENABLED=true \
   --build-arg AI_AGENT_RUNTIME_LOCK_SHA256="$(shasum -a 256 /tmp/monitor-runtime.lock | cut -d ' ' -f 1)" \
