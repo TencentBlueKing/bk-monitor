@@ -551,7 +551,7 @@ class ServiceHandler:
         end_time: int,
         service_names: list[str],
         interval: int,
-    ) -> dict[str, list]:
+    ) -> dict[str, list[list[int | float | None]]]:
         """查询本次请求指定服务的指标趋势。"""
         service_names = list(dict.fromkeys(service_names))
         service_group = ("service_name",)
@@ -563,9 +563,14 @@ class ServiceHandler:
             service_group: {"service_name__eq": service_names}
         }
 
-        # 服务名和组件类型都可能包含连字符，需按每个连字符位置提取候选服务名。
+        # 服务名和组件类型均非空且可以包含连字符，保留所有内部切分位置。
         candidate_services = sorted(
-            {name[:index] for name in service_names for index, char in enumerate(name) if char == "-" and index > 0}
+            {
+                name[:index]
+                for name in service_names
+                for index, char in enumerate(name)
+                if char == "-" and 0 < index < len(name) - 1
+            }
         )
         if candidate_services:
             # 空组件维度不参与结果合并，在 UQ 聚合前过滤。
@@ -587,20 +592,22 @@ class ServiceHandler:
 
         # 分支查询启动前获取指标结果表，各分支复用同一个 MetricHelper。
         metric_helper = metric_group.MetricHelper(application.bk_biz_id, application.app_name)
+        use_queryset = calculation_type == metric_group.CalculationType.AVG_DURATION.value
 
-        def query_group(group_by: tuple[str, ...], filters: dict[str, list[str]]) -> dict[tuple[str | None, ...], list]:
+        def query_group(
+            group_by: tuple[str, ...], filters: dict[str, list[str]]
+        ) -> dict[tuple[str | None, ...], list[list[int | float | None]]]:
             group = metric_group.SpanMetricGroup(
                 application.bk_biz_id,
                 application.app_name,
                 group_by=list(group_by),
-                filter_dict=filters,
+                filter_dict=filters if use_queryset else None,
                 interval=interval,
                 metric_helper=metric_helper,
             )
-            points_by_group = {}
-            if calculation_type == metric_group.CalculationType.AVG_DURATION.value:
-                # 平均耗时直接读取 QuerySet 记录，保留原始精度，并按维度组合归集数据点。
-                # 公共查询层只剔除等于请求结束时间的点，传入对齐后的时间以排除末桶。
+            points_by_group: dict[tuple[str | None, ...], list[list[int | float | None]]] = {}
+            if use_queryset:
+                # 直接读取 QuerySet 记录以保留耗时精度。公共查询层剔除结束时间对应的点，因此按列表查询步长对齐结束时间，排除末桶。
                 for point in group.handle(
                     calculation_type, start_time=start_time, end_time=time_interval_align(end_time, interval)
                 ):
@@ -608,9 +615,11 @@ class ServiceHandler:
                     points_by_group.setdefault(key, []).append([point["_result_"], point["_time_"]])
                 return points_by_group
 
-            # Graph 会移除 where 中的 __BKMONITOR_ALL__ 条件，保留 filter_dict 以精确匹配同名服务。
-            config = group.query_config(calculation_type, raw=True, preserve_filter_dict=True)
-            # Graph 以原始请求时间为基准处理取数、精度和补点。
+            config = group.query_config(calculation_type, raw=True)
+            # Graph 会删除 where 中的全选标记。用 filter_dict 精确匹配字面值 __BKMONITOR_ALL__。
+            for query_config in config["query_configs"]:
+                query_config["filter_dict"] = filters
+            # Graph 接收原始秒级窗口，并按其原有规则处理精度和补点。
             series = resource.grafana.graph_unify_query({**config, "start_time": start_time, "end_time": end_time})[
                 "series"
             ]
@@ -618,13 +627,12 @@ class ServiceHandler:
                 key = tuple(item["dimensions"].get(field) for field in group_by)
                 points = item["datapoints"]
                 if calculation_type == metric_group.CalculationType.EXCEPTION_RATE.value:
-                    # 移除 Graph 的占位空点，由列表按原有时间戳规则统一补点。
-                    # 值为 0 的有效错误率数据点仍需保留。
+                    # 移除 Graph 的占位空点，由列表按原有时间戳规则统一补点（值为 0 的有效错误率数据点仍需保留）。
                     points = [point for point in points if point[0] is not None]
                 points_by_group[key] = points
             return points_by_group
 
-        results: dict[tuple[str, ...], dict[tuple[str | None, ...], list]]
+        results: dict[tuple[str, ...], dict[tuple[str | None, ...], list[list[int | float | None]]]]
         if len(filters_by_group) == 1:
             results = {service_group: query_group(service_group, filters_by_group[service_group])}
         else:

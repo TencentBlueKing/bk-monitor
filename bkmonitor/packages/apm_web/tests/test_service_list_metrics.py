@@ -432,12 +432,15 @@ def test_error_rate_merges_available_series_when_names_collide(
 
 
 @pytest.mark.parametrize("column", ["request_count", "error_rate"])
-def test_graph_preserves_service_named_all_marker(mocker: MockerFixture, application_lookup: Mock, column: str) -> None:
+@pytest.mark.parametrize("target", ["__BKMONITOR_ALL__", "collector-"], ids=["all-marker", "trailing-hyphen"])
+def test_graph_filters_literal_service_without_component_queries(
+    mocker: MockerFixture, application_lookup: Mock, column: str, target: str
+) -> None:
     timestamp = time_interval_align(START_TIME, 120) + 120
-    target = "__BKMONITOR_ALL__"
 
     def response(**params: Any) -> dict[str, Any]:
         for query in params["query_list"]:
+            assert query["dimensions"] == ["service_name"]
             assert {"field_name": "service_name", "op": "contains", "value": [target]} in query["conditions"][
                 "field_list"
             ]

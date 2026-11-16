@@ -57,9 +57,8 @@ def test_exported_config_and_handle_execute_same_query(
     uq_query: Mock, calculation_type: str, group_by: list[str], filter_value: str
 ) -> None:
     group = make_group(group_by, filter_dict={f"{group_by[-1]}__eq": [filter_value]}, interval=120)
-    options = {"start_time": START_TIME, "end_time": END_TIME}
-    raw = group.query_config(calculation_type, raw=True, **options)
-    config = group.query_config(calculation_type, **options)
+    raw = group.query_config(calculation_type, raw=True)
+    config = group.query_config(calculation_type)
 
     group.handle(calculation_type, start_time=START_TIME, end_time=END_TIME)
     actual = uq_query.call_args.kwargs
@@ -72,7 +71,8 @@ def test_exported_config_and_handle_execute_same_query(
         ],
         expression=raw["expression"],
     )
-    query.query_data(start_time=raw["start_time"], end_time=raw["end_time"])
+    start_time, end_time = MetricHelper.get_time_range(START_TIME, END_TIME)
+    query.query_data(start_time=start_time, end_time=end_time)
     exported = uq_query.call_args.kwargs
 
     for field in ("query_list", "metric_merge", "start_time", "end_time", "step", "space_uid"):
@@ -91,8 +91,6 @@ def test_exported_config_and_handle_execute_same_query(
         assert panel["metric_field"] == q["metrics"][0]["field"]
         assert panel["agg_method"] == q["metrics"][0]["method"] == "SUM"
         assert panel["alias"] == q["metrics"][0]["alias"]
-    assert raw["start_time"] == time_interval_align(START_TIME, 60) * 1000
-    assert raw["end_time"] == time_interval_align(END_TIME, 60) * 1000
 
 
 @pytest.mark.parametrize(

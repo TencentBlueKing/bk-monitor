@@ -1076,7 +1076,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         start_time, end_time = metric_params["start_time"], metric_params["end_time"]
         interval = get_bar_interval_number(start_time, end_time)
         calculation_type = column_metric["calculation_type"]
-        # 平均耗时按时序查询步长取数，三列统一按柱状图间隔补点。
+        # 平均耗时沿用时序查询步长，其余两列按柱状图间隔取数。三列均按柱状图间隔补点。
         query_interval = (
             get_interval_number(start_time, end_time)
             if calculation_type == metric_group.CalculationType.AVG_DURATION.value
@@ -1089,7 +1089,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             interval=query_interval,
         )
         # 仅为命中的请求目标补点，最终响应保留原始服务顺序和重复项。
-        filled = {}
+        filled: dict[str, list[list[int | float | None]]] = {}
         for name in dict.fromkeys(service_names):
             if name not in response:
                 continue
