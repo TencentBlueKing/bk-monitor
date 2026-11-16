@@ -1,4 +1,3 @@
-import json
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -80,21 +79,17 @@ class TestClusteringMonitorHandler(TestCase):
         link = "/#/retrieve/123?addition=signature&start_time=1&end_time=2"
         for size in (1024, 1025):
             with self.subTest(size=size):
-                related = json.dumps(
-                    {
-                        "log": "测" * size,
-                        "owners": "owner",
-                        "remark_text": "保留备注",
-                        "remark_time": "10:00",
-                        "remark_user": "tester",
-                        "bklog_link": link,
-                    },
-                    ensure_ascii=False,
-                )
+                related = {
+                    "log": "测" * size,
+                    "owners": "owner",
+                    "remark_text": "保留备注",
+                    "remark_time": "10:00",
+                    "remark_user": "tester",
+                    "bklog_link": link,
+                }
                 body = template.render(
                     content={},
-                    json=json,
-                    alarm={"related_info": related[:1024], "log_raw_related_info": related, "current_value": 3},
+                    alarm={"log_related_fields": related, "current_value": 3},
                     strategy=SimpleNamespace(items=[SimpleNamespace(query_configs=[{"agg_interval": 60}])]),
                 )
                 sample = body.split("**日志示例:** ")[1].splitlines()[0]
