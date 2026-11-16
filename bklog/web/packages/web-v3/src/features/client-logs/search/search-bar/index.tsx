@@ -168,7 +168,7 @@ export default defineComponent({
       return options.some(item => item.id === value) || !isNumeric ? 'openid' : 'task_id';
     };
 
-    /** 按新版字段、旧版关键词、旧版文件名的优先级回填初始搜索条件 */
+    /** fileName 仅恢复选中任务；只有 file_name 才是文件名搜索条件。 */
     const initializeSearchValues = async () => {
       const explicitConditions = SEARCH_KEYS.flatMap(key => {
         const value = urlState[key];
@@ -189,9 +189,6 @@ export default defineComponent({
         return;
       }
 
-      if (urlState.fileName) {
-        searchValues.value = [toSearchSelectValue('file_name', urlState.fileName)];
-      }
     };
     const initializationPromise = initializeSearchValues();
 
@@ -340,9 +337,12 @@ export default defineComponent({
     expose({ reSearch });
 
     return () => (
-      <div class='search-bar card-base'>
+      <div class='search-bar client-log-card'>
         <div class='search-bar-input'>
           <bk-search-select
+            placeholder={t('请输入')}
+            min-height={32}
+            max-height={120}
             ref={searchSelectRef}
             data={searchSelectData.value}
             values={searchValues.value}
@@ -351,6 +351,7 @@ export default defineComponent({
             remote-method={fetchOpenidOptions}
             key-delay={300}
             readonly={isValueInputReadonly.value}
+            ext-cls={isValueInputReadonly.value ? 'client-log-search-readonly' : ''}
             input-unfocus-clear={searchValues.value.length > 0}
             clearable
             onChange={handleValuesChange}
@@ -377,8 +378,8 @@ export default defineComponent({
 
         <TButton
           theme='primary'
-          class='search-bar-btn'
-          icon={() => <span class={`bk-icon icon-${' bklog-icon bklog-shoudongchaxun'}`} />}
+          class='search-bar-btn bklog-query-action'
+          icon={() => <span class='bklog-icon bklog-shoudongchaxun bklog-query-action__icon' />}
           disabled={isSearchDisabled.value}
           onClick={handleButtonSearch}
         >

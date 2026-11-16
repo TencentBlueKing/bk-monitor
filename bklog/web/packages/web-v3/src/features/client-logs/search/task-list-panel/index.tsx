@@ -209,7 +209,7 @@ export default defineComponent({
 
       return (
         <div
-          class={['card-base', 'task-list-panel', { 'is-collapsed': isCollapsed.value }]}
+          class={['client-log-card', 'task-list-panel', { 'is-collapsed': isCollapsed.value }]}
           style={{ width: `${isCollapsed.value ? 0 : EXPANDED_WIDTH}px` }}
         >
           {/* 标题栏：收起箭头 + 标题 */}

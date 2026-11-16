@@ -181,6 +181,8 @@
     "features/client-logs/management/user-report/upload-result.tsx",
     "features/client-logs/search/index.scss",
     "features/client-logs/search/index.tsx",
+    "features/client-logs/search/loading-skeleton.scss",
+    "features/client-logs/search/loading-skeleton.tsx",
     "features/client-logs/search/log-detail-panel/index.scss",
     "features/client-logs/search/log-detail-panel/index.tsx",
     "features/client-logs/search/log-detail-panel/log-viewer/highlight-html.tsx",
@@ -5575,6 +5577,16 @@
     },
     {
       "from": "features/client-logs/search/index.tsx",
+      "to": "features/client-logs/search/loading-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/index.tsx",
+      "to": "shared/ui/loading/presence.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/index.tsx",
       "to": "features/client-logs/search/index.scss",
       "kind": "module"
     },
@@ -5619,6 +5631,26 @@
       "kind": "service-call"
     },
     {
+      "from": "features/client-logs/search/loading-skeleton.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/client-logs/search/loading-skeleton.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/loading-skeleton.tsx",
+      "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/loading-skeleton.tsx",
+      "to": "features/client-logs/search/loading-skeleton.scss",
+      "kind": "module"
+    },
+    {
       "from": "features/client-logs/search/log-detail-panel/index.tsx",
       "to": "shared/ui/loading/native.ts",
       "kind": "module"
@@ -5661,6 +5693,21 @@
     {
       "from": "features/client-logs/search/log-detail-panel/index.tsx",
       "to": "features/client-logs/search/log-detail-panel/toolbar/index.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/log-detail-panel/index.tsx",
+      "to": "shared/ui/empty-status/index.vue",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/log-detail-panel/index.tsx",
+      "to": "features/client-logs/search/loading-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/log-detail-panel/index.tsx",
+      "to": "shared/ui/loading/presence.ts",
       "kind": "module"
     },
     {

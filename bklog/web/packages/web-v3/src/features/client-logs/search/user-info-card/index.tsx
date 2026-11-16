@@ -122,7 +122,7 @@ export default defineComponent({
       const list = props.taskList;
 
       return (
-        <div class={['user-info-card', 'card-base', { 'is-collapsed': props.collapsed }]}>
+        <div class={['user-info-card', 'client-log-card', { 'is-collapsed': props.collapsed }]}>
           {/* 左侧用户图标 */}
           <div class='user-avatar'>
             <i class='bklog-icon bklog-user-yonghu'></i>
