@@ -42,6 +42,28 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     && uv sync --locked --no-install-project --no-dev --active \
         --no-binary-package pillow --config-settings-package pillow:freetype=enable
 
+# Optional private runtime: CI supplies an approved hash-locked manifest and
+# package credentials as BuildKit secrets. The public build needs neither.
+ARG AI_AGENT_HERMES_ENABLED=false
+ARG AI_AGENT_RUNTIME_LOCK_SHA256
+RUN --mount=type=secret,id=ai_agent_runtime_requirements \
+    --mount=type=secret,id=python_package_config \
+    --mount=type=bind,source=bkmonitor/scripts/check_ai_agent_runtime.py,target=/tmp/check_ai_agent_runtime.py \
+    if [ "${AI_AGENT_HERMES_ENABLED}" = "true" ]; then \
+        test -s /run/secrets/ai_agent_runtime_requirements \
+        && test -s /run/secrets/python_package_config \
+        && test -n "${AI_AGENT_RUNTIME_LOCK_SHA256}" \
+        && printf '%s  %s\n' "${AI_AGENT_RUNTIME_LOCK_SHA256}" /run/secrets/ai_agent_runtime_requirements | sha256sum -c - \
+        && PIP_CONFIG_FILE=/run/secrets/python_package_config \
+            /app/venv/bin/python -m pip install --disable-pip-version-check \
+                --no-cache-dir --no-deps --require-hashes --no-binary=pillow \
+                -r /run/secrets/ai_agent_runtime_requirements \
+        && /app/venv/bin/python -m pip check \
+        && /app/venv/bin/python /tmp/check_ai_agent_runtime.py --required; \
+    elif [ "${AI_AGENT_HERMES_ENABLED}" != "false" ]; then \
+        echo 'AI_AGENT_HERMES_ENABLED must be true or false' >&2; exit 1; \
+    fi
+
 # build frontend
 FROM node:24.22.2-bookworm-slim AS node-builder
 
@@ -68,6 +90,7 @@ RUN groupadd -r ${username}  \
 COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
 COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/static/
 COPY --chown=${username}:${username} bkmonitor/ /app/code/
+COPY --chown=${username}:${username} ai_agent/ /app/code/ai_agent/
 COPY --chown=${username}:${username} iam_engine/ /app/iam_engine/
 COPY --chown=${username}:${username} bk-monitor-base/ /bk-monitor-base/
 

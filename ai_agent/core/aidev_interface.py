@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from aidev_agent.services.chat import ExecuteKwargs
 from aidev_agent.api.bk_aidev import BKAidevApi
 
@@ -24,6 +26,8 @@ logger = logging.getLogger("ai_whale")
 
 class AIDevInterface:
     def __init__(self, app_code, app_secret, metrics_reporter=None):
+        self.app_code = app_code
+        self.app_secret = app_secret
         self.api_client = BKAidevApi.get_client(app_code=app_code, app_secret=app_secret)
         self.local_command_processor = LocalCommandProcessor()  # 本地指令处理器
         self.metrics_reporter = metrics_reporter  # 指标上报器
@@ -210,6 +214,21 @@ class AIDevInterface:
         self, session_code, execute_kwargs, agent_code, username, temperature=0.3, switch_agent_by_scene=False
     ):
         """发起流式/非流式会话"""
+        backend = getattr(settings, "AI_AGENT_BACKEND", "aidev")
+        if backend not in {"aidev", "hermes"}:
+            raise ImproperlyConfigured("AI_AGENT_BACKEND 配置无效")
+        if backend == "hermes":
+            from ai_agent.services.hermes_executor import create_chat_completion
+
+            return create_chat_completion(
+                self,
+                session_code=session_code,
+                execute_kwargs=execute_kwargs,
+                agent_code=agent_code,
+                username=username,
+                temperature=temperature,
+                switch_agent_by_scene=switch_agent_by_scene,
+            )
         callbacks = [get_langfuse_callback()]  # 添加Langfuse回调
         session_info = self.retrieve_chat_session(session_code=session_code)
         is_temporary = session_info.get("data", {}).get("is_temporary", False)
