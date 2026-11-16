@@ -109,29 +109,7 @@ class DataLinkResourceConfigBase(models.Model):
         raise NotImplementedError
 
     def delete_config(self):
-        """停止 Databus 并保留记录；其他组件删除远端配置及本地记录。"""
-        if self.kind == DataLinkKind.DATABUS.value:
-            from metadata.models.data_link.data_link import DataLink
-
-            try:
-                config = api.bkdata.get_data_link(
-                    bk_tenant_id=self.bk_tenant_id,
-                    kind=DataLinkKind.get_choice_value(self.kind),
-                    namespace=self.namespace,
-                    name=self.name,
-                )
-            except Exception as error:
-                if DataLink._is_remote_component_not_found(error):
-                    return
-                raise
-            config = copy.deepcopy(config)
-            config["metadata"].setdefault("annotations", {})["task_stopped"] = "true"
-            # 只下发配置，不回写远端 status 等运行态字段。
-            api.bkdata.apply_data_link(
-                bk_tenant_id=self.bk_tenant_id,
-                config=[{key: config[key] for key in ("kind", "metadata", "spec")}],
-            )
-            return
+        """删除数据链路配置"""
         api.bkdata.delete_data_link(
             bk_tenant_id=self.bk_tenant_id,
             kind=DataLinkKind.get_choice_value(self.kind),
@@ -740,6 +718,29 @@ class DataBusConfig(DataLinkResourceConfigBase):
         verbose_name = "清洗任务配置"
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def stop_config(self):
+        """停止 Databus 任务，保留远端资源和本地记录。"""
+        from metadata.models.data_link.data_link import DataLink
+
+        try:
+            config = api.bkdata.get_data_link(
+                bk_tenant_id=self.bk_tenant_id,
+                kind=DataLinkKind.get_choice_value(self.kind),
+                namespace=self.namespace,
+                name=self.name,
+            )
+        except Exception as error:
+            if DataLink._is_remote_component_not_found(error):
+                return
+            raise
+        config = copy.deepcopy(config)
+        config["metadata"].setdefault("annotations", {})["task_stopped"] = "true"
+        # 只下发配置，不回写远端 status 等运行态字段。
+        api.bkdata.apply_data_link(
+            bk_tenant_id=self.bk_tenant_id,
+            config=[{key: config[key] for key in ("kind", "metadata", "spec")}],
+        )
 
     def apply_consumer_group(self, consumer_group: str | None) -> None:
         """应用显式 consumer group；已有值优先，空入参不触发更新。"""

@@ -113,14 +113,13 @@ def test_result_table_disable_preserves_doris_relations(mocker, databus_remote):
     assert models.DataBusConfig.objects.filter(data_link_name=link.pk).exists()
 
 
-@pytest.mark.parametrize("component_class", [models.DataBusConfig, models.LogDataBusConfig])
-def test_stop_missing_databus_preserves_local_record(mocker, databus_remote, component_class):
+def test_stop_missing_databus_preserves_local_record(mocker, databus_remote):
     from core.errors.api import BKAPIError
 
-    databus = component_class.objects.create(name="missing", bk_biz_id=2)
+    databus = models.DataBusConfig.objects.create(name="missing", bk_biz_id=2)
     databus_remote.get.side_effect = BKAPIError(result={"code": "404", "message": "resource not found"})
     delete = mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.delete_data_link")
-    databus.delete_config()
+    databus.stop_config()
     databus.refresh_from_db()
     databus_remote.apply.assert_not_called()
     delete.assert_not_called()
@@ -139,7 +138,7 @@ def test_stop_failure_preserves_local_record(databus_remote, operation, cleanup)
         if cleanup:
             models.DataLink()._cleanup_absent_components([databus], raise_on_error=True)
         else:
-            databus.delete_config()
+            databus.stop_config()
     databus.refresh_from_db()
 
 
@@ -152,3 +151,19 @@ def test_cleanup_stop_failure_can_retry(databus_remote):
     models.DataLink()._cleanup_absent_components([databus], raise_on_error=True)
     databus.refresh_from_db()
     assert databus_remote.apply.call_count == 2
+
+
+@pytest.mark.parametrize("component_class", [models.DataBusConfig, models.LogDataBusConfig])
+def test_delete_config_still_deletes_databus(mocker, databus_remote, component_class):
+    databus = component_class.objects.create(name="delete_explicitly", bk_biz_id=2)
+    pk = databus.pk
+    delete = mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.delete_data_link")
+
+    databus.delete_config()
+
+    delete.assert_called_once_with(
+        bk_tenant_id=databus.bk_tenant_id, namespace=databus.namespace, kind="databuses", name=databus.name
+    )
+    assert not component_class.objects.filter(pk=pk).exists()
+    databus_remote.get.assert_not_called()
+    databus_remote.apply.assert_not_called()

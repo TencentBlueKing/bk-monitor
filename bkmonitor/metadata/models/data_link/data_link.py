@@ -585,7 +585,7 @@ class DataLink(models.Model):
                 component.kind,
                 component.name,
             )
-            component.delete_config()
+            component.stop_config()
 
     def get_related_component_classes(self) -> list[type["DataLinkResourceConfigBase"]]:
         if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
@@ -3405,9 +3405,12 @@ class DataLink(models.Model):
         """清理多余组件；联邦调用要求清理失败上抛，保留本地记录供下轮重试。"""
         for component in components:
             try:
-                component.delete_config()
+                if isinstance(component, DataBusConfig):
+                    component.stop_config()
+                else:
+                    component.delete_config()
             except Exception as error:  # pylint: disable=broad-except
-                if component.kind != DataLinkKind.DATABUS.value and self._is_remote_component_not_found(error):
+                if not isinstance(component, DataBusConfig) and self._is_remote_component_not_found(error):
                     logger.info(
                         "cleanup_absent_components: remote component already absent, delete local record, "
                         "data_link_name->[%s],kind->[%s],name->[%s]",
