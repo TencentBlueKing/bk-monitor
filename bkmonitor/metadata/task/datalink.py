@@ -531,7 +531,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
 
     # 创建/更新V4链路配置
     bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id=table_id).first()
-    if not bkbase_rt:
+    if not bkbase_rt or not bkbase_rt.data_link_name:
         if rt.bk_biz_id < 0:
             bk_biz_id_str = f"space_{-rt.bk_biz_id}"
         else:
@@ -547,18 +547,25 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
 
         # 创建链路
         logger.info(
-            "apply_log_datalink: tenant(%s) bkbase_rt not found, create datalink name->[%s]",
+            "apply_log_datalink: tenant(%s) bkbase_rt missing or data_link_name empty, create datalink name->[%s]",
             bk_tenant_id,
             data_link_name,
         )
-        datalink = DataLink.objects.create(
-            bk_tenant_id=bk_tenant_id,
-            data_link_name=data_link_name,
-            namespace="bklog",
-            data_link_strategy=DataLink.BK_LOG,
-            bk_data_id=ds.bk_data_id,
-            table_ids=[table_id],
-        )
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            datalink = DataLink.objects.create(
+                bk_tenant_id=bk_tenant_id,
+                data_link_name=data_link_name,
+                namespace="bklog",
+                data_link_strategy=DataLink.BK_LOG,
+                bk_data_id=ds.bk_data_id,
+                table_ids=[table_id],
+            )
+            if bkbase_rt is not None:
+                # data_link_name 是主键，直接更新原记录，避免 save() 留下空名称映射。
+                BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, pk=bkbase_rt.pk).update(
+                    data_link_name=data_link_name,
+                    status=DataLinkResourceStatus.CREATING.value,
+                )
     else:
         # 获取链路
         logger.info(
@@ -698,21 +705,28 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
 
     # 获取数据链路
     bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id=table_id).first()
-    if not bkbase_rt:
+    if not bkbase_rt or not bkbase_rt.data_link_name:
         data_link_name = f"bkmonitor_custom_event_{ds.bk_data_id}"
         logger.info(
-            "apply_event_group_datalink: tenant(%s) bkbase_rt not found, create datalink name->[%s]",
+            "apply_event_group_datalink: tenant(%s) bkbase_rt missing or data_link_name empty, create datalink name->[%s]",
             bk_tenant_id,
             data_link_name,
         )
-        datalink = DataLink.objects.create(
-            bk_tenant_id=bk_tenant_id,
-            data_link_name=data_link_name,
-            namespace="bklog",
-            data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
-            bk_data_id=ds.bk_data_id,
-            table_ids=[table_id],
-        )
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            datalink = DataLink.objects.create(
+                bk_tenant_id=bk_tenant_id,
+                data_link_name=data_link_name,
+                namespace="bklog",
+                data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
+                bk_data_id=ds.bk_data_id,
+                table_ids=[table_id],
+            )
+            if bkbase_rt is not None:
+                # data_link_name 是主键，直接更新原记录，避免 save() 留下空名称映射。
+                BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, pk=bkbase_rt.pk).update(
+                    data_link_name=data_link_name,
+                    status=DataLinkResourceStatus.CREATING.value,
+                )
     else:
         logger.info(
             "apply_event_group_datalink: tenant(%s) bkbase_rt found, update datalink name->[%s]",
