@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,10 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-import json
 import datetime
+import json
 from collections import defaultdict
+
+from redis.exceptions import LockNotOwnedError
 
 from core.drf_resource import api
 from bkmonitor.models import Alert, Event, Strategy, Shield, NoticeGroup
@@ -30,17 +30,27 @@ class MailReportCacheManager(CacheManager):
     # 缓存key
     MAIL_REPORT_CACHE_KEY = MAIL_REPORT_GROUP_CACHE_KEY.get_key()
 
+    # Match the periodic refresh interval; failed rebuilds cool down for one minute.
+    REFRESH_LOCK_TIMEOUT = 30 * 60
+    REFRESH_FAILURE_TIMEOUT = 60
+
     @classmethod
-    def fetch_groups_and_user_bizs(cls):
+    def fetch_groups_and_user_bizs(cls, ensure=False):
         """
         获取订阅报表配置管理组及其所辖业务、通知接收人及其所收通知业务
+        :param ensure: 仅后台消费端在缓存缺失时触发受控补建，默认保持纯读
         :return: {
             "controller_group": {"users": [], "users_biz": []},
             "alert_group": {"users": [], "users_biz": []},
         }
         """
         data = cls.cache.get(cls.MAIL_REPORT_CACHE_KEY)
-        if data:
+        if data is None and ensure:
+            cls.refresh_mail_report_group(only_if_missing=True)
+            data = cls.cache.get(cls.MAIL_REPORT_CACHE_KEY)
+            if data is None:
+                raise RuntimeError("mail report group cache missing after refresh")
+        if data is not None:
             return extended_json.loads(data)
         else:
             return {
@@ -167,23 +177,32 @@ class MailReportCacheManager(CacheManager):
         return list(filter(None, set(users))), users_bizs
 
     @classmethod
-    def refresh_mail_report_group(cls):
-        """
-        {
-            "controller_group": {"users": [], "users_biz": []},
-            "alert_group": {"users": [], "users_biz": []},
-        }
-        """
-        controller_group, controller_group_user_biz = cls.fetch_controller_group()
-        alert_receiver_group, alert_receiver_user_biz = cls.fetch_notify_receiver_group()
-
-        pipeline = cls.cache.pipeline()
-        data = {
-            "controller_group": {"users": controller_group, "users_biz": controller_group_user_biz},
-            "alert_group": {"users": alert_receiver_group, "users_biz": alert_receiver_user_biz},
-        }
-        pipeline.set(cls.MAIL_REPORT_CACHE_KEY, json.dumps(data), cls.CACHE_TIMEOUT)
-        pipeline.execute()
+    def refresh_mail_report_group(cls, only_if_missing=False):
+        """Serialize scheduled refreshes and on-demand rebuilds on the same cache route."""
+        failure_key = f"{cls.MAIL_REPORT_CACHE_KEY}.refresh_failed"
+        with cls.cache.lock(
+            f"{cls.MAIL_REPORT_CACHE_KEY}.refresh_lock", timeout=cls.REFRESH_LOCK_TIMEOUT, blocking=False
+        ) as lock:
+            # Another worker may have populated the snapshot before we acquired the lock.
+            if only_if_missing and cls.cache.get(cls.MAIL_REPORT_CACHE_KEY) is not None:
+                return
+            if cls.cache.get(failure_key) is not None:
+                raise RuntimeError("mail report group cache refresh is cooling down")
+            try:
+                controller_group, controller_group_user_biz = cls.fetch_controller_group()
+                alert_receiver_group, alert_receiver_user_biz = cls.fetch_notify_receiver_group()
+                data = {
+                    "controller_group": {"users": controller_group, "users_biz": controller_group_user_biz},
+                    "alert_group": {"users": alert_receiver_group, "users_biz": alert_receiver_user_biz},
+                }
+                snapshot = json.dumps(data)
+                # Check lease ownership before publishing the rebuilt snapshot.
+                if not lock.owned():
+                    raise LockNotOwnedError("mail report group cache refresh lock expired")
+                cls.cache.set(cls.MAIL_REPORT_CACHE_KEY, snapshot, cls.CACHE_TIMEOUT)
+            except Exception:
+                cls.cache.set(failure_key, "1", cls.REFRESH_FAILURE_TIMEOUT)
+                raise
 
     @classmethod
     def refresh(cls):
