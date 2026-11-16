@@ -296,6 +296,45 @@
       margin-top: 5px;
     }
 
+    .clean-button-group {
+      display: inline-flex;
+      vertical-align: middle;
+
+      .t-button {
+        height: 32px;
+        color: #63656e;
+        background-color: #fff;
+        border: 1px solid #c4c6cc;
+        border-radius: 0;
+        box-shadow: none;
+
+        + .t-button {
+          margin-left: -1px;
+        }
+
+        &:first-child {
+          border-radius: 2px 0 0 2px;
+        }
+
+        &:last-child {
+          border-radius: 0 2px 2px 0;
+        }
+
+        &:hover,
+        &:focus-visible,
+        &.is-selected {
+          position: relative;
+          z-index: var(--bklog-z-base);
+          color: #3a84ff;
+          border-color: #3a84ff;
+        }
+
+        &.is-selected {
+          background-color: #e1ecff;
+        }
+      }
+    }
+
     .clean-enable-row {
       display: flex;
       align-items: center;

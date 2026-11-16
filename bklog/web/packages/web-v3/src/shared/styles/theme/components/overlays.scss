@@ -3,6 +3,7 @@
 :root:not([theme-mode='dark']) {
   // V2 bk-dialog-footer：灰底顶栏，确定在左、取消在右。
   .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
+    width: auto;
     margin: 0 -32px -32px;
     padding: 7px 24px;
     text-align: right;
