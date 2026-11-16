@@ -44,7 +44,7 @@ from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.serializers import DorisVisibleConfigUpdateSerializer
 from apps.log_databus.utils.storage_config import build_storage_retention_config, get_storage_retention
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import BizProperty, Scenario
+from apps.log_search.models import BizProperty, LogIndexSet, Scenario
 
 BLUEKING_BK_BIZ_ID = 2
 OWNER_BIZ = 5
@@ -68,7 +68,12 @@ def _fake_index_sets():
 
 
 def _fake_space_uid(bk_biz_id):
-    """避免测试触达 Metadata 空间接口"""
+    """隔离 Metadata 空间接口的例外（CI 无该服务）。
+
+    仅用于不关心 space_uid 精确语义的候选列表用例；真实实现见
+    bkm_space/utils.py:37-56（负数走 SpaceApi.get_space_detail，不存在时返回空串）。
+    后续应改为只 patch 外部 API，而非替换整个业务辅助函数。
+    """
     return f"bkci__{-int(bk_biz_id)}" if int(bk_biz_id) < 0 else f"bkcc__{bk_biz_id}"
 
 
@@ -164,7 +169,7 @@ class TestFilterDorisCluster(TestCase):
             )
 
     def test_legacy_public_cluster_without_visible_config_is_hidden(self):
-        # 需求 1010158081139916030：未显式配置开放目标的存量公共 Doris 集群不再默认全业务可见
+        # 未显式配置开放目标的存量公共 Doris 集群不再默认全业务可见
         cluster_obj = _doris_cluster_obj(
             registered_system=REGISTERED_SYSTEM_DEFAULT,
             custom_option={},
@@ -1662,11 +1667,6 @@ DORIS_ACCEPTANCE_CLUSTERS = [
 ]
 
 
-def _parse_doris_acceptance_clusters():
-    """模拟 DataAPI after_request：metadata 原始记录先经 parse_cluster_info 归一化再返回"""
-    return [parse_cluster_info(copy.deepcopy(record)) for record in DORIS_ACCEPTANCE_CLUSTERS]
-
-
 class TestDorisVisibleRule(SimpleTestCase):
     """
     Doris 集群可见性规则矩阵
@@ -1754,14 +1754,14 @@ class TestDorisVisibleRule(SimpleTestCase):
 
         self._assert_visible(custom_option, True, False)
 
-    def test_current_tenant_is_an_explicit_scope(self):
-        # 当前租户可见是显式配置，集群信息本身按租户隔离，故同租户内可见
+    def test_current_tenant_is_rejected_until_tenant_check_is_implemented(self):
+        # 判定补齐前默认拒绝；all_biz 是唯一恒真分支
         custom_option = {
             "bk_biz_id": self.OWNER_BIZ_ID,
             "visible_config": {"visible_type": VisibleEnum.CURRENT_TENANT.value},
         }
 
-        self._assert_visible(custom_option, True, True)
+        self._assert_visible(custom_option, False, False)
 
     def test_clearing_visible_config_makes_cluster_invisible_again(self):
         custom_option = {
@@ -1856,21 +1856,29 @@ class TestDorisClusterGroupsAcceptance(TestCase):
     Doris 候选列表端到端
 
     保留“metadata 原始记录 → parse_cluster_info → filter_cluster_groups →
-    can_visible → 响应装配”的完整链路，不直接 mock 响应。
+    can_visible → 响应装配”的完整链路，不直接 mock 响应；仅隔离
+    bk_biz_id_to_space_uid 与 SpaceApi.get_related_space 两个外部服务依赖。
     """
 
     TARGET_SPACE_ID = -101
 
     def setUp(self):
+        LogIndexSet.objects.create(
+            index_set_name="doris_acceptance_index_set",
+            scenario_id=Scenario.LOG,
+            space_uid="bkci__101",
+            storage_cluster_id=102,
+            is_active=True,
+        )
         for patcher in (
             patch("apps.log_databus.handlers.storage.get_es_config", return_value=ES_CONFIG),
             patch(
-                "apps.log_search.handlers.index_set.IndexSetHandler.get_index_set_for_storage",
-                return_value=_fake_index_sets(),
-            ),
-            patch(
                 "apps.log_databus.handlers.storage.bk_biz_id_to_space_uid",
                 side_effect=_fake_space_uid,
+            ),
+            patch(
+                "apps.log_databus.handlers.storage.SpaceApi.get_related_space",
+                return_value=None,
             ),
         ):
             patcher.start()
@@ -1915,15 +1923,19 @@ class TestDorisClusterGroupsAcceptance(TestCase):
     IGNORE_IAM_PERMISSION=True,
 )
 class TestDorisClusterGroupsApi(TestCase):
-    """以真实 HTTP 请求校验 cluster_groups 的 storage_cluster_id 集合"""
+    """以真实 HTTP 请求校验 cluster_groups 的 storage_cluster_id 集合。"""
 
     def setUp(self):
+        LogIndexSet.objects.create(
+            index_set_name="doris_api_index_set",
+            scenario_id=Scenario.LOG,
+            space_uid="bkci__101",
+            storage_cluster_id=102,
+            is_active=True,
+        )
+        self.acceptance_records = copy.deepcopy(DORIS_ACCEPTANCE_CLUSTERS)
         for patcher in (
             patch("apps.log_databus.handlers.storage.get_es_config", return_value=ES_CONFIG),
-            patch(
-                "apps.log_search.handlers.index_set.IndexSetHandler.get_index_set_for_storage",
-                return_value=_fake_index_sets(),
-            ),
             patch("apps.iam.handlers.drf.ViewBusinessPermission.has_permission", return_value=True),
             patch("apps.log_databus.handlers.storage.FeatureToggleObject.switch", return_value=True),
             patch(
@@ -1931,14 +1943,20 @@ class TestDorisClusterGroupsApi(TestCase):
                 side_effect=_fake_space_uid,
             ),
             patch(
+                "apps.log_databus.handlers.storage.SpaceApi.get_related_space",
+                return_value=None,
+            ),
+            patch(
                 "apps.log_databus.handlers.storage.TransferApi.get_cluster_info",
-                side_effect=lambda __: _parse_doris_acceptance_clusters(),
+                side_effect=lambda __: [
+                    parse_cluster_info(copy.deepcopy(record)) for record in self.acceptance_records
+                ],
             ),
         ):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def test_cluster_groups_api_returns_only_configured_cluster(self):
+    def _get_cluster_ids(self):
         response = self.client.get(
             "/api/v1/databus/storage/cluster_groups/",
             {"bk_biz_id": -101, "cluster_type": DORIS_CLUSTER_TYPE},
@@ -1947,8 +1965,16 @@ class TestDorisClusterGroupsApi(TestCase):
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content)
         self.assertTrue(content["result"])
-        self.assertEqual([item["storage_cluster_id"] for item in content["data"]], [102])
-        self.assertEqual(content["data"][0]["storage_type"], DORIS_CLUSTER_TYPE)
+        # 「检查响应 data 中的 storage_cluster_id，忽略排序」
+        return [item["storage_cluster_id"] for item in content["data"]]
+
+    def test_cluster_groups_api_returns_only_configured_cluster(self):
+        self.assertCountEqual(self._get_cluster_ids(), [102])
+
+    def test_cluster_groups_api_empty_object_custom_option_is_not_returned(self):
+        self.acceptance_records[0]["cluster_config"]["custom_option"] = {}
+
+        self.assertCountEqual(self._get_cluster_ids(), [102])
 
 
 @override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
@@ -1998,3 +2024,199 @@ class TestDorisNullVisibleConfig(TestCase):
 
         self.assertEqual(result, [])
         self.assertIsNone(cluster_obj["cluster_config"]["custom_option"]["visible_config"])
+
+
+@override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
+class TestDorisConnectivityVisibility(TestCase):
+    """管理端批量连通性：未配置集群不得被误判为失败，其它业务不得越权查询状态。"""
+
+    @staticmethod
+    def _doris_cluster_info(cluster_id, custom_option=None, registered_system=REGISTERED_SYSTEM_DEFAULT):
+        """构造未经 filter_doris_cluster 归一化的原始 Metadata 记录。"""
+        return {
+            "cluster_type": DORIS_CLUSTER_TYPE,
+            "auth_info": {},
+            "cluster_config": {
+                "cluster_id": cluster_id,
+                "registered_system": registered_system,
+                "custom_option": {} if custom_option is None else custom_option,
+            },
+        }
+
+    @patch("apps.log_databus.handlers.storage.cache.set_many")
+    @patch("apps.log_databus.handlers.storage.cache.get_many", return_value={})
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_info")
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a")
+    def test_unconfigured_doris_cluster_status_is_queried(
+        self,
+        _mock_tenant_id,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+        _mock_cache_get_many,
+        _mock_cache_set_many,
+    ):
+        """回归：改动曾使公共未配置集群被判不可见，前端状态列显示「失败」。"""
+        mock_get_cluster_info.return_value = [self._doris_cluster_info(301)]
+        mock_get_cluster_status.return_value = [
+            {"cluster_id": 301, "cluster_type": DORIS_CLUSTER_TYPE, "is_available": True}
+        ]
+
+        result = StorageHandler.batch_connectivity_detect([301], bk_biz_id=BLUEKING_BK_BIZ_ID)
+
+        mock_get_cluster_status.assert_called_once_with(
+            {"cluster_ids": [301], "bk_biz_id": BLUEKING_BK_BIZ_ID},
+            bk_tenant_id="tenant-a",
+        )
+        self.assertTrue(result[301]["status"])
+
+    @patch("apps.log_databus.handlers.storage.cache.set_many")
+    @patch("apps.log_databus.handlers.storage.cache.get_many", return_value={})
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_info")
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a")
+    def test_doris_cluster_with_explicit_scope_still_uses_visibility_rule(
+        self,
+        _mock_tenant_id,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+        _mock_cache_get_many,
+        _mock_cache_set_many,
+    ):
+        """显式配置 multi_biz 但未命中蓝鲸业务时，仍须保留越权保护。"""
+        custom_option = {
+            "bk_biz_id": BLUEKING_BK_BIZ_ID,
+            "visible_config": {
+                "visible_type": VisibleEnum.MULTI_BIZ.value,
+                "visible_bk_biz": [-101],
+            },
+        }
+        mock_get_cluster_info.return_value = [self._doris_cluster_info(302, custom_option)]
+
+        result = StorageHandler.batch_connectivity_detect([302], bk_biz_id=BLUEKING_BK_BIZ_ID)
+
+        mock_get_cluster_status.assert_not_called()
+        self.assertEqual(result[302], {"status": False, "cluster_stats": None})
+
+    @patch("apps.log_databus.handlers.storage.cache.set_many")
+    @patch("apps.log_databus.handlers.storage.cache.get_many", return_value={})
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_info")
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a")
+    def test_owner_biz_can_query_own_unconfigured_private_doris(
+        self,
+        _mock_tenant_id,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+        _mock_cache_get_many,
+        _mock_cache_set_many,
+    ):
+        """正例：归属业务的私有集群改前可见，不得被本次改动误杀。"""
+        record = self._doris_cluster_info(303, {"bk_biz_id": 5}, registered_system="bkdata")
+        mock_get_cluster_info.return_value = [record]
+        mock_get_cluster_status.return_value = [
+            {"cluster_id": 303, "cluster_type": DORIS_CLUSTER_TYPE, "is_available": True}
+        ]
+
+        result = StorageHandler.batch_connectivity_detect([303], bk_biz_id=5)
+
+        mock_get_cluster_status.assert_called_once_with(
+            {"cluster_ids": [303], "bk_biz_id": 5},
+            bk_tenant_id="tenant-a",
+        )
+        self.assertTrue(result[303]["status"])
+
+    @patch("apps.log_databus.handlers.storage.cache.set_many")
+    @patch("apps.log_databus.handlers.storage.cache.get_many", return_value={})
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_status")
+    @patch("apps.log_databus.handlers.storage.TransferApi.get_cluster_info")
+    @patch("apps.log_databus.handlers.storage.Space.get_tenant_id", return_value="tenant-a")
+    def test_other_biz_cannot_probe_unconfigured_doris(
+        self,
+        _mock_tenant_id,
+        mock_get_cluster_info,
+        mock_get_cluster_status,
+        _mock_cache_get_many,
+        _mock_cache_set_many,
+    ):
+        """反例：其它业务不得借豁免越权查询连通性 / 磁盘信息。"""
+        cases = (
+            (304, "bkdata", {"bk_biz_id": 5}),
+            (305, REGISTERED_SYSTEM_DEFAULT, {}),
+        )
+        for cluster_id, registered_system, custom_option in cases:
+            with self.subTest(cluster_id=cluster_id):
+                mock_get_cluster_info.return_value = [
+                    self._doris_cluster_info(cluster_id, custom_option, registered_system)
+                ]
+                mock_get_cluster_status.reset_mock()
+
+                result = StorageHandler.batch_connectivity_detect([cluster_id], bk_biz_id=999)
+
+                mock_get_cluster_status.assert_not_called()
+                self.assertEqual(result[cluster_id], {"status": False, "cluster_stats": None})
+
+
+@override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
+class TestDorisPublicClusterCurrentBizGuard(TestCase):
+    """公共 Doris 集群禁止配置 current_biz，避免补配后仅蓝鲸业务可见。"""
+
+    def test_public_cluster_current_biz_is_rejected(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system=REGISTERED_SYSTEM_DEFAULT,
+            custom_option={},
+        )
+        params = {
+            "cluster_id": 10,
+            "bk_biz_id": BLUEKING_BK_BIZ_ID,
+            "visible_config": {
+                "visible_type": VisibleEnum.CURRENT_BIZ.value,
+                "visible_bk_biz": [],
+                "bk_biz_labels": {},
+            },
+        }
+
+        with patch(
+            "apps.log_databus.handlers.storage.TransferApi.get_cluster_info",
+            return_value=[cluster_obj],
+        ):
+            with self.assertRaises(ValidationError) as ctx:
+                StorageHandler(cluster_id=10).update_visible_config(params)
+
+        self.assertIn("公共集群不支持", str(ctx.exception))
+
+    def test_public_cluster_multi_biz_is_allowed(self):
+        """合法范围不得被误拦；同时隔离写入后的三处外部依赖。"""
+        cluster_obj = _doris_cluster_obj(
+            registered_system=REGISTERED_SYSTEM_DEFAULT,
+            custom_option={},
+        )
+        params = {
+            "cluster_id": 10,
+            "bk_biz_id": BLUEKING_BK_BIZ_ID,
+            "visible_config": {
+                "visible_type": VisibleEnum.MULTI_BIZ.value,
+                "visible_bk_biz": [-101],
+                "bk_biz_labels": {},
+            },
+        }
+
+        with patch(
+            "apps.log_databus.handlers.storage.TransferApi.get_cluster_info",
+            return_value=[cluster_obj],
+        ), patch(
+            "apps.log_databus.handlers.storage.TransferApi.modify_cluster_info",
+            return_value={},
+        ) as mock_modify, patch(
+            "apps.log_databus.handlers.storage.get_request_username",
+            return_value="test_user",
+        ), patch(
+            "apps.log_databus.handlers.storage.user_operation_record.delay",
+        ) as mock_record:
+            StorageHandler(cluster_id=10).update_visible_config(params)
+
+        self.assertEqual(
+            mock_modify.call_args.args[0]["custom_option"]["visible_config"]["visible_type"],
+            VisibleEnum.MULTI_BIZ.value,
+        )
+        mock_record.assert_called_once()
