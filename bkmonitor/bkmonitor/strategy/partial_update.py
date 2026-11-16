@@ -161,6 +161,8 @@ class StrategyConfigUpdater:
             for item_patch in query_item_patches:
                 item: Item = cls._get_patch_item(candidate.items, candidate_items, item_patch)
                 candidate.supplement_inst_target_dimension(items=[item])
+                item.normalize_query_dimensions(candidate.bk_biz_id)
+                item.align_no_data_dimensions(candidate.bk_biz_id)
 
         # 完整序列化器检查字段之间的约束，其默认值不用于回写。优先级分组键留到差异判断后按需计算。
         strategy_dict: dict[str, Any] = candidate.to_dict(convert_dashboard=False, generate_priority_group_key=False)
@@ -294,8 +296,6 @@ class StrategyConfigUpdater:
                 raise ValidationError(detail=_("不支持的查询配置数据源类型")) from error
             # 查询集合整体替换时复用 ID，具体增删交给公共组件保存方法。
             query_config.id = current_configs[index].id if index < len(current_configs) else 0
-            query_config._clean_empty_dimension()
-            query_config.supplement_adv_condition_dimension(item)
             if not query_config.metric_id:
                 query_config.metric_id = query_config.get_metric_id()
             built_configs.append(query_config)
@@ -380,6 +380,8 @@ class StrategyConfigUpdater:
                 [cls._without_id(config.to_dict()) for config in current_item.query_configs]
             ) != ([cls._without_id(config.to_dict()) for config in candidate_item.query_configs]):
                 change.query_configs = True
+            if current_item.no_data_config != candidate_item.no_data_config:
+                change.fields.add("no_data_config")
             if "algorithms" in item_patch and cls._normalize_collection(
                 [cls._without_id(config.to_dict()) for config in current_item.algorithms]
             ) != cls._normalize_collection([cls._without_id(config.to_dict()) for config in candidate_item.algorithms]):

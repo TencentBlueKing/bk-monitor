@@ -30,6 +30,7 @@ import { computed, defineComponent, ref, nextTick } from 'vue';
 import { messageError } from '@/shared/lib/message';
 import useLocale from '@/shared/composables/use-locale';
 import './style.scss';
+import { useOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
 
 import './index.scss';
 
@@ -38,6 +39,7 @@ export default defineComponent({
   emits: ['value-change', 'show-change', "showChange", "valueChange"],
   setup(_, { emit }) {
     const showBtachDialog = ref(false);
+    const dialogZIndex = useOverlayZIndex(showBtachDialog);
     const textValue = ref('');
     const splitResult = ref<string[]>([]);
     const selectResult = ref<string[]>([]);
@@ -126,7 +128,7 @@ export default defineComponent({
         onClick={openDialog}
       >
         {$t('批量输入')}
-        {/* 条件面板 tippy 在 appendToBody 时为 99999，弹窗需盖住该层 */}
+        {/* Allocate after the condition panel opens; both share one counter. */}
         <TDialog
           v-slots={{
             footer: () => (
@@ -157,7 +159,7 @@ export default defineComponent({
           mode='modal'
           placement='center'
           visible={showBtachDialog.value}
-          zIndex={100000}
+          zIndex={dialogZIndex.value}
           onClose={() => handleDialogValueChange(false)}
         >
           <div class='batch-input-content'>

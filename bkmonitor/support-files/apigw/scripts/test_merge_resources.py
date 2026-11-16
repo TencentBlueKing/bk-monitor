@@ -774,6 +774,19 @@ def test_shared_read_backends_move_only_mcp_resources(tmp_path):
         ),
         "list_apm_services": ("post", "/app/apm/service/service_list/", "/api/v4/service_web/service_list/"),
         "calculate_by_range": ("post", "/app/apm/calculate_by_range/", "/api/v4/apm_metric_web/calculate_by_range/"),
+        "llm_search_traces": ("post", "/app/apm/list_llm_traces/", "/api/v4/apm_llm_web/list_traces/"),
+        "llm_search_flows": ("post", "/app/apm/list_llm_flows/", "/api/v4/apm_llm_web/list_flows/"),
+        "llm_calculate_by_range": (
+            "post",
+            "/app/apm/llm_calculate_by_range/",
+            "/api/v4/apm_llm_web/calculate_by_range/",
+        ),
+    }
+    operation_ids = {
+        "calculate_by_range": "apm_mcp_calculate_by_range",
+        "llm_search_traces": "llm_mcp_search_traces",
+        "llm_search_flows": "llm_mcp_search_flows",
+        "llm_calculate_by_range": "llm_mcp_calculate_by_range",
     }
     shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
     merge_resources_func(tmp_path / "resources")
@@ -796,12 +809,13 @@ def test_shared_read_backends_move_only_mcp_resources(tmp_path):
         assert app["authConfig"]["appVerifiedRequired"] is True
         assert app["authConfig"]["userVerifiedRequired"] is False
         assert app["authConfig"]["resourcePermissionRequired"] is True
-        assert user["backend"]["path"] == "/api/v4/mcp/" + name + "/"
+        backend_name = name if name == "calculate_by_range" else operation_ids.get(name, name)
+        assert user["backend"]["path"] == "/api/v4/mcp/" + backend_name + "/"
         assert user["authConfig"]["userVerifiedRequired"] is True
         assert user["authConfig"]["oauth2PersonalClientEnabled"] is True
         assert user["authConfig"]["resourcePermissionRequired"] is True
         assert user["matchSubpath"] is False and user["backend"]["matchSubpath"] is False
-        assert user_operation["operationId"] == ("apm_mcp_calculate_by_range" if name == "calculate_by_range" else name)
+        assert user_operation["operationId"] == operation_ids.get(name, name)
     # The two ops MCP overlaps are intentionally unchanged and remain user-only.
     assert app_backends & set(mcp_backends.values()) == {
         ("get", "/api/v3/meta/query_data_link_metadata/"),

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import { Button } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -32,6 +32,7 @@ import { useI18n } from 'vue-i18n';
 
 import MessageTooltip from '../../../../../components/message-tooltip/message-tooltip';
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
+import { useElementInView } from '../../../llm-observation/hooks/use-element-in-view';
 import { formatCompactToken, LLM_KIND_CLASS } from '../utils/transform';
 import SpanIoKvs, { sliceTooltipContent } from './span-io-kvs';
 
@@ -78,6 +79,14 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
+    // 行内 IO 列会为每个 KV 挂 ResizeObserver 并做同步布局测量，同时为每段文本挂 Popover 与 overflow-tips；
+    // 屏外行先只渲染纯文本占位，进入视口（提前一屏）后再换成可测量、可悬浮的完整预览，避免批量展开时集中挂载重组件
+    const rowRef = shallowRef<HTMLElement>();
+    const setRowRef = (el: unknown) => {
+      rowRef.value = el instanceof HTMLElement ? el : undefined;
+    };
+    const { inView } = useElementInView(rowRef);
+
     /** 模型工具交互独立展示，工具 Span 继续使用既有 KV 预览。 */
     const pickPreviewPiece = (pieces: LlmIoPiece[]): LlmIoPiece | null => {
       const kv = pieces.find(piece => piece.type === 'kv' && piece.pairs.length);
@@ -120,10 +129,24 @@ export default defineComponent({
       );
     };
 
+    /** 屏外占位用的整侧纯文本：KV / 工具批次按 key: value 拼接，文本片段原样保留 */
+    const formatPiecesPlainText = (pieces: LlmIoPiece[]): string =>
+      pieces
+        .flatMap(piece => {
+          if (piece.type === 'kv') return piece.pairs.map(item => `${item.key}: ${item.value}`);
+          if (piece.type === 'tools') {
+            return piece.tools.map(tool => `${tool.tool_name || String(t('工具'))}: ${tool.value}`);
+          }
+          return piece.text ? [piece.text] : [];
+        })
+        .join(' · ');
+
     /** KV 按顺序铺开，不挤压已露出的项；超出列宽的直接裁掉 */
     const renderIoSide = (pieces: LlmIoPiece[]) => {
       const preview = pickPreviewPiece(pieces);
       if (!preview) return <span class='llm-span-io-empty'>—</span>;
+      // 屏外先出纯文本占位，进入视口后再换成可测量、可悬浮的 KV 预览，避免批量展开时集中挂载 ResizeObserver / Popover
+      if (!inView.value) return <span class='llm-span-io-text'>{formatPiecesPlainText(pieces)}</span>;
       const tooltip = formatPiecesTooltip(pieces);
       return (
         <div
@@ -150,6 +173,7 @@ export default defineComponent({
       return (
         <div
           id={`llm-span-${row.spanId}`}
+          ref={setRowRef}
           class={['llm-span-item', { 'is-highlighted': props.highlighted }]}
         >
           <div

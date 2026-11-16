@@ -92,7 +92,7 @@ class TestDiscoveryFailureIsolation(unittest.TestCase):
             "TASK_FINISHED_FAILURE": "failure",
             "share_lock": lambda **kwargs: lambda function: function,
             "bk_biz_id_to_bk_tenant_id": Mock(return_value="tenant-a"),
-            "change_cluster_router": Mock(),
+            "migrate_bcs_cluster_business": Mock(),
             "update_bcs_cluster_cloud_id_config": Mock(),
             "sync_and_schedule_federation_clusters": Mock(return_value=True),
         }
@@ -284,7 +284,7 @@ class TestDiscoveryFailureIsolation(unittest.TestCase):
                 first = self.cluster("BCS-K8S-00001")
                 retry = self.cluster("BCS-K8S-00002", status="init_failed")
                 if failure == "migration":
-                    self.namespace["change_cluster_router"].side_effect = RuntimeError("migration failed")
+                    self.namespace["migrate_bcs_cluster_business"].side_effect = RuntimeError("migration failed")
                     first_biz = 2
                 else:
                     first.save.side_effect = RuntimeError("save failed")

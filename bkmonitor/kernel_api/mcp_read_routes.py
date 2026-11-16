@@ -1,4 +1,4 @@
-"""Separate the seven shared read backends from their application API routes.
+"""Separate the shared read backends from their application API routes.
 
 The application URLs keep their existing callbacks and scope checks. Only the
 dedicated MCP URLs enter the user ToolRegistry; a user JWT must not downgrade to
@@ -17,6 +17,9 @@ APPLICATION_READ_BACKENDS = {
     "get_dashboard_detail_by_uid": ("GET", "/api/v4/grafana/get_dashboard_detail/"),
     "list_apm_services": ("POST", "/api/v4/service_web/service_list/"),
     "calculate_by_range": ("POST", "/api/v4/apm_metric_web/calculate_by_range/"),
+    "llm_mcp_search_traces": ("POST", "/api/v4/apm_llm_web/list_traces/"),
+    "llm_mcp_search_flows": ("POST", "/api/v4/apm_llm_web/list_flows/"),
+    "llm_mcp_calculate_by_range": ("POST", "/api/v4/apm_llm_web/calculate_by_range/"),
 }
 
 

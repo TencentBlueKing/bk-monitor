@@ -26,6 +26,7 @@ from bkmonitor.utils.nodeman import host_queries
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
 from metadata.models.constants import LOG_REPORT_MAX_QPS
 from metadata.models.custom_report.log import LogGroup
 
@@ -103,7 +104,26 @@ class CustomReportSubscription(models.Model):
             bk_biz_id,
             bk_host_ids,
         )
+        use_nodeman_v3 = BkCollectorDeployPolicy.is_enabled()
         for item, protocol in data_id_configs:
+            if use_nodeman_v3:
+                try:
+                    BkCollectorDeployPolicy.deploy(
+                        bk_tenant_id=bk_tenant_id,
+                        scene=BkCollectorDeployScene.CUSTOM_REPORT,
+                        resource_key=f"{bk_biz_id}-{item['bk_data_id']}",
+                        template_name=cls.SUB_CONFIG_MAP[protocol],
+                        context={"bk_biz_id": bk_biz_id, **item},
+                        bk_host_ids=bk_host_ids,
+                        bk_biz_id=bk_biz_id,
+                    )
+                except Exception as e:
+                    logger.exception(
+                        f"deploy custom report config by nodeman v3 error, bk_biz_id({bk_biz_id}), "
+                        f"bk_data_id({item['bk_data_id']}), error: {e}"
+                    )
+                continue
+
             subscription_params = {
                 "scope": {
                     "object_type": "HOST",
@@ -893,6 +913,18 @@ class LogSubscriptionConfig(models.Model):
         """
         Deploy Custom Log Config
         """
+        if BkCollectorDeployPolicy.is_enabled():
+            # 失败直接抛出，与 V2 一致由 refresh 统一记录异常
+            return BkCollectorDeployPolicy.deploy(
+                bk_tenant_id=bk_tenant_id,
+                scene=BkCollectorDeployScene.CUSTOM_LOG,
+                resource_key=f"{log_group.bk_biz_id}-{log_group.log_group_name}",
+                template_name=cls.PLUGIN_LOG_CONFIG_TEMPLATE_NAME,
+                context=log_config,
+                bk_host_ids=bk_host_ids,
+                bk_biz_id=log_group.bk_biz_id,
+            )
+
         # Build Subscription Params
         subscription_params = {
             "scope": {

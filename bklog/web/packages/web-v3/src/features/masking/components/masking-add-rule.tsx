@@ -41,6 +41,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Drawer as Sideslider, Form, FormItem, Input, Collapse, CollapsePanel as CollapseItem, Table, Dialog, TagInput } from 'tdesign-vue-next';
 
 import './masking-add-rule.scss';
+import { allocateOverlayZIndex, Z_INDEX_LAYERS } from '@/shared/global/overlay';
 
 const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
@@ -101,6 +102,19 @@ export default class MaskingAddRule extends tsc<IProps> {
   /** 是否正在进行调试请求的布尔值 */
   debugRequesting = false;
   /** 表示是否显示第二个确认对话框的布尔值 */
+  drawerZIndex: number = Z_INDEX_LAYERS.DRAWER;
+  confirmDialogZIndex: number = Z_INDEX_LAYERS.DIALOG;
+
+  @Watch('value', { immediate: true })
+  updateDrawerLayer(visible: boolean) {
+    if (visible) this.drawerZIndex = allocateOverlayZIndex('DRAWER');
+  }
+
+  @Watch('isShowSecondConfirmDialog')
+  updateConfirmDialogLayer(visible: boolean) {
+    if (visible) this.confirmDialogZIndex = allocateOverlayZIndex();
+  }
+
   isShowSecondConfirmDialog = false;
   /** 是否选中匹配字段的复选框的布尔值 */
   matchFieldCheckValue = true;
@@ -505,7 +519,7 @@ export default class MaskingAddRule extends tsc<IProps> {
     return (
       <Sideslider
         v-slots={{
-          content: () => (
+          default: () => (
             <div
               class='masking-rule-slider'
               v-loading={{ loading: this.formLoading }}
@@ -728,9 +742,11 @@ export default class MaskingAddRule extends tsc<IProps> {
               </Collapse>
 
               <Dialog
-                width='400'
-                v-model={this.isShowSecondConfirmDialog}
-                showFooter={false}
+                width={400}
+                visible={this.isShowSecondConfirmDialog}
+                onClose={() => (this.isShowSecondConfirmDialog = false)}
+                zIndex={this.confirmDialogZIndex}
+                footer={false}
               >
                 <div class='delete-dialog-container'>
                   <span class='delete-title'>{this.$t('确认{n}该规则？', { n: this.$t('修改') })}</span>
@@ -759,15 +775,16 @@ export default class MaskingAddRule extends tsc<IProps> {
             </div>
           ),
         }}
-        width={640}
-        isShow={this.value}
-        title={this.$t('{n}脱敏规则', { n: this.isEdit ? this.$t('编辑') : this.$t('新增') })}
-        quickClose
-        transfer
-        {...{
-          'onUpdate:isShow': this.hiddenSlider,
-          onShown: this.showSlider,
-        }}
+        size='640px'
+        attach='body'
+        visible={this.value}
+        zIndex={this.drawerZIndex}
+        header={this.$t('{n}脱敏规则', { n: this.isEdit ? this.$t('编辑') : this.$t('新增') })}
+        closeOnOverlayClick
+        closeOnEscKeydown
+        footer={false}
+        onBeforeOpen={this.showSlider}
+        onClose={this.hiddenSlider}
       ></Sideslider>
     );
   }

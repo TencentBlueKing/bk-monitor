@@ -23,7 +23,7 @@ test('custom report collection step uses native TDesign loading and always relea
   assert.match(source, /data-testid='collection-custom-report-loading'/);
   assert.match(source, /loading=\{loading\.value\}/);
   assert.match(source, /showOverlay/);
-  assert.match(source, /zIndex=\{1000\}/);
+  assert.match(source, /zIndex=\{Z_INDEX_LAYERS\.PAGE\}/);
   assert.match(source, /@\/shared\/ui\/loading\/native/);
   assert.doesNotMatch(source, /v-bkloading/);
 

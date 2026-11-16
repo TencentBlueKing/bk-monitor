@@ -32,6 +32,7 @@ from apps.log_trace.serializers import (
     UnionSearchDateHistogramSerializer,
 )
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.field import UnifyQueryFieldHandler
 from apps.log_unifyquery.handler.terms_aggs import UnifyQueryTermsAggsHandler
 from apps.utils.drf import detail_route, list_route
 
@@ -179,7 +180,8 @@ class AggsViewSet(APIViewSet):
         """
         data = self.params_valid(DateHistogramSerializer)
         data["index_set_ids"] = [index_set_id]
-        return Response(UnifyQueryHandler(data).date_histogram())
+        query_handler = UnifyQueryFieldHandler(data, allow_partial_results=True)
+        return Response(query_handler.date_histogram())
 
     @list_route(methods=["POST"], url_path="aggs/union_search/date_histogram")
     def union_search_date_histogram(self, request, *args, **kwargs):

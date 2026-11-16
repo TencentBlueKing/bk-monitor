@@ -31,15 +31,15 @@ import { cloneDeep } from 'lodash';
 import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
 import { getCodeRemarks, serviceList, setCodeRemark } from 'monitor-api/modules/apm_service';
 import { downloadFile, random } from 'monitor-common/utils';
-
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import type { CallOptions } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
 import ValueTagSelector from 'monitor-pc/components/retrieval-filter/value-tag-selector';
+
 import type {
   IGetValueFnParams,
   IOptionsInfo,
   TGetValueFn,
 } from 'monitor-pc/components/retrieval-filter/value-selector-typing';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { CallOptions } from 'monitor-ui/chart-plugins/plugins/apm-service-caller-callee/type';
 
 import './index.scss';
 
@@ -47,11 +47,11 @@ interface CodeRemarkItem {
   code: string;
   id?: string;
   is_global: boolean;
+  isImport?: boolean;
   isNew?: boolean;
   kind: string;
   remark: string;
   service_names: string[];
-  isImport?: boolean;
 }
 
 interface ColumnItem {
@@ -67,8 +67,8 @@ interface Props {
   /** 应用名（接口请求主键） */
   appName: string;
   callOptions?: Partial<CallOptions>;
-  variablesData?: Record<string, any>;
   isBatchEdit: boolean;
+  variablesData?: Record<string, any>;
 }
 
 @Component
@@ -342,14 +342,10 @@ export default class RemarkTabContent extends tsc<Props> {
       // - 先选服务再选全局：保留全局
       // - 先选全局再选服务：移除全局
       if (newValue.includes('0') && value.length > 1) {
-        if (value[0] !== '0') {
-          newValue = ['0'];
-          this.$set(this.showData[index], 'is_global', true);
-        } else {
-          newValue = (newValue as string[]).filter(item => item !== '0');
-          this.$set(this.showData[index], 'is_global', false);
-        }
+        newValue = value[0] !== '0' ? ['0'] : (newValue as string[]).filter(item => item !== '0');
       }
+      // 归一化后依据最终选项同步作用范围语义，避免「清空全局再选服务」时 is_global 残留为 true
+      this.$set(this.showData[index], 'is_global', (newValue as string[]).includes('0'));
     }
     // 先写入当前编辑值，再触发整表校验
     this.$set(this.showData[index], prop, newValue);
@@ -720,16 +716,16 @@ export default class RemarkTabContent extends tsc<Props> {
                     {/* 编辑态：返回码支持搜索、选填与自定义创建 */}
                     <ValueTagSelector
                       style='width: 100%'
-                      multiple={false}
                       fieldInfo={{
                         field: '',
                         alias: '',
                         methods: [],
                         isEnableOptions: true,
                       }}
+                      getValueFn={this.getValueCallback(row.kind)}
+                      multiple={false}
                       value={value}
                       tippy-mode
-                      getValueFn={this.getValueCallback(row.kind)}
                       onChange={data => this.handleValueTagSelectorChange(data as string, row.id)}
                     />
                     {/* 校验失败时显示错误图标 */}
@@ -863,19 +859,18 @@ export default class RemarkTabContent extends tsc<Props> {
           ) : (
             <bk-table
               ref='tableRef'
-              max-height={this.tableMaxHeight}
               data={this.showData}
               empty-text={this.filterValues.length ? this.$tc('搜索结果为空') : this.$t('暂无数据')}
+              max-height={this.tableMaxHeight}
               row-class-name='return-code-remark-row'
-              border
               row-key='id'
+              border
               row-auto-height
               on-filter-change={this.handleFilterChange}
             >
               {this.showColumn.map(item => this.renderColumn(item))}
               <bk-table-column
                 width={120}
-                fixed='right'
                 scopedSlots={{
                   default: ({ row }) => {
                     if (this.currentEditRowId === row.id) {
@@ -913,8 +908,8 @@ export default class RemarkTabContent extends tsc<Props> {
                           >
                             <bk-button
                               class='btn'
-                              theme='primary'
                               disabled={this.currentEditRowId !== '' && this.currentEditRowId !== row.id}
+                              theme='primary'
                               text
                               onClick={() => this.handleEditRow(row.id)}
                             >
@@ -930,8 +925,8 @@ export default class RemarkTabContent extends tsc<Props> {
                         >
                           <bk-button
                             class='btn'
-                            theme='danger'
                             disabled={this.currentEditRowId !== '' && this.currentEditRowId !== row.id}
+                            theme='danger'
                             text
                             onClick={() => this.handleDeleteRow(row.id)}
                           >
@@ -942,6 +937,7 @@ export default class RemarkTabContent extends tsc<Props> {
                     );
                   },
                 }}
+                fixed='right'
                 label={this.$tc('操作')}
               />
             </bk-table>

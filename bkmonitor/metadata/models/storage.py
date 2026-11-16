@@ -4126,6 +4126,51 @@ class ESStorage(models.Model, StorageResultTable):
 
         return False
 
+    def backfill_aliases(self, days: int | None = None, dry_run: bool = True) -> dict:
+        """为唯一物理索引补充昨天起往前、存储时长内尚未过期的每日读写别名。
+
+        只添加别名，不创建索引；沿用存储配置的时区和时间偏移。
+        """
+        days = self.retention if days is None else days
+        if type(days) is not int or not 1 <= days <= self.retention:
+            raise ValueError(f"days 必须是 1 到存储时长 {self.retention} 之间的整数")
+        if self.origin_table_id or not self.need_create_index:
+            raise ValueError("仅实体 ESStorage 支持补充历史别名")
+        if self.date_format != "%Y%m%d":
+            raise ValueError("补充历史别名只支持按天切分（date_format=%Y%m%d）")
+
+        index_names = self.get_index_names()
+        if len(index_names) != 1:
+            raise ValueError(f"补充历史别名要求只有一个物理索引，实际为：{index_names}")
+        target_index = index_names[0]
+        end_date = self.now.date() - datetime.timedelta(days=1)
+        start_date = end_date - datetime.timedelta(days=days - 1)
+        aliases = []
+        for offset in range(days):
+            date_str = (start_date + datetime.timedelta(days=offset)).strftime(self.date_format)
+            aliases.extend([f"write_{date_str}_{self.index_name}", f"{self.index_name}_{date_str}_read"])
+
+        # 与 clean_index_v2 使用相同的过期判定，包含时区、时间偏移及延迟清理天数。
+        alias_groups = self.group_expired_alias({target_index: {"aliases": dict.fromkeys(aliases, {})}}, self.retention)
+        aliases = alias_groups[target_index]["not_expired_alias"]
+        effective_days = len(aliases) // 2
+        start_date = end_date - datetime.timedelta(days=effective_days - 1) if aliases else None
+
+        if aliases and not dry_run:
+            self._update_aliases_with_retry(
+                actions=[{"add": {"index": target_index, "alias": alias}} for alias in aliases],
+                new_index_name=target_index,
+            )
+        return {
+            "table_id": self.table_id,
+            "target_index": target_index,
+            "days": effective_days,
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if aliases else None,
+            "aliases": aliases,
+            "dry_run": dry_run,
+        }
+
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
     def _update_aliases_with_retry(self, actions, new_index_name, force_rotate: bool = False):
         """
@@ -4780,53 +4825,38 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info(f"table_id->[{self.table_id}] index->[{index_name}] field config same.")
         return True
 
-    def get_tag_values(self, tag_name):
-        """
-        curl -XGET  http://es.service.consul:10004/2_bklog_abcde_20200608_0/_search?pretty -d '
-        {
-            "aggs" : {
-                "field_values" : {
-                    "terms" : { "field" : "serverIp", "size":10000 }
-                }
-            },
-            "size" : 0
-        }'
-        response ==>
-        {
-            "took" : 301,
-            "timed_out" : false,
-            "_shards" : {
-                "total" : 5,
-                "successful" : 5,
-                "failed" : 0
-            },
-            "hits" : {
-                "total" : 2124190,
-                "max_score" : 0.0,
-                "hits" : [ ]
-            },
-            "aggregations" : {
-                "field_values" : {
-                    "doc_count_error_upper_bound" : 0,
-                    "sum_other_doc_count" : 0,
-                    "buckets" : [{
-                        "key" : "127.0.0.1",
-                        "doc_count" : 2124190
-                    }]
-                }
-            }
-        }
-        """
-        index_list = self.es_client.indices.get(f"{self.index_name}*")
+    def get_tag_values(self, tag_name, start_time=None, end_time=None, time_field="time"):
+        """查询维度值；带时间窗时使用 Unix 秒，ES7+ 分页返回所有唯一值。"""
+        if (start_time is None) != (end_time is None):
+            raise ValueError("start_time and end_time must be provided together")
+        if start_time is not None and start_time > end_time:
+            raise ValueError("start_time must not exceed end_time")
 
+        index_pattern = f"{self.index_name}*"
+        query = None
+        if start_time is not None:
+            query = {"range": {time_field: {"gte": start_time, "lte": end_time, "format": "epoch_second"}}}
         result = []
+        if query is not None and self.es_version >= 7:
+            composite = {"size": 1000, "sources": [{"value": {"terms": {"field": tag_name}}}]}
+            while True:
+                body = {"size": 0, "query": query, "aggs": {"field_values": {"composite": composite}}}
+                res = self.es_client.search(index=index_pattern, body=body, allow_no_indices=True)
+                values = res.get("aggregations", {}).get("field_values", {"buckets": []})
+                result.extend(bucket["key"]["value"] for bucket in values["buckets"])
+                if len(values["buckets"]) < composite["size"] or not values.get("after_key"):
+                    break
+                composite = {**composite, "after": values["after_key"]}
+            return result
+
+        # 保持无时间窗请求与 ES5/6 的逐索引 terms 查询兼容。
+        index_list = self.es_client.indices.get(index_pattern)
         for index_name in index_list:
             body = {"aggs": {"field_values": {"terms": {"field": tag_name, "size": 10000}}}, "size": 0}
+            if query is not None:
+                body["query"] = query
             res = self.es_client.search(index=index_name, body=body)
-            buckets = res["aggregations"]["field_values"]["buckets"]
-            tag_values = [bucket["key"] for bucket in buckets]
-            result += tag_values
-
+            result.extend(bucket["key"] for bucket in res["aggregations"]["field_values"]["buckets"])
         return result
 
     def group_expired_alias(self, alias_list, expired_days, need_delay_delete_alias: bool | None = True):

@@ -347,7 +347,7 @@
 
     .preview-editable-column {
       .t-input {
-        background: #fff;
+        background: var(--bklog-surface, #fff);
         border: none !important;
         border-radius: 0;
         height: 42px;
@@ -425,9 +425,9 @@
       &.is-selected {
         position: relative;
         z-index: var(--bklog-z-base);
-        color: #3a84ff;
-        background: #e1ecff;
-        border-color: #3a84ff;
+        color: var(--bklog-brand-primary, #3a84ff);
+        background: var(--bklog-brand-tint, #e1ecff);
+        border-color: var(--bklog-brand-primary, #3a84ff);
       }
     }
 

@@ -336,3 +336,81 @@ def test_default_lookup_reads_all_pages():
     v3.V3OfficialPlugins(request).install("tenant", "collector", "latest", [1])
     assert request.call_args_list[3].args[2]["page"]["offset"] == 1
     assert request.call_args_list[-1].args[2]["plugin"][0]["version"] == "1.2"
+
+
+def beat_host(inner_ip="127.0.0.1,127.0.0.2", inner_ipv6="::1,::2"):
+    """list_v2_compatible 返回的单台主机，多个地址以逗号拼接。"""
+    return {
+        "bk_host_id": 1,
+        "inner_ip": inner_ip,
+        "inner_ipv6": inner_ipv6,
+        "bk_cloud_id": 0,
+        "setup_path": "/usr/local/gse",
+        "plugin_status": [{"name": "bkmonitorbeat", "version": "3.6.0", "status": "running"}],
+    }
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected_ip", "expected_ipv6"),
+    [
+        # 多地址时取首个，沿用 V2 插件检索的口径
+        (beat_host(), "127.0.0.1", "::1"),
+        # 没有 IPv6 时保持空串
+        (beat_host(inner_ip="127.0.0.1", inner_ipv6=""), "127.0.0.1", ""),
+    ],
+)
+def test_beat_plugin_status_uses_compatible_api_and_first_ip(raw, expected_ip, expected_ipv6):
+    """跨业务主机一次带上所有业务查询，结果保持 V2 插件检索结构。"""
+    request = Mock(return_value={"total": 1, "list": [raw]})
+
+    result = v3.V3HostQueries(request).beat_plugin_status("tenant", [2, 3], [1])
+
+    request.assert_called_once_with("list_v2_compatible_processes", "tenant", {"bk_biz_id": [2, 3], "bk_host_id": [1]})
+    assert result == [{**raw, "inner_ip": expected_ip, "inner_ipv6": expected_ipv6}]
+
+
+def test_beat_plugin_status_without_hosts_never_queries_whole_business():
+    """接口不传主机会返回整个业务，空主机必须直接返回空结果。"""
+    request = Mock()
+    assert v3.V3HostQueries(request).beat_plugin_status("tenant", [2], []) == []
+    request.assert_not_called()
+
+
+def test_beat_plugin_status_resolves_business_when_unknown():
+    """调用方不传业务时按主机推导业务，再带上全部业务查询。"""
+    request = Mock(return_value={"total": 0, "list": []})
+    resolver = Mock(return_value=[2, 5])
+
+    assert v3.V3HostQueries(request, resolver).beat_plugin_status("tenant", None, [1, 3]) == []
+
+    resolver.assert_called_once_with("tenant", [1, 3])
+    request.assert_called_once_with(
+        "list_v2_compatible_processes", "tenant", {"bk_biz_id": [2, 5], "bk_host_id": [1, 3]}
+    )
+
+
+def test_beat_plugin_status_uses_given_business_without_resolving():
+    """调用方已给出主机所属业务时直接使用，不再推导。"""
+    request = Mock(return_value={"total": 0, "list": []})
+    resolver = Mock()
+
+    v3.V3HostQueries(request, resolver).beat_plugin_status("tenant", [2], [1])
+
+    resolver.assert_not_called()
+    request.assert_called_once_with("list_v2_compatible_processes", "tenant", {"bk_biz_id": [2], "bk_host_id": [1]})
+
+
+@pytest.mark.parametrize(
+    ("bk_biz_ids", "resolver"),
+    [
+        pytest.param([], None, id="empty-business"),
+        pytest.param(None, None, id="unknown-business-without-resolver"),
+        pytest.param(None, Mock(return_value=[]), id="hosts-not-in-cmdb"),
+    ],
+)
+def test_beat_plugin_status_requires_business(bk_biz_ids, resolver):
+    """兼容接口业务必传，缺失时在本地报错而不是发出必然失败的请求。"""
+    request = Mock()
+    with pytest.raises(ValueError, match="bk_biz_ids"):
+        v3.V3HostQueries(request, resolver).beat_plugin_status("tenant", bk_biz_ids, [1])
+    request.assert_not_called()

@@ -102,7 +102,7 @@ const createZIndexManager = (start = Z_INDEX_LAYERS.DROPDOWN) => {
     },
     // 提示、全屏遮罩。起点在浮层计数之上，避免被 Dialog 盖住。
     nextMessageZIndex() {
-      messageCurrent += 1;
+      messageCurrent = Math.max(messageCurrent, current, Z_INDEX_LAYERS.MESSAGE) + 1;
       publish();
       return messageCurrent;
     },

@@ -44,7 +44,13 @@ type WorkerResponse =
       type: 'COLLAPSE_ALL_DONE' | 'EXPAND_ALL_DONE' | 'GET_RANGE_DONE' | 'SET_FILTER_DONE' | 'TOGGLE_DONE';
     })
   | { anchorOffset: number; requestId: number; type: 'UPSERT_CHILDREN_DONE' }
-  | { requestId: number; selectedNode: IHostTopoTreeNode | null; selectedNodeOffset: number; type: 'SELECT_DONE' };
+  | {
+      requestId: number;
+      selectedNode: IHostTopoTreeNode | null;
+      selectedNodeOffset: number;
+      total: number;
+      type: 'SELECT_DONE';
+    };
 
 /** 创建 Blob Worker */
 const createBlobWorker = () => {

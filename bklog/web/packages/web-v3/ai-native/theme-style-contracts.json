@@ -1347,10 +1347,9 @@
         "border-color",
         "border-radius",
         "box-shadow",
-        "color",
-        "line-height"
+        "color"
       ],
-      "localVisualDeclarations": 10,
+      "localVisualDeclarations": 11,
       "pendingNormalization": 0
     },
     {
@@ -1421,7 +1420,7 @@
         "control-fill"
       ],
       "semanticDeclarations": 2,
-      "contextualDeclarations": 17,
+      "contextualDeclarations": 19,
       "localVisualProperties": [
         "border",
         "box-shadow"
@@ -1439,6 +1438,8 @@
       },
       "componentClasses": [
         ".t-button",
+        ".t-input",
+        ".t-input--focused",
         ".t-input__inner",
         ".t-table__body"
       ],
@@ -1446,14 +1447,15 @@
         "compact-action",
         "compact-control"
       ],
-      "semanticDeclarations": 0,
-      "contextualDeclarations": 8,
+      "semanticDeclarations": 5,
+      "contextualDeclarations": 15,
       "localVisualProperties": [
         "border",
+        "border-radius",
         "box-shadow",
         "line-height"
       ],
-      "localVisualDeclarations": 4,
+      "localVisualDeclarations": 7,
       "pendingNormalization": 0
     },
     {
@@ -1466,7 +1468,11 @@
       },
       "componentClasses": [
         ".t-button",
+        ".t-input",
+        ".t-input--focused",
         ".t-input__inner",
+        ".t-is-disabled",
+        ".t-select__wrap",
         ".t-table__body",
         ".t-table__th-field_name",
         ".t-table__th-field_type",
@@ -1477,14 +1483,16 @@
         "compact-action",
         "compact-control"
       ],
-      "semanticDeclarations": 2,
-      "contextualDeclarations": 10,
+      "semanticDeclarations": 6,
+      "contextualDeclarations": 13,
       "localVisualProperties": [
         "border",
         "border-color",
+        "border-radius",
+        "box-shadow",
         "line-height"
       ],
-      "localVisualDeclarations": 3,
+      "localVisualDeclarations": 6,
       "pendingNormalization": 0
     },
     {
@@ -1742,10 +1750,13 @@
         ".t-button"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 0,
-      "contextualDeclarations": 2,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "semanticDeclarations": 7,
+      "contextualDeclarations": 6,
+      "localVisualProperties": [
+        "border-radius",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 4,
       "pendingNormalization": 0
     },
     {
@@ -1774,6 +1785,7 @@
       },
       "componentClasses": [
         ".t-collapse",
+        ".t-collapse-panel__body",
         ".t-collapse-panel__content",
         ".t-collapse-panel__header",
         ".t-collapse-panel__header-content",
@@ -1781,11 +1793,13 @@
       ],
       "sharedContracts": [],
       "semanticDeclarations": 2,
-      "contextualDeclarations": 4,
+      "contextualDeclarations": 6,
       "localVisualProperties": [
-        "border"
+        "background",
+        "border",
+        "font"
       ],
-      "localVisualDeclarations": 1,
+      "localVisualDeclarations": 6,
       "pendingNormalization": 0
     },
     {
@@ -5659,7 +5673,7 @@
       ],
       "sharedContracts": [],
       "semanticDeclarations": 4,
-      "contextualDeclarations": 10,
+      "contextualDeclarations": 11,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0

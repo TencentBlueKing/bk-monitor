@@ -20,6 +20,7 @@ from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarge
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from rum_web.handlers.builder.span import build as build_span
 from rum_web.handlers.builder.timeline import build as build_timeline
+from rum_web.handlers.builder.timeline import summary as build_timeline_summary
 from rum_web.handlers.level.span import SpanLevelHandler
 from rum_web.models.application import Application
 from rum_web.query.resources import RumTimelineResource
@@ -346,6 +347,7 @@ class TestTimelineHandler:
             sort=["start_time", "span_id"],
         )
         total.assert_not_called()
+        assert "duration" in result and "status" in result
 
     def test_record_detail_and_timeline_reuse_vital_data(self, mocker):
         handler = _handler()
@@ -387,6 +389,7 @@ class TestTimelineHandler:
     )
     def test_single_view_uses_navigation_start_and_end_snapshot(self, mocker, ended, started_at):
         handler = _handler()
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=2)
         first = _view(started_at=started_at[0], start_time=1_500_000)
         middle = _view("middle", started_at=started_at[1], version=2, start_time=1_650_000)
         latest = _view("latest", started_at=started_at[2], version=3, start_time=1_800_000, end_time=1_800_000)
@@ -395,44 +398,137 @@ class TestTimelineHandler:
 
         result = handler.timeline(view_id="view-1")
 
-        assert result["start_time"] == 1_234_000
-        assert result["end_time"] == (1_800_000 if ended else None)
+        assert result["start_time"] == 1234
+        assert result["end_time"] == 1800
+        assert result["duration"] == 566
+        assert result["status"] == ("ended" if ended else "active")
         assert result["tree"] == [{"span_id": "view-span-1"}]
         assert query.call_args.kwargs["filters"] == [
             {"key": "attributes.view.id", "value": ["view-1"], "operator": FilterOperator.EQUAL},
             {"key": "attributes.span_type", "value": ["session"], "operator": FilterOperator.NOT_EQUAL},
         ]
 
-    def test_missing_single_view_has_null_boundaries(self, mocker):
+    @pytest.mark.parametrize("scope", [{"session_id": "absent"}, {"view_id": "absent"}])
+    def test_missing_record_returns_not_found(self, mocker, scope):
         handler = _handler()
         mocker.patch.object(handler.query, "query_list", return_value=[])
-        assert handler.timeline(view_id="absent") == {
-            "start_time": None,
-            "end_time": None,
-            "tree": [],
-            "records": [],
-        }
+        with pytest.raises(ValidationError, match="记录不存在"):
+            handler.timeline(**scope)
 
     @pytest.mark.parametrize(
-        "started_at,end_time,expected_start,expected_end",
+        "started_at,expected_start",
         [
-            (None, None, None, None),
-            (0, 0, 0, 0),
-            ("invalid", "invalid", None, None),
-            ("nan", "nan", None, None),
-            (float("inf"), float("-inf"), None, None),
+            (None, 1_000_000),
+            (0, 0),
+            ("invalid", 1_000_000),
+            ("nan", 1_000_000),
+            (float("inf"), 1_000_000),
         ],
     )
-    def test_missing_zero_and_invalid_view_boundaries(self, mocker, started_at, end_time, expected_start, expected_end):
+    def test_missing_or_invalid_navigation_time_falls_back_to_span(self, mocker, started_at, expected_start):
         handler = _handler()
-        view = _view(started_at=started_at, end_time=end_time)
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=2)
+        view = _view(started_at=started_at, end_time=2_000_000)
         view["attributes"]["view.phase"] = "end"
         mocker.patch.object(handler.query, "query_list", return_value=[view])
 
         result = handler.timeline(view_id="view-1")
 
-        assert result["start_time"] == expected_start
+        assert result["start_time"] == expected_start / 1000
+        assert result["end_time"] == 2000
+
+
+class TestTimelineSummary:
+    @pytest.mark.parametrize(
+        "start,end,observed_start,observed_end,age,status,expected_end,duration",
+        [
+            (100, 1600, 0, 2000, 5 * 3600, "ended", 1600, 1.5),
+            (100, None, 0, 2000, 4 * 3600 - 1, "active", 2000, 1.9),
+            (100, None, 0, 2000, 4 * 3600, "expired", 2000, 1.9),
+            (None, None, 100, 2100, 4 * 3600, "expired", 2100, 2),
+            (None, 1600, 0, 2000, 3600, "ended", 1600, 1.6),
+            (100, None, 500, 2000, 5 * 3600, "expired", 2000, 1.9),
+            (None, None, 100, 2100, 3600, "active", 2100, 2),
+            (0, 0, 0, 0, 0, "ended", 0, 0),
+        ],
+    )
+    def test_duration_and_status(
+        self, mocker, start, end, observed_start, observed_end, age, status, expected_end, duration
+    ):
+        origin = start if start is not None else observed_start or 0
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=origin / 1_000_000 + age)
+
+        result = build_timeline_summary([{"start_time": observed_start, "end_time": observed_end}], start, end)
+
+        assert result == {
+            "start_time": (start if start is not None else observed_start) / 1000,
+            "end_time": expected_end / 1000,
+            "duration": duration,
+            "status": status,
+        }
+
+    @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
+    def test_handler_uses_raw_spans_including_records_outside_tree(self, mocker, scope):
+        handler = _handler()
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=2)
+        spans = [
+            _view(),
+            _span("vital", "vital", 1_010_000, attrs={"vital.metric": "fcp", "vital.value": 50}, end_time=1_050_000),
+        ]
+        query = mocker.patch.object(handler.query, "query_list", return_value=spans)
+
+        result = handler.timeline(**scope)
+
+        query.assert_called_once()
+        assert result["duration"] == 50
+        assert result["status"] == "active"
+        assert result["start_time"] == 1000
+        assert result["end_time"] == 1050
+        assert [record["span_id"] for record in result["records"]] == ["view-span-1"]
+
+    @pytest.mark.parametrize("ended", [False, True])
+    def test_handler_uses_session_lifecycle(self, mocker, ended):
+        handler = _handler()
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=2)
+        spans = [
+            _span("start", "session", 1_000_000, None, {"session.phase": "start"}),
+            _view(start_time=1_100_000),
+            _span("resource", "resource", 1_300_000, end_time=1_500_000),
+        ]
+        if ended:
+            spans.append(_span("end", "session", 1_600_000, None, {"session.phase": "end"}))
+        mocker.patch.object(handler.query, "query_list", return_value=spans)
+
+        result = handler.timeline(session_id="session-1")
+
+        assert result["duration"] == (600 if ended else 500)
+        assert result["status"] == ("ended" if ended else "active")
+        assert result["start_time"] == 1000
+        assert result["end_time"] == (1600 if ended else 1500)
+
+    @pytest.mark.parametrize("scope", [{"session_id": "session-1"}, {"view_id": "view-1"}])
+    @pytest.mark.parametrize("ended", [False, True])
+    def test_lifecycle_end_precedes_observed_end_after_expiration(self, mocker, scope, ended):
+        handler = _handler()
+        mocker.patch("rum_web.handlers.builder.timeline.time.time", return_value=1 + 4 * 3600)
+        view = _view(end_time=1_100_000)
+        spans = [view, _span("resource", "resource", 1_200_000, end_time=1_300_000)]
+        expected_end = 1300
+        if ended:
+            if "session_id" in scope:
+                spans.append(_span("session-end", "session", 1_150_000, None, {"session.phase": "end"}))
+                expected_end = 1150
+            else:
+                view["attributes"]["view.phase"] = "end"
+                expected_end = 1100
+        mocker.patch.object(handler.query, "query_list", return_value=spans)
+
+        result = handler.timeline(**scope)
+
+        assert result["start_time"] == 1000
         assert result["end_time"] == expected_end
+        assert result["duration"] == expected_end - 1000
+        assert result["status"] == ("ended" if ended else "expired")
 
 
 class TestTimelineQuery:

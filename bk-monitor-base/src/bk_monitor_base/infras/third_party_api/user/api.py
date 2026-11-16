@@ -110,7 +110,8 @@ def get_tenant_admin_username(bk_tenant_id: str) -> str:
     """
 
     # 非多租户模式下，直接返回默认管理员用户名
-    if not get_config().blueking.enable_multi_tenancy:
+    blueking = get_config().blueking
+    if not blueking.enable_multi_tenancy:
         return "admin"
 
     result = request_user_api(
@@ -118,7 +119,7 @@ def get_tenant_admin_username(bk_tenant_id: str) -> str:
         method="GET",
         path="api/v3/open/tenant/virtual-users/-/lookup/",
         username="admin",
-        params={"lookup_field": "login_name", "lookups": "bk_admin"},
+        params={"lookup_field": "login_name", "lookups": blueking.bk_admin_username},
     )
     return result["data"][0]["bk_username"]
 

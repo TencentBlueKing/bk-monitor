@@ -346,6 +346,56 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
+    def apply_to_namespace(self, target_namespace: str) -> dict:
+        """根据当前数据源元信息下发独立的 BKBase DataSource 配置。"""
+        from django.utils import timezone
+
+        from metadata.models.data_link.data_link_configs import DataIdConfig, _format_data_source_datetime
+
+        name = f"bkm_datasource_{self.bk_data_id}"
+        bk_biz_id, _ = get_space_uid_and_bk_biz_id_by_bk_data_id(self.bk_tenant_id, self.bk_data_id)
+        operator = settings.BK_DATA_PROJECT_MAINTAINER.split(",")[0]
+        now = timezone.now()
+        metadata = {
+            "name": name,
+            "namespace": target_namespace,
+            "labels": {"raw_data_id": str(self.bk_data_id)},
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            metadata["tenant"] = self.bk_tenant_id
+        data_source_config = {
+            "kind": "DataSource",
+            "metadata": metadata,
+            "spec": {
+                "basic_info": {
+                    "data_source_name": name,
+                    "data_source_alias": self.data_name,
+                    "data_encoding": "UTF-8",
+                    "bk_biz_id": get_tenant_datalink_biz_id(self.bk_tenant_id, bk_biz_id).data_biz_id,
+                    "time_zone": settings.TIME_ZONE,
+                    "tags": [],
+                    "description": self.data_description,
+                    "access_channel": "bkbase",
+                    "access_channel_alias": "计算平台",
+                },
+                "report_config": {"type": "custom"},
+                "data_conn": None,
+                "created_by": self.creator or operator,
+                "created_at": _format_data_source_datetime(self.create_time or now),
+                "updated_by": self.last_modify_user or operator,
+                "updated_at": _format_data_source_datetime(self.last_modify_time or now),
+                "desired_status": "Running",
+            },
+        }
+        api.bkdata.apply_data_link(config=[data_source_config], bk_tenant_id=self.bk_tenant_id)
+        DataIdConfig.objects.update_or_create(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=target_namespace,
+            name=name,
+            defaults={"bk_data_id": self.bk_data_id, "bk_biz_id": bk_biz_id},
+        )
+        return {"bk_data_id": self.bk_data_id, "name": name, "target_namespace": target_namespace}
+
     def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor", bkbase_data_name: str = ""):
         """
         将当前data_id注册到计算平台

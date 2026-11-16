@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { useOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
 
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
@@ -118,6 +119,7 @@ export default defineComponent({
     const accessContainerRef = ref(null); // 容器引用
     const tableFilters = ref<FilterValue>({});
     const settingsVisible = ref(false);
+    const settingsZIndex = useOverlayZIndex(settingsVisible, 'DROPDOWN');
     const settingsDraft = ref<string[]>([]);
 
     // 来源状态过滤器
@@ -634,7 +636,7 @@ export default defineComponent({
         visible={settingsVisible.value}
         trigger='click'
         placement='bottom-right'
-        zIndex={3000}
+        zIndex={settingsZIndex.value}
         onVisibleChange={(visible) => {
           settingsVisible.value = visible;
           if (visible) settingsDraft.value = clusterSetting.value.selectedFields.map((field) => field.id);

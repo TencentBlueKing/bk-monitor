@@ -1291,3 +1291,238 @@ def test_strategy_config_patch_supplements_static_target_query_dimensions(
 
     persisted_query: QueryConfigModel = QueryConfigModel.objects.get(item_id=item.id)
     assert set(persisted_query.config["agg_dimension"]) == {"bk_target_ip", "bk_target_cloud_id"}
+
+
+def make_log_query_config(alias: str, dimensions: list[str], conditions: list[dict]) -> dict[str, Any]:
+    return {
+        "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
+        "data_type_label": DataTypeLabel.TIME_SERIES,
+        "alias": alias,
+        "index_set_id": 1,
+        "result_table_id": "",
+        "query_string": "*",
+        "agg_method": "COUNT",
+        "agg_interval": 60,
+        "agg_dimension": dimensions,
+        "agg_condition": conditions,
+        "metric_field": "_index",
+        "unit": "",
+    }
+
+
+def set_log_query(query: QueryConfigModel, dimensions: list[str], conditions: list[dict]) -> None:
+    payload = make_log_query_config(query.alias, dimensions, conditions)
+    query.data_source_label = payload.pop("data_source_label")
+    query.data_type_label = payload.pop("data_type_label")
+    payload.pop("alias")
+    query.metric_id = "bk_log_search.index_1._index"
+    query.config = payload
+    query.save()
+
+
+def log_conditions() -> list[dict]:
+    return [
+        {"key": "body", "method": "exclude", "value": ["noise"]},
+        {"key": "severity", "method": "eq", "value": ["error"], "condition": "and"},
+    ]
+
+
+@pytest.mark.parametrize("blacklisted", [False, True])
+@pytest.mark.parametrize("create", [False, True])
+def test_full_save_aligns_nodata_after_log_dimensions_and_returns_saved_history(
+    strategy_config_fixture: dict[str, Any], mocker, settings, blacklisted: bool, create: bool
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    item.target = [[]]
+    item.no_data_config = {"is_enabled": True, "continuous": 5, "agg_dimension": ["namespace", "body", "pod"]}
+    item.save(update_fields=["target", "no_data_config"])
+    strategy_config_fixture["query_config_extra"].delete()
+    set_log_query(strategy_config_fixture["query_config_a"], ["namespace"], log_conditions())
+    settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV = [BK_BIZ_ID] if blacklisted else []
+    payload = Strategy.from_models([strategy])[0].to_dict()
+    for field in ("app", "path"):
+        payload[field] = payload.get(field) or ""
+    if create:
+        payload["id"] = 0
+        payload["name"] = "created_nodata_strategy"
+    mocker.patch.object(Strategy, "convert")
+    mocker.patch("bkmonitor.strategy.new_strategy.is_ipv6_biz", return_value=False)
+
+    result = SaveStrategyV2Resource().request(payload)
+
+    saved_item = next(saved for saved in result["items"] if saved["name"] == item.name)
+    expected = ["namespace", "body"] if blacklisted else ["namespace"]
+    expected_query = {"namespace", "body"} if blacklisted else {"namespace"}
+    persisted = ItemModel.objects.get(id=saved_item["id"])
+    query = QueryConfigModel.objects.get(item_id=persisted.id)
+    history = StrategyHistoryModel.objects.get(strategy_id=result["id"])
+    history_item = next(saved for saved in history.content["items"] if saved["name"] == item.name)
+    assert persisted.no_data_config["agg_dimension"] == expected
+    assert saved_item["no_data_config"]["agg_dimension"] == expected
+    assert history_item["no_data_config"]["agg_dimension"] == expected
+    assert set(query.config["agg_dimension"]) == expected_query
+    assert set(saved_item["query_configs"][0]["agg_dimension"]) == expected_query
+    assert set(history_item["query_configs"][0]["agg_dimension"]) == expected_query
+
+
+def test_partial_log_query_replacement_supplements_new_single_query_before_nodata_alignment(
+    strategy_config_fixture: dict[str, Any], settings
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    item.target = [[]]
+    item.no_data_config = {
+        "is_enabled": True,
+        "continuous": 5,
+        "agg_dimension": ["namespace", "body", "severity", "pod"],
+    }
+    item.save(update_fields=["target", "no_data_config"])
+    set_log_query(strategy_config_fixture["query_config_a"], ["namespace", "body"], log_conditions())
+    set_log_query(strategy_config_fixture["query_config_extra"], ["namespace"], [])
+    settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV = [BK_BIZ_ID]
+
+    perform_strategy_config_patch(
+        [strategy.id],
+        {
+            "items": [
+                {
+                    "id": item.id,
+                    "expression": "a",
+                    "query_configs": [make_log_query_config("a", ["namespace"], log_conditions())],
+                }
+            ]
+        },
+    )
+
+    item.refresh_from_db()
+    query = QueryConfigModel.objects.get(item_id=item.id)
+    history = StrategyHistoryModel.objects.get(strategy_id=strategy.id)
+    history_item = next(saved for saved in history.content["items"] if saved["id"] == item.id)
+    assert set(query.config["agg_dimension"]) == {"namespace", "body"}
+    assert item.no_data_config["agg_dimension"] == ["namespace", "body", "severity"]
+    assert history_item["no_data_config"] == item.no_data_config
+    assert set(history_item["query_configs"][0]["agg_dimension"]) == {"namespace", "body"}
+
+
+def test_partial_log_query_replacement_does_not_supplement_when_new_queries_are_multiple(
+    strategy_config_fixture: dict[str, Any], settings
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    item.target = [[]]
+    item.no_data_config = {"is_enabled": True, "continuous": 5, "agg_dimension": ["namespace", "body"]}
+    item.save(update_fields=["target", "no_data_config"])
+    strategy_config_fixture["query_config_extra"].delete()
+    set_log_query(strategy_config_fixture["query_config_a"], ["namespace", "body"], log_conditions())
+    settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV = [BK_BIZ_ID]
+
+    perform_strategy_config_patch(
+        [strategy.id],
+        {
+            "items": [
+                {
+                    "id": item.id,
+                    "expression": "a+b",
+                    "query_configs": [
+                        make_log_query_config("a", ["namespace"], log_conditions()),
+                        make_log_query_config("b", ["namespace"], []),
+                    ],
+                }
+            ]
+        },
+    )
+
+    item.refresh_from_db()
+    queries = list(QueryConfigModel.objects.filter(item_id=item.id).order_by("alias"))
+    assert [query.config["agg_dimension"] for query in queries] == [["namespace"], ["namespace"]]
+    assert item.no_data_config["agg_dimension"] == ["namespace", "body"]
+
+
+def test_partial_query_alignment_keeps_host_fuller_dimension(
+    strategy_config_fixture: dict[str, Any],
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    item.target = [[]]
+    item.no_data_config = {"is_enabled": True, "continuous": 5, "agg_dimension": ["bk_target_ip"]}
+    item.save(update_fields=["target", "no_data_config"])
+    query: QueryConfigModel = strategy_config_fixture["query_config_a"]
+    query.config["agg_dimension"] = ["bk_host_id", "bk_target_ip"]
+    query.save(update_fields=["config"])
+    strategy_config_fixture["query_config_extra"].delete()
+    new_query = make_query_config_payload("a", "origin_a")
+    new_query["agg_dimension"] = ["bk_host_id"]
+
+    perform_strategy_config_patch([strategy.id], {"items": [{"id": item.id, "query_configs": [new_query]}]})
+
+    item.refresh_from_db()
+    assert QueryConfigModel.objects.get(item_id=item.id).config["agg_dimension"] == ["bk_host_id"]
+    assert item.no_data_config["agg_dimension"] == ["bk_target_ip"]
+
+
+def test_partial_query_alignment_uses_all_queries_and_cleans_stale_dimensions(
+    strategy_config_fixture: dict[str, Any],
+) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    item.target = [[]]
+    item.no_data_config = {"is_enabled": True, "continuous": 5, "agg_dimension": ["namespace", "pod", "stale"]}
+    item.save(update_fields=["target", "no_data_config"])
+    first = make_query_config_payload("a", "origin_a")
+    second = make_query_config_payload("b", "origin_extra")
+    first["agg_dimension"] = ["namespace"]
+    second["agg_dimension"] = ["pod"]
+
+    perform_strategy_config_patch(
+        [strategy.id], {"items": [{"id": item.id, "expression": "a+b", "query_configs": [first, second]}]}
+    )
+
+    item.refresh_from_db()
+    assert item.no_data_config["agg_dimension"] == ["namespace", "pod"]
+
+
+def test_partial_unchanged_queries_clean_stale_nodata_dimensions(strategy_config_fixture: dict[str, Any]) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    item.no_data_config = {"is_enabled": True, "continuous": 5, "agg_dimension": ["bk_target_ip", "stale"]}
+    item.save(update_fields=["no_data_config"])
+    original_queries = list(QueryConfigModel.objects.filter(item_id=item.id).order_by("id").values())
+    current_item = next(config for config in Strategy.from_models([strategy])[0].items if config.id == item.id)
+
+    perform_strategy_config_patch(
+        [strategy.id],
+        {"items": [{"id": item.id, "query_configs": [query.to_dict() for query in current_item.query_configs]}]},
+    )
+
+    item.refresh_from_db()
+    history = StrategyHistoryModel.objects.get(strategy_id=strategy.id)
+    history_item = next(saved for saved in history.content["items"] if saved["id"] == item.id)
+    assert list(QueryConfigModel.objects.filter(item_id=item.id).order_by("id").values()) == original_queries
+    assert item.no_data_config["agg_dimension"] == ["bk_target_ip"]
+    assert history_item["no_data_config"] == item.no_data_config
+
+
+def test_legacy_nodata_patch_aligns_saved_config_and_history(strategy_config_fixture: dict[str, Any]) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+
+    perform_legacy_patch([strategy.id], {"no_data_config": {"agg_dimension": ["bk_target_ip", "stale"]}})
+
+    item.refresh_from_db()
+    history = StrategyHistoryModel.objects.get(strategy_id=strategy.id)
+    history_item = next(saved for saved in history.content["items"] if saved["id"] == item.id)
+    assert item.no_data_config["agg_dimension"] == ["bk_target_ip"]
+    assert history_item["no_data_config"] == item.no_data_config
+
+
+def test_legacy_unrelated_patch_preserves_existing_nodata_config(strategy_config_fixture: dict[str, Any]) -> None:
+    strategy: StrategyModel = strategy_config_fixture["strategy"]
+    item: ItemModel = strategy_config_fixture["first_item"]
+    item.no_data_config = {"is_enabled": True, "continuous": 5, "agg_dimension": ["stale"]}
+    item.save(update_fields=["no_data_config"])
+
+    perform_legacy_patch([strategy.id], {"is_enabled": True})
+
+    item.refresh_from_db()
+    assert item.no_data_config["agg_dimension"] == ["stale"]

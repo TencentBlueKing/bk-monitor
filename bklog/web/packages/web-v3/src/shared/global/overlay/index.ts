@@ -47,3 +47,5 @@ export { useOverlay } from './use-overlay';
 export { useDialogVisible } from './use-dialog-visible';
 export { createOverlayTippy, createRawTippyOverlay } from './adapters/tippy-adapter';
 export { bindDialogToOverlay } from './adapters/dialog-adapter';
+
+export { allocateOverlayZIndex, useOverlayZIndex } from './use-overlay-z-index';

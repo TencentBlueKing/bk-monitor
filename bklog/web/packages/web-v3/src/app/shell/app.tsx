@@ -37,6 +37,7 @@ import useLocale from '../../shared/composables/use-locale';
 import { join } from '@/shared/global/utils/path';
 
 import LocaleProvider from '@/platform/i18n/locale-provider';
+import { usePlatformConfigStore } from '@/app/state/modules/platform-config';
 import HeadNav from '@/shared/global/head-navi/index';
 import './app.scss';
 
@@ -63,6 +64,8 @@ if (isHeadlessEntry()) {
 
 export default defineComponent({
   setup() {
+    // Root initialization owns base.js loading; navigation only consumes it.
+    usePlatformConfigStore().fetchConfig();
     const route = useRoute();
     const store = useApplicationStore();
     watch(() => route.name, async name => {
