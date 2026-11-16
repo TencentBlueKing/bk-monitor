@@ -8208,6 +8208,11 @@
       "kind": "service-call"
     },
     {
+      "from": "features/collection/current/components/business-comp/step3/clean-template-dialog.scss",
+      "to": "shared/styles/mixins/overflow-tips.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/collection/current/components/business-comp/step3/clean-template-dialog.tsx",
       "to": "shared/composables/use-locale.ts",
       "kind": "module"

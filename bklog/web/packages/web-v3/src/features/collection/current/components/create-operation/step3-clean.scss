@@ -302,9 +302,9 @@
 
       .t-button {
         height: 32px;
-        color: #63656e;
-        background-color: #fff;
-        border: 1px solid #c4c6cc;
+        color: var(--bklog-text-secondary, #63656e);
+        background-color: var(--bklog-surface, #fff);
+        border: 1px solid var(--bklog-border-control, #c4c6cc);
         border-radius: 0;
         box-shadow: none;
 
@@ -325,12 +325,12 @@
         &.is-selected {
           position: relative;
           z-index: var(--bklog-z-base);
-          color: #3a84ff;
-          border-color: #3a84ff;
+          color: var(--bklog-brand-primary, #3a84ff);
+          border-color: var(--bklog-brand-primary, #3a84ff);
         }
 
         &.is-selected {
-          background-color: #e1ecff;
+          background-color: var(--bklog-brand-tint, #e1ecff);
         }
       }
     }
