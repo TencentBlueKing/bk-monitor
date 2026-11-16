@@ -29,6 +29,77 @@ class CachedDiscoverMixin(ABC):
     model: TopoBase
     application: ApmApplication
     MAX_COUNT: int = 100000
+    CACHE_REFRESH_INTERVAL_SECONDS = 30
+
+    def begin_cache_batch(self):
+        """仅在一次拓扑发现任务内合并已有对象的心跳。"""
+        self._pending_cache_updates = {}
+        self._pending_cache_deletes = set()
+        self._last_cache_refresh = time.monotonic()
+        self._cache_cleanup_done = False
+
+    def flush_cache_updates(self, cache_data=None):
+        """重读共享 JSON 后合并观察时间；写入成功前保留待发布数据。"""
+        started = time.monotonic()
+        updates = self._pending_cache_updates
+        deletes = self._pending_cache_deletes
+        if not updates and not deletes:
+            return
+        if cache_data is None:
+            cache_data = self._query_cache_data()
+        for key in deletes:
+            cache_data.pop(key, None)
+        for key, observed_at in updates.items():
+            cache_data[key] = max(cache_data.get(key, observed_at), observed_at)
+        cache_key = ApmCacheHandler.get_cache_key(self._get_cache_type(), self.bk_biz_id, self.app_name)
+        ApmCacheHandler().refresh_data(cache_key, cache_data, ApmCacheConfig.get_expire_time(self._get_cache_type()))
+        logger.info(
+            "[apm_discovery] event=cache_batch_refreshed bk_biz_id=%s app_name=%s cache_type=%s "
+            "entry_count=%s updated_count=%s deleted_count=%s duration_s=%.3f",
+            self.bk_biz_id,
+            self.app_name,
+            self._get_cache_type(),
+            len(cache_data),
+            len(updates),
+            len(deletes),
+            time.monotonic() - started,
+        )
+        updates.clear()
+        deletes.clear()
+        self._last_cache_refresh = time.monotonic()
+
+    def _refresh_cache_batch(self, remain_data, created_data, updated_instances):
+        now = int(time.time())
+        _, observed_keys = self._to_id_and_key(created_data + updated_instances)
+        self._pending_cache_updates.update(dict.fromkeys(observed_keys, now))
+        self._pending_cache_deletes.difference_update(observed_keys)
+
+        cache_data = None
+        if not self._cache_cleanup_done or len(remain_data) > self.MAX_COUNT:
+            if len(remain_data) > self.MAX_COUNT and any(instance.id is None for instance in remain_data.values()):
+                # MySQL bulk_create 不回填主键，实际淘汰前重新读取持久化对象。
+                persisted = self.get_remain_data()
+                remain_data.clear()
+                remain_data.update(persisted)
+            cache_data = self._query_cache_data()
+            for key, observed_at in self._pending_cache_updates.items():
+                cache_data[key] = max(cache_data.get(key, observed_at), observed_at)
+            deleted_keys = self._clear_data(cache_data, list(remain_data.values()))
+            self._pending_cache_deletes.update(deleted_keys)
+            for key in deleted_keys:
+                self._pending_cache_updates.pop(key, None)
+            for found_key, instance in list(remain_data.items()):
+                if self.to_cache_key(instance) in deleted_keys:
+                    del remain_data[found_key]
+            self._cache_cleanup_done = True
+
+        if (
+            cache_data is not None
+            or created_data
+            or self._pending_cache_deletes
+            or time.monotonic() - self._last_cache_refresh >= self.CACHE_REFRESH_INTERVAL_SECONDS
+        ):
+            self.flush_cache_updates(cache_data)
 
     @classmethod
     @abstractmethod
@@ -61,6 +132,7 @@ class CachedDiscoverMixin(ABC):
         existing_instances: list[BaseInstanceData],
         created_db_instances: list,
         updated_instances: list[BaseInstanceData],
+        remain_data: dict | None = None,
     ):
         """
         处理创建实例后的缓存刷新逻辑
@@ -68,10 +140,9 @@ class CachedDiscoverMixin(ABC):
         :param existing_instances: 已存在的实例数据列表 (从数据库查询得到)
         :param created_db_instances: 新创建的数据库对象列表 (bulk_create 返回的对象)
         :param updated_instances: 需要更新的实例数据列表
+        :param remain_data: 本轮任务共享的业务唯一键映射，创建和清理后同步更新
         """
         started: float = time.monotonic()
-        cache_data = self._query_cache_data()
-
         # 将新创建的数据库对象转换为数据类对象
         created_instance_data: list[BaseInstanceData] = []
         create_instance_keys = set()
@@ -79,11 +150,24 @@ class CachedDiscoverMixin(ABC):
             created_instance_data = [self.build_instance_data(db_obj) for db_obj in created_db_instances]
             _, create_instance_keys = self._to_id_and_key(created_instance_data)
 
+        if remain_data is not None:
+            for instance in created_instance_data:
+                remain_data[self._to_found_key(instance)] = instance
+
+        if hasattr(self, "_pending_cache_updates"):
+            self._refresh_cache_batch(remain_data, created_instance_data, updated_instances)
+            return
+
+        cache_data = self._query_cache_data()
         # 合并已存在的和新创建的实例数据
         all_instance_data: list[BaseInstanceData] = existing_instances + created_instance_data
 
         # 计算需要删除的实例（过期或超量）
         delete_instance_keys = self._clear_data(cache_data, all_instance_data)
+        if remain_data is not None:
+            for found_key, instance in list(remain_data.items()):
+                if self.to_cache_key(instance) in delete_instance_keys:
+                    del remain_data[found_key]
 
         # 计算需要更新的实例 keys
         _, update_instance_keys = self._to_id_and_key(updated_instances)
