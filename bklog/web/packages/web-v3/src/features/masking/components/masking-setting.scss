@@ -41,13 +41,16 @@
   }
 
   .operator-slot {
-    gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    white-space: nowrap;
 
-    .t-button {
+    .t-button--variant-text {
+      min-width: 0;
       padding: 0;
+      border: 0;
     }
-
-    @include flex-justify(space-between);
   }
 
   .bk-table-pagination-wrapper {

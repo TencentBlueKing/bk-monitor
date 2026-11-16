@@ -868,7 +868,6 @@ export default defineComponent({
               cell: (_h, props) => (
                 <div class='collect-table-operate'>
                   <log-button
-                    class='mr10'
                     tips-conf={
                       props.row.is_platform
                         ? t('公共集群，禁止创建自定义索引集')
@@ -881,7 +880,6 @@ export default defineComponent({
                     onOnClick={() => createIndexSet(props.row as ClusterActionRow)}
                   />
                   <log-button
-                    class='mr10'
                     v-cursor={{
                       active: !props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH],
                     }}
@@ -893,7 +891,6 @@ export default defineComponent({
                     onOnClick={() => editDataSource(props.row as ClusterActionRow)}
                   />
                   <log-button
-                    class='mr10'
                     v-cursor={{
                       active: !props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH],
                     }}

@@ -143,7 +143,7 @@
               <!-- 高级清洗授权 -->
               <t-button :variant="(true) ? 'text' : ('base')"
                 v-if="props.row.bkdata_auth_url"
-                class="mr10 king-button"
+                class="king-button"
                 theme="primary"
 
                 @click="handleAuth(props.row)"
@@ -153,7 +153,7 @@
               <!-- 检索 -->
               <log-button
                 v-else
-                ext-cls="mr10 king-button"
+                ext-cls="king-button"
                 :button-text="$t('检索')"
                 :cursor-active="!(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH])"
                 :disabled="!props.row.is_active || !props.row.index_set_id"
@@ -168,7 +168,7 @@
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
-                class="mr10 king-button"
+                class="king-button"
                 theme="primary"
 
                 @click.stop="operateHandler(props.row, 'edit')"
@@ -177,7 +177,7 @@
               </t-button>
               <!-- 删除 -->
               <log-button
-                ext-cls="mr10 king-button"
+                ext-cls="king-button"
                 :button-text="$t('删除')"
                 :cursor-active="!(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])"
                 :disabled="props.row.etl_config === 'bkdata_clean'"
@@ -554,6 +554,19 @@ import { ServicesInstance } from '@/platform/services';
   @use '@/shared/styles/devops-common.scss' as *;
   .log-clean-container {
     padding: 20px 24px;
+
+    .collect-table-operate {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      white-space: nowrap;
+
+      .t-button--variant-text {
+        min-width: 0;
+        padding: 0;
+        border: 0;
+      }
+    }
 
     .top-operation {
       margin-bottom: 20px;
