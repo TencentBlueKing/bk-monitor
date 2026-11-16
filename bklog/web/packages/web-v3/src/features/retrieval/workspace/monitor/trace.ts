@@ -27,6 +27,8 @@
 import { Loading as TLoading } from '@/shared/ui/loading/native';
 
 
+import { ensureMonitorOverlayZIndex } from '@/shared/global/overlay/z-index-manager.js';
+
 import publishedMonitorStore from '@/app/state/index';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert, Badge as TBadge, Progress as TProgress, Tag as TTag } from 'tdesign-vue-next';
@@ -71,6 +73,7 @@ const initWindowState = () => {
   window.__IS_MONITOR_COMPONENT__ = true;
   window.__IS_MONITOR_TRACE__ = true;
   window.__IS_MONITOR_APM__ = false;
+  ensureMonitorOverlayZIndex();
   // 为嵌入运行时注册 workerManager / __BKLOG_WORKERS__ 诊断 API。
   performanceMonitorService.init();
 };

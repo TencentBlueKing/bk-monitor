@@ -19244,6 +19244,11 @@
     },
     {
       "from": "features/retrieval/workspace/monitor/apm.ts",
+      "to": "shared/global/overlay/z-index-manager.js",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/monitor/apm.ts",
       "to": "app/state/index.ts",
       "kind": "module"
     },
@@ -19370,6 +19375,11 @@
     {
       "from": "features/retrieval/workspace/monitor/trace.ts",
       "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/monitor/trace.ts",
+      "to": "shared/global/overlay/z-index-manager.js",
       "kind": "module"
     },
     {
