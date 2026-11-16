@@ -52,6 +52,7 @@ from apps.log_clustering.constants import (
     LEGACY_NEW_CLASS_AGG_CONDITION,
     LEGACY_NEW_CLASS_AGG_DIMENSION,
     NEW_SERIES_ALGORITHM_TYPE,
+    NEW_SERIES_NOTICE_TEMPLATE,
     NEW_SERIES_THRESHOLD_CONFIG_KEY,
     PATTERN_MONITOR_MSG_BY_SWITCH,
     QUIX_AGG_DIMENSION_NORMAL,
@@ -274,6 +275,7 @@ class ClusteringMonitorHandler:
         notice = self.get_notice(
             label_index_set_id=label_index_set_id,
             user_groups=params.get("user_groups"),
+            message_template=NEW_SERIES_NOTICE_TEMPLATE,
         )
         request_params = {
             "type": "monitor",
@@ -377,7 +379,9 @@ class ClusteringMonitorHandler:
 
         return {"strategy_id": strategy_id, "label_name": labels}
 
-    def get_notice(self, label_index_set_id, user_groups, dimensions=None):
+    def get_notice(
+        self, label_index_set_id, user_groups, dimensions=None, message_template=DEFAULT_PATTERN_MONITOR_MSG
+    ):
         if not user_groups:
             # 没配置告警组的就创建一个默认的
             user_groups = [
@@ -387,9 +391,7 @@ class ClusteringMonitorHandler:
                 )
             ]
         dimensions = dimensions or []
-        anomaly_template = DEFAULT_PATTERN_MONITOR_MSG.replace(
-            "__clustering_field__", self.clustering_config.clustering_fields
-        )
+        anomaly_template = message_template.replace("__clustering_field__", self.clustering_config.clustering_fields)
         notice = {
             "config_id": 0,
             "user_groups": user_groups,
