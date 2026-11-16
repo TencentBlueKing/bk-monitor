@@ -39,7 +39,7 @@ import {
 } from '../utils/collection-results';
 
 import type { SelectionRange } from '../types';
-import type { CollectionExecutionColumn } from '../types/collection-history';
+import type { CollectionExecutionColumn, CollectionExecutionDetail } from '../types/collection-history';
 import type { CollectionHostResult, CollectionResultsState } from '../types/collection-results';
 
 const PAGE_LIMIT = 20;
@@ -63,6 +63,8 @@ export function useCollectionResults({
   const records = shallowRef<CollectionHostResult[]>([]);
   // 执行范围下后端下发的列定义；缺省时结果页沿用固定列
   const hostColumns = shallowRef<CollectionExecutionColumn[] | null>(null);
+  // 执行范围下的执行详情，结果页用其中的任务名与主机 IP 回填筛选条件
+  const executionDetail = shallowRef<CollectionExecutionDetail | null>(null);
   const loading = shallowRef(false);
   const error = shallowRef('');
   const hasMore = shallowRef(false);
@@ -83,6 +85,7 @@ export function useCollectionResults({
       const execution = state.value.execution;
       const detail = execution ? await getCollectionExecution(bizId.value, execution, current.signal) : null;
       if (current.signal.aborted) return;
+      executionDetail.value = detail;
       hostColumns.value = detail?.host_columns?.length ? detail.host_columns : null;
       const data = detail
         ? executionResultRows(detail)
@@ -112,6 +115,7 @@ export function useCollectionResults({
     loading.value = false;
     records.value = [];
     hostColumns.value = null;
+    executionDetail.value = null;
     offset = 0;
     hasMore.value = false;
     error.value = '';
@@ -172,6 +176,7 @@ export function useCollectionResults({
   return {
     records,
     hostColumns,
+    executionDetail,
     loading,
     error,
     hasMore,

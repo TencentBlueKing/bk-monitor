@@ -38,6 +38,8 @@ export interface CollectionExecution extends CollectionExecutionKey {
   collection_type: CollectionType;
   creator: string;
   duration_ms: null | number;
+  // 失败原因类型，状态列据此展示提示；后端未下发或类型未命中枚举时不展示
+  error_type?: string;
   execution_status: string;
   finished_at: null | number;
   hosts: { bk_host_id: number; ip: string }[];

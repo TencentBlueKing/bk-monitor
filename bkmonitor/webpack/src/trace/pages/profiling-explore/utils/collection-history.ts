@@ -129,6 +129,11 @@ export function historyFiltersPayload(filters: CollectionHistoryFilters): Collec
   return taskId ? { ...rest, task_id: taskId } : rest;
 }
 
+// 状态列 hover 提示：只按 error_type 命中枚举取文案，未命中或未下发时为空
+export function hostErrorTypeMessage(errorType?: string): string {
+  return (errorType ? hostErrorTypeLabels[errorType] : '') || '';
+}
+
 export function parseProcessSelection(values: string[]): ProcessFilters {
   const result: ProcessFilters = { process_names: [], process_pids: [] };
   for (const id of values) {
