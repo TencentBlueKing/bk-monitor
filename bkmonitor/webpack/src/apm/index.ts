@@ -39,9 +39,11 @@ import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, parseBizId, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
+import { isAidevEmbed } from 'monitor-common/utils/global-feature-map';
 import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 import { dispatchApmK8sCacheFlush } from 'monitor-pc/pages/monitor-k8s/monitor-k8s-apm';
 
+import AidevPermissionPending from './components/aidev-permission-pending/aidev-permission-pending';
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
@@ -56,6 +58,12 @@ Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
 const bizId = parseBizId(getUrlParam('bizId'));
+
+/** URL 中的业务是否已经出现在当前用户的空间列表 */
+const hasRequestedBizAccess = () => {
+  if (!Number.isFinite(bizId)) return true;
+  return (window.space_list || []).some(item => +item.bk_biz_id === bizId);
+};
 
 setVue(Vue as VueInstance);
 if (process.env.NODE_ENV === 'development') {
@@ -101,6 +109,16 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       window.user_name = window.uin;
       window.cc_biz_id = parseBizId(window.bk_biz_id);
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
+      // AIDev 嵌入时，业务还不在空间列表里说明权限尚未同步。
+      // 直接展示等待页，避免 setGlobalBizId 跳到 APM 没有的 no-business 路由。
+      if (isAidevEmbed() && !hasRequestedBizAccess()) {
+        new Vue({
+          el: '#app',
+          i18n,
+          render: h => h(AidevPermissionPending),
+        });
+        return;
+      }
       const bizId = setGlobalBizId();
       if (bizId === false) return;
       userDisplayNameConfigure();

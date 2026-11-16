@@ -254,6 +254,10 @@ export default {
   无告警: 'No alarms',
   无数据: 'No data',
   暂无权限: 'No permission',
+  // AIDev 嵌入 APM 权限等待页
+  '当前业务的访问权限正在同步中，请稍后再刷新':
+    'Permission for this business is syncing. Refresh again in a moment.',
+  '{seconds} 秒后可刷新': 'Refresh available in {seconds}s',
   暂无数据: 'No Data',
   没有数据: 'No Data',
   查无数据: 'No data',
