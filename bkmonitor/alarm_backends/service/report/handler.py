@@ -595,7 +595,7 @@ class ReportHandler:
         :return: 分组结果 {"ALL-bk_biz_id1,bk_biz_id2-SETTINGS-bk_biz_id1": {user1, user2}}
         """
         send_groups = defaultdict(set)
-        setting_notify_group_data = api.monitor.get_setting_and_notify_group()
+        setting_notify_group_data = MailReportCacheManager.fetch_groups_and_user_bizs()
         for receiver in receivers:
             tag_string = ""  # 用户各类业务串的唯一标志
             if not receiver or len(receiver) == 32 or "webhook(" in receiver:
