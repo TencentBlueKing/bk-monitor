@@ -146,6 +146,15 @@ export default defineComponent({
         ips: ip ? [ip] : props.state.filters.ips,
       };
     });
+    // 按任务 ID 筛选时用于任务下拉回显的任务名：执行详情返回后记住，退出执行范围仍按 ID 筛选就继续回显，清除任务 ID 后丢弃
+    const historyTaskName = shallowRef('');
+    watch(
+      () => [displayFilters.value.task_id, h.executionDetail.value?.task_name || ''] as const,
+      ([taskId, name]) => {
+        if (!taskId) historyTaskName.value = '';
+        else if (name) historyTaskName.value = name;
+      }
+    );
     function patch(value: Partial<CollectionResultsState>) {
       // 筛选实际变化即退出执行范围；否则刷新仍会请求本次执行详情，列表不会按新条件变化。
       // 执行范围的条件由 displayFilters 回填，比较基准必须是展示条件，否则清空筛选会被判定为无变化
@@ -207,6 +216,7 @@ export default defineComponent({
       selectedRow,
       filtered,
       displayFilters,
+      historyTaskName,
       scrollContainer,
       executionBusy,
       patch,
@@ -323,7 +333,7 @@ export default defineComponent({
           bizId={this.bizId}
           filters={this.displayFilters}
           range={this.range}
-          taskName={h.executionDetail.value?.task_name || ''}
+          taskName={this.historyTaskName}
           autoQuery
           onChange={filters => this.patch({ filters })}
           onRefresh={h.refresh}

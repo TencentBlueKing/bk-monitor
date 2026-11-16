@@ -36,10 +36,10 @@ import {
   canRetryExecution,
   canViewExecution,
   executionConfiguration,
-  executionHostMessage,
   executionSelection,
   formatExecutionDuration,
   hostColumnMinWidths,
+  hostErrorTypeMessage,
 } from '../../utils/collection-history';
 import {
   buildHostCollectionPayload,
@@ -277,8 +277,8 @@ export default defineComponent({
       if (column.type === 'status')
         return (
           <CollectionExecutionStatus
-            class={{ 'has-failure-message': !!row.message && ['failed', 'timeout'].includes(row.status) }}
-            message={executionHostMessage(row)}
+            class={{ 'has-failure-message': ['failed', 'timeout'].includes(row.status) }}
+            message={hostErrorTypeMessage(row.error_type)}
             status={String(value ?? '')}
           />
         );

@@ -111,10 +111,6 @@ export function createHistoryFilters(): CollectionHistoryFilters {
   return { ips: [], task_id: null, task_name: '', process_names: [], process_pids: [], schedule_types: [], status: '' };
 }
 
-export function executionHostMessage(host: CollectionExecutionHost): string {
-  return (host.error_type ? hostErrorTypeLabels[host.error_type] : '') || host.message || '';
-}
-
 export function executionKey(value: CollectionExecutionKey): CollectionExecutionKey {
   return {
     schedule_type: value.schedule_type,
