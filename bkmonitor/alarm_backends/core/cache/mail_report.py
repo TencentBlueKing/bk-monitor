@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import json
 import datetime
@@ -31,16 +29,22 @@ class MailReportCacheManager(CacheManager):
     MAIL_REPORT_CACHE_KEY = MAIL_REPORT_GROUP_CACHE_KEY.get_key()
 
     @classmethod
-    def fetch_groups_and_user_bizs(cls):
+    def fetch_groups_and_user_bizs(cls, ensure=False):
         """
         获取订阅报表配置管理组及其所辖业务、通知接收人及其所收通知业务
+        :param ensure: 仅后台消费端在缓存缺失时同步补建，默认保持纯读
         :return: {
             "controller_group": {"users": [], "users_biz": []},
             "alert_group": {"users": [], "users_biz": []},
         }
         """
         data = cls.cache.get(cls.MAIL_REPORT_CACHE_KEY)
-        if data:
+        if data is None and ensure:
+            cls.refresh_mail_report_group()
+            data = cls.cache.get(cls.MAIL_REPORT_CACHE_KEY)
+            if data is None:
+                raise RuntimeError("mail report group cache missing after refresh")
+        if data is not None:
             return extended_json.loads(data)
         else:
             return {
@@ -168,22 +172,15 @@ class MailReportCacheManager(CacheManager):
 
     @classmethod
     def refresh_mail_report_group(cls):
-        """
-        {
-            "controller_group": {"users": [], "users_biz": []},
-            "alert_group": {"users": [], "users_biz": []},
-        }
-        """
+        """Build the complete snapshot before replacing the cached report groups."""
         controller_group, controller_group_user_biz = cls.fetch_controller_group()
         alert_receiver_group, alert_receiver_user_biz = cls.fetch_notify_receiver_group()
-
-        pipeline = cls.cache.pipeline()
         data = {
             "controller_group": {"users": controller_group, "users_biz": controller_group_user_biz},
             "alert_group": {"users": alert_receiver_group, "users_biz": alert_receiver_user_biz},
         }
-        pipeline.set(cls.MAIL_REPORT_CACHE_KEY, json.dumps(data), cls.CACHE_TIMEOUT)
-        pipeline.execute()
+        snapshot = json.dumps(data)
+        cls.cache.set(cls.MAIL_REPORT_CACHE_KEY, snapshot, cls.CACHE_TIMEOUT)
 
     @classmethod
     def refresh(cls):
