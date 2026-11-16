@@ -385,6 +385,7 @@ def test_apm_event_dispatcher_preserves_application_permission(monkeypatch):
         ("list_apm_services", dispatcher.ServiceListResource),
         ("llm_mcp_search_traces", dispatcher.LLMListTracesResource),
         ("llm_mcp_search_flows", dispatcher.LLMListFlowsResource),
+        ("llm_mcp_search_spans", dispatcher.LLMListSpansResource),
         ("llm_mcp_calculate_by_range", dispatcher.LLMCalculateByRangeResource),
     ],
 )

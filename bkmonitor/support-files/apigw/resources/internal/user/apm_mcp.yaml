@@ -783,6 +783,54 @@ paths:
           appVerifiedRequired: false
           resourcePermissionRequired: true
           oauth2PersonalClientEnabled: true
+  /mcp/llm_search_spans/:
+    post:
+      operationId: llm_mcp_search_spans
+      description: 'STEP 3 of the LLM/Agent observability workflow. Query normalized LLM/Agent spans (with standard gen_ai.* attributes, input/output messages, tool definitions, events and resource) by trace_id and/or span_ids. At least one of trace_id or span_ids is required. PREREQUISITE: trace_id or span_ids come from llm_mcp_search_flows. LLM/Agent 观测工作流第 3 步：按 trace_id 和/或 span_ids 查询归一化后的 LLM/Agent Span 详情（包含标准 gen_ai.* 属性、完整输入输出消息、工具定义、events 与 resource）。trace_id 与 span_ids 至少传一个。前置：trace_id 或 span_ids 来自 llm_mcp_search_flows。'
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - app_name
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                app_name:
+                  type: string
+                  description: APM application name. Must be obtained from list_apm_applications. APM应用名称。必须从 list_apm_applications 获取。
+                trace_id:
+                  type: string
+                  description: Optional trace ID to filter spans. 可选，按 Trace ID 过滤 Span。
+                span_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: Optional list of span IDs to query in one request (at least one of trace_id or span_ids must be provided). 可选，批量查询的 Span ID 列表（trace_id 与 span_ids 至少传一个）。
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/mcp/llm_mcp_search_spans/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/llm_calculate_by_range/:
     post:
       operationId: llm_mcp_calculate_by_range

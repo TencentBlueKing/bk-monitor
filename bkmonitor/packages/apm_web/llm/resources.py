@@ -342,22 +342,31 @@ class ListTracesResource(Resource):
 
 
 class ListSpansResource(Resource):
-    """根据 Trace ID 或 Span ID 查询 Span 列表。"""
+    """根据 Trace ID 或 Span ID 列表查询 Span 列表。"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         app_name = serializers.CharField(required=True, label="应用名称")
         trace_id = serializers.CharField(required=False, allow_blank=True, default="", label="trace_id")
         span_id = serializers.CharField(required=False, allow_blank=True, default="", label="span_id")
+        span_ids = serializers.ListField(
+            child=serializers.CharField(),
+            required=False,
+            default=list,
+            allow_empty=True,
+            label="span_ids",
+        )
 
         def validate(self, attrs):
-            if not attrs["trace_id"] and not attrs["span_id"]:
-                raise serializers.ValidationError("trace_id 和 span_id 至少传一个")
+            merged_span_ids = list(dict.fromkeys(sid for sid in [*attrs["span_ids"], attrs["span_id"]] if sid))
+            if not attrs["trace_id"] and not merged_span_ids:
+                raise serializers.ValidationError("trace_id 和 span_ids 至少传一个")
+            attrs["span_ids"] = merged_span_ids
             return attrs
 
     def perform_request(self, validated_request_data):
         trace_id = validated_request_data["trace_id"]
-        span_id = validated_request_data["span_id"]
+        span_ids = validated_request_data["span_ids"]
         filters = []
         if trace_id:
             filters.append(
@@ -367,12 +376,12 @@ class ListSpansResource(Resource):
                     "value": [trace_id],
                 }
             )
-        if span_id:
+        if span_ids:
             filters.append(
                 {
                     "key": OtlpKey.SPAN_ID,
                     "operator": OperatorEnum.EQUAL["operator"],
-                    "value": [span_id],
+                    "value": span_ids,
                 }
             )
         params = {

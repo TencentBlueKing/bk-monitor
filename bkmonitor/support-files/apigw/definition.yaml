@@ -179,6 +179,7 @@ stages:
           - apm_mcp_calculate_by_range
           - llm_mcp_search_traces
           - llm_mcp_search_flows
+          - llm_mcp_search_spans
           - llm_mcp_calculate_by_range
       - <<: *public_mcp_server
         name: "profiling-query"

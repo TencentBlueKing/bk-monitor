@@ -9,6 +9,7 @@ from typing import Any
 
 from apm_web.llm.resources import CalculateByRangeResource as LLMCalculateByRangeResource
 from apm_web.llm.resources import ListFlowsResource as LLMListFlowsResource
+from apm_web.llm.resources import ListSpansResource as LLMListSpansResource
 from apm_web.llm.resources import ListTracesResource as LLMListTracesResource
 from apm_web.metric.resources import CalculateByRangeResource
 from apm_web.models import Application
@@ -335,6 +336,7 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
     "list_apm_services": _apm_application_resource_executor(ServiceListResource),
     "llm_mcp_search_traces": _apm_application_resource_executor(LLMListTracesResource),
     "llm_mcp_search_flows": _apm_application_resource_executor(LLMListFlowsResource),
+    "llm_mcp_search_spans": _apm_application_resource_executor(LLMListSpansResource),
     "llm_mcp_calculate_by_range": _apm_application_resource_executor(LLMCalculateByRangeResource),
     # 仪表盘
     "get_dashboard_tree_list": _resource_executor(GetDirectoryTree),

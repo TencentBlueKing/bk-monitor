@@ -3877,6 +3877,11 @@ MIGRATED_READ_ARGS = {
         "group_field": "trace_id",
         "group_id": "0123456789abcdef0123456789abcdef",
     },
+    "llm_mcp_search_spans": {
+        "bk_biz_id": "2",
+        "app_name": "demo",
+        "span_ids": ["0123456789abcdef"],
+    },
     "llm_mcp_calculate_by_range": {
         "bk_biz_id": "2",
         "app_name": "demo",
@@ -4110,6 +4115,7 @@ def test_mcp_read_viewset_registers_only_the_shared_read_resources():
         CalculateByRangeResource="apm-calculation",
         LLMListTracesResource="llm-traces",
         LLMListFlowsResource="llm-flows",
+        LLMListSpansResource="llm-spans",
         LLMCalculateByRangeResource="llm-calculation",
     ).resource_routes
     assert {name: method for method, _, name in routes} == {
@@ -4125,6 +4131,7 @@ def test_mcp_read_viewset_registers_only_the_shared_read_resources():
         "apm-calculation",
         "llm-traces",
         "llm-flows",
+        "llm-spans",
         "llm-calculation",
     }
     assert "from .mcp import *" in (BASE / "kernel_api/views/v4/__init__.py").read_text()
