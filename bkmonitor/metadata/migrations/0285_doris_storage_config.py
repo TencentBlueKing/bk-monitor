@@ -8,6 +8,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="dorisstorage",
             name="doris_storage_config",
-            field=models.JSONField("Doris Binding 存储配置", default=dict),
+            field=models.JSONField("Doris Binding 存储配置", default=dict, null=True),
         ),
     ]

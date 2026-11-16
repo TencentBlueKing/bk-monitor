@@ -275,3 +275,42 @@ def test_missing_event_storage_preserves_error_contract(event_group_v4_records, 
     assert isinstance(exc_info.value.__cause__, rt.REAL_STORAGE_DICT[storage_type].DoesNotExist)
     remote_apply.assert_not_called()
     assert not DataBusConfig.objects.filter(data_link_name=link.data_link_name).exists()
+
+
+def test_event_binding_accepts_null_config_from_old_writer(event_group_v4_records, doris_cluster, mocker):
+    ctx = event_group_v4_records
+    rt = ctx["rt"]
+    rt.default_storage = "doris"
+    rt.save(update_fields=["default_storage"])
+    storage = models.DorisStorage.objects.create(
+        bk_tenant_id="system",
+        table_id=rt.table_id,
+        storage_cluster_id=doris_cluster.cluster_id,
+        doris_storage_config=None,
+    )
+    mocker.patch("metadata.models.data_link.data_link.generate_result_table_field_list", return_value=[])
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    mocker.patch(
+        "metadata.models.data_link.data_link.utils.get_registered_bkdata_data_id_name", return_value="event_data"
+    )
+    link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="legacy_doris_config",
+        namespace="bklog",
+        data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
+        bk_data_id=ctx["ds"].bk_data_id,
+        table_ids=[rt.table_id],
+    )
+    configs = link.compose_custom_event_configs(rt.bk_biz_id, ctx["ds"], rt.table_id)
+    binding_config = configs[1]["spec"]["storage_config"]
+    assert binding_config["storage_keys"] == []
+    assert binding_config["json_fields"] == []
+    assert binding_config["original_json_fields"] == []
+    assert binding_config["field_config_group"] == {}
+    assert binding_config["flush_timeout"] is None
+    assert "tokenizers" not in binding_config
+    assert storage.consul_config["storage_config"]["doris_storage_config"] == {}
+    assert storage._serialize_doris_storage([])["doris_storage_config"] == {}
+    from metadata.service.result_table_storage_status import _serialize_doris_storage
+
+    assert _serialize_doris_storage(storage, [])["doris_storage_config"] == {}

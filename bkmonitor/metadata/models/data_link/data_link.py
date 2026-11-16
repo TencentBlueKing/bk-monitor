@@ -988,7 +988,7 @@ class DataLink(models.Model):
 
             rt_config = table_ins.compose_config(fields=fields)
             if is_doris:
-                storage_config = storage.doris_storage_config
+                storage_config = storage.doris_storage_config or {}
                 binding_config = binding_ins.compose_config(
                     storage_cluster_name=storage.storage_cluster.cluster_name,
                     storage_keys=storage_config.get("storage_keys", []),

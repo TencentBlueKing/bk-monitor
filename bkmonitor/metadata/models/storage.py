@@ -6352,7 +6352,7 @@ class DorisStorage(models.Model, StorageResultTable):
     bkbase_table_id = models.CharField("bkbase表名", max_length=128, null=True)
     origin_table_id = models.CharField("原始结果表名", max_length=128, blank=True, null=True)
     physical_tables = models.JSONField("物理表用途映射", default=dict)
-    doris_storage_config = models.JSONField("Doris Binding 存储配置", default=dict)
+    doris_storage_config = models.JSONField("Doris Binding 存储配置", default=dict, null=True)
     source_type = models.CharField("数据源类型", max_length=32, default="log")
 
     index_set = models.TextField("索引集", blank=True, null=True)
@@ -6425,7 +6425,7 @@ class DorisStorage(models.Model, StorageResultTable):
             "source_type": self.source_type,
             "index_set": self.index_set,
             "table_type": self.table_type,
-            "doris_storage_config": self.doris_storage_config,
+            "doris_storage_config": self.doris_storage_config or {},
             "field_config_mapping": self._load_json_config(self.field_config_mapping, warnings, "field_config_mapping"),
             "expire_days": self.expire_days,
             "storage_cluster_id": self.storage_cluster_id,
@@ -7013,7 +7013,7 @@ class DorisStorage(models.Model, StorageResultTable):
                 "index_set": self.index_set,
                 "table_type": self.table_type,
                 "field_config_mapping": field_config_mapping,
-                "doris_storage_config": self.doris_storage_config,
+                "doris_storage_config": self.doris_storage_config or {},
                 "expire_days": self.expire_days,
                 "bk_tenant_id": self.bk_tenant_id,
             }

@@ -464,6 +464,8 @@ Admin 使用现有 `admin.datalink.component_list`、`component_detail`、`compo
 仅覆盖 metadata 接入与查询路由；页面、事件维度自动发现及告警业务逻辑不在本次支持范围。
 未传 `default_storage` 的事件仍按原流程创建 ES 存储；不新增 RT option。
 部署时先执行 metadata 迁移 `0285_doris_storage_config`，再启用新配置。
+新增字段允许 NULL，迁移后的旧进程仍可创建 DorisStorage；新代码将旧进程写入的 NULL 按空配置处理，
+新代码创建记录时仍默认保存空对象。
 
 ### 新建事件
 
