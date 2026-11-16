@@ -168,6 +168,21 @@ test('z-index comes from bk manager or registry fallback, never a hardcoded 9999
   assert.equal([99999, 100000].includes(fallbackRecord.zIndex), false);
 });
 
+test('monitor embed fallback z-index starts above Trace slider 2500', () => {
+  const registry = createRegistry();
+  const previousWindow = globalThis.window;
+  globalThis.window = { __IS_MONITOR_COMPONENT__: true };
+
+  try {
+    registry.register('layer');
+    const record = registry.open('layer');
+    assert.ok(record.zIndex > 3000);
+    assert.equal([99999, 100000].includes(record.zIndex), false);
+  } finally {
+    globalThis.window = previousWindow;
+  }
+});
+
 test('findParentIdByElement resolves the visible ancestor overlay', () => {
   const registry = createRegistry();
   const child = {
