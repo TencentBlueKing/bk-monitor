@@ -16,7 +16,9 @@ METRIC = {
 }
 
 
-def test_search_reuses_selector_with_explicit_scope_and_pagination(monkeypatch):
+@pytest.mark.parametrize("bk_biz_id", [7, -4228598, 0])
+def test_search_reuses_selector_with_explicit_scope_and_pagination(monkeypatch, bk_biz_id):
+    scope = {**SCOPE, "bk_biz_id": bk_biz_id}
     queryset = Mock()
     manager = Mock(return_value=queryset)
     monkeypatch.setattr(metric.MetricListCache.objects, "filter", manager)
@@ -31,27 +33,29 @@ def test_search_reuses_selector_with_explicit_scope_and_pagination(monkeypatch):
         ("get_metric_list", serialize),
     ]:
         monkeypatch.setattr(selector, name, fn)
-    response = metric.search({**SCOPE, "query": "cpu", "page": 2, "page_size": 10})
-    manager.assert_called_once_with(bk_tenant_id="tenant-a", bk_biz_id__in=[0, 7])
+    response = metric.search({**scope, "query": "cpu", "page": 2, "page_size": 10})
+    manager.assert_called_once_with(bk_tenant_id="tenant-a", bk_biz_id__in=[0, bk_biz_id])
     query = conditions.call_args.args[1]
     assert query["conditions"] == [{"key": "query", "value": ["cpu"]}]
     assert query["data_type_label"] == "time_series"
     assert (query["page"], query["page_size"]) == (2, 10)
-    serialize.assert_called_once_with(7, queryset)
-    assert response["data"] == {"source": SCOPE, "items": [METRIC], "total": 23, "page": 2, "page_size": 10}
+    serialize.assert_called_once_with(bk_biz_id, queryset)
+    assert response["data"] == {"source": scope, "items": [METRIC], "total": 23, "page": 2, "page_size": 10}
     assert response["meta"]["safety_level"] == "read"
 
 
-def test_detail_preserves_native_query_information(monkeypatch):
+@pytest.mark.parametrize("bk_biz_id", [7, -4228598, 0])
+def test_detail_preserves_native_query_information(monkeypatch, bk_biz_id):
+    scope = {**SCOPE, "bk_biz_id": bk_biz_id}
     lookup = Mock(return_value=([METRIC], 1))
     monkeypatch.setattr(metric, "_metrics", lookup)
-    result = metric.detail({**SCOPE, "metric_id": METRIC["metric_id"]})["data"]
+    result = metric.detail({**scope, "metric_id": METRIC["metric_id"]})["data"]
     lookup.assert_called_once_with(
-        {**SCOPE, "metric_id": METRIC["metric_id"]}, [{"key": "metric_id", "value": [METRIC["metric_id"]]}], 1, 1
+        {**scope, "metric_id": METRIC["metric_id"]}, [{"key": "metric_id", "value": [METRIC["metric_id"]]}], 1, 1
     )
     assert result["metric"] == METRIC
     assert result["query_template"]["params"] == {
-        **SCOPE,
+        **scope,
         "promql": METRIC["promql_metric"],
         "step": 60,
         "parse_only": True,
@@ -70,11 +74,13 @@ def test_missing_and_unsupported_metric_are_not_fabricated(monkeypatch):
     assert result["dimension_values_template"] is None
 
 
-def test_dimension_values_scope_paging_and_errors(monkeypatch):
+@pytest.mark.parametrize("bk_biz_id", [7, -4228598, 0])
+def test_dimension_values_scope_paging_and_errors(monkeypatch, bk_biz_id):
+    scope = {**SCOPE, "bk_biz_id": bk_biz_id}
     provider = Mock(return_value={"values": {"host": ["a", "b", "c"]}, "trace_id": "uq-trace"})
     monkeypatch.setattr(metric, "MetricLabelValuesResource", Mock(return_value=provider))
     params = {
-        **SCOPE,
+        **scope,
         "match": ['custom:app:requests{env="prod"}'],
         "label": "host",
         "start": 100,
@@ -84,19 +90,20 @@ def test_dimension_values_scope_paging_and_errors(monkeypatch):
     }
     result = metric.dimension_values(params)["data"]
     provider.assert_called_once_with(
-        bk_tenant_id="tenant-a", bk_biz_ids=[7], match=params["match"], label="host", start="100", end="200"
+        bk_tenant_id="tenant-a", bk_biz_ids=[bk_biz_id], match=params["match"], label="host", start="100", end="200"
     )
-    assert result == {"source": SCOPE, "items": ["c"], "total": 3, "page": 2, "page_size": 2, "trace_id": "uq-trace"}
+    assert result == {"source": scope, "items": ["c"], "total": 3, "page": 2, "page_size": 2, "trace_id": "uq-trace"}
     provider.side_effect = RuntimeError("upstream unavailable")
     with pytest.raises(RuntimeError, match="upstream unavailable"):
         metric.dimension_values(params)
 
 
-def test_uq_resource_preserves_explicit_tenant():
+@pytest.mark.parametrize("bk_biz_id", [7, -4228598, 0])
+def test_uq_resource_preserves_explicit_tenant(bk_biz_id):
     params = metric.MetricLabelValuesResource().validate_request_data(
         {
             "bk_tenant_id": "tenant-a",
-            "bk_biz_ids": [7],
+            "bk_biz_ids": [bk_biz_id],
             "match": ["up"],
             "label": "host",
             "start": "100",
@@ -126,3 +133,4 @@ def test_registered_discovery(name):
     assert "bk_tenant_id" in detail["params_schema"]["required"]
     assert "bk_biz_id" in detail["params_schema"]["required"]
     assert detail["example_params"]["bk_biz_id"] == 2
+    assert "minimum" not in detail["params_schema"]["properties"]["bk_biz_id"]
