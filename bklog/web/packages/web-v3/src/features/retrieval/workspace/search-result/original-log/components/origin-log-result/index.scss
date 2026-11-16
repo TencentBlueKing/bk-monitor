@@ -86,6 +86,19 @@
       }
     }
 
+    // The platform SearchBar already owns its full outer frame. Keep only
+    // the mode divider here; legacy segmented frames remain for Monitor hosts.
+    .search-bar-wrapper.log-platform .search-bar-container {
+      .search-options {
+        border-width: 0 1px 0 0;
+      }
+
+      .search-items,
+      .search-sql-query {
+        border: 0;
+      }
+    }
+
     .tippy-arrow {
       bottom: -25px !important;
       z-index: var(--bklog-z-message);
