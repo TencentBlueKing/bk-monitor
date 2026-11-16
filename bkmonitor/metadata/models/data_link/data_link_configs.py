@@ -798,6 +798,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
+                "annotations": {"task_stopped": "false"},
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
                 }
@@ -873,6 +874,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
+                "annotations": {"task_stopped": "false"},
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
                 }
@@ -945,6 +947,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     "tenant": "{{ tenant }}",
                     {% endif %}
                     "namespace": "{{namespace}}",
+                    "annotations": {"task_stopped": "false"},
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {

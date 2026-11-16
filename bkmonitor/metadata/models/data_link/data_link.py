@@ -3068,9 +3068,6 @@ class DataLink(models.Model):
 
         # 本地组件及引用已提交；后续合并远端配置或下发失败时，重试仍读取同一组资源名称。
         configs = self.merge_existing_component_configs(configs)
-        for component_config in configs:
-            if component_config["kind"] == DataLinkKind.DATABUS.value:
-                component_config["metadata"].setdefault("annotations", {})["task_stopped"] = "false"
         if databus_prefer_cluster is not None:
             for config in configs:
                 if config.get("kind") == DataLinkKind.DATABUS.value:

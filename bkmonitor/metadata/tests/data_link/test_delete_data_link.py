@@ -167,3 +167,26 @@ def test_delete_config_still_deletes_databus(mocker, databus_remote, component_c
     assert not component_class.objects.filter(pk=pk).exists()
     databus_remote.get.assert_not_called()
     databus_remote.apply.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("compose_method", "kwargs"),
+    [
+        ("compose_config", {"sinks": []}),
+        ("compose_log_config", {"sinks": [], "rules": []}),
+        ("compose_base_event_config", {}),
+    ],
+)
+def test_databus_config_explicitly_starts_task(mocker, compose_method, kwargs):
+    from copy import deepcopy
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    databus = models.DataBusConfig(name="restart", bk_biz_id=2, data_id_name="source")
+    config = getattr(databus, compose_method)(**kwargs)
+    assert config["metadata"]["annotations"]["task_stopped"] == "false"
+
+    existing = deepcopy(config)
+    existing["metadata"]["annotations"] = {"task_stopped": "true", "owner": "monitor"}
+    merged = models.DataLink.merge_component_config(existing, config)
+    assert merged["metadata"]["annotations"] == {"task_stopped": "false", "owner": "monitor"}
+    assert existing["metadata"]["annotations"]["task_stopped"] == "true"

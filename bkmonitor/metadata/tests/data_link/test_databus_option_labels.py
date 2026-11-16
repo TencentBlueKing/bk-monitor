@@ -81,8 +81,8 @@ def test_apply_option_labels_to_all_databuses_last(mocker, has_data_source, opti
     apply = mocker.patch.object(link, "apply_data_link_with_retry", return_value={})
     link.apply_data_link(data_source=SimpleNamespace() if has_data_source else None)
     payload = apply.call_args.args[0]
-    assert payload[0]["metadata"]["annotations"] == {"task_stopped": "false", "owner": "monitor"}
-    assert payload[1]["metadata"]["annotations"] == {"task_stopped": "false"}
+    assert payload[0]["metadata"]["annotations"] == {"task_stopped": "true", "owner": "monitor"}
+    assert "annotations" not in payload[1]["metadata"]
     assert all("annotations" not in config["metadata"] for config in payload[2:])
     expected = {"team": "old", "external": "keep"}
     if has_data_source:
