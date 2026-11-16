@@ -36,6 +36,6 @@ pnpm --dir bklog/web/packages/web-v3 --ignore-workspace dev
 
 国际化采用官方 Paraglide Vite 插件，配置在 `project.inlang/`，中英文词条在 `src/platform/i18n/messages/`。`pnpm i18n:compile` 生成忽略提交的 `.paraglide/`；测试、类型检查及 Vite 构建会自动编译。新代码可静态导入 `#paraglide/messages.js` 中的具名消息函数；既有中文键通过 `legacy-message-keys.json` 映射到稳定消息 ID，富文本继续使用 `SourceTranslation` 保留 Vue 节点和事件。
 
-`vuex`、`vue-i18n` 仅保留为开发依赖，活动源码不再导入。历史快照已退役，AI-Native 只校验当前源码；词条直接维护 `src/platform/i18n/messages/`，再运行 `i18n:compile`。生产构建使用 8GB Node 堆上限；当前动态兼容词条表保留全量消息，尚未完成体积优化。
+V3 已移除 `vue-i18n` 的直接和传递包依赖，翻译测试直接验证词典与插值契约。活动源码不再导入旧状态库或旧翻译引擎。历史快照已退役，AI-Native 只校验当前源码；词条直接维护 `src/platform/i18n/messages/`，再运行 `i18n:compile`。生产构建使用 8GB Node 堆上限；当前动态兼容词条表保留全量消息，尚未完成体积优化。
 
 开发测试页 `/__fixtures__/state-i18n` 仅操作内存，覆盖 Pinia 查询、错误恢复、双语富文本、TDesign 语言及官方时间选择器。
