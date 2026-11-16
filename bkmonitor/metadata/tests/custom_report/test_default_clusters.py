@@ -23,11 +23,13 @@ def scene_cluster_exists(mocker):
     "storage_type", [ClusterInfo.TYPE_KAFKA, ClusterInfo.TYPE_VM, ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]
 )
 def test_scene_and_storage_isolation(settings, storage_type):
-    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"custom_event": {storage_type: 101}, "bcs_event": {storage_type: 102}}
+    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {
+        "system": {"custom_event": {storage_type: 101}, "bcs_event": {storage_type: 102}}
+    }
     assert default_cluster.get_scene_default_cluster("custom_event", storage_type, "system") == 101
     assert default_cluster.get_scene_default_cluster("bcs_event", storage_type, "system") == 102
     assert default_cluster.get_scene_default_cluster("other", storage_type, "system", 103) == 103
-    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"custom_event": {storage_type: None}}
+    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"system": {"custom_event": {storage_type: None}}}
     assert default_cluster.get_scene_default_cluster("custom_event", storage_type, "system", 103) == 103
 
 
@@ -43,7 +45,7 @@ def test_dynamic_config_updates(mocker):
     mocker.patch.object(default_cluster, "settings", dynamic)
     assert default_cluster.get_scene_default_cluster("custom_event", "kafka", "system") is None
     for cluster_id in (101, 102):
-        dynamic.SCENE_DEFAULT_STORAGE_CLUSTERS = {"custom_event": {"kafka": cluster_id}}
+        dynamic.SCENE_DEFAULT_STORAGE_CLUSTERS = {"system": {"custom_event": {"kafka": cluster_id}}}
         assert default_cluster.get_scene_default_cluster("custom_event", "kafka", "system") == cluster_id
     cache.clear()
 
@@ -58,7 +60,7 @@ def test_dynamic_config_updates(mocker):
     ],
 )
 def test_data_source_kafka_selection(settings, mocker, etl_config, explicit, configured, expected):
-    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"custom_event": {"kafka": configured}}
+    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"test-tenant": {"custom_event": {"kafka": configured}}}
     mocker.patch.object(Label, "exists_label", return_value=True)
     mocker.patch.object(DataSource.objects, "filter").return_value.exists.return_value = False
     # 在实际集群查询边界停止，避免创建数据源或访问外部服务。
@@ -78,7 +80,7 @@ def test_data_source_kafka_selection(settings, mocker, etl_config, explicit, con
 
 @pytest.mark.parametrize("explicit,configured,expected", [(None, 201, 201), (202, 201, 202), (None, None, None)])
 def test_event_es_selection(settings, explicit, configured, expected):
-    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"custom_event": {ClusterInfo.TYPE_ES: configured}}
+    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"system": {"custom_event": {ClusterInfo.TYPE_ES: configured}}}
     storage = {"cluster_id": explicit}
     EventGroup.process_default_storage_config(SimpleNamespace(table_id="event_table", bk_tenant_id="system"), storage)
     assert storage["cluster_id"] == expected
@@ -90,7 +92,7 @@ def test_event_es_selection(settings, explicit, configured, expected):
     "configured,expected", [({}, (10, 20)), ({"kafka": 101, ClusterInfo.TYPE_ES: 201}, (101, 201))]
 )
 def test_bcs_event_overrides_leave_metrics_unchanged(settings, mocker, configured, expected):
-    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"bcs_event": configured}
+    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"system": {"bcs_event": configured}}
     settings.BCS_KAFKA_STORAGE_CLUSTER_ID = 10
     settings.BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID = 20
     cluster = BCSClusterInfo(cluster_id="BCS-K8S-test", bk_biz_id=2, bk_tenant_id="system")
@@ -117,18 +119,31 @@ def test_bcs_event_overrides_leave_metrics_unchanged(settings, mocker, configure
 
 @pytest.mark.parametrize("storage_type", [ClusterInfo.TYPE_KAFKA, ClusterInfo.TYPE_ES])
 def test_scene_cluster_is_scoped_to_tenant(settings, scene_cluster_exists, storage_type):
-    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"custom_event": {storage_type: 101}}
+    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {
+        "tenant-a": {"custom_event": {storage_type: 101}},
+        "tenant-b": {"custom_event": {storage_type: 202}},
+        "tenant-c": {"custom_event": {storage_type: 101}},
+    }
     scene_cluster_exists.side_effect = lambda **query: Mock(
-        exists=Mock(return_value=query == {"bk_tenant_id": "tenant-a", "cluster_type": storage_type, "cluster_id": 101})
+        exists=Mock(
+            return_value=(query["bk_tenant_id"], query["cluster_id"]) in {("tenant-a", 101), ("tenant-b", 202)}
+            and query["cluster_type"] == storage_type
+        )
     )
     assert default_cluster.get_scene_default_cluster("custom_event", storage_type, "tenant-a") == 101
-    assert default_cluster.get_scene_default_cluster("custom_event", storage_type, "tenant-b") is None
-    assert default_cluster.get_scene_default_cluster("custom_event", storage_type, "tenant-b", 202) == 202
+    assert default_cluster.get_scene_default_cluster("custom_event", storage_type, "tenant-b") == 202
+    # 本租户误配其他租户的集群，按不存在处理。
+    assert default_cluster.get_scene_default_cluster("custom_event", storage_type, "tenant-c") is None
+    assert default_cluster.get_scene_default_cluster("custom_event", storage_type, "tenant-c", 303) == 303
+    scene_cluster_exists.reset_mock()
+    # 未配置租户不读取其他租户的场景，也不查询集群。
+    assert default_cluster.get_scene_default_cluster("custom_event", storage_type, "tenant-d", 404) == 404
+    scene_cluster_exists.assert_not_called()
 
 
 @pytest.mark.parametrize("wrong_key", ["es", "vm", "typo"])
 def test_nonstandard_key_uses_default(settings, scene_cluster_exists, wrong_key):
-    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"custom_event": {wrong_key: 101}}
+    settings.SCENE_DEFAULT_STORAGE_CLUSTERS = {"system": {"custom_event": {wrong_key: 101}}}
     assert default_cluster.get_scene_default_cluster("custom_event", ClusterInfo.TYPE_ES, "system") is None
     scene_cluster_exists.assert_not_called()
 

@@ -798,7 +798,7 @@ STANDARD_CONFIGS = OrderedDict(
         (
             "SCENE_DEFAULT_STORAGE_CLUSTERS",
             slz.DictField(
-                label=_("场景默认存储集群（场景 -> 存储类型 -> 集群ID）"),
+                label=_("场景默认存储集群（租户 -> 场景 -> 存储类型 -> 集群ID）"),
                 default={},
             ),
         ),

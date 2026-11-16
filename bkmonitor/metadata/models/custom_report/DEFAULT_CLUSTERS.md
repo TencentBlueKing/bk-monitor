@@ -1,19 +1,26 @@
 # 场景默认集群
 
-动态配置 `SCENE_DEFAULT_STORAGE_CLUSTERS` 按“场景 → 存储类型 → ClusterInfo.cluster_id”配置，默认值为 `{}`。
+动态配置 `SCENE_DEFAULT_STORAGE_CLUSTERS` 按“租户 ID → 场景 → 存储类型 → ClusterInfo.cluster_id”配置，默认值为 `{}`。
 
 ```json
 {
-  "custom_event": {"kafka": 101, "elasticsearch": 201},
-  "bcs_event": {"kafka": 102, "elasticsearch": 202}
+  "tenant-a": {
+    "custom_event": {"kafka": 101, "elasticsearch": 201},
+    "bcs_event": {"kafka": 102, "elasticsearch": 202}
+  },
+  "tenant-b": {
+    "custom_event": {"kafka": 301, "elasticsearch": 401}
+  }
 }
 ```
 
-上述 ID 为示例。存储类型 key 直接使用标准 ClusterType（即 `ClusterInfo.TYPE_*` 的值），不兼容 `es` / `vm` 等别名，也不额外校验 key；写错 key 不会匹配，沿用默认逻辑。
+上述租户和集群 ID 为示例，单租户部署使用实际租户 ID（例如 `system`）作为第一层 key。只读取当前租户的配置，不共享其他租户的配置。存储类型 key 直接使用标准 ClusterType（即 `ClusterInfo.TYPE_*` 的值），不兼容 `es` / `vm` 等别名，也不额外校验 key；写错 key 不会匹配，沿用默认逻辑。
 
 场景集群按当前租户、集群类型和 ID 查询。未配置、值为 `null`、集群不存在或属于其他租户时，均沿用后续默认逻辑，最终使用当前租户的默认集群。
 
 ## 已接入的创建流程
+
+以下场景配置均位于当前租户 ID 下。
 
 - 标准自定义事件（`bk_standard_v2_event`）的 Kafka：显式 `mq_cluster` → `custom_event.kafka` → 当前租户默认 Kafka。
 - EventGroup 的 ES：显式 `default_storage_config.cluster_id` → `custom_event.elasticsearch` → 原有 ES 默认选择逻辑。

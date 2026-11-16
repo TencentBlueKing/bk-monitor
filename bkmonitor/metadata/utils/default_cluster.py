@@ -9,7 +9,7 @@ def get_scene_default_cluster(
     """按租户和标准 ClusterType 查找场景集群，查不到时沿用原默认逻辑。"""
     from metadata.models.storage import ClusterInfo
 
-    cluster_id = settings.SCENE_DEFAULT_STORAGE_CLUSTERS.get(scene, {}).get(storage_type)
+    cluster_id = settings.SCENE_DEFAULT_STORAGE_CLUSTERS.get(bk_tenant_id, {}).get(scene, {}).get(storage_type)
     if (
         cluster_id is not None
         and ClusterInfo.objects.filter(

@@ -1758,7 +1758,7 @@ INNER_COLLOCTOR_HOST = ""
 # 外网collector域名
 OUTER_COLLOCTOR_HOST = ""
 
-# 按场景、存储类型指定默认 ClusterInfo ID，运行时由动态配置覆盖。
+# 按租户、场景、存储类型指定默认 ClusterInfo ID，运行时由动态配置覆盖。
 SCENE_DEFAULT_STORAGE_CLUSTERS = {}
 
 # ES 需要串行的集群的白名单
