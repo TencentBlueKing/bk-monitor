@@ -34,6 +34,12 @@
       "minLength": 1,
       "description": "策略名称"
     },
+    "scenario": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32,
+      "description": "监控对象/场景，显式声明时优先"
+    },
     "labels": {
       "type": "array",
       "items": {
