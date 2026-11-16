@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from django.test import TestCase
+from jinja2 import Environment
 
 from apps.log_clustering.constants import NEW_SERIES_ALGORITHM_TYPE, StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
@@ -68,6 +69,35 @@ class TestClusteringMonitorHandler(TestCase):
         self.assertEqual(request_params["detects"][0]["level"], 1)
         self.assertEqual(request_params["detects"][0]["trigger_config"]["count"], 1)
         mock_sync_clustered_route.assert_called_once_with(index_set_id=123, raise_exception=True)
+
+    def test_new_series_notice_preserves_related_fields_after_long_log(self):
+        self.handler.is_quix = True
+        del self.handler.get_notice
+        self.handler.save_new_cls_clustering_strategy(params={"user_groups": [42]})
+        notice = self.handler.save_strategy_infos.call_args.kwargs["request_params"]["notice"]
+        template = Environment().from_string(notice["config"]["template"][0]["message_tmpl"])
+        link = "/#/retrieve/123?addition=signature&start_time=1&end_time=2"
+        for size in (1024, 1025):
+            with self.subTest(size=size):
+                related = {
+                    "log": "测" * size,
+                    "owners": "owner",
+                    "remark_text": "保留备注",
+                    "remark_time": "10:00",
+                    "remark_user": "tester",
+                    "bklog_link": link,
+                }
+                body = template.render(
+                    content={},
+                    alarm={"log_related_fields": related, "current_value": 3},
+                    strategy=SimpleNamespace(items=[SimpleNamespace(query_configs=[{"agg_interval": 60}])]),
+                )
+                sample = body.split("**日志示例:** ")[1].splitlines()[0]
+                self.assertEqual(sample, "测" * 1024 if size == 1024 else "测" * 1021 + "...")
+                self.assertIn("异常类型: 新类, 近 1 分钟出现次数 (3)", body)
+                self.assertIn("**负责人:** owner", body)
+                self.assertIn("保留备注【10:00】(tester", body)
+                self.assertIn(f"[更多日志]({link})", body)
 
     @patch(
         "apps.log_clustering.handlers.dataflow.dataflow_handler.DataFlowHandler.sync_clustered_route",
