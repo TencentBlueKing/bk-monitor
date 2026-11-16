@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,11 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 
+from bk_monitor_base.domains.metric_plugin.old_models import CollectConfigMeta
+
 from alarm_backends.core.cache.base import CacheManager
-from core.drf_resource import api
 
 
 class CollectConfigCacheManager(CacheManager):
@@ -45,7 +44,7 @@ class CollectConfigCacheManager(CacheManager):
 
     @classmethod
     def _get_configs(cls):
-        return api.monitor.collect_config_list()
+        return list(CollectConfigMeta.objects.filter(is_deleted=False).values("id", "name"))
 
     @classmethod
     def refresh(cls):
@@ -55,7 +54,7 @@ class CollectConfigCacheManager(CacheManager):
             pipeline.set(cls.format_key(config["id"]), json.dumps(config), cls.CACHE_TIMEOUT)
         pipeline.execute()
 
-        cls.logger.info("refresh collect config data finished, amount:{}".format(len(configs)))
+        cls.logger.info(f"refresh collect config data finished, amount:{len(configs)}")
 
 
 def main():

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,12 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 import datetime
 from collections import defaultdict
 
-from core.drf_resource import api
+from bk_monitor_base.domains.metric_plugin.old_models import CollectConfigMeta
 from bkmonitor.models import Alert, Event, Strategy, Shield, NoticeGroup
 from metadata.models import EventGroup
 from alarm_backends.core.cache.key import MAIL_REPORT_GROUP_CACHE_KEY
@@ -119,7 +117,10 @@ class MailReportCacheManager(CacheManager):
         users = set()
         users_bizs = defaultdict(set)
         collector_config_users, collector_config_users_biz = fetch_users_and_users_biz(
-            api.monitor.collect_config_list(), "bk_biz_id", "create_user", "update_user"
+            CollectConfigMeta.objects.filter(is_deleted=False).values("bk_biz_id", "create_user", "update_user"),
+            "bk_biz_id",
+            "create_user",
+            "update_user",
         )
         custom_event_users, custom_event_users_biz = fetch_users_and_users_biz(
             EventGroup.objects.filter(is_enable=True, is_delete=False).values(
