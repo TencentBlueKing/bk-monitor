@@ -49,9 +49,15 @@ class CollectConfigCacheManager(CacheManager):
     @classmethod
     def refresh(cls):
         configs = cls._get_configs()
+        all_ids_key = cls.format_key("__all__")
+        old_ids = set(json.loads(cls.cache.get(all_ids_key) or "[]"))
+        current_ids = [config["id"] for config in configs]
         pipeline = cls.cache.pipeline()
         for config in configs:
             pipeline.set(cls.format_key(config["id"]), json.dumps(config), cls.CACHE_TIMEOUT)
+        for config_id in old_ids - set(current_ids):
+            pipeline.delete(cls.format_key(config_id))
+        pipeline.set(all_ids_key, json.dumps(current_ids), cls.CACHE_TIMEOUT)
         pipeline.execute()
 
         cls.logger.info(f"refresh collect config data finished, amount:{len(configs)}")

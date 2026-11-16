@@ -81,18 +81,47 @@ def test_translator_accepts_old_and_new_cache_shapes(cache, extra):
     assert field.display_value == "collect"
 
 
-def test_empty_snapshot_keeps_existing_expiry_behavior(cache):
+def test_refresh_removes_deleted_config_and_keeps_active_config(cache, deployment):
+    deleted = create_config(deployment, name="deleted")
+    active = create_config(deployment, name="active")
+    CollectConfigCacheManager.refresh()
+    deleted.is_deleted = True
+    deleted.save(update_fields=["is_deleted"])
+
+    CollectConfigCacheManager.refresh()
+
+    assert CollectConfigCacheManager.get(deleted.id) is None
+    assert CollectConfigCacheManager.get(active.id) == {"id": active.id, "name": "active"}
+    assert json.loads(cache.get(CollectConfigCacheManager.format_key("__all__"))) == [active.id]
+
+
+def test_empty_snapshot_clears_previous_snapshot(cache, deployment):
+    config = create_config(deployment)
+    CollectConfigCacheManager.refresh()
+    config.is_deleted = True
+    config.save(update_fields=["is_deleted"])
+
+    CollectConfigCacheManager.refresh()
+
+    assert CollectConfigCacheManager.get(config.id) is None
+    assert json.loads(cache.get(CollectConfigCacheManager.format_key("__all__"))) == []
+    assert CollectConfigCacheManager.get(-1) is None
+
+
+def test_initial_refresh_leaves_unindexed_legacy_keys_to_expire(cache):
     key = CollectConfigCacheManager.format_key(1)
     cache.set(key, json.dumps({"id": 1, "name": "old"}), 100)
     CollectConfigCacheManager.refresh()
     assert CollectConfigCacheManager.get(1)["name"] == "old"
     assert 0 < cache.ttl(key) <= 100
-    assert CollectConfigCacheManager.get(-1) is None
+    assert json.loads(cache.get(CollectConfigCacheManager.format_key("__all__"))) == []
 
 
 def test_partial_database_failure_preserves_cache(cache):
     key = CollectConfigCacheManager.format_key(1)
     cache.set(key, json.dumps({"id": 1, "name": "old"}))
+    all_ids_key = CollectConfigCacheManager.format_key("__all__")
+    cache.set(all_ids_key, json.dumps([1]))
 
     def rows():
         yield {"id": 1, "name": "partial"}
@@ -103,6 +132,7 @@ def test_partial_database_failure_preserves_cache(cache):
         with pytest.raises(DatabaseError):
             CollectConfigCacheManager.refresh()
     assert CollectConfigCacheManager.get(1)["name"] == "old"
+    assert json.loads(cache.get(all_ids_key)) == [1]
 
 
 @pytest.fixture
