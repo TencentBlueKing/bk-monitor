@@ -13,13 +13,14 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 from rest_framework.serializers import ValidationError
 
-from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource
+from rum_web.composite_fields import format_list_record
 from rum_web.handlers.level.factory import RumLevelHandlerFactory
 from rum_web.handlers.level.span import SpanLevelHandler
 from rum_web.models.application import Application
+from semconv.rum.field import CompositeFieldConfig
 from rum_web.query.serializers import (
     RumFieldsOptionValuesRequestSerializer,
     RumGenerateQueryStringRequestSerializer,
@@ -63,9 +64,14 @@ class RumRecordsResource(Resource):
     def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
         application = _get_application(data["bk_biz_id"], data["app_name"])
         handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+        composites: dict[str, CompositeFieldConfig] = {
+            field.get_full_field_name(): field.composite_config
+            for field in handler.SPEC.fields()
+            if field.composite_config is not None
+        }
         return {
             "list": [
-                flatten_dict_data(_data)
+                format_list_record(_data, composites)
                 for _data in handler.list_records(
                     start_time=data["start_time"],
                     end_time=data["end_time"],

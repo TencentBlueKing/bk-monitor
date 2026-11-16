@@ -307,7 +307,8 @@ def test_graph_counts_records_without_grouping_by_nullable_members(query):
     assert source["group_by"] == []
     assert source["metrics"] == [{"field": "_index", "method": "COUNT", "alias": "a"}]
     encoded = json.dumps(source["filter_dict"])
-    assert NAME in encoded and VERSION in encoded and "nexists" in encoded and "--" in encoded
+    assert NAME in encoded and VERSION in encoded and "nexists" in encoded
+    assert "--" not in encoded
 
 
 def test_precomputed_targets_use_level_table_and_tenant(query, es):

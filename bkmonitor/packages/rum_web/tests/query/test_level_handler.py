@@ -197,7 +197,7 @@ class TestSpanLevelHandlerMethods:
             {
                 "span_id": "abc",
                 "end_time": 1000,
-                "virtual": {"span_kind": None, "viewport": None, "browser": None, "network": None},
+                "virtual": {"viewport": None, "browser": None, "network": None},
             }
         ]
         assert mock_result == [{"span_id": "abc", "end_time": 1000}]

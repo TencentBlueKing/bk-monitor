@@ -110,8 +110,6 @@ def test_field_catalog_matches_retained_table_without_uq(mode, expected_raw, exp
         assert {operation["operator"] for operation in fields[name]["supported_operations"]} == {
             "equal",
             "not_equal",
-            "exists",
-            "not exists",
         }
     for name in display_fields:
         assert fields[name]["is_list"] and fields[name]["composite_config"]

@@ -21,14 +21,14 @@ from luqum.tree import AndOperation, FieldGroup, Group, Not, OrOperation, Phrase
 import pytest
 from rest_framework.exceptions import ValidationError
 
-from bkmonitor.data_source import dict_to_q, q_to_dict
+from bkmonitor.data_source import q_to_dict
+from bkmonitor.data_source.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.data_source.utils.query import BaseQuery
 from rum_web.handlers.level.factory import RumLevelHandlerFactory
 from rum_web.handlers.level.span import SpanLevelHandler
 from rum_web.handlers.query.base import equal_filter
 from rum_web.handlers.query.span import SpanQuery
-from rum_web.virtual_fields import normalize_filter
 
 
 WIDTH = "attributes.browser.viewport.width"
@@ -109,13 +109,6 @@ def test_multivalue_filter_preserves_tuple_pairing(query, operator):
         assert matches(condition, row) == (expected if operator == "equal" else not expected)
 
 
-@pytest.mark.parametrize("operator", ["exists", "not exists", "not_exists"])
-def test_virtual_existence_is_any_nonempty_member(query, operator):
-    condition = query._build_filters([{"key": "virtual.browser", "operator": operator, "value": []}])
-    for row, exists in [({}, False), ({NAME: None, VERSION: ""}, False), ({NAME: "Chrome"}, True)]:
-        assert matches(condition, row) == (exists if operator == "exists" else not exists)
-
-
 def test_virtual_filter_keeps_ordinary_conditions_and_input(query):
     filters = [equal_filter("virtual.browser", ["Chrome --"]), equal_filter("attributes.user.id", ["alice"])]
     original = deepcopy(filters)
@@ -126,9 +119,10 @@ def test_virtual_filter_keeps_ordinary_conditions_and_input(query):
     assert not matches(condition, {NAME: "Firefox", "attributes.user.id": "alice"})
 
 
-def test_virtual_filter_rejects_unsupported_operations(query):
+@pytest.mark.parametrize("operator", ["exists", "not exists", "not_exists", "contains"])
+def test_virtual_filter_rejects_unsupported_operations(query, operator):
     with pytest.raises(ValidationError):
-        query._build_filters([{"key": "virtual.browser", "operator": "contains", "value": ["Chrome"]}])
+        query._build_filters([{"key": "virtual.browser", "operator": operator, "value": []}])
 
 
 @pytest.mark.parametrize(
@@ -137,48 +131,33 @@ def test_virtual_filter_rejects_unsupported_operations(query):
         (
             "virtual.browser",
             "Chrome --",
-            [{NAME: "Chrome"}, {NAME: "Chrome", VERSION: "--"}, {NAME: "Chrome", VERSION: "131"}, {}],
-        ),
-        (
-            "virtual.span_kind",
-            "action",
-            [
-                {"attributes.span_type": "action"},
-                {"attributes.span_type": "action", "attributes.resource.type": "xhr"},
-                {},
-            ],
+            [{NAME: "Chrome"}, {NAME: "Chrome", VERSION: ""}, {NAME: "Chrome", VERSION: "131"}, {}],
         ),
         ("virtual.viewport", "1440 x --", [{WIDTH: 1440}, {WIDTH: 1440, HEIGHT: 900}, {}]),
     ],
 )
-@pytest.mark.parametrize("operator", ["equal", "not_equal", "exists", "not_exists"])
+@pytest.mark.parametrize("operator", ["equal", "not_equal"])
 def test_storage_filter_serialization_preserves_virtual_semantics(query, field, value, rows, operator):
     filters = [{"key": field, "operator": operator, "value": [value]}]
     config = query.get_queries(filters)[0].query
     serialized = q_to_dict(config.where)
     assert "virtual." not in json.dumps(serialized)
-    restored = dict_to_q(serialized)
+    conditions = filter_dict_to_conditions(serialized, [])
+    assert all(not item["key"].startswith("__q_to_dict") for item in conditions)
+    restored = conditions_to_q(conditions)
     virtual = query.virtual_fields[field]
     for row in rows:
         row = {"app_name": "test", "bk_biz_id": 2, **row}
         actual: str | None = virtual.format(row)
-        expected: bool = actual == value if operator in {"equal", "not_equal"} else actual is not None
-        if operator in {"not_equal", "not_exists"}:
-            expected = not expected
-        assert matches(restored, row) == expected, (operator, value, row, serialized)
-
-
-def test_normalize_handles_double_negation_and_preserves_missing_complement():
-    condition = ~(Q(a__eq="x") | ~Q(b__exists=[""]))
-    restored = dict_to_q(q_to_dict(normalize_filter(condition)))
-    for row in ({}, {"a": "x", "b": "y"}, {"a": "z", "b": "y"}, {"b": "y"}):
-        assert matches(restored, row) == matches(condition, row)
+        expected: bool = actual == value if operator == "equal" else actual != value
+        wire_row = {key: str(item) if item is not None else None for key, item in row.items()}
+        assert matches(restored, wire_row) == expected, (operator, value, row, serialized)
 
 
 @pytest.mark.parametrize(
     "mode, expected",
     [
-        ("span", {"span_kind", "viewport", "browser", "network"}),
+        ("span", {"viewport", "browser", "network"}),
         ("session", {"browser", "network"}),
         ("view", {"browser", "network", "viewport"}),
     ],
@@ -193,9 +172,9 @@ def test_view_config_exposes_supported_virtual_fields(mode, expected):
         field = fields[f"virtual.{name}"]
         assert field["is_searchable"] and field["is_list"] and field["is_agg"]
         assert not field["is_real"] and field["field_type"] == "keyword"
-        assert set(field["virtual_config"]) == {"fields", "template"}
+        assert set(field["virtual_config"]) == {"fields", "template", "parse_pattern"}
         operations = field["supported_operations"]
-        assert {operation["operator"] for operation in operations} == {"equal", "not_equal", "exists", "not exists"}
+        assert {operation["operator"] for operation in operations} == {"equal", "not_equal"}
         assert all(operation["label"] for operation in operations)
     assert fields[NAME].get("virtual_config") is None
 
@@ -245,8 +224,8 @@ def test_list_handler_materializes_virtuals_after_storage_fetch(query):
         assert query.query_list(10, 20, 3, 5) == [{NAME: "Chrome", VERSION: "131"}]
 
 
-@pytest.mark.parametrize("operator", ["equal", "not_equal", "exists", "not_exists"])
-def test_query_string_keeps_default_collision_and_negation(query, operator):
+@pytest.mark.parametrize("operator", ["equal", "not_equal"])
+def test_query_string_preserves_empty_placeholder_and_negation(query, operator):
     handler = SpanLevelHandler([target()])
     filters = [{"key": "virtual.browser", "operator": operator, "value": ["Chrome --"]}]
     text = handler.generate_query_string(filters)
@@ -254,7 +233,7 @@ def test_query_string_keeps_default_collision_and_negation(query, operator):
     tree = parser.parse(text)
     rows = [
         {NAME: "Chrome"},
-        {NAME: "Chrome", VERSION: "--"},
+        {NAME: "Chrome", VERSION: ""},
         {NAME: "Chrome", VERSION: "131"},
         {},
         {NAME: "", VERSION: ""},
@@ -288,3 +267,75 @@ def test_query_string_escapes_quotes_and_backslashes_in_original_values(query):
     tree = parser.parse(text)
     assert query_string_matches(tree, row)
     assert not query_string_matches(tree, {NAME: 'A"B C', VERSION: "131"})
+
+
+@pytest.mark.parametrize("name,expected", [("Chrome", True), ("Firefox", False)])
+def test_virtual_and_member_filters_remain_conjunctive_through_wire_protocol(query, name, expected):
+    filters = [equal_filter("virtual.browser", ["Chrome 157"]), equal_filter(NAME, [name])]
+    serialized = q_to_dict(query.get_queries(filters)[0].query.where)
+    conditions = filter_dict_to_conditions(serialized, [])
+    assert all(not item["key"].startswith("__q_to_dict") for item in conditions)
+    assert (
+        matches(conditions_to_q(conditions), {NAME: "Chrome", VERSION: "157", "app_name": "test", "bk_biz_id": "2"})
+        == expected
+    )
+
+
+@pytest.mark.parametrize("operator", ["equal", "not_equal"])
+@pytest.mark.parametrize("relation", ["OR", "AND"])
+def test_multivalue_browser_filter_uses_wire_conditions(query, operator, relation):
+    filters = [
+        {
+            "key": "virtual.browser",
+            "operator": operator,
+            "value": ["Chrome 157", "Chrome 156"],
+            "options": {"group_relation": relation},
+        }
+    ]
+    conditions = filter_dict_to_conditions(q_to_dict(query._build_filters(filters)), [])
+    assert all(not item["key"].startswith("__q_to_dict") for item in conditions)
+    restored = conditions_to_q(conditions)
+    for row in ({NAME: "Chrome", VERSION: "157"}, {NAME: "Chrome", VERSION: "156"}, {NAME: "Chrome"}, {}):
+        expected = relation == "OR" and query.virtual_fields["virtual.browser"].format(row) in [
+            "Chrome 157",
+            "Chrome 156",
+        ]
+        assert matches(restored, row) == (expected if operator == "equal" else not expected)
+
+
+def test_nonempty_virtual_value_needs_only_member_equalities(query):
+    conditions = filter_dict_to_conditions(
+        q_to_dict(query._build_filters([equal_filter("virtual.browser", ["Chrome 157"])])), []
+    )
+    assert {(item["key"], item["method"], tuple(item["value"])) for item in conditions} == {
+        (NAME, "eq", ("Chrome",)),
+        (VERSION, "eq", ("157",)),
+    }
+
+
+@pytest.mark.parametrize("operator", ["equal", "not_equal"])
+@pytest.mark.parametrize("values", [["-- / 4g"], ["-- / 4g", "wifi / --"], ["-- / 4g", "wifi / 3g", "cellular / 2g"]])
+def test_network_filters_preserve_pairs_and_empty_connection_on_wire(query, operator, values):
+    field = "virtual.network"
+    connection, quality = query.virtual_fields[field].field_names
+    filters = [{"key": field, "operator": operator, "value": values}]
+    builder = query.get_queries(filters)[0]
+    conditions = filter_dict_to_conditions(q_to_dict(builder.query.where), [])
+    assert "--" not in json.dumps(conditions)
+    assert all(item["key"] in {connection, quality, "bk_biz_id", "app_name"} for item in conditions)
+    restored = conditions_to_q(conditions)
+    for row, display in [
+        ({quality: "4g"}, "-- / 4g"),
+        ({connection: "", quality: "4g"}, "-- / 4g"),
+        ({connection: "wifi", quality: "3g"}, "wifi / 3g"),
+        ({connection: "cellular", quality: "2g"}, "cellular / 2g"),
+        ({connection: "wifi", quality: "4g"}, "wifi / 4g"),
+        ({connection: "", quality: "3g"}, "-- / 3g"),
+        ({connection: "wifi"}, "wifi / --"),
+        ({connection: "wifi", quality: ""}, "wifi / --"),
+        ({connection: "cellular"}, "cellular / --"),
+        ({}, None),
+    ]:
+        wire_row = {"bk_biz_id": "2", "app_name": "test", **row}
+        expected = display in values if operator == "equal" else display not in values
+        assert matches(restored, wire_row) == expected, (display, operator, values)

@@ -148,7 +148,7 @@ class SQLCompiler(compiler.SQLCompiler):
         if query_content:
             dsl["query"] = {"bool": query_content}
 
-        dsl["sort"] = self.query.raw_sort if self.query.raw_sort is not None else self._parser_order_by()
+        dsl["sort"] = self._parser_order_by()
 
         dsl["size"] = self._get_size()
         if self.query.offset is not None:

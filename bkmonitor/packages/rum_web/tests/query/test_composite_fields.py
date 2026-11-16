@@ -140,3 +140,59 @@ def test_delivery_is_materialized_only_for_list_and_has_no_query_actions():
     delivery = fields["display.resource.delivery"]
     assert not delivery["is_searchable"] and not delivery["is_agg"] and not delivery["is_list"]
     assert delivery["supported_operations"] == []
+
+
+@pytest.mark.parametrize("mode", ["span", "view", "session"])
+def test_list_response_assembles_composites_from_real_virtual_and_inferred_values(mocker, mode):
+    from rum_web.query.resources import RumRecordsResource
+
+    handler = handler_for(mode)
+    row = {
+        "span_name": "POST /api/orders",
+        "resource": {"user_agent": {"name": "Chrome", "version": "131", "os": {"name": "macOS"}}},
+        "attributes": {
+            "span_type": "resource",
+            "resource": {"type": "xhr", "size": 1024, "delivery_type": "cache", "transfer_size": 0},
+            "http": {"request": {"method": "POST"}, "response": {"status_code": 200}},
+            "browser": {"viewport": {"width": 1440, "height": 900}},
+            "network": {"connection": {"type": "wifi"}, "effective_type": "4g"},
+        },
+    }
+    original = deepcopy(row)
+    mocker.patch("rum_web.query.resources._get_application")
+    mocker.patch("rum_web.query.resources._build_data_sources", return_value=[])
+    mocker.patch("rum_web.query.resources.RumLevelHandlerFactory.create", return_value=handler)
+    mocker.patch.object(handler.query, "query_list", return_value=[row])
+    result = RumRecordsResource().request(
+        {
+            "bk_biz_id": 2,
+            "app_name": "test",
+            "mode": mode,
+            "start_time": 1,
+            "end_time": 2,
+        }
+    )["list"][0]
+    assert row == original
+    assert result["virtual.browser"] == "Chrome 131"
+    assert result["resource.user_agent.name"] == "Chrome"
+    environment = result["display.environment"]["sections"]
+    assert environment[0]["items"] == [
+        {"field_name": "virtual.browser", "value": "Chrome 131"},
+        {"field_name": "resource.user_agent.os.name", "value": "macOS"},
+    ]
+    assert environment[0]["separator"] == " · "
+    assert environment[1]["items"][0]["value"] == "wifi / 4g"
+    assert not any(".sections." in key for key in result)
+    if mode == "span":
+        badges = result["display.span_name"]["sections"][0]["badges"]
+        assert [item["value"] for item in badges] == ["resource", "xhr", "POST", 200]
+        assert result["display.resource_size"]["sections"][0]["items"][0]["value"] == 1024
+        assert result["display.resource_size"]["sections"][1]["items"][0] == {
+            "field_name": "display.resource.delivery",
+            "value": "Cache",
+        }
+    if mode != "session":
+        page = result["display.page"]["sections"]
+        assert page[0]["items"][0]["value"] is None
+        assert page[0]["badges"][0]["value"] == "1440 x 900"
+        assert page[0]["badges"][0]["icon"] == "icon-monitor icon-mc-tv"

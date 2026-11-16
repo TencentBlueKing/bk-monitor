@@ -192,11 +192,6 @@ class DslMixin:
         clone.query.enable_date_histogram = enable
         return clone
 
-    def dsl_sort(self, sort: list[dict[str, Any]]):
-        clone = self._clone()
-        clone.query.raw_sort = sort
-        return clone
-
 
 class BaseDataQuery:
     TYPE = "base"

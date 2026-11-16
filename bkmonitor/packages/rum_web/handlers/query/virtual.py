@@ -18,7 +18,7 @@ from bkmonitor.data_source.data_source import BkRumDataSource
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from bkmonitor.data_source.utils.base import get_bar_interval_number
 from bkmonitor.utils.time_tools import time_interval_align
-from rum_web.virtual_fields import VirtualField, normalize_filter
+from rum_web.virtual_fields import VirtualField
 
 if TYPE_CHECKING:
     from rum_web.handlers.query.base import BaseRumQuery
@@ -135,8 +135,9 @@ def query_virtual_graph_configs(
     virtual: VirtualField = owner.virtual_fields[field]
     configs: list[tuple[str, Record]] = []
     for value in dict.fromkeys(values):
+        condition = virtual.build_filter(value)
         filtered: list[QueryConfigBuilder] = [
-            query.filter(normalize_filter(virtual.build_filter(value)))
+            query.filter(condition)
             .alias("a")
             .interval(get_bar_interval_number(start_time, end_time))
             .metric(field="_index", method="COUNT", alias="a")
@@ -189,7 +190,9 @@ def _weighted_percentile(frequencies: dict[int | float, int], percentile: int) -
     lower_value: int | float | None = None
     for value, count in sorted(frequencies.items()):
         cumulative += count
-        if lower_value is None and lower_rank < cumulative:
+        if cumulative <= lower_rank:
+            continue
+        if lower_value is None:
             lower_value = value
         if upper_rank < cumulative:
             return lower_value + (value - lower_value) * remainder / 100

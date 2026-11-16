@@ -10,9 +10,9 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
+from bkmonitor.data_source.data_source import BkRumDataSource
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from rum_web.handlers.level.span import SpanLevelHandler
-from rum_web.handlers.query.sorting import VirtualSortDataSource
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.query.serializers import RumRecordsRequestSerializer
 
@@ -36,7 +36,13 @@ def test_descending_browser_merge_uses_remaining_members_and_stable_tiebreak(moc
         },
     ]
     mocker.patch("bkmonitor.data_source.data_source.bk_biz_id_to_bk_tenant_id", return_value="system")
-    mocker.patch.object(VirtualSortDataSource, "query_log", side_effect=[([rows[0]], 1), ([rows[1]], 1)])
+    mocker.patch.object(BkRumDataSource, "switch_unify_query", return_value=False)
+    mocker.patch.object(
+        BkRumDataSource,
+        "query_log",
+        autospec=True,
+        side_effect=lambda source, **_: ([rows[0 if source.table == "bk_rum.a.span" else 1]], 1),
+    )
     result = handler.list_records(1, 2, 0, 2, sort=["-virtual.browser"])
     assert [row["span_id"] for row in result] == ["b", "a"]
 
@@ -45,7 +51,7 @@ def test_descending_browser_merge_uses_remaining_members_and_stable_tiebreak(moc
     "field,row",
     [
         ("virtual.browser", {"resource.user_agent.name": "Chrome", "resource.user_agent.version": "131 "}),
-        ("virtual.span_kind", {"attributes.span_type": " action "}),
+        ("virtual.network", {"attributes.network.connection.type": " wifi", "attributes.network.effective_type": "4g"}),
     ],
 )
 def test_storage_request_preserves_canonical_virtual_value_whitespace(field, row):

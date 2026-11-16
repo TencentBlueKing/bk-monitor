@@ -1,13 +1,13 @@
-"""虚拟列排序：存储侧空值规则、跨来源排序与分页。"""
+"""虚拟列排序：复用原字段排序、跨来源排序与分页。"""
 
 from copy import deepcopy
 
 import pytest
 
 from bkmonitor.data_source.backends.elastic_search.connection import DatabaseConnection
+from bkmonitor.data_source.unify_query.builder import QueryHelper
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from rum_web.handlers.level.span import SpanLevelHandler
-from rum_web.handlers.query.sorting import build_virtual_sort
 from rum_web.handlers.query.span import SpanQuery
 
 
@@ -16,11 +16,12 @@ def make_query(tables=("bk_rum.default.span",)):
 
 
 @pytest.fixture(autouse=True)
-def tenant(mocker):
+def direct_storage(mocker):
+    mocker.patch("bkmonitor.data_source.data_source.BkRumDataSource.switch_unify_query", return_value=False)
     mocker.patch("bkmonitor.data_source.data_source.bk_biz_id_to_bk_tenant_id", return_value="system")
 
 
-def test_numeric_sort_uses_raw_values_and_missing_last():
+def test_numeric_sort_expands_to_raw_fields_and_stable_tiebreak():
     query = make_query()
     order_by = query.process_sort_fields(query.expand_sort_fields(["-virtual.viewport"]))
     assert order_by == [
@@ -29,30 +30,17 @@ def test_numeric_sort_uses_raw_values_and_missing_last():
         "end_time desc",
         "span_id",
     ]
-    sorts = build_virtual_sort(query, order_by)
-    assert sorts[0] == {
-        "attributes.browser.viewport.width": {"order": "desc", "missing": "_last", "unmapped_type": "long"}
-    }
-    assert sorts[1]["attributes.browser.viewport.height"]["missing"] == "_last"
 
 
-@pytest.mark.parametrize("direction", ["", "-"])
-def test_keyword_empty_values_normalized_before_next_member(direction):
-    query = make_query()
-    sorts = build_virtual_sort(
-        query, query.process_sort_fields(query.expand_sort_fields([f"{direction}virtual.browser"]))
-    )
-    assert [sort["_script"]["type"] for sort in sorts[:4]] == ["number", "string", "number", "string"]
-    assert [sort["_script"]["order"] for sort in sorts[:4]] == [
-        "asc",
-        "desc" if direction else "asc",
-        "asc",
-        "desc" if direction else "asc",
+def test_sort_keeps_first_direction_when_a_member_or_default_is_explicit():
+    width = "attributes.browser.viewport.width"
+    height = "attributes.browser.viewport.height"
+    assert make_query().expand_sort_fields([width, "-virtual.viewport", "end_time"]) == [
+        width,
+        f"-{height}",
+        "end_time",
+        "span_id",
     ]
-    for index, name in [(0, "resource.user_agent.name"), (2, "resource.user_agent.version")]:
-        assert sorts[index]["_script"]["script"]["params"]["field"] == name
-        assert "== ''" in sorts[index]["_script"]["script"]["source"]
-        assert "return '';" in sorts[index + 1]["_script"]["script"]["source"]
 
 
 def test_storage_receives_sort_filter_and_limit_before_materialization(mocker):
@@ -88,70 +76,64 @@ def test_storage_receives_sort_filter_and_limit_before_materialization(mocker):
         0,
         1,
         sort=["virtual.viewport"],
-        filters=[{"key": "virtual.span_kind", "operator": "equal", "value": ["resource（xhr）"]}],
+        filters=[{"key": "virtual.network", "operator": "equal", "value": ["wifi / 4g"]}],
     )
     assert records[0]["virtual"]["viewport"] == "900 x 600"
     table, dsl = captured[0]
     assert table == table_id
     assert dsl["size"] == 1 and dsl.get("from", 0) == 0
-    assert dsl["sort"][0] == {
-        "attributes.browser.viewport.width": {"order": "asc", "missing": "_last", "unmapped_type": "long"}
-    }
+    assert dsl["sort"] == [
+        {"attributes.browser.viewport.width": "asc"},
+        {"attributes.browser.viewport.height": "asc"},
+        {"end_time": "desc"},
+        {"span_id": "asc"},
+    ]
     assert dsl["bk_tenant_id"] == "system"
     assert "my_app" in str(dsl["query"])
     assert "1000000" in str(dsl["query"])
-    assert "attributes.resource.type" in str(dsl["query"])
+    assert "attributes.network.connection.type" in str(dsl["query"])
+    assert "attributes.network.effective_type" in str(dsl["query"])
     assert "virtual." not in str(dsl["query"])
 
 
-def test_merge_source_prefixes_then_page_and_materialize(mocker):
+@pytest.mark.parametrize("group_field", ["", "attributes.session.id"])
+def test_virtual_sort_delegates_paging_to_one_queryset(mocker, group_field):
+    tables = ("bk_rum.a.span", "bk_rum.b.span")
+    query = make_query(tables)
+    execute = mocker.patch.object(QueryHelper, "query", return_value=[])
+    if group_field:
+        query.query_group_list(1, 2, group_field, offset=20, limit=10, sort=["-virtual.viewport"])
+    else:
+        query.query_list(1, 2, offset=20, limit=10, sort=["-virtual.viewport"])
+
+    execute.assert_called_once()
+    body = execute.call_args.kwargs["query_body"]
+    assert (body["offset"], body["limit"]) == (20, 10)
+    assert body["order_by"] == [
+        "-attributes.browser.viewport.width",
+        "-attributes.browser.viewport.height",
+        "-end_time",
+        "span_id",
+    ]
+    assert [q["table"] for q in body["query_configs"]] == list(tables)
+    assert all(q["distinct"] == group_field for q in body["query_configs"])
+
+
+@pytest.mark.parametrize("prefix,expected", [("", ["empty", "named", "missing"]), ("-", ["named", "empty", "missing"])])
+def test_browser_sort_treats_empty_and_missing_like_raw_members(mocker, prefix, expected):
     query = make_query(("bk_rum.a.span", "bk_rum.b.span"))
+    field = "resource.user_agent.name"
+    empty = {"span_id": "empty", field: ""}
+    named = {"span_id": "named", field: "Chrome"}
     rows = {
-        "bk_rum.a.span": [
-            {"span_id": "a1", "attributes": {"browser.viewport.width": 900, "browser.viewport.height": 600}},
-            {"span_id": "a2", "attributes": {"browser.viewport.width": 1440, "browser.viewport.height": 900}},
-            {"span_id": "a3", "attributes": {"browser.viewport.width": 2000, "browser.viewport.height": 1000}},
-        ],
-        "bk_rum.b.span": [
-            {"span_id": "b1", "attributes": {"browser.viewport.width": 1024, "browser.viewport.height": 768}},
-            {"span_id": "b2", "attributes": {"browser.viewport.width": 1920, "browser.viewport.height": 1080}},
-            {"span_id": "b3", "attributes": {}},
-        ],
-    }
-    limits = []
-
-    def execute(connection, table, params):
-        limits.append((params.get("from", 0), params["size"]))
-        return {
-            "hits": {"total": len(rows[table]), "hits": [{"_source": row} for row in rows[table][: params["size"]]]}
-        }
-
-    mocker.patch.object(DatabaseConnection, "execute", execute)
-    handler = SpanLevelHandler(query.data_sources)
-    handler.query = query
-    records = handler.list_records(1, 2, 1, 2, sort=["virtual.viewport"])
-    assert [row["span_id"] for row in records] == ["b1", "a2"]
-    assert [row["virtual"]["viewport"] for row in records] == ["1024 x 768", "1440 x 900"]
-    assert limits == [(0, 3), (0, 3)]
-
-
-def test_grouped_source_records_are_deduplicated_before_pagination(mocker):
-    query = make_query(("bk_rum.a.span", "bk_rum.b.span"))
-    rows = {
-        "bk_rum.a.span": [
-            {"span_id": "s1", "attributes.session.id": "a", "resource.user_agent.name": "Chrome"},
-            {"span_id": "s2", "attributes.session.id": "b", "resource.user_agent.name": "Firefox"},
-        ],
-        "bk_rum.b.span": [
-            {"span_id": "s3", "attributes.session.id": "a", "resource.user_agent.name": "Chrome"},
-            {"span_id": "s4", "attributes.session.id": "c", "resource.user_agent.name": "Safari"},
-        ],
+        "bk_rum.a.span": [empty, {"span_id": "missing"}],
+        "bk_rum.b.span": [named],
     }
 
     def execute(connection, table, params):
-        assert params["collapse"] == {"field": "attributes.session.id"}
-        return {"hits": {"total": 2, "hits": [{"_source": row} for row in rows[table]]}}
+        return {"hits": {"total": len(rows[table]), "hits": [{"_source": row} for row in rows[table]]}}
 
     mocker.patch.object(DatabaseConnection, "execute", execute)
-    records = query.query_group_list(1, 2, "attributes.session.id", 1, 2, sort=["virtual.browser"])
-    assert [row["attributes.session.id"] for row in records] == ["b", "c"]
+    for ordering in ("virtual.browser", field):
+        page = query.query_list(1, 2, 0, 3, sort=[prefix + ordering])
+        assert [row["span_id"] for row in page] == expected

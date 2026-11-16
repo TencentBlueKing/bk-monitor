@@ -62,7 +62,8 @@ SPAN_NAME = FieldSpec(
             {
                 "items": [{"field_name": "span_name"}],
                 "badges": [
-                    {"field_name": "virtual.span_kind"},
+                    {"field_name": "attributes.span_type"},
+                    {"field_name": "attributes.resource.type"},
                     {"field_name": "attributes.http.request.method"},
                     {"field_name": "attributes.http.response.status_code"},
                 ],

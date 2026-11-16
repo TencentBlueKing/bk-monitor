@@ -29,12 +29,14 @@ class HasChoicesCachedEnum(Protocol):
 class VirtualFieldConfig(TypedDict):
     """通过模板组合真实字段的查询维度。
 
-    按固定文本从右拆分，配置方保证右侧成员及默认值不含相邻分隔文本。
-    例如浏览器名称允许含空格，版本不含空格；返回值不额外转义。
+    template 的 {成员|--} 用于展示，成员均为空时返回 null。
+    parse_pattern 是后端 fullmatch 的 Python 正则，命名分组对应 fields 的键。
+    配置方须保证有效原始值可以按组还原，例如浏览器版本不含空格。
     """
 
     fields: dict[str, str]
     template: str
+    parse_pattern: str
 
 
 class CompositeFieldItem(TypedDict):

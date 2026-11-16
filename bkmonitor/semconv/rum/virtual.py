@@ -10,46 +10,39 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _
 
-from semconv.rum.field import FieldSpec
+from semconv.rum.field import FieldSpec, VirtualFieldConfig
 
 
-SPAN_KIND = FieldSpec(
-    field_name="virtual.span_kind",
-    field_alias=_("事件类型"),
-    field_type="keyword",
-    is_real=False,
-    virtual_config={
-        "fields": {"span_type": "attributes.span_type", "resource_type": "attributes.resource.type"},
-        "template": "{span_type|--}[（{resource_type}）]",
-    },
-)
 VIEWPORT = FieldSpec(
     field_name="virtual.viewport",
     field_alias=_("视口"),
     field_type="keyword",
     is_real=False,
-    virtual_config={
-        "fields": {"width": "attributes.browser.viewport.width", "height": "attributes.browser.viewport.height"},
-        "template": "{width|--} x {height|--}",
-    },
+    virtual_config=VirtualFieldConfig(
+        fields={"width": "attributes.browser.viewport.width", "height": "attributes.browser.viewport.height"},
+        template="{width|--} x {height|--}",
+        parse_pattern=r"(?P<width>--|-?[0-9]+) x (?P<height>--|-?[0-9]+)",
+    ),
 )
 BROWSER = FieldSpec(
     field_name="virtual.browser",
     field_alias=_("浏览器"),
     field_type="keyword",
     is_real=False,
-    virtual_config={
-        "fields": {"name": "resource.user_agent.name", "version": "resource.user_agent.version"},
-        "template": "{name|--} {version|--}",
-    },
+    virtual_config=VirtualFieldConfig(
+        fields={"name": "resource.user_agent.name", "version": "resource.user_agent.version"},
+        template="{name|--} {version|--}",
+        parse_pattern=r"(?P<name>.+) (?P<version>[^ ]+)",
+    ),
 )
 NETWORK = FieldSpec(
     field_name="virtual.network",
     field_alias=_("网络质量"),
     field_type="keyword",
     is_real=False,
-    virtual_config={
-        "fields": {"connection": "attributes.network.connection.type", "quality": "attributes.network.effective_type"},
-        "template": "{connection|--} / {quality|--}",
-    },
+    virtual_config=VirtualFieldConfig(
+        fields={"connection": "attributes.network.connection.type", "quality": "attributes.network.effective_type"},
+        template="{connection|--} / {quality|--}",
+        parse_pattern=r"(?P<connection>.*) / (?P<quality>.*)",
+    ),
 )

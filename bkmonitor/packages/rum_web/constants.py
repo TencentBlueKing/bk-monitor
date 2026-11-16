@@ -188,7 +188,6 @@ RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
                 "kind",
                 "span_name",
                 "attributes.span_type",
-                "virtual.span_kind",
                 "elapsed_time",
                 "status.code",
             ],

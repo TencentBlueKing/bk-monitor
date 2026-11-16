@@ -27,9 +27,8 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.apm import OperatorGroupRelation
 from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension, FieldTypeEnum
 from rum_web.constants import RumQueryMode
-from rum_web.handlers.query.sorting import query_virtual_sorted_records
 from rum_web.handlers.query.virtual import query_virtual_grouped_values, query_virtual_values
-from rum_web.virtual_fields import VirtualField, get_virtual_fields, normalize_filter
+from rum_web.virtual_fields import VirtualField, get_virtual_fields
 from semconv.constants import FieldDisplayType
 from semconv.rum.field import FieldSpec
 from semconv.rum.trace import SpanSpec
@@ -38,7 +37,7 @@ from semconv.rum.trace import SpanSpec
 logger = logging.getLogger(__name__)
 
 
-def equal_filter(field: str, values: list[Any]) -> types.Filter:
+def equal_filter(field: str, values: types.FilterValue) -> types.Filter:
     return {"key": field, "value": values, "operator": FilterOperator.EQUAL}
 
 
@@ -67,41 +66,31 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
         "parent_span_id",
     }
 
-    VIRTUAL_OPERATORS = {
-        FilterOperator.EQUAL,
-        FilterOperator.NOT_EQUAL,
-        FilterOperator.EXISTS,
-        FilterOperator.NOT_EXISTS,
-    }
+    VIRTUAL_OPERATORS = {FilterOperator.EQUAL, FilterOperator.NOT_EQUAL}
 
     @cached_property
     def virtual_fields(self) -> dict[str, VirtualField]:
-        return get_virtual_fields(self.SPEC)
+        return get_virtual_fields(self.SPEC.fields())
 
     @classmethod
     def _build_filters(cls, filters: list[types.Filter] | None) -> Q:
-        virtual_fields = get_virtual_fields(cls.SPEC)
+        if not filters:
+            return Q()
+        virtual_fields = get_virtual_fields(cls.SPEC.fields())
         query: Q = Q()
-        for item in filters or []:
+        for item in filters:
             virtual = virtual_fields.get(item["key"])
             if virtual is None:
                 query &= super()._build_filters([item])
                 continue
             operator: str = item["operator"]
-            if operator == "not_exists":
-                operator = FilterOperator.NOT_EXISTS
             if operator not in cls.VIRTUAL_OPERATORS:
                 raise ValidationError(f"虚拟字段不支持操作符：{operator}")
-            if operator in (FilterOperator.EXISTS, FilterOperator.NOT_EXISTS):
-                exists: Q = virtual.exists_filter()
-                query &= normalize_filter(exists if operator == FilterOperator.EXISTS else ~exists)
-                continue
-            predicates: list[Q] = [virtual.build_filter(value) for value in item["value"]]
-            if not predicates:
-                continue
-            use_and: bool = item.get("options", {}).get("group_relation") == OperatorGroupRelation.AND
-            combined: Q = Q(*predicates, _connector=Q.AND if use_and else Q.OR)
-            query &= normalize_filter(~combined if operator == FilterOperator.NOT_EQUAL else combined)
+            query &= virtual.build_filter(
+                *map(str, item["value"]),
+                exclude=operator == FilterOperator.NOT_EQUAL,
+                match_all=item.get("options", {}).get("group_relation") == OperatorGroupRelation.AND,
+            )
         return query
 
     def materialize_virtual_fields(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -121,27 +110,22 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
 
     def expand_sort_fields(self, fields: list[str]) -> list[str]:
         """虚拟维度按成员原值排序，只在虚拟排序时追加稳定的分页兜底。"""
-        expanded: list[str] = []
-        has_virtual: bool = False
+        order_by: dict[str, str] = {}
+        has_virtual = False
         for ordering in fields:
-            name: str = ordering.lstrip("-")
-            direction: str = "-" if ordering.startswith("-") else ""
+            name = ordering.removeprefix("-")
             virtual = self.virtual_fields.get(name)
-            has_virtual |= virtual is not None
-            if virtual:
-                expanded.extend(f"{direction}{member}" for member in virtual.field_names)
-            else:
-                expanded.append(ordering)
+            if virtual is None:
+                order_by.setdefault(name, ordering)
+                continue
+            has_virtual = True
+            prefix = "-" if ordering.startswith("-") else ""
+            for member in virtual.field_names:
+                order_by.setdefault(member, prefix + member)
         if has_virtual:
-            expanded.extend([*self.DEFAULT_SORT, self.RECORD_ID_FIELD])
-        seen: set[str] = set()
-        result: list[str] = []
-        for ordering in expanded:
-            name = ordering.lstrip("-")
-            if name not in seen:
-                seen.add(name)
-                result.append(ordering)
-        return result
+            for ordering in (*self.DEFAULT_SORT, self.RECORD_ID_FIELD):
+                order_by.setdefault(ordering.removeprefix("-"), ordering)
+        return list(order_by.values())
 
     @property
     def raw_query(self) -> "BaseRumQuery":
@@ -197,18 +181,10 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
         query_string: str = "",
         sort: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        requested_sort = sort or self.DEFAULT_SORT
-        processed_sort_fields = self.process_sort_fields(self.expand_sort_fields(requested_sort))
-        queries = [q.order_by(*processed_sort_fields) for q in self.get_queries(filters, query_string)]
-        if any(field.removeprefix("-") in self.virtual_fields for field in requested_sort):
-            records = query_virtual_sorted_records(self, queries, start_time, end_time, offset, limit)
-        else:
-            records = sort_fields(
-                super()._query_list(queries, start_time, end_time, offset, limit),
-                processed_sort_fields,
-                extractor=flatten_dict_data,
-            )
-        return records
+        order_by = self.process_sort_fields(self.expand_sort_fields(sort or self.DEFAULT_SORT))
+        queries = [q.order_by(*order_by) for q in self.get_queries(filters, query_string)]
+        records = self._query_list(queries, start_time, end_time, offset, limit)
+        return sort_fields(records, order_by, extractor=flatten_dict_data)
 
     def query_total(
         self,
@@ -231,13 +207,8 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
         sort: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """按字段折叠后分页，每组返回排序后的第一条完整记录。"""
-        requested_sort = sort or self.DEFAULT_SORT
-        order_by: list[str] = self.process_sort_fields(self.expand_sort_fields(requested_sort))
+        order_by = self.process_sort_fields(self.expand_sort_fields(sort or self.DEFAULT_SORT))
         queries = [q.order_by(*order_by) for q in self.get_queries(filters, query_string)]
-        if any(field.removeprefix("-") in self.virtual_fields for field in requested_sort):
-            return query_virtual_sorted_records(
-                self, [q.distinct(group_field) for q in queries], start_time, end_time, offset, limit, group_field
-            )
         return self._query_group_list(queries, start_time, end_time, group_field, offset, limit)
 
     def query_virtual_counts(
@@ -402,7 +373,7 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
         if spec.rating_config:
             field_dict["rating_config"] = []
             for config in spec.rating_config:
-                item = {"rating": config.rating}
+                item: dict[str, str | float] = {"rating": config.rating}
                 if config.value is not None:
                     item["value"] = config.value
                 field_dict["rating_config"].append(item)

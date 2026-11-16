@@ -60,7 +60,6 @@ class SpanSpec(FieldSpec):
     FCP = virtual_attributes.FCP
     TTFB = virtual_attributes.TTFB
 
-    VIRTUAL_SPAN_KIND = virtual.SPAN_KIND
     VIRTUAL_VIEWPORT = virtual.VIEWPORT
     VIRTUAL_BROWSER = virtual.BROWSER
     VIRTUAL_NETWORK = virtual.NETWORK
