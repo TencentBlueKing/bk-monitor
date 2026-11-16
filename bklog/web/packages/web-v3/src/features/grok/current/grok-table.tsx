@@ -28,7 +28,6 @@ import { Button as TButton } from 'tdesign-vue-next';
 
 import { computed, defineComponent, ref } from 'vue';
 
-import { clearTableFilter } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import { t } from '@/shared/composables/use-locale';
@@ -67,7 +66,7 @@ export default defineComponent({
   },
   emits: ['page-change', 'page-limit-change', 'sort-change', 'filter-change', 'edit', 'delete', 'clear-keyword', "pageChange", "pageLimitChange", "clearKeyword", "sortChange", "filterChange"],
   setup(props, { emit }) {
-    const grokTableRef = ref(null);
+    const tableFilters = ref<Record<string, boolean | string>>({ is_builtin: '', updated_by: '' });
 
     // 表格字段配置
     const tableFields = [
@@ -108,7 +107,8 @@ export default defineComponent({
 
     // 清空过滤条件
     const clearFilters = () => {
-      clearTableFilter(grokTableRef.value);
+      tableFilters.value = { is_builtin: '', updated_by: '' };
+      emit('filter-change', { is_builtin: [], updated_by: [] });
       emit('clear-keyword');
     };
 
@@ -128,6 +128,9 @@ export default defineComponent({
 
     // 筛选变化事件处理函数
     const handleFilterChange = (filters: any) => {
+      tableFilters.value = Object.fromEntries(
+        Object.entries(filters).map(([key, value]) => [key, (value as (boolean | string)[])?.[0] ?? '']),
+      );
       emit('filter-change', filters);
     };
 
@@ -256,9 +259,10 @@ export default defineComponent({
           loading={props.loading}
         >
           <bk-table
+            filterRow={() => null}
             data={props.data}
             pagination={props.pagination}
-            ref={grokTableRef}
+            filterValue={tableFilters.value}
             onPage-change={handlePageChange}
             onPage-limit-change={handlePageLimitChange}
             onSort-change={handleSortChange}
@@ -292,7 +296,7 @@ export default defineComponent({
               prop='is_builtin'
               width='100'
               column-key='is_builtin'
-              filters={originFilterList}
+              filters={[{ text: t('全部'), value: '' }, ...originFilterList]}
               filter-multiple={false}
               v-slots={originSlot}
             />
@@ -339,7 +343,7 @@ export default defineComponent({
               prop='updated_by'
               width='120'
               column-key='updated_by'
-              filters={props.updatedBys}
+              filters={[{ text: t('全部'), value: '' }, ...props.updatedBys]}
               filter-multiple={false}
               filter-searchable
               v-slots={updatedBySlot}

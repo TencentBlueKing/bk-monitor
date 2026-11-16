@@ -212,7 +212,7 @@ const BkTable = defineComponent({
         )),
         size: props.size === 'mini' ? 'small' : props.size,
         hover: true,
-        filterValue: filterValue.value,
+        filterValue: attrs.filterValue ?? filterValue.value,
         pagination: pagination
           ? {
               current: pagination.current || 1,

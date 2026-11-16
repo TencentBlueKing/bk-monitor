@@ -117,7 +117,7 @@ export default defineComponent({
     const settingCacheKey = 'collection'; // 设置缓存键
     const searchTimer = ref<NodeJS.Timeout | null>(null); // 搜索定时器
     const accessContainerRef = ref(null); // 容器引用
-    const tableFilters = ref<FilterValue>({});
+    const tableFilters = ref<FilterValue>({ source_type: '', 'cluster_config.cluster_id': '' });
     const settingsVisible = ref(false);
     const settingsZIndex = useOverlayZIndex(settingsVisible, 'DROPDOWN');
     const settingsDraft = ref<string[]>([]);
@@ -185,7 +185,7 @@ export default defineComponent({
         });
 
         params.value.keyword = '';
-        tableFilters.value = {};
+        tableFilters.value = { source_type: '', 'cluster_config.cluster_id': '' };
         filterParams.value = {};
         isFilterSearch.value = false;
         tableDataOrigin.value = [];
@@ -603,7 +603,7 @@ export default defineComponent({
     const handleOperation = (type: string) => {
       if (type === 'clear-filter') {
         params.value.keyword = '';
-        tableFilters.value = {};
+        tableFilters.value = { source_type: '', 'cluster_config.cluster_id': '' };
         filterParams.value = {};
         isFilterSearch.value = false;
         getTableData();
@@ -748,7 +748,10 @@ export default defineComponent({
               cell: (_h, props) => props.row.source_name || '--',
               filter: {
                 type: 'single',
-                list: sourceFilters.value.map((item) => ({ label: item.text, value: item.value })),
+                list: [
+                  { label: t('全部'), value: '' },
+                  ...sourceFilters.value.map((item) => ({ label: item.text, value: item.value })),
+                ],
               },
             } satisfies PrimaryTableCol,
           ]
@@ -769,7 +772,10 @@ export default defineComponent({
               cell: (_h, { row }) => getStateText(row.cluster_config.cluster_id),
               filter: {
                 type: 'single',
-                list: sourceStateFilters.value.map((item) => ({ label: item.text, value: String(item.value) })),
+                list: [
+                  { label: t('全部'), value: '' },
+                  ...sourceStateFilters.value.map((item) => ({ label: item.text, value: String(item.value) })),
+                ],
               },
             } satisfies PrimaryTableCol,
           ]
@@ -952,6 +958,7 @@ export default defineComponent({
               rowKey='cluster_config.cluster_id'
               columns={tableColumns.value}
               filterValue={tableFilters.value}
+              filterRow={() => null}
               class='king-table'
               v-slots={{
                 empty: () => (
