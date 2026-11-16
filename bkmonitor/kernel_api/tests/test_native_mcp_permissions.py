@@ -322,8 +322,8 @@ def test_mcp_resource_without_serializer_still_passes_through(validated_log_reso
 def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     native = registry.get_tool_registry()
     tool = native.get("search_logs")
-    assert len(native) == 96
-    assert sum(bool(tool.native_permission) for tool in native.list()) == 88
+    assert len(native) == 99
+    assert sum(bool(tool.native_permission) for tool in native.list()) == 91
     assert {
         tool.name for tool in native.list() if not tool.permission_exempt and tool.category != "recording_rule"
     } == set(registry.NATIVE_PERMISSIONS)
@@ -3864,6 +3864,26 @@ MIGRATED_READ_ARGS = {
         "metric_group_name": "trpc",
         "metric_cal_type": "request_total",
     },
+    "llm_mcp_search_traces": {
+        "bk_biz_id": "2",
+        "app_name": "demo",
+        "service_name": "agent",
+        "start_time": 1,
+        "end_time": 2,
+    },
+    "llm_mcp_search_flows": {
+        "bk_biz_id": "2",
+        "app_name": "demo",
+        "group_field": "trace_id",
+        "group_id": "0123456789abcdef0123456789abcdef",
+    },
+    "llm_mcp_calculate_by_range": {
+        "bk_biz_id": "2",
+        "app_name": "demo",
+        "start_time": 1,
+        "end_time": 2,
+        "cal_type": "input_tokens",
+    },
 }
 
 
@@ -4075,7 +4095,7 @@ def test_mcp_read_catalog_has_no_application_backend_overlap():
         assert not is_application_read_route("GET", backend)
 
 
-def test_mcp_read_viewset_registers_only_the_seven_original_resources():
+def test_mcp_read_viewset_registers_only_the_shared_read_resources():
     routes = source_method(
         "kernel_api/views/v4/mcp.py",
         "MCPViewSet",
@@ -4088,6 +4108,9 @@ def test_mcp_read_viewset_registers_only_the_seven_original_resources():
         GetDashboardDetail="dashboard-detail",
         ServiceListResource="apm-services",
         CalculateByRangeResource="apm-calculation",
+        LLMListTracesResource="llm-traces",
+        LLMListFlowsResource="llm-flows",
+        LLMCalculateByRangeResource="llm-calculation",
     ).resource_routes
     assert {name: method for method, _, name in routes} == {
         name: method for name, (method, _) in APPLICATION_READ_BACKENDS.items()
@@ -4100,6 +4123,9 @@ def test_mcp_read_viewset_registers_only_the_seven_original_resources():
         "dashboard-detail",
         "apm-services",
         "apm-calculation",
+        "llm-traces",
+        "llm-flows",
+        "llm-calculation",
     }
     assert "from .mcp import *" in (BASE / "kernel_api/views/v4/__init__.py").read_text()
 

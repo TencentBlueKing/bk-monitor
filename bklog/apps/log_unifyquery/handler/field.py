@@ -12,11 +12,29 @@ from apps.log_unifyquery.handler.base import UnifyQueryHandler
 import copy
 
 from apps.log_search.constants import MAX_FIELD_VALUE_LIST_NUM
+from apps.log_search.models import LogIndexSet
 from apps.log_unifyquery.constants import FLOATING_NUMERIC_FIELD_TYPES, AggTypeEnum
 from apps.utils.log import logger
 
 
 class UnifyQueryFieldHandler(UnifyQueryHandler):
+    def _resolve_partial_results_biz_id(self) -> int | None:
+        """一次 UQ 请求共用一个开关，跨业务查询不启用。"""
+        biz_ids = set()
+        try:
+            for info in self.index_info_list:
+                index_set = info["index_set_obj"]
+                biz_id, space_uid = LogIndexSet.resolve_search_scope(index_set, self.bk_biz_id)
+                if not biz_id or not LogIndexSet.is_platform_index_visible_to_space(index_set, space_uid):
+                    return None
+                biz_ids.add(biz_id)
+        except Exception:  # 灰度所需的空间信息不可用时，继续按原方式查询。
+            logger.warning(
+                "Failed to resolve business for partial ES results, index sets: %s", self.index_set_ids, exc_info=True
+            )
+            return None
+        return biz_ids.pop() if len(biz_ids) == 1 else None
+
     @staticmethod
     def handle_count_data(data, digits=None):
         """
@@ -39,7 +57,9 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "count"}]
-        data = self.query_ts_reference(search_dict)
+        if self.allow_partial_es_results:
+            search_dict["allow_partial_es_results"] = True
+        data = self.query_ts_reference(search_dict, raise_exception=self.allow_partial_es_results)
         return self.handle_count_data(data)
 
     def get_field_count(self):

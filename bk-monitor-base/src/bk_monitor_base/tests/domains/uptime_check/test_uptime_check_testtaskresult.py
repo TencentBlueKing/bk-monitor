@@ -8,9 +8,10 @@ testtaskresult 兼容性测试。
 
 import base64
 import json
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 import yaml
@@ -32,9 +33,22 @@ from bk_monitor_base.domains.uptime_check.services.task_manager import (
 from bk_monitor_base.domains.uptime_check.services.task_manager import (
     TestTaskError as UptimeCheckTestTaskError,
 )
+from bk_monitor_base.infras import nodeman_runtime
 from bk_monitor_base.infras.declaratives.constants import TargetNodeType
+from bk_monitor_base.infras.third_party_api.nodeman import api as nodeman_api
+from bk_monitor_base.infras.third_party_api.nodeman import v3 as nodeman_v3
 
 pytestmark = pytest.mark.django_db(databases=["default"])
+
+
+@pytest.fixture(autouse=True)
+def mock_host_biz_relation() -> Iterator[Mock]:
+    """模拟 CMDB 主机业务关系（节点主机 1 属于业务 2），避免 V3 推导业务时访问真实 CMDB。"""
+    with patch(
+        "bk_monitor_base.infras.nodeman_control.find_host_biz_relation",
+        return_value=[{"bk_host_id": 1, "bk_biz_id": 2, "bk_module_id": 1}],
+    ) as mocked:
+        yield mocked
 
 
 class TestCollectorScriptGeneration:
@@ -130,11 +144,14 @@ class TestCollectorHostGrouping:
                 bk_os_type_name="",
             )
         ]
-        plugin_result = {"list": [{"bk_host_id": 51983, "inner_ip": "127.0.0.1", "bk_cloud_id": 0, "setup_path": ""}]}
+        plugin_result = [{"bk_host_id": 51983, "inner_ip": "127.0.0.1", "bk_cloud_id": 0, "setup_path": ""}]
 
         with (
             patch("bk_monitor_base.domains.uptime_check.collector.get_host_by_ip", return_value=cmdb_hosts),
-            patch("bk_monitor_base.domains.uptime_check.collector.plugin_search", return_value=plugin_result),
+            patch(
+                "bk_monitor_base.domains.uptime_check.collector.host_queries.beat_plugin_status",
+                return_value=plugin_result,
+            ) as beat_plugin_status,
         ):
             task_groups, error_hosts = collector._separate_hosts_by_system_and_path(
                 bk_tenant_id="default",
@@ -145,6 +162,8 @@ class TestCollectorHostGrouping:
         assert len(task_groups) == 1
         assert task_groups[0]["system"]["os_type"] == "linux"
         assert task_groups[0]["hosts"] == [{"bk_host_id": 51983}]
+        # 安装路径按采集器所在业务查询，新接口要求必传业务
+        beat_plugin_status.assert_called_once_with(bk_tenant_id="default", bk_biz_ids=[2], bk_host_ids=[51983])
 
 
 class TestCollectorTopoConversion:
@@ -339,18 +358,16 @@ class TestTaskManagerTesttaskresult:
         return task, node
 
     @staticmethod
-    def _mock_plugin_search_result() -> dict:
+    def _mock_beat_plugin_status() -> list[dict[str, Any]]:
         """返回可通过版本校验的插件结果。"""
-        return {
-            "list": [
-                {
-                    "plugin_status": [{"name": "bkmonitorbeat", "version": "3.5.0.1\n"}],
-                    "inner_ip": "127.0.0.1",
-                    "inner_ipv6": "",
-                    "bk_cloud_id": 0,
-                }
-            ]
-        }
+        return [
+            {
+                "plugin_status": [{"name": "bkmonitorbeat", "version": "3.5.0.1\n"}],
+                "inner_ip": "127.0.0.1",
+                "inner_ipv6": "",
+                "bk_cloud_id": 0,
+            }
+        ]
 
     def _run_task_test(self, task: UptimeCheckTaskModel, collector_result: dict[str, Any]) -> str:
         """仅模拟下发与版本查询，执行实际的结果解析及节点查询。"""
@@ -358,8 +375,8 @@ class TestTaskManagerTesttaskresult:
         with (
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
             patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
-                return_value=self._mock_plugin_search_result(),
+                "bk_monitor_base.domains.uptime_check.services.task_manager.host_queries.beat_plugin_status",
+                return_value=self._mock_beat_plugin_status(),
             ),
             patch(
                 "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
@@ -680,22 +697,20 @@ class TestBeatVersionCheck:
     ) -> None:
         """版本过低时抛出明确错误，文案含节点标识与要求版本。"""
         task, _ = task_with_node
-        plugin_result: dict[str, Any] = {
-            "list": [
-                {
-                    "plugin_status": [self._plugin("3.4.0")],
-                    "inner_ip": "127.0.0.1",
-                    "inner_ipv6": "",
-                    "bk_cloud_id": 0,
-                }
-            ]
-        }
+        plugin_result: list[dict[str, Any]] = [
+            {
+                "plugin_status": [self._plugin("3.4.0")],
+                "inner_ip": "127.0.0.1",
+                "inner_ipv6": "",
+                "bk_cloud_id": 0,
+            }
+        ]
 
         manager = TaskManager(task=task)
         with (
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
             patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
+                "bk_monitor_base.domains.uptime_check.services.task_manager.host_queries.beat_plugin_status",
                 return_value=plugin_result,
             ),
             patch(
@@ -716,7 +731,7 @@ class TestBeatVersionCheck:
     ) -> None:
         """节点管理无插件登记时不拦截，直接进入测试下发并返回采集结果。"""
         task, node = task_with_node
-        plugin_result: dict[str, Any] = {"list": []}
+        plugin_result: list[dict[str, Any]] = []
         collector_result: dict[str, Any] = {
             "success": [{"bk_host_id": node.bk_host_id, "ip": node.ip, "log_content": '{"error_code":0}'}],
             "failed": [],
@@ -726,7 +741,7 @@ class TestBeatVersionCheck:
         with (
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
             patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
+                "bk_monitor_base.domains.uptime_check.services.task_manager.host_queries.beat_plugin_status",
                 return_value=plugin_result,
             ),
             patch(
@@ -736,5 +751,181 @@ class TestBeatVersionCheck:
         ):
             message = manager.test()
 
+        collector_test.assert_called_once()
+        assert message == RESULT_MSG["0"]
+
+    @pytest.mark.parametrize(
+        ("node_biz_id", "relations", "expected_biz_ids"),
+        [
+            # 节点挂在负数空间下，节点管理只认 CMDB 业务，按主机实际所属业务查询
+            pytest.param(-3, [{"bk_host_id": 1, "bk_biz_id": 2, "bk_module_id": 1}], [2], id="negative-space-node"),
+            # 主机同时在多个模块下，关系会重复返回，业务需去重
+            pytest.param(
+                2,
+                [
+                    {"bk_host_id": 1, "bk_biz_id": 5, "bk_module_id": 1},
+                    {"bk_host_id": 1, "bk_biz_id": 5, "bk_module_id": 2},
+                ],
+                [5],
+                id="host-in-other-business",
+            ),
+        ],
+    )
+    def test_task_manager_test_queries_beat_status_by_cmdb_business(
+        self,
+        task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel],
+        mock_host_biz_relation: Mock,
+        node_biz_id: int,
+        relations: list[dict[str, Any]],
+        expected_biz_ids: list[int],
+    ) -> None:
+        """V3 版本校验的业务取自 CMDB 主机关系，而不是节点自身的 bk_biz_id。"""
+        task, node = task_with_node
+        node.bk_biz_id = node_biz_id
+        node.save()
+        mock_host_biz_relation.return_value = relations
+
+        manager = TaskManager(task=task)
+        with (
+            patch.object(nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_NODEMAN_V3=True)),
+            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
+            patch.object(
+                nodeman_v3, "list_v2_compatible_processes", return_value={"total": 0, "list": []}
+            ) as compatible,
+            patch(
+                "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
+                return_value={
+                    "success": [{"bk_host_id": node.bk_host_id, "ip": node.ip, "log_content": '{"error_code":0}'}],
+                    "failed": [],
+                },
+            ),
+        ):
+            manager.test()
+
+        mock_host_biz_relation.assert_called_once_with(bk_tenant_id=manager.bk_tenant_id, bk_host_ids=[1])
+        compatible.assert_called_once_with(
+            bk_tenant_id=manager.bk_tenant_id, params={"bk_biz_id": expected_biz_ids, "bk_host_id": [1]}
+        )
+
+    def test_task_manager_v2_never_queries_cmdb(
+        self, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel], mock_host_biz_relation: Mock
+    ) -> None:
+        """V2 只按主机查询插件，不访问 CMDB：CMDB 关系查询失败也不影响测试继续。"""
+        task, node = task_with_node
+        mock_host_biz_relation.side_effect = RuntimeError("cmdb timeout")
+
+        manager = TaskManager(task=task)
+        with (
+            patch.object(nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_NODEMAN_V3=False)),
+            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
+            patch.object(nodeman_api, "plugin_search", return_value={"total": 0, "list": []}) as plugin_search,
+            patch(
+                "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
+                return_value={
+                    "success": [{"bk_host_id": node.bk_host_id, "ip": node.ip, "log_content": '{"error_code":0}'}],
+                    "failed": [],
+                },
+            ),
+        ):
+            assert manager.test() == RESULT_MSG["0"]
+
+        mock_host_biz_relation.assert_not_called()
+        plugin_search.assert_called_once_with(
+            bk_tenant_id=manager.bk_tenant_id,
+            params={"page": 1, "pagesize": 1, "conditions": [], "bk_host_id": [1]},
+        )
+
+    @pytest.mark.parametrize("enabled", [False, True])
+    def test_task_manager_test_when_host_not_in_cmdb(
+        self,
+        task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel],
+        mock_host_biz_relation: Mock,
+        enabled: bool,
+    ) -> None:
+        """主机已不在 CMDB 时查不到业务：V2 不使用业务照常查询，V3 业务为空直接报错且不发请求。"""
+        task, node = task_with_node
+        mock_host_biz_relation.return_value = []
+
+        manager = TaskManager(task=task)
+        with (
+            patch.object(nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_NODEMAN_V3=enabled)),
+            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
+            patch.object(nodeman_api, "plugin_search", return_value={"total": 0, "list": []}) as plugin_search,
+            patch.object(nodeman_v3, "list_v2_compatible_processes") as compatible,
+            patch(
+                "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
+                return_value={
+                    "success": [{"bk_host_id": node.bk_host_id, "ip": node.ip, "log_content": '{"error_code":0}'}],
+                    "failed": [],
+                },
+            ),
+        ):
+            if enabled:
+                with pytest.raises(ValueError, match="bk_biz_ids"):
+                    manager.test()
+            else:
+                assert manager.test() == RESULT_MSG["0"]
+
+        compatible.assert_not_called()
+        if enabled:
+            mock_host_biz_relation.assert_called_once()
+            plugin_search.assert_not_called()
+        else:
+            mock_host_biz_relation.assert_not_called()
+            plugin_search.assert_called_once()
+
+    def test_task_manager_test_when_some_hosts_not_in_cmdb(
+        self, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel], mock_host_biz_relation: Mock
+    ) -> None:
+        """只有部分主机查不到业务时不报错：带着已查到的业务查询全部主机，查不到的主机视同无记录放行。"""
+        task, node = task_with_node
+        # 第二个节点的主机 99 已不在 CMDB，查不到业务关系
+        missing_node = UptimeCheckNodeModel.objects.create(
+            bk_tenant_id="default",
+            bk_biz_id=2,
+            name="node-missing",
+            ip="127.0.0.2",
+            bk_host_id=99,
+            plat_id=0,
+            is_common=False,
+        )
+        task.nodes.add(missing_node)  # pyright: ignore[reportAttributeAccessIssue]
+        mock_host_biz_relation.return_value = [{"bk_host_id": 1, "bk_biz_id": 2, "bk_module_id": 1}]
+        # 节点管理按业务过滤，只会返回 CMDB 中存在的主机 1
+        compatible_result = {
+            "total": 1,
+            "list": [
+                {
+                    "bk_host_id": 1,
+                    "inner_ip": "127.0.0.1",
+                    "inner_ipv6": "",
+                    "bk_cloud_id": 0,
+                    "setup_path": "/usr/local/gse",
+                    "plugin_status": [{"name": "bkmonitorbeat", "version": "3.6.0", "status": "running"}],
+                }
+            ],
+        }
+
+        manager = TaskManager(task=task)
+        with (
+            patch.object(nodeman_runtime, "django_settings", Mock(configured=True, ENABLE_NODEMAN_V3=True)),
+            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
+            patch.object(nodeman_v3, "list_v2_compatible_processes", return_value=compatible_result) as compatible,
+            patch(
+                "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
+                return_value={
+                    "success": [
+                        {"bk_host_id": item.bk_host_id, "ip": item.ip, "log_content": '{"error_code":0}'}
+                        for item in (node, missing_node)
+                    ],
+                    "failed": [],
+                },
+            ) as collector_test,
+        ):
+            message = manager.test()
+
+        compatible.assert_called_once_with(
+            bk_tenant_id=manager.bk_tenant_id, params={"bk_biz_id": [2], "bk_host_id": [1, 99]}
+        )
         collector_test.assert_called_once()
         assert message == RESULT_MSG["0"]

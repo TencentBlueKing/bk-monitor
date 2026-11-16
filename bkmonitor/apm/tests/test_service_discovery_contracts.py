@@ -50,7 +50,6 @@ def test_profile_limit_result_only_updates_observed_services() -> None:
         [
             [{"service_name": "demo", "type": "cpu", "sample_type": "cpu", "count": 1}],
             [{"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}],
-            [],
         ]
     )
     with (

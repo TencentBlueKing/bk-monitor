@@ -14,6 +14,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.db.models.query import QuerySet
 
+from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models import DataSource, ResultTable
 from metadata.models.bcs import BCSClusterInfo, PodMonitorInfo, ServiceMonitorInfo
 from metadata.models.space import Space, SpaceDataSource, SpaceResource, constants
@@ -42,7 +43,7 @@ def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id, is_fed_cluster)
     )
 
     try:
-        with transaction.atomic():
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             # 使用filter过滤符合条件的ResultTable对象，并批量更新bk_biz_id字段
             ResultTable.objects.filter(table_name_zh__contains=cluster.cluster_id).update(bk_biz_id=new_bk_biz_id)
 
@@ -79,7 +80,8 @@ def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id, is_fed_cluster)
             EventGroup.objects.filter(bk_data_id=k8s_event_data_id).update(bk_biz_id=new_bk_biz_id)
 
             # 再次下发DataId，进行Update
-            cluster.init_resource(is_fed_cluster=is_fed_cluster)
+            if not cluster.init_resource(is_fed_cluster=is_fed_cluster):
+                raise RuntimeError(f"cluster({cluster.cluster_id}) init_resource failed during business migration")
 
         logger.info(
             "change_cluster_router: Successfully updated cluster data router,cluster_id->[%s],"
@@ -98,6 +100,7 @@ def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id, is_fed_cluster)
             old_bk_biz_id,
             e,
         )
+        raise
 
 
 def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str = "both"):

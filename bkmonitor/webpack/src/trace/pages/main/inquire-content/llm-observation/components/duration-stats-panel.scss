@@ -228,7 +228,7 @@
     font-weight: 500;
     color: #313238;
     white-space: nowrap;
-    background: #f5f7fa;
+    background: #f5f7fa !important;
 
     /* 排序图标容器固定 16px 且带 8px 左间距，收窄间距让标题在列宽内单行显示 */
 
@@ -251,5 +251,14 @@
   .t-table__body td:first-child {
     font-family: menlo, 'Roboto Mono', monospace;
     font-size: 13px;
+  }
+
+  /* 单数行白色，偶数行 #FAFBFD；排除 hover 以保留悬浮态 */
+  tbody tr:nth-of-type(odd):not(:hover) {
+    background-color: #fff !important;
+  }
+
+  tbody tr:nth-of-type(even):not(:hover) {
+    background-color: #fafbfd !important;
   }
 }

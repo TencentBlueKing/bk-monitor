@@ -53,8 +53,11 @@ class CustomEventGroup(OperateRecordModelBase):
     def __str__(self):
         return f"{self.name}"  # noqa
 
-    def query_target(self):
-        tag_values = api.metadata.query_tag_values(table_id=self.table_id, tag_name="target")
+    def query_target(self, start_time=None, end_time=None):
+        time_range = {}
+        if start_time is not None or end_time is not None:
+            time_range = {"start_time": start_time, "end_time": end_time}
+        tag_values = api.metadata.query_tag_values(table_id=self.table_id, tag_name="target", **time_range)
         return tag_values["tag_values"]
 
     def metric_detail(self):

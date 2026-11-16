@@ -109,6 +109,14 @@ const SpanBarRowProps = {
   showErrorIcon: {
     type: Boolean,
   },
+  /**
+   * span_id → status.message（仅错误 span，且 message 非空）。
+   * 按需加载详情时接口不下发 span.attributes，错误文案由此回退，由父级 list-view 统一构建。
+   */
+  spanStatusMessageMap: {
+    type: Object as PropType<Map<string, string>>,
+    default: () => new Map<string, string>(),
+  },
   // getViewedBounds: Function as PropType<ViewedBoundsFunctionType>,
   // traceStartTime: {
   //   type: Number
@@ -251,7 +259,8 @@ export default defineComponent({
     let errorDescription = '';
     if (showErrorIcon) {
       const item = attributes?.find?.(attr => attr.key === 'span.status_message');
-      errorDescription = item?.value || '';
+      // 按需加载详情时接口不下发 attributes，回退到父级传入的 original_data status.message 索引
+      errorDescription = item?.value || this.spanStatusMessageMap.get(spanID) || '';
     }
 
     let longLabel: string;

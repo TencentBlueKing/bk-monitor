@@ -627,6 +627,17 @@ class BCSClusterInfo(models.Model):
 
 
 class BcsFederalClusterInfo(common.BaseModelWithTime):
+    RECONCILE_PENDING = "pending"
+    RECONCILE_SUCCESS = "success"
+    RECONCILE_FAILED = "failed"
+
+    reconcile_status = models.CharField(
+        "链路收敛状态",
+        max_length=16,
+        default=RECONCILE_PENDING,
+        choices=[(RECONCILE_PENDING, "待收敛"), (RECONCILE_SUCCESS, "成功"), (RECONCILE_FAILED, "失败")],
+    )
+    reconcile_failures = models.PositiveIntegerField("当前配置连续收敛失败次数", default=0)
     bk_tenant_id = models.CharField("租户ID", max_length=256, default="system")
     fed_cluster_id = models.CharField("代理集群 ID", max_length=32)
     host_cluster_id = models.CharField("HOST 集群 ID", max_length=32)

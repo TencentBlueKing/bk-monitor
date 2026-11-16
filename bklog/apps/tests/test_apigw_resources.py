@@ -28,6 +28,10 @@ from django.urls import resolve
 
 PUBLIC_RESOURCES = {
     ("GET", "/clustering_config/{index_set_id}/config/"),
+    ("GET", "/databus/collectors/{collector_config_id}/archive/"),
+    ("PUT", "/databus/collectors/{collector_config_id}/archive/"),
+    ("DELETE", "/databus/collectors/{collector_config_id}/archive/"),
+    ("GET", "/databus/storage/{cluster_id}/repository/"),
     ("GET", "/databus_collectors/"),
     ("GET", "/databus_collectors/{collector_config_id}/"),
     ("GET", "/databus_collectors/{collector_config_id}/subscription_status/"),
@@ -162,6 +166,40 @@ class ApiGatewayResourcesTests(SimpleTestCase):
             resource = paths[path]["delete"]
             self.assertEqual(resource["operationId"], operation_id)
             self.assertFalse(resource["x-bk-apigateway-resource"]["isPublic"])
+
+    def test_archive_resources_map_to_backend_methods(self):
+        public_paths = {"/databus/collectors/{collector_config_id}/archive/"}
+        expected_operations = {
+            ("put", "/databus/archive/{archive_config_id}/"): "update_archive",
+            ("post", "/databus/restore/"): "create_archive_restore",
+            ("put", "/databus/restore/{restore_config_id}/"): "update_archive_restore",
+            ("delete", "/databus/restore/{restore_config_id}/"): "delete_archive_restore",
+            ("put", "/databus/collectors/{collector_config_id}/archive/"): "databus_collector_upsert_archive",
+            ("get", "/databus/collectors/{collector_config_id}/archive/"): "databus_collector_get_archive",
+            ("delete", "/databus/collectors/{collector_config_id}/archive/"): "databus_collector_delete_archive",
+        }
+
+        for (method, path), operation_id in expected_operations.items():
+            operation = self.resources["paths"][path][method]
+            resource = operation["x-bk-apigateway-resource"]
+            self.assertEqual(operation["operationId"], operation_id)
+            self.assertEqual(resource["backend"]["method"], method, f"{method} {path}")
+            self.assertEqual(resource["backend"]["path"], f"/api/v1{path}", f"{method} {path}")
+            self.assertEqual(resource["isPublic"], path in public_paths, f"{method} {path}")
+
+    def test_archive_resources_map_to_existing_actions(self):
+        expected_actions = {
+            "/api/v1/databus/archive/1/": {"put": "update"},
+            "/api/v1/databus/restore/": {"post": "create"},
+            "/api/v1/databus/restore/1/": {"put": "update", "delete": "destroy"},
+            "/api/v1/databus/collectors/1/archive/": {"get": "archive", "put": "archive", "delete": "archive"},
+            "/api/v1/databus/storage/1/repository/": {"get": "repository"},
+        }
+
+        for path, actions in expected_actions.items():
+            resolved = resolve(path)
+            for method, action in actions.items():
+                self.assertEqual(resolved.func.actions[method], action, f"{method} {path}")
 
     def test_operation_ids_are_unique(self):
         operation_ids = [

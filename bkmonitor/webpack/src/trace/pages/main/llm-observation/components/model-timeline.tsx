@@ -42,6 +42,8 @@ export default defineComponent({
     const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
 
     const filter = shallowRef<LlmTimelineFilter>('all');
+    // 切换页签时递增，驱动各折叠分区把展开态复位为各自的默认值
+    const sectionResetToken = shallowRef(0);
     const inputExpanded = shallowRef(false);
     const selectedToolName = shallowRef('');
     const detail = shallowRef<LlmDetailSliderContent | null>(null);
@@ -193,7 +195,10 @@ export default defineComponent({
     );
 
     const handleFilterChange = (value: LlmTimelineFilter) => {
+      const changed = filter.value !== value;
       filter.value = value;
+      // 页签变化后各分区回到默认展开态：非「全部」筛选下的分区会强制定位展开，故此处仅复位
+      if (changed) sectionResetToken.value += 1;
       if (value === 'last-input') inputExpanded.value = false;
       // 筛选变化后可见集合改变，重置再按新集合分片；未进入分片态时 start 不会真正启动计时器
       inputRender.reset();
@@ -338,6 +343,7 @@ export default defineComponent({
               <CollapseSection
                 count={timeline.value.inputMessages.length}
                 icon='icon-mc-ai-input'
+                resetToken={sectionResetToken.value}
                 sectionId={LLM_SEARCH_SECTION.timelineInput}
                 title={t('输入')}
               >
@@ -362,6 +368,7 @@ export default defineComponent({
               <CollapseSection
                 count={timeline.value.outputMessages.length}
                 icon='icon-mc-ai-output'
+                resetToken={sectionResetToken.value}
                 sectionId={LLM_SEARCH_SECTION.timelineOutput}
                 title={t('输出')}
               >

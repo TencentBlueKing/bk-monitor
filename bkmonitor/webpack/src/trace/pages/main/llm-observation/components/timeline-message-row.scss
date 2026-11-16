@@ -123,6 +123,13 @@
     white-space: nowrap;
   }
 
+  // 预览容器 overflow: hidden 不算 scroll container，min-width: auto 会让 nowrap 文本按全文宽度撑开、
+  // 真正裁切发生在父级。这里补上可收缩的省略盒，让文本按剩余宽度收窄并出省略号，截断判断才有意义。
+  &-text {
+    flex: 1;
+    min-width: 0;
+  }
+
   &-placeholder {
     color: #8f9fbd;
   }
@@ -186,13 +193,18 @@
   }
 
   &-pairs {
-    // flex-basis 取 0：左右都有内容时与右侧各占父容器剩余宽度的一半
+    // flex-basis 取 0 保留「最多分到剩余宽度一半」的诉求；max-content 再把左侧钳到内容自然宽度，
+    // 内容短时按内容浮动、省下的宽度由右侧 flex:1 吸收，内容长时仍停在原平分的一半
     flex: 1 1 0;
     gap: 4px;
     min-width: 0;
     overflow: hidden;
 
     @include flex-align(center);
+
+    &:not(.is-empty) {
+      max-width: max-content;
+    }
 
     // 空参数占位：容器按内容收缩且不参与收缩，保证「--」不被右侧长内容挤压隐藏，
     // 剩余宽度全部让给右侧
@@ -203,7 +215,7 @@
   }
 
   &-result {
-    // 左侧为空时占满剩余宽度；左右都有内容时与左侧对半分
+    // 吸收左侧按内容收缩后让出的宽度；左侧撑满一半时与左侧对半分
     flex: 1 1 0;
     min-width: 0;
   }
@@ -277,6 +289,7 @@
 
   &-arrow {
     font-size: 12px;
+    font-weight: 800;
   }
 
   &-toggle {

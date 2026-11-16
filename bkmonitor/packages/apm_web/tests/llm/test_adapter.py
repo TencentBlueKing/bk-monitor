@@ -172,6 +172,70 @@ class AdapterTests(TestCase):
         self.assertNotIn("gen_ai.usage.output_tokens", attributes)
         self.assertNotIn("vendor.debug", attributes)
 
+    def test_default_adapter_extracts_system_instructions_without_duplicates(self) -> None:
+        span = agentlens_span()
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.system_instructions": [{"type": "text", "content": "existing"}],
+            "gen_ai.input.messages": [
+                {"role": "user", "parts": [{"type": "text", "content": "question"}]},
+                {"role": "system", "parts": [{"type": "text", "content": "existing"}]},
+                {"role": "system", "parts": [{"type": "text", "content": "missing"}]},
+                {"role": "system", "parts": [{"type": "text", "content": "missing"}]},
+            ],
+        }
+
+        attributes = adapt_spans([span], "default")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.system_instructions"],
+            [
+                {"type": "text", "content": "existing"},
+                {"type": "text", "content": "missing"},
+            ],
+        )
+        self.assertEqual(
+            attributes["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+        )
+
+    def test_default_adapter_recovers_complete_messages_after_front_truncation(self) -> None:
+        span = agentlens_span()
+        raw_input = (
+            'truncated content"}]}, '
+            '{"role":"user","parts":[{"type":"text","content":"question"}]}, '
+            '{"role":"system","parts":[{"type":"text","content":"instruction"}]}]'
+        )
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.input.messages": raw_input,
+        }
+
+        attributes = adapt_spans([span], "default")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+        )
+        self.assertEqual(attributes["gen_ai.system_instructions"], [{"type": "text", "content": "instruction"}])
+        self.assertEqual(span["attributes"]["gen_ai.input.messages"], raw_input)
+
+    def test_aidev_reuses_front_truncation_recovery(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat_model.generate"
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.input.messages": 'lost content"}]}, {"role":"user","parts":[{"type":"text","content":"question"}]}]',
+            "llm.input": "fallback input",
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+        )
+
     def test_langfuse_root_maps_conversation_and_content(self) -> None:
         span = langfuse_span(observation_type="span")
         span["attributes"].update(
@@ -406,7 +470,7 @@ class AdapterTests(TestCase):
         self.assertEqual(attributes["gen_ai.request.model"], "standard-model")
         self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "standard")
 
-    def test_default_adapter_keeps_standard_fields_without_operation(self) -> None:
+    def test_default_conversion_keeps_fields_but_observation_requires_operation(self) -> None:
         cases = {
             "gen_ai.agent.id": "agent-1",
             "gen_ai.agent.name": "math-agent",
@@ -420,9 +484,10 @@ class AdapterTests(TestCase):
                 span = agentlens_span(f"{index:016x}")
                 span["span_name"] = "generic-span"
                 span["attributes"] = {field: value}
-                spans = adapt_spans([span], "default")
-                self.assertEqual(len(spans), 1)
-                self.assertEqual(spans[0]["attributes"], {field: value})
+                from apm_web.llm.adapter import adapter_default
+
+                self.assertEqual(adapter_default.convert([span])[0]["attributes"], {field: value})
+                self.assertEqual(adapt_spans([span], "default"), [])
 
     def test_adapters_do_not_invent_tool_type(self) -> None:
         default = agentlens_span("1" * 16)
@@ -1118,7 +1183,7 @@ class AdapterTests(TestCase):
 
         self.assertEqual(parts, [{"type": "tool_call", "id": "canonical-call", "name": "canonical", "arguments": {}}])
 
-    def test_standard_system_instructions_win_over_dialect_sources(self) -> None:
+    def test_standard_system_instructions_are_preserved_across_adapters(self) -> None:
         standard = [{"type": "text", "content": "standard"}]
 
         default = agentlens_span("1" * 16)
@@ -1168,7 +1233,14 @@ class AdapterTests(TestCase):
         ):
             with self.subTest(span_name=source["span_name"]):
                 attributes = adapt_spans([source], product)[0]["attributes"]
-                self.assertEqual(attributes["gen_ai.system_instructions"], standard)
+                if product == "default":
+                    self.assertEqual(
+                        attributes["gen_ai.system_instructions"],
+                        [*standard, {"type": "text", "content": "history"}],
+                    )
+                    self.assertNotIn("gen_ai.input.messages", attributes)
+                else:
+                    self.assertEqual(attributes["gen_ai.system_instructions"], standard)
 
     def test_bkaidev_llm_spans_are_not_deduplicated(self) -> None:
         base = agentlens_span()

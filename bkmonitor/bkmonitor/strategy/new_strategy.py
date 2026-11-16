@@ -100,6 +100,7 @@ from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGro
 from constants.aiops import SDKDetectStatus
 from constants.data_source import DATA_SOURCE_LABEL_ALIAS, DataSourceLabel, DataTypeLabel
 from constants.strategy import (
+    AGG_METHOD_REAL_TIME,
     CUSTOM_PRIORITY_GROUP_PREFIX,
     DATALINK_SOURCE,
     HOST_SCENARIO,
@@ -1469,7 +1470,7 @@ class QueryConfig(AbstractConfig):
             records.append(record)
         return records
 
-    def supplement_adv_condition_dimension(self, instance=None):
+    def supplement_adv_condition_dimension(self, instance=None, *, bk_biz_id: int | None = None):
         """
         高级条件补全维度
         """
@@ -1490,8 +1491,21 @@ class QueryConfig(AbstractConfig):
                 continue
             dimensions.add(condition["key"])
 
-        if has_advance_method:
-            self.agg_dimension = list(set(self.agg_dimension) | dimensions)
+        if not has_advance_method:
+            return
+        # 日志只有黑名单业务按条件字段分组后过滤，其余走 UnifyQuery 直接下推条件，补维度只会按日志正文等字段产生高基数分组。
+        # 黑名单业务的聚类查询同样走 UnifyQuery，仍按黑名单补维度；查不到业务时保持补维度。
+        if self.data_source_label == DataSourceLabel.BK_LOG_SEARCH:
+            if bk_biz_id is None:
+                bk_biz_id = (
+                    StrategyModel.objects.filter(id=self.strategy_id).values_list("bk_biz_id", flat=True).first()
+                )
+            if bk_biz_id is not None and not data_source.is_unify_query_black_biz(bk_biz_id):
+                # 只有查询会丢掉的字段才留在维度里。顶层 bk_collect_config_id 会下推，不能补成维度。
+                dimensions = {key for key in dimensions if data_source.drops_where_key(key)}
+                if not dimensions:
+                    return
+        self.agg_dimension = list(set(self.agg_dimension) | dimensions)
 
     def _clean_empty_dimension(self):
         """
@@ -1510,6 +1524,24 @@ class Item(AbstractConfig):
     """
     监控项配置
     """
+
+    # 这些数据源的 access 数据维度由查询分组和高级条件补维决定。
+    NO_DATA_STRUCTURED_SOURCES = frozenset(
+        {
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.BK_APM, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
+        }
+    )
+    # access 的 TopoNodeFuller 可在查询后补充这些字段。
+    NO_DATA_ACCESS_DIMENSIONS = frozenset(
+        {"bk_host_id", "bk_target_ip", "bk_target_cloud_id", "bk_topo_node", "bk_target_service_instance_id"}
+    )
 
     class Serializer(serializers.Serializer):
         class TargetSerializer(serializers.Serializer):
@@ -1640,6 +1672,56 @@ class Item(AbstractConfig):
                 [set(getattr(query_config, "agg_dimension", [])) for query_config in self.query_configs],
             )
         )
+
+    def normalize_query_dimensions(self, bk_biz_id: int | None) -> None:
+        """基于最终查询集合补齐保存时需要的维度。"""
+        for query_config in self.query_configs:
+            query_config._clean_empty_dimension()
+            query_config.supplement_adv_condition_dimension(self, bk_biz_id=bk_biz_id)
+
+    def align_no_data_dimensions(self, bk_biz_id: int | None) -> None:
+        """移除确定不会出现在无数据检测输入中的维度。"""
+        if not isinstance(self.no_data_config, dict):
+            return
+        dimensions = self.no_data_config.get("agg_dimension")
+        if not isinstance(dimensions, list) or not dimensions or not self.query_configs:
+            return
+        if any(
+            (query.data_source_label, query.data_type_label) not in self.NO_DATA_STRUCTURED_SOURCES
+            or not hasattr(query, "agg_dimension")
+            or getattr(query, "agg_method", "").upper() == AGG_METHOD_REAL_TIME
+            for query in self.query_configs
+        ):
+            # PromQL、Grafana 和实时查询的输出维度无法从配置静态确定。
+            return
+
+        available_dimensions = set(self.NO_DATA_ACCESS_DIMENSIONS)
+        for query in self.query_configs:
+            available_dimensions.update(query.agg_dimension)
+            if (query.data_source_label, query.data_type_label) == (
+                DataSourceLabel.BK_MONITOR_COLLECTOR,
+                DataTypeLabel.LOG,
+            ):
+                # 日志关键字查询可按目标拓扑聚合，在运行时生成节点维度。
+                available_dimensions.update({"bk_obj_id", "bk_inst_id"})
+            data_source = load_data_source(query.data_source_label, query.data_type_label)
+            if (
+                query.data_source_label == DataSourceLabel.BK_LOG_SEARCH
+                and bk_biz_id is not None
+                and not data_source.is_unify_query_black_biz(bk_biz_id)
+            ):
+                # 日志查询已下推条件，条件字段不会因此成为输出维度。
+                continue
+            if any(
+                condition.get("_origin_method", condition["method"]) in data_source.ADVANCE_CONDITION_METHOD
+                for condition in query.agg_condition
+            ):
+                # 查询后过滤可能将所有条件字段加到运行时分组中。
+                available_dimensions.update(condition["key"] for condition in query.agg_condition)
+
+        kept_dimensions = [dimension for dimension in dimensions if dimension in available_dimensions]
+        if kept_dimensions != dimensions:
+            self.no_data_config = {**self.no_data_config, "agg_dimension": kept_dimensions}
 
     def to_dict(self):
         if self.metric_type:
@@ -3065,6 +3147,9 @@ class Strategy(AbstractConfig):
                 self.items[0].query_configs[0].snapshot_config = converted_config
 
         self.supplement_inst_target_dimension()
+        for item in self.items:
+            item.normalize_query_dimensions(self.bk_biz_id)
+            item.align_no_data_dimensions(self.bk_biz_id)
         need_access_aiops, algorithm_name = self.check_aiops_access()
         self.Serializer.validate_dynamic_alert_level(self.to_dict())
 

@@ -72,14 +72,16 @@ export default defineComponent({
       props.clearSearch?.();
     };
     const handlePaste = (text: string) => [{ id: text, name: text }];
+    /** 结果导航是否可用（导航区可见且已有当前定位项），按钮点击与键盘快捷键共用 */
+    const canNavigate = () => props.showResultCount && props.resultCount > 0 && curFocusIndex.value > 0;
     const handlePrevResult = () => {
-      if (curFocusIndex.value > 1) {
+      if (canNavigate() && curFocusIndex.value > 1) {
         curFocusIndex.value -= 1;
         props.prevResult?.();
       }
     };
     const handleNextResult = () => {
-      if (curFocusIndex.value < props.resultCount) {
+      if (canNavigate() && curFocusIndex.value < props.resultCount) {
         curFocusIndex.value += 1;
         props.nextResult?.();
       }
@@ -87,6 +89,9 @@ export default defineComponent({
 
     expose({
       handleChange,
+      canNavigate,
+      handlePrevResult,
+      handleNextResult,
     });
 
     return {
@@ -95,6 +100,7 @@ export default defineComponent({
       handleChange,
       handleClear,
       handlePaste,
+      canNavigate,
       handlePrevResult,
       handleNextResult,
       t,

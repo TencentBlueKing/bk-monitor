@@ -104,8 +104,9 @@ export default defineComponent({
       const fromQuery = queryTab();
       const requested = fromQuery || hostActiveTab.value;
       const matched = tabList.value.find(tab => tab.value === requested)?.value;
-      // 视角还在拓扑时，地址指定的详情页签先保留，等主机节点到达后再校验。
-      if (!matched && (fromQuery === 'system' || fromQuery === 'process')) return fromQuery;
+      // 仅当节点尚未解析时，地址里的主机详情页签先保留，等主机节点到达后由 host 视角接管；
+      // 选中节点已就绪（父级节点）说明确实处于拓扑视角，详情页签需回落到拓扑可用页签。
+      if (!props.selectedNode && !matched && (fromQuery === 'system' || fromQuery === 'process')) return fromQuery;
       return resolveHostContentTab(requested, tabList.value);
     };
 
