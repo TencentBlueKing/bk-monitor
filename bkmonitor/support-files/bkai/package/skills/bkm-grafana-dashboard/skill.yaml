@@ -4,6 +4,6 @@ metadata:
   code: bkm-grafana-dashboard
   name: 监控平台-Grafana仪表盘
 spec:
-  generate_type: global
+  generate_type: space
   is_public: true
   tag_names: []

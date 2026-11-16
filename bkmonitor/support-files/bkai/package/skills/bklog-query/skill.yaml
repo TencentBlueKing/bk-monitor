@@ -4,6 +4,6 @@ metadata:
   code: bklog-query
   name: 日志平台-日志检索
 spec:
-  generate_type: global
+  generate_type: space
   is_public: true
   tag_names: []

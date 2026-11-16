@@ -135,8 +135,8 @@ def check_directory(root: Path) -> list[str]:
             errors.append(f"{name}: mismatched Skill declaration")
         if metadata.keys() - {"code", "name", "description"}:
             errors.append(f"{name}: deployment identity and version belong outside the distributable metadata")
-        if options.get("generate_type") != "global" or options.get("is_public") is not True:
-            errors.append(f"{name}: official Skills must declare global visibility")
+        if options.get("generate_type") != "space" or options.get("is_public") is not True:
+            errors.append(f"{name}: official Skills must declare public space visibility")
         if not metadata.get("name", "").startswith(("监控平台-", "日志平台-")):
             errors.append(f"{name}: use the product name followed by a Chinese resource name")
         content = (skill / "SKILL.md").read_text(encoding="utf-8")

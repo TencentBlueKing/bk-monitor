@@ -4,6 +4,6 @@ metadata:
   code: bklog-ingest
   name: 日志平台-日志接入
 spec:
-  generate_type: global
+  generate_type: space
   is_public: true
   tag_names: []

@@ -1,6 +1,6 @@
 # 监控 Skill 资源包
 
-由官方 `bkai-init 0.1.6` 将 `package/bkai.yaml` 声明的六个 Skill 同步到 AIDEV 系统空间 `system-bkaidev`。资源声明为 `generate_type: global`、`is_public: true`，供所有租户使用；多租户部署使用系统租户 `system` 的应用凭据。资源目录随监控模块外发，连接信息和凭据由部署环境注入。
+由官方 `bkai-init 0.1.6` 将 `package/bkai.yaml` 声明的六个 Skill 同步到 AIDEV 系统空间 `system-bkaidev`。资源声明为 `generate_type: space`、`is_public: true`，供该空间内获授权的 Agent 使用，同租户其他空间按平台流程申请使用；多租户部署使用系统租户 `system` 的应用凭据。资源目录随监控模块外发，连接信息和凭据由部署环境注入。
 
 | Skill | 用途 | 目标环境依赖 |
 | --- | --- | --- |
@@ -46,7 +46,7 @@ monitor:
     excludeResources: []  # 如 skill/bklog-query，保留平台手工维护项
 ```
 
-`monitor.config.enableMultipleTenant` 决定多租户模式；开启时 Job 还传入 `--tenant-id system`。Chart 和官方 SDK 在同步前校验系统空间；Chart 拒绝以其他租户执行本包的全局资源同步。默认关闭同步以兼容尚未接入 AIDEV 的部署。
+`monitor.config.enableMultipleTenant` 决定多租户模式；开启时 Job 还传入 `--tenant-id system`。本包的 Chart 固定目标为 `system-bkaidev`，多租户模式下要求 `system`，保持资源归属一致。默认关闭同步以兼容尚未接入 AIDEV 的部署。
 
 Job 复用监控应用的 `appCode` / `appSecret`，通过官方别名 `BKPAAS_APP_ID` / `BKPAAS_APP_SECRET` 注入；连接配置复用 `monitor.extraEnvVars`、`monitor.extraEnvVarsCM` 和 `monitor.extraEnvVarsSecret`，并注入 `BKPAAS_MULTI_TENANT_MODE`。需要核对：
 
@@ -72,7 +72,7 @@ bkai-init sync --confirm -f package/bkai.yaml --space system-bkaidev --tenant-id
 bkai-init show -f package/bkai.yaml --space system-bkaidev --tenant-id system
 ```
 
-`skill.yaml` 中的 code 使用 `bkm-`（监控平台）或 `bklog-`（日志平台）前缀，中文展示名称使用“产品名称-资源名称”。全局范围在创建后不能通过更新在全局与普通空间资源之间切换；已有同名资源须先核对归属。同步到系统空间不替 Agent 关联 Skill，也不授予各租户业务数据权限。所有示例使用合成名称和占位值，保留业务范围校验、人工确认、模拟分派和写后回查约束。
+`skill.yaml` 中的 code 使用 `bkm-`（监控平台）或 `bklog-`（日志平台）前缀，中文展示名称使用“产品名称-资源名称”。已有同 code 资源须先核对范围与归属；若曾创建为全租户资源，应另行评估迁移，不能直接切换为普通空间资源。`space` 加公开标记不使其他租户自动可见；同步到系统空间也不替 Agent 关联、跨空间申请或业务数据授权。所有示例使用合成名称和占位值，保留业务范围校验、人工确认、模拟分派和写后回查约束。
 
 `scripts/check_package.py` 检查外发内容、路径边界和引用；也可通过 `--archive /path/to/skill.zip` 检查实际 ZIP。测试放在 `tests/`，不进入上传包。使用已安装官方依赖的 Python 执行 `python -B -m unittest discover -s tests -v`；自动检查之外还需审阅业务名称和示例来源。
 

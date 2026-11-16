@@ -14,7 +14,6 @@ try:
     from bkai_init import BkaiInit
     from bkai_init.utils.archive import build_skill_zip
     from bkai_init.utils.manifest import load_package, load_skill
-    from bkai_init.utils.exceptions import ManifestError
 except ModuleNotFoundError as error:
     if error.name != "bkai_init":
         raise
@@ -66,7 +65,7 @@ class PackageTests(unittest.TestCase):
         for payload in client.writes:
             self.assertEqual(payload["space_id"], "system-bkaidev")
             self.assertNotIn("version", payload)
-            self.assertEqual(payload["generate_type"], "global")
+            self.assertEqual(payload["generate_type"], "space")
             self.assertIs(payload["is_public"], True)
         for space, names in client.uploads:
             self.assertEqual(space, "system-bkaidev")
@@ -91,14 +90,15 @@ class PackageTests(unittest.TestCase):
         )
         self.assertEqual([payload["skill_code"] for payload in client.writes], ["bklog-query"])
 
-    def test_global_resources_reject_another_space_before_any_remote_operation(self):
-        client = RecordingClient()
+    def test_space_resources_do_not_require_global_resource_space(self):
         for action in ("validate", "plan", "sync"):
-            with self.subTest(action=action), self.assertRaises(ManifestError):
+            with self.subTest(action=action):
+                client = RecordingClient()
                 getattr(BkaiInit(space="example-space", client=client), action)(ROOT / "package/bkai.yaml")
-        self.assertEqual(client.reads, [])
-        self.assertEqual(client.uploads, [])
-        self.assertEqual(client.writes, [])
+                for payload in client.writes:
+                    self.assertEqual(payload["space_id"], "example-space")
+                    self.assertEqual(payload["generate_type"], "space")
+                    self.assertIs(payload["is_public"], True)
 
     def test_actual_archives_are_deterministic_and_include_references(self):
         package = load_package(ROOT / "package/bkai.yaml")

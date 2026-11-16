@@ -4,6 +4,6 @@ metadata:
   code: bkm-data-fetcher
   name: 监控平台-观测数据提取
 spec:
-  generate_type: global
+  generate_type: space
   is_public: true
   tag_names: []
