@@ -67,6 +67,11 @@ def _fake_index_sets():
     return qs
 
 
+def _fake_space_uid(bk_biz_id):
+    """避免测试触达 Metadata 空间接口"""
+    return f"bkci__{-int(bk_biz_id)}" if int(bk_biz_id) < 0 else f"bkcc__{bk_biz_id}"
+
+
 def _doris_cluster_obj(registered_system="other", custom_option=None, cluster_id=10):
     return {
         "cluster_type": DORIS_CLUSTER_TYPE,
@@ -1863,6 +1868,10 @@ class TestDorisClusterGroupsAcceptance(TestCase):
                 "apps.log_search.handlers.index_set.IndexSetHandler.get_index_set_for_storage",
                 return_value=_fake_index_sets(),
             ),
+            patch(
+                "apps.log_databus.handlers.storage.bk_biz_id_to_space_uid",
+                side_effect=_fake_space_uid,
+            ),
         ):
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -1917,6 +1926,10 @@ class TestDorisClusterGroupsApi(TestCase):
             ),
             patch("apps.iam.handlers.drf.ViewBusinessPermission.has_permission", return_value=True),
             patch("apps.log_databus.handlers.storage.FeatureToggleObject.switch", return_value=True),
+            patch(
+                "apps.log_databus.handlers.storage.bk_biz_id_to_space_uid",
+                side_effect=_fake_space_uid,
+            ),
             patch(
                 "apps.log_databus.handlers.storage.TransferApi.get_cluster_info",
                 side_effect=lambda __: _parse_doris_acceptance_clusters(),
