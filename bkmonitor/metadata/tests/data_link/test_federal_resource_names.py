@@ -223,7 +223,7 @@ def test_subset_sync_does_not_claim_legacy_sink_as_result_table(source):
     assert legacy.bkbase_table_id == f"42_{sink.name}"
 
 
-def test_shared_binding_survives_subsets_and_subset_deletion(source, mocker):
+def test_shared_binding_survives_subsets_and_subset_deletion(source, mocker, databus_remote):
     parent = proxy_link(source)
     rt, binding = historical_components(source)
     compose_proxy(parent, source)
@@ -240,7 +240,8 @@ def test_shared_binding_survives_subsets_and_subset_deletion(source, mocker):
         bk_biz_id=2,
     )
     children[0].delete_data_link()
-    assert {call.kwargs["kind"] for call in delete.call_args_list} == {"databuses"}
+    delete.assert_not_called()
+    assert databus_remote.apply.call_count == 1
     assert models.DataLink.objects.filter(pk=children[0].pk).exists()
     assert models.ConditionalSinkConfig.objects.filter(data_link_name=children[0].pk).exists()
     assert models.ResultTableConfig.objects.filter(pk=rt.pk).exists()
@@ -624,7 +625,7 @@ def test_concurrent_proxy_compose_creates_or_adopts_once(source, legacy):
 
 
 @pytest.mark.parametrize("v3_source", [False, True])
-def test_standard_proxy_round_trip_preserves_components(source, mocker, v3_source):
+def test_standard_proxy_round_trip_preserves_components(source, mocker, v3_source, databus_remote):
     delete = mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.delete_data_link")
     kwargs = dict(bk_biz_id=2, data_source=source, monitor_table_id=TABLE, storage_cluster_name=VM)
     create_bkbase_data_link(**kwargs)
@@ -644,8 +645,13 @@ def test_standard_proxy_round_trip_preserves_components(source, mocker, v3_sourc
         assert models.ResultTableConfig.objects.get(data_link_name=link.pk).pk == rt.pk
         assert models.VMStorageBindingConfig.objects.get(data_link_name=link.pk).pk == binding.pk
     assert models.DataBusConfig.objects.get(data_link_name=link.pk).data_id_name == source_name
-    assert len(delete.call_args_list) == 1
-    assert delete.call_args.kwargs["kind"] == "databuses"
+    configs = models.DataLink.apply_data_link_with_retry.call_args.args[0]
+    assert (
+        next(config for config in configs if config["kind"] == "Databus")["metadata"]["annotations"]["task_stopped"]
+        == "false"
+    )
+    delete.assert_not_called()
+    assert databus_remote.apply.call_count == 1
 
 
 def test_repaired_proxy_to_standard_keeps_full_vmrt(source):
@@ -658,7 +664,7 @@ def test_repaired_proxy_to_standard_keeps_full_vmrt(source):
     assert next(config for config in payload if config["kind"] == "ResultTable")["spec"]["bizId"] == 42
 
 
-def test_subset_service_retry_and_delete_reuse_persisted_identity(source, mocker):
+def test_subset_service_retry_and_delete_reuse_persisted_identity(source, mocker, databus_remote):
     from types import SimpleNamespace
     from metadata.service import federation_data_link as service
 
@@ -699,7 +705,7 @@ def test_subset_service_retry_and_delete_reuse_persisted_identity(source, mocker
     assert models.DataLink.objects.filter(pk=link.pk).exists()
     assert models.ConditionalSinkConfig.objects.filter(pk=sink.pk).exists()
     assert models.BkBaseResultTable.objects.filter(data_link_name=link.pk).exists()
-    assert not models.DataBusConfig.objects.filter(data_link_name=link.pk).exists()
+    assert models.DataBusConfig.objects.filter(data_link_name=link.pk).exists()
     assert models.VMStorageBindingConfig.objects.filter(name="historical_binding").exists()
     from metadata.models.data_link.constants import DataLinkResourceStatus
     from metadata.task.bkbase import _refresh_bkbase_result_table_statuses

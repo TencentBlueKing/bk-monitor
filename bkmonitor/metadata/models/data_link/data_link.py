@@ -534,12 +534,14 @@ class DataLink(models.Model):
     # key   : (data_link_strategy, component kind)
     # value : "strict" 表示 compose 完成后该 kind 的未消费组件视为脏数据，直接报错；
     #         "keep"   表示允许既有组件残留（既不报错也不删除，也不参与本次下发）。
-    #         "delete" 表示 apply 成功后删除未被本次 compose 返回的组件。
+    #         "delete" 表示 apply 成功后清理未被本次 compose 返回的组件（Databus 仅停止）。
     # 未声明的 (strategy, kind) 默认按 "strict" 处理。
     REUSE_LEFTOVER_POLICY: dict[tuple[str, type["DataLinkResourceConfigBase"]], Literal["strict", "keep", "delete"]] = {
         # 日志在 ES / Doris 间切换时，需要保留旧存储绑定以支持历史分段查询；
         # compose 只会认领当前生效的绑定，因此旧绑定不应被视为脏数据。
         (BCS_FEDERAL_PROXY_TIME_SERIES, DataBusConfig): "delete",
+        # 图谱切回普通指标后保留的 Databus 继续停止，不阻塞后续组件复用。
+        (BK_STANDARD_V2_TIME_SERIES, DataBusConfig): "delete",
         (BCS_FEDERAL_SUBSET_TIME_SERIES, ResultTableConfig): "keep",
         (BCS_FEDERAL_SUBSET_TIME_SERIES, VMStorageBindingConfig): "keep",
         (BK_STANDARD_V2_EVENT, ESStorageBindingConfig): "keep",
@@ -569,7 +571,7 @@ class DataLink(models.Model):
         verbose_name_plural = verbose_name
 
     def delete_data_link(self):
-        """仅删除 Databus，保留链路及其他组件关系以支持历史数据查询。"""
+        """停止 Databus，保留链路及所有组件关系以支持历史数据查询。"""
         logger.info("delete_data_link: data_link_name->[%s]", self.data_link_name)
         components = DataBusConfig.objects.filter(
             bk_tenant_id=self.bk_tenant_id,
@@ -578,12 +580,12 @@ class DataLink(models.Model):
         )
         for component in components:
             logger.info(
-                "delete_data_link: delete data_link_name->[%s] kind->[%s] component->[%s]",
+                "delete_data_link: stop databus data_link_name->[%s] kind->[%s] component->[%s]",
                 self.data_link_name,
                 component.kind,
                 component.name,
             )
-            component.delete_config()
+            component.stop_config()
 
     def get_related_component_classes(self) -> list[type["DataLinkResourceConfigBase"]]:
         if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
@@ -2519,7 +2521,7 @@ class DataLink(models.Model):
             raise ValueError(f"ambiguous VMStorageBindingConfig references: {sorted(saved_bindings)}")
         binding_name = existing_binding.name if existing_binding else next(iter(saved_bindings), "")
         databus_name = existing_databus.name if existing_databus else ""
-        # Proxy 切回普通链路时 DataBus 已被清理，来源仍以保存的 RT 映射为准。
+        # Proxy 切回普通链路时复用保留的 DataBus；记录缺失时从 RT 映射恢复来源。
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
         bkbase_data_name = (
@@ -3400,9 +3402,12 @@ class DataLink(models.Model):
         """清理多余组件；联邦调用要求清理失败上抛，保留本地记录供下轮重试。"""
         for component in components:
             try:
-                component.delete_config()
+                if isinstance(component, DataBusConfig):
+                    component.stop_config()
+                else:
+                    component.delete_config()
             except Exception as error:  # pylint: disable=broad-except
-                if self._is_remote_component_not_found(error):
+                if not isinstance(component, DataBusConfig) and self._is_remote_component_not_found(error):
                     logger.info(
                         "cleanup_absent_components: remote component already absent, delete local record, "
                         "data_link_name->[%s],kind->[%s],name->[%s]",
