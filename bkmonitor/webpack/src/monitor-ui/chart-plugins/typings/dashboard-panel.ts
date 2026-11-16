@@ -757,8 +757,10 @@ export class PanelModel implements IPanelModel {
     for (const target of queries) {
       if (target?.query_configs?.length) {
         for (const item of target.query_configs) {
-          if (item.promql) {
-            promqlSet.add(String(item.promql));
+          if (item.related_metric_ids?.length) {
+            for (const metricId of item.related_metric_ids) metricIdMap[metricId] = 'true';
+          } else if (item.promql) {
+            promqlSet.add(String(item.related_promql || item.promql));
           } else {
             const metricId = getMetricId(
               item.data_source_label,
@@ -808,7 +810,10 @@ export class PanelModel implements IPanelModel {
   }
   public updateCollapsed(v: boolean) {
     this.collapsed = v;
-    this.panels?.length && this.panels.forEach(item => item?.updateShow?.(v));
+    this.panels?.length &&
+      this.panels.forEach(item => {
+        item?.updateShow?.(v);
+      });
   }
   public updateDragging(v: boolean) {
     this.dragging = v;

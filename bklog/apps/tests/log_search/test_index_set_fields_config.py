@@ -24,6 +24,7 @@ from apps.log_search.models import (
     LogIndexSetData,
     Scenario,
 )
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 INDEX_SET_ID = 30476
 DISPLAY_FIELDS = ["dtEventTimeStamp", "serverIp"]
@@ -301,3 +302,44 @@ class TestDorisFieldsConfig(TestCase):
         config = IndexSetFieldsConfig.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(config.sort_list, [])
         self.esquery.assert_not_called()
+
+    def test_display_fields_payload_persists_without_es_fallback(self):
+        """字段模板按请求内容精确落库，且不回退到旧 ES 字段映射。"""
+        self.query_field_map.return_value = {
+            "data": [
+                {"field_name": "dtEventTimeStamp", "field_type": "date", "is_agg": True},
+                {"field_name": "localTime", "field_type": "keyword", "is_agg": True},
+                {"field_name": "thedate", "field_type": "integer", "is_agg": True},
+            ]
+        }
+        # 默认排序列表含 gseIndex，上面的字段集合没有它；显式指定排序列表，
+        # 使保存路径的排序校验只针对实际存在的字段。
+        sort_list = [["dtEventTimeStamp", "desc"]]
+        self._save("create_config", display_fields=["dtEventTimeStamp", "localTime"], sort_list=sort_list)
+        config = IndexSetFieldsConfig.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual(config.display_fields, ["dtEventTimeStamp", "localTime"])
+        self.assertEqual(config.sort_list, sort_list)
+        self.query_field_map.assert_called_once()
+        self.esquery.assert_not_called()
+
+    def test_check_sort_list_depends_only_on_es_doc_values(self):
+        """排序字段校验只依据 es_doc_values，与字段类型无关。"""
+        fields = [
+            {"field_name": "thedate", "field_type": "integer", "es_doc_values": True},
+            {"field_name": "localTime", "field_type": "keyword", "es_doc_values": False},
+        ]
+        self.assertEqual(UnifyQueryHandler.check_sort_list(fields, [["thedate", "desc"]]), [])
+        self.assertEqual(
+            UnifyQueryHandler.check_sort_list(fields, [["localTime", "desc"]], raise_exception=False),
+            ["localTime"],
+        )
+        with self.assertRaises(PreCheckSortFieldException):
+            UnifyQueryHandler.check_sort_list(fields, [["localTime", "desc"]])
+
+    def test_verify_sort_list_item_accepts_normalized_fields(self):
+        """字段模板保存走 UQ 字段接口，规范化后排序校验仍通过并精确落库。"""
+        self.query_field_map.return_value["data"][0]["is_agg"] = True
+        self._save("create_config", sort_list=[["dtEventTimeStamp", "desc"]])
+        config = IndexSetFieldsConfig.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual(config.sort_list, [["dtEventTimeStamp", "desc"]])
+        self.query_field_map.assert_called_once()

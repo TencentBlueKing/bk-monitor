@@ -1,0 +1,166 @@
+/* stylelint-disable selector-class-pattern */
+.profiling-collection {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+
+  // 不接管滚动：滚动交给各页签面板自己处理，页签头始终可见
+  overflow: hidden;
+  background: #f5f7fa;
+
+  &.has-tabs {
+    padding: 8px;
+    background: #f0f4fa;
+  }
+}
+
+// 页签行：左侧页签 + 右侧常驻「新建采集」按钮，按钮不随页签切换消失
+.collection-tabs-header {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+
+  .collection-tabs {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .collection-create-btn {
+    flex-shrink: 0;
+    padding: 0 16px;
+
+    .collection-create-btn-inner {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+
+      .icon-a-1jiahao {
+        font-size: 14px;
+      }
+    }
+  }
+}
+
+.profiling-collection .collection-tabs {
+  flex-shrink: 0;
+
+  .bk-tab-header-item {
+    height: 40px;
+    padding: 0 24px;
+    margin-right: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #4e5e7a;
+    background: #e4e9f2;
+    border-radius: 8px 8px 0 0;
+
+    &:hover {
+      color: #3a84ff;
+    }
+
+    &.bk-tab-header--active {
+      color: #3a84ff;
+      background: #fff;
+      box-shadow: 0 -1px 1px #1919290a;
+    }
+  }
+
+  .bk-tab-content {
+    display: none;
+  }
+
+  .collection-tab-label {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    margin-top: 2px;
+    line-height: 40px;
+  }
+}
+
+.collection-tab-panel {
+  flex: 1;
+  min-height: 0;
+  background: #fff;
+  border-radius: 0 4px 4px;
+  box-shadow: 0 2px 2px #1919290d;
+}
+
+.collection-meta-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100% - 16px);
+  margin: 8px;
+  background: #fff;
+
+  &.is-loading {
+    align-items: stretch;
+  }
+}
+
+.collection-meta-error {
+  max-width: 560px;
+  padding: 24px;
+  text-align: center;
+
+  .bk-button {
+    margin-top: 16px;
+  }
+}
+
+// 面板由 .collection-tab-panel 的 flex: 1 撑到页签下方的剩余高度（空态撑满依赖这个高度），
+// 面板自身不滚动：引导说明与工具条常驻顶部，滚动交给工具条内的表格区，
+// 表格表头吸顶只需贴合表格区顶部，分页紧跟表格下方随内容滚动
+.collection-task-panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+
+  // 右侧 4px 已被表格区常驻滚动条槽位占据（reset.scss 里 div 的滚动条宽 4px），
+  // 内边距收窄后视觉右边距仍为 12px
+  padding: 12px 8px 12px 12px;
+  overflow: hidden;
+
+  .t-table {
+    font-size: 12px;
+  }
+}
+
+.collection-dialog-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.collection-error-text {
+  color: #ea3636;
+}
+
+.collection-muted {
+  font-size: 12px;
+  color: #979ba5;
+}
+
+.collection-cron-editor .bk-crontab-datetime,
+.collection-cron-summary .bk-crontab-datetime,
+.collection-cron-summary .bk-crontab-editarea {
+  display: none;
+}
+
+.collection-cron-summary {
+  padding: 8px;
+  font-size: 12px;
+}
+
+.collection-cron-expression {
+  cursor: help;
+  border-bottom: 1px dashed #979ba5;
+}

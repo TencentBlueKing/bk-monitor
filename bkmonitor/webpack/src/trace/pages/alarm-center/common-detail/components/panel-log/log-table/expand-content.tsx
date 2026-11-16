@@ -59,11 +59,15 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    allowedMenuTypes: {
+      type: Array as PropType<EClickMenuType[]>,
+      default: () => undefined,
+    },
   },
   emits: {
     clickMenu: (_opt: { field: IFieldInfo; type: EClickMenuType; value: string }) => true,
     removeField: (_fieldName: string) => true,
-    addField: (_fieldName: string) => true,
+    addField: (_fieldName: string) => true, 
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -182,6 +186,7 @@ export default defineComponent({
                         });
                       },
                     }}
+                    allowedMenuTypes={props.allowedMenuTypes}
                     field={item}
                     row={props.originLog ?? props.row}
                   />

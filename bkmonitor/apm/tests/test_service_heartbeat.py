@@ -1,3 +1,5 @@
+import logging
+from collections.abc import Callable, Iterator
 from types import SimpleNamespace
 from typing import Any
 from unittest import mock
@@ -30,6 +32,20 @@ def make_node(name: str = "demo", **kwargs: Any) -> TopoNode:
 
 def datasource() -> SimpleNamespace:
     return SimpleNamespace(bk_biz_id=2, app_name="app", result_table_id="2_apm.app", retention=7, index_set_id=123)
+
+
+@pytest.fixture
+def heartbeat_lock_wait_timeout() -> Iterator[None]:
+    """为错误注入用例固定原生等待预算，兼容 SQLite 和 MySQL 测试库。"""
+    connection = connections[router.db_for_write(TopoNode)]
+
+    def query_timeout(execute: Callable[..., Any], sql: str, params: Any, many: bool, context: dict[str, Any]) -> Any:
+        if sql == "SELECT @@SESSION.innodb_lock_wait_timeout":
+            return execute("SELECT 50", params, many, context)
+        return execute(sql, params, many, context)
+
+    with connection.execute_wrapper(query_timeout):
+        yield
 
 
 def test_heartbeat_monotonic_and_preserves_unrequested_fields() -> None:
@@ -373,17 +389,18 @@ def profile_builder(results: list[Any]) -> mock.MagicMock:
 
 def test_profile_discover_keeps_old_table_and_creates_topology() -> None:
     existing = make_node("trace", source=["trace"], heartbeat={"trace": {"last_data_at": 90, "checked_at": 100}})
-    builder = profile_builder([])
-    builder.execute.side_effect = [
+    builder = profile_builder(
         [
-            {"service_name": "demo", "type": "cpu", "sample_type": "cpu", "count": 1},
-            {"service_name": "demo", "type": "alloc_objects", "sample_type": "alloc_objects", "count": 1},
-        ],
-        [{"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}],
-        [{"service_name": "demo", "count": 10001}],
-        [{"period": 10, "period_type": "space/bytes", "type": "alloc_objects", "value": 100}],
-        [{"service_name": "demo", "count": 1}],
-    ]
+            [
+                {"service_name": "service-a", "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 10_001},
+                {"service_name": "service-a", "type": "space", "sample_type": "alloc_objects/count", "count": 10_000},
+                {"service_name": "service-b", "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 10_001},
+            ],
+            [{"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}],
+            [{"period": 10, "period_type": "space/bytes", "type": "space", "value": 100}],
+            [],
+        ]
+    )
     check_time = timezone.now()
     completed_at = int(check_time.timestamp()) + 30
     discover = ProfileServiceDiscover(datasource())
@@ -393,27 +410,47 @@ def test_profile_discover_keeps_old_table_and_creates_topology() -> None:
         mock.patch("apm.core.discover.profile.service.timezone.now", return_value=check_time),
         mock.patch("apm.core.discover.profile.service.time.time", return_value=completed_at),
     ):
-        discover.discover(100000, 200000)
-    node = TopoNode.objects.get(topo_key="demo")
+        discover.discover(1789956912000, 1789957512000)
+    node = TopoNode.objects.get(topo_key="service-a")
     assert node.source == ["profiling"]
     assert node.extra_data == TopoNode.get_empty_extra_data()
-    assert node.heartbeat["profiling"]["last_data_at"] == int(
-        ProfileService.objects.first().last_check_time.timestamp()
-    )
-    profiles = list(ProfileService.objects.filter(name="demo"))
-    assert len(profiles) == 2
-    assert profiles[0].last_check_time == profiles[1].last_check_time == check_time
-    assert profiles[0].is_large and not profiles[1].is_large
-    assert profiles[0].frequency == 100
+    assert node.heartbeat["profiling"]["last_data_at"] == int(check_time.timestamp())
+    profiles = {profile.sample_type: profile for profile in ProfileService.objects.filter(name="service-a")}
+    assert set(profiles) == {"cpu/nanoseconds", "alloc_objects/count"}
+    cpu_profile = profiles["cpu/nanoseconds"]
+    space_profile = profiles["alloc_objects/count"]
+    assert cpu_profile.last_check_time == space_profile.last_check_time == check_time
+    assert cpu_profile.is_large is True
+    assert space_profile.is_large is False
+    assert cpu_profile.frequency == 100
     assert node.heartbeat["profiling"]["checked_at"] == completed_at
-    assert builder.with_metric_fields.call_args_list == [
-        mock.call("count(1)"),
-        mock.call("count(*) AS count"),
-        mock.call("count(*) AS count"),
-    ]
+    assert not ProfileService.objects.filter(name="service-b").exists()
+    assert not TopoNode.objects.filter(topo_key="service-b").exists()
+    builder.with_metric_fields.assert_called_once_with("count(*) AS count")
+    assert builder.execute.call_count == 4
     existing.refresh_from_db()
     assert existing.heartbeat["trace"] == {"last_data_at": 90, "checked_at": 100}
     assert "profiling" not in existing.heartbeat
+
+
+def test_profile_discover_keeps_legacy_count_for_group_without_type() -> None:
+    group = {"service_name": "service-a", "type": "", "sample_type": "cpu/nanoseconds", "count": 1}
+    sample = {"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}
+    with (
+        mock.patch(
+            "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
+            side_effect=[
+                {"list": [group]},
+                {"list": [sample]},
+                {"list": [{"service_name": "service-a", "count": 10_001}]},
+            ],
+        ) as query,
+        mock.patch.object(ProfileServiceDiscover, "clear_expired"),
+    ):
+        ProfileServiceDiscover(datasource()).discover(1789956912000, 1789957512000)
+
+    assert ProfileService.objects.get(name="service-a", data_type="").is_large is True
+    assert query.call_count == 3
 
 
 def test_profile_failed_sample_query_does_not_touch_heartbeat() -> None:
@@ -473,6 +510,183 @@ def test_database_lock_failure_rolls_back_but_other_errors_propagate(error_code:
     assert node.source == ["metric"]
 
 
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.usefixtures("heartbeat_lock_wait_timeout")
+@pytest.mark.parametrize("error_code", [1205, 1213])
+def test_heartbeat_retries_rolled_back_observation_and_reloads_latest_values(error_code: int) -> None:
+    node = make_node("service-a", source=["metric"], heartbeat={"metric": {"last_data_at": 80, "checked_at": 90}})
+    updated_at = node.updated_at
+    database = router.db_for_write(TopoNode)
+    bulk_update = QuerySet.bulk_update
+    attempts = []
+    observed = {"service-a": 100}
+
+    def write_then_fail(queryset: QuerySet, *args: Any, **kwargs: Any) -> None:
+        attempts.append(1)
+        bulk_update(queryset, *args, **kwargs)
+        if len(attempts) < 3:
+            raise OperationalError(error_code, "lock conflict")
+
+    def concurrent_update(delay: float) -> None:
+        assert not connections[database].in_atomic_block
+        node.refresh_from_db()
+        # 前两次写入都已回滚，重试不能沿用失败事务中的 Python 对象。
+        assert "trace" not in node.heartbeat
+        TopoNode.objects.filter(pk=node.pk).update(
+            heartbeat={
+                "metric": {"last_data_at": 200, "checked_at": 210},
+                "log": {"last_data_at": 300, "checked_at": 310},
+            }
+        )
+
+    with (
+        mock.patch.object(QuerySet, "bulk_update", write_then_fail),
+        mock.patch("apm.models.topo.time") as clock,
+    ):
+        # 前两次冲突各耗时约 50 秒，仍应保留第三次重放原观测的机会。
+        clock.monotonic.side_effect = [0, 50, 50.1, 100.1, 100.3]
+        clock.sleep.side_effect = concurrent_update
+        assert TopoNode.touch_heartbeat(2, "app", "trace", observed, 110)
+    node.refresh_from_db()
+    assert node.heartbeat == {
+        "metric": {"last_data_at": 200, "checked_at": 210},
+        "log": {"last_data_at": 300, "checked_at": 310},
+        "trace": {"last_data_at": 100, "checked_at": 110},
+    }
+    assert node.source == ["metric", "trace"]
+    assert node.updated_at == updated_at
+    assert observed == {"service-a": 100}
+    assert len(attempts) == 3
+    assert clock.sleep.call_args_list == [mock.call(0.1), mock.call(0.2)]
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.usefixtures("heartbeat_lock_wait_timeout")
+@pytest.mark.parametrize("error_code", [1205, 1213])
+def test_heartbeat_exhausted_retries_keep_persisted_values(error_code: int) -> None:
+    previous = {"metric": {"last_data_at": 80, "checked_at": 90}}
+    node = make_node("service-a", source=["metric"], heartbeat=previous)
+    bulk_update = QuerySet.bulk_update
+
+    def fail_after_write(queryset: QuerySet, *args: Any, **kwargs: Any) -> None:
+        bulk_update(queryset, *args, **kwargs)
+        raise OperationalError(error_code, "persistent lock conflict")
+
+    with (
+        mock.patch.object(QuerySet, "bulk_update", autospec=True, side_effect=fail_after_write) as write,
+        mock.patch("apm.models.topo.time.sleep") as sleep,
+    ):
+        assert TopoNode.touch_heartbeat(2, "app", "trace", {"service-a": 100}, 110) is False
+    node.refresh_from_db()
+    assert node.heartbeat == previous
+    assert node.source == ["metric"]
+    assert write.call_count == 3
+    assert sleep.call_count == 2
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.usefixtures("heartbeat_lock_wait_timeout")
+@pytest.mark.parametrize("elapsed", [150.25, 151.0])
+def test_heartbeat_does_not_retry_without_time_for_backoff(elapsed: float) -> None:
+    node = make_node("service-a")
+    with (
+        mock.patch.object(QuerySet, "bulk_update", side_effect=OperationalError(1205, "lock timeout")) as write,
+        mock.patch("apm.models.topo.time") as clock,
+    ):
+        clock.monotonic.side_effect = [0, elapsed]
+        assert TopoNode.touch_heartbeat(2, "app", "log", {"service-a": 100}, 110) is False
+    assert write.call_count == 1
+    clock.sleep.assert_not_called()
+    node.refresh_from_db()
+    assert node.heartbeat == {}
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.usefixtures("heartbeat_lock_wait_timeout")
+def test_heartbeat_does_not_start_retry_after_backoff_exceeds_budget() -> None:
+    make_node("service-a")
+    with (
+        mock.patch.object(QuerySet, "bulk_update", side_effect=OperationalError(1213, "deadlock")) as write,
+        mock.patch("apm.models.topo.time") as clock,
+    ):
+        clock.monotonic.side_effect = [0, 150.15, 150.35]
+        assert TopoNode.touch_heartbeat(2, "app", "log", {"service-a": 100}, 110) is False
+    assert write.call_count == 1
+    clock.sleep.assert_called_once()
+
+
+@pytest.mark.django_db(databases="__all__", transaction=True)
+@pytest.mark.parametrize("error", [OperationalError(2006, "connection lost"), OperationalError()])
+def test_heartbeat_does_not_retry_other_database_errors(error: OperationalError) -> None:
+    node = make_node("service-a")
+    with (
+        mock.patch.object(QuerySet, "bulk_update", side_effect=error) as write,
+        mock.patch("apm.models.topo.time.sleep") as sleep,
+        pytest.raises(OperationalError) as raised,
+    ):
+        TopoNode.touch_heartbeat(2, "app", "trace", {"service-a": 100}, 110)
+    assert raised.value is error
+    assert write.call_count == 1
+    sleep.assert_not_called()
+    node.refresh_from_db()
+    assert node.heartbeat == {}
+
+
+def test_log_discover_logs_heartbeat_failure(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="apm")
+    with (
+        mock.patch(
+            "bkmonitor.data_source.unify_query.builder.QueryHelper.query", return_value=log_response("service-a")
+        ),
+        mock.patch.object(TopoNode, "get_empty_extra_data", return_value={"kind": "service"}),
+        mock.patch.object(TopoNode, "touch_heartbeat", return_value=False) as touch,
+    ):
+        assert LogServiceDiscover(datasource()).discover(100, 200) is None
+    assert touch.call_args.args[3] == {"service-a": 1791877020}
+    assert "[LogServiceDiscover] bk_biz_id=2 app_name=app services=1 heartbeat_success=False" in caplog.text
+
+
+def test_metric_heartbeat_failure_does_not_skip_trace_heartbeat(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    discover = MetricServiceDiscover(datasource())
+    with (
+        mock.patch.object(
+            discover,
+            "query_dimensions",
+            return_value=[{"service_name": "service-a", "peer_service": "service-b", "last_data_at": 100}],
+        ),
+        mock.patch("apm.core.discover.metric.service.time.time", return_value=210),
+        mock.patch.object(TopoNode, "touch_heartbeat", side_effect=[False, True]) as touch,
+    ):
+        assert discover.discover_heartbeat(100, 200) is None
+    assert touch.call_args_list == [
+        mock.call(2, "app", "metric", {"service-a": 100, "http:service-b": 100}, 210),
+        mock.call(2, "app", "trace", {"http:service-b": 100}, 210),
+    ]
+    assert "window_start=100 window_end=200" in caplog.text
+    assert "metric_heartbeat_success=False trace_heartbeat_success=True" in caplog.text
+
+
+def test_profile_discover_logs_heartbeat_failure(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="apm")
+    builder = profile_builder(
+        [
+            [{"service_name": "service-a", "type": "cpu", "sample_type": "cpu", "count": 1}],
+            [{"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}],
+            [{"service_name": "service-a", "count": 1}],
+        ]
+    )
+    discover = ProfileServiceDiscover(datasource())
+    with (
+        mock.patch.object(discover, "get_builder", return_value=builder),
+        mock.patch.object(discover, "clear_expired"),
+        mock.patch.object(TopoNode, "touch_heartbeat", return_value=False) as touch,
+    ):
+        assert discover.discover(100000, 200000) is None
+    assert set(touch.call_args.args[3]) == {"service-a"}
+    assert "[ProfileServiceDiscover] bk_biz_id=2 app_name=app services=1 heartbeat_success=False" in caplog.text
+
+
 def test_empty_profile_result_keeps_heartbeat_unchanged() -> None:
     node = make_node(heartbeat={"profiling": {"last_data_at": 90, "checked_at": 100}})
     with (
@@ -493,7 +707,7 @@ def test_profile_later_sample_failure_keeps_existing_profile_and_heartbeat() -> 
     with (
         mock.patch(
             "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
-            side_effect=[{"list": groups}, {"list": [sample]}, {"list": [{"service_name": "demo", "count": 10001}]}],
+            side_effect=[{"list": groups}, {"list": [sample]}],
         ),
         mock.patch.object(discover, "clear_expired"),
     ):
@@ -510,7 +724,7 @@ def test_profile_later_sample_failure_keeps_existing_profile_and_heartbeat() -> 
     with (
         mock.patch(
             "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
-            side_effect=[{"list": groups}, {"list": [sample]}, {"list": []}, RuntimeError("later sample failed")],
+            side_effect=[{"list": groups}, {"list": [sample]}, RuntimeError("later sample failed")],
         ),
         pytest.raises(RuntimeError),
     ):
@@ -525,7 +739,7 @@ def test_profile_later_sample_failure_keeps_existing_profile_and_heartbeat() -> 
     with (
         mock.patch(
             "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
-            side_effect=[{"list": groups[:1]}, {"list": [sample]}, {"list": []}],
+            side_effect=[{"list": groups[:1]}, {"list": [sample]}],
         ),
         mock.patch.object(discover, "clear_expired"),
     ):

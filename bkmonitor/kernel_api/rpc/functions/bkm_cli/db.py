@@ -1100,6 +1100,31 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             }
         ],
     ),
+    "metadata.models.entity_relation.ResourceDefinition": ModelSpec(
+        model_path="metadata.models.entity_relation.ResourceDefinition",
+        # 关联关系资源定义的发布源：周期任务把 to_redis_json() 发布到 Redis，供 UQ、BMW 的 SchemaProvider 消费。
+        # 字段与 to_redis_json() 一致，用于核对实际定义和内置静态定义。
+        fields={"namespace", "name", "fields", "labels", "generation"},
+        note="关联关系资源定义的发布源。namespace 为空表示全局（发布到 Redis 时为 __all__）。",
+        examples=[{"filter": {"name": "pod"}, "fields": ["namespace", "name", "fields"]}],
+    ),
+    "metadata.models.entity_relation.RelationDefinition": ModelSpec(
+        model_path="metadata.models.entity_relation.RelationDefinition",
+        # 关联关系定义的发布源，用途同 ResourceDefinition。
+        fields={
+            "namespace",
+            "name",
+            "from_resource",
+            "to_resource",
+            "category",
+            "is_directional",
+            "is_belongs_to",
+            "labels",
+            "generation",
+        },
+        note="关联关系定义的发布源。namespace 为空表示全局（发布到 Redis 时为 __all__）。",
+        examples=[{"filter": {"name": "node_with_pod"}, "fields": ["namespace", "name", "from_resource", "to_resource"]}],
+    ),
     "metadata.models.storage.ClusterInfo": ModelSpec(
         model_path="metadata.models.storage.ClusterInfo",
         # 存储集群登记。查空判别第二跳：按 (bk_tenant_id, cluster_type=victoria_metrics, cluster_id)

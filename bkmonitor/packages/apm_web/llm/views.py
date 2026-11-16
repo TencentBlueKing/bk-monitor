@@ -13,6 +13,7 @@ from apm_web.llm.resources import (
     CalculateByRangeResource,
     ListFlowsResource,
     ListSpansResource,
+    ListToolCallsResource,
     ListTracesResource,
     TokenStatisticsResource,
     TimeSeriesResource,
@@ -46,6 +47,7 @@ class LLMViewSet(ResourceViewSet):
             ],
         ),
         ResourceRoute("POST", ListSpansResource, endpoint="list_spans"),
+        ResourceRoute("POST", ListToolCallsResource, endpoint="list_tool_calls"),
         ResourceRoute(
             "POST",
             ListFlowsResource,

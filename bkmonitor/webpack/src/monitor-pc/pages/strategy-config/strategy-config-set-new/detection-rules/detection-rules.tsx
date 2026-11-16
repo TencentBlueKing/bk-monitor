@@ -82,6 +82,8 @@ interface IEvent {
   onModelChange: IModelData[];
   onRuleClick: number;
   onUnitChange?: string;
+  /** 用户在单位下拉框中主动切换单位（自动默认选中不触发） */
+  onUnitSelect?: string;
 }
 
 @Component({ name: 'DetectionRules' })
@@ -445,6 +447,11 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
   handleUnitChange(v) {
     return v;
   }
+  /** 用户主动选择单位 */
+  handleUnitSelect(v: string) {
+    if (v !== this.unit) this.$emit('unitSelect', v);
+    this.handleUnitChange(v);
+  }
   @Emit('connectorChange')
   emitConnector(v) {
     return v;
@@ -467,7 +474,9 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       name: item.unit,
     }));
     this.unitList = list;
-    !this.unit && list[0] && this.handleUnitChange(list[0].id);
+    // 单位为空时优先选中与指标单位一致的项（如秒级指标选 s），找不到再取第一项，避免时间指标默认落到 ns
+    const defaultUnit = list.find(item => item.id === this.unitType) || list[0];
+    !this.unit && defaultUnit && this.handleUnitChange(defaultUnit.id);
   }
 
   /**
@@ -584,7 +593,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
                 disabled={this.readonly}
                 list={this.unitList}
                 value={this.unit}
-                onChange={this.handleUnitChange}
+                onChange={this.handleUnitSelect}
               >
                 {this.unitDisplay}
                 <span class='icon-monitor icon-mc-triangle-down' />

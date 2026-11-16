@@ -411,6 +411,9 @@ class SQLCompiler(compiler.SQLCompiler):
 
     @classmethod
     def _extract_dimension_buckets(cls, dimension: str, aggs: dict[str, Any]) -> list[dict[str, Any]]:
+        # 旧 ES 接口会将桶名 biz_id 规范为 bk_biz_id，解析后仍保留原查询维度名。
+        if dimension == "biz_id" and dimension not in aggs:
+            dimension = "bk_biz_id"
         try:
             return aggs[dimension]["buckets"]
         except KeyError:

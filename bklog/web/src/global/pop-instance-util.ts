@@ -71,6 +71,7 @@ export default class PopInstanceUtil {
   private watchElement = ref(null);
   private isShowing = false;
   private hiddenTimer;
+  private destroyingInstance: Instance<Props> | null = null;
 
   constructor({
     refContent,
@@ -147,16 +148,29 @@ export default class PopInstanceUtil {
     return this.getTippyInstance()?.state?.isShown ?? false;
   }
 
+  /**
+   * 判断 tippy 实例是否正在 uninstallInstance 中被销毁。
+   * 重建实例时旧实例 unmount 会同步触发 onHidden，调用方可据此忽略旧实例的事件。
+   */
+  isDestroyingInstance(instance?: Instance<Props> | null) {
+    return Boolean(instance) && instance === this.destroyingInstance;
+  }
+
   uninstallInstance = () => {
     this.delayShowInstance?.cancel?.();
     this.cancelHide();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     if (this.tippyInstance) {
-      this.tippyInstance?.hide();
-      this.tippyInstance?.unmount();
-      this.tippyInstance?.destroy();
-      this.tippyInstance = null;
+      this.destroyingInstance = this.tippyInstance;
+      try {
+        this.tippyInstance?.hide();
+        this.tippyInstance?.unmount();
+        this.tippyInstance?.destroy();
+        this.tippyInstance = null;
+      } finally {
+        this.destroyingInstance = null;
+      }
     }
   };
 

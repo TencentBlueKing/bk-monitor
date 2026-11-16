@@ -71,7 +71,7 @@ class ServiceDiscover(Discover):
             set(observed),
             TopoNode.get_empty_extra_data(),
         )
-        TopoNode.touch_heartbeat(
+        heartbeat_success: bool = TopoNode.touch_heartbeat(
             self.bk_biz_id,
             self.app_name,
             TelemetryDataType.LOG.value,
@@ -79,5 +79,9 @@ class ServiceDiscover(Discover):
             int(time.time()),
         )
         logger.info(
-            "[LogServiceDiscover] bk_biz_id=%s app_name=%s services=%s", self.bk_biz_id, self.app_name, len(observed)
+            "[LogServiceDiscover] bk_biz_id=%s app_name=%s services=%s heartbeat_success=%s",
+            self.bk_biz_id,
+            self.app_name,
+            len(observed),
+            heartbeat_success,
         )

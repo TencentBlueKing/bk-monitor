@@ -639,6 +639,7 @@ class SpaceTableIDRedis:
                 "table_id",
                 "storage_cluster_id",
                 "bkbase_table_id",
+                "physical_tables",
                 "origin_table_id",
             )
         )
@@ -728,6 +729,7 @@ class SpaceTableIDRedis:
                 "table_id",
                 "storage_cluster_id",
                 "bkbase_table_id",
+                "physical_tables",
                 "origin_table_id",
             )
         }
@@ -766,7 +768,7 @@ class SpaceTableIDRedis:
                 bk_tenant_id=bk_tenant_id,
                 table_id__in=set(record_source_table_id.values()),
                 is_deleted=False,
-            ).values("id", "table_id", "cluster_id", "enable_time")
+            ).values("id", "table_id", "cluster_id", "enable_time", "bkbase_table_id", "physical_tables")
         )
         records_by_table_id: dict[str, list[dict]] = {}
         for record in storage_records:
@@ -859,6 +861,11 @@ class SpaceTableIDRedis:
                             "db": doris_db,
                             "measurement": models.ClusterInfo.TYPE_DORIS,
                             "enable_time": record["enable_timestamp"],
+                            **{
+                                field: record[field]
+                                for field in ("bkbase_table_id", "physical_tables")
+                                if record[field]
+                            },
                         }
                     )
                 else:
@@ -940,6 +947,13 @@ class SpaceTableIDRedis:
                     "field_alias": field_alias,
                     "options": options_map.get(table_id) or {},
                 }
+                physical_tables = (
+                    storage.get("physical_tables") if storage.get("storage_cluster_id") == storage_id else None
+                )
+                if not physical_tables and origin_doris.get("storage_cluster_id") == storage_id:
+                    physical_tables = origin_doris.get("physical_tables")
+                if physical_tables:
+                    result[table_id]["physical_tables"] = physical_tables
             else:
                 continue
 
@@ -1465,13 +1479,21 @@ class SpaceTableIDRedis:
 
     def _compose_bkci_other_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
         logger.info("start to push bkci space other table_id, space_type: %s, space_id: %s", space_type, space_id)
-        exclude_data_id_list = utils.cached_cluster_data_id_list()
+        # 实时排除容器 DataID，避免旧缓存遗漏新集群或变更后的 DataID，覆盖容器过滤。
+        exclude_data_id_list = [
+            data_id
+            for data_ids in models.BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id).values_list(
+                "K8sMetricDataID", "CustomMetricDataID"
+            )
+            for data_id in data_ids
+        ]
         table_id_data_id = get_space_table_id_data_id(
             space_type,
             space_id,
             exclude_data_id_list=exclude_data_id_list,
             include_platform_data_id=False,
-            from_authorization=False,
+            # 普通数据源包含显式授权；容器数据源仍由专用分支生成集群和命名空间过滤。
+            from_authorization=None,
             bk_tenant_id=bk_tenant_id,
         )
         _values = {}

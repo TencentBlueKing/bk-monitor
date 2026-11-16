@@ -86,8 +86,8 @@ class RecordRuleV4OutputResources:
             if result_table.table_name_zh != table_name_zh:
                 result_table.table_name_zh = table_name_zh
                 update_fields.append("table_name_zh")
-            # data_label 为空时不主动清空已有 ResultTable，仅在用户显式配置有效值时刷新。
-            if rule.data_label and result_table.data_label != rule.data_label:
+            # 输出标签跟随规则声明，空字符串表示清空已有标签。
+            if result_table.data_label != rule.data_label:
                 result_table.data_label = rule.data_label
                 update_fields.append("data_label")
             if update_fields:
@@ -177,11 +177,23 @@ class RecordRuleV4OutputResources:
         return cls.ensure_metric_fields(rule, metric_names)
 
     @staticmethod
-    def push_output_route(rule: RecordRuleV4) -> None:
-        """首次创建输出表后刷新空间索引和结果表详情。"""
+    def push_output_route(rule: RecordRuleV4, previous_data_label: str = "") -> None:
+        """输出表创建或标签变化后刷新空间、标签索引和结果表详情。"""
 
         redis_client = SpaceTableIDRedis()
         redis_client.push_space_table_ids(space_type=rule.space_type, space_id=rule.space_id, is_publish=True)
+        # 旧标签不能按当前输出表过滤，否则改名后会被过滤掉，无法清理旧映射。
+        if previous_data_label:
+            redis_client.push_data_label_table_ids(
+                data_label_list=[previous_data_label],
+                is_publish=True,
+                bk_tenant_id=rule.bk_tenant_id,
+            )
+        redis_client.push_data_label_table_ids(
+            table_id_list=[rule.table_id],
+            is_publish=True,
+            bk_tenant_id=rule.bk_tenant_id,
+        )
         redis_client.push_table_id_detail(
             table_id_list=[rule.table_id],
             is_publish=True,

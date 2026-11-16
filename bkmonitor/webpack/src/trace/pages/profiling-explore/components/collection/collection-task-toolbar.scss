@@ -1,0 +1,60 @@
+/* stylelint-disable selector-class-pattern */
+// 工具条容器：撑满任务面板剩余高度，表格区（content）按 flex: 1 接管剩余空间
+.collection-task-toolbar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+
+  // 引导说明与操作条整体常驻顶部：面板本身不滚动，滚动全部交给 content，
+  // 表头吸顶只需贴合 content 顶部（offsetTop = 0），不依赖任何高度测量
+  .collection-task-toolbar-header {
+    flex-shrink: 0;
+  }
+
+  .collection-task-toolbar-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 0;
+  }
+
+  .collection-task-search {
+    width: min(480px, 45%);
+    margin-left: auto;
+  }
+
+  // 表格区滚动容器：常驻滚动条槽位，内容高度变化时避免滚动条出现消失引起横向抖动
+  .collection-task-toolbar-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+}
+
+.collection-task-guide {
+  background: #f0f5ff;
+  border-color: #a3c5fd;
+
+  .bk-alert-wraper {
+    align-items: center;
+    padding: 6px 8px;
+  }
+
+  .bk-alert-title {
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+
+    b {
+      font-weight: 600;
+    }
+  }
+}
+
+.collection-inline-alert {
+  margin: 12px 0;
+}

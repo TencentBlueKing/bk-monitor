@@ -26,6 +26,19 @@
 
 // 反馈 弹窗 相关的词条
 export default {
+  '缺少故障 ID，请从故障列表重新打开详情。': 'The incident ID is missing. Please reopen the details from the incident list.',
+  '未找到故障 {id} 对应的监控文档，可能已被抑制或尚未同步。请返回列表查看分析记录。':
+    'No monitoring document was found for incident {id}. It may have been suppressed or not yet synchronized. Return to the list to view the analysis record.',
+  '故障 {id} 的详情地址解析失败，请稍后刷新重试。':
+    'Failed to resolve the details URL for incident {id}. Please refresh to retry later.',
+  '缺少故障分析任务信息，无法打开详情': 'The fault analysis task information is missing. Unable to open details.',
+  侧滑详情类型不匹配: 'The side panel detail type does not match.',
+  获取侧滑详情失败: 'Failed to retrieve side panel details.',
+  保存日志字段配置失败: 'Failed to save log field configuration.',
+  日志查询上下文缺少索引集信息: 'The log query context is missing index set information.',
+  暂无关联日志: 'No related logs.',
+  查看完整: 'View full',
+  查看完整事件: 'View full event',
   // Messages :  Success |  Warning  | Error |  Info
   // 规范： 动词-主体-结果  如 新建应用成功 New application successful
   // 规范： 仅首字母大写
@@ -194,6 +207,13 @@ export default {
   '上传tar.gz文件': 'Upload tar.gz File',
   '当前设置的{name}超过最大值{max}, 请调整后再切换集群':
     'The current setting of {name} exceeds the maximum value {max}, adjust it and then switch clusters',
+  确认切换存储集群: 'Confirm to switch the storage cluster',
+  '切换生效后，新增数据将写入目标集群。历史数据仍可查询，并按切换后生效的保留时长自动清理。':
+    'After the switch takes effect, new data will be written to the target cluster. Historical data remains queryable and will be cleaned up automatically according to the effective retention period.',
+  当前集群: 'Current cluster',
+  目标集群: 'Target cluster',
+  生效保留天数: 'Effective retention days',
+  确认切换: 'Confirm switch',
   上传采集配置文件: 'Upload the collection configuration file',
   '当前您有未恢复告警{0}条,最近{1}新增{2}条': 'You have {0} active alarms, with {2} new alarms in the past {1}',
   '当前空间: [{0}] {1}  ； 未恢复告警: {2}': 'This space: ([{0}] {1}) ; Active alarms: {2} ',
@@ -601,4 +621,8 @@ export default {
   '确认重新分析？': 'Confirm to re-analyze?',
   '分析失败，请稍后重试': 'Analysis failed. Please try again later',
   暂无时间轴数据: 'No timeline data',
+  '缺少数据可用性校验信息，无法跳转': 'Missing data availability verification information, unable to jump',
+  '数据可用性校验失败，已禁止跳转': 'Data availability verification failed, jump prohibited',
+  '当前数据不可用，无法跳转': 'Current data is unavailable, unable to jump',
+  数据可用性校验失败: 'Data availability verification failed',
 };

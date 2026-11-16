@@ -297,19 +297,15 @@ export default class ValueOptions extends tsc<IProps> {
         class='retrieval-filter__value-options-select-component'
       >
         {this.loading ? (
-          <div
-            class={['options-drop-down-wrap', { 'is-popover': this.isPopover, 'no-border': !this.localOptions.length }]}
-          >
-            {new Array(4).fill(null).map(index => {
-              return (
-                <div
-                  key={index}
-                  class='options-item skeleton-item'
-                >
-                  <div class='skeleton-element h-16' />
-                </div>
-              );
-            })}
+          <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>
+            {new Array(4).fill(null).map((_, index) => (
+              <div
+                key={index}
+                class='options-item skeleton-item'
+              >
+                <div class='skeleton-element' />
+              </div>
+            ))}
           </div>
         ) : !this.renderOptions.length && !this.search ? (
           <div class={['options-drop-down-wrap', { 'is-popover': this.isPopover }]}>

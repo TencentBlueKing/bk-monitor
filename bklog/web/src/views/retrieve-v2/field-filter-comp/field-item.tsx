@@ -415,9 +415,19 @@ export default class FieldItem extends tsc<object> {
             <template slot='header'>
               <div class='agg-sides-slider-header'>
                 <div class='distinct-num'>
-                  <span class='field-name'>{this.fieldItem?.field_name}</span>
+                  <span
+                    class='field-name'
+                    v-bk-overflow-tips
+                  >
+                    {this.fieldItem?.field_name}
+                  </span>
                   <div class='col-line' />
-                  <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
+                  <span
+                    class='distinct-count-label'
+                    v-bk-overflow-tips
+                  >
+                    {this.$t('去重后字段统计')}
+                  </span>
                   <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
                 </div>
                 <div class='fnBtn'>

@@ -229,10 +229,16 @@ export default class StorageState extends tsc<IStorageStateProps> {
   }
 
   logStorageChange(params) {
+    const isClusterChanged = params.es_storage_cluster !== this.storageInfo[ETelemetryDataType.log]?.es_storage_cluster;
     this.storageInfo[ETelemetryDataType.log] = {
       ...this.storageInfo[ETelemetryDataType.log],
       ...params,
     };
+    // 切换集群后集群名称、物理索引需以接口为准，仅合并 ID 会残留旧集群展示
+    if (isClusterChanged) {
+      this.getStorageInfo();
+      this.getIndicesList();
+    }
   }
 
   traceStorageChange(params) {

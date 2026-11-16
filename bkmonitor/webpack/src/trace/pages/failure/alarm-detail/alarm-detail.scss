@@ -17,12 +17,20 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 
 .alarm-detail {
   height: 100%;
-  padding: 20px 16px;
+  padding: 0 16px 20px;
+  margin-top: 20px;
   overflow-y: hidden;
   background: white;
 
   .aiops-correlation-metrics {
     margin-bottom: 12px;
+
+    .correlation-metrics-collapse-head {
+      position: sticky;
+      top: 0px;
+      z-index: 100;
+      background: #f0f1f5;
+    }
 
     &:last-child {
       margin-bottom: 0;

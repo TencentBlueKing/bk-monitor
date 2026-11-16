@@ -37,6 +37,7 @@ from apm_web.llm.adapter.fields import (
 from apm_web.llm.builders.flow import TOKEN_FIELDS, FlowBuilder
 from apm_web.llm.builders.preview import PREVIEW_LENGTH, prepare_flow_spans
 from apm_web.llm.builders.summary import TraceSummary
+from apm_web.llm.tokens import TokenUsageBuilder
 from apm_web.llm.constants import CalculationType, SpanType
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery, get_query
@@ -395,6 +396,35 @@ class ListSpansResource(Resource):
         }
 
 
+class ListToolCallsResource(Resource):
+    """按 Trace 查询标准工具调用的执行摘要。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        app_name = serializers.CharField(required=True, label="应用名称")
+        trace_id = serializers.CharField(required=True, label="Trace ID")
+
+    def perform_request(self, validated_request_data):
+        application = Application.objects.get(
+            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+        )
+        span_query: LLMQuery = get_query(application.build_data_sources())
+        spans: list[dict[str, Any]] = span_query.query_trace_tool_calls(validated_request_data["trace_id"])
+        tool_calls: list[dict[str, Any]] = [
+            {
+                "span_id": span.get(OtlpKey.SPAN_ID),
+                "tool_call_id": LLMQuery.get_field_value(span, "attributes.gen_ai.tool.call.id") or None,
+                "tool_name": LLMQuery.get_field_value(span, "attributes.gen_ai.tool.name") or None,
+                "start_time": span.get(OtlpKey.START_TIME),
+                "elapsed_time": span.get(OtlpKey.ELAPSED_TIME),
+                "status": span.get(OtlpKey.STATUS) or {},
+                "events": span.get(OtlpKey.EVENTS) or [],
+            }
+            for span in spans
+        ]
+        return {"trace_id": validated_request_data["trace_id"], "total": len(tool_calls), "tool_calls": tool_calls}
+
+
 class ListFlowsResource(Resource):
     """会话查询只返回 Trace 概览，按 Trace ID 查询完整执行线。"""
 
@@ -421,7 +451,8 @@ class ListFlowsResource(Resource):
             entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
         fields = flow_query_fields(
             include_input_output,
-            input_output_preview,
+            # 正文加载阶段同时计数，响应仍可使用轻量预览。
+            input_output_preview=False,
             products=tuple(resolve_product(entity_set, service) for service in entity_set.service_names),
         )
         span_query = get_query(application.build_data_sources())
@@ -432,10 +463,30 @@ class ListFlowsResource(Resource):
         )
         if not raw_spans:
             return None
+        # UQ 历史存储路由可能重复返回同一 Span，在转换前统一执行线与 Token 的去重口径。
+        seen: set[tuple[str, str]] = set()
+        unique_spans: list[dict[str, Any]] = []
+        for span in raw_spans:
+            span_trace_id: Any = span.get(OtlpKey.TRACE_ID)
+            span_id: Any = span.get(OtlpKey.SPAN_ID)
+            if isinstance(span_trace_id, str) and span_trace_id and isinstance(span_id, str) and span_id:
+                key: tuple[str, str] = (span_trace_id, span_id)
+                if key in seen:
+                    continue
+                seen.add(key)
+            unique_spans.append(span)
+        raw_spans = unique_spans
+        token_usage = TokenUsageBuilder() if include_input_output else None
         spans = prepare_flow_spans(
-            raw_spans, entity_set, include_input_output=include_input_output, preview=input_output_preview
+            raw_spans,
+            entity_set,
+            include_input_output=include_input_output,
+            preview=input_output_preview,
+            token_usage=token_usage,
         )
         builder = FlowBuilder(raw_spans, spans)
+        if token_usage is not None:
+            builder.token_matrix = token_usage.build()
         builder.build()
         return builder
 
@@ -517,6 +568,8 @@ class ListFlowsResource(Resource):
                 ),
             )
             item["flow"] = builder.flow
+            if builder.token_matrix is not None:
+                item["token_matrix"] = builder.token_matrix
             if input_output_preview:
                 item["input"] = item["input"][:PREVIEW_LENGTH]
                 item["output"] = item["output"][:PREVIEW_LENGTH]

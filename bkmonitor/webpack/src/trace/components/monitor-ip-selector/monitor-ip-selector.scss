@@ -1,14 +1,28 @@
 /* stylelint-disable declaration-no-important */
 .bk-ip-selector-preview-dialog,
 .bk-ip-selector-box {
-  .bk-dialog-content {
-    max-height: inherit;
-    padding: initial;
-    margin-top: initial;
-    margin-bottom: initial;
+  .bk-dialog-wrapper .bk-dialog {
+    top: initial;
+    display: inline-block;
+    margin: initial;
+    vertical-align: middle;
+    text-align: initial;
 
-    .node-talbe-wrapper {
-      max-height: fit-content !important;
+    .bk-dialog-content {
+      max-height: inherit;
+      padding: initial;
+      margin-top: initial;
+      margin-bottom: initial;
+
+      .node-talbe-wrapper {
+        max-height: fit-content !important;
+      }
+    }
+
+    .bk-dialog-header {
+      padding: 16px 24px 8px;
+      line-height: 1.2;
+      text-align: center;
     }
   }
 }

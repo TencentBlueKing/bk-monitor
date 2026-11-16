@@ -74,6 +74,18 @@ class TestAlertPollerHandler:
         assert json.loads(p.redis_client.hget(p.data_id_cache_key, p.ip))
         assert p.redis_client.ttl(p.data_id_cache_key) > 0
 
+    def test_leader_closes_discovery_consumers(self, mocker):
+        p = AlertHandler(mock.Mock())
+        discovery = mock.Mock(partitions_for_topic=lambda _: {0, 1})
+        factory = mocker.patch.object(handler, "KafkaConsumer", return_value=discovery)
+        mocker.patch.object(p, "get_all_hosts", return_value=[p.ip])
+        mocker.patch.object(handler, "get_cluster", return_value=mock.Mock(is_default=lambda: False, name="test"))
+        mocker.patch.object(handler.time, "sleep")
+        p.run_leader()
+        factory.assert_called_once()
+        discovery.close.assert_called_once_with(autocommit=False)
+        assert [item["partition"] for item in json.loads(p.redis_client.hget(p.data_id_cache_key, p.ip))] == [0, 1]
+
     @pytest.mark.parametrize("batch_size, expected_calls", [(500, 1), (1, 2)])
     def test_worker_owns_lifecycle_and_dispatches_batches(self, mocker, batch_size, expected_calls):
         p = AlertHandler(mock.Mock())

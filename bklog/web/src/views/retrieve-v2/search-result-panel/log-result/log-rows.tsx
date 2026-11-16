@@ -717,12 +717,17 @@ export default defineComponent({
      * 将索引字段描述转为表头/单元格列配置（含排序头、JSON 单元格渲染）。
      */
     const formatColumn = field => {
+      // 新增字段的样本列宽可能尚未计算，渲染和横向布局必须使用相同的有效宽度。
+      const parsedMinWidth = getNumericWidth(field.minWidth);
+      const minWidth = Number.isFinite(parsedMinWidth) && parsedMinWidth > 0 ? parsedMinWidth : 80;
+      const parsedWidth = getNumericWidth(field.width);
+      const width = Number.isFinite(parsedWidth) && parsedWidth > 0 ? parsedWidth : minWidth;
       return {
         field: field.field_name,
         key: field.field_name,
         title: getFieldNameByField(field, store),
-        width: field.width,
-        minWidth: field.minWidth,
+        width,
+        minWidth,
         field_type: field.field_type,
         align: 'top',
         resize: true,
@@ -786,7 +791,7 @@ export default defineComponent({
     const getFixedColumnsWidth = () => {
       const expandColumnWidth = 36;
       const rowIndexColumnWidth = tableShowRowIndex.value ? 50 : 0;
-      const sourceColumnWidth = isShowSourceField.value && indexSetType.value ? 230 : 0;
+      const sourceColumnWidth = isShowSourceField.value && indexSetType.value && !isSceneMode.value ? 230 : 0;
       const collectorColumnWidth = isShowCollectorField.value && isSceneMode.value ? 230 : 0;
 
       return expandColumnWidth + rowIndexColumnWidth + sourceColumnWidth + collectorColumnWidth;
@@ -938,7 +943,7 @@ export default defineComponent({
         align: 'left',
         resize: false,
         fixed: 'left',
-        disabled: !(isShowSourceField.value && indexSetType.value),
+        disabled: !(isShowSourceField.value && indexSetType.value && !isSceneMode.value),
         renderBodyCell: ({ row }) => {
           const indeSetName =
             unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
@@ -1079,7 +1084,7 @@ export default defineComponent({
       if (!sortFieldsList.length) {
         sortFieldsList = getFallbackRenderFields(filteredFields);
       }
-      if (isUnionSearch.value && indexSetOperatorConfig.value?.isShowSourceField) {
+      if (isUnionSearch.value && !isSceneMode.value && indexSetOperatorConfig.value?.isShowSourceField) {
         sortFieldsList.unshift(LOG_SOURCE_F());
       }
       if (isSceneMode.value && isShowCollectorField.value) {

@@ -181,6 +181,10 @@ def get_request_tenant_id():
             return request.META.get("HTTP_X_BK_TENANT_ID", "")
         if request and hasattr(request.user, "tenant_id"):
             return request.user.tenant_id
+    # 后台任务没有请求上下文时，由调用方写入线程变量，避免回落到应用默认租户
+    local_tenant_id = get_local_param("bk_tenant_id")
+    if local_tenant_id:
+        return local_tenant_id
     return settings.BK_APP_TENANT_ID
 
 
@@ -189,7 +193,12 @@ def get_admin_username(bk_tenant_id: str) -> str | None:
         return getattr(settings, "COMMON_USERNAME", None)
 
     result = BKLoginApi.batch_lookup_virtual_user(
-        {"bk_tenant_id": bk_tenant_id, "lookup_field": "login_name", "lookups": "bk_admin", "bk_username": "admin"},
+        {
+            "bk_tenant_id": bk_tenant_id,
+            "lookup_field": "login_name",
+            "lookups": settings.BK_ADMIN_USERNAME,
+            "bk_username": "admin",
+        },
         bk_tenant_id=bk_tenant_id,
     )
     if result:

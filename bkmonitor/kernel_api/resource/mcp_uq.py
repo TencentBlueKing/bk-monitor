@@ -105,5 +105,9 @@ def query_uq(operation, params, *, max_bytes=None):
         if error is not None:
             # Never re-expand a large upstream error through logs / API wrappers.
             summary = error[:512] + ("... [truncated]" if len(error) > 512 else "")
-            raise BKAPIError(system_name="unify-query", url=url, result=summary)
+            api_error = BKAPIError(system_name="unify-query", url=url, result=summary)
+            if 400 <= response.status_code < 500:
+                # UQ 以 4xx 拒绝（如 query_string 语法错误）是调用方可修正的参数问题，不能报成服务端故障。
+                api_error.status_code = 400
+            raise api_error
         return data

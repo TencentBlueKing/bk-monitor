@@ -34,4 +34,7 @@ export default {
   单点可用率: 'Single point availability rate',
   错误: 'Error',
   被停用: 'Disabled',
+  部分结果可用: 'Some Results Available',
+  结果已过期: 'Result Expired',
+  解析中: 'Parsing Progress',
 };

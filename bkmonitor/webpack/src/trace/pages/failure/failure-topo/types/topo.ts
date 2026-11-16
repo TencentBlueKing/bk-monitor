@@ -162,6 +162,10 @@ export interface IncidentDetailData {
   id: string;
   incident_id: string;
   wx_cs_link?: string;
+  extra_info?: {
+    /** incident_manager 分析任务 ID，用于查询面板侧滑详情 */
+    task_id?: number | string;
+  };
 }
 
 /** 事件各数据源分析结果状态 */

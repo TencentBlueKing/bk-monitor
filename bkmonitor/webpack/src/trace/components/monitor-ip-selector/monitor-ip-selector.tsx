@@ -141,6 +141,7 @@ export default defineComponent({
       hostTableRenderColumnList: props.hostTableRenderColumnList ?? [],
       hostViewFieldRender,
       serviceConfigError: true,
+      warningSelectAllBusinesses: false,
     }));
 
     // 动态分组api

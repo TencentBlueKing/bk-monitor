@@ -195,7 +195,7 @@ export default class K8SCharts extends tsc<
   }
 
   @Provide('onShowDetail')
-  handleShowDetail(field: string) {
+  handleShowDetail(field: string, dimensions: Record<string, string> = {}) {
     if (this.groupByField === K8sTableColumnKeysEnum.CLUSTER && this.canGroupByCluster) {
       this.sideDetail = {
         cluster: this.filterCommonParams?.bcs_cluster_id,
@@ -209,16 +209,32 @@ export default class K8SCharts extends tsc<
         dimension = dimension.split('-')?.slice(1).join('-');
       }
       let item: Partial<Record<K8sTableColumnKeysEnum, string>>;
-      if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
-        const [container, pod] = dimension.split(':');
+      if (this.groupByField === K8sTableColumnKeysEnum.POD) {
+        const pod = dimensions.pod_name || dimensions.pod;
+        if (!dimensions.namespace || !pod) return;
+        item = Array.from(this.resourceList).find(item => item.namespace === dimensions.namespace && item.pod === pod);
+      } else if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
+        const pod = dimensions.pod_name || dimensions.pod;
+        const container = dimensions.container_name || dimensions.container;
+        if (!dimensions.namespace || !pod || !container) return;
         item = Array.from(this.resourceList).find(
-          item => item[K8sTableColumnKeysEnum.POD] === pod && item[K8sTableColumnKeysEnum.CONTAINER] === container
+          item => item.namespace === dimensions.namespace && item.pod === pod && item.container === container
         );
-      } else if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(this.groupByField)) {
-        const isIngress = this.groupByField === K8sTableColumnKeysEnum.INGRESS;
-        const list = dimension.split(':');
-        const field = isIngress ? list[0] : list[1];
-        item = Array.from(this.resourceList).find(item => item[this.groupByField] === field);
+      } else if (
+        [K8sTableColumnKeysEnum.WORKLOAD, K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(
+          this.groupByField
+        )
+      ) {
+        const resource =
+          this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
+            ? dimensions.workload_kind && dimensions.workload_name
+              ? `${dimensions.workload_kind}:${dimensions.workload_name}`
+              : undefined
+            : dimensions[this.groupByField];
+        if (!dimensions.namespace || !resource) return;
+        item = Array.from(this.resourceList).find(
+          item => item.namespace === dimensions.namespace && item[this.groupByField] === resource
+        );
       } else {
         item = Array.from(this.resourceList).find(item => item[this.groupByField] === dimension);
       }

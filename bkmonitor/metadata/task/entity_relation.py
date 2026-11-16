@@ -16,7 +16,7 @@ from alarm_backends.core.lock.service_lock import share_lock
 from core.prometheus import metrics
 from metadata.models.entity_relation import NAMESPACE_ALL, RelationDefinition, ResourceDefinition
 from metadata.resources.entity_relation import ENTITY_REDIS_KEY_PREFIX, ENTITY_REDIS_CHANNEL_SUFFIX
-from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.tools.constants import TASK_FINISHED_FAILURE, TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -43,6 +43,7 @@ def refresh_entity_definition_to_redis():
         task_name="refresh_entity_definition_to_redis", status=TASK_STARTED, process_target=None
     ).inc()
 
+    succeeded = True
     for model_class in (ResourceDefinition, RelationDefinition):
         kind = model_class.get_kind()
         redis_key = f"{ENTITY_REDIS_KEY_PREFIX}:{kind}"
@@ -50,7 +51,9 @@ def refresh_entity_definition_to_redis():
 
         try:
             # 获取当前 Redis 中的所有 field（用于后续清理 stale data）
-            redis_fields = set(RedisTools.hkeys(redis_key) or [])
+            redis_fields = {
+                field.decode() if isinstance(field, bytes) else field for field in RedisTools().client.hkeys(redis_key)
+            }
 
             # 按 namespace 分组，全量重建每个 namespace 的缓存
             namespace_entities: dict[str, dict] = {}
@@ -73,12 +76,11 @@ def refresh_entity_definition_to_redis():
                     stale_fields,
                 )
 
-            if not namespace_entities:
-                logger.info("refresh_entity_definition_to_redis: no entities found for kind=%s, skip", kind)
-                continue
-
             for ns, entities in namespace_entities.items():
                 RedisTools.hset_to_redis(redis_key, ns, json.dumps(entities))
+
+            # 已删除的 namespace 也需要通知订阅者清理缓存。
+            for ns in sorted(redis_fields | db_namespaces):
                 msg = json.dumps({"namespace": ns, "kind": kind})
                 RedisTools.publish(channel, [msg])
 
@@ -90,14 +92,18 @@ def refresh_entity_definition_to_redis():
             )
 
         except Exception:  # pylint: disable=broad-except
+            succeeded = False
             logger.exception("refresh_entity_definition_to_redis: failed to refresh kind=%s", kind)
 
     cost_time = time.time() - start_time
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
-        task_name="refresh_entity_definition_to_redis", status=TASK_FINISHED_SUCCESS, process_target=None
+        task_name="refresh_entity_definition_to_redis",
+        status=TASK_FINISHED_SUCCESS if succeeded else TASK_FINISHED_FAILURE,
+        process_target=None,
     ).inc()
     metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
         task_name="refresh_entity_definition_to_redis", process_target=None
     ).observe(cost_time)
     metrics.report_all()
     logger.info("refresh_entity_definition_to_redis finished, cost=[%s] seconds", cost_time)
+    return succeeded

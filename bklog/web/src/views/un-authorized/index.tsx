@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, ref, watch } from 'vue';
-import { join } from '@/global/utils/path';
 import { t } from '@/hooks/use-locale';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
@@ -71,8 +70,8 @@ export default defineComponent({
     };
 
     const handleApplyPermission = () => {
-      const url = (window as any).BK_IAM_URL;
-      url && window.open(join(url, '/apply-join-user-group'));
+      const url = (window as any).BK_IAM_APPLY_URL;
+      url && window.open(url);
     };
 
     const handleCreateCollection = () => {

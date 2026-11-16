@@ -267,9 +267,6 @@ BKDATA_DATA_SOURCE = "data_source"
 BKDATA_DATA_SENSITIVITY = "private"
 BKDATA_PERMISSION = "permission"
 
-# 创建bkdata_data_id允许错误最大数，超过该数值则需要人工介入
-MAX_CREATE_BKDATA_DATA_ID_FAIL_COUNT = 3
-
 # 获取biz_topo请求level
 SEARCH_BIZ_INST_TOPO_LEVEL = -1
 

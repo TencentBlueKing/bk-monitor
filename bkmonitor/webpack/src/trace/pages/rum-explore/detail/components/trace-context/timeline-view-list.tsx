@@ -35,6 +35,7 @@ import TimelineViewAxis from './timeline-view-axis';
 import TimelineViewHidden from './timeline-view-hidden';
 import TraceContextPanel from './trace-context-panel';
 
+import type { IRumTraceInfo } from '../../services';
 import type {
   IRumTimelineCardItemVM,
   IRumTimelineSpanVM,
@@ -100,7 +101,7 @@ export default defineComponent({
     expandHidden: () => true,
     toggleNode: (_spanId: string) => true,
     spanClick: (_span: IRumTimelineSpanVM) => true,
-    traceClick: (_traceId: string) => true,
+    traceClick: (_trace: IRumTraceInfo) => true,
     viewClick: (_view: IRumTimelineViewVM) => true,
   },
   setup(props, { emit }) {
@@ -180,7 +181,6 @@ export default defineComponent({
                   />
                 ) : (
                   <TraceContextPanel
-                    defaultExpanded={props.hasFilter}
                     error={props.error}
                     items={item.card.items}
                     loading={props.loading}
@@ -189,7 +189,7 @@ export default defineComponent({
                     onExpandFold={key => emit('expandFold', key)}
                     onSpanClick={span => emit('spanClick', span)}
                     onToggleNode={spanId => emit('toggleNode', spanId)}
-                    onTraceClick={traceId => emit('traceClick', traceId)}
+                    onTraceClick={trace => emit('traceClick', trace)}
                     onViewClick={view => emit('viewClick', view)}
                   />
                 )}

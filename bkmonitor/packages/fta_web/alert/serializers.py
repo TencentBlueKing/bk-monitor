@@ -129,6 +129,53 @@ class ActionIDField(serializers.CharField):
         return value
 
 
+class TriggerConditionField(serializers.Field):
+    """
+    告警触发条件（展示用）。
+
+    只接受前端从告警详情中提取的必要标量，不接受文案、整份 strategy 或 origin_alarm。
+    显式传 null 表示"无需追加触发条件文案"，与"未传该字段"（走回退查询）语义不同。
+    """
+
+    CONDITION_FIELDS = {
+        "algorithm": {"type", "check_window", "count"},
+        "no_data": {"type", "continuous"},
+    }
+
+    def to_internal_value(self, data):
+        if not isinstance(data, dict):
+            raise ValidationError(_("trigger_condition 必须为对象"))
+
+        # 先确认 type 是字符串：直接把 list/dict 当作字典键会抛 TypeError（unhashable），
+        # 变成 500 而不是字段校验错误
+        condition_type = data.get("type")
+        if not isinstance(condition_type, str):
+            raise ValidationError(_("trigger_condition.type 仅支持 algorithm、no_data"))
+
+        allowed_fields = self.CONDITION_FIELDS.get(condition_type)
+        if not allowed_fields:
+            raise ValidationError(_("trigger_condition.type 仅支持 algorithm、no_data"))
+
+        unknown_fields = set(data) - allowed_fields
+        if unknown_fields:
+            raise ValidationError(_("trigger_condition 不支持的字段：{}").format(",".join(sorted(unknown_fields))))
+
+        missing_fields = allowed_fields - {"type"} - set(data)
+        if missing_fields:
+            raise ValidationError(_("trigger_condition 缺少字段：{}").format(",".join(sorted(missing_fields))))
+
+        value = {"type": condition_type}
+        for field_name in sorted(allowed_fields - {"type"}):
+            field_value = data[field_name]
+            if not isinstance(field_value, int) or isinstance(field_value, bool) or field_value <= 0:
+                raise ValidationError(_("trigger_condition.{} 必须为正整数").format(field_name))
+            value[field_name] = field_value
+        return value
+
+    def to_representation(self, value):
+        return value
+
+
 class AllowedBizIdsField(serializers.ListField):
     child = serializers.IntegerField()
 

@@ -79,6 +79,7 @@ function table() {
       'getK8sList',
       'abortAsyncData',
       'loadAsyncData',
+      'loadLegacyResourceTrends',
       'beforeDestroy',
       'debounceGetK8sList',
       'showSkeleton',
@@ -236,6 +237,21 @@ test('changing a column aggregation aborts the older request for that column', a
   await tick();
   assert.equal(mutations.length, 1);
   assert.equal(mutations[0][1][0].cpu, 'new');
+});
+
+test('cancelling an in-flight legacy fallback prevents its late values from reaching replacement rows', async () => {
+  const { subject, metrics, mutations } = table();
+  const params = new Map([['cpu', { ids: new Set(['alpha|pod']), indexForId: { 'alpha|pod': [0] } }]]);
+  subject.loadAsyncData('pod', params, ['cpu']);
+  metrics[0].resolve([]);
+  await tick();
+  assert.equal(metrics.length, 2);
+  subject.abortAsyncData();
+  subject.requestId++;
+  assert.equal(metrics[1].signal.aborted, true);
+  metrics[1].resolve([{ resource_name: 'pod', cpu: { datapoints: [[99, 100]] } }]);
+  await tick();
+  assert.equal(mutations.length, 0);
 });
 
 test('leaving invalidates pending table data and aborts requests', async () => {
@@ -688,6 +704,218 @@ test('refresh displays cached metric values while still scheduling fresh values'
   assert.equal(pending.get('cpu').ids.has('pod'), true);
   const incremental = subject.formatTableData([{ pod: 'pod' }], 'pod');
   assert.equal(incremental.size, 0);
+});
+
+test('pod trend requests and rows are keyed by namespace and pod name', () => {
+  const proto = methods(tableFile, ['formatTableData', 'getResourceId'], {
+    K8sTableColumnKeysEnum: { CONTAINER: 'container', WORKLOAD: 'workload', NAMESPACE: 'namespace', POD: 'pod' },
+  });
+  const subject = Object.assign(Object.create(proto), {
+    tableChartColumns: { ids: ['cpu'] },
+    asyncDataCache: new Map(),
+    $tc: value => value,
+  });
+  const rows = [
+    { namespace: 'alpha', pod: 'app' },
+    { namespace: 'beta', pod: 'app' },
+  ];
+  const { ids, indexForId } = subject.formatTableData(rows, 'pod').get('cpu');
+  assert.deepEqual([...ids], ['alpha|app', 'beta|app']);
+  assert.deepEqual([...indexForId['alpha|app']], [0]);
+  assert.deepEqual([...indexForId['beta|app']], [1]);
+});
+
+for (const resourceType of ['service', 'ingress']) {
+  test(`${resourceType} trend requests, rows and cached values retain namespace identity`, async () => {
+    const requests = [];
+    const proto = methods(
+      tableFile,
+      [
+        'formatTableData',
+        'getResourceId',
+        'loadAsyncData',
+        'loadLegacyResourceTrends',
+        'renderTableBatchByBatch',
+        'chartDataFormatterByUnit',
+      ],
+      {
+        K8sTableColumnKeysEnum: {
+          CONTAINER: 'container',
+          WORKLOAD: 'workload',
+          NAMESPACE: 'namespace',
+          POD: 'pod',
+          SERVICE: 'service',
+          INGRESS: 'ingress',
+        },
+        K8sConvergeTypeEnum: { SUM: 'sum', COUNT: 'count' },
+        handleTransformToTimestamp: value => value,
+        resourceTrend: params => {
+          const request = { ...deferred(), params };
+          requests.push(request);
+          return request.promise;
+        },
+      }
+    );
+    const rows = () => ['alpha', 'beta'].map(namespace => ({ namespace, [resourceType]: 'api' }));
+    const subject = Object.assign(Object.create(proto), {
+      tableData: rows(),
+      tableChartColumns: { ids: ['network'] },
+      asyncDataCache: new Map(),
+      metricControllers: new Map(),
+      abortControllerQueue: new Set(),
+      filterCommonParams: { timeRange: [1, 2] },
+      metricsForConvergeMap: {},
+      requestId: 0,
+      $tc: value => value,
+    });
+    const params = subject.formatTableData(subject.tableData, resourceType);
+    assert.deepEqual([...params.get('network').ids], ['alpha|api', 'beta|api']);
+    subject.loadAsyncData(resourceType, params);
+    assert.deepEqual([...requests[0].params.resource_list], ['alpha|api', 'beta|api']);
+    requests[0].resolve(
+      ['alpha', 'beta'].map((namespace, index) => ({
+        resource_name: `${namespace}|api`,
+        network: { datapoints: [[index + 1, 100]], unit: '' },
+      }))
+    );
+    await tick();
+    assert.deepEqual(
+      subject.tableData.map(row => row.network.datapoints[0][0]),
+      [1, 2]
+    );
+    const cachedRows = rows();
+    assert.equal(subject.formatTableData(cachedRows, resourceType).size, 0);
+    assert.deepEqual(
+      cachedRows.map(row => row.network.datapoints[0][0]),
+      [1, 2]
+    );
+    assert.notEqual(cachedRows[0].network, cachedRows[1].network);
+
+    subject.asyncDataCache.clear();
+    subject.tableData = rows();
+    subject.loadAsyncData(resourceType, subject.formatTableData(subject.tableData, resourceType));
+    requests[1].resolve([{ resource_name: 'api', network: { datapoints: [[99, 100]], unit: '' } }]);
+    await tick();
+    assert.equal(requests.length, 4);
+    for (const [index, request] of requests.slice(2).entries()) {
+      assert.deepEqual([...request.params.filter_dict.namespace], [index ? 'beta' : 'alpha']);
+      assert.deepEqual([...request.params.resource_list], ['api']);
+      request.resolve([{ resource_name: 'api', network: { datapoints: [[index + 3, 100]], unit: '' } }]);
+    }
+    await tick();
+    assert.deepEqual(
+      subject.tableData.map(row => row.network.datapoints[0][0]),
+      [3, 4]
+    );
+    assert.equal(subject.formatTableData(rows(), resourceType).size, 0);
+  });
+}
+
+test('Container trend IDs and legacy requests isolate both namespace and Pod', async () => {
+  const requests = [];
+  const proto = methods(tableFile, ['getResourceId', 'loadLegacyResourceTrends'], {
+    K8sTableColumnKeysEnum: { CONTAINER: 'container', WORKLOAD: 'workload', POD: 'pod' },
+    resourceTrend: async params => {
+      requests.push(params);
+      const pod = params.filter_dict.pod[0];
+      return [{ resource_name: `${pod}:worker`, cpu: { datapoints: [[requests.length, 100]] } }];
+    },
+  });
+  const subject = Object.create(proto);
+  const ids = [
+    { namespace: 'alpha', pod: 'pod-a', container: 'worker' },
+    { namespace: 'alpha', pod: 'pod-b', container: 'worker' },
+    { namespace: 'beta', pod: 'pod-a', container: 'worker' },
+  ].map(row => subject.getResourceId('container', row));
+  assert.deepEqual(ids, ['alpha|pod-a:worker', 'alpha|pod-b:worker', 'beta|pod-a:worker']);
+  const result = await subject.loadLegacyResourceTrends(
+    [],
+    ids,
+    {
+      resource_type: 'container',
+      filter_dict: { namespace: ['alpha', 'beta'], pod: ['pod-a', 'pod-b'], workload: ['Deployment:api'] },
+    },
+    new AbortController().signal
+  );
+  assert.deepEqual(
+    requests.map(request => JSON.parse(JSON.stringify(request.filter_dict))),
+    [
+      { namespace: ['alpha'], pod: ['pod-a'], workload: ['Deployment:api'] },
+      { namespace: ['alpha'], pod: ['pod-b'], workload: ['Deployment:api'] },
+      { namespace: ['beta'], pod: ['pod-a'], workload: ['Deployment:api'] },
+    ]
+  );
+  assert.ok(requests.every(request => request.resource_list.length === 1 && request.resource_list[0] === 'worker'));
+  assert.deepEqual(
+    [...result].map(item => item.resource_name),
+    ids
+  );
+});
+
+test('legacy fallback requests only missing qualified resources and never accepts another identity', async () => {
+  const requests = [];
+  const proto = methods(tableFile, ['loadLegacyResourceTrends'], {
+    K8sTableColumnKeysEnum: { CONTAINER: 'container', WORKLOAD: 'workload' },
+    resourceTrend: async params => {
+      requests.push(params);
+      return [
+        { resource_name: 'api', cpu: { datapoints: [[2, 100]] } },
+        { resource_name: 'other', cpu: {} },
+      ];
+    },
+  });
+  const subject = Object.create(proto);
+  const first = { resource_name: 'alpha|api', cpu: { datapoints: [[1, 100]] } };
+  const result = await subject.loadLegacyResourceTrends(
+    [first],
+    ['alpha|api', 'beta|api'],
+    {
+      resource_type: 'service',
+      filter_dict: { namespace: ['alpha', 'beta'] },
+    },
+    new AbortController().signal
+  );
+  assert.equal(requests.length, 1);
+  assert.deepEqual([...requests[0].filter_dict.namespace], ['beta']);
+  assert.equal(result[0], first);
+  assert.deepEqual(
+    [...result].map(item => item.resource_name),
+    ['alpha|api', 'beta|api']
+  );
+  await subject.loadLegacyResourceTrends(
+    result,
+    ['alpha|api', 'beta|api'],
+    { resource_type: 'service' },
+    new AbortController().signal
+  );
+  assert.equal(requests.length, 1);
+});
+
+test('aborting a resource query skips legacy fallback and failures settle without assigning another namespace', async () => {
+  let calls = 0;
+  const proto = methods(tableFile, ['loadLegacyResourceTrends'], {
+    K8sTableColumnKeysEnum: { CONTAINER: 'container', WORKLOAD: 'workload' },
+    resourceTrend: async () => {
+      calls++;
+      throw new Error('offline');
+    },
+  });
+  const subject = Object.create(proto);
+  const controller = new AbortController();
+  controller.abort();
+  assert.equal(
+    (await subject.loadLegacyResourceTrends([], ['alpha|api'], { resource_type: 'pod' }, controller.signal)).length,
+    0
+  );
+  assert.equal(calls, 0);
+  const result = await subject.loadLegacyResourceTrends(
+    [],
+    ['alpha|api'],
+    { resource_type: 'pod' },
+    new AbortController().signal
+  );
+  assert.equal(calls, 1);
+  assert.equal(result.length, 0);
 });
 
 test('failed refresh releases cells whose previous metric requests were cancelled', async () => {

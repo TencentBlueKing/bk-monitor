@@ -16,8 +16,10 @@ from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request
+from bkmonitor.utils.user import get_admin_username
 from constants.dataflow import AutoOffsetResets
 from core.drf_resource import APIResource
+from core.errors.common import UserInfoMissing
 
 
 class UseSaaSAuthInfoMixin:
@@ -256,13 +258,20 @@ class DataAccessAPIResource(BkDataAPIGWResource, metaclass=abc.ABCMeta):
     重写BkDataAPIGWResource，对用户的处理
     """
 
+    use_tenant_admin = False
+
     def full_request_data(self, validated_request_data):
         validated_request_data = super().full_request_data(validated_request_data)
         try:
             validated_request_data["_origin_user"] = get_request().user.username
         except Exception:
             pass
-        self.bk_username = settings.BK_DATA_PROJECT_MAINTAINER
+        if self.use_tenant_admin and settings.ENABLE_MULTI_TENANT_MODE:
+            self.bk_username = get_admin_username(self._get_tenant_id())
+            if not self.bk_username:
+                raise UserInfoMissing
+        else:
+            self.bk_username = settings.BK_DATA_PROJECT_MAINTAINER
         validated_request_data["bk_username"] = self.bk_username
         return validated_request_data
 
@@ -1180,6 +1189,8 @@ class GetResourceSet(DataAccessAPIResource):
 class ApplyDataLink(DataAccessAPIResource):
     """申请数据链路"""
 
+    use_tenant_admin = True
+
     action = "/v4/apply/"
     method = "POST"
 
@@ -1189,6 +1200,8 @@ class ApplyDataLink(DataAccessAPIResource):
 
 class GetDataLink(DataAccessAPIResource):
     """获取数据链路"""
+
+    use_tenant_admin = True
 
     @property
     def action(self):
@@ -1209,6 +1222,8 @@ class ListDataLink(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     """
     拉取计算平台数据链路列表
     """
+
+    use_tenant_admin = True
 
     @property
     def action(self):
@@ -1245,6 +1260,8 @@ class DeleteDataLink(DataAccessAPIResource):
 class ApplyRecordRuleFlow(ApplyDataLink):
     """通过预计算专用网关创建或更新 Flow"""
 
+    use_tenant_admin = False
+
     @property
     def base_url(self):
         return settings.BKDATA_RECORD_RULE_API_BASE_URL or BkDataAPIGWResource.base_url
@@ -1252,6 +1269,8 @@ class ApplyRecordRuleFlow(ApplyDataLink):
 
 class GetRecordRuleFlow(GetDataLink):
     """通过预计算专用网关查询 Flow"""
+
+    use_tenant_admin = False
 
     @property
     def base_url(self):

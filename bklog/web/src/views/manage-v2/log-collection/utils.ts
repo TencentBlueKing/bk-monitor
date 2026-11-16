@@ -1,4 +1,5 @@
 import { formatFileSize, random } from '@/common/util';
+import { getSaveFailureMessage, isRequestErrorAlreadyShown } from './save-failure';
 import type {
   CollectOperateType,
   ICollectListRowData,
@@ -314,6 +315,17 @@ export const MENU_LIST = [
  */
 export const showMessage = (message: string, theme: 'error' | 'success' | 'warning' = 'success'): void => {
   window.mainComponent?.$bkMessage({ message, theme });
+};
+
+export const showCollectSaveFailure = (payload: unknown, fallback: string): void => {
+  showMessage(getSaveFailureMessage(payload, fallback), 'error');
+};
+
+export const showUnshownRequestError = (error: unknown, fallback: string): void => {
+  if (isRequestErrorAlreadyShown(error)) {
+    return;
+  }
+  showCollectSaveFailure(error, fallback);
 };
 
 // 常量定义

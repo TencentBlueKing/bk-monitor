@@ -4,16 +4,16 @@
 
   // Collapse公共样式
   .bk-collapse-item {
+    margin-bottom: 16px;
     background: #fff;
     border-radius: 2px;
-    margin-bottom: 16px;
 
     .bk-collapse-header {
       height: 32px;
+      padding: 0;
       line-height: 32px;
       background: #e1e4eb;
       border-radius: 2px;
-      padding: 0;
 
       .bk-collapse-title {
         display: flex;
@@ -46,10 +46,10 @@
 
     &-item {
       display: flex;
-      width: 100%;
-      line-height: 24px;
-      padding: 0 20px;
       justify-content: center;
+      width: 100%;
+      padding: 0 20px;
+      line-height: 24px;
 
       &:nth-child(2n) {
         background: #fafbfd;
@@ -58,21 +58,21 @@
       .item-label {
         display: inline-block;
         width: 90px;
-        color: #757880;
         overflow: hidden;
         text-overflow: ellipsis;
+        color: #757880;
         white-space: nowrap;
       }
 
       .item-value {
-        flex: 1;
-        color: #313238;
-        width: calc(100% - 130px);
-        word-break: break-word;
         display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
+        flex: 1;
+        width: calc(100% - 130px);
         overflow: hidden;
+        -webkit-line-clamp: 3;
+        color: #313238;
+        overflow-wrap: anywhere;
+        -webkit-box-orient: vertical;
       }
 
       .item-value-link {
@@ -88,8 +88,8 @@
     margin-left: 10px;
 
     .bk-collapse-item {
-      border: 1px solid #ebeef5 !important;
       margin-bottom: 8px !important;
+      border: 1px solid #ebeef5 !important;
 
       &:last-child {
         margin-bottom: 0 !important;
@@ -125,9 +125,9 @@
 
   .event-collapse {
     .event-title {
-      width: 100%;
       display: flex;
       align-items: center;
+      width: 100%;
       margin-right: 8px;
 
       .event-icon {
@@ -147,19 +147,15 @@
         border-radius: 50%;
 
         .general-icon {
-          color: #ffffff;
           font-size: 12px;
+          color: #fff;
         }
       }
 
-      .sub-event-title_general {
-        width: 100%;
+      .sub-event-title-general {
         display: inline-flex;
         justify-content: space-between;
-
-        i {
-          color: #3a84ff;
-        }
+        width: 100%;
       }
     }
   }
@@ -219,11 +215,9 @@
 
     // 查看完整操作按钮
     .view-full-action {
-      color: #3a84ff;
-      cursor: pointer;
-      font-size: 12px;
       font-family:
-        -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif;
+        -apple-system, 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif;
+      font-size: 12px;
     }
 
     // 伪造的"查看完整"行：隐藏冒号和空的value
@@ -236,34 +230,59 @@
   }
 }
 
+.trouble-shooting-slider-main {
+  padding: 20px 24px !important;
+
+  .failure-item-wrapper .failure-item-content {
+    padding: 0 !important;
+  }
+}
+
+.table-slider-exception {
+  .bk-exception-img {
+    height: 120px !important;
+  }
+
+  .bk-exception-description {
+    overflow-wrap: anywhere;
+  }
+}
+
 .failure-trouble-shooting {
   height: 100%;
+
+  .trouble-shooting-main > .failure-item-wrapper > .failure-item-title {
+    position: sticky;
+    top: -5px;
+    z-index: 1;
+    background: #fff;
+  }
 }
 
 .failure-trouble-shooting,
 .trouble-shooting-slider {
+  position: relative;
   width: 100%;
   background: #f3f6fa;
-  position: relative;
 
   .trouble-shooting-header {
-    width: 100%;
     position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 10px;
     padding-right: 8px;
     text-align: right;
-    height: 10px;
-    z-index: 1;
 
     .collapse-handle-btn {
       display: inline-block;
       width: 28px;
       height: 28px;
-      text-align: center;
       line-height: 28px;
-      background: #ffffff;
-      box-shadow: 0 2px 4px 0 #0000001f;
-      border-radius: 2px;
+      text-align: center;
       cursor: pointer;
+      background: #fff;
+      border-radius: 2px;
+      box-shadow: 0 2px 4px 0 #0000001f;
 
       &:hover {
         color: #3a84ff;
@@ -285,9 +304,9 @@
     overflow: auto;
 
     .ai-card-loading {
+      width: 95%;
       height: 60px;
       margin: 0 auto;
-      width: 95%;
 
       .ai-card-main {
         color: #f3f6ff;
@@ -295,110 +314,114 @@
     }
 
     .ai-card {
-      width: 100%;
-      padding: 12px 0;
-      box-shadow: 0 2px 4px 0 #1919290d;
-      margin-bottom: 10px;
       position: relative;
-      background-image: linear-gradient(169deg, #eaefff 8%, #ffffff 75%);
-      box-shadow: 0 2px 4px 0 #1919290d;
+      width: 100%;
+      padding-bottom: 12px;
+      margin-bottom: 10px;
+      background-image: linear-gradient(169deg, #eaefff 8%, #fff 75%);
       border-radius: 2px;
+      box-shadow: 0 2px 4px 0 #1919290d;
 
       &::before {
-        content: '';
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        border-radius: 4px;
+        inset: 0;
         padding: 1px;
-        background: linear-gradient(139deg, rgba(122, 158, 253, 0.3), rgba(202, 133, 238, 0.4));
-        -webkit-mask:
+        pointer-events: none;
+        content: '';
+        background: linear-gradient(139deg, rgb(122 158 253 / 30%), rgb(202 133 238 / 40%));
+        border-radius: 4px;
+        mask:
           linear-gradient(#fff 0 0) content-box,
           linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
+        mask-composite: xor;
         mask-composite: exclude;
-        pointer-events: none;
       }
 
       .ai-card-title {
-        width: 100%;
-        height: 32px;
-        line-height: 32px;
-        font-weight: 600;
-        font-size: 14px;
-        color: #235dfa;
-        margin-bottom: 6px;
-        padding: 0 12px;
+        position: sticky;
+        top: -5px;
+        z-index: 1;
         display: flex;
         align-items: center;
+        width: 100%;
+        height: 50px;
+        padding: 12px 12px 6px;
+        background: #eaefff;
+        border-radius: 4px 4px 0 0;
+        box-shadow:
+          inset 0 1px 0 rgb(122 158 253 / 30%),
+          inset 1px 0 0 rgb(122 158 253 / 30%),
+          inset -1px 0 0 rgb(122 158 253 / 30%);
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 32px;
+        color: #235dfa;
+
+        .independent-view-icon {
+          position: absolute;
+          top: 19px;
+          right: 16px;
+          z-index: 2;
+          display: none;
+          font-weight: normal;
+          line-height: 1;
+        }
       }
 
       .ai-card-title-icon {
         display: inline-block;
         width: 32px;
         height: 32px;
+        margin-right: 8px;
         background-image: url('../../../static/img/failure/AI.png');
         background-size: cover;
-        margin-right: 8px;
       }
 
       .ai-card-main {
-        line-height: 20px;
-        color: #4d4f56;
-        font-size: 12px;
+        position: relative;
         padding: 0 16px;
         overflow: auto;
-        position: relative;
+        font-size: 12px;
+        line-height: 20px;
+        color: #4d4f56;
 
         .ai-bot-bg {
+          position: absolute;
+          right: 0;
+          bottom: 0;
           display: inline-block;
           width: 150px;
           height: 150px;
+          pointer-events: none;
           background-image: url('../../../static/img/ai-bot-bg.svg');
           background-size: cover;
-          position: absolute;
-          bottom: 0;
-          right: 0;
-          pointer-events: none;
         }
       }
 
-      .slider-icon {
-        position: absolute;
-        top: 19px;
-        right: 16px;
-        color: #3a84ff;
-        cursor: pointer;
-        display: none;
-      }
-
-      &:hover {
-        .slider-icon {
-          display: inline-block;
-        }
-      }
     }
 
     .failure-item-wrapper {
-      width: 100%;
       position: relative;
-      background: #fff;
+      width: 100%;
       margin-bottom: 8px;
+      background: #fff;
       border-radius: 4px;
-      padding: 14px 16px 16px;
 
-      .slider-icon {
+      @include event-collapse-styles;
+      @include general-event-content-styles;
+
+      .independent-view-icon {
         position: absolute;
+        top: 50%;
         right: 16px;
-        color: #3a84ff;
-        cursor: pointer;
+        z-index: 2;
         display: none;
+        transform: translateY(-50%);
+        font-weight: normal;
       }
 
       &:hover {
-        .slider-icon {
+        .independent-view-icon {
           display: inline-block;
         }
       }
@@ -406,83 +429,83 @@
       .failure-item-title {
         display: flex;
         align-items: center;
-        padding-bottom: 14px;
-        border-radius: 4px;
-        font-weight: 600;
+        padding: 14px 16px 14px;
         font-size: 14px;
+        font-weight: 600;
         color: #313238;
+        border-radius: 4px;
 
         .title-icon-circle {
           display: inline-block;
           width: 20px;
           height: 20px;
-          line-height: 20px;
-          text-align: center;
-          font-size: 12px;
-          background: #4d4f56;
-          color: #fff;
-          border-radius: 50%;
           margin-right: 4px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #fff;
+          text-align: center;
+          background: #4d4f56;
+          border-radius: 50%;
         }
       }
 
       .failure-item-content {
-        color: #4d4f56;
         overflow: auto;
+        color: #4d4f56;
+        padding: 0 16px 16px;
+
         @include collapse-content-styles;
+      }
+
+      .dimensional-desc {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
       }
 
       .dimensional-collapse {
         margin-left: 0 !important;
 
         .dimensional-title {
+          position: relative;
           display: inline-block;
           width: 100%;
-          position: relative;
           font-weight: 600;
 
           .red-font {
-            font-size: 12px;
-            color: #c12626;
             position: absolute;
             right: 8px;
+            font-size: 12px;
             font-weight: normal;
+            color: #c12626;
           }
         }
 
         .dimensional-footer {
-          border-top: 1px solid #eaebf0;
           padding: 4px 20px;
+          border-top: 1px solid #eaebf0;
 
           &-item {
-            width: 100%;
             display: block;
+            width: 100%;
             line-height: 24px;
             color: #313238;
           }
-
-          .blue-txt {
-            color: #3a84ff;
-            cursor: pointer;
-          }
         }
       }
-
-      @include event-collapse-styles;
-      @include general-event-content-styles;
 
       .log-collapse {
         margin-left: 0 !important;
 
         .log-title {
+          position: relative;
           display: inline-block;
           width: 100%;
-          position: relative;
           font-weight: 600;
 
           .log-title-count {
-            font-weight: normal;
             margin-left: 2px;
+            font-weight: normal;
           }
         }
 
@@ -502,15 +525,15 @@
             }
 
             .overflow-popover-trigger {
-              font-family: Menlo, Monaco, Consolas, Courier, monospace;
-              color: #313238;
+              display: -webkit-box;
               overflow: hidden;
               text-overflow: ellipsis;
-              display: -webkit-box;
               -webkit-line-clamp: 3;
-              -webkit-box-orient: vertical;
-              word-break: break-word;
+              font-family: Menlo, Monaco, Consolas, Courier, monospace;
+              color: #313238;
+              overflow-wrap: anywhere;
               white-space: normal;
+              -webkit-box-orient: vertical;
             }
 
             &:first-child {
@@ -526,52 +549,53 @@
       }
 
       .trace-collapse {
-        .log-content {
-          padding: 0 !important;
+        .log-content-warpper {
+          /* stylelint-disable-next-line no-descending-specificity */
+          .log-content {
+            padding: 0 !important;
 
-          &:first-child .log-content-title {
-            padding: 5px 8px 4px 20px;
-          }
-
-          &:last-child .log-content-title {
-            padding: 8px 8px 8px 20px;
-          }
-
-          .overflow-popover-trigger {
-            margin: 0 8px 8px 20px;
-          }
-
-          .table-content-item {
-            padding-left: 20px;
-            padding-right: 8px;
-
-            &:nth-child(n) {
-              background: #fafbfd;
+            &:first-child .log-content-title {
+              padding: 5px 8px 4px 20px;
             }
 
-            &:nth-child(2n) {
-              background: #fff !important;
+            &:last-child .log-content-title {
+              padding: 8px 8px 8px 20px;
+            }
+
+            .overflow-popover-trigger {
+              margin: 0 8px 8px 20px;
+            }
+
+            .table-content-item {
+              padding-right: 8px;
+              padding-left: 20px;
+
+              &:nth-child(n) {
+                background: #fafbfd;
+              }
+
+              &:nth-child(2n) {
+                background: #fff !important;
+              }
             }
           }
         }
       }
 
-      .right-icon {
-        position: absolute;
-        right: 8px;
-        color: #3a84ff;
-        font-size: 12px;
-        cursor: pointer;
-      }
-
       .card-summary {
-        color: #313238;
-        line-height: 20px;
         margin-bottom: 16px;
+        line-height: 20px;
+        color: #313238;
 
         &-title {
           font-weight: 600;
         }
+      }
+    }
+
+    .ai-card:hover {
+      .independent-view-icon {
+        display: inline-block;
       }
     }
 
@@ -584,26 +608,33 @@
       }
 
       .bk-exception-title {
-        font-size: 12px;
         margin-top: 0;
+        font-size: 12px;
         color: #313238;
       }
 
       .bk-exception-description {
         margin-top: 4px;
         color: #979ba5;
+        overflow-wrap: anywhere;
       }
     }
 
     .toastui-editor-contents {
       font-family:
-        -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif;
+        -apple-system, 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', SimSun, sans-serif;
 
       code {
         color: #6d6e8f;
         background-color: #f2f4fa;
       }
     }
+  }
+
+  .icon-jump-page {
+    margin-left: 5px;
+    font-size: 11px;
+    font-weight: normal;
   }
 
   .mr-2 {
@@ -615,20 +646,20 @@
   }
 
   .cursor-link {
-    cursor: pointer;
     color: #3a84ff;
+    cursor: pointer;
   }
 }
 
 .overflow-popover {
+  max-height: 80vh;
   padding: 0 !important;
   border: 1px solid #dcdee5;
   box-shadow: 0 2px 6px 0 #0000001a !important;
-  max-height: 80vh;
 
   .bk-pop2-arrow {
-    border-left: 1px solid #dcdee5;
     border-bottom: 1px solid #dcdee5;
+    border-left: 1px solid #dcdee5;
   }
 
   .overflow-popover-content {
@@ -640,41 +671,43 @@
     }
 
     // 公共内容区样式：可滚动文本区域
-    .overflow-popover-scrollable {
+    %overflow-popover-scrollable {
       max-height: calc(80vh - 42px);
-      overflow: auto;
       margin-top: 8px;
+      overflow: auto;
     }
 
     // Pattern 类型（等宽字体 + 可滚动 + 文本颜色）
     .overflow-popover-pattern {
-      @extend .overflow-popover-scrollable;
-      color: #313238;
-      line-height: 20px;
       font-family: Menlo, Monaco, Consolas, Courier, monospace;
+      line-height: 20px;
+      color: #313238;
+
+      @extend %overflow-popover-scrollable;
     }
 
     // Trace 字段类型（可滚动 + 文本颜色，非等宽字体）
     &__trace-field {
-      @extend .overflow-popover-scrollable;
-      color: #313238;
       line-height: 20px;
+      color: #313238;
       word-break: break-all;
+
+      @extend %overflow-popover-scrollable;
     }
 
     // JSON 类型（可滚动）
     &_json {
-      @extend .overflow-popover-scrollable;
+      @extend %overflow-popover-scrollable;
     }
 
     &_item {
       display: flex;
-      line-height: 16px;
       margin-bottom: 4px;
+      line-height: 16px;
 
       .item-label {
-        color: #9d694c;
         margin-right: 2px;
+        color: #9d694c;
       }
 
       .item-value {
@@ -686,15 +719,6 @@
         }
       }
     }
-  }
-}
-
-.trouble-shooting-slider-main {
-  padding: 20px 24px !important;
-
-  .failure-item-wrapper {
-    padding: 0 !important;
-    margin: 0;
   }
 }
 
@@ -732,8 +756,8 @@
 
       .vjs-indent-unit.has-line {
         width: 2em;
-        border-left-style: solid;
         border-left-color: #3f3f3f;
+        border-left-style: solid;
       }
 
       .vjs-key {
@@ -768,8 +792,8 @@
     }
 
     .title-right {
-      color: #979ba5;
       font-size: 14px;
+      color: #979ba5;
     }
   }
 
@@ -782,8 +806,113 @@
 .all-events-slider {
   &-content {
     padding: 16px 24px;
+
     @include collapse-content-styles;
     @include event-collapse-styles;
     @include general-event-content-styles;
+  }
+}
+
+// 事件、日志表格侧滑公共样式
+.log-viewer-slider,
+.event-table-slider {
+  .bk-modal-content {
+    height: 100%;
+    padding: 16px;
+    background: #f2f6fc;
+  }
+
+  &-content {
+    padding: 16px;
+    background-color: #fff;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 rgb(25 25 41 / 3.9%);
+  }
+}
+
+.event-table-slider {
+  .bk-modal-content {
+    height: calc(100% - 52px) !important;
+    overflow: hidden !important;
+
+    & > div {
+      height: 100%;
+      vertical-align: middle;
+    }
+  }
+
+  .bk-sideslider-content {
+    height: 100%;
+  }
+
+  .event-table-slider-content {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .relation-event-table .t-table__content {
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+}
+
+.log-viewer-slider {
+  // 组件库 Sideslider 的 .bk-modal-content 高度不会自动变化（Modal 的 useContentResize
+  // 在内容超高时会打 inline height/overflow:auto），会导致双层滚动且 Affix container 失效。
+  // 这里把高度链补全，并压掉 inline overflow，让 .log-viewer-slider-content 成为高度确定的
+  // padding 容器（四周 16px 留白、不滚动），内层 .log-viewer-slider-body 才能成为唯一滚动容器，
+  // LogTableNew 的 headerAffixedTop / horizontalScrollAffixedBottom 相对它正确吸顶/吸底。
+  .bk-modal-content {
+    height: calc(100% - 52px) !important;
+    overflow: hidden !important;
+
+    & > div {
+      height: 100%;
+      vertical-align: middle;
+    }
+  }
+
+  .bk-sideslider-content {
+    height: 100%;
+  }
+
+  .log-viewer-slider-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden; // 外层只裁不滚，padding(16px) 来自共享块，保留四周留白
+  }
+
+  .log-viewer-slider-body {
+    flex: 1 1 0;
+    height: 0;
+    min-height: 0;
+    overflow: hidden auto; // 表格在此竖向滚动，滚动条落在 padding 内侧
+    overflow-anchor: none; // 追加行后不要把滚动位置钉在底部，否则会连续把后续页全部拉完
+  }
+
+  // 骨架屏和空状态按内容高度展示，有数据时保持内部滚动容器不变
+  .log-viewer-slider-content:has(.detail-table-skeleton, .log-table-empty) {
+    height: auto;
+  }
+
+  .log-viewer-slider-body:has(.detail-table-skeleton, .log-table-empty) {
+    flex: 0 0 auto;
+    height: auto;
+    overflow: visible;
+  }
+}
+
+.log-viewer-slider .alarm-detail-log-table-new {
+  .log-table-skeleton-header {
+    width: 56px;
+    height: 12px;
   }
 }

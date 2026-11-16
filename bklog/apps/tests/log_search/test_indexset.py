@@ -3838,17 +3838,17 @@ class TestSyncFieldsSnapshot(TestCase):
         index_set.refresh_from_db()
         self.assertEqual(index_set.fields_snapshot["fields"], [{"field_name": "log"}])
 
-    def test_non_doris_uses_esquery(self):
-        """非 Doris：保持原有 esquery 行为不变。"""
+    def test_non_doris_uses_unify_query(self):
+        """非 Doris：字段快照同样走 unify-query。"""
         index_set = self._build_index_set(STORAGE_CLUSTER_TYPE)
         self.assertFalse(index_set.is_native_doris())
 
         with patch(self.UNIFY_QUERY_PATH) as mock_unify_query, patch(self.ESQUERY_PATH) as mock_esquery:
-            mock_esquery.return_value.fields.return_value = {"fields": [{"field_name": "log"}]}
+            mock_unify_query.return_value.fields.return_value = {"fields": [{"field_name": "log"}]}
             fields = index_set.sync_fields_snapshot()
 
-        mock_unify_query.assert_not_called()
-        mock_esquery.assert_called_once_with(index_set.index_set_id, {}, pre_check_enable=True)
+        mock_esquery.assert_not_called()
+        mock_unify_query.assert_called_once()
         self.assertEqual(fields["fields"], [{"field_name": "log"}])
 
     def test_unify_query_failure_keeps_old_snapshot(self):

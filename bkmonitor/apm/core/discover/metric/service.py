@@ -108,10 +108,23 @@ class ServiceDiscover(Discover):
         for key, timestamp in trace_observed.items():
             observed[key] = max(observed.get(key, 0), timestamp)
         checked_at: int = int(time.time())
-        TopoNode.touch_heartbeat(self.bk_biz_id, self.app_name, TelemetryDataType.METRIC.value, observed, checked_at)
+        metric_heartbeat_success: bool = TopoNode.touch_heartbeat(
+            self.bk_biz_id, self.app_name, TelemetryDataType.METRIC.value, observed, checked_at
+        )
         # 组件及远程服务的 bk_apm_count 来自 Span，只补写这些节点的 Trace 心跳。
-        TopoNode.touch_heartbeat(
+        trace_heartbeat_success: bool = TopoNode.touch_heartbeat(
             self.bk_biz_id, self.app_name, TelemetryDataType.TRACE.value, trace_observed, checked_at
+        )
+        logger.info(
+            "[MetricServiceDiscover] heartbeat finished: bk_biz_id=%s app_name=%s window_start=%s window_end=%s "
+            "services=%s metric_heartbeat_success=%s trace_heartbeat_success=%s",
+            self.bk_biz_id,
+            self.app_name,
+            start_time,
+            end_time,
+            len(observed),
+            metric_heartbeat_success,
+            trace_heartbeat_success,
         )
 
     @classmethod

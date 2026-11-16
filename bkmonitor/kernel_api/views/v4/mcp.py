@@ -1,5 +1,8 @@
 """User MCP read endpoints; application APIs retain their original backend URLs."""
 
+from apm_web.llm.resources import CalculateByRangeResource as LLMCalculateByRangeResource
+from apm_web.llm.resources import ListFlowsResource as LLMListFlowsResource
+from apm_web.llm.resources import ListTracesResource as LLMListTracesResource
 from apm_web.metric.resources import CalculateByRangeResource
 from apm_web.service.resources import ServiceListResource
 
@@ -20,4 +23,7 @@ class MCPViewSet(ResourceViewSet):
         ResourceRoute("GET", GetDashboardDetail, endpoint="get_dashboard_detail_by_uid"),
         ResourceRoute("POST", ServiceListResource, endpoint="list_apm_services"),
         ResourceRoute("POST", CalculateByRangeResource, endpoint="calculate_by_range"),
+        ResourceRoute("POST", LLMListTracesResource, endpoint="llm_mcp_search_traces"),
+        ResourceRoute("POST", LLMListFlowsResource, endpoint="llm_mcp_search_flows"),
+        ResourceRoute("POST", LLMCalculateByRangeResource, endpoint="llm_mcp_calculate_by_range"),
     ]

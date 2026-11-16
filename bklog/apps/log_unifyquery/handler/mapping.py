@@ -44,6 +44,7 @@ from apps.log_search.constants import (
     FieldBuiltInEnum,
     SearchScopeEnum,
     DorisFieldTypeEnum,
+    MixedStorageFieldTypeNormalizer,
 )
 from apps.log_search.exceptions import GetAllFieldsException
 from apps.log_search.models import (
@@ -191,14 +192,31 @@ class UnifyQueryMappingHandler:
         final_fields_list = copy.deepcopy(self._final_fields)
         return final_fields_list
 
+    @staticmethod
+    def _fill_field_tag(field: dict) -> None:
+        """按字段类型与聚合能力回填前端字段分类标签。"""
+        tag = "metric"
+        if field.get("field_type") == "date":
+            tag = "timestamp"
+        elif field.get("es_doc_values"):
+            tag = "dimension"
+        field["tag"] = tag
+
     def get_final_fields(self):
         """获取最终字段"""
         fields_result = self.get_all_index_fields()
         if not fields_result:
-            # 如果一个字段都不存在，就用快照字段兜底
-            if self.index_set.fields_snapshot:
-                return self.index_set.fields_snapshot.get("fields", [])
-            return []
+            # 一个字段都没取到，用快照兜底。快照可能由历史版本的接口生成并带 SQL 类型，
+            # 这里按同样的规则规范化后再返回，避免增量接口正常、缓存接口仍显示未知类型。
+            if not self.index_set.fields_snapshot:
+                return []
+            snapshot_fields = copy.deepcopy(self.index_set.fields_snapshot.get("fields", []))
+            for field in snapshot_fields:
+                if not MixedStorageFieldTypeNormalizer.is_sql_field_type(field.get("field_type")):
+                    continue
+                field["field_type"] = MixedStorageFieldTypeNormalizer.normalize_field_type(field)
+                self._fill_field_tag(field)
+            return snapshot_fields
 
         fields_list: list = []
         for field in fields_result:
@@ -245,15 +263,17 @@ class UnifyQueryMappingHandler:
                     "thedate",
                     "__shard_key__",
                 ]
+        else:
+            # 索引组可能不带 Doris 标签、采集存储也全是 elasticsearch，
+            # 但默认检索路由混挂了 Doris 分析表，UQ 会把 SQL 类型一起返回。
+            # 只改 field_type；field_operator 与 es_doc_values 保持上游计算出的原值，
+            # 不扩展查询能力。类型统一后，能力位判定与原生 Doris 路径保持一致。
+            for field in fields_list:
+                if MixedStorageFieldTypeNormalizer.is_sql_field_type(field["field_type"]):
+                    field["field_type"] = MixedStorageFieldTypeNormalizer.normalize_field_type(field)
 
         for field in fields_list:
-            # @TODO tag：兼容前端代码，后面需要删除
-            tag = "metric"
-            if field.get("field_type") == "date":
-                tag = "timestamp"
-            elif field.get("es_doc_values"):
-                tag = "dimension"
-            field["tag"] = tag
+            self._fill_field_tag(field)
 
         fields_list = self.add_clustered_fields(fields_list)
         fields_list = self.virtual_fields(fields_list)
@@ -833,6 +853,8 @@ class UnifyQueryMappingHandler:
         for x in final_fields_list:
             field_name = x["field_name"]
             if fields_type.get(field_name):
+                # 字段类型已在上游统一为 ES 类型，能力位直接按规范化后的类型判定，
+                # 与原生 Doris 路径保持一致。
                 if x["field_type"] in fields_type.get(field_name):
                     continue
                 type_msg = str(_("或者")).join(fields_type.get(x["field_name"]))

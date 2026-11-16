@@ -29,6 +29,7 @@ import { useI18n } from 'vue-i18n';
 
 import ErrorAlert from './components/error-alert';
 import InputTab from './components/input-tab';
+import ModelTimeline from './components/model-timeline';
 import OutputTab from './components/output-tab';
 import ToolDescBar from './components/tool-desc-bar';
 import ToolPanel from './components/tool-panel';
@@ -108,7 +109,13 @@ export default defineComponent({
 
     /** Tool Span 只扫工具面板；Agent 先扫名称条，再输入后输出 */
     const hits = computed(() =>
-      collectObservationHits(props.searchKeyword, attributes.value, isToolSpan.value, isAgentSpan.value)
+      collectObservationHits(
+        props.searchKeyword,
+        attributes.value,
+        isToolSpan.value,
+        isAgentSpan.value,
+        isModelSpan.value
+      )
     );
     const activeHit = computed(() => hits.value[props.searchActiveIndex] ?? null);
 
@@ -138,7 +145,7 @@ export default defineComponent({
     const locateCurrentHit = async (keepTab = false) => {
       const hit = activeHit.value;
       if (!hit) return;
-      if (!keepTab && (hit.tab === 'input' || hit.tab === 'output')) {
+      if (!keepTab && !isModelSpan.value && (hit.tab === 'input' || hit.tab === 'output')) {
         activeIoTab.value = hit.tab;
       }
       await nextTick();
@@ -154,7 +161,7 @@ export default defineComponent({
         const keywordChanged = curr[0] !== prev?.[0];
         // 换词只定位当前页签内的命中，避免手动停在输出时又被拉回输入
         if (keywordChanged) {
-          if (isToolSpan.value) {
+          if (isToolSpan.value || isModelSpan.value) {
             locateCurrentHit(true);
             return;
           }
@@ -341,6 +348,8 @@ export default defineComponent({
           )}
           {isToolSpan.value ? (
             <ToolPanel attributes={attributes.value} />
+          ) : isModelSpan.value ? (
+            <ModelTimeline attributes={attributes.value} />
           ) : (
             <div class='llm-observation-io'>
               <div class='llm-observation-toolbar'>

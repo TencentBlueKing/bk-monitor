@@ -876,7 +876,9 @@ class TestK8sListResources(TestCase):
                 }
             ),
         ]
-        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+        with mock.patch(
+            "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.perform_request"
+        ) as mock_graph_unify_query:
             mock_graph_unify_query.return_value = {"series": query_result}
             self.assertEqual(
                 meta.get_from_promql(
@@ -994,7 +996,9 @@ class TestK8sListResources(TestCase):
                 "unit": "",
             },
         ]
-        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+        with mock.patch(
+            "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.perform_request"
+        ) as mock_graph_unify_query:
             mock_graph_unify_query.return_value = {"series": query_result}
             ns_list = ListK8SResources()(validated_request_data)["items"]
             self.assertEqual(
@@ -1110,7 +1114,9 @@ class TestK8sListResources(TestCase):
             },
         ]
         # 附带历史数据
-        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+        with mock.patch(
+            "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.perform_request"
+        ) as mock_graph_unify_query:
             mock_graph_unify_query.return_value = {"series": query_result}
             validated_request_data["with_history"] = True
             workload_list = ListK8SResources()(validated_request_data)
@@ -1218,7 +1224,9 @@ class TestK8sListResources(TestCase):
             },
         ]
         # 附带历史数据
-        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+        with mock.patch(
+            "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.perform_request"
+        ) as mock_graph_unify_query:
             mock_graph_unify_query.return_value = {"series": query_result}
             validated_request_data["with_history"] = True
             pod_list = ListK8SResources()(validated_request_data)
@@ -1280,7 +1288,9 @@ class TestK8sListResources(TestCase):
             for index in range(24)
         ]
 
-        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+        with mock.patch(
+            "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.perform_request"
+        ) as mock_graph_unify_query:
             mock_graph_unify_query.return_value = {"series": current_series + history_series}
             pod_list = ListK8SResources()(validated_request_data)
 
@@ -1324,7 +1334,9 @@ class TestK8sListResources(TestCase):
                 "unit": "",
             }
         ]
-        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+        with mock.patch(
+            "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.perform_request"
+        ) as mock_graph_unify_query:
             mock_graph_unify_query.return_value = {"series": query_result}
             pod_list = ListK8SResources()(validated_request_data)
 
@@ -1460,7 +1472,9 @@ class TestK8sListResources(TestCase):
         ]
 
         # 附带历史数据
-        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+        with mock.patch(
+            "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.perform_request"
+        ) as mock_graph_unify_query:
             mock_graph_unify_query.return_value = {"series": query_result}
             validated_request_data["with_history"] = True
             container_list = ListK8SResources()(validated_request_data)
@@ -1520,7 +1534,9 @@ class TestK8sListResources(TestCase):
                 "unit": "",
             }
         ]
-        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+        with mock.patch(
+            "monitor_web.grafana.resources.unify_query.GraphUnifyQueryResource.perform_request"
+        ) as mock_graph_unify_query:
             mock_graph_unify_query.return_value = {"series": query_result}
             container_list = ListK8SResources()(validated_request_data)
             print(container_list)

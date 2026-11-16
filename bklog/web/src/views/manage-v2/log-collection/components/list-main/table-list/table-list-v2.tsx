@@ -29,7 +29,6 @@ import { useRouter, useRoute } from 'vue-router/composables';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import * as authorityMap from '@/common/authority-map';
-import tippy, { type Instance } from 'tippy.js';
 import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
 import axios from 'axios';
 import {
@@ -59,6 +58,7 @@ import TableComponent from '../../common-comp/table-component';
 import ClusterFilter from '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
 import '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss';
 import BklogPopover from '@/components/bklog-popover';
+import RowMoreMenu from './row-more-menu';
 import './table-list-v2.scss';
 
 const CancelToken = axios.CancelToken;
@@ -224,7 +224,6 @@ const HEIGHT_CONSTANTS = {
  * 延迟时间常量
  */
 const DELAY_CONSTANTS = {
-  MENU_POP_INIT: 1000, // 菜单弹窗初始化延迟
   PAGINATION_HEIGHT_CALC: 150, // 分页高度计算延迟
   RESIZE_OBSERVER: 200, // 尺寸监听器延迟
 } as const;
@@ -287,10 +286,6 @@ export default defineComponent({
      * 获取列表接口取消
      */
     const listInterfaceCancel = ref(null);
-    /**
-     * 是否取消接口请求
-     */
-    const isCancelToken = ref(false);
     /**
      * 是否展示一键检测
      */
@@ -429,7 +424,6 @@ export default defineComponent({
     const tableMainRef = ref<HTMLElement | null>(null);
     const maxTableHeight = ref<number>(0);
 
-    let tippyInstances: Instance[] = [];
     let collectStatusTimer: ReturnType<typeof setTimeout> | null = null;
     let isUnmounted = false;
     const IFilterValues = ref<IFilterValues>({
@@ -1402,27 +1396,17 @@ export default defineComponent({
                     {t('编辑')}
                   </span>
                 )}
-                {!isRelatedSpace && <span class='bk-icon icon-more more-btn table-more-btn' />}
-                <div
-                  style={{ display: 'none' }}
-                  class='row-menu-popover'
-                >
-                  <div class='row-menu-content'>
-                    {renderMenu(row).map(item => (
-                      <span
-                        key={item.key}
-                        v-cursor={{ active: !row.permission?.[editKey] }}
-                        class={{
-                          'menu-item': true,
-                          disabled: !getOperatorCanClick(row, item.key),
-                        }}
-                        on-Click={() => handleMenuClick(item.key, row)}
-                      >
-                        {item.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                {!isRelatedSpace && (
+                  <RowMoreMenu
+                    key={`${row.log_access_type}-${getRowUniqueId(row)}`}
+                    items={renderMenu(row).map(item => ({
+                      ...item,
+                      disabled: !getOperatorCanClick(row, item.key),
+                    }))}
+                    hasPermission={!!row.permission?.[editKey]}
+                    on-select={(key: string) => handleMenuClick(key, row)}
+                  />
+                )}
               </div>
             );
           },
@@ -1438,18 +1422,6 @@ export default defineComponent({
         };
       });
     });
-
-    /**
-     * 销毁所有 tippy 实例
-     * 使用 for...of 循环替代 forEach，提高性能
-     */
-    const destroyTippyInstances = () => {
-      for (const instance of tippyInstances) {
-        instance?.hide();
-        instance?.destroy();
-      }
-      tippyInstances = [];
-    };
 
     /**
      * 重新刷新表格
@@ -1519,17 +1491,6 @@ export default defineComponent({
     };
 
     watch(
-      () => listLoading.value,
-      (val: boolean) => {
-        if (!val) {
-          setTimeout(() => {
-            initMenuPop();
-          }, DELAY_CONSTANTS.MENU_POP_INIT);
-        }
-      },
-    );
-
-    watch(
       () => props.indexSet,
       () => {
         // 归属属于个人设置，切换索引集时保持不重置（「全部」视图下不生效但保留存储值）
@@ -1552,63 +1513,6 @@ export default defineComponent({
         getCollectorFieldEnums();
       },
     );
-
-    /**
-     * 初始化操作下拉列表的 tippy 实例
-     */
-    const initMenuPop = () => {
-      // 销毁旧实例，避免重复绑定
-      destroyTippyInstances();
-
-      const targets = document.querySelectorAll('.v2-log-collection-table .t-table--layout-fixed .table-more-btn');
-      // 确保 targets 存在且不为空
-      if (!targets || targets.length === 0) {
-        return;
-      }
-
-      // 将 NodeList 转换为数组，并过滤掉 null 值
-      const validTargets = Array.from(targets).filter((target): target is HTMLElement => target instanceof HTMLElement);
-
-      if (validTargets.length === 0) {
-        return;
-      }
-
-      try {
-        const instances = tippy(validTargets, {
-          trigger: 'click',
-          placement: 'bottom-end',
-          theme: 'light table-menu-popover',
-          interactive: true,
-          hideOnClick: true,
-          arrow: false,
-          offset: [0, 4],
-          appendTo: () => document.body,
-          onShow(instance) {
-            const ref = instance.reference as HTMLElement;
-            ref?.classList?.add('is-hover');
-          },
-          onHide(instance) {
-            const ref = instance.reference as HTMLElement;
-            ref?.classList?.remove('is-hover');
-          },
-          content(reference) {
-            const btn = reference as HTMLElement;
-            if (!btn) {
-              return document.createElement('div');
-            }
-            // 约定：内容紧跟在按钮后的兄弟元素中
-            const container = btn.nextElementSibling as HTMLElement | null;
-            const contentNode = container?.querySelector('.row-menu-content') as HTMLElement | null;
-            return (contentNode ?? container ?? document.createElement('div')) as unknown as Element;
-          },
-        });
-
-        // tippy 返回单个或数组，这里统一转为数组
-        tippyInstances = Array.isArray(instances) ? instances : [instances];
-      } catch (error) {
-        console.error('初始化菜单弹窗失败:', error);
-      }
-    };
 
     /** 获取全量标签列表 */
     const fetchLabelList = () => {
@@ -1694,7 +1598,6 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       tenantManager.off('userInfoUpdated', handleUserInfoUpdated);
-      destroyTippyInstances();
       // 清除状态轮询定时器
       stopCollectStatusTimer();
       // 标记组件已卸载
@@ -1842,7 +1745,6 @@ export default defineComponent({
           {
             cancelToken: new CancelToken(c => {
               listInterfaceCancel.value = c;
-              isCancelToken.value = true;
             }),
           },
         );
@@ -1901,8 +1803,9 @@ export default defineComponent({
           }
         }
       } catch (error) {
+        if (axios.isCancel(error)) return;
         listLoading.value = false;
-        !isCancelToken.value && console.log('获取列表数据失败:', error, isCancelToken.value);
+        console.log('获取列表数据失败:', error);
       }
     };
 
@@ -2055,11 +1958,6 @@ export default defineComponent({
       if (!getOperatorCanClick(row, key)) return;
 
       currentRow.value = row;
-      // 关闭所有 tippy 实例
-      for (const instance of tippyInstances) {
-        instance?.hide();
-      }
-
       // 启用
       if (key === 'start') {
         $http

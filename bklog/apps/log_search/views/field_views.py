@@ -60,7 +60,7 @@ class FieldViewSet(APIViewSet):
         """
         count_list = []
         params = self.params_valid(QueryFieldBaseSerializer)
-        fields_result = UnionSearchHandler().union_search_fields(params)
+        fields_result = UnionSearchHandler().unifyquery_union_search_fields(params)
         # 去除非聚合字段和text类型字段
         fields_list = [
             field
@@ -176,7 +176,8 @@ class FieldViewSet(APIViewSet):
         @apiName fetch_total_count
         """
         params = self.params_valid(QueryFieldBaseSerializer)
-        total_count = UnifyQueryFieldHandler(params).get_total_count()
+        handler = UnifyQueryFieldHandler(params, allow_partial_results=True)
+        total_count = handler.get_total_count()
         return Response({"total_count": total_count})
 
     @list_route(methods=["POST"], url_path="statistics/graph")

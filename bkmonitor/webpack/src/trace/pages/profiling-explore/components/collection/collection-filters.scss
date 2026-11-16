@@ -1,0 +1,51 @@
+.collection-history-filters {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+  font-size: 12px;
+
+  > label {
+    flex: 1;
+    min-width: 180px;
+
+    > span {
+      display: block;
+      margin-bottom: 6px;
+    }
+  }
+}
+
+.collection-history-query {
+  display: flex;
+  gap: 8px;
+}
+
+// 下拉无候选时的空态列表项，去掉空态组件自带的上下留白
+.collection-filter-empty {
+  .empty-status-container {
+    padding: 0;
+  }
+}
+
+// 候选加载中的骨架行，行高与下拉选项保持一致
+.collection-filter-loading {
+  padding: 4px 0;
+
+  .collection-filter-loading-row {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+
+    .trace-cell-skeleton {
+      flex: 1;
+
+      .cell-text {
+        min-width: 100%;
+      }
+    }
+  }
+}

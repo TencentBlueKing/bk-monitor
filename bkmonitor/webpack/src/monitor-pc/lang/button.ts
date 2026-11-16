@@ -573,7 +573,6 @@ export default {
   查看配置: 'View Configuration',
   去配置: 'Go to Configuration',
   '去配置 AI 设置': 'Go to AI Settings',
-  '已配置，立即分析': 'Configured, Analyze Now',
   立即分析: 'Analyze Now',
   修改配置: 'Modify Configuration',
   分析中···: 'Analyzing...',
@@ -582,4 +581,5 @@ export default {
   // RUM 检索--详情
   复制完整地址: 'Copy Full Address',
   查看官方定义: 'Check the official definition',
+  定位: 'Locate',
 };

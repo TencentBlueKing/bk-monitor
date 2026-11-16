@@ -278,6 +278,8 @@ export default defineComponent({
           params: { language: value },
           method: 'PUT',
           headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id },
+          skipTraceparent: true,
+          skipSpaceUid: true,
         })
           .catch(err => {
             bkMessage({

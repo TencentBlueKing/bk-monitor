@@ -654,3 +654,205 @@ paths:
           appVerifiedRequired: false
           resourcePermissionRequired: true
           oauth2PersonalClientEnabled: true
+  /mcp/llm_search_traces/:
+    post:
+      operationId: llm_mcp_search_traces
+      description: 'STEP 1 of the LLM/Agent observability workflow. Page through Agent traces (one item per conversation round) or conversations (one item per session, rounds in childs) of an LLM service. Each item returns status, input/output preview, input/output tokens, start/end/elapsed time (microseconds) and user_id. PREREQUISITES: bk_biz_id/app_name from list_apm_applications; service_name must be a service whose system.is_support_llm is true in list_apm_services. Pagination uses offset+limit without total; an empty items list means no next page. Token value 0 may mean the SDK did not report usage. Pass trace_id or a conversation group_id from the result to llm_mcp_search_flows to drill down. LLM/Agent 观测工作流第 1 步：分页查询 LLM 服务的 Agent Trace（每条一轮对话）或会话（每条一个会话，childs 为各轮对话），返回状态、输入输出摘要、输入输出 Token、起止时间与耗时（微秒）和用户 ID。前置：bk_biz_id/app_name 来自 list_apm_applications；service_name 必须是 list_apm_services 中 system.is_support_llm 为 true 的服务。分页使用 offset+limit，不返回 total，items 为空表示没有下一页。Token 为 0 可能表示 SDK 未上报用量。下钻时把返回的 trace_id 或会话 group_id 传给 llm_mcp_search_flows。'
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - app_name
+              - service_name
+              - start_time
+              - end_time
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                app_name:
+                  type: string
+                  description: APM application name. Must be obtained from list_apm_applications. APM应用名称。必须从 list_apm_applications 获取。
+                service_name:
+                  type: string
+                  description: LLM service name. Must be a service with system.is_support_llm=true from list_apm_services. LLM 服务名称，必须是 list_apm_services 中 system.is_support_llm=true 的服务。
+                start_time:
+                  type: integer
+                  description: 'Start timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()) - 3600. 开始时间戳(秒)。必须动态计算！Python: int(time.time()) - 3600。'
+                end_time:
+                  type: integer
+                  description: 'End timestamp in seconds (Unix), not earlier than start_time. Calculate dynamically! Python: int(time.time()). 结束时间戳(秒)，不能早于 start_time。必须动态计算！Python: int(time.time())。'
+                group_field:
+                  type: string
+                  enum: [trace_id, attributes.gen_ai.conversation.id]
+                  default: trace_id
+                  description: 'Grouping field. "trace_id" returns one item per trace (conversation round); "attributes.gen_ai.conversation.id" returns one item per conversation with rounds in childs. The backend maps the conversation field for each SDK product. 分组字段。trace_id 按 Trace（单轮对话）返回；attributes.gen_ai.conversation.id 按会话返回，各轮对话在 childs 中。后端会按 SDK 产品映射会话字段。'
+                keyword:
+                  type: string
+                  default: ''
+                  description: 'Trace search keyword. A 32-char hex value matches both trace ID and conversation ID; other text uses trace full-text search. Default: "". Trace 检索关键词。32 位十六进制值同时匹配 Trace ID 与会话 ID，其他内容按 Trace 全文检索。默认: ""。'
+                offset:
+                  type: integer
+                  minimum: 0
+                  default: 0
+                  description: 'Pagination offset. Default: 0. 分页偏移量。默认: 0。'
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                  description: 'Number of groups per page, 1-100. Default: 20. 每页分组数量，1-100。默认: 20。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/mcp/llm_mcp_search_traces/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
+  /mcp/llm_search_flows/:
+    post:
+      operationId: llm_mcp_search_flows
+      description: 'STEP 2 of the LLM/Agent observability workflow. Get the execution flow of one trace, or the trace overviews of one conversation. With group_field=trace_id, traces[0].flow is a tree of AGENT/LLM/TOOL spans (childs nested) carrying standardized gen_ai.* attributes, tokens, status and elapsed time (microseconds). With the conversation field, every trace is returned with flow=[]; call again with group_field=trace_id to load one flow. Returns {"traces": []} when nothing matches or LLM observability is not enabled for the business. Full input/output can be very large; set input_output_preview=true (255-char previews) or include_input_output=false (structure and stats only) unless full message text is required. PREREQUISITE: group_id comes from llm_mcp_search_traces. LLM/Agent 观测工作流第 2 步：获取单个 Trace 的执行线，或单个会话下各 Trace 的概览。group_field=trace_id 时 traces[0].flow 为 AGENT/LLM/TOOL Span 树（childs 嵌套），包含标准化 gen_ai.* 属性、Token、状态和耗时（微秒）。按会话查询时每个 Trace 的 flow 为空列表，需再以 group_field=trace_id 查询单条执行线。没有匹配结果或该业务未开启 LLM 观测时返回 {"traces": []}。完整输入输出可能非常大，除非确实需要正文，请设置 input_output_preview=true（255 字摘要）或 include_input_output=false（仅结构与统计）。前置：group_id 来自 llm_mcp_search_traces。'
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - app_name
+              - group_field
+              - group_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                app_name:
+                  type: string
+                  description: APM application name. Must be obtained from list_apm_applications. APM应用名称。必须从 list_apm_applications 获取。
+                group_field:
+                  type: string
+                  enum: [trace_id, attributes.gen_ai.conversation.id]
+                  description: '"trace_id" returns one trace with its execution flow; "attributes.gen_ai.conversation.id" returns trace overviews of one conversation. trace_id 返回单个 Trace 及执行线；attributes.gen_ai.conversation.id 返回单个会话下的 Trace 概览。'
+                group_id:
+                  type: string
+                  description: Exact trace ID or conversation ID, taken from llm_mcp_search_traces. Trace ID 或会话 ID，精确匹配，取自 llm_mcp_search_traces。
+                include_input_output:
+                  type: boolean
+                  default: true
+                  description: 'Whether to include input/output text. false returns structure, metadata and token statistics only. Default: true. 是否包含输入输出正文。false 时仅返回结构、元数据与 Token 统计。默认: true。'
+                input_output_preview:
+                  type: boolean
+                  default: false
+                  description: 'Only effective when include_input_output=true. true truncates texts and tool arguments to 255 characters and drops raw body attributes. Default: false. 仅在 include_input_output=true 时生效。true 时文本与工具参数截断为 255 字符并移除原始正文属性。默认: false。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/mcp/llm_mcp_search_flows/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
+  /mcp/llm_calculate_by_range/:
+    post:
+      operationId: llm_mcp_calculate_by_range
+      description: 'Calculate LLM/Agent metrics aggregated over a time range, with optional group_by and time comparison. Returns {total, data:[{dimensions, "<time_shift>": value, growth_rates}]} sorted by the baseline column descending (usable as TopK). It does not return time-series points. duration is the average model-call latency in microseconds; request_count counts distinct Agent traces. Token value 0 may mean the SDK did not report usage. PREREQUISITES: bk_biz_id/app_name from list_apm_applications; service_name (optional) should be an LLM service from list_apm_services. 按时间范围计算 LLM/Agent 指标聚合值，支持分组与时间对比。返回 {total, data:[{dimensions, "<时间偏移>": 值, growth_rates}]}，按基准列降序排列，可直接取 TopK；不返回时序点。duration 为模型调用平均耗时（微秒），request_count 为去重的 Agent Trace 数。Token 为 0 可能表示 SDK 未上报用量。前置：bk_biz_id/app_name 来自 list_apm_applications；service_name 可选，应为 list_apm_services 中的 LLM 服务。'
+      tags:
+      - apm_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - app_name
+              - start_time
+              - end_time
+              - cal_type
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID in BlueKing Monitor. 业务ID。
+                app_name:
+                  type: string
+                  description: APM application name. Must be obtained from list_apm_applications. APM应用名称。必须从 list_apm_applications 获取。
+                service_name:
+                  type: string
+                  default: ''
+                  description: 'Optional LLM service name from list_apm_services. When empty, the product of any LLM service in the app is used for field mapping. Default: "". 可选 LLM 服务名，取自 list_apm_services；为空时使用应用内任一 LLM 服务的产品映射字段。默认: ""。'
+                start_time:
+                  type: integer
+                  description: 'Start timestamp in seconds (Unix). MUST calculate dynamically! Python: int(time.time()) - 3600. 开始时间戳(秒)。必须动态计算！Python: int(time.time()) - 3600。'
+                end_time:
+                  type: integer
+                  description: 'End timestamp in seconds (Unix). Calculate dynamically! Python: int(time.time()). 结束时间戳(秒)。必须动态计算！Python: int(time.time())。'
+                cal_type:
+                  type: string
+                  enum: [input_tokens, output_tokens, total_tokens, cache_tokens, cache_read_input_tokens, cache_write_input_tokens, model_call_count, operation_count, duration, request_count]
+                  description: 'Metric type: token counts (input/output/total/cache/cache_read_input/cache_write_input), model_call_count (model calls), operation_count (operations), duration (average model-call latency, microseconds), request_count (distinct Agent traces). 指标类型：各类 Token 数、model_call_count 模型调用次数、operation_count 操作次数、duration 模型调用平均耗时（微秒）、request_count 去重 Agent Trace 数。'
+                group_by:
+                  type: array
+                  default: []
+                  items:
+                    type: string
+                  description: 'Standard GenAI group-by fields, e.g. ["gen_ai.response.model"] or ["gen_ai.operation.name"]. The backend maps them for each SDK product. Default: []. 标准 GenAI 分组字段，如 ["gen_ai.response.model"] 或 ["gen_ai.operation.name"]，后端按 SDK 产品映射。默认: []。'
+                time_shifts:
+                  type: array
+                  default: []
+                  items:
+                    type: string
+                  description: 'Time shifts for comparison, e.g. ["1d"] or ["1w"]. "0s" is added automatically; at most two comparison periods. Default: []. 对比时间偏移，如 ["1d"] 或 ["1w"]。自动补入 "0s"，最多两个对比时段。默认: []。'
+                baseline:
+                  type: string
+                  default: 0s
+                  description: 'Baseline time shift for growth rates; must be one of time_shifts or "0s". Default: "0s". 增长率计算基准，必须是 time_shifts 中的值或 "0s"。默认: "0s"。'
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/mcp/llm_mcp_calculate_by_range/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true

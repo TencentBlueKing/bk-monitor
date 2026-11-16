@@ -12,7 +12,7 @@ FUNC_QUERY = "admin.unify_query.query"
 
 class QuerySerializer(serializers.Serializer):
     bk_tenant_id = serializers.CharField(max_length=128)
-    bk_biz_id = serializers.IntegerField(min_value=1, default=lambda: settings.DEFAULT_BK_BIZ_ID)
+    bk_biz_id = serializers.IntegerField(default=lambda: settings.DEFAULT_BK_BIZ_ID)
     parse_only = serializers.BooleanField(default=False)
     promql = serializers.CharField(max_length=65536)
     start = serializers.IntegerField(min_value=0)
@@ -36,7 +36,10 @@ class QuerySerializer(serializers.Serializer):
         "required": ["bk_tenant_id", "promql", "start", "end", "step"],
         "properties": {
             "bk_tenant_id": {"type": "string", "minLength": 1},
-            "bk_biz_id": {"type": "integer", "minimum": 1, "description": "缺省使用 DEFAULT_BK_BIZ_ID"},
+            "bk_biz_id": {
+                "type": "integer",
+                "description": "业务或空间 ID，支持负数空间 ID；缺省使用 DEFAULT_BK_BIZ_ID",
+            },
             "parse_only": {"type": "boolean", "default": False, "description": "仅解析路由和存储请求，不执行查询"},
             "promql": {"type": "string", "minLength": 1, "maxLength": 65536},
             "start": {"type": "integer", "minimum": 0, "description": "Unix 秒"},

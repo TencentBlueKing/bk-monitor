@@ -13,9 +13,11 @@ dayjs.extend(require('../src/trace/node_modules/dayjs/plugin/timezone'));
 
 const root = path.join(__dirname, '../src/trace/pages/profiling-explore');
 const lifecycle = { ...vue, onMounted: () => {} };
+global.window = { i18n: { t: value => value } };
 const i18n = { useI18n: () => ({ t: value => value }) };
 
-function load(file, dependencies = {}) {
+function load(file, dependencies = {}, cache = new Map()) {
+  if (cache.has(file)) return cache.get(file).exports;
   const { outputText, diagnostics } = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -27,9 +29,13 @@ function load(file, dependencies = {}) {
   });
   assert.equal(diagnostics.length, 0);
   const module = { exports: {} };
+  cache.set(file, module);
   new Function('require', 'module', 'exports', outputText)(
     id => {
       if (id in dependencies) return dependencies[id];
+      if (id === '../../rum-explore/utils') return { formatUnitValue: () => { throw new Error('Unexpected formatter call'); } };
+      if (id.startsWith('.')) return load(path.resolve(path.dirname(file), `${id}.ts`), dependencies, cache);
+      if (id === 'dayjs') return dayjs;
       if (id === 'vue') return lifecycle;
       if (id === 'vue-i18n') return i18n;
       if (id === 'lodash') return require('lodash');
@@ -45,6 +51,9 @@ test('RetrievalFilter fields/where loads candidates and shares the request acros
   const calls = [];
   const { useProfilingQuery } = load(`${root}/composables/use-profiling-query.ts`, {
     '@blueking/date-picker': {},
+    './use-profiling-files': { useProfilingFiles: () => ({}) },
+    'bkui-vue': { Message: () => { throw new Error('Unexpected notification'); } },
+    'monitor-common/utils/utils': { copyText: () => { throw new Error('Unexpected clipboard write'); } },
     'vue-router': { useRoute: () => ({ query: {} }), useRouter: () => ({}) },
     '../services/profiling': {
       getLabelValues: async (...args) => {
@@ -105,12 +114,14 @@ test('historical Trace links preserve absolute bounds, timezone and span filter'
     'vue-router': { useRouter: () => router },
     '../utils/flame-layout': {},
     './profiling-skeleton': {},
-    '@/pages/trace-explore/components/explore-chart/use-echarts': {},
+    '@/pages/trace-explore/components/explore-chart/use-echarts': {
+      createSeries: () => ({ seriesData: [], xAxis: [] }), createYAxis: () => [],
+    },
   }).default;
   const bounds = [Date.parse('2025-01-01T02:00:00Z'), Date.parse('2025-01-01T03:00:00Z')];
   const scope = vue.effectScope();
   try {
-    const trend = scope.run(() => Trend.setup({ bounds, timezone: 'Asia/Shanghai', appName: 'test' }, { emit() {} }));
+    const trend = scope.run(() => Trend.setup({ series: [], legend: {}, bounds, timezone: 'Asia/Shanghai', appName: 'test' }, { emit() {} }));
     const link = new URL(trend.traceHref('span&1'), 'https://example.com');
     assert.equal(link.pathname, '/trace/home');
     assert.equal(Date.parse(link.searchParams.get('start_time')), bounds[0]);

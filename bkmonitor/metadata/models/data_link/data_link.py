@@ -501,7 +501,7 @@ class DataLink(models.Model):
         SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
-        BK_STANDARD_V2_EVENT: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
+        BK_STANDARD_V2_EVENT: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
         CUSTOM_FORMAT_VM: [ResultTableConfig, ChannelBindingConfig, VMStorageBindingConfig, DataBusConfig],
         CUSTOM_FORMAT_ES: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
         CUSTOM_FORMAT_DORIS: [ResultTableConfig, DorisStorageBindingConfig, DataBusConfig],
@@ -542,6 +542,8 @@ class DataLink(models.Model):
         (BCS_FEDERAL_PROXY_TIME_SERIES, DataBusConfig): "delete",
         (BCS_FEDERAL_SUBSET_TIME_SERIES, ResultTableConfig): "keep",
         (BCS_FEDERAL_SUBSET_TIME_SERIES, VMStorageBindingConfig): "keep",
+        (BK_STANDARD_V2_EVENT, ESStorageBindingConfig): "keep",
+        (BK_STANDARD_V2_EVENT, DorisStorageBindingConfig): "keep",
         (BK_LOG, ESStorageBindingConfig): "keep",
         (BK_LOG, DorisStorageBindingConfig): "keep",
         (GRAPH_RELATION_TIME_SERIES, ResultTableConfig): "delete",
@@ -900,7 +902,7 @@ class DataLink(models.Model):
             existing_context: 既有组件复用上下文。显式传入时按同 kind 组件唯一性
                 尝试复用已有组件；默认不启用复用。
         """
-        from metadata.models import ResultTableOption
+        from metadata.models import ResultTable, ResultTableOption
 
         logger.info(
             "compose_custom_event_configs: data_link_name->[%s],bk_biz_id->[%s],data_source->[%s],table_id->[%s]",
@@ -910,9 +912,17 @@ class DataLink(models.Model):
             table_id,
         )
 
-        es_storage = ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
-        if not es_storage:
-            raise ValueError("compose_custom_event_configs: lack storage config")
+        result_table = ResultTable.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
+        try:
+            storage = result_table.get_storage(result_table.default_storage)
+        except (ESStorage.DoesNotExist, DorisStorage.DoesNotExist) as error:
+            raise ValueError(
+                f"compose_custom_event_configs: lack storage config, tenant({self.bk_tenant_id}), "
+                f"table_id({table_id}), default_storage({result_table.default_storage})"
+            ) from error
+        is_doris = result_table.default_storage == ClusterInfo.TYPE_DORIS
+        binding_class = DorisStorageBindingConfig if is_doris else ESStorageBindingConfig
+        binding_kind = DataLinkKind.DORISBINDING.value if is_doris else DataLinkKind.ESSTORAGEBINDING.value
 
         config_list = []
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
@@ -922,7 +932,7 @@ class DataLink(models.Model):
             rt_name = existing_rt.name if existing_rt is not None else self.data_link_name
 
             existing_binding = (
-                existing_context.claim(ESStorageBindingConfig, lambda c: True) if existing_context is not None else None
+                existing_context.claim(binding_class, lambda c: True) if existing_context is not None else None
             )
             binding_name = existing_binding.name if existing_binding is not None else self.data_link_name
 
@@ -936,7 +946,7 @@ class DataLink(models.Model):
                 else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
             )
 
-            es_table_ins, _ = ResultTableConfig.objects.update_or_create(
+            table_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=rt_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
@@ -945,27 +955,23 @@ class DataLink(models.Model):
                 defaults={"table_id": table_id},
             )
 
-            es_storage_ins, _ = ESStorageBindingConfig.objects.update_or_create(
+            binding_defaults = {"table_id": table_id, "bkbase_result_table_name": table_ins.name}
+            if is_doris:
+                binding_defaults["doris_cluster_name"] = storage.storage_cluster.cluster_name
+            else:
+                binding_defaults.update(
+                    es_cluster_name=storage.storage_cluster.cluster_name, timezone=storage.time_zone
+                )
+            binding_ins, _ = binding_class.objects.update_or_create(
                 name=binding_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
-                defaults={
-                    "table_id": table_id,
-                    "bkbase_result_table_name": es_table_ins.name,
-                    "es_cluster_name": es_storage.storage_cluster.cluster_name,
-                    "timezone": es_storage.time_zone,
-                },
+                defaults=binding_defaults,
             )
 
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
-            index_name = table_id.replace(".", "_")
-            write_alias = f"write_%Y%m%d_{index_name}"
-            unique_field_list = ResultTableOption.objects.get(
-                bk_tenant_id=self.bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_ES_DOCUMENT_ID
-            ).get_value()
-
             databus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=databus_name,
                 namespace=self.namespace,
@@ -975,24 +981,42 @@ class DataLink(models.Model):
                 defaults={
                     "data_id_name": databus_data_id_name,
                     "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{es_storage_ins.name}"],
+                    "sink_names": [f"{binding_kind}:{binding_ins.name}"],
                 },
             )
             databus_ins.apply_consumer_group(consumer_group)
 
-            es_rt_config = es_table_ins.compose_config(fields=fields)
-            es_binding_config = es_storage_ins.compose_config(
-                storage_cluster_name=es_storage.storage_cluster.cluster_name,
-                write_alias_format=write_alias,
-                unique_field_list=unique_field_list,
-                json_field_list=["event", "dimension"],
-                rt_name=es_table_ins.name,
-            )
+            rt_config = table_ins.compose_config(fields=fields)
+            if is_doris:
+                storage_config = storage.doris_storage_config or {}
+                binding_config = binding_ins.compose_config(
+                    storage_cluster_name=storage.storage_cluster.cluster_name,
+                    storage_keys=storage_config.get("storage_keys", []),
+                    json_fields=storage_config.get("json_fields", []),
+                    original_json_fields=storage_config.get("original_json_fields", []),
+                    field_config_group=storage_config.get("field_config_group", {}),
+                    tokenizers=storage_config.get("tokenizers"),
+                    flush_timeout=storage_config.get("flush_timeout"),
+                    expires=f"{storage.expire_days}d",
+                    table_type=storage.table_type,
+                    rt_name=table_ins.name,
+                )
+            else:
+                unique_field_list = ResultTableOption.objects.get(
+                    bk_tenant_id=self.bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_ES_DOCUMENT_ID
+                ).get_value()
+                binding_config = binding_ins.compose_config(
+                    storage_cluster_name=storage.storage_cluster.cluster_name,
+                    write_alias_format=f"write_%Y%m%d_{table_id.replace('.', '_')}",
+                    unique_field_list=unique_field_list,
+                    json_field_list=["event", "dimension"],
+                    rt_name=table_ins.name,
+                )
 
             sinks = [
                 {
-                    "kind": DataLinkKind.ESSTORAGEBINDING.value,
-                    "name": es_storage_ins.name,
+                    "kind": binding_kind,
+                    "name": binding_ins.name,
                     "namespace": self.namespace,
                 }
             ]
@@ -1004,7 +1028,7 @@ class DataLink(models.Model):
                 rules=CUSTOM_EVENT_CLEAN_RULES,
             )
 
-        config_list = [es_rt_config, es_binding_config, databus_config]
+        config_list = [rt_config, binding_config, databus_config]
         logger.info(
             "compose_custom_event_configs: data_link_name->[%s] composed configs successfully,config_list->[%s]",
             self.data_link_name,
@@ -2920,6 +2944,7 @@ class DataLink(models.Model):
         databus_option_labels = self._get_databus_option_labels()
         consumer_group: str | None = kwargs.pop("consumer_group", None)
         force_cleanup_absent_components = kwargs.pop("cleanup_absent_components", False)
+        raise_on_cleanup_error = kwargs.pop("raise_on_cleanup_error", False)
         storage_type = kwargs.pop("storage_type", None)
         compose_arguments = inspect.signature(self._get_compose_method()).bind_partial(*args, **kwargs).arguments
         data_source = compose_arguments.get("data_source")
@@ -2944,6 +2969,10 @@ class DataLink(models.Model):
                 )
             graph_relation_option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
 
+        if self.data_link_strategy == self.BK_STANDARD_V2_EVENT:
+            from metadata.models import ResultTable
+
+            storage_type = ResultTable.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=table_id).default_storage
         if storage_type is None:
             storage_type = self.STORAGE_TYPE_MAP[self.data_link_strategy]
             if graph_relation_option is not None:
@@ -2969,7 +2998,7 @@ class DataLink(models.Model):
                 },
             )
             should_update_bkbase_rt_storage_type = (
-                self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
+                self.data_link_strategy in {self.GRAPH_RELATION_TIME_SERIES, self.BK_STANDARD_V2_EVENT}
                 and bkbase_rt_record.storage_type != storage_type
             )
         except Exception as e:  # pylint: disable=broad-except
@@ -3092,7 +3121,7 @@ class DataLink(models.Model):
             self.data_link_strategy,
             response,
         )
-        self._cleanup_absent_components(components_to_delete)
+        self._cleanup_absent_components(components_to_delete, raise_on_error=raise_on_cleanup_error)
         # 仅在远端下发成功后解除停用状态，交由周期任务汇总组件状态。
         BkBaseResultTable.objects.filter(
             bk_tenant_id=self.bk_tenant_id,
@@ -3362,8 +3391,13 @@ class DataLink(models.Model):
             return code in {"404", "not_found", "resource_not_found"} or "not found" in message
         return False
 
-    def _cleanup_absent_components(self, components: list["DataLinkResourceConfigBase"]) -> None:
-        """BKBase apply 成功后尽力清理不再属于期望状态的组件。"""
+    def _cleanup_absent_components(
+        self,
+        components: list["DataLinkResourceConfigBase"],
+        *,
+        raise_on_error: bool = False,
+    ) -> None:
+        """清理多余组件；联邦调用要求清理失败上抛，保留本地记录供下轮重试。"""
         for component in components:
             try:
                 component.delete_config()
@@ -3386,6 +3420,8 @@ class DataLink(models.Model):
                     component.name,
                     error,
                 )
+                if raise_on_error:
+                    raise
 
     @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
     def apply_data_link_with_retry(self, configs: list[dict[str, Any]]):
@@ -3419,7 +3455,7 @@ class DataLink(models.Model):
         不变式：
         - ``bkbase_rt_name == ResultTableConfig.name``
         - ``bkbase_table_id == f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}"``
-        - 联邦子集链路不声明独立 ResultTable，兼容使用 ``ConditionalSinkConfig.name`` 回填上述两个字段
+        - 联邦子集链路没有独立 ResultTable 时，上述两个字段置空
         - ``bkbase_data_name == DataBusConfig.data_id_name``
         - ``storage_type`` / ``storage_cluster_id`` 与 ``ClusterInfo`` 实际记录保持一致。
         """
@@ -3461,7 +3497,7 @@ class DataLink(models.Model):
         rt_queryset = rt_queryset.order_by("-last_modify_time", "-id")
         rt_count = rt_queryset.count()
         rt = rt_queryset.first()
-        if rt_count == 0:
+        if rt_count == 0 and self.data_link_strategy != self.BCS_FEDERAL_SUBSET_TIME_SERIES:
             logger.warning(
                 "sync_metadata: data_link_name->[%s] table_id->[%s] ResultTableConfig not found, "
                 "will record partial BkBaseResultTable",
@@ -3529,23 +3565,8 @@ class DataLink(models.Model):
                 }
             )
         elif self.data_link_strategy == self.BCS_FEDERAL_SUBSET_TIME_SERIES:
-            conditional_sink = (
-                ConditionalSinkConfig.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id,
-                    namespace=self.namespace,
-                    data_link_name=self.data_link_name,
-                )
-                .order_by("-last_modify_time", "-id")
-                .first()
-            )
-            if conditional_sink:
-                bkbase_rt_name = conditional_sink.name
-                defaults.update(
-                    {
-                        "bkbase_rt_name": bkbase_rt_name,
-                        "bkbase_table_id": f"{conditional_sink.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
-                    }
-                )
+            # Subset 只有 ConditionalSink/Databus，不能将复制组件名登记为独立结果表。
+            defaults.update(bkbase_rt_name=None, bkbase_table_id=None)
         if databus:
             defaults["bkbase_data_name"] = databus.data_id_name
 

@@ -145,11 +145,11 @@
                 <span class="parsing-text">{{ $t('解析中...') }}...</span>
               </div>
               <div
-                v-show="parsingRes === 'error'"
+                v-show="parsingRes === 'error' || parsingRes === 'empty'"
                 class="parsing-result"
               >
                 <i class="bk-icon icon-exclamation-circle-shape icon-error" />
-                <span class="error-text"> {{ $t('文件已损坏') }} </span>
+                <span class="error-text"> {{ parsingRes === 'empty' ? $t('导入数据为空') : $t('文件已损坏') }} </span>
               </div>
             </div>
           </div>
@@ -219,7 +219,8 @@
 
 <script>
 import { fileImportUptimeCheck, fileParse } from 'monitor-api/modules/uptime_check';
-import { read, utils } from 'xlsx';
+
+import { parseXlsx } from './parse-xlsx';
 
 export default {
   name: 'UptimeCheckImport',
@@ -364,11 +365,20 @@ export default {
         this.file = file;
         await this.validateFile(this.getFileInfo(file));
         this.status = 'uploading';
-        const parseRes = await this.parseFile(file);
-        this.status = 'parsing';
-        this.parsingRes = 'parsing';
+        let parseRes;
+        try {
+          parseRes = await this.parseFile(file);
+        } catch {
+          return;
+        }
+        if (this.file !== file) return;
         const { taskList } = this;
         const parseResData = parseRes.data;
+        if (!parseResData.length) {
+          this.parsingRes = 'empty';
+          this.$bkMessage({ theme: 'warning', message: this.$t('导入数据为空') });
+          return;
+        }
         let item = {};
         let task = {};
         for (let index = 0, { length } = parseResData; index < length; index++) {
@@ -456,38 +466,41 @@ export default {
       };
       const fileReader = new FileReader();
       return new Promise((resolve, reject) => {
-        fileReader.onload = ev => {
+        const fail = error => {
+          if (this.file === file) {
+            this.status = 'parsing';
+            this.parsingRes = 'error';
+            this.$bkMessage({
+              theme: 'error',
+              message: this.$t('解析文件失败'),
+              ellipsisLine: 0,
+            });
+          }
+          reject(error);
+        };
+        fileReader.onload = async ev => {
           try {
-            const data = ev.target.result;
-            const workbook = read(data, {
-              type: 'binary', // 以二进制流方式读取得到整份excel表格对象
-            });
-            Object.keys(workbook.Sheets).forEach((sheet, index) => {
-              if (index === 0) {
-                res.data.push(...utils.sheet_to_json(workbook.Sheets[sheet]));
-              }
-            });
-            setTimeout(() => {
+            if (this.file !== file) {
               resolve(res);
-            }, 300);
+              return;
+            }
+            this.uploadProcess = 100;
+            this.status = 'parsing';
+            this.parsingRes = 'parsing';
+            res.data = await parseXlsx(ev.target.result);
+            resolve(res);
           } catch (e) {
-            setTimeout(() => {
-              this.$bkMessage({
-                theme: 'error',
-                message: e || this.$t('解析文件失败'),
-                ellipsisLine: 0,
-              });
-              this.parsingRes = 'error';
-              reject(e);
-            }, 300);
+            fail(e);
           }
         };
         fileReader.onprogress = ev => {
-          setTimeout(() => {
+          if (this.file === file && ev.total) {
             this.uploadProcess = Number.parseInt((ev.loaded / ev.total) * 100, 10);
-          }, 300);
+          }
         };
-        fileReader.readAsBinaryString(file);
+        fileReader.onerror = () => fail(fileReader.error);
+        fileReader.onabort = () => fail(fileReader.error);
+        fileReader.readAsArrayBuffer(file);
       });
     },
     async getRules(type) {
@@ -770,6 +783,7 @@ export default {
               padding-left: 10px;
               line-height: 30px;
               text-align: left;
+
               // z-index: 2;
               pointer-events: none;
               background: #fff;

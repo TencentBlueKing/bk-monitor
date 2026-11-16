@@ -110,3 +110,59 @@ export type LlmToolResult = {
   name: string;
   result: unknown;
 };
+
+/** 模型 Span 时间流筛选 */
+export type LlmTimelineFilter = 'all' | 'error' | 'last-input' | 'output';
+
+/** 时间流单条 message，序号按 messages 下标，parts 按字段顺序连成一组 */
+export type LlmTimelineMessage = {
+  id: string;
+  index: number;
+  isError: boolean;
+  parts: LlmTimelinePart[];
+  tab: 'input' | 'output';
+};
+
+/** 模型 Span 时间流观测数据 */
+export type LlmModelTimeline = {
+  availableTools: LlmToolDefinition[];
+  errorCount: number;
+  inputMessages: LlmTimelineMessage[];
+  outputMessages: LlmTimelineMessage[];
+  systemPrompts: LlmTextItem[];
+};
+
+/** 按 Trace 查询到的工具执行记录，用于时间流行的耗时、异常与详情 */
+export type LlmToolCall = {
+  elapsedTime: number | null;
+  /** status.code === 2 视为执行失败 */
+  isError: boolean;
+  spanId: string;
+  startTime: number | null;
+  /** status.message，异常图标 tooltip 使用 */
+  statusMessage: string;
+  toolCallId: string;
+  toolName: string;
+};
+
+/** 时间流一行：同一 message 的 part，仅首行展示 [n] */
+export type LlmTimelinePart = {
+  arguments?: unknown;
+  content: string;
+  /** 工具描述：优先 part.description，否则回落到 tool.definitions */
+  description?: string;
+  id: string;
+  isError: boolean;
+  isPlaceholder?: boolean;
+  messageIndex: number;
+  response?: unknown;
+  role: LlmTimelineRole;
+  searchBlockId: string;
+  showIndex: boolean;
+  spanId?: string;
+  /** 消息 Part 原始 id，对应 list_tool_calls.tool_call_id */
+  toolCallId?: string;
+  toolName?: string;
+};
+
+export type LlmTimelineRole = 'model' | 'system' | 'thinking' | 'tool' | 'user';

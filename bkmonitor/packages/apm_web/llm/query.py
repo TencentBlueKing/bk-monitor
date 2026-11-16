@@ -195,7 +195,7 @@ class LLMQuery(SpanQuery):
                 queries = [query.filter(extra_filter) for query in queries]
             if fields:
                 queries = [query.values(*fields) for query in queries]
-            qs = self.get_qs(start_time, end_time).is_es_batch().limit(limit)
+            qs = self.get_qs(start_time, end_time).limit(limit)
             return list(self._add_query(qs, queries))
 
         if len(chunks) == 1:
@@ -259,6 +259,25 @@ class LLMQuery(SpanQuery):
             for query in self.build_queries(time_field=OtlpKey.START_TIME)
         ]
         return self._query_list(queries, None, None, 0, len(trace_ids))
+
+    def query_trace_tool_calls(self, trace_id: str) -> list[dict[str, Any]]:
+        """只查询标准工具执行摘要，不加载消息、调用参数或返回结果。"""
+        fields: tuple[str, ...] = (
+            OtlpKey.SPAN_ID,
+            "attributes.gen_ai.tool.call.id",
+            "attributes.gen_ai.tool.name",
+            OtlpKey.START_TIME,
+            OtlpKey.ELAPSED_TIME,
+            OtlpKey.STATUS,
+            OtlpKey.EVENTS,
+        )
+        queries: list[QueryConfigBuilder] = [
+            query.filter(trace_id__eq=[trace_id], **{"attributes.gen_ai.operation.name__eq": ["execute_tool"]})
+            .values(*fields)
+            .order_by(f"{OtlpKey.START_TIME} asc", f"{OtlpKey.SPAN_ID} asc")
+            for query in self.build_queries(time_field=OtlpKey.START_TIME)
+        ]
+        return self._query_list(queries, None, None, 0, self.QUERY_MAX_LIMIT)
 
     def query_group_trace_list(
         self,

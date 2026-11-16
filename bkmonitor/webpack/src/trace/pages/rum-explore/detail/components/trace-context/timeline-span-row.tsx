@@ -28,6 +28,7 @@ import type { PropType } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
+import type { IRumTraceInfo } from '../../services';
 import type { IRumTimelineSpanVM } from '../../typings';
 
 import './timeline-span-row.scss';
@@ -47,7 +48,7 @@ export default defineComponent({
   emits: {
     toggle: (_spanId: string) => true,
     spanClick: (_span: IRumTimelineSpanVM) => true,
-    traceClick: (_traceId: string) => true,
+    traceClick: (_trace: IRumTraceInfo) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -60,8 +61,12 @@ export default defineComponent({
 
     return () => {
       const { data } = props;
+      const trace = data.trace;
       return (
-        <div class={{ 'timeline-span-row': true, 'is-current': data.isCurrent, 'is-child': data.level > 0 }}>
+        <div
+          class={{ 'timeline-span-row': true, 'is-current': data.isCurrent, 'is-child': data.level > 0 }}
+          data-trace-id={data.traceId || undefined}
+        >
           <div class='row-main'>
             <span class='row-time'>{data.timeText}</span>
             <span class='row-toggle'>
@@ -98,10 +103,10 @@ export default defineComponent({
             </span>
           </div>
           <div class='row-extra'>
-            {data.traceId ? (
+            {trace ? (
               <span
                 class='row-trace-link'
-                onClick={() => emit('traceClick', data.traceId)}
+                onClick={() => emit('traceClick', trace)}
               >
                 <i class='icon-monitor icon-dingwei1' />
                 {t('关联 Trace')}

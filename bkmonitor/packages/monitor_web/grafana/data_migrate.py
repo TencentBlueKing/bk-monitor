@@ -57,6 +57,7 @@ class TimeSeriesPanel(BasePanel):
         self.draw_style = draw_style
         self.fill_opacity = fill_opacity
         self.min_y = min_y
+        self.field_overrides = []
 
         super(TimeSeriesPanel, self).__init__(self.type, title, gridPos, datasource, id, **kwargs)
 
@@ -98,6 +99,6 @@ class TimeSeriesPanel(BasePanel):
                     "thresholds": {"mode": "absolute", "steps": [{"value": None, "color": "green"}]},
                     "min": self.min_y,
                 },
-                "overrides": [],
+                "overrides": self.field_overrides,
             },
         }

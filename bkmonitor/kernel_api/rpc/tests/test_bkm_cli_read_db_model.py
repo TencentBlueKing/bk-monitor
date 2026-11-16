@@ -1426,3 +1426,37 @@ def test_read_db_model_action_config_drops_execute_config_even_when_explicitly_r
     item = result["result"]["items"][0]
     assert "execute_config" not in item
     assert item == {"id": 1001, "name": "demo-notice", "is_enabled": True, "is_deleted": False}
+
+
+@pytest.mark.parametrize(
+    "model_path, instance_kwargs",
+    [
+        (
+            "metadata.models.entity_relation.ResourceDefinition",
+            {"namespace": "", "name": "pod", "fields": [{"name": "pod", "required": True}], "labels": {"a": "b"}},
+        ),
+        (
+            "metadata.models.entity_relation.RelationDefinition",
+            {"namespace": "", "name": "node_with_pod", "from_resource": "node", "to_resource": "pod"},
+        ),
+    ],
+)
+def test_relation_definitions_expose_exactly_what_is_published(monkeypatch, model_path, instance_kwargs):
+    from django.utils.module_loading import import_string
+
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    model = import_string(model_path)
+    instance = model(**instance_kwargs)
+    # to_redis_json() 是发布到 Redis 的内容，可读字段以它为准，不多不少。
+    published = instance.to_redis_json()
+    spec = db.ALLOWED_MODEL_SPECS[model_path]
+    assert db._safe_fields(spec) == set(published)
+
+    FakeModel.objects = FakeManager(FakeQuerySet([instance]))
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+    result = BkmCliOpCallResource().perform_request(
+        {"op_id": "read-db-model", "params": {"model": model_path, "fields": sorted(published), "limit": 1}}
+    )
+    item = result["result"]["items"][0]
+    assert item == {**published, "namespace": ""}

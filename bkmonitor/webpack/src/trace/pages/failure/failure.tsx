@@ -35,7 +35,7 @@ import {
   watch,
 } from 'vue';
 
-import { Loading, ResizeLayout } from 'bkui-vue';
+import { Exception, Loading, ResizeLayout } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { alertTopN, listAlertTags } from 'monitor-api/modules/alert';
 import {
@@ -106,23 +106,34 @@ export default defineComponent({
   setup(props) {
     const route = useRoute();
     const router = useRouter();
+    const { t } = useI18n();
 
-    // 解析真实的 incident ID（当 id 长度 < 16 时，说明是短 id，需通过接口换取真实 id）
+    // 短 ID 需要先换取监控文档 ID；转换失败不能清空原路由或继续请求详情。
     const resolvedId = deepRef(props.id);
     const idResolving = deepRef(false);
+    const idResolveError = deepRef(props.id ? '' : t('缺少故障 ID，请从故障列表重新打开详情。'));
     let idResolvePromise: null | Promise<void> = null;
     if (props.id && String(props.id).length < 11) {
       idResolving.value = true;
       idResolvePromise = getIncidentDocId({ incident_id: props.id })
         .then(async res => {
-          resolvedId.value = res.id;
+          const documentId = res?.id;
+          if (!['string', 'number'].includes(typeof documentId) || !/^[1-9]\d*$/.test(String(documentId))) {
+            idResolveError.value = t(
+              '未找到故障 {id} 对应的监控文档，可能已被抑制或尚未同步。请返回列表查看分析记录。',
+              { id: props.id }
+            );
+            return;
+          }
           await router.replace({
             name: route.name as string,
-            params: { ...route.params, id: res.id },
+            params: { ...route.params, id: String(documentId) },
             query: { ...route.query },
           });
+          resolvedId.value = String(documentId);
         })
         .catch(err => {
+          idResolveError.value = t('故障 {id} 的详情地址解析失败，请稍后刷新重试。', { id: props.id });
           console.error('Failed to resolve incident_id:', err);
         })
         .finally(() => {
@@ -134,7 +145,6 @@ export default defineComponent({
     const operations = deepRef([]);
     const operationsFailDetail = deepRef('');
     const bkzIds = deepRef([]);
-    const { t } = useI18n();
     const incidentDetailData = deepRef<IIncident>({});
     const valueMap = deepRef<Record<Partial<AnlyzeField>, ICommonItem[]>>({});
     const analyzeTagList = deepRef([]);
@@ -362,6 +372,7 @@ export default defineComponent({
     };
     /** 获取故障详情 */
     const getIncidentDetail = () => {
+      if (idResolving.value || idResolveError.value) return;
       incidentDetail({
         id: resolvedId.value,
       })
@@ -389,6 +400,7 @@ export default defineComponent({
 
     /** 故障分析状态获取接口 */
     const getIncidentResults = (isInit = false) => {
+      if (idResolving.value || idResolveError.value) return;
       incidentResults({ id: resolvedId.value }).then(res => {
         incidentResultStatus.value = res.status || 'finished';
         incidentResultList.value = res.panels || {};
@@ -420,6 +432,7 @@ export default defineComponent({
       if (idResolvePromise) {
         await idResolvePromise;
       }
+      if (idResolveError.value) return;
       getIncidentResults(true);
       getIncidentDetail();
     });
@@ -503,6 +516,7 @@ export default defineComponent({
       alarmDetailShow,
       alarmDetailData,
       idResolving,
+      idResolveError,
       handleOpenEdit,
       failureHeaderRef,
     };
@@ -512,6 +526,15 @@ export default defineComponent({
       return (
         <div class='failure-wrapper failure-id-resolving'>
           <Loading />
+        </div>
+      );
+    }
+    if (this.idResolveError) {
+      return (
+        <div class='failure-wrapper failure-id-resolving'>
+          <Exception type='empty'>
+            <div role='alert'>{this.idResolveError}</div>
+          </Exception>
         </div>
       );
     }
@@ -545,7 +568,6 @@ export default defineComponent({
                 onFilterSearch={this.filterSearchHandle}
                 onNodeClick={this.nodeClick}
                 onNodeExpand={this.nodeExpand}
-                onStrategy={this.goAlertList}
                 onTreeScroll={this.treeScroll}
               />
             ),

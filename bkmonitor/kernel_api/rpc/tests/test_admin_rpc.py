@@ -3983,3 +3983,18 @@ def test_apm_profiling_datalink_detail_marks_v3_unavailable(monkeypatch):
     assert result["data"]["unavailable_reason"] == "profiling_v3_unsupported"
     assert result["data"]["components"]["Databus"] == []
     assert result["warnings"][0]["code"] == "PROFILING_V3_UNSUPPORTED"
+
+
+@pytest.mark.parametrize("physical_tables", [{}, {"main": "db.logs_*"}, {"sample": "db.sample", "label": "db.label"}])
+def test_admin_serializers_preserve_doris_physical_table_mapping(physical_tables):
+    record = SimpleNamespace(physical_tables=physical_tables, bkbase_table_id="2_profile")
+    assert admin_datalink._serialize_component(record, "DorisBinding")["physical_tables"] == physical_tables
+    assert _serialize_doris_storage(record)["physical_tables"] == physical_tables
+    history = serialize_storage_cluster_record(record, None)
+    assert history["physical_tables"] == physical_tables
+    assert history["bkbase_table_id"] == "2_profile"
+
+
+def test_admin_databus_serializer_preserves_options():
+    options = {"flush_interval": 5, "nested": {"enabled": False}}
+    assert admin_datalink._serialize_component(SimpleNamespace(options=options), "Databus")["options"] == options

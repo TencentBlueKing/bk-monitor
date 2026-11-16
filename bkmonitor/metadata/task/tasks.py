@@ -124,6 +124,21 @@ def _get_gather_up_table_id(bk_tenant_id: str, bk_biz_id: int) -> str:
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def sync_as_code_recording_rules(rule_ids: list[int], operator: str):
+    """执行 AsCode 已保存的预计算声明，单条失败不影响其余规则。"""
+    from bkmonitor.as_code.recording_rule import execute_rule
+    from metadata.models.record_rule.v4.models import RecordRuleV4
+
+    for rule in RecordRuleV4.objects.filter(pk__in=rule_ids).order_by("id").iterator():
+        try:
+            result = execute_rule(rule, source="as_code", operator=operator)
+            if not result["succeeded"]:
+                logger.error("AsCode RecordingRule sync failed, id: %s, error: %s", rule.pk, result["error"])
+        except Exception:
+            logger.exception("AsCode RecordingRule sync failed, id: %s", rule.pk)
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def refresh_custom_report_config(bk_biz_id=None):
     from metadata.task.custom_report import refresh_custom_report_2_node_man
 

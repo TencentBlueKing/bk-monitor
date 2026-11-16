@@ -99,6 +99,7 @@ class K8SCustomChart extends CommonSimpleChart {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @Inject({ from: 'onShowDetail', default: () => null }) readonly onShowDetail: (
+    name: string,
     dimensions: Record<string, string>
   ) => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
@@ -172,7 +173,11 @@ class K8SCustomChart extends CommonSimpleChart {
   beforeDestroy() {
     this.disposed = true;
     this.dataRequestId++;
-    if (this.k8sLoadingSkeleton) this.cancelTokens.forEach(cancel => cancel?.());
+    if (this.k8sLoadingSkeleton) {
+      this.cancelTokens.forEach(cancel => {
+        cancel?.();
+      });
+    }
   }
 
   isCurrentDataRequest(requestId: number) {
@@ -184,7 +189,9 @@ class K8SCustomChart extends CommonSimpleChart {
     const requestId = ++this.dataRequestId;
     if (this.k8sLoadingSkeleton) {
       this.dataLoading = true;
-      this.cancelTokens.forEach(cancel => cancel?.());
+      this.cancelTokens.forEach(cancel => {
+        cancel?.();
+      });
       this.cancelTokens = [];
     }
     this.loadPanelData(start_time, end_time, requestId);
@@ -196,7 +203,9 @@ class K8SCustomChart extends CommonSimpleChart {
       return;
     }
     if (!this.isCurrentDataRequest(requestId) || !this.$el?.clientWidth) return;
-    this.cancelTokens.forEach(cb => cb?.());
+    this.cancelTokens.forEach(cb => {
+      cb?.();
+    });
     this.cancelTokens = [];
     if (this.k8sLoadingSkeleton ? this.chartDataLoaded : this.initialized) this.handleLoadingChange(true);
     this.emptyText = window.i18n.t('加载中...');
@@ -1130,7 +1139,7 @@ class K8SCustomChart extends CommonSimpleChart {
                             item.show && !this.isSpecialSeries(item.name) && canShowDetail ? 'can-show-detail' : '',
                           ]}
                           v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
-                          onClick={() => canShowDetail && this.onShowDetail(item.name)}
+                          onClick={() => canShowDetail && this.onShowDetail(item.name, item.dimensions)}
                         >
                           {item.name}
                         </span>

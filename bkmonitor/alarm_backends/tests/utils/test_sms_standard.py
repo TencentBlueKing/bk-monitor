@@ -29,9 +29,9 @@ TIME = "2025年1月1日 01:02分"
 GUIDANCE = "请到企业微信/蓝鲸监控平台查看。"
 ENGLISH_NO_ACTION = {
     "recovered/action": "Skip ",
-    "recovered/converge": "ignore",
+    "recovered/converge": "Skip ",
     "closed/action": "Skip ",
-    "closed/converge": "Skip ",
+    "closed/converge": "FYI ",
 }
 VALUES = {
     "time": TIME,
@@ -45,19 +45,19 @@ VALUES = {
 }
 
 CHINESE_MESSAGES = {
-    "abnormal/action": f"{TIME}，您有1条致命级的告警待处理（CPU），{GUIDANCE}",
-    "abnormal/converge": f"{TIME}，您有5条致命级的告警待处理（代表：CPU），{GUIDANCE}",
-    "recovered/action": f"{TIME}，您的1条致命级告警已恢复（CPU），无需处理，详情{GUIDANCE}",
-    "recovered/converge": f"{TIME}，您的5条致命级告警已恢复，无需处理，详情{GUIDANCE}",
-    "closed/action": f"{TIME}，您的1条致命级告警已关闭（CPU），无需处理，详情{GUIDANCE}",
-    "closed/converge": f"{TIME}，您的5条致命级告警已关闭，无需处理，详情{GUIDANCE}",
-    "ack/action": f"{TIME}，您关注的1条告警已由 a 确认处理（CPU），{GUIDANCE}",
-    "ack/converge": f"{TIME}，您关注的5条告警已由 a 确认处理，{GUIDANCE}",
-    "assign/action": f"{TIME}，有1条致命级的告警分派给您处理（CPU），{GUIDANCE}",
+    "abnormal/action": f"{TIME}，您有1条致命级的告警待处理（CPU***CPU），{GUIDANCE}",
+    "abnormal/converge": f"{TIME}，5条致命级告警待处理（代表：CPU***CPU），{GUIDANCE}",
+    "recovered/action": f"{TIME}，1条致命级告警已恢复（CPU***CPU），无需处理，{GUIDANCE}",
+    "recovered/converge": f"{TIME}，您的5条致命级告警已恢复，无需处理，{GUIDANCE}",
+    "closed/action": f"{TIME}，1条致命级告警已关闭（CPU***CPU），无需处理，{GUIDANCE}",
+    "closed/converge": f"{TIME}，您的5条致命级告警已关闭，无需处理，{GUIDANCE}",
+    "ack/action": f"{TIME}，1条告警已由a确认处理（CPU***CPU），{GUIDANCE}",
+    "ack/converge": f"{TIME}，5条告警由a确认，{GUIDANCE}",
+    "assign/action": f"{TIME}，有1条致命级的告警分派给您处理（CPU***CPU），{GUIDANCE}",
     "assign/converge": f"{TIME}，有5条致命级的告警分派给您处理，{GUIDANCE}",
-    "fta_action": f"{TIME}，您的告警处理套餐（CPU）执行状态为失败，{GUIDANCE}",
-    "incident": f"{TIME}，您有1个致命级的故障待处理（关联5条告警），{GUIDANCE}",
-    "shield": f"{TIME}，您有一条告警屏蔽已开始，屏蔽时长2小时，{GUIDANCE}",
+    "fta_action": f"{TIME}，告警处理套餐（CPU）执行状态为失败，{GUIDANCE}",
+    "incident": f"{TIME}，1个致命级的故障待处理（5条告警），{GUIDANCE}",
+    "shield": f"{TIME}，一条告警屏蔽已开始，屏蔽时长2小时，{GUIDANCE}",
 }
 
 
@@ -120,6 +120,36 @@ def test_chinese_standard_template_matrix(kind, expected):
     assert len(content.encode("utf-16-le")) // 2 <= 70
 
 
+@pytest.mark.parametrize(
+    "kind",
+    ["abnormal/action", "abnormal/converge", "recovered/action", "closed/action", "ack/action", "assign/action"],
+)
+@pytest.mark.parametrize("language", ["zh-hans", "en"])
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("CPU usage too high", "CPU***igh"),
+        ("生产环境CPU总使用率告警", "生产环***率告警"),
+        ("ABCDEF", "ABC***DEF"),
+        ("CPU", "CPU***CPU"),
+        ("A", "A***A"),
+        ("", "***"),
+    ],
+)
+def test_alert_names_keep_first_and_last_three_characters(kind, language, name, expected, settings):
+    settings.ENVIRONMENT_CODE = "zone01"
+    values = {**VALUES, "time": "2026年12月31日 23:59分", "name": name, "operator": "admin"}
+    if language == "en":
+        values.update(time="2026-12-31 23:59", level="Emergency")
+
+    content = render_standard_sms(kind, values, language=language)
+
+    assert expected in content
+    assert content.endswith("【zone01】")
+    assert sms_utf16_length(content) <= 70
+    assert values["name"] == name
+
+
 @pytest.mark.parametrize("kind", SMS_TEMPLATE_KINDS)
 def test_english_standard_template_matrix(kind):
     values = {
@@ -142,8 +172,7 @@ def test_english_standard_template_matrix(kind):
     if kind in ENGLISH_NO_ACTION:
         assert ENGLISH_NO_ACTION[kind] in content
     if kind == "incident":
-        assert "5 alerts" in content
-        assert "Act:Emergency fault" in content
+        assert "Act:Emergency fault(5)" in content
 
 
 @pytest.mark.parametrize("count", [1000, 100000, 2147483647])
@@ -151,7 +180,8 @@ def test_english_standard_template_matrix(kind):
     "kind",
     ["abnormal/converge", "recovered/converge", "closed/converge", "ack/converge", "assign/converge", "incident"],
 )
-def test_english_count_templates_support_32_bit_counts(kind, count):
+def test_english_count_templates_support_32_bit_counts(kind, count, settings):
+    settings.ENVIRONMENT_CODE = "zone01"
     values = {
         **VALUES,
         "time": "2026-12-31 23:59",
@@ -165,7 +195,7 @@ def test_english_count_templates_support_32_bit_counts(kind, count):
 
     assert content.startswith("2026-12-31 23:59 ")
     assert str(count) in content
-    assert content.endswith("See WeCom/BK.")
+    assert content.endswith("See WeCom/BK.【zone01】")
     assert len(content.encode("utf-16-le")) // 2 <= 70
     if kind != "ack/converge":
         assert "Emergency" in content
@@ -207,6 +237,54 @@ def test_only_explicit_sms_paths_are_mapped(kind):
     assert standard_sms_template_kind(f"notice/{kind}/markdown_content.jinja") is None
     assert standard_sms_template_kind(f"notice/{kind}/sms_title.jinja") is None
     assert standard_sms_template_kind(f"notice/standard/{kind}/sms_content.jinja") is None
+
+
+@pytest.mark.parametrize("kind", SMS_TEMPLATE_KINDS)
+@pytest.mark.parametrize("language", ["zh-hans", "en"])
+def test_environment_suffix_fits_standard_sms_templates(kind, language, settings):
+    settings.ENVIRONMENT_CODE = "zone01"
+    values = {
+        **VALUES,
+        "time": "2026年12月31日 23:59分",
+        "name": "名称😀" * 100,
+        "count": 2147483647,
+        "operator": ["操作人" * 100, *[str(i) for i in range(19)]],
+        "status": "部分成功",
+        "duration": "87600000小时/次",
+    }
+    if language == "en":
+        values.update(
+            time="2026-12-31 23:59",
+            level="Emergency",
+            status="Partially Successful",
+            duration="<1 hour / Times",
+            shield_action="Start",
+        )
+
+    content = render_standard_sms(kind, values, language)
+
+    guidance = GUIDANCE if language == "zh-hans" else "See WeCom/BK."
+    assert content.startswith(values["time"])
+    assert content.endswith(f"{guidance}【zone01】")
+    assert sms_utf16_length(content) <= 70
+    if kind.endswith("/converge") or kind == "incident":
+        assert str(values["count"]) in content
+    if kind == "shield":
+        assert values["duration"] in content
+    if kind == "fta_action":
+        assert values["status"] in content
+
+
+@pytest.mark.parametrize(
+    ("code", "suffix"),
+    [("", ""), ("bk_monitor", ""), (" zone1\n", "【zone1】"), ("location", "【locat…】")],
+)
+def test_environment_suffix_uses_configured_code(code, suffix, settings):
+    settings.ENVIRONMENT_CODE = code
+
+    content = render_standard_sms("abnormal/action", VALUES, "zh-hans")
+
+    assert content == CHINESE_MESSAGES["abnormal/action"] + suffix
 
 
 @pytest.mark.parametrize("path", ["notice/abnormal/action/default_content.jinja", "custom/sms_content.jinja", ""])
@@ -262,18 +340,48 @@ def test_exact_70_units_does_not_shorten_name():
     assert "…" in truncated
 
 
-def test_name_is_shortened_before_operator():
+def test_alert_name_is_compacted_before_operator_budget():
     content = render_standard_sms("ack/action", {**VALUES, "name": "名称" * 100, "operator": "admin"})
 
-    assert "由 admin 确认处理" in content
-    assert "…" in content
-    assert sms_utf16_length(content) == 70
+    assert "由admin确认处理" in content
+    assert "（名称名***称名称）" in content
+    assert sms_utf16_length(content) <= 70
     assert content.endswith(GUIDANCE)
+
+
+@pytest.mark.parametrize(
+    ("kind", "values", "expected_name"),
+    [
+        (
+            "closed/action",
+            {"name": "😀😀😀middle😀😀😀", "level": "Emergency"},
+            "😀😀😀**…",
+        ),
+        (
+            "abnormal/converge",
+            {"name": "CPU usage too high", "level": "Emergency", "count": 2147483647},
+            "CPU…",
+        ),
+    ],
+)
+def test_compacted_alert_names_still_obey_utf16_budget(kind, values, expected_name, settings):
+    settings.ENVIRONMENT_CODE = "zone01"
+    content = render_standard_sms(kind, {**VALUES, **values, "time": "2026-12-31 23:59"}, language="en")
+
+    assert expected_name in content
+    assert sms_utf16_length(content) <= 70
+    assert content.endswith("See WeCom/BK.【zone01】")
+
+
+def test_alert_name_cleanup_precedes_compaction():
+    content = render_standard_sms("abnormal/action", {**VALUES, "name": "[CPU](https://example.com)"}, "zh-hans")
+    assert "（CPU***CPU）" in content
+    assert "example.com" not in content
 
 
 def test_multiple_short_operators_remain_visible():
     content = render_standard_sms("ack/converge", {**VALUES, "operator": ["a", "b"]}, language="zh-hans")
-    assert "由 a、b 确认处理" in content
+    assert "由a、b确认" in content
 
 
 def test_long_name_and_multiple_operators_preserve_operator_count():
@@ -282,7 +390,7 @@ def test_long_name_and_multiple_operators_preserve_operator_count():
     )
 
     assert "告警" not in content.split("确认处理", 1)[1]
-    assert "等2人 确认处理（）" in content
+    assert "等2人确认处理（）" in content
     assert "…" in content
     assert sms_utf16_length(content) <= 70
     assert content.endswith(GUIDANCE)
@@ -319,7 +427,7 @@ def test_names_are_plain_data_and_never_a_second_template():
 
 def test_ack_operators_count_people_instead_of_alerts():
     content = render_standard_sms("ack/converge", {**VALUES, "count": 20, "operator": ["alice"] * 20}, "zh-hans")
-    assert "已由 alice 确认处理" in content
+    assert "由alice确认" in content
     assert "等20人" not in content
 
 

@@ -12,8 +12,8 @@ from collections import defaultdict
 
 from alarm_backends.core.cache import key
 
-# 读到 0 的去重标记，与按 record_id 记录的非零值区分；record_id 形如 {md5}.{time}，不含该分隔符
-ZERO_VALUE_RECORD_SUFFIX = "|0"
+# 日志计数按取值去重。同一 record_id 的新取值仍要送检，检测侧覆盖该时间点的旧结果。
+VALUE_RECORD_SUFFIX = "|v|"
 
 
 class Duplicate:

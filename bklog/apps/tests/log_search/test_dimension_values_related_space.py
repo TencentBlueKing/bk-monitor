@@ -134,11 +134,15 @@ class TestDimensionValuesRelatedSpace(TestCase):
 
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
 class TestDimensionValuesViewRelatedSpace(TestCase):
+    @patch("apps.api.BcsApi.get_cluster_by_cluster_id")
     @patch("apps.log_search.views.scene_search_views.IndexSetHandler.get_all_related_space_uids")
     @patch("apps.log_search.models.IndexSetTag.get_dimension_values")
-    def test_view_passes_related_space_uids(self, mock_dv, mock_related):
+    def test_view_passes_related_space_uids(self, mock_dv, mock_related, mock_bcs):
         mock_dv.return_value = ["BCS-K8S-001"]
         mock_related.return_value = ["bkcc__2", "bcs__BCS-K8S-001"]
+        # cluster_id 维度会触发 _enrich_cluster_names 调用 BCS API（get_cluster_by_cluster_id
+        # 按 cluster_id 精确查询，入参 cluster_id 会被 upper），显式 mock 保证测试确定性。
+        mock_bcs.return_value = {"clusterName": "关联集群", "projectID": "proj-001"}
 
         factory = APIRequestFactory()
         request = factory.post(
@@ -157,6 +161,12 @@ class TestDimensionValuesViewRelatedSpace(TestCase):
             dimension_key="cluster_id",
             filters=None,
             space_uids=["bkcc__2", "bcs__BCS-K8S-001"],
+        )
+        # values 仍为原始字符串数组（向后兼容），options 补充集群名称
+        self.assertEqual(response.data["values"], ["BCS-K8S-001"])
+        self.assertEqual(
+            response.data["options"],
+            [{"id": "BCS-K8S-001", "name": "关联集群"}],
         )
 
 

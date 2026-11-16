@@ -8,6 +8,8 @@ from kernel_api.rpc.functions.admin.common import serialize_model
 from metadata import models
 
 STORAGE_CLUSTER_RECORD_FIELDS = [
+    "bkbase_table_id",
+    "physical_tables",
     "table_id",
     "cluster_id",
     "is_current",

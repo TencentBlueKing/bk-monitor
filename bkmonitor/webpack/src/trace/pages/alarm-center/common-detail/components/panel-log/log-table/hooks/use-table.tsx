@@ -33,10 +33,11 @@ import LogCell from '../log-cell';
 import { formatHierarchy } from '../utils/fields';
 import { calculateTableColsWidth } from '../utils/utils';
 
-import type { IFieldInfo, TClickMenuOpt } from '../typing';
+import type { EClickMenuType, IFieldInfo, TClickMenuOpt } from '../typing';
 import type { TdPrimaryTableProps } from '@blueking/tdesign-ui';
 
 type TUseTableOptions = {
+  allowedMenuTypes?: EClickMenuType[];
   onAddField?: (fieldName: string) => void;
   onClickMenu?: (opt: TClickMenuOpt) => void;
   onRemoveField?: (fieldName: string) => void;
@@ -108,6 +109,7 @@ export const useTable = (options: TUseTableOptions) => {
         }}
       >
         <ExpandContent
+          allowedMenuTypes={options.allowedMenuTypes}
           displayFields={tableColumns.value.map(item => item.colKey)}
           fields={fieldsData.value?.fields || []}
           originLog={originLogData.value?.[index] || {}}
@@ -158,6 +160,7 @@ export const useTable = (options: TUseTableOptions) => {
                 options.onClickMenu?.(opt);
               },
             }}
+            allowedMenuTypes={options.allowedMenuTypes}
             field={item}
             row={row}
           />

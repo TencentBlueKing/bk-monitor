@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.conf import settings
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from apps.exceptions import ApiRequestError
 from apps.log_search.constants import DorisFieldTypeEnum
@@ -10,7 +10,7 @@ from apps.log_search.exceptions import GetAllFieldsException
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 
 
-class TestDorisFieldTypeEnum(TestCase):
+class TestDorisFieldTypeEnum(SimpleTestCase):
     def test_es_field_type_mapping(self):
         """测试基本类型映射关系"""
         # 测试普通类型映射

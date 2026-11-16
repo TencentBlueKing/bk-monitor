@@ -30,6 +30,7 @@ export type {
   SceneConfigItem,
   SceneDimensionValuesRequest,
   SceneDimensionValuesResponse,
+  SceneDimensionOption,
   FilterFieldConfig,
   FilterFieldValue,
   SceneDisplayFields,

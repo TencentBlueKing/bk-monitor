@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, computed, onScopeDispose, shallowRef, watch } from 'vue';
+import { type MaybeRef, computed, nextTick, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 import { CancelToken } from 'monitor-api/cancel';
 import { listFlows } from 'monitor-api/modules/llm_web';
 import { useI18n } from 'vue-i18n';
 
+import { collectAncestorSpanIds } from '../utils/duration-stats';
 import {
   buildIoPreviews,
   buildStatCards,
@@ -44,6 +45,7 @@ import {
 import type {
   LlmExecutionFilter,
   LlmFlowsResponse,
+  LlmFlowSpan,
   LlmFlowTrace,
   LlmIoPreview,
   LlmOverviewStats,
@@ -56,6 +58,7 @@ export type UseLlmObservationReturn = ReturnType<typeof useLlmObservation>;
 
 /** 面板渲染用的 Trace 块：在 LlmTraceView 上附加懒加载状态与当前可见 Span 行 */
 type TraceBlockView = LlmTraceView & {
+  flow: LlmFlowSpan[];
   flowLoading: boolean;
   rows: LlmSpanRowView[];
 };
@@ -73,6 +76,30 @@ const LLM_CONVERSATION_GROUP_FIELD = 'attributes.gen_ai.conversation.id';
 const LLM_TRACE_GROUP_FIELD = 'trace_id';
 /** 会话概览 Trace 不超过该数量时，按文档异步预加载各条 flow */
 const SESSION_FLOW_PRELOAD_LIMIT = 5;
+
+/** 行对象复用时的元信息比较字段；io / ioLoading 单独处理 */
+const SPAN_ROW_META_KEYS: (keyof LlmSpanRowView)[] = [
+  'childCount',
+  'depth',
+  'elapsedTime',
+  'errorMessage',
+  'hasChildren',
+  'inputTokens',
+  'isError',
+  'isLast',
+  'kind',
+  'lineGuideLevel',
+  'name',
+  'outputTokens',
+  'spanId',
+  'startTime',
+  'subtitle',
+  'traceId',
+];
+
+/** 除 io / ioLoading 外元信息一致时，可复用上一轮的 Span 行对象 */
+const isSameSpanRowMeta = (left: LlmSpanRowView, right: LlmSpanRowView): boolean =>
+  SPAN_ROW_META_KEYS.every(key => left[key] === right[key]);
 
 /**
  * Trace 详情 LLM 观测的数据与交互状态。
@@ -98,22 +125,40 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   const ioLoadingTraceIds = shallowRef<Set<string>>(new Set());
   const flowLoadedTraceIds = shallowRef<Set<string>>(new Set());
   const loadingTraceIds = shallowRef<Set<string>>(new Set());
+  const highlightedSpanId = shallowRef('');
+  let highlightTimer = 0;
   let cancelFetch = () => {};
   let cancelIoFetch = () => {};
   const cancelDetailFetches = new Map<string, () => void>();
   /** 递增以丢弃过期的 overview / 懒加载响应 */
   let overviewRequestId = 0;
   let appliedOverviewRequestId = 0;
+  /** 缓存 buildTraceView 结果：flow 实例与 flowLoaded 未变时直接复用，避免展开/收起时全树重算 */
+  const traceViewCache = new WeakMap<LlmFlowTrace, { flowLoaded: boolean; view: LlmTraceView }>();
+  /** 缓存已构建的 Span 行对象：key 为 traceId:spanId，元信息与 io 引用均未变时复用，稳定 props 引用以跳过重渲染 */
+  const spanRowCache = new Map<string, LlmSpanRowView>();
+
+  const resolveTraceView = (item: LlmFlowTrace): LlmTraceView => {
+    const flowLoaded = flowLoadedTraceIds.value.has(item.trace_id);
+    const cached = traceViewCache.get(item);
+    if (cached && cached.flowLoaded === flowLoaded && cached.view.traceId === item.trace_id) {
+      return cached.view;
+    }
+    const view = buildTraceView(item, get(options.traceId), flowLoaded);
+    traceViewCache.set(item, { flowLoaded, view });
+    return view;
+  };
 
   const stats = computed(() => buildStatCards(traces.value, t, overviewStats.value));
   const kindCounts = computed(() => countSpanKinds(traces.value));
   /** 仅对已展开的 Trace 计算 flatten 行；筛选/关键字变化时复算 rows，不重复请求接口 */
   const structureBlocks = computed<TraceBlockView[]>(() =>
     traces.value.map(item => {
-      const view = buildTraceView(item, get(options.traceId), flowLoadedTraceIds.value.has(item.trace_id));
+      const view = resolveTraceView(item);
       const expanded = expandedTraceIds.value.has(item.trace_id);
       return {
         ...view,
+        flow: item.flow || [],
         flowLoading: loadingTraceIds.value.has(item.trace_id),
         rows: expanded
           ? flattenVisibleSpanRows(item.flow, {
@@ -126,16 +171,26 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     })
   );
   const traceBlocks = computed<TraceBlockView[]>(() =>
-    structureBlocks.value.map(block => ({
-      ...block,
-      ...traceIoPreviews.value.get(block.traceId),
-      title: traceIoPreviews.value.get(block.traceId)?.input || block.title,
-      rows: block.rows.map(row => ({
-        ...row,
-        io: ioPreviews.value.get(`${block.traceId}:${row.spanId}`) || row.io,
-        ioLoading: ioLoadingTraceIds.value.has(block.traceId),
-      })),
-    }))
+    structureBlocks.value.map(block => {
+      const traceIo = traceIoPreviews.value.get(block.traceId);
+      const ioLoading = ioLoadingTraceIds.value.has(block.traceId);
+      return {
+        ...block,
+        ...traceIo,
+        title: traceIo?.input || block.title,
+        rows: block.rows.map(row => {
+          const key = `${block.traceId}:${row.spanId}`;
+          const io = ioPreviews.value.get(key) || row.io;
+          const cached = spanRowCache.get(key);
+          if (cached && cached.io === io && cached.ioLoading === ioLoading && isSameSpanRowMeta(cached, row)) {
+            return cached;
+          }
+          const next = { ...row, io, ioLoading };
+          spanRowCache.set(key, next);
+          return next;
+        }),
+      };
+    })
   );
 
   /** 会话时间线按 start_time 正序；单 Trace 模式仍把当前 Trace 置顶 */
@@ -441,6 +496,29 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     expandedSpanIds.value = next;
   };
 
+  /** 展开祖先链后滚到目标 Span，并短暂高亮 */
+  const locateSpan = (traceId: string, spanId: string) => {
+    const item = traces.value.find(trace => trace.trace_id === traceId);
+    if (!item) return;
+    filter.value = 'all';
+    keyword.value = '';
+    const next = new Set(expandedSpanIds.value);
+    for (const ancestorId of collectAncestorSpanIds(item.flow, spanId)) {
+      next.add(ancestorId);
+    }
+    expandedSpanIds.value = next;
+    highlightedSpanId.value = spanId;
+    window.clearTimeout(highlightTimer);
+    highlightTimer = window.setTimeout(() => {
+      if (highlightedSpanId.value === spanId) highlightedSpanId.value = '';
+    }, 2400);
+    nextTick(() => {
+      requestAnimationFrame(() => {
+        document.getElementById(`llm-span-${spanId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  };
+
   /** 切换 Trace / 应用 / 空间时清空会话模式与筛选，避免沿用上一 Trace 的 UI 状态 */
   watch(
     () => [get(options.appName), get(options.traceId), get(options.bizId)] as const,
@@ -456,6 +534,8 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       overviewStats.value = null;
       flowLoadedTraceIds.value = new Set();
       loadingTraceIds.value = new Set();
+      highlightedSpanId.value = '';
+      spanRowCache.clear();
     }
   );
 
@@ -468,6 +548,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
 
   onScopeDispose(() => {
     ++overviewRequestId;
+    window.clearTimeout(highlightTimer);
     cancelFetch();
     cancelIoFetch();
     cancelAllDetailFetches();
@@ -482,9 +563,11 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     handleKeywordChange,
     handleSessionChange,
     hasTraces,
+    highlightedSpanId,
     keyword,
     kindCounts,
     loading,
+    locateSpan,
     ioLoading,
     showSession,
     stats,

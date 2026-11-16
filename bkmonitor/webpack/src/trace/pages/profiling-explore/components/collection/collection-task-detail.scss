@@ -1,0 +1,117 @@
+// 定时任务详情侧栏（collection-task-detail.tsx）专属样式：
+// 类名统一带 collection-task-detail- 前缀，不与任务执行详情侧栏共用任何类名
+.collection-task-detail {
+  .bk-sideslider-content {
+    height: 100%;
+    overflow: auto;
+  }
+
+  .bk-modal-content {
+    min-height: 0;
+  }
+
+  .bk-sideslider-title {
+    align-items: stretch;
+    min-width: 0;
+    padding-right: 0;
+  }
+
+  .collection-task-detail-header {
+    display: flex;
+    gap: 0;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    font-size: 16px;
+    line-height: 24px;
+    color: #313238;
+  }
+
+  .collection-task-detail-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0;
+    height: 100%;
+    padding-right: 0;
+    margin-left: 0;
+
+    > span {
+      display: flex;
+      height: 100%;
+    }
+  }
+
+  .collection-task-detail-title {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+    padding-right: 16px;
+
+    > span:first-child {
+      flex-shrink: 0;
+    }
+  }
+
+  .collection-task-detail-divider {
+    flex-shrink: 0;
+    width: 1px;
+    height: 12px;
+    background: #dcdee5;
+  }
+
+  .collection-task-detail-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 14px;
+    line-height: 22px;
+    color: #979ba5;
+    white-space: nowrap;
+  }
+
+  .collection-task-detail-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 100%;
+    padding: 0;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+    cursor: pointer;
+    background: #fff;
+    border: 0;
+    border-left: 1px solid #eaebf0;
+
+    i {
+      font-size: 16px;
+      line-height: 16px;
+
+      &.icon-bianji {
+        font-size: 28px;
+      }
+    }
+
+    &.is-danger {
+      color: #ea3636;
+    }
+
+    &:disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #3a84ff;
+      outline-offset: -2px;
+    }
+
+    &:hover:not(:disabled) {
+      background: #f5f7fa;
+    }
+  }
+}

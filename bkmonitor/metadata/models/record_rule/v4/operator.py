@@ -525,14 +525,14 @@ class RecordRuleV4Operator:
             table_id=self.rule.table_id,
             bk_tenant_id=self.rule.bk_tenant_id,
         ).first()
-        previous_data_label = output_table.data_label if output_table else ""
+        previous_data_label = (output_table.data_label or "") if output_table else ""
         output_created = RecordRuleV4OutputResources.ensure_group_output(self.rule)
         self.reload_rule()
         metric_fields_created = RecordRuleV4OutputResources.ensure_spec_metric_fields(self.rule, current_spec)
-        output_detail_changed = bool(self.rule.data_label and previous_data_label != self.rule.data_label)
-        if output_created:
-            RecordRuleV4OutputResources.push_output_route(self.rule)
-        elif metric_fields_created or output_detail_changed:
+        data_label_changed = previous_data_label != self.rule.data_label
+        if output_created or data_label_changed:
+            RecordRuleV4OutputResources.push_output_route(self.rule, previous_data_label=previous_data_label)
+        elif metric_fields_created:
             RecordRuleV4OutputResources.push_table_id_detail(self.rule)
 
     def record_prepare_failure(self, *, condition_type: str, reason: str, err: Exception) -> None:

@@ -49,6 +49,7 @@ MAX_REQUEST_BYTES = 256 * 1024
 MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 VALID_MODES = {"discover", "describe", "invoke"}
 SERVER_DERIVED_FIELDS = {"space_uid", "bk_biz_ids", "bk_tenant_id"}
+RELATION_SCHEMA_GLOBAL_NAMESPACE = "__all__"
 QUERY_TS_METRIC_NOT_FOUND_CODE = "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"
 
 
@@ -308,6 +309,20 @@ def _relation_schema(*, ranged: bool, v1beta3: bool = False) -> dict[str, Any]:
     }
 
 
+def _relation_schema_namespace_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "namespace": {
+                "type": "string",
+                "description": "只能是 __all__ 或当前业务的空间 UID；不传时取当前业务的空间 UID",
+            },
+            "content": {"type": "boolean", "description": "为 true 时附带每条定义的内容"},
+        },
+        "additionalProperties": False,
+    }
+
+
 def _call_query_ts(params: dict[str, Any]) -> Any:
     return api.unify_query.query_data(**params)
 
@@ -393,6 +408,10 @@ def _call_discover_query_ts_metrics(params: dict[str, Any]) -> Any:
     return result
 
 
+def _call_relation_schema(params: dict[str, Any]) -> Any:
+    return api.unify_query.get_relation_schema(**params)
+
+
 def _call_query_relation(params: dict[str, Any]) -> Any:
     return api.unify_query.query_multi(**params)
 
@@ -403,6 +422,10 @@ def _call_query_relation_v1beta3(params: dict[str, Any]) -> Any:
 
 def _call_query_relation_range(params: dict[str, Any]) -> Any:
     return api.unify_query.query_multi_resource_range(**params)
+
+
+def _call_query_relation_range_v1beta3(params: dict[str, Any]) -> Any:
+    return api.unify_query.query_multi_resource_range_v1_beta3(**params)
 
 
 OPERATIONS = {
@@ -566,6 +589,35 @@ OPERATIONS = {
             scope_style="bk_biz_ids",
             time_range_style="query_list",
         ),
+        UQOperationSpec(
+            id="query_relation_range_v1beta3",
+            summary="直接查询 UQ Relation v1beta3 有界时间范围内的资源关联关系",
+            handler=_call_query_relation_range_v1beta3,
+            params_schema=_relation_schema(ranged=True, v1beta3=True),
+            example_params={
+                "query_list": [
+                    {
+                        "start_time": 1725062400,
+                        "end_time": 1725066000,
+                        "step": "60s",
+                        "target_type": "pod",
+                        "source_type": "service",
+                        "source_info": {"service_name": "api"},
+                    }
+                ]
+            },
+            scope_style="bk_biz_ids",
+            time_range_style="query_list",
+        ),
+        UQOperationSpec(
+            id="relation_schema",
+            summary="查看 UQ 关联关系定义在 namespace 下的生效结果、每条定义的来源与 Redis 覆盖层状态",
+            handler=_call_relation_schema,
+            params_schema=_relation_schema_namespace_schema(),
+            example_params={"namespace": RELATION_SCHEMA_GLOBAL_NAMESPACE, "content": False},
+            scope_style="relation_namespace",
+            time_range_style="none",
+        ),
     )
 }
 
@@ -684,7 +736,7 @@ def _guard_params(spec: UQOperationSpec, params: dict[str, Any]) -> dict[str, An
             raise ValueError("query_list 必须是非空数组")
         if len(query_list) > MAX_QUERY_REFS:
             raise ValueError(f"query_list 最多允许 {MAX_QUERY_REFS} 项")
-        if spec.id == "query_relation_v1beta3":
+        if spec.id in {"query_relation_v1beta3", "query_relation_range_v1beta3"}:
             item_schema = spec.params_schema["properties"]["query_list"]["items"]
             for index, query in enumerate(query_list):
                 if not isinstance(query, dict):
@@ -724,6 +776,13 @@ def _guard_params(spec: UQOperationSpec, params: dict[str, Any]) -> dict[str, An
         except ValidationError as error:
             raise ValueError(f"PromQL 查询参数不符合标准资源合同: {error.detail}") from error
 
+    if spec.id == "relation_schema":
+        namespace = params.get("namespace")
+        if namespace is not None and (not isinstance(namespace, str) or not namespace.strip()):
+            raise ValueError("namespace 必须是非空字符串")
+        if "content" in params and type(params["content"]) is not bool:
+            raise ValueError("content 必须是布尔值")
+
     if spec.max_limit is not None and "limit" in params:
         try:
             limit = int(params["limit"])
@@ -762,6 +821,16 @@ def _build_provider_params(
         provider_params["bk_biz_ids"] = [str(bk_biz_id)]
     if spec.scope_style == "bk_biz_id":
         provider_params["bk_biz_id"] = bk_biz_id
+    if spec.scope_style == "relation_namespace":
+        # 定义按业务路由到对应的 UQ 集群；namespace 只允许全局或当前业务，不能读别的业务的专属定义。
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        if not space_uid:
+            raise ValueError(f"无法根据 bk_biz_id={bk_biz_id} 解析 space_uid")
+        namespace = provider_params.get("namespace") or space_uid
+        if namespace not in {RELATION_SCHEMA_GLOBAL_NAMESPACE, space_uid}:
+            raise ValueError(f"namespace 只能是 {RELATION_SCHEMA_GLOBAL_NAMESPACE} 或当前业务的空间 UID {space_uid}")
+        provider_params["namespace"] = namespace
+        provider_params["space_uid"] = space_uid
     return provider_params
 
 
@@ -850,7 +919,7 @@ def _describe(spec: UQOperationSpec) -> dict[str, Any]:
     derived_params = ["bk_tenant_id"]
     if spec.scope_style == "bk_biz_ids":
         derived_params.insert(0, "bk_biz_ids")
-    elif spec.scope_style in {"space_uid", "space_uid_with_tenant"}:
+    elif spec.scope_style in {"space_uid", "space_uid_with_tenant", "relation_namespace"}:
         derived_params.insert(0, "space_uid")
     result = {
         "status": "ok",

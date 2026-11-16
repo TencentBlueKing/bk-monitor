@@ -78,8 +78,8 @@
     font-size: $font-size-base;
     line-height: 20px;
     color: $primary-color;
-    pointer-events: auto;
     white-space: nowrap;
+    pointer-events: auto;
     cursor: pointer;
     background: #fff;
     border: 1px solid #e9edf5;
@@ -140,8 +140,8 @@
     }
 
     .llm-text-content-row {
-      overflow: visible;
       align-items: stretch;
+      overflow: visible;
     }
 
     .llm-text-content-clip {

@@ -1,0 +1,28 @@
+// 采集执行状态（collection-execution-status.tsx）专属样式：
+// 定时任务详情、执行详情、历史与结果列表都渲染该组件，由组件自身引入
+.collection-execution-status {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.collection-execution-running {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+
+  i {
+    width: 16px;
+    height: 16px;
+    background: url('./assets/execution-running.svg') center / contain no-repeat;
+    animation: collection-execution-spin 1.2s linear infinite;
+  }
+}
+
+@keyframes collection-execution-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

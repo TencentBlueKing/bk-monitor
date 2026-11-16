@@ -27,7 +27,11 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { listBcsCluster, listK8sResources, namespaceWorkloadOverview } from 'monitor-api/modules/k8s';
+import {
+  listBcsCluster,
+  listK8sResourcesWithoutFederatedCharts,
+  namespaceWorkloadOverview,
+} from 'monitor-api/modules/k8s';
 import { Debounce, random } from 'monitor-common/utils';
 
 import OverflowPrefixEllipsis from './overflow-prefix-ellipsis';
@@ -347,7 +351,7 @@ export default class RelationSelectPanel extends tsc<
 
   /** 获取workload各分类下的列表数据 */
   async getListResources(params) {
-    const { count, items } = await listK8sResources({
+    const { count, items } = await listK8sResourcesWithoutFederatedCharts({
       bcs_cluster_id: params.bcs_cluster_id,
       resource_type: 'workload',
       scenario: 'performance',

@@ -141,7 +141,7 @@ export const showIssueExceptionPopover = (
   if (!isEllipsisActive) return;
 
   let popoverContent: TippyContent = content;
-  let theme = 'dart';
+  let theme = 'dark';
   if (options.source.log_content) {
     try {
       popoverContent = createJsonLogPopoverContent(

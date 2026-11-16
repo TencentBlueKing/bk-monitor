@@ -1020,6 +1020,27 @@
   - {description: '', field_name: target}
   - {description: '', field_name: bcs_cluster_id}
   - {description: '', field_name: container}
+- description: 'Pod 不可调度状态'
+  field_name: kube_pod_status_unschedulable
+  tag_list:
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_pod}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: uid}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: container}
 - description: ''
   field_name: kube_statefulset_replicas
   tag_list:

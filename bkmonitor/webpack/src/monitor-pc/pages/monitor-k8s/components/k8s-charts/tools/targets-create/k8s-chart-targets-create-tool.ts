@@ -26,6 +26,7 @@
 
 import { type SceneEnum, K8sTableColumnKeysEnum } from '../../../../typings/k8s-new';
 import { K8sBasePromqlGenerator } from '../promql-generator/base-promql-generator';
+import { K8sPerformancePromqlGenerator } from '../promql-generator/performance-promql-generator';
 import { K8sPromqlGeneratorFactory } from '../promql-generator/promql-generator-factory';
 
 import type { K8sBasePromqlGeneratorContext, K8sChartTargetsItem, K8sChartTargetsQueryConfig } from '../../typing';
@@ -70,6 +71,15 @@ export class K8sChartTargetsCreateTool {
    * @returns K8sChartTargetsItem[]
    */
   createNodesTarget(scene: SceneEnum, metric: string, context: K8sBasePromqlGeneratorContext): K8sChartTargetsItem {
+    const generator = this.promqlGeneratorFactory.getGeneratorInstance(scene);
+    const relatedPromql =
+      generator instanceof K8sPerformancePromqlGenerator &&
+      context.groupByField === K8sTableColumnKeysEnum.POD &&
+      ['container_memory_working_set_bytes', 'kube_pod_memory_requests_ratio', 'kube_pod_memory_limits_ratio'].includes(
+        metric
+      )
+        ? generator.scenePrivatePromqlGenerateMain(metric, context, true)
+        : '';
     return {
       data: {
         expression: 'A',
@@ -77,7 +87,8 @@ export class K8sChartTargetsCreateTool {
           {
             data_source_label: 'prometheus',
             data_type_label: 'time_series',
-            promql: this.promqlGeneratorFactory.getGeneratorInstance(scene).generate(metric, context),
+            promql: generator.generate(metric, context),
+            ...(relatedPromql ? { related_promql: relatedPromql } : {}),
             interval: '$interval_second',
             alias: 'a',
             filter_dict: {},
@@ -226,9 +237,16 @@ export class K8sChartTargetsCreateTool {
             data_source_label: 'prometheus',
             data_type_label: 'time_series',
             promql:
-              context.groupByField === K8sTableColumnKeysEnum.WORKLOAD
-                ? K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, true, false)
-                : `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(${K8sBasePromqlGenerator.createContainerResourceLimit(context, false, false)})`,
+              context.groupByField === K8sTableColumnKeysEnum.POD
+                ? K8sPerformancePromqlGenerator.createPodMemoryQuotaPromql(context, true, false)
+                : context.groupByField === K8sTableColumnKeysEnum.WORKLOAD
+                  ? K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, true, false)
+                  : `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(${K8sBasePromqlGenerator.createContainerResourceLimit(context, false, false)})`,
+            ...(context.groupByField === K8sTableColumnKeysEnum.POD
+              ? {
+                  related_promql: `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(${K8sBasePromqlGenerator.createContainerResourceLimit(context, false, false)})`,
+                }
+              : {}),
             interval: '$interval_second',
             alias: 'limit',
             filter_dict: {},
@@ -237,9 +255,16 @@ export class K8sChartTargetsCreateTool {
             data_source_label: 'prometheus',
             data_type_label: 'time_series',
             promql:
-              context.groupByField === K8sTableColumnKeysEnum.WORKLOAD
-                ? K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, false, false)
-                : `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(kube_pod_container_resource_requests_memory_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}})`,
+              context.groupByField === K8sTableColumnKeysEnum.POD
+                ? K8sPerformancePromqlGenerator.createPodMemoryQuotaPromql(context, false, false)
+                : context.groupByField === K8sTableColumnKeysEnum.WORKLOAD
+                  ? K8sBasePromqlGenerator.createWorkLoadRequestOrLimit(context, false, false)
+                  : `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(kube_pod_container_resource_requests_memory_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}})`,
+            ...(context.groupByField === K8sTableColumnKeysEnum.POD
+              ? {
+                  related_promql: `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(kube_pod_container_resource_requests_memory_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}})`,
+                }
+              : {}),
             interval: '$interval_second',
             alias: 'request',
             filter_dict: {},

@@ -28,6 +28,7 @@ import { computed, defineComponent, shallowRef, watch } from 'vue';
 import { Button, Radio } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import ProfilingCollection from './components/collection/profiling-collection';
 import ProfileVisualization from './components/profile-visualization/profile-visualization';
 import ProfilingEmptyState from './components/profiling-empty-state';
 import ProfilingFavoritePreview from './components/profiling-favorite-preview';
@@ -447,7 +448,21 @@ export default defineComponent({
               onUpload={() => this.fileTools?.openUpload()}
             />
           ) : (
-            <div class={`profiling-${this.tab}-placeholder`} />
+            <ProfilingCollection
+              range={q.collectionRange.value}
+              rangeError={q.collectionError.value}
+              resolveRange={q.resolveRange}
+              revision={q.collectionRevision.value}
+              state={q.state.value.collection}
+              timezone={q.state.value.timezone}
+              onBusy={value => {
+                q.collectionBusy.value = value;
+              }}
+              onChange={value => q.patch({ collection: { ...q.state.value.collection, ...value } })}
+              onCreated={q.collectionCreated}
+              onResult={q.openCollectionResult}
+              onShare={q.shareCollectionResult}
+            />
           )}
         </main>
         {f.editing.value && (

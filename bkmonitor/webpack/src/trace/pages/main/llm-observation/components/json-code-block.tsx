@@ -26,7 +26,7 @@
 import { type PropType, computed, defineComponent, inject, nextTick, shallowRef, watch } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
-import { Message } from 'bkui-vue';
+import { Exception, Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -68,6 +68,16 @@ export default defineComponent({
     expanded: {
       type: Boolean as PropType<boolean | undefined>,
       default: undefined,
+    },
+    /** 数据为空时用空插图占位，隐藏复制 / 展开等操作 */
+    empty: {
+      type: Boolean,
+      default: false,
+    },
+    /** 空占位文案 */
+    emptyText: {
+      type: String,
+      default: '',
     },
   },
   emits: {
@@ -162,50 +172,60 @@ export default defineComponent({
             </span>
           </div>
         ) : null}
-        <div class='llm-json-code-block-main'>
-          <div class='llm-json-code-block-actions'>
-            <div
-              class='llm-json-code-block-action'
-              onClick={handleCopy}
-            >
-              <i class='icon-monitor icon-mc-copy' />
-              <span>{t('复制信息')}</span>
-            </div>
-            {overflowing.value && (
+        {props.empty ? (
+          <div class='llm-json-code-block-body is-empty'>
+            <Exception
+              scene='part'
+              type='empty'
+              description={props.emptyText || t('暂无数据')}
+            />
+          </div>
+        ) : (
+          <div class='llm-json-code-block-main'>
+            <div class='llm-json-code-block-actions'>
               <div
                 class='llm-json-code-block-action'
-                onClick={() => emit('viewAlone', props.data, props.title)}
+                onClick={handleCopy}
               >
-                <i class='icon-monitor icon-sidebar' />
-                <span>{t('独立查看')}</span>
+                <i class='icon-monitor icon-mc-copy' />
+                <span>{t('复制信息')}</span>
+              </div>
+              {overflowing.value && (
+                <div
+                  class='llm-json-code-block-action'
+                  onClick={() => emit('viewAlone', props.data, props.title)}
+                >
+                  <i class='icon-monitor icon-sidebar' />
+                  <span>{t('独立查看')}</span>
+                </div>
+              )}
+            </div>
+            <div
+              ref={bodyRef}
+              class={[
+                'llm-json-code-block-body',
+                { 'is-expanded': isExpanded.value, 'is-overflowing': overflowing.value },
+              ]}
+            >
+              <JsonView
+                data={props.data}
+                searchBlockId={props.searchBlockId}
+              />
+            </div>
+            {(overflowing.value || isExpanded.value) && (
+              <div
+                class='llm-json-code-block-expand'
+                onClick={handleToggleExpand}
+              >
+                <span>{isExpanded.value ? t('收起') : t('展开')}</span>
+                <i
+                  style='font-size: 18px;'
+                  class={['icon-monitor', 'icon-double-down', { 'is-expanded': isExpanded.value }]}
+                />
               </div>
             )}
           </div>
-          <div
-            ref={bodyRef}
-            class={[
-              'llm-json-code-block-body',
-              { 'is-expanded': isExpanded.value, 'is-overflowing': overflowing.value },
-            ]}
-          >
-            <JsonView
-              data={props.data}
-              searchBlockId={props.searchBlockId}
-            />
-          </div>
-          {(overflowing.value || isExpanded.value) && (
-            <div
-              class='llm-json-code-block-expand'
-              onClick={handleToggleExpand}
-            >
-              <span>{isExpanded.value ? t('收起') : t('展开')}</span>
-              <i
-                style='font-size: 18px;'
-                class={['icon-monitor', 'icon-double-down', { 'is-expanded': isExpanded.value }]}
-              />
-            </div>
-          )}
-        </div>
+        )}
       </div>
     );
   },

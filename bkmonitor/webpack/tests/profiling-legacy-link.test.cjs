@@ -4,7 +4,9 @@ const path = require('node:path');
 const test = require('node:test');
 const ts = require('typescript');
 
+const modules = new Map();
 function load(file) {
+  if (modules.has(file)) return modules.get(file).exports;
   const { outputText, diagnostics } = ts.transpileModule(
     fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'),
     {
@@ -14,7 +16,13 @@ function load(file) {
   );
   assert.equal(diagnostics.length, 0);
   const module = { exports: {} };
-  new Function('module', 'exports', 'window', outputText)(module, module.exports, {
+  modules.set(file, module);
+  new Function('module', 'exports', 'require', 'window', outputText)(module, module.exports, id => {
+    if (id === '../../rum-explore/utils') return { formatUnitValue: () => { throw new Error('Unexpected formatter call'); } };
+    if (id.startsWith('.')) return load(path.join(path.dirname(file), `${id}.ts`));
+    if (id === 'dayjs') return require('../src/trace/node_modules/dayjs');
+    throw new Error(`Unexpected dependency: ${id}`);
+  }, {
     i18n: { t: value => value },
   });
   return module.exports;

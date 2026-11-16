@@ -4,7 +4,11 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from kernel_api.rpc import KernelRPCRegistry
-from kernel_api.rpc.functions.admin.bcs_cluster import _get_bcs_cluster_or_raise
+from constants.bk_collector import BkCollectorComp
+from kernel_api.rpc.functions.admin.bcs_cluster import (
+    _get_bcs_cluster_or_raise,
+    _get_bcs_operator_configured_namespace,
+)
 from kernel_api.rpc.functions.admin.common import build_response
 from kernel_api.rpc.functions.admin.consul import _is_sensitive_key, _redact_sensitive_value
 
@@ -24,10 +28,9 @@ UNMASK_RULE_SCHEMA = {
 }
 
 
-class ScopeSerializer(serializers.Serializer):
+class ClusterSerializer(serializers.Serializer):
     bk_tenant_id = serializers.CharField(max_length=128)
     cluster_id = serializers.CharField(max_length=253)
-    api_version = serializers.RegexField(r"^[a-z0-9][a-z0-9.-]*(/[a-z0-9][a-z0-9.-]*)?$", default="v1")
 
     def validate(self, attrs):
         if attrs["bk_tenant_id"] == "__all__":
@@ -36,6 +39,10 @@ class ScopeSerializer(serializers.Serializer):
         if unknown:
             raise serializers.ValidationError(f"不支持的参数: {', '.join(sorted(unknown))}")
         return attrs
+
+
+class ScopeSerializer(ClusterSerializer):
+    api_version = serializers.RegexField(r"^[a-z0-9][a-z0-9.-]*(/[a-z0-9][a-z0-9.-]*)?$", default="v1")
 
 
 class DiscoverySerializer(ScopeSerializer):
@@ -55,16 +62,14 @@ class UnmaskRuleSerializer(serializers.Serializer):
 class ResourceSerializer(ScopeSerializer):
     resource = serializers.RegexField(SEGMENT, max_length=253)
     namespace = serializers.RegexField(SEGMENT, max_length=253, required=False)
-    include_sensitive = serializers.BooleanField(default=False)
+    include_sensitive = serializers.BooleanField(required=False)
     unmask_rules = UnmaskRuleSerializer(many=True, required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        if attrs["include_sensitive"]:
+        if attrs.get("include_sensitive") is True:
             if not attrs.get("namespace"):
                 raise serializers.ValidationError("原文查询必须指定 namespace")
-            if not _matching_rules(attrs):
-                raise PermissionDenied("没有适用的 Kubernetes 遮罩例外规则")
         return attrs
 
 
@@ -86,7 +91,22 @@ def _context(params, serializer_class):
     serializer.is_valid(raise_exception=True)
     values = serializer.validated_data
     cluster = _get_bcs_cluster_or_raise(values["bk_tenant_id"], values["cluster_id"])
-    version = values["api_version"]
+    values["_default_unmask_namespaces"] = list(
+        dict.fromkeys(
+            filter(
+                None,
+                [
+                    cluster.operator_ns or BkCollectorComp.NAMESPACE,
+                    _get_bcs_operator_configured_namespace(cluster),
+                ],
+            )
+        )
+    )
+    if values.get("include_sensitive") is True and not _allows_unmask(
+        values, values.get("namespace"), values.get("name")
+    ):
+        raise PermissionDenied("没有适用的 Kubernetes 遮罩例外规则")
+    version = values.get("api_version", "v1")
     prefix = f"/apis/{version}" if "/" in version else f"/api/{version}"
     return values, cluster.api_client, prefix
 
@@ -117,6 +137,14 @@ def _matching_rules(params, name=None):
         and rule["resource"] == params["resource"]
         and (name is None or not rule.get("resource_names") or name in rule["resource_names"])
     ]
+
+
+def _allows_unmask(params, namespace, name=None):
+    if params.get("include_sensitive") is False:
+        return False
+    return namespace in params.get("_default_unmask_namespaces", []) or (
+        params.get("include_sensitive") is True and bool(_matching_rules({**params, "namespace": namespace}, name))
+    )
 
 
 def _resource_context(client, prefix, params, verb):
@@ -187,11 +215,7 @@ def _redact(value, kind=None, allow_unmask=False, revealed=None):
 
 def _redact_resource(resource, kind, params, unmasked_resources):
     metadata = resource.get("metadata", {})
-    allowed = bool(
-        params.get("include_sensitive")
-        and metadata.get("namespace") == params.get("namespace")
-        and _matching_rules(params, metadata.get("name"))
-    )
+    allowed = _allows_unmask(params, metadata.get("namespace"), metadata.get("name"))
     revealed = []
     result = _redact(resource, kind=kind, allow_unmask=allowed, revealed=revealed)
     if revealed:
@@ -200,13 +224,15 @@ def _redact_resource(resource, kind, params, unmasked_resources):
 
 
 def _response(operation, params, data):
-    return build_response(
+    response = build_response(
         operation=operation,
         func_name=f"admin.{operation}",
         bk_tenant_id=params["bk_tenant_id"],
         data=data,
         safety_level="inspect",
     )
+    response["meta"]["default_unmask_namespaces"] = params.get("_default_unmask_namespaces", [])
+    return response
 
 
 @KernelRPCRegistry.register(
@@ -271,7 +297,10 @@ def api_resources(params):
             "namespace": {"maxLength": 253, "pattern": "^[a-z0-9][a-z0-9.-]*$", "type": "string"},
             "page_size": {"default": 20, "maximum": 100, "minimum": 1, "type": "integer"},
             "resource": {"maxLength": 253, "pattern": "^[a-z0-9][a-z0-9.-]*$", "type": "string"},
-            "include_sensitive": {"type": "boolean", "default": False},
+            "include_sensitive": {
+                "type": "boolean",
+                "description": "省略自动放行 operator namespace；false 强制遮罩；true 使用默认范围或环境例外",
+            },
             "unmask_rules": {
                 "type": "array",
                 "description": "仅由受信 Admin 服务按环境配置注入的例外规则",
@@ -312,7 +341,7 @@ def list_resources(params):
             "items": items,
             **(
                 {"unmasked_resources": unmasked_resources, "unmasked_count": len(unmasked_resources)}
-                if values["include_sensitive"]
+                if values.get("include_sensitive") is not False
                 else {}
             ),
             "continue": cursor,
@@ -339,7 +368,10 @@ def list_resources(params):
             "name": {"maxLength": 253, "pattern": "^[a-z0-9][a-z0-9.-]*$", "type": "string"},
             "namespace": {"maxLength": 253, "pattern": "^[a-z0-9][a-z0-9.-]*$", "type": "string"},
             "resource": {"maxLength": 253, "pattern": "^[a-z0-9][a-z0-9.-]*$", "type": "string"},
-            "include_sensitive": {"type": "boolean", "default": False},
+            "include_sensitive": {
+                "type": "boolean",
+                "description": "省略自动放行 operator namespace；false 强制遮罩；true 使用默认范围或环境例外",
+            },
             "unmask_rules": {
                 "type": "array",
                 "description": "仅由受信 Admin 服务按环境配置注入的例外规则",
@@ -371,7 +403,7 @@ def get_resource(params):
             "resource": resource,
             **(
                 {"unmasked_resources": unmasked_resources, "unmasked_count": len(unmasked_resources)}
-                if values["include_sensitive"]
+                if values.get("include_sensitive") is not False
                 else {}
             ),
         },

@@ -13,7 +13,8 @@ def params(**overrides):
 @pytest.fixture
 def client(monkeypatch):
     client = Mock()
-    cluster = Mock(api_client=client)
+    cluster = Mock(api_client=client, operator_ns="bkmonitor-operator", cluster_id="BCS-K8S-1")
+    monkeypatch.setattr(module, "_get_bcs_operator_configured_namespace", lambda _cluster: None)
     lookup = Mock(return_value=cluster)
     monkeypatch.setattr(module, "_get_bcs_cluster_or_raise", lookup)
     client.lookup = lookup
@@ -322,7 +323,7 @@ def test_unmask_configmap_only_matching_names_and_fields(client, query):
         {"resource_names": ["other"]},
     ],
 )
-def test_unmask_scope_denied_before_lookup(client, overrides):
+def test_unmask_scope_denied_before_kubernetes_request(client, overrides):
     with pytest.raises(PermissionDenied):
         module.get_resource(
             params(
@@ -333,7 +334,7 @@ def test_unmask_scope_denied_before_lookup(client, overrides):
                 unmask_rules=[unmask_rule(**overrides)],
             )
         )
-    client.lookup.assert_not_called()
+    client.call_api.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -349,7 +350,7 @@ def test_unmask_scope_denied_before_lookup(client, overrides):
 def test_unmask_requires_namespace_and_rules(client, args, exception):
     with pytest.raises(exception):
         module.list_resources(params(**args))
-    client.lookup.assert_not_called()
+    client.call_api.assert_not_called()
 
 
 def test_secret_cannot_be_unmasked(client):
@@ -408,3 +409,70 @@ def test_unmask_no_matching_items_records_zero(client):
     assert data["unmasked_count"] == 0
     assert data["unmasked_resources"] == []
     assert "private" not in str(data)
+
+
+@pytest.mark.parametrize("namespace", ["custom-operator", "configured-operator"])
+@pytest.mark.parametrize("include_sensitive", [None, True, False])
+def test_default_namespaces_auto_unmask_and_explicit_false(client, monkeypatch, namespace, include_sensitive):
+    cluster = client.lookup.return_value
+    cluster.operator_ns = "custom-operator"
+    monkeypatch.setattr(module, "_get_bcs_operator_configured_namespace", lambda _cluster: "configured-operator")
+    client.call_api.side_effect = [
+        discovery("configmaps", kind="ConfigMap"),
+        {
+            "metadata": {"namespace": namespace, "name": "config"},
+            "data": {"value": "raw-config"},
+        },
+    ]
+    result = module.get_resource(
+        params(
+            resource="configmaps",
+            namespace=namespace,
+            name="config",
+            **({"include_sensitive": include_sensitive} if include_sensitive is not None else {}),
+        )
+    )
+    assert result["meta"]["default_unmask_namespaces"] == ["custom-operator", "configured-operator"]
+    assert ("raw-config" in str(result["data"])) is (include_sensitive is not False)
+    client.lookup.assert_called_once_with("tenant-a", "BCS-K8S-1")
+
+
+@pytest.mark.parametrize("operator_ns", ["", None, "bkmonitor-operator"])
+def test_default_namespace_fallback_and_dedup(client, monkeypatch, operator_ns):
+    client.lookup.return_value.operator_ns = operator_ns
+    monkeypatch.setattr(module, "_get_bcs_operator_configured_namespace", lambda _cluster: "bkmonitor-operator")
+    client.call_api.return_value = {"resources": []}
+    result = module.api_resources({"bk_tenant_id": "tenant-a", "cluster_id": "BCS-K8S-1"})
+    assert result["meta"]["default_unmask_namespaces"] == ["bkmonitor-operator"]
+
+
+def test_cross_namespace_page_only_unmasks_default_namespace(client):
+    client.call_api.side_effect = [
+        discovery("configmaps", kind="ConfigMap"),
+        {
+            "items": [
+                {"metadata": {"namespace": namespace, "name": "config"}, "data": {"value": "raw"}}
+                for namespace in ["bkmonitor-operator", "other"]
+            ],
+            "metadata": {"continue": "next"},
+        },
+    ]
+    result = module.list_resources(params(resource="configmaps"))
+    assert result["data"]["items"][0]["data"]["value"] == "raw"
+    assert result["data"]["items"][1]["data"]["value"] == "[REDACTED]"
+    assert result["data"]["unmasked_count"] == 1
+    assert result["data"]["continue"] == "next"
+
+
+def test_default_namespace_secret_still_hidden(client):
+    client.call_api.side_effect = [
+        discovery("secrets", kind="Secret"),
+        {
+            "metadata": {"namespace": "bkmonitor-operator", "name": "credential", "annotations": {"copy": "secret"}},
+            "data": {"key": "secret"},
+            "stringData": {"key": "secret"},
+        },
+    ]
+    result = module.get_resource(params(resource="secrets", namespace="bkmonitor-operator", name="credential"))
+    assert result["data"]["resource"] == {"metadata": {"namespace": "bkmonitor-operator", "name": "credential"}}
+    assert result["data"]["unmasked_count"] == 0

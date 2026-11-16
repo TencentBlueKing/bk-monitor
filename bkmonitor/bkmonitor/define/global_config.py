@@ -35,10 +35,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("QOS_DROP_ACTION_WINDOW", slz.IntegerField(label="处理动作流控窗口大小(秒)", default=60)),
         ("QOS_ALERT_THRESHOLD", slz.IntegerField(label="告警生成流控丢弃阈值", default=100)),
         ("QOS_ALERT_WINDOW", slz.IntegerField(label="告警生成流控窗口大小(秒)", default=60)),
-        (
-            "ALERT_NOTICE_WAY_BY_RECORDS",
-            slz.BooleanField(label="告警列表通知类型按通知记录统计", default=False),
-        ),
         ("SAAS_APP_CODE", slz.CharField(label="SAAS 应用码", default=settings.APP_CODE)),
         ("SAAS_SECRET_KEY", slz.CharField(label="SAAS 应用密钥", default=settings.SECRET_KEY)),
         (
@@ -468,8 +464,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
-            "GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST",
-            slz.ListField(label="Graph Relation V4 双写与 v1beta3 查询灰度业务白名单", default=[]),
+            "RELATION_V1BETA3_BIZ_ID_WHITE_LIST",
+            slz.ListField(label="v1beta3 关联查询业务白名单（含 -1 时为全部业务）", default=[]),
         ),
         (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
@@ -651,7 +647,7 @@ STANDARD_CONFIGS = OrderedDict(
                 help_text=_("若队列长度超出该值，则丢弃旧消息。值为 0 代表无长度限制"),
             ),
         ),
-        ("IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER", slz.BooleanField(label=_("是否自动部署自定义上报服务"), default=True)),
+        ("IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER", slz.BooleanField(label=_("是否自动部署自定义上报服务"), default=False)),
         ("CUSTOM_REPORT_DEFAULT_PROXY_IP", slz.ListField(label=_("自定义上报默认服务器"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN", slz.ListField(label=_("自定义上报默认服务器(域名显示)"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER", slz.ListField(label=_("自定义上报默认部署K8S集群"), default=[])),
@@ -799,6 +795,13 @@ STANDARD_CONFIGS = OrderedDict(
             "DEFAULT_KAFKA_STORAGE_CLUSTER_ID",
             slz.CharField(label=_("默认 kafka 存储集群ID"), default=None, allow_null=True),
         ),
+        (
+            "SCENE_DEFAULT_STORAGE_CLUSTERS",
+            slz.DictField(
+                label=_("场景默认存储集群（租户 -> 场景 -> 存储类型 -> 集群ID）"),
+                default={},
+            ),
+        ),
         ("BCS_KAFKA_STORAGE_CLUSTER_ID", slz.CharField(label=_("BCS kafka 存储集群ID"), default=None, allow_null=True)),
         (
             "BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID",
@@ -898,6 +901,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("RUM_BIZ_LIST", slz.ListField(label=_("RUM 新版灰度配置"), default=[])),
         # Profiling 主动采集灰度配置
         ("ACTIVE_PROFILING_BIZ_LIST", slz.ListField(label=_("Profiling 主动采集灰度配置"), default=[])),
+        # Profiling 主动采集下发的 bkmonitorbeat 插件版本
+        ("ACTIVE_PROFILING_PLUGIN_VERSION", slz.CharField(label=_("Profiling 主动采集插件版本"), default="latest")),
         # LLM 观测灰度业务列表
         ("LLM_BIZ_LIST", slz.ListField(label=_("LLM 观测灰度业务列表"), default=[])),
     ]

@@ -62,7 +62,35 @@
       &.skeleton-item {
         display: flex;
         align-items: center;
+        pointer-events: none;
+        cursor: default;
         background: #fff;
+
+        /* 菜单经 tippy 挂到 body 后不在输入框父级内，骨架高度必须写在菜单自身 */
+        .skeleton-element {
+          height: 16px;
+          border-radius: 2px;
+        }
+
+        &:nth-child(1) .skeleton-element {
+          width: 72%;
+        }
+
+        &:nth-child(2) .skeleton-element {
+          width: 88%;
+        }
+
+        &:nth-child(3) .skeleton-element {
+          width: 56%;
+        }
+
+        &:nth-child(4) .skeleton-element {
+          width: 76%;
+        }
+
+        &:hover {
+          background: #fff;
+        }
       }
 
       &.scroll-loading {
