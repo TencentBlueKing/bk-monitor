@@ -8,11 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import datetime
 import json
+import datetime
 from collections import defaultdict
-
-from redis.exceptions import LockNotOwnedError
 
 from core.drf_resource import api
 from bkmonitor.models import Alert, Event, Strategy, Shield, NoticeGroup
@@ -20,6 +18,7 @@ from metadata.models import EventGroup
 from alarm_backends.core.cache.key import MAIL_REPORT_GROUP_CACHE_KEY
 from alarm_backends.core.cache.base import CacheManager
 from bkmonitor.utils import extended_json
+from redis.exceptions import LockNotOwnedError
 
 
 class MailReportCacheManager(CacheManager):
