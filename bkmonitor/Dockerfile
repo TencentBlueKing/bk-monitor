@@ -1,5 +1,9 @@
 ARG PYTHON_BASE_IMAGE=tencentos/tencentos4-minimal:4.4-v20250922
 
+# Internal CI may override this empty stage with an approved private wheel context.
+FROM scratch AS ai-agent-runtime-wheels
+WORKDIR /wheels
+
 FROM ${PYTHON_BASE_IMAGE} AS python-base
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -48,6 +52,7 @@ ARG AI_AGENT_HERMES_ENABLED=false
 ARG AI_AGENT_RUNTIME_LOCK_SHA256
 RUN --mount=type=secret,id=ai_agent_runtime_requirements \
     --mount=type=secret,id=python_package_config \
+    --mount=type=bind,from=ai-agent-runtime-wheels,target=/run/ai-agent-runtime-wheels \
     --mount=type=bind,source=bkmonitor/scripts/check_ai_agent_runtime.py,target=/tmp/check_ai_agent_runtime.py \
     if [ "${AI_AGENT_HERMES_ENABLED}" = "true" ]; then \
         test -s /run/secrets/ai_agent_runtime_requirements \
@@ -57,6 +62,7 @@ RUN --mount=type=secret,id=ai_agent_runtime_requirements \
         && PIP_CONFIG_FILE=/run/secrets/python_package_config \
             /app/venv/bin/python -m pip install --disable-pip-version-check \
                 --no-cache-dir --no-deps --require-hashes --no-binary=pillow \
+                --find-links /run/ai-agent-runtime-wheels \
                 -r /run/secrets/ai_agent_runtime_requirements \
         && /app/venv/bin/python -m pip check \
         && /app/venv/bin/python /tmp/check_ai_agent_runtime.py --required; \

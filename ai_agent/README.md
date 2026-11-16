@@ -26,6 +26,8 @@ ln -s "$(pwd)/ai_agent" bklog/ai_agent
 
 Hermes 只执行当前智能体挂载的 Python/MCP 工具及知识查询，不启用通用本地编程工具。MCP 认证沿用当前请求的用户身份；包含用户认证头的配置只在该请求内缓存。SDK session 使用用户与平台会话的组合标识，不启用 SDK 会话数据库。
 
+本次恢复主 Agent、MCP 与平台指令映射的显式切换。平台关联子 Agent 的自动委派留作后续接入。
+
 平台历史会恢复用户约束和已保存的工具记录，缺少结果的历史工具调用标记为未确认。当前适配只将最终 AI 回复写回平台一次，工具过程通过 SSE 和 Trace 展示；不承诺把本轮全部工具结果持久化为下一轮历史。
 
 流式响应沿用前端的 `text`、`think`、`done`、`error` 事件及 `[DONE]` 终止标记，空闲时发送 SSE heartbeat。失败、截断和回复保存失败不发送成功完成事件。关闭 HTTP 响应会取消本轮 SDK 调用；已开始的外部工具是否立即停止，仍取决于其 transport 对取消的支持。
@@ -34,9 +36,11 @@ Hermes 只执行当前智能体挂载的 Python/MCP 工具及知识查询，不�
 
 公共 `pyproject.toml` 和 `uv.lock` 不声明私有包或私有索引。内部 CI 在同一 Dockerfile 上启用可选构建步骤：
 
+`bkmonitor/Dockerfile.dockerignore` 约束仓库根构建上下文，只包含 Dockerfile 使用的四个源码目录，并排除本地虚拟环境、包缓存和凭据文件。不要将开发环境的 `.venv` 或私有 Wheel 作为镜像源码复制进去。
+
 1. 从公共锁导出完整运行依赖，保留默认 `aidev` 工具适配组，排除项目自身和本地 `bk-monitor-base` 路径。
 2. 将获批准的 `bkai-hermes-core` 与 `bkai-otel-hermes` Wheel 加入同一依赖解析，生成适合目标 Python/Linux 平台的完整固定版本及哈希清单。SDK 接口最低要求分别为 `0.8.1` 和 `1.3.0`；实际版本必须同时满足监控的依赖约束。不要通过 `--no-deps` 绕过解析冲突。
-3. 用 BuildKit secret 传递清单和 pip 配置；用清单 SHA256 作为非敏感构建参数校验内容并更新构建缓存。
+3. 用 BuildKit secret 传递清单和 pip 配置；用清单 SHA256 作为非敏感构建参数校验内容并更新构建缓存。CI 可通过独立的 `ai-agent-runtime-wheels` 命名上下文提供从获授权源码打包的 Wheel，或使用 pip 配置中的私有索引。
 
 ```bash
 # 在 bkmonitor/ 下导出；本地包由 Dockerfile 的公共构建步骤安装。
@@ -51,6 +55,7 @@ uv pip compile --python-version 3.11 --python-platform x86_64-unknown-linux-gnu 
 
 # 从仓库根构建；pip.conf 及锁清单只在对应 RUN 步骤挂载。
 docker build -f bkmonitor/Dockerfile \
+  --build-context ai-agent-runtime-wheels="$PRIVATE_WHEEL_DIR" \
   --build-arg AI_AGENT_HERMES_ENABLED=true \
   --build-arg AI_AGENT_RUNTIME_LOCK_SHA256="$(shasum -a 256 /tmp/monitor-runtime.lock | cut -d ' ' -f 1)" \
   --secret id=ai_agent_runtime_requirements,src=/tmp/monitor-runtime.lock \
@@ -59,6 +64,8 @@ docker build -f bkmonitor/Dockerfile \
 ```
 
 Docker 安装阶段使用完整清单的 `--require-hashes`，随后执行 `pip check` 和运行时接口检查。任一清单、认证配置、哈希或接口缺失都会使内部构建失败。凭据不放进 `ARG`、`ENV`、镜像层或公共锁文件。
+
+命名上下文中的 Wheel 只在安装步骤以只读方式挂载；公共构建默认使用空上下文。内部构建可以直接使用经核验的源码制品，不要求先将 SDK 发布到包索引。源码提交、构建工具版本、Wheel 及完整清单摘要应保存在内部构建记录中。
 
 SDK 与旧监控宿主在 urllib3、PyYAML、Pillow、websockets 等依赖上可能存在冲突，须使用经联合解析和宿主测试的制品；单独安装 SDK 成功不能替代兼容验收。
 
