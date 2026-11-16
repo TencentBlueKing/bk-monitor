@@ -246,3 +246,32 @@ def test_event_switch_routes_keep_es_history(event_group_v4_records, doris_clust
     assert {segment["storage_id"] for segment in history} == {ctx["es_cluster"].cluster_id, doris_cluster.cluster_id}
     assert models.ESStorage.objects.filter(table_id=rt.table_id).exists()
     assert SpaceTableIDRedis()._compose_log_table_id_detail(bk_tenant_id="other", table_id_list=[rt.table_id])[0] == {}
+
+
+@pytest.mark.parametrize("storage_type", ["elasticsearch", "doris"])
+def test_missing_event_storage_preserves_error_contract(event_group_v4_records, mocker, storage_type):
+    ctx = event_group_v4_records
+    rt = ctx["rt"]
+    rt.default_storage = storage_type
+    rt.save(update_fields=["default_storage"])
+    models.ESStorage.objects.filter(bk_tenant_id="system", table_id=rt.table_id).delete()
+    link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="missing_event_storage",
+        namespace="bklog",
+        data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
+        bk_data_id=ctx["ds"].bk_data_id,
+        table_ids=[rt.table_id],
+    )
+    mocker.patch.object(link, "_get_databus_option_labels", return_value={})
+    mocker.patch.object(link, "_get_databus_prefer_cluster", return_value=None)
+    remote_apply = mocker.patch.object(link, "apply_data_link_with_retry")
+    with pytest.raises(ValueError, match="lack storage config") as exc_info:
+        link.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ctx["ds"], table_id=rt.table_id)
+    message = str(exc_info.value)
+    assert "tenant(system)" in message
+    assert f"table_id({rt.table_id})" in message
+    assert f"default_storage({storage_type})" in message
+    assert isinstance(exc_info.value.__cause__, rt.REAL_STORAGE_DICT[storage_type].DoesNotExist)
+    remote_apply.assert_not_called()
+    assert not DataBusConfig.objects.filter(data_link_name=link.data_link_name).exists()

@@ -913,7 +913,13 @@ class DataLink(models.Model):
         )
 
         result_table = ResultTable.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
-        storage = result_table.get_storage(result_table.default_storage)
+        try:
+            storage = result_table.get_storage(result_table.default_storage)
+        except (ESStorage.DoesNotExist, DorisStorage.DoesNotExist) as error:
+            raise ValueError(
+                f"compose_custom_event_configs: lack storage config, tenant({self.bk_tenant_id}), "
+                f"table_id({table_id}), default_storage({result_table.default_storage})"
+            ) from error
         is_doris = result_table.default_storage == ClusterInfo.TYPE_DORIS
         binding_class = DorisStorageBindingConfig if is_doris else ESStorageBindingConfig
         binding_kind = DataLinkKind.DORISBINDING.value if is_doris else DataLinkKind.ESSTORAGEBINDING.value
