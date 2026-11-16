@@ -39,6 +39,7 @@ from apps.constants import (
     UserOperationTypeEnum,
 )
 from apps.decorators import user_operation_record
+from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import (
@@ -166,7 +167,7 @@ class StorageHandler:
         3. current_biz 仅归属空间可见；
         4. multi_biz 名单为空视为未配置，非空按字符串精确比对；
         5. biz_attr 标签为空视为未配置，非空复用 _match_biz_attr；
-        6. current_tenant 属显式配置，集群信息本身已按租户隔离，故同租户内可见。
+        6. current_tenant 判定尚未实现，按目标默认拒绝。
 
         :param bk_biz_id: 业务 ID
         :param custom_option: 集群自定义配置，允许为空
@@ -206,9 +207,11 @@ class StorageHandler:
                 return False
             return cls._match_biz_attr(bk_biz_id, bk_biz_labels)
 
-        # 当前租户可见：属显式配置，且集群信息本身按租户隔离，故同租户内视为匹配
+        # 当前租户可见：判定函数自身无 bk_tenant_id 入参、无租户校验，
+        # 「集群信息按 X-Bk-Tenant-Id 过滤」只是框架隐式前提，不能等价于同租户内授权粒度。
+        # 按目标「只有显式 all_biz 才对所有业务可选」，判定补齐前不得放行。
         if visible_type == VisibleEnum.CURRENT_TENANT.value:
-            return True
+            return False
 
         return False
 
@@ -1143,9 +1146,21 @@ class StorageHandler:
             if raw_custom_option.get("bk_biz_id") != bk_biz_id:
                 raise StorageNotPermissionException()
 
+        # 公共集群的 bk_biz_id 会在 filter_doris_cluster 里被强制改写为蓝鲸业务，
+        # 若允许写入 current_biz，则「当前业务可见」实际只对蓝鲸业务生效，
+        # 与「配置了开放目标后仅匹配的空间可选」不符；同时状态查询使用原始
+        # custom_option，会与候选列表给出相反结论。本单据的收口动作是给 15 个
+        # _default 集群逐条补配，误配概率最高，故在写入侧直接拒绝。
+        visible_config = params["visible_config"]
+        if (
+            registered_system == REGISTERED_SYSTEM_DEFAULT
+            and visible_config.get("visible_type") == VisibleEnum.CURRENT_BIZ.value
+        ):
+            raise ValidationError(_("公共集群不支持「当前业务可见」，请使用「多业务可见」或「全部业务可见」"))
+
         # 只覆盖 visible_config，保留其余 custom_option 字段
         new_custom_option = copy.deepcopy(raw_custom_option)
-        new_custom_option["visible_config"] = params["visible_config"]
+        new_custom_option["visible_config"] = visible_config
 
         # 存储设置为可选项，仅在传入时按键合并，避免未传时清掉管理员已配置的上限
         if params.get("setup_config"):
@@ -1385,13 +1400,41 @@ class StorageHandler:
             cluster_id = cluster_config.get("cluster_id")
             if cluster_id not in requested_cluster_ids:
                 continue
+
+            custom_option = cluster_config.get("custom_option") or {}
+            # Metadata 侧脏数据可能是非空字符串等真值，统一归一化为字典，
+            # 避免后续 .get 抛 AttributeError 后被 broad-except 静默判为不可见。
+            if not isinstance(custom_option, dict):
+                custom_option = {}
+            cluster_type = cluster_info.get("cluster_type")
+            registered_system = cluster_config.get("registered_system")
             try:
-                if handler.can_visible(
-                    bk_biz_id,
-                    cluster_config.get("custom_option") or {},
-                    cluster_config.get("registered_system"),
-                    cluster_info.get("cluster_type"),
-                ):
+                # 管理端 list() 为支持存量补配不拦截未配置可见范围的 Doris 集群；
+                # 状态查询若对这类集群套用 fail-closed，会使其停留在
+                # batch_connectivity_detect 的 {"status": False} 初值，管理页显示「失败」。
+                # 豁免必须严格对齐 list() 的放行门禁，避免其它业务枚举 cluster_id
+                # 越权查询连通性 / 磁盘信息：
+                #   公共集群 -> list() 比较 settings.BLUEKING_BK_BIZ_ID
+                #   私有集群 -> list() 比较 custom_option["bk_biz_id"]
+                is_unconfigured_doris = (
+                    cluster_type == DORIS_CLUSTER_TYPE and not custom_option.get("visible_config")
+                )
+                if is_unconfigured_doris:
+                    owner_biz_id = (
+                        settings.BLUEKING_BK_BIZ_ID
+                        if registered_system == REGISTERED_SYSTEM_DEFAULT
+                        else custom_option.get("bk_biz_id")
+                    )
+                    is_allowed = str(bk_biz_id) == str(owner_biz_id)
+                else:
+                    # 有显式可见范围配置的集群仍走 can_visible，保留越权保护
+                    is_allowed = handler.can_visible(
+                        bk_biz_id,
+                        custom_option,
+                        registered_system,
+                        cluster_type,
+                    )
+                if is_allowed:
                     visible_cluster_ids.append(cluster_id)
             except Exception:  # pylint: disable=broad-except
                 logger.exception(
