@@ -122,6 +122,8 @@ export default defineComponent({
       required: true,
     },
     toolPreview: { type: Boolean, default: false },
+    /** 裁切上限。传入后按该宽度判断能否放下，而不是按自身已被截断的 clientWidth 回算 */
+    availableWidth: { type: Number, default: 0 },
   },
   setup(props) {
     const { t } = useI18n();
@@ -163,7 +165,9 @@ export default defineComponent({
         return;
       }
 
-      const available = root.clientWidth;
+      const available = props.availableWidth > 0 ? props.availableWidth : root.clientWidth;
+      // 首帧宽度为 0 时不裁切，否则会按 0 把短内容打上省略号并锁死
+      if (available <= 0) return;
       const gap = Number.parseFloat(getComputedStyle(root).columnGap || getComputedStyle(root).gap) || 0;
       const canReadAll = hiddenFrom.value === Number.POSITIVE_INFINITY;
       const nextKeys =
@@ -220,6 +224,10 @@ export default defineComponent({
     };
 
     useResizeObserver(rootRef, measure);
+    watch(
+      () => props.availableWidth,
+      () => nextTick(measure)
+    );
     watch(pairsSignature, () => {
       clipIndex.value = -1;
       clipPart.value = '';
