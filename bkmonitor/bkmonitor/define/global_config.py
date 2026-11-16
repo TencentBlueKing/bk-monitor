@@ -508,8 +508,13 @@ ADVANCED_OPTIONS = OrderedDict(
             "RECORD_RULE_V4_CONFIG",
             slz.JSONField(
                 label="RecordingRule V4 配置",
-                default={"max_sources": 20, "max_rules": 20},
-                help_text="max_sources 为单 Flow 去重后的 source 上限，max_rules 为 group 中 rule 条数上限，均为正整数，默认 20。",
+                default={"max_sources": 20, "max_rules": 20, "max_series": 500000, "series_exempt_rule_ids": []},
+                help_text=(
+                    "max_sources 为单 Flow 去重后的 source 上限，max_rules 为 group 中 rule 条数上限，默认 20；"
+                    "max_series 为单条表达式当前输出 series 上限，默认 500000，0 表示跳过 series 检查；"
+                    "series_exempt_rule_ids 为管理员评估许可的 V4 规则组 ID 列表，跳过 series 检查，"
+                    "修改规则后仍有效，移除 ID 可撤销许可。"
+                ),
             ),
         ),
         ("METADATA_REQUEST_ES_TIMEOUT", slz.JSONField(label="metadata请求ES超时时间", default={"default": 10})),

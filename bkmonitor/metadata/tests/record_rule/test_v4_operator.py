@@ -113,6 +113,13 @@ def external_api(mocker):
         "metadata.models.record_rule.v4.resolver.api.unify_query.check_query_ts_by_promql",
         return_value=build_check_result(metricql="promql_metricql"),
     )
+    count_result = {"series": [{"columns": ["_time", "_value"], "values": [[1710000600, 1]]}]}
+    query_promql = mocker.patch(
+        "metadata.models.record_rule.v4.series.api.unify_query.query_data_by_promql", return_value=count_result
+    )
+    query_ts = mocker.patch(
+        "metadata.models.record_rule.v4.series.api.unify_query.query_data", return_value=count_result
+    )
     apply_data_link = mocker.patch(
         "metadata.models.record_rule.v4.runner.api.bkdata.apply_record_rule_flow",
         return_value={"status": "ok"},
@@ -127,6 +134,8 @@ def external_api(mocker):
     )
     space_redis = mocker.patch("metadata.models.record_rule.v4.output.SpaceTableIDRedis").return_value
     return SimpleNamespace(
+        query_promql=query_promql,
+        query_ts=query_ts,
         check_query_ts=check_query_ts,
         check_promql=check_promql,
         apply_data_link=apply_data_link,

@@ -194,6 +194,7 @@ class QueryDataResource(UnifyQueryAPIResource):
     path = "/query/ts"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=False)
         query_list = serializers.ListField()
         metric_merge = serializers.CharField()
         start_time = serializers.CharField()
@@ -290,6 +291,8 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False, default=False)
+        space_uid = serializers.CharField(required=False, allow_null=True)
         promql = serializers.CharField()
         match = serializers.CharField(default="", allow_blank=True, required=False)
         is_verify_dimensions = serializers.BooleanField(default=False)
