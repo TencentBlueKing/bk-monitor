@@ -786,7 +786,7 @@ paths:
   /mcp/llm_search_spans/:
     post:
       operationId: llm_mcp_search_spans
-      description: 'STEP 3 of the LLM/Agent observability workflow. Query normalized LLM/Agent spans (with standard gen_ai.* attributes, input/output messages, tool definitions, events and resource) by trace_id and/or span_ids. At least one of trace_id or span_ids is required. PREREQUISITE: trace_id or span_ids come from llm_mcp_search_flows. LLM/Agent 观测工作流第 3 步：按 trace_id 和/或 span_ids 查询归一化后的 LLM/Agent Span 详情（包含标准 gen_ai.* 属性、完整输入输出消息、工具定义、events 与 resource）。trace_id 与 span_ids 至少传一个。前置：trace_id 或 span_ids 来自 llm_mcp_search_flows。'
+      description: 'STEP 3 of the LLM/Agent observability workflow. Query normalized LLM/Agent spans (with standard gen_ai.* attributes, input/output messages, tool definitions and resource) by trace_id and/or span_ids. At least one of trace_id or span_ids is required. PREREQUISITE: trace_id or span_ids come from llm_mcp_search_flows. LLM/Agent 观测工作流第 3 步：按 trace_id 和/或 span_ids 查询归一化后的 LLM/Agent Span 详情（包含标准 gen_ai.* 属性、输入输出消息、工具定义与 resource）。trace_id 与 span_ids 至少传一个。前置：trace_id 或 span_ids 来自 llm_mcp_search_flows。'
       tags:
       - apm_mcp
       requestBody:

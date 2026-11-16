@@ -1170,8 +1170,9 @@ class ListSpansResourceTestCase(TestCase):
                 }
             )
 
-        self.assertEqual(result["trace_id"], trace_id)
+        self.assertNotIn("trace_id", result)
         self.assertEqual(result["total"], 1)
+        self.assertEqual(result["spans"][0]["trace_id"], trace_id)
         attributes = result["spans"][0]["attributes"]
         self.assertEqual(attributes["gen_ai.operation.name"], "chat")
         self.assertEqual(attributes["gen_ai.request.model"], "demo-model")
@@ -1204,7 +1205,7 @@ class ListSpansResourceTestCase(TestCase):
 
         self.assertEqual(
             result,
-            {"trace_id": "trace-1", "total": 1, "spans": [converted_span]},
+            {"total": 1, "spans": [converted_span]},
         )
         adapt_spans.assert_called_once_with(response["data"], entity_set)
         query_span_list.assert_called_once_with(
@@ -1264,7 +1265,7 @@ class ListSpansResourceTestCase(TestCase):
                 }
             )
 
-        self.assertEqual(result, {"trace_id": "trace-1", "total": 1, "spans": response["data"]})
+        self.assertEqual(result, {"total": 1, "spans": response["data"]})
         query_span_list.assert_called_once_with(
             {
                 "bk_biz_id": 11,
@@ -1291,7 +1292,7 @@ class ListSpansResourceTestCase(TestCase):
             "total": 2,
             "data": [
                 {"trace_id": "trace-1", "span_id": "span-1"},
-                {"trace_id": "trace-1", "span_id": "span-2"},
+                {"trace_id": "trace-2", "span_id": "span-2"},
             ],
         }
 
@@ -1308,7 +1309,7 @@ class ListSpansResourceTestCase(TestCase):
                 }
             )
 
-        self.assertEqual(result, {"trace_id": "trace-1", "total": 2, "spans": response["data"]})
+        self.assertEqual(result, {"total": 2, "spans": response["data"]})
         query_span_list.assert_called_once_with(
             {
                 "bk_biz_id": 11,

@@ -399,7 +399,6 @@ class ListSpansResource(Resource):
         )
         spans = adapt_spans(raw_spans, entity_set)
         return {
-            "trace_id": trace_id or (raw_spans[0].get(OtlpKey.TRACE_ID, "") if raw_spans else ""),
             "total": len(spans),
             "spans": spans,
         }

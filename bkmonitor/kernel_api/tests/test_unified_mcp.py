@@ -60,13 +60,13 @@ def test_registry_loads_all_repository_mcp_tools():
     root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
     registry = load_tool_registry(root)
 
-    assert len(registry) == 99
+    assert len(registry) == 100
     expected_category_counts = {
         "metrics": 4,
         "log": 9,
         "alert": 12,
         "event": 3,
-        "apm": 14,
+        "apm": 15,
         "dashboard": 4,
         "relation": 2,
         "alert_handling": 18,
@@ -80,6 +80,7 @@ def test_registry_loads_all_repository_mcp_tools():
     )
     assert registry.get("search_logs").prerequisites == ("list_index_sets", "get_index_set_fields")
     assert registry.get("calculate_by_range").iam_action == "using_apm_mcp"
+    assert unified_registry.NATIVE_PERMISSIONS["llm_mcp_search_spans"]["resource_type"] == "apm_application"
     assert "apm_mcp_calculate_by_range" not in registry.names
 
 

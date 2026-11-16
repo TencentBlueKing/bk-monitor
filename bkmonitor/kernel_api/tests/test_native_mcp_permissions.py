@@ -322,8 +322,9 @@ def test_mcp_resource_without_serializer_still_passes_through(validated_log_reso
 def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     native = registry.get_tool_registry()
     tool = native.get("search_logs")
-    assert len(native) == 99
-    assert sum(bool(tool.native_permission) for tool in native.list()) == 91
+    assert len(native) == 100
+    assert sum(bool(tool.native_permission) for tool in native.list()) == 92
+    assert native.get("llm_mcp_search_spans").native_permission["resource_type"] == "apm_application"
     assert {
         tool.name for tool in native.list() if not tool.permission_exempt and tool.category != "recording_rule"
     } == set(registry.NATIVE_PERMISSIONS)
