@@ -39,6 +39,8 @@ export {
 } from './overlay-registry';
 export {
   Z_INDEX_LAYERS,
+  MONITOR_OVERLAY_ZINDEX_BASE,
+  ensureMonitorOverlayZIndex,
   createZIndexManager,
   installZIndexManager,
   zIndexManager,

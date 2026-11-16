@@ -74,11 +74,19 @@ const isExplicitZIndex = (value) => {
   return Number.isFinite(Number(value));
 };
 
-const createZIndexManager = (start = Z_INDEX_LAYERS.DROPDOWN) => {
+// Monitor drawers live below DIALOG. Keep the floor in the shared layer contract.
+const MONITOR_OVERLAY_ZINDEX_BASE = Z_INDEX_LAYERS.DIALOG;
+const getOverlayZIndexStart = (target = typeof globalThis !== 'undefined' ? globalThis : undefined) => {
+  const win = target?.window || target;
+  return win?.__IS_MONITOR_COMPONENT__ ? MONITOR_OVERLAY_ZINDEX_BASE : Z_INDEX_LAYERS.DROPDOWN;
+};
+
+const createZIndexManager = (start = Z_INDEX_LAYERS.DROPDOWN, target = typeof globalThis !== 'undefined' ? globalThis : undefined) => {
   let current = start;
   let messageCurrent = Z_INDEX_LAYERS.MESSAGE;
   const publish = () => {
-    const root = typeof document === 'undefined' ? null : document.documentElement;
+    const win = target?.window || target;
+    const root = win?.document?.documentElement;
     if (!root) return;
     root.style.setProperty('--bklog-z-overlay', String(current));
     root.style.setProperty('--bklog-z-message-current', String(messageCurrent));
@@ -96,6 +104,7 @@ const createZIndexManager = (start = Z_INDEX_LAYERS.DROPDOWN) => {
         publish();
         return numeric;
       }
+      current = Math.max(current, getOverlayZIndexStart(target));
       current += 1;
       publish();
       return current;
@@ -114,6 +123,7 @@ const createZIndexManager = (start = Z_INDEX_LAYERS.DROPDOWN) => {
         publish();
         return numeric;
       }
+      current = Math.max(current, getOverlayZIndexStart(target));
       const delta = Number(step);
       current += Number.isFinite(delta) && delta > 0 ? delta : 1;
       publish();
@@ -168,12 +178,12 @@ const installOverlayWatcher = (win, manager) => {
   win.__bk_zIndex_watcher = observer;
 };
 
-const ensureMagicZIndexApi = (manager) => {
+const ensureMagicZIndexApi = (manager, target) => {
   if (!manager) return manager;
-  if (typeof manager.nextMessageZIndex === 'function' && typeof manager.nextTickIndex === 'function') {
+  if (typeof manager.nextMessageZIndex === 'function' && typeof manager.nextTickIndex === 'function' && typeof manager.getCurrent === 'function') {
     return manager;
   }
-  const seeded = createZIndexManager(manager.getCurrent?.() ?? Z_INDEX_LAYERS.DROPDOWN);
+  const seeded = createZIndexManager(Math.max(manager.getCurrent?.() ?? 0, manager.zIndex ?? 0, getOverlayZIndexStart(target)), target);
   manager.nextZIndex = seeded.nextZIndex.bind(seeded);
   manager.nextTickIndex = seeded.nextTickIndex.bind(seeded);
   manager.nextMessageZIndex = seeded.nextMessageZIndex.bind(seeded);
@@ -187,16 +197,25 @@ const installZIndexManager = (target = typeof globalThis !== 'undefined' ? globa
   if (!target) return null;
   const win = target.window || target;
   const manager = win.__bk_zIndex_manager?.nextZIndex
-    ? ensureMagicZIndexApi(win.__bk_zIndex_manager)
-    : createZIndexManager();
+    ? ensureMagicZIndexApi(win.__bk_zIndex_manager, win)
+    : createZIndexManager(getOverlayZIndexStart(win), win);
   win.__bk_zIndex_manager = manager;
   publishLayerVariables(win, manager.layers || Z_INDEX_LAYERS);
-  win.document?.documentElement?.style.setProperty('--bklog-z-popup', String(Z_INDEX_LAYERS.DROPDOWN));
+  win.document?.documentElement?.style.setProperty('--bklog-z-popup', String(Math.max(manager.getCurrent(), getOverlayZIndexStart(win))));
   installOverlayWatcher(win, manager);
+  return manager;
+};
+
+/** Called after Monitor flags are set, including when modules were imported earlier. */
+const ensureMonitorOverlayZIndex = (target = typeof globalThis !== 'undefined' ? globalThis : undefined) => {
+  const win = target?.window || target;
+  if (!win?.__IS_MONITOR_COMPONENT__) return null;
+  const manager = installZIndexManager(win);
+  manager.nextZIndex(Math.max(manager.getCurrent(), MONITOR_OVERLAY_ZINDEX_BASE));
   return manager;
 };
 
 const manager = installZIndexManager();
 
-export { Z_INDEX_LAYERS, createZIndexManager, installZIndexManager, manager as zIndexManager };
+export { MONITOR_OVERLAY_ZINDEX_BASE, getOverlayZIndexStart, ensureMonitorOverlayZIndex, Z_INDEX_LAYERS, createZIndexManager, installZIndexManager, manager as zIndexManager };
 export default manager;
