@@ -22,7 +22,7 @@ ln -s "$(pwd)/ai_agent" bkmonitor/ai_agent
 ln -s "$(pwd)/ai_agent" bklog/ai_agent
 ```
 
-监控 Docker 镜像已显式复制 `ai_agent/`，无需另建软链接。共享接口未配置 backend 时仍使用 `aidev`；监控默认配置选择 `hermes`。显式选择 Hermes 后，缺少运行时会报配置错误，不会转到其他执行内核。未安装 SDK 的公共镜像隐藏小鲸入口。
+监控 Docker 镜像已显式复制 `ai_agent/`，无需另建软链接。公共默认配置沿用 `aidev`，内部 Values 显式设置 `AI_AGENT_BACKEND=hermes`。选择 Hermes 后，缺少运行时会报配置错误，不会转到其他执行内核；缺少 SDK 时隐藏该入口。
 
 Hermes 只执行当前智能体挂载的 Python/MCP 工具及知识查询，不启用通用本地编程工具。MCP 认证沿用当前请求的用户身份；包含用户认证头的配置只在该请求内缓存。SDK session 使用用户与平台会话的组合标识，不启用 SDK 会话数据库。
 
