@@ -495,6 +495,7 @@ export default defineComponent({
                       }}
                       disabled={!cacheData.value.is_analyzed}
                       size='small'
+                      theme='default'
                       onClick={() => handleChangeParticipleState(option.id)}
                     >
                       {t(option.name)}
