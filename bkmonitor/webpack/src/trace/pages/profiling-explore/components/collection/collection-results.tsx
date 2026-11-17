@@ -125,7 +125,7 @@ export default defineComponent({
         value.task_name ||
         value.process_names.length ||
         value.process_pids.length ||
-        value.status
+        value.status.length
       );
     });
     function patch(value: Partial<CollectionResultsState>) {
@@ -226,7 +226,9 @@ export default defineComponent({
     const hostColumns = this.state.execution ? h.hostColumns.value : null;
     // 结果列表使用结果侧状态文案，含解析中，与采集任务历史的文案区分
     const statusFilter = {
-      type: 'single' as const,
+      type: 'multiple' as const,
+      resetValue: [],
+      showConfirmAndReset: true,
       list: Object.keys(resultStatusLabels)
         .filter(key => key !== 'parsing')
         .map(value => ({ value, label: this.t(resultStatusLabels[value]) })),
@@ -348,7 +350,7 @@ export default defineComponent({
             rowKey='resultKey'
             size='small'
             onFilterChange={value =>
-              this.patch({ filters: { ...this.state.filters, status: String(value.status || '') } })
+              this.patch({ filters: { ...this.state.filters, status: (value.status || []) as string[] } })
             }
           >
             {{

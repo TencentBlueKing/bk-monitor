@@ -39,6 +39,7 @@ import {
   clampSelection,
   createQueryState,
   createViewState,
+  defaultTimeRange,
   restoreQueryState,
   restoreSelection,
 } from '../utils/query';
@@ -99,6 +100,11 @@ export function useProfilingQuery() {
   let initialized = false;
   let restoring = 0;
   let filterQueryPending = false;
+  // 采集视图的默认时间范围，只在采集视图内生效
+  const collectionTimeRange: QueryState['timeRange'] = ['now-7d', 'now'];
+  // 进入采集视图前的全局时间范围，离开时恢复，避免采集默认的 7 天污染应用主查询；
+  // 刷新或直接打开采集链接时没有快照，回落到应用默认范围
+  let timeRangeBeforeCollection: null | QueryState['timeRange'] = null;
   const pendingWrites = new Set<string>();
   const valueCache = new Map<string, Promise<string[]>>();
 
@@ -119,6 +125,11 @@ export function useProfilingQuery() {
 
   function patchView(value: Partial<ProfileViewState>) {
     patch({ view: { ...state.value.view, ...value } });
+  }
+
+  // 当前全局范围是否仍是进入采集时自动写入的默认范围
+  function isCollectionDefaultRange(range: QueryState['timeRange']) {
+    return range[0] === collectionTimeRange[0] && range[1] === collectionTimeRange[1];
   }
 
   function changeFilters(
@@ -376,6 +387,17 @@ export function useProfilingQuery() {
     valueController.abort();
     loading.value = false;
     initialized = true;
+    const previousTab = state.value.view.tab;
+    if (tab === 'collection' && previousTab !== 'collection') {
+      timeRangeBeforeCollection = state.value.timeRange;
+      patch({ timeRange: [...collectionTimeRange] });
+    } else if (previousTab === 'collection' && tab !== 'collection') {
+      // 只在全局范围仍是进入采集时自动写入的默认范围时恢复；用户手改过的范围保留
+      if (isCollectionDefaultRange(state.value.timeRange)) {
+        patch({ timeRange: [...(timeRangeBeforeCollection ?? defaultTimeRange)] });
+      }
+      timeRangeBeforeCollection = null;
+    }
     patchView({ tab });
     if (tab === 'file') {
       await files.refreshRecords(true);
@@ -519,7 +541,6 @@ export function useProfilingQuery() {
 
   function collectionCreated() {
     patch({
-      timeRange: ['now-15m', 'now'],
       collection: {
         ...state.value.collection,
         tab: 'history',

@@ -207,10 +207,14 @@ export const collectionFieldError = (field: CollectionFieldKey, message: string)
  * @description 按采集元信息构建表单草稿，传入 task 时回填为编辑态
  * @param meta 采集能力元信息，提供可选方式、类型及默认配置
  * @param timezone 默认时区，任务未指定时区时兜底
- * @param task 待编辑的采集任务，缺省表示新建
+ * @param task 回填来源，待编辑的采集任务或执行配置快照，缺省表示新建
  * @returns 采集表单草稿
  */
-export function createCollectionDraft(meta: CollectionMeta, timezone: string, task?: CollectionTask): CollectionDraft {
+export function createCollectionDraft(
+  meta: CollectionMeta,
+  timezone: string,
+  task?: Omit<CollectionPayload, 'bk_biz_id'>
+): CollectionDraft {
   // 新建默认取后端下发的第一个方式，后端未下发时兜底 perf
   const method = task?.collection_method || meta.collection_methods[0] || CollectionMethodEnum.PERF;
   const collectionType = task?.collection_type || meta.collection_types_by_method[method]?.[0];

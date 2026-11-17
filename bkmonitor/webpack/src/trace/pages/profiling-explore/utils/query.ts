@@ -27,7 +27,7 @@
 import { createCollectionQueryState, restoreCollectionQuery } from './collection';
 import { createViewState, restoreViewState } from './profile-view';
 
-import type { ProfileQuery, QueryState, SelectionRange } from '../types';
+import type { ProfileQuery, QueryState, SelectionRange, TimeRange } from '../types';
 
 export { createViewState } from './profile-view';
 import type { FileQueryState } from '../types/file';
@@ -88,6 +88,9 @@ export function createFileQueryState(): FileQueryState {
   };
 }
 
+/** 应用视图默认时间范围；采集视图默认范围只在采集内生效，离开时按需回落 */
+export const defaultTimeRange: TimeRange = ['now-15m', 'now'];
+
 export function createQueryState(timezone: string): QueryState {
   return {
     file: createFileQueryState(),
@@ -97,7 +100,7 @@ export function createQueryState(timezone: string): QueryState {
     dataType: '',
     aggregation: 'SUM',
     mode: 'none',
-    timeRange: ['now-15m', 'now'],
+    timeRange: [...defaultTimeRange],
     timezone,
     refreshInterval: -1,
     where: [],
