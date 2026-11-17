@@ -1077,6 +1077,12 @@ class CreateEventGroupResource(Resource):
         operator = serializers.CharField(required=True, label="创建者")
         event_info_list = serializers.ListField(required=False, label="事件列表", default=None)
         data_label = serializers.CharField(label="数据标签", required=False, default="")
+        default_storage = serializers.ChoiceField(
+            choices=[models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS],
+            required=False,
+            default=models.ClusterInfo.TYPE_ES,
+        )
+        default_storage_config = serializers.DictField(required=False, label="默认存储配置")
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容

@@ -7,6 +7,7 @@
   "description": "BKLog Vue 3 workspace package",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "analyze:bundle": "node --max-old-space-size=8192 tools/analyze-bundle.mjs",
     "build": "node --max-old-space-size=8192 ./node_modules/vite/bin/vite.js build && node tools/verify-legacy-deployment.mjs && node tools/verify-production-build.mjs",
     "test": "pnpm --ignore-workspace i18n:compile && node --test tests/*.test.mjs",
     "typecheck": "pnpm --ignore-workspace i18n:compile && vue-tsc --noEmit",
@@ -73,6 +74,7 @@
     "scheduler-polyfill": "^1.3.0",
     "screenfull": "6.0.2",
     "sql-formatter": "15.6.6",
+    "tdesign-icons-vue-next": "0.4.11",
     "tdesign-vue-next": "^1.20.10",
     "throttle-debounce": "5.0.0",
     "tiny-pinyin": "1.3.2",
@@ -112,7 +114,6 @@
     "sass": "^1.106.1",
     "typescript": "^5.7.3",
     "vite": "^6.0.11",
-    "vue-i18n": "11.4.16",
     "vue-tsc": "^3.3.13"
   },
   "imports": {

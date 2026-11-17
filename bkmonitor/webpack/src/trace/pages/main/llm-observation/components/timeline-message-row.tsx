@@ -60,6 +60,15 @@ export default defineComponent({
     const { t } = useI18n();
     const store = useTraceStore();
     const expanded = shallowRef(false);
+    const ioRef = shallowRef<HTMLElement>();
+    // 行内 KV 预览会为每个键值创建测量与 Popover 实例，屏外行先只渲染纯文本占位
+    const rowRef = shallowRef<HTMLElement>();
+    const previewRef = shallowRef<HTMLElement>();
+    const systemBodyRef = shallowRef<HTMLElement>();
+    const isSystemBodyMultiline = shallowRef(false);
+    const previewTextRef = shallowRef<HTMLElement>();
+    const previewTruncated = shallowRef(false);
+
     const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
     const currentSpanId = inject<Ref<string>>('spanId', shallowRef(''));
     const openSpanDetail = inject(LLM_OPEN_SPAN_DETAIL_KEY, null);
@@ -80,6 +89,15 @@ export default defineComponent({
     const roleMeta = computed(() => ROLE_META[props.part.role]);
     const argumentsPreview = computed(() => toPreview(props.part.arguments));
     const responsePreview = computed(() => toPreview(props.part.response));
+    const isPreviewEmpty = (preview: ReturnType<typeof toPreview>) =>
+      !preview.pairs.length && EMPTY_PREVIEW_TEXT.has(preview.text);
+    // 只有输入或只有输出时，该侧可用满父容器剩余宽度；两侧都有内容时各自最多占一半
+    const isSingleSide = computed(
+      () =>
+        props.part.response === undefined ||
+        isPreviewEmpty(argumentsPreview.value) ||
+        isPreviewEmpty(responsePreview.value)
+    );
     const hasDescription = computed(() => Boolean(props.part.description?.trim()));
     const isEmptyArguments = computed(() => {
       // 参数缺省时上游会补成 {}，与空对象一并按「暂无参数」处理
@@ -89,8 +107,6 @@ export default defineComponent({
     const canExpand = computed(
       () => !props.part.isPlaceholder && (props.part.role === 'tool' || Boolean(props.part.content))
     );
-    // 行内 KV 预览会为每个键值创建测量与 Popover 实例，屏外行先只渲染纯文本占位
-    const rowRef = shallowRef<HTMLElement>();
     const setRowRef = (el: unknown) => {
       rowRef.value = el instanceof HTMLElement ? el : undefined;
     };
@@ -99,15 +115,13 @@ export default defineComponent({
     // 导致整行文字消失、只在末尾露出黄色块。命中仍由展开区正文的高亮定位。
     // 真正裁切发生在父级 .llm-timeline-row-preview（min-width: 0; overflow: hidden），
     // 文本节点自身按剩余宽度收窄，故以父级可视宽度作比较基准
-    const previewRef = shallowRef<HTMLElement>();
     const setPreviewRef = (el: unknown) => {
       previewRef.value = el instanceof HTMLElement ? el : undefined;
     };
-    const previewTextRef = shallowRef<HTMLElement>();
+
     const setPreviewTextRef = (el: unknown) => {
       previewTextRef.value = el instanceof HTMLElement ? el : undefined;
     };
-    const previewTruncated = shallowRef(false);
     // 只单向置位：命中标记自带 1px 内边距，去掉高亮后文本变窄会反转测量结果，
     // 来回切换高亮会造成测量抖动，故仅在内容 / 关键词变化时重新判定。
     const syncPreviewTruncated = () => {
@@ -129,11 +143,10 @@ export default defineComponent({
       }
     );
     // 展开后的系统 / 模型正文元素，「独立查看」仅在正文超过一行时才需要
-    const systemBodyRef = shallowRef<HTMLElement>();
     const setSystemBodyRef = (el: unknown) => {
       systemBodyRef.value = el instanceof HTMLElement ? el : undefined;
     };
-    const isSystemBodyMultiline = shallowRef(false);
+
     const syncSystemBodyLines = () => {
       const el = systemBodyRef.value;
       if (!el) {
@@ -204,7 +217,16 @@ export default defineComponent({
       openSpanDetail({ span_id: spanId, spanID: spanId });
     };
 
-    const renderPairs = (preview: ReturnType<typeof toPreview>, className?: string) => {
+    const setIoRef = (el: unknown) => {
+      ioRef.value = el instanceof HTMLElement ? el : undefined;
+    };
+    // 输入侧裁切上限取 io 半宽，不跟自身截断后的宽度挂钩，短内容才能完整展开
+    const inputMaxWidth = shallowRef(0);
+    useResizeObserver(ioRef, () => {
+      inputMaxWidth.value = (ioRef.value?.clientWidth ?? 0) / 2;
+    });
+
+    const renderPairs = (preview: ReturnType<typeof toPreview>, className?: string, availableWidth?: number) => {
       // 空参数只渲染占位符，容器按内容宽度收缩，避免箭头左侧留出大片空白
       const isEmpty = !preview.pairs.length && EMPTY_PREVIEW_TEXT.has(preview.text);
       return (
@@ -212,7 +234,10 @@ export default defineComponent({
           {preview.pairs.length ? (
             inView.value ? (
               // KV 按剩余宽度依次铺开，放不下的直接隐藏，避免 value 过长把 key 压没
-              <SpanIoKvs pairs={preview.pairs} />
+              <SpanIoKvs
+                pairs={preview.pairs}
+                availableWidth={availableWidth}
+              />
             ) : (
               // 屏外先出 key: value 纯文本，进入视口后再换成可测量、可悬浮的 KV 预览
               <span class='llm-timeline-row-pairs-text'>
@@ -256,8 +281,15 @@ export default defineComponent({
                 <span>{durationText.value}</span>
               </span>
             ) : null}
-            <div class='llm-timeline-row-io'>
-              {renderPairs(argumentsPreview.value)}
+            <div
+              ref={setIoRef}
+              class={['llm-timeline-row-io', { 'is-single-side': isSingleSide.value }]}
+            >
+              {renderPairs(
+                argumentsPreview.value,
+                undefined,
+                isSingleSide.value ? undefined : inputMaxWidth.value
+              )}
               {props.part.response !== undefined ? (
                 <>
                   <i class='icon-monitor icon-next-one llm-timeline-row-arrow' />

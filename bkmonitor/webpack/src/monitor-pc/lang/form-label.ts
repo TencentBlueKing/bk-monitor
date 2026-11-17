@@ -2070,6 +2070,7 @@ export default {
   用户: 'User',
   环境: 'Environment',
   'View 详情': 'View Details',
+  'Session 详情': 'Session Details',
   请求: 'Request',
   停留时长: 'duration',
 };

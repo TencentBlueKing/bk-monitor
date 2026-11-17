@@ -1,5 +1,6 @@
-.user-info-card {
+.client-log-search-root .user-info-card {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   overflow: hidden;
   margin: 16px 0;
@@ -22,6 +23,7 @@
   /* 左侧用户图标 */
   .user-avatar {
     display: flex;
+    flex-shrink: 0;
     width: 48px;
     height: 48px;
     padding: 8px;
@@ -40,9 +42,9 @@
 
   /* 用户基本信息 */
   .user-basic-info {
-    flex-shrink: 0;
-    min-width: 216px;
-    max-width: 542px;
+    flex-shrink: 1;
+    min-width: 180px;
+    max-width: min(542px, 30%);
     margin: 0 12px;
 
     .user-name {
@@ -62,13 +64,15 @@
   /* 详细信息 */
   .detail-info {
     display: grid;
-    grid-template-columns: repeat(3, auto);
+    flex: 1;
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     row-gap: 10px;
 
     .detail-item {
       display: flex;
       align-items: center;
-      min-width: 288px;
+      min-width: 0;
       margin-right: 12px;
       color: #8f9fbd;
       font-size: 12px;
@@ -83,6 +87,10 @@
       }
 
       .value {
+         min-width: 0;
+         overflow: hidden;
+         text-overflow: ellipsis;
+         white-space: nowrap;
          color: #4e5e7a;
 
          .count {
@@ -91,5 +99,11 @@
          }
       }
     }
+  }
+}
+
+@media (max-width: 1100px) {
+  .client-log-search-root .user-info-card .detail-info {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

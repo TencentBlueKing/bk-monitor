@@ -1,5 +1,5 @@
 @import 'tippy.js/dist/tippy.css';
-.task-list-panel {
+.client-log-search-root .task-list-panel {
     display: flex;
     flex-shrink: 0;
     flex-direction: column;
@@ -118,13 +118,14 @@
     }
 }
 
-.card-base.task-list-panel {
+.client-log-search-root .client-log-card.task-list-panel {
     padding-right: 8px;
 }
 
-.task-item {
+.client-log-search-root .task-item {
     display: flex;
     flex-direction: row;
+  flex-shrink: 0;
     gap: 8px;
     align-items: flex-start;
     padding: 12px 16px;

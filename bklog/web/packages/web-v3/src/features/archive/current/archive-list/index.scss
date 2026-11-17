@@ -19,6 +19,19 @@
   }
 
   .archive-table {
+    .archive-expand-icon {
+      font-size: var(--bklog-font-body, 12px);
+      line-height: 1;
+      color: var(--bklog-text-disabled, #c4c6cc);
+    }
+
+    .collect-table-operate {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      white-space: nowrap;
+    }
+
     .filter-column {
       .cell {
         display: flex;

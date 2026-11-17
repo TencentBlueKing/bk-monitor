@@ -29,7 +29,8 @@ import type { MaybeRef } from 'vue';
 import dayjs from 'dayjs';
 
 import { formatUnitValue } from '../../utils';
-import { ORIGIN_NESTED_KEYS } from '../constants';
+import { ORIGIN_NESTED_KEYS, VITAL_METRIC_META } from '../constants';
+import { formatDuration } from '@/components/trace-view/utils/date';
 
 import type { IRumField } from '../../typings';
 import type { IRumOriginBlockVM, IRumOriginRowVM } from '../typings';
@@ -61,16 +62,35 @@ export function useOriginData(
     const data = unref(originData);
     if (!data) return [];
 
+    /** 当前 span 的 Web Vitals 指标名（attributes 为扁平点号键），用于还原 vital 伪单位的真实单位 */
+    const vitalMetric = String(data.attributes?.['vital.metric'] ?? '').toLowerCase();
     /** 字段名 → 字段元信息，originKey 命中字段 name 即可拿到单位与枚举 */
     const fieldMap = new Map(unref(fields).map(field => [field.name, field]));
-    const getField = (originKey: string) => fieldMap.get(originKey);
+    const getField = (originKey: string): IRumField | undefined => fieldMap.get(originKey);
+    /** unit 为 vital 的字段，展示单位由指标名决定，需单独按列表口径格式化 */
+    const vitalFieldNames = new Set(
+      unref(fields)
+        .filter(field => field.field_unit === 'vital')
+        .map(field => field.name)
+    );
+    /**
+     * 展示值：vital 伪单位的真实单位登记在 VITAL_METRIC_META（cls 无量纲，其余按 ms），
+     * 与列表 vital 值列、评级条、链路头部同用 formatDuration，避免量纲表把毫秒进位成 min / hour。
+     */
+    const resolveOriginDisplay = (originKey: string, value: string, valueType: IRumOriginRowVM['valueType']) => {
+      if (!vitalFieldNames.has(originKey)) return resolveDisplayValue(getField(originKey), value, valueType);
+      const unit = VITAL_METRIC_META[vitalMetric]?.unit ?? 'ms';
+      /** cls 等无量纲指标不拼单位；其余指标原始值以毫秒存储 */
+      if (!unit || valueType !== 'number' || !Number.isFinite(Number(value))) return value;
+      return formatDuration(Number(value), '', 2, 'ms');
+    };
 
     /** Span 块：顶层标量字段，嵌套字段各自有独立块 */
     const spanRows = Object.entries(data)
       .filter(([key]) => !ORIGIN_NESTED_KEYS.has(key))
-      .map(([key, value]) => toRow(key, value, '', getField));
-    const attributeRows = toRows(data.attributes, 'attributes', getField);
-    const resourceRows = toRows(data.resource, 'resource', getField);
+      .map(([key, value]) => toRow(key, value, '', resolveOriginDisplay));
+    const attributeRows = toRows(data.attributes, 'attributes', resolveOriginDisplay);
+    const resourceRows = toRows(data.resource, 'resource', resolveOriginDisplay);
 
     /** 块内搜索关键字，只作用于 Events（Links 未开启 searchable） */
     const keyword = eventKeyword.value.trim().toLowerCase();
@@ -80,15 +100,15 @@ export function useOriginData(
       rows: [
         ...Object.entries(link)
           .filter(([key]) => key !== 'attributes')
-          .map(([key, value]) => toRow(key, value, 'links', getField)),
-        ...toRows(link.attributes, 'links.attributes', getField),
+          .map(([key, value]) => toRow(key, value, 'links', resolveOriginDisplay)),
+        ...toRows(link.attributes, 'links.attributes', resolveOriginDisplay),
       ],
     }));
     /** Events 块：按事件名分组，组内为 timestamp + attributes；有关键字时只保留键或值命中的行 */
     const eventGroups = ((data.events || []) as Array<Record<string, any>>).map((event, index) => {
       const rows = [
-        ...(event.timestamp === undefined ? [] : [toRow('timestamp', event.timestamp, 'events', getField)]),
-        ...toRows(event.attributes, 'events.attributes', getField),
+        ...(event.timestamp === undefined ? [] : [toRow('timestamp', event.timestamp, 'events', resolveOriginDisplay)]),
+        ...toRows(event.attributes, 'events.attributes', resolveOriginDisplay),
       ];
       return {
         name: String(event.name ?? `event_${index}`),
@@ -194,13 +214,13 @@ function toOriginKey(prefix: string, key: string): string {
  * 构造一行键值
  * @param key 展示用字段名（数组块内为后端扁平化后的末级字段名）
  * @param prefix 所属块的路径前缀，仅用于拼 originKey；Span 顶层字段不传
- * @param getField 按 originKey 查字段元信息，命中时格式化 displayValue
+ * @param resolveDisplay 按 originKey 生成展示值，未传时展示原始值
  */
 function toRow(
   key: string,
   value: unknown,
   prefix = '',
-  getField?: (originKey: string) => IRumField | undefined
+  resolveDisplay?: (originKey: string, value: string, valueType: IRumOriginRowVM['valueType']) => string
 ): IRumOriginRowVM {
   const valueType = resolveValueType(value);
   const originKey = toOriginKey(prefix, key);
@@ -210,7 +230,7 @@ function toRow(
     originKey,
     valueType,
     value: valueText,
-    displayValue: resolveDisplayValue(getField?.(originKey), valueText, valueType),
+    displayValue: resolveDisplay ? resolveDisplay(originKey, valueText, valueType) : valueText,
   };
 }
 
@@ -218,10 +238,10 @@ function toRow(
 function toRows(
   source: Record<string, unknown> | undefined,
   prefix = '',
-  getField?: (originKey: string) => IRumField | undefined
+  resolveDisplay?: (originKey: string, value: string, valueType: IRumOriginRowVM['valueType']) => string
 ): IRumOriginRowVM[] {
   if (!source) return [];
-  return Object.entries(source).map(([key, value]) => toRow(key, value, prefix, getField));
+  return Object.entries(source).map(([key, value]) => toRow(key, value, prefix, resolveDisplay));
 }
 
 function toSummary(rows: IRumOriginRowVM[]): string {

@@ -10,13 +10,14 @@ specific language governing permissions and limitations under the License.
 
 import json
 
+from bk_monitor_base.domains.uptime_check.models import UptimeCheckNodeModel, UptimeCheckTaskModel
+
 from alarm_backends.core.cache.base import CacheManager
-from core.drf_resource import api
 
 
 class UptimecheckCacheManager(CacheManager):
     """
-    采集配置缓存
+    全局拨测配置缓存，直接读取模型，避免依赖页面接口的业务和租户上下文。
     """
 
     # 缓存key
@@ -47,19 +48,31 @@ class UptimecheckCacheManager(CacheManager):
 
     @classmethod
     def refresh_task(cls, task_id):
-        task = api.monitor.uptime_check_task_list(plain=True, id=task_id, bk_biz_id=0)
-        if task:
-            task = task[0]
-            cls.cache.set(cls.TASK_CACHE_KEY_TEMPLATE.format(task_id=task_id), json.dumps(task), cls.CACHE_TIMEOUT)
-            return task
-        return None
+        task = UptimeCheckTaskModel.objects.filter(id=task_id, is_deleted=False).first()
+        if task is None:
+            return None
+        data = {
+            "id": task.id,
+            "name": task.name,
+            "bk_biz_id": task.bk_biz_id,
+            "protocol": task.protocol,
+            "config": task.config or {},
+            "node_ids": list(task.nodes.values_list("id", flat=True)),
+            "group_ids": list(task.groups.values_list("id", flat=True)),
+            "status": task.status,
+        }
+        cls.cache.set(cls.TASK_CACHE_KEY_TEMPLATE.format(task_id=task_id), json.dumps(data), cls.CACHE_TIMEOUT)
+        return data
 
     @classmethod
     def refresh_nodes(cls):
         pipeline = cls.cache.pipeline()
 
-        nodes = api.monitor.uptime_check_node_list(bk_biz_id=0)
+        nodes = list(
+            UptimeCheckNodeModel.objects.filter(is_deleted=False).values("id", "name", "bk_biz_id", "ip", "plat_id")
+        )
         for node in nodes:
+            node["bk_cloud_id"] = node["plat_id"]
             pipeline.set(
                 cls.NODE_CACHE_KEY_TEMPLATE.format(node_id=f"{node['bk_cloud_id']}:{node['ip']}"),
                 json.dumps(node),
@@ -73,7 +86,7 @@ class UptimecheckCacheManager(CacheManager):
     @classmethod
     def refresh_tasks(cls):
         pipeline = cls.cache.pipeline()
-        tasks = api.monitor.uptime_check_task_list(plain=True, bk_biz_id=0)
+        tasks = list(UptimeCheckTaskModel.objects.filter(is_deleted=False).values("id", "name", "bk_biz_id"))
         count = len(tasks)
         for task in tasks:
             pipeline.set(cls.TASK_CACHE_KEY_TEMPLATE.format(task_id=task["id"]), json.dumps(task), cls.CACHE_TIMEOUT)

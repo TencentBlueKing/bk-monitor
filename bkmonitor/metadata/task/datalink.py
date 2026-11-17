@@ -531,7 +531,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
 
     # 创建/更新V4链路配置
     bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id=table_id).first()
-    if not bkbase_rt:
+    if not bkbase_rt or not bkbase_rt.data_link_name:
         if rt.bk_biz_id < 0:
             bk_biz_id_str = f"space_{-rt.bk_biz_id}"
         else:
@@ -547,18 +547,25 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
 
         # 创建链路
         logger.info(
-            "apply_log_datalink: tenant(%s) bkbase_rt not found, create datalink name->[%s]",
+            "apply_log_datalink: tenant(%s) bkbase_rt missing or data_link_name empty, create datalink name->[%s]",
             bk_tenant_id,
             data_link_name,
         )
-        datalink = DataLink.objects.create(
-            bk_tenant_id=bk_tenant_id,
-            data_link_name=data_link_name,
-            namespace="bklog",
-            data_link_strategy=DataLink.BK_LOG,
-            bk_data_id=ds.bk_data_id,
-            table_ids=[table_id],
-        )
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            datalink = DataLink.objects.create(
+                bk_tenant_id=bk_tenant_id,
+                data_link_name=data_link_name,
+                namespace="bklog",
+                data_link_strategy=DataLink.BK_LOG,
+                bk_data_id=ds.bk_data_id,
+                table_ids=[table_id],
+            )
+            if bkbase_rt is not None:
+                # data_link_name 是主键，直接更新原记录，避免 save() 留下空名称映射。
+                BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, pk=bkbase_rt.pk).update(
+                    data_link_name=data_link_name,
+                    status=DataLinkResourceStatus.CREATING.value,
+                )
     else:
         # 获取链路
         logger.info(
@@ -672,6 +679,8 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
     enabled_v4_datalink = enabled_v4_datalink_option and enabled_v4_datalink_option.get_value()
 
     if not enabled_v4_datalink:
+        if rt.default_storage == ClusterInfo.TYPE_DORIS:
+            raise ValueError("Doris 自定义事件需要启用现有事件组 V4 链路")
         if data_source_created_from != DataIdCreatedFromSystem.BKGSE.value:
             # 禁止从V4链路切换回transfer
             raise ValueError(
@@ -696,21 +705,28 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
 
     # 获取数据链路
     bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id=table_id).first()
-    if not bkbase_rt:
+    if not bkbase_rt or not bkbase_rt.data_link_name:
         data_link_name = f"bkmonitor_custom_event_{ds.bk_data_id}"
         logger.info(
-            "apply_event_group_datalink: tenant(%s) bkbase_rt not found, create datalink name->[%s]",
+            "apply_event_group_datalink: tenant(%s) bkbase_rt missing or data_link_name empty, create datalink name->[%s]",
             bk_tenant_id,
             data_link_name,
         )
-        datalink = DataLink.objects.create(
-            bk_tenant_id=bk_tenant_id,
-            data_link_name=data_link_name,
-            namespace="bklog",
-            data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
-            bk_data_id=ds.bk_data_id,
-            table_ids=[table_id],
-        )
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            datalink = DataLink.objects.create(
+                bk_tenant_id=bk_tenant_id,
+                data_link_name=data_link_name,
+                namespace="bklog",
+                data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
+                bk_data_id=ds.bk_data_id,
+                table_ids=[table_id],
+            )
+            if bkbase_rt is not None:
+                # data_link_name 是主键，直接更新原记录，避免 save() 留下空名称映射。
+                BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, pk=bkbase_rt.pk).update(
+                    data_link_name=data_link_name,
+                    status=DataLinkResourceStatus.CREATING.value,
+                )
     else:
         logger.info(
             "apply_event_group_datalink: tenant(%s) bkbase_rt found, update datalink name->[%s]",
@@ -732,17 +748,17 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
     # 创建/更新链路配置
     datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id, consumer_group=consumer_group)
 
-    # 回填 BkBaseResultTable 的 bkbase_rt_name / bkbase_table_id / bkbase_data_name 等。
-    # 事件组 V4 链路使用 ES 存储，按 table_id 关联到 ESStorage 拿到 storage_cluster_id。
-    es_storage = ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
-    if es_storage is not None:
-        datalink.sync_metadata(table_id=table_id, storage_cluster_id=es_storage.storage_cluster_id)
-    else:
-        logger.warning(
-            "apply_event_group_datalink: tenant(%s) %s no ESStorage found, skip sync_metadata",
-            bk_tenant_id,
-            table_id,
-        )
+    # 按 RT 默认存储回填；历史 ES/Doris Binding 保留供分段查询使用。
+    storage = rt.get_storage(rt.default_storage)
+    datalink.sync_metadata(table_id=table_id, storage_cluster_id=storage.storage_cluster_id)
+    if rt.default_storage == ClusterInfo.TYPE_DORIS:
+        bkbase_rt = BkBaseResultTable.objects.get(bk_tenant_id=bk_tenant_id, data_link_name=datalink.data_link_name)
+        storage.bkbase_table_id = bkbase_rt.bkbase_table_id
+        storage.save(update_fields=["bkbase_table_id"])
+
+        from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+        SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True)
 
     # 清理transfer链路配置
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:

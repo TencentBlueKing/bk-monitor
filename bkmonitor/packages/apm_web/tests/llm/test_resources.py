@@ -1170,8 +1170,9 @@ class ListSpansResourceTestCase(TestCase):
                 }
             )
 
-        self.assertEqual(result["trace_id"], trace_id)
+        self.assertNotIn("trace_id", result)
         self.assertEqual(result["total"], 1)
+        self.assertEqual(result["spans"][0]["trace_id"], trace_id)
         attributes = result["spans"][0]["attributes"]
         self.assertEqual(attributes["gen_ai.operation.name"], "chat")
         self.assertEqual(attributes["gen_ai.request.model"], "demo-model")
@@ -1204,7 +1205,7 @@ class ListSpansResourceTestCase(TestCase):
 
         self.assertEqual(
             result,
-            {"trace_id": "trace-1", "total": 1, "spans": [converted_span]},
+            {"total": 1, "spans": [converted_span]},
         )
         adapt_spans.assert_called_once_with(response["data"], entity_set)
         query_span_list.assert_called_once_with(
@@ -1264,7 +1265,7 @@ class ListSpansResourceTestCase(TestCase):
                 }
             )
 
-        self.assertEqual(result, {"trace_id": "trace-1", "total": 1, "spans": response["data"]})
+        self.assertEqual(result, {"total": 1, "spans": response["data"]})
         query_span_list.assert_called_once_with(
             {
                 "bk_biz_id": 11,
@@ -1285,6 +1286,39 @@ class ListSpansResourceTestCase(TestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn("non_field_errors", serializer.errors)
+
+    def test_filters_by_multiple_span_ids_with_dedup(self):
+        response = {
+            "total": 2,
+            "data": [
+                {"trace_id": "trace-1", "span_id": "span-1"},
+                {"trace_id": "trace-2", "span_id": "span-2"},
+            ],
+        }
+
+        with (
+            mock.patch("core.drf_resource.api.apm_api.query_span_list", return_value=response) as query_span_list,
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=mock.sentinel.entity_set),
+            mock.patch("apm_web.llm.resources.adapt_spans", return_value=response["data"]),
+        ):
+            result = ListSpansResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "sand_local_dev",
+                    "span_ids": ["span-1", "span-2", "span-1"],
+                }
+            )
+
+        self.assertEqual(result, {"total": 2, "spans": response["data"]})
+        query_span_list.assert_called_once_with(
+            {
+                "bk_biz_id": 11,
+                "app_name": "sand_local_dev",
+                "filters": [{"key": "span_id", "operator": "equal", "value": ["span-1", "span-2"]}],
+                "limit": 10000,
+                "exclude_field": ["bk_app_code"],
+            }
+        )
 
 
 class ListFlowsResourceTestCase(TestCase):

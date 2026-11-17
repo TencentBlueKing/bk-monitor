@@ -29,12 +29,11 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 
 
-import { computed, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, defineComponent, markRaw, shallowRef, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 
-import AiAssitant from '@/shared/global/ai-assitant/index';
 
 import { BK_LOG_STORAGE } from '../../../app/state/store.type.ts';
 import V3Container from './container/index';
@@ -59,6 +58,25 @@ export default defineComponent({
     const store = useApplicationStore();
     const { t } = useLocale();
     const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
+    const aiComponent = shallowRef<typeof import('@/shared/global/ai-assitant/index').default | null>(null);
+    let aiLoadPromise: Promise<void> | undefined;
+    let aiDisposed = false;
+    const releaseAiLoader = RetrieveHelper.aiAssitantHelper.setAiAssitantLoader(() => {
+      if (aiAssitantRef.value) return Promise.resolve();
+      return aiLoadPromise ??= import('@/shared/global/ai-assitant/index').then(async module => {
+        if (aiDisposed) return;
+        aiComponent.value = markRaw(module.default);
+        await nextTick();
+      }).catch(error => {
+        aiLoadPromise = undefined;
+        throw error;
+      });
+    });
+    onBeforeUnmount(() => {
+      aiDisposed = true;
+      releaseAiLoader();
+    });
+
 
     const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
       useAppInit();
@@ -152,10 +170,11 @@ export default defineComponent({
      * @returns
      */
     const renderAiAssitant = () => {
-      if (!store.features.isAiAssistantActive) {
+      if (!store.features.isAiAssistantActive || !aiComponent.value) {
         return null;
       }
 
+      const AiAssitant = aiComponent.value;
       return (
         <AiAssitant
           ref={aiAssitantRef}

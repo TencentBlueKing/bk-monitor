@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,26 +23,41 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { defineComponent } from 'vue';
 
-import * as Vue from 'vue';
-import * as TDesign from 'tdesign-vue-next';
-import { preserveVue3ComponentModel } from '../vue3-component-model';
+import { useI18n } from 'vue-i18n';
 
-// This file has no effect in native Vue3. In the diagnostic compatibility host,
-// Vue otherwise rewrites modelValue/update:modelValue into Vue2 value/input,
-// which silently breaks native TDesign input, select and switch bindings.
-if ('configureCompat' in Vue) {
-  for (const component of Object.values(TDesign)) {
-    if (
-      component &&
-      typeof component === 'object' &&
-      ('setup' in component || 'render' in component || 'props' in component)
-    ) {
-      preserveVue3ComponentModel(component);
-      // Tree's Options API render reads $slots as functions. Global legacy render
-      // conversion otherwise exposes arrays and breaks scoped label rendering.
-      const native = component as {compatConfig?: Record<string, unknown>};
-      native.compatConfig = {...native.compatConfig, RENDER_FUNCTION: false};
-    }
-  }
-}
+import './timeline-view-hidden.scss';
+
+/** 折叠中间 View 时的一张隐藏卡片，点击展开全部 View */
+export default defineComponent({
+  name: 'TimelineViewHidden',
+  props: {
+    /** 被隐藏的 View 数量 */
+    count: {
+      type: Number,
+      default: 0,
+    },
+  },
+  emits: {
+    expand: () => true,
+  },
+  setup(props, { emit }) {
+    const { t } = useI18n();
+
+    return () => (
+      <div
+        class='timeline-view-hidden'
+        onClick={() => emit('expand')}
+      >
+        <i18n-t
+          keypath='已折叠中间 {0} 个 View，{1}'
+          tag='span'
+        >
+          <span class='hidden-count'>{props.count}</span>
+          <span class='hidden-action'>{t('点击展开')}</span>
+        </i18n-t>
+      </div>
+    );
+  },
+});

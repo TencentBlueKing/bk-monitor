@@ -57,29 +57,12 @@
     th,
     td {
       height: 42px;
-      padding: 0;
       border-bottom-color: #dcdee5;
     }
 
     th {
       color: #313238;
       background: #f5f7fa;
-    }
-
-    // This page has a denser V2 layout than the standard management lists.
-    &.bklog-legacy-table {
-      .t-table__header th {
-        padding: 0 16px;
-        color: var(--bklog-text-primary, #313238);
-        background: var(--bklog-surface-hover, #f5f7fa);
-      }
-
-      td {
-        height: 42px;
-        padding: 0 16px;
-        color: #4d4f56;
-        border-bottom-color: #dcdee5;
-      }
     }
 
     .cell {

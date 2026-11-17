@@ -1,5 +1,5 @@
 /* 公共卡片样式 */
-.card-base {
+.client-log-search-root .client-log-card {
   background-color: #fff;
   padding: 12px;
   border: 1px solid #E9EDF5;
@@ -11,10 +11,17 @@
   padding: 12px;
   display: flex;
   height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
   flex-direction: column;
   overflow: hidden;
 
   .content-wrapper {
+    position: relative;
+    &.is-pending > :not(.client-log-loading) {
+      visibility: hidden;
+      pointer-events: none;
+    }
     flex: 1;
     min-height: 0;
     display: flex;

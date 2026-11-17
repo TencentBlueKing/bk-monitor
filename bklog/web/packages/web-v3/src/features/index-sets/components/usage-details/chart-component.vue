@@ -40,21 +40,23 @@
         {{ $t('耗时优化指引 >') }}
       </t-button>
     </div>
-    <div
-      ref="chartRef"
-      class="chart-canvas-container"
-    ></div>
-    <bk-exception
-      v-if="isEmpty"
-      class="king-exception"
-      scene="part"
-      type="empty"
-    >
-    </bk-exception>
+    <div class="chart-canvas-container">
+      <div
+        ref="chartRef"
+        class="chart-canvas"
+      ></div>
+      <div
+        v-if="isEmpty"
+        class="chart-empty"
+      >
+        <empty-status empty-type="empty" />
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+  import EmptyStatus from '@/shared/ui/empty-status/index';
   import i18n from '@/platform/i18n/i18n';
   import * as echarts from 'echarts';
 
@@ -73,6 +75,9 @@
   };
 
   export default {
+    components: {
+      EmptyStatus,
+    },
     props: {
       type: {
         type: String,
@@ -306,3 +311,22 @@
     },
   };
 </script>
+
+<style lang="scss" scoped>
+  .chart-canvas-container {
+    position: relative;
+
+    .chart-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+</style>

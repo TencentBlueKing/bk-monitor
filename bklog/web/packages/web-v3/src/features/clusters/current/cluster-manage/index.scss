@@ -4,6 +4,19 @@
   justify-content: space-between;
   transition: padding 0.5s;
 
+  .collect-table-operate {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    white-space: nowrap;
+
+    .t-button--variant-text {
+      min-width: 0;
+      padding: 0;
+      border: 0;
+    }
+  }
+
   .main-operator-container {
     margin-bottom: 20px;
     overflow: hidden;
