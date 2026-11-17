@@ -7,14 +7,14 @@ from string import Formatter
 from alarm_backends.cluster import TargetType
 from alarm_backends.core.cache import key as keys
 from alarm_backends.core.cluster import get_cluster
-from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP, Cache
+from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP, Cache, has_module_redis_url
 from alarm_backends.core.storage.redis_cluster import setup_client
 from bkmonitor.models import CacheNode, CacheRouter
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc.functions.admin.common import to_json_safe
 
 MAX_CONTENT_BYTES = 1024 * 1024
-BACKENDS = tuple(CACHE_BACKEND_CONF_MAP) + ("cache-strategy",)
+BACKENDS = tuple(CACHE_BACKEND_CONF_MAP) + ("cache-strategy", "service-new_series")
 
 
 def fail(message, code="ALARM_REDIS_ERROR", **details):
@@ -147,6 +147,23 @@ def target(params):
             scoped_strategy(params, params["strategy_id"])
         client = Cache("cache-strategy")
         return client, {"node": None, "backend": backend, "db": CACHE_BACKEND_CONF_MAP["cache"]["db"]}, redis_key
+    if backend == "service-new_series":
+        if has_module_redis_url(backend):
+            cluster_name = "default"
+            if params.get("node_id") or params.get("strategy_id"):
+                node = resolve_node(params)
+                cluster_name = node.cluster_name
+            if template_id:
+                definition = getattr(keys, template_id)
+                prefix = (
+                    keys.PUBLIC_KEY_PREFIX
+                    if definition.is_global or cluster_name == "default"
+                    else f"{keys.PUBLIC_KEY_PREFIX}.{cluster_name}"
+                )
+                redis_key = prefix + "." + redis_key.removeprefix(keys.KEY_PREFIX + ".")
+            client = Cache("service-new_series")
+            return client, {"node": None, "backend": backend, "db": CACHE_BACKEND_CONF_MAP["service"]["db"]}, redis_key
+        backend = "service"
     node = resolve_node(params)
     if not node.is_enable:
         fail("该 Redis 节点已禁用", "NODE_DISABLED")
