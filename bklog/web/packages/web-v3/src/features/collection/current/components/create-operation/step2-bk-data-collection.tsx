@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { renderCollectionFormSkeleton } from './form-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 
 
@@ -934,7 +935,7 @@ export default defineComponent({
     return () => (
       <div
         class='operation-step2-bk-data-collection'
-        v-loading={{ loading: loading.value }}
+        v-loading={{ loading: loading.value, indicator: renderCollectionFormSkeleton }}
       >
         {/* 卡片内容区域 */}
         {cardRender(cardConfig)}
