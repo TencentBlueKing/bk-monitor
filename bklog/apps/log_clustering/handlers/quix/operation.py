@@ -53,8 +53,6 @@ POLL_INTERVAL_SECONDS = 15
 MAX_RETRY_DELAY_SECONDS = 300
 MAX_STEP_RETRIES = 5
 WAIT_TIMEOUT_SECONDS = 30 * 60
-# 待采用确认的步骤依赖 BKBase 回执，回执到位前持续低频检查，不按等待超时判失败
-RECEIPT_POLL_INTERVAL_SECONDS = 5 * 60
 STEP_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # 配置、凭据或控制版本问题，重试同一请求不会成功，需要人工处理后续跑
@@ -97,13 +95,12 @@ class QuixClusteringOperationRunner:
             "update_model_parameters",
             "confirm_model_parameters",
         ],
-        # 本次业务收尾完成且 Databus 恢复原存储配置后，才向 BKFara 提交最终完成确认
+        # Databus 恢复原存储绑定后即可停 Worker，允许放弃尚未处理的聚类积压。
         ClusteringOperationTypeEnum.DISABLE.value: [
             "disable_clustering",
             "clear_local_clustering",
             "detach",
             "wait_detached",
-            "confirm_closed",
             "stop_completed",
         ],
         # 复用原任务、Topic、消费组和运行态模型，继续原消费位置
@@ -151,7 +148,7 @@ class QuixClusteringOperationRunner:
             except Exception as e:  # pylint: disable=broad-except
                 return self._handle_error(step, e)
             if not done:
-                return self._await_receipt(step) if step == "confirm_closed" else self._wait(step)
+                return self._wait(step)
             self.operation.retry_count = 0
             if self.operation.status == ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
                 self.operation.status = ClusteringOperationStatusEnum.RUNNING.value
@@ -199,18 +196,6 @@ class QuixClusteringOperationRunner:
             if item["status"] == ClusteringOperationStatusEnum.RUNNING.value:
                 return datetime.datetime.strptime(item["time"], STEP_TIME_FORMAT).replace(tzinfo=datetime.timezone.utc)
         return None
-
-    @transaction.atomic
-    def _await_receipt(self, step: str) -> int:
-        self.operation.status = ClusteringOperationStatusEnum.AWAITING_RECEIPT.value
-        self.operation.save(update_fields=["status", "updated_at", "updated_by"])
-        last_step = self.operation.steps[-1] if self.operation.steps else {}
-        if (last_step.get("step"), last_step.get("status")) != (
-            step,
-            ClusteringOperationStatusEnum.AWAITING_RECEIPT.value,
-        ):
-            self.operation.record_step(step, ClusteringOperationStatusEnum.AWAITING_RECEIPT.value)
-        return self._schedule(RECEIPT_POLL_INTERVAL_SECONDS)
 
     def _handle_error(self, step: str, error: Exception) -> int | None:
         logger.exception("[quix_clustering] operation(%s) step(%s) failed", self.operation.operation_id, step)
@@ -447,40 +432,6 @@ class QuixClusteringOperationRunner:
         LogIndexSet.delete_tag_by_name(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
         return True
 
-    def _step_confirm_closed(self) -> bool:
-        if not self.runtime.sink:
-            if not self.runtime.bkfara_task_id:
-                return True
-            if self.runtime.candidate_boundary is None:
-                clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
-                partitions = (clustering.get("kafka") or {}).get("partitions")
-                if type(partitions) is not int or partitions <= 0:
-                    return False
-                # 未曾下发日志绑定，候选 Topic 没有业务写入；分区数从任务实际绑定获取。
-                self._save_runtime(candidate_boundary={str(partition): 0 for partition in range(partitions)})
-            return True
-        status = TransferApi.get_log_clustering_status(self._metadata_params())
-        progress = status.get("clustering_status") or {}
-        requested_epoch = progress.get("requested_epoch")
-        if (
-            status.get("errors")
-            or not status.get("configured")
-            or status.get("enabled") is not False
-            or status.get("sink_phase") != "Ok"
-            or not requested_epoch
-            or progress.get("applied_epoch") != requested_epoch
-            or progress.get("configuration_applied") is not True
-            or progress.get("clustering_closed") is not True
-        ):
-            return False
-        boundary = progress.get("input_boundary")
-        if not isinstance(boundary, dict) or not boundary:
-            return False
-        if any(type(value) is not int or value < 0 for value in boundary.values()):
-            return False
-        self._save_runtime(candidate_boundary=boundary)
-        return True
-
     def _step_detach(self) -> bool:
         return self._operate_metadata("detach") if self.runtime.sink else True
 
@@ -493,20 +444,14 @@ class QuixClusteringOperationRunner:
     def _step_stop_completed(self) -> bool:
         if not self.runtime.bkfara_task_id:
             return True
-        payload = self.operation.get_request_payload(
-            "stop_completed",
-            lambda: {
+        result = BkFaraApi.stop_clustering(
+            {
                 "task_id": self.runtime.bkfara_task_id,
-                "boundary": self.runtime.candidate_boundary,
-                "completion": {
-                    "input_boundary": self.runtime.candidate_boundary,
-                    "storage_complete": True,
-                    "binding_removed": True,
-                },
-            },
+                "Idempotency-Key": self.operation.get_idempotency_key("stop"),
+                "completion": {"binding_removed": True, "storage_complete": False},
+            }
         )
-        result = BkFaraApi.stop_clustering(payload.copy())
-        return result.get("state") == "STOPPED" and result.get("stop_boundary") == payload["boundary"]
+        return result.get("state") == "STOPPED"
 
     def _step_restart(self) -> bool:
         if self.operation.request_snapshot.get("worker_kept_running"):
