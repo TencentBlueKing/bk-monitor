@@ -377,13 +377,16 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button"
+        ".t-button",
+        ".t-button--variant-text"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 1,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [
+        "border"
+      ],
+      "localVisualDeclarations": 1,
       "pendingNormalization": 0
     },
     {
@@ -450,6 +453,26 @@
         "color"
       ],
       "localVisualDeclarations": 6,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/cleaning/current/clean-template/list.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button--variant-text"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [
+        "border"
+      ],
+      "localVisualDeclarations": 1,
       "pendingNormalization": 0
     },
     {
@@ -692,15 +715,17 @@
       },
       "componentClasses": [
         ".t-badge",
+        ".t-button--variant-text",
         ".t-table__empty"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 4,
+      "contextualDeclarations": 6,
       "localVisualProperties": [
+        "border",
         "border-radius"
       ],
-      "localVisualDeclarations": 1,
+      "localVisualDeclarations": 2,
       "pendingNormalization": 0
     },
     {
@@ -2307,12 +2332,11 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-alert",
-        ".t-table__header"
+        ".t-alert"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 2,
-      "contextualDeclarations": 2,
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -2819,16 +2843,28 @@
       "componentClasses": [
         ".t-button",
         ".t-checkbox__label",
+        ".t-collapse-panel__content",
+        ".t-collapse-panel__header",
+        ".t-drawer__body",
+        ".t-drawer__footer",
+        ".t-drawer__header",
+        ".t-form__controls-content",
+        ".t-form__item",
+        ".t-input-number",
         ".t-input__inner",
-        ".t-input__wrap",
         ".t-radio",
-        ".t-radio__label"
+        ".t-radio-group",
+        ".t-radio__label",
+        ".t-textarea",
+        ".t-textarea__inner"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 1,
-      "contextualDeclarations": 9,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "semanticDeclarations": 10,
+      "contextualDeclarations": 30,
+      "localVisualProperties": [
+        "border"
+      ],
+      "localVisualDeclarations": 1,
       "pendingNormalization": 0
     },
     {
@@ -2845,6 +2881,31 @@
       "contextualDeclarations": 0,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/masking/components/masking-confirm-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-dialog__body",
+        ".t-dialog__header",
+        ".t-size-s",
+        ".t-table"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 2,
+      "contextualDeclarations": 11,
+      "localVisualProperties": [
+        "border-bottom",
+        "line-height"
+      ],
+      "localVisualDeclarations": 2,
       "pendingNormalization": 0
     },
     {
@@ -2933,15 +2994,18 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button",
+        ".t-button--variant-text",
+        ".t-checkbox",
         ".t-input__wrap",
         ".t-size-s"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 4,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [
+        "border"
+      ],
+      "localVisualDeclarations": 1,
       "pendingNormalization": 0
     },
     {
