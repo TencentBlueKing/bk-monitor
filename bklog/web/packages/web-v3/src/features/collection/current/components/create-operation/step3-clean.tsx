@@ -2789,7 +2789,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             </div>
             <div class='confirm-title'>{t('保存模板变更')}</div>
             <div class='confirm-description'>
-              <i18n path={t('当前模板已生效到{0}个采集项，关联{1}个索引集')}>
+              <i18n path='当前模板已生效到{0}个采集项，关联{1}个索引集'>
                 <strong class='collector-count'>{templateCollectorCount.value}</strong>
                 <strong>{templateIndexSetCount.value}</strong>
               </i18n>
