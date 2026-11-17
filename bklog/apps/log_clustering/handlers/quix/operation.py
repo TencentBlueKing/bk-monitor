@@ -101,9 +101,9 @@ class QuixClusteringOperationRunner:
         ClusteringOperationTypeEnum.DISABLE.value: [
             "disable_clustering",
             "clear_local_clustering",
-            "confirm_closed",
             "detach",
             "wait_detached",
+            "confirm_closed",
             "stop_completed",
         ],
         # 复用原任务、Topic、消费组和运行态模型，继续原消费位置
