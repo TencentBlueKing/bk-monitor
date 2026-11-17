@@ -215,7 +215,7 @@ class ActiveProfilingExecutionQueryHandler:
         if execution_filter:
             queryset = queryset.filter(execution_id__in=self._execution_queryset(params, execution_filter).values("id"))
         if filters.get("status"):
-            queryset = queryset.filter(self._build_host_status_q(filters["status"]))
+            queryset = queryset.filter(self._build_statuses_q(self._build_host_status_q, filters["status"]))
 
         offset = params["offset"]
         # scheduled_at 不唯一（同一执行的主机、整点触发的多个计划都在同一毫秒），offset 分页要排到唯一，否则翻页会重复或漏行；
@@ -247,7 +247,7 @@ class ActiveProfilingExecutionQueryHandler:
                 ).values("execution_id")
             )
         if filters.get("status"):
-            queryset = queryset.filter(self._build_status_q("execution_status", filters["status"]))
+            queryset = queryset.filter(self._build_statuses_q(self._build_execution_status_q, filters["status"]))
 
         offset = params["offset"]
         # 同理补上 task_id 并同向倒序，同一业务内 task_id + scheduled_at 唯一
@@ -434,6 +434,17 @@ class ActiveProfilingExecutionQueryHandler:
             q &= field_q
         return q
 
+    @staticmethod
+    def _build_statuses_q(build_status_q, statuses):
+        """状态多选，命中任一即可"""
+        q = Q()
+        for status in dict.fromkeys(statuses):
+            q |= build_status_q(status)
+        return q
+
+    def _build_execution_status_q(self, status):
+        return self._build_status_q("execution_status", status)
+
     def _build_status_q(self, field, status):
         """outdate 是过期的成功类终态；按成功类状态筛选时排除已过期的"""
         if status == "outdate":
@@ -540,7 +551,7 @@ class ActiveProfilingExecutionQueryHandler:
     def _switch_when_lagging(self, method, params):
         """预计算落后时整个查询改查 ES，返回 ES 的结果；没落后、ES 不支持该查询（按 unknown 筛选、带关键字的候选）
         或查询失败时返回 None，仍查 MySQL 并按 Event 补上终态"""
-        if params.get("keyword") or params.get("filters", {}).get("status") == "unknown":
+        if params.get("keyword") or "unknown" in (params.get("filters", {}).get("status") or []):
             return None
         missing_execution = self._missing_planned_execution
         if missing_execution is None:

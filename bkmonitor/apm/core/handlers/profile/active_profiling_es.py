@@ -50,36 +50,37 @@ class ActiveProfilingEventQueryHandler:
 
     def query_hosts(self, params):
         """已采数据：一台主机的一次执行一行"""
-        status = params.get("filters", {}).get("status")
+        statuses = params.get("filters", {}).get("status") or []
         # unknown 取决于有没有 finished，ES 筛不出来，只能全量配对
-        if status == "unknown":
+        if "unknown" in statuses:
             raise ValueError(_("暂不支持按 unknown 状态筛选"))
 
         offset = params["offset"]
         end = offset + params["limit"]
         # 每行通常只有 started/finished 两条，多取一条确认最后一行已经完整；重复上报或内存筛选导致不够时再按批续读
         events = self._iter_events(
-            self._build_hosts_queryset(params, status), end * 2 + 1, ACTIVE_PROFILING_ES_QUERY_BATCH_SIZE
+            self._build_hosts_queryset(params, statuses), end * 2 + 1, ACTIVE_PROFILING_ES_QUERY_BATCH_SIZE
         )
         rows = (
             self._build_host_row(key, host_events) for key, host_events in groupby(events, key=self._host_execution_key)
         )
-        # running 要看有没有 finished，成功类要排除还在解析中的行，都只能配对后在内存中筛选
-        if status in ("running", *ACTIVE_PROFILING_SUCCEED_STATUSES):
-            rows = (row for row in rows if row["status"] == status)
+        # running 要看有没有 finished，成功类要排除还在解析中的行，多选时下推的条件只是各状态的并集，
+        # 都要配对后在内存中按行状态筛选
+        if statuses:
+            rows = (row for row in rows if row["status"] in statuses)
         return list(islice(rows, offset, end))
 
     def list_executions(self, params):
         """任务历史：按执行汇总全部主机，一次执行一行"""
-        status = params.get("filters", {}).get("status")
+        statuses = params.get("filters", {}).get("status") or []
         # 执行状态由全部主机聚合，unknown 主机取决于有没有 finished，ES 筛不出来
-        if status == "unknown":
+        if "unknown" in statuses:
             raise ValueError(_("暂不支持按 unknown 状态筛选"))
 
         host_filter = self._build_host_filter(params)
         if host_filter:
-            return self._query_host_matched_executions(params, status, host_filter)
-        return self._scan_executions(params, status)
+            return self._query_host_matched_executions(params, statuses, host_filter)
+        return self._scan_executions(params, statuses)
 
     def query_topk(self, params):
         """搜索框候选值，与两个列表一样按 scheduled_at 选取，按事件数倒序取前 limit 个"""
@@ -119,14 +120,15 @@ class ActiveProfilingEventQueryHandler:
         )
         return detail
 
-    def _build_hosts_queryset(self, params, status):
-        """筛选全部下推 ES：终态再按 status 维度筛选，outdate 是过期的成功类终态；
+    def _build_hosts_queryset(self, params, statuses):
+        """筛选全部下推 ES：终态再按 status 维度筛选，outdate 是过期的成功类终态，多选取各状态的并集；
         running 要看有没有 finished，不能按 status 筛，只收窄 scheduled_at"""
         filter_dict = {**self._build_execution_filter(params), **self._build_host_filter(params)}
-        if status == "outdate":
-            filter_dict["status"] = list(ACTIVE_PROFILING_SUCCEED_STATUSES)
-        elif status and status != "running":
-            filter_dict["status"] = status
+        if statuses and "running" not in statuses:
+            dimension_statuses = []
+            for status in statuses:
+                dimension_statuses.extend(ACTIVE_PROFILING_SUCCEED_STATUSES if status == "outdate" else [status])
+            filter_dict["status"] = list(dict.fromkeys(dimension_statuses))
         return self._build_list_queryset(params, filter_dict)
 
     def _build_host_row(self, key, events):
@@ -149,7 +151,7 @@ class ActiveProfilingEventQueryHandler:
         )
         return row
 
-    def _scan_executions(self, params, status):
+    def _scan_executions(self, params, statuses):
         """筛选都是执行级维度时一次扫描，同一执行的 Event 相邻，边读边按执行汇总，执行状态在内存中筛选"""
         offset = params["offset"]
         end = offset + params["limit"]
@@ -158,18 +160,18 @@ class ActiveProfilingEventQueryHandler:
             self._build_execution_row(key, events)
             for key, events in groupby(self._iter_execution_events(queryset, end), key=self._execution_key)
         )
-        if status:
-            rows = (row for row in rows if row["execution_status"] == status)
+        if statuses:
+            rows = (row for row in rows if row["execution_status"] in statuses)
         return list(islice(rows, offset, end))
 
-    def _query_host_matched_executions(self, params, status, host_filter):
+    def _query_host_matched_executions(self, params, statuses, host_filter):
         """主机/进程只决定选中哪些执行，不改变执行的汇总结果：先按主机筛出命中的执行，再回查这些执行的全部主机"""
         offset = params["offset"]
         end = offset + params["limit"]
         execution_filter = self._build_execution_filter(params)
         queryset = self._build_list_queryset(params, {**execution_filter, **host_filter})
         keys = (key for key, __ in groupby(self._iter_execution_events(queryset, end), key=self._execution_key))
-        if not status:
+        if not statuses:
             # 每个命中的执行就是一行，offset 之前的执行不用回查
             return self._query_execution_rows(params, execution_filter, list(islice(keys, offset, end)))
 
@@ -182,7 +184,7 @@ class ActiveProfilingEventQueryHandler:
             rows.extend(
                 row
                 for row in self._query_execution_rows(params, execution_filter, chunk)
-                if row["execution_status"] == status
+                if row["execution_status"] in statuses
             )
         return rows[offset:end]
 
@@ -291,18 +293,30 @@ class ActiveProfilingEventQueryHandler:
         if filters.get("task_id"):
             filter_dict["task_id"] = str(filters["task_id"])
 
-        # running 只会出现在最近一个运行窗口内；过期按 scheduled_at 判定，与行状态同一口径
-        lower, upper = params["start_time"], params["end_time"]
-        status = filters.get("status")
-        expire_before = self.now - self.retention_ms
-        if status == "running":
-            lower = max(lower, self.now - ACTIVE_PROFILING_RUNNING_WINDOW_MS)
-        elif status == "outdate":
-            upper = min(upper, expire_before - 1)
-        elif status in ACTIVE_PROFILING_SUCCEED_STATUSES:
-            lower = max(lower, expire_before)
+        lower, upper = self._build_scheduled_at_range(params, filters.get("status") or [])
         filter_dict.update(scheduled_at__gte=lower, scheduled_at__lte=upper)
         return filter_dict
+
+    def _build_scheduled_at_range(self, params, statuses):
+        """running 只会出现在最近一个运行窗口内；过期按 scheduled_at 判定，与行状态同一口径。
+        多选时取各状态时间范围的并集，范围内不属于所选状态的行由调用方在内存中筛掉"""
+        start_time, end_time = params["start_time"], params["end_time"]
+        if not statuses:
+            return start_time, end_time
+        expire_before = self.now - self.retention_ms
+        ranges = []
+        for status in statuses:
+            lower, upper = start_time, end_time
+            if status == "running":
+                lower = max(lower, self.now - ACTIVE_PROFILING_RUNNING_WINDOW_MS)
+            elif status == "outdate":
+                upper = min(upper, expire_before - 1)
+            elif status in ACTIVE_PROFILING_SUCCEED_STATUSES:
+                lower = max(lower, expire_before)
+            ranges.append((lower, upper))
+        # 某个状态的范围为空（lower > upper）时不参与并集，全部为空时保留空范围，查不到数据
+        valid_ranges = [(lower, upper) for lower, upper in ranges if lower <= upper] or ranges[:1]
+        return min(lower for lower, __ in valid_ranges), max(upper for __, upper in valid_ranges)
 
     @staticmethod
     def _build_host_filter(params):

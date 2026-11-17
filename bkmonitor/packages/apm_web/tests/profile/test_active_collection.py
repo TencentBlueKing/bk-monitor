@@ -165,7 +165,7 @@ EVENT_LIST_REQUEST = {
         "schedule_types": [],
         "collection_methods": [],
         "collection_types": [],
-        "status": "",
+        "status": [],
     },
     "offset": 0,
     "limit": 20,
@@ -1208,7 +1208,7 @@ def test_task_submit_rejects_invalid_cron_expression(cron_expression):
         (
             QueryHostsResource,
             "query_active_profiling_hosts",
-            with_filters(status="unknown"),
+            with_filters(status=["unknown"]),
             [{"bk_host_id": 456}],
             {"columns": HOST_QUERY_COLUMNS, "data": [{"bk_host_id": 456}]},
         ),

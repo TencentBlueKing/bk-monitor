@@ -420,9 +420,11 @@ def test_query_hosts_orders_by_scheduled_at_and_derives_outdate(query_rows):
         # 任务名可以改，按计划查历史用任务 ID 精确匹配
         ({"task_id": 12}, [(RECENT_AT, 457), (RECENT_AT, 456)]),
         ({"task_name": "adhoc", "ips": ["127.0.0.1"]}, [(OLD_AT, 456)]),
-        ({"status": "unknown"}, [(MID_AT, 459)]),
-        ({"status": "succeed"}, [(RECENT_AT, 456)]),
-        ({"status": "outdate"}, [(OLD_AT, 456)]),
+        ({"status": ["unknown"]}, [(MID_AT, 459)]),
+        ({"status": ["succeed"]}, [(RECENT_AT, 456)]),
+        ({"status": ["outdate"]}, [(OLD_AT, 456)]),
+        # 状态多选命中任一即可
+        ({"status": ["unknown", "outdate"]}, [(MID_AT, 459), (OLD_AT, 456)]),
     ],
 )
 @pytest.mark.django_db(databases="__all__")
@@ -451,7 +453,7 @@ def test_hosts_display_parsing_until_result_stored(query_rows):
 
     assert [row["status"] for row in query_hosts()[:2]] == ["succeed", "parsing"]
     # 按成功筛选时排除还在解析中的行
-    assert host_keys(query_hosts(status="succeed")) == [(scheduled_at, 461), (RECENT_AT, 456)]
+    assert host_keys(query_hosts(status=["succeed"])) == [(scheduled_at, 461), (RECENT_AT, 456)]
 
     detail = QueryActiveProfilingExecutionDetailResource().request(
         {"bk_biz_id": 2, "task_id": 14, "scheduled_at": scheduled_at}
@@ -512,9 +514,10 @@ def test_list_executions_orders_and_filters_by_execution_status(query_rows):
         return [row["scheduled_at"] for row in rows]
 
     assert scheduled_ats() == [RECENT_AT, MID_AT, OLD_AT]
-    assert scheduled_ats(status="running") == [RECENT_AT]
-    assert scheduled_ats(status="outdate") == [OLD_AT]
-    assert scheduled_ats(status="partial_succeed") == []
+    assert scheduled_ats(status=["running"]) == [RECENT_AT]
+    assert scheduled_ats(status=["outdate"]) == [OLD_AT]
+    assert scheduled_ats(status=["partial_succeed"]) == []
+    assert scheduled_ats(status=["running", "outdate"]) == [RECENT_AT, OLD_AT]
     assert scheduled_ats(collection_methods=["golang"]) == [MID_AT]
 
     legacy = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "offset": 1, "limit": 1})[0]
@@ -1316,7 +1319,7 @@ EVENT_LIST_REQUEST = {
         "schedule_types": [],
         "collection_methods": [],
         "collection_types": [],
-        "status": "",
+        "status": [],
     },
     "offset": 0,
     "limit": 20,
@@ -1582,7 +1585,7 @@ def test_es_query_hosts_pushes_filters_down_to_es(host_query_apis):
             schedule_types=["cron"],
             collection_methods=["perf"],
             collection_types=["native_cpu"],
-            status="failed",
+            status=["failed"],
         )
     )
 
@@ -1603,7 +1606,7 @@ def test_es_query_hosts_pushes_filters_down_to_es(host_query_apis):
         "schedule_type": ["cron"],
         "collection_method": ["perf"],
         "collection_type": ["native_cpu"],
-        "status": "failed",
+        "status": ["failed"],
         "scheduled_at__gte": EVENT_LIST_REQUEST["start_time"],
         "scheduled_at__lte": EVENT_LIST_REQUEST["end_time"],
     }
@@ -1640,8 +1643,8 @@ def test_es_query_hosts_skips_empty_filters(host_query_apis):
 @pytest.mark.parametrize(
     ("status", "status_filter", "scheduled_at_range"),
     [
-        ("succeed", "succeed", (EXPIRE_BEFORE, EVENT_LIST_REQUEST["end_time"])),
-        ("partial_succeed", "partial_succeed", (EXPIRE_BEFORE, EVENT_LIST_REQUEST["end_time"])),
+        ("succeed", ["succeed"], (EXPIRE_BEFORE, EVENT_LIST_REQUEST["end_time"])),
+        ("partial_succeed", ["partial_succeed"], (EXPIRE_BEFORE, EVENT_LIST_REQUEST["end_time"])),
         ("outdate", ["succeed", "partial_succeed"], (EVENT_LIST_REQUEST["start_time"], EXPIRE_BEFORE - 1)),
         ("running", None, (HOST_QUERY_NOW - UNKNOWN_WINDOW_MS, EVENT_LIST_REQUEST["end_time"])),
     ],
@@ -1649,11 +1652,55 @@ def test_es_query_hosts_skips_empty_filters(host_query_apis):
 def test_es_query_hosts_narrows_scheduled_at_for_derived_status(
     host_query_apis, status, status_filter, scheduled_at_range
 ):
-    query_es_hosts(with_filters(status=status))
+    query_es_hosts(with_filters(status=[status]))
 
     filter_dict = sent_query_bodies(host_query_apis["query"])[0]["query_configs"][0]["filter_dict"]
     assert filter_dict.get("status") == status_filter
     assert (filter_dict["scheduled_at__gte"], filter_dict["scheduled_at__lte"]) == scheduled_at_range
+
+
+@pytest.mark.parametrize(
+    ("statuses", "status_filter", "scheduled_at_range"),
+    [
+        # 终态多选下推各状态的并集，outdate 展开为成功类终态；时间范围取各状态的并集
+        (
+            ["outdate", "failed"],
+            ["succeed", "partial_succeed", "failed"],
+            (EVENT_LIST_REQUEST["start_time"], EVENT_LIST_REQUEST["end_time"]),
+        ),
+        (
+            ["succeed", "partial_succeed"],
+            ["succeed", "partial_succeed"],
+            (EXPIRE_BEFORE, EVENT_LIST_REQUEST["end_time"]),
+        ),
+        # 带 running 时不能按 status 维度筛
+        (["running", "succeed"], None, (EXPIRE_BEFORE, EVENT_LIST_REQUEST["end_time"])),
+    ],
+)
+def test_es_query_hosts_pushes_down_union_for_multiple_statuses(
+    host_query_apis, statuses, status_filter, scheduled_at_range
+):
+    query_es_hosts(with_filters(status=statuses))
+
+    filter_dict = sent_query_bodies(host_query_apis["query"])[0]["query_configs"][0]["filter_dict"]
+    assert filter_dict.get("status") == status_filter
+    assert (filter_dict["scheduled_at__gte"], filter_dict["scheduled_at__lte"]) == scheduled_at_range
+
+
+def test_es_query_hosts_multiple_statuses_match_any(host_query_apis):
+    host_query_apis["events"].extend(
+        [
+            finished_event("succeed", 1788411801000, 1788411832000, bk_host_id=456),
+            started_event(1788411801000, bk_host_id=456),
+            finished_event("failed", 1788411801000, 1788411832000, bk_host_id=457),
+            started_event(1788411801000, bk_host_id=457),
+            started_event(1788411801000, bk_host_id=458),
+        ]
+    )
+
+    result = query_es_hosts(with_filters(status=["running", "failed"]))
+
+    assert [(row["bk_host_id"], row["status"]) for row in result] == [(457, "failed"), (458, "running")]
 
 
 def test_es_query_hosts_running_filter_skips_finished_rows(host_query_apis):
@@ -1665,7 +1712,7 @@ def test_es_query_hosts_running_filter_skips_finished_rows(host_query_apis):
         ]
     )
 
-    result = query_es_hosts(with_filters(status="running"))
+    result = query_es_hosts(with_filters(status=["running"]))
 
     assert [(row["bk_host_id"], row["status"]) for row in result] == [(458, "running")]
 
@@ -1693,14 +1740,14 @@ def test_es_query_hosts_succeed_filter_skips_parsing_rows(host_query_apis):
         ]
     )
 
-    result = query_es_hosts(with_filters(status="succeed"))
+    result = query_es_hosts(with_filters(status=["succeed"]))
 
     assert [(row["bk_host_id"], row["status"]) for row in result] == [(458, "succeed")]
 
 
 def test_es_query_hosts_rejects_unknown_status_filter(host_query_apis):
     with pytest.raises(ValueError):
-        query_es_hosts(with_filters(status="unknown"))
+        query_es_hosts(with_filters(status=["unknown"]))
 
     host_query_apis["query"].assert_not_called()
 
@@ -1867,7 +1914,7 @@ def test_es_list_executions_pushes_execution_filters_down_to_es(host_query_apis)
             schedule_types=["cron"],
             collection_methods=["perf"],
             collection_types=["native_cpu"],
-            status="failed",
+            status=["failed"],
         )
     )
 
@@ -1903,7 +1950,7 @@ def test_es_list_executions_pushes_execution_filters_down_to_es(host_query_apis)
     ],
 )
 def test_es_list_executions_narrows_scheduled_at_for_status(host_query_apis, status, scheduled_at_range):
-    list_es_executions(with_filters(status=status))
+    list_es_executions(with_filters(status=[status]))
 
     filter_dict = sent_query_bodies(host_query_apis["query"])[0]["query_configs"][0]["filter_dict"]
     assert "status" not in filter_dict
@@ -1922,14 +1969,14 @@ def test_es_list_executions_filters_aggregated_status_in_memory(host_query_apis)
         ]
     )
 
-    result = list_es_executions(with_filters(status="partial_succeed"))
+    result = list_es_executions(with_filters(status=["partial_succeed"]))
 
     assert [(row["scheduled_at"], row["execution_status"]) for row in result] == [(1788310800000, "partial_succeed")]
 
 
 def test_es_list_executions_rejects_unknown_status_filter(host_query_apis):
     with pytest.raises(ValueError):
-        list_es_executions(with_filters(status="unknown"))
+        list_es_executions(with_filters(status=["unknown"]))
 
     host_query_apis["query"].assert_not_called()
 
@@ -2038,7 +2085,7 @@ def test_es_list_executions_keeps_selecting_until_status_filter_fills_page(host_
         ]
     )
 
-    result = list_es_executions({**with_filters(ips=["127.0.0.2"], status="failed"), "limit": 2})
+    result = list_es_executions({**with_filters(ips=["127.0.0.2"], status=["failed"]), "limit": 2})
 
     assert [row["scheduled_at"] for row in result] == [1788410800000, 1788409800000]
     # 回查后才知道执行状态，第一轮只命中一行，再接着找还缺的一个执行
@@ -2673,12 +2720,12 @@ def test_host_status_filter_treats_overdue_running_as_unknown(query_rows, event_
     create_stale_immediate()
 
     # 预计算停摆时过了 unknown_at 的 running 不会转为 unknown，筛选与展示同一口径
-    assert host_keys(query_hosts(status="running")) == [(RECENT_AT, 457)]
-    assert host_keys(query_hosts(status="unknown")) == [(STALE_AT, 457), (STALE_AT, 456), (MID_AT, 459)]
+    assert host_keys(query_hosts(status=["running"])) == [(RECENT_AT, 457)]
+    assert host_keys(query_hosts(status=["unknown"])) == [(STALE_AT, 457), (STALE_AT, 456), (MID_AT, 459)]
 
     # 筛选按库里的状态选行；校正后的状态与筛选不符时仍保留该行，不让前端的分页提前结束
     event_es.events.extend(stale_host_events())
-    assert [row["status"] for row in query_hosts(status="unknown")] == ["unknown", "succeed", "unknown"]
+    assert [row["status"] for row in query_hosts(status=["unknown"])] == ["unknown", "succeed", "unknown"]
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -2864,7 +2911,7 @@ def test_lagging_keeps_mysql_for_queries_es_does_not_support(query_rows, event_e
     event_es.events.extend(planned_execution_events())
 
     # ES 不支持按 unknown 筛选、带关键字的候选，仍查 MySQL 并补上终态
-    assert host_keys(query_hosts(status="unknown")) == [(MID_AT, 459)]
+    assert host_keys(query_hosts(status=["unknown"])) == [(MID_AT, 459)]
     topk = QueryActiveProfilingTopKResource().request({**TIME_RANGE, "field": "task_name", "keyword": "legacy"})
     assert [item["value"] for item in topk] == ["go-cpu-legacy"]
     event_es.latest_planned.assert_not_called()

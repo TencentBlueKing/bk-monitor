@@ -286,11 +286,10 @@ class EventListFiltersSerializer(serializers.Serializer):
         child=serializers.ChoiceField(choices=COLLECTION_TYPE_CHOICES),
         required=False,
     )
-    status = serializers.ChoiceField(
-        label="执行状态",
-        choices=EXECUTION_STATUS_CHOICES,
+    status = serializers.ListField(
+        label="执行状态筛选",
+        child=serializers.ChoiceField(choices=EXECUTION_STATUS_CHOICES),
         required=False,
-        allow_blank=True,
     )
 
 
