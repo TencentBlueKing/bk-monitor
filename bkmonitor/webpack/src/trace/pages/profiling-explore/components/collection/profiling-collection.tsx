@@ -279,6 +279,7 @@ export default defineComponent({
                 range={this.range}
                 rangeError={this.rangeError}
                 readonly={c.readonly}
+                resolveRange={this.resolveRange}
                 revision={this.revision}
                 selection={state.result}
                 state={state.results}

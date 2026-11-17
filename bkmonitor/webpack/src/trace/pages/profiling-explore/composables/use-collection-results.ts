@@ -39,7 +39,7 @@ import {
 } from '../utils/collection-results';
 
 import type { SelectionRange } from '../types';
-import type { CollectionExecutionColumn } from '../types/collection-history';
+import type { CollectionExecutionColumn, CollectionExecutionDetail } from '../types/collection-history';
 import type { CollectionHostResult, CollectionResultsState } from '../types/collection-results';
 
 const PAGE_LIMIT = 20;
@@ -51,11 +51,14 @@ export function useCollectionResults({
   revision,
   readonly,
   onCreated,
+  resolveRange,
 }: {
   bizId: Ref<number>;
   onCreated: () => void;
   range: Ref<SelectionRange>;
   readonly: Ref<boolean>;
+  // 重新解析时间表达式；相对时间在每次查询时取最新边界
+  resolveRange?: () => SelectionRange | undefined;
   revision: Ref<number>;
   state: Ref<CollectionResultsState>;
 }) {
@@ -63,6 +66,8 @@ export function useCollectionResults({
   const records = shallowRef<CollectionHostResult[]>([]);
   // 执行范围下后端下发的列定义；缺省时结果页沿用固定列
   const hostColumns = shallowRef<CollectionExecutionColumn[] | null>(null);
+  // 执行范围下的执行详情，结果页用其中的任务名与主机 IP 回填筛选条件
+  const executionDetail = shallowRef<CollectionExecutionDetail | null>(null);
   const loading = shallowRef(false);
   const error = shallowRef('');
   const hasMore = shallowRef(false);
@@ -72,9 +77,21 @@ export function useCollectionResults({
   let controller: AbortController;
   let actionController: AbortController;
   let offset = 0;
+  // 本次查询实际使用的绝对时间；翻页沿用首屏边界，避免相对时间跨页漂移
+  let pageRange: null | SelectionRange = null;
+
+  // 时间表达式无效时回退到已提交的绝对范围，避免查询时抛错
+  function currentRange(): null | SelectionRange {
+    try {
+      return resolveRange?.() || range.value;
+    } catch {
+      return range.value;
+    }
+  }
 
   async function fetchPage() {
-    if (loading.value || (!range.value && !state.value.execution)) return;
+    const queryRange = pageRange;
+    if (loading.value || (!queryRange && !state.value.execution)) return;
     const current = new AbortController();
     controller = current;
     loading.value = true;
@@ -83,10 +100,19 @@ export function useCollectionResults({
       const execution = state.value.execution;
       const detail = execution ? await getCollectionExecution(bizId.value, execution, current.signal) : null;
       if (current.signal.aborted) return;
+      executionDetail.value = detail;
       hostColumns.value = detail?.host_columns?.length ? detail.host_columns : null;
       const data = detail
         ? executionResultRows(detail)
-        : (await getCollectionResults(bizId.value, range.value, state.value.filters, offset, current.signal)).data;
+        : (
+            await getCollectionResults(
+              bizId.value,
+              queryRange as SelectionRange,
+              state.value.filters,
+              offset,
+              current.signal
+            )
+          ).data;
       if (current.signal.aborted) return;
       const known = new Set(records.value.map(resultRowKey));
       records.value = [
@@ -112,9 +138,12 @@ export function useCollectionResults({
     loading.value = false;
     records.value = [];
     hostColumns.value = null;
+    executionDetail.value = null;
     offset = 0;
     hasMore.value = false;
     error.value = '';
+    // 每次重新查询都刷新时间边界；翻页沿用这里定下的范围
+    pageRange = currentRange();
     return fetchPage();
   }
 
@@ -172,6 +201,7 @@ export function useCollectionResults({
   return {
     records,
     hostColumns,
+    executionDetail,
     loading,
     error,
     hasMore,

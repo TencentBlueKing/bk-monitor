@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { Button, Radio, Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -35,6 +35,7 @@ import ProfileVisualization from '../profile-visualization/profile-visualization
 import CollectionExecutionStatus from './collection-execution-status';
 import SliderHeader from '@/components/slider-header/slider-header';
 
+import type { ProfileViewState } from '../../types';
 import type { CollectionResultSelection } from '../../types/collection-history';
 import type { CollectionHostResult, CollectionResultsState } from '../../types/collection-results';
 
@@ -63,6 +64,23 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const fullscreen = shallowRef(false);
+    // 一次火焰图点击会连续发出 focus 与 highlight 两次变更，emit 是同步的而 props 要等渲染后更新，
+    // 以 props 快照合并会让后一次覆盖前一次；这里保留本地上次结果作为合并基准，props 更新后以父级为准。
+    let view = props.state.view;
+    watch(
+      () => props.state.view,
+      value => {
+        view = value;
+      }
+    );
+    function changeView(patch: Partial<ProfileViewState>) {
+      view = { ...view, ...patch };
+      emit('change', { view });
+    }
+    function changeDataType(dataType: string) {
+      view = createViewState();
+      emit('change', { dataType, view });
+    }
     const d = useCollectionResultDetail({
       bizId: computed(() => props.bizId),
       selection: computed(() => props.selection),
@@ -71,7 +89,7 @@ export default defineComponent({
       graphMode: computed(() => props.state.view.graphMode),
       onDataType: dataType => emit('change', { dataType }),
     });
-    return { t, fullscreen, d };
+    return { t, fullscreen, d, changeView, changeDataType };
   },
   render() {
     const d = this.d;
@@ -193,9 +211,7 @@ export default defineComponent({
                     <span>{this.t('数据类型')}：</span>
                     <Radio.Group
                       modelValue={d.selectedType.value}
-                      onChange={dataType =>
-                        this.$emit('change', { dataType: String(dataType), view: createViewState() })
-                      }
+                      onChange={dataType => this.changeDataType(String(dataType))}
                     >
                       {d.types.value.map(type => (
                         <Radio.Button
@@ -219,9 +235,9 @@ export default defineComponent({
                   mode={this.state.view.graphMode}
                   view={this.state.view}
                   onExport={d.exportProfile}
-                  onModeChange={graphMode => this.$emit('change', { view: { ...this.state.view, graphMode } })}
+                  onModeChange={graphMode => this.changeView({ graphMode })}
                   onRetry={d.error.value ? d.load : d.retryGraph}
-                  onViewChange={view => this.$emit('change', { view: { ...this.state.view, ...view } })}
+                  onViewChange={this.changeView}
                 />
               </div>
             </>

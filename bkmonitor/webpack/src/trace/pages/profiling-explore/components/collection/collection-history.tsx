@@ -46,6 +46,7 @@ import {
   executionSelection,
   executionStatusLabels,
   formatExecutionDuration,
+  hostErrorTypeMessage,
   taskColumnMinWidth,
 } from '../../utils/collection-history';
 import CollectionExecutionAction from './collection-execution-action';
@@ -465,9 +466,15 @@ export default defineComponent({
                   {this.t('共 {n} 台主机', { n: row.target_count ?? row.hosts?.length ?? 0 })}
                 </span>
               ),
-              status: ({ row }: { row: CollectionExecution }) => (
-                <CollectionExecutionStatus status={row.execution_status} />
-              ),
+              status: ({ row }: { row: CollectionExecution }) => {
+                const message = hostErrorTypeMessage(row.error_type);
+                return (
+                  <CollectionExecutionStatus
+                    message={message ? this.t(message) : ''}
+                    status={row.execution_status}
+                  />
+                );
+              },
               operations: ({ row }: { row: CollectionExecution }) => (
                 <div class='collection-row-actions'>
                   {/* 禁用按钮不派发鼠标事件，tooltip 需挂在外层元素上 */}
