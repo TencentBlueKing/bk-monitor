@@ -322,7 +322,7 @@ def test_graph_relation_v4_transfer_consumer_group_only_applies_to_vm(graph_rela
     )
 
 
-def test_apply_graph_relation_v4_deletes_components_absent_from_compose(mocker, graph_relation_v4_records):
+def test_apply_graph_relation_v4_stops_absent_databus(mocker, graph_relation_v4_records, databus_remote):
     ctx = graph_relation_v4_records
     option_record = models.ResultTableOption.objects.create(
         bk_tenant_id="system",
@@ -353,7 +353,26 @@ def test_apply_graph_relation_v4_deletes_components_absent_from_compose(mocker, 
         storage_cluster_name=ctx["vm_cluster"].cluster_name,
     )
 
-    assert mock_delete.call_count == 3
+    retained_databus_ids = set(
+        DataBusConfig.objects.filter(data_link_name=ctx["data_link"].pk).values_list("pk", flat=True)
+    )
+    ctx["data_link"].apply_data_link(
+        bk_biz_id=2,
+        data_source=ctx["data_source"],
+        table_id=ctx["table_id"],
+        storage_cluster_name=ctx["vm_cluster"].cluster_name,
+        cleanup_absent_components=True,
+    )
+    assert (
+        set(DataBusConfig.objects.filter(data_link_name=ctx["data_link"].pk).values_list("pk", flat=True))
+        == retained_databus_ids
+    )
+    assert mock_delete.call_count == 2
+    assert databus_remote.apply.call_count == 2
+    assert all(
+        config["metadata"]["annotations"]["task_stopped"] == "true" for config in databus_remote.configs.values()
+    )
+    assert all(call.kwargs["kind"] != "databuses" for call in mock_delete.call_args_list)
     assert ResultTableConfig.objects.filter(
         data_link_name=ctx["data_link"].data_link_name,
         data_type="metric",
@@ -368,7 +387,7 @@ def test_apply_graph_relation_v4_deletes_components_absent_from_compose(mocker, 
         data_type="graph",
     ).exists()
     assert not SurrealDBBindingConfig.objects.filter(data_link_name=ctx["data_link"].data_link_name).exists()
-    assert not DataBusConfig.objects.filter(
+    assert DataBusConfig.objects.filter(
         data_link_name=ctx["data_link"].data_link_name,
         sink_names__icontains="SurrealDBBinding:",
     ).exists()
@@ -380,10 +399,33 @@ def test_apply_graph_relation_v4_deletes_components_absent_from_compose(mocker, 
         == models.ClusterInfo.TYPE_VM
     )
 
+    option_record.value = json.dumps({"write_targets": ["vm", "surrealdb"]})
+    option_record.save(update_fields=["value"])
+    for _ in range(2):
+        ctx["data_link"].apply_data_link(
+            bk_biz_id=2,
+            data_source=ctx["data_source"],
+            table_id=ctx["table_id"],
+            storage_cluster_name=ctx["vm_cluster"].cluster_name,
+        )
+    assert (
+        set(DataBusConfig.objects.filter(data_link_name=ctx["data_link"].pk).values_list("pk", flat=True))
+        == retained_databus_ids
+    )
+    configs = DataLink.apply_data_link_with_retry.call_args.args[0]
+    assert all(
+        config["metadata"]["annotations"]["task_stopped"] == "false"
+        for config in configs
+        if config["kind"] == "Databus"
+    )
+    assert databus_remote.apply.call_count == 2
+
 
 def test_switch_from_surrealdb_only_to_standard_vm_reuses_datalink_and_cleans_graph(
     mocker,
     graph_relation_v4_records,
+    databus_remote,
+    settings,
 ):
     ctx = graph_relation_v4_records
     models.ResultTableOption.objects.create(
@@ -415,7 +457,26 @@ def test_switch_from_surrealdb_only_to_standard_vm_reuses_datalink_and_cleans_gr
         cleanup_absent_components=True,
     )
 
-    assert mock_delete.call_count == 3
+    settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = [DataLink.BK_STANDARD_V2_TIME_SERIES]
+    retained_databus_ids = set(
+        DataBusConfig.objects.filter(data_link_name=ctx["data_link"].pk).values_list("pk", flat=True)
+    )
+    ctx["data_link"].apply_data_link(
+        bk_biz_id=2,
+        data_source=ctx["data_source"],
+        table_id=ctx["table_id"],
+        storage_cluster_name=ctx["vm_cluster"].cluster_name,
+    )
+    assert (
+        set(DataBusConfig.objects.filter(data_link_name=ctx["data_link"].pk).values_list("pk", flat=True))
+        == retained_databus_ids
+    )
+    assert mock_delete.call_count == 2
+    assert databus_remote.apply.call_count == 2
+    assert all(
+        config["metadata"]["annotations"]["task_stopped"] == "true" for config in databus_remote.configs.values()
+    )
+    assert all(call.kwargs["kind"] != "databuses" for call in mock_delete.call_args_list)
     assert ResultTableConfig.objects.filter(
         data_link_name=ctx["data_link"].data_link_name,
         data_type="metric",

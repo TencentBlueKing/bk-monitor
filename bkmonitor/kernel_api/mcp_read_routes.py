@@ -19,6 +19,7 @@ APPLICATION_READ_BACKENDS = {
     "calculate_by_range": ("POST", "/api/v4/apm_metric_web/calculate_by_range/"),
     "llm_mcp_search_traces": ("POST", "/api/v4/apm_llm_web/list_traces/"),
     "llm_mcp_search_flows": ("POST", "/api/v4/apm_llm_web/list_flows/"),
+    "llm_mcp_search_spans": ("POST", "/api/v4/apm_llm_web/list_spans/"),
     "llm_mcp_calculate_by_range": ("POST", "/api/v4/apm_llm_web/calculate_by_range/"),
 }
 

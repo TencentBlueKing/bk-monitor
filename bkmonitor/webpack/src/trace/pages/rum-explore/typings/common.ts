@@ -25,6 +25,7 @@
  */
 import { RumModeEnum } from '../constants';
 
+import type { ConditionChangeEvent } from '../../trace-explore/typing';
 import type { RumModeType } from './enum';
 
 export const RUM_MODE_LIST: RumModeType[] = [RumModeEnum.SESSION, RumModeEnum.VIEW, RumModeEnum.SPAN];
@@ -47,6 +48,8 @@ export interface IRumColumnLayoutPreset {
    * 列的实际顺序沿用展示列顺序，未展示的字段自动忽略。
    */
   leftFixedColumns?: Set<string>;
+  /** 视角私有最小列宽，未配置时用 DEFAULT_MIN_COLUMN_WIDTH；设计稿列宽小于该默认值的视角需显式声明 */
+  minWidth?: number;
   /** 默认列宽：colKey -> 宽度，优先级低于用户列宽覆盖 */
   widthMap?: Record<string, number>;
 }
@@ -57,6 +60,12 @@ export interface IRumCommonParams {
   filters: IRumFilter[];
   mode: RumModeType;
   query_string: string;
+}
+
+/** 数量列下钻事件：调用方构造目标视角与跳转后携带的检索条件 */
+export interface IRumCountDrillDown {
+  condition: ConditionChangeEvent;
+  targetMode: RumModeType;
 }
 
 /** 后端约定的过滤条件结构，见接口协议 1.1 Filter */

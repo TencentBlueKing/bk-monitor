@@ -26,7 +26,7 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import type { IRumDetailHeaderVM } from '../../typings';
+import type { IRumDetailHeaderVM, IRumOverviewItemVM } from '../../typings';
 
 import './detail-header.scss';
 
@@ -47,6 +47,11 @@ export default defineComponent({
     itemClick: (_key: string, _value: string) => true,
   },
   setup(props, { emit }) {
+    /** 点击公共信息项：回传原始值，展示文本可能已经过单位换算或枚举别名 */
+    const handleItemClick = (item: IRumOverviewItemVM) => {
+      if (!item.isLink || !item.value) return;
+      emit('itemClick', item.key, String(item.rawValue ?? item.value));
+    };
     return () => {
       const { data } = props;
       if (!data) return null;
@@ -86,7 +91,7 @@ export default defineComponent({
                   <span
                     class={{ 'item-value': true, 'is-link': item.isLink && !!item.value }}
                     v-overflow-tips
-                    onClick={() => item.isLink && item.value && emit('itemClick', item.key, item.value)}
+                    onClick={() => handleItemClick(item)}
                   >
                     {item.value || '--'}
                   </span>

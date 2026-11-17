@@ -171,7 +171,9 @@ class StrategyConfigParser(BaseConfigParser):
 
         return time_ranges
 
-    def get_query_configs_n_name(self, config: dict[str, Any], detect: dict) -> tuple[list, str, str]:
+    def get_query_configs_n_name(
+        self, config: dict[str, Any], detect: dict, fallback_scenario: str | None = None
+    ) -> tuple[list, str, str]:
         # 查询配置
         query_configs = []
 
@@ -183,7 +185,14 @@ class StrategyConfigParser(BaseConfigParser):
         if not config["query"]["query_configs"]:
             raise Exception("query_configs is empty")
 
-        scenario = "other_rt"
+        raw_scenario = config.get("scenario")
+        if raw_scenario is not None:
+            explicit_scenario = raw_scenario.strip().lower()
+            if not explicit_scenario:
+                raise ValidationError("scenario 不能为空")
+        else:
+            explicit_scenario = None
+        resolved_scenario = None
         for origin_config in config["query"]["query_configs"]:
             # grafana类型策略处理
             if config["query"]["data_source"] == DataSourceLabel.DASHBOARD:
@@ -251,7 +260,7 @@ class StrategyConfigParser(BaseConfigParser):
                 metric = None
             # 根据指标信息获取场景及时间字段
             if metric:
-                scenario = metric.result_table_label
+                resolved_scenario = metric.result_table_label
                 if metric.extend_fields.get("time_field"):
                     query_config["time_field"] = metric.extend_fields["time_field"]
 
@@ -268,6 +277,7 @@ class StrategyConfigParser(BaseConfigParser):
             name = query_configs[0]["promql"]
         else:
             name = " ".join(expression_tokens)
+        scenario = explicit_scenario or resolved_scenario or fallback_scenario or "other_rt"
         return query_configs, name, scenario
 
     @staticmethod
@@ -283,7 +293,7 @@ class StrategyConfigParser(BaseConfigParser):
             "alert_levels": [LEVEL_NAME_TO_ID[level] for level in issue_config["levels"]],
         }
 
-    def parse(self, config: dict) -> dict:
+    def parse(self, config: dict, fallback_scenario: str | None = None) -> dict:
         # 生效时间段解析 yaml -> config
         time_ranges = self.get_time_ranges(config)
 
@@ -325,7 +335,9 @@ class StrategyConfigParser(BaseConfigParser):
         }
 
         # 查询配置解析
-        query_configs, name, scenario = self.get_query_configs_n_name(config, detect)
+        query_configs, name, scenario = self.get_query_configs_n_name(
+            config, detect, fallback_scenario=fallback_scenario
+        )
 
         # 监控目标
         if "target" in config["query"]:
@@ -734,6 +746,8 @@ class StrategyConfigParser(BaseConfigParser):
     def unparse(self, config: dict) -> dict:
         # config --> yaml
         code_config = {"name": config["name"], "version": MinVersion.STRATEGY}
+        if config.get("scenario"):
+            code_config["scenario"] = config["scenario"]
 
         if config["priority"] is not None:
             code_config["priority"] = config["priority"]
