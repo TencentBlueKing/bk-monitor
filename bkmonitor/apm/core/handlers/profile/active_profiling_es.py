@@ -49,7 +49,7 @@ class ActiveProfilingEventQueryHandler:
         self.event_table_id = self._get_event_table_id()
 
     def query_hosts(self, params):
-        """已采数据：一台主机的一次执行一行"""
+        """已采数据：一台主机的一次执行一行，返回本页的行与筛选后的总行数"""
         statuses = params.get("filters", {}).get("status") or []
         # unknown 取决于有没有 finished，ES 筛不出来，只能全量配对
         if "unknown" in statuses:
@@ -62,16 +62,17 @@ class ActiveProfilingEventQueryHandler:
             self._build_hosts_queryset(params, statuses), end * 2 + 1, ACTIVE_PROFILING_ES_QUERY_BATCH_SIZE
         )
         rows = (
-            self._build_host_row(key, host_events) for key, host_events in groupby(events, key=self._host_execution_key)
+            self._build_host_row(key, host_events)
+            for key, host_events in self._iter_matched_hosts(events, self._build_process_matcher(params))
         )
         # running 要看有没有 finished，成功类要排除还在解析中的行，多选时下推的条件只是各状态的并集，
         # 都要配对后在内存中按行状态筛选
         if statuses:
             rows = (row for row in rows if row["status"] in statuses)
-        return list(islice(rows, offset, end))
+        return self._paginate(rows, offset, end)
 
     def list_executions(self, params):
-        """任务历史：按执行汇总全部主机，一次执行一行"""
+        """任务历史：按执行汇总全部主机，一次执行一行，返回本页的行与筛选后的总行数"""
         statuses = params.get("filters", {}).get("status") or []
         # 执行状态由全部主机聚合，unknown 主机取决于有没有 finished，ES 筛不出来
         if "unknown" in statuses:
@@ -162,7 +163,7 @@ class ActiveProfilingEventQueryHandler:
         )
         if statuses:
             rows = (row for row in rows if row["execution_status"] in statuses)
-        return list(islice(rows, offset, end))
+        return self._paginate(rows, offset, end)
 
     def _query_host_matched_executions(self, params, statuses, host_filter):
         """主机/进程只决定选中哪些执行，不改变执行的汇总结果：先按主机筛出命中的执行，再回查这些执行的全部主机"""
@@ -170,23 +171,101 @@ class ActiveProfilingEventQueryHandler:
         end = offset + params["limit"]
         execution_filter = self._build_execution_filter(params)
         queryset = self._build_list_queryset(params, {**execution_filter, **host_filter})
-        keys = (key for key, __ in groupby(self._iter_execution_events(queryset, end), key=self._execution_key))
+        matcher = self._build_process_matcher(params)
+        keys = (
+            key
+            for key, events in groupby(self._iter_execution_events(queryset, end), key=self._execution_key)
+            if matcher is None or any(True for __ in self._iter_matched_hosts(events, matcher))
+        )
         if not statuses:
-            # 每个命中的执行就是一行，offset 之前的执行不用回查
-            return self._query_execution_rows(params, execution_filter, list(islice(keys, offset, end)))
+            # 每个命中的执行就是一行，offset 之前的执行不用回查，总数即命中的执行数
+            page = self._paginate(keys, offset, end)
+            return {**page, "data": self._query_execution_rows(params, execution_filter, page["data"])}
 
         # 状态要回查全部主机汇总后才知道，每轮只回查还缺的行数个执行，不够时接着上一轮继续找命中的执行
         rows = []
         while len(rows) < end:
             chunk = list(islice(keys, end - len(rows)))
             if not chunk:
-                break
-            rows.extend(
-                row
-                for row in self._query_execution_rows(params, execution_filter, chunk)
-                if row["execution_status"] in statuses
+                # 命中的执行已全部回查过
+                return {"data": rows[offset:], "total": len(rows)}
+            rows.extend(self._query_status_matched_rows(params, execution_filter, chunk, statuses))
+        return {
+            "data": rows[offset:],
+            "total": self._count_status_matched_executions(params, execution_filter, keys, statuses, len(rows)),
+        }
+
+    def _query_status_matched_rows(self, params, execution_filter, keys, statuses):
+        return [
+            row
+            for row in self._query_execution_rows(params, execution_filter, keys)
+            if row["execution_status"] in statuses
+        ]
+
+    def _count_status_matched_executions(self, params, execution_filter, keys, statuses, counted):
+        """本页之后命中的执行再回查一次统计总数；剩余的执行过多或超出查询上限时不再回查，总数未知"""
+        try:
+            remaining = list(islice(keys, ACTIVE_PROFILING_ES_FALLBACK_MAX_HOST_TERMS + 1))
+            if len(remaining) > ACTIVE_PROFILING_ES_FALLBACK_MAX_HOST_TERMS:
+                return None
+            return counted + len(self._query_status_matched_rows(params, execution_filter, remaining, statuses))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _paginate(rows, offset, end):
+        """rows 惰性产出筛选后的行：取到本页末尾后接着读完，得到总行数；
+        读到查询上限还没读完时总数未知，返回 None，本页的行不受影响"""
+        head = list(islice(rows, end))
+        total = len(head)
+        if total == end:
+            try:
+                total += sum(1 for __ in rows)
+            except ValueError:
+                total = None
+        return {"data": head[offset:], "total": total}
+
+    def _iter_matched_hosts(self, events, matcher):
+        """按主机执行分组；带 进程名:PID 精确条件时只保留同一进程两者都相等的主机执行"""
+        for key, host_events in groupby(events, key=self._host_execution_key):
+            host_events = list(host_events)
+            if matcher is None or matcher(host_events):
+                yield key, host_events
+
+    @staticmethod
+    def _build_process_matcher(params):
+        """PID 候选的 进程名:PID 要按同一进程精确匹配：维度里进程名与 PID 分开拼接，下推只能按 PID 包含匹配，
+        复用该 PID 的其他进程、包含该数字的其他 PID 也会命中，配对后再按 finished 里成对的 processes 筛一遍，
+        与 MySQL 查询同一口径。没有这类条件时返回 None，下推的条件已经精确"""
+        exact_processes, plain_pids = set(), []
+        for value in params.get("filters", {}).get("process_pids") or []:
+            process = PROCESS_CANDIDATE_PATTERN.fullmatch(value)
+            if process:
+                # 候选可能来自维度（进程名里的逗号已归一化为 _），两边都归一化后比较
+                exact_processes.add((process["process_name"].replace(",", "_"), process["pid"]))
+            else:
+                plain_pids.append(value.replace(",", "_"))
+        if not exact_processes:
+            return None
+
+        def match(host_events):
+            # 重复上报时最新一条在前；进程信息只在 finished 里
+            finished = next(
+                (event for event in host_events if event["event_name"] == ACTIVE_PROFILING_FINISHED_EVENT), None
             )
-        return rows[offset:end]
+            if finished is None:
+                return False
+            # 同一筛选项的多个值命中任一即可：直接输入的 PID 仍按包含匹配
+            process_pids = finished["dimensions"].get("process_pids", "")
+            if any(pid in process_pids for pid in plain_pids):
+                return True
+            processes = json.loads(finished["event"]["content"]).get("processes", [])
+            return any(
+                (process["process_name"].replace(",", "_"), str(process["pid"])) in exact_processes
+                for process in processes
+            )
+
+        return match
 
     def _query_execution_rows(self, params, execution_filter, keys):
         """按 scheduled_at 回查执行的全部主机；同一毫秒可能有别的执行，按执行键精确保留"""
@@ -329,7 +408,8 @@ class ActiveProfilingEventQueryHandler:
         if filters.get("process_pids"):
             pids = []
             for value in filters["process_pids"]:
-                # 维度里进程名与 PID 分开拼接，无法按同一进程配对，PID 候选的 进程名:PID 只按 PID 匹配
+                # 维度里进程名与 PID 分开拼接，无法按同一进程配对，PID 候选的 进程名:PID 先按 PID 下推，
+                # 配对后再由 _build_process_matcher 按同一进程精确筛选
                 process = PROCESS_CANDIDATE_PATTERN.fullmatch(value)
                 pids.append(process["pid"] if process else value.replace(",", "_"))
             filter_dict["process_pids__include"] = pids
@@ -339,7 +419,8 @@ class ActiveProfilingEventQueryHandler:
         return list(queryset.offset(offset).limit(size))
 
     def _iter_events(self, queryset, first_size, batch_size):
-        """从头分批读取，调用方凑够行数后停止迭代，后面的批次不会查询"""
+        """从头分批读取，调用方凑够行数后停止迭代，后面的批次不会查询；
+        续读的批次逐次翻倍，凑够本页后还要读完才能统计总行数，避免请求次数随数据量线性增长"""
         size = min(ACTIVE_PROFILING_ES_QUERY_MAX_SIZE, first_size)
         offset = 0
         while True:
@@ -351,6 +432,7 @@ class ActiveProfilingEventQueryHandler:
             if offset >= ACTIVE_PROFILING_ES_QUERY_MAX_SIZE:
                 raise ValueError(_("时间范围内的执行记录过多，请缩小时间范围或增加筛选条件"))
             size = min(batch_size, ACTIVE_PROFILING_ES_QUERY_MAX_SIZE - offset)
+            batch_size *= 2
 
     def _query_execution_hosts(self, params):
         """按执行定位键查该次执行的 Event，逐台主机返回主机执行行、维度和本机配置快照"""

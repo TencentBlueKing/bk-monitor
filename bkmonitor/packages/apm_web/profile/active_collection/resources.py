@@ -215,6 +215,14 @@ class SwitchTaskResource(Resource):
         api.apm_api.switch_active_profiling_task(**validated_request_data)
 
 
+def _paged_rows(result):
+    """两个列表返回本页的行与筛选后的总行数，total 为 None 表示总数未知；
+    API 模块还没升级时返回的是行列表，按总数未知处理"""
+    if isinstance(result, list):
+        return {"data": result, "total": None}
+    return {"data": result["data"], "total": result["total"]}
+
+
 class QueryHostsResource(Resource):
     """查询已采数据主机"""
 
@@ -223,7 +231,7 @@ class QueryHostsResource(Resource):
     def perform_request(self, validated_request_data):
         return {
             "columns": HOST_QUERY_COLUMNS,
-            "data": api.apm_api.query_active_profiling_hosts(**validated_request_data),
+            **_paged_rows(api.apm_api.query_active_profiling_hosts(**validated_request_data)),
         }
 
 
@@ -235,7 +243,7 @@ class ListExecutionsResource(Resource):
     def perform_request(self, validated_request_data):
         return {
             "task_columns": EXECUTION_LIST_TASK_COLUMNS,
-            "data": api.apm_api.list_active_profiling_executions(**validated_request_data),
+            **_paged_rows(api.apm_api.list_active_profiling_executions(**validated_request_data)),
         }
 
 

@@ -1209,15 +1209,31 @@ def test_task_submit_rejects_invalid_cron_expression(cron_expression):
             QueryHostsResource,
             "query_active_profiling_hosts",
             with_filters(status=["unknown"]),
-            [{"bk_host_id": 456}],
-            {"columns": HOST_QUERY_COLUMNS, "data": [{"bk_host_id": 456}]},
+            {"data": [{"bk_host_id": 456}], "total": 21},
+            {"columns": HOST_QUERY_COLUMNS, "data": [{"bk_host_id": 456}], "total": 21},
         ),
         (
             ListExecutionsResource,
             "list_active_profiling_executions",
             EVENT_LIST_REQUEST,
-            [{"task_name": "native-cpu"}],
-            {"task_columns": EXECUTION_LIST_TASK_COLUMNS, "data": [{"task_name": "native-cpu"}]},
+            # 总行数未知（ES 读到查询上限）时原样透出 None
+            {"data": [{"task_name": "native-cpu"}], "total": None},
+            {"task_columns": EXECUTION_LIST_TASK_COLUMNS, "data": [{"task_name": "native-cpu"}], "total": None},
+        ),
+        # API 模块还没升级时两个列表返回的是行列表，按总行数未知处理
+        (
+            QueryHostsResource,
+            "query_active_profiling_hosts",
+            EVENT_LIST_REQUEST,
+            [{"bk_host_id": 456}],
+            {"columns": HOST_QUERY_COLUMNS, "data": [{"bk_host_id": 456}], "total": None},
+        ),
+        (
+            ListExecutionsResource,
+            "list_active_profiling_executions",
+            EVENT_LIST_REQUEST,
+            [],
+            {"task_columns": EXECUTION_LIST_TASK_COLUMNS, "data": [], "total": None},
         ),
         (
             QueryTopKResource,
@@ -1258,7 +1274,7 @@ def test_backend_queries_forward_request_and_add_columns(
 )
 @pytest.mark.parametrize(("source", "expected_source"), [(None, "mysql"), ("mysql", "mysql"), ("es", "es")])
 def test_backend_queries_forward_query_source(mocker, resource_cls, api_name, request_data, source, expected_source):
-    backend_api = mocker.patch(f"core.drf_resource.api.apm_api.{api_name}", return_value={})
+    backend_api = mocker.patch(f"core.drf_resource.api.apm_api.{api_name}", return_value={"data": [], "total": 0})
     if source:
         request_data = {**request_data, "source": source}
 

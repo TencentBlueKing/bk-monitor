@@ -239,7 +239,8 @@ def create_execution(hosts, collector_config=None, **fields):
 
 @pytest.fixture
 def event_es(mocker):
-    """MySQL 查询回退用的 Event ES，与 MySQL 查询同一时刻；按 scheduled_at、主机列表筛选后分页返回，默认没有 Event"""
+    """MySQL 查询回退用的 Event ES，与 MySQL 查询同一时刻；按 scheduled_at、主机列表、执行方式与计划时间范围筛选后
+    分页返回，默认没有 Event"""
     mocker.patch(f"{ES_HANDLER_MODULE}.get_request_tenant_id", return_value="system")
     mocker.patch(f"{ES_HANDLER_MODULE}.time").time.return_value = NOW_MS / 1000
     profile_datasource = mocker.patch(f"{ES_HANDLER_MODULE}.ProfileDataSource")
@@ -255,9 +256,11 @@ def event_es(mocker):
             for event in events
             if all(
                 event["dimensions"][field] in filter_dict[field]
-                for field in ("scheduled_at", "bk_host_id")
+                for field in ("scheduled_at", "bk_host_id", "schedule_type")
                 if isinstance(filter_dict.get(field), list)
             )
+            and filter_dict.get("scheduled_at__gte", 0) <= int(event["dimensions"]["scheduled_at"])
+            and int(event["dimensions"]["scheduled_at"]) <= filter_dict.get("scheduled_at__lte", NOW_MS)
         ]
         return matched[query_body["offset"] : query_body["offset"] + query_body["limit"]]
 
@@ -366,7 +369,7 @@ def query_rows(mocker, event_es):
 
 
 def query_hosts(**filters):
-    return QueryActiveProfilingHostsResource().request({**TIME_RANGE, "filters": filters})
+    return QueryActiveProfilingHostsResource().request({**TIME_RANGE, "filters": filters})["data"]
 
 
 def host_keys(rows):
@@ -401,8 +404,29 @@ def test_query_hosts_orders_by_scheduled_at_and_derives_outdate(query_rows):
     # 只有失败的行带失败类型，供前端悬浮在状态上时展示
     assert [row.get("error_type") for row in rows] == [None, None, None, "dispatch_failed", None]
 
-    page = QueryActiveProfilingHostsResource().request({**TIME_RANGE, "offset": 1, "limit": 2})
+    page = QueryActiveProfilingHostsResource().request({**TIME_RANGE, "offset": 1, "limit": 2})["data"]
     assert host_keys(page) == [(RECENT_AT, 456), (MID_AT, 459)]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lists_return_total_of_filtered_rows(query_rows):
+    def totals(resource_cls, **request):
+        result = resource_cls().request({**TIME_RANGE, **request})
+        return len(result["data"]), result["total"]
+
+    # 总行数是筛选后的全部行，不随翻页变化；翻过末尾为空页，总行数不变
+    assert totals(QueryActiveProfilingHostsResource) == (5, 5)
+    assert totals(QueryActiveProfilingHostsResource, limit=2) == (2, 5)
+    assert totals(QueryActiveProfilingHostsResource, offset=4, limit=2) == (1, 5)
+    assert totals(QueryActiveProfilingHostsResource, offset=20) == (0, 5)
+    assert totals(QueryActiveProfilingHostsResource, filters={"ips": ["127.0.0.1"]}, limit=1) == (1, 2)
+    assert totals(QueryActiveProfilingHostsResource, filters={"status": ["outdate", "running"]}) == (2, 2)
+    assert totals(ListActiveProfilingExecutionsResource) == (3, 3)
+    assert totals(ListActiveProfilingExecutionsResource, limit=1) == (1, 3)
+    assert totals(ListActiveProfilingExecutionsResource, offset=20) == (0, 3)
+    assert totals(ListActiveProfilingExecutionsResource, filters={"schedule_types": ["immediate"]}, limit=1) == (1, 2)
+    # MySQL 与 ES 都没有匹配行
+    assert totals(QueryActiveProfilingHostsResource, filters={"task_id": 77}) == (0, 0)
 
 
 @pytest.mark.parametrize(
@@ -479,12 +503,12 @@ def test_go_heap_has_no_duration(query_rows):
     )
 
     assert query_hosts()[0]["duration_ms"] is None
-    assert ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "limit": 1})[0]["duration_ms"] is None
+    assert ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "limit": 1})["data"][0]["duration_ms"] is None
 
 
 @pytest.mark.django_db(databases="__all__")
 def test_list_executions_selects_by_host_but_keeps_all_hosts(query_rows):
-    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"ips": ["127.0.0.3"]}})
+    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"ips": ["127.0.0.3"]}})["data"]
 
     # 立即执行不返回 task_id，与一期协议一致
     assert rows == [
@@ -510,7 +534,7 @@ def test_list_executions_selects_by_host_but_keeps_all_hosts(query_rows):
 @pytest.mark.django_db(databases="__all__")
 def test_list_executions_orders_and_filters_by_execution_status(query_rows):
     def scheduled_ats(**filters):
-        rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": filters})
+        rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": filters})["data"]
         return [row["scheduled_at"] for row in rows]
 
     assert scheduled_ats() == [RECENT_AT, MID_AT, OLD_AT]
@@ -520,7 +544,7 @@ def test_list_executions_orders_and_filters_by_execution_status(query_rows):
     assert scheduled_ats(status=["running", "outdate"]) == [RECENT_AT, OLD_AT]
     assert scheduled_ats(collection_methods=["golang"]) == [MID_AT]
 
-    legacy = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "offset": 1, "limit": 1})[0]
+    legacy = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "offset": 1, "limit": 1})["data"][0]
     assert "task_id" not in legacy
 
 
@@ -539,7 +563,7 @@ def test_list_executions_orders_same_millisecond_by_task_id_desc(query_rows):
         status_summary={"running": 1},
     )
 
-    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "limit": 2})
+    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "limit": 2})["data"]
 
     assert [(row["scheduled_at"], row["task_id"]) for row in rows] == [(RECENT_AT, 99), (RECENT_AT, 12)]
 
@@ -673,7 +697,7 @@ def test_rename_immediate_execution_allows_duplicated_name(query_rows, mocker):
         assert RenameActiveProfilingExecutionResource().request(request) is None
 
     # 任务名只存在执行行，任务历史、已采数据与详情都读它
-    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"task_name": "renamed"}})
+    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"task_name": "renamed"}})["data"]
     assert [row["scheduled_at"] for row in rows] == [MID_AT, OLD_AT]
     assert {row["task"]["name"] for row in query_hosts(task_name="renamed")} == {"renamed"}
 
@@ -692,7 +716,7 @@ def test_rename_planned_execution_by_task_id(query_rows, mocker):
     assert RenameActiveProfilingExecutionResource().request({**request, "task_id": 12}) is None
 
     # 只改这一次执行的任务名，计划的历史按任务 ID 筛选，不受改名影响
-    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"task_id": 12}})
+    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"task_id": 12}})["data"]
     assert [(row["scheduled_at"], row["task_name"]) for row in rows] == [(RECENT_AT, "renamed")]
 
 
@@ -1337,11 +1361,11 @@ STATIC_COMMAND_SELECTOR = {
 
 
 def query_es_hosts(request):
-    return QueryActiveProfilingHostsResource().request({**request, "source": "es"})
+    return QueryActiveProfilingHostsResource().request({**request, "source": "es"})["data"]
 
 
 def list_es_executions(request):
-    return ListActiveProfilingExecutionsResource().request({**request, "source": "es"})
+    return ListActiveProfilingExecutionsResource().request({**request, "source": "es"})["data"]
 
 
 def query_es_topk(request):
@@ -1795,6 +1819,118 @@ def test_es_query_hosts_rejects_when_scanned_events_exceed_limit(host_query_apis
         query_es_hosts({**EVENT_LIST_REQUEST, "limit": 5})
 
 
+def test_es_lists_return_total_of_filtered_rows(host_query_apis, mocker):
+    mocker.patch(f"{ES_HANDLER_MODULE}.ACTIVE_PROFILING_ES_QUERY_BATCH_SIZE", 2)
+    mocker.patch(f"{ES_HANDLER_MODULE}.ACTIVE_PROFILING_ES_EXECUTION_BATCH_SIZE", 2)
+    for index, bk_host_id in enumerate(range(456, 461)):
+        scheduled_at = 1788411800000 - index * 1000
+        status = "failed" if bk_host_id % 2 else "succeed"
+        host_query_apis["events"].extend(
+            [
+                finished_event(
+                    status, scheduled_at, scheduled_at + 100, bk_host_id=bk_host_id, scheduled_at=scheduled_at
+                ),
+                started_event(scheduled_at, bk_host_id=bk_host_id, scheduled_at=scheduled_at),
+            ]
+        )
+
+    def totals(query, **request):
+        result = query({**EVENT_LIST_REQUEST, "source": "es", **request})
+        return len(result["data"]), result["total"]
+
+    hosts = QueryActiveProfilingHostsResource().request
+    executions = ListActiveProfilingExecutionsResource().request
+    # 凑够本页后接着读完，总行数是筛选后的全部行；内存中筛选的状态同样计入
+    assert totals(hosts, limit=2) == (2, 5)
+    assert totals(hosts, offset=4, limit=2) == (1, 5)
+    assert totals(hosts, offset=20) == (0, 5)
+    assert totals(hosts, limit=1, filters={"status": ["failed"]}) == (1, 2)
+    assert totals(executions, limit=2) == (2, 5)
+    assert totals(executions, limit=1, filters={"status": ["failed"]}) == (1, 2)
+
+
+def test_es_lists_return_unknown_total_when_events_exceed_limit(host_query_apis, mocker):
+    mocker.patch(f"{ES_HANDLER_MODULE}.ACTIVE_PROFILING_ES_QUERY_MAX_SIZE", 4)
+    host_query_apis["events"].extend(
+        finished_event("succeed", 1788411801000, 1788411832000, bk_host_id=bk_host_id) for bk_host_id in range(456, 462)
+    )
+
+    # 本页读得到，读完全部 Event 会超出查询上限：本页照常返回，总行数未知
+    result = QueryActiveProfilingHostsResource().request({**EVENT_LIST_REQUEST, "source": "es", "limit": 1})
+    assert ([row["bk_host_id"] for row in result["data"]], result["total"]) == ([456], None)
+
+
+def process_events():
+    """同一 PID 先后被不同进程使用，另有包含该数字的 PID；采集端把进程名里的逗号归一化为 _"""
+    hosts = [
+        (456, [{"pid": 1234, "process_name": "java"}, {"pid": 99, "process_name": "nginx"}], "java,nginx", "1234,99"),
+        (457, [{"pid": 1234, "process_name": "node"}], "node", "1234"),
+        (458, [{"pid": 12345, "process_name": "java"}], "java", "12345"),
+        (459, [{"pid": 77, "process_name": "order,api"}], "order_api", "77"),
+    ]
+    return [
+        with_processes(
+            finished_event(
+                "succeed",
+                1788411801000,
+                1788411832000,
+                processes=processes,
+                bk_host_id=bk_host_id,
+                scheduled_at=1788411800000 - index * 1000,
+            ),
+            process_names,
+            process_pids,
+        )
+        for index, (bk_host_id, processes, process_names, process_pids) in enumerate(hosts)
+    ]
+
+
+@pytest.mark.parametrize(
+    ("process_pids", "expected"),
+    [
+        # 进程名:PID 按同一进程精确匹配：复用该 PID 的其他进程、包含该数字的其他 PID 都不命中
+        (["java:1234"], [456]),
+        (["nginx:99"], [456]),
+        # 候选来自维度时进程名里的逗号已归一化，两边归一化后比较
+        (["order_api:77"], [459]),
+        (["order,api:77"], [459]),
+        (["java:99"], []),
+        # 多个值命中任一即可；直接输入的 PID 仍按包含匹配
+        (["java:1234", "node:1234"], [456, 457]),
+        (["java:1234", "77"], [456, 459]),
+        (["1234"], [456, 457, 458]),
+    ],
+)
+def test_es_lists_match_process_name_and_pid_of_same_process(host_query_apis, process_pids, expected):
+    host_query_apis["query"].side_effect = es_filtered_query(process_events())
+    request = with_filters(process_pids=process_pids)
+
+    hosts = QueryActiveProfilingHostsResource().request({**request, "source": "es"})
+    executions = ListActiveProfilingExecutionsResource().request({**request, "source": "es"})
+
+    assert ([row["bk_host_id"] for row in hosts["data"]], hosts["total"]) == (expected, len(expected))
+    assert [row["hosts"][0]["bk_host_id"] for row in executions["data"]] == expected
+    assert executions["total"] == len(expected)
+    # 先按 PID 下推粗筛，配对后再精确筛选
+    pushed = sent_query_bodies(host_query_apis["query"])[0]["query_configs"][0]["filter_dict"]["process_pids__include"]
+    assert pushed == [value.rsplit(":", 1)[-1] for value in process_pids]
+
+
+def test_es_list_executions_counts_status_matched_executions_selected_by_host(host_query_apis):
+    events = []
+    for index, status in enumerate(["failed", "succeed", "failed", "failed"]):
+        scheduled_at = 1788411800000 - index * 1000
+        events.append(finished_event(status, scheduled_at, scheduled_at + 100, scheduled_at=scheduled_at))
+    host_query_apis["query"].side_effect = es_filtered_query(events)
+
+    result = ListActiveProfilingExecutionsResource().request(
+        {**with_filters(ips=["127.0.0.1"], status=["failed"]), "source": "es", "limit": 1}
+    )
+
+    # 本页之后命中的执行再回查一次，按汇总后的状态计入总行数
+    assert ([row["scheduled_at"] for row in result["data"]], result["total"]) == ([1788411800000], 3)
+
+
 def test_es_query_hosts_requires_enabled_event_group(host_query_apis):
     host_query_apis["event_group"].objects.filter.return_value.first.return_value = None
 
@@ -2008,10 +2144,11 @@ def test_es_list_executions_reads_next_batch_until_last_execution_is_complete(ho
 
     assert [(row["scheduled_at"], row["target_count"]) for row in result] == [(1788411800000, 3)]
     # 首批按 2 * 行数 + 1 估算；要读到下一次执行的 Event 才能确认第一次执行的主机已经完整
+    # 续读的批次逐次翻倍，凑够本页后读完剩下的 Event 才能统计总行数
     assert [(body["offset"], body["limit"]) for body in sent_query_bodies(host_query_apis["query"])] == [
         (0, 3),
         (3, 2),
-        (5, 2),
+        (5, 4),
     ]
 
 
@@ -2585,7 +2722,9 @@ def test_list_executions_recalculates_summary_after_reconciling(query_rows, even
     create_stale_immediate()
     event_es.events.extend(stale_host_events())
 
-    rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"schedule_types": ["immediate"]}})
+    rows = ListActiveProfilingExecutionsResource().request(
+        {**TIME_RANGE, "filters": {"schedule_types": ["immediate"]}}
+    )["data"]
 
     stale = rows[0]
     assert (stale["scheduled_at"], stale["execution_status"], stale["status_summary"]) == (
@@ -2640,8 +2779,8 @@ def test_queries_fall_back_to_es_when_mysql_has_no_rows(query_rows, event_es, fa
     request = {**TIME_RANGE, "filters": {"task_id": 77}}
     task = {"task_id": 77, "name": "java-cpu-daily", "schedule_type": "cron"}
 
-    hosts = QueryActiveProfilingHostsResource().request(request)
-    executions = ListActiveProfilingExecutionsResource().request(request)
+    hosts = QueryActiveProfilingHostsResource().request(request)["data"]
+    executions = ListActiveProfilingExecutionsResource().request(request)["data"]
     detail = QueryActiveProfilingExecutionDetailResource().request(
         {"bk_biz_id": 2, "task_id": 77, "scheduled_at": PLANNED_AT}
     )
@@ -2698,10 +2837,10 @@ def test_fallback_keeps_one_source_per_query_when_paging(query_rows, event_es):
     event_es.events.extend(planned_execution_events())
 
     # MySQL 有匹配行时空页只是翻到了末尾，不改查 ES
-    assert QueryActiveProfilingHostsResource().request({**TIME_RANGE, "offset": 20}) == []
+    assert QueryActiveProfilingHostsResource().request({**TIME_RANGE, "offset": 20})["data"] == []
     event_es.query.assert_not_called()
     # MySQL 一行都没有时各页都走 ES，offset 按 ES 的行计
-    page = QueryActiveProfilingHostsResource().request({**TIME_RANGE, "filters": {"task_id": 77}, "offset": 1})
+    page = QueryActiveProfilingHostsResource().request({**TIME_RANGE, "filters": {"task_id": 77}, "offset": 1})["data"]
     assert [row["bk_host_id"] for row in page] == [457]
 
 
@@ -2866,35 +3005,215 @@ def test_reconcile_checks_running_hosts_before_unknown_at(query_rows, event_es):
 LAG_CHECK_RANGE = (NOW_MS - 24 * 3600 * 1000, NOW_MS - 5 * 60 * 1000)
 
 
-@pytest.mark.django_db(databases="__all__")
-def test_lists_switch_to_es_when_precalculate_lags(query_rows, event_es, fallback_signals):
-    # 预计算停摆：ES 里 5 分钟前已上报的最新一次计划执行，执行表里没有；MySQL 还有停摆前的行，结果不为空
+def lagging_event_es(event_es):
+    """预计算停摆：ES 里 5 分钟前已上报的最新一次计划执行（PLANNED_AT），执行表里没有。
+    执行表里最新一次计划执行是 RECENT_AT 的 cron，落后区间从它往前一个运行窗口算起，这次执行也取自 ES"""
     event_es.latest_planned.return_value = ("cron", PLANNED_AT, 77)
-    event_es.events.extend(planned_execution_events())
+    recent_cron = {"task_id": 12, "scheduled_at": RECENT_AT}
+    event_es.events.extend(
+        [
+            *planned_execution_events(),
+            finished_event("succeed", RECENT_AT + 100, RECENT_AT + 31100, processes=JAVA_PROCESSES, **recent_cron),
+            started_event(RECENT_AT + 100, **recent_cron),
+            # 预计算只处理了这次执行的一部分：457 的 finished 还没写入执行表
+            finished_event(
+                "failed", RECENT_AT + 100, RECENT_AT + 200, bk_host_id=457, target="127.0.0.2", **recent_cron
+            ),
+        ]
+    )
+    return event_es
 
-    hosts = query_hosts()
+
+@pytest.mark.django_db(databases="__all__")
+def test_lists_merge_lagging_planned_executions_from_es(query_rows, event_es, fallback_signals):
+    lagging_event_es(event_es)
+    # 停摆期间提交的立即执行：456 已受理还没有 Event，457 下发失败，都只有 SaaS 写入的行
+    immediate_at = NOW_MS - 20 * 60 * 1000
+    create_execution(
+        [
+            {"bk_host_id": 456, "ip": "127.0.0.1", "status": "running", "unknown_at": NOW_MS + 60 * 1000},
+            {
+                "bk_host_id": 457,
+                "ip": "127.0.0.2",
+                "status": "failed",
+                "started_at": immediate_at,
+                "finished_at": immediate_at,
+                "error_type": "dispatch_failed",
+                "message": "agent not ready",
+            },
+        ],
+        schedule_type="immediate",
+        task_id=9100,
+        scheduled_at=immediate_at,
+        task_name="native-cpu-adhoc",
+        collection_method="perf",
+        collection_type="native_cpu",
+        execution_status="running",
+        status_summary={"running": 1, "failed": 1},
+    )
+
+    hosts = QueryActiveProfilingHostsResource().request(TIME_RANGE)
     executions = ListActiveProfilingExecutionsResource().request(TIME_RANGE)
-    page = QueryActiveProfilingHostsResource().request({**TIME_RANGE, "filters": {"ips": ["127.0.0.2"]}, "offset": 1})
 
-    # 列表整个改查 ES，停摆期间的计划执行不会漏
-    assert [(row["scheduled_at"], row["bk_host_id"], row["status"]) for row in hosts] == [
+    # 落后区间内的计划执行取自 ES，停摆期间的不会漏、只处理了一部分的按 Event 补全；
+    # 立即执行与区间之前的行仍读 MySQL，没有 Event 的占位行、下发失败都还在
+    assert [(row["scheduled_at"], row["bk_host_id"], row["status"]) for row in hosts["data"]] == [
+        (immediate_at, 457, "failed"),
+        (immediate_at, 456, "running"),
         (PLANNED_AT, 456, "succeed"),
         (PLANNED_AT, 457, "failed"),
+        (RECENT_AT, 456, "succeed"),
+        (RECENT_AT, 457, "failed"),
+        (MID_AT, 459, "unknown"),
+        (OLD_AT, 458, "failed"),
+        (OLD_AT, 456, "outdate"),
     ]
-    assert [row["task_id"] for row in executions] == [77]
-    assert [row["bk_host_id"] for row in page] == [457]
+    assert hosts["data"][0]["error_type"] == "dispatch_failed"
+    assert [(row.get("task_id"), row["scheduled_at"], row["status_summary"]) for row in executions["data"]] == [
+        (None, immediate_at, {"running": 1, "failed": 1}),
+        (77, PLANNED_AT, {"succeed": 1, "failed": 1}),
+        (12, RECENT_AT, {"succeed": 1, "failed": 1}),
+        (None, MID_AT, {"unknown": 1}),
+        (None, OLD_AT, {"failed": 1, "outdate": 1}),
+    ]
+    # 总行数为两路之和，切换前后口径一致
+    assert (hosts["total"], executions["total"]) == (9, 5)
     # 只比最新一次计划执行，判定按业务缓存，翻页、换筛选都用同一个结论
     event_es.latest_planned.assert_called_once_with(*LAG_CHECK_RANGE)
     assert fallback_signals.counted() == [
         ("query_hosts", "switch", "lagging"),
         ("list_executions", "switch", "lagging"),
-        ("query_hosts", "switch", "lagging"),
     ]
     # 日志带上预计算没处理的那次执行，便于人工介入
     assert all(
         "switched to es" in args[0] and args[1] == "lagging" and args[4] == ("cron", PLANNED_AT, 77)
         for args in fallback_signals.warnings()
     )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lagging_merge_paginates_across_sources(query_rows, event_es):
+    lagging_event_es(event_es)
+    all_keys = host_keys(QueryActiveProfilingHostsResource().request(TIME_RANGE)["data"])
+
+    pages = [
+        QueryActiveProfilingHostsResource().request({**TIME_RANGE, "offset": offset, "limit": 2})
+        for offset in range(0, 8, 2)
+    ]
+
+    # 两路归并后分页：各页拼起来与一次取全一致，不重不漏；每页的总行数相同，翻过末尾为空页
+    assert [key for page in pages for key in host_keys(page["data"])] == all_keys
+    assert [page["total"] for page in pages] == [7, 7, 7, 7]
+    assert QueryActiveProfilingHostsResource().request({**TIME_RANGE, "offset": 20}) == {"data": [], "total": 7}
+    # ES 的行与 MySQL 的行在同一页内
+    assert host_keys(pages[1]["data"]) == [(RECENT_AT, 456), (RECENT_AT, 457)]
+    assert host_keys(pages[2]["data"]) == [(MID_AT, 459), (OLD_AT, 458)]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lagging_merge_applies_filters_to_both_sources(query_rows, event_es):
+    lagging_event_es(event_es)
+
+    # 状态筛选两路各自生效：ES 配对后在内存中筛，MySQL 按库里的状态筛
+    failed = QueryActiveProfilingHostsResource().request({**TIME_RANGE, "filters": {"status": ["failed"]}})
+    assert (host_keys(failed["data"]), failed["total"]) == (
+        [(PLANNED_AT, 457), (RECENT_AT, 457), (OLD_AT, 458)],
+        3,
+    )
+    executions = ListActiveProfilingExecutionsResource().request(
+        {**TIME_RANGE, "filters": {"status": ["partial_succeed"]}}
+    )
+    assert [row["scheduled_at"] for row in executions["data"]] == [PLANNED_AT, RECENT_AT]
+    assert executions["total"] == 2
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lagging_keeps_mysql_when_query_excludes_lag_gap(query_rows, event_es, fallback_signals):
+    lagging_event_es(event_es)
+
+    # 只筛立即执行：落后的只有计划执行，不用查 ES，连落后探测都不做
+    immediate = QueryActiveProfilingHostsResource().request(
+        {**TIME_RANGE, "filters": {"schedule_types": ["immediate"]}}
+    )
+    assert (host_keys(immediate["data"]), immediate["total"]) == ([(MID_AT, 459), (OLD_AT, 458), (OLD_AT, 456)], 3)
+    event_es.latest_planned.assert_not_called()
+
+    # 查询范围在落后区间（RECENT_AT 往前一个运行窗口）之前：只读 MySQL
+    before_gap = {**TIME_RANGE, "end_time": MID_AT}
+    assert host_keys(QueryActiveProfilingHostsResource().request(before_gap)["data"]) == [
+        (MID_AT, 459),
+        (OLD_AT, 458),
+        (OLD_AT, 456),
+    ]
+    assert [row["scheduled_at"] for row in ListActiveProfilingExecutionsResource().request(before_gap)["data"]] == [
+        MID_AT,
+        OLD_AT,
+    ]
+    # 只有页内校正按主机回查了 Event，没有按落后区间查 ES
+    assert all(
+        "bk_host_id" in call.kwargs["query_body"]["query_configs"][0]["filter_dict"]
+        for call in event_es.query.call_args_list
+    )
+    assert fallback_signals.counted() == []
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lagging_takes_all_planned_executions_from_es_without_mysql_planned_rows(query_rows, event_es):
+    lagging_event_es(event_es)
+    # 执行表里一次计划执行都没有（预计算一开始就没消费）：落后区间不设起点，计划执行全部取自 ES
+    ActiveProfilingHostExecution.objects.filter(execution_id=query_rows.cron.id).delete()
+    query_rows.cron.delete()
+
+    hosts = QueryActiveProfilingHostsResource().request(TIME_RANGE)
+
+    assert host_keys(hosts["data"])[:4] == [(PLANNED_AT, 456), (PLANNED_AT, 457), (RECENT_AT, 456), (RECENT_AT, 457)]
+    assert hosts["total"] == 7
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lagging_merge_falls_back_to_mysql_when_es_fails(query_rows, event_es):
+    lagging_event_es(event_es)
+    event_es.query.side_effect = RuntimeError("unify-query unavailable")
+
+    # ES 查询失败：仍按 MySQL 返回，落后区间内的计划执行不排除
+    hosts = QueryActiveProfilingHostsResource().request(TIME_RANGE)
+    assert (len(hosts["data"]), hosts["total"]) == (5, 5)
+    assert host_keys(hosts["data"])[:2] == [(RECENT_AT, 457), (RECENT_AT, 456)]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lagging_total_is_unknown_when_lag_gap_exceeds_es_limit(query_rows, event_es, mocker):
+    lagging_event_es(event_es)
+    mocker.patch(f"{ES_HANDLER_MODULE}.ACTIVE_PROFILING_ES_QUERY_MAX_SIZE", 6)
+
+    # 落后区间内的 Event 超出查询上限：本页照常返回，总行数未知
+    hosts = QueryActiveProfilingHostsResource().request({**TIME_RANGE, "limit": 2})
+    assert host_keys(hosts["data"]) == [(PLANNED_AT, 456), (PLANNED_AT, 457)]
+    assert hosts["total"] is None
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_topk_merges_lagging_candidates_from_es(query_rows, event_es, mocker):
+    lagging_event_es(event_es)
+    group_counts = mocker.patch.object(
+        ActiveProfilingEventQueryHandler,
+        "_query_group_counts",
+        return_value=[(("java-cpu-daily",), 4), (("order-api-cpu",), 3)],
+    )
+
+    topk = QueryActiveProfilingTopKResource().request({**TIME_RANGE, "field": "task_name"})
+
+    # MySQL 的候选补上落后区间内计划执行的候选，同值的计数相加后重新排序
+    assert [(item["value"], item["count"]) for item in topk] == [
+        ("order-api-cpu", 5),
+        ("java-cpu-daily", 4),
+        ("order-api-cpu-adhoc", 2),
+        ("go-cpu-legacy", 1),
+    ]
+    # ES 只查落后区间内的计划执行
+    gap_params = group_counts.call_args.args[0]
+    assert gap_params["start_time"] == RECENT_AT - 600 * 1000
+    assert gap_params["filters"]["schedule_types"] == ["once_at", "cron"]
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -2924,7 +3243,7 @@ def test_lag_check_failure_keeps_mysql_and_is_cached(query_rows, event_es, fallb
 
     # 探测失败按没落后处理，结论同样缓存，后续请求不再重试
     assert len(query_hosts()) == 5
-    assert len(ListActiveProfilingExecutionsResource().request(TIME_RANGE)) == 3
+    assert len(ListActiveProfilingExecutionsResource().request(TIME_RANGE)["data"]) == 3
     event_es.latest_planned.assert_called_once()
     assert fallback_signals.counted() == []
 

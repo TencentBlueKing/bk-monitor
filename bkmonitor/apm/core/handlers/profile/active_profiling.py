@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
+import heapq
 import json
 import logging
 import os
@@ -39,11 +40,13 @@ from apm.constants import (
     ACTIVE_PROFILING_EXPIRED_TASK_STOP_DELAY_MS,
     ACTIVE_PROFILING_IMMEDIATE_SCRIPT,
     ACTIVE_PROFILING_PARSING_MS,
+    ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES,
     ACTIVE_PROFILING_PRECALCULATE_LAG_CACHE_SEC,
     ACTIVE_PROFILING_PRECALCULATE_LAG_LOOKBACK_MS,
     ACTIVE_PROFILING_PRECALCULATE_LAG_MS,
     ACTIVE_PROFILING_PROCESS_TOPK_RECENT_ROWS,
     ACTIVE_PROFILING_PROFILE_SERVICE_NAME,
+    ACTIVE_PROFILING_RUNNING_WINDOW_MS,
     ACTIVE_PROFILING_SUBSCRIPTION_STEP_ID,
     ACTIVE_PROFILING_SUCCEED_STATUSES,
     ACTIVE_PROFILING_UNKNOWN_GRACE_SEC,
@@ -183,9 +186,11 @@ class ActiveProfilingConsulHandler:
 
 class ActiveProfilingExecutionQueryHandler:
     """读取预计算物化的执行表与主机执行表；outdate 不落库，按 Profiling 保留期在查询时由成功类终态派生。
+    两个列表返回本页的行与筛选后的总行数，总数算不出来时为 None。
     预计算停摆或漏写时回退 Event ES，只改本次响应、不写回库：
-    - 预计算落后（Event ES 里 5 分钟前已上报的最新一次计划执行，执行表里没有）时，列表与候选整个改查 ES；
-      计划执行的行由预计算按 Event 建，停摆期间 MySQL 里没有，结果不为空时也会漏
+    - 预计算落后（Event ES 里 5 分钟前已上报的最新一次计划执行，执行表里没有）时，只有落后区间内的计划执行取自 ES，
+      与 MySQL 的行归并后分页；计划执行的行由预计算按 Event 建，停摆期间 MySQL 里没有。
+      立即执行与落后区间之前的行仍读 MySQL：SaaS 写入的占位行、下发失败、取消没有对应的 Event，整个改查 ES 会丢
     - MySQL 一行都没有匹配时改查 ES；
     - 页内待校正的主机行（已转 unknown，或采集时长过后仍为 running）一次回查 Event 补上终态，只补不切换，
       立即执行由 SaaS 提交时建行，偶发的漏处理补上即可"""
@@ -201,9 +206,6 @@ class ActiveProfilingExecutionQueryHandler:
 
     def query_hosts(self, params):
         """已采数据：一台主机的一次执行一行，按计划时间倒序分页"""
-        switched = self._switch_when_lagging("query_hosts", params)
-        if switched is not None:
-            return switched
         filters = params.get("filters", {})
         queryset = ActiveProfilingHostExecution.objects.filter(
             self._build_host_q(filters),
@@ -217,23 +219,35 @@ class ActiveProfilingExecutionQueryHandler:
         if filters.get("status"):
             queryset = queryset.filter(self._build_statuses_q(self._build_host_status_q, filters["status"]))
 
-        offset = params["offset"]
         # scheduled_at 不唯一（同一执行的主机、整点触发的多个计划都在同一毫秒），offset 分页要排到唯一，否则翻页会重复或漏行；
         # 三列同向倒序且与索引列顺序一致，MySQL 才能沿索引倒着读到本页即停，不用对整个时间范围排序
-        hosts = list(
-            queryset.order_by("-scheduled_at", "-execution_id", "-bk_host_id")[offset : offset + params["limit"]]
-        )
+        ordering = ("-scheduled_at", "-execution_id", "-bk_host_id")
+        gap_start = self._get_lag_gap_start(params)
+        if gap_start is not None:
+            gap_executions = self._execution_queryset(
+                {**params, "start_time": gap_start}, {"schedule_type__in": ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES}
+            )
+            merged = self._query_with_lag_gap(
+                "query_hosts",
+                params,
+                gap_start,
+                queryset.exclude(execution_id__in=gap_executions.values("id")).order_by(*ordering),
+                self._build_host_rows,
+            )
+            if merged is not None:
+                return merged
+
+        offset = params["offset"]
+        hosts = list(queryset.order_by(*ordering)[offset : offset + params["limit"]])
         if not hosts:
             return self._fallback_when_absent(queryset, params, "query_hosts")
-        executions = ActiveProfilingExecution.objects.in_bulk({host.execution_id for host in hosts})
-        self._reconcile_hosts(hosts, executions, "query_hosts")
-        return [self._build_host_row(host, executions[host.execution_id]) for host in hosts]
+        return {
+            "data": self._build_host_rows(hosts),
+            "total": self._count_rows(queryset, offset, len(hosts), params["limit"]),
+        }
 
     def list_executions(self, params):
         """任务历史：一次执行一行；主机/进程条件只决定选中哪些执行，汇总仍按该执行的全部主机"""
-        switched = self._switch_when_lagging("list_executions", params)
-        if switched is not None:
-            return switched
         filters = params.get("filters", {})
         queryset = self._execution_queryset(params, self._build_execution_filter(filters))
         host_q = self._build_host_q(filters)
@@ -249,11 +263,39 @@ class ActiveProfilingExecutionQueryHandler:
         if filters.get("status"):
             queryset = queryset.filter(self._build_statuses_q(self._build_execution_status_q, filters["status"]))
 
-        offset = params["offset"]
         # 同理补上 task_id 并同向倒序，同一业务内 task_id + scheduled_at 唯一
-        executions = list(queryset.order_by("-scheduled_at", "-task_id")[offset : offset + params["limit"]])
+        ordering = ("-scheduled_at", "-task_id")
+        gap_start = self._get_lag_gap_start(params)
+        if gap_start is not None:
+            merged = self._query_with_lag_gap(
+                "list_executions",
+                params,
+                gap_start,
+                queryset.exclude(
+                    schedule_type__in=ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES, scheduled_at__gte=gap_start
+                ).order_by(*ordering),
+                self._build_execution_rows,
+            )
+            if merged is not None:
+                return merged
+
+        offset = params["offset"]
+        executions = list(queryset.order_by(*ordering)[offset : offset + params["limit"]])
         if not executions:
             return self._fallback_when_absent(queryset, params, "list_executions")
+        return {
+            "data": self._build_execution_rows(executions),
+            "total": self._count_rows(queryset, offset, len(executions), params["limit"]),
+        }
+
+    def _build_host_rows(self, hosts):
+        """主机行转为已采数据的行，待校正的行按 Event 补上终态"""
+        executions = ActiveProfilingExecution.objects.in_bulk({host.execution_id for host in hosts})
+        self._reconcile_hosts(hosts, executions, "query_hosts")
+        return [self._build_host_row(host, executions[host.execution_id]) for host in hosts]
+
+    def _build_execution_rows(self, executions):
+        """执行行转为任务历史的行，带上该执行的全部主机；有待校正的主机时按 Event 重算汇总"""
         # 主机列表本来就要读，顺带取状态判断是否待校正，没有待校正主机时不多查
         hosts = list(
             ActiveProfilingHostExecution.objects.filter(execution_id__in=[execution.id for execution in executions])
@@ -279,15 +321,41 @@ class ActiveProfilingExecutionQueryHandler:
             for execution in executions
         ]
 
+    @staticmethod
+    def _count_rows(queryset, offset, page_size, limit):
+        """筛选后的总行数；本页没读满说明已到末尾，直接算出，不用再 count"""
+        if 0 < page_size < limit:
+            return offset + page_size
+        return queryset.count()
+
     def query_topk(self, params):
-        """搜索框候选值；预计算落后或时间范围内 MySQL 一个候选都没有时改查 ES，ES 不支持关键字，带关键字时不改查"""
-        switched = self._switch_when_lagging("query_topk", params)
-        if switched is not None:
-            return switched
+        """搜索框候选值；时间范围内 MySQL 一个候选都没有时改查 ES，预计算落后时补上落后区间内计划执行的候选；
+        ES 不支持关键字，带关键字时只查 MySQL"""
         candidates = self._query_topk_candidates(params)
-        if candidates or params.get("keyword"):
+        if params.get("keyword"):
             return candidates
-        return self._query_es("query_topk", params, default=candidates, reason="no_rows")
+        if not candidates:
+            return self._query_es("query_topk", params, default=candidates, reason="no_rows")
+        gap_start = self._get_lag_gap_start(params)
+        if gap_start is None:
+            return candidates
+        gap_candidates = self._query_es(
+            "query_topk",
+            self._build_lag_gap_params(params, gap_start),
+            default=[],
+            reason="lagging",
+            missing_execution=self._missing_planned_execution,
+        )
+        return self._merge_topk_candidates(params, gap_candidates, candidates)
+
+    @staticmethod
+    def _merge_topk_candidates(params, gap_candidates, candidates):
+        """计数只用于排序，同值相加；进程候选按最近出现排序，落后区间内的在前，其余字段按计数倒序"""
+        counts = Counter()
+        for candidate in (*gap_candidates, *candidates):
+            counts[candidate["value"]] += candidate["count"]
+        merged = counts.items() if params["field"] in ("process_names", "process_pids") else counts.most_common()
+        return [{"value": value, "alias": value, "count": count} for value, count in islice(merged, params["limit"])]
 
     def _query_topk_candidates(self, params):
         """按计划时间范围选取；计数只用于排序，统一按主机执行数计，进程候选按最近出现排序。
@@ -544,19 +612,95 @@ class ActiveProfilingExecutionQueryHandler:
     def _fallback_when_absent(self, queryset, params, method):
         """当前页没有行：MySQL 有匹配行说明已翻到末尾；一行都没有时改查 ES。
         同一查询的各页按同一条件判断，翻页不会在两个数据源之间切换"""
-        if params["offset"] and queryset.exists():
-            return []
-        return self._query_es(method, params, default=[], reason="no_rows")
+        total = queryset.count() if params["offset"] else 0
+        if total:
+            return {"data": [], "total": total}
+        return self._query_es(method, params, default={"data": [], "total": 0}, reason="no_rows")
 
-    def _switch_when_lagging(self, method, params):
-        """预计算落后时整个查询改查 ES，返回 ES 的结果；没落后、ES 不支持该查询（按 unknown 筛选、带关键字的候选）
-        或查询失败时返回 None，仍查 MySQL 并按 Event 补上终态"""
-        if params.get("keyword") or "unknown" in (params.get("filters", {}).get("status") or []):
+    def _get_lag_gap_start(self, params):
+        """预计算落后时返回落后区间的起点，区间内的计划执行要从 ES 取；不用查 ES 时返回 None：
+        没落后、ES 不支持该查询（按 unknown 筛选、带关键字的候选）、只筛立即执行、查询范围在落后区间之前"""
+        filters = params.get("filters", {})
+        if params.get("keyword") or "unknown" in (filters.get("status") or []):
             return None
-        missing_execution = self._missing_planned_execution
-        if missing_execution is None:
+        if not self._get_planned_schedule_types(filters):
             return None
-        return self._query_es(method, params, default=None, reason="lagging", missing_execution=missing_execution)
+        if self._missing_planned_execution is None or params["end_time"] < self._lag_gap_start:
+            return None
+        return self._lag_gap_start
+
+    @staticmethod
+    def _get_planned_schedule_types(filters):
+        """筛选条件选中的计划执行方式，没筛执行方式时为全部计划执行方式"""
+        schedule_types = filters.get("schedule_types") or ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES
+        return [
+            schedule_type
+            for schedule_type in ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES
+            if schedule_type in schedule_types
+        ]
+
+    @cached_property
+    def _lag_gap_start(self):
+        """落后区间的起点：预计算按上报顺序消费，执行表里最新一次计划执行之后的都还没处理；
+        这次执行本身可能只处理了部分主机，往前留一个运行窗口。没处理的那次执行更早时（中途漏掉）从它算起，
+        执行表里没有计划执行时全部取自 ES"""
+        __, missing_scheduled_at, __ = self._missing_planned_execution
+        latest_scheduled_at = (
+            ActiveProfilingExecution.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=self.bk_biz_id,
+                schedule_type__in=ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES,
+            )
+            .order_by("-scheduled_at")
+            .values_list("scheduled_at", flat=True)
+            .first()
+        )
+        if latest_scheduled_at is None:
+            return 0
+        return min(latest_scheduled_at, missing_scheduled_at) - ACTIVE_PROFILING_RUNNING_WINDOW_MS
+
+    def _build_lag_gap_params(self, params, gap_start):
+        """同一请求收窄到落后区间内的计划执行"""
+        filters = params.get("filters", {})
+        return {
+            **params,
+            "start_time": max(params["start_time"], gap_start),
+            "filters": {**filters, "schedule_types": self._get_planned_schedule_types(filters)},
+        }
+
+    def _query_with_lag_gap(self, method, params, gap_start, queryset, build_rows):
+        """预计算落后：落后区间内的计划执行取自 ES（主机行都来自 Event，ES 是完整的），其余的行仍读 MySQL，
+        queryset 已排除落后区间内的计划执行。两路都按计划时间倒序，归并后分页，总行数为两路之和。
+        ES 查询失败，或两路都没有行（交给无行回退）时返回 None，由调用方按 MySQL 查询"""
+        offset = params["offset"]
+        end = offset + params["limit"]
+        gap = self._query_es(
+            method,
+            {**self._build_lag_gap_params(params, gap_start), "offset": 0, "limit": end},
+            default=None,
+            reason="lagging",
+            missing_execution=self._missing_planned_execution,
+        )
+        if gap is None:
+            return None
+        # 归并后的前 end 行最多各取两路的前 end 行；翻页较深时 MySQL 多读的行只在落后期间才有
+        mysql_rows = list(queryset[:end])
+        if not gap["data"] and not mysql_rows:
+            return None
+        # ES 的行是字典，MySQL 的行是模型；同一毫秒内 ES 的行在前，各自的顺序不变，翻页时行序稳定
+        page = list(
+            heapq.merge(
+                gap["data"],
+                mysql_rows,
+                key=lambda row: -(row["scheduled_at"] if isinstance(row, dict) else row.scheduled_at),
+            )
+        )[offset:end]
+        # 只有落在本页的 MySQL 行才转换与校正
+        built_rows = iter(build_rows([row for row in page if not isinstance(row, dict)]))
+        total = None
+        if gap["total"] is not None:
+            total = gap["total"] + self._count_rows(queryset, 0, len(mysql_rows), end)
+        return {"data": [row if isinstance(row, dict) else next(built_rows) for row in page], "total": total}
 
     @cached_property
     def _missing_planned_execution(self):
@@ -602,7 +746,9 @@ class ActiveProfilingExecutionQueryHandler:
         except Exception:  # pylint: disable=broad-except
             logger.exception("[ActiveProfiling] es fallback %s failed, bk_biz_id->[%s]", method, self.bk_biz_id)
             return default
-        if reason == "lagging" or result:
+        # 列表返回本页的行与总行数，有行才算有数据
+        has_data = result["data"] if method in ("query_hosts", "list_executions") else result
+        if reason == "lagging" or has_data:
             # 日志关键字 switched to es 与 switch 指标用于配置告警；落后时带上预计算没处理的那次执行，便于人工介入
             logger.warning(
                 "[ActiveProfiling] switched to es, reason->[%s], method->[%s], bk_biz_id->[%s], "
