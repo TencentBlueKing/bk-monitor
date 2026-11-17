@@ -386,6 +386,7 @@ export default class MultiFileUpload extends tsc<IProps, IEvents> {
         this.applyResult({ valid: false, errors: parsed.errors, files: parsed.files }, candidates);
       } else {
         this.requestFailed = true;
+        this.collectionErrors = [];
         for (const row of candidates) {
           row.status = 'invalid';
           row.errors = [{ code: 'VALIDATE_REQUEST_FAILED', message: this.$t('校验请求失败') as string }];
