@@ -111,6 +111,10 @@ export function createHistoryFilters(): CollectionHistoryFilters {
   return { ips: [], task_id: null, task_name: '', process_names: [], process_pids: [], schedule_types: [], status: [] };
 }
 
+export function executionHostMessage(host: CollectionExecutionHost): string {
+  return (host.error_type ? hostErrorTypeLabels[host.error_type] : '') || host.message || '';
+}
+
 export function executionKey(value: CollectionExecutionKey): CollectionExecutionKey {
   return {
     schedule_type: value.schedule_type,
@@ -165,11 +169,14 @@ export function processCandidateOptions(
 }
 
 export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>): CollectionHistoryFilters {
-  const strings = (items: unknown) => (Array.isArray(items) ? items.filter(item => typeof item === 'string') : []);
+  const strings = (items: unknown) =>
+    Array.isArray(items) ? items.filter((item): item is string => typeof item === 'string') : [];
   const taskId =
     typeof value?.task_id === 'number' && Number.isInteger(value.task_id) && value.task_id > 0 ? value.task_id : null;
-  // 历史存储可能是单值字符串，统一转数组后再过滤合法元素
-  const statusValue: unknown = value?.status;
+  // 状态为多选：兼容旧链接中的单值字符串，并过滤掉两套文案都不支持的取值
+  const statusLabels = { ...executionStatusLabels, ...resultStatusLabels };
+  const rawStatus = value?.status;
+  const statuses = [...strings(rawStatus), ...(typeof rawStatus === 'string' ? [rawStatus] : [])];
   return {
     ips: strings(value?.ips),
     task_id: taskId,
@@ -180,10 +187,7 @@ export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>)
     // 仅保留后端支持的执行方式，过滤掉历史数据或异常取值
     schedule_types: strings(value?.schedule_types).filter(type => ['immediate', 'once_at', 'cron'].includes(type)),
     // 任务历史与结果列表共用筛选结构，状态取值需同时兼容两套文案
-    status: (Array.isArray(statusValue) ? statusValue : statusValue ? [statusValue] : []).filter(
-      (status): status is string =>
-        typeof status === 'string' && Object.hasOwn({ ...executionStatusLabels, ...resultStatusLabels }, status)
-    ),
+    status: [...new Set(statuses.filter(status => Object.hasOwn(statusLabels, status)))],
   };
 }
 

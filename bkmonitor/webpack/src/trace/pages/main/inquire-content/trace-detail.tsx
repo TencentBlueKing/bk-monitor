@@ -1212,7 +1212,7 @@ export default defineComponent({
         </div>
         <div
           ref='traceMainElem'
-          class='trace-main'
+          class={['trace-main', { 'is-height-auto': this.activePanel === 'timeline' }]}
         >
           <MonitorTab
             class='trace-main-tab'

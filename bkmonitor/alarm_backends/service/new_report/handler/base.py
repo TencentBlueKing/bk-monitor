@@ -216,10 +216,11 @@ class SendChannelHandler:
         user_channel = self.channel
         user_subscribers = user_channel.subscribers
         groups_data = []
-        try:
-            groups_data = api.monitor.group_list(bk_biz_id=bk_biz_id)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception(f"get group list[{bk_biz_id}] error:{e}")
+        if any(user["is_enabled"] and user["type"] == StaffChoice.group for user in user_subscribers):
+            try:
+                groups_data = api.monitor.group_list(bk_biz_id=bk_biz_id)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception(f"get group list[{bk_biz_id}] error:{e}")
         for user in user_subscribers:
             # 解析用户组
             if user["is_enabled"] and user["type"] == StaffChoice.group:

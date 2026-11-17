@@ -63,9 +63,16 @@ export function useCollectionHistory({
   // 自动补页是否继续：某页没有带来新行时暂停，避免后端重复返回同一页时空转
   const canAutoFill = shallowRef(true);
   let controller: AbortController;
+  // 静默刷新独立于主动请求，不参与 loading，失败也不影响列表状态
+  let silentController: AbortController | null = null;
   let offset = 0;
   // 本次查询实际使用的绝对时间；翻页沿用首屏边界，避免相对时间跨页漂移
   let pageRange: null | SelectionRange = null;
+
+  function abortSilentRefresh() {
+    silentController?.abort();
+    silentController = null;
+  }
 
   // 时间表达式无效时回退到已提交的绝对范围，避免查询时抛错
   function currentRange(): null | SelectionRange {
@@ -77,6 +84,8 @@ export function useCollectionHistory({
   }
 
   async function fetchPage() {
+    // 主动加载优先：取消进行中的静默刷新，避免两处同时改写列表
+    abortSilentRefresh();
     const queryRange = pageRange;
     if (loading.value || !queryRange) return;
     controller = new AbortController();
@@ -127,9 +136,53 @@ export function useCollectionHistory({
     if (hasMore.value) return fetchPage();
   }
 
+  /**
+   * 静默刷新：按已加载的分页范围重新请求并整体替换列表数据，
+   * 不改 loading、不重置滚动与分页状态；失败时保留现有列表且不覆盖 error
+   */
+  async function silentRefresh() {
+    const queryRange = pageRange;
+    if (loading.value || silentController || !queryRange) return;
+    const current = new AbortController();
+    silentController = current;
+    // 已加载行数决定需要重拉的页数，列表为空时按一页兜底
+    const pages = Math.max(1, Math.ceil(rows.value.length / COLLECTION_HISTORY_PAGE_SIZE));
+    try {
+      const results = await Promise.all(
+        Array.from({ length: pages }, (_, index) =>
+          getCollectionHistory(
+            bizId.value,
+            queryRange,
+            filters.value,
+            index * COLLECTION_HISTORY_PAGE_SIZE,
+            current.signal
+          )
+        )
+      );
+      if (current.signal.aborted) return;
+      // 分页期间可能有新记录插入导致跨页重复，按执行键去重后替换
+      const known = new Set<string>();
+      rows.value = results
+        .flatMap(result => result.data)
+        .filter(row => {
+          const key = executionRowKey(row);
+          if (known.has(key)) return false;
+          known.add(key);
+          return true;
+        });
+      // 列表行数可能因新记录插入而变化，翻页游标跟随实际加载条数
+      offset = rows.value.length;
+    } catch {
+      /* 静默刷新失败保留现有列表，由下一轮定时刷新或用户操作重试 */
+    } finally {
+      if (silentController === current) silentController = null;
+    }
+  }
+
   watch([bizId, filters, range, revision], refresh, { immediate: true });
   onScopeDispose(() => {
     controller?.abort();
+    abortSilentRefresh();
   });
   return {
     rows,
@@ -140,5 +193,6 @@ export function useCollectionHistory({
     canAutoFill,
     refresh,
     loadMore,
+    silentRefresh,
   };
 }

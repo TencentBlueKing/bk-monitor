@@ -268,6 +268,8 @@ export default defineComponent({
     // 结果列表使用结果侧状态文案，含解析中，与采集任务历史的文案区分
     const statusFilter = {
       type: 'multiple' as const,
+      resetValue: [],
+      showConfirmAndReset: true,
       list: Object.keys(resultStatusLabels)
         .filter(key => key !== 'parsing')
         .map(value => ({ value, label: this.t(resultStatusLabels[value]) })),
