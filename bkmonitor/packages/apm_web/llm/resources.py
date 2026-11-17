@@ -660,8 +660,7 @@ class TimeSeriesResource(LLMMetricGroupMixin, Resource):
     """LLM 指标时序查询。"""
 
     class RequestSerializer(LLMMetricRequestSerializer):
-        # 放大期望聚合周期，避免时间范围拉长后数据点过密，与事件时序图保持一致
-        INTERVAL_FACTOR = 10
+        INTERVAL_FACTOR = LLMMetricGroup.INTERVAL_FACTOR
 
         interval = serializers.IntegerField(required=False, label="聚合周期")
 
@@ -698,9 +697,20 @@ class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResour
             child=serializers.CharField(),
             label="时间偏移",
         )
+        interval = serializers.IntegerField(required=False, min_value=1, label="聚合周期")
 
         def validate(self, attrs):
             attrs = super().validate(attrs)
+            attrs["group_by"] = list(dict.fromkeys(attrs["group_by"]))
+            if attrs.get("interval") is not None and LLMQuery.TIME_BUCKET_FIELD not in attrs["group_by"]:
+                attrs["group_by"].append(LLMQuery.TIME_BUCKET_FIELD)
+            elif LLMQuery.TIME_BUCKET_FIELD in attrs["group_by"] and not attrs.get("interval"):
+                attrs["interval"] = get_auto_interval(
+                    LLMMetricGroup.COLLECT_INTERVAL,
+                    attrs["start_time"],
+                    attrs["end_time"],
+                    factor=LLMMetricGroup.INTERVAL_FACTOR,
+                )
             attrs["time_shifts"] = list(dict.fromkeys([*attrs["time_shifts"], self.ZERO_TIME_SHIFT]))
             if len(attrs["time_shifts"]) > 3:
                 raise serializers.ValidationError("最多支持两次时间对比")
@@ -729,17 +739,23 @@ class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResour
         baseline: str = validated_request_data["baseline"]
         cal_type: str = validated_request_data["cal_type"]
         group_fields: list[str] = validated_request_data["group_by"]
-        alias_aggregated_records_map: dict[str, list[dict[str, Any]]] = {}
+        interval: int | None = validated_request_data.get("interval")
+        alias_aggregated_records_map: dict[str, list[dict[str, Any]]] = {
+            time_shift: [] for time_shift in validated_request_data["time_shifts"]
+        }
+        handle_kwargs: dict[str, Any] = {
+            "start_time": validated_request_data["start_time"],
+            "end_time": validated_request_data["end_time"],
+        }
+        if interval is not None:
+            handle_kwargs["interval"] = interval
 
         run_threads(
             [
                 InheritParentThread(
                     target=_collect,
                     args=(time_shift,),
-                    kwargs={
-                        "start_time": validated_request_data["start_time"],
-                        "end_time": validated_request_data["end_time"],
-                    },
+                    kwargs=handle_kwargs,
                 )
                 for time_shift in validated_request_data["time_shifts"]
             ]
@@ -747,7 +763,11 @@ class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResour
 
         merged_records: list[dict[str, Any]] = self._merge(cal_type, group_fields, alias_aggregated_records_map)
         aliases: list[str] = list(alias_aggregated_records_map.keys())
-        # 分组结果按基准列降序，概览页的 TopK 卡片直接取前 N 条
+        if LLMQuery.TIME_BUCKET_FIELD in group_fields:
+            # ES date_histogram 在维度分组下会对空桶补 0，仅保留至少一个时间窗口有非零值的桶，避免维度 × 桶数笛卡尔积膨胀
+            merged_records = [record for record in merged_records if any(record.get(alias) for alias in aliases)]
+        # 先按基准列降序（概览页 TopK 卡片直接取前 N 条）；
+        # 启用时间分桶（dimensions 含 time）时，父类 _process_sorted 会利用稳定排序二次重排为「按时间倒序、同桶内按基准值降序」
         merged_records.sort(key=lambda record: record.get(baseline) or 0, reverse=True)
         process_growth_rates(baseline, aliases, merged_records)
 

@@ -17,6 +17,7 @@
 | group_by | list | 否 | 聚合字段，默认 `[]` |
 | baseline | string | 否 | 增长率计算基准，默认 `0s`，必须包含在 `time_shifts` 中 |
 | time_shifts | list | 否 | 时间偏移，例如 `["0s", "1d"]`；自动补入 `0s`，最多支持两个对比时段 |
+| interval | int | 否 | 时间分桶步长（秒，最小值为 `1`）；传入后按时间分桶并在 `dimensions.time` 返回秒级时间戳（仅返回有数据的时间桶，不补 `0`；长窗口建议传 `300`、`3600` 等较大步长以避免触达 `10000` 条查询上限） |
 
 当前支持的 `cal_type`：
 
@@ -230,7 +231,7 @@
 
 | 字段名 | 类型 | 描述 |
 |---|---|---|
-| dimensions | object | 分组维度；不分组时为空对象 |
+| dimensions | object | 分组维度；不分组时为空对象，按时间分桶时包含秒级时间戳 `time` |
 | 0s | number | 当前时间范围内的聚合值；`duration` 的值单位为微秒（μs） |
 | 时间偏移字段 | number | 对应偏移时间范围内的聚合值，字段名来自 `time_shifts`，例如 `1d` |
 | growth_rates | object | 各时间偏移相对 `baseline` 的增长率；无可计算值时为 `null` |
@@ -309,3 +310,4 @@
 2. 返回结构对齐 APM 通用 `calculate_by_range`，`0s` 表示当前时间范围的聚合值。
 3. 当前返回 `time_shifts` 对应的聚合值和 `growth_rates`，暂不返回 `proportions`。
 4. 当前只支持单字段聚合，不支持同时按多个字段分组。
+5. 传入 `interval`（或 `group_by` 包含 `"time"`）启用时间分桶时，仅返回有数据的时间桶（不补零值空桶），结果按 `dimensions.time` 倒序排列；时间跨度较长时请传较大的 `interval`（如 `300`、`3600`），避免分桶数或本地聚合拉取的原始 Span 数触达 `10000` 条上限。

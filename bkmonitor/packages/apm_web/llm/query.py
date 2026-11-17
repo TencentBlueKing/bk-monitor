@@ -41,6 +41,7 @@ class LLMQuery(SpanQuery):
         fields: list[str],
         method: str,
         group_by: list[str] | None = None,
+        interval: int | None = None,
     ) -> list[dict[str, Any]]:
         return self._query_fields_aggregated_group(
             queries=queries,
@@ -49,6 +50,7 @@ class LLMQuery(SpanQuery):
             fields=fields,
             method=method,
             group_by=group_by,
+            interval=interval,
         )
 
     def query_field_values(

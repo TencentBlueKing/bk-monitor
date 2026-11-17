@@ -2985,6 +2985,240 @@ class CalculateByRangeResourceTestCase(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("baseline 必须包含在 time_shifts 中", str(serializer.errors))
 
+    def test_interval_enables_time_bucketing_and_validates_bounds(self):
+        explicit = CalculateByRangeResource.RequestSerializer(
+            data={
+                **LLM_METRIC_REQUEST,
+                "cal_type": "input_tokens",
+                "group_by": ["gen_ai.response.model"],
+                "interval": 300,
+            }
+        )
+        explicit.is_valid(raise_exception=True)
+        self.assertEqual(explicit.validated_data["interval"], 300)
+        self.assertEqual(explicit.validated_data["group_by"], ["gen_ai.response.model", "time"])
+
+        auto_intervals = []
+        for end_time in (1700003600, 1700000000 + 86400 * 7):
+            auto_serializer = CalculateByRangeResource.RequestSerializer(
+                data={**LLM_METRIC_REQUEST, "end_time": end_time, "cal_type": "input_tokens", "group_by": ["time"]}
+            )
+            auto_serializer.is_valid(raise_exception=True)
+            auto_intervals.append(auto_serializer.validated_data["interval"])
+        self.assertEqual(auto_intervals, [60, 7200])
+
+        invalid = CalculateByRangeResource.RequestSerializer(
+            data={**LLM_METRIC_REQUEST, "cal_type": "input_tokens", "interval": 0}
+        )
+        self.assertFalse(invalid.is_valid())
+        self.assertIn("interval", invalid.errors)
+
+    def test_interval_buckets_align_time_shifts_and_sort_by_time_desc(self):
+        query = make_query()
+        start_time = 1700086400
+        end_time = start_time + 3600
+
+        def aggregate(_queries, shifted_start, _shifted_end, _fields, _method, group_by, **kwargs):
+            self.assertEqual(group_by, ["attributes.gen_ai.request.model", "time"])
+            self.assertEqual(kwargs, {"interval": 600})
+            if shifted_start == start_time:
+                return [
+                    {"attributes.gen_ai.request.model": "kimi-k3", "_time_": start_time * 1000, "_result_": 30},
+                    {"attributes.gen_ai.request.model": "deepseek-v3", "_time_": start_time * 1000, "_result_": 120},
+                    {
+                        "attributes.gen_ai.request.model": "deepseek-v3",
+                        "_time_": (start_time + 600) * 1000,
+                        "_result_": 80,
+                    },
+                ]
+            return [
+                {
+                    "attributes.gen_ai.request.model": "deepseek-v3",
+                    "_time_": (start_time - 86400) * 1000,
+                    "_result_": 100,
+                },
+                {
+                    "attributes.gen_ai.request.model": "deepseek-v3",
+                    "_time_": (start_time - 86400 + 600) * 1000,
+                    "_result_": 100,
+                },
+            ]
+
+        query.query_field_aggregated_group.side_effect = aggregate
+        with patch_llm_metric_group(query, product="galileo"):
+            result = CalculateByRangeResource().request(
+                {
+                    **LLM_METRIC_REQUEST,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "cal_type": "model_call_count",
+                    "group_by": ["gen_ai.response.model"],
+                    "interval": 600,
+                    "baseline": "0s",
+                    "time_shifts": ["0s", "1d"],
+                }
+            )
+
+        self.assertEqual(
+            result,
+            {
+                "total": 3,
+                "data": [
+                    {
+                        "dimensions": {"gen_ai.response.model": "deepseek-v3", "time": start_time + 600},
+                        "0s": 80,
+                        "1d": 100,
+                        "growth_rates": {"0s": 0, "1d": -20},
+                    },
+                    {
+                        "dimensions": {"gen_ai.response.model": "deepseek-v3", "time": start_time},
+                        "0s": 120,
+                        "1d": 100,
+                        "growth_rates": {"0s": 0, "1d": 20},
+                    },
+                    {
+                        "dimensions": {"gen_ai.response.model": "kimi-k3", "time": start_time},
+                        "0s": 30,
+                        "1d": None,
+                        "growth_rates": {"0s": 0, "1d": 100},
+                    },
+                ],
+            },
+        )
+
+    def test_langfuse_interval_buckets_locally_and_aligns_time_shifts(self):
+        from bkmonitor.utils.time_tools import time_interval_align
+
+        query = make_query()
+        start_time = 1700086400
+        end_time = start_time + 3600
+        aligned_bucket = time_interval_align(start_time, 60)
+
+        def fetch_values(_queries, shifted_start, _shifted_end, fields, _limit):
+            self.assertEqual(fields, ["attributes.langfuse.observation.usage_details", "start_time"])
+            if shifted_start == start_time:
+                return [
+                    {
+                        "attributes.langfuse.observation.usage_details": '{"output": 3}',
+                        "start_time": aligned_bucket * 1_000_000,
+                    },
+                    {
+                        "attributes.langfuse.observation.usage_details": '{"output": 4}',
+                        "start_time": (aligned_bucket + 20) * 1_000_000,
+                    },
+                ]
+            return [
+                {
+                    "attributes.langfuse.observation.usage_details": '{"output": 5}',
+                    "start_time": (aligned_bucket - 86400 + 10) * 1_000_000,
+                }
+            ]
+
+        query.query_field_values.side_effect = fetch_values
+        with patch_llm_metric_group(query, product="langfuse"):
+            result = CalculateByRangeResource().request(
+                {
+                    **LLM_METRIC_REQUEST,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "cal_type": "output_tokens",
+                    "interval": 60,
+                    "time_shifts": ["0s", "1d"],
+                }
+            )
+
+        query.query_field_aggregated_group.assert_not_called()
+        self.assertEqual(
+            result,
+            {
+                "total": 1,
+                "data": [
+                    {
+                        "dimensions": {"time": aligned_bucket},
+                        "0s": 7.0,
+                        "1d": 5.0,
+                        "growth_rates": {"0s": 0, "1d": 40},
+                    }
+                ],
+            },
+        )
+
+    def test_duration_averages_aliased_operation_records_instead_of_summing(self):
+        query = make_query(
+            records=[
+                {"attributes.gen_ai.operation.name": "CHAT", "_time_": 1700000060000, "_result_": 1000.0},
+                {"attributes.gen_ai.operation.name": "chat", "_time_": 1700000060000, "_result_": 1400.0},
+            ]
+        )
+        with patch_llm_metric_group(query, product="default"):
+            result = CalculateByRangeResource().request(
+                {
+                    **LLM_METRIC_REQUEST,
+                    "cal_type": "duration",
+                    "group_by": ["gen_ai.operation.name"],
+                    "interval": 60,
+                }
+            )
+
+        self.assertEqual(
+            result["data"],
+            [
+                {
+                    "dimensions": {"gen_ai.operation.name": "chat", "time": 1700000060},
+                    "0s": 1200.0,
+                    "growth_rates": {"0s": 0},
+                }
+            ],
+        )
+
+    def test_time_bucketing_drops_all_zero_padding_buckets_but_keeps_comparison_only_buckets(self):
+        query = make_query()
+        start_time = 1700086400
+
+        def aggregate(_queries, shifted_start, *_args, **_kwargs):
+            if shifted_start == start_time:
+                return [
+                    {"attributes.gen_ai.response.model": "m1", "_time_": start_time * 1000, "_result_": 0.0},
+                    {"attributes.gen_ai.response.model": "m1", "_time_": (start_time + 60) * 1000, "_result_": 0.0},
+                ]
+            return [
+                {"attributes.gen_ai.response.model": "m1", "_time_": (start_time - 86400) * 1000, "_result_": 0.0},
+                {
+                    "attributes.gen_ai.response.model": "m1",
+                    "_time_": (start_time - 86400 + 60) * 1000,
+                    "_result_": 25.0,
+                },
+            ]
+
+        query.query_field_aggregated_group.side_effect = aggregate
+        with patch_llm_metric_group(query):
+            result = CalculateByRangeResource().request(
+                {
+                    **LLM_METRIC_REQUEST,
+                    "start_time": start_time,
+                    "end_time": start_time + 3600,
+                    "cal_type": "total_tokens",
+                    "group_by": ["gen_ai.response.model"],
+                    "interval": 60,
+                    "time_shifts": ["0s", "1d"],
+                }
+            )
+
+        self.assertEqual(
+            result,
+            {
+                "total": 1,
+                "data": [
+                    {
+                        "dimensions": {"gen_ai.response.model": "m1", "time": start_time + 60},
+                        "0s": 0.0,
+                        "1d": 25.0,
+                        "growth_rates": {"0s": 0, "1d": -100},
+                    }
+                ],
+            },
+        )
+
 
 class TimeSeriesResourceTestCase(TestCase):
     def test_accepts_metrics_required_by_overview_page(self):
@@ -3174,6 +3408,21 @@ class LLMQueryTestCase(TestCase):
 
         self.assertEqual(records, [{"_result_": 27}])
         aggregated_value.assert_called_once_with(queries, 1, 2, "trace_id", "DISTINCT")
+
+    def test_aggregated_group_forwards_interval_to_base_query(self):
+        queries = [mock.sentinel.query]
+        with mock.patch.object(LLMQuery, "_query_fields_aggregated_group", return_value=[]) as base_group:
+            self._query().query_field_aggregated_group(queries, 100, 700, ["_index"], "COUNT", ["time"], interval=60)
+
+        base_group.assert_called_once_with(
+            queries=queries,
+            start_time=100,
+            end_time=700,
+            fields=["_index"],
+            method="COUNT",
+            group_by=["time"],
+            interval=60,
+        )
 
     def test_field_values_flatten_nested_records(self):
         """存储把 `attributes.x.y` 嵌在 attributes 字典里返回，按扁平键直接取会全部取空。"""

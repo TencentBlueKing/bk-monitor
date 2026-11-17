@@ -834,7 +834,7 @@ paths:
   /mcp/llm_calculate_by_range/:
     post:
       operationId: llm_mcp_calculate_by_range
-      description: 'Calculate LLM/Agent metrics aggregated over a time range, with optional group_by and time comparison. Returns {total, data:[{dimensions, "<time_shift>": value, growth_rates}]} sorted by the baseline column descending (usable as TopK). It does not return time-series points. duration is the average model-call latency in microseconds; request_count counts distinct Agent traces. Token value 0 may mean the SDK did not report usage. PREREQUISITES: bk_biz_id/app_name from list_apm_applications; service_name (optional) should be an LLM service from list_apm_services. 按时间范围计算 LLM/Agent 指标聚合值，支持分组与时间对比。返回 {total, data:[{dimensions, "<时间偏移>": 值, growth_rates}]}，按基准列降序排列，可直接取 TopK；不返回时序点。duration 为模型调用平均耗时（微秒），request_count 为去重的 Agent Trace 数。Token 为 0 可能表示 SDK 未上报用量。前置：bk_biz_id/app_name 来自 list_apm_applications；service_name 可选，应为 list_apm_services 中的 LLM 服务。'
+      description: 'Calculate LLM/Agent metrics aggregated over a time range, with optional group_by, time comparison, and interval time-bucketing. Returns {total, data:[{dimensions, "<time_shift>": value, growth_rates}]}; sorted by baseline descending by default (usable as TopK), or by dimensions.time descending when interval or group_by=["time"] is used for trend analysis. duration is the average model-call latency in microseconds; request_count counts distinct Agent traces. Token value 0 may mean the SDK did not report usage. PREREQUISITES: bk_biz_id/app_name from list_apm_applications; service_name (optional) should be an LLM service from list_apm_services. 按时间范围计算 LLM/Agent 指标聚合值，支持分组、时间对比与 interval 时间分桶趋势查询。返回 {total, data:[{dimensions, "<时间偏移>": 值, growth_rates}]}；默认按基准列降序排列（可直接取 TopK），传入 interval 或 group_by 含 "time" 时按时间分桶并在 dimensions.time 返回秒级时间戳（按时间倒序）。duration 为模型调用平均耗时（微秒），request_count 为去重的 Agent Trace 数。Token 为 0 可能表示 SDK 未上报用量。前置：bk_biz_id/app_name 来自 list_apm_applications；service_name 可选，应为 list_apm_services 中的 LLM 服务。'
       tags:
       - apm_mcp
       requestBody:
@@ -885,6 +885,10 @@ paths:
                   type: string
                   default: 0s
                   description: 'Baseline time shift for growth rates; must be one of time_shifts or "0s". Default: "0s". 增长率计算基准，必须是 time_shifts 中的值或 "0s"。默认: "0s"。'
+                interval:
+                  type: integer
+                  minimum: 1
+                  description: 'Optional bucket interval in seconds (e.g. 60, 300, 3600) for trend analysis. Automatically buckets by time and returns Unix seconds in dimensions.time; only buckets with data are returned (empty buckets are not zero-filled). For wide time ranges (e.g. >24h), pass a coarser interval (e.g. 300, 3600) to avoid hitting the 10000-row query limit; omit for whole-range scalar summary. 可选时间分桶步长（秒，如 60、300、3600），用于趋势分析。传入后自动按时间分桶并在 dimensions.time 返回秒级时间戳；仅返回有数据的时间桶（不补 0）。时间跨度较长（如超过 24h）时请传较大的 interval（如 300、3600）以避免触达 10000 条查询上限；不传则返回整段区间汇总标量。'
         required: false
         description: ''
       x-bk-apigateway-resource:
