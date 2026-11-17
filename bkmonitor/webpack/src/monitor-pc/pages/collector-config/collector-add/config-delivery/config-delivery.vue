@@ -546,7 +546,7 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 300px;
+  min-height: 300px;
 
   .btns {
     margin-top: 50px;
