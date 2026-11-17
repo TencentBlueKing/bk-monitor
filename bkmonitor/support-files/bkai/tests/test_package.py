@@ -67,6 +67,9 @@ class PackageTests(unittest.TestCase):
             self.assertNotIn("version", payload)
             self.assertEqual(payload["generate_type"], "space")
             self.assertIs(payload["is_public"], True)
+            product_prefix = "蓝鲸日志平台-" if payload["skill_code"].startswith("bklog-") else "蓝鲸监控平台-"
+            self.assertTrue(payload["skill_name"].startswith(product_prefix))
+            self.assertNotEqual(payload["skill_name"], product_prefix)
         for space, names in client.uploads:
             self.assertEqual(space, "system-bkaidev")
             self.assertIn("SKILL.md", names)
@@ -114,6 +117,18 @@ class PackageTests(unittest.TestCase):
 
 
 class PublicationCheckTests(unittest.TestCase):
+    def test_rejects_missing_or_mismatched_full_product_names(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "package"
+            shutil.copytree(ROOT / "package", root)
+            path = root / "skills/bklog-query/skill.yaml"
+            original = path.read_text()
+            for display_name in ["日志平台-日志检索", "蓝鲸监控平台-日志检索", "蓝鲸日志平台-"]:
+                with self.subTest(display_name=display_name):
+                    path.write_text(original.replace("蓝鲸日志平台-日志检索", display_name))
+                    errors = check_package.check_directory(root)
+                    self.assertTrue(any("full BlueKing product name" in error for error in errors))
+
     def test_rejects_domains_network_addresses_identities_and_credentials(self):
         samples = [
             "https://" + "private" + ".internal",

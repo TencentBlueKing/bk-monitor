@@ -72,7 +72,7 @@ bkai-init sync --confirm -f package/bkai.yaml --space system-bkaidev --tenant-id
 bkai-init show -f package/bkai.yaml --space system-bkaidev --tenant-id system
 ```
 
-`skill.yaml` 中的 code 使用 `bkm-`（监控平台）或 `bklog-`（日志平台）前缀，中文展示名称使用“产品名称-资源名称”。已有同 code 资源须先核对范围与归属；若曾创建为全租户资源，应另行评估迁移，不能直接切换为普通空间资源。`space` 加公开标记不使其他租户自动可见；同步到系统空间也不替 Agent 关联、跨空间申请或业务数据授权。所有示例使用合成名称和占位值，保留业务范围校验、人工确认、模拟分派和写后回查约束。
+`skill.yaml` 中的 code 使用 `bkm-`（监控平台）或 `bklog-`（日志平台）前缀，中文展示名称使用“蓝鲸监控平台-资源名称”或“蓝鲸日志平台-资源名称”，如“蓝鲸日志平台-日志检索”。已有同 code 资源须先核对范围与归属；若曾创建为全租户资源，应另行评估迁移，不能直接切换为普通空间资源。`space` 加公开标记不使其他租户自动可见；同步到系统空间也不替 Agent 关联、跨空间申请或业务数据授权。所有示例使用合成名称和占位值，保留业务范围校验、人工确认、模拟分派和写后回查约束。
 
 `scripts/check_package.py` 检查外发内容、路径边界和引用；也可通过 `--archive /path/to/skill.zip` 检查实际 ZIP。测试放在 `tests/`，不进入上传包。使用已安装官方依赖的 Python 执行 `python -B -m unittest discover -s tests -v`；自动检查之外还需审阅业务名称和示例来源。
 

@@ -137,8 +137,10 @@ def check_directory(root: Path) -> list[str]:
             errors.append(f"{name}: deployment identity and version belong outside the distributable metadata")
         if options.get("generate_type") != "space" or options.get("is_public") is not True:
             errors.append(f"{name}: official Skills must declare public space visibility")
-        if not metadata.get("name", "").startswith(("监控平台-", "日志平台-")):
-            errors.append(f"{name}: use the product name followed by a Chinese resource name")
+        product_prefix = "蓝鲸日志平台-" if name.startswith("bklog-") else "蓝鲸监控平台-"
+        display_name = metadata.get("name", "")
+        if not display_name.startswith(product_prefix) or display_name == product_prefix:
+            errors.append(f"{name}: use the full BlueKing product name followed by a Chinese resource name")
         content = (skill / "SKILL.md").read_text(encoding="utf-8")
         if not content.startswith("---\n"):
             errors.append(f"{name}: missing Skill frontmatter")
