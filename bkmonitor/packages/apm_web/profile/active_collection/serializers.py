@@ -309,6 +309,11 @@ class ProcessPreviewRequestSerializer(serializers.Serializer):
     process_selector = PreviewProcessSelectorSerializer(label="进程选择器")
 
 
+class PluginVersionCheckRequestSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    target_config = TargetConfigSerializer(label="目标主机配置")
+
+
 class TaskListRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     page = serializers.IntegerField(label="页码", min_value=1, default=1)

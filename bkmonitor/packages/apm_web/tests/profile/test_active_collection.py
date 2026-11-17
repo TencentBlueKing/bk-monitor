@@ -37,6 +37,7 @@ from apm_web.profile.active_collection.constants import (
 from apm_web.profile.active_collection.resources import (
     ActiveProfilingMetaConfigResource,
     CancelExecutionResource,
+    CheckPluginVersionResource,
     DeleteTaskResource,
     EditTaskResource,
     EnableActiveCollectionResource,
@@ -60,6 +61,7 @@ from apm_web.profile.active_collection.serializers import (
     ExecutionDetailRequestSerializer,
     ExecutionRenameRequestSerializer,
     PlannedTaskSubmitRequestSerializer,
+    PluginVersionCheckRequestSerializer,
     ProcessPreviewRequestSerializer,
     ResultDataTypesRequestSerializer,
     ResultExportRequestSerializer,
@@ -91,6 +93,11 @@ PROCESS_PREVIEW_REQUEST = {
     "bk_biz_id": 2,
     "target_config": {"node_type": "INSTANCE", "nodes": [{"bk_host_id": 456}]},
     "process_selector": {"type": "command", "config": {"match_pattern": "/data/order-api", "exclude_pattern": ""}},
+}
+
+PLUGIN_VERSION_CHECK_REQUEST = {
+    "bk_biz_id": 2,
+    "target_config": {"node_type": "INSTANCE", "nodes": [{"bk_host_id": 456}, {"bk_host_id": 457}]},
 }
 
 DYNAMIC_COMMAND_SELECTOR = {
@@ -670,6 +677,76 @@ def test_export_rejects_samples_over_limit(result_apis, mocker):
         ExportResultsResource().request(IMMEDIATE_EXPORT_REQUEST)
 
 
+@pytest.fixture
+def beat_plugin_status(mocker):
+    mocker.patch("apm_web.profile.active_collection.resources.PLUGIN_MIN_VERSION", {"bkmonitorbeat": "2.10.0"})
+    mock = mocker.patch("apm_web.profile.active_collection.resources.host_queries.beat_plugin_status")
+    mock.return_value = [
+        {
+            "bk_host_id": 456,
+            "inner_ip": "127.0.0.1",
+            "inner_ipv6": "",
+            "bk_cloud_id": 0,
+            "plugin_status": [{"name": "bkmonitorbeat", "version": "2.10.0"}],
+        },
+        {
+            "bk_host_id": 457,
+            "inner_ip": "127.0.0.2",
+            "inner_ipv6": "",
+            "bk_cloud_id": 0,
+            "plugin_status": [{"name": "bkmonitorbeat", "version": "v3.1.2\n"}],
+        },
+    ]
+    return mock
+
+
+def test_check_plugin_version_passes_when_all_hosts_meet_min_version(beat_plugin_status):
+    assert CheckPluginVersionResource().request(PLUGIN_VERSION_CHECK_REQUEST) == {
+        "result": True,
+        "plugin_version": {"bkmonitorbeat": "2.10.0"},
+        "invalid_host": {},
+    }
+    beat_plugin_status.assert_called_once_with(bk_biz_ids=[2], bk_host_ids=[456, 457])
+
+
+@pytest.mark.parametrize(
+    "plugin_status",
+    [
+        [{"name": "bkmonitorbeat", "version": "2.9.9"}],
+        # 未安装 bkmonitorbeat
+        [{"name": "bkunifylogbeat", "version": "7.7.2"}],
+        [],
+        # 版本号为空或无法比较
+        [{"name": "bkmonitorbeat", "version": ""}],
+        [{"name": "bkmonitorbeat", "version": "unknown"}],
+    ],
+)
+def test_check_plugin_version_reports_hosts_below_min_version(beat_plugin_status, plugin_status):
+    beat_plugin_status.return_value[1]["plugin_status"] = plugin_status
+
+    result = CheckPluginVersionResource().request(PLUGIN_VERSION_CHECK_REQUEST)
+
+    assert result["result"] is False
+    assert result["plugin_version"] == {"bkmonitorbeat": "2.10.0"}
+    assert dict(result["invalid_host"]) == {"bkmonitorbeat": [("127.0.0.2", 0)]}
+
+
+def test_check_plugin_version_falls_back_to_ipv6_for_hosts_without_ipv4(beat_plugin_status):
+    beat_plugin_status.return_value[0].update(
+        {"inner_ip": "", "inner_ipv6": "fe80::1", "bk_cloud_id": 3, "plugin_status": []}
+    )
+
+    result = CheckPluginVersionResource().request(PLUGIN_VERSION_CHECK_REQUEST)
+
+    assert dict(result["invalid_host"]) == {"bkmonitorbeat": [("fe80::1", 3)]}
+
+
+def test_check_plugin_version_skips_hosts_unknown_to_nodeman(beat_plugin_status):
+    beat_plugin_status.return_value = []
+
+    assert CheckPluginVersionResource().request(PLUGIN_VERSION_CHECK_REQUEST)["result"] is True
+
+
 @pytest.mark.parametrize(
     "viewset_cls",
     [
@@ -703,6 +780,9 @@ def test_active_collection_routes_are_registered():
     assert reverse("apm_web:tasks-switch") == "/apm/profile_api/active_collection/tasks/switch/"
     assert reverse("apm_web:processes-preview") == "/apm/profile_api/active_collection/processes/preview/"
     assert reverse("apm_web:hosts-query") == "/apm/profile_api/active_collection/hosts/query/"
+    assert reverse("apm_web:hosts-check-plugin-version") == (
+        "/apm/profile_api/active_collection/hosts/check_plugin_version/"
+    )
     assert reverse("apm_web:executions_list-list") == "/apm/profile_api/active_collection/executions/list/"
     assert reverse("apm_web:topk-list") == "/apm/profile_api/active_collection/topk/"
     assert reverse("apm_web:executions-detail") == "/apm/profile_api/active_collection/executions/detail/"
@@ -718,6 +798,7 @@ def test_active_collection_routes_are_registered():
     [
         (EnableRequestSerializer, {"bk_biz_id": 2}),
         (ProcessPreviewRequestSerializer, PROCESS_PREVIEW_REQUEST),
+        (PluginVersionCheckRequestSerializer, PLUGIN_VERSION_CHECK_REQUEST),
         (
             ProcessPreviewRequestSerializer,
             {

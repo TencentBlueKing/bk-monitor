@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import os
+from collections import defaultdict
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
@@ -24,6 +25,7 @@ from apm_web.profile.active_collection.constants import (
     EXECUTION_LIST_TASK_COLUMNS,
     HOST_QUERY_COLUMNS,
     META_CONFIG,
+    PLUGIN_MIN_VERSION,
     PROCESS_MATCH_SCRIPT,
     PROCESS_PREVIEW_COLUMNS,
     PROCESS_PREVIEW_MAX_HOSTS,
@@ -37,6 +39,7 @@ from apm_web.profile.active_collection.serializers import (
     ExecutionRenameRequestSerializer,
     ExecutionDetailRequestSerializer,
     MetaConfigRequestSerializer,
+    PluginVersionCheckRequestSerializer,
     ProcessPreviewRequestSerializer,
     ResultDataTypesRequestSerializer,
     ResultExportRequestSerializer,
@@ -53,6 +56,8 @@ from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 from apm_web.profile.doris.converter import DorisProfileConverter
 from apm_web.profile.resources import QueryServicesDetailResource
+from bkmonitor.utils.nodeman import host_queries
+from bkmonitor.utils.version import compare_versions
 from constants.apm import BUILTIN_PROFILING_APP_NAME
 from core.drf_resource import Resource, api, resource
 
@@ -135,6 +140,31 @@ class PreviewProcessesResource(Resource):
         except ValueError:
             return {"error_type": ERROR_TYPE_CONFIG_INVALID, "err_msg": host["errmsg"]}
         return {"error_type": failure["error_type"], "err_msg": failure["message"]}
+
+
+class CheckPluginVersionResource(Resource):
+    """校验目标主机的插件是否满足主动 Profiling 的最低版本；只提示不拦截，返回结构与采集配置的
+    check_plugin_version 一致。节点管理查不到的主机不参与校验"""
+
+    RequestSerializer = PluginVersionCheckRequestSerializer
+
+    def perform_request(self, validated_request_data):
+        hosts = host_queries.beat_plugin_status(
+            bk_biz_ids=[validated_request_data["bk_biz_id"]],
+            bk_host_ids=[node["bk_host_id"] for node in validated_request_data["target_config"]["nodes"]],
+        )
+        invalid_host = defaultdict(list)
+        for host in hosts:
+            versions = {plugin["name"]: plugin["version"] for plugin in host["plugin_status"]}
+            for plugin_name, min_version in PLUGIN_MIN_VERSION.items():
+                # 未安装或版本号无法比较都按不满足处理
+                version = versions.get(plugin_name)
+                if version and compare_versions(version, min_version) == 1:
+                    continue
+                invalid_host[plugin_name].append(
+                    (host.get("inner_ip") or host.get("inner_ipv6") or "", host["bk_cloud_id"])
+                )
+        return {"result": not invalid_host, "plugin_version": PLUGIN_MIN_VERSION, "invalid_host": invalid_host}
 
 
 class ListTasksResource(Resource):

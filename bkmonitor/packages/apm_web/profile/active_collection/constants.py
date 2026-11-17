@@ -82,6 +82,10 @@ PROCESS_SELECTOR_SEPARATOR = ";"
 
 BKMONITORBEAT_RELATIVE_PATH = "plugins/bin/bkmonitorbeat"
 
+# 主动 Profiling 依赖的插件最低版本，低于该版本的主机可能下发失败或无数据上报
+# TODO: 最低版本尚未确定，先占位，确定后替换
+PLUGIN_MIN_VERSION = {"bkmonitorbeat": "3.73.4909"}
+
 # 脚本体是常量，选择器经 base64 从脚本参数进 stdin，用户输入不落到 shell 可解释的位置
 PROCESS_MATCH_SCRIPT = 'echo "$1" | base64 -d | {beat_path} -active-profile-match\n'
 
