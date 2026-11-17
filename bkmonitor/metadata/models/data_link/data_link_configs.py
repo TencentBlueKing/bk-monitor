@@ -719,6 +719,29 @@ class DataBusConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
+    def stop_config(self):
+        """停止 Databus 任务，保留远端资源和本地记录。"""
+        from metadata.models.data_link.data_link import DataLink
+
+        try:
+            config = api.bkdata.get_data_link(
+                bk_tenant_id=self.bk_tenant_id,
+                kind=DataLinkKind.get_choice_value(self.kind),
+                namespace=self.namespace,
+                name=self.name,
+            )
+        except Exception as error:
+            if DataLink._is_remote_component_not_found(error):
+                return
+            raise
+        config = copy.deepcopy(config)
+        config["metadata"].setdefault("annotations", {})["task_stopped"] = "true"
+        # 只下发配置，不回写远端 status 等运行态字段。
+        api.bkdata.apply_data_link(
+            bk_tenant_id=self.bk_tenant_id,
+            config=[{key: config[key] for key in ("kind", "metadata", "spec")}],
+        )
+
     def apply_consumer_group(self, consumer_group: str | None) -> None:
         """应用显式 consumer group；已有值优先，空入参不触发更新。"""
         if not consumer_group:
@@ -775,6 +798,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
+                "annotations": {"task_stopped": "false"},
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
                 }
@@ -850,6 +874,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
+                "annotations": {"task_stopped": "false"},
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
                 }
@@ -922,6 +947,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     "tenant": "{{ tenant }}",
                     {% endif %}
                     "namespace": "{{namespace}}",
+                    "annotations": {"task_stopped": "false"},
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
@@ -1137,6 +1163,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         flush_timeout: int | None,
         rt_name: str | None = None,
         tokenizers: dict[str, str] | None = None,
+        table_type: str = "primary_table",
     ) -> dict[str, Any]:
         """
         组装Doris存储绑定配置
@@ -1176,7 +1203,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                     "kind": "Doris"
                 },
                 "storage_config": {
-                    "table_type": "primary_table",
+                    "table_type": "{{table_type}}",
                     "is_profiling": false,
                     "unique_partition_table": true,
                     "db": "mapleleaf_{{bk_biz_id}}",
@@ -1202,6 +1229,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             "bk_biz_id": self.datalink_biz_ids.data_biz_id,
             "monitor_biz_id": self.datalink_biz_ids.label_biz_id,
             "storage_cluster_name": storage_cluster_name,
+            "table_type": table_type,
             "storage_keys": json.dumps(storage_keys),
             "json_fields": json.dumps(json_fields),
             "field_config_group": json.dumps(field_config_group),

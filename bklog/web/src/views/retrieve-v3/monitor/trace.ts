@@ -104,6 +104,7 @@ import {
   bkVirtualRender,
 } from 'bk-magic-vue';
 
+import { ensureMonitorOverlayZIndex } from '@/global/overlay/ensure-monitor-overlay-zindex';
 import i18n from '@/language/i18n';
 import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
 import useStore from '@/hooks/use-store';
@@ -207,6 +208,7 @@ const initWindowState = () => {
   window.__IS_MONITOR_COMPONENT__ = true;
   window.__IS_MONITOR_TRACE__ = true;
   window.__IS_MONITOR_APM__ = false;
+  ensureMonitorOverlayZIndex(Vue);
   // 为嵌入运行时注册 workerManager / __BKLOG_WORKERS__ 诊断 API。
   performanceMonitorService.init();
 };

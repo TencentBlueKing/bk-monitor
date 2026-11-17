@@ -210,6 +210,7 @@ for _name in (
     "list_apm_services",
     "llm_mcp_search_traces",
     "llm_mcp_search_flows",
+    "llm_mcp_search_spans",
     "llm_mcp_calculate_by_range",
 ):
     NATIVE_PERMISSIONS[_name] = _native_permission(
@@ -376,6 +377,7 @@ CAPABILITIES = {
     # LLM 观测
     "llm_mcp_search_traces": ("query",),
     "llm_mcp_search_flows": ("detail",),
+    "llm_mcp_search_spans": ("detail",),
     "llm_mcp_calculate_by_range": ("analysis",),
     # 仪表盘
     "get_dashboard_tree_list": ("discovery",),
@@ -532,6 +534,7 @@ TITLES = {
     "list_apm_services": "列出 APM 服务",
     "llm_mcp_search_traces": "查询 LLM 会话",
     "llm_mcp_search_flows": "获取 LLM 执行线",
+    "llm_mcp_search_spans": "查询 LLM Span 详情",
     "llm_mcp_calculate_by_range": "分析 LLM 指标",
     "get_dashboard_tree_list": "获取仪表盘目录树",
     "get_dashboard_detail_by_uid": "获取仪表盘详情",
@@ -635,6 +638,7 @@ PREREQUISITES: dict[str, tuple[str, ...]] = {
     "list_apm_services": ("list_apm_applications",),
     "llm_mcp_search_traces": ("list_apm_services",),
     "llm_mcp_search_flows": ("llm_mcp_search_traces",),
+    "llm_mcp_search_spans": ("llm_mcp_search_flows",),
     "llm_mcp_calculate_by_range": ("list_apm_services",),
     "get_dashboard_detail_by_uid": ("get_dashboard_tree_list",),
 }

@@ -8,14 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
 from collections.abc import Callable
+from functools import partial
+from typing import Any
 
 from django.db.models import Q
 from opentelemetry.trace import StatusCode
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from constants.apm import SpanKind, CallSide, TraceMetric
+from constants.apm import CallSide, SpanKind, TraceMetric
 
 from .. import base, define
 
@@ -33,7 +34,7 @@ class SpanMetricGroup(base.BaseMetricGroup):
         service_name: str | None = None,
         kind: str | None = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(bk_biz_id, app_name, group_by, filter_dict, **kwargs)
         self.interval: int = interval or self.DEFAULT_INTERVAL
         self.service_name: str | None = service_name
@@ -42,8 +43,27 @@ class SpanMetricGroup(base.BaseMetricGroup):
     class Meta:
         name = define.GroupEnum.SPAN.value
 
-    def handle(self, calculation_type: str, **kwargs) -> list[dict[str, Any]]:
-        raise NotImplementedError
+    def handle(self, calculation_type: str, **kwargs: Any) -> list[dict[str, Any]]:
+        return self.get_calculation_method(calculation_type)(**kwargs)
+
+    def get_calculation_method(self, calculation_type: str) -> Callable[..., list[dict[str, Any]]]:
+        support_calculation_methods: dict[str, Callable[..., list[dict[str, Any]]]] = {
+            define.CalculationType.REQUEST_TOTAL.value: self._request_total,
+            define.CalculationType.EXCEPTION_RATE.value: self._error_rate,
+            define.CalculationType.AVG_DURATION.value: self._avg_duration,
+        }
+        if calculation_type not in support_calculation_methods:
+            raise ValueError(f"Unsupported range calculation type -> {calculation_type}")
+        return support_calculation_methods[calculation_type]
+
+    def _request_total(self, start_time: int | None = None, end_time: int | None = None) -> list[dict[str, Any]]:
+        return list(self._request_total_qs(start_time, end_time))
+
+    def _error_rate(self, start_time: int | None = None, end_time: int | None = None) -> list[dict[str, Any]]:
+        return list(self._error_rate_qs(start_time, end_time))
+
+    def _avg_duration(self, start_time: int | None = None, end_time: int | None = None) -> list[dict[str, Any]]:
+        return list(self._avg_duration_qs(start_time, end_time))
 
     def query_config(self, calculation_type: str, raw: bool = False, **kwargs) -> dict[str, Any]:
         return self._export_qs(self._get_qs(calculation_type), raw=raw)
@@ -54,22 +74,20 @@ class SpanMetricGroup(base.BaseMetricGroup):
             define.CalculationType.ERROR_COUNT.value: self._error_count_qs,
             define.CalculationType.EXCEPTION_RATE.value: self._error_rate_qs,
             define.CalculationType.AVG_DURATION.value: self._avg_duration_qs,
-            define.CalculationType.P50_DURATION.value: lambda: self._histogram_quantile_duration_qs(0.5),
-            define.CalculationType.P95_DURATION.value: lambda: self._histogram_quantile_duration_qs(0.95),
-            define.CalculationType.P99_DURATION.value: lambda: self._histogram_quantile_duration_qs(0.99),
+            define.CalculationType.P50_DURATION.value: partial(self._histogram_quantile_duration_qs, 0.5),
+            define.CalculationType.P95_DURATION.value: partial(self._histogram_quantile_duration_qs, 0.95),
+            define.CalculationType.P99_DURATION.value: partial(self._histogram_quantile_duration_qs, 0.99),
         }
         if calculation_type not in support_get_qs_methods:
             raise ValueError(f"Unsupported calculation type -> {calculation_type}")
         return support_get_qs_methods[calculation_type]()
 
-    def _qs(self) -> UnifyQuerySet:
-        return self.metric_helper.time_range_qs()
+    def _qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
+        return self.metric_helper.time_range_qs(start_time, end_time).scope(self.bk_biz_id)
 
     def _q(self) -> QueryConfigBuilder:
-        q = (
-            self.metric_helper.q.group_by(*self.group_by)
-            .filter(self._filter_dict_to_q())
-            .time_field(self.metric_helper.TIME_FIELD)
+        q: QueryConfigBuilder = (
+            self.metric_helper.q.group_by(*self.group_by).filter(self._filter_dict_to_q()).interval(self.interval)
         )
 
         if self.service_name:
@@ -82,12 +100,9 @@ class SpanMetricGroup(base.BaseMetricGroup):
 
         return q
 
-    def _request_total_qs(self) -> UnifyQuerySet:
-        return (
-            self._qs()
-            .add_query(self._q().metric(field=TraceMetric.BK_APM_COUNT, method="SUM", alias="a"))
-            .expression("a")
-        )
+    def _request_total_qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
+        q: QueryConfigBuilder = self._q().metric(field=TraceMetric.BK_APM_COUNT, method="SUM", alias="a")
+        return self._qs(start_time, end_time).add_query(q).expression("a")
 
     def _error_count_q(self) -> QueryConfigBuilder:
         return (
@@ -100,23 +115,19 @@ class SpanMetricGroup(base.BaseMetricGroup):
     def _error_count_qs(self) -> UnifyQuerySet:
         return self._qs().add_query(self._error_count_q()).expression("a")
 
-    def _error_rate_qs(self) -> UnifyQuerySet:
+    def _error_rate_qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
         error_q: QueryConfigBuilder = self._error_count_q()
-        total_q: QueryConfigBuilder = self._q().metric(field="bk_apm_count", method="SUM", alias="b")
-        return self._qs().add_query(error_q).add_query(total_q).expression("a / b")
+        total_q: QueryConfigBuilder = self._q().metric(field=TraceMetric.BK_APM_COUNT, method="SUM", alias="b")
+        # 当有调用但无错误时，错误率为 0%；当分母为零或缺失时，无有效数据点。
+        # 分母取同一分组的调用总数。b < bool 0 生成与分母标签一致的零值，供 or 补齐缺失的错误次数。
+        return self._qs(start_time, end_time).add_query(error_q).add_query(total_q).expression("(a or b < bool 0) / b")
 
-    def _avg_duration_qs(self) -> UnifyQuerySet:
-        sum_q: QueryConfigBuilder = (
-            self._q()
-            .metric(field=TraceMetric.BK_APM_DURATION_SUM, method="SUM", alias="a")
-            .func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
-        )
-        total_q: QueryConfigBuilder = (
-            self._q()
-            .metric(field=TraceMetric.BK_APM_TOTAL, method="SUM", alias="b")
-            .func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
-        )
-        return self._qs().add_query(sum_q).add_query(total_q).expression("a / b")
+    def _avg_duration_qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
+        q: QueryConfigBuilder = self._q().func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
+        sum_q: QueryConfigBuilder = q.metric(field=TraceMetric.BK_APM_DURATION_SUM, method="SUM", alias="a")
+        total_q: QueryConfigBuilder = q.metric(field=TraceMetric.BK_APM_TOTAL, method="SUM", alias="b")
+        # 分母为零或任一侧缺少样本时，平均耗时留空。
+        return self._qs(start_time, end_time).add_query(sum_q).add_query(total_q).expression("a / (b != 0)")
 
     def _histogram_quantile_duration_qs(self, scalar: float) -> UnifyQuerySet:
         q: QueryConfigBuilder = (

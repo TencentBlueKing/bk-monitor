@@ -571,7 +571,7 @@ class ResultTable(models.Model):
         return result_table
 
     def delete_datalink(self) -> None:
-        """删除链路的 Databus，保留结果表和存储等关联记录。"""
+        """停止链路的 Databus，保留所有组件及关联记录。"""
         from metadata.models.data_link.data_link import DataLink
 
         # 查询结果表对应的Datalink
@@ -580,7 +580,7 @@ class ResultTable(models.Model):
             logger.info("delete_datalink: tenant(%s) %s no bkbase record found", self.bk_tenant_id, self.table_id)
             return
 
-        # 只清理 Databus，保留链路及结果表映射。
+        # 只停止 Databus，保留链路及结果表映射。
         for record in records:
             data_link_name = record.data_link_name
             datalink = DataLink.objects.filter(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).first()
@@ -615,7 +615,7 @@ class ResultTable(models.Model):
         if datasource.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
             enable_option_name = ResultTableOption.OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK
             if not options.get(enable_option_name, False):
-                # 未配置开关不申请；显式关闭时仅清理该 ResultTable 对应的 Databus。
+                # 未配置开关不申请；显式关闭时仅停止该 ResultTable 对应的 Databus。
                 if enable_option_name in options:
                     self.delete_datalink()
                 return

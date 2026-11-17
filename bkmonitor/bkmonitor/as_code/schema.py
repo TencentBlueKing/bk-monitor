@@ -128,6 +128,7 @@ def validate_strategy_version(data):
 StrategySchema = Schema(
     {
         "name": And(str, lambda p: 128 >= len(p) > 0),
+        Optional("scenario", description="监控对象/场景，显式声明时优先"): And(str, lambda p: 32 >= len(p) > 0),
         Optional(
             "version",
             default=MinVersion.STRATEGY,
