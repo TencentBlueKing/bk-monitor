@@ -383,6 +383,7 @@ export default defineComponent({
           ref={formRef}
           class='base-info-form'
           labelWidth={100}
+          requiredMark={false}
           requiredMarkPosition='right'
           {...{
             ...{
