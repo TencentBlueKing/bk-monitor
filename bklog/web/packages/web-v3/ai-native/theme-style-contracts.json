@@ -377,16 +377,15 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button",
-        ".t-button--variant-text"
+        ".t-button"
       ],
-      "sharedContracts": [],
+      "sharedContracts": [
+        "table-row-actions"
+      ],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 3,
-      "localVisualProperties": [
-        "border"
-      ],
-      "localVisualDeclarations": 1,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
       "pendingNormalization": 0
     },
     {
@@ -463,16 +462,14 @@
         "dynamicStyleSites": 0,
         "pendingInlineNormalization": 0
       },
-      "componentClasses": [
-        ".t-button--variant-text"
+      "componentClasses": [],
+      "sharedContracts": [
+        "table-row-actions"
       ],
-      "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 2,
-      "localVisualProperties": [
-        "border"
-      ],
-      "localVisualDeclarations": 1,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
       "pendingNormalization": 0
     },
     {
@@ -715,17 +712,17 @@
       },
       "componentClasses": [
         ".t-badge",
-        ".t-button--variant-text",
         ".t-table__empty"
       ],
-      "sharedContracts": [],
+      "sharedContracts": [
+        "table-row-actions"
+      ],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 6,
+      "contextualDeclarations": 4,
       "localVisualProperties": [
-        "border",
         "border-radius"
       ],
-      "localVisualDeclarations": 2,
+      "localVisualDeclarations": 1,
       "pendingNormalization": 0
     },
     {
@@ -2994,18 +2991,17 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button--variant-text",
         ".t-checkbox",
         ".t-input__wrap",
         ".t-size-s"
       ],
-      "sharedContracts": [],
-      "semanticDeclarations": 0,
-      "contextualDeclarations": 5,
-      "localVisualProperties": [
-        "border"
+      "sharedContracts": [
+        "table-row-actions"
       ],
-      "localVisualDeclarations": 1,
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
       "pendingNormalization": 0
     },
     {
@@ -3622,8 +3618,6 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button",
-        ".t-button__text",
         ".t-is-active",
         ".t-tabs__bar",
         ".t-tabs__content",
@@ -3637,8 +3631,8 @@
         ".t-tabs__nav-wrap"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 6,
-      "contextualDeclarations": 17,
+      "semanticDeclarations": 5,
+      "contextualDeclarations": 14,
       "localVisualProperties": [
         "background",
         "border-radius",
@@ -5260,7 +5254,6 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button__text",
         ".t-checkbox__label",
         ".t-input",
         ".t-tag__icon-close"
@@ -5270,7 +5263,7 @@
         "join-previous"
       ],
       "semanticDeclarations": 1,
-      "contextualDeclarations": 9,
+      "contextualDeclarations": 8,
       "localVisualProperties": [
         "border",
         "border-radius",
@@ -5618,15 +5611,36 @@
         ".t-button",
         ".t-button--theme-default",
         ".t-button--variant-base",
+        ".t-button__text",
         ".t-is-disabled",
         ".t-size-l",
         ".t-size-s"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 11,
-      "contextualDeclarations": 0,
+      "contextualDeclarations": 2,
       "localVisualProperties": [
         "background-color"
+      ],
+      "localVisualDeclarations": 1,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/styles/theme/components/contracts.scss",
+      "owner": "shared-theme",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button--variant-text"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [
+        "border"
       ],
       "localVisualDeclarations": 1,
       "pendingNormalization": 0

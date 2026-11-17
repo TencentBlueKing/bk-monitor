@@ -33,3 +33,9 @@
     --td-comp-size-xl: var(--bklog-control-size-large);
   }
 }
+
+// Opt in when the default slot contains both an icon and a label.
+.bklog-icon-label-button > .t-button__text {
+  align-items: center;
+  column-gap: inherit;
+}
