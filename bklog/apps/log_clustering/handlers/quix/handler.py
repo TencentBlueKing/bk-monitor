@@ -299,7 +299,7 @@ class QuixClusteringHandler:
                 cleanup = (
                     LogClusteringOperation.objects.select_for_update().filter(index_set_id=self.index_set_id).last()
                 )
-                if not self._can_resume_before_detach(cleanup):
+                if not self._can_resume_before_worker_stop(cleanup):
                     raise QuixClusteringParamsInvalidException(_("聚类后台收尾正在执行，请稍后重开"))
                 # 仅接替在等待关闭边界的操作。锁内取消后，已排队的旧任务无法再领取执行。
                 cleanup.status = ClusteringOperationStatusEnum.CANCELED.value
@@ -319,7 +319,7 @@ class QuixClusteringHandler:
         return operation.operation_id
 
     @staticmethod
-    def _can_resume_before_detach(operation):
+    def _can_resume_before_worker_stop(operation):
         return (
             operation is not None
             and operation.operation_type == ClusteringOperationTypeEnum.DISABLE.value
@@ -420,7 +420,7 @@ class QuixClusteringHandler:
         ):
             phase = ClusteringRuntimePhaseEnum.STOPPED.value
             result["flow_run"] = {"status": status_code.SUCCESS, "message": _("聚类已停用")}
-            can_reopen = can_reopen and self._can_resume_before_detach(operation)
+            can_reopen = can_reopen and self._can_resume_before_worker_stop(operation)
         result["quix"] = {
             "phase": phase,
             "distance_threshold": runtime.active_config.get("distance_threshold"),
