@@ -102,8 +102,8 @@ def _prepare_store(sink, suffix, fields, target, *, es_config=None):
     from metadata import models
 
     tenant = sink.bk_tenant_id
-    name = f"bklog_{sink.binding['index_id']}_{suffix}"
     table_id = target["table_id"]
+    name = f"bklog_{table_id.rsplit('.', 1)[-1]}"
     source = models.ESStorage.objects.get(bk_tenant_id=tenant, table_id=sink.table_id)
     cluster = models.ClusterInfo.objects.get(
         bk_tenant_id=tenant, cluster_id=target["cluster_id"], cluster_type=models.ClusterInfo.TYPE_ES

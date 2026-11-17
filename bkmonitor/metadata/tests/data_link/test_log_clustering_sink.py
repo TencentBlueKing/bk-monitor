@@ -71,7 +71,7 @@ def build_sink(**overrides) -> LogClusteringSinkConfig:
         "binding": BINDING,
         "kafka_resource": KAFKA_RESOURCE,
         # table_id、cluster_id 是日志平台登记的表名和集群，只在 metadata 内使用
-        "pattern_store": {**PATTERN_STORE, "table_id": "2_bklog.24466_pattern", "cluster_id": 710101},
+        "pattern_store": {**PATTERN_STORE, "table_id": "2_bklog.index_set_24466_pattern", "cluster_id": 710101},
         "runtime_cluster": RUNTIME_CLUSTER,
         "recovery_resource": RECOVERY_RESOURCE,
     }
@@ -106,7 +106,7 @@ def test_compose_config_outputs_raw_sink_and_clustering(default_biz):
 @override_settings(ENABLE_MULTI_TENANT_MODE=False)
 def test_compose_config_omits_declared_append_table(default_biz):
     refs = {"result_table": {"name": "predict"}, "es_binding": {"name": "predict-es"}}
-    result = {"mode": "append", "table_id": "2_bklog.24466_clustered", "cluster_id": 710101, **refs}
+    result = {"mode": "append", "table_id": "2_bklog.index_set_24466_clustered", "cluster_id": 710101, **refs}
 
     clustering = build_sink(result=result).compose_config(RAW_SINK)["spec"]["clustering"]
 
@@ -288,8 +288,8 @@ def find_config(configs: list[dict], kind: str) -> dict:
     return next(config for config in configs if config["kind"] == kind)
 
 
-PATTERN_TARGET = {"table_id": f"2_bklog.{BINDING['index_id']}_pattern", "cluster_id": 710101}
-CLUSTERED_TARGET = {"table_id": f"2_bklog.{BINDING['index_id']}_clustered", "cluster_id": 710101}
+PATTERN_TARGET = {"table_id": f"2_bklog.index_set_{BINDING['index_id']}_pattern", "cluster_id": 710101}
+CLUSTERED_TARGET = {"table_id": f"2_bklog.index_set_{BINDING['index_id']}_clustered", "cluster_id": 710101}
 
 
 def create_clustering_sink(**overrides) -> LogClusteringSinkConfig:
