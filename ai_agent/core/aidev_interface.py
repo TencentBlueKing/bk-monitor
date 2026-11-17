@@ -50,6 +50,11 @@ class AIDevInterface:
 
     def create_chat_session(self, params, username):
         """创建会话"""
+        from ai_agent.services.agui_api import enabled
+
+        params = dict(params)
+        if enabled():
+            params.update(channel_type="popup", protocol_version="v2", session_type="agent")
         session_code = params["session_code"]
         session_res = self.api_client.api.create_chat_session(json=params, headers={"X-BKAIDEV-USER": username})
 
@@ -60,7 +65,8 @@ class AIDevInterface:
                     "session_code": session_code,
                     "role": "hidden-role",
                     "content": session_res["data"]["role_info"]["role_content"][0]["content"],
-                }
+                },
+                username=username,
             )
         except Exception as e:
             logger.error("create_chat_session: failed to add system prompt for session_code->[%s]: %s", session_code, e)
@@ -85,13 +91,23 @@ class AIDevInterface:
         res = self.api_client.api.get_feedback_reasons(params=params)
         return res
 
-    def retrieve_chat_session(self, session_code):
+    def retrieve_chat_session(self, session_code, username=None):
         """获取单个会话"""
-        return self.api_client.api.retrieve_chat_session(path_params={"session_code": session_code})
+        return self.api_client.api.retrieve_chat_session(
+            path_params={"session_code": session_code},
+            **({"headers": {"X-BKAIDEV-USER": username}} if username else {}),
+        )
 
-    def list_chat_sessions(self, username):
+    def list_chat_sessions(self, username, page=None, page_size=None):
         """按「用户」粒度拉取会话列表"""
-        return self.api_client.api.list_chat_session(headers={"X-BKAIDEV-USER": username})
+        from ai_agent.services.agui_api import enabled
+
+        params = {key: value for key, value in (("page", page), ("page_size", page_size)) if value is not None}
+        if enabled():
+            params.update(protocol_version="v2", session_type="agent")
+        return self.api_client.api.list_chat_session(
+            headers={"X-BKAIDEV-USER": username}, **({"params": params} if params else {})
+        )
 
     def destroy_chat_session(self, session_code):
         """删除会话"""
@@ -172,7 +188,7 @@ class AIDevInterface:
             return None
 
     # ==================== 会话内容管理 ====================
-    def create_chat_session_content(self, params):
+    def create_chat_session_content(self, params, username=None):
         """创建会话内容"""
         property_data = params.get("property", {})
 
@@ -189,12 +205,16 @@ class AIDevInterface:
         except Exception as e:  # pylint: disable=broad-except
             logger.error("create_chat_session_content: process command error->[%s]", e)
 
-        res = self.api_client.api.create_chat_session_content(json=params)
+        res = self.api_client.api.create_chat_session_content(
+            json=params, **({"headers": {"X-BKAIDEV-USER": username}} if username else {})
+        )
         return res
 
-    def get_chat_session_contents(self, session_code):
+    def get_chat_session_contents(self, session_code, username=None):
         """获取会话内容列表"""
-        return self.api_client.api.get_chat_session_contents(params={"session_code": session_code})
+        return self.api_client.api.get_chat_session_contents(
+            params={"session_code": session_code}, **({"headers": {"X-BKAIDEV-USER": username}} if username else {})
+        )
 
     def destroy_chat_session_content(self, id):
         """删除单条会话内容"""
@@ -211,7 +231,15 @@ class AIDevInterface:
 
     # ==================== 发起对话 ====================
     def create_chat_completion(
-        self, session_code, execute_kwargs, agent_code, username, temperature=0.3, switch_agent_by_scene=False
+        self,
+        session_code,
+        execute_kwargs,
+        agent_code,
+        username,
+        temperature=0.3,
+        switch_agent_by_scene=False,
+        agui_history=None,
+        agui_run=None,
     ):
         """发起流式/非流式会话"""
         backend = getattr(settings, "AI_AGENT_BACKEND", "aidev")
@@ -228,7 +256,11 @@ class AIDevInterface:
                 username=username,
                 temperature=temperature,
                 switch_agent_by_scene=switch_agent_by_scene,
+                agui_history=agui_history,
+                agui_run=agui_run,
             )
+        if agui_history is not None:
+            raise ImproperlyConfigured("AG-UI 会话模式需要选择 Hermes 执行内核")
         callbacks = [get_langfuse_callback()]  # 添加Langfuse回调
         session_info = self.retrieve_chat_session(session_code=session_code)
         is_temporary = session_info.get("data", {}).get("is_temporary", False)

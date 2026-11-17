@@ -150,10 +150,12 @@ def tracing_runtime():
     provider.shutdown()
 
 
-@pytest.mark.parametrize("streaming", [False, True])
+@pytest.mark.parametrize(("streaming", "agui"), [(False, False), (True, False), (True, True)])
 @pytest.mark.parametrize("async_tool", [False, True])
 @pytest.mark.parametrize("tracing", [False, True])
-def test_real_sdk_tool_roundtrip(executor, tmp_path, monkeypatch, tracing_runtime, streaming, async_tool, tracing):
+def test_real_sdk_tool_roundtrip(
+    executor, tmp_path, monkeypatch, tracing_runtime, streaming, async_tool, tracing, agui
+):
     """回环 HTTP 固定模型响应，实际 SDK 执行工具并完成第二轮请求。"""
     if importlib.util.find_spec("hermes_core") is None:
         pytest.skip("可选 SDK 未安装；私有运行时验收必须执行本项")
@@ -257,17 +259,41 @@ def test_real_sdk_tool_roundtrip(executor, tmp_path, monkeypatch, tracing_runtim
             parent_context = parent.get_span_context()
             if streaming:
                 stream = executor.execute_stream()
+                if agui:
+                    from copy import deepcopy
+
+                    from ai_agent.services.agui import ChatRun, stream_events
+                    from ai_agent.services.agui_history import AguiSessionHistory
+
+                    def save(**kwargs):
+                        return {"result": True, "data": {"id": "saved", **deepcopy(kwargs["json"])}}
+
+                    executor.interface.api_client.api.create_chat_session_content.side_effect = save
+                    history = AguiSessionHistory(
+                        executor.interface.api_client.api, "session-a", username="alice", turn_id="turn-a"
+                    )
+                    stream = stream_events(
+                        "session-a",
+                        stream,
+                        history,
+                        ChatRun("session-a", "alice"),
+                        lambda error: pytest.fail(str(error)),
+                    )
             else:
                 assert executor.execute_invoke()["choices"][0]["delta"]["content"] == "CPU=25"
         if streaming:
             output = "".join(stream)
-            assert '"event": "done"' in output
-            assert '"event": "error"' not in output
+            assert ('"type": "RUN_FINISHED"' if agui else '"event": "done"') in output
+            assert '"event": "error"' not in output and '"type": "RUN_ERROR"' not in output
+            assert "synthetic-secret-for-redaction" not in output
         assert calls == ["cpu"]
         assert any(
             row.get("role") == "tool" and "cpu=25" in str(row.get("content")) for row in requests[-1]["messages"]
         )
-        executor.interface.api_client.api.create_chat_session_content.assert_not_called()
+        if not (streaming and agui):
+            executor.interface.api_client.api.create_chat_session_content.assert_not_called()
+        else:
+            assert executor.interface.api_client.api.create_chat_session_content.call_count == 3
         if tracing:
             spans = exporter.get_finished_spans()
             roots = [span for span in spans if span.name.startswith("invoke_agent")]

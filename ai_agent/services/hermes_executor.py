@@ -264,6 +264,8 @@ class HermesChatExecutor:
         return iterate_in_context(self._stream(*prepared), request_context, prepared[0].close)
 
     def _stream(self, agent, prompt, history, message):
+        from ai_agent.services.agui import public_tool_call
+
         parts, completed = [], False
         started = time.monotonic()
         events = None
@@ -280,11 +282,15 @@ class HermesChatExecutor:
                     yield _sse("text", content=event.delta, cover=False)
                 elif event.type in ("tool_start", "tool_end"):
                     call = event.tool_call
+                    tool_call = public_tool_call(call, "start" if event.type == "tool_start" else "end")
                     if event.type == "tool_start":
-                        text = json.dumps({"action": call.name, "action_input": call.arguments}, ensure_ascii=False)
+                        text = json.dumps(
+                            {"action": call.name, "action_input": json.loads(tool_call["arguments"])},
+                            ensure_ascii=False,
+                        )
                     else:
                         text = "工具执行结束；回答将引用本轮结果。"
-                    yield _sse("think", content=f"\n```json\n{text}\n```\n", cover=False)
+                    yield _sse("think", content=f"\n```json\n{text}\n```\n", cover=False, tool_call=tool_call)
                 elif event.type == "heartbeat":
                     yield ": heartbeat\n\n"
                 elif event.type == "error":
@@ -318,7 +324,16 @@ class HermesChatExecutor:
 
 
 def create_chat_completion(
-    interface, *, session_code, execute_kwargs, agent_code, username, temperature, switch_agent_by_scene
+    interface,
+    *,
+    session_code,
+    execute_kwargs,
+    agent_code,
+    username,
+    temperature,
+    switch_agent_by_scene,
+    agui_history=None,
+    agui_run=None,
 ):
     from aidev_agent.services.agent import AgentInstanceFactory
 
@@ -360,4 +375,18 @@ def create_chat_completion(
         username=username,
     )
     executor.on_error = tracker.on_streaming_error
-    return EnhancedStreamingResponseWrapper(executor.execute_stream(), tracker).as_streaming_response()
+    try:
+        stream = executor.execute_stream()
+        if agui_history is not None:
+            from ai_agent.services.agui import stream_events
+
+            def on_agui_error(error):
+                if not tracker.error_occurred:
+                    tracker.on_streaming_error(error)
+
+            stream = stream_events(session_code, stream, agui_history, agui_run, on_agui_error)
+        return EnhancedStreamingResponseWrapper(stream, tracker).as_streaming_response()
+    except Exception:
+        if agui_run is not None:
+            agui_run.close()
+        raise

@@ -33,6 +33,12 @@ Hermes 只执行当前智能体挂载的 Python/MCP 工具及知识查询，不�
 
 流式响应沿用前端的 `text`、`think`、`done`、`error` 事件及 `[DONE]` 终止标记，空闲时发送 SSE heartbeat。执行失败或截断不发送成功完成事件；会话写入错误由原有内容接口反馈。关闭 HTTP 响应会取消本轮 SDK 调用；已开始的外部工具是否立即停止，仍取决于其 transport 对取消的支持。
 
+## AG-UI 前端接入
+
+升级小鲸组件的环境配置 `AI_AGENT_STREAM_PROTOCOL=agui`，后台将 Hermes 事件转换成 `RUN_*`、`TEXT_MESSAGE_*`、`TOOL_CALL_*`，由 HTTP 层保存正文和结构化工具历史。前端只保存用户消息，不再创建 AI 占位消息。完整接口、保存职责、停止和错误行为见 [AG-UI API 契约](docs/agui-api.md)。
+
+上述调用方保存与旧 SSE 约定只适用于 `legacy` 模式。公共默认保留 `legacy`，升级环境必须与新版前端一起切换协议。
+
 ## 私有运行时镜像
 
 公共 `pyproject.toml` 和 `uv.lock` 不声明私有包或私有索引。内部 CI 在同一 Dockerfile 上启用可选构建步骤：

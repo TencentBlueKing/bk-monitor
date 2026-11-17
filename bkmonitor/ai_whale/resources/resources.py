@@ -23,6 +23,9 @@ from ai_agent.services.metrics_reporter import (
     ai_enhanced_streaming_metrics,
 )
 from ai_agent.core.custom_config_manager import get_mcp_access_token
+from ai_agent.services import agui_api
+from ai_agent.services.agui import ChatRun
+from ai_whale.resources.session_serializers import SessionContentSerializer, UpdateSessionContentSerializer
 from core.prometheus import metrics
 from blueapps.utils.request_provider import get_local_request
 
@@ -66,7 +69,7 @@ class CreateChatSessionResource(Resource):
             is_temporary,
         )
         session_res = aidev_interface.create_chat_session(params=validated_request_data, username=username)
-        return session_res
+        return agui_api.response_data(session_res)
 
 
 class RetrieveChatSessionResource(Resource):
@@ -76,6 +79,8 @@ class RetrieveChatSessionResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         session_code = serializers.CharField(label="会话代码", required=False, default=None)
+        page = serializers.IntegerField(required=False, min_value=1)
+        page_size = serializers.IntegerField(required=False, min_value=1, max_value=100)
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
@@ -86,11 +91,21 @@ class RetrieveChatSessionResource(Resource):
 
         if session_code:  # 若指定session_code,则拉取单个会话详情
             logger.info("RetrieveChatSessionResource: try to retrieve session with session_code->[%s]", session_code)
-            res = aidev_interface.retrieve_chat_session(session_code=session_code)
+            res = aidev_interface.retrieve_chat_session(session_code=session_code, username=username)
         else:  # 当前仅支持拉取主Agent的历史会话
             logger.info("RetrieveChatSessionResource: try to list user sessions,username->[%s]", username)
-            res = aidev_interface.list_chat_sessions(username=username)
-        return res
+            pagination = {
+                key: validated_request_data[key] for key in ("page", "page_size") if key in validated_request_data
+            }
+            res = aidev_interface.list_chat_sessions(username=username, **pagination)
+        result = agui_api.response_data(res)
+        if agui_api.enabled() and not session_code:
+            if isinstance(result, dict) and isinstance(result.get("results"), list):
+                if not pagination:
+                    return result["results"]
+            elif not isinstance(result, list):
+                raise RuntimeError("平台返回了无效会话列表")
+        return result
 
 
 class DestroyChatSessionResource(Resource):
@@ -105,7 +120,7 @@ class DestroyChatSessionResource(Resource):
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         logger.info("DestroyChatSessionResource: try to destroy session with session_code->[%s]", session_code)
-        return aidev_interface.destroy_chat_session(session_code=session_code)
+        return agui_api.response_data(aidev_interface.destroy_chat_session(session_code=session_code))
 
 
 class UpdateChatSessionResource(Resource):
@@ -123,7 +138,9 @@ class UpdateChatSessionResource(Resource):
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         logger.info("UpdateChatSessionResource: try to modify session with session_code->[%s]", session_code)
-        return aidev_interface.update_chat_session(session_code=session_code, params=validated_request_data)
+        return agui_api.response_data(
+            aidev_interface.update_chat_session(session_code=session_code, params=validated_request_data)
+        )
 
 
 class RenameChatSessionResource(Resource):
@@ -140,9 +157,11 @@ class RenameChatSessionResource(Resource):
         logger.info("RenameChatSessionResource: try to rename session->[%s]", session_code)
 
         if settings.ENABLE_AI_RENAME:
-            return aidev_interface.rename_chat_session(session_code=session_code)
+            return agui_api.response_data(aidev_interface.rename_chat_session(session_code=session_code))
         else:
-            return aidev_interface.rename_chat_session_by_user_question(session_code=session_code)
+            return agui_api.response_data(
+                aidev_interface.rename_chat_session_by_user_question(session_code=session_code)
+            )
 
 
 class GetFeedbackReasonsResource(Resource):
@@ -155,7 +174,7 @@ class GetFeedbackReasonsResource(Resource):
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
-        return aidev_interface.get_feedback_reasons(params=validated_request_data)
+        return agui_api.response_data(aidev_interface.get_feedback_reasons(params=validated_request_data))
 
 
 class CreateFeedbackResource(Resource):
@@ -181,7 +200,9 @@ class CreateFeedbackResource(Resource):
             rate,
             username,
         )
-        return aidev_interface.create_chat_session_feedback(params=validated_request_data, username=username)
+        return agui_api.response_data(
+            aidev_interface.create_chat_session_feedback(params=validated_request_data, username=username)
+        )
 
 
 # -------------------- 会话内容管理 -------------------- #
@@ -190,11 +211,8 @@ class CreateChatSessionContentResource(Resource):
     创建会话内容
     """
 
-    class RequestSerializer(serializers.Serializer):
-        session_code = serializers.CharField(label="会话代码", required=True)
-        role = serializers.CharField(label="角色", required=True)
-        content = serializers.CharField(label="内容", required=True)
-        property = serializers.DictField(label="属性", required=False)
+    class RequestSerializer(SessionContentSerializer):
+        pass
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter, extract_command_func=extract_command_from_request)
     def perform_request(self, validated_request_data):
@@ -214,7 +232,9 @@ class CreateChatSessionContentResource(Resource):
             session_code,
             property_data,
         )
-        return aidev_interface.create_chat_session_content(params=validated_request_data)
+        return agui_api.response_data(
+            aidev_interface.create_chat_session_content(params=validated_request_data, username=get_request_username())
+        )
 
 
 class GetChatSessionContentsResource(Resource):
@@ -229,7 +249,9 @@ class GetChatSessionContentsResource(Resource):
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         logger.info("GetChatSessionContentResource: try to get content with session_code->[%s]", session_code)
-        return aidev_interface.get_chat_session_contents(session_code=session_code)
+        return agui_api.frontend_history(
+            aidev_interface.get_chat_session_contents(session_code=session_code, username=get_request_username())
+        )
 
 
 class DestroyChatSessionContentResource(Resource):
@@ -244,7 +266,7 @@ class DestroyChatSessionContentResource(Resource):
     def perform_request(self, validated_request_data):
         id = validated_request_data.get("id")
         logger.info("DestroyChatSessionContentResource: try to delete content,id->[%s]", id)
-        return aidev_interface.destroy_chat_session_content(id=id)
+        return agui_api.response_data(aidev_interface.destroy_chat_session_content(id=id))
 
 
 class BatchDeleteSessionContentResource(Resource):
@@ -260,7 +282,7 @@ class BatchDeleteSessionContentResource(Resource):
         logger.info(
             "BatchDeleteSessionContentResource: try to batch delete content with params->[%s]", validated_request_data
         )
-        return aidev_interface.batch_delete_session_contents(params=validated_request_data)
+        return agui_api.response_data(aidev_interface.batch_delete_session_contents(params=validated_request_data))
 
 
 class UpdateChatSessionContentResource(Resource):
@@ -268,19 +290,14 @@ class UpdateChatSessionContentResource(Resource):
     更新单条会话内容(根据id)
     """
 
-    class RequestSerializer(serializers.Serializer):
-        session_code = serializers.CharField(label="会话代码", required=True)
-        id = serializers.CharField(label="内容ID", required=True)
-        role = serializers.CharField(label="角色", required=True)
-        content = serializers.CharField(label="内容", required=True)
-        status = serializers.CharField(label="状态", required=False, default="loading")
-        property = serializers.DictField(label="属性", required=False)
+    class RequestSerializer(UpdateSessionContentSerializer):
+        pass
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         logger.info("UpdateChatSessionContentResource: try to update content with session_code->[%s]", session_code)
-        return aidev_interface.update_chat_session_content(params=validated_request_data)
+        return agui_api.response_data(aidev_interface.update_chat_session_content(params=validated_request_data))
 
 
 # -------------------- Agent管理 -------------------- #
@@ -298,7 +315,7 @@ class GetAgentInfoResource(Resource):
     def perform_request(self, validated_request_data):
         agent_code = validated_request_data.get("agent_code")
         logger.info("GetAgentInfoResource: try to get agent info with agent_code->[%s]", agent_code)
-        return aidev_interface.get_agent_info(agent_code=agent_code)
+        return agui_api.response_data(aidev_interface.get_agent_info(agent_code=agent_code))
 
 
 # -------------------- 对话交互 -------------------- #
@@ -313,6 +330,7 @@ class CreateChatCompletionResource(Resource):
         session_code = serializers.CharField(label="会话代码", required=True)
         execute_kwargs = serializers.DictField(label="执行参数", required=True)
         agent_code = serializers.CharField(label="Agent代码", required=False, default=settings.AIDEV_AGENT_APP_CODE)
+        messageId = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
 
     @ai_enhanced_streaming_metrics(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
@@ -333,14 +351,44 @@ class CreateChatCompletionResource(Resource):
             session_code,
             agent_code,
         )
-        return aidev_interface.create_chat_completion(
-            session_code=session_code,
-            execute_kwargs=execute_kwargs,
-            agent_code=agent_code,
-            username=username,
-            temperature=settings.AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE,
-            switch_agent_by_scene=switch_agent_by_scene,
-        )
+        history, run = None, None
+        if agui_api.enabled() and execute_kwargs.get("stream", False):
+            if getattr(settings, "AI_AGENT_BACKEND", "aidev") != "hermes":
+                raise serializers.ValidationError("AG-UI 会话模式需要选择 Hermes 执行内核")
+            try:
+                history, run = agui_api.prepare_history(
+                    aidev_interface, session_code, username, validated_request_data.get("messageId")
+                )
+            except ValueError as error:
+                raise serializers.ValidationError(str(error)) from None
+        try:
+            return aidev_interface.create_chat_completion(
+                session_code=session_code,
+                execute_kwargs=execute_kwargs,
+                agent_code=agent_code,
+                username=username,
+                temperature=settings.AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE,
+                switch_agent_by_scene=switch_agent_by_scene,
+                agui_history=history,
+                agui_run=run,
+            )
+        except Exception:
+            if run is not None:
+                run.close()
+            raise
+
+
+class StopSessionContentResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        session_code = serializers.CharField(max_length=64)
+
+    def perform_request(self, validated_request_data):
+        if not agui_api.enabled():
+            raise serializers.ValidationError("当前未启用 AG-UI 会话模式")
+        session_code, username = validated_request_data["session_code"], get_request_username()
+        # The cache key includes the authenticated user. Other users cannot stop
+        # this run by supplying its session code or a username in the request.
+        return {"stopped": ChatRun.stop(session_code, username)}
 
 
 # -------------------- 凭证管理 -------------------- #

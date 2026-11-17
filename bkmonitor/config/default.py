@@ -1667,6 +1667,8 @@ AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE = os.getenv("BK_AIDEV_AGENT_MCP_REQUEST_HEA
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
 # Hermes SDK 由获授权的运行镜像提供；公共构建不声明私有包依赖。
 AI_AGENT_BACKEND = os.getenv("AI_AGENT_BACKEND", "aidev")
+# Enable with the AG-UI frontend upgrade; legacy clients retain their protocol.
+AI_AGENT_STREAM_PROTOCOL = os.getenv("AI_AGENT_STREAM_PROTOCOL", "legacy")
 AI_AGENT_HERMES_HOME = os.getenv("AI_AGENT_HERMES_HOME", "/tmp/bkmonitor-hermes")
 AI_AGENT_HERMES_MAX_ITERATIONS = int(os.getenv("AI_AGENT_HERMES_MAX_ITERATIONS", "15"))
 AI_AGENT_HERMES_ACCESS_TOKEN = os.getenv("AI_AGENT_HERMES_ACCESS_TOKEN", "")
