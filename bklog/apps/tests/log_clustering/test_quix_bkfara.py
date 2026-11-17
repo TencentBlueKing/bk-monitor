@@ -134,12 +134,10 @@ class TestBkFaraApi(SimpleTestCase):
 
     def test_business_stop_and_restart_use_declared_paths(self):
         self.request.return_value = response(body={"state": "STOPPED"})
-        boundary = {"0": 10}
-        completion = {"input_boundary": boundary, "storage_complete": True, "binding_removed": True}
-        self.api.stop_clustering({"task_id": TASK_ID, "boundary": boundary, "completion": completion})
-        self.assertEqual(
-            json.loads(self.request.call_args.kwargs["data"]), {"boundary": boundary, "completion": completion}
-        )
+        completion = {"storage_complete": False, "binding_removed": True}
+        self.api.stop_clustering({"task_id": TASK_ID, "completion": completion, "Idempotency-Key": "op-stop"})
+        self.assertEqual(json.loads(self.request.call_args.kwargs["data"]), {"completion": completion})
+        self.assertEqual(self.api.stop_clustering.headers["Idempotency-Key"], "op-stop")
         self.api.restart_clustering({"task_id": TASK_ID, "expected_control_version": 2, "Idempotency-Key": "op-reopen"})
         self.assertEqual(
             self.request.call_args.kwargs["url"], f"https://bkfara.example/ct/v1/tasks/{TASK_ID}/clustering/restart"
