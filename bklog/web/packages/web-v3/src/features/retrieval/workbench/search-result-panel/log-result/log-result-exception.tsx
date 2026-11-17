@@ -37,6 +37,8 @@ import useLocale from '@/shared/composables/use-locale';
 
 
 import RetrieveHelper from '../../../retrieve-helper';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import './log-result-exception.scss';
 
 export default defineComponent({
   props: {
@@ -176,24 +178,14 @@ export default defineComponent({
 
       if (props.type === 'index-set-field-not-found') {
         return (
-          <bk-exception
-            style='margin-top: 100px;'
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='500'
-          >
-            <div style='text-align: left; color: #313238;'>
-              <div style='font-size: 14px; padding: 8px 0;'>
-                {'索引集字段列表查询失败，刷新页面尝试重新查询 '}
-                <span
-                  style={{ cursor: 'pointer', color: '#3a84ff' }}
-                  onClick={() => window.location.reload()}
-                >
-                  刷新
-                </span>
-              </div>
-            </div>
-          </bk-exception>
+          <div class='bklog-field-request-error'>
+            <EmptyStatus emptyType='500' scene='part' showText={false}>
+              <span>{$t('索引集字段列表查询失败，刷新页面尝试重新查询')}</span>
+              <button type='button' class='bklog-field-request-error__retry' onClick={() => window.location.reload()}>
+                {$t('刷新')}
+              </button>
+            </EmptyStatus>
+          </div>
         );
       }
 

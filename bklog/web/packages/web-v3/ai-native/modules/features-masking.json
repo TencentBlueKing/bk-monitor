@@ -3,7 +3,7 @@
   "id": "features/masking",
   "purpose": "按源码职责归属的业务域；功能边界以实际组件和服务为准",
   "root": "src/features/masking",
-  "files": 14,
+  "files": 15,
   "entryPoints": [
     "features/masking/index.tsx"
   ],
