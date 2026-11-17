@@ -50,6 +50,9 @@ const querySession = (application) => {
       currentRetrieveRowQueryKey: '',
       currentMainSearchRequestId: '',
       fieldInfoRequestPromises: new Map(),
+      fieldInfoVersion: 0,
+      activeFieldInfoKey: null,
+      searchIntentVersion: 0,
     };
     querySessions.set(owner, session);
   }
@@ -170,7 +173,24 @@ const getProjectionFieldNames = (state) => {
   );
 };
 
-function requestIndexSetFieldInfoActionImpl(application) {
+// Include the space and scene conditions: equal index IDs can describe different searches.
+const indexContextKey = (application) => JSON.stringify({
+  spaceUid: application.spaceUid,
+  ids: application.indexItem?.ids ?? [],
+  isUnionIndex: !!application.indexItem?.isUnionIndex,
+  retrieve_type: application.indexItem?.retrieve_type ?? '',
+  scene: isSceneRetrieve(application) ? {
+    table_id_conditions: application.retrieveParams.table_id_conditions,
+    scene_filter_values: application.retrieveParams.scene_filter_values,
+  } : undefined,
+});
+const fieldRequestKey = (application) => JSON.stringify({
+  context: indexContextKey(application),
+  start_time: application.indexItem?.start_time ?? '',
+  end_time: application.indexItem?.end_time ?? '',
+});
+
+function requestIndexSetFieldInfoActionImpl(application, isCurrent) {
   const state = application;
   const getters = application;
 
@@ -245,6 +265,7 @@ function requestIndexSetFieldInfoActionImpl(application) {
     isUnionIndex ? { cancelToken: requestCancelToken } : { catchIsShowMessage: false, cancelToken: requestCancelToken },
   )
     .then((res) => {
+      if (!isCurrent()) return { result: false, ignored: true, reason: 'stale-fields' };
       const normalizedFields = normalizeRetrieveFields(res.data ?? {});
       if (res.data) {
         res.data.fields = normalizedFields;
@@ -289,33 +310,30 @@ function requestIndexSetFieldInfoActionImpl(application) {
       return res;
     })
     .catch((err) => {
-      if (axios.isCancel(err)) return;
+      if (!isCurrent()) return { result: false, ignored: true, reason: 'stale-fields' };
+      if (axios.isCancel(err)) return { result: false, ignored: true, reason: 'request-canceled' };
       !isUnionIndex && application.updateApiError({ apiName: urlStr.id, errorMessage: err });
       application.updateIndexFieldInfo({ is_loading: false });
     })
     .finally(() => {
+      if (!isCurrent()) return;
       application.updateIndexFieldInfo({ is_loading: false });
     });
 }
 
 export function requestIndexSetFieldInfoAction(application) {
-  const state = application;
-  const getters = application;
+  const session = querySession(application);
+  const key = fieldRequestKey(application);
+  const existing = session.fieldInfoRequestPromises.get(key);
+  if (existing && session.activeFieldInfoKey === key) return existing;
 
-  const key = JSON.stringify({
-    ids: state.indexItem?.ids ?? [],
-    start_time: state.indexItem?.start_time ?? '',
-    end_time: state.indexItem?.end_time ?? '',
-    isUnionIndex: !!state.indexItem?.isUnionIndex,
-    retrieve_type: state.indexItem?.retrieve_type ?? '',
+  const version = ++session.fieldInfoVersion;
+  session.activeFieldInfoKey = key;
+  const isCurrent = () => session.fieldInfoVersion === version && fieldRequestKey(application) === key;
+  const request = Promise.resolve(requestIndexSetFieldInfoActionImpl(application, isCurrent)).finally(() => {
+    if (session.fieldInfoRequestPromises.get(key) === request) session.fieldInfoRequestPromises.delete(key);
   });
-  const existing = querySession(application).fieldInfoRequestPromises.get(key);
-  if (existing) return existing;
-
-  const request = Promise.resolve(requestIndexSetFieldInfoActionImpl(application)).finally(() =>
-    querySession(application).fieldInfoRequestPromises.delete(key),
-  );
-  querySession(application).fieldInfoRequestPromises.set(key, request);
+  session.fieldInfoRequestPromises.set(key, request);
   return request;
 }
 
@@ -332,6 +350,11 @@ export async function requestIndexSetQueryAction(
 ) {
   const state = application;
   const getters = application;
+
+  const session = querySession(application);
+  const intent = payload.isPagination ? session.searchIntentVersion : ++session.searchIntentVersion;
+  const context = indexContextKey(application);
+  const isCurrentIntent = () => intent === session.searchIntentVersion && context === indexContextKey(application);
 
   let cachedQueryResult = {
     row_keys: state.indexSetQueryResult.row_keys || [],
@@ -363,6 +386,8 @@ export async function requestIndexSetQueryAction(
     application.updateIndexSetQueryResult({
       is_error: false,
       exception_msg: '',
+      is_loading: false,
+      is_pagination_loading: false,
       total: 0,
     });
     return;
@@ -374,11 +399,20 @@ export async function requestIndexSetQueryAction(
   const hasFieldMetadata = retrieveFieldCacheService.getFieldList(fieldScope, false).length > 0;
   if (!hasFieldMetadata) {
     const fieldResponse = await application.requestIndexSetFieldInfo();
+    if (!isCurrentIntent()) return { result: false, ignored: true, reason: 'stale-search-intent' };
     if (!fieldResponse?.data?.fields?.length) {
+      const ignored = fieldResponse?.ignored;
+      application.updateIndexSetQueryResult({
+        is_loading: false,
+        is_pagination_loading: false,
+        is_error: !ignored,
+        exception_msg: ignored ? '' : 'index-set-field-not-found',
+      });
       return { result: false, ignored: true, reason: 'index-set-field-not-found' };
     }
   }
 
+  if (!isCurrentIntent()) return { result: false, ignored: true, reason: 'stale-search-intent' };
   const retrieveParams = getters.retrieveParams;
   const shouldSkipEmptySceneSearch =
     isSceneRetrieve(state) && (getters.isSceneFilterEmpty || !retrieveParams.table_id_conditions?.length);
@@ -510,10 +544,10 @@ export async function requestIndexSetQueryAction(
   const requestStartSeq = payload.isPagination ? requestCurrentRowKeys.length : 0;
   let isStaleSearchResponse = false;
   const isCurrentSearchRequest = () =>
-    payload.isPagination
+    isCurrentIntent() && (payload.isPagination
       ? requestRowQueryKey === state.indexSetQueryResult.row_query_key &&
         requestStartSeq === (state.indexSetQueryResult.row_keys || []).length
-      : requestRowQueryKey === querySession(application).currentRetrieveRowQueryKey;
+      : requestRowQueryKey === querySession(application).currentRetrieveRowQueryKey);
 
   const searchHeaders = buildSearchRequestHeaders(state);
   let thisMainSearchRequestId = '';

@@ -502,8 +502,12 @@ export default () => {
               clearSceneRetrieveToNormal(useRetrieveStore().sceneConfigList);
             }
 
+            const requestScope = () => JSON.stringify([store.spaceUid, store.indexItem.ids, store.indexItem.retrieve_type]);
+            const requestedScope = requestScope();
+            const isCurrentScope = () => requestScope() === requestedScope;
             store.requestIndexSetFieldInfo()
               .then(resp => {
+                if (!isCurrentScope() || resp?.ignored) return;
                 RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
                 if (
@@ -518,7 +522,7 @@ export default () => {
                         console.error('requestIndexSetQuery failed:', err);
                       })
                       .finally(() => {
-                        RetrieveHelper.setSearchingValue(false);
+                        if (isCurrentScope()) RetrieveHelper.setSearchingValue(false);
                       });
                   }
 
@@ -526,6 +530,8 @@ export default () => {
                     store.updateIndexSetQueryResult({
                       is_error: true,
                       exception_msg: 'index-set-field-not-found',
+                      is_loading: false,
+                      is_pagination_loading: false,
                     });
                     RetrieveHelper.setSearchingValue(false);
                     if (isSceneMode.value) {
@@ -544,6 +550,7 @@ export default () => {
                 syncIndexIdToRoute(isUnionIndex ? undefined : ids[0], isUnionIndex ? ids : undefined, currentQueryTab);
               })
               .catch(err => {
+                if (!isCurrentScope()) return;
                 console.error('requestIndexSetFieldInfo failed:', err);
                 RetrieveHelper.setSearchingValue(false);
                 setSearchMode();

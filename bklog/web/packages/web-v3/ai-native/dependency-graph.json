@@ -739,6 +739,7 @@
     "features/retrieval/workbench/search-result-panel/log-result/full-row-viewer.vue",
     "features/retrieval/workbench/search-result-panel/log-result/index.vue",
     "features/retrieval/workbench/search-result-panel/log-result/log-cell.tsx",
+    "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.scss",
     "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
     "features/retrieval/workbench/search-result-panel/log-result/log-result.vue",
     "features/retrieval/workbench/search-result-panel/log-result/log-row-attributes.ts",
@@ -17513,6 +17514,16 @@
     {
       "from": "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
       "to": "features/retrieval/retrieve-helper.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
+      "to": "shared/ui/empty-status/index.vue",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
+      "to": "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.scss",
       "kind": "module"
     },
     {

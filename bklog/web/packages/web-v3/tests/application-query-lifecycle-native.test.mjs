@@ -276,3 +276,57 @@ test('canceled load-more restores cached rows and totals without presenting an e
     globalThis.document = previousDocument;
   }
 });
+
+test('A → B → A gets fresh fields; stale success, error and finally cannot replace the current index', async () => {
+  const a=app(),pending=[];
+  fieldsRequest=(options)=>new Promise((resolve,reject)=>pending.push({options,resolve,reject}));
+  const first=mod.requestIndexSetFieldInfoAction(a);
+  a.indexId='900102';a.indexItem.ids=['900102'];
+  const second=mod.requestIndexSetFieldInfoAction(a);
+  a.indexId='900101';a.indexItem.ids=['900101'];
+  const third=mod.requestIndexSetFieldInfoAction(a);
+  assert.notEqual(first,third);assert.equal(pending.length,3);
+  pending[0].resolve({data:{fields:[{field_name:'stale'}],config_id:31,user_custom_config:{}}});
+  assert.equal((await first).ignored,true);assert.equal(a.indexFieldInfo.is_loading,true);
+  pending[1].reject(new Error('Synthetic previous-index failure'));
+  assert.equal((await second).ignored,true);assert.deepEqual(a.apiErrorInfo,{});
+  pending[2].resolve({data:{fields:[{field_name:'current'}],config_id:33,user_custom_config:{}}});
+  await third;assert.equal(a.retrieve.configId,33);assert.equal(a.indexFieldInfo.is_loading,false);
+});
+
+test('field preflight failure always clears query loading and pagination flags', async () => {
+  const original=fieldCache.getFieldList;fieldCache.getFieldList=()=>[];
+  try {
+    const a=app();a.requestIndexSetFieldInfo=()=>mod.requestIndexSetFieldInfoAction(a);
+    Object.assign(a.indexSetQueryResult,{is_loading:true,is_pagination_loading:true});
+    fieldsRequest=async()=>{throw new Error('Synthetic fields failure');};
+    const result=await mod.requestIndexSetQueryAction(a,{});
+    assert.equal(result.reason,'index-set-field-not-found');
+    assert.equal(a.indexSetQueryResult.is_loading,false);
+    assert.equal(a.indexSetQueryResult.is_pagination_loading,false);
+    assert.equal(a.indexSetQueryResult.exception_msg,'index-set-field-not-found');
+  }finally{fieldCache.getFieldList=original;}
+});
+
+test('a search waiting for old fields cannot start a worker for the new index', async () => {
+  const original=fieldCache.getFieldList;fieldCache.getFieldList=()=>[];
+  const previousWindow=globalThis.window,previousDocument=globalThis.document;
+  globalThis.window={AJAX_URL_PREFIX:'/api'};globalThis.document={cookie:''};
+  try {
+    jobs.length=0;const pending=[],a=app();
+    a.requestIndexSetFieldInfo=()=>mod.requestIndexSetFieldInfoAction(a);
+    fieldsRequest=()=>new Promise(resolve=>pending.push(resolve));
+    const first=mod.requestIndexSetQueryAction(a,{});
+    a.indexId='900102';a.indexItem.ids=['900102'];
+    const second=mod.requestIndexSetQueryAction(a,{});
+    pending[1]({data:{fields:[{field_name:'log'}],config_id:42,user_custom_config:{}}});
+    for(let i=0;i<20;i++)await Promise.resolve();
+    assert.equal(jobs.length,1);
+    assert.equal(a.indexSetQueryResult.is_loading,true);
+    pending[0]({data:{fields:[{field_name:'stale'}],config_id:41,user_custom_config:{}}});
+    assert.equal((await first).reason,'stale-search-intent');
+    assert.equal(jobs.length,1);assert.equal(a.indexSetQueryResult.is_loading,true);
+    jobs[0].resolve(response(['current']));await second;
+    assert.deepEqual(a.indexSetQueryResult.row_keys,['current']);assert.equal(a.indexSetQueryResult.is_loading,false);
+  }finally{fieldCache.getFieldList=original;globalThis.window=previousWindow;globalThis.document=previousDocument;}
+});

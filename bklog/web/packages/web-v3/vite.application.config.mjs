@@ -61,6 +61,14 @@ export default {
     },
   },
   plugins: [
+    {
+      name: 'application-dev-cache',
+      apply: 'serve',
+      config(config) {
+        // Concurrent dev and fixture servers must not replace each other's optimized chunks.
+        return { cacheDir: resolve(here, 'node_modules/.vite-application-' + config.server.port) };
+      },
+    },
     paraglideVitePlugin({ ...paraglideConfig, project: resolve(here, 'project.inlang'), outdir: resolve(here, '.paraglide') }),
     monitorHostFixture(here),
     legacyStaticEntry(),
