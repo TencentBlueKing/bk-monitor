@@ -177,7 +177,7 @@ export default defineComponent({
       () =>
         !!props.filters.task_id ||
         !!props.filters.task_name ||
-        !!props.filters.status ||
+        !!props.filters.status.length ||
         props.filters.schedule_types.length ||
         props.filters.ips.length ||
         props.filters.process_names.length ||
@@ -268,7 +268,7 @@ export default defineComponent({
           ...(column.field === 'execution_status'
             ? {
                 filter: {
-                  type: 'single',
+                  type: 'multiple',
                   list: this.statusFilters
                     .filter(value => Object.hasOwn(executionStatusLabels, value))
                     .map(value => ({ value, label: this.t(executionStatusLabels[value]) })),
@@ -412,7 +412,7 @@ export default defineComponent({
             onFilterChange={value =>
               this.$emit('change', {
                 ...this.filters,
-                status: String(value.execution_status || ''),
+                status: (value.execution_status || []) as string[],
                 schedule_types: (value.schedule_type || []) as string[],
               })
             }

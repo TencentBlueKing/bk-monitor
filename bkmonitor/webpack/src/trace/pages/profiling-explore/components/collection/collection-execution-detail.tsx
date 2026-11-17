@@ -274,14 +274,17 @@ export default defineComponent({
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionExecutionHost) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
       if (column.type === 'process_list') return renderHostProcesses(row);
-      if (column.type === 'status')
+      if (column.type === 'status') {
+        const message = hostErrorTypeMessage(row.error_type);
         return (
           <CollectionExecutionStatus
-            class={{ 'has-failure-message': ['failed', 'timeout'].includes(row.status) }}
-            message={hostErrorTypeMessage(row.error_type)}
+            class={{ 'has-failure-message': !!message && ['failed', 'timeout'].includes(row.status) }}
+            message={message ? this.t(message) : ''}
             status={String(value ?? '')}
           />
         );
+      }
+
       if (column.type === 'datetime') return value ? formatCollectionTime(value as number, this.timezone) : '--';
       if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
       return value ? String(value) : '--';

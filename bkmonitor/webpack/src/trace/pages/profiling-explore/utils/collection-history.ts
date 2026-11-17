@@ -108,7 +108,7 @@ export function compareExecutionHostStatus(left: CollectionExecutionHost, right:
 
 export function createHistoryFilters(): CollectionHistoryFilters {
   // 默认不限任务：task_id 为空时按 task_name 关键词筛选
-  return { ips: [], task_id: null, task_name: '', process_names: [], process_pids: [], schedule_types: [], status: '' };
+  return { ips: [], task_id: null, task_name: '', process_names: [], process_pids: [], schedule_types: [], status: [] };
 }
 
 export function executionKey(value: CollectionExecutionKey): CollectionExecutionKey {
@@ -168,6 +168,8 @@ export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>)
   const strings = (items: unknown) => (Array.isArray(items) ? items.filter(item => typeof item === 'string') : []);
   const taskId =
     typeof value?.task_id === 'number' && Number.isInteger(value.task_id) && value.task_id > 0 ? value.task_id : null;
+  // 历史存储可能是单值字符串，统一转数组后再过滤合法元素
+  const statusValue: unknown = value?.status;
   return {
     ips: strings(value?.ips),
     task_id: taskId,
@@ -178,7 +180,10 @@ export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>)
     // 仅保留后端支持的执行方式，过滤掉历史数据或异常取值
     schedule_types: strings(value?.schedule_types).filter(type => ['immediate', 'once_at', 'cron'].includes(type)),
     // 任务历史与结果列表共用筛选结构，状态取值需同时兼容两套文案
-    status: Object.hasOwn({ ...executionStatusLabels, ...resultStatusLabels }, value?.status || '') ? value.status : '',
+    status: (Array.isArray(statusValue) ? statusValue : statusValue ? [statusValue] : []).filter(
+      (status): status is string =>
+        typeof status === 'string' && Object.hasOwn({ ...executionStatusLabels, ...resultStatusLabels }, status)
+    ),
   };
 }
 

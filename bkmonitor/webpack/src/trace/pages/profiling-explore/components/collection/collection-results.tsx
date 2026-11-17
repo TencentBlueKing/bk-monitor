@@ -76,6 +76,8 @@ export default defineComponent({
     range: { type: Array as unknown as PropType<SelectionRange>, default: null },
     rangeError: { type: String, default: '' },
     revision: { type: Number, required: true },
+    // 每次查询重新解析时间表达式，使「近 N 分钟/小时」取最新边界
+    resolveRange: { type: Function as PropType<() => SelectionRange>, default: undefined },
     timezone: { type: String, required: true },
     readonly: Boolean,
   },
@@ -96,6 +98,7 @@ export default defineComponent({
       range: computed(() => props.range),
       revision: computed(() => props.revision),
       readonly: computed(() => props.readonly),
+      resolveRange: () => props.resolveRange?.(),
       onCreated: () => emit('created'),
     });
     const c = useCollectionExecution({
@@ -126,7 +129,7 @@ export default defineComponent({
         value.task_name ||
         value.process_names.length ||
         value.process_pids.length ||
-        value.status
+        value.status.length
       );
     });
     // 执行范围的条件在筛选器中回填展示：列表仍按执行详情查询，条件只在展示层叠加，
@@ -150,9 +153,17 @@ export default defineComponent({
     const historyTaskName = shallowRef('');
     watch(
       () => [displayFilters.value.task_id, h.executionDetail.value?.task_name || ''] as const,
-      ([taskId, name]) => {
-        if (!taskId) historyTaskName.value = '';
-        else if (name) historyTaskName.value = name;
+      ([taskId, name], previous) => {
+        if (!taskId) {
+          historyTaskName.value = '';
+          return;
+        }
+        // 详情请求会先清空 executionDetail；任务 ID 已变时不能继续显示上一个任务名
+        if (previous && previous[0] !== taskId && !name) {
+          historyTaskName.value = '';
+          return;
+        }
+        if (name) historyTaskName.value = name;
       }
     );
     function patch(value: Partial<CollectionResultsState>) {
@@ -256,7 +267,7 @@ export default defineComponent({
     const hostColumns = this.state.execution ? h.hostColumns.value : null;
     // 结果列表使用结果侧状态文案，含解析中，与采集任务历史的文案区分
     const statusFilter = {
-      type: 'single' as const,
+      type: 'multiple' as const,
       list: Object.keys(resultStatusLabels)
         .filter(key => key !== 'parsing')
         .map(value => ({ value, label: this.t(resultStatusLabels[value]) })),
@@ -369,7 +380,7 @@ export default defineComponent({
             rowKey='resultKey'
             size='small'
             onFilterChange={value =>
-              this.patch({ filters: { ...this.displayFilters, status: String(value.status || '') } })
+              this.patch({ filters: { ...this.displayFilters, status: (value.status || []) as string[] } })
             }
           >
             {{

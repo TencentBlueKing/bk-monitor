@@ -51,11 +51,14 @@ export function useCollectionResults({
   revision,
   readonly,
   onCreated,
+  resolveRange,
 }: {
   bizId: Ref<number>;
   onCreated: () => void;
   range: Ref<SelectionRange>;
   readonly: Ref<boolean>;
+  // 重新解析时间表达式；相对时间在每次查询时取最新边界
+  resolveRange?: () => SelectionRange | undefined;
   revision: Ref<number>;
   state: Ref<CollectionResultsState>;
 }) {
@@ -74,9 +77,21 @@ export function useCollectionResults({
   let controller: AbortController;
   let actionController: AbortController;
   let offset = 0;
+  // 本次查询实际使用的绝对时间；翻页沿用首屏边界，避免相对时间跨页漂移
+  let pageRange: null | SelectionRange = null;
+
+  // 时间表达式无效时回退到已提交的绝对范围，避免查询时抛错
+  function currentRange(): null | SelectionRange {
+    try {
+      return resolveRange?.() || range.value;
+    } catch {
+      return range.value;
+    }
+  }
 
   async function fetchPage() {
-    if (loading.value || (!range.value && !state.value.execution)) return;
+    const queryRange = pageRange;
+    if (loading.value || (!queryRange && !state.value.execution)) return;
     const current = new AbortController();
     controller = current;
     loading.value = true;
@@ -89,7 +104,15 @@ export function useCollectionResults({
       hostColumns.value = detail?.host_columns?.length ? detail.host_columns : null;
       const data = detail
         ? executionResultRows(detail)
-        : (await getCollectionResults(bizId.value, range.value, state.value.filters, offset, current.signal)).data;
+        : (
+            await getCollectionResults(
+              bizId.value,
+              queryRange as SelectionRange,
+              state.value.filters,
+              offset,
+              current.signal
+            )
+          ).data;
       if (current.signal.aborted) return;
       const known = new Set(records.value.map(resultRowKey));
       records.value = [
@@ -119,6 +142,8 @@ export function useCollectionResults({
     offset = 0;
     hasMore.value = false;
     error.value = '';
+    // 每次重新查询都刷新时间边界；翻页沿用这里定下的范围
+    pageRange = currentRange();
     return fetchPage();
   }
 
