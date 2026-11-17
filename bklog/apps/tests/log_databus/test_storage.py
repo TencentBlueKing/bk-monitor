@@ -46,6 +46,7 @@ from apps.log_databus.utils.storage_config import build_storage_retention_config
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import BizProperty, LogIndexSet, Scenario
 
+
 BLUEKING_BK_BIZ_ID = 2
 OWNER_BIZ = 5
 TARGET_BIZ = 100
@@ -1628,7 +1629,7 @@ class TestStorageRetentionCompat(TestCase):
         self.assertEqual(result[0]["storage_cluster_id"], -1)
 
 
-# 脱敏样例：
+# Doris 集群原始记录样例：
 # 101 未配置可见范围，102 仅空间 B（bk_biz_id=-101）可见
 DORIS_ACCEPTANCE_CLUSTERS = [
     {
