@@ -159,6 +159,7 @@ export default defineComponent({
 
       if (newWidth !== containerWidth.value) {
         containerWidth.value = newWidth;
+        calcItemEllipsis();
         if (focusFixedElement?.children?.[0]) {
           (focusFixedElement.children[0] as HTMLElement).style.width = `${newWidth + 4}px`;
         }
@@ -817,53 +818,45 @@ export default defineComponent({
       activeItemIndex.value = undefined;
     };
 
-    const lastTagWidth = 40;
-    const closeTagWidth = 30;
-    const inputWidth = 12;
-    const hiddenItemCount = ref(0);
-    const hiddenItemIndex = ref<((number))[]>([]);
-    const getMaxWidth = () => {
-      if (props.maxWidth) {
-        return Number.parseFloat(props.maxWidth.replace('px', ''));
-      }
-
-      return refRootElement.value?.offsetWidth ?? 0;
+    const hiddenItemIndex = ref<number[]>([]);
+    const hiddenItemCount = computed(() => hiddenItemIndex.value.length);
+    const outerWidth = (item: HTMLElement) => {
+      const style = getComputedStyle(item);
+      return item.getBoundingClientRect().width + parseFloat(style.marginLeft) + parseFloat(style.marginRight);
     };
 
-    const calcItemEllipsis = () => {
-      if (isInputFocused.value) {
-        return Promise.resolve(true);
-      }
+    const calcItemEllipsis = async () => {
+      if (isInputFocused.value) return;
 
-      hiddenItemCount.value = 0;
-      hiddenItemIndex.value.length = 0;
       hiddenItemIndex.value = [];
+      await nextTick();
 
-      return new Promise<boolean>(resolve => {
-        nextTick(() => {
-          const maxWidth = getMaxWidth();
-          const { offsetHeight, scrollHeight } = (refRootElement.value ?? {}) as HTMLElement;
-          if (offsetHeight < scrollHeight) {
-            const childList = Array.from(refTagInputContainer.value!.children ?? []) as HTMLElement[];
-            let width = 0;
-            const avalibleWidth = maxWidth - closeTagWidth - inputWidth;
+      const list = refTagInputContainer.value;
+      const badge = list?.lastElementChild as HTMLElement | null;
+      if (isInputFocused.value || !list || !badge) return;
 
-            childList.forEach((item: HTMLElement, index) => {
-              if (!item.hasAttribute('data-ignore-element')) {
-                const itemWidth = item.offsetWidth;
-                width += itemWidth;
+      const style = getComputedStyle(list);
+      // The list padding already reserves space for the clear button.
+      const available = list.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const tags = Array.from(list.querySelectorAll<HTMLElement>(':scope > [data-item-index]:not([data-ignore-element])'));
+      const widths = tags.map(outerWidth);
+      let used = widths.reduce((sum, width) => sum + width, 0);
+      const input = list.querySelector<HTMLElement>(':scope > .tag-input');
+      if (used + (input ? outerWidth(input) : 0) <= available || !tags.length) return;
 
-                if (avalibleWidth - width < lastTagWidth + inputWidth) {
-                  hiddenItemIndex.value.push(index);
-                  hiddenItemCount.value += 1;
-                }
-              }
-            });
-
-            resolve(true);
-          }
-        });
-      });
+      // Measure the actual +N with its tag styles, including changes in digit count.
+      const probe = badge.cloneNode(false) as HTMLElement;
+      probe.classList.remove('is-hidden');
+      probe.style.position = 'absolute';
+      probe.style.visibility = 'hidden';
+      list.appendChild(probe);
+      let visible = tags.length;
+      do {
+        used -= widths[--visible];
+        probe.textContent = `+${tags.length - visible}`;
+      } while (visible > 0 && used + outerWidth(probe) > available);
+      probe.remove();
+      hiddenItemIndex.value = tags.slice(visible).map(tag => Number(tag.dataset.itemIndex));
     };
 
     if (props.foucsFixed) {
@@ -973,7 +966,7 @@ export default defineComponent({
     };
 
     watch(
-      () => [props.value],
+      () => Array.isArray(props.value) ? [...props.value] : props.value,
       () => {
         if (isInputFocused.value && props.foucsFixed) {
           updateFiexedInstanceContent();
@@ -982,9 +975,10 @@ export default defineComponent({
         }
 
         calcItemEllipsis().then(() => {
-          autoFocusInput();
+          if (isInputFocused.value) autoFocusInput();
         });
       },
+      { flush: 'post' },
     );
 
     watch(
