@@ -77,9 +77,27 @@ RUN install -m644 /app/fonts/SourceHanSansSC-VF.ttf /usr/share/fonts/truetype/ \
     && install -m644 /app/fonts/SourceHanSerifSC-VF.ttf /usr/share/fonts/truetype/ \
     && rm -rf /app/fonts
 
-# install vim and chromium
-RUN apt-get update  \
-    && apt-get install -y vim chromium wget strace graphviz \
+# Chromium from Bullseye embeds an unfixed Brotli decoder. Install a pinned
+# browser and the separate Debian Brotli security backport for runtime libraries.
+# Update the existing development package too: it carries static libraries and
+# requires the exact same libbrotli1 version.
+RUN test "$(dpkg --print-architecture)" = amd64 \
+    && apt-get update \
+    && apt-get install -y vim wget strace graphviz \
+    && wget --tries=3 -q -O /tmp/google-chrome.deb \
+        https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_157.0.8103.78-1_amd64.deb \
+    && echo "4d740636b5c96f687798602c5aad6a5a270f44dd02e48db0638ae77aa4867b1b  /tmp/google-chrome.deb" | sha256sum -c - \
+    && printf 'repo_add_once="false"\nrepo_reenable_on_distupgrade="false"\n' > /etc/default/google-chrome \
+    && apt-get install -y /tmp/google-chrome.deb \
+    && wget --tries=3 -q -O /tmp/libbrotli1.deb \
+        https://deb.freexian.com/extended-lts/pool/main/b/brotli/libbrotli1_1.0.9-2+deb11u1_amd64.deb \
+    && echo "9e3ee4ada11c1c78902289ea2ef2b56f54b38142009d68a52bc4e57d9e9dc3ce  /tmp/libbrotli1.deb" | sha256sum -c - \
+    && wget --tries=3 -q -O /tmp/libbrotli-dev.deb \
+        https://deb.freexian.com/extended-lts/pool/main/b/brotli/libbrotli-dev_1.0.9-2+deb11u1_amd64.deb \
+    && echo "929c72398faf5b35238078c63f46a812e3fa3480b2c955802bbfe08e6e1215b7  /tmp/libbrotli-dev.deb" | sha256sum -c - \
+    && dpkg --install /tmp/libbrotli1.deb /tmp/libbrotli-dev.deb \
+    && apt-get check \
+    && rm -f /tmp/google-chrome.deb /tmp/libbrotli1.deb /tmp/libbrotli-dev.deb \
     && groupadd -r ${username}  \
     && useradd -r -g ${username} ${username}  \
     && mkdir -p /data/ /app/ /home/${username} \
@@ -89,7 +107,6 @@ RUN apt-get update  \
 COPY --from=builder --chown=${username}:${username} /app/venv /app/venv
 COPY --from=builder --chown=${username}:${username} /app/code/ /app/code/
 COPY --from=builder --chown=${username}:${username} /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
-RUN /app/venv/bin/python /app/code/scripts/verify_pillow_build.py
 RUN echo ${version} > /app/code/VERSION
 
 USER ${username}
@@ -103,5 +120,8 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # patch tarfile, shutil
 COPY --from=builder /app/code/patches/patch_lib/ /usr/local/lib/python3.6/
+
+RUN python /app/code/scripts/verify_pillow_build.py \
+    && python /app/code/scripts/verify_runtime_dependencies.py
 
 CMD python manage.py runserver 0.0.0.0:80

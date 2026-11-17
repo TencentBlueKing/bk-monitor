@@ -8,6 +8,7 @@ bkmonitor/utils/rsa/bk.key
 version/
 scripts/*
 !scripts/verify_pillow_build.py
+!scripts/verify_runtime_dependencies.py
 tests/
 */tests/
 */*/tests/
