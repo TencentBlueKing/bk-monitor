@@ -22,6 +22,11 @@ BROTLI_SHA256 = {
     "libbrotlidec.so.1": "41901739fa42390df644d15ad04401893a8672482b4059df5e3b5d8bdab37dbc",
     "libbrotlienc.so.1": "a4c9681a1fe99d8b03158a1ff2200ea8516b93a030eb8e5f1dddc34efdc082b2",
 }
+BROTLI_STATIC_SHA256 = {
+    "libbrotlicommon.a": "aa768961795ff84786c6e24eb46f0158b5830be10098ddcb508844a1c745be1b",
+    "libbrotlidec.a": "b247d64d53c0ae5e59397e1c56d7893b110ec1fc29d6e05b0727dfcaebcf35c4",
+    "libbrotlienc.a": "98e8d3b81d084c38872f5d394d44e42800006304d105c7ca485bfe1aaa192540",
+}
 CHROME_VERSION = "157.0.8103.78"
 CHROME_DIR = Path("/opt/google/chrome")
 CHROME_SHA256 = "91e519ce83eac12740d54398364583b3131116055eca863d0a240d6062e84053"
@@ -54,6 +59,9 @@ def verify_sha256(path, expected):
 
 def verify_brotli():
     verify_package("libbrotli1", BROTLI_VERSION)
+    verify_package("libbrotli-dev", BROTLI_VERSION)
+    for name, expected in BROTLI_STATIC_SHA256.items():
+        verify_sha256(Path("/usr/lib/x86_64-linux-gnu") / name, expected)
     files = subprocess.check_output(["dpkg-query", "-L", "libbrotli1"], universal_newlines=True)
     paths = {Path(name).name: Path(name).resolve() for name in files.splitlines() if Path(name).name in BROTLI_SHA256}
     if paths.keys() != BROTLI_SHA256.keys():
@@ -71,7 +79,7 @@ def verify_brotli():
     }
     if loaded != set(paths.values()):
         raise RuntimeError(f"Brotli must load only the audited system libraries, got {sorted(map(str, loaded))}")
-    print(f"System libbrotli1 {BROTLI_VERSION}: verified all three loaded libraries")
+    print(f"System Brotli {BROTLI_VERSION}: verified all three loaded libraries and all three static libraries")
     return libraries["libbrotlienc.so.1"]
 
 

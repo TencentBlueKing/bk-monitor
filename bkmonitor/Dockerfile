@@ -79,6 +79,8 @@ RUN install -m644 /app/fonts/SourceHanSansSC-VF.ttf /usr/share/fonts/truetype/ \
 
 # Chromium from Bullseye embeds an unfixed Brotli decoder. Install a pinned
 # browser and the separate Debian Brotli security backport for runtime libraries.
+# Update the existing development package too: it carries static libraries and
+# requires the exact same libbrotli1 version.
 RUN test "$(dpkg --print-architecture)" = amd64 \
     && apt-get update \
     && apt-get install -y vim wget strace graphviz \
@@ -90,8 +92,12 @@ RUN test "$(dpkg --print-architecture)" = amd64 \
     && wget --tries=3 -q -O /tmp/libbrotli1.deb \
         https://deb.freexian.com/extended-lts/pool/main/b/brotli/libbrotli1_1.0.9-2+deb11u1_amd64.deb \
     && echo "9e3ee4ada11c1c78902289ea2ef2b56f54b38142009d68a52bc4e57d9e9dc3ce  /tmp/libbrotli1.deb" | sha256sum -c - \
-    && dpkg --install /tmp/libbrotli1.deb \
-    && rm -f /tmp/google-chrome.deb /tmp/libbrotli1.deb \
+    && wget --tries=3 -q -O /tmp/libbrotli-dev.deb \
+        https://deb.freexian.com/extended-lts/pool/main/b/brotli/libbrotli-dev_1.0.9-2+deb11u1_amd64.deb \
+    && echo "929c72398faf5b35238078c63f46a812e3fa3480b2c955802bbfe08e6e1215b7  /tmp/libbrotli-dev.deb" | sha256sum -c - \
+    && dpkg --install /tmp/libbrotli1.deb /tmp/libbrotli-dev.deb \
+    && apt-get check \
+    && rm -f /tmp/google-chrome.deb /tmp/libbrotli1.deb /tmp/libbrotli-dev.deb \
     && groupadd -r ${username}  \
     && useradd -r -g ${username} ${username}  \
     && mkdir -p /data/ /app/ /home/${username} \
