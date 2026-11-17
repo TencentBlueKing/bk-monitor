@@ -36,7 +36,7 @@ const require = createRequire(import.meta.url);
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const { loadLocalEnv, reloadLocalEnv, devProxyUrl, allowedHosts } = require(resolve(webRoot, 'dev-env.js'));
 const settingsFile = resolve(webRoot, 'packages/web-v2/local.settings.js');
-loadLocalEnv(resolve(webRoot, '.env.local'));
+if (process.env.NODE_ENV !== 'production') loadLocalEnv(resolve(webRoot, '.env.local'));
 
 function loadLocalSettings() {
   const cookieFile = resolve(webRoot, '.cookie');
@@ -59,7 +59,7 @@ function loadLocalSettings() {
   }
 }
 
-const localSettings = loadLocalSettings();
+const localSettings = process.env.NODE_ENV === 'production' ? {} : loadLocalSettings();
 const proxyRule = localSettings.proxy?.[0] ?? {};
 const proxyTarget = proxyRule.target || localSettings.devProxyUrl || devProxyUrl();
 const proxyHeaders = proxyRule.headers;

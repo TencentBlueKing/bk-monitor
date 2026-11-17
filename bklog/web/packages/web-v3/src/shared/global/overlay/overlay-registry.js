@@ -26,7 +26,7 @@
 
 'use strict';
 
-import { installZIndexManager, Z_INDEX_LAYERS } from './z-index-manager.js';
+import { getOverlayZIndexStart, installZIndexManager, Z_INDEX_LAYERS } from './z-index-manager.js';
 
 installZIndexManager();
 
@@ -179,6 +179,7 @@ class OverlayRegistry {
       return manager.nextZIndex();
     }
 
+    this.fallbackZIndex = Math.max(this.fallbackZIndex, getOverlayZIndexStart());
     this.fallbackZIndex += 1;
     return this.fallbackZIndex;
   }

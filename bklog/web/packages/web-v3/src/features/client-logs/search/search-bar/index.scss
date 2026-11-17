@@ -1,16 +1,48 @@
-.search-bar {
+.client-log-search-root .search-bar {
   display: flex;
   gap: 12px;
   align-items: center;
   width: 100%;
+  flex-shrink: 0;
+  box-sizing: border-box;
 
   &-input {
     position: relative;
+    min-width: 0;
     flex: 0 0 580px;
     width: 580px;
 
     .search-select-wrap {
+      display: block;
       width: 100%;
+    }
+
+    .search-input {
+      min-width: 0;
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+
+    .search-input-chip {
+      box-sizing: border-box;
+      max-width: calc(100% - 12px);
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+
+    .search-input-input {
+      flex: 1 0 40px;
+      min-width: 40px;
+    }
+
+    .client-log-search-readonly .search-input-input {
+      flex: 0 0 0;
+      min-width: 0;
+      padding: 0;
+    }
+
+    .chip-name {
+      min-width: 0;
     }
   }
 
@@ -31,17 +63,16 @@
   }
 
   &-btn {
+    flex: 0 0 78px;
     width: 78px;
+    height: 32px;
     border-radius: 4px;
+  }
+}
 
-    div {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-    }
-
-    .bklog-icon {
-      font-size: 14px;
-    }
+@media (max-width: 1100px) {
+  .client-log-search-root .search-bar-input {
+    flex: 1 1 320px;
+    width: auto;
   }
 }

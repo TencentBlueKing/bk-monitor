@@ -618,6 +618,6 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
   }
 
   .bklog-v3-select-dropdown {
-    z-index: var(--bklog-z-drawer);
+    z-index: var(--bklog-z-overlay);
   }
 </style>

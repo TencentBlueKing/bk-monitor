@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { BkOpenTelemetry } from '@blueking/open-telemetry';
+import type { BkOpenTelemetry } from '@blueking/open-telemetry';
 
 /** 日志提取任务轮询：不采集、不计入页面活动窗口 */
 const EXTRACT_POLLING_URL = 'log_extract/tasks/polling/';
@@ -61,9 +61,10 @@ export const canStartRum = (): boolean => {
 };
 
 export let bkOTInstance: BkOpenTelemetry | undefined;
+let pendingInstance: Promise<BkOpenTelemetry | undefined> | undefined;
 
 // 初始化蓝鲸 RUM 上报 SDK，仅在后端下发 window.BKLOG_RUM.enabled 且提供 endpoint 时启用
-export const initOpenTelemetry = (): BkOpenTelemetry | undefined => {
+export const initOpenTelemetry = async (): Promise<BkOpenTelemetry | undefined> => {
   if (!canStartRum()) {
     return;
   }
@@ -72,35 +73,42 @@ export const initOpenTelemetry = (): BkOpenTelemetry | undefined => {
     return bkOTInstance;
   }
 
-  // 构造后默认 autoStart；session.sampleRate 默认 1（全量）
-  bkOTInstance = new BkOpenTelemetry({
-    application: {
-      name: 'bk-log',
-      environment: process.env.NODE_ENV,
-      version: window.VERSION,
-    },
-    transport: {
-      endpoint: window.BKLOG_RUM.endpoint,
-      token: window.BKLOG_RUM.token,
-    },
-    privacy: {
-      redactUrl: redactRumUrl,
-    },
-    tracking: {
-      view: {
-        getUrlTemplate,
-        excludedActivityUrls: [EXTRACT_POLLING_URL],
+  // Disabled and Monitor hosts never request the SDK. Concurrent starts share
+  // one import/instance; bootstrap waits before issuing the tracked API calls.
+  return pendingInstance ??= (async () => {
+    const { BkOpenTelemetry } = await import('@blueking/open-telemetry');
+    if (!canStartRum()) return undefined;
+    const config = window.BKLOG_RUM;
+    if (!config?.endpoint) return undefined;
+    // 构造后默认 autoStart；session.sampleRate 默认 1（全量）
+    bkOTInstance = new BkOpenTelemetry({
+      application: {
+        name: 'bk-log',
+        environment: process.env.NODE_ENV,
+        version: window.VERSION,
       },
-      request: {
-        excludedUrls: [EXTRACT_POLLING_URL],
-        allowedTracingUrls: [url => new URL(url).origin === window.location.origin],
+      transport: {
+        endpoint: config.endpoint,
+        token: config.token,
       },
-      blankScreen: {
-        rootSelector: '#app',
+      privacy: {
+        redactUrl: redactRumUrl,
       },
-      longTask: true,
-    },
-  });
-
-  return bkOTInstance;
+      tracking: {
+        view: {
+          getUrlTemplate,
+          excludedActivityUrls: [EXTRACT_POLLING_URL],
+        },
+        request: {
+          excludedUrls: [EXTRACT_POLLING_URL],
+          allowedTracingUrls: [url => new URL(url).origin === window.location.origin],
+        },
+        blankScreen: {
+          rootSelector: '#app',
+        },
+        longTask: true,
+      },
+    });
+    return bkOTInstance;
+  })().finally(() => { pendingInstance = undefined; });
 };

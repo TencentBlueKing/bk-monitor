@@ -1,5 +1,7 @@
-.card-base.log-detail-panel {
+.client-log-search-root .client-log-card.log-detail-panel {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -149,6 +151,12 @@
     justify-content: center;
     padding-bottom: 80px;
 
+    .exception-image {
+      height: 200px;
+      max-width: 100%;
+      object-fit: contain;
+    }
+
     .tip {
       font-size: 14px;
       color: #4D4F56;
@@ -177,59 +185,19 @@
     }
   }
 
-  /* 标签页容器 */
-  .tab-container {
-    flex: 1;
-    overflow: hidden;
-
-    .panel-name {
-      display: inline-block;
-      vertical-align: middle;
-      margin: 0 3px;
-    }
-
-    .bk-tab {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-
-      .bk-tab-header {
-        padding: 0 20px;
-        border-bottom: 1px solid #F0F1F5;
-
-        .bk-tab-nav {
-          .bk-tab-item {
-            padding: 0 8px;
-            margin-right: 24px;
-            font-size: 13px;
-            color: #63656E;
-            height: 40px;
-            line-height: 40px;
-
-            &.active {
-              color: #3A84FF;
-              font-weight: 500;
-            }
-
-            &:hover:not(.active) {
-              color: #3A84FF;
-            }
-          }
-        }
-      }
-
-      .bk-tab-section {
-        flex: 1;
-        overflow: auto;
-        padding: 0 24px;
-
-        .bk-tab-content {
-          height: 100%;
-          padding-top: 16px;
-        }
-      }
-    }
+  .tab-container { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; }
+  .client-log-detail-tabs { flex: none; height: 40px; padding: 0 16px; border-bottom: 1px solid #f0f1f5; }
+  .client-log-detail-tab {
+    height: 40px;
+    padding: 0 8px;
+    color: var(--bklog-brand-primary, #3a84ff);
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+    border: 0;
+    border-bottom: 3px solid currentColor;
   }
+  .client-log-detail-tabpanel { flex: 1; min-height: 0; overflow: hidden; }
 
   /* 原始日志面板：左右分栏布局 */
   .original-log-content {
@@ -242,6 +210,7 @@
 
     /* 左侧文件树 */
     .file-tree-sidebar {
+      position: relative;
       width: 240px;
       min-width: 240px;
       height: 100%;
@@ -258,8 +227,9 @@
         overflow: hidden;
       }
 
-      .bk-big-tree {
-        height: 100% !important;
+      .client-log-file-tree {
+        height: 100%;
+        background: transparent;
 
         &::-webkit-scrollbar {
           width: 4px;
@@ -270,18 +240,6 @@
         &::-webkit-scrollbar-thumb {
           background-color: #aaa;
           border-radius: 2px;
-        }
-
-        .is-root {
-          padding-left: 8px;
-        }
-
-        .bk-big-tree-node:hover {
-          background-color: transparent;
-        }
-
-        .bk-big-tree-node:has(.tree-node-content.is-active) {
-          background-color: #2F4261;
         }
       }
 
@@ -332,6 +290,7 @@
       }
 
       .log-content-scroll {
+        position: relative;
         flex: 1;
         min-height: 0;
         overflow-y: auto;

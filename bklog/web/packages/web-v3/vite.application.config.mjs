@@ -34,7 +34,10 @@ import vueJsx from '@vitejs/plugin-vue-jsx';
 import native from './vite.application-source.config';
 import { monitorHostFixture } from './tools/monitor-host-fixture.mjs';
 import { legacyStaticEntry } from './tools/legacy-static-entry.mjs';
+import { productionDelivery } from './tools/production-delivery.mjs';
+import { productionOutput } from './tools/production-paths.mjs';
 import { legacyRefsVitePlugin, legacyRefsEsbuildPlugin } from './migration-runtime/legacy-refs.mjs';
+import { tdesignVueCompatVitePlugin, tdesignVueCompatEsbuildPlugin } from './tools/tdesign-vue-compat.mjs';
 import { nativeSdkVueVitePlugin, nativeSdkVueEsbuildPlugin } from './tools/native-sdk-vue.mjs';
 import { runtimeWarningPatchesVitePlugin, runtimeWarningPatchesEsbuildPlugin } from './tools/runtime-warning-patches.mjs';
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -44,6 +47,7 @@ const plugins = native.plugins
   .filter(plugin => plugin && !['vite:vue', 'vite:vue-jsx'].includes(plugin.name));
 export default {
   ...native,
+  base: './',
   publicDir: resolve(here, 'public'),
   cacheDir: resolve(here, 'node_modules/.vite-application'),
   optimizeDeps: {
@@ -53,13 +57,14 @@ export default {
     esbuildOptions: {
       ...native.optimizeDeps.esbuildOptions,
       loader: { ...native.optimizeDeps.esbuildOptions.loader, '.js': 'jsx' },
-      plugins: [...(native.optimizeDeps.esbuildOptions.plugins || []), legacyRefsEsbuildPlugin(), nativeSdkVueEsbuildPlugin(here), runtimeWarningPatchesEsbuildPlugin()],
+      plugins: [...(native.optimizeDeps.esbuildOptions.plugins || []), legacyRefsEsbuildPlugin(), nativeSdkVueEsbuildPlugin(here), tdesignVueCompatEsbuildPlugin(here), runtimeWarningPatchesEsbuildPlugin()],
     },
   },
   plugins: [
     paraglideVitePlugin({ ...paraglideConfig, project: resolve(here, 'project.inlang'), outdir: resolve(here, '.paraglide') }),
     monitorHostFixture(here),
     legacyStaticEntry(),
+    productionDelivery(),
     {
       name: 'application-source-boundary',
       generateBundle() {
@@ -69,6 +74,7 @@ export default {
     },
     legacyRefsVitePlugin(),
     nativeSdkVueVitePlugin(here),
+    tdesignVueCompatVitePlugin(here),
     runtimeWarningPatchesVitePlugin(),
     ...plugins,
     {
@@ -104,12 +110,6 @@ export default {
         [require.resolve('@babel/plugin-transform-class-properties'), { loose: true }],
       ],
     }),
-    {
-      name: 'migration-test-label',
-      transformIndexHtml(html) {
-        return html.replace('日志平台 · 原生 Vue3 升级测试', '日志平台 · Vue3 UI 对齐');
-      },
-    },
     {
       name: 'migration-startup-diagnostics',
       apply: 'serve',
@@ -152,5 +152,5 @@ export default {
     ),
   },
   server: { ...native.server, port: 4176, strictPort: true },
-  build: { ...native.build, outDir: resolve(here, 'dist') },
+  build: { ...native.build, outDir: productionOutput },
 };

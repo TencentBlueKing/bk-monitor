@@ -181,6 +181,8 @@
     "features/client-logs/management/user-report/upload-result.tsx",
     "features/client-logs/search/index.scss",
     "features/client-logs/search/index.tsx",
+    "features/client-logs/search/loading-skeleton.scss",
+    "features/client-logs/search/loading-skeleton.tsx",
     "features/client-logs/search/log-detail-panel/index.scss",
     "features/client-logs/search/log-detail-panel/index.tsx",
     "features/client-logs/search/log-detail-panel/log-viewer/highlight-html.tsx",
@@ -1005,7 +1007,7 @@
     "platform/compat/tdesign/legacy-functional.ts",
     "platform/compat/tdesign/legacy-slot.ts",
     "platform/compat/tdesign/magic-controls.ts",
-    "platform/compat/tdesign/runtime-contract.ts",
+    "platform/compat/tdesign/native-vue-runtime.ts",
     "platform/compat/tdesign/select-filter.ts",
     "platform/compat/vue-runtime.d.mts",
     "platform/compat/vue-runtime.mjs",
@@ -1194,6 +1196,7 @@
     "shared/composables/lucene.segment.ts",
     "shared/composables/optimized-split.ts",
     "shared/composables/trend-chart-options.ts",
+    "shared/composables/trend-echarts.ts",
     "shared/composables/use-dimension-resize.ts",
     "shared/composables/use-doc-links.ts",
     "shared/composables/use-element-event.ts",
@@ -1889,11 +1892,6 @@
     },
     {
       "from": "app/bootstrap/start.js",
-      "to": "platform/compat/tdesign/runtime-contract.ts",
-      "kind": "module"
-    },
-    {
-      "from": "app/bootstrap/start.js",
       "to": "shared/global/overlay/z-index-manager.js",
       "kind": "module"
     },
@@ -1955,11 +1953,6 @@
     {
       "from": "app/entries/monitor-bootstrap.ts",
       "to": "shared/directives/index.ts",
-      "kind": "module"
-    },
-    {
-      "from": "app/entries/monitor-bootstrap.ts",
-      "to": "platform/compat/tdesign/runtime-contract.ts",
       "kind": "module"
     },
     {
@@ -5584,6 +5577,16 @@
     },
     {
       "from": "features/client-logs/search/index.tsx",
+      "to": "features/client-logs/search/loading-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/index.tsx",
+      "to": "shared/ui/loading/presence.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/index.tsx",
       "to": "features/client-logs/search/index.scss",
       "kind": "module"
     },
@@ -5628,6 +5631,26 @@
       "kind": "service-call"
     },
     {
+      "from": "features/client-logs/search/loading-skeleton.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/client-logs/search/loading-skeleton.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/loading-skeleton.tsx",
+      "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/loading-skeleton.tsx",
+      "to": "features/client-logs/search/loading-skeleton.scss",
+      "kind": "module"
+    },
+    {
       "from": "features/client-logs/search/log-detail-panel/index.tsx",
       "to": "shared/ui/loading/native.ts",
       "kind": "module"
@@ -5670,6 +5693,21 @@
     {
       "from": "features/client-logs/search/log-detail-panel/index.tsx",
       "to": "features/client-logs/search/log-detail-panel/toolbar/index.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/log-detail-panel/index.tsx",
+      "to": "shared/ui/empty-status/index.vue",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/log-detail-panel/index.tsx",
+      "to": "features/client-logs/search/loading-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/search/log-detail-panel/index.tsx",
+      "to": "shared/ui/loading/presence.ts",
       "kind": "module"
     },
     {
@@ -19164,11 +19202,6 @@
     },
     {
       "from": "features/retrieval/workspace/index.tsx",
-      "to": "shared/global/ai-assitant/index.tsx",
-      "kind": "module"
-    },
-    {
-      "from": "features/retrieval/workspace/index.tsx",
       "to": "app/state/store.type.ts",
       "kind": "module"
     },
@@ -19240,6 +19273,16 @@
     {
       "from": "features/retrieval/workspace/index.tsx",
       "to": "features/retrieval/workspace/segment-pop.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/index.tsx",
+      "to": "shared/global/ai-assitant/index.tsx",
+      "kind": "import"
+    },
+    {
+      "from": "features/retrieval/workspace/monitor/apm.ts",
+      "to": "shared/global/overlay/z-index-manager.js",
       "kind": "module"
     },
     {
@@ -19370,6 +19413,11 @@
     {
       "from": "features/retrieval/workspace/monitor/trace.ts",
       "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workspace/monitor/trace.ts",
+      "to": "shared/global/overlay/z-index-manager.js",
       "kind": "module"
     },
     {
@@ -22318,7 +22366,22 @@
       "kind": "type"
     },
     {
-      "from": "platform/compat/tdesign/runtime-contract.ts",
+      "from": "platform/compat/tdesign/native-vue-runtime.ts",
+      "to": "platform/compat/vue-runtime.mjs",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/native-vue-runtime.ts",
+      "to": "platform/compat/vue-runtime.mjs",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/native-vue-runtime.ts",
+      "to": "platform/compat/vue-runtime.mjs",
+      "kind": "module"
+    },
+    {
+      "from": "platform/compat/tdesign/native-vue-runtime.ts",
       "to": "platform/compat/vue3-component-model.ts",
       "kind": "module"
     },
@@ -22805,7 +22868,7 @@
     {
       "from": "platform/persistence/workers/create-cluster-table-worker.ts",
       "to": "platform/persistence/workers/cluster-table.worker.ts",
-      "kind": "URL"
+      "kind": "module"
     },
     {
       "from": "platform/persistence/workers/create-cluster-table-worker.ts",
@@ -22815,7 +22878,7 @@
     {
       "from": "platform/persistence/workers/create-retrieve-search-worker.ts",
       "to": "platform/persistence/workers/retrieve-search.worker.ts",
-      "kind": "URL"
+      "kind": "module"
     },
     {
       "from": "platform/persistence/workers/create-retrieve-search-worker.ts",
@@ -23499,6 +23562,11 @@
     },
     {
       "from": "shared/composables/use-trend-chart.ts",
+      "to": "shared/composables/trend-echarts.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/composables/use-trend-chart.ts",
       "to": "features/retrieval/retrieve-helper.tsx",
       "kind": "module"
     },
@@ -23605,7 +23673,7 @@
     {
       "from": "shared/global/ai-assitant/ai-assitant-helper.ts",
       "to": "shared/global/ai-assitant/index.tsx",
-      "kind": "module"
+      "kind": "type"
     },
     {
       "from": "shared/global/ai-assitant/ai-assitant-helper.ts",

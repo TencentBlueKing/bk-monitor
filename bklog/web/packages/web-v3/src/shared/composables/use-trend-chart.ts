@@ -34,7 +34,8 @@ import { computed, nextTick, onMounted, onBeforeUnmount, type Ref, watch } from 
 import { formatNumberWithRegex } from '@/shared/lib/util';
 
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
-import * as Echarts from 'echarts';
+import type * as Echarts from 'echarts';
+import { init as initTrendChart } from './trend-echarts';
 import { cloneDeep, debounce } from 'lodash-es';
 import { addListener, removeListener } from 'resize-detector';
 import { useRoute, useRouter } from "vue-router";
@@ -80,7 +81,7 @@ export type EchartData = {
   isFinish: boolean;
 };
 export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption) => {
-  let chartInstance: Echarts.ECharts | null = null;
+  let chartInstance: ReturnType<typeof initTrendChart> | null = null;
   const options: any = { ...chartOption };
   const store = useApplicationStore();
   const router = useRouter();
@@ -726,7 +727,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       return Boolean(chartInstance);
     }
 
-    chartInstance = Echarts.init(target.value);
+    chartInstance = initTrendChart(target.value);
     chartInstance.on('dataZoom', handleDataZoom);
     target.value.addEventListener('dblclick', handleDblClick);
     addListener(target.value, handleCanvasResize);

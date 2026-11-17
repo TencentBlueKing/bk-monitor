@@ -1,8 +1,9 @@
 unittest:
 	sh ./scripts/unit_test.sh
 
+.PHONY: build-web
 build-web:
-	cd web && npm install --legacy-peer-deps && npm run build
+	cd web && node scripts/build-web.mjs
 
 sync_stag:
 	sh ./scripts/git.sh sync_stag

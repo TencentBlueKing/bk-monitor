@@ -30,7 +30,7 @@ import { Loading as TLoading } from '@/shared/ui/loading/native';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 
 
-import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
+import { MessagePlugin as TDesignMessage, Button as TButton, Tree as TTree } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, watch, computed, onMounted, onUnmounted } from 'vue';
@@ -45,6 +45,10 @@ import { useDownloadFile } from '../../management/hooks/use-download-file';
 import type { LogItem, UrlState } from '../types';
 import ClientLogViewer from './log-viewer/index';
 import ClientLogToolbar from './toolbar/index';
+
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { ClientLogDetailSkeleton } from '../loading-skeleton';
+import { useSkeletonPresence } from '@/shared/ui/loading/presence';
 
 import './index.scss';
 
@@ -179,8 +183,7 @@ export default defineComponent({
     /** 左侧文件树是否收起 */
     const isFileTreeCollapsed = ref(false);
 
-    /** 当前激活的标签页 */
-    const activeTab = ref('original-log');
+
 
     /** 所有文件夹节点 ID（用于默认全部展开） */
     const allFolderIds = ref<string[]>([]);
@@ -276,6 +279,8 @@ export default defineComponent({
 
     /** 日志内容加载状态 */
     const isLogLoading = ref(false);
+    const fileSkeleton = useSkeletonPresence(isFileLoading);
+    const logSkeleton = useSkeletonPresence(computed(() => isFileLoading.value || (isLogLoading.value && !isLoadMore.value)));
 
     /**
      * 请求文件列表
@@ -620,15 +625,6 @@ export default defineComponent({
       emitUrlSync();
     };
 
-    /** 标签页列表 */
-    const panels = ref([
-      {
-        name: 'original-log',
-        label: t('原始日志'),
-        icon: 'bklog-icon bklog-log',
-      },
-    ]);
-
     /** 是否全屏展示 */
     const isFullscreen = ref(false);
 
@@ -714,16 +710,6 @@ export default defineComponent({
       }
     };
 
-    /** 文件树展开/收起变化 */
-    const handleExpandChange = (node: any) => {
-      if (node.expanded) {
-        expandedNodeIds.value.add(node.id);
-      } else {
-        expandedNodeIds.value.delete(node.id);
-      }
-      expandedNodeIds.value = new Set(expandedNodeIds.value);
-    };
-
     /** 渲染文件树节点图标 */
     const renderTreeNodeIcon = (data: any) => {
       const isFolder = data.children && data.children.length;
@@ -756,7 +742,7 @@ export default defineComponent({
     /** 渲染未采集状态内容 */
     const renderUncollectedContent = () => (
       <div class='uncollected-content'>
-        <bk-exception type='empty'>
+        <EmptyStatus emptyType='empty' scene='page' showText={false}>
           <div class='tip'>{t('暂未采集，无法获取日志')}</div>
           {!props.hideCollectButton && (
             <TButton
@@ -766,7 +752,7 @@ export default defineComponent({
               {t('立即采集')}
             </TButton>
           )}
-        </bk-exception>
+        </EmptyStatus>
       </div>
     );
 
@@ -783,7 +769,7 @@ export default defineComponent({
     /** 渲染采集失败状态内容 */
     const renderCollectFailedContent = () => (
       <div class='uncollected-content'>
-        <bk-exception type='empty'>
+        <EmptyStatus emptyType='empty' scene='page' showText={false}>
           <div class='tip'>{t('日志采集失败，请重新采集')}</div>
           {!props.hideCollectButton && (
             <TButton
@@ -793,7 +779,7 @@ export default defineComponent({
               {t('立即采集')}
             </TButton>
           )}
-        </bk-exception>
+        </EmptyStatus>
       </div>
     );
 
@@ -801,24 +787,21 @@ export default defineComponent({
     const renderOriginalLogContent = () => (
       <div
         class='original-log-content'
-        v-loading={{ loading: isFileLoading.value || isLogLoading.value}}
+
       >
         {/* 左侧文件树 */}
         <div class={['file-tree-sidebar', { 'is-collapsed': isFileTreeCollapsed.value }]}>
-          <bk-big-tree
+          <TTree
+            class='client-log-file-tree'
             data={fileTreeData.value}
-            default-expand-all={true}
-            expand-on-click={true}
-            padding={24}
-            fixed-width
-            enable-title-tip={true}
-            onNodeClick={handleNodeClick}
-            onExpandChange={handleExpandChange}
-            options={{ nameKey: 'name', idKey: 'id', childrenKey: 'children' }}
-            v-slots={{
-              default: ({ data }: any) => renderTreeNodeContent(data),
-            }}
+            keys={{ label: 'name', value: 'id', children: 'children' }}
+            expanded={[...expandedNodeIds.value]}
+            expandOnClickNode
+            onClick={({ node }) => handleNodeClick(node.data)}
+            onExpand={values => { expandedNodeIds.value = new Set(values.map(String)); }}
+            v-slots={{ label: ({ node }) => renderTreeNodeContent(node.data) }}
           />
+          {fileSkeleton.visible.value && <ClientLogDetailSkeleton files leaving={fileSkeleton.leaving.value} />}
         </div>
         {/* 右侧文件内容展示：上部工具栏 + 下部日志内容 */}
         <div class='file-content-area'>
@@ -860,7 +843,7 @@ export default defineComponent({
                   highlightList={highlightList.value}
                 />
               )
-            ) : !isLogLoading.value ? (
+            ) : !isFileLoading.value && !isLogLoading.value ? (
               <bk-exception
                 style='margin-top: 80px'
                 scene='part'
@@ -869,6 +852,7 @@ export default defineComponent({
                 <span>{t('暂无数据')}</span>
               </bk-exception>
             ) : null}
+            {logSkeleton.visible.value && <ClientLogDetailSkeleton leaving={logSkeleton.leaving.value} />}
             {/* 触底加载状态 */}
             {isLoadMore.value && <div class='log-load-more'><span class='bklog-loading-mark' role='status' aria-label='Loading' /></div>}
           </div>
@@ -901,36 +885,16 @@ export default defineComponent({
       // success - 已采集
       return (
         <div class='tab-container'>
-          <bk-tab
-            active={activeTab.value}
-            type='unborder-card'
-            label-height={40}
-            onTabChange={(val: string) => {
-              activeTab.value = val;
-            }}
-          >
-            {panels.value.map(panel => (
-              <bk-tab-panel
-                key={panel.name}
-                name={panel.name}
-                label={panel.label}
-                renderLabel={() => (
-                  <div>
-                    <i class={`bklog-icon ${panel.icon}`}></i>
-                    <span class='panel-name'>{panel.label}</span>
-                  </div>
-                )}
-              >
-                {activeTab.value === 'original-log' && renderOriginalLogContent()}
-              </bk-tab-panel>
-            ))}
-          </bk-tab>
+          <div class='client-log-detail-tabs' role='tablist'>
+            <button class='client-log-detail-tab' type='button' role='tab' aria-selected='true'>{t('原始日志')}</button>
+          </div>
+          <div class='client-log-detail-tabpanel' role='tabpanel'>{renderOriginalLogContent()}</div>
         </div>
       );
     };
 
     return () => (
-      <div class={['card-base', 'log-detail-panel', { 'is-fullscreen': isFullscreen.value }]}>
+      <div class={['client-log-card', 'log-detail-panel', { 'is-fullscreen': isFullscreen.value }]}>
         {/* 左上角展开图标 - 仅在左侧列表收起时显示 */}
         {props.isTaskListCollapsed && (
           <span
