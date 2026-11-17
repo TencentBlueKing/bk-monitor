@@ -54,7 +54,9 @@ def service_context(mocker: MockerFixture) -> Iterator[Application]:
     [
         ({"profiling": {"last_data_at": NOW}}, True, True),
         ({"profiling": {"last_data_at": NOW - 3600}}, True, True),
-        ({"profiling": {"last_data_at": NOW - 3601, "checked_at": NOW}}, True, False),
+        # 有过上报即为正常，与最近观测窗口无关
+        ({"profiling": {"last_data_at": NOW - 3601, "checked_at": NOW}}, True, True),
+        ({"profiling": {"last_data_at": NOW - 30 * 86400, "checked_at": NOW}}, True, True),
         ({"profiling": {"checked_at": NOW}}, True, False),
         ({"profiling": {"last_data_at": None, "checked_at": NOW}}, True, False),
         ({"profiling": {"last_data_at": 0}}, True, False),

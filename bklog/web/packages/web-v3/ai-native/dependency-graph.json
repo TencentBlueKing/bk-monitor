@@ -327,6 +327,8 @@
     "features/collection/current/components/common-comp/use-label-picker-keyboard.ts",
     "features/collection/current/components/create-operation/clean-form.type.ts",
     "features/collection/current/components/create-operation/defaultConfig.ts",
+    "features/collection/current/components/create-operation/form-skeleton.scss",
+    "features/collection/current/components/create-operation/form-skeleton.tsx",
     "features/collection/current/components/create-operation/global.scss",
     "features/collection/current/components/create-operation/index.scss",
     "features/collection/current/components/create-operation/index.tsx",
@@ -506,6 +508,7 @@
     "features/management/manage/index.vue",
     "features/masking/components/masking-add-rule.scss",
     "features/masking/components/masking-add-rule.tsx",
+    "features/masking/components/masking-confirm-dialog.scss",
     "features/masking/components/masking-extract.scss",
     "features/masking/components/masking-field-input.scss",
     "features/masking/components/masking-field-input.tsx",
@@ -739,6 +742,7 @@
     "features/retrieval/workbench/search-result-panel/log-result/full-row-viewer.vue",
     "features/retrieval/workbench/search-result-panel/log-result/index.vue",
     "features/retrieval/workbench/search-result-panel/log-result/log-cell.tsx",
+    "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.scss",
     "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
     "features/retrieval/workbench/search-result-panel/log-result/log-result.vue",
     "features/retrieval/workbench/search-result-panel/log-result/log-row-attributes.ts",
@@ -3763,11 +3767,6 @@
     {
       "from": "features/archive/current/archive-repository/index.tsx",
       "to": "shared/lib/authority-map.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/archive/current/archive-repository/index.tsx",
-      "to": "shared/lib/util.js",
       "kind": "module"
     },
     {
@@ -8611,6 +8610,16 @@
       "kind": "module"
     },
     {
+      "from": "features/collection/current/components/create-operation/form-skeleton.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/form-skeleton.tsx",
+      "to": "features/collection/current/components/create-operation/form-skeleton.scss",
+      "kind": "module"
+    },
+    {
       "from": "features/collection/current/components/create-operation/index.scss",
       "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
@@ -8712,6 +8721,11 @@
     },
     {
       "from": "features/collection/current/components/create-operation/step2-bk-data-collection.tsx",
+      "to": "features/collection/current/components/create-operation/form-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step2-bk-data-collection.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -8804,6 +8818,11 @@
       "from": "features/collection/current/components/create-operation/step2-bk-data-collection.tsx",
       "to": "features/index-sets/services/result-tables.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step2-configuration.tsx",
+      "to": "features/collection/current/components/create-operation/form-skeleton.tsx",
+      "kind": "module"
     },
     {
       "from": "features/collection/current/components/create-operation/step2-configuration.tsx",
@@ -8952,6 +8971,11 @@
     },
     {
       "from": "features/collection/current/components/create-operation/step2-custom-report.tsx",
+      "to": "features/collection/current/components/create-operation/form-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step2-custom-report.tsx",
       "to": "shared/global/overlay/z-index-manager.js",
       "kind": "module"
     },
@@ -9059,6 +9083,11 @@
       "from": "features/collection/current/components/create-operation/step3-clean.scss",
       "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step3-clean.tsx",
+      "to": "features/collection/current/components/create-operation/form-skeleton.tsx",
+      "kind": "module"
     },
     {
       "from": "features/collection/current/components/create-operation/step3-clean.tsx",
@@ -9737,12 +9766,12 @@
     },
     {
       "from": "features/collection/current/components/list-main/table-list/table-list-v2.scss",
-      "to": "shared/ui/loading/_shimmer.scss",
+      "to": "features/collection/current/components/business-comp/step2/index-set-option.scss",
       "kind": "style-or-asset"
     },
     {
       "from": "features/collection/current/components/list-main/table-list/table-list-v2.scss",
-      "to": "features/collection/current/components/business-comp/step2/index-set-option.scss",
+      "to": "shared/assets/images/loading.svg",
       "kind": "style-or-asset"
     },
     {
@@ -11507,11 +11536,6 @@
     },
     {
       "from": "features/grok/current/grok-table.tsx",
-      "to": "shared/lib/util.js",
-      "kind": "module"
-    },
-    {
-      "from": "features/grok/current/grok-table.tsx",
       "to": "shared/ui/empty-status/index.vue",
       "kind": "module"
     },
@@ -11979,6 +12003,11 @@
       "from": "features/index-sets/components/index-set/manage/index.vue",
       "to": "platform/services/meta.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/index-sets/components/usage-details/chart-component.vue",
+      "to": "shared/ui/empty-status/index.vue",
+      "kind": "module"
     },
     {
       "from": "features/index-sets/components/usage-details/chart-component.vue",
@@ -13117,11 +13146,6 @@
     },
     {
       "from": "features/masking/components/masking-add-rule.tsx",
-      "to": "shared/types/legacy-form.ts",
-      "kind": "type"
-    },
-    {
-      "from": "features/masking/components/masking-add-rule.tsx",
       "to": "shared/utils/typed-record.ts",
       "kind": "module"
     },
@@ -13132,7 +13156,17 @@
     },
     {
       "from": "features/masking/components/masking-add-rule.tsx",
+      "to": "platform/i18n/translation.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/masking/components/masking-add-rule.tsx",
       "to": "features/masking/components/masking-add-rule.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/masking/components/masking-add-rule.tsx",
+      "to": "features/masking/components/masking-confirm-dialog.scss",
       "kind": "module"
     },
     {
@@ -13159,6 +13193,11 @@
       "from": "features/masking/components/masking-add-rule.tsx",
       "to": "features/masking/services/masking.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/masking/components/masking-confirm-dialog.scss",
+      "to": "shared/styles/mixins/flex.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "features/masking/components/masking-extract.scss",
@@ -13363,6 +13402,11 @@
     {
       "from": "features/masking/components/masking-setting.tsx",
       "to": "features/masking/components/masking-setting.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/masking/components/masking-setting.tsx",
+      "to": "features/masking/components/masking-confirm-dialog.scss",
       "kind": "module"
     },
     {
@@ -17513,6 +17557,16 @@
     {
       "from": "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
       "to": "features/retrieval/retrieve-helper.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
+      "to": "shared/ui/empty-status/index.vue",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
+      "to": "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.scss",
       "kind": "module"
     },
     {

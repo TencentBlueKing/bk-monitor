@@ -88,6 +88,7 @@ export default defineComponent({
         // 清空检索数据后重新请求
         resetRetrieveData(store);
         store.requestIndexSetFieldInfo().then(resp => {
+          if (resp?.ignored) return;
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
           if (resp?.data?.fields?.length) {
@@ -98,6 +99,8 @@ export default defineComponent({
             store.updateIndexSetQueryResult({
               is_error: true,
               exception_msg: 'index-set-field-not-found',
+              is_loading: false,
+              is_pagination_loading: false,
             });
           }
         });

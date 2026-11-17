@@ -776,6 +776,7 @@ def test_shared_read_backends_move_only_mcp_resources(tmp_path):
         "calculate_by_range": ("post", "/app/apm/calculate_by_range/", "/api/v4/apm_metric_web/calculate_by_range/"),
         "llm_search_traces": ("post", "/app/apm/list_llm_traces/", "/api/v4/apm_llm_web/list_traces/"),
         "llm_search_flows": ("post", "/app/apm/list_llm_flows/", "/api/v4/apm_llm_web/list_flows/"),
+        "llm_search_spans": ("post", "/app/apm/list_llm_spans/", "/api/v4/apm_llm_web/list_spans/"),
         "llm_calculate_by_range": (
             "post",
             "/app/apm/llm_calculate_by_range/",
@@ -786,6 +787,7 @@ def test_shared_read_backends_move_only_mcp_resources(tmp_path):
         "calculate_by_range": "apm_mcp_calculate_by_range",
         "llm_search_traces": "llm_mcp_search_traces",
         "llm_search_flows": "llm_mcp_search_flows",
+        "llm_search_spans": "llm_mcp_search_spans",
         "llm_calculate_by_range": "llm_mcp_calculate_by_range",
     }
     shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")

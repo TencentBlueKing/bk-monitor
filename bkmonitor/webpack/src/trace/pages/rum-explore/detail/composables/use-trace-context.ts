@@ -26,20 +26,67 @@
 import { computed, onScopeDispose, shallowRef, unref, watch } from 'vue';
 import type { InjectionKey, MaybeRef } from 'vue';
 
-import { TIMELINE_REQUEST_RESOURCE_TYPES } from '../constants';
-import { getViewTimeline, searchTraceInfoMap, TRACE_SEARCH_BATCH_SIZE } from '../services';
-import { RumTimelineFilterCategoryEnum } from '../typings';
+import dayjs from 'dayjs';
+import { useI18n } from 'vue-i18n';
+
+import { RumTimelineFilterCategoryEnum, RumTimelineSortEnum, TIMELINE_REQUEST_RESOURCE_TYPES } from '../constants';
+import { getSessionTimeline, getViewTimeline, searchTraceInfoMap, TRACE_SEARCH_BATCH_SIZE } from '../services';
 import { buildRecordMap, buildTimelineItems, buildViewVM, findSpanPath } from '../utils/timeline-transform';
+import { formatDuration } from '@/components/trace-view/utils/date';
 
 import type { IRumTraceInfo } from '../services';
 import type {
-  IRumTimelineItemVM,
+  IRumTimelineCardItemVM,
+  IRumTimelineCardVM,
   IRumTimelineNode,
   IRumTimelineRecord,
   IRumTimelineResponse,
-  IRumTimelineViewVM,
   RumTimelineFilterCategoryType,
+  RumTimelineSortType,
 } from '../typings';
+
+/** 慢节点阈值：耗时超过 500ms（elapsed_time 以微秒存储） */
+const SLOW_NODE_THRESHOLD_US = 500 * 1000;
+
+/** 折叠中间 View 时首尾各自保留的卡片数 */
+const COLLAPSE_EDGE_VIEW_COUNT = 2;
+
+/** 星期文案，时间轴开始横幅使用，按 dayjs 的 day() 索引取值 */
+const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+/** 检索失败的重试间隔与上限：整表都在视口内时不会再触发可见性回调，只能靠定时任务补齐 */
+const TRACE_RETRY_DELAY = 1000;
+const TRACE_RETRY_MAX_TIMES = 2;
+
+/** 类别筛选谓词，口径同 timeline 接口协议 2.12.3 */
+const CATEGORY_PREDICATES: Record<
+  Exclude<RumTimelineFilterCategoryType, typeof RumTimelineFilterCategoryEnum.ALL>,
+  (record: IRumTimelineRecord | undefined) => boolean
+> = {
+  [RumTimelineFilterCategoryEnum.ACTION]: record =>
+    String(record?.origin_data?.attributes?.span_type ?? '') === RumTimelineFilterCategoryEnum.ACTION,
+  [RumTimelineFilterCategoryEnum.ERROR]: record => {
+    const attributes: Record<string, unknown> = record?.origin_data?.attributes ?? {};
+    return (
+      String(attributes.span_type ?? '') === 'error' ||
+      attributes.error === true ||
+      attributes['outcome.type'] === 'error'
+    );
+  },
+  [RumTimelineFilterCategoryEnum.SLOW_NODE]: record => {
+    const elapsed = record?.origin_data?.elapsed_time;
+    return elapsed !== null && elapsed !== undefined && Number(elapsed) > SLOW_NODE_THRESHOLD_US;
+  },
+  [RumTimelineFilterCategoryEnum.REQUEST]: record =>
+    TIMELINE_REQUEST_RESOURCE_TYPES.has(record?.origin_data?.attributes?.['resource.type']),
+  [RumTimelineFilterCategoryEnum.THIRD_PARTY]: record => {
+    const attributes: Record<string, unknown> = record?.origin_data?.attributes ?? {};
+    return (
+      String(attributes.span_type ?? '') === 'resource' &&
+      !TIMELINE_REQUEST_RESOURCE_TYPES.has(String(attributes['resource.type'] ?? ''))
+    );
+  },
+};
 
 /** 行可见性注册：上层按列表容器整批同步带 trace_id 的行，由抽屉 provide 给链路上下文面板 */
 export type TraceContextRowsObserver = (root: Element) => void;
@@ -50,61 +97,73 @@ export const TRACE_CONTEXT_ROW_OBSERVER_KEY: InjectionKey<TraceContextRowsObserv
 export type UseTraceContextReturn = ReturnType<typeof useTraceContext>;
 
 interface IUseTraceContextOptions {
-  /** 「链路上下文」tab 是否激活，未激活时不发请求 */
+  /** tab 是否激活，未激活时不发请求 */
   active: MaybeRef<boolean>;
   appName: MaybeRef<string>;
   /** 业务 ID，用于检索关联 Trace 所属应用 */
   bizId: MaybeRef<number | string | undefined>;
-  /** 当前详情的 span_id，决定高亮与折叠锚点 */
-  currentSpanId: MaybeRef<string>;
-  /** 抽屉里实际滚动的容器，作为行可见性观察的 root */
-  scrollRoot: MaybeRef<Element | null>;
-  /** 当前 Span 所属的 View ID，为空时不请求 */
-  viewId: MaybeRef<string>;
+  /** 当前详情的 span_id，决定高亮与折叠锚点；会话时间轴不传 */
+  currentSpanId?: MaybeRef<string>;
+  /** 数据维度：会话 ID 或 View ID，为空时不请求 */
+  dimension: MaybeRef<string>;
   /** 字段格式化函数，来自 useDetailFormatter */
   formatField: (fieldName: string, value: unknown) => string;
+  /** 取数维度类型：会话时间轴按 session_id 查询，链路上下文按 view_id 查询 */
+  scope: 'session' | 'view';
+  /** 抽屉里实际滚动的容器，作为行可见性观察的 root */
+  scrollRoot: MaybeRef<Element | null>;
 }
 
 /**
- * @description 链路上下文：按 View 拉取时间线，维护折叠段与子节点的展开状态，产出可直接渲染的视图模型
+ * @description RUM 时间线：按会话或 View 拉取时间线并维护筛选、展开状态，产出可直接渲染的卡片列表
  *
- * 同一 View 下切换 Span（上一个 / 下一个）不重复请求，只重新定位高亮与折叠锚点。
+ * 会话时间轴与链路上下文共用同一套产出：按 session_id 查询返回多个顶层 View（每个 View 一张卡片），
+ * 按 view_id 查询只返回当前 View，差异只在传入的维度与 scope。
+ * 同一维度下切换 Span 不重复请求，只重新定位高亮与折叠锚点；筛选生效时丢弃未命中的 View 卡片，
+ * 并平铺展示命中项、自动展开其祖先。关联 Trace 在行进入视口后按批检索。
  */
 export function useTraceContext({
   active,
   appName,
   bizId,
   currentSpanId,
+  dimension,
   formatField,
+  scope,
   scrollRoot,
-  viewId,
 }: IUseTraceContextOptions) {
+  const { t } = useI18n();
+
   const timeline = shallowRef<IRumTimelineResponse | null>(null);
   const loading = shallowRef(false);
   /** 接口失败，与「无数据」区分展示 */
   const error = shallowRef(false);
   const expandedFolds = shallowRef(new Set<string>());
   const expandedNodes = shallowRef(new Set<string>());
+  /** 快捷筛选：Span 名称关键字与类别，均为前端过滤 */
+  const filterKeyword = shallowRef('');
+  const filterCategory = shallowRef<RumTimelineFilterCategoryType>(RumTimelineFilterCategoryEnum.ALL);
+  /** View 卡片的排序方向：按 View 开始时间排序，只影响顶层 View 的顺序 */
+  const sortOrder = shallowRef<RumTimelineSortType>(RumTimelineSortEnum.ASC);
+  /** 是否折叠中间的 View：只展示首尾各 2 张卡片，中间收成一张隐藏卡片 */
+  const collapseMiddleView = shallowRef(false);
   /** 关联 Trace 的检索结果：只有命中项才展示行内入口 */
   const traceInfoMap = shallowRef<Map<string, IRumTraceInfo>>(new Map());
   /** 请求序号，用于丢弃过期响应 */
   let requestId = 0;
-  /** 已请求过的 `${appName}|${viewId}`，相同时不重复请求 */
+  /** 已请求过的 `${appName}|${dimension}`，相同时不重复请求 */
   let fetchedKey = '';
 
-  /** 待检索的 trace_id：行进入视口时入队，同一 View 内合并后按批发出 */
+  /** 待检索的 trace_id：行进入视口时入队，同一时间线内合并后按批发出 */
   let traceQueue = new Set<string>();
   /** 在途与已查完的 trace_id，避免重复检索（未命中的也记入） */
   let inflightTraceIds = new Set<string>();
   let resolvedTraceIds = new Set<string>();
-  /** 队列代际：切换 View 或关闭抽屉后丢弃在途结果 */
+  /** 队列代际：切换会话 / View 或关闭抽屉后丢弃在途结果 */
   let traceQueueSeq = 0;
   let flushing = false;
   /** 当前这批检索的中断句柄 */
   let traceAbortController: AbortController | null = null;
-  /** 检索失败的重试间隔与上限：整表都在视口内时不会再触发可见性回调，只能靠定时任务补齐 */
-  const TRACE_RETRY_DELAY = 1000;
-  const TRACE_RETRY_MAX_TIMES = 2;
   let traceRetryTimer: null | ReturnType<typeof setTimeout> = null;
   /** 本轮已重试的次数，队列排空后重置 */
   let traceRetryTimes = 0;
@@ -113,6 +172,9 @@ export function useTraceContext({
   const observedRows = new Map<Element, string>();
   let rowObserver: IntersectionObserver | null = null;
   let observerRoot: Element | null = null;
+
+  /** 当前详情的 Span，会话时间轴没有当前 Span 时为空串 */
+  const currentSpan = computed(() => unref(currentSpanId) ?? '');
 
   /** 增量合并一帧命中结果：shallowRef 的 Map 需要整体替换才会触发更新 */
   function mergeTraceInfos(infos: IRumTraceInfo[], seq: number) {
@@ -164,7 +226,7 @@ export function useTraceContext({
             controller.signal
           );
         } catch {
-          /** 期间切换了 View 或关闭了抽屉，代际已变，本批交给新一轮，不能回写新队列 */
+          /** 期间切换了时间线或关闭了抽屉，代际已变，本批交给新一轮，不能回写新队列 */
           if (seq !== traceQueueSeq) return;
           /** 检索失败：本批退回待检索并结束本轮，后续入队会把它一起带走；不同步重跑，避免连续打满失败接口 */
           for (const traceId of batch) {
@@ -174,7 +236,7 @@ export function useTraceContext({
           scheduleTraceRetry(seq);
           break;
         }
-        /** 期间切换了 View 或关闭了抽屉，剩余队列由新一轮接管 */
+        /** 期间切换了时间线或关闭了抽屉，剩余队列由新一轮接管 */
         if (seq !== traceQueueSeq) return;
         for (const traceId of batch) {
           inflightTraceIds.delete(traceId);
@@ -204,7 +266,7 @@ export function useTraceContext({
     if (!flushing && traceQueue.size) void flushTraceQueue(traceQueueSeq);
   }
 
-  /** 清掉队列与在途检索：clearResult 为 true 时连已检索结果一起丢弃（切换 View） */
+  /** 清掉队列与在途检索：clearResult 为 true 时连已检索结果一起丢弃（切换会话或 View） */
   function resetTraceQueue(clearResult: boolean) {
     traceQueueSeq++;
     traceQueue = new Set();
@@ -218,7 +280,7 @@ export function useTraceContext({
       resolvedTraceIds = new Set();
       traceInfoMap.value = new Map();
     }
-    /** 旧 View 的行元素随之失效，新 View 的行挂载后重新注册 */
+    /** 旧时间线的行元素随之失效，新列表挂载后重新注册 */
     observedRows.clear();
     rowObserver?.disconnect();
     rowObserver = null;
@@ -276,12 +338,16 @@ export function useTraceContext({
     }
   );
 
-  async function fetchTimeline(app: string, view: string) {
+  async function fetchTimeline(app: string, dim: string) {
     const seq = ++requestId;
     loading.value = true;
+    timeline.value = null;
     error.value = false;
     resetTraceQueue(true);
-    const res = await getViewTimeline({ app_name: app, view_id: view });
+    const res =
+      scope === 'session'
+        ? await getSessionTimeline({ app_name: app, session_id: dim })
+        : await getViewTimeline({ app_name: app, view_id: dim });
     if (seq !== requestId) return;
     timeline.value = res;
     error.value = !res;
@@ -289,13 +355,15 @@ export function useTraceContext({
   }
 
   watch(
-    () => [unref(active), unref(appName), unref(viewId)] as const,
-    ([isActive, app, view]) => {
+    () => [unref(active), unref(appName), unref(dimension)] as const,
+    ([isActive, app, dim]) => {
       if (!isActive) return;
-      const key = `${app}|${view}`;
+      const key = `${app}|${dim}`;
       if (key === fetchedKey) return;
       fetchedKey = key;
-      if (!view) {
+      expandedFolds.value = new Set();
+      expandedNodes.value = new Set();
+      if (!dim) {
         requestId++;
         timeline.value = null;
         error.value = false;
@@ -303,49 +371,14 @@ export function useTraceContext({
         resetTraceQueue(true);
         return;
       }
-      fetchTimeline(app, view);
+      fetchTimeline(app, dim);
     },
     { immediate: true }
   );
 
   const recordMap = computed(() => buildRecordMap(timeline.value?.records));
-
-  /** 快捷筛选：Span 名称关键字与类别，均为前端过滤 */
-  const filterKeyword = shallowRef('');
-  const filterCategory = shallowRef<RumTimelineFilterCategoryType>(RumTimelineFilterCategoryEnum.ALL);
-
-  /** 慢节点阈值：耗时超过 500ms（elapsed_time 以微秒存储） */
-  const SLOW_NODE_THRESHOLD_US = 500 * 1000;
-
-  /** 类别筛选谓词，口径同 timeline 接口协议 2.12.3 */
-  const CATEGORY_PREDICATES: Record<
-    Exclude<RumTimelineFilterCategoryType, typeof RumTimelineFilterCategoryEnum.ALL>,
-    (record: IRumTimelineRecord | undefined) => boolean
-  > = {
-    [RumTimelineFilterCategoryEnum.ACTION]: record =>
-      String(record?.origin_data?.attributes?.span_type ?? '') === RumTimelineFilterCategoryEnum.ACTION,
-    [RumTimelineFilterCategoryEnum.ERROR]: record => {
-      const attributes: Record<string, unknown> = record?.origin_data?.attributes ?? {};
-      return (
-        String(attributes.span_type ?? '') === 'error' ||
-        attributes.error === true ||
-        attributes['outcome.type'] === 'error'
-      );
-    },
-    [RumTimelineFilterCategoryEnum.SLOW_NODE]: record => {
-      const elapsed = record?.origin_data?.elapsed_time;
-      return elapsed !== null && elapsed !== undefined && Number(elapsed) > SLOW_NODE_THRESHOLD_US;
-    },
-    [RumTimelineFilterCategoryEnum.REQUEST]: record =>
-      TIMELINE_REQUEST_RESOURCE_TYPES.has(record?.origin_data?.attributes?.['resource.type']),
-    [RumTimelineFilterCategoryEnum.THIRD_PARTY]: record => {
-      const attributes: Record<string, unknown> = record?.origin_data?.attributes ?? {};
-      return (
-        String(attributes.span_type ?? '') === 'resource' &&
-        !TIMELINE_REQUEST_RESOURCE_TYPES.has(String(attributes['resource.type'] ?? ''))
-      );
-    },
-  };
+  /** 当前 Span 的祖先链；会话时间轴没有当前 Span，直接返回空数组避免整树遍历 */
+  const currentPath = computed(() => (currentSpan.value ? findSpanPath(timeline.value?.tree, currentSpan.value) : []));
 
   /** 节点是否命中当前筛选条件 */
   function matchRecord(record: IRumTimelineRecord | undefined) {
@@ -381,14 +414,108 @@ export function useTraceContext({
     () => filterKeyword.value.trim() !== '' || filterCategory.value !== RumTimelineFilterCategoryEnum.ALL
   );
 
-  /** 筛选生效时只渲染过滤后的子树，不再出现折叠段，子级展开仍由 expandedNodes 控制 */
-  const filteredChildren = computed(() =>
-    hasFilter.value ? filterNodes(viewNode.value?.children) : viewNode.value?.children
+  /** 筛选生效后可见的 View：未命中的 View 整张卡片丢弃，View 头部仍按全量统计 */
+  const visibleViews = computed(() => {
+    const nodes = timeline.value?.tree ?? [];
+    if (!hasFilter.value) return nodes.map(node => ({ node, children: node.children ?? [] }));
+    return nodes.reduce<{ children: IRumTimelineNode[]; node: IRumTimelineNode }[]>((result, node) => {
+      const children = filterNodes(node.children);
+      if (matchRecord(recordMap.value.get(node.span_id)) || children.length) {
+        result.push({ node, children });
+      }
+      return result;
+    }, []);
+  });
+
+  /** View 的开始时间（微秒），作为排序依据；缺失时按 0 处理 */
+  function getViewStartedAt(spanId: string) {
+    const startedAt = Number(recordMap.value.get(spanId)?.origin_data?.attributes?.['view.started_at']);
+    return Number.isFinite(startedAt) ? startedAt : 0;
+  }
+
+  /** View 开始时间的展示值，HH:mm，用于卡片左侧时间轴；缺失时为空串 */
+  function getViewTimeText(spanId: string) {
+    const startTime = recordMap.value.get(spanId)?.origin_data?.start_time;
+    if (startTime === null || startTime === undefined || !Number.isFinite(Number(startTime))) return '';
+    return dayjs.tz(Number(startTime) / 1000).format('HH:mm');
+  }
+
+  /** 时间轴开始日期（如 8月3日 周一），用于首尾横幅的开始标记；接口未返回开始时间时为空 */
+  const beginDateText = computed(() => {
+    const startTime = timeline.value?.start_time;
+    if (startTime === null || startTime === undefined) return '';
+    const startDate = dayjs.tz(Number(startTime) / 1000);
+    return t('{0}月{1}日 {2}', [startDate.month() + 1, startDate.date(), t(WEEKDAY_LABELS[startDate.day()])]);
+  });
+
+  /** 时间轴总耗时（微秒）：优先取接口 duration，接口未返回时用起止时间差兜底 */
+  const duration = computed(() => {
+    const rawDuration = timeline.value?.duration;
+    if (rawDuration !== null && rawDuration !== undefined) {
+      const value = Number(rawDuration);
+      if (Number.isFinite(value) && value > 0) return value;
+    }
+    const startTime = timeline.value?.start_time;
+    const endTime = timeline.value?.end_time;
+    if (startTime === null || startTime === undefined || endTime === null || endTime === undefined) return 0;
+    const diff = Number(endTime) - Number(startTime);
+    return Number.isFinite(diff) && diff > 0 ? diff : 0;
+  });
+
+  const durationText = computed(() => (duration.value ? formatDuration(duration.value, '', 2, 'us') : ''));
+
+  /** 时间轴总时长：仅已结束（有 end_time）时展示结束横幅 */
+  const endDurationText = computed(() => {
+    const endTime = timeline.value?.end_time;
+    if (endTime === null || endTime === undefined) return '';
+    return durationText.value;
+  });
+
+  /** 按 View 开始时间排列顶层 View 卡片，View 内部的 Span 行顺序不受影响 */
+  const views = computed(() => {
+    const direction = sortOrder.value === RumTimelineSortEnum.ASC ? 1 : -1;
+    return [...visibleViews.value].sort(
+      (a, b) => (getViewStartedAt(a.node.span_id) - getViewStartedAt(b.node.span_id)) * direction
+    );
+  });
+
+  /** 每个可见 View 一张卡片，卡片内为该 View 的 Span 列表 */
+  const cards = computed<IRumTimelineCardVM[]>(() =>
+    views.value.map(({ node, children }) => ({
+      key: node.span_id,
+      timeText: getViewTimeText(node.span_id),
+      view: buildViewVM(node, recordMap.value, currentSpan.value, formatField),
+      items: buildTimelineItems(children, {
+        recordMap: recordMap.value,
+        currentSpanId: currentSpan.value,
+        currentPath: new Set(currentPath.value),
+        expandedFolds: expandedFolds.value,
+        expandedNodes: expandedNodes.value,
+        showAll: hasFilter.value,
+        traceInfoMap: traceInfoMap.value,
+      }),
+    }))
   );
 
-  /** 按 view_id 查询时只有一个顶层 View 节点 */
-  const viewNode = computed(() => timeline.value?.tree?.[0] ?? null);
-  const currentPath = computed(() => findSpanPath(timeline.value?.tree, unref(currentSpanId)));
+  /** 折叠中间 View 时的展示列表：首尾各保留 2 张卡片，中间收成一张隐藏卡片，不超过 4 张时全部展示 */
+  const cardItems = computed<IRumTimelineCardItemVM[]>(() => {
+    const list = cards.value;
+    if (!collapseMiddleView.value || list.length <= COLLAPSE_EDGE_VIEW_COUNT * 2) {
+      return list.map(card => ({ kind: 'card', card }));
+    }
+    const head = list.slice(0, COLLAPSE_EDGE_VIEW_COUNT).map(card => ({ kind: 'card' as const, card }));
+    const tail = list.slice(-COLLAPSE_EDGE_VIEW_COUNT).map(card => ({ kind: 'card' as const, card }));
+    const hidden: IRumTimelineCardItemVM = {
+      kind: 'hidden',
+      count: list.length - COLLAPSE_EDGE_VIEW_COUNT * 2,
+    };
+    return [...head, hidden, ...tail];
+  });
+
+  /** 点击隐藏卡片：展示全部 View，并同步取消「折叠中间 View」勾选 */
+  const handleExpandHiddenViews = () => {
+    collapseMiddleView.value = false;
+  };
 
   /** 数据或当前 Span 变化时重置展开状态：折叠段全部收起，只展开当前 Span 的祖先节点 */
   watch(
@@ -400,8 +527,8 @@ export function useTraceContext({
     { immediate: true }
   );
 
-  /** 筛选生效时默认展开过滤结果的全部祖先，保证命中可见，之后仍可手动收起；筛选取消时恢复默认展开状态 */
-  watch([hasFilter, filteredChildren], ([filterActive, nodes]) => {
+  /** 筛选生效时默认展开命中项的祖先，保证命中可见，之后仍可手动收起；筛选取消时恢复默认展开状态 */
+  watch([hasFilter, visibleViews], ([filterActive, currentViews]) => {
     if (!filterActive) {
       expandedFolds.value = new Set();
       expandedNodes.value = new Set(currentPath.value.slice(0, -1));
@@ -416,25 +543,9 @@ export function useTraceContext({
         }
       }
     };
-    collectExpandable(nodes);
+    for (const view of currentViews) collectExpandable(view.children);
     expandedNodes.value = next;
   });
-
-  const viewVM = computed<IRumTimelineViewVM | null>(() =>
-    viewNode.value ? buildViewVM(viewNode.value, recordMap.value, unref(currentSpanId), formatField) : null
-  );
-
-  const items = computed<IRumTimelineItemVM[]>(() =>
-    buildTimelineItems(filteredChildren.value, {
-      recordMap: recordMap.value,
-      currentSpanId: unref(currentSpanId),
-      currentPath: new Set(currentPath.value),
-      expandedFolds: expandedFolds.value,
-      expandedNodes: expandedNodes.value,
-      showAll: hasFilter.value,
-      traceInfoMap: traceInfoMap.value,
-    })
-  );
 
   /** 展开一段折叠的 Span */
   const handleExpandFold = (key: string) => {
@@ -458,12 +569,19 @@ export function useTraceContext({
   return {
     loading,
     error,
-    viewVM,
-    items,
-    handleExpandFold,
-    handleToggleNode,
-    observeTimelineRows,
+    cards,
+    cardItems,
+    hasFilter,
     filterKeyword,
     filterCategory,
+    sortOrder,
+    collapseMiddleView,
+    durationText,
+    beginDateText,
+    endDurationText,
+    handleExpandFold,
+    handleExpandHiddenViews,
+    handleToggleNode,
+    observeTimelineRows,
   };
 }

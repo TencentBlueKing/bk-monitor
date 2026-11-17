@@ -25,8 +25,9 @@
  */
 
 import type { IRumField } from '../../typings';
+import type { RumRatingType } from '../../typings/enum';
 import type { IRumHoverInfo } from './detail';
-import type { RumCardToneType, RumRatingType, RumSectionType, RumTimelineFilterCategoryType } from './enum';
+import type { RumCardToneType, RumSectionType, RumTimelineFilterCategoryType } from './enum';
 
 /** 徽标：标题右侧的关键指标与状态 */
 export interface IRumBadgeVM {
@@ -149,6 +150,8 @@ export interface IRumOverviewItemVM {
   isLink?: boolean;
   key: string;
   label: string;
+  /** 原始值：点击「添加为检索条件」时回传，避免把展示文本当作检索值 */
+  rawValue?: unknown;
   value: string;
 }
 

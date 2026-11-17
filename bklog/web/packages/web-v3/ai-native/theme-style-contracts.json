@@ -4122,7 +4122,7 @@
       "file": "features/retrieval/workbench/search-result-panel/log-result/log-result-exception.tsx",
       "owner": "business-context",
       "inline": {
-        "nativeStyleSites": 4,
+        "nativeStyleSites": 3,
         "dynamicStyleSites": 0,
         "pendingInlineNormalization": 0
       },

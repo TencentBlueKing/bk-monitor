@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RumRatingType, RumSectionType } from './enum';
+import type { RumRatingType } from '../../typings/enum';
+import type { RumSectionType } from './enum';
 
 /** 详情抽屉打开时由列表侧传入的上下文 */
 export interface IRumDetailContext {

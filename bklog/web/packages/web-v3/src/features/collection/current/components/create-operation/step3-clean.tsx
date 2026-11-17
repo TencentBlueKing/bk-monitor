@@ -1,3 +1,4 @@
+import { renderCleaningFormSkeleton } from './form-skeleton';
 import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 /*
  * Tencent is pleased to support the open source community by making
@@ -2568,7 +2569,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     return () => (
       <div
         class='operation-step3-clean'
-        v-loading={{ loading: basicLoading.value }}
+        v-loading={{ loading: basicLoading.value, indicator: renderCleaningFormSkeleton }}
       >
         {cardRender(showCardConfig.value)}
         <CleanTemplateDialog

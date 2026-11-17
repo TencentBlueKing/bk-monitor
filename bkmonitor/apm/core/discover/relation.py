@@ -325,6 +325,7 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
 
         self.handle_cache_refresh_after_create(
             existing_instances=list(remain_data.values()),
+            remain_data=remain_data,
             created_db_instances=created_instances,
             updated_instances=need_update_instances,
         )

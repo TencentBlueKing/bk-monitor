@@ -30,7 +30,7 @@ import KeyValueList from '../components/detail-sections/key-value-list';
 import RatingBar from '../components/detail-sections/rating-bar';
 import SummaryCards from '../components/detail-sections/summary-cards';
 import WaterfallChart from '../components/detail-sections/waterfall-chart';
-import { RumSectionTypeEnum } from '../typings';
+import { RumSectionTypeEnum } from '../constants';
 
 import type { IRumDetailSectionVM, RumSectionType } from '../typings';
 

@@ -1,0 +1,100 @@
+.timeline-range-marker {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+
+  .marker-axis {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: 4px;
+    align-items: center;
+    width: 31px;
+  }
+
+  .marker-connector {
+    flex-shrink: 0;
+    width: 1px;
+    height: 11px;
+    background: #c1cde5;
+  }
+
+  .marker-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: 1px solid #4e5e7a;
+    border-radius: 999px;
+  }
+
+  /* 结束标记的圆环略小 */
+  &.end {
+    .marker-icon {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  /* 头部横幅：图标在上，连线向下接第一张卡片 */
+  &.is-head {
+    .marker-axis {
+      padding-top: 4px;
+    }
+
+    .marker-connector {
+      height: 16px;
+    }
+  }
+
+  /* 尾部横幅：连线向上接最后一张卡片，图标在下 */
+  &.is-tail {
+    padding-bottom: 10px;
+
+    /* 文案中心对齐图标中心 */
+    .marker-message {
+      margin-top: 10px;
+    }
+  }
+
+  .marker-shape {
+    display: inline-block;
+
+    &.is-play {
+      width: 0;
+      height: 0;
+      margin-left: 2px;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid #4e5e7a;
+    }
+
+    &.is-stop {
+      width: 8px;
+      height: 8px;
+      background: #4e5e7a;
+      border-radius: 1px;
+    }
+  }
+
+  .marker-message {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+    height: 28px;
+    padding: 2px 12px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4e5e7a;
+    background: #e9edf5;
+    border-radius: 4px;
+  }
+
+  .marker-strong {
+    font-family: Arial, sans-serif;
+    font-weight: 700;
+  }
+}
