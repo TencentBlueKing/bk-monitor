@@ -18,6 +18,7 @@ from alarm_backends.constants import (
     CONST_ONE_WEEK,
 )
 from alarm_backends.core.cluster import get_cluster
+from alarm_backends.core.storage.redis import Cache, has_module_redis_url
 from alarm_backends.core.storage.redis_cluster import RedisProxy
 from bkmonitor.utils.text import underscore_to_camel
 
@@ -70,7 +71,15 @@ class RedisDataKey:
     @property
     def client(self):
         if self._cache is None:
-            self._cache = RedisProxy(self.backend)
+            if "-" in self.backend:
+                # 模块级独立路由（如 service-new_series -> REDIS_CACHE_NEW_SERIES_URL）：
+                # 仅在显式配置 URL 时连接独立单实例；未配置时回退父后端分片代理，不改变默认环境分片机制。
+                if has_module_redis_url(self.backend):
+                    self._cache = Cache(self.backend)
+                else:
+                    self._cache = RedisProxy(self.backend.split("-", 1)[0])
+            else:
+                self._cache = RedisProxy(self.backend)
         return self._cache
 
     def get_key(self, **kwargs):
@@ -457,7 +466,7 @@ NEW_SERIES_SEEN_KEY = register_key_with_config(
         "key_type": "sorted_set",
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.seen.{{strategy_id}}.{{item_id}}.{{dimension_signature}}",
         "ttl": TTL_NOT_SET,
-        "backend": "service",
+        "backend": "service-new_series",
     }
 )
 
@@ -471,7 +480,7 @@ NEW_SERIES_THRESHOLD_SEEN_KEY = register_key_with_config(
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.threshold_seen.{{strategy_id}}.{{item_id}}."
         "{dimension_signature}.{threshold}",
         "ttl": TTL_NOT_SET,
-        "backend": "service",
+        "backend": "service-new_series",
     }
 )
 
@@ -487,7 +496,7 @@ NEW_SERIES_ACTIVE_KEY = register_key_with_config(
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.active.{{strategy_id}}.{{item_id}}."
         "{dimension_signature}.{level}.{threshold}.{detect_range}",
         "ttl": TTL_NOT_SET,
-        "backend": "service",
+        "backend": "service-new_series",
     }
 )
 
@@ -502,7 +511,7 @@ NEW_SERIES_CLAIMED_KEY = register_key_with_config(
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.claimed.{{strategy_id}}.{{item_id}}."
         "{dimension_signature}.{level}.{threshold}.{detect_range}",
         "ttl": TTL_NOT_SET,
-        "backend": "service",
+        "backend": "service-new_series",
     }
 )
 
@@ -517,7 +526,7 @@ NEW_SERIES_TERMINATED_KEY = register_key_with_config(
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.terminated.{{strategy_id}}.{{item_id}}."
         "{dimension_signature}.{level}.{threshold}.{detect_range}",
         "ttl": TTL_NOT_SET,
-        "backend": "service",
+        "backend": "service-new_series",
     }
 )
 
@@ -529,7 +538,7 @@ NEW_SERIES_LEARN_START_KEY = register_key_with_config(
         "key_type": "string",
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.learn_start.{{strategy_id}}.{{item_id}}.{{dimension_signature}}",
         "ttl": TTL_NOT_SET,
-        "backend": "service",
+        "backend": "service-new_series",
     }
 )
 
@@ -542,7 +551,7 @@ NEW_SERIES_BASELINE_PROGRESS_KEY = register_key_with_config(
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.baseline_progress.{{strategy_id}}.{{item_id}}."
         "{dimension_signature}.{threshold}",
         "ttl": TTL_NOT_SET,
-        "backend": "service",
+        "backend": "service-new_series",
     }
 )
 
@@ -554,7 +563,7 @@ NEW_SERIES_BASELINE_DONE_KEY = register_key_with_config(
         "key_type": "string",
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.baseline_done.{{strategy_id}}.{{item_id}}.{{dimension_signature}}",
         "ttl": TTL_NOT_SET,
-        "backend": "service",
+        "backend": "service-new_series",
     }
 )
 
@@ -566,7 +575,7 @@ NEW_SERIES_THRESHOLD_BASELINE_DONE_KEY = register_key_with_config(
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.threshold_baseline_done.{{strategy_id}}.{{item_id}}."
         "{dimension_signature}.{threshold}",
         "ttl": TTL_NOT_SET,
-        "backend": "service",
+        "backend": "service-new_series",
     }
 )
 
