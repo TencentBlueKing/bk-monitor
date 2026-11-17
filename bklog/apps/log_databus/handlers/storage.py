@@ -1146,11 +1146,10 @@ class StorageHandler:
             if raw_custom_option.get("bk_biz_id") != bk_biz_id:
                 raise StorageNotPermissionException()
 
-        # 公共集群的 bk_biz_id 会在 filter_doris_cluster 里被强制改写为蓝鲸业务，
-        # 若允许写入 current_biz，则「当前业务可见」实际只对蓝鲸业务生效，
-        # 与「配置了开放目标后仅匹配的空间可选」不符；同时状态查询使用原始
-        # custom_option，会与候选列表给出相反结论。本单据的收口动作是给 15 个
-        # _default 集群逐条补配，误配概率最高，故在写入侧直接拒绝。
+        # 公共集群的 bk_biz_id 会被 filter_doris_cluster 强制改写为蓝鲸业务。
+        # 若写入 current_biz，_can_visible_doris 只会把它判给蓝鲸业务；
+        # 而 batch_connectivity_detect 读的是原始 custom_option，结论相反。
+        # _default 集群需要逐条补配可见范围，误配概率最高，故在写入侧直接拒绝。
         visible_config = params["visible_config"]
         if (
             registered_system == REGISTERED_SYSTEM_DEFAULT
