@@ -99,6 +99,8 @@ export function useProfilingQuery() {
   let initialized = false;
   let restoring = 0;
   let filterQueryPending = false;
+  // 进入采集视图前的全局时间范围，离开时恢复，避免采集默认的 7 天污染应用主查询
+  let timeRangeBeforeCollection: null | QueryState['timeRange'] = null;
   const pendingWrites = new Set<string>();
   const valueCache = new Map<string, Promise<string[]>>();
 
@@ -376,6 +378,14 @@ export function useProfilingQuery() {
     valueController.abort();
     loading.value = false;
     initialized = true;
+    const previousTab = state.value.view.tab;
+    if (tab === 'collection' && previousTab !== 'collection') {
+      timeRangeBeforeCollection = state.value.timeRange;
+      patch({ timeRange: ['now-7d', 'now'] });
+    } else if (previousTab === 'collection' && tab !== 'collection' && timeRangeBeforeCollection) {
+      patch({ timeRange: timeRangeBeforeCollection });
+      timeRangeBeforeCollection = null;
+    }
     patchView({ tab });
     if (tab === 'file') {
       await files.refreshRecords(true);
@@ -519,7 +529,6 @@ export function useProfilingQuery() {
 
   function collectionCreated() {
     patch({
-      timeRange: ['now-7d', 'now'],
       collection: {
         ...state.value.collection,
         tab: 'history',

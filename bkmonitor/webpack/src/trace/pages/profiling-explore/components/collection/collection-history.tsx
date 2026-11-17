@@ -79,8 +79,9 @@ const SCROLL_BACK_DISTANCE = 120;
 
 // 列表存在过渡态行时静默刷新的间隔，静默刷新不展示 loading
 const SILENT_REFRESH_INTERVAL = 5000;
-// 同一列表连续静默刷新的上限，超过仍处于过渡态视为超时并停止
-const SILENT_REFRESH_LIMIT = 50;
+// 同一列表连续静默刷新的上限：采集时长最长 300s（60 轮），结束后还会进入 parsing，
+// 取 90 轮（450s）覆盖整段过渡态，避免采集未结束就停止轮询
+const SILENT_REFRESH_LIMIT = 90;
 // 需要轮询刷新的过渡态：采集中、解析中；到终态后停止
 const pendingExecutionStatuses = ['running', 'parsing'];
 
@@ -213,6 +214,7 @@ export default defineComponent({
       h.rows.value.some(row => pendingExecutionStatuses.includes(row.execution_status))
     );
     let silentRefreshCount = 0;
+    let silentRefreshStopped = false;
     let silentRefreshTimer: null | ReturnType<typeof setTimeout> = null;
     function stopSilentRefresh() {
       if (!silentRefreshTimer) return;
@@ -220,14 +222,17 @@ export default defineComponent({
       silentRefreshTimer = null;
     }
     function scheduleSilentRefresh() {
+      if (silentRefreshStopped) return;
       stopSilentRefresh();
       // 主动加载中、查询失败、无过渡态行或已达刷新上限时不再轮询
       if (h.loading.value || h.error.value || !hasPendingExecution.value) return;
       if (silentRefreshCount >= SILENT_REFRESH_LIMIT) return;
       silentRefreshTimer = setTimeout(async () => {
         silentRefreshTimer = null;
+        if (silentRefreshStopped) return;
         silentRefreshCount += 1;
         await h.silentRefresh();
+        if (silentRefreshStopped) return;
         // 过渡态行消失时 watch 会结束轮询，这里负责继续下一轮
         scheduleSilentRefresh();
       }, SILENT_REFRESH_INTERVAL);
@@ -241,7 +246,10 @@ export default defineComponent({
       },
       { immediate: true }
     );
-    onScopeDispose(stopSilentRefresh);
+    onScopeDispose(() => {
+      silentRefreshStopped = true;
+      stopSilentRefresh();
+    });
     // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新；
     // 详情关闭后不再计入，防止卸载时漏发复位导致 busy 卡住
     const executionBusy = shallowRef(false);
@@ -256,7 +264,7 @@ export default defineComponent({
       () =>
         !!props.filters.task_id ||
         !!props.filters.task_name ||
-        !!props.filters.status ||
+        !!props.filters.status.length ||
         props.filters.schedule_types.length ||
         props.filters.ips.length ||
         props.filters.process_names.length ||
@@ -382,7 +390,9 @@ export default defineComponent({
           ...(column.field === 'execution_status'
             ? {
                 filter: {
-                  type: 'single',
+                  type: 'multiple',
+                  resetValue: [],
+                  showConfirmAndReset: true,
                   list: this.statusFilters
                     .filter(value => Object.hasOwn(executionStatusLabels, value))
                     .map(value => ({ value, label: this.t(executionStatusLabels[value]) })),
@@ -528,7 +538,7 @@ export default defineComponent({
             onFilterChange={value =>
               this.$emit('change', {
                 ...this.filters,
-                status: String(value.execution_status || ''),
+                status: (value.execution_status || []) as string[],
                 schedule_types: (value.schedule_type || []) as string[],
               })
             }

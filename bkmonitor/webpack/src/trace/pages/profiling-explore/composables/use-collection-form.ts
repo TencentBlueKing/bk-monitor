@@ -264,7 +264,7 @@ export function useCollectionForm(
   watch(previewPageSize, () => {
     previewPage.value = 1;
   });
-  if (task) hydrateHosts();
+  if (task || prefill) hydrateHosts();
   onScopeDispose(() => {
     controller.abort();
     previewController?.abort();

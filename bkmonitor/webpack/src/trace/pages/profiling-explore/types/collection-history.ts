@@ -89,7 +89,8 @@ export interface CollectionHistoryFilters {
   process_pids: string[];
   // 执行方式筛选，取值为 immediate / once_at / cron
   schedule_types: string[];
-  status: string;
+  // 状态列多选筛选，取值需同时兼容任务历史与结果列表两套文案
+  status: string[];
   // 计划任务按 ID 精确定位，与 task_name 二选一；立即执行的任务没有 ID
   task_id: null | number;
   task_name: string;

@@ -222,12 +222,14 @@ export default defineComponent({
       }
       return (
         <div
+          class='collection-filter-trigger'
           onClick={handleTriggerClick}
           {...toggles}
         >
+          <span class='collection-filter-selected'>{selected.map(labelOf).join(',')}</span>
           <Input
             v-slots={{ suffix: renderSuffixIcon }}
-            modelValue={customValue.value || selected.map(labelOf).join(',')}
+            modelValue={customValue.value}
             placeholder={selected.length ? '' : triggerPlaceholder.value}
             stopPropagation={false}
             onEnter={commitCustomValue}
