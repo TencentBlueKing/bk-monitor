@@ -29,7 +29,7 @@ from apm.constants import (
     ACTIVE_PROFILING_SUCCEED_STATUSES,
     ACTIVE_PROFILING_UNKNOWN_GRACE_SEC,
 )
-from apm.core.handlers.profile.active_profiling import PROCESS_CANDIDATE_PATTERN
+from apm.core.handlers.profile.active_profiling import PROCESS_CANDIDATE_PATTERN, STARTED_HOST_STATUSES
 from apm.models import ProfileDataSource
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.request import get_request_tenant_id
@@ -40,7 +40,12 @@ from metadata.models import EventGroup
 
 class ActiveProfilingEventQueryHandler:
     """按 Event ES 聚合的查询，source=es 时使用，保留一期的查询能力：
-    已采数据、任务历史、执行详情按同一口径把 started/finished 配成主机执行，outdate、unknown 等都在查询时派生"""
+    已采数据、任务历史、执行详情按同一口径把 started/finished 配成主机执行，outdate、unknown 等都在查询时派生。
+    MySQL 查询在预计算落后时用两个列表取落后区间内的计划执行，params 带上 overrides，
+    把 SaaS 只写进 MySQL 的信息覆盖到 Event 配出的行上：
+    - hosts：{主机执行键: {"status": "cancelled", "finished_at": ...}}，SaaS 受理取消后采集端的 finished 还没上报
+    - task_names：{执行键: 任务名}，改名只改执行表
+    覆盖后状态与任务名会变，这两项不下推 ES，在内存中按覆盖后的值筛选"""
 
     def __init__(self, bk_biz_id):
         self.bk_biz_id = bk_biz_id
@@ -61,14 +66,18 @@ class ActiveProfilingEventQueryHandler:
         events = self._iter_events(
             self._build_hosts_queryset(params, statuses), end * 2 + 1, ACTIVE_PROFILING_ES_QUERY_BATCH_SIZE
         )
+        overrides = self._get_overrides(params)
         rows = (
-            self._build_host_row(key, host_events)
+            self._build_host_row(key, host_events, overrides)
             for key, host_events in self._iter_matched_hosts(events, self._build_process_matcher(params))
         )
         # running 要看有没有 finished，成功类要排除还在解析中的行，多选时下推的条件只是各状态的并集，
         # 都要配对后在内存中按行状态筛选
-        if statuses:
-            rows = (row for row in rows if row["status"] in statuses)
+        row_filter = self._build_row_filter(
+            params, statuses, lambda row: row["status"], lambda row: row["task"]["name"]
+        )
+        if row_filter:
+            rows = filter(row_filter, rows)
         return self._paginate(rows, offset, end)
 
     def list_executions(self, params):
@@ -78,13 +87,44 @@ class ActiveProfilingEventQueryHandler:
         if "unknown" in statuses:
             raise ValueError(_("暂不支持按 unknown 状态筛选"))
 
+        row_filter = self._build_row_filter(
+            params, statuses, lambda row: row["execution_status"], lambda row: row["task_name"]
+        )
         host_filter = self._build_host_filter(params)
         if host_filter:
-            return self._query_host_matched_executions(params, statuses, host_filter)
-        return self._scan_executions(params, statuses)
+            return self._query_host_matched_executions(params, row_filter, host_filter)
+        return self._scan_executions(params, row_filter)
+
+    @staticmethod
+    def _get_overrides(params):
+        overrides = params.get("overrides") or {}
+        return {"hosts": overrides.get("hosts") or {}, "task_names": overrides.get("task_names") or {}}
+
+    def _build_row_filter(self, params, statuses, get_status, get_task_name):
+        """配对后在内存中筛选的条件：状态都在内存中筛；任务名有覆盖时不下推，也在内存中按覆盖后的名称包含匹配"""
+        task_name = params.get("filters", {}).get("task_name") if self._get_overrides(params)["task_names"] else None
+        if not statuses and not task_name:
+            return None
+        return lambda row: (
+            (not statuses or get_status(row) in statuses) and (not task_name or task_name in get_task_name(row))
+        )
+
+    def _override_host(self, host, key, overrides):
+        """SaaS 已受理取消、采集端的 finished 还没上报时，Event 配出的还是 running/unknown，以 MySQL 的取消为准；
+        已有 finished 时以 Event 为准，与预计算的覆盖顺序一致"""
+        override = overrides["hosts"].get(self._normalize_host_execution_key(key))
+        if override and host["status"] in STARTED_HOST_STATUSES:
+            host.update(override)
+
+    @staticmethod
+    def _override_task_name(key, dimensions, overrides):
+        schedule_type, scheduled_at, task_id = key[:3]
+        return overrides["task_names"].get(
+            (schedule_type, int(scheduled_at), int(task_id or 0)), dimensions["task_name"]
+        )
 
     def query_topk(self, params):
-        """搜索框候选值，与两个列表一样按 scheduled_at 选取，按事件数倒序取前 limit 个"""
+        """搜索框候选值，与两个列表一样按 scheduled_at 选取，按主机执行数倒序取前 limit 个，与 MySQL 查询同一口径"""
         if params.get("keyword"):
             raise ValueError(_("暂不支持按关键字搜索候选"))
         field = params["field"]
@@ -125,17 +165,19 @@ class ActiveProfilingEventQueryHandler:
         """筛选全部下推 ES：终态再按 status 维度筛选，outdate 是过期的成功类终态，多选取各状态的并集；
         running 要看有没有 finished，不能按 status 筛，只收窄 scheduled_at"""
         filter_dict = {**self._build_execution_filter(params), **self._build_host_filter(params)}
-        if statuses and "running" not in statuses:
+        # 有取消覆盖时 running 的 Event 可能展示为 cancelled，状态不下推
+        if statuses and "running" not in statuses and not self._get_overrides(params)["hosts"]:
             dimension_statuses = []
             for status in statuses:
                 dimension_statuses.extend(ACTIVE_PROFILING_SUCCEED_STATUSES if status == "outdate" else [status])
             filter_dict["status"] = list(dict.fromkeys(dimension_statuses))
         return self._build_list_queryset(params, filter_dict)
 
-    def _build_host_row(self, key, events):
+    def _build_host_row(self, key, events, overrides):
         schedule_type, scheduled_at, task_id, __ = key
         row, dimensions, __ = self._resolve_host(events)
-        task = {"name": dimensions["task_name"], "schedule_type": schedule_type}
+        self._override_host(row, key, overrides)
+        task = {"name": self._override_task_name(key, dimensions, overrides), "schedule_type": schedule_type}
         if task_id:
             task = {"task_id": int(task_id), **task}
         # 列表不展示执行信息，只有失败的行带失败类型，与 MySQL 查询的口径一致
@@ -152,20 +194,21 @@ class ActiveProfilingEventQueryHandler:
         )
         return row
 
-    def _scan_executions(self, params, statuses):
+    def _scan_executions(self, params, row_filter):
         """筛选都是执行级维度时一次扫描，同一执行的 Event 相邻，边读边按执行汇总，执行状态在内存中筛选"""
         offset = params["offset"]
         end = offset + params["limit"]
         queryset = self._build_list_queryset(params, self._build_execution_filter(params))
+        overrides = self._get_overrides(params)
         rows = (
-            self._build_execution_row(key, events)
+            self._build_execution_row(key, events, overrides)
             for key, events in groupby(self._iter_execution_events(queryset, end), key=self._execution_key)
         )
-        if statuses:
-            rows = (row for row in rows if row["execution_status"] in statuses)
+        if row_filter:
+            rows = filter(row_filter, rows)
         return self._paginate(rows, offset, end)
 
-    def _query_host_matched_executions(self, params, statuses, host_filter):
+    def _query_host_matched_executions(self, params, row_filter, host_filter):
         """主机/进程只决定选中哪些执行，不改变执行的汇总结果：先按主机筛出命中的执行，再回查这些执行的全部主机"""
         offset = params["offset"]
         end = offset + params["limit"]
@@ -177,38 +220,35 @@ class ActiveProfilingEventQueryHandler:
             for key, events in groupby(self._iter_execution_events(queryset, end), key=self._execution_key)
             if matcher is None or any(True for __ in self._iter_matched_hosts(events, matcher))
         )
-        if not statuses:
+        if not row_filter:
             # 每个命中的执行就是一行，offset 之前的执行不用回查，总数即命中的执行数
             page = self._paginate(keys, offset, end)
             return {**page, "data": self._query_execution_rows(params, execution_filter, page["data"])}
 
-        # 状态要回查全部主机汇总后才知道，每轮只回查还缺的行数个执行，不够时接着上一轮继续找命中的执行
+        # 状态（及覆盖后的任务名）要回查全部主机汇总后才知道，每轮只回查还缺的行数个执行，
+        # 不够时接着上一轮继续找命中的执行
         rows = []
         while len(rows) < end:
             chunk = list(islice(keys, end - len(rows)))
             if not chunk:
                 # 命中的执行已全部回查过
                 return {"data": rows[offset:], "total": len(rows)}
-            rows.extend(self._query_status_matched_rows(params, execution_filter, chunk, statuses))
+            rows.extend(self._query_filtered_rows(params, execution_filter, chunk, row_filter))
         return {
             "data": rows[offset:],
-            "total": self._count_status_matched_executions(params, execution_filter, keys, statuses, len(rows)),
+            "total": self._count_filtered_executions(params, execution_filter, keys, row_filter, len(rows)),
         }
 
-    def _query_status_matched_rows(self, params, execution_filter, keys, statuses):
-        return [
-            row
-            for row in self._query_execution_rows(params, execution_filter, keys)
-            if row["execution_status"] in statuses
-        ]
+    def _query_filtered_rows(self, params, execution_filter, keys, row_filter):
+        return list(filter(row_filter, self._query_execution_rows(params, execution_filter, keys)))
 
-    def _count_status_matched_executions(self, params, execution_filter, keys, statuses, counted):
+    def _count_filtered_executions(self, params, execution_filter, keys, row_filter, counted):
         """本页之后命中的执行再回查一次统计总数；剩余的执行过多或超出查询上限时不再回查，总数未知"""
         try:
             remaining = list(islice(keys, ACTIVE_PROFILING_ES_FALLBACK_MAX_HOST_TERMS + 1))
             if len(remaining) > ACTIVE_PROFILING_ES_FALLBACK_MAX_HOST_TERMS:
                 return None
-            return counted + len(self._query_status_matched_rows(params, execution_filter, remaining, statuses))
+            return counted + len(self._query_filtered_rows(params, execution_filter, remaining, row_filter))
         except ValueError:
             return None
 
@@ -278,8 +318,9 @@ class ActiveProfilingEventQueryHandler:
         if len(events) >= ACTIVE_PROFILING_ES_QUERY_MAX_SIZE:
             raise ValueError(_("当前页执行的主机过多，超出查询上限"))
         selected_keys = set(keys)
+        overrides = self._get_overrides(params)
         return [
-            self._build_execution_row(key, execution_events)
+            self._build_execution_row(key, execution_events, overrides)
             for key, execution_events in groupby(events, key=self._execution_key)
             if key in selected_keys
         ]
@@ -292,15 +333,17 @@ class ActiveProfilingEventQueryHandler:
             ACTIVE_PROFILING_ES_EXECUTION_BATCH_SIZE,
         )
 
-    def _build_execution_row(self, key, events):
+    def _build_execution_row(self, key, events, overrides):
         schedule_type, scheduled_at, task_id = key
         hosts = []
-        for __, host_events in groupby(events, key=self._host_execution_key):
+        for host_key, host_events in groupby(events, key=self._host_execution_key):
             host, dimensions, __ = self._resolve_host(host_events)
+            # 先覆盖再汇总，执行状态与状态计数按覆盖后的主机计
+            self._override_host(host, host_key, overrides)
             hosts.append(host)
         row = {"task_id": int(task_id)} if task_id else {}
         row.update(
-            task_name=dimensions["task_name"],
+            task_name=self._override_task_name(key, dimensions, overrides),
             schedule_type=schedule_type,
             scheduled_at=int(scheduled_at),
             collection_method=dimensions["collection_method"],
@@ -337,14 +380,16 @@ class ActiveProfilingEventQueryHandler:
         )
         return self._build_unify_queryset(start_time, end_time).add_query(q)
 
-    def _build_query_config(self, filter_dict):
+    def _build_query_config(
+        self, filter_dict, event_names=(ACTIVE_PROFILING_STARTED_EVENT, ACTIVE_PROFILING_FINISHED_EVENT)
+    ):
         return (
             QueryConfigBuilder((DataTypeLabel.EVENT, DataSourceLabel.CUSTOM))
             .table(self.event_table_id)
             .filter(
                 bk_tenant_id=get_request_tenant_id(),
                 bk_biz_id=self.bk_biz_id,
-                event_name=[ACTIVE_PROFILING_STARTED_EVENT, ACTIVE_PROFILING_FINISHED_EVENT],
+                event_name=list(event_names),
                 **filter_dict,
             )
         )
@@ -363,7 +408,8 @@ class ActiveProfilingEventQueryHandler:
         dimension 都是 keyword，scheduled_at 按字典序比较，13 位毫秒时间戳的字典序与数值序一致"""
         filters = params.get("filters", {})
         optional_filters = {
-            "task_name__include": filters.get("task_name"),
+            # 有任务名覆盖时按覆盖后的名称在内存中筛，见 _build_row_filter
+            "task_name__include": None if self._get_overrides(params)["task_names"] else filters.get("task_name"),
             "schedule_type": filters.get("schedule_types"),
             "collection_method": filters.get("collection_methods"),
             "collection_type": filters.get("collection_types"),
@@ -634,12 +680,14 @@ class ActiveProfilingEventQueryHandler:
         return [{"value": value, "alias": value, "count": count} for value, count in islice(candidates.items(), limit)]
 
     def _query_group_counts(self, params, fields, limit):
-        """按字段分组统计事件数，按事件数倒序返回 (各字段取值, 事件数)。
+        """按字段分组统计主机执行数，按主机执行数倒序返回 (各字段取值, 主机执行数)。
+        每次主机执行有一条 started，只数 started，与 MySQL 按主机执行计数同一口径；
+        作业下发失败的立即执行只补发 finished，不计入，计数只用于排序，按可接受处理。
         与事件检索 TopK 的分组计数口径一致：只按计数字段分组计数，其余字段先在查询配置上分组，取值按位置对应"""
         *group_fields, count_field = fields
         alias = "a"
         q = (
-            self._build_query_config(self._build_execution_filter(params))
+            self._build_query_config(self._build_execution_filter(params), [ACTIVE_PROFILING_STARTED_EVENT])
             .time_field("time")
             .group_by(*group_fields)
             .metric(field=count_field, method="COUNT", alias=alias)

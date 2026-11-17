@@ -190,7 +190,8 @@ class ActiveProfilingExecutionQueryHandler:
     预计算停摆或漏写时回退 Event ES，只改本次响应、不写回库：
     - 预计算落后（Event ES 里 5 分钟前已上报的最新一次计划执行，执行表里没有）时，只有落后区间内的计划执行取自 ES，
       与 MySQL 的行归并后分页；计划执行的行由预计算按 Event 建，停摆期间 MySQL 里没有。
-      立即执行与落后区间之前的行仍读 MySQL：SaaS 写入的占位行、下发失败、取消没有对应的 Event，整个改查 ES 会丢
+      立即执行与落后区间之前的行仍读 MySQL：SaaS 写入的占位行、下发失败、取消没有对应的 Event，整个改查 ES 会丢；
+      落后区间内执行表已有的执行，SaaS 写入的取消与改名覆盖到 ES 的行上
     - MySQL 一行都没有匹配时改查 ES；
     - 页内待校正的主机行（已转 unknown，或采集时长过后仍为 running）一次回查 Event 补上终态，只补不切换，
       立即执行由 SaaS 提交时建行，偶发的漏处理补上即可"""
@@ -224,14 +225,11 @@ class ActiveProfilingExecutionQueryHandler:
         ordering = ("-scheduled_at", "-execution_id", "-bk_host_id")
         gap_start = self._get_lag_gap_start(params)
         if gap_start is not None:
-            gap_executions = self._execution_queryset(
-                {**params, "start_time": gap_start}, {"schedule_type__in": ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES}
-            )
             merged = self._query_with_lag_gap(
                 "query_hosts",
                 params,
                 gap_start,
-                queryset.exclude(execution_id__in=gap_executions.values("id")).order_by(*ordering),
+                queryset.exclude(execution_id__in=self._lag_gap_execution_ids(params, gap_start)).order_by(*ordering),
                 self._build_host_rows,
             )
             if merged is not None:
@@ -271,9 +269,7 @@ class ActiveProfilingExecutionQueryHandler:
                 "list_executions",
                 params,
                 gap_start,
-                queryset.exclude(
-                    schedule_type__in=ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES, scheduled_at__gte=gap_start
-                ).order_by(*ordering),
+                queryset.exclude(self._lag_gap_q(gap_start)).order_by(*ordering),
                 self._build_execution_rows,
             )
             if merged is not None:
@@ -329,24 +325,29 @@ class ActiveProfilingExecutionQueryHandler:
         return queryset.count()
 
     def query_topk(self, params):
-        """搜索框候选值；时间范围内 MySQL 一个候选都没有时改查 ES，预计算落后时补上落后区间内计划执行的候选；
-        ES 不支持关键字，带关键字时只查 MySQL"""
-        candidates = self._query_topk_candidates(params)
+        """搜索框候选值；预计算落后时落后区间内计划执行的候选取自 ES，与 MySQL 其余的候选归并，与列表同一口径；
+        时间范围内 MySQL 一个候选都没有时改查 ES。ES 不支持关键字，带关键字时只查 MySQL"""
         if params.get("keyword"):
-            return candidates
-        if not candidates:
-            return self._query_es("query_topk", params, default=candidates, reason="no_rows")
+            return self._query_topk_candidates(params)
         gap_start = self._get_lag_gap_start(params)
-        if gap_start is None:
+        if gap_start is not None:
+            gap_candidates = self._query_es(
+                "query_topk",
+                self._build_lag_gap_params(params, gap_start),
+                default=None,
+                reason="lagging",
+                missing_execution=self._missing_planned_execution,
+            )
+            # ES 查询失败时不排除落后区间，仍按 MySQL 的全部候选返回
+            if gap_candidates is not None:
+                # MySQL 一侧排除落后区间内的计划执行，否则执行表里已有的那部分会在两侧重复计数
+                candidates = self._query_topk_candidates(params, gap_start)
+                if gap_candidates or candidates:
+                    return self._merge_topk_candidates(params, gap_candidates, candidates)
+        candidates = self._query_topk_candidates(params)
+        if candidates:
             return candidates
-        gap_candidates = self._query_es(
-            "query_topk",
-            self._build_lag_gap_params(params, gap_start),
-            default=[],
-            reason="lagging",
-            missing_execution=self._missing_planned_execution,
-        )
-        return self._merge_topk_candidates(params, gap_candidates, candidates)
+        return self._query_es("query_topk", params, default=candidates, reason="no_rows")
 
     @staticmethod
     def _merge_topk_candidates(params, gap_candidates, candidates):
@@ -357,15 +358,17 @@ class ActiveProfilingExecutionQueryHandler:
         merged = counts.items() if params["field"] in ("process_names", "process_pids") else counts.most_common()
         return [{"value": value, "alias": value, "count": count} for value, count in islice(merged, params["limit"])]
 
-    def _query_topk_candidates(self, params):
+    def _query_topk_candidates(self, params, gap_start=None):
         """按计划时间范围选取；计数只用于排序，统一按主机执行数计，进程候选按最近出现排序。
-        带关键字时只返回包含关键字的候选"""
+        带关键字时只返回包含关键字的候选；给出落后区间起点时排除区间内的计划执行"""
         field = params["field"]
         limit = params["limit"]
         keyword = params.get("keyword")
         hosts = ActiveProfilingHostExecution.objects.filter(
             bk_biz_id=self.bk_biz_id, scheduled_at__gte=params["start_time"], scheduled_at__lte=params["end_time"]
         )
+        if gap_start is not None:
+            hosts = hosts.exclude(execution_id__in=self._lag_gap_execution_ids(params, gap_start))
         if field == "target":
             if keyword:
                 hosts = hosts.filter(ip__contains=keyword)
@@ -375,9 +378,11 @@ class ActiveProfilingExecutionQueryHandler:
             return self._query_recent_processes(hosts, field, limit, keyword)
 
         # 执行级字段在同一次执行内一致，按执行的主机数累加
+        executions = self._execution_queryset(params, {f"{field}__contains": keyword} if keyword else {})
+        if gap_start is not None:
+            executions = executions.exclude(self._lag_gap_q(gap_start))
         rows = (
-            self._execution_queryset(params, {f"{field}__contains": keyword} if keyword else {})
-            .exclude(**{field: ""})
+            executions.exclude(**{field: ""})
             .values_list(field)
             .annotate(count=Sum("target_count"))
             .order_by("-count")[:limit]
@@ -659,6 +664,45 @@ class ActiveProfilingExecutionQueryHandler:
             return 0
         return min(latest_scheduled_at, missing_scheduled_at) - ACTIVE_PROFILING_RUNNING_WINDOW_MS
 
+    @staticmethod
+    def _lag_gap_q(gap_start):
+        """落后区间内的计划执行：取自 ES，MySQL 一侧要排除"""
+        return Q(schedule_type__in=ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES, scheduled_at__gte=gap_start)
+
+    def _lag_gap_execution_ids(self, params, gap_start):
+        """查询范围内落后区间计划执行的 id，供主机执行一侧排除"""
+        return self._execution_queryset(params, {}).filter(self._lag_gap_q(gap_start)).values("id")
+
+    def _build_lag_gap_overrides(self, params, gap_start):
+        """落后区间内执行表已有的计划执行（通常只有最新一次及其前一个运行窗口内的），SaaS 只写进 MySQL 的信息：
+        取消（采集端的 finished 还没上报）与改名，由 ES 查询覆盖到 Event 配出的行上；
+        执行表已有的执行才能取消、改名，没建行的执行不会有这些信息"""
+        executions = {
+            execution.id: execution
+            for execution in self._execution_queryset(params, {})
+            .filter(self._lag_gap_q(gap_start))
+            .only("id", "schedule_type", "scheduled_at", "task_id", "task_name")
+        }
+        cancelled_hosts = ActiveProfilingHostExecution.objects.filter(
+            execution_id__in=list(executions), status="cancelled"
+        ).values_list("execution_id", "bk_host_id", "finished_at")
+        return {
+            "task_names": {self._execution_key(execution): execution.task_name for execution in executions.values()},
+            "hosts": {
+                # 与 Event 维度对应的主机执行键，同 _host_execution_key
+                (*self._execution_key(executions[execution_id]), bk_host_id): {
+                    "status": "cancelled",
+                    "finished_at": finished_at,
+                }
+                for execution_id, bk_host_id, finished_at in cancelled_hosts
+            },
+        }
+
+    @staticmethod
+    def _execution_key(execution):
+        """与 Event 维度对应的执行键，改造前上报的立即执行没有 task_id，执行表记为 0"""
+        return execution.schedule_type, execution.scheduled_at, execution.task_id
+
     def _build_lag_gap_params(self, params, gap_start):
         """同一请求收窄到落后区间内的计划执行"""
         filters = params.get("filters", {})
@@ -676,7 +720,12 @@ class ActiveProfilingExecutionQueryHandler:
         end = offset + params["limit"]
         gap = self._query_es(
             method,
-            {**self._build_lag_gap_params(params, gap_start), "offset": 0, "limit": end},
+            {
+                **self._build_lag_gap_params(params, gap_start),
+                "offset": 0,
+                "limit": end,
+                "overrides": self._build_lag_gap_overrides(params, gap_start),
+            },
             default=None,
             reason="lagging",
             missing_execution=self._missing_planned_execution,

@@ -2286,7 +2286,7 @@ TOPK_REQUEST = {
 
 
 def test_es_topk_counts_field_values_with_event_topk_query(host_query_apis):
-    # 按事件检索 TopK 的分组计数结果返回，已按事件数倒序
+    # 按事件检索 TopK 的分组计数结果返回，已按主机执行数倒序
     host_query_apis["events"].extend(
         [
             {"task_name": "java-cpu-daily", "_result_": 4},
@@ -2308,11 +2308,11 @@ def test_es_topk_counts_field_values_with_event_topk_query(host_query_apis):
         ["task_name"],
         [{"field": "task_name", "method": "COUNT", "alias": "a"}],
     )
-    # 与两个列表一样按 scheduled_at 选取
+    # 与两个列表一样按 scheduled_at 选取；每次主机执行一条 started，只数 started，与 MySQL 按主机执行计数同一口径
     assert query_config["filter_dict"] == {
         "bk_tenant_id": "system",
         "bk_biz_id": 2,
-        "event_name": ["active_profiling_started", "active_profiling_finished"],
+        "event_name": ["active_profiling_started"],
         "scheduled_at__gte": EVENT_LIST_REQUEST["start_time"],
         "scheduled_at__lte": EVENT_LIST_REQUEST["end_time"],
     }
@@ -3157,6 +3157,78 @@ def test_lagging_merge_applies_filters_to_both_sources(query_rows, event_es):
     assert executions["total"] == 2
 
 
+def cancel_and_rename_lagging_cron(query_rows, event_es):
+    """落后区间内执行表已有的 RECENT_AT cron：SaaS 受理了 457 的取消、把任务改了名，457 的 finished 还没上报，
+    Event 里只有 started（采集 30 秒、开始已 1 小时，配出来是 unknown）"""
+    lagging_event_es(event_es)
+    finished_457 = event_es.events.pop()
+    assert (finished_457["event_name"], finished_457["dimensions"]["bk_host_id"]) == (
+        "active_profiling_finished",
+        "457",
+    )
+    event_es.events.append(
+        started_event(RECENT_AT + 100, bk_host_id=457, target="127.0.0.2", task_id=12, scheduled_at=RECENT_AT)
+    )
+    ActiveProfilingHostExecution.objects.filter(execution_id=query_rows.cron.id, bk_host_id=457).update(
+        status="cancelled", started_at=RECENT_AT + 100, finished_at=RECENT_AT + 5000, cancelled_by="admin"
+    )
+    query_rows.cron.task_name = "order-api-renamed"
+    query_rows.cron.save(update_fields=["task_name"])
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lagging_merge_keeps_mysql_cancel_and_rename(query_rows, event_es):
+    cancel_and_rename_lagging_cron(query_rows, event_es)
+
+    hosts = QueryActiveProfilingHostsResource().request(TIME_RANGE)["data"]
+    executions = ListActiveProfilingExecutionsResource().request(TIME_RANGE)["data"]
+
+    # 落后区间内的执行仍取自 ES，SaaS 写入的取消与改名覆盖上去，不会回到采集中
+    recent_hosts = [row for row in hosts if row["scheduled_at"] == RECENT_AT]
+    assert [(row["bk_host_id"], row["status"], row["finished_at"]) for row in recent_hosts] == [
+        (456, "succeed", RECENT_AT + 31100),
+        (457, "cancelled", RECENT_AT + 5000),
+    ]
+    assert {row["task"]["name"] for row in recent_hosts} == {"order-api-renamed"}
+    recent_execution = next(row for row in executions if row["scheduled_at"] == RECENT_AT)
+    # 执行汇总按覆盖后的主机重算
+    assert (
+        recent_execution["task_name"],
+        recent_execution["execution_status"],
+        recent_execution["status_summary"],
+    ) == ("order-api-renamed", "partial_succeed", {"succeed": 1, "cancelled": 1})
+    # 执行表里没有的执行不受影响
+    planned = next(row for row in executions if row["scheduled_at"] == PLANNED_AT)
+    assert (planned["task_name"], planned["status_summary"]) == ("java-cpu-daily", {"succeed": 1, "failed": 1})
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lagging_merge_filters_by_overridden_status_and_task_name(query_rows, event_es):
+    cancel_and_rename_lagging_cron(query_rows, event_es)
+
+    def request(resource_cls, **filters):
+        result = resource_cls().request({**TIME_RANGE, "filters": filters})
+        keys = [
+            (row["scheduled_at"], row["bk_host_id"]) if "bk_host_id" in row else row["scheduled_at"]
+            for row in result["data"]
+        ]
+        return keys, result["total"]
+
+    hosts, executions = QueryActiveProfilingHostsResource, ListActiveProfilingExecutionsResource
+    # 状态按覆盖后的值筛：Event 里还是 started 的 457 按 cancelled 命中
+    assert request(hosts, status=["cancelled"]) == ([(RECENT_AT, 457)], 1)
+    # 任务名按覆盖后的名称筛：改名后的命中，Event 里的原名不再命中
+    assert request(hosts, task_name="renamed") == ([(RECENT_AT, 456), (RECENT_AT, 457)], 2)
+    assert request(hosts, task_name="java-cpu") == ([(PLANNED_AT, 456), (PLANNED_AT, 457)], 2)
+    assert request(executions, task_name="renamed") == ([RECENT_AT], 1)
+    # 主机条件选中执行后，覆盖后的任务名、执行状态同样在回查汇总后筛选
+    assert request(executions, ips=["127.0.0.2"], task_name="renamed") == ([RECENT_AT], 1)
+    assert request(executions, ips=["127.0.0.2"], status=["partial_succeed"]) == ([PLANNED_AT, RECENT_AT], 2)
+    # 有覆盖时状态与任务名不下推 ES，在内存中按覆盖后的值筛
+    pushed = [call.kwargs["query_body"]["query_configs"][0]["filter_dict"] for call in event_es.query.call_args_list]
+    assert not any({"status", "task_name__include"} & set(filter_dict) for filter_dict in pushed)
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_lagging_keeps_mysql_when_query_excludes_lag_gap(query_rows, event_es, fallback_signals):
     lagging_event_es(event_es)
@@ -3233,10 +3305,10 @@ def test_topk_merges_lagging_candidates_from_es(query_rows, event_es, mocker):
 
     topk = QueryActiveProfilingTopKResource().request({**TIME_RANGE, "field": "task_name"})
 
-    # MySQL 的候选补上落后区间内计划执行的候选，同值的计数相加后重新排序
+    # 落后区间内的计划执行（含执行表里已有的 RECENT_AT 那次 cron）只按 ES 计，MySQL 一侧排除，不重复计数
     assert [(item["value"], item["count"]) for item in topk] == [
-        ("order-api-cpu", 5),
         ("java-cpu-daily", 4),
+        ("order-api-cpu", 3),
         ("order-api-cpu-adhoc", 2),
         ("go-cpu-legacy", 1),
     ]
@@ -3244,6 +3316,52 @@ def test_topk_merges_lagging_candidates_from_es(query_rows, event_es, mocker):
     gap_params = group_counts.call_args.args[0]
     assert gap_params["start_time"] == RECENT_AT - 600 * 1000
     assert gap_params["filters"]["schedule_types"] == ["once_at", "cron"]
+
+
+@pytest.mark.parametrize(
+    ("field", "es_method", "es_result", "expected"),
+    [
+        # 主机级字段：RECENT_AT 那次 cron 的 127.0.0.1、127.0.0.2 只按 ES 计
+        (
+            "target",
+            "_query_group_counts",
+            [(("127.0.0.1",), 2), (("127.0.0.2",), 2)],
+            [("127.0.0.1", 3), ("127.0.0.2", 2), ("127.0.0.3", 1), ("127.0.1.10", 1)],
+        ),
+        # 进程候选按最近出现排序，落后区间内的在前；order_api 只出现在 RECENT_AT 那次 cron，只计一次
+        (
+            "process_names",
+            "_query_recent_processes",
+            [{"value": "java", "alias": "java", "count": 2}, {"value": "order_api", "alias": "order_api", "count": 1}],
+            [("java", 3), ("order_api", 1)],
+        ),
+    ],
+)
+@pytest.mark.django_db(databases="__all__")
+def test_topk_excludes_lagging_planned_executions_from_mysql_candidates(
+    query_rows, event_es, mocker, field, es_method, es_result, expected
+):
+    lagging_event_es(event_es)
+    mocker.patch.object(ActiveProfilingEventQueryHandler, es_method, return_value=es_result)
+
+    topk = QueryActiveProfilingTopKResource().request({**TIME_RANGE, "field": field})
+
+    assert [(item["value"], item["count"]) for item in topk] == expected
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_topk_keeps_all_mysql_candidates_when_lagging_es_fails(query_rows, event_es, mocker):
+    lagging_event_es(event_es)
+    mocker.patch.object(ActiveProfilingEventQueryHandler, "_query_group_counts", side_effect=RuntimeError("down"))
+
+    topk = QueryActiveProfilingTopKResource().request({**TIME_RANGE, "field": "task_name"})
+
+    # ES 查询失败时不排除落后区间，按 MySQL 的全部候选返回
+    assert [(item["value"], item["count"]) for item in topk] == [
+        ("order-api-cpu", 2),
+        ("order-api-cpu-adhoc", 2),
+        ("go-cpu-legacy", 1),
+    ]
 
 
 @pytest.mark.django_db(databases="__all__")
