@@ -770,8 +770,14 @@ def test_execution_detail_displays_cancelled_hosts(query_rows):
                 "finished_at": MID_AT + 200,
                 "message": "execution cancelled by user",
             },
-            # SaaS 取消时的临时写入，还没有真实 finished
-            {"bk_host_id": 461, "ip": "127.0.0.13", "status": "cancelled", "finished_at": MID_AT + 300},
+            # SaaS 取消时的临时写入，还没有真实 finished，带取消人
+            {
+                "bk_host_id": 461,
+                "ip": "127.0.0.13",
+                "status": "cancelled",
+                "finished_at": MID_AT + 300,
+                "cancelled_by": "admin",
+            },
         ],
         schedule_type="cron",
         task_id=13,
@@ -787,10 +793,11 @@ def test_execution_detail_displays_cancelled_hosts(query_rows):
         {"bk_biz_id": 2, "task_id": 13, "scheduled_at": MID_AT}
     )
 
-    # error_type 保持为空，前端直接显示执行信息
+    # error_type 保持为空，前端直接显示执行信息；取消人按主机行显示，没有记录的行不带用户名
     assert [(host["status"], host["error_type"], host["message"]) for host in detail["hosts"]] == [
-        ("cancelled", "", "采集已被用户取消")
-    ] * 2
+        ("cancelled", "", "采集已被用户取消"),
+        ("cancelled", "", "采集已被用户 admin 取消"),
+    ]
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -1094,6 +1101,8 @@ def test_cancel_dispatches_running_hosts_and_writes_cancelled(deploy_apis):
         (457, "cancelled", DISPATCH_NOW_MS, 0),
         (458, "succeed", DISPATCH_NOW_MS - 20000, DISPATCH_NOW_MS - 20000),
     ]
+    # 取消人只写到这次取消的主机行
+    assert host_states(execution, "cancelled_by") == [(456, "admin"), (457, "admin"), (458, None)]
     execution.refresh_from_db()
     assert (execution.execution_status, execution.status_summary, execution.finished_at) == (
         "partial_succeed",
@@ -1134,6 +1143,27 @@ def test_cancel_locates_immediate_without_task_id(deploy_apis):
 
     payload = decode_cli_config(deploy_apis["job"].call_args)
     assert (payload["schedule_type"], payload["task_id"]) == ("immediate", 30521)
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_cancel_records_operator_after_finished_landed(deploy_apis):
+    """下发与写库之间真实 finished 已落库：终态不动，只补取消人；已有取消人的不覆盖"""
+    finished = {"status": "cancelled", "finished_at": DISPATCH_NOW_MS - 1000, "event_time": DISPATCH_NOW_MS - 1000}
+    execution = create_running_execution(
+        [
+            {**CANCEL_HOSTS[0], **finished},
+            {**CANCEL_HOSTS[1], **finished, "cancelled_by": "other"},
+            CANCEL_HOSTS[2],
+        ]
+    )
+
+    ActiveProfilingExecutionWriter(execution).cancel_hosts([456, 457, 458], DISPATCH_NOW_MS, "admin")
+
+    assert host_states(execution, "status", "finished_at", "cancelled_by") == [
+        (456, "cancelled", DISPATCH_NOW_MS - 1000, "admin"),
+        (457, "cancelled", DISPATCH_NOW_MS - 1000, "other"),
+        (458, "succeed", DISPATCH_NOW_MS - 20000, None),
+    ]
 
 
 @pytest.mark.django_db(databases="__all__")

@@ -797,12 +797,15 @@ class ActiveProfilingExecutionQueryHandler:
     @staticmethod
     def _display_host_message(host):
         """执行详情主机行的执行信息：成功的不带原因，unknown 是没收到终态；
-        取消的原始信息是英文，SaaS 取消时的临时写入还没有信息"""
+        取消的原始信息是英文，SaaS 取消时的临时写入还没有信息。
+        取消人按主机行记录：从任务历史取消整次执行时各行都有，只取消单台主机时只有那一行有"""
         if host.status == "succeed":
             return _("采集成功")
         if host.status == "unknown":
             return _("请检查agent状态及版本信息，若持续异常请联系管理员")
         if host.status == "cancelled":
+            if host.cancelled_by:
+                return _("采集已被用户 {} 取消").format(host.cancelled_by)
             return _("采集已被用户取消")
         return host.message
 
@@ -1181,13 +1184,20 @@ class ActiveProfilingExecutionWriter:
             unknown_at=None,
         )
 
-    def cancel_hosts(self, bk_host_ids, finished_at):
-        """只改仍为 running 的主机行，event_time 不变，之后上报的真实 finished 一定比它新，会覆盖这次写入"""
+    def cancel_hosts(self, bk_host_ids, finished_at, cancelled_by):
+        """只改仍为 running 的主机行，event_time 不变，之后上报的真实 finished 一定比它新，会覆盖这次写入；
+        取消人只有 SaaS 知道，真实 finished 不带，覆盖后仍保留"""
         self._update_hosts(
             Q(bk_host_id__in=bk_host_ids, status="running"),
             status="cancelled",
             finished_at=finished_at,
             unknown_at=None,
+            cancelled_by=cancelled_by,
+        )
+        # 下发与写库之间采集端的 finished 已经落库时，主机行不再是 running，只补取消人
+        self._update_hosts(
+            Q(bk_host_id__in=bk_host_ids, status="cancelled", cancelled_by__isnull=True),
+            cancelled_by=cancelled_by,
         )
 
     def _update_hosts(self, host_q, **fields):
@@ -1288,6 +1298,7 @@ class ActiveProfilingCancelHandler(ActiveProfilingDeployMixin):
     def __init__(self, bk_biz_id):
         self.bk_biz_id = bk_biz_id
         self.bk_tenant_id = get_request_tenant_id()
+        self.operator = get_request_username()
 
     def cancel(self, validated_data):
         execution = ActiveProfilingExecution.get_execution(
@@ -1349,7 +1360,7 @@ class ActiveProfilingCancelHandler(ActiveProfilingDeployMixin):
         if not bk_host_ids:
             return
         try:
-            ActiveProfilingExecutionWriter(execution).cancel_hosts(bk_host_ids, int(time.time() * 1000))
+            ActiveProfilingExecutionWriter(execution).cancel_hosts(bk_host_ids, int(time.time() * 1000), self.operator)
         except Exception:  # pylint: disable=broad-except
             logger.exception(
                 "[ActiveProfiling] write cancelled failed, bk_biz_id->[%s], execution_id->[%s]",
