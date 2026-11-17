@@ -519,7 +519,7 @@ export function useProfilingQuery() {
 
   function collectionCreated() {
     patch({
-      timeRange: ['now-15m', 'now'],
+      timeRange: ['now-7d', 'now'],
       collection: {
         ...state.value.collection,
         tab: 'history',

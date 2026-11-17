@@ -43,7 +43,7 @@ import CollectionCrontab from './collection-crontab';
 import CollectionHostSelector from './collection-host-selector';
 import CollectionProcessSelector from './collection-process-selector';
 
-import type { CollectionFieldKey, CollectionMeta, CollectionTask } from '../../types/collection';
+import type { CollectionFieldKey, CollectionMeta, CollectionPayload, CollectionTask } from '../../types/collection';
 
 import './collection-task-form.scss';
 
@@ -72,6 +72,8 @@ export default defineComponent({
     meta: { type: Object as PropType<CollectionMeta>, required: true },
     /** 待编辑的采集任务，缺省表示新建 */
     task: { type: Object as PropType<CollectionTask>, default: undefined },
+    /** 新建时的回填配置，如从执行快照回填至采集 */
+    prefill: { type: Object as PropType<Omit<CollectionPayload, 'bk_biz_id'>>, default: undefined },
     /** 默认时区，时间选择按此时区解析并回写 */
     timezone: { type: String, required: true },
   },
@@ -81,7 +83,7 @@ export default defineComponent({
     const { t, locale } = useI18n();
     /** 侧栏 z-index，实例创建时取一次，保证始终低于主机选择弹窗 */
     const sidesliderZIndex = getNextZIndex();
-    const form = useCollectionForm(props.meta, props.bizId, props.timezone, props.task, immediate =>
+    const form = useCollectionForm(props.meta, props.bizId, props.timezone, props.task, props.prefill, immediate =>
       emit('saved', immediate)
     );
     /** 执行周期组件实例，提交前用于校验 cron 表达式 */

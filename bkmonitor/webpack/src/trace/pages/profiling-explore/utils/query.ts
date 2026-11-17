@@ -97,7 +97,7 @@ export function createQueryState(timezone: string): QueryState {
     dataType: '',
     aggregation: 'SUM',
     mode: 'none',
-    timeRange: ['now-15m', 'now'],
+    timeRange: ['now-7d', 'now'],
     timezone,
     refreshInterval: -1,
     where: [],

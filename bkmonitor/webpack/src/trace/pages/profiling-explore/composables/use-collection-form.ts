@@ -48,6 +48,7 @@ import type {
   CollectionHost,
   CollectionMeta,
   CollectionMethod,
+  CollectionPayload,
   CollectionTask,
   CollectionType,
   ProcessDraft,
@@ -57,15 +58,17 @@ import type {
 
 export type CollectionForm = ReturnType<typeof useCollectionForm>;
 
+/** prefill 为新建时的回填配置，仅新建时生效 */
 export function useCollectionForm(
   meta: CollectionMeta,
   bizId: number,
   timezone: string,
   task: CollectionTask | undefined,
+  prefill: Omit<CollectionPayload, 'bk_biz_id'> | undefined,
   saved: (immediate: boolean) => void
 ) {
   const { t } = useI18n();
-  const draft = shallowRef(createCollectionDraft(meta, timezone, task));
+  const draft = shallowRef(createCollectionDraft(meta, timezone, task ?? prefill));
   const loading = shallowRef(false);
   const fieldErrors = shallowRef<Partial<Record<CollectionFieldKey, string>>>({});
   const hostError = shallowRef('');
