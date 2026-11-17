@@ -117,6 +117,7 @@ export default {
   请选择采集方式和类型: 'Select a collection method and type.',
   请选择开始时间: 'Select a start time.',
   请选择结束时间: 'Select an end time.',
+  请选择执行时间: 'Select an execution time.',
   结束时间须晚于当前时间: 'The end time must be later than the current time.',
   结束时间须晚于开始时间: 'The end time must be later than the start time.',
   '默认1个月，如需更长，可手动调整结束时间':

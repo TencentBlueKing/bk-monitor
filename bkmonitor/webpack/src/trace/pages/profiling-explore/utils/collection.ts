@@ -253,8 +253,11 @@ export function createCollectionDraft(
       selected: [],
     },
     scheduleType: schedule?.type || meta.schedule_types[0],
-    // 新建 / 周期任务未回填时，执行时间默认取当前时刻，使选择器回显当前时间点
-    executeAt: schedule && schedule.type !== 'cron' ? schedule.execute_at : Date.now(),
+    // 新建 / 周期任务未回填时，执行时间默认取任务时区当前时刻往后 10 分钟
+    executeAt:
+      schedule && schedule.type !== 'cron'
+        ? schedule.execute_at
+        : dayjs().tz(taskTimezone).add(10, 'minute').startOf('minute').valueOf(),
     // 周期任务未回填时，开始时间默认取当前时间，结束时间默认取该时区一个月后的当天末尾
     startAt: schedule?.type === 'cron' ? schedule.effective_start_at : Date.now(),
     endAt:
@@ -513,8 +516,10 @@ export function collectionFieldErrors(
     }
   }
   if (editing && draft.scheduleType === 'immediate') add('scheduleType', '计划任务不支持改为立即执行');
-  if (draft.scheduleType === 'once_at' && (!draft.executeAt || draft.executeAt <= now))
-    add('executeAt', '指定执行时间须晚于当前时间');
+  if (draft.scheduleType === 'once_at') {
+    if (!draft.executeAt) add('executeAt', '请选择执行时间');
+    else if (draft.executeAt <= now) add('executeAt', '指定执行时间须晚于当前时间');
+  }
   if (draft.scheduleType === 'cron') {
     if (!draft.startAt) add('startAt', '请选择开始时间');
     if (!draft.endAt) add('endAt', '请选择结束时间');
@@ -607,8 +612,13 @@ export function immediateCollectionPayload(task: CollectionTask, bizId: number, 
 export function processSelectorText(selector: ProcessSelector, t: (key: string) => string): string {
   if (selector.type === 'command') {
     if (selector.config.enable_dynamic_collection === false) {
-      const pids = [...new Set((selector.config.host_pids || []).map(row => row.pid))];
-      return pids.length ? `PID：${pids.join(';')}` : '--';
+      // 同一 PID 可能分布在多台主机，按主机 + PID 去重，避免折叠掉不同主机上的进程
+      const items = new Map<string, HostPid>();
+      for (const row of selector.config.host_pids || []) {
+        items.set(`${row.bk_host_id}:${row.pid}`, row);
+      }
+      const hostPids = [...items.values()];
+      return hostPids.length ? `PID: ${hostPids.map(row => `#${row.bk_host_id}:${row.pid}`).join(';')}` : '--';
     }
     const matched = `${t(processLabels.command)} - ${t('包含')}：${selector.config.match_pattern}`;
     return selector.config.exclude_pattern ? `${matched}；${t('排除')}：${selector.config.exclude_pattern}` : matched;
