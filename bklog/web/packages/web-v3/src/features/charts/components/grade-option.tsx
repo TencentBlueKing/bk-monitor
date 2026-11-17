@@ -370,6 +370,7 @@ export default defineComponent({
             ref={formRef}
             class='grade-field-setting'
             labelAlign='top'
+            requiredMark={false}
             data={gradeOptionForm.value}
             rules={formRules}
           >

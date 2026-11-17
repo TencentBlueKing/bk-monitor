@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { renderCollectionFormSkeleton } from './form-skeleton';
 import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 
 import { Loading as TLoading } from '@/shared/ui/loading/native';
@@ -485,6 +486,7 @@ export default defineComponent({
         class='operation-step2-custom-report-loading'
         data-testid='collection-custom-report-loading'
         loading={loading.value}
+        indicator={renderCollectionFormSkeleton}
         showOverlay
         size='large'
         zIndex={Z_INDEX_LAYERS.PAGE}

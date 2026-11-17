@@ -327,6 +327,8 @@
     "features/collection/current/components/common-comp/use-label-picker-keyboard.ts",
     "features/collection/current/components/create-operation/clean-form.type.ts",
     "features/collection/current/components/create-operation/defaultConfig.ts",
+    "features/collection/current/components/create-operation/form-skeleton.scss",
+    "features/collection/current/components/create-operation/form-skeleton.tsx",
     "features/collection/current/components/create-operation/global.scss",
     "features/collection/current/components/create-operation/index.scss",
     "features/collection/current/components/create-operation/index.tsx",
@@ -8608,6 +8610,16 @@
       "kind": "module"
     },
     {
+      "from": "features/collection/current/components/create-operation/form-skeleton.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/form-skeleton.tsx",
+      "to": "features/collection/current/components/create-operation/form-skeleton.scss",
+      "kind": "module"
+    },
+    {
       "from": "features/collection/current/components/create-operation/index.scss",
       "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
@@ -8709,6 +8721,11 @@
     },
     {
       "from": "features/collection/current/components/create-operation/step2-bk-data-collection.tsx",
+      "to": "features/collection/current/components/create-operation/form-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step2-bk-data-collection.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -8801,6 +8818,11 @@
       "from": "features/collection/current/components/create-operation/step2-bk-data-collection.tsx",
       "to": "features/index-sets/services/result-tables.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step2-configuration.tsx",
+      "to": "features/collection/current/components/create-operation/form-skeleton.tsx",
+      "kind": "module"
     },
     {
       "from": "features/collection/current/components/create-operation/step2-configuration.tsx",
@@ -8949,6 +8971,11 @@
     },
     {
       "from": "features/collection/current/components/create-operation/step2-custom-report.tsx",
+      "to": "features/collection/current/components/create-operation/form-skeleton.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step2-custom-report.tsx",
       "to": "shared/global/overlay/z-index-manager.js",
       "kind": "module"
     },
@@ -9056,6 +9083,11 @@
       "from": "features/collection/current/components/create-operation/step3-clean.scss",
       "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/step3-clean.tsx",
+      "to": "features/collection/current/components/create-operation/form-skeleton.tsx",
+      "kind": "module"
     },
     {
       "from": "features/collection/current/components/create-operation/step3-clean.tsx",

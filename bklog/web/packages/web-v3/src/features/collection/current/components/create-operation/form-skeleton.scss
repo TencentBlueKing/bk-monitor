@@ -1,0 +1,48 @@
+@use '@/shared/ui/loading/shimmer' as *;
+
+.collection-form-skeleton {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: left;
+  background: #f5f7fa;
+
+  > .classify-main-box {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  &__title, &__label, &__control, &__footer span {
+    @include loading-shimmer;
+    @media (prefers-reduced-motion: reduce) { animation: none; }
+  }
+
+  &__title { width: 72px; height: 16px; margin: 4px 0 14px; }
+  &__row {
+    display: grid;
+    grid-template-columns: 100px minmax(0, 580px);
+    align-items: start;
+    margin-bottom: 24px;
+    &:last-child { margin-bottom: 0; }
+  }
+  &.is-cleaning &__row { grid-template-columns: 130px minmax(0, 680px); }
+  &__label { justify-self: end; width: 48px; height: 12px; margin: 10px 22px 0 0; }
+  &__control {
+    height: 32px;
+    &.textarea, &.sample { height: 56px; }
+    &.choice { width: min(200px, 100%); }
+    &.switch { width: 36px; height: 20px; margin: 6px 0; border-radius: 10px; }
+    &.hint { grid-column: 1 / -1; height: 38px; }
+  }
+  &__row:has(> .hint) > &__label { display: none; }
+  &__footer {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #fff;
+    span { width: 72px; height: 32px; }
+  }
+}
