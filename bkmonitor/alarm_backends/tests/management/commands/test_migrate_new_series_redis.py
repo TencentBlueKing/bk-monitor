@@ -75,6 +75,13 @@ def test_migrate_new_series_redis_dry_run_and_apply_preserves_data_and_ttl(monke
             return_value=nodes,
         ),
         mock.patch(
+            "alarm_backends.management.commands.migrate_new_series_redis.get_cluster_routers",
+            return_value=[
+                SimpleNamespace(strategy_score=102, node_id=1),
+                SimpleNamespace(strategy_score=1000, node_id=2),
+            ],
+        ),
+        mock.patch(
             "alarm_backends.management.commands.migrate_new_series_redis.build_raw_source_client",
             side_effect=lambda node: source_map[node.id],
         ),
@@ -136,6 +143,10 @@ def test_migrate_new_series_redis_skips_same_endpoint_and_requires_target(monkey
             return_value=[node],
         ),
         mock.patch(
+            "alarm_backends.management.commands.migrate_new_series_redis.get_cluster_routers",
+            return_value=[SimpleNamespace(strategy_score=1000, node_id=1)],
+        ),
+        mock.patch(
             "alarm_backends.management.commands.migrate_new_series_redis.build_raw_source_client",
             return_value=same_redis,
         ) as mock_source_builder,
@@ -148,3 +159,90 @@ def test_migrate_new_series_redis_skips_same_endpoint_and_requires_target(monkey
         call_command(Command(), "--target-url", "redis://192.0.2.99:6379", "--apply", stdout=out)
         mock_source_builder.assert_not_called()
         assert "skipped" in out.getvalue()
+
+
+def test_migrate_new_series_redis_ignores_stale_keys_on_non_owner_shards(monkeypatch):
+    """回归：路由调整后旧分片残留的同名键不得覆盖当前路由所属节点的有效状态。"""
+    current_shard = _make_fake_redis()  # node_id=1，当前承载 strategy 101
+    legacy_shard = _make_fake_redis()  # node_id=2，历史残留 strategy 101 旧键
+    target = _make_fake_redis()
+
+    seen_key = f"{KEY_PREFIX}.detect.new_series.seen.101.201.sig1"
+    threshold_key = f"{KEY_PREFIX}.detect.new_series.threshold_seen.101.201.sig1.p5"
+
+    # 当前节点包含最新成员 recent；ID 更大的历史节点只残留旧成员 old（后扫到也不能覆盖）
+    current_shard.zadd(seen_key, {"old": 1700000100, "recent": 1700000900})
+    current_shard.expire(seen_key, 3600)
+    current_shard.zadd(threshold_key, {"th-recent": 1700000900})
+    current_shard.expire(threshold_key, 3600)
+
+    legacy_shard.zadd(seen_key, {"old": 1700000100})
+    legacy_shard.expire(seen_key, 1800)
+
+    # 反向顺序同样覆盖：旧节点在前(id=1)、当前节点在后(id=2) 或 当前在前(id=1)、旧在后(id=2)
+    nodes = [
+        SimpleNamespace(
+            id=1,
+            node_alias="current-shard",
+            host="192.0.2.1",
+            port=6379,
+            password="",
+            cache_type="RedisCache",
+            connection_kwargs={},
+            is_enable=True,
+        ),
+        SimpleNamespace(
+            id=2,
+            node_alias="legacy-shard",
+            host="192.0.2.2",
+            port=6379,
+            password="",
+            cache_type="RedisCache",
+            connection_kwargs={},
+            is_enable=True,
+        ),
+    ]
+    routers = [
+        SimpleNamespace(strategy_score=200, node_id=1),
+        SimpleNamespace(strategy_score=1000, node_id=2),
+    ]
+    source_map = {1: current_shard, 2: legacy_shard}
+    monkeypatch.setenv("REDIS_CACHE_NEW_SERIES_URL", "redis://192.0.2.99:6379")
+
+    with (
+        mock.patch(
+            "alarm_backends.management.commands.migrate_new_series_redis.get_enabled_source_nodes",
+            return_value=nodes,
+        ),
+        mock.patch(
+            "alarm_backends.management.commands.migrate_new_series_redis.get_cluster_routers",
+            return_value=routers,
+        ),
+        mock.patch(
+            "alarm_backends.management.commands.migrate_new_series_redis.build_raw_source_client",
+            side_effect=lambda node: source_map[node.id],
+        ),
+        mock.patch(
+            "alarm_backends.management.commands.migrate_new_series_redis.build_raw_target_client",
+            return_value=(target, ("192.0.2.99", 6379, 10)),
+        ),
+    ):
+        out = StringIO()
+        call_command(Command(), "--apply", stdout=out)
+
+        assert target.zscore(seen_key, b"old") == 1700000100.0
+        assert target.zscore(seen_key, b"recent") == 1700000900.0
+        assert target.zscore(threshold_key, b"th-recent") == 1700000900.0
+        assert "stale_skipped=1" in out.getvalue()
+
+        # 反向扫描顺序验证：若历史节点 ID 更小(先被扫描)、当前节点 ID 更大(后被扫描)，
+        # 历史节点上的残留键(如已被当前节点删除/过期的孤儿键)同样不得被拷入目标库。
+        orphan_key = f"{KEY_PREFIX}.detect.new_series.active.250.201.sig1.1.p0.3600"
+        current_shard.zadd(orphan_key, {"stale-active": 1700000100})  # node 1 非 strategy 250 归属(归属 node 2)
+        target_rev = _make_fake_redis()
+        with mock.patch(
+            "alarm_backends.management.commands.migrate_new_series_redis.build_raw_target_client",
+            return_value=(target_rev, ("192.0.2.99", 6379, 10)),
+        ):
+            call_command(Command(), "--apply", stdout=StringIO())
+        assert target_rev.exists(orphan_key) == 0

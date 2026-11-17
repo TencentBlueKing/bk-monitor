@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import os
+import re
 
 import redis
 from django.conf import settings
@@ -19,11 +20,37 @@ from redis.sentinel import Sentinel
 from alarm_backends.core.cache.key import PUBLIC_KEY_PREFIX
 from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP, gen_resilient_socket_conf
-from bkmonitor.models import CacheNode
+from bkmonitor.models import CacheNode, CacheRouter
+
+# 匹配全部 9 类 NewSeries 键模板中的 strategy_id：`<prefix>.detect.new_series.<sub_type>.<strategy_id>.<item_id>...`
+_NEW_SERIES_STRATEGY_RE = re.compile(r"\.detect\.new_series\.[^.]+\.(\d+)\.")
 
 
 def get_enabled_source_nodes():
     return list(CacheNode.objects.filter(is_enable=True, cluster_name=get_cluster().name).order_by("id"))
+
+
+def get_cluster_routers():
+    return list(CacheRouter.objects.filter(cluster_name=get_cluster().name).order_by("strategy_score", "id"))
+
+
+def extract_strategy_id_from_key(raw_key: bytes | str) -> int | None:
+    key_text = raw_key.decode("utf-8", errors="ignore") if isinstance(raw_key, bytes) else str(raw_key)
+    matched = _NEW_SERIES_STRATEGY_RE.search(key_text)
+    return int(matched.group(1)) if matched else None
+
+
+def resolve_owner_node_id(strategy_id: int, routers, owner_cache: dict[int, int | None]) -> int | None:
+    """按当前集群 CacheRouter 严格上限匹配（与 RedisProxy._lookup_node_in_routers 口径一致）。"""
+    if strategy_id in owner_cache:
+        return owner_cache[strategy_id]
+    owner_id = None
+    for router in routers:
+        if router.strategy_score > strategy_id:
+            owner_id = router.node_id
+            break
+    owner_cache[strategy_id] = owner_id
+    return owner_id
 
 
 def _service_db_and_timeout():
@@ -104,7 +131,7 @@ def build_raw_target_client(target_url: str):
 
 
 class Command(BaseCommand):
-    help = "一次性平滑迁移各分片 Redis DB10 中的 NewSeries 状态键至独立目标实例（保留原 TTL，只拷不删）"
+    help = "一次性平滑迁移各分片 Redis DB10 中的 NewSeries 状态键至独立目标实例（按当前路由归属过滤，保留原 TTL，只拷不删）"
 
     @staticmethod
     def _escape_glob(text: str) -> str:
@@ -147,12 +174,26 @@ class Command(BaseCommand):
 
         target_client, target_endpoint = build_raw_target_client(target_url)
         nodes = get_enabled_source_nodes()
+        routers = get_cluster_routers()
+        if not routers:
+            raise CommandError("No CacheRouter records found for current cluster; aborting to avoid unrouted overwrite")
+
+        routed_node_ids = {r.node_id for r in routers if r.strategy_score > 0}
+        owner_cache: dict[int, int | None] = {}
 
         total_matched = 0
+        total_stale_skipped = 0
         total_migrated = 0
         skipped_nodes = 0
 
         for node in nodes:
+            if node.id not in routed_node_ids:
+                skipped_nodes += 1
+                self.stdout.write(
+                    f"node({node.id}:{getattr(node, 'node_alias', '')}) not referenced by positive CacheRouter, skipped"
+                )
+                continue
+
             node_endpoint = resolve_node_endpoint(node, db)
             if node_endpoint is not None and node_endpoint == target_endpoint:
                 skipped_nodes += 1
@@ -169,7 +210,10 @@ class Command(BaseCommand):
                     )
                     continue
 
-            node_matched, node_migrated = self._migrate_node(
+            node_matched, node_stale_skipped, node_migrated = self._migrate_node(
+                node_id=node.id,
+                routers=routers,
+                owner_cache=owner_cache,
                 source_client=source_client,
                 target_client=target_client,
                 pattern=pattern,
@@ -177,35 +221,60 @@ class Command(BaseCommand):
                 dry_run=dry_run,
             )
             total_matched += node_matched
+            total_stale_skipped += node_stale_skipped
             total_migrated += node_migrated
             self.stdout.write(
-                f"node({node.id}:{getattr(node, 'node_alias', '')}) matched={node_matched} migrated={node_migrated} dry_run={dry_run}"
+                f"node({node.id}:{getattr(node, 'node_alias', '')}) matched={node_matched} "
+                f"stale_skipped={node_stale_skipped} migrated={node_migrated} dry_run={dry_run}"
             )
 
         self.stdout.write(
-            f"summary: nodes={len(nodes)} skipped_nodes={skipped_nodes} matched={total_matched} migrated={total_migrated} dry_run={dry_run}"
+            f"summary: nodes={len(nodes)} skipped_nodes={skipped_nodes} matched={total_matched} "
+            f"stale_skipped={total_stale_skipped} migrated={total_migrated} dry_run={dry_run}"
         )
 
     @staticmethod
-    def _migrate_node(source_client, target_client, pattern: str, batch_size: int, dry_run: bool):
+    def _migrate_node(
+        node_id: int,
+        routers,
+        owner_cache: dict[int, int | None],
+        source_client,
+        target_client,
+        pattern: str,
+        batch_size: int,
+        dry_run: bool,
+    ):
         cursor = 0
         matched = 0
+        stale_skipped = 0
         migrated = 0
 
         while True:
             cursor, keys = source_client.scan(cursor=cursor, match=pattern, count=batch_size)
             if keys:
-                matched += len(keys)
-                if not dry_run:
+                owned_keys = []
+                for k in keys:
+                    sid = extract_strategy_id_from_key(k)
+                    if sid is None or sid <= 0:
+                        stale_skipped += 1
+                        continue
+                    # 仅迁移当前 CacheRouter 归属于本节点的键，跳过路由迁移后旧分片尚未过期的残留键
+                    if resolve_owner_node_id(sid, routers, owner_cache) != node_id:
+                        stale_skipped += 1
+                        continue
+                    owned_keys.append(k)
+
+                matched += len(owned_keys)
+                if not dry_run and owned_keys:
                     read_pipe = source_client.pipeline(transaction=False)
-                    for k in keys:
+                    for k in owned_keys:
                         read_pipe.pttl(k)
                         read_pipe.dump(k)
                     raw_pairs = read_pipe.execute()
 
                     write_pipe = target_client.pipeline(transaction=False)
                     queued = 0
-                    for idx, k in enumerate(keys):
+                    for idx, k in enumerate(owned_keys):
                         pttl = raw_pairs[idx * 2]
                         payload = raw_pairs[idx * 2 + 1]
                         if payload is None or pttl == -2:
@@ -221,4 +290,4 @@ class Command(BaseCommand):
             if int(cursor) == 0:
                 break
 
-        return matched, migrated
+        return matched, stale_skipped, migrated
