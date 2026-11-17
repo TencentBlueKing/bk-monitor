@@ -65,8 +65,8 @@ export default defineComponent({
     const kind = shallowRef<LlmSpanKind>('LLM');
     const aggregated = shallowRef(false);
     const rankMode = shallowRef<DurationRankMode>('top');
-    /** 聚合表格排序信息（受控），空数组表示未排序 */
-    const groupSort = shallowRef<TableSort>([]);
+    /** 聚合表格排序信息（受控），默认按「执行次数」倒序 */
+    const groupSort = shallowRef<TableSort>([{ sortBy: 'count', descending: true }]);
 
     const spanItems = computed(() => buildDurationSpanStats(props.flow, kind.value, rankMode.value));
     const groupItems = computed(() => buildDurationGroupStats(props.flow, kind.value));

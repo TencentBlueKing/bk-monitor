@@ -139,6 +139,7 @@ operationId 与后端路由统一为 `llm_mcp_*`，挂载在 `tracing` Server。
 | `calculate_by_range` | `/api/v4/apm_metric_web/calculate_by_range/` |
 | `llm_mcp_search_traces`（`/mcp/llm_search_traces/`） | `/api/v4/apm_llm_web/list_traces/` |
 | `llm_mcp_search_flows`（`/mcp/llm_search_flows/`） | `/api/v4/apm_llm_web/list_flows/` |
+| `llm_mcp_search_spans`（`/mcp/llm_search_spans/`） | `/api/v4/apm_llm_web/list_spans/` |
 | `llm_mcp_calculate_by_range`（`/mcp/llm_calculate_by_range/`） | `/api/v4/apm_llm_web/calculate_by_range/` |
 
 新 MCP 路径复用原业务 Resource，并由目录强制验证网关用户、租户和工具权限；删除 MCP

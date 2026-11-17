@@ -19,7 +19,7 @@ class MetricLabelValuesResource(GetPromqlLabelValuesResource):
 
 class ScopeSerializer(serializers.Serializer):
     bk_tenant_id = serializers.CharField(max_length=128)
-    bk_biz_id = serializers.IntegerField(min_value=1)
+    bk_biz_id = serializers.IntegerField()
 
     def validate_bk_tenant_id(self, value):
         if value == "__all__":
@@ -54,7 +54,7 @@ class DimensionValuesSerializer(ScopeSerializer):
 
 SCOPE = {
     "bk_tenant_id": {"type": "string", "minLength": 1},
-    "bk_biz_id": {"type": "integer", "minimum": 1},
+    "bk_biz_id": {"type": "integer"},
 }
 PAGING = {
     "page": {"type": "integer", "minimum": 1, "default": 1},
