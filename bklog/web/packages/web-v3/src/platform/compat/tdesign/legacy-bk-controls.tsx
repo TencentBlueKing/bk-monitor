@@ -712,11 +712,13 @@ const BkCollapse = defineComponent({
   props: {
     value: { type: Array, default: () => [] },
     modelValue: { type: Array, default: undefined },
+    expandIconPlacement: { type: String, default: undefined },
   },
   emits: ['update:modelValue', 'input', 'change'],
   setup(props, { slots, emit }) {
     return () => h(Collapse, {
       value: modelValue(props) || [],
+      expandIconPlacement: props.expandIconPlacement === 'right' ? 'right' : 'left',
       onChange: (value: unknown) => {
         emit('update:modelValue', value);
         emit('input', value);
