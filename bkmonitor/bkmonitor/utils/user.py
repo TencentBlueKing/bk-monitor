@@ -161,7 +161,7 @@ def get_wxwork_mention_names(usernames: list[str]) -> dict[str, str]:
     return mention_names
 
 
-def get_user_display_name(username: str):
+def get_user_display_name(username: str, bk_tenant_id: str | None = None):
     """
     获取用户展示名
     """
@@ -171,9 +171,11 @@ def get_user_display_name(username: str):
         if request:
             # 仅当查询的是当前请求用户自身时，才使用请求上下文避免额外的数据库查询
             # 若查询其他用户的展示名（如告警日志中的操作人），需走正常查询路径
-            if getattr(request.user, "username", None) == username:
+            if getattr(request.user, "username", None) == username and (
+                not bk_tenant_id or getattr(request.user, "tenant_id", None) == bk_tenant_id
+            ):
                 display_name = getattr(request.user, "display_name", None)
-                if display_name:
+                if isinstance(display_name, str) and display_name:
                     return display_name
 
     if not settings.ENABLE_MULTI_TENANT_MODE:
@@ -181,12 +183,17 @@ def get_user_display_name(username: str):
 
     from core.drf_resource import api
 
+    resolved_tenant_id = bk_tenant_id or get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID
+    query_params = {"bk_usernames": [username], "bk_tenant_id": resolved_tenant_id}
+
     try:
-        user_display_info = api.bk_login.batch_query_user_display_info(bk_usernames=[username])
+        user_display_info = api.bk_login.batch_query_user_display_info(**query_params)
     except BKAPIError:
         user_display_info = None
 
     if user_display_info:
-        username = user_display_info[0]["display_name"]
+        display_name = user_display_info[0].get("display_name")
+        if isinstance(display_name, str) and display_name:
+            username = display_name
 
     return username

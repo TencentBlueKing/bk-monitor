@@ -133,6 +133,73 @@ class ActionProcessor(BaseActionProcessor):
         task_config = self.function_config.get("schedule")
         return self.run_node_task(task_config, **kwargs)
 
+    def _get_tenant_id(self) -> str | None:
+        """
+        解析动作所属租户 ID
+
+        显式透传给查询接口，确保 CacheType.USER 缓存键按租户隔离，
+        并在无 run_action 线程本地租户上下文的场景下按 bk_biz_id 解析租户。
+        """
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            return None
+
+        bk_tenant_id = getattr(self, "bk_tenant_id", None)
+        if isinstance(bk_tenant_id, str) and bk_tenant_id:
+            return bk_tenant_id
+
+        action = getattr(self, "action", None)
+        bk_biz_id = getattr(action, "bk_biz_id", None)
+        if isinstance(bk_biz_id, int | str) and not isinstance(bk_biz_id, bool) and bk_biz_id != "":
+            try:
+                biz_id = int(bk_biz_id)
+                if biz_id != 0:
+                    from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+
+                    return bk_biz_id_to_bk_tenant_id(biz_id)
+            except Exception as error:
+                logger.warning(
+                    "resolve bk_tenant_id by bk_biz_id(%s) failed for action(%s): %s",
+                    bk_biz_id,
+                    getattr(action, "id", None),
+                    error,
+                )
+
+        from bkmonitor.utils.request import get_request_tenant_id
+        from constants.common import DEFAULT_TENANT_ID
+
+        return get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID
+
+    def _batch_convert_assignees(self, assignees, bk_tenant_id: str | None = None):
+        """批量转展示名，查询失败或个别查不到时回退原值"""
+        usernames = list(dict.fromkeys(assignee for assignee in assignees if isinstance(assignee, str) and assignee))
+        if not usernames:
+            return [assignee if isinstance(assignee, str) else str(assignee) for assignee in assignees]
+
+        from bkmonitor.utils.common_utils import chunks
+        from core.drf_resource import api
+
+        display_map = {}
+        try:
+            for username_chunk in chunks(usernames, 100):
+                query_params = {"bk_usernames": username_chunk}
+                if bk_tenant_id:
+                    query_params["bk_tenant_id"] = bk_tenant_id
+                for user_info in api.bk_login.batch_query_user_display_info(**query_params) or []:
+                    username, display_name = user_info.get("bk_username"), user_info.get("display_name")
+                    if isinstance(username, str) and username and isinstance(display_name, str) and display_name:
+                        display_map[username] = display_name
+        except Exception as error:
+            logger.warning(
+                "batch convert assignee to display name failed for action(%s): %s",
+                self.action.id,
+                error,
+            )
+
+        return [
+            (display_map.get(assignee) or assignee) if isinstance(assignee, str) else str(assignee)
+            for assignee in assignees
+        ]
+
     def get_assignee_display_names(self):
         """
         获取负责人展示名
@@ -144,11 +211,25 @@ class ActionProcessor(BaseActionProcessor):
         assignees = self.action.assignee or []
         if not isinstance(assignees, list):
             assignees = [assignees]
+        assignees = [assignee for assignee in assignees if assignee]
+        if not assignees:
+            return []
+
+        bk_tenant_id = self._get_tenant_id()
+        if settings.ENABLE_MULTI_TENANT_MODE and len(assignees) > 1:
+            return self._batch_convert_assignees(assignees, bk_tenant_id)
 
         display_names = []
         for assignee in assignees:
+            if not isinstance(assignee, str):
+                display_names.append(str(assignee))
+                continue
             try:
-                display_names.append(get_user_display_name(assignee))
+                display_name = (
+                    get_user_display_name(assignee, bk_tenant_id=bk_tenant_id)
+                    if bk_tenant_id
+                    else get_user_display_name(assignee)
+                )
             except Exception as error:
                 logger.warning(
                     "convert assignee(%s) to display name failed for action(%s): %s",
@@ -156,7 +237,8 @@ class ActionProcessor(BaseActionProcessor):
                     self.action.id,
                     error,
                 )
-                display_names.append(assignee)
+                display_name = assignee
+            display_names.append(display_name if isinstance(display_name, str) and display_name else assignee)
         return display_names
 
     def run_node_task(self, config, **kwargs):
