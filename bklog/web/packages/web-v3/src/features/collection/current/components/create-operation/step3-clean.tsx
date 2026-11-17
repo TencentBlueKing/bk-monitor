@@ -644,13 +644,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     // 用于追踪 separator_regexp 的变化，确保响应式更新
     const separatorRegexp = computed(() => formData.value.etl_params.separator_regexp);
 
-    onMounted(() => {
+    onMounted(async () => {
       // 清洗列表进入
       if (props.isCleanField) {
-        if (isEditCleanItem.value) {
-          cleanCollectorId.value = Number(route.params.collectorId);
-        }
         initCleanItem();
+        if (isEditCleanItem.value) {
+          await handleCollectorChange(Number(route.params.collectorId));
+        }
         return;
       }
       // 清洗模板进入
