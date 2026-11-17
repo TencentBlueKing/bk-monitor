@@ -387,10 +387,8 @@ export default class MultiFileUpload extends tsc<IProps, IEvents> {
       } else {
         this.requestFailed = true;
         for (const row of candidates) {
-          if (row.status === 'validating') {
-            row.status = 'invalid';
-            row.errors = [{ code: 'VALIDATE_REQUEST_FAILED', message: this.$t('校验请求失败') as string }];
-          }
+          row.status = 'invalid';
+          row.errors = [{ code: 'VALIDATE_REQUEST_FAILED', message: this.$t('校验请求失败') as string }];
         }
       }
     }
