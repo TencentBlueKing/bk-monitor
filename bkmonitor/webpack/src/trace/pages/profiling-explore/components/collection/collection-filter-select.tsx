@@ -25,7 +25,7 @@
  */
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
-import { Input, Loading, Select, Tag } from 'bkui-vue';
+import { Loading, Select, Tag } from 'bkui-vue';
 import { AngleDown, Close } from 'bkui-vue/lib/icon';
 import { useI18n } from 'vue-i18n';
 
@@ -189,52 +189,39 @@ export default defineComponent({
         onMouseenter: () => (hovered.value = true),
         onMouseleave: () => (hovered.value = false),
       };
-      if (props.multipleMode === 'tag') {
-        return (
-          <div
-            class='bk-select-tag bk-select-tag--default'
-            onClick={handleTriggerClick}
-            {...toggles}
-          >
-            <div class='bk-select-tag-wrapper'>
-              {selected.map(item => (
-                <Tag
-                  key={item.value}
-                  closable
-                  onClose={() => removeValue(item.value)}
-                >
-                  {labelOf(item)}
-                </Tag>
-              ))}
-              <input
-                class='bk-select-tag-input'
-                placeholder={selected.length ? '' : triggerPlaceholder.value}
-                value={customValue.value}
-                onInput={event => (customValue.value = (event.target as HTMLInputElement).value)}
-                onKeydown={event => {
-                  if (event.key === 'Enter') commitCustomValue();
-                }}
-              />
-            </div>
-            {renderSuffixIcon()}
-          </div>
-        );
-      }
+      // 已选值与输入框同处 trigger 边框内：tag 模式以标签展示，default 模式以文本拼接展示
+      const selectedContent =
+        props.multipleMode === 'tag'
+          ? selected.map(item => (
+              <Tag
+                key={item.value}
+                closable
+                onClose={() => removeValue(item.value)}
+              >
+                {labelOf(item)}
+              </Tag>
+            ))
+          : selected.length > 0 && <span class='collection-filter-selected'>{selected.map(labelOf).join(',')}</span>;
       return (
         <div
-          class='collection-filter-trigger'
+          class='bk-select-tag bk-select-tag--default collection-filter-trigger'
           onClick={handleTriggerClick}
           {...toggles}
         >
-          <span class='collection-filter-selected'>{selected.map(labelOf).join(',')}</span>
-          <Input
-            v-slots={{ suffix: renderSuffixIcon }}
-            modelValue={customValue.value}
-            placeholder={selected.length ? '' : triggerPlaceholder.value}
-            stopPropagation={false}
-            onEnter={commitCustomValue}
-            onUpdate:modelValue={value => (customValue.value = String(value))}
-          />
+          <div class='bk-select-tag-wrapper'>
+            {selectedContent}
+            <input
+              class='bk-select-tag-input'
+              autocomplete='off'
+              placeholder={selected.length ? '' : triggerPlaceholder.value}
+              value={customValue.value}
+              onInput={event => (customValue.value = (event.target as HTMLInputElement).value)}
+              onKeydown={event => {
+                if (event.key === 'Enter') commitCustomValue();
+              }}
+            />
+          </div>
+          {renderSuffixIcon()}
         </div>
       );
     }

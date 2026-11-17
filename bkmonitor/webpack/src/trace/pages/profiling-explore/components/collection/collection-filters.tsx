@@ -245,6 +245,7 @@ export default defineComponent({
             <CollectionFilterSelect
               loading={this.targetCandidates.loading.value}
               modelValue={draft.ips}
+              multipleMode='tag'
               remoteMethod={this.remoteTargets}
               scrollLoading={this.targetCandidates.loading.value && !this.targetCandidates.searching.value}
               multiple
