@@ -336,6 +336,12 @@ class TaskSubmitRequestSerializer(serializers.Serializer):
     collector_config = serializers.DictField(label="采集参数")
     resource_guard_config = ResourceGuardConfigSerializer(label="资源保护参数")
 
+    def to_internal_value(self, data):
+        # 前端 Golang 表单会带 "process_selector": {}，空值按未传处理，交给 validate 判断是否必填
+        if isinstance(data, dict) and "process_selector" in data and data["process_selector"] in ({}, None):
+            data = {key: value for key, value in data.items() if key != "process_selector"}
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
         collection_method = attrs["collection_method"]
         collection_type = attrs["collection_type"]

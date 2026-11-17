@@ -831,6 +831,18 @@ def test_active_collection_routes_are_registered():
             },
         ),
         (TaskSubmitRequestSerializer, GOLANG_TASK_SUBMIT_REQUEST),
+        # Golang 带空的 process_selector 按未传处理
+        (TaskSubmitRequestSerializer, {**GOLANG_TASK_SUBMIT_REQUEST, "process_selector": {}}),
+        (TaskSubmitRequestSerializer, {**GOLANG_TASK_SUBMIT_REQUEST, "process_selector": None}),
+        (
+            TaskEditRequestSerializer,
+            {
+                **GOLANG_TASK_SUBMIT_REQUEST,
+                "schedule": TASK_SUBMIT_REQUEST["schedule"],
+                "process_selector": {},
+                "task_id": 123,
+            },
+        ),
         (PlannedTaskSubmitRequestSerializer, TASK_SUBMIT_REQUEST),
         (TaskEditRequestSerializer, {**TASK_SUBMIT_REQUEST, "task_id": 123}),
         (EventListRequestSerializer, EVENT_LIST_REQUEST),
@@ -920,6 +932,8 @@ def test_request_serializers_accept_doc_payload(serializer_cls, params):
             TaskSubmitRequestSerializer,
             {k: v for k, v in TASK_SUBMIT_REQUEST.items() if k != "process_selector"},
         ),
+        # Perf 传空对象仍视为缺少 process_selector
+        (TaskSubmitRequestSerializer, {**TASK_SUBMIT_REQUEST, "process_selector": {}}),
         (
             TaskSubmitRequestSerializer,
             {
