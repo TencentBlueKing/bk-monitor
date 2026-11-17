@@ -210,8 +210,11 @@ class TestDorisVisibleMatrixApi(TestCase):
     def test_matrix_on_default_public_clusters(self):
         """覆盖 registered_system=_default 的公共集群配置组合。
 
-        filter_doris_cluster 末尾会把 bk_biz_id 改写为 settings.BLUEKING_BK_BIZ_ID，
-        因此 current_biz 在 A/B 两个空间都不会命中；写入侧对该组合的拦截由此而来。
+        filter_doris_cluster 末尾会把 custom_option["bk_biz_id"] 改写为
+        settings.BLUEKING_BK_BIZ_ID，所以公共集群的归属业务恒为该值：
+        这里 A 取 BLUEKING_BK_BIZ_ID，B 取 SPACE_BIZ_ID。
+        current_biz 比对的就是这个归属业务，因此只对 A 放行、对 B 拒绝；
+        写入侧禁止公共集群配置该组合，正是为了避免出现只有 A 可见的结果。
         """
 
         cases = [
@@ -225,7 +228,7 @@ class TestDorisVisibleMatrixApi(TestCase):
             (
                 "名单仅包含 B",
                 {
-                    "bk_biz_id": OWNER_BIZ_ID,
+                    "bk_biz_id": BLUEKING_BK_BIZ_ID,
                     "visible_config": {
                         "visible_type": VisibleEnum.MULTI_BIZ.value,
                         "visible_bk_biz": [SPACE_BIZ_ID],
@@ -238,7 +241,7 @@ class TestDorisVisibleMatrixApi(TestCase):
 
             (
                 "显式全部业务可见",
-                {"bk_biz_id": OWNER_BIZ_ID, "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value}},
+                {"bk_biz_id": BLUEKING_BK_BIZ_ID, "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value}},
                 True,
                 True,
             ),
@@ -246,10 +249,10 @@ class TestDorisVisibleMatrixApi(TestCase):
             (
                 "current_biz（写入侧已拒绝的配置组合）",
                 {
-                    "bk_biz_id": OWNER_BIZ_ID,
+                    "bk_biz_id": BLUEKING_BK_BIZ_ID,
                     "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
                 },
-                False,
+                True,
                 False,
             )
         ]
@@ -257,7 +260,7 @@ class TestDorisVisibleMatrixApi(TestCase):
         for name, custom_option, owner_expected, space_expected in cases:
             with self.subTest(case=name):
                 self.assertCountEqual(
-                    self._query(custom_option, OWNER_BIZ_ID, REGISTERED_SYSTEM_DEFAULT),
+                    self._query(custom_option, BLUEKING_BK_BIZ_ID, REGISTERED_SYSTEM_DEFAULT),
                     [CLUSTER_ID] if owner_expected else [],
                 )
                 self.assertCountEqual(
