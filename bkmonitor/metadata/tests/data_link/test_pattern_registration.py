@@ -89,7 +89,7 @@ def test_first_full_apply_composes_sink_with_prepared_pattern_store(log_datalink
     configs, _ = compose(*log_datalink)
 
     sink.refresh_from_db()
-    assert sink.pattern_store["result_table"]["name"] == f"bklog_{BINDING['index_id']}_pattern"
+    assert sink.pattern_store["result_table"]["name"] == f"bklog_index_set_{BINDING['index_id']}_pattern"
     clustering = next(c for c in configs if c["kind"] == "LogClusteringSink")["spec"]["clustering"]
     assert clustering["pattern_store"] == bkbase_refs(sink.pattern_store)
     assert next(c for c in configs if c["kind"] == "Databus")["spec"]["sinks"][0]["kind"] == "LogClusteringSink"
@@ -128,7 +128,7 @@ def test_append_registers_original_fields_and_separate_targets(log_datalink, moc
     configs = prepare_clustering_stores(sink)
     assert prepare_clustering_stores(sink) == configs
     rt, binding = configs[2:]
-    assert rt["metadata"]["name"] == f"bklog_{BINDING['index_id']}_clustered"
+    assert rt["metadata"]["name"] == f"bklog_index_set_{BINDING['index_id']}_clustered"
     fields = {f["field_name"]: f["field_type"] for f in rt["spec"]["fields"]}
     assert fields["message"] == "string"
     assert all(fields[k] == v for k, v in RESULT_FIELDS.items())
@@ -216,7 +216,7 @@ def test_declared_cluster_switch_leaves_routes_to_caller(log_datalink, mocker):
         assert detail[route]["storage_id"] == 710102
         assert len(detail[route]["storage_cluster_records"]) == 2
         assert {r["db"] for r in detail[route]["storage_cluster_records"]} == {
-            f"2_bklog_{BINDING['index_id']}_{suffix}"
+            f"2_bklog_index_set_{BINDING['index_id']}_{suffix}"
         }
 
 
@@ -298,7 +298,7 @@ def test_register_managed_pattern_once_per_index(log_datalink):
     assert prepare_clustering_stores(sink) == first
     rt, binding = first
     assert rt["spec"]["dataType"] == "log"
-    assert rt["metadata"]["name"] == f"bklog_{BINDING['index_id']}_pattern"
+    assert rt["metadata"]["name"] == f"bklog_index_set_{BINDING['index_id']}_pattern"
     expected_index = PATTERN_TARGET["table_id"].replace(".", "_")
     assert binding["metadata"]["annotations"]["physical_table_name"] == expected_index
     assert {field["field_name"]: field["field_type"] for field in rt["spec"]["fields"]} == PATTERN_FIELDS
@@ -392,15 +392,15 @@ def test_pattern_physical_name_follows_declared_table(log_datalink, settings, mu
     sink = create_clustering_sink(
         bk_biz_id=17,
         binding={**BINDING, "index_id": "42"},
-        pattern_store={"table_id": "17_bklog.42_pattern", "cluster_id": 710101},
+        pattern_store={"table_id": "17_bklog.index_set_42_pattern", "cluster_id": 710101},
     )
     rt, binding = prepare_clustering_stores(sink)
-    assert rt["metadata"]["name"] == "bklog_42_pattern"
+    assert rt["metadata"]["name"] == "bklog_index_set_42_pattern"
     assert rt["spec"]["bizId"] == expected_biz
     # 物理名通过注解指定，与 BKBase 侧业务 ID 无关。
-    assert binding["metadata"]["annotations"]["physical_table_name"] == "17_bklog_42_pattern"
-    assert pattern_storage(sink).table_id == "17_bklog.42_pattern"
-    assert pattern_storage(sink).index_set == "17_bklog_42_pattern"
+    assert binding["metadata"]["annotations"]["physical_table_name"] == "17_bklog_index_set_42_pattern"
+    assert pattern_storage(sink).table_id == "17_bklog.index_set_42_pattern"
+    assert pattern_storage(sink).index_set == "17_bklog_index_set_42_pattern"
 
 
 def test_failed_apply_retries_same_pattern_resources(log_datalink, mocker):

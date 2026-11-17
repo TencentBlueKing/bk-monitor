@@ -118,7 +118,9 @@ class TestQuixReopenRunner(TestCase):
         self.assertEqual(actions, ["enable"])
         # 重新声明当前集群的 Pattern 表并按声明注册路由，由 metadata 完成 Databus 接入。
         params = self.transfer.set_log_clustering_config.call_args.args[0]
-        self.assertEqual(params["pattern_store"], {"table_id": "2_bklog.42_pattern", "cluster_id": STORAGE_CLUSTER_ID})
+        self.assertEqual(
+            params["pattern_store"], {"table_id": "2_bklog.index_set_42_pattern", "cluster_id": STORAGE_CLUSTER_ID}
+        )
         self.assertEqual(self.transfer.bulk_create_or_update_log_router.call_count, 2)
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.RUNNING.value)

@@ -154,7 +154,7 @@ def build_store_targets(runtime: LogClusteringRuntime, result_mode: str) -> dict
     cluster_id = LogIndexSet.objects.get(index_set_id=runtime.index_set_id).storage_cluster_id
 
     def store(suffix):
-        return {"table_id": f"{database}.{runtime.index_set_id}_{suffix}", "cluster_id": cluster_id}
+        return {"table_id": f"{database}.index_set_{runtime.index_set_id}_{suffix}", "cluster_id": cluster_id}
 
     clustered = (
         store("clustered") if result_mode == "append" else {"table_id": runtime.table_id, "cluster_id": cluster_id}

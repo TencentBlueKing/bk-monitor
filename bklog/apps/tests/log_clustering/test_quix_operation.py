@@ -119,7 +119,10 @@ class TestQuixEnableRunner(TestCase):
         runner._step_metadata_set()
         params = self.transfer.set_log_clustering_config.call_args.args[0]
         self.assertEqual(params["result_mode"], "append")
-        self.assertEqual(params["result_store"], {"table_id": "2_bklog.42_clustered", "cluster_id": STORAGE_CLUSTER_ID})
+        self.assertEqual(params["pattern_store"]["table_id"], "2_bklog.index_set_42_pattern")
+        self.assertEqual(
+            params["result_store"], {"table_id": "2_bklog.index_set_42_clustered", "cluster_id": STORAGE_CLUSTER_ID}
+        )
         runner._step_metadata_set()
         self.assertEqual(self.transfer.set_log_clustering_config.call_args.args[0], params)
 
@@ -127,7 +130,9 @@ class TestQuixEnableRunner(TestCase):
         runner = QuixClusteringOperationRunner(self.operation.operation_id)
         runner._step_metadata_set()
         params = self.transfer.set_log_clustering_config.call_args.args[0]
-        self.assertEqual(params["pattern_store"], {"table_id": "2_bklog.42_pattern", "cluster_id": STORAGE_CLUSTER_ID})
+        self.assertEqual(
+            params["pattern_store"], {"table_id": "2_bklog.index_set_42_pattern", "cluster_id": STORAGE_CLUSTER_ID}
+        )
         self.assertNotIn("result_store", params)
 
     def create_clustering_config(self):
@@ -211,8 +216,8 @@ class TestQuixEnableRunner(TestCase):
         )
         self.assertEqual(pattern["data_label"], "bklog_index_set_42_pattern")
         self.assertEqual((pattern["space_type"], pattern["space_id"]), ("bkcc", "2"))
-        self.assertEqual(pattern["table_info"][0]["index_set"], "2_bklog_42_pattern")
-        self.assertEqual(pattern["table_info"][0]["origin_table_id"], "2_bklog.42_pattern")
+        self.assertEqual(pattern["table_info"][0]["index_set"], "2_bklog_index_set_42_pattern")
+        self.assertEqual(pattern["table_info"][0]["origin_table_id"], "2_bklog.index_set_42_pattern")
         self.assertEqual(pattern["table_info"][0]["cluster_id"], STORAGE_CLUSTER_ID)
         self.assertEqual(pattern["table_info"][0]["options"][0]["value"], "true")
         self.transfer.set_log_clustering_config.assert_called_once()
@@ -229,10 +234,10 @@ class TestQuixEnableRunner(TestCase):
         table = clustered["table_info"][0]
         self.assertEqual(
             (table["origin_table_id"], table["index_set"], table["cluster_id"]),
-            ("2_bklog.42_clustered", "2_bklog_42_clustered", STORAGE_CLUSTER_ID),
+            ("2_bklog.index_set_42_clustered", "2_bklog_index_set_42_clustered", STORAGE_CLUSTER_ID),
         )
         self.assertEqual(table["query_alias_settings"], [{"field_name": "__log_signature", "query_alias": "signature"}])
-        self.assertEqual(pattern["table_info"][0]["origin_table_id"], "2_bklog.42_pattern")
+        self.assertEqual(pattern["table_info"][0]["origin_table_id"], "2_bklog.index_set_42_pattern")
         # 独立结果表不改普通检索路由。
         sync.assert_not_called()
 
