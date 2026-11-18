@@ -61,7 +61,11 @@ def expected_v4_model():
         ],
     }
     return build_model_definition(
-        payload, system_id=info["id"], callback_url=info["callback_url"], managers=info["managers"] or None
+        payload,
+        system_id=info["id"],
+        callback_url=info["callback_url"],
+        managers=info["managers"] or None,
+        multi_tenant_mode=settings.ENABLE_MULTI_TENANT_MODE,
     )
 
 
