@@ -1758,6 +1758,9 @@ INNER_COLLOCTOR_HOST = ""
 # 外网collector域名
 OUTER_COLLOCTOR_HOST = ""
 
+# 按租户、场景、存储类型指定默认 ClusterInfo ID，运行时由动态配置覆盖。
+SCENE_DEFAULT_STORAGE_CLUSTERS = {}
+
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
 ES_CLUSTER_BLACKLIST = []
@@ -1944,9 +1947,10 @@ K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
 #     },
 #     "config_json": []
 # }
+# 可选 skill_repository_url：各环境配置 Skill 仓库以 .git 结尾的 HTTPS 克隆地址，非 GitHub 仓库缺少 .git 时
+# skills CLI 会按网页下载而安装失败；留空时仅展示上传说明。
 TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
 TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
-
 # 启用监控目标缓存的业务ID列表
 ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 

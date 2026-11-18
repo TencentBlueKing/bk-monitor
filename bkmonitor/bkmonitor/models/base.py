@@ -1065,7 +1065,9 @@ class ReportItems(AbstractRecordModel):
         获取所有管理员
         """
         managers = []
-        groups_data = api.monitor.group_list()
+        groups_data = []
+        if any(manager["type"] == StaffChoice.group for manager in self.managers):
+            groups_data = api.monitor.group_list()
         for manager in self.managers:
             if manager["type"] == StaffChoice.user and manager.get("id"):
                 managers.append(manager["id"])

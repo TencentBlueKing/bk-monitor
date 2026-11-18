@@ -1,0 +1,36 @@
+/* session 场景专属样式（根类 + 场景类名同元素复合）：按 DOM 层级嵌套于 td */
+.rum-explore-table.session-table {
+  .explore-col {
+    /* 数量统计列：右对齐；0 灰色不可点，View / 动作主蓝，错误主红加粗下划线 */
+    &.session-count-col {
+      justify-content: flex-end;
+
+      .session-count-value {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        line-height: 20px;
+        letter-spacing: 0;
+        overflow-wrap: break-word;
+        white-space: nowrap;
+
+        &.is-zero {
+          color: #c4c6cc;
+        }
+
+        &.is-blue {
+          color: #3a84ff;
+          cursor: pointer;
+        }
+
+        &.is-danger {
+          font-weight: 700;
+          color: #ea3636;
+          text-decoration: underline;
+          text-decoration-skip-ink: none;
+          text-underline-offset: 3px;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+}

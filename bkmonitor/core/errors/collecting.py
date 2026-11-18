@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 采集配置模块错误
 """
@@ -88,3 +88,21 @@ class CollectConfigParamsError(CollectingError):
     code = 3311013
     name = _("采集配置参数错误")
     message_tpl = _("采集配置参数错误：{msg}")
+
+
+class CollectConfigVersionChanged(CollectingError):
+    code = 3311014
+    name = _("采集配置版本已变化")
+    message_tpl = _("CONFIG_VERSION_CHANGED：请刷新配置后重试")
+
+
+class LegacyConversionFailed(CollectingError):
+    code = 3311015
+    name = _("历史采集配置无法转换")
+    message_tpl = _("LEGACY_CONVERSION_FAILED：无法确认源镜像契约")
+
+
+class CollectConfigDeployError(CollectingError):
+    code = 3311016
+    name = _("采集配置部署失败")
+    message_tpl = _("采集配置部署失败：{msg}")

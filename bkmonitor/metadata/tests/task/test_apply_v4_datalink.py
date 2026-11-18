@@ -92,7 +92,7 @@ def log_v4_datalink_records(mocker):
         table_id=table_id,
         name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK,
         value=json.dumps(LOG_V4_DATALINK_OPTION_VALUE),
-        value_type=models.ResultTableOption.TYPE_STRING,
+        value_type=models.ResultTableOption.TYPE_DICT,
         creator="system",
     )
     es_cluster = models.ClusterInfo.objects.create(
@@ -338,3 +338,74 @@ def test_apply_event_group_datalink_passes_consumer_group_for_gse_source(event_g
     assert mocked_apply.call_args.kwargs["consumer_group"] == (
         f"{settings.TRANSFER_CONSUMER_GROUP_ID}0bkmonitor_510020"
     )
+
+
+@pytest.mark.parametrize(
+    "records_fixture,apply_task",
+    [
+        ("log_v4_datalink_records", apply_log_datalink),
+        ("event_group_v4_records", apply_event_group_datalink),
+    ],
+)
+@pytest.mark.parametrize("old_name", [None, "", "existing_link"])
+def test_apply_datalink_handles_empty_mapping_name(request, mocker, records_fixture, apply_task, old_name):
+    ctx = request.getfixturevalue(records_fixture)
+    if old_name is not None:
+        models.BkBaseResultTable.objects.create(
+            bk_tenant_id=ctx["bk_tenant_id"],
+            data_link_name=old_name,
+            monitor_table_id=ctx["table_id"],
+            bkbase_rt_name="original_rt",
+        )
+    # 只隔离远端下发，保留真实的映射回填流程。
+    apply_mock = mocker.patch.object(DataLink, "apply_data_link", autospec=True)
+    apply_task(bk_tenant_id=ctx["bk_tenant_id"], table_id=ctx["table_id"])
+    link = apply_mock.call_args.args[0]
+    assert link.data_link_name
+    if old_name:
+        assert link.data_link_name == old_name
+    records = models.BkBaseResultTable.objects.filter(
+        bk_tenant_id=ctx["bk_tenant_id"], monitor_table_id=ctx["table_id"]
+    )
+    assert records.count() == 1
+    assert records.get().data_link_name == link.data_link_name
+    assert not DataLink.objects.filter(data_link_name="").exists()
+    assert not models.BkBaseResultTable.objects.filter(data_link_name="").exists()
+    if old_name is not None:
+        assert records.get().bkbase_rt_name == "original_rt"
+
+    # 重复 apply 应复用第一次分配的名称，不创建额外链路或映射。
+    apply_task(bk_tenant_id=ctx["bk_tenant_id"], table_id=ctx["table_id"])
+    assert apply_mock.call_args.args[0].data_link_name == link.data_link_name
+    assert records.count() == 1
+    assert DataLink.objects.filter(bk_tenant_id=ctx["bk_tenant_id"], table_ids=[ctx["table_id"]]).count() == 1
+
+
+@pytest.mark.parametrize(
+    "records_fixture,apply_task",
+    [
+        ("log_v4_datalink_records", apply_log_datalink),
+        ("event_group_v4_records", apply_event_group_datalink),
+    ],
+)
+def test_empty_mapping_name_is_saved_before_apply_failure(request, mocker, records_fixture, apply_task):
+    ctx = request.getfixturevalue(records_fixture)
+    models.BkBaseResultTable.objects.create(
+        bk_tenant_id=ctx["bk_tenant_id"], data_link_name="", monitor_table_id=ctx["table_id"]
+    )
+    apply_mock = mocker.patch.object(
+        DataLink, "apply_data_link", autospec=True, side_effect=RuntimeError("apply failed")
+    )
+    with pytest.raises(RuntimeError, match="apply failed"):
+        apply_task(bk_tenant_id=ctx["bk_tenant_id"], table_id=ctx["table_id"])
+    name = apply_mock.call_args.args[0].data_link_name
+    assert name
+    assert (
+        models.BkBaseResultTable.objects.get(
+            bk_tenant_id=ctx["bk_tenant_id"], monitor_table_id=ctx["table_id"]
+        ).data_link_name
+        == name
+    )
+    apply_mock.side_effect = None
+    apply_task(bk_tenant_id=ctx["bk_tenant_id"], table_id=ctx["table_id"])
+    assert apply_mock.call_args.args[0].data_link_name == name

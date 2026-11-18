@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,11 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 
+from bk_monitor_base.domains.metric_plugin.old_models import CollectConfigMeta
+
 from alarm_backends.core.cache.base import CacheManager
-from core.drf_resource import api
 
 
 class CollectConfigCacheManager(CacheManager):
@@ -45,17 +44,23 @@ class CollectConfigCacheManager(CacheManager):
 
     @classmethod
     def _get_configs(cls):
-        return api.monitor.collect_config_list()
+        return list(CollectConfigMeta.objects.filter(is_deleted=False).values("id", "name"))
 
     @classmethod
     def refresh(cls):
         configs = cls._get_configs()
+        all_ids_key = cls.format_key("__all__")
+        old_ids = set(json.loads(cls.cache.get(all_ids_key) or "[]"))
+        current_ids = [config["id"] for config in configs]
         pipeline = cls.cache.pipeline()
         for config in configs:
             pipeline.set(cls.format_key(config["id"]), json.dumps(config), cls.CACHE_TIMEOUT)
+        for config_id in old_ids - set(current_ids):
+            pipeline.delete(cls.format_key(config_id))
+        pipeline.set(all_ids_key, json.dumps(current_ids), cls.CACHE_TIMEOUT)
         pipeline.execute()
 
-        cls.logger.info("refresh collect config data finished, amount:{}".format(len(configs)))
+        cls.logger.info(f"refresh collect config data finished, amount:{len(configs)}")
 
 
 def main():

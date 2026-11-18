@@ -43,7 +43,7 @@ import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-ta
 
 import type { TimeRangeType } from '../../../../components/time-range/utils';
 import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
-import type { IRumCommonParams, IRumField, IRumSpanRecord, RumModeType } from '../../typings';
+import type { IRumCommonParams, IRumCountDrillDown, IRumField, IRumSpanRecord, RumModeType } from '../../typings';
 import type { ConditionChangeEvent } from '@/pages/trace-explore/typing';
 import type { SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
@@ -170,8 +170,10 @@ export default defineComponent({
     scrollToEnd: () => true,
     /** 点击清空检索条件 */
     clearFilter: () => true,
-    /** 点击 Span 名称，打开该行的详情抽屉 */
+    /** 点击 Span 名称 / View 页面 URL，打开该行的详情抽屉 */
     openDetail: (_row: Record<string, unknown>) => true,
+    /** 点击数量统计列，回传目标视角与跳转后携带的检索条件 */
+    countClick: (_target: IRumCountDrillDown) => true,
     /** 高亮行变化回调（透传 CommonTable activeChange）：行点击 / 键盘高亮时回传，高亮状态由上层维护 */
     activeChange: (rowKeys: Array<number | string>) => Array.isArray(rowKeys),
   },
@@ -217,13 +219,14 @@ export default defineComponent({
         onEventsCellClick: (row, colKey) => emit('eventsCellClick', { colKey, row }),
         onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
         onOpenDetail: row => emit('openDetail', row),
+        onCountClick: payload => emit('countClick', payload),
         onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
       }
     );
 
     /**
-     * 单元格检索条件菜单：普通单元格左键点击弹出菜单，CLICK 类型列（左键已用于直接加为检索条件）右键弹出同一个菜单。
-     * 菜单项行为与 trace 检索完全一致（复制 / 添加到本次检索 / 从本次检索中排除 / 新建检索）。
+     * 单元格检索条件菜单：普通单元格左键点击弹出菜单；CLICK 类型列与数量统计列左键已用于详情 / 下钻，
+     * 统一由右键弹出同一个菜单。菜单项行为与 trace 检索完全一致（复制 / 添加到本次检索 / 从本次检索中排除 / 新建检索）。
      */
     const { activeConditionMenuTarget, cacheRows, clearCache, closeMenu, hideMenu } = useCellConditionMenu({
       delegationRoot: tableRef,

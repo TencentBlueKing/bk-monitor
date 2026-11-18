@@ -120,6 +120,7 @@
   // #code const ExportLog = () => null;
   // #endif
   import MatchMode from '@/global/match-mode';
+  import { overlayRegistry } from '@/global/overlay';
   import { BK_LOG_STORAGE } from '@/store/store.type';
   import BkLogPopover from '../../../../components/bklog-popover/index';
   import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
@@ -177,7 +178,7 @@
           popperOptions: {
             strategy: 'fixed',
           },
-          zIndex: window.__bk_zIndex_manager?.nextZIndex?.() ?? 2500,
+          zIndex: overlayRegistry.nextZIndex(),
           onShow: () => {
             this.showFieldsSetting = true;
           },
@@ -614,6 +615,6 @@
   }
 
   .bklog-v3-select-dropdown {
-    z-index: 2500;
+    z-index: 3000;
   }
 </style>

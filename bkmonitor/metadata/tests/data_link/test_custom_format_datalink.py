@@ -576,7 +576,7 @@ def test_custom_format_clean_rule_update_keeps_internal_resources_stable(custom_
     ]
 
 
-def test_custom_format_disable_and_reenable_keeps_components(mocker, custom_format_records):
+def test_custom_format_disable_and_reenable_keeps_components(mocker, custom_format_records, databus_remote):
     data_source, result_table, data_link = custom_format_records
     data_link.compose_custom_format_configs(
         bk_biz_id=2,
@@ -610,13 +610,13 @@ def test_custom_format_disable_and_reenable_keeps_components(mocker, custom_form
 
     result_table.delete_datalink()
 
-    assert delete_remote.call_count == 2
-    assert {call.kwargs["kind"] for call in delete_remote.call_args_list} == {"databuses"}
+    delete_remote.assert_not_called()
+    assert databus_remote.apply.call_count == 2
     assert models.DataLink.objects.filter(data_link_name=data_link.data_link_name).exists()
     assert models.ResultTableConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
     assert models.ChannelBindingConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
     assert models.VMStorageBindingConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
-    assert not models.DataBusConfig.objects.filter(data_link_name=data_link.data_link_name).exists()
+    assert models.DataBusConfig.objects.filter(data_link_name=data_link.data_link_name).count() == 2
     assert models.DataIdConfig.objects.filter(name="bkm_custom_format_source").exists()
     assert models.ResultTable.objects.filter(table_id=result_table.table_id).exists()
     assert models.BkBaseResultTable.objects.filter(data_link_name=data_link.data_link_name).exists()

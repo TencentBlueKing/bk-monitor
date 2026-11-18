@@ -38,7 +38,7 @@ export default defineComponent({
   props: {
     type: { type: String as PropType<CommonStatusType> },
     text: { type: String },
-    tips: { type: String },
+    tips: { type: String, default: '' },
     icon: { type: String },
   },
   render() {

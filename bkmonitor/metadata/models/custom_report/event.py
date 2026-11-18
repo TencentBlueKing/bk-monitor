@@ -24,6 +24,7 @@ from bkmonitor.utils.db.fields import JsonField
 from metadata import config
 from metadata.models.result_table import ResultTableField, ResultTableOption
 from metadata.models.storage import ClusterInfo, ESStorage
+from metadata.utils.default_cluster import get_scene_default_cluster
 
 from ..constants import EventGroupStatus
 from .base import CustomGroupBase
@@ -152,6 +153,10 @@ class EventGroup(CustomGroupBase):
 
     @classmethod
     def process_default_storage_config(cls, custom_group: "CustomGroupBase", default_storage_config: dict[str, Any]):
+        if default_storage_config.get("cluster_id") is None:
+            default_storage_config["cluster_id"] = get_scene_default_cluster(
+                "custom_event", ClusterInfo.TYPE_ES, custom_group.bk_tenant_id
+            )
         # 补充索引集，用于 UnifyQuery 查询。
         default_storage_config["index_set"] = custom_group.table_id
         # 事件元数据登记不依赖 ES 即时可用，建索引失败后由周期任务补建。
@@ -305,6 +310,8 @@ class EventGroup(CustomGroupBase):
         event_info_list=None,
         table_id=None,
         data_label: str | None = None,
+        default_storage: str = ClusterInfo.TYPE_ES,
+        default_storage_config: dict[str, Any] | None = None,
     ):
         """
         创建一个新的自定义分组记录
@@ -316,6 +323,8 @@ class EventGroup(CustomGroupBase):
         :param event_info_list: metric列表
         :param table_id: 需要制定的table_id，否则通过默认规则创建得到
         :param data_label: 数据标签
+        :param default_storage: 默认存储类型，默认 elasticsearch，可选择 doris
+        :param default_storage_config: 对应存储的配置
         :param bk_tenant_id: 租户ID
         :return: group object
         """
@@ -326,7 +335,8 @@ class EventGroup(CustomGroupBase):
         fields = cls.STORAGE_FIELD_LIST
         option_value = [field["field_name"] for field in fields]
         option_value.append("time")
-        additional_options[ResultTableOption.OPTION_ES_DOCUMENT_ID] = option_value
+        if default_storage == ClusterInfo.TYPE_ES:
+            additional_options[ResultTableOption.OPTION_ES_DOCUMENT_ID] = option_value
         # 默认启用事件组V4数据链路
         additional_options[ResultTableOption.OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK] = True
 
@@ -341,6 +351,8 @@ class EventGroup(CustomGroupBase):
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
             additional_options=additional_options,
+            default_storage=default_storage,
+            default_storage_config=default_storage_config,
             bk_biz_id_alias="dimensions.bk_biz_id",
         )
 

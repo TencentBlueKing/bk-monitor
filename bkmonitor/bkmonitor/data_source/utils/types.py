@@ -8,13 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 Literal = int | str | float
 
-FilterValue = Literal | list[Literal]
+FilterValue = list[Literal]
 
-Filter = dict[str, FilterValue]
+
+class Filter(TypedDict):
+    key: str
+    operator: str
+    value: FilterValue
+    options: NotRequired[dict[str, Any]]
+
 
 Page = dict[str, int | list[dict[str, Any]]]
 

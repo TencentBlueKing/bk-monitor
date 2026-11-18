@@ -27,8 +27,8 @@ import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
 import { SectionKeyEnum } from '../../constants';
+import { RumSectionTypeEnum } from '../../constants';
 import { renderSection } from '../../registry/section-registry';
-import { RumSectionTypeEnum } from '../../typings';
 
 import type { IRumDetailSectionVM } from '../../typings';
 
