@@ -79,6 +79,12 @@
       background: var(--bklog-surface, #fff);
     }
 
+    // 页码为 inline-block，文字垂直居中完全依赖行高；小尺寸分页（t-size-s）行高被 TDesign 降为
+    // --td-comp-size-xs（24px），与这里提升后的盒高不一致会导致文字偏上，需按盒高（扣除上下 1px 边框）对齐。
+    .t-pagination__number {
+      line-height: calc(var(--bklog-control-size-medium, 32px) - 2px);
+    }
+
     .t-pagination__number.t-is-current {
       border-color: var(--bklog-brand-primary, #3a84ff);
       color: var(--bklog-brand-primary, #3a84ff);

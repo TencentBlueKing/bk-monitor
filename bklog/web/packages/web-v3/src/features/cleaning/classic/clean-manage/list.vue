@@ -548,7 +548,6 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style lang="scss">
-@use '@/shared/ui/loading/shimmer' as *;
 @use '@/shared/styles/mixins/clearfix' as *;
   @use '@/shared/styles/conf' as *;
   @use '@/shared/styles/devops-common.scss' as *;
@@ -615,18 +614,16 @@ import { ServicesInstance } from '@/platform/services';
           color: #979ba5;
         }
 
+        // 与 v2 保持一致：同步中展示 14px 蓝色旋转圆环，而非骨架屏占位块
         .loading {
           display: inline-block;
           width: 14px;
           height: 14px;
           margin: 0 auto;
-          border: 2px solid #3a84ff;
-          border-right: 2px solid transparent;
+          border: 2px solid var(--bklog-brand-primary, #3a84ff);
+          border-right-color: transparent;
           border-radius: 50%;
-          @include loading-shimmer;
-          color: transparent;
-          border: 0;
-          border-radius: 4px;
+          animation: clean-sync-spin 1s linear infinite;
         }
       }
     }
@@ -648,6 +645,16 @@ import { ServicesInstance } from '@/platform/services';
           display: flex;
         }
       }
+    }
+  }
+
+  @keyframes clean-sync-spin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
     }
   }
 </style>
