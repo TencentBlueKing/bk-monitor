@@ -1663,7 +1663,8 @@ def test_refresh_biz_bk_collector_configs_dry_run_and_local_context_restore(monk
     assert local.bk_tenant_id == "origin_tenant"
 
 
-def test_custom_report_refresh_deploy_targets_keep_default_and_allow_node_man_only(monkeypatch):
+@pytest.mark.parametrize("bk_biz_id", [2, "2"])
+def test_custom_report_refresh_deploy_targets_keep_default_and_allow_node_man_only(monkeypatch, bk_biz_id):
     from metadata.models.custom_report.subscription_config import CustomReportSubscription
 
     node_man_calls = []
@@ -1703,7 +1704,7 @@ def test_custom_report_refresh_deploy_targets_keep_default_and_allow_node_man_on
         classmethod(lambda cls, **kwargs: k8s_calls.append(kwargs)),
     )
 
-    result = CustomReportSubscription.refresh_collector_custom_conf(bk_tenant_id="system", bk_biz_id=2)
+    result = CustomReportSubscription.refresh_collector_custom_conf(bk_tenant_id="system", bk_biz_id=bk_biz_id)
 
     assert [call["bk_biz_id"] for call in node_man_calls] == [2, 0]
     assert [call["bk_biz_id"] for call in k8s_calls] == [2, 0]
@@ -1716,7 +1717,7 @@ def test_custom_report_refresh_deploy_targets_keep_default_and_allow_node_man_on
         "skipped_count": 0,
         "failed_count": 0,
     }
-    assert result["details"][0]["data_ids"] == [2001]
+    assert [detail["data_ids"] for detail in result["details"]] == [[2001], [2001]]
     assert result["details"][0]["targets"]["node_man"]["proxy_host_ids"] == [101]
 
     node_man_calls.clear()
