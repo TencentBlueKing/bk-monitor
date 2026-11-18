@@ -773,12 +773,17 @@ class Sender(BaseSender):
         send_func: Callable[..., dict[str, Any]] = (
             self.send_wxwork_layouts if self._is_wxwork_layouts_enabled else self.send_wxwork_content
         )
-        retry_kwargs = {"bk_tenant_id": self.bk_tenant_id} if self.bk_tenant_id else {}
+        # 熔断补发记录会被「可能还是旧版本」的 worker 重放，因此 kwargs 必须保持旧契约
+        # （旧版 send_wxwork_layouts / send_wxwork_content 都没有 bk_tenant_id 形参，
+        # 直接塞进 kwargs 会在旧 worker 上一律 TypeError）。租户作为独立可选字段追加，
+        # 由新版重放逻辑读取后优先用于解析展示名；旧版重放逻辑不认这个字段，会忽略，
+        # 行为退化为不带租户的默认解析，但不会失败。
         retry_params = {
             "api_module": "bkmonitor.utils.send.Sender",
             "resource": send_func.__name__,
             "args": (self.msg_type, self.content, notice_receivers, self.mentioned_users),
-            "kwargs": retry_kwargs,
+            "kwargs": dict(),
+            "bk_tenant_id": self.bk_tenant_id,
         }
         self._check_blocked_and_raise("wxwork_group", retry_params)
         try:
@@ -881,14 +886,23 @@ class Sender(BaseSender):
         )
         if notice_way == "wecom_robot":
             if self._is_wxwork_layouts_enabled:
+                # 与 send_wxwork_bot 保持一致：kwargs 只放旧契约参数（旧 worker 的
+                # send_wxwork_layouts 没有 bk_tenant_id 形参），租户作为独立可选字段。
                 retry_params = {
                     "api_module": "bkmonitor.utils.send.Sender",
                     "resource": "send_wxwork_layouts",
                     "args": (self.msg_type, self.content, notice_receivers),
                     "kwargs": dict(sender=sender),
+                    "bk_tenant_id": self.bk_tenant_id,
                 }
                 self._check_blocked_and_raise("wxwork_group", retry_params)
-                response = self.send_wxwork_layouts(self.msg_type, self.content, notice_receivers, sender=sender)
+                response = self.send_wxwork_layouts(
+                    self.msg_type,
+                    self.content,
+                    notice_receivers,
+                    sender=sender,
+                    bk_tenant_id=self.bk_tenant_id,
+                )
                 return {
                     # 适配 send_default 的返回格式。
                     notice_receiver: {"message": response.get("errmsg") or "", "result": response.get("errcode") == 0}

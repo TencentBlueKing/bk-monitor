@@ -832,7 +832,14 @@ class ActionInstance(AbstractRecordModel):
             resource_name = retry_param["resource"]
             try:
                 args = retry_param.get("args", ())
-                kwargs = retry_param.get("kwargs", {})
+                kwargs = dict(retry_param.get("kwargs", {}))
+
+                # 租户是熔断记录的可选字段，不在 kwargs 里：kwargs 是跨版本重放契约，
+                # 旧 worker 的方法签名没有 bk_tenant_id 形参，塞进 kwargs 会直接 TypeError。
+                # 新版读取该字段后补进调用参数；旧版不认识这个字段，会原样忽略。
+                retry_tenant_id = retry_param.get("bk_tenant_id")
+                if retry_tenant_id and "bk_tenant_id" not in kwargs:
+                    kwargs["bk_tenant_id"] = retry_tenant_id
 
                 # 核心逻辑：动态导入模块，获取类或方法，然后调用
                 ret = None

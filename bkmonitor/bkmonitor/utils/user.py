@@ -201,6 +201,7 @@ def batch_get_user_display_names(
     bk_tenant_id: str | None = None,
     *,
     strict_tenant: bool = False,
+    upstream_state: dict[str, bool] | None = None,
 ) -> dict[str, str]:
     """
     批量获取用户展示名映射（{bk_username: display_name_or_raw}）
@@ -208,7 +209,10 @@ def batch_get_user_display_names(
     - 单租户模式下恒等返回原用户名映射，不触发远端调用；
     - 多租户下按 100 人分批调用 batch_query_user_display_info 并固定传入 bk_tenant_id 隔离 CacheType.USER；
     - strict_tenant=True 时要求传入有效非空 bk_tenant_id，缺失时直接回退原值而不查默认租户；
-    - 每个分块独立捕获异常防止单块脏数据连坐后续分块，遇到超时/连接不可达则提前中止后续分块。
+    - 每个分块独立捕获异常防止单块脏数据连坐后续分块，遇到超时/连接不可达则提前中止后续分块；
+    - upstream_state 为可选出参：本函数吞掉异常后调用方无从判断上游是否故障，
+      需要跨租户批量调用时传入同一个 dict，函数会把「上游是否不可用」写入
+      upstream_state["unavailable"]，调用方据此跳过后续调用方不再等待。
     """
     unique_usernames = list(dict.fromkeys(u for u in usernames if isinstance(u, str) and u))
     if not unique_usernames:
@@ -248,6 +252,8 @@ def batch_get_user_display_names(
                 error,
             )
             if _is_upstream_unavailable_error(error):
+                if upstream_state is not None:
+                    upstream_state["unavailable"] = True
                 break
 
     return {u: display_map.get(u, u) for u in unique_usernames}

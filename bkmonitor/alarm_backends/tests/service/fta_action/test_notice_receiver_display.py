@@ -845,17 +845,18 @@ class TestEdgeAndResilience:
         action = make_action(inputs={"notice_receiver": "u1", "notice_way": "mail"}, content_template=NEW_TEMPLATE)
         assert prefetch_receiver_display_mappings([action]) == {"t1": {"u1": "u1"}}
 
-        # 场景 2：批量函数本身抛异常时，外层兜底返回空映射而非中断分片
+        # 场景 2：批量函数本身抛异常时，该租户回填原标识映射而非中断分片。
+        # 回填而非返回空映射：让渲染阶段直接复用回退结果，不再逐条重试一次。
         monkeypatch.setattr(
             "alarm_backends.service.fta_action.utils.batch_get_user_display_names",
             lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("prefetch exploded")),
         )
-        assert prefetch_receiver_display_mappings([action]) == {}
+        assert prefetch_receiver_display_mappings([action]) == {"t1": {"u1": "u1"}}
 
         # 场景 3：单条实例的属性访问抛异常时，仅跳过该条，其余实例仍正常预取
         calls = []
 
-        def _batch(bk_usernames=None, bk_tenant_id=None, strict_tenant=False):
+        def _batch(bk_usernames=None, bk_tenant_id=None, strict_tenant=False, upstream_state=None):
             calls.append((list(bk_usernames or []), bk_tenant_id))
             return {name: f"{bk_tenant_id}_{name}" for name in bk_usernames or []}
 
@@ -885,5 +886,114 @@ class TestBuiltinNoticeTemplate:
 
         template = notice_plugin["config_schema"]["content_template"]
 
-        assert "{{notice_receiver_display}}" in template
-        assert "{{notice_receiver}}" not in template
+        # 展示名优先，旧上下文（只有 notice_receiver）用 default 兜底：
+        # 滚动升级期间新版模板可能由旧 worker 渲染，缺兜底会把接收人整段渲染成空。
+        assert "notice_receiver_display" in template
+        assert "default(notice_receiver)" in template
+        # 不能直接以 notice_receiver 为主变量，否则展示名改造整体失效
+        assert "{{notice_receiver}}{{status_display}}" not in template
+
+    def test_builtin_template_renders_receiver_with_legacy_context(self):
+        """新模板配旧 worker 上下文（无 notice_receiver_display）时必须仍显示接收人"""
+        from bkmonitor.utils.template import Jinja2Renderer
+
+        plugin_file = Path(__file__).resolve().parents[4] / "support-files/fta/action_plugin_initial.json"
+        plugins = json.loads(plugin_file.read_text(encoding="utf-8"))
+        notice_plugin = next(plugin for plugin in plugins if plugin["plugin_type"] == "notice")
+        template = notice_plugin["config_schema"]["content_template"]
+
+        legacy_context = {"notice_way_display": "邮件", "notice_receiver": "admin", "status_display": "成功"}
+        assert Jinja2Renderer.render(template, legacy_context) == "发送邮件告警通知给admin成功"
+
+        new_context = dict(legacy_context, notice_receiver_display="张三")
+        assert Jinja2Renderer.render(template, new_context) == "发送邮件告警通知给张三成功"
+
+
+class TestRetryParamsVersionCompat:
+    """熔断补发记录的 kwargs 是跨版本契约，新字段必须能放能容"""
+
+    def test_wxwork_bot_retry_params_keeps_kwargs_contract(self, settings):
+        """租户不能塞进 kwargs：旧版 send_wxwork_layouts / send_wxwork_content 没有该形参"""
+        import inspect
+
+        from bkmonitor.utils.send import Sender
+
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        # 未配置回调地址时会在构造 retry_params 之前提前返回，这里补一个占位值
+        settings.WXWORK_BOT_WEBHOOK_URL = "https://example.com/webhook"
+        sender = Sender.__new__(Sender)
+        sender.msg_type = "markdown"
+        sender.content = "content"
+        sender.mentioned_users = None
+        sender.bk_tenant_id = "tenant_a"
+        sender.context = {}
+        sender.blocked = False
+        sender._is_wxwork_layouts_enabled = True
+
+        captured = {}
+
+        def _capture(notice_type, retry_params):
+            captured.update(retry_params)
+            # 已捕获到参数，直接中断后续真实发送
+            raise RuntimeError("stop")
+
+        sender._check_blocked_and_raise = _capture
+        try:
+            sender.send_wxwork_bot(["chat_1"])
+        except RuntimeError:
+            pass
+
+        assert captured["kwargs"] == {}
+        assert captured["bk_tenant_id"] == "tenant_a"
+
+        # 旧版方法签名不接受 bk_tenant_id，kwargs 里出现就会绑定失败
+        for method_name in ("send_wxwork_layouts", "send_wxwork_content"):
+            params = inspect.signature(getattr(Sender, method_name)).parameters
+            assert "bk_tenant_id" not in params or captured["kwargs"] == {}
+
+    def test_replay_ignores_unknown_retry_fields_for_old_records(self):
+        """旧记录没有 bk_tenant_id 字段时，重放不应额外注入参数"""
+        action = ActionInstance.__new__(ActionInstance)
+        action.id = 1
+        action.strategy_id = 0
+        action.ex_data = {"retry_params": []}
+
+        # 空列表直接返回，不触发任何导入与调用
+        assert action.replay_blocked_notice() == []
+
+
+class TestPrefetchTenantShortCircuit:
+    """跨租户不叠加等待：上游确认不可用后，剩余租户直接回填原标识"""
+
+    def test_prefetch_skips_remaining_tenants_after_upstream_down(self, monkeypatch, settings):
+        from alarm_backends.service.fta_action.utils import prefetch_receiver_display_mappings
+
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        # 三个业务分别落到三个租户
+        monkeypatch.setattr("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id", lambda biz_id: f"t{biz_id // 100}")
+
+        a1 = make_action(inputs={"notice_receiver": "u1", "notice_way": "mail"}, content_template=NEW_TEMPLATE)
+        a1.bk_biz_id = 100
+        a2 = make_action(inputs={"notice_receiver": "u2", "notice_way": "mail"}, content_template=NEW_TEMPLATE)
+        a2.bk_biz_id = 200
+        a3 = make_action(inputs={"notice_receiver": "u3", "notice_way": "mail"}, content_template=NEW_TEMPLATE)
+        a3.bk_biz_id = 300
+
+        calls = []
+
+        def _timeout(**kwargs):
+            # 必须打在 API 层而非 batch_get_user_display_names：后者内部会吞掉异常，
+            # 若把它整个替换掉，就绕过了「异常被吞、外层感知不到」的真实路径，
+            # 测试会假绿（曾经如此，导致跨租户短路实际从未生效却未被发现）。
+            calls.append(kwargs.get("bk_tenant_id"))
+            raise BKAPIError(system_name="bk-user", url="display_info", result="接口返回结果超时")
+
+        monkeypatch.setattr("core.drf_resource.api.bk_login.batch_query_user_display_info", _timeout)
+
+        maps = prefetch_receiver_display_mappings([a1, a2, a3])
+
+        # 只有第一个租户真正发起请求，后两个直接回填
+        assert calls == ["t1"]
+        assert maps["t1"] == {"u1": "u1"}
+        assert maps["t2"] == {"u2": "u2"}
+        assert maps["t3"] == {"u3": "u3"}

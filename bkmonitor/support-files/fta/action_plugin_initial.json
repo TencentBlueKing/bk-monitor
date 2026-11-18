@@ -11,7 +11,7 @@
     "plugin_source": "builtin",
     "description": "告警通知是平台内置的套餐类型，由平台自身实现。可以对告警信息基于人进行收敛，可以对接不同的告警通知渠道。 \n\n* 基于人进行收敛\n* 有告警风暴控制能力\n* 可以定制不同的告警模版\n* 内置基于不同的通知渠道显示的变量\n* 可以自定义各种通知渠道[查看文档]()\n\n更多[查看文档]()",
     "config_schema": {
-      "content_template": "发送{{notice_way_display}}告警通知给{{notice_receiver_display}}{{status_display}}",
+      "content_template": "发送{{notice_way_display}}告警通知给{{ notice_receiver_display | default(notice_receiver) }}{{status_display}}",
       "content_template_with_url": "达到通知告警的执行条件【{{action_signal}}】，已触发告警通知",
       "content_template_without_assignee": "达到通知告警的执行条件【{{action_signal}}】，当前通知人员为空",
       "content_template_shielded": "达到通知告警的执行条件【{{action_signal}}】，因告警已被屏蔽或不在通知时间段，忽略通知发送",
