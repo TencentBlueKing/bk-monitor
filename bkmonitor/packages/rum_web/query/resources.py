@@ -63,7 +63,7 @@ class RumRecordsResource(Resource):
     def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
         application = _get_application(data["bk_biz_id"], data["app_name"])
         handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
-        return {
+        result = {
             "list": [
                 flatten_dict_data(_data)
                 for _data in handler.list_records(
@@ -77,6 +77,10 @@ class RumRecordsResource(Resource):
                 )
             ]
         }
+        virtual_fields = handler.query.virtual_fields
+        for record in result["list"]:
+            record.update({name: virtual.format(record) for name, virtual in virtual_fields.items()})
+        return result
 
 
 class RumViewConfigResource(Resource):
