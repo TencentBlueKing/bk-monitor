@@ -14,7 +14,14 @@ from django.utils.translation import gettext_lazy as _
 
 from constants.apm import CachedEnum
 
-SPAN_TYPE_COMMON_DISPLAY_FIELDS = ["span_name", "attributes.outcome.type", "end_time"]
+SPAN_TYPE_COMMON_DISPLAY_FIELDS = [
+    "span_name",
+    "attributes.span_type",
+    "elapsed_time",
+    "virtual.browser",
+    "attributes.user.id",
+    "end_time",
+]
 
 
 class RumSpanType(CachedEnum):
@@ -64,7 +71,6 @@ class RumSpanType(CachedEnum):
                 "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
-                "attributes.outcome.type",
                 "attributes.view.loading_time",
             ],
             self.RESOURCE: [
@@ -95,7 +101,6 @@ class RumSpanType(CachedEnum):
                 "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
-                "attributes.outcome.type",
             ],
             self.LONG_TASK: [
                 "attributes.session.id",
@@ -119,7 +124,6 @@ class RumSpanType(CachedEnum):
                 "span_name",
                 "attributes.url.full",
                 "attributes.server.address",
-                "attributes.outcome.type",
                 "attributes.view.url_template",
                 "resource.user_agent.name",
                 "resource.service.version",
@@ -127,7 +131,6 @@ class RumSpanType(CachedEnum):
             ],
             self.CUSTOM: [
                 "span_name",
-                "attributes.outcome.type",
                 "elapsed_time",
                 "attributes.view.url_template",
                 "attributes.user.id",
@@ -150,7 +153,6 @@ class RumSpanType(CachedEnum):
         return {
             self.VIEW: [
                 "span_name",
-                "attributes.outcome.type",
                 "attributes.view.url_template",
                 "attributes.view.loading_time",
                 "virtual.browser",
@@ -176,9 +178,8 @@ class RumSpanType(CachedEnum):
             ],
             self.VITAL: [
                 "span_name",
-                "attributes.view.url_template",
-                "attributes.vital.metric",
                 "attributes.vital.value",
+                "attributes.view.url_template",
                 "virtual.browser",
                 "attributes.user.id",
                 "end_time",
@@ -195,7 +196,6 @@ class RumSpanType(CachedEnum):
             ],
             self.ACTION: [
                 "span_name",
-                "attributes.outcome.type",
                 "attributes.view.url_template",
                 "elapsed_time",
                 "attributes.action.type",
@@ -206,7 +206,6 @@ class RumSpanType(CachedEnum):
             ],
             self.WEBSOCKET: [
                 "span_name",
-                "attributes.outcome.type",
                 "attributes.view.url_template",
                 "virtual.browser",
                 "attributes.user.id",
@@ -214,7 +213,6 @@ class RumSpanType(CachedEnum):
             ],
             self.CUSTOM: [
                 "span_name",
-                "attributes.outcome.type",
                 "elapsed_time",
                 "virtual.browser",
                 "attributes.user.id",
