@@ -20,7 +20,7 @@ from rum_web.handlers.builder.base import BaseSection, KeyInfoSection, KeyValueI
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.hover import RESOURCE_PHASE_HOVERS
 from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
-from rum_web.handlers.builder.span.resource_timing import (
+from rum_web.handlers.builder.span.timing.resource import (
     CrossOriginLayout,
     LocalLayout,
     NetworkLayout,

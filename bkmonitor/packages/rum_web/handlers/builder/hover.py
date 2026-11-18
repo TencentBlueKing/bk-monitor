@@ -176,6 +176,40 @@ VIEW_PHASE_HOVERS: dict[str, Hover] = {
     ),
 }
 
+VIEW_NAVIGATION_PHASE_HOVERS: dict[str, Hover] = {
+    **{key: RESOURCE_PHASE_HOVERS[key] for key in ("redirect", "dns", "connect", "tls", "download")},
+    "prepare": _hover(
+        _("发起前等待"),
+        _("从导航开始或重定向结束，到浏览器开始获取主文档的时间。"),
+        user_experience=_("浏览器正在准备获取页面内容。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "first_byte": _hover(
+        _("等待首字节"),
+        _("从连接完成或开始获取主文档，到浏览器收到响应首字节的时间。"),
+        user_experience=_("浏览器正在发送请求并等待页面开始返回内容。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "dom_parsing": _hover(
+        _("DOM 解析"),
+        _("收到主文档后，浏览器完成剩余 HTML 解析、DOM 构建和相关同步脚本执行。"),
+        user_experience=_("页面结构正在生成，内容开始陆续出现。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "resource_load": _hover(
+        _("资源加载"),
+        _("从 HTML 解析完成到 load 事件开始，包含延迟执行的脚本、DOMContentLoaded 处理和子资源加载。"),
+        user_experience=_("页面结构已就绪，脚本和其他资源继续加载、执行。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "page_stable": _hover(
+        _("页面趋于稳定"),
+        _("从 load 事件开始，到事件处理结束与自动 Loading Time 中较晚的时间。"),
+        user_experience=_("页面内容加载完成，逐渐稳定下来。"),
+        source=LOADING_TIME_SOURCE,
+    ),
+}
+
 MILESTONE_HOVERS: dict[str, Hover] = {
     "dom_complete": _hover(
         _("DOM Complete"),
