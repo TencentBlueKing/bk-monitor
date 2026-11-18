@@ -88,7 +88,8 @@ class CustomReportSubscription(models.Model):
         bk_host_ids: list[int],
         op_type: str = "add",
         check_lease: Callable[[], None] | None = None,
-    ):
+    ) -> list[int]:
+        """逐个下发子配置，返回本轮下发异常的 DataID。"""
         available_host_ids = bk_host_ids
 
         if op_type != "remove" and not available_host_ids:
@@ -96,7 +97,7 @@ class CustomReportSubscription(models.Model):
             # 业务背景：bkmonitorproxy 的功能将被 bk-collector 取代，为了版本兼容目前采取两边下发的逻辑
             #         当 bkmonitorproxy 被停止或未部署时，说明 bkmonitorproxy 已下线，无需进行下发
             logger.info("[custom_report] skipped because no available nodes: bk_biz_id(%s)", bk_biz_id)
-            return
+            return []
 
         if op_type == "remove":
             # 使用 Proxy 插件卸除配置时，针对 Proxy 状态为手动停止的机器进行卸载
@@ -108,11 +109,12 @@ class CustomReportSubscription(models.Model):
             bk_host_ids,
         )
         use_nodeman_v3 = BkCollectorDeployPolicy.is_enabled()
+        failed_data_ids = []
         for item, protocol in data_id_configs:
             if check_lease:
                 check_lease()
-            if use_nodeman_v3:
-                try:
+            try:
+                if use_nodeman_v3:
                     BkCollectorDeployPolicy.deploy(
                         bk_tenant_id=bk_tenant_id,
                         scene=BkCollectorDeployScene.CUSTOM_REPORT,
@@ -122,44 +124,44 @@ class CustomReportSubscription(models.Model):
                         bk_host_ids=bk_host_ids,
                         bk_biz_id=bk_biz_id,
                     )
-                except Exception as e:
-                    logger.exception(
-                        f"deploy custom report config by nodeman v3 error, bk_biz_id({bk_biz_id}), "
-                        f"bk_data_id({item['bk_data_id']}), error: {e}"
-                    )
-                continue
+                    continue
 
-            subscription_params = {
-                "scope": {
-                    "object_type": "HOST",
-                    "node_type": "INSTANCE",
-                    "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
-                },
-                "steps": [
-                    {
-                        "id": "bk-collector",
-                        "type": "PLUGIN",
-                        "config": {
-                            "plugin_name": "bk-collector",
-                            "plugin_version": "latest",
-                            "config_templates": [{"name": cls.SUB_CONFIG_MAP[protocol], "version": "latest"}],
-                        },
-                        "params": {"context": {"bk_biz_id": bk_biz_id, **item}},
+                subscription_params = {
+                    "scope": {
+                        "object_type": "HOST",
+                        "node_type": "INSTANCE",
+                        "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
                     },
-                ],
-            }
-
-            try:
+                    "steps": [
+                        {
+                            "id": "bk-collector",
+                            "type": "PLUGIN",
+                            "config": {
+                                "plugin_name": "bk-collector",
+                                "plugin_version": "latest",
+                                "config_templates": [{"name": cls.SUB_CONFIG_MAP[protocol], "version": "latest"}],
+                            },
+                            "params": {"context": {"bk_biz_id": bk_biz_id, **item}},
+                        },
+                    ],
+                }
                 cls.create_or_update_config(
                     bk_tenant_id=bk_tenant_id,
                     bk_biz_id=bk_biz_id,
                     subscription_params=subscription_params,
                     bk_data_id=item["bk_data_id"],
                 )
-            except Exception as e:
+            except CronLeaseLost:
+                raise
+            except Exception:
+                failed_data_ids.append(item["bk_data_id"])
                 logger.exception(
-                    f"create or update subscription config error, bk_biz_id({bk_biz_id}), bk_data_id({item['bk_data_id']}), error: {e}"
+                    "deploy custom report config by nodeman %s failed, bk_biz_id(%s), bk_data_id(%s)",
+                    "v3" if use_nodeman_v3 else "v2",
+                    bk_biz_id,
+                    item["bk_data_id"],
                 )
+        return failed_data_ids
 
     @classmethod
     def get_protocol(cls, bk_data_id) -> str:
@@ -379,13 +381,15 @@ class CustomReportSubscription(models.Model):
                 for protocol, config_map in protocol_config_maps.items():
                     if check_lease:
                         check_lease()
-                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, namespace, config_map, protocol)
+                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(
+                        cluster_id, namespace, config_map, protocol, check_lease=check_lease
+                    )
 
                 # 在所有协议下执行清理，同一个 config_id(data_id) 只允许有一份配置存在
                 if check_lease:
                     check_lease()
                 BkCollectorClusterConfig.clean_dup_secrets_in_multi_protocol(
-                    cluster_id, namespace, protocol_config_maps.keys(), config_id_to_protocol
+                    cluster_id, namespace, protocol_config_maps.keys(), config_id_to_protocol, check_lease=check_lease
                 )
             except CronLeaseLost:
                 raise
@@ -483,7 +487,7 @@ class CustomReportSubscription(models.Model):
             return result
 
         # 2. 下发配置
-        cls.create_subscription(
+        failed_data_ids = cls.create_subscription(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             data_id_configs=data_id_configs,
@@ -491,6 +495,12 @@ class CustomReportSubscription(models.Model):
             op_type=op_type,
             check_lease=check_lease,
         )
+        if failed_data_ids:
+            result.update(
+                result=False,
+                message=f"failed to deploy {len(failed_data_ids)} configs",
+                failed_data_ids=failed_data_ids,
+            )
         return result
 
     @staticmethod

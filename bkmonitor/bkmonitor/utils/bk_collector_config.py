@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import gzip
 import logging
+from collections.abc import Callable
 
 from django.conf import settings
 from kubernetes import client
@@ -266,7 +267,15 @@ class BkCollectorClusterConfig:
                 return _sec
 
     @classmethod
-    def deploy_to_k8s_with_hash(cls, cluster_id: str, namespace: str, config_map: dict, protocol: str):
+    def deploy_to_k8s_with_hash(
+        cls,
+        cluster_id: str,
+        namespace: str,
+        config_map: dict,
+        protocol: str,
+        *,
+        check_lease: Callable[[], None] | None = None,
+    ):
         """
         Args:
             cluster_id: 集群ID
@@ -364,6 +373,7 @@ class BkCollectorClusterConfig:
 
                 bcs_client.client_request(
                     bcs_client.core_api.create_namespaced_secret,
+                    before_request=check_lease,
                     namespace=namespace,
                     body=sec,
                 )
@@ -406,6 +416,7 @@ class BkCollectorClusterConfig:
                 if need_update:
                     bcs_client.client_request(
                         bcs_client.core_api.patch_namespaced_secret,
+                        before_request=check_lease,
                         name=sec.metadata.name,
                         namespace=namespace,
                         body=sec,
@@ -420,10 +431,12 @@ class BkCollectorClusterConfig:
         )
 
         # 该逻辑会需要保留一段时间后清理  2025-09-24，半年后可删除该逻辑
-        cls.clean_dup_secrets(cluster_id, namespace, protocol)
+        cls.clean_dup_secrets(cluster_id, namespace, protocol, check_lease=check_lease)
 
     @classmethod
-    def clean_dup_secrets(cls, cluster_id: str, namespace: str, protocol: str):
+    def clean_dup_secrets(
+        cls, cluster_id: str, namespace: str, protocol: str, *, check_lease: Callable[[], None] | None = None
+    ):
         """
         - 根据 protocol 查到集群内所有的 secrets
             - 转换为 子配置文件  -> secrets 的对应关系
@@ -496,6 +509,7 @@ class BkCollectorClusterConfig:
                 logger.info(f"[clean dup secrets] cluster_id {cluster_id} delete secret {need_update_sec_file} start")
                 bcs_client.client_request(
                     bcs_client.core_api.delete_namespaced_secret,
+                    before_request=check_lease,
                     name=secret.metadata.name,
                     namespace=namespace,
                     body=secret,
@@ -505,6 +519,7 @@ class BkCollectorClusterConfig:
                 # update secret
                 bcs_client.client_request(
                     bcs_client.core_api.replace_namespaced_secret,
+                    before_request=check_lease,
                     name=secret.metadata.name,
                     namespace=namespace,
                     body=secret,
@@ -513,7 +528,13 @@ class BkCollectorClusterConfig:
 
     @classmethod
     def clean_dup_secrets_in_multi_protocol(
-        cls, cluster_id: str, namespace: str, protocols, config_id_to_protocol: dict
+        cls,
+        cluster_id: str,
+        namespace: str,
+        protocols,
+        config_id_to_protocol: dict,
+        *,
+        check_lease: Callable[[], None] | None = None,
     ):
         """
         按 config_id 当前所属协议，清理该 config_id 在其他协议 Secret 下的旧子配置。
@@ -603,6 +624,7 @@ class BkCollectorClusterConfig:
                     )
                     bcs_client.client_request(
                         bcs_client.core_api.delete_namespaced_secret,
+                        before_request=check_lease,
                         name=secret.metadata.name,
                         namespace=namespace,
                         body=secret,
@@ -614,6 +636,7 @@ class BkCollectorClusterConfig:
                 else:
                     bcs_client.client_request(
                         bcs_client.core_api.replace_namespaced_secret,
+                        before_request=check_lease,
                         name=secret.metadata.name,
                         namespace=namespace,
                         body=secret,

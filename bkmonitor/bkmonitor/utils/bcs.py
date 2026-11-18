@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import abc
 import logging
 import multiprocessing
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, wait
 from urllib.parse import urljoin
 
@@ -63,15 +64,22 @@ class BcsKubeClient:
     def core_api(self):
         return client.CoreV1Api(client.ApiClient(self.auth))
 
-    def client_request(self, client_api, **kwargs):
+    def client_request(self, client_api, *, before_request: Callable[[], None] | None = None, **kwargs):
         """
         带超时时间的请求
         """
         # SDK 的异步模式会把每个临时 ApiClient 的线程池一直保留到进程退出。
         params = {"_request_timeout": self._REQUEST_TIMEOUT, **kwargs, "async_req": False}
+
+        def request():
+            # 在工作线程实际调用 SDK 前检查，覆盖提交任务至开始执行之间的等待。
+            if before_request is not None:
+                before_request()
+            return client_api(**params)
+
         executor = ThreadPoolExecutor(max_workers=1)
         try:
-            future = executor.submit(client_api, **params)
+            future = executor.submit(request)
             if not wait([future], timeout=self._REQUEST_TIMEOUT).done:
                 raise multiprocessing.TimeoutError
             return future.result()
