@@ -1663,6 +1663,33 @@ def test_refresh_biz_bk_collector_configs_dry_run_and_local_context_restore(monk
     assert local.bk_tenant_id == "origin_tenant"
 
 
+def test_full_custom_report_refresh_continues_after_nodeman_blacklist_lookup_failure(mocker):
+    from metadata.models.custom_report import subscription_config
+    from metadata.models.custom_report.subscription_config import CustomReportSubscription
+
+    event_config = ({"bk_data_id": 2001}, "json")
+    metric_config = ({"bk_data_id": 2002}, "json")
+    mocker.patch.object(CustomReportSubscription, "get_custom_event_config", return_value={-42: [event_config]})
+    mocker.patch.object(CustomReportSubscription, "get_custom_time_series_config", return_value={2: [metric_config]})
+    mocker.patch.object(subscription_config.api.cmdb, "get_business", return_value=[SimpleNamespace(bk_biz_id=2)])
+    mocker.patch.object(
+        subscription_config, "is_biz_id_in_black_list", side_effect=[TimeoutError("timeout"), False, False]
+    )
+    mocker.patch.object(subscription_config, "is_biz_id_need_managed", return_value=True)
+    node_man = mocker.patch.object(CustomReportSubscription, "_refresh_collect_custom_config_by_biz", return_value=None)
+    k8s = mocker.patch.object(CustomReportSubscription, "_refresh_k8s_custom_config_by_biz", return_value=None)
+
+    report = CustomReportSubscription.refresh_collector_custom_conf(bk_tenant_id="system")
+
+    assert [call.kwargs["bk_biz_id"] for call in node_man.call_args_list] == [2, 0]
+    assert [call.kwargs["bk_biz_id"] for call in k8s.call_args_list] == [-42, 2, 0]
+    assert node_man.call_args_list[-1].kwargs["data_id_configs"] == [event_config, metric_config]
+    assert k8s.call_args_list[-1].kwargs["data_id_configs"] == [event_config, metric_config]
+    assert report["details"][0]["targets"]["node_man"] == {"action": "refresh", "result": False, "message": "timeout"}
+    assert report["summary"]["failed_count"] == 1
+    assert report["summary"]["succeeded_count"] == 5
+
+
 def test_custom_report_refresh_deploy_targets_keep_default_and_allow_node_man_only(monkeypatch):
     from metadata.models.custom_report.subscription_config import CustomReportSubscription
 

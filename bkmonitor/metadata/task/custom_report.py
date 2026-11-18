@@ -160,9 +160,15 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
 
         for bk_tenant_id in bk_tenant_ids:
             try:
-                models.CustomReportSubscription.refresh_collector_custom_conf(
+                report = models.CustomReportSubscription.refresh_collector_custom_conf(
                     bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id
                 )
+                if bk_biz_id is None:
+                    logger.info(
+                        "finished full custom report refresh, bk_tenant_id(%s), summary(%s)",
+                        bk_tenant_id,
+                        report["summary"],
+                    )
             except Exception as e:
                 logger.exception(
                     f"refresh custom report config to collector error, bk_tenant_id({bk_tenant_id}), bk_biz_id({bk_biz_id}), error({e})"

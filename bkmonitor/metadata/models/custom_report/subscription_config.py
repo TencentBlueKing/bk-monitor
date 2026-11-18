@@ -585,16 +585,14 @@ class CustomReportSubscription(models.Model):
                 "targets": {},
             }
             if "node_man" in deploy_targets:
-                # 业务黑名单
-                if is_biz_id_in_black_list(bk_biz_id):
-                    target_record = {
-                        "action": "skip",
-                        "result": True,
-                        "message": "skip refresh custom report config to node_man because business is in black list",
-                    }
-                    detail["targets"]["node_man"] = target_record
-                else:
-                    try:
+                try:
+                    if is_biz_id_in_black_list(bk_biz_id):
+                        target_record = {
+                            "action": "skip",
+                            "result": True,
+                            "message": "skip refresh custom report config to node_man because business is in black list",
+                        }
+                    else:
                         # 1. 下发配置（走节点管理下发至主机）
                         target_record = cls._refresh_collect_custom_config_by_biz(
                             bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
@@ -609,14 +607,14 @@ class CustomReportSubscription(models.Model):
                                 "result": None if dry_run else True,
                                 "message": "success",
                             }
-                    except Exception as e:
-                        target_record = {
-                            "action": "dry_run" if dry_run else "refresh",
-                            "result": False,
-                            "message": str(e),
-                        }
-                        logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
-                    detail["targets"]["node_man"] = target_record
+                except Exception as e:
+                    target_record = {
+                        "action": "dry_run" if dry_run else "refresh",
+                        "result": False,
+                        "message": str(e),
+                    }
+                    logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
+                detail["targets"]["node_man"] = target_record
 
             if "k8s" in deploy_targets:
                 # 业务黑白名单
