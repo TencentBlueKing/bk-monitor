@@ -81,7 +81,7 @@ def application(mocker):
 
 
 @pytest.mark.parametrize("mode,group_by", [("span", ["attributes.span_type"]), ("view", []), ("session", [])])
-@pytest.mark.parametrize("interval,expected_interval", [(None, 60), (30, 30)])
+@pytest.mark.parametrize("interval,expected_interval", [(None, 300), ("auto", 300), (30, 30)])
 def test_time_series_response_and_defaults(mocker, application, mode, group_by, interval, expected_interval):
     graph = mocker.patch(
         "rum_web.handlers.level.base.resource.grafana.graph_unify_query",
@@ -96,7 +96,7 @@ def test_time_series_response_and_defaults(mocker, application, mode, group_by, 
             ],
         },
     )
-    request = {**REQUEST, "mode": mode}
+    request = {**REQUEST, "mode": mode, "end_time": REQUEST["start_time"] + 10 * 3600}
     if interval is not None:
         request["interval"] = interval
     result = RumTimeSeriesResource().request(request)

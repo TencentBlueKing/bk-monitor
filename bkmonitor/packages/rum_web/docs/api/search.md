@@ -2124,11 +2124,13 @@ POST /rum/search/time_series/
 {
   "bk_biz_id": 2, "app_name": "rum-demo", "mode": "span",
   "start_time": 1785999600, "end_time": 1785999720,
-  "filters": [], "query_string": "", "interval": 60
+  "filters": [], "query_string": "", "interval": "auto"
 }
 ```
 
-- *[1] 公共参数见 [total](#213-total---检索结果总数)，`interval` 为可选的正整数，单位为秒；省略时按查询窗口计算，最小为 `60 s`。*
+公共参数见 [total](#213-total---检索结果总数)。`interval` 默认为 `"auto"`，也可传正整数指定间隔（秒）。
+
+`"auto"` 与事件时序接口使用同一规则，按查询时间范围调用 `get_auto_interval(60, start_time, end_time, factor=10)`。
 
 **响应**
 
