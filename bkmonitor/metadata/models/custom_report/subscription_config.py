@@ -499,7 +499,7 @@ class CustomReportSubscription(models.Model):
     def refresh_collector_custom_conf(
         cls,
         bk_tenant_id: str,
-        bk_biz_id: int | None = None,
+        bk_biz_id: int | str | None = None,
         op_type: str = "add",
         deploy_targets: tuple[str, ...] | list[str] | str = ("node_man", "k8s"),
         dry_run: bool = False,
@@ -520,6 +520,8 @@ class CustomReportSubscription(models.Model):
             按业务ID将上面的任务下发到机器上，通过节点管理的订阅接口，其中0业务为直连云区域，下发所有data_id配置
             bk-collector: 单个data_id对应创建单个订阅
         """
+        if bk_biz_id is not None:
+            bk_biz_id = int(bk_biz_id)
         if isinstance(deploy_targets, str):
             deploy_targets = (deploy_targets,)
         deploy_targets = tuple(dict.fromkeys(deploy_targets))
