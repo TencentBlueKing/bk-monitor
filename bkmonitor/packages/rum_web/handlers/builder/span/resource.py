@@ -85,11 +85,11 @@ class LoadingTimingSection(WaterfallSection):
         "sw_startup": _("[ServiceWorker] 启动"),
         "sw_request": _("[ServiceWorker] 发送请求"),
         "sw_respond_with": _("[ServiceWorker] respondWith"),
-        "dns": _("DNS"),
+        "dns": _("DNS 查询"),
         "connect": _("连接建立"),
-        "tls": _("TLS"),
+        "tls": _("TLS 建连"),
         "first_byte": _("等待首字节"),
-        "download": _("内容下载"),
+        "download": _("内容传输"),
     }
 
     # 按 A→E 顺序匹配，E 的「未匹配 A–D」由顺序保证；ReusedLayout 继承 NetworkLayout，必须排在其前。

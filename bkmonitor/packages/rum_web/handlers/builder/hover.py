@@ -112,7 +112,7 @@ RESOURCE_PHASE_HOVERS: dict[str, Hover] = {
         source=RESOURCE_TIMING_SOURCE,
     ),
     "tls": _hover(
-        _("TLS 握手"),
+        _("TLS 建连"),
         _("HTTPS 连接在传输内容前确认服务器身份并建立加密通道；非 HTTPS 或复用连接时可能没有该阶段。"),
         user_experience=_("浏览器正在确认连接安全并协商加密方式。"),
         source=RESOURCE_TIMING_SOURCE,
@@ -124,7 +124,7 @@ RESOURCE_PHASE_HOVERS: dict[str, Hover] = {
         source=RESOURCE_TIMING_SOURCE,
     ),
     "download": _hover(
-        _("内容下载"),
+        _("内容传输"),
         _("浏览器从收到响应首字节开始，持续接收资源内容，直到响应结束。"),
         user_experience=_("浏览器正在接收资源内容。"),
         source=RESOURCE_TIMING_SOURCE,
