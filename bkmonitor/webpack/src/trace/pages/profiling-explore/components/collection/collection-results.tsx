@@ -68,6 +68,9 @@ import './collection-results.scss';
 
 const skeletonRows = Array.from({ length: 10 }, (_, index) => ({ resultKey: `loading-${index}` }));
 
+/** 表格固定配置项（表头吸顶、横向滚动条吸底），滚动容器为结果列表 .collection-history-scroll */
+const resultsTableAffixed = { container: '.collection-history-scroll' };
+
 // 表格追加的操作列 key
 const operationField = 'row-operation';
 
@@ -439,7 +442,10 @@ export default defineComponent({
             data={showSkeleton ? skeletonRows : this.tableRows}
             filterRow={emptyResult ? () => null : undefined}
             filterValue={{ status: this.state.filters.status }}
+            headerAffixedTop={resultsTableAffixed}
+            horizontalScrollAffixedBottom={resultsTableAffixed}
             hover={!showSkeleton}
+            needCustomScroll={false}
             resizable={true}
             rowKey='resultKey'
             size='small'

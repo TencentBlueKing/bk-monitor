@@ -30,7 +30,13 @@
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: #3a84ff;
     white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      color: #5594fa;
+    }
   }
 }
 

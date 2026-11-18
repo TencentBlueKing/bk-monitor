@@ -74,11 +74,8 @@ export default defineComponent({
       if (image.naturalWidth && image.naturalHeight) {
         return { width: image.naturalWidth, height: image.naturalHeight };
       }
-      const parts =
-        /viewBox\s*=\s*["']([^"']+)["']/i
-          .exec(props.svg)?.[1]
-          .split(/[\s,]+/)
-          .map(Number) ?? [];
+      const matched = /viewBox\s*=\s*["']([^"']+)["']/i.exec(props.svg)?.[1];
+      const parts = matched?.split(/[\s,]+/).map(Number) ?? [];
       const width = parts[2];
       const height = parts[3];
       return width && height ? { width: Math.ceil(width), height: Math.ceil(height) } : null;
@@ -89,34 +86,39 @@ export default defineComponent({
       const fail = () => Message({ theme: 'error', message: t('导出失败，请重试') });
       const image = new Image();
       image.onload = () => {
-        const size = svgSize(image);
-        if (!size) {
-          fail();
-          return;
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = size.width;
-        canvas.height = size.height;
-        const context = canvas.getContext('2d');
-        if (!context) {
-          fail();
-          return;
-        }
-        context.fillStyle = '#fff';
-        context.fillRect(0, 0, size.width, size.height);
-        context.drawImage(image, 0, 0, size.width, size.height);
-        canvas.toBlob(blob => {
-          if (!blob) {
+        // 尺寸计算与画布绘制都可能抛错，统一按导出失败处理，避免静默无响应
+        try {
+          const size = svgSize(image);
+          if (!size) {
             fail();
             return;
           }
-          const link = document.createElement('a');
-          const objectUrl = URL.createObjectURL(blob);
-          link.download = 'profiling-callgraph.png';
-          link.href = objectUrl;
-          link.click();
-          setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-        });
+          const canvas = document.createElement('canvas');
+          canvas.width = size.width;
+          canvas.height = size.height;
+          const context = canvas.getContext('2d');
+          if (!context) {
+            fail();
+            return;
+          }
+          context.fillStyle = '#fff';
+          context.fillRect(0, 0, size.width, size.height);
+          context.drawImage(image, 0, 0, size.width, size.height);
+          canvas.toBlob(blob => {
+            if (!blob) {
+              fail();
+              return;
+            }
+            const link = document.createElement('a');
+            const objectUrl = URL.createObjectURL(blob);
+            link.download = 'profiling-callgraph.png';
+            link.href = objectUrl;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+          });
+        } catch {
+          fail();
+        }
       };
       image.onerror = fail;
       image.src = url.value;
