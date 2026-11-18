@@ -268,6 +268,7 @@ export default defineComponent({
                 onBusy={value => this.$emit('busy', value)}
                 onChange={c.changeHistory}
                 onCreated={() => this.$emit('created')}
+                onPrefill={value => c.openEditor(undefined, value)}
                 onResult={(value, newPage) => this.$emit('result', value, newPage)}
                 onShare={value => this.$emit('share', value)}
               />
@@ -278,6 +279,7 @@ export default defineComponent({
                 range={this.range}
                 rangeError={this.rangeError}
                 readonly={c.readonly}
+                resolveRange={this.resolveRange}
                 revision={this.revision}
                 selection={state.result}
                 state={state.results}
@@ -300,6 +302,7 @@ export default defineComponent({
             key={`${this.bizId}:${c.editing.value?.task_id || 'new'}`}
             bizId={this.bizId}
             meta={c.meta.value}
+            prefill={c.prefill.value}
             task={c.editing.value}
             timezone={this.timezone}
             onClose={() => {

@@ -157,6 +157,23 @@
     color: #8f9fb8;
   }
 
+  .collection-execution-process-row {
+    min-width: 0;
+  }
+
+  .collection-execution-process-value {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .collection-execution-process-tag {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .t-table {
     font-size: 12px;
   }

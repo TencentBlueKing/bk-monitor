@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from dataclasses import dataclass, field, replace
 from collections.abc import Iterator
-from typing import Protocol
+from typing import NotRequired, Protocol, TypedDict
 
 
 class HasChoicesCachedEnum(Protocol):
@@ -24,6 +24,47 @@ class HasChoicesCachedEnum(Protocol):
     def choices(cls) -> list[tuple[str | int | float, str | int | float]]:
         """获取枚举值列表"""
         ...
+
+
+class VirtualFieldConfig(TypedDict):
+    """通过模板组合真实字段的查询维度。
+
+    template 的 {成员|--} 用于展示，成员均为空时返回 null。
+    parse_pattern 是后端 fullmatch 的 Python 正则，命名分组对应 fields 的键。
+    配置方须保证有效原始值可以按组还原，例如浏览器版本不含空格。
+    """
+
+    fields: dict[str, str]
+    template: str
+    parse_pattern: str
+
+
+class CompositeFieldItem(TypedDict):
+    """复用字段元数据的单元格内容。"""
+
+    field_name: str
+    # 同一字段的候选值取 OR，不同字段取 AND；由前端选取当前行的成员。
+    show_if: NotRequired[dict[str, list[str]]]
+
+
+class CompositeFieldSection(TypedDict, total=False):
+    """一行正文与标签。"""
+
+    items: list[CompositeFieldItem]
+    badges: list[CompositeFieldItem]
+    separator: str
+
+
+class CompositeFieldConfig(TypedDict):
+    """只组织展示，分析、过滤和排序仍使用成员字段。"""
+
+    primary: NotRequired[str]
+    sections: list[CompositeFieldSection]
+
+
+class FieldExtraConfig(TypedDict, total=False):
+    virtual: VirtualFieldConfig
+    composite: CompositeFieldConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +102,7 @@ class FieldSpec:
             默认 ``True``。
         option_values: 枚举候选值类型，为 ``CachedEnum`` 子类，无枚举时为 ``None``。
         rating_config: 评级阈值配置，按数组顺序匹配。
+        extra_config: virtual 定义后端查询维度，composite 定义多行单元格。
     """
 
     field_name: str
@@ -71,6 +113,7 @@ class FieldSpec:
     is_real: bool = True
     option_values: type[HasChoicesCachedEnum] | None = None
     rating_config: tuple[RatingThreshold, ...] = ()
+    extra_config: FieldExtraConfig = field(default_factory=FieldExtraConfig, hash=False)
     _full_field_name: str = field(default="", init=False, repr=False, compare=False)
 
     def children(self) -> Iterator["FieldSpec"]:

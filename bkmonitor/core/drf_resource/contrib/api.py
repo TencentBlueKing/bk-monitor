@@ -190,12 +190,7 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
         headers["X-Bk-Tenant-Id"] = self._get_tenant_id()
         return headers
 
-    def perform_request(self, validated_request_data):
-        """
-        发起http请求
-        """
-        validated_request_data = dict(validated_request_data)
-
+    def _set_tenant_id(self, validated_request_data):
         # 获取租户ID
         if not self.bk_tenant_id:
             if "bk_tenant_id" in validated_request_data:
@@ -211,6 +206,14 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
                 )
                 if space:
                     self.bk_tenant_id = space.bk_tenant_id
+
+    def perform_request(self, validated_request_data):
+        """
+        发起http请求
+        """
+        validated_request_data = dict(validated_request_data)
+
+        self._set_tenant_id(validated_request_data)
 
         # 补充用户字段
         validated_request_data = self.full_request_data(validated_request_data)

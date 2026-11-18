@@ -150,6 +150,8 @@ class ActiveProfilingHostExecution(models.Model):
     process_names = models.TextField("进程名", default="")
     process_pids = models.TextField("进程 PID", default="")
     processes = models.JSONField("采集进程", default=list)
+    # SaaS 受理取消时写入的操作人，Event 里没有，BMW 不写这一列，所以可空；采集端自行结束为 cancelled 的没有取消人
+    cancelled_by = models.CharField("取消人", max_length=128, null=True)
     # 当前生效 Event 的上报时间，用于判断后到的同阶段 Event 是否更新；占位行为 0
     event_time = models.BigIntegerField("生效 Event 时间")
     unknown_at = models.BigIntegerField("转为 unknown 的时间", null=True)

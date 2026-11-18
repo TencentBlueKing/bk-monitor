@@ -1,0 +1,292 @@
+.multi-file-upload {
+  width: 100%;
+
+  .multi-file-upload-control {
+    width: 100%;
+
+    .file-wrapper {
+      width: 100%;
+      height: 80px;
+      margin-bottom: 0;
+      background: #f7f9fc;
+      border: 1px dashed #c1cde5;
+      border-radius: 4px;
+
+      &:hover,
+      &:focus {
+        border-color: #3974ff;
+      }
+
+      &.isdrag {
+        border: 1px dashed #3974ff;
+      }
+
+      > div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+
+        .upload-icon {
+          display: block;
+          margin: 0 0 4px;
+          font-size: 32px;
+          line-height: 32px;
+          color: #8f9fbd;
+
+          // monitor-icons.css 覆盖了同名类 .icon-upload-cloud 的码点，此处还原 MagicBox 默认图标
+          &::before {
+            content: '\e1fa';
+          }
+        }
+
+        .text-area {
+          line-height: 20px;
+
+          .drop-upload {
+            color: #47546b;
+          }
+
+          .click-upload {
+            color: #3974ff;
+          }
+        }
+      }
+
+      &:hover .upload-icon {
+        color: #3974ff;
+      }
+    }
+
+    .tip {
+      margin: 4px 0 0;
+      line-height: 20px;
+      color: #47546b;
+    }
+
+    // 已选文件列表由本组件自行渲染，隐藏 bk-upload 自带列表
+    .all-file {
+      display: none;
+    }
+  }
+
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 640px;
+    max-width: 100%;
+    margin-top: 12px;
+
+    .file-summary {
+      display: flex;
+      align-items: flex-start;
+      padding: 5px 7px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #47546b;
+      background: #f0f4ff;
+      border: 1px solid #b0c8ff;
+      border-radius: 4px;
+
+      .file-summary-icon {
+        flex-shrink: 0;
+        margin: 2px 8px 2px 0;
+        font-size: 16px;
+        line-height: 16px;
+        color: #3974ff;
+      }
+
+      .file-summary-text {
+        flex: 1;
+        min-width: 0;
+        margin-right: 8px;
+        word-break: break-all;
+
+        .is-strong {
+          font-weight: 600;
+        }
+
+        .is-danger {
+          color: #e54040;
+        }
+      }
+
+      &.is-success {
+        background: #edfaf6;
+        border-color: #92d6c4;
+
+        .file-summary-icon {
+          color: #23ad89;
+        }
+      }
+
+      &.is-error {
+        background: #fff0f0;
+        border-color: #faafaf;
+
+        .file-summary-icon {
+          color: #e54040;
+        }
+      }
+    }
+
+    .collection-errors {
+      padding: 0;
+      margin: -4px 0 0;
+      list-style: none;
+
+      .collection-error {
+        font-size: 12px;
+        line-height: 20px;
+        color: #e54040;
+        word-break: break-all;
+      }
+    }
+
+    .file-item {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      min-height: 60px;
+      padding: 8px 11px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #47546b;
+      background: #fff;
+      border: 1px solid #c1cde5;
+      border-radius: 4px;
+
+      .file-icon {
+        flex-shrink: 0;
+        width: 32px;
+        height: 32px;
+
+        &.icon-mc-file {
+          font-size: 32px;
+          line-height: 32px;
+        }
+
+        &.is-error {
+          font-size: 32px;
+          line-height: 32px;
+          color: #e54040;
+        }
+      }
+
+      .file-info {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+
+        .file-info-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          .file-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+
+        .file-progress {
+          height: 2px;
+          overflow: hidden;
+          background: #dde3f0;
+
+          .file-progress-bar {
+            width: 30%;
+            height: 2px;
+            background: #3974ff;
+            animation: multi-file-upload-progress 1.2s ease-in-out infinite;
+          }
+        }
+
+        .file-tip {
+          display: flex;
+          align-items: center;
+          word-break: break-all;
+
+          &.is-success {
+            color: #23ad89;
+          }
+
+          &.is-error {
+            color: #e54040;
+          }
+
+          .file-tip-icon {
+            display: flex;
+            flex-shrink: 0;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            margin-right: 4px;
+            font-size: 20px;
+            line-height: 14px;
+          }
+        }
+      }
+
+      .file-size {
+        flex-shrink: 0;
+        margin-left: 12px;
+        font-weight: 500;
+        text-align: right;
+      }
+
+      .file-delete {
+        flex-shrink: 0;
+        font-size: 16px;
+        line-height: 16px;
+        color: #47546b;
+        cursor: pointer;
+
+        &.is-hover-show {
+          display: none;
+        }
+      }
+
+      &.is-validating {
+        .file-info {
+          gap: 8px;
+        }
+      }
+
+      &.is-valid:hover {
+        border-color: #8f9fbd;
+
+        .is-hover-hide {
+          display: none;
+        }
+
+        .file-delete.is-hover-show {
+          display: inline-block;
+        }
+      }
+
+      &.is-invalid {
+        background: #fff0f0;
+        border-color: #e54040;
+      }
+    }
+  }
+}
+
+@keyframes multi-file-upload-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(340%);
+  }
+}

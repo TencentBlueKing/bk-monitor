@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { type SortInfo, type TableProps, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { Alert, Button, Message } from 'bkui-vue';
@@ -31,6 +31,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useCollectionExecution } from '../../composables/use-collection-execution';
 import { useCollectionHistory } from '../../composables/use-collection-history';
+import { getCollectionExecution } from '../../services/collection-history';
 import {
   collectionMethodLabels,
   collectionTypeLabels,
@@ -40,10 +41,12 @@ import {
 import {
   canViewExecution,
   createHistoryFilters,
+  executionConfiguration,
   executionRowKey,
   executionSelection,
   executionStatusLabels,
   formatExecutionDuration,
+  hostErrorTypeMessage,
   taskColumnMinWidth,
 } from '../../utils/collection-history';
 import CollectionExecutionAction from './collection-execution-action';
@@ -51,9 +54,11 @@ import CollectionExecutionDetail from './collection-execution-detail';
 import CollectionExecutionStatus from './collection-execution-status';
 import CollectionFilters from './collection-filters';
 import EmptyStatus from '@/components/empty-status/empty-status';
+import { useTableColumnsCache } from '@/hooks/use-table-columns-cache';
 import { TraceCellSkeleton } from '@/pages/trace-explore/components/trace-explore-skeleton';
 
 import type { SelectionRange } from '../../types';
+import type { CollectionPayload } from '../../types/collection';
 import type {
   CollectionExecution,
   CollectionHistoryFilters,
@@ -73,6 +78,14 @@ const SCROLL_END_THRESHOLD = 80;
 // 触底加载后视口上移的像素，需大于触底阈值才能跳出触底区间
 const SCROLL_BACK_DISTANCE = 120;
 
+// 列表存在过渡态行时静默刷新的间隔，静默刷新不展示 loading
+const SILENT_REFRESH_INTERVAL = 5000;
+// 同一列表连续静默刷新的上限：采集时长最长 300s（60 轮），结束后还会进入 parsing，
+// 取 90 轮（450s）覆盖整段过渡态，避免采集未结束就停止轮询
+const SILENT_REFRESH_LIMIT = 90;
+// 需要轮询刷新的过渡态：采集中、解析中；到终态后停止
+const pendingExecutionStatuses = ['running', 'parsing'];
+
 // 未下发 task_columns 时回退的默认列，列名在渲染时翻译
 const fallbackTaskColumns: CollectionTaskColumn[] = [
   { field: 'task_name', name: 'trace-任务名称', type: 'text' },
@@ -83,6 +96,22 @@ const fallbackTaskColumns: CollectionTaskColumn[] = [
   { field: 'duration_ms', name: '耗时', type: 'duration' },
   { field: 'execution_status', name: '采集结果', type: 'status' },
 ];
+
+// 任务历史默认展示列，其余列可在列设置中开启；用户调整后走本地缓存
+const defaultHistoryFields = [
+  'task_name',
+  'schedule_type',
+  'collection_method',
+  'collection_type',
+  'creator',
+  'scheduled_at',
+  'started_at',
+  'execution_status',
+  'operations',
+];
+
+// 任务历史显示列与列宽的本地缓存 key
+const historyColumnsStorageKey = 'trace_profiling_collection_history_columns';
 
 // 有专属插槽的字段，其余字段按列类型渲染；用 Map 避免后端字段命中原型属性
 const taskColumnSlots = new Map<string, string>([
@@ -117,6 +146,7 @@ export default defineComponent({
     result: (_value: CollectionResultSelection, _newPage: boolean) => true,
     busy: (_value: boolean) => true,
     share: (_value?: CollectionResultSelection | null) => true,
+    prefill: (_value: Omit<CollectionPayload, 'bk_biz_id'>) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -141,6 +171,23 @@ export default defineComponent({
         emit('created');
       },
     });
+    // 回填需要执行配置快照，列表行不带配置，单独拉取后交给上层打开新建采集
+    let prefillController: AbortController | undefined;
+    async function prefill(execution: CollectionExecution) {
+      c.dismissAction();
+      prefillController?.abort();
+      const current = new AbortController();
+      prefillController = current;
+      try {
+        const snapshot = await getCollectionExecution(props.bizId, execution, current.signal);
+        if (current.signal.aborted) return;
+        emit('prefill', executionConfiguration(snapshot));
+      } catch (e) {
+        if (!current.signal.aborted)
+          Message({ theme: 'error', message: (e as Error)?.message || t('配置快照加载失败，请重试') });
+      }
+    }
+    onScopeDispose(() => prefillController?.abort());
     function reset() {
       emit('change', createHistoryFilters());
     }
@@ -162,6 +209,48 @@ export default defineComponent({
       }
       if (h.canAutoFill.value) loadVisiblePage();
     });
+    // 列表存在采集中/解析中的行时静默轮询刷新，不展示 loading；
+    // 同一列表刷新 SILENT_REFRESH_LIMIT 次仍处于过渡态则视为超时并停止
+    const hasPendingExecution = computed(() =>
+      h.rows.value.some(row => pendingExecutionStatuses.includes(row.execution_status))
+    );
+    let silentRefreshCount = 0;
+    let silentRefreshStopped = false;
+    let silentRefreshTimer: null | ReturnType<typeof setTimeout> = null;
+    function stopSilentRefresh() {
+      if (!silentRefreshTimer) return;
+      clearTimeout(silentRefreshTimer);
+      silentRefreshTimer = null;
+    }
+    function scheduleSilentRefresh() {
+      if (silentRefreshStopped) return;
+      stopSilentRefresh();
+      // 主动加载中、查询失败、无过渡态行或已达刷新上限时不再轮询
+      if (h.loading.value || h.error.value || !hasPendingExecution.value) return;
+      if (silentRefreshCount >= SILENT_REFRESH_LIMIT) return;
+      silentRefreshTimer = setTimeout(async () => {
+        silentRefreshTimer = null;
+        if (silentRefreshStopped) return;
+        silentRefreshCount += 1;
+        await h.silentRefresh();
+        if (silentRefreshStopped) return;
+        // 过渡态行消失时 watch 会结束轮询，这里负责继续下一轮
+        scheduleSilentRefresh();
+      }, SILENT_REFRESH_INTERVAL);
+    }
+    watch(
+      [h.loading, h.error, hasPendingExecution],
+      () => {
+        // 重新查询会先清空列表，此时重新计时；滚动加载更多不重置，避免同一列表超时后又被续期
+        if (!h.rows.value.length || !hasPendingExecution.value) silentRefreshCount = 0;
+        scheduleSilentRefresh();
+      },
+      { immediate: true }
+    );
+    onScopeDispose(() => {
+      silentRefreshStopped = true;
+      stopSilentRefresh();
+    });
     // 执行详情内重新采集的提交状态也纳入 busy，避免提交期间触发自动刷新；
     // 详情关闭后不再计入，防止卸载时漏发复位导致 busy 卡住
     const executionBusy = shallowRef(false);
@@ -176,12 +265,48 @@ export default defineComponent({
       () =>
         !!props.filters.task_id ||
         !!props.filters.task_name ||
-        !!props.filters.status ||
+        !!props.filters.status.length ||
         props.filters.schedule_types.length ||
         props.filters.ips.length ||
         props.filters.process_names.length ||
         props.filters.process_pids.length
     );
+    // 列定义优先取后端下发的 task_columns，缺失时回退默认列并翻译列名
+    const taskColumns = computed(() => {
+      const columns = h.taskColumns.value.length
+        ? h.taskColumns.value
+        : fallbackTaskColumns.map(column => ({ ...column, name: t(column.name) }));
+      const seenFields = new Set<string>();
+      return columns.filter(column => {
+        if (!column.field || column.field === 'operations' || seenFields.has(column.field)) return false;
+        seenFields.add(column.field);
+        return true;
+      });
+    });
+    // 可配置的列 key：业务列 + 表格追加的操作列
+    const columnKeys = computed(() => [...taskColumns.value.map(column => column.field), 'operations']);
+    // 锁定列：任务名称与操作列是行入口，列设置中置灰且始终显示
+    const lockedColumns = computed(() => ['task_name', 'operations'].filter(field => columnKeys.value.includes(field)));
+    // 默认列取固定字段而非当前可用列，避免后端列未下发时把默认列写死在缓存里
+    const { storageColumns, fieldsWidthConfig } = useTableColumnsCache({
+      storageKey: historyColumnsStorageKey,
+      defaultColumns: () => defaultHistoryFields,
+      validColumnKeys: () => columnKeys.value,
+    });
+    // 列设置显示列：过滤掉后端已下线的列，并补回缓存里缺失的锁定列（旧缓存没有操作列）
+    const displayColumns = computed(() => {
+      const valid = new Set(columnKeys.value);
+      return [...new Set([...storageColumns.value.filter(field => valid.has(field)), ...lockedColumns.value])];
+    });
+    // 列设置关闭时回写显示列，已下线的列不进入缓存
+    function changeColumns(value: string[]) {
+      const valid = new Set(columnKeys.value);
+      storageColumns.value = [...new Set([...value.filter(field => valid.has(field)), ...lockedColumns.value])];
+    }
+    // 列宽拖拽后回写缓存
+    function changeColumnWidths(value: Record<string, number>) {
+      fieldsWidthConfig.value = value;
+    }
     // tdesign 的 sorter: true 只负责图标与事件，本地排序需自行按 sortInfo 排序
     const sortInfo = shallowRef<null | SortInfo>(null);
     const tableRows = computed(() => {
@@ -207,11 +332,18 @@ export default defineComponent({
       c,
       filtered,
       scrollContainer,
+      taskColumns,
+      displayColumns,
+      lockedColumns,
+      fieldsWidthConfig,
       tableRows,
       executionBusy,
+      prefill,
       reset,
       loadVisiblePage,
       changeSort,
+      changeColumns,
+      changeColumnWidths,
     };
   },
   render() {
@@ -219,17 +351,6 @@ export default defineComponent({
     const showSkeleton = h.loading.value && !h.rows.value.length;
     // 结果为空时由 empty 插槽接管；否则 tdesign 会注入筛选结果行，导致空态不渲染
     const emptyResult = !showSkeleton && !h.rows.value.length;
-    // 列定义优先取后端下发的 task_columns，缺失时回退默认列并翻译列名
-    const seenFields = new Set<string>();
-    const taskColumns = (
-      h.taskColumns.value.length
-        ? h.taskColumns.value
-        : fallbackTaskColumns.map(column => ({ ...column, name: this.t(column.name) }))
-    ).filter(column => {
-      if (!column.field || column.field === 'operations' || seenFields.has(column.field)) return false;
-      seenFields.add(column.field);
-      return true;
-    });
     // 已知业务字段保留原有渲染形态，其余按列类型兜底
     const renderTaskCell = (column: CollectionTaskColumn, row: CollectionExecution) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
@@ -240,17 +361,20 @@ export default defineComponent({
       if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
       return value === null || value === undefined || value === '' ? '--' : String(value);
     };
-    const columns: TableProps['columns'] = [
-      ...taskColumns.map<NonNullable<TableProps['columns']>[number]>(column => {
-        // 初始列宽决定拖拽起点，minWidth 作为拖拽下限
-        const width = taskColumnMinWidth(column);
+    const baseColumns: TableProps['columns'] = [
+      ...this.taskColumns.map<NonNullable<TableProps['columns']>[number]>(column => {
+        // 初始列宽优先取缓存值，minWidth 作为拖拽下限
+        const minWidth = taskColumnMinWidth(column);
+        const width = this.fieldsWidthConfig[column.field] || minWidth;
         return {
           colKey: column.field,
           title: column.name || column.field,
           width,
-          minWidth: width,
+          minWidth,
           resizable: true,
           ellipsis: column.type === 'text',
+          // 任务名称吸附在最左侧；固定列需排在列首，故同时调整列顺序
+          ...(column.field === 'task_name' ? { fixed: 'left' as const } : {}),
           cell:
             taskColumnSlots.get(column.field) || ((_, { row }) => renderTaskCell(column, row as CollectionExecution)),
           ...(column.field === 'schedule_type'
@@ -267,7 +391,9 @@ export default defineComponent({
           ...(column.field === 'execution_status'
             ? {
                 filter: {
-                  type: 'single',
+                  type: 'multiple',
+                  resetValue: [],
+                  showConfirmAndReset: true,
                   list: this.statusFilters
                     .filter(value => Object.hasOwn(executionStatusLabels, value))
                     .map(value => ({ value, label: this.t(executionStatusLabels[value]) })),
@@ -285,6 +411,11 @@ export default defineComponent({
         cell: 'operations',
       },
     ];
+    // 任务名称吸附在最左侧，不在首位时前置到列首
+    const taskNameColumn = baseColumns.find(column => column.colKey === 'task_name');
+    const columns = taskNameColumn
+      ? [taskNameColumn, ...baseColumns.filter(column => column !== taskNameColumn)]
+      : baseColumns;
     return (
       <section class='collection-tab-panel collection-history-panel'>
         <CollectionFilters
@@ -335,9 +466,15 @@ export default defineComponent({
                   {this.t('共 {n} 台主机', { n: row.target_count ?? row.hosts?.length ?? 0 })}
                 </span>
               ),
-              status: ({ row }: { row: CollectionExecution }) => (
-                <CollectionExecutionStatus status={row.execution_status} />
-              ),
+              status: ({ row }: { row: CollectionExecution }) => {
+                const message = hostErrorTypeMessage(row.error_type);
+                return (
+                  <CollectionExecutionStatus
+                    message={message ? this.t(message) : ''}
+                    status={row.execution_status}
+                  />
+                );
+              },
               operations: ({ row }: { row: CollectionExecution }) => (
                 <div class='collection-row-actions'>
                   {/* 禁用按钮不派发鼠标事件，tooltip 需挂在外层元素上 */}
@@ -377,7 +514,8 @@ export default defineComponent({
               ),
             }}
             bkUiSettings={{
-              disabled: columns.some(column => column.colKey === 'task_name') ? ['task_name'] : [],
+              checked: this.displayColumns,
+              disabled: this.lockedColumns,
               rowSize: 'mini',
             }}
             columns={columns.map(column =>
@@ -402,10 +540,12 @@ export default defineComponent({
             resizable={true}
             rowKey='executionKey'
             size='small'
+            onBkUiSettingsChange={value => this.changeColumns(value.columns)}
+            onColumnResizeChange={context => this.changeColumnWidths(context.columnsWidth)}
             onFilterChange={value =>
               this.$emit('change', {
                 ...this.filters,
-                status: String(value.execution_status || ''),
+                status: (value.execution_status || []) as string[],
                 schedule_types: (value.schedule_type || []) as string[],
               })
             }
@@ -461,6 +601,7 @@ export default defineComponent({
         <CollectionExecutionAction
           controller={c}
           readonly={this.readonly}
+          onPrefill={this.prefill}
         />
       </section>
     );

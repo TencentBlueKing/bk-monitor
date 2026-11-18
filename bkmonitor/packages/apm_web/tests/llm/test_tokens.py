@@ -48,6 +48,7 @@ class TokenMatrixTests(TestCase):
                 expected.add("estimated_to_reported_ratio")
             self.assertEqual(set(node), expected)
             self.assertNotIn(node["id"], ids)
+            self.assertGreater(node["value"], 0)
             ids.add(node["id"])
             if node["children"]:
                 self.assertEqual(node["value"], sum(child["value"] for child in node["children"]))
@@ -65,10 +66,11 @@ class TokenMatrixTests(TestCase):
                     span = model_span(input_tokens=reported)
                     span["attributes"].pop("gen_ai.system_instructions")
                     span["attributes"]["gen_ai.input.messages"][0]["role"] = role
-                    root = build_token_matrix([span])["nodes"][0]
-                    nodes = nodes_by_id(root)
+                    roots = {node["id"]: node for node in build_token_matrix([span])["nodes"]}
+                    root = roots.get("input")
+                    nodes = nodes_by_id(root) if root else {}
                     self.assertEqual("other" in nodes, reported > 0)
-                    self.assertEqual(sum(leaves(root).values()), reported)
+                    self.assertEqual(sum(leaves(root).values()) if root else 0, reported)
                     if reported:
                         self.assertEqual(nodes["other"]["value"], reported)
 
@@ -125,7 +127,7 @@ class TokenMatrixTests(TestCase):
             self.assertNotIn("tool_calls/other", {child["id"] for child in children})
             self.assertEqual([child["name"] for child in children], [name or "未知工具" for name in sorted(names)])
 
-    def test_zero_token_calls_are_counted_in_top_three_and_other(self):
+    def test_zero_token_calls_and_input_root_are_omitted(self):
         span = model_span(input_tokens=0)
         span["attributes"]["gen_ai.input.messages"] = [
             {
@@ -133,17 +135,38 @@ class TokenMatrixTests(TestCase):
                 "parts": [{"type": "tool_call", "name": f"tool-{i}", "arguments": "hello"} for i in range(5)],
             }
         ]
-        tools = nodes_by_id(build_token_matrix([span])["nodes"][0])["tool_calls"]
-        self.assertEqual(tools["value"], 0)
-        self.assertEqual([child["call_count"] for child in tools["children"]], [1, 1, 1, 2])
-        self.assertEqual(tools["children"][-1]["id"], "tool_calls/other")
-        self.assertTrue(all(child["value"] == 0 for child in tools["children"]))
+        matrix = build_token_matrix([span])
+        self.assertEqual([node["id"] for node in matrix["nodes"]], ["output"])
+        self.assertEqual(leaves(matrix["nodes"][0]), {"content": 1})
 
     def test_known_tokenizers_and_special_tokens_are_literal_content(self):
         self.assertEqual(TokenCounter("gpt-4o").encoding.name, "o200k_base")
         self.assertEqual(TokenCounter("unknown-model").encoding.name, "cl100k_base")
         self.assertEqual(TokenCounter("gpt-4o").count("hello"), 1)
         self.assertGreater(TokenCounter("gpt-4o").count("<|endoftext|>"), 0)
+
+    def test_zero_tool_nodes_are_omitted_without_changing_retained_call_counts(self):
+        spans = []
+        for index, (name, tokens) in enumerate((("search", 3), ("search", 0), ("read", 2), ("exec", 1), ("zero", 0))):
+            span = model_span(span_id=f"model-{index}", input_tokens=tokens, output_tokens=0)
+            span["attributes"].pop("gen_ai.system_instructions")
+            span["attributes"]["gen_ai.input.messages"] = [
+                {
+                    "role": "assistant",
+                    "parts": [{"type": "tool_call", "id": f"call-{index}", "name": name, "arguments": "hello"}],
+                }
+            ]
+            spans.append(span)
+        matrix = build_token_matrix(spans)
+        tools = nodes_by_id(matrix["nodes"][0])["tool_calls"]
+        self.assertEqual(tools["value"], 6)
+        self.assertEqual(
+            [(node["name"], node["value"], node["call_count"]) for node in tools["children"]],
+            [("search", 3, 2), ("read", 2, 1), ("exec", 1, 1)],
+        )
+        # 少于三个非零工具时，零值工具叶子也不返回。
+        tools = nodes_by_id(build_token_matrix(spans[:2] + spans[-1:])["nodes"][0])["tool_calls"]
+        self.assertEqual([(node["name"], node["call_count"]) for node in tools["children"]], [("search", 2)])
 
     def test_model_encodings_match_official_token_vectors(self):
         for model, expected in (
@@ -158,10 +181,15 @@ class TokenMatrixTests(TestCase):
                 span = model_span(input_tokens=reported, output_tokens=7)
                 source = deepcopy(span["attributes"])
                 matrix = build_token_matrix([span])
-                input_node, output_node = matrix["nodes"]
-                self.assertEqual(input_node["value"], reported)
-                self.assertEqual(sum(leaves(input_node).values()), reported)
-                self.assertEqual(input_node["estimated_to_reported_ratio"], 2 / reported if reported else 0)
+                roots = {node["id"]: node for node in matrix["nodes"]}
+                output_node = roots["output"]
+                if reported:
+                    input_node = roots["input"]
+                    self.assertEqual(input_node["value"], reported)
+                    self.assertEqual(sum(leaves(input_node).values()), reported)
+                    self.assertEqual(input_node["estimated_to_reported_ratio"], 2 / reported)
+                else:
+                    self.assertNotIn("input", roots)
                 self.assertEqual(matrix["estimated_to_reported_ratio"], 3 / (reported + 7))
                 sections = span["token_categories"]
                 self.assertTrue(all(set(section) == {"key", "label", "tokens"} for section in sections))
@@ -194,7 +222,7 @@ class TokenMatrixTests(TestCase):
         self.assertEqual(leaves(matrix["nodes"][1]), {"content": 5, "reasoning": 15})
         self.assertEqual(span["token_categories"][3]["tokens"], 20)
         self.assertEqual(set(span["token_categories"][3]), {"key", "label", "tokens"})
-        self.assertEqual(nodes_by_id(matrix["nodes"][0])["tool_calls"]["children"], [])
+        self.assertNotIn("tool_calls", nodes_by_id(matrix["nodes"][0]))
 
     def test_missing_reasoning_usage_uses_visible_text_and_scales_with_content(self):
         span = model_span(output_tokens=9)
@@ -211,7 +239,7 @@ class TokenMatrixTests(TestCase):
         matrix = build_token_matrix([span])
         self.assertEqual(leaves(matrix["nodes"][0])["other"], 10)
         self.assertEqual(matrix["nodes"][0]["estimated_to_reported_ratio"], 0)
-        self.assertEqual(leaves(matrix["nodes"][1]), {"content": 0, "reasoning": 5})
+        self.assertEqual(leaves(matrix["nodes"][1]), {"reasoning": 5})
         self.assertEqual(span["attributes"]["gen_ai.usage.reasoning.output_tokens"], 7)
 
     def test_tools_pair_arguments_and_responses_count_history_tokens_without_recounting_calls(self):
@@ -310,7 +338,19 @@ class TokenMatrixTests(TestCase):
 
     def test_all_reported_zero_returns_zero_overall_ratio(self):
         matrix = build_token_matrix([model_span(input_tokens=0, output_tokens=0)])
+        self.assertEqual(matrix["nodes"], [])
         self.assertEqual(matrix["estimated_to_reported_ratio"], 0)
+
+    def test_empty_matrix_has_no_nodes(self):
+        self.assertEqual(build_token_matrix([]), {"nodes": [], "estimated_to_reported_ratio": 0})
+
+    def test_small_positive_values_survive_and_empty_branches_are_omitted(self):
+        span = model_span(input_tokens=1, output_tokens=0)
+        matrix = build_token_matrix([span])
+        self.assertEqual([node["id"] for node in matrix["nodes"]], ["input"])
+        self.assertEqual(set(nodes_by_id(matrix["nodes"][0])), {"input", "system"})
+        self.assertEqual(leaves(matrix["nodes"][0]), {"system": 1})
+        self.assertEqual(matrix["estimated_to_reported_ratio"], 3)
 
 
 class TruncatedContentTests(TestCase):

@@ -103,8 +103,8 @@ class ActiveProfilingListFiltersSerializer(serializers.Serializer):
     schedule_types = serializers.ListField(label="执行方式筛选", child=serializers.CharField(), required=False)
     collection_methods = serializers.ListField(label="采集方式筛选", child=serializers.CharField(), required=False)
     collection_types = serializers.ListField(label="采集类型筛选", child=serializers.CharField(), required=False)
-    status = serializers.ChoiceField(
-        label="执行状态", choices=ACTIVE_PROFILING_STATUSES, required=False, allow_blank=True
+    status = serializers.ListField(
+        label="执行状态筛选", child=serializers.ChoiceField(choices=ACTIVE_PROFILING_STATUSES), required=False
     )
 
 

@@ -44,10 +44,20 @@ export default defineComponent({
     form: { type: Object as PropType<CollectionForm>, required: true },
     modes: { type: Array as PropType<ProcessMode[]>, required: true },
   },
-  setup() {
+  setup(props) {
     const { t } = useI18n();
     const collapsed = shallowRef(false);
-    return { t, collapsed };
+    /**
+     * @description 过滤输入法组字回车（Chrome keyCode 229 / Safari isComposing 已失效），避免误触发预览
+     * @param _value bkui-vue Input onEnter 回调的首个参数（Input 当前值），此处未使用
+     * @param e 原生键盘事件
+     * @returns 无
+     */
+    const handleEnter = (_value: unknown, e: KeyboardEvent) => {
+      if (e?.isComposing || e?.keyCode === 229) return;
+      props.form.queryProcesses();
+    };
+    return { t, collapsed, handleEnter };
   },
   render() {
     const f = this.form;
@@ -70,7 +80,7 @@ export default defineComponent({
           ]
         : []),
       { colKey: 'ip', title: this.t('主机 IP'), width: 120, cell: (_, { row }) => hostLabel(row as ProcessRow) },
-      { colKey: 'pid', title: 'PID', width: 70, cell: (_, { row }) => row.pid || '--' },
+      { colKey: 'pid', title: 'PID', width: 80, cell: (_, { row }) => row.pid || '--' },
       {
         colKey: 'process_name',
         title: this.t('进程名'),
@@ -135,7 +145,7 @@ export default defineComponent({
                   <Input
                     modelValue={p.matchPattern}
                     placeholder={this.t('直接字符串匹配，不支持正则，举例：/data/home/user00/word')}
-                    onEnter={f.queryProcesses}
+                    onEnter={this.handleEnter}
                     onInput={matchPattern => f.patchProcess({ matchPattern })}
                   >
                     {{ prefix: () => <span class='collection-input-prefix'>{this.t('包含')}</span> }}
@@ -143,7 +153,7 @@ export default defineComponent({
                   <Input
                     modelValue={p.excludePattern}
                     placeholder={this.t('排除匹配到的进程，支持正则，举例：/data/home/user00/word[d].+')}
-                    onEnter={f.queryProcesses}
+                    onEnter={this.handleEnter}
                     onInput={excludePattern => f.patchProcess({ excludePattern })}
                   >
                     {{ prefix: () => <span class='collection-input-prefix'>{this.t('排除')}</span> }}
@@ -153,7 +163,7 @@ export default defineComponent({
                 <Input
                   modelValue={p.pidPath}
                   placeholder={this.t('输入 PID 文件的绝对路径，多个以分号（;）分隔')}
-                  onEnter={f.queryProcesses}
+                  onEnter={this.handleEnter}
                   onInput={pidPath => f.patchProcess({ pidPath })}
                 >
                   {{ prefix: () => <span class='collection-input-prefix'>{this.t('PID 文件')}</span> }}
@@ -162,7 +172,7 @@ export default defineComponent({
                 <Input
                   modelValue={p.pids}
                   placeholder={this.t('输入进程 PID，多个以分号（;）分隔')}
-                  onEnter={f.queryProcesses}
+                  onEnter={this.handleEnter}
                   onInput={pids => f.patchProcess({ pids })}
                 >
                   {{ prefix: () => <span class='collection-input-prefix'>PID</span> }}
@@ -209,7 +219,7 @@ export default defineComponent({
               />
             ) : (
               <>
-                <div v-tippy={{ content: this.t('已选择动态下发，无需具体选择进程'), onShow: () => f.dynamic.value }}>
+                <div>
                   <PrimaryTable
                     v-slots={{
                       empty: () => (

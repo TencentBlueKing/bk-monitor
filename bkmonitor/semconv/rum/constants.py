@@ -14,7 +14,14 @@ from django.utils.translation import gettext_lazy as _
 
 from constants.apm import CachedEnum
 
-SPAN_TYPE_COMMON_DISPLAY_FIELDS = ["span_name", "attributes.span_type", "end_time", "attributes.outcome.type"]
+SPAN_TYPE_COMMON_DISPLAY_FIELDS = [
+    "span_name",
+    "attributes.span_type",
+    "elapsed_time",
+    "virtual.browser",
+    "attributes.user.id",
+    "end_time",
+]
 
 
 class RumSpanType(CachedEnum):
@@ -64,7 +71,6 @@ class RumSpanType(CachedEnum):
                 "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
-                "attributes.outcome.type",
                 "attributes.view.loading_time",
             ],
             self.RESOURCE: [
@@ -95,7 +101,6 @@ class RumSpanType(CachedEnum):
                 "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
-                "attributes.outcome.type",
             ],
             self.LONG_TASK: [
                 "attributes.session.id",
@@ -119,7 +124,6 @@ class RumSpanType(CachedEnum):
                 "span_name",
                 "attributes.url.full",
                 "attributes.server.address",
-                "attributes.outcome.type",
                 "attributes.view.url_template",
                 "resource.user_agent.name",
                 "resource.service.version",
@@ -127,7 +131,6 @@ class RumSpanType(CachedEnum):
             ],
             self.CUSTOM: [
                 "span_name",
-                "attributes.outcome.type",
                 "elapsed_time",
                 "attributes.view.url_template",
                 "attributes.user.id",
@@ -150,79 +153,70 @@ class RumSpanType(CachedEnum):
         return {
             self.VIEW: [
                 "span_name",
-                "end_time",
-                "attributes.outcome.type",
                 "attributes.view.url_template",
-                "attributes.view.loading_type",
                 "attributes.view.loading_time",
-                "resource.user_agent.name",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.RESOURCE: [
                 "span_name",
-                "attributes.span_type",
-                "end_time",
-                "attributes.url.full",
                 "elapsed_time",
                 "attributes.resource.size",
-                "attributes.resource.cache.hit",
-                "attributes.http.request.method",
-                "attributes.http.response.status_code",
-                "resource.user_agent.name",
+                "attributes.view.url_template",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.ERROR: [
                 "span_name",
-                "end_time",
-                "attributes.view.url_template",
-                "events.attributes.exception.type",
                 "attributes.error.source",
-                "resource.user_agent.name",
+                "attributes.view.url_template",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.VITAL: [
                 "span_name",
-                "end_time",
-                "attributes.view.url_template",
-                "attributes.network.effective_type",
-                "attributes.vital.metric",
                 "attributes.vital.value",
-                "resource.user_agent.name",
+                "attributes.view.url_template",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.LONG_TASK: [
                 "span_name",
-                "end_time",
-                "attributes.outcome.type",
-                "attributes.view.url_template",
-                "attributes.long_task.entry_type",
-                "attributes.long_task.name",
+                "elapsed_time",
                 "attributes.long_task.blocking_duration",
-                "resource.user_agent.name",
+                "events.attributes.long_task.script.source_url",
+                "attributes.view.url_template",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.ACTION: [
                 "span_name",
-                "end_time",
-                "attributes.outcome.type",
                 "attributes.view.url_template",
                 "elapsed_time",
                 "attributes.action.type",
                 "attributes.action.frustration.type",
-                "resource.user_agent.name",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.WEBSOCKET: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
+                "span_name",
                 "attributes.view.url_template",
-                "resource.user_agent.name",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.CUSTOM: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
+                "span_name",
                 "elapsed_time",
-                "resource.user_agent.name",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
         }.get(self, SPAN_TYPE_COMMON_DISPLAY_FIELDS)
 
@@ -297,12 +291,7 @@ class VitalInpInteractionType(CachedEnum):
 
     @cached_property
     def label(self) -> str:
-        return {
-            self.KEYUP: _("松开按键"),
-            self.KEYDOWN: _("按下按键"),
-            self.POINTERDOWN: _("指针按下"),
-            self.POINTERUP: _("指针松开"),
-        }.get(self, self.value)
+        return self.value
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
@@ -406,7 +395,10 @@ class NetworkStatus(CachedEnum):
 
 
 class NetworkEffectiveType(CachedEnum):
-    """网络有效类型，对应浏览器 navigator.connection.effective_type 的原始值"""
+    """网络质量等级，对应浏览器 navigator.connection.effectiveType 的原始值。
+
+    由近期往返时延和下行吞吐量估算，与 Wi-Fi、蜂窝等连接类型无关。
+    """
 
     SLOW_2G = "slow-2g"
     G2 = "2g"
@@ -416,10 +408,10 @@ class NetworkEffectiveType(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.SLOW_2G: _("极慢"),
-            self.G2: _("较慢"),
-            self.G3: _("中等"),
-            self.G4: _("较快"),
+            self.SLOW_2G: _("极慢的网络（类似于低速 2G）"),
+            self.G2: _("2G 左右的网络速度"),
+            self.G3: _("3G 左右的网络速度"),
+            self.G4: _("4G / 高速网络"),
         }.get(self, self.value)
 
     @classmethod

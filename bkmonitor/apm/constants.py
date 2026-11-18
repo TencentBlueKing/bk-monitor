@@ -737,6 +737,19 @@ ACTIVE_PROFILING_ES_QUERY_BATCH_SIZE = 200
 ACTIVE_PROFILING_ES_QUERY_MAX_SIZE = 10000
 # 一次执行可能覆盖很多主机，任务历史每批多读一些，减少续读请求
 ACTIVE_PROFILING_ES_EXECUTION_BATCH_SIZE = 500
+# 预计算停摆时 MySQL 的主机行不会按时写入终态，查询时按 Event ES 校正；一次校正的主机多于该数时不再按主机下推，
+# 只按 scheduled_at 筛选，避免查询条件过长
+ACTIVE_PROFILING_ES_FALLBACK_MAX_HOST_TERMS = 500
+# 采集时长过后再过这么久仍是 running 就按 Event 校正，不等到 unknown_at，预计算停摆时尽早展示已结束的主机
+ACTIVE_PROFILING_ES_FALLBACK_SETTLE_MS = 60 * 1000
+# 计划执行的执行行由预计算按 Event 建，预计算停摆时 MySQL 里只缺这两类；立即执行由 SaaS 提交时建行
+ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES = ("once_at", "cron")
+# 预计算是否落后：Event ES 里这么久之前已上报的最新一次计划执行，执行表里没有，就判定落后，列表整个改查 ES
+ACTIVE_PROFILING_PRECALCULATE_LAG_MS = 5 * 60 * 1000
+# 只在这段时间内上报的 Event 里找最新一次计划执行，没有就不判定落后
+ACTIVE_PROFILING_PRECALCULATE_LAG_LOOKBACK_MS = 24 * 3600 * 1000
+# 判定结果按业务缓存的秒数，期间翻页、换筛选都用同一个结论，预计算补上后最多这么久回到 MySQL
+ACTIVE_PROFILING_PRECALCULATE_LAG_CACHE_SEC = 60
 
 
 class ApmBmwTaskStatus:
