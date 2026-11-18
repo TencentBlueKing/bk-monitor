@@ -74,6 +74,12 @@
 }
 
 .field-info-table {
+  .t-table td.field-tokenize-cell {
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: var(--bklog-line-height-small, 16px);
+  }
+
   .edit-btn-container {
     justify-content: end;
     width: 100%;

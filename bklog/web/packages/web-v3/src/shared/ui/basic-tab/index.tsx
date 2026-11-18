@@ -25,6 +25,7 @@
  */
 
 import Component from 'vue-class-component';
+import { getCurrentInstance } from 'vue';
 
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -45,17 +46,13 @@ export default class LogTab extends tsc<{ active?: string | number; type?: strin
         class='custom-tab'
         tab-position='top'
         type={type}
+        v-slots={getCurrentInstance()?.slots}
         {...{
           'onUpdate:active': (value: string | number) => {
             this.$emit('update:active', value);
           },
         }}
-      >
-        {this.$slots.default}
-        {this.$slots.setting && <template slot='setting'>{this.$slots.setting}</template>}
-        {this.$slots.add && <template slot='add'>{this.$slots.add}</template>}
-        {this.$slots.extension && <template slot='extension'>{this.$slots.extension}</template>}
-      </bk-tab>
+      />
     );
   }
 }

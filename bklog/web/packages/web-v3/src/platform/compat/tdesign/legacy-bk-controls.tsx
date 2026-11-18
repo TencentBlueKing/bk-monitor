@@ -1190,8 +1190,9 @@ const BkTab = defineComponent({
               emit('tabChange', value);
             },
           },
-          () =>
-            panels.map(panel => {
+          {
+            action: slots.setting,
+            default: () => panels.map(panel => {
               const value = attr(panel.props, 'name') as string | number;
               const labelText = attr(panel.props, 'label') as string;
               const panelSlots = panel.children as { label?: () => unknown; default?: () => unknown } | null;
@@ -1204,6 +1205,7 @@ const BkTab = defineComponent({
                 },
               );
             }),
+          },
         ),
         ...rest,
       ]);

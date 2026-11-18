@@ -1,4 +1,8 @@
 /* stylelint-disable declaration-no-important */
+.custom-tab .t-tabs__operations--right > .go-search {
+  position: static;
+}
+
 .bk-tab.custom-tab {
   // height: 100%;
 
