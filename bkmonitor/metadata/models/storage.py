@@ -6606,6 +6606,8 @@ class DorisStorage(models.Model, StorageResultTable):
                 ddl_config[field_name] = {
                     key: sorted(item) if isinstance(item, list) else item for key, item in sorted(value.items())
                 }
+            elif field_name in {"json_fields", "original_json_fields"}:
+                ddl_config[field_name] = sorted(set(value)) if isinstance(value, list) else []
             else:
                 ddl_config[field_name] = value if isinstance(value, list) else []
         return ddl_config

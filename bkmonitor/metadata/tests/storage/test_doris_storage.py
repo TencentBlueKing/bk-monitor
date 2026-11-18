@@ -1016,3 +1016,27 @@ def test_valid_log_doris_physical_table():
     assert not models.DorisStorage._is_valid_log_doris_physical_table(".bkm_x_v1")
     assert not models.DorisStorage._is_valid_log_doris_physical_table("a.b.c")
     assert not models.DorisStorage._is_valid_log_doris_physical_table(None)
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("field", ["json_fields", "original_json_fields", "storage_keys"])
+@pytest.mark.parametrize("change", ["reorder", "add", "remove", "duplicate"])
+def test_sync_log_physical_table_field_collection_changes(log_doris_records, field, change):
+    previous = json.loads(json.dumps(LOG_DORIS_OPTION_VALUE))
+    previous["doris_storage_config"][field] = ["log", "json_body"]
+    original = json.loads(json.dumps(previous))
+    first = _sync_log_physical_table(log_doris_records, option_value=previous, previous_option_value=previous)
+    target = json.loads(json.dumps(previous))
+    target["doris_storage_config"][field] = {
+        "reorder": ["json_body", "log"],
+        "add": ["log", "json_body", "host"],
+        "remove": ["log"],
+        "duplicate": ["log", "json_body", "log"],
+    }[change]
+    target_before = json.loads(json.dumps(target))
+    second = _sync_log_physical_table(log_doris_records, option_value=target, previous_option_value=previous)
+    rotates = field == "storage_keys" or change in {"add", "remove"}
+    assert (first != second) == rotates
+    assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == (2 if rotates else 1)
+    assert previous == original
+    assert target == target_before
