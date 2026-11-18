@@ -20,10 +20,23 @@
 
   .collection-result-processes {
     display: block;
-    max-width: 300px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .task-name-button {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #3a84ff;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      color: #5594fa;
+    }
   }
 }
 

@@ -373,6 +373,7 @@ export default {
   大小: 'Size',
   当前仅显示本次任务执行的采集结果: 'Only collection results from this execution are shown',
   '导出失败，请重试': 'Export failed. Please retry.',
+  '导出完整调用图 PNG': 'Export the full call graph as PNG',
   分享结果: 'Share results',
   '复制当前采集结果链接，访问者需登录并具有业务权限':
     'Copy the link to these collection results. Viewers must log in with business permissions.',
@@ -384,6 +385,7 @@ export default {
   加载下一批采集结果: 'Load more collection results',
   加载下一批任务执行记录: 'Load more execution records',
   '将当前可见火焰图保存为 PNG 图片': 'Save the visible flame graph as a PNG image',
+  '将完整调用图保存为 PNG 图片': 'Save the full call graph as a PNG image',
   '将使用本次执行的历史配置创建一次立即采集，原有执行计划保持不变。':
     'Start an immediate collection using the historical configuration of this execution. The existing schedule will remain unchanged.',
   结果可用: 'Results available',
@@ -444,6 +446,7 @@ export default {
     'Failed to fetch data from the Go pprof endpoint. Check the address, port, and whether pprof is enabled.',
   下次执行: 'Next execution',
   '下载 pprof 文件': 'Download pprof file',
+  '下载 pprof 文件或完整调用图': 'Download the pprof file or the full call graph',
   下载采集数据或当前火焰图: 'Download collection data or the current flame graph',
   '下载原始 pprof 文件': 'Download the original pprof file',
   '新建 Profiling 采集任务': 'Create Profiling collection task',
