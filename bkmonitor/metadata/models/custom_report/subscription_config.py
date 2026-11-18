@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Literal, Union
 
@@ -26,6 +27,7 @@ from bkmonitor.utils.nodeman import host_queries
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from core.errors.alarm_backends import CronLeaseLost
 from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
 from metadata.models.constants import LOG_REPORT_MAX_QPS
 from metadata.models.custom_report.log import LogGroup
@@ -85,6 +87,7 @@ class CustomReportSubscription(models.Model):
         data_id_configs: list[tuple[dict[str, Any], str]],
         bk_host_ids: list[int],
         op_type: str = "add",
+        check_lease: Callable[[], None] | None = None,
     ):
         available_host_ids = bk_host_ids
 
@@ -106,6 +109,8 @@ class CustomReportSubscription(models.Model):
         )
         use_nodeman_v3 = BkCollectorDeployPolicy.is_enabled()
         for item, protocol in data_id_configs:
+            if check_lease:
+                check_lease()
             if use_nodeman_v3:
                 try:
                     BkCollectorDeployPolicy.deploy(
@@ -300,6 +305,7 @@ class CustomReportSubscription(models.Model):
         cls,
         bk_biz_id: int,
         data_id_configs: list[tuple[dict[str, Any], str]],
+        check_lease: Callable[[], None] | None = None,
     ):
         result = {
             "action": "refresh",
@@ -312,6 +318,8 @@ class CustomReportSubscription(models.Model):
         cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
 
         for (cluster_id, namespace, _is_global), cc_bk_biz_ids in cluster_mapping.items():
+            if check_lease:
+                check_lease()
             if str(bk_biz_id) not in cc_bk_biz_ids and int(bk_biz_id) not in cc_bk_biz_ids:
                 continue
 
@@ -369,12 +377,18 @@ class CustomReportSubscription(models.Model):
 
                 # 分别按协议调用deploy_to_k8s_with_hash
                 for protocol, config_map in protocol_config_maps.items():
+                    if check_lease:
+                        check_lease()
                     BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, namespace, config_map, protocol)
 
                 # 在所有协议下执行清理，同一个 config_id(data_id) 只允许有一份配置存在
+                if check_lease:
+                    check_lease()
                 BkCollectorClusterConfig.clean_dup_secrets_in_multi_protocol(
                     cluster_id, namespace, protocol_config_maps.keys(), config_id_to_protocol
                 )
+            except CronLeaseLost:
+                raise
             except Exception as e:  # pylint: disable=broad-except
                 cluster_record.update({"result": False, "message": str(e)})
                 logger.exception(
@@ -399,6 +413,7 @@ class CustomReportSubscription(models.Model):
         op_type: str,
         data_id_configs: list[tuple[dict[str, Any], str]],
         dry_run: bool = False,
+        check_lease: Callable[[], None] | None = None,
     ):
         """
         刷新指定业务ID的collector自定义上报配置
@@ -474,6 +489,7 @@ class CustomReportSubscription(models.Model):
             data_id_configs=data_id_configs,
             bk_host_ids=proxy_host_ids,
             op_type=op_type,
+            check_lease=check_lease,
         )
         return result
 
@@ -503,6 +519,7 @@ class CustomReportSubscription(models.Model):
         op_type: str = "add",
         deploy_targets: tuple[str, ...] | list[str] | str = ("node_man", "k8s"),
         dry_run: bool = False,
+        check_lease: Callable[[], None] | None = None,
     ):
         """
         指定业务ID更新，或者更新全量业务
@@ -571,6 +588,8 @@ class CustomReportSubscription(models.Model):
             bk_biz_ids,
             key=lambda current_bk_biz_id: (current_bk_biz_id == 0, current_bk_biz_id),
         ):
+            if check_lease:
+                check_lease()
             # 0业务下发全部配置，其他业务下发指定业务配置
             if bk_biz_id == 0:
                 data_id_configs: list[tuple[dict[str, Any], str]] = list(
@@ -600,6 +619,7 @@ class CustomReportSubscription(models.Model):
                             op_type=op_type,
                             data_id_configs=data_id_configs,
                             dry_run=dry_run,
+                            check_lease=check_lease,
                         )
                         if target_record is None:
                             target_record = {
@@ -607,6 +627,8 @@ class CustomReportSubscription(models.Model):
                                 "result": None if dry_run else True,
                                 "message": "success",
                             }
+                except CronLeaseLost:
+                    raise
                 except Exception as e:
                     target_record = {
                         "action": "dry_run" if dry_run else "refresh",
@@ -637,9 +659,12 @@ class CustomReportSubscription(models.Model):
                             target_record = cls._refresh_k8s_custom_config_by_biz(
                                 bk_biz_id=bk_biz_id,
                                 data_id_configs=data_id_configs,
+                                check_lease=check_lease,
                             )
                             if target_record is None:
                                 target_record = {"action": "refresh", "result": True, "message": "success"}
+                        except CronLeaseLost:
+                            raise
                         except Exception as e:
                             target_record.update({"result": False, "message": str(e)})
                             logger.exception(

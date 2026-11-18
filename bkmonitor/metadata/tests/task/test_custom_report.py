@@ -140,6 +140,7 @@ def test_refresh_custom_report_2_node_man_full_refresh_passes_filter_options(set
     refresh_collector_custom_conf.assert_called_once_with(
         bk_tenant_id="system",
         bk_biz_id=None,
+        check_lease=None,
     )
     log_info.assert_any_call("finished full custom report refresh, bk_tenant_id(%s), summary(%s)", "system", summary)
 
@@ -156,4 +157,4 @@ def test_refresh_custom_report_2_node_man_single_biz_keeps_explicit_scope(mocker
 
     custom_report.refresh_custom_report_2_node_man(bk_biz_id=12)
 
-    refresh_collector_custom_conf.assert_called_once_with(bk_tenant_id="system", bk_biz_id=12)
+    refresh_collector_custom_conf.assert_called_once_with(bk_tenant_id="system", bk_biz_id=12, check_lease=None)
