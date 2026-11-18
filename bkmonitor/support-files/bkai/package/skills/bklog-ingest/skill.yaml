@@ -1,9 +1,0 @@
-apiVersion: bkai.tencent.com/v1
-kind: Skill
-metadata:
-  code: bklog-ingest
-  name: 蓝鲸日志平台-日志接入
-spec:
-  generate_type: space
-  is_public: true
-  tag_names: []

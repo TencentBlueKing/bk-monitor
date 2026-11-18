@@ -1,9 +1,9 @@
 apiVersion: bkai.tencent.com/v1
 kind: Skill
 metadata:
-  code: bkm-alert-assign
+  code: bk-monitor-alert-assign
   name: 蓝鲸监控平台-告警分派
 spec:
-  generate_type: space
+  generate_type: global
   is_public: true
   tag_names: []

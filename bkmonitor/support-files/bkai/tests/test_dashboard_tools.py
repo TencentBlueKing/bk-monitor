@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1] / "package/skills/bkm-grafana-dashboard/scripts"
+ROOT = Path(__file__).resolve().parents[1] / "package/skills/bk-monitor-grafana-dashboard/scripts"
 sys.path.insert(0, str(ROOT))
 
 from dashboard_tools import (  # noqa: E402

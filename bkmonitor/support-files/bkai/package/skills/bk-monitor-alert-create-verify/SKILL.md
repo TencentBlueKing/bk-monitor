@@ -1,5 +1,5 @@
 ---
-name: bkm-alert-create-verify
+name: bk-monitor-alert-create-verify
 description: 蓝鲸监控告警创建与验证 Skill。用于创建或修改单指标阈值、日志关键字告警策略，创建前通过历史回放预估告警量和维度组合风险，并管理通知组、告警分派、处理套餐与告警屏蔽；写入后回查结果。用户提到创建告警、绑定分派组、按 IP/策略分派、assign_mode 时使用。
 ---
 
@@ -29,9 +29,9 @@ description: 蓝鲸监控告警创建与验证 Skill。用于创建或修改单�
 
 - “这个告警为什么触发、根因是什么”进入 告警诊断能力。
 - 告警日报、周报、噪声治理进入 告警报表能力。
-- 独立创建、编辑、删除告警分派组，或改与当前策略创建无关的分派规则，进入 `bkm-alert-assign`。创建/改告警时的条件分流仍由本技能先落一条策略，再按 `bkm-alert-assign` 写分派。
-- 只查询指标趋势、不创建告警时进入 bkm-data-fetcher。
-- 只查询日志或日志聚类时进入 bklog-query。
+- 独立创建、编辑、删除告警分派组，或改与当前策略创建无关的分派规则，进入 `bk-monitor-alert-assign`。创建/改告警时的条件分流仍由本技能先落一条策略，再按 `bk-monitor-alert-assign` 写分派。
+- 只查询指标趋势、不创建告警时进入 bk-monitor-data-fetcher。
+- 只查询日志或日志聚类时进入 bk-log-query。
 
 ## 当前能力边界
 
@@ -42,7 +42,7 @@ description: 蓝鲸监控告警创建与验证 Skill。用于创建或修改单�
 - 支持查询和更新已有告警组、已有处理套餐；不支持新建告警组或处理套餐。分派目标告警组必须已存在。
 - 支持新建和更新告警分派组。策略上的告警组和分派是两套独立配置，互不改写对方。开启分派后：告警符合分派规则走分派，不符合走策略告警组。
 - 分派不是策略上的 `assign_group_id`：策略 `assign_mode` 含 `by_rule` 后，由分派规则匹配。创建场景默认给规则补 `alert.strategy_id`。
-- 规则写法、条件字段、级别重置和全局分派风险见 `bkm-alert-assign`。本技能只处理「这条策略」的分派绑定。
+- 规则写法、条件字段、级别重置和全局分派风险见 `bk-monitor-alert-assign`。本技能只处理「这条策略」的分派绑定。
 - 支持策略、告警实例、范围和维度屏蔽的查询、创建、编辑与解除。
 - 完整更新可按实时 schema 修改日志 `query_string/index_set_id`、PromQL/时序查询和聚合配置；必须先读取完整策略并携带最新 `config_version`，保留内部 ID 和未修改字段。
 - 指标元数据、可用维度、时序试查需依赖对应查询 MCP；真实告警引擎历史试算、真实通知推送验证和处理套餐回调调试当前不可用。
@@ -89,7 +89,7 @@ description: 蓝鲸监控告警创建与验证 Skill。用于创建或修改单�
 10. 向用户说明历史回放限制，以及真实触发和通知仍未验证。
 11. 用户明确确认后调用 `create_alarm_strategy`。日志关键字必须走完整 `items + detects + notice` 路径，不能使用简化指标结构代替。
 12. 用 `get_alarm_strategy` 回查并逐项对比草稿。
-13. 用户指定了告警分派，或指令里有条件分流（a→A、b→B）时，策略 ID 落盘后再绑定分派，见「创建时绑定分派」，并执行 `bkm-alert-assign` 的人工确认审核。未指定且无分流则跳过，不要自动建空分派组。
+13. 用户指定了告警分派，或指令里有条件分流（a→A、b→B）时，策略 ID 落盘后再绑定分派，见「创建时绑定分派」，并执行 `bk-monitor-alert-assign` 的人工确认审核。未指定且无分流则跳过，不要自动建空分派组。
 
 ## 更新流程
 
@@ -110,7 +110,7 @@ description: 蓝鲸监控告警创建与验证 Skill。用于创建或修改单�
 
 ## 创建时绑定分派
 
-只处理当前这条策略。独立分派编排交给 `bkm-alert-assign`。创建和编辑分派必须人工确认审核后才能保存。
+只处理当前这条策略。独立分派编排交给 `bk-monitor-alert-assign`。创建和编辑分派必须人工确认审核后才能保存。
 
 1. 解析用户指定的分派组名称/ID、优先级、匹配条件、目标告警组、是否重置级别。指令是条件分流时，每个分支写成一条分派规则。
 2. `search_alarm_notice_groups` 解析每个目标告警组；不存在则停止，不能新建告警组，也不要自动绑列表第一项。
@@ -121,7 +121,7 @@ description: 蓝鲸监控告警创建与验证 Skill。用于创建或修改单�
 5. 规则必须 `is_enabled=true` 才会生效；`user_groups` 至少一项；`actions` 默认 `notice`。
 6. 策略侧只确认已开启分派：`assign_mode` 同时含 `only_notice` 和 `by_rule`。缺 `by_rule` 时完整更新 `notice`，保留原告警组。不要改成只含 `by_rule`，也不要为了“走分派”去改或清空策略告警组。
 7. 检查每条规则是否含 `alert.strategy_id`。未指定时审核摘要必须原样写出：`当前分派规则未指定告警策略，可能影响多条告警策略`，并跳过模拟分派。
-8. 已指定策略时，按 `bkm-alert-assign` 的 simulate-assign：用 `alarm` 的 `list_alerts` 拉最近 6 小时并本地模拟，结果写进同一次审核摘要。
+8. 已指定策略时，按 `bk-monitor-alert-assign` 的 simulate-assign：用 `alarm` 的 `list_alerts` 拉最近 6 小时并本地模拟，结果写进同一次审核摘要。
 9. 展示人工确认审核摘要（含模拟结果或跳过原因），用户明确同意保存后才 `save_alarm_assign_group(confirm=true)`，再用 `search_alarm_assign_groups(group_ids)` 回查。
 
 运行时：命中启用的分派规则 → 走该规则的告警组/级别；未命中 → 走策略告警组。配置层面互不改写。
@@ -166,4 +166,4 @@ description: 蓝鲸监控告警创建与验证 Skill。用于创建或修改单�
 | [validation-checklist.md](./references/validation-checklist.md) | 创建、更新或声称“验证”前 |
 | [strategy-draft-spec.md](./references/strategy-draft-spec.md) | 生成策略草稿、变更摘要或写后回查输出时 |
 | [examples.md](./references/examples.md) | 需要典型请求、边界处理或验收样例时 |
-| [simulate-assign.md](./references/simulate-assign.md) | 绑定分派且已指定策略、审核前预览：`alarm` / `list_alerts`。规则细节仍见 `bkm-alert-assign` |
+| [simulate-assign.md](./references/simulate-assign.md) | 绑定分派且已指定策略、审核前预览：`alarm` / `list_alerts`。规则细节仍见 `bk-monitor-alert-assign` |

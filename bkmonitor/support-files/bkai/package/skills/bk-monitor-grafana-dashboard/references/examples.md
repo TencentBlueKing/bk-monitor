@@ -2,7 +2,7 @@
 
 以下均为合成示例；业务、资源、接收对象和查询字段在执行时以用户选择及工具发现结果为准。
 
-脚本均在 skill 根目录执行。工作目录示例：`output/bkm-grafana-dashboard/example-host-monitor-dashboard/`
+脚本均在 skill 根目录执行。工作目录示例：`output/bk-monitor-grafana-dashboard/example-host-monitor-dashboard/`
 
 ## 新建（create）
 

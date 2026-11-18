@@ -1,5 +1,5 @@
 ---
-name: bkm-data-fetcher
+name: bk-monitor-data-fetcher
 description: 通过目标环境已配置的 MCP 直接拉取蓝鲸日志、指标、链路和告警数据，保存为本地 JSON 并进行脚本统计。适用于需要批量取数、保留原始返回或避免把大 JSON 放入模型上下文的查询；告警、采集等配置写入交给对应 Skill。
 ---
 
@@ -21,11 +21,11 @@ description: 通过目标环境已配置的 MCP 直接拉取蓝鲸日志、指�
 
 ```bash
 export BK_MCP_CONFIG_PATH=/path/to/target-mcp.json
-python /path/to/bkm-data-fetcher/scripts/fetch_metrics.py \
+python /path/to/bk-monitor-data-fetcher/scripts/fetch_metrics.py \
   --biz-id '<bk_biz_id>' --env '<confirmed-stage>' --metric cpu --hours 1 \
   --output bkmonitor-files/cpu.json
 
-python /path/to/bkm-data-fetcher/scripts/fetch_logs.py \
+python /path/to/bk-monitor-data-fetcher/scripts/fetch_logs.py \
   --biz-id '<bk_biz_id>' --env '<confirmed-stage>' --list-indexes
 ```
 

@@ -13,6 +13,7 @@ from zipfile import ZipFile
 try:
     from bkai_init import BkaiInit
     from bkai_init.utils.archive import build_skill_zip
+    from bkai_init.utils.exceptions import ManifestError
     from bkai_init.utils.manifest import load_package, load_skill
 except ModuleNotFoundError as error:
     if error.name != "bkai_init":
@@ -57,7 +58,7 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(len(report.events), 6)
         self.assertEqual(check_package.check_directory(ROOT / "package"), [])
 
-    def test_sync_uploads_only_six_clean_skills_to_explicit_space(self):
+    def test_sync_uploads_only_six_clean_global_skills_to_system_space(self):
         client = RecordingClient()
         BkaiInit(space="system-bkaidev", client=client).sync(ROOT / "package/bkai.yaml")
         self.assertEqual(len(client.uploads), 6)
@@ -65,9 +66,9 @@ class PackageTests(unittest.TestCase):
         for payload in client.writes:
             self.assertEqual(payload["space_id"], "system-bkaidev")
             self.assertNotIn("version", payload)
-            self.assertEqual(payload["generate_type"], "space")
+            self.assertEqual(payload["generate_type"], "global")
             self.assertIs(payload["is_public"], True)
-            product_prefix = "蓝鲸日志平台-" if payload["skill_code"].startswith("bklog-") else "蓝鲸监控平台-"
+            product_prefix = "蓝鲸日志平台-" if payload["skill_code"].startswith("bk-log-") else "蓝鲸监控平台-"
             self.assertTrue(payload["skill_name"].startswith(product_prefix))
             self.assertNotEqual(payload["skill_name"], product_prefix)
         for space, names in client.uploads:
@@ -89,19 +90,20 @@ class PackageTests(unittest.TestCase):
     def test_selected_resource_does_not_update_other_skills(self):
         client = RecordingClient()
         BkaiInit(space="system-bkaidev", client=client).sync(
-            ROOT / "package/bkai.yaml", resources={"skill/bklog-query"}
+            ROOT / "package/bkai.yaml", resources={"skill/bk-log-query"}
         )
-        self.assertEqual([payload["skill_code"] for payload in client.writes], ["bklog-query"])
+        self.assertEqual([payload["skill_code"] for payload in client.writes], ["bk-log-query"])
 
-    def test_space_resources_do_not_require_global_resource_space(self):
+    def test_global_skills_require_system_space_before_platform_calls(self):
         for action in ("validate", "plan", "sync"):
             with self.subTest(action=action):
                 client = RecordingClient()
-                getattr(BkaiInit(space="example-space", client=client), action)(ROOT / "package/bkai.yaml")
-                for payload in client.writes:
-                    self.assertEqual(payload["space_id"], "example-space")
-                    self.assertEqual(payload["generate_type"], "space")
-                    self.assertIs(payload["is_public"], True)
+                initializer = BkaiInit(space="example-space", client=client)
+                with self.assertRaisesRegex(ManifestError, "generate_type=global.*system-bkaidev"):
+                    getattr(initializer, action)(ROOT / "package/bkai.yaml")
+                self.assertEqual(client.reads, [])
+                self.assertEqual(client.uploads, [])
+                self.assertEqual(client.writes, [])
 
     def test_actual_archives_are_deterministic_and_include_references(self):
         package = load_package(ROOT / "package/bkai.yaml")
@@ -121,7 +123,7 @@ class PublicationCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "package"
             shutil.copytree(ROOT / "package", root)
-            path = root / "skills/bklog-query/skill.yaml"
+            path = root / "skills/bk-log-query/skill.yaml"
             original = path.read_text()
             for display_name in ["日志平台-日志检索", "蓝鲸监控平台-日志检索", "蓝鲸日志平台-"]:
                 with self.subTest(display_name=display_name):
@@ -173,8 +175,8 @@ class PublicationCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "package"
             shutil.copytree(ROOT / "package", root)
-            reference = root / "skills/bklog-query/references/cross.md"
-            reference.write_text("[other](../../bklog-ingest/SKILL.md)")
+            reference = root / "skills/bk-log-query/references/cross.md"
+            reference.write_text("[other](../../bk-log-ingest/SKILL.md)")
             self.assertTrue(any("out-of-package" in error for error in check_package.check_directory(root)))
 
     def test_archive_checks_references_inside_each_individual_skill(self):

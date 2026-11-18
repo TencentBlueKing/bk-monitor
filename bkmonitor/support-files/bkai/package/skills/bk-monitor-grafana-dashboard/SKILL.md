@@ -1,5 +1,5 @@
 ---
-name: bkm-grafana-dashboard
+name: bk-monitor-grafana-dashboard
 description: 蓝鲸监控 iframe 二开 Grafana 仪表盘的新建与局部编辑。根据自然语言生成完整仪表盘，或按 panel.id 做增量修改，禁止整盘 JSON 重写。用户提到生成/创建/修改/编辑仪表盘、Grafana 面板、今日昨日上周对比、query_configs 时使用。
 ---
 
@@ -40,7 +40,7 @@ description: 蓝鲸监控 iframe 二开 Grafana 仪表盘的新建与局部编�
 python scripts/dashboard_tools.py <command> ...
 ```
 
-工作目录：`output/bkm-grafana-dashboard/<biz>_<uid>/`
+工作目录：`output/bk-monitor-grafana-dashboard/<biz>_<uid>/`
 
 ```text
 mcp.json            # MCP 原始返回，只给 ingest 用

@@ -5,7 +5,7 @@
 ## 指标
 
 ```bash
-python /path/to/bkm-data-fetcher/scripts/fetch_metrics.py \
+python /path/to/bk-monitor-data-fetcher/scripts/fetch_metrics.py \
   --biz-id '<bk_biz_id>' --env '<confirmed-stage>' --metric cpu --hours 1 \
   --output bkmonitor-files/cpu.json
 ```
@@ -15,10 +15,10 @@ python /path/to/bkm-data-fetcher/scripts/fetch_metrics.py \
 ## 日志
 
 ```bash
-python /path/to/bkm-data-fetcher/scripts/fetch_logs.py \
+python /path/to/bk-monitor-data-fetcher/scripts/fetch_logs.py \
   --biz-id '<bk_biz_id>' --env '<confirmed-stage>' --list-indexes
 
-python /path/to/bkm-data-fetcher/scripts/fetch_logs.py \
+python /path/to/bk-monitor-data-fetcher/scripts/fetch_logs.py \
   --biz-id '<bk_biz_id>' --env '<confirmed-stage>' --index-set-id '<index_set_id>' \
   --hours 1 --query 'level:ERROR' --output bkmonitor-files/errors.json
 ```
@@ -28,7 +28,7 @@ python /path/to/bkm-data-fetcher/scripts/fetch_logs.py \
 ## CPU 便捷入口
 
 ```bash
-python /path/to/bkm-data-fetcher/scripts/fetch_cpu_data.py \
+python /path/to/bk-monitor-data-fetcher/scripts/fetch_cpu_data.py \
   --biz-id '<bk_biz_id>' --env '<confirmed-stage>' --hours 1
 ```
 

@@ -7,7 +7,7 @@ import sys
 import unittest
 from unittest import mock
 
-ROOT = Path(__file__).resolve().parents[1] / "package/skills/bkm-data-fetcher/scripts"
+ROOT = Path(__file__).resolve().parents[1] / "package/skills/bk-monitor-data-fetcher/scripts"
 sys.path.insert(0, str(ROOT))
 
 import fetch_cpu_data  # noqa: E402

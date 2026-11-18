@@ -1,9 +1,9 @@
 apiVersion: bkai.tencent.com/v1
 kind: Skill
 metadata:
-  code: bkm-alert-create-verify
+  code: bk-monitor-alert-create-verify
   name: 蓝鲸监控平台-告警创建与验证
 spec:
-  generate_type: space
+  generate_type: global
   is_public: true
   tag_names: []

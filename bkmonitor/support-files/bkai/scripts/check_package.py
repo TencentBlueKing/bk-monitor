@@ -15,12 +15,12 @@ import yaml
 
 SKILLS = frozenset(
     {
-        "bkm-grafana-dashboard",
-        "bklog-query",
-        "bklog-ingest",
-        "bkm-alert-assign",
-        "bkm-alert-create-verify",
-        "bkm-data-fetcher",
+        "bk-monitor-grafana-dashboard",
+        "bk-log-query",
+        "bk-log-ingest",
+        "bk-monitor-alert-assign",
+        "bk-monitor-alert-create-verify",
+        "bk-monitor-data-fetcher",
     }
 )
 PUBLIC_DOMAINS = frozenset({"github.com", "pypi.org", "opensource.org", "bkai.tencent.com", "kubernetes.io"})
@@ -135,9 +135,9 @@ def check_directory(root: Path) -> list[str]:
             errors.append(f"{name}: mismatched Skill declaration")
         if metadata.keys() - {"code", "name", "description"}:
             errors.append(f"{name}: deployment identity and version belong outside the distributable metadata")
-        if options.get("generate_type") != "space" or options.get("is_public") is not True:
-            errors.append(f"{name}: official Skills must declare public space visibility")
-        product_prefix = "蓝鲸日志平台-" if name.startswith("bklog-") else "蓝鲸监控平台-"
+        if options.get("generate_type") != "global" or options.get("is_public") is not True:
+            errors.append(f"{name}: official Skills must declare public global visibility")
+        product_prefix = "蓝鲸日志平台-" if name.startswith("bk-log-") else "蓝鲸监控平台-"
         display_name = metadata.get("name", "")
         if not display_name.startswith(product_prefix) or display_name == product_prefix:
             errors.append(f"{name}: use the full BlueKing product name followed by a Chinese resource name")

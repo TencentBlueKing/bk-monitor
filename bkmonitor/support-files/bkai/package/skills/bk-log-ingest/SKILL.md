@@ -1,5 +1,5 @@
 ---
-name: bklog-ingest
+name: bk-log-ingest
 description: 蓝鲸日志接入。用于按类型新建或修改采集项、按 IP/名称圈选主机目标后确认下发，以及 JSON/分隔符/正则清洗。用户提到接入日志、采集日志、主机采集、容器日志、容器标准输出、Windows Event、新建采集、下发并清洗、改清洗、改存储、按 IP/模块/动态分组添加采集目标时使用。不用于查日志明细。
 ---
 
@@ -11,7 +11,7 @@ description: 蓝鲸日志接入。用于按类型新建或修改采集项、按 
 
 先确认目标环境和 `bk_biz_id`，再发现该环境已授权的 MCP 工具并读取实时 schema。下文的 Server 后缀不是可直接调用的完整名称；无法唯一定位或缺少依赖时停止相应步骤，不跨环境回退。宿主提供认证入口时使用该入口完成认证，不在 Skill 中保存凭据。
 
-采集读写使用目标监控网关的 `log-collector`。主机目标定位使用同一环境 CMDB MCP 的四个工具，见 [references/host-target-resolve.md](references/host-target-resolve.md)。查日志明细走 `bklog-query`；告警策略配置不属于本 Skill，交给目标环境提供的相应能力。
+采集读写使用目标监控网关的 `log-collector`。主机目标定位使用同一环境 CMDB MCP 的四个工具，见 [references/host-target-resolve.md](references/host-target-resolve.md)。查日志明细走 `bk-log-query`；告警策略配置不属于本 Skill，交给目标环境提供的相应能力。
 
 ## 1. 先定接入类型
 

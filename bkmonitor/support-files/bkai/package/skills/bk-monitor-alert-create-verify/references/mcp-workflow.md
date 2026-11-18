@@ -140,9 +140,9 @@ get_alarm_strategy 取得 strategy_id
 - 开启分派后：命中规则走分派，未命中走策略告警组。改分派不要改策略告警组。
 - 创建/编辑分派必须先人工确认审核；「直接处理」不能代替审核。
 - 规则不含 `alert.strategy_id` 时必须原样提示：`当前分派规则未指定告警策略，可能影响多条告警策略`。确认后才保存，且不做 6 小时模拟分派。
-- 已指定策略时，审核必须带最近 6 小时模拟分派（`alarm` / `list_alerts`，见 `bkm-alert-assign` 的 simulate-assign）；用户确认模拟结果后才能保存。
+- 已指定策略时，审核必须带最近 6 小时模拟分派（`alarm` / `list_alerts`，见 `bk-monitor-alert-assign` 的 simulate-assign）；用户确认模拟结果后才能保存。
 - 条件分流优先走分派，不拆多条策略。
-- 数据链路内置分派组不能改。复杂分派（多策略复用、删除组、升级通知）进入 `bkm-alert-assign`。
+- 数据链路内置分派组不能改。复杂分派（多策略复用、删除组、升级通知）进入 `bk-monitor-alert-assign`。
 
 ## 处理套餐
 

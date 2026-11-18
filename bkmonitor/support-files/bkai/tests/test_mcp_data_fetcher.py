@@ -12,7 +12,7 @@ from unittest import mock
 
 import requests
 
-ROOT = Path(__file__).resolve().parents[1] / "package/skills/bkm-data-fetcher/scripts"
+ROOT = Path(__file__).resolve().parents[1] / "package/skills/bk-monitor-data-fetcher/scripts"
 sys.path.insert(0, str(ROOT))
 
 import mcp_data_fetcher as mcp  # noqa: E402

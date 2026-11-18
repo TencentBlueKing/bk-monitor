@@ -7,7 +7,7 @@ description: Edit an existing BlueKing iframe Grafana dashboard with panel-id op
 
 编辑已有盘。模型只产出 **operations**；完整 JSON 留在磁盘上，由 `dashboard_tools.py` 改。页面在蓝鲸监控 iframe 里刷新后才能看见，没有 Grafana 官方的选中 panel / canvas。
 
-所有 `python scripts/dashboard_tools.py` 命令都在 **bkm-grafana-dashboard skill 根目录** 执行。
+所有 `python scripts/dashboard_tools.py` 命令都在 **bk-monitor-grafana-dashboard skill 根目录** 执行。
 
 先读 `../../references/bk-grafana-model.md`。改查询时再读 `../../references/promql-dialect.md`。加图时再读 `../../references/panel-min-schema.md`。
 
@@ -23,7 +23,7 @@ description: Edit an existing BlueKing iframe Grafana dashboard with panel-id op
 
 ## 流程
 
-工作目录：`output/bkm-grafana-dashboard/<biz>_<uid>/`
+工作目录：`output/bk-monitor-grafana-dashboard/<biz>_<uid>/`
 
 1. 解析 uid（用户给、URL 里 `/grafana/d/<uid>/`、或 `get_dashboard_tree_list` 搜索）。多命中先确认。
 2. `get_dashboard_detail_by_uid`。把 **MCP 原始 JSON** 写到 `mcp.json`（不要解析后复述 panels）。
