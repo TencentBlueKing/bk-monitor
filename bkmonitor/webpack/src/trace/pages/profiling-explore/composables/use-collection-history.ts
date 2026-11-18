@@ -58,6 +58,8 @@ export function useCollectionHistory({
   // 后端下发的表头列定义；缺省时组件回退默认列
   const taskColumns = shallowRef<CollectionTaskColumn[]>([]);
   const loading = shallowRef(false);
+  // 当前筛选条件下的结果总数，由后端下发；未下发时保持 null，不展示统计行
+  const total = shallowRef<null | number>(null);
   const error = shallowRef('');
   const hasMore = shallowRef(false);
   // 自动补页是否继续：某页没有带来新行时暂停，避免后端重复返回同一页时空转
@@ -66,7 +68,7 @@ export function useCollectionHistory({
   // 静默刷新独立于主动请求，不参与 loading，失败也不影响列表状态
   let silentController: AbortController | null = null;
   let offset = 0;
-  // 本次查询实际使用的绝对时间；翻页沿用首屏边界，避免相对时间跨页漂移
+  // 当前列表数据对应的时间边界；翻页沿用同一边界保证窗口一致，静默刷新时会更新为最新解析结果
   let pageRange: null | SelectionRange = null;
 
   function abortSilentRefresh() {
@@ -109,6 +111,7 @@ export function useCollectionHistory({
       });
       rows.value = [...rows.value, ...added];
       offset += result.data.length;
+      if (typeof result.total === 'number') total.value = result.total;
       // 是否还有更多仍按分页语义判断；「本页没有新增行」不等于「没有更多数据」，只用来暂停自动补页
       hasMore.value = result.data.length === COLLECTION_HISTORY_PAGE_SIZE;
       canAutoFill.value = added.length > 0;
@@ -123,6 +126,7 @@ export function useCollectionHistory({
     controller?.abort();
     loading.value = false;
     rows.value = [];
+    total.value = null;
     offset = 0;
     hasMore.value = false;
     canAutoFill.value = true;
@@ -141,8 +145,10 @@ export function useCollectionHistory({
    * 不改 loading、不重置滚动与分页状态；失败时保留现有列表且不覆盖 error
    */
   async function silentRefresh() {
-    const queryRange = pageRange;
-    if (loading.value || silentController || !queryRange) return;
+    if (loading.value || silentController || !pageRange) return;
+    // 相对时间（如近 7 天）每轮刷新都重新解析，取最新窗口；绝对时间解析结果不变
+    const queryRange = currentRange();
+    if (!queryRange) return;
     const current = new AbortController();
     silentController = current;
     // 已加载行数决定需要重拉的页数，列表为空时按一页兜底
@@ -170,6 +176,10 @@ export function useCollectionHistory({
           known.add(key);
           return true;
         });
+      // 总数与列表同源，取首个下发 total 的页；本轮所有页都未下发时按未知处理
+      total.value = results.find(result => typeof result.total === 'number')?.total ?? null;
+      // 列表已是本轮时间窗的数据，翻页边界同步，避免后续加载更多拉取旧窗口
+      pageRange = queryRange;
       // 列表行数可能因新记录插入而变化，翻页游标跟随实际加载条数
       offset = rows.value.length;
     } catch {
@@ -188,6 +198,7 @@ export function useCollectionHistory({
     rows,
     taskColumns,
     loading,
+    total,
     error,
     hasMore,
     canAutoFill,

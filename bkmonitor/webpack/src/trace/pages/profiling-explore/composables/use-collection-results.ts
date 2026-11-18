@@ -69,6 +69,8 @@ export function useCollectionResults({
   // 执行范围下的执行详情，结果页用其中的任务名与主机 IP 回填筛选条件
   const executionDetail = shallowRef<CollectionExecutionDetail | null>(null);
   const loading = shallowRef(false);
+  // 当前筛选条件下的结果总数，由后端下发；未下发或执行范围内保持 null，不展示统计行
+  const total = shallowRef<null | number>(null);
   const error = shallowRef('');
   const hasMore = shallowRef(false);
   const pending = shallowRef<CollectionHostResult | null>(null);
@@ -102,18 +104,18 @@ export function useCollectionResults({
       if (current.signal.aborted) return;
       executionDetail.value = detail;
       hostColumns.value = detail?.host_columns?.length ? detail.host_columns : null;
-      const data = detail
-        ? executionResultRows(detail)
-        : (
-            await getCollectionResults(
-              bizId.value,
-              queryRange as SelectionRange,
-              state.value.filters,
-              offset,
-              current.signal
-            )
-          ).data;
+      const result = detail
+        ? null
+        : await getCollectionResults(
+            bizId.value,
+            queryRange as SelectionRange,
+            state.value.filters,
+            offset,
+            current.signal
+          );
       if (current.signal.aborted) return;
+      const data = detail ? executionResultRows(detail) : result?.data || [];
+      if (result && typeof result.total === 'number') total.value = result.total;
       const known = new Set(records.value.map(resultRowKey));
       records.value = [
         ...records.value,
@@ -139,6 +141,7 @@ export function useCollectionResults({
     records.value = [];
     hostColumns.value = null;
     executionDetail.value = null;
+    total.value = null;
     offset = 0;
     hasMore.value = false;
     error.value = '';
@@ -203,6 +206,7 @@ export function useCollectionResults({
     hostColumns,
     executionDetail,
     loading,
+    total,
     error,
     hasMore,
     pending,
