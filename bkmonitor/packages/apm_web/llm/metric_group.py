@@ -174,12 +174,7 @@ class LLMMetricGroup(base.BaseMetricGroup):
             Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name).build_data_sources()
         )
         # 分组字段按产品换算成存储中的原始字段，聚合结果再回填成调用方传入的标准名
-        self.group_fields: list[str] = [
-            field
-            if field in {OtlpKey.TRACE_ID, LLMQuery.TIME_BUCKET_FIELD}
-            else resolve_query_field(self.product, OtlpKey.get_attributes_key(field))
-            for field in self.group_by
-        ]
+        self.group_fields: list[str] = [self._resolve_group_field(self.product, field) for field in self.group_by]
         self.dimension_fields: list[tuple[str, str]] = [
             (storage_field, standard_field)
             for storage_field, standard_field in zip(self.group_fields, self.group_by)
@@ -259,18 +254,33 @@ class LLMMetricGroup(base.BaseMetricGroup):
         layer_q: Q = self._declared(self.LAYER_QUERIES, layer) if layer is not None else Q()
         return [query.filter(layer_q).filter(self._filter_dict_to_q()) for query in self.query.build_queries()]
 
+    @staticmethod
+    def _resolve_group_field(product: str, field: str) -> str:
+        if field in {OtlpKey.TRACE_ID, LLMQuery.TIME_BUCKET_FIELD}:
+            return field
+        if field in {"service_name", ResourceAttributes.SERVICE_NAME}:
+            return SERVICE_NAME_FIELD
+        if field.startswith(f"{OtlpKey.RESOURCE}."):
+            return field
+        attr_field: str = field if field.startswith(f"{OtlpKey.ATTRIBUTES}.") else OtlpKey.get_attributes_key(field)
+        return resolve_query_field(product, attr_field)
+
+    @staticmethod
+    def _is_operation_dimension(field: str) -> bool:
+        return field in {OPERATION_NAME_FIELD, OtlpKey.get_attributes_key(OPERATION_NAME_FIELD)}
+
     def _dimension_key(self, record: dict[str, Any]) -> tuple:
         values: list[Any] = []
         for storage_field, standard_field in self.dimension_fields:
             value = record.get(storage_field) or ""
-            if standard_field == OPERATION_NAME_FIELD:
+            if self._is_operation_dimension(standard_field):
                 value = resolve_operation_name(self.product, value)
             values.append(value)
         return tuple(values)
 
     def _should_drop_operation_dimension(self, key: tuple) -> bool:
         return any(
-            field == OPERATION_NAME_FIELD and value == "" for (_, field), value in zip(self.dimension_fields, key)
+            self._is_operation_dimension(field) and value == "" for (_, field), value in zip(self.dimension_fields, key)
         )
 
     def _dimensions(self, key: tuple) -> dict[str, Any]:
@@ -310,6 +320,37 @@ class LLMMetricGroup(base.BaseMetricGroup):
             points[timestamp] = (points.get(timestamp) or 0) + value
         return [[value, timestamp] for timestamp, value in sorted(points.items())]
 
+    def _merge_storage_records(
+        self,
+        records: list[dict[str, Any]],
+        *,
+        is_time_bucketed: bool,
+        bucket_delta_ms: int,
+    ) -> dict[tuple, tuple[float, int, tuple, int | None]]:
+        """按标准维度（及对齐后的桶时间）合并存储侧返回的聚合记录。"""
+        merged: dict[tuple, tuple[float, int, tuple, int | None]] = {}
+        for record in records:
+            key: tuple = self._dimension_key(record)
+            if self._should_drop_operation_dimension(key):
+                continue
+            value: float = record.get("_result_") or 0
+            raw_time: int | None = record.get("_time_")
+            time_: int | None = (
+                (raw_time - bucket_delta_ms if raw_time is not None else None) if is_time_bucketed else raw_time
+            )
+            merge_key: tuple = (*key, time_) if is_time_bucketed else key
+            if merge_key in merged:
+                prev_value, prev_count, _, prev_time = merged[merge_key]
+                merged[merge_key] = (
+                    prev_value + value,
+                    prev_count + 1,
+                    key,
+                    time_ if time_ is not None else prev_time,
+                )
+            else:
+                merged[merge_key] = (value, 1, key, time_)
+        return merged
+
     def _aggregate(
         self,
         aggregation: Aggregation,
@@ -317,7 +358,7 @@ class LLMMetricGroup(base.BaseMetricGroup):
         end_time: int | None = None,
         interval: int | None = None,
     ) -> list[dict[str, Any]]:
-        """聚合出区间标量或按时间分桶的序列，每个维度（及时间桶）一条记录。"""
+        """聚合出区间标量或按时间分桶的序列，每个有样本的维度（及时间桶）一条记录。"""
         shifted_start, shifted_end = self._shift(start_time, end_time)
         is_time_bucketed: bool = LLMQuery.TIME_BUCKET_FIELD in self.group_by
         resolved_interval: int | None = None
@@ -360,43 +401,56 @@ class LLMMetricGroup(base.BaseMetricGroup):
                 totals[key] += self._usage_value(record, aggregation)
             return [self._record(key, value, shifted_end) for key, value in totals.items()]
 
+        queries: list[QueryConfigBuilder] = self._queries(aggregation.layer)
+        fields: list[str] = self._fields(aggregation)
         query_kwargs: dict[str, Any] = {"interval": resolved_interval} if resolved_interval is not None else {}
-        records: list[dict[str, Any]] = self.query.query_field_aggregated_group(
-            self._queries(aggregation.layer),
-            shifted_start,
-            shifted_end,
-            self._fields(aggregation),
-            aggregation.method,
-            self.group_fields,
-            **query_kwargs,
-        )
-        # 多个原始操作名（如大小写差异或新旧埋点别名）归一到同一标准名时需在本地二次合并：
-        # SUM/COUNT 直接累加；AVG 缺少各组样本量权重，退化为各组算术均值避免耗时翻倍；
-        # DISTINCT 缺少原始 trace_id 集合无法二次去重，仅保留相加作为上界近似。
-        merged: dict[tuple, tuple[float, int, tuple, int | None]] = {}
-        for record in records:
-            key = self._dimension_key(record)
-            if self._should_drop_operation_dimension(key):
-                continue
-            value: float = record.get("_result_") or 0
-            raw_time: int | None = record.get("_time_")
-            time_: int | None = (
-                (raw_time - bucket_delta_ms if raw_time is not None else None) if is_time_bucketed else raw_time
+
+        if is_time_bucketed and aggregation.method in {"SUM", "AVG"}:
+            # ES date_histogram 会为无样本桶补 0；按同层样本数 COUNT > 0 区分真实零值桶与无样本空桶
+            val_merged = self._merge_storage_records(
+                self.query.query_field_aggregated_group(
+                    queries, shifted_start, shifted_end, fields, aggregation.method, self.group_fields, **query_kwargs
+                ),
+                is_time_bucketed=True,
+                bucket_delta_ms=bucket_delta_ms,
             )
-            merge_key: tuple = (*key, time_) if is_time_bucketed else key
-            if merge_key in merged:
-                prev_value, prev_count, _, prev_time = merged[merge_key]
-                merged[merge_key] = (
-                    prev_value + value,
-                    prev_count + 1,
+            count_fields: list[str] = ["_index"] if aggregation.method == "SUM" else fields
+            count_merged = self._merge_storage_records(
+                self.query.query_field_aggregated_group(
+                    queries, shifted_start, shifted_end, count_fields, "COUNT", self.group_fields, **query_kwargs
+                ),
+                is_time_bucketed=True,
+                bucket_delta_ms=bucket_delta_ms,
+            )
+            return [
+                self._record(
                     key,
-                    time_ if time_ is not None else prev_time,
+                    (
+                        val_merged[merge_key][0] / val_merged[merge_key][1]
+                        if aggregation.method == "AVG"
+                        else val_merged[merge_key][0]
+                    )
+                    if merge_key in val_merged
+                    else 0.0,
+                    shifted_end,
+                    time_,
                 )
-            else:
-                merged[merge_key] = (value, 1, key, time_)
+                for merge_key, (sample_count, _, key, time_) in count_merged.items()
+                if sample_count > 0
+            ]
+
+        # COUNT / DISTINCT 分桶下值为 0 即无匹配样本
+        merged = self._merge_storage_records(
+            self.query.query_field_aggregated_group(
+                queries, shifted_start, shifted_end, fields, aggregation.method, self.group_fields, **query_kwargs
+            ),
+            is_time_bucketed=is_time_bucketed,
+            bucket_delta_ms=bucket_delta_ms,
+        )
         return [
             self._record(key, value / count if aggregation.method == "AVG" else value, shifted_end, time_)
             for value, count, key, time_ in merged.values()
+            if not is_time_bucketed or value > 0
         ]
 
     def _record(self, key: tuple, value: float, end_time: int | None, time_: int | None = None) -> dict[str, Any]:

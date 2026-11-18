@@ -3013,6 +3013,18 @@ class CalculateByRangeResourceTestCase(TestCase):
         self.assertFalse(invalid.is_valid())
         self.assertIn("interval", invalid.errors)
 
+        reversed_window = CalculateByRangeResource.RequestSerializer(
+            data={**LLM_METRIC_REQUEST, "start_time": 200, "end_time": 100, "cal_type": "input_tokens"}
+        )
+        self.assertFalse(reversed_window.is_valid())
+        self.assertIn("start_time 不能大于 end_time", str(reversed_window.errors))
+
+        bad_shift = CalculateByRangeResource.RequestSerializer(
+            data={**LLM_METRIC_REQUEST, "cal_type": "input_tokens", "time_shifts": ["1day"]}
+        )
+        self.assertFalse(bad_shift.is_valid())
+        self.assertIn("不支持的时间偏移", str(bad_shift.errors))
+
     def test_interval_buckets_align_time_shifts_and_sort_by_time_desc(self):
         query = make_query()
         start_time = 1700086400
@@ -3086,7 +3098,8 @@ class CalculateByRangeResourceTestCase(TestCase):
             },
         )
 
-    def test_langfuse_interval_buckets_locally_and_aligns_time_shifts(self):
+    def test_langfuse_interval_buckets_locally_and_preserves_zero_usage(self):
+        """本地分桶存在样本时真实 0 值桶必须保留，不能被当成空桶丢弃。"""
         from bkmonitor.utils.time_tools import time_interval_align
 
         query = make_query()
@@ -3099,17 +3112,17 @@ class CalculateByRangeResourceTestCase(TestCase):
             if shifted_start == start_time:
                 return [
                     {
-                        "attributes.langfuse.observation.usage_details": '{"output": 3}',
+                        "attributes.langfuse.observation.usage_details": '{"input": 10, "cache_read_input_tokens": 0}',
                         "start_time": aligned_bucket * 1_000_000,
                     },
                     {
-                        "attributes.langfuse.observation.usage_details": '{"output": 4}',
+                        "attributes.langfuse.observation.usage_details": '{"input": 8, "cache_read_input_tokens": 0}',
                         "start_time": (aligned_bucket + 20) * 1_000_000,
                     },
                 ]
             return [
                 {
-                    "attributes.langfuse.observation.usage_details": '{"output": 5}',
+                    "attributes.langfuse.observation.usage_details": '{"input": 5, "cache_read_input_tokens": 0}',
                     "start_time": (aligned_bucket - 86400 + 10) * 1_000_000,
                 }
             ]
@@ -3121,7 +3134,7 @@ class CalculateByRangeResourceTestCase(TestCase):
                     **LLM_METRIC_REQUEST,
                     "start_time": start_time,
                     "end_time": end_time,
-                    "cal_type": "output_tokens",
+                    "cal_type": "cache_read_input_tokens",
                     "interval": 60,
                     "time_shifts": ["0s", "1d"],
                 }
@@ -3135,19 +3148,25 @@ class CalculateByRangeResourceTestCase(TestCase):
                 "data": [
                     {
                         "dimensions": {"time": aligned_bucket},
-                        "0s": 7.0,
-                        "1d": 5.0,
-                        "growth_rates": {"0s": 0, "1d": 40},
+                        "0s": 0.0,
+                        "1d": 0.0,
+                        "growth_rates": {"0s": 0, "1d": 0},
                     }
                 ],
             },
         )
 
     def test_duration_averages_aliased_operation_records_instead_of_summing(self):
-        query = make_query(
-            records=[
+        query = make_query()
+        query.query_field_aggregated_group.side_effect = lambda _queries, _start, _end, _fields, method, *_a, **_kw: (
+            [
                 {"attributes.gen_ai.operation.name": "CHAT", "_time_": 1700000060000, "_result_": 1000.0},
                 {"attributes.gen_ai.operation.name": "chat", "_time_": 1700000060000, "_result_": 1400.0},
+            ]
+            if method == "AVG"
+            else [
+                {"attributes.gen_ai.operation.name": "CHAT", "_time_": 1700000060000, "_result_": 1},
+                {"attributes.gen_ai.operation.name": "chat", "_time_": 1700000060000, "_result_": 1},
             ]
         )
         with patch_llm_metric_group(query, product="default"):
@@ -3171,21 +3190,80 @@ class CalculateByRangeResourceTestCase(TestCase):
             ],
         )
 
-    def test_time_bucketing_drops_all_zero_padding_buckets_but_keeps_comparison_only_buckets(self):
+    def test_storage_time_bucketing_keeps_real_zero_samples_and_drops_empty_padding(self):
+        """按样本数 COUNT(_index) > 0 识别真实零值桶，剔除双窗口均无样本的补齐桶，且同桶内真实 0 排在缺失值 None 之前。"""
         query = make_query()
         start_time = 1700086400
 
-        def aggregate(_queries, shifted_start, *_args, **_kwargs):
+        def aggregate(_queries, shifted_start, _end, fields, method, _group_by, **_kwargs):
             if shifted_start == start_time:
+                if method == "COUNT":
+                    return [
+                        # m_zero_today 在 start_time 有 5 条样本但缓存 Token 为 0；start_time+60 无样本（ES 补齐桶）
+                        {
+                            "attributes.gen_ai.response.model": "m_zero_today",
+                            "_time_": start_time * 1000,
+                            "_result_": 5,
+                        },
+                        {
+                            "attributes.gen_ai.response.model": "m_zero_today",
+                            "_time_": (start_time + 60) * 1000,
+                            "_result_": 0,
+                        },
+                        # m_yesterday_only 今日无样本
+                        {
+                            "attributes.gen_ai.response.model": "m_yesterday_only",
+                            "_time_": start_time * 1000,
+                            "_result_": 0,
+                        },
+                    ]
+                self.assertEqual(fields, ["attributes.gen_ai.usage.cache_read.input_tokens"])
                 return [
-                    {"attributes.gen_ai.response.model": "m1", "_time_": start_time * 1000, "_result_": 0.0},
-                    {"attributes.gen_ai.response.model": "m1", "_time_": (start_time + 60) * 1000, "_result_": 0.0},
+                    {"attributes.gen_ai.response.model": "m_zero_today", "_time_": start_time * 1000, "_result_": 0.0},
+                    {
+                        "attributes.gen_ai.response.model": "m_zero_today",
+                        "_time_": (start_time + 60) * 1000,
+                        "_result_": 0.0,
+                    },
+                    {
+                        "attributes.gen_ai.response.model": "m_yesterday_only",
+                        "_time_": start_time * 1000,
+                        "_result_": 0.0,
+                    },
+                ]
+
+            if method == "COUNT":
+                return [
+                    {
+                        "attributes.gen_ai.response.model": "m_zero_today",
+                        "_time_": (start_time - 86400) * 1000,
+                        "_result_": 0,
+                    },
+                    {
+                        "attributes.gen_ai.response.model": "m_zero_today",
+                        "_time_": (start_time - 86400 + 60) * 1000,
+                        "_result_": 0,
+                    },
+                    {
+                        "attributes.gen_ai.response.model": "m_yesterday_only",
+                        "_time_": (start_time - 86400) * 1000,
+                        "_result_": 3,
+                    },
                 ]
             return [
-                {"attributes.gen_ai.response.model": "m1", "_time_": (start_time - 86400) * 1000, "_result_": 0.0},
                 {
-                    "attributes.gen_ai.response.model": "m1",
+                    "attributes.gen_ai.response.model": "m_zero_today",
+                    "_time_": (start_time - 86400) * 1000,
+                    "_result_": 0.0,
+                },
+                {
+                    "attributes.gen_ai.response.model": "m_zero_today",
                     "_time_": (start_time - 86400 + 60) * 1000,
+                    "_result_": 0.0,
+                },
+                {
+                    "attributes.gen_ai.response.model": "m_yesterday_only",
+                    "_time_": (start_time - 86400) * 1000,
                     "_result_": 25.0,
                 },
             ]
@@ -3197,7 +3275,7 @@ class CalculateByRangeResourceTestCase(TestCase):
                     **LLM_METRIC_REQUEST,
                     "start_time": start_time,
                     "end_time": start_time + 3600,
-                    "cal_type": "total_tokens",
+                    "cal_type": "cache_read_input_tokens",
                     "group_by": ["gen_ai.response.model"],
                     "interval": 60,
                     "time_shifts": ["0s", "1d"],
@@ -3207,16 +3285,35 @@ class CalculateByRangeResourceTestCase(TestCase):
         self.assertEqual(
             result,
             {
-                "total": 1,
+                "total": 2,
                 "data": [
                     {
-                        "dimensions": {"gen_ai.response.model": "m1", "time": start_time + 60},
+                        "dimensions": {"gen_ai.response.model": "m_zero_today", "time": start_time},
                         "0s": 0.0,
+                        "1d": None,
+                        "growth_rates": {"0s": 0, "1d": None},
+                    },
+                    {
+                        "dimensions": {"gen_ai.response.model": "m_yesterday_only", "time": start_time},
+                        "0s": None,
                         "1d": 25.0,
-                        "growth_rates": {"0s": 0, "1d": -100},
-                    }
+                        "growth_rates": {"0s": None, "1d": -100},
+                    },
                 ],
             },
+        )
+
+    def test_group_by_service_name_and_prefixed_fields_resolve_without_double_prefix(self):
+        group = LLMMetricGroup(
+            11,
+            "sand_local_dev",
+            group_by=["service_name", "attributes.gen_ai.response.model", "resource.deployment.environment"],
+            product="galileo",
+            query=make_query(),
+        )
+        self.assertEqual(
+            group.group_fields,
+            ["resource.service.name", "attributes.gen_ai.request.model", "resource.deployment.environment"],
         )
 
 

@@ -888,7 +888,7 @@ paths:
                 interval:
                   type: integer
                   minimum: 1
-                  description: 'Optional bucket interval in seconds (e.g. 60, 300, 3600) for trend analysis. Automatically buckets by time and returns Unix seconds in dimensions.time; only buckets with data are returned (empty buckets are not zero-filled). For wide time ranges (e.g. >24h), pass a coarser interval (e.g. 300, 3600) to avoid hitting the 10000-row query limit; omit for whole-range scalar summary. 可选时间分桶步长（秒，如 60、300、3600），用于趋势分析。传入后自动按时间分桶并在 dimensions.time 返回秒级时间戳；仅返回有数据的时间桶（不补 0）。时间跨度较长（如超过 24h）时请传较大的 interval（如 300、3600）以避免触达 10000 条查询上限；不传则返回整段区间汇总标量。'
+                  description: 'Optional bucket interval in seconds (e.g. 60, 300, 3600) for trend analysis. Automatically buckets by time and returns Unix seconds in dimensions.time; buckets with matching Span samples are returned (real 0 values are preserved; empty buckets with 0 samples are omitted). For wide time ranges (e.g. >24h), pass a coarser interval (e.g. 300, 3600) to avoid hitting the 10000-row query limit; omit for whole-range scalar summary. 可选时间分桶步长（秒，如 60、300、3600），用于趋势分析。传入后自动按时间分桶并在 dimensions.time 返回秒级时间戳；仅返回存在样本的时间桶（真实 0 值保留，无样本的空桶不补 0）。时间跨度较长（如超过 24h）时请传较大的 interval（如 300、3600）以避免触达 10000 条查询上限；不传则返回整段区间汇总标量。'
         required: false
         description: ''
       x-bk-apigateway-resource:
