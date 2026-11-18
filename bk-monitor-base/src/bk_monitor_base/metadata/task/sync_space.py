@@ -836,7 +836,11 @@ def authorize_paas_space_cluster_data_source(space_cluster: dict):
 
 
 def create_and_update_paas_space_resource(space_cluster_namespaces: dict):
-    """创建或更新空间绑定的资源"""
+    """创建或更新空间绑定的资源
+
+    space_cluster_namespaces 只包含本轮成功获取到 PaaS 结果的应用，其中空列表是 PaaS 明确返回的空结果；
+    未出现在其中的应用（调用失败）保持已有记录不变。
+    """
     space_type = SpaceTypes.BKSAAS.value
     # 针对资源的集群进行处理
     objs = models.SpaceResource.objects.filter(space_type_id=space_type, space_id__in=space_cluster_namespaces.keys())
@@ -891,10 +895,26 @@ def refresh_bksaas_space_resouce():
 
     # 然后根据分组进行请求
     space_cluster_namespaces, space_cluster = {}, {}
-    for params_list in params_segment_list:
-        cluster_ns = bulk_request(api.bk_paas.get_app_cluster_namespace, params_list)
+    # 调用失败的应用不写入结果，保留其已有的空间资源，避免一次失败把已有登记覆盖为空
+    failed_app_codes: list[str] = []
+    for params_segment in params_segment_list:
+        cluster_ns: list[Any]
+        try:
+            # 单个应用调用失败时对应结果为 None，不影响同批其他应用
+            cluster_ns = bulk_request(api.bk_paas.get_app_cluster_namespace, params_segment, ignore_exceptions=True)
+        except Exception as e:
+            # 整批全部失败时 bulk_request 抛出首个异常
+            logger.warning(
+                "get app cluster namespace failed for whole batch, batch size: %s, error: %s",
+                len(params_segment),
+                type(e).__name__,
+            )
+            cluster_ns = [None] * len(params_segment)
         # 组装数据
-        for space_dict, val in zip(params_list, cluster_ns, strict=False):
+        for space_dict, val in zip(params_segment, cluster_ns, strict=False):
+            if val is None:
+                failed_app_codes.append(space_dict["app_code"])
+                continue
             # 转换格式 {"cluster_id": xxx, "namespace": ["xxx", "xxx"]}
             _cn = {}
             for v in val:
@@ -909,6 +929,13 @@ def refresh_bksaas_space_resouce():
                 for c, n in _cn.items()
             ]
             space_cluster[space_dict["app_code"]] = {v["bcs_cluster_id"] for v in val}
+
+    if failed_app_codes:
+        logger.error(
+            "refresh bksaas space resource: %s of %s apps failed to get cluster namespace, keep previous resource",
+            len(failed_app_codes),
+            space_id_count,
+        )
 
     # 创建或更新空间绑定的资源
     create_and_update_paas_space_resource(space_cluster_namespaces)
@@ -930,4 +957,4 @@ def refresh_bksaas_space_resouce():
             push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
     RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
-    logger.info("refresh bksaas space resource successfully")
+    logger.info("refresh bksaas space resource finished, total: %s, failed: %s", space_id_count, len(failed_app_codes))
