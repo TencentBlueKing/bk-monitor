@@ -14,6 +14,38 @@
 | 物理删除链路 | 有关联 Job 时由外键 PROTECT 阻止删除，先解除纳管或显式删除 Job |
 | 一个 Job 汇总多个来源 | 选负责该任务生命周期的链路作为归属；上下游关系单独登记，允许引用同租户其他链路的表组件。启停权限仍由归属链路管理 |
 
+## apply_data_link 与 DorisJob 怎么配合
+
+**建议把一次联合发布拆成两个可独立重试的阶段。** 第一阶段仍由 DataLink 向 BKBase 申请 RT、Binding、DataBus；第二阶段由 metadata 在源表和目标表就绪后向 Doris FE 发布本次选中的 Job。调用人可以一次提交链路和 Job，链路详情分别展示两个阶段的结果。
+
+### 在哪里接入
+
+现有 `apply_data_link()` 先在 metadata 事务内 compose 本地组件，提交后合并远端配置，调用带重试的 BKBase apply，成功后清理缺失组件并更新本地状态。部分调用方随后才调用 `sync_metadata()` 回填表名和集群信息。BKBase 接受申请时，FE 中的表仍可能尚未创建。因此 Job DDL 要放在调用方完成链路下发及必要的元数据回填之后，并在实际物理表可用时执行。[链路主流程](./data_link.py) · [链路任务入口](../../task/datalink.py)
+
+| 阶段 | 谁负责 | 行为 |
+| --- | --- | --- |
+| 选择本次发布内容 | 上层链路发布入口 | 普通 apply 沿用原入口。联合发布显式携带选中的 Job 草稿 ID；新增链路也可携带模板或自由配置，引用本次 compose 才创建的组件时，按输出的组件名称和 namespace 解析本地主键 |
+| 申请链路 | 现有 DataLink 流程 | 执行 apply 和该入口所需的 sync。失败直接返回链路阶段错误，本次请求尚未登记待发布 Job。仅靠本地 compose 成功不能触发 Job |
+| 登记 Job 发布 | 上层入口调用 metadata Job 服务 | 链路阶段成功后，在一个本地事务中保存本次 Job 定义、上下游关系及发布意图。事务提交后投递 Job 任务。若本地保存失败，返回“链路已下发、Job 配置保存失败”，已有链路可直接进入 Job 发布入口 |
+| 等待依赖并创建 | Job 任务，按配置 ID 执行 | 使用该 Job 自己的源、目标和最终库表定位检查依赖。BKBase 管理的 DorisBinding 可通过其状态及物理表映射定位；跨链路的表同样按实际引用处理。对声明的物理库表在目标连接下确认可访问，再按保存的 SQL 执行 CREATE JOB。自由 SQL 中未声明的依赖由 FE 执行结果暴露 |
+| 展示结果 | 链路详情 | 链路展示既有的申请/运行状态，每个 Job 单列发布状态、当前 FE 状态及异常原因。创建成功表示 FE 已登记调度，首轮 INSERT 是否成功以 Task 记录为准 |
+
+这里的“就绪”只要求本 Job 所用的库表和绑定可用。DataBus 是否已有首批数据、其他 Job 是否成功、整个链路是否全部组件 OK，都不作为统一前置条件。例如两个输出中只有服务汇总表建好，可以先发布服务汇总 Job，接口汇总 Job 继续等待自己的目标表。
+
+### 如何重试、停用和重新 apply
+
+建议在 Job 配置上保存 `publish_status`（draft / pending / published / failed）和可空的 `publish_error`。这两个字段记录 metadata 的发布进度；运行或暂停仍从 FE 查询。独立“发布 Job”与联合发布复用同一个 `publish_jobs(link, job_ids)` 入口。已接管的 Job 直接记为 published，显式删除远端并保留配置时回到 draft。
+
+| 情况 | 恢复行为 |
+| --- | --- |
+| 依赖正在创建、FE 短暂不可达 | 保留 pending，复用任务框架做有限次数的延迟重试。达到上限转 failed，记录具体库表或错误。事务提交后投递失败时保留 pending，可从同一入口再次投递 |
+| 部分 Job 失败 | 对成功项保留远端 ID，只重试选中的失败项。依赖修复后直接重试 Job；无需再次申请 DataBus、RT 或 Binding |
+| FE 创建成功但调用超时，或写回 ID 失败 | 先按名称查询。已绑定相同 ID 的记录直接返回；远端存在同名对象但本地缺少绑定时返回待接管原因，走显式接管流程 |
+| 链路重复 apply 或模板更新 | 默认不发布草稿。显式重复发布已绑定 Job 时返回已有结果，保留远端 ID 和暂停状态。修改 SQL 或替换物理表时，显式保存并发布选中的新定义 |
+| 等待期间修改草稿、删除表组件或停链 | pending 配置先撤销本次待发布操作再编辑。相关组件被移除时，待发布 Job 标为 failed 并记录缺失引用；停用归属链路时撤销尚未开始的发布。任务执行 DDL 前在同一 Job 写操作串行区重新读取发布状态。已开始的创建返回实际结果，已发布 Job 的启停仍由管理员决定 |
+
+若调用进程在链路成功与登记 Job 之间退出，重新提交联合发布可复用现有组件；已有草稿也可直接从 Job 入口补发。首期沿用现有任务机制和逐 Job 重试，无须在 MySQL、BKBase 和 Doris 之间引入分布式事务。
+
 ## 建议字段
 
 | 字段 | Django 类型 / 初值 | 用途及变更语义 |
@@ -25,6 +57,7 @@
 | name | CharField(255)，必填 | Doris Job 原名；按集群管理名称。集群、库、名称在绑定后固定，迁移或改名作为新 Job 处理 |
 | interval_minutes | PositiveIntegerField，必填 | 首期只支持正整数分钟周期，映射为 EVERY n MINUTE |
 | insert_sql | TextField，必填 | 保存单条 INSERT 任务体。服务负责组装 CREATE JOB，时间窗口、聚合及目标表由任务定义表达 |
+| publish_status / publish_error | CharField，默认 draft / TextField，可空 | metadata 最近一次发布的进度和失败原因，供任务恢复和链路详情使用 |
 | doris_job_id | BigIntegerField，可空 | 创建成功或显式接管后保存 FE 返回的 Id；执行记录按此 ID 查询。空值表示本地草稿 |
 | create_time / last_modify_time | DateTimeField，自动维护 | 本地配置创建和修改时间 |
 
@@ -98,7 +131,8 @@
 | list_configs(link) | 返回配置摘要及按方向分组的组件引用 | 无 |
 | set_table_relations(id, sources, targets) | 整体替换两组关系，空数组清空该方向。草稿和已接管 Job 均可单独修订拓扑 | 无 |
 | list_jobs_by_table(kind, component_id, direction=None) | 反查直接引用该组件的 Job 及归属链路；source 查消费者，target 查生产者，省略方向则返回双方及各自方向 | 无 |
-| create_job(id) | 发布草稿；成功后记录远端 Job ID 并返回运行状态 | 在指定库执行 CREATE JOB，随后按名取回 ID；新任务按 Doris 默认行为进入 RUNNING |
+| publish_jobs(link, job_ids) | 显式提交选中 Job 的发布请求，返回每项发布状态 | 提交后由 Job 任务逐项等待依赖并调用 create_job |
+| create_job(id) | 发布任务执行单个 pending 配置；成功后记录远端 Job ID 并返回运行状态 | 在指定库执行 CREATE JOB，随后按名取回 ID；新任务按 Doris 默认行为进入 RUNNING |
 | adopt_job(link, cluster_id, database, remote_id, fields, sources, targets) | 将现有周期 INSERT Job 绑定到链路；先展示远端实际 SQL 和周期，仅支持能完整表达为本模型的任务 | 仅读取。由管理员指定已存在的 Job，核对名称、ID、库上下文、任务体和周期后记录实际定义，关联调用方提供的上下游组件。无法确定上下文时由管理员显式提供并核实 |
 | get_status(id) | 返回当前远端状态、名称及可见的最近错误；区分草稿、远端缺失及查询错误 | 查 jobs("type"="insert")，精确定位 Job |
 | list_tasks(id, page, page_size) | 返回开始/结束时间、执行结果及错误 | 复用现有 insert 类型任务查询，按当前远端 Job ID 分页 |
@@ -124,5 +158,6 @@
 4. 用目标 Doris 版本实测 `jobs`、`tasks` 返回字段、名称大小写、调度周期展示、执行中的暂停行为和账号权限，再确定接管入口可直接回填的字段。
 5. 一个 Job 声明两条 source 和两条 target，验证两个方向均能独立增删、按组件 ID 反查。覆盖同表既读又写、不同 Job 共享一张表、历史与当前 DorisBinding 同时存在、跨链路同租户引用。验证单独修改关系不会触发 FE DDL。
 6. 用两源两目标模板预览并保存，核对各输出实际使用的源、目标与 SQL。更新模板后已存草稿及运行中 Job 保持原定义；已有草稿能重新渲染，也能切换为自由配置。验证自由配置可在没有模板的情况下独立保存和发布。
+7. 验证 BKBase apply 失败、apply 成功但表未就绪、两个 Job 仅一个成功、停链时仍有 pending Job 四种情况。分别检查两个阶段的状态、FE 创建次数、单项重试及重新 apply 后已暂停 Job 的状态。
 
 对应代码入口：[DataLink 编排](./data_link.py)、[BKBase 组件基类](./data_link_configs.py)、[已有集群 Job 与 Task 查询](../../../kernel_api/rpc/functions/admin/doris_jobs.py)。现有集群查询面向列表；运行详情需要增加按指定 ID 或名称精确过滤的查询，避免拉全量再筛选。
