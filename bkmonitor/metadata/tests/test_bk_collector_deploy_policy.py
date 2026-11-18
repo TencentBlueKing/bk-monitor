@@ -365,7 +365,7 @@ def test_custom_report_task_skips_v2_version_gate(nodeman_v3):
         custom_report.refresh_custom_report_2_node_man()
 
     plugin_info.assert_not_called()
-    refresh.assert_called_once_with(bk_tenant_id=TENANT, bk_biz_id=None)
+    refresh.assert_called_once_with(bk_tenant_id=TENANT, bk_biz_id=None, check_lease=None)
 
 
 def test_host_queries_follow_collector_switch(nodeman_v3):
