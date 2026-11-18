@@ -51,6 +51,8 @@ COMMON = {
     "attributes.network.effective_type",
     "attributes.user.id",
     "attributes.session.id",
+    "attributes.browser.viewport.width",
+    "attributes.browser.viewport.height",
 }
 COMPUTED = {
     "trace_count",
@@ -78,6 +80,7 @@ VIEW_RAW = {
 }
 VIEW_DERIVED = {f"web_vitals.{metric}" for metric in ("cls", "lcp", "fcp", "inp", "ttfb")}
 SESSION_DERIVED = {"view_count", "enter_url_template", "exit_url_template"}
+VIRTUAL_DIMENSIONS = {"virtual.browser", "virtual.network", "virtual.viewport"}
 
 
 @pytest.mark.parametrize(
@@ -92,18 +95,28 @@ def test_field_catalog_matches_retained_table_without_uq(mode, expected_raw, exp
     with patch.object(BaseQuery, "_query_fields", side_effect=AssertionError("不得发现原始表字段")):
         config = handler.view_config(None, None)
     fields = {field["field_name"]: field for field in config["fields"]}
-    assert fields.keys() == expected_raw | expected_derived
+    virtual_dimensions = VIRTUAL_DIMENSIONS
+    assert fields.keys() == expected_raw | expected_derived | virtual_dimensions
     for name in expected_raw:
         assert fields[name]["is_agg"] and fields[name]["is_searchable"] and fields[name]["is_real"]
         assert fields[name]["supported_operations"]
     for name in expected_derived:
         assert not fields[name]["is_agg"] and not fields[name]["is_searchable"] and not fields[name]["is_real"]
         assert fields[name]["supported_operations"] == []
+    for name in virtual_dimensions:
+        assert fields[name]["is_agg"] and fields[name]["is_searchable"] and not fields[name]["is_real"]
+        assert fields[name]["is_list"]
+        assert {operation["operator"] for operation in fields[name]["supported_operations"]} == {
+            "equal",
+            "not_equal",
+        }
     grouped = [name for group in config["groups"] for name in group["field_names"]]
     assert len(grouped) == len(set(grouped))
     assert set(grouped) == fields.keys()
     assert set(config["display_fields"]) <= fields.keys()
-    assert config["display_fields"][0] == f"attributes.{mode}.id"
+    assert config["display_fields"][0] == (
+        "attributes.view.url_template" if mode == "view" else "attributes.session.id"
+    )
     assert set(config["resident_fields"]) <= expected_raw
     resident_fields_by_mode: dict[str, list[str]] = {
         "session": [

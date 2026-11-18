@@ -19,19 +19,16 @@ class ViewLevelHandler(BaseRumLevelHandler):
     query: ViewQuery
 
     DISPLAY_FIELDS = [
-        "attributes.view.id",
-        "start_time",
         "attributes.view.url_template",
-        "attributes.view.loading_type",
-        "web_vitals.fcp",
+        "duration",
         "web_vitals.lcp",
-        "web_vitals.cls",
         "web_vitals.inp",
+        "web_vitals.cls",
+        "web_vitals.fcp",
         "web_vitals.ttfb",
-        "error_count",
-        "request_count",
-        "action_count",
-        "resource.user_agent.name",
+        "virtual.browser",
+        "attributes.user.id",
+        "start_time",
     ]
     RESIDENT_FIELDS = [
         "attributes.view.id",

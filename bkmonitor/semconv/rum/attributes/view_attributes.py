@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _
 
+from semconv.rum import composite
 from semconv.rum.field import FieldSpec
 from semconv.rum.constants import ViewLoadingTimeSource, ViewPhase, ViewLoadingType
 from semconv.constants import FieldUnit, FieldDisplayType
@@ -24,7 +25,9 @@ VIEW_URL = FieldSpec(field_name="view.url", field_alias=_("页面 URL"))
 VIEW_PREVIOUS = FieldSpec(field_name="view.previous", field_alias=_("上一页面 URL"))
 VIEW_PREVIOUS_URL_TEMPLATE = FieldSpec(field_name="view.previous_url_template", field_alias=_("上一个页面"))
 VIEW_REFERRER = FieldSpec(field_name="view.referrer", field_alias=_("初始来源 URL"))
-VIEW_URL_TEMPLATE = FieldSpec(field_name="view.url_template", field_alias=_("页面"))
+VIEW_URL_TEMPLATE = FieldSpec(
+    field_name="view.url_template", field_alias=_("页面"), extra_config={"composite": composite.PAGE}
+)
 VIEW_LOADING_TIME = FieldSpec(
     field_name="view.loading_time",
     field_alias=_("页面加载耗时"),

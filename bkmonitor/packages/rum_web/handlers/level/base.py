@@ -13,6 +13,7 @@ import copy
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from typing import Any
 
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import ValidationError
 
@@ -28,7 +29,7 @@ from constants.otel_query import EnabledStatisticsDimension, FieldTypeEnum, Oper
 from core.drf_resource import resource
 from rum_web.constants import RUM_SEARCH_PAGE_GROUPS, RumQueryMode
 from rum_web.handlers.builder.span import BUILDERS, build as build_span_detail
-from rum_web.handlers.query.base import BaseRumQuery
+from rum_web.handlers.query.base import BaseRumQuery, equal_filter
 from semconv.rum.trace import SpanSpec
 
 
@@ -138,7 +139,19 @@ class BaseRumLevelHandler:
         def _query_topk():
             results["topk"] = self.query.query_field_topk(start_time, end_time, field, limit, filters, query_string)
 
-        ThreadPool().map_ignore_exception(lambda fn: fn(), [_query_total, _query_distinct, _query_topk])
+        if field in self.query.virtual_fields:
+            values = self.query.query_virtual_counts(start_time, end_time, field, filters, query_string)
+            values.pop(None, None)
+            results = {
+                "total": sum(values.values()),
+                "distinct": len(values),
+                "topk": [
+                    {field: value, "_result_": count}
+                    for value, count in sorted(values.items(), key=lambda item: (-item[1], item[0]))[:limit]
+                ],
+            }
+        else:
+            ThreadPool().map_ignore_exception(lambda fn: fn(), [_query_total, _query_distinct, _query_topk])
 
         total_count: int = int(results.get("total") or 0)
         distinct_count: int = int(results.get("distinct") or 0)
@@ -187,6 +200,18 @@ class BaseRumLevelHandler:
         target_properties: set[str] = statistics_properties - set(exclude_property)
 
         statistics_info: dict[str, Any] = {}
+        if field["field_name"] in self.query.virtual_fields:
+            counts = self.query.query_virtual_counts(start_time, end_time, field["field_name"], filters, query_string)
+            total_count = sum(counts.values())
+            counts.pop(None, None)
+            virtual_statistics = {
+                StatisticsProperty.TOTAL_COUNT.value: total_count,
+                StatisticsProperty.FIELD_COUNT.value: sum(counts.values()),
+                StatisticsProperty.DISTINCT_COUNT.value: len(counts),
+            }
+            return self._process_statistics_info(
+                {key: value for key, value in virtual_statistics.items() if key in target_properties}
+            )
         ThreadPool().map_ignore_exception(
             lambda property_name: self._query_statistics_info(
                 start_time, end_time, field, filters, query_string, property_name, statistics_info
@@ -272,13 +297,10 @@ class BaseRumLevelHandler:
         field_name: str = field["field_name"]
         values: list[Any] = field.get("values") or []
 
-        field_type_enum = EnabledStatisticsDimension.from_value(field["field_type"])
-        # 非数值类型（keyword）：按取值分组构建时序图
-        if not field_type_enum.is_numeric():
-            keyword_filters = filters + [{"key": field_name, "value": values, "operator": FilterOperator.EQUAL}]
-            config = self.query.query_graph_config(start_time, end_time, field_name, keyword_filters, query_string)
-            config.update(
+        def query_graph(config: dict[str, Any]) -> dict[str, Any]:
+            return resource.grafana.graph_unify_query(
                 {
+                    **config,
                     "time_alignment": False,
                     "query_method": "query_reference",
                     "null_as_zero": True,
@@ -286,11 +308,36 @@ class BaseRumLevelHandler:
                     "end_time": config["end_time"] // 1000,
                 }
             )
-            data: dict[str, Any] = resource.grafana.graph_unify_query(config)
+
+        if field_name in self.query.virtual_fields:
+            if not values:
+                values = [
+                    bucket[field_name]
+                    for bucket in self.query.query_field_topk(
+                        start_time, end_time, field_name, 5, filters, query_string
+                    )
+                ]
+            result: dict[str, Any] = {"series": []}
+            for value in dict.fromkeys(values):
+                config = self.query.query_graph_config(
+                    start_time, end_time, None, [*filters, equal_filter(field_name, [value])], query_string
+                )
+                data = query_graph(config)
+                result.update({key: item for key, item in data.items() if key != "series"})
+                for series in data.get("series", []):
+                    series.setdefault("dimensions", {})[field_name] = value
+                    result["series"].append(series)
+            return result
+
+        field_type_enum = EnabledStatisticsDimension(field["field_type"])
+        # 非数值类型（keyword）：按取值分组构建时序图
+        if not field_type_enum.is_numeric():
+            keyword_filters = filters + [{"key": field_name, "value": values, "operator": FilterOperator.EQUAL}]
+            config = self.query.query_graph_config(start_time, end_time, field_name, keyword_filters, query_string)
+            data = query_graph(config)
             if field["field_type"] != EnabledStatisticsDimension.BOOLEAN.value:
                 return data
-            series: list[dict[str, Any]] = data.get("series", [])
-            for s in series:
+            for s in data.get("series", []):
                 s.setdefault("dimensions", {})[field_name] = self._value_transform(
                     field_name, s["dimensions"].get(field_name)
                 )
@@ -433,11 +480,15 @@ class BaseRumLevelHandler:
 
     def generate_query_string(
         self,
-        filters: list[dict[str, Any]],
+        filters: list[types.Filter],
         extra_config: dict[str, Any] | None = None,
     ) -> str:
-        generator = QueryStringGenerator(OperatorEnum.QueryStringOperatorMapping)
+        expressions: list[str] = []
         for f in filters:
+            if f["key"] in self.query.virtual_fields:
+                expressions.append(self._virtual_query_string(self.query._build_filters([f])))
+                continue
+            generator = QueryStringGenerator(OperatorEnum.QueryStringOperatorMapping)
             generator.add_filter(
                 f["key"],
                 f["operator"],
@@ -445,7 +496,27 @@ class BaseRumLevelHandler:
                 f.get("options", {}).get("is_wildcard", False),
                 f.get("options", {}).get("group_relation", OperatorGroupRelation.OR),
             )
-        return generator.to_query_string()
+            expressions.append(generator.to_query_string())
+        return " AND ".join(expressions)
+
+    @classmethod
+    def _virtual_query_string(cls, condition: Q) -> str:
+        expressions: list[str] = []
+        operators = {"eq": "equal", "neq": "not_equal", "exists": "exists", "nexists": "not exists"}
+        for child in condition.children:
+            if isinstance(child, Q):
+                expressions.append(cls._virtual_query_string(child))
+                continue
+            lookup, value = child
+            field, operator = lookup.rsplit("__", 1)
+            values = value if isinstance(value, list | tuple) else [value]
+            # 生成器负责引号，原值中的反斜杠须先保留为字面量。
+            values = [item.replace("\\", "\\\\") if isinstance(item, str) else item for item in values]
+            generator = QueryStringGenerator(OperatorEnum.QueryStringOperatorMapping)
+            generator.add_filter(field, operators[operator], values)
+            expressions.append(generator.to_query_string())
+        expression = f" {condition.connector} ".join(expressions) or "*"
+        return f"NOT ({expression})" if condition.negated else f"({expression})"
 
     def view_config(
         self,
