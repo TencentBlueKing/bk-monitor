@@ -148,7 +148,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         time_shift: str | None = self.time_shift
         result: dict[str, Any] = {"table_id": self.metric_helper.table_id, "metric": metric, "is_hit": False}
         if self.pre_calculate_helper:
-            result: dict[str, str] = self.pre_calculate_helper.router(
+            result = self.pre_calculate_helper.router(
                 self.metric_helper.table_id,
                 metric,
                 used_labels=self._used_labels,
@@ -159,6 +159,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             )
             if result["is_hit"]:
                 time_shift = self.pre_calculate_helper.adjust_time_shift(self.time_shift)
+                if result.get("filter_dict"):
+                    q = q.conditions(filter_dict_to_conditions(result["filter_dict"], []))
 
         q = q.table(result["table_id"]).metric(result["metric"], method, alias).alias(alias)
         if self._is_cumulative_metric() and not result["is_hit"]:

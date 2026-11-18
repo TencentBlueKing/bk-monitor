@@ -330,6 +330,8 @@ class PreCalculateHelper:
                     ],
                     # 预计算指标名
                     "metric": "sum_without_ip_rpc_client_handled_seconds_bucket",
+                    # 多个预计算指标共用一个数值列时，可按行筛选，例如：
+                    # "metric": "metric_value", "filter_dict": {"metric_name__eq": ["bucket"]}
                     # 最小查询时长，优先级高于外层
                     "min_duration": "30m"
                 }
@@ -495,6 +497,8 @@ class PreCalculateHelper:
                 result["metric"] = metric_info["metric"]
                 # 支持 metric 单独定义 table_id，优先级比外层高。
                 result["table_id"] = metric_info.get("table_id") or self._config["table_id"]
+                if metric_info.get("filter_dict"):
+                    result["filter_dict"] = metric_info["filter_dict"]
                 break
 
         return result

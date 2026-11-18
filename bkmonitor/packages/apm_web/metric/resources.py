@@ -72,7 +72,7 @@ from apm_web.utils import (
     get_interval_number,
     handle_filter_fields,
 )
-from bkmonitor.data_source import q_to_dict
+from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.utils.statistics import merge_records, process_growth_rates, process_proportions
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
@@ -359,10 +359,13 @@ class DynamicUnifyQueryResource(Resource, call_analysis.PreCalculateHelperMixin)
             except (KeyError, IndexError):
                 time_shift_function["params"] = [{"id": "n", "value": None}]
 
+            filter_labels = [
+                cond["key"] for cond in filter_dict_to_conditions(query_config.get("filter_dict") or {}, [])
+            ]
             result: dict[str, Any] = helper.router(
                 table_id,
                 metric,
-                used_labels,
+                [*used_labels, *filter_labels],
                 query_params["start_time"],
                 query_params["end_time"],
                 origin_time_shift,
@@ -385,6 +388,11 @@ class DynamicUnifyQueryResource(Resource, call_analysis.PreCalculateHelperMixin)
 
             query_config["table"] = result["table_id"]
             query_config["metrics"][0]["field"] = result["metric"]
+
+            if result.get("filter_dict"):
+                query_config["where"] = filter_dict_to_conditions(
+                    result["filter_dict"], query_config.get("where") or []
+                )
 
             # 去掉可能存在的 data_label
             query_config.pop("data_label", None)
