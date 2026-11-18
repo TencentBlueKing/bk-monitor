@@ -24,13 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, type PropType } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, type PropType, type VNode } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
-import draggable from 'vuedraggable';
+import draggable from 'vuedraggable-vue3';
+import { preserveVue3ComponentModel } from '@/platform/compat/vue3-component-model';
 
 import './drag-tag.scss';
+
+preserveVue3ComponentModel(draggable);
+
 export type TagItem = {
   id: number | string;
   label: string;
@@ -281,6 +285,66 @@ export default defineComponent({
       </bk-select>
     );
 
+    const getItemKey = (item: TagItem | string) => {
+      if (item && typeof item === 'object' && item[props.idKey] != null) {
+        return item[props.idKey];
+      }
+      return item;
+    };
+
+    const renderAddons = () => {
+      const nodes: VNode[] = [];
+      if (
+        props.addType !== 'select' &&
+        props.editable &&
+        props.showAddButton &&
+        !isAdding.value &&
+        (props.maxTags === 0 || tagList.value.length < props.maxTags)
+      ) {
+        nodes.push(
+          <div
+            ref={rootRef}
+            class={{
+              'tag-add-btn': true,
+              'is-error': props.isError,
+            }}
+            onClick={startAdd}
+          >
+            <i class='bk-icon icon-plus left-icon' />
+          </div>,
+        );
+      }
+      nodes.push(
+        <div style='display: none'>
+          <div
+            ref={addPanelRef}
+            class='drag-tag-add-panel'
+          >
+            {slots.popover?.()}
+          </div>
+        </div>,
+      );
+      if (props.addType === 'select') {
+        nodes.push(renderSelect());
+      }
+      if (isAdding.value && props.addType === 'input') {
+        nodes.push(
+          <div class='tag-input-wrapper'>
+            <input
+              ref={tagInput}
+              class='tag-input'
+              placeholder={t('请输入标签')}
+              value={newTagInput.value}
+              onBlur={handleInputBlur}
+              onInput={handleInputChange}
+              onKeydown={handleInputEnter}
+            />
+          </div>,
+        );
+      }
+      return nodes;
+    };
+
     return () => (
       <div class='drag-tag-box'>
         <draggable
@@ -289,69 +353,29 @@ export default defineComponent({
           chosenClass='tag-chosen'
           disabled={!props.sortable}
           dragClass='tag-drag'
-          draggable='.tag-item'
           ghostClass='tag-ghost'
-          value={tagList.value}
+          itemKey={getItemKey}
+          list={tagList.value}
           onEnd={onDragEnd}
-          onInput={(val: TagItem[]) => {
-            tagList.value = val;
-          }}
-        >
-          {tagList.value.map((tag, index) => (
-            <div
-              key={tag[props.idKey] ? tag[props.idKey] : tag}
-              class={getTagClass()}
-            >
-              {props.sortable && <span class='bklog-icon drag-icon bklog-ketuodong' />}
-              <span class='tag-label'>{tag[props.nameKey] || tag}</span>
-              {props.editable && props.closable && (
-                <span
-                  class='bk-icon icon-close tag-close'
-                  onClick={() => removeTag(index)}
-                />
-              )}
-            </div>
-          ))}
-          {props.addType !== 'select' &&
-            props.editable &&
-            props.showAddButton &&
-            !isAdding.value &&
-            (props.maxTags === 0 || tagList.value.length < props.maxTags) && (
+          v-slots={{
+            item: ({ element, index }: { element: TagItem; index: number }) => [
               <div
-                ref={rootRef}
-                class={{
-                  'tag-add-btn': true,
-                  'is-error': props.isError,
-                }}
-                onClick={startAdd}
+                key={getItemKey(element)}
+                class={getTagClass()}
               >
-                <i class='bk-icon icon-plus left-icon' />
-              </div>
-            )}
-          <div style='display: none'>
-            <div
-              ref={addPanelRef}
-              class='drag-tag-add-panel'
-            >
-              {slots.popover?.()}
-            </div>
-          </div>
-          {props.addType === 'select' && renderSelect()}
-
-          {isAdding.value && props.addType === 'input' && (
-            <div class='tag-input-wrapper'>
-              <input
-                ref={tagInput}
-                class='tag-input'
-                placeholder={t('请输入标签')}
-                value={newTagInput.value}
-                onBlur={handleInputBlur}
-                onInput={handleInputChange}
-                onKeydown={handleInputEnter}
-              />
-            </div>
-          )}
-        </draggable>
+                {props.sortable && <span class='bklog-icon drag-icon bklog-ketuodong' />}
+                <span class='tag-label'>{element[props.nameKey] || element}</span>
+                {props.editable && props.closable && (
+                  <span
+                    class='bk-icon icon-close tag-close'
+                    onClick={() => removeTag(index)}
+                  />
+                )}
+              </div>,
+            ],
+            footer: renderAddons,
+          }}
+        />
       </div>
     );
   },

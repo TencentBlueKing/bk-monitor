@@ -322,7 +322,7 @@ const BkInput = defineComponent({
   },
 });
 
-function optionNodes(nodes: VNode[]): { label: string; value: unknown }[] {
+function optionNodes(nodes: VNode[]): { label: string; value: unknown; disabled: boolean }[] {
   return flattenNodes(nodes).flatMap(node => {
     const name = componentName(node);
     if (name.includes('option-group')) return optionNodes(flattenNodes(node.children));
@@ -330,7 +330,8 @@ function optionNodes(nodes: VNode[]): { label: string; value: unknown }[] {
     const props = node.props || {};
     const value = attr(props, 'id', 'value', 'key');
     const label = attr(props, 'name', 'label') ?? value;
-    return [{ label: String(label ?? ''), value }];
+    const disabled = attr(props, 'disabled');
+    return [{ label: String(label ?? ''), value, disabled: disabled === '' || Boolean(disabled) }];
   });
 }
 
