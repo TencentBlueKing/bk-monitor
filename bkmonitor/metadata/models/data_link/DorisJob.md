@@ -49,12 +49,51 @@
 
 **多个独立目标表。** 关系模型允许登记多个目标。执行层沿用一个配置对应一个 FE Job、一条 INSERT 的约定。若业务分别向服务汇总表、接口汇总表执行两条 INSERT，在同一 DataLink 下声明两个 DorisJob，各自挂真实的源表和目标表。这样既能从链路看到全部输出，又能按目标定位执行失败的 Job。若将来需要把多条 INSERT 当作一个可统一启停的任务，需另行设计对多个远端 Job 的编排和部分成功语义。
 
+## 两种配置入口
+
+两种入口都生成前述 `DorisJobConfig` 草稿及其表关系，沿用相同的发布、启停和查询方法。
+
+| 入口 | 调用方提供 | 保存结果 |
+| --- | --- | --- |
+| 模板配置 | 模板 key、按槽位命名的 `sources` 和 `targets`、本次参数，以及归属链路和执行集群等公共配置 | 按模板生成具体 INSERT、周期和直接表关系；每个输出返回独立草稿 ID |
+| 自由配置 | Job 名称、数据库、周期、完整 `insert_sql`，以及显式声明的 `sources` 和 `targets` | 原样保存任务体，按声明记录表关系；适用于临时任务、已有任务接管和模板未覆盖的 SQL |
+
+**模板定义。** 建议首期把模板随 metadata 代码维护，用稳定的 key 查找。每份模板声明源槽位、目标槽位、业务参数及默认值，以及每个输出对应的 INSERT 模板。一个输出声明任务名称后缀、使用哪些源槽位、写入哪个目标槽位。周期可以由模板给默认值，也可以在本次配置中指定。模板的管理与 Job 发布是两个独立动作。
+
+**组件与物理表。** 槽位名如 `events` 或 `daily`，用于在 SQL 中引用输入。每个槽位可以同时携带组件引用和本次使用的物理库表。当已有 DorisBinding 提供唯一可用的物理表时可直接取用；有多个用途时由调用方选择对应物理表。只提供逻辑 ResultTable 且无法确定实际库表时，预览返回待补充的槽位。未登记为组件的库表也可以作为模板输入，此时预览显示物理表，拓扑只记录能够关联到组件的槽位。渲染由服务按库名、表名分别引用标识符，业务参数按模板声明的类型生成 SQL 字面值。
+
+以下为配置请求示例，组件 ID、物理表和模板名称仅用于说明。
+
+```json
+{
+  "template_key": "daily_rollup",
+  "name": "request_rollup",
+  "sources": {
+    "events": {"kind": "DorisBinding", "id": 11, "database": "raw", "table": "requests"},
+    "services": {"kind": "ResultTable", "id": 12, "database": "dim", "table": "services"}
+  },
+  "targets": {
+    "by_service": {"kind": "DorisBinding", "id": 21, "database": "agg", "table": "requests_by_service"},
+    "by_app": {"kind": "DorisBinding", "id": 22, "database": "agg", "table": "requests_by_app"}
+  },
+  "params": {"lookback_days": 1},
+  "interval_minutes": 60
+}
+```
+
+在该示例模板中，`by_service` 输出只读取 `events`，`by_app` 输出读取 `events` 和 `services`。一次保存生成 `request_rollup_by_service` 和 `request_rollup_by_app` 两份草稿，各有自己的 INSERT 和表关系。反查 `services` 只会找到后一个 Job。两份草稿在同一个本地事务中创建，随后可分别发布；查看运行状态或修复一次发布失败时，使用对应的 Job ID。
+
+**模板实例的保存与编辑。** 建议在 Job 配置上增加两个可空字段：`template_key`（CharField）记录来源，`template_inputs`（JSONField）保留本次输出标识、槽位实参和业务参数，供回显和重新预览。自由配置时两个字段为空。已保存的 `insert_sql` 和周期是发布依据；更新模板只影响下一次渲染。修改已有实例时按组件 ID 选择草稿、重新预览并保存；对已发布的 Job 沿用显式替换流程。也可以将草稿切换为自由配置：保留渲染后的 SQL、周期和已有表关系，清除模板来源后直接编辑。单独修订拓扑只更新关系，模板回显的输入仍代表上次渲染；下次显式套用模板时应展示将被替换的 SQL 和表关系。
+
 ## 管理方法
 
 以下是 metadata 服务方法的建议契约。调用方传入当前租户，服务按租户定位链路和 Job。配置或执行 SQL 仅面向具有相应集群管理权限的操作人，沿用已有 FE 连接配置。写接口提供具名动作，参数只接受该动作所需的字段。FE 账号须具备目标版本执行 Job DDL 的权限。
 
 | 方法 | 输入与结果 | 对 Doris 的影响 |
 | --- | --- | --- |
+| list_templates() | 返回可用模板的 key、源和目标槽位、参数及周期默认值 | 无 |
+| preview_template(link, template_key, sources, targets, params, options) | 返回各输出的名称、物理库表、渲染 SQL、周期和直接组件关系，供检查 | 无，不落库 |
+| save_from_template(link, template_key, sources, targets, params, options) | 按预览相同的规则生成并一次保存各输出草稿，返回输出名到组件 ID 的映射；编辑时显式指定对应草稿 ID | 无 |
 | save_config(link, fields, sources, targets, id=None) | 在同一 metadata 事务中保存草稿及两组组件引用，返回组件 ID | 无 |
 | list_configs(link) | 返回配置摘要及按方向分组的组件引用 | 无 |
 | set_table_relations(id, sources, targets) | 整体替换两组关系，空数组清空该方向。草稿和已接管 Job 均可单独修订拓扑 | 无 |
@@ -84,5 +123,6 @@
 3. 验证停用链路、重建 BKBase 关系及清理缺失组件均不会意外删除 Job；显式删除一条 Job 后，其他 Job 和物理表仍可访问。
 4. 用目标 Doris 版本实测 `jobs`、`tasks` 返回字段、名称大小写、调度周期展示、执行中的暂停行为和账号权限，再确定接管入口可直接回填的字段。
 5. 一个 Job 声明两条 source 和两条 target，验证两个方向均能独立增删、按组件 ID 反查。覆盖同表既读又写、不同 Job 共享一张表、历史与当前 DorisBinding 同时存在、跨链路同租户引用。验证单独修改关系不会触发 FE DDL。
+6. 用两源两目标模板预览并保存，核对各输出实际使用的源、目标与 SQL。更新模板后已存草稿及运行中 Job 保持原定义；已有草稿能重新渲染，也能切换为自由配置。验证自由配置可在没有模板的情况下独立保存和发布。
 
 对应代码入口：[DataLink 编排](./data_link.py)、[BKBase 组件基类](./data_link_configs.py)、[已有集群 Job 与 Task 查询](../../../kernel_api/rpc/functions/admin/doris_jobs.py)。现有集群查询面向列表；运行详情需要增加按指定 ID 或名称精确过滤的查询，避免拉全量再筛选。
