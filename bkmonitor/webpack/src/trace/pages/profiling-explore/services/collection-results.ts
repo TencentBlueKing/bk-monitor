@@ -84,7 +84,7 @@ export function getCollectionResults(
   filters: CollectionHistoryFilters,
   offset: number,
   signal: AbortSignal
-): Promise<{ data: CollectionHostResult[] }> {
+): Promise<{ data: CollectionHostResult[]; total?: null | number }> {
   return queryHosts(
     {
       bk_biz_id: bizId,
