@@ -457,6 +457,57 @@ def test_query_hosts_filters(query_rows, filters, expected):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_filter_by_task_id_includes_immediates_triggered_by_plan(query_rows):
+    # 从计划 12 点立即执行：task_id 是执行行自己的 id，触发计划另记
+    triggered = create_execution(
+        [{"bk_host_id": 460, "ip": "127.0.0.12", "status": "running"}],
+        schedule_type="immediate",
+        task_id=30600,
+        source_task_id=12,
+        scheduled_at=MID_AT + 2000,
+        task_name="order-api-cpu",
+        collection_method="perf",
+        collection_type="native_cpu",
+        execution_status="running",
+        status_summary={"running": 1},
+    )
+    # 普通立即执行的行 id 恰好等于计划 ID，不属于该计划
+    create_execution(
+        [{"bk_host_id": 461, "ip": "127.0.0.13", "status": "running"}],
+        schedule_type="immediate",
+        task_id=12,
+        scheduled_at=MID_AT + 1000,
+        task_name="adhoc",
+        collection_method="perf",
+        collection_type="native_cpu",
+        execution_status="running",
+        status_summary={"running": 1},
+    )
+
+    def executions(**filters):
+        rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": filters})["data"]
+        return [(row["scheduled_at"], row["schedule_type"], row.get("task_id")) for row in rows]
+
+    # 计划执行与该计划触发的立即执行都命中，执行方式仍为立即执行，立即执行照旧不返回 task_id
+    assert host_keys(query_hosts(task_id=12)) == [(RECENT_AT, 457), (RECENT_AT, 456), (MID_AT + 2000, 460)]
+    assert executions(task_id=12) == [(RECENT_AT, "cron", 12), (MID_AT + 2000, "immediate", None)]
+    # 与执行方式筛选同时满足
+    assert executions(task_id=12, schedule_types=["immediate"]) == [(MID_AT + 2000, "immediate", None)]
+    assert executions(task_id=12, schedule_types=["cron"]) == [(RECENT_AT, "cron", 12)]
+    # 按立即执行自己的 task_id 不再命中
+    assert executions(task_id=triggered.task_id) == []
+    # 详情带上触发计划，供重新采集继续关联；计划执行与普通立即执行不带
+    detail = QueryActiveProfilingExecutionDetailResource().request({"bk_biz_id": 2, "scheduled_at": MID_AT + 2000})
+    assert detail["source_task_id"] == 12
+    for request in ({"task_id": 12, "scheduled_at": RECENT_AT}, {"scheduled_at": MID_AT + 1000}):
+        assert "source_task_id" not in QueryActiveProfilingExecutionDetailResource().request(
+            {"bk_biz_id": 2, **request}
+        )
+    # MySQL 没有匹配行时回查 ES，ES 不支持按计划筛选立即执行，返回空
+    assert query_hosts(task_id=77, schedule_types=["immediate"]) == []
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_hosts_display_parsing_until_result_stored(query_rows):
     # 刚结束 1 秒的成功主机还在解析入库，结束 30 秒的已可查看
     scheduled_at = NOW_MS - 60 * 1000
@@ -1032,6 +1083,70 @@ def test_immediate_requires_enabled_biz_before_creating_rows(deploy_apis):
 
     assert not ActiveProfilingExecution.objects.exists()
     deploy_apis["job"].assert_not_called()
+
+
+def create_plan(bk_biz_id=2, **fields):
+    return ActiveProfilingTask.objects.create(
+        bk_biz_id=bk_biz_id, name="java-cpu-daily", collection_method="java", collection_type="java_cpu", **fields
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_immediate_from_plan_records_source_task_and_keeps_own_task_id(deploy_apis):
+    # 停用的计划也可以立即执行
+    plan = create_plan(is_enabled=False)
+
+    assert SubmitActiveProfilingTaskResource().request({**IMMEDIATE_REQUEST, "source_task_id": plan.id}) is None
+
+    execution = ActiveProfilingExecution.objects.get(bk_biz_id=2, schedule_type="immediate")
+    # 触发计划另记一列；task_id 仍是执行行自己的 id，下发给采集端的执行键不变
+    assert (execution.source_task_id, execution.task_id) == (plan.id, execution.id)
+    assert decode_cli_config(deploy_apis["job"].call_args_list[0]) == beat_task(
+        execution.id, schedule=IMMEDIATE_SCHEDULE
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_immediate_without_plan_leaves_source_task_empty(deploy_apis):
+    SubmitActiveProfilingTaskResource().request(IMMEDIATE_REQUEST)
+
+    assert ActiveProfilingExecution.objects.get(bk_biz_id=2).source_task_id is None
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_immediate_keeps_source_task_of_deleted_plan(deploy_apis):
+    plan = create_plan()
+    ActiveProfilingTask.origin_objects.filter(id=plan.id).update(is_deleted=True)
+
+    # 重新采集已删除计划的历史执行：删除计划不阻止采集，仍关联原计划
+    SubmitActiveProfilingTaskResource().request({**IMMEDIATE_REQUEST, "source_task_id": plan.id})
+
+    assert ActiveProfilingExecution.objects.get(bk_biz_id=2).source_task_id == plan.id
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_immediate_rejects_unknown_source_task_before_creating_rows(deploy_apis):
+    other_biz_plan = create_plan(bk_biz_id=3)
+
+    # 其他业务的、不存在的计划不能关联
+    for source_task_id in (other_biz_plan.id, other_biz_plan.id + 1000):
+        with pytest.raises(ValueError):
+            SubmitActiveProfilingTaskResource().request({**IMMEDIATE_REQUEST, "source_task_id": source_task_id})
+
+    assert not ActiveProfilingExecution.objects.exists()
+    deploy_apis["job"].assert_not_called()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_source_task_only_accepted_with_immediate(deploy_apis):
+    plan = create_plan()
+
+    with pytest.raises(CustomException):
+        SubmitActiveProfilingTaskResource().request({**TASK_SUBMIT_REQUEST, "source_task_id": plan.id})
+    with pytest.raises(CustomException):
+        EditActiveProfilingTaskResource().request(
+            {**TASK_SUBMIT_REQUEST, "task_id": plan.id, "source_task_id": plan.id}
+        )
 
 
 def create_running_execution(hosts, schedule_type="cron", task_id=123, scheduled_at=DISPATCH_NOW_MS - 60 * 1000):
@@ -1686,6 +1801,27 @@ def test_es_query_hosts_pushes_filters_down_to_es(host_query_apis):
         EVENT_LIST_REQUEST["start_time"],
         EVENT_LIST_REQUEST["end_time"] + UNKNOWN_WINDOW_MS,
     )
+
+
+@pytest.mark.parametrize(
+    ("schedule_types", "expected"),
+    [([], ["once_at", "cron"]), (["immediate", "cron"], ["cron"])],
+)
+def test_es_task_id_filter_only_matches_planned_executions(host_query_apis, schedule_types, expected):
+    # 立即执行 Event 的 task_id 是执行行自己的 id，按计划筛选时不能命中
+    query_es_hosts(with_filters(task_id=123, schedule_types=schedule_types))
+
+    (query_body,) = sent_query_bodies(host_query_apis["query"])
+    filter_dict = query_body["query_configs"][0]["filter_dict"]
+    assert (filter_dict["task_id"], filter_dict["schedule_type"]) == ("123", expected)
+
+
+def test_es_rejects_task_id_filter_for_immediate_only(host_query_apis):
+    # 从计划点立即执行的关联只记在执行表，Event 里没有
+    for query in (query_es_hosts, list_es_executions):
+        with pytest.raises(ValueError):
+            query(with_filters(task_id=123, schedule_types=["immediate"]))
+    host_query_apis["query"].assert_not_called()
 
 
 def test_es_query_hosts_skips_empty_filters(host_query_apis):

@@ -1318,3 +1318,25 @@ def test_backend_operations_forward_request_and_return_nothing(mocker, resource_
     assert resource_cls().request(request_data) is None
 
     assert backend_api.call_args.kwargs["bk_biz_id"] == 2
+
+
+def test_task_submit_forwards_source_task_of_immediate(mocker):
+    backend_api = mocker.patch("core.drf_resource.api.apm_api.submit_active_profiling_task")
+
+    SubmitTaskResource().request({**IMMEDIATE_TASK_SUBMIT_REQUEST, "source_task_id": 123})
+
+    # 从计划点立即执行时带上该计划 ID，后台按计划筛选执行时一并命中
+    assert backend_api.call_args.kwargs["source_task_id"] == 123
+
+
+@pytest.mark.parametrize(
+    ("serializer_cls", "params"),
+    [
+        # 只能随立即执行提交
+        (TaskSubmitRequestSerializer, {**TASK_SUBMIT_REQUEST, "source_task_id": 123}),
+        (TaskEditRequestSerializer, {**TASK_SUBMIT_REQUEST, "task_id": 123, "source_task_id": 123}),
+        (TaskSubmitRequestSerializer, {**IMMEDIATE_TASK_SUBMIT_REQUEST, "source_task_id": 0}),
+    ],
+)
+def test_task_submit_rejects_invalid_source_task(serializer_cls, params):
+    assert not serializer_cls(data=params).is_valid()

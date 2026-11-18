@@ -426,7 +426,16 @@ class ActiveProfilingEventQueryHandler:
         }
         filter_dict = {key: value for key, value in optional_filters.items() if value}
         if filters.get("task_id"):
-            filter_dict["task_id"] = str(filters["task_id"])
+            # 任务 ID 是计划 ID，只匹配计划执行：立即执行 Event 的 task_id 是执行行自己的 id，与计划 ID 不在同一取值空间；
+            # 从计划点立即执行的关联只记在执行表，Event 里没有
+            schedule_types = [
+                schedule_type
+                for schedule_type in ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES
+                if schedule_type in (filters.get("schedule_types") or ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES)
+            ]
+            if not schedule_types:
+                raise ValueError(_("暂不支持按计划筛选立即执行"))
+            filter_dict.update(task_id=str(filters["task_id"]), schedule_type=schedule_types)
 
         lower, upper = self._build_scheduled_at_range(params, filters.get("status") or [])
         filter_dict.update(scheduled_at__gte=lower, scheduled_at__lte=upper)
