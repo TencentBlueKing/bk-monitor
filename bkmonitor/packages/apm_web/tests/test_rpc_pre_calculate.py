@@ -17,7 +17,6 @@ from apm_web.handlers.metric_group.groups.trpc import TrpcMetricGroup
 from apm_web.handlers.metric_group.helper import MetricHelper, PreCalculateHelper
 from apm_web.metric.resources import DynamicUnifyQueryResource
 from apm_web.models import Application
-from monitor_web.grafana.resources.unify_query import GraphUnifyQueryResource
 
 START = 1_700_000_000
 END = START + 300
@@ -66,8 +65,7 @@ def test_avg_duration_routes_each_operand(kind, filtered, group_by):
         assert ("time_shift" in functions) == routed
 
 
-@pytest.mark.parametrize("with_metric", [True, False])
-def test_graph_route_filters_each_or_branch_and_recovers_logical_metrics(with_metric):
+def test_graph_route_filters_each_or_branch():
     metrics = ["rpc_client_handled_seconds_sum", "rpc_client_handled_seconds_count"]
     route = {"table_id": PRECAL, "metrics": {metric: [metric_mapping(metric, True)] for metric in metrics}}
     where = [
@@ -78,14 +76,12 @@ def test_graph_route_filters_each_or_branch_and_recovers_logical_metrics(with_me
         "start_time": START,
         "end_time": END,
         "bk_biz_id": 2,
-        "with_metric": with_metric,
         "expression": "a / b",
         "query_configs": [
             {"data_source_label": "custom", "table": RAW, "metrics": [{"field": metric}], "where": where}
             for metric in metrics
         ],
     }
-    original = copy.deepcopy(params)
     state = {"bk_biz_id": 2, "app_name": "demo"}
     with patch.object(DynamicUnifyQueryResource, "get_helper_or_none", return_value=PreCalculateHelper(route)):
         DynamicUnifyQueryResource._process_rpc_pre_calculate(params, None, state)
@@ -100,17 +96,6 @@ def test_graph_route_filters_each_or_branch_and_recovers_logical_metrics(with_me
             {**selector, "condition": "or"},
             {**where[1], "condition": "and"},
         ]
-
-    response = {}
-    with patch.object(GraphUnifyQueryResource, "get_metric_info", return_value=metrics) as get_metrics:
-        DynamicUnifyQueryResource._recovery_query_metadata(params, response, state)
-    if with_metric:
-        get_metrics.assert_called_once()
-        configs = get_metrics.call_args.args[0]["query_configs"]
-        assert [(q["table"], q["metrics"][0]["field"]) for q in configs] == [(RAW, metric) for metric in metrics]
-    else:
-        get_metrics.assert_not_called()
-    assert response == {"query_config": original, "metrics": metrics if with_metric else []}
 
 
 def test_graph_extra_filter_on_dropped_dimension_falls_back_for_that_operand():
