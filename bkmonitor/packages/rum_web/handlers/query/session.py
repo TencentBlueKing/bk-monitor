@@ -19,7 +19,7 @@ from semconv.rum.session import SessionSpec
 
 
 class SessionQuery(BaseFallbackRumQuery):
-    MODE = RumQueryMode.SESSION.value
+    MODE: str = RumQueryMode.SESSION.value
     RECORD_ID_FIELD = "attributes.session.id"
     SPEC = SessionSpec
     ANALYSIS_PHASE = SessionPhase.START.value
