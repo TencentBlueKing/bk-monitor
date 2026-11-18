@@ -52,18 +52,20 @@ def build(payload=None, **kwargs):
 
 class V4ModelDefinitionBuildTest(SimpleTestCase):
     def test_product_model_delegates_only_operator_without_paas_clients(self):
-        model = load_model_definition()
-        self.assertEqual(
-            [asdict(item) for item in model.role_delegations],
-            [
-                {
-                    "role_id": "space_operator",
-                    "grantee_type": "system",
-                    "grantee_id": "bk_paas3",
-                    "tenant_mode": "global",
-                }
-            ],
-        )
+        for enabled, expected in [(False, "single"), (True, "global")]:
+            with self.subTest(enabled=enabled), override_settings(ENABLE_MULTI_TENANT_MODE=enabled):
+                model = load_model_definition()
+                self.assertEqual(
+                    [asdict(item) for item in model.role_delegations],
+                    [
+                        {
+                            "role_id": "space_operator",
+                            "grantee_type": "system",
+                            "grantee_id": "bk_paas3",
+                            "tenant_mode": expected,
+                        }
+                    ],
+                )
         self.assertEqual(set(model.system.removed_clients), {"bk_paas3", "paasv3cli"})
         self.assertFalse(set(model.system.clients) & {"bk_paas3", "paasv3cli"})
 
