@@ -41,7 +41,7 @@ class BaseRumLevelHandler:
     RESIDENT_FIELDS: list[str] = []
 
     SPEC = SpanSpec
-    MODE = RumQueryMode.SPAN.value
+    MODE: str = RumQueryMode.SPAN.value
 
     VIEW_CONFIG_IGNORE_KEYS = ["is_case_sensitive", "is_analyzed", "wildcard_case_insensitive", "tokenize_on_chars"]
     BASE_STATISTICS_PROPERTIES: set[str] = {
@@ -82,6 +82,42 @@ class BaseRumLevelHandler:
         extra_config: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         return self.query.query_list(start_time, end_time, offset, limit, filters, query_string, sort)
+
+    def total(
+        self,
+        start_time: int,
+        end_time: int,
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
+    ) -> dict[str, int]:
+        return {"total": self.query.query_total(start_time, end_time, filters, query_string)}
+
+    def time_series(
+        self,
+        start_time: int,
+        end_time: int,
+        interval: int,
+        group_by: list[str],
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
+    ) -> dict[str, Any]:
+        config: dict[str, Any] = self.query.query_time_series_config(
+            start_time, end_time, interval, group_by, filters, query_string
+        )
+        return {**self._query_graph(config), "query_config": {"interval": interval}}
+
+    @staticmethod
+    def _query_graph(config: dict[str, Any]) -> dict[str, Any]:
+        return resource.grafana.graph_unify_query(
+            {
+                **config,
+                "time_alignment": False,
+                "query_method": "query_reference",
+                "null_as_zero": True,
+                "start_time": config["start_time"] // 1000,
+                "end_time": config["end_time"] // 1000,
+            }
+        )
 
     @classmethod
     def _value_transform(cls, field: str, value: Any) -> Any:
@@ -297,18 +333,6 @@ class BaseRumLevelHandler:
         field_name: str = field["field_name"]
         values: list[Any] = field.get("values") or []
 
-        def query_graph(config: dict[str, Any]) -> dict[str, Any]:
-            return resource.grafana.graph_unify_query(
-                {
-                    **config,
-                    "time_alignment": False,
-                    "query_method": "query_reference",
-                    "null_as_zero": True,
-                    "start_time": config["start_time"] // 1000,
-                    "end_time": config["end_time"] // 1000,
-                }
-            )
-
         if field_name in self.query.virtual_fields:
             if not values:
                 values = [
@@ -322,7 +346,7 @@ class BaseRumLevelHandler:
                 config = self.query.query_graph_config(
                     start_time, end_time, None, [*filters, equal_filter(field_name, [value])], query_string
                 )
-                data = query_graph(config)
+                data = self._query_graph(config)
                 result.update({key: item for key, item in data.items() if key != "series"})
                 for series in data.get("series", []):
                     series.setdefault("dimensions", {})[field_name] = value
@@ -334,7 +358,7 @@ class BaseRumLevelHandler:
         if not field_type_enum.is_numeric():
             keyword_filters = filters + [{"key": field_name, "value": values, "operator": FilterOperator.EQUAL}]
             config = self.query.query_graph_config(start_time, end_time, field_name, keyword_filters, query_string)
-            data = query_graph(config)
+            data = self._query_graph(config)
             if field["field_type"] != EnabledStatisticsDimension.BOOLEAN.value:
                 return data
             for s in data.get("series", []):

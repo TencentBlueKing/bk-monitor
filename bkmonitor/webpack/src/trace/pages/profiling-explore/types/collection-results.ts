@@ -37,6 +37,8 @@ export interface CollectionDataType {
 export interface CollectionHostResult extends Omit<CollectionExecutionHost, 'message'> {
   collection_method: CollectionMethod;
   collection_type: CollectionType;
+  // 执行范围的结果行由执行详情透传，全局查询可能不下发
+  message?: string;
   scheduled_at: number;
   task: { name: string; schedule_type: CollectionExecutionKey['schedule_type']; task_id?: number };
 }

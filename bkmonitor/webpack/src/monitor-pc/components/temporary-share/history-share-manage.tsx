@@ -711,6 +711,10 @@ export default class HistoryShareManage extends tsc<IProps> {
                       return (
                         <bk-table-column
                           key={item.id}
+                          scopedSlots={{
+                            default: ({ row }: { row: ITableItem }) =>
+                              row.create_user ? <bk-user-display-name user-id={row.create_user} /> : '--',
+                          }}
                           label={this.$t('分享人')}
                           prop={'create_user'}
                           sortable={'custom'}
@@ -784,6 +788,10 @@ export default class HistoryShareManage extends tsc<IProps> {
               on-sort-change={this.handleAccessDataSortChange}
             >
               <bk-table-column
+                scopedSlots={{
+                  default: ({ row }: { row: { time: string; user: string } }) =>
+                    row.user ? <bk-user-display-name user-id={row.user} /> : '--',
+                }}
                 label={this.$t('访问人')}
                 prop={'user'}
                 sortable={'custom'}
