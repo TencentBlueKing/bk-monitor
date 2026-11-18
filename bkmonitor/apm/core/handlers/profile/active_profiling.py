@@ -79,6 +79,14 @@ CACHE_MISS = object()
 EVENT_RECONCILED_HOST_FIELDS = ("status", "started_at", "finished_at", "processes", "error_type", "message")
 
 
+def build_cancelled_message(cancelled_by=None):
+    """取消的执行信息：采集端上报的原始信息是英文，统一换成中文；
+    取消人只有 SaaS 受理取消时记录，采集端自行结束为 cancelled、只有 Event 时没有"""
+    if cancelled_by:
+        return _("采集已被用户 {} 取消").format(cancelled_by)
+    return _("采集已被用户取消")
+
+
 def aggregate_execution_status(statuses):
     """仍有主机 running 时保持 running；状态都相同时沿用；有成功主机的混合为 partial_succeed；其余混合为 failed"""
     distinct_statuses = set(statuses)
@@ -685,16 +693,16 @@ class ActiveProfilingExecutionQueryHandler:
         }
         cancelled_hosts = ActiveProfilingHostExecution.objects.filter(
             execution_id__in=list(executions), status="cancelled"
-        ).values_list("execution_id", "bk_host_id", "finished_at")
+        ).values_list("execution_id", "bk_host_id", "finished_at", "cancelled_by")
         return {
             "task_names": {self._execution_key(execution): execution.task_name for execution in executions.values()},
             "hosts": {
                 # 与 Event 维度对应的主机执行键，同 _host_execution_key
                 (*self._execution_key(executions[execution_id]), bk_host_id): {
-                    "status": "cancelled",
                     "finished_at": finished_at,
+                    "cancelled_by": cancelled_by,
                 }
-                for execution_id, bk_host_id, finished_at in cancelled_hosts
+                for execution_id, bk_host_id, finished_at, cancelled_by in cancelled_hosts
             },
         }
 
@@ -853,9 +861,7 @@ class ActiveProfilingExecutionQueryHandler:
         if host.status == "unknown":
             return _("请检查agent状态及版本信息，若持续异常请联系管理员")
         if host.status == "cancelled":
-            if host.cancelled_by:
-                return _("采集已被用户 {} 取消").format(host.cancelled_by)
-            return _("采集已被用户取消")
+            return build_cancelled_message(host.cancelled_by)
         return host.message
 
     def _build_execution_fields(self, execution):
@@ -908,6 +914,9 @@ class ActiveProfilingExecutionQueryHandler:
         # 只有失败的行带失败类型，前端悬浮在状态上时按类型给出展示文案；旧版采集端不上报，为空串
         if host.status == "failed":
             row["error_type"] = host.error_type
+        # 只有取消的行带执行信息，与执行详情一致显示取消人
+        elif host.status == "cancelled":
+            row["message"] = build_cancelled_message(host.cancelled_by)
         return row
 
     @staticmethod

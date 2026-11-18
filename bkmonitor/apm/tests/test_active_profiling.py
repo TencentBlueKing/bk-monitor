@@ -799,6 +799,14 @@ def test_execution_detail_displays_cancelled_hosts(query_rows):
         ("cancelled", "", "采集已被用户 admin 取消"),
     ]
 
+    # 已采数据只有取消的行带执行信息，与执行详情一致；其余行不带
+    rows = QueryActiveProfilingHostsResource().request(TIME_RANGE)["data"]
+    assert {row["bk_host_id"]: row["message"] for row in rows if row["status"] == "cancelled"} == {
+        460: "采集已被用户取消",
+        461: "采集已被用户 admin 取消",
+    }
+    assert all("message" not in row for row in rows if row["status"] != "cancelled")
+
 
 @pytest.mark.django_db(databases="__all__")
 def test_queries_require_enabled_biz():
@@ -2566,6 +2574,10 @@ def test_es_execution_detail_displays_cancelled_host(host_query_apis):
     (host,) = query_es_detail(IMMEDIATE_DETAIL_REQUEST)["hosts"]
 
     assert (host["status"], host["error_type"], host["message"]) == ("cancelled", "", "采集已被用户取消")
+    # 已采数据的取消行同样带执行信息，Event 里没有取消人
+    (row,) = query_es_hosts(EVENT_LIST_REQUEST)
+    assert (row["status"], row["message"]) == ("cancelled", "采集已被用户取消")
+    assert "error_type" not in row
 
 
 def test_es_execution_detail_explains_unknown_host(host_query_apis):
@@ -3189,6 +3201,8 @@ def test_lagging_merge_keeps_mysql_cancel_and_rename(query_rows, event_es):
         (456, "succeed", RECENT_AT + 31100),
         (457, "cancelled", RECENT_AT + 5000),
     ]
+    # 取消人只有 MySQL 有，覆盖后的取消行同样显示
+    assert [row.get("message") for row in recent_hosts] == [None, "采集已被用户 admin 取消"]
     assert {row["task"]["name"] for row in recent_hosts} == {"order-api-renamed"}
     recent_execution = next(row for row in executions if row["scheduled_at"] == RECENT_AT)
     # 执行汇总按覆盖后的主机重算
@@ -3200,6 +3214,31 @@ def test_lagging_merge_keeps_mysql_cancel_and_rename(query_rows, event_es):
     # 执行表里没有的执行不受影响
     planned = next(row for row in executions if row["scheduled_at"] == PLANNED_AT)
     assert (planned["task_name"], planned["status_summary"]) == ("java-cpu-daily", {"succeed": 1, "failed": 1})
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lagging_merge_shows_canceller_after_cancelled_finished_reported(query_rows, event_es):
+    cancel_and_rename_lagging_cron(query_rows, event_es)
+    # 采集端的 finished 已上报为 cancelled、预计算还没处理：状态与结束时间以 Event 为准，取消人仍取自 MySQL
+    event_es.events[-1] = finished_event(
+        "cancelled",
+        RECENT_AT + 100,
+        RECENT_AT + 4000,
+        bk_host_id=457,
+        target="127.0.0.2",
+        task_id=12,
+        scheduled_at=RECENT_AT,
+        message="execution cancelled by user",
+    )
+
+    hosts = QueryActiveProfilingHostsResource().request(TIME_RANGE)["data"]
+
+    row = next(row for row in hosts if (row["scheduled_at"], row["bk_host_id"]) == (RECENT_AT, 457))
+    assert (row["status"], row["finished_at"], row["message"]) == (
+        "cancelled",
+        RECENT_AT + 4000,
+        "采集已被用户 admin 取消",
+    )
 
 
 @pytest.mark.django_db(databases="__all__")
