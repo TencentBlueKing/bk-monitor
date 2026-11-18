@@ -72,6 +72,12 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
   get pluginDescription() {
     return SetMealAddModule.getPluginDescription;
   }
+  get pluginDescriptionText() {
+    const raw = this.pluginDescription?.[this.pluginTypeId] || '';
+    // 兼容被二次转义的后端数据：字面的 \n、\" 会导致 markdown 不换行、链接失效
+    if (!/\\n|\\"/.test(raw)) return raw;
+    return raw.replace(/\\r/g, '').replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/&gt;/g, '>');
+  }
   protected render() {
     return (
       <div class={['meal-desc-wrap', { 'meal-desc-show': this.show }]}>
@@ -79,7 +85,10 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
           <div class='desc-header'>{this.$i18n.t('套餐说明')}</div>
           <div class='desc-content'>
             {!this.pluginTypeId && [
-              <div class='detail'>
+              <div
+                key='meal-detail-tips'
+                class='detail'
+              >
                 <i18n path='套餐是业务运维设计制作的一套恢复故障的方案，可以复用于不同的告警，也可作为原子套餐用于制作组合套餐' />
                 。
               </div>,
@@ -91,9 +100,9 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
               // </div>
             ]}
             <div class='format-desc'>
-              {this.pluginDescription?.[this.pluginTypeId] && (
+              {this.pluginDescriptionText && (
                 <div class='view-content'>
-                  <Viewer value={this.pluginDescription[this.pluginTypeId]} />
+                  <Viewer value={this.pluginDescriptionText} />
                 </div>
               )}
               {/* <div class="format-title">
