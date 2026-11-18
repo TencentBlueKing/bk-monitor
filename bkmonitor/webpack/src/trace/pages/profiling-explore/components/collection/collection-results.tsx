@@ -55,6 +55,7 @@ import CollectionExecutionStatus from './collection-execution-status';
 import CollectionFilters from './collection-filters';
 import CollectionResultDetail from './collection-result-detail';
 import EmptyStatus from '@/components/empty-status/empty-status';
+import { useTableColumnsCache } from '@/hooks/use-table-columns-cache';
 import { TraceCellSkeleton } from '@/pages/trace-explore/components/trace-explore-skeleton';
 
 import type { SelectionRange } from '../../types';
@@ -66,6 +67,16 @@ import './collection-history.scss';
 import './collection-results.scss';
 
 const skeletonRows = Array.from({ length: 10 }, (_, index) => ({ resultKey: `loading-${index}` }));
+
+// 表格追加的操作列 key
+const operationField = 'row-operation';
+
+// 结果列表默认展示列，其余列可在列设置中开启；用户调整后走本地缓存
+const defaultResultFields = ['ip', 'processes', 'collection_type', 'started_at', 'task', 'status', operationField];
+
+// 结果列表显示列与列宽的本地缓存 key；执行范围的列由后端下发，与默认列表分开存储
+const resultColumnsStorageKey = 'trace_profiling_collection_result_columns';
+const executionResultColumnsStorageKey = 'trace_profiling_collection_execution_result_columns';
 
 export default defineComponent({
   name: 'CollectionResults',
@@ -111,6 +122,37 @@ export default defineComponent({
         emit('created');
       },
     });
+    // 执行范围下优先使用后端下发的列定义，缺省时沿用固定列
+    const hostColumns = computed(() => (props.state.execution ? h.hostColumns.value : null));
+    // 当前模式的可用列 key：业务列 + 表格追加的操作列
+    const columnKeys = computed(() =>
+      hostColumns.value?.length
+        ? [...hostColumns.value.map(column => column.field), operationField]
+        : defaultResultFields
+    );
+    // 锁定列：目标 IP 是查看结果的入口，操作列承载行操作，列设置中置灰且始终显示
+    const lockedColumns = computed(() => ['ip', operationField].filter(field => columnKeys.value.includes(field)));
+    // 显示列与列宽按列表模式分别缓存，执行范围未返回后端列前不写默认列
+    const { storageColumns, fieldsWidthConfig } = useTableColumnsCache({
+      storageKey: () => (props.state.execution ? executionResultColumnsStorageKey : resultColumnsStorageKey),
+      defaultColumns: () => (props.state.execution ? [] : defaultResultFields),
+      validColumnKeys: () => columnKeys.value,
+    });
+    // 列设置显示列：过滤已下线的列，未配置或全部下线时按当前可用列展示，并补回锁定列
+    const displayColumns = computed(() => {
+      const valid = new Set(columnKeys.value);
+      const cached = storageColumns.value.filter(field => valid.has(field));
+      return [...new Set([...(cached.length ? cached : columnKeys.value), ...lockedColumns.value])];
+    });
+    // 列设置关闭时回写显示列，已下线的列不进入缓存
+    function changeColumns(value: string[]) {
+      const valid = new Set(columnKeys.value);
+      storageColumns.value = [...new Set([...value.filter(field => valid.has(field)), ...lockedColumns.value])];
+    }
+    // 列宽拖拽后回写缓存
+    function changeColumnWidths(value: Record<string, number>) {
+      fieldsWidthConfig.value = value;
+    }
     const tableRows = computed(() => h.records.value.map(row => ({ ...row, resultKey: resultRowKey(row) })));
     const selectedRow = computed(() =>
       h.records.value.find(
@@ -223,6 +265,10 @@ export default defineComponent({
       t,
       h,
       c,
+      hostColumns,
+      displayColumns,
+      lockedColumns,
+      fieldsWidthConfig,
       tableRows,
       selectedRow,
       filtered,
@@ -236,6 +282,8 @@ export default defineComponent({
       loadVisiblePage,
       reset,
       reload,
+      changeColumns,
+      changeColumnWidths,
     };
   },
   render() {
@@ -258,13 +306,16 @@ export default defineComponent({
     const renderProcesses = (row: CollectionHostResult) => (
       <span
         class='collection-result-processes'
-        title={row.processes.map(item => `${item.process_name} (${item.pid})`).join('，')}
+        v-overflow-tips={{
+          content: row.processes.map(item => `${item.process_name} (${item.pid})`).join('，'),
+          placement: 'top',
+        }}
       >
         {row.processes.map(item => `${item.process_name} (${item.pid})`).join('，') || '--'}
       </span>
     );
     // 执行范围下优先使用后端下发的列定义，缺省时沿用固定列
-    const hostColumns = this.state.execution ? h.hostColumns.value : null;
+    const hostColumns = this.hostColumns;
     // 结果列表使用结果侧状态文案，含解析中，与采集任务历史的文案区分
     const statusFilter = {
       type: 'multiple' as const,
@@ -274,9 +325,10 @@ export default defineComponent({
         .filter(key => key !== 'parsing')
         .map(value => ({ value, label: this.t(resultStatusLabels[value]) })),
     };
-    // 状态列 hover 提示：只按 error_type 命中枚举取文案
-    const failureMessage = (errorType?: string): string => {
-      const message = hostErrorTypeMessage(errorType);
+    // 状态列 hover 提示：已取消取后端下发的 message，其余只按 error_type 命中枚举取文案
+    const failureMessage = (row: CollectionHostResult): string => {
+      if (row.status === 'cancelled') return row.message || '';
+      const message = hostErrorTypeMessage(row.error_type);
       return message ? this.t(message) : '';
     };
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionHostResult) => {
@@ -287,7 +339,7 @@ export default defineComponent({
       if (column.type === 'status')
         return (
           <CollectionExecutionStatus
-            message={failureMessage(row.error_type)}
+            message={failureMessage(row)}
             status={row.status}
             result
           />
@@ -296,7 +348,7 @@ export default defineComponent({
       if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
       return value ? String(value) : '--';
     };
-    const columns: TableProps['columns'] = hostColumns?.length
+    const baseColumns: TableProps['columns'] = hostColumns?.length
       ? [
           ...hostColumns.map<NonNullable<TableProps['columns']>[number]>(column => ({
             colKey: column.field,
@@ -307,7 +359,7 @@ export default defineComponent({
             ...(column.type === 'status' ? { sorter: true, filter: statusFilter } : {}),
             ...(column.type === 'text' ? { ellipsis: true } : {}),
           })),
-          { colKey: 'row-operation', title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
+          { colKey: operationField, title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
         ]
       : [
           { colKey: 'ip', title: this.t('目标 IP'), minWidth: 160, cell: 'ip' },
@@ -324,7 +376,7 @@ export default defineComponent({
             width: 190,
             cell: (_, { row }) => formatCollectionTime(row.started_at, this.timezone),
           },
-          { colKey: 'task', title: this.t('采集任务名'), minWidth: 220, ellipsis: true, cell: 'task' },
+          { colKey: 'task', title: this.t('采集任务名'), minWidth: 220, cell: 'task' },
           {
             colKey: 'status',
             title: this.t('状态'),
@@ -332,14 +384,20 @@ export default defineComponent({
             filter: statusFilter,
             cell: (_, { row }) => (
               <CollectionExecutionStatus
-                message={failureMessage(row.error_type)}
+                message={failureMessage(row)}
                 status={row.status}
                 result
               />
             ),
           },
-          { colKey: 'row-operation', title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
+          { colKey: operationField, title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
         ];
+    // 列宽优先取本地缓存值
+    const columnWidths = this.fieldsWidthConfig;
+    const columns: TableProps['columns'] = baseColumns.map<NonNullable<TableProps['columns']>[number]>(column => {
+      const width = column.colKey === undefined ? undefined : columnWidths[String(column.colKey)];
+      return width ? { ...column, width } : column;
+    });
     return (
       <section class='collection-tab-panel collection-history-panel collection-results-panel'>
         <CollectionFilters
@@ -364,6 +422,11 @@ export default defineComponent({
           onScroll={this.loadVisiblePage}
         >
           <PrimaryTable
+            bkUiSettings={{
+              checked: this.displayColumns,
+              disabled: this.lockedColumns,
+              rowSize: 'mini',
+            }}
             columns={columns.map(column =>
               showSkeleton
                 ? {
@@ -373,7 +436,6 @@ export default defineComponent({
                   }
                 : column
             )}
-            bkUiSettings={{ disabled: columns.some(column => column.colKey === 'ip') ? ['ip'] : [], rowSize: 'mini' }}
             data={showSkeleton ? skeletonRows : this.tableRows}
             filterRow={emptyResult ? () => null : undefined}
             filterValue={{ status: this.state.filters.status }}
@@ -381,6 +443,8 @@ export default defineComponent({
             resizable={true}
             rowKey='resultKey'
             size='small'
+            onBkUiSettingsChange={value => this.changeColumns(value.columns)}
+            onColumnResizeChange={context => this.changeColumnWidths(context.columnsWidth)}
             onFilterChange={value =>
               this.patch({ filters: { ...this.displayFilters, status: (value.status || []) as string[] } })
             }
@@ -433,14 +497,13 @@ export default defineComponent({
               ip: ({ row }: { row: CollectionHostResult }) => resultLink(row, row.ip),
               processes: ({ row }: { row: CollectionHostResult }) => renderProcesses(row),
               task: ({ row }: { row: CollectionHostResult }) => (
-                <Button
+                <span
+                  class='task-name-button'
                   v-tippy={this.t('查看本次任务执行详情')}
-                  theme='primary'
-                  text
                   onClick={() => this.openExecution(row)}
                 >
                   {row.task.name}
-                </Button>
+                </span>
               ),
               operations: ({ row }: { row: CollectionHostResult }) => (
                 <div class='collection-row-actions'>
