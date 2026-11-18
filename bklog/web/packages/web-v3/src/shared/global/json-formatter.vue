@@ -5,6 +5,7 @@
       'bklog-json-formatter-root',
       {
         'is-wrap-line': !isOriginalMode && isWrap,
+        'is-expanded-wrap-line': !isOriginalMode && isWrap && !formatJson && showAllText,
         'is-inline': !isOriginalMode && !isWrap,
         'is-original-wrap-line': isOriginalMode && isWrap,
         'is-json': formatJson,
@@ -1554,6 +1555,26 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
         .field-value {
           word-break: break-all;
         }
+      }
+    }
+
+    // 普通文本展开后，末尾字段与「收起」共用行内排版；超长内容仍由根容器限制高度并滚动。
+    &.is-expanded-wrap-line {
+      display: block;
+
+      // 展开态的最后一个子节点是操作按钮，倒数第二个是最后一个字段。
+      > .bklog-root-field:nth-last-child(2) {
+        display: inline;
+        vertical-align: baseline;
+
+        .field-value {
+          display: inline;
+        }
+      }
+
+      > .btn-more-action {
+        position: static;
+        white-space: nowrap;
       }
     }
   }
