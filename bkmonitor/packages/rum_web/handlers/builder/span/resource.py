@@ -21,6 +21,8 @@ from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.hover import RESOURCE_PHASE_HOVERS
 from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
 from rum_web.handlers.builder.span.timing.resource import (
+    CURRENT_TIMING_PREFIX,
+    OLD_TIMING_PREFIX,
     CrossOriginLayout,
     LocalLayout,
     NetworkLayout,
@@ -73,7 +75,7 @@ class ResourceXhrAndFetchKeyInfoSection(KeyInfoSection):
 
 
 class LoadingTimingSection(WaterfallSection):
-    """按 A→E 瀑布图类型输出阶段；缺少新时间点时独立兼容旧阶段字段。"""
+    """按 Resource Span 的时序字段渲染瀑布图，兼容 V1 和 V2。"""
 
     KEY = "loading_timing"
     PHASE_HOVERS = RESOURCE_PHASE_HOVERS
@@ -92,27 +94,30 @@ class LoadingTimingSection(WaterfallSection):
         "download": _("内容传输"),
     }
 
-    # 按 A→E 顺序匹配，E 的「未匹配 A–D」由顺序保证；ReusedLayout 继承 NetworkLayout，必须排在其前。
+    # 按 A→E 顺序匹配，连接复用需要优先于普通网络请求。
     LAYOUTS = (CrossOriginLayout, ServiceWorkerLayout, LocalLayout, ReusedLayout, NetworkLayout)
 
     def get_data(self) -> dict[str, Any] | None:
-        start = self.numeric_or_none("attributes.resource.timing.start_time")
-        end = self.numeric_or_none("attributes.resource.timing.response_end")
-        if start is None or end is None:
-            return self._legacy_waterfall()
-        if end <= start:
+        for timing_prefix in (CURRENT_TIMING_PREFIX, OLD_TIMING_PREFIX):
+            start = self.numeric_or_none(f"{timing_prefix}start_time")
+            end = self.numeric_or_none(f"{timing_prefix}response_end")
+            if start is not None and end is not None:
+                break
+        else:
+            return self._waterfall_v1()
+        if not 0 <= start < end:
             return None
         for layout_cls in self.LAYOUTS:
-            if (layout := layout_cls(self.flatten_data)).matches():
+            if (layout := layout_cls(self.flatten_data, timing_prefix=timing_prefix)).matches():
                 break
         else:
             # 未匹配任何类型时只展示总耗时。
-            layout = CrossOriginLayout(self.flatten_data)
+            layout = CrossOriginLayout(self.flatten_data, timing_prefix=timing_prefix)
         # 可选阶段（如未发生重定向）、乱序阶段在 span 中返回 None，这里统一过滤。
         specs = [spec for spec in layout.phases() if spec is not None]
         return waterfall(self.phases(specs), total=end - start)
 
-    def _legacy_waterfall(self) -> dict[str, Any] | None:
+    def _waterfall_v1(self) -> dict[str, Any] | None:
         """兼容仅上报 resource.*.start / duration 的旧版 SDK。
 
         旧 start 是相对资源 entry.startTime 的偏移，缺少还原到 timeOrigin 的基准，

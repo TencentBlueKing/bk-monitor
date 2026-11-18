@@ -67,7 +67,7 @@ class ViewTimingLayout(TimingLayout):
         connection = self._connection_phases(connect_start, connect_end, reused=reused) if connected else []
         redirect_end = self.point("redirect_end")
         fetch_start = self.point("fetch_start")
-        response_start = self.point("response_start") or None
+        response_start = self.point("response_start") or 0
         response_end = self.point("response_end") or None
         # 过渡期 SDK 仍可从 view.dom_interactive 提供 DOM 解析终点。
         interactive = self.point("dom_interactive") or get_safe_number(
@@ -78,8 +78,8 @@ class ViewTimingLayout(TimingLayout):
             self.span("redirect", self.point("redirect_start"), redirect_end),
             self.span("prepare", redirect_end or self.point("start_time"), fetch_start),
             *connection,
-            self.span("first_byte", connect_end if connected else fetch_start, response_start),
-            self.span("download", response_start if connected else response_start or fetch_start, response_end),
+            self.span("first_byte", connect_end, response_start) if connect_end > 0 else None,
+            self.span("download", response_start, response_end) if response_start > 0 else None,
             self.span("dom_parsing", response_end, interactive),
             self.span("resource_load", interactive or None, load_start),
             self.span("page_stable", load_start, self.stable_end()),
