@@ -43,12 +43,7 @@ class LLMQuery(SpanQuery):
         group_by: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         return self._query_fields_aggregated_group(
-            queries=queries,
-            start_time=start_time,
-            end_time=end_time,
-            fields=fields,
-            method=method,
-            group_by=group_by,
+            queries=queries, start_time=start_time, end_time=end_time, fields=fields, method=method, group_by=group_by
         )
 
     def query_field_values(
@@ -78,12 +73,15 @@ class LLMQuery(SpanQuery):
         method: str,
         interval: int,
         group_by: list[str] | None = None,
+        *,
+        enable_topk: bool = True,
+        null_as_zero: bool = True,
     ) -> dict[str, Any]:
         group_by = group_by or []
         expression: str = self._sum_expression(fields)
         config: dict[str, Any] = self._add_query(
             self.get_qs(start_time, end_time)
-            .expression(f"topk({self.SERIES_LIMIT}, {expression})" if group_by else expression)
+            .expression(f"topk({self.SERIES_LIMIT}, {expression})" if group_by and enable_topk else expression)
             .time_agg(False),
             # 显式下发聚合周期，不走 grafana 的 auto：它按采集周期取点，时间范围拉长后数据点过密
             [query.interval(interval) for query in self._metric_queries(queries, fields, method, group_by)],
@@ -92,7 +90,7 @@ class LLMQuery(SpanQuery):
             {
                 "time_alignment": False,
                 "query_method": "query_reference",
-                "null_as_zero": True,
+                "null_as_zero": null_as_zero,
                 "start_time": config["start_time"] // self.TIME_FIELD_ACCURACY,
                 "end_time": config["end_time"] // self.TIME_FIELD_ACCURACY,
             }

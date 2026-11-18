@@ -397,7 +397,7 @@ class CustomReportSubscription(models.Model):
         )
 
     @classmethod
-    def refresh_collector_custom_conf(cls, bk_tenant_id: str, bk_biz_id: int | None = None, op_type: str = "add"):
+    def refresh_collector_custom_conf(cls, bk_tenant_id: str, bk_biz_id: int | str | None = None, op_type: str = "add"):
         """
         指定业务ID更新，或者更新全量业务
 
@@ -414,6 +414,8 @@ class CustomReportSubscription(models.Model):
             按业务ID将上面的任务下发到机器上，通过节点管理的订阅接口，其中0业务为直连云区域，下发所有data_id配置
             bk-collector: 单个data_id对应创建单个订阅
         """
+        if bk_biz_id is not None:
+            bk_biz_id = int(bk_biz_id)
         logger.info("refresh custom report config to proxy on bk_biz_id(%s)", bk_biz_id)
 
         # 获取业务的自定义事件/指标配置
