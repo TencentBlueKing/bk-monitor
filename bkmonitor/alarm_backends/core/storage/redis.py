@@ -104,11 +104,20 @@ def gen_resilient_socket_conf(socket_timeout=None):
     return conf
 
 
+def has_module_redis_url(router_id: str) -> bool:
+    """判断 `<module>-<sub>` 路由后端是否显式配置了非空的 `REDIS_CACHE_<SUB>_URL`。"""
+    mods = router_id.split("-", 1)
+    if len(mods) == 1 or mods[0] not in CACHE_BACKEND_CONF_MAP:
+        return False
+    return bool((os.getenv(f"REDIS_CACHE_{mods[1].upper()}_URL") or "").strip())
+
+
 def cache_conf_with_router(router_id):
     """
     基于模块的路由
     cache-cmdb: os.getenv("REDIS_CACHE_CMDB_URL")
     cache-strategy: os.getenv("REDIS_CACHE_STRATEGY_URL")
+    service-new_series: os.getenv("REDIS_CACHE_NEW_SERIES_URL")
     """
     # 环境变量名模板
     env_tpl = "REDIS_CACHE_{mod}_URL"
@@ -121,9 +130,9 @@ def cache_conf_with_router(router_id):
         return None
     conf = CACHE_BACKEND_CONF_MAP[router_module]
     env_conf_name = env_tpl.format(mod=sub_mod.upper())
-    url = os.getenv(env_conf_name)
+    url = (os.getenv(env_conf_name) or "").strip()
     if not url:
-        return conf
+        return conf.copy()
     # 解析 redis 连接url
     # {'transport': 'redis',
     #  'hostname': '127.0.0.1',
@@ -135,6 +144,8 @@ def cache_conf_with_router(router_id):
     parts["_cache_type"] = parts.pop("transport")
     parts["host"] = parts.pop("hostname")
     parts["db"] = conf["db"]
+    # 继承父后端的超时与连接韧性参数，防止独立 URL 连接在节点抖动时无限挂起
+    parts.update(gen_resilient_socket_conf(conf.get("socket_timeout")))
     # sentinel 特性
     # sentinel://{master_name}:{redis_pwd}@{sentinel_host}:{sentinel_port}/{sentinel_pwd}
     parts["sentinel_password"] = parts.pop("virtual_host")
@@ -271,8 +282,10 @@ class RedisCache(BaseRedisCache):
     """ """
 
     def __init__(self, redis_conf, redis_class=None, decode_responses=True):
+        redis_conf = redis_conf.copy()
         redis_conf.pop("master_name", None)
         redis_conf.pop("sentinel_password", None)
+        redis_conf.update(gen_resilient_socket_conf(redis_conf.get("socket_timeout")))
 
         self.redis_conf = redis_conf
         if decode_responses:
@@ -326,7 +339,8 @@ class SentinelRedisCache(BaseRedisCache):
         )
 
         redis_instance_config = self.redis_conf
-        redis_instance_config["password"] = getattr(settings, "REDIS_PASSWD", "")
+        if not redis_instance_config.get("password"):
+            redis_instance_config["password"] = getattr(settings, "REDIS_PASSWD", "")
         # master/slave 数据连接注入有界读超时 + keepalive。历史上 socket_timeout 在 __init__ 被 pop
         #   后仅用于 sentinel 发现, 未回填数据连接, 导致主从读操作无 socket 超时, 节点切换时无限挂起。
         redis_instance_config.update(gen_resilient_socket_conf(self.socket_timeout))

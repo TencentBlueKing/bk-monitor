@@ -104,6 +104,7 @@ from constants.strategy import (
     CUSTOM_PRIORITY_GROUP_PREFIX,
     DATALINK_SOURCE,
     HOST_SCENARIO,
+    MAX_NEW_SERIES_LIMIT,
     SERVICE_SCENARIO,
     SYSTEM_EVENT_RT_TABLE_ID,
     SYSTEM_PROC_PORT_METRIC_ID,
@@ -2344,8 +2345,11 @@ class Strategy(AbstractConfig):
                     # detect_range >= agg_interval
                     if agg_interval and int(detect_range) < int(agg_interval):
                         raise ValidationError(detail=_("新维度值检测的检测周期不能小于数据聚合周期"))
-                    if int(config.get("max_series", 100000)) < 1:
-                        raise ValidationError(detail=_("新维度值检测的最大序列数必须大于 0"))
+                    max_series = int(config.get("max_series", 100000))
+                    if max_series < 1 or max_series > MAX_NEW_SERIES_LIMIT:
+                        raise ValidationError(
+                            detail=_("新维度值检测的最大序列数必须在 1 到 {} 之间").format(MAX_NEW_SERIES_LIMIT)
+                        )
                     if int(config.get("effective_delay", 86400)) < 1:
                         raise ValidationError(detail=_("新维度值检测的生效延迟必须大于 0"))
 

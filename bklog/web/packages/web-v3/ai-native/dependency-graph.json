@@ -4501,6 +4501,11 @@
     },
     {
       "from": "features/cleaning/classic/clean-manage/list.vue",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/cleaning/classic/clean-manage/list.vue",
       "to": "shared/ui/loading/_shimmer.scss",
       "kind": "style-or-asset"
     },
@@ -4723,6 +4728,11 @@
       "from": "features/cleaning/current/clean-template/export-dialog.tsx",
       "to": "features/cleaning/services/clean.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/cleaning/current/clean-template/list.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "features/cleaning/current/clean-template/list.tsx",
@@ -6043,6 +6053,11 @@
       "from": "features/clusters/current/cluster-manage/es-slider.tsx",
       "to": "features/index-sets/services/source.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/clusters/current/cluster-manage/index.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "features/clusters/current/cluster-manage/index.tsx",
@@ -13358,6 +13373,11 @@
       "from": "features/masking/components/masking-select-rule-table.tsx",
       "to": "features/masking/services/masking.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/masking/components/masking-setting.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "features/masking/components/masking-setting.scss",

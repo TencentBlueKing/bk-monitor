@@ -1551,4 +1551,11 @@ LOG_INDEX_ROTATE_REASON_TOTAL = Counter(
     labelnames=("table_id", "storage_cluster_id", "reason"),
 )
 
+APM_ACTIVE_PROFILING_ES_FALLBACK_TOTAL = Counter(
+    name="bkmonitor_apm_active_profiling_es_fallback_total",
+    documentation="主动 Profiling 查询回退 Event ES 的次数：switch 为整个查询改查 ES（reason=lagging 预计算落后，"
+    "reason=no_rows MySQL 没有匹配行而 ES 有），reconcile 为按 Event 补上预计算没按时写入的主机行（reason=overdue）",
+    labelnames=("bk_biz_id", "method", "action", "reason"),
+)
+
 TOTAL_TAG = "__total__"

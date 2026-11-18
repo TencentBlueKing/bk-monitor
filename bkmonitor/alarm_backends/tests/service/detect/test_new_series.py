@@ -1462,3 +1462,117 @@ class TestNewSeries:
         # 收口删最旧(score 最小)，保留最新的 m2/m3/m4
         assert key.NEW_SERIES_SEEN_KEY.client.zscore(seen_key, "m0") is None
         assert key.NEW_SERIES_SEEN_KEY.client.zscore(seen_key, "m4") is not None
+
+
+class TestNewSeriesRedisBackendIsolation:
+    """验证 NEW_SERIES_* 状态键默认走分片 RedisProxy("service")，配置 REDIS_CACHE_NEW_SERIES_URL 时走独立单实例。"""
+
+    ALL_NEW_SERIES_KEYS = (
+        key.NEW_SERIES_SEEN_KEY,
+        key.NEW_SERIES_THRESHOLD_SEEN_KEY,
+        key.NEW_SERIES_ACTIVE_KEY,
+        key.NEW_SERIES_CLAIMED_KEY,
+        key.NEW_SERIES_TERMINATED_KEY,
+        key.NEW_SERIES_LEARN_START_KEY,
+        key.NEW_SERIES_BASELINE_PROGRESS_KEY,
+        key.NEW_SERIES_BASELINE_DONE_KEY,
+        key.NEW_SERIES_THRESHOLD_BASELINE_DONE_KEY,
+    )
+
+    def test_default_without_env_falls_back_to_sharded_service_proxy(self, monkeypatch):
+        from alarm_backends.core.storage.redis_cluster import RedisProxy
+
+        monkeypatch.delenv("REDIS_CACHE_NEW_SERIES_URL", raising=False)
+        for k in self.ALL_NEW_SERIES_KEYS:
+            assert k.backend == "service-new_series"
+            k._cache = None
+            try:
+                client = k.client
+                assert isinstance(client, RedisProxy)
+                assert client.backend == "service"
+            finally:
+                k._cache = None
+
+    def test_configured_url_isolates_state_and_supports_watch_lifecycle(self, monkeypatch):
+        import fakeredis
+        from alarm_backends.core.storage.redis import BaseRedisCache, RedisCache
+
+        monkeypatch.setenv("REDIS_CACHE_NEW_SERIES_URL", "redis://:pwd@192.0.2.20:6379")
+        isolated_redis = fakeredis.FakeRedis(server=fakeredis.FakeServer(), decode_responses=True)
+        sharded_redis = key.CHECK_RESULT_CACHE_KEY.client
+
+        saved_attr = getattr(RedisCache, "_service-new_series_instance", None)
+        if hasattr(RedisCache, "_service-new_series_instance"):
+            delattr(RedisCache, "_service-new_series_instance")
+        for k in self.ALL_NEW_SERIES_KEYS:
+            k._cache = None
+
+        try:
+            with mock.patch("alarm_backends.core.storage.redis.redis.Redis", return_value=isolated_redis):
+                ns_client = key.NEW_SERIES_SEEN_KEY.client
+                assert isinstance(ns_client, BaseRedisCache)
+
+            sid = _UID[0]
+            config = default_config(detect_range=60, max_series=10, alert_mode="continuous")
+            item = make_item(strategy_id=sid, ns_configs=[config])
+            sig = NewSeries._dimension_signature(item)
+
+            # 完成 5 个基线周期
+            for cycle in range(5):
+                item._new_series_cache = None
+                detector = NewSeries(config=config, extra_config={"algorithm_level": 1})
+                dp = make_dp("dim-base", 1000 + cycle * 60, item)
+                detector.pre_detect([dp])
+
+            # 第 6 周期新序列触发 continuous 活跃态（内部走 routed_client + WATCH/MULTI）
+            item._new_series_cache = None
+            detector = NewSeries(config=config, extra_config={"algorithm_level": 1})
+            dp_new = make_dp("dim-isolated", 2000, item)
+            with mock.patch.object(NewSeries, "_observed_at", return_value=2000):
+                detector.pre_detect([dp_new])
+            assert len(detector.detect(dp_new)) == 1
+
+            seen_key = key.NEW_SERIES_SEEN_KEY.get_key(strategy_id=sid, item_id=ITEM_ID, dimension_signature=sig)
+            active_key = NewSeries.active_state_key(
+                strategy_id=sid,
+                item_id=ITEM_ID,
+                dimension_signature=sig,
+                threshold=0,
+                detect_range=60,
+                level=1,
+            )
+            claimed_key = NewSeries.claimed_state_key(
+                strategy_id=sid,
+                item_id=ITEM_ID,
+                dimension_signature=sig,
+                threshold=0,
+                detect_range=60,
+                level=1,
+            )
+            fp = NewSeries._fingerprint(dp_new)
+
+            # 数据写在独立实例，原分片实例无该 key
+            assert isolated_redis.zscore(seen_key, fp) == 2000
+            assert isolated_redis.zscore(active_key, fp) == 2000
+            assert sharded_redis.zscore(seen_key, fp) is None
+
+            # AlertManager 到期认领同样走独立实例的 routed_client + WATCH/MULTI
+            result = RecoverStatusChecker.claim_new_series_expiration(
+                active_key,
+                fp,
+                expire_before=2100 - 60,
+                claimed_key=claimed_key,
+                observed_at=2100,
+                soft_ttl=86400,
+                max_series=10,
+            )
+            assert result == RecoverStatusChecker.NEW_SERIES_EXPIRED
+            assert isolated_redis.zscore(active_key, fp) is None
+            assert isolated_redis.zscore(claimed_key, fp) == 2100
+        finally:
+            if saved_attr is not None:
+                setattr(RedisCache, "_service-new_series_instance", saved_attr)
+            elif hasattr(RedisCache, "_service-new_series_instance"):
+                delattr(RedisCache, "_service-new_series_instance")
+            for k in self.ALL_NEW_SERIES_KEYS:
+                k._cache = None

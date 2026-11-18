@@ -65,6 +65,7 @@
         @previous="handlePrevious"
         @target="target"
         @tencentCloudNext="handleTencentCloudNext"
+        @tencentCloudPrevious="handleTencentCloudPrevious"
       />
     </div>
   </div>
@@ -209,6 +210,11 @@ export default {
     handleTencentCloudNext() {
       this.changeView(2);
       this.stepConf.list[1].done = true;
+    },
+    /* 腾讯云下发失败后返回配置页修改（该流程跳过了选择目标步骤） */
+    handleTencentCloudPrevious() {
+      this.changeView(0);
+      this.stepConf.list[1].done = false;
     },
     target(v) {
       this.config.target = v;

@@ -189,7 +189,7 @@ class TokenUsageBuilder:
                 "id": node_id,
                 "name": _(name),
                 "value": sum(child["value"] for child in children) if children else self.counts[node_id],
-                "children": list(children),
+                "children": [child for child in children if child["value"] > 0],
             }
 
         tools: dict[str, dict[str, Any]] = {}
@@ -246,7 +246,7 @@ class TokenUsageBuilder:
         reported_total = sum(root["value"] for root in nodes)
         estimated_total = sum(value for value in self.estimated_totals.values() if value is not None)
         return {
-            "nodes": nodes,
+            "nodes": [root for root in nodes if root["value"] > 0],
             "estimated_to_reported_ratio": estimated_total / reported_total
             if reported_total and all(value is not None for value in self.estimated_totals.values())
             else 0,

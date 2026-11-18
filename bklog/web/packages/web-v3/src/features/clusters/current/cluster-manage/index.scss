@@ -1,3 +1,4 @@
+@use '@/shared/styles/theme/components/contracts' as bklogControls;
 .es-access-container {
   position: relative;
   display: flex;
@@ -5,16 +6,7 @@
   transition: padding 0.5s;
 
   .collect-table-operate {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    white-space: nowrap;
-
-    .t-button--variant-text {
-      min-width: 0;
-      padding: 0;
-      border: 0;
-    }
+    @include bklogControls.table-row-actions;
   }
 
   .main-operator-container {

@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from semconv.rum import virtual
 from semconv.rum.attributes import span_attributes, virtual_attributes
 from semconv.rum.field import FieldSpec
 from semconv.rum.registry import FieldRegistry
@@ -58,6 +59,10 @@ class SpanSpec(FieldSpec):
     LCP = virtual_attributes.LCP
     FCP = virtual_attributes.FCP
     TTFB = virtual_attributes.TTFB
+
+    VIRTUAL_VIEWPORT = virtual.VIEWPORT
+    VIRTUAL_BROWSER = virtual.BROWSER
+    VIRTUAL_NETWORK = virtual.NETWORK
 
     # ── 复合字段 ───────────────────────────────────────────────────────────────
     STATUS = Status(field_name="status")

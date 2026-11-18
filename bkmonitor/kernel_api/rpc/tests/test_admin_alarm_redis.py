@@ -185,6 +185,56 @@ def test_non_default_template_prefix_and_independent_strategy_cache(monkeypatch)
     assert source["node"] is None and redis_key.endswith(".strategy_7")
 
 
+def test_new_series_template_uses_isolated_backend_only_when_configured(monkeypatch):
+    chosen = node(2, "default")
+    sharded_client = Mock()
+    isolated_client = Mock()
+    monkeypatch.setattr(service, "resolve_node", lambda params: chosen)
+    monkeypatch.setattr(service, "setup_client", lambda node_obj, backend: sharded_client)
+    monkeypatch.setattr(alarm_strategy, "scoped_strategy", lambda *args: SimpleNamespace(bk_biz_id=7))
+
+    monkeypatch.delenv("REDIS_CACHE_NEW_SERIES_URL", raising=False)
+    client, source, redis_key = service.target(
+        {
+            "template_id": "NEW_SERIES_SEEN_KEY",
+            "strategy_id": 7,
+            "key_params": {"item_id": 8, "dimension_signature": "sig"},
+        }
+    )
+    assert client is sharded_client
+    assert source["backend"] == "service"
+    assert source["node"]["id"] == 2
+    assert redis_key.endswith(".detect.new_series.seen.7.8.sig")
+
+    monkeypatch.setenv("REDIS_CACHE_NEW_SERIES_URL", "redis://192.0.2.30:6379")
+    cache = Mock(return_value=isolated_client)
+    monkeypatch.setattr(service, "Cache", cache)
+    client, source, redis_key = service.target(
+        {
+            "template_id": "NEW_SERIES_SEEN_KEY",
+            "strategy_id": 7,
+            "key_params": {"item_id": 8, "dimension_signature": "sig"},
+        }
+    )
+    cache.assert_called_once_with("service-new_series")
+    assert client is isolated_client
+    assert source["backend"] == "service-new_series"
+    assert source["node"] is None
+    assert source["db"] == 10
+    assert redis_key.endswith(".detect.new_series.seen.7.8.sig")
+
+    # 非默认集群策略在独立 URL 下仍按所属集群拼前缀，避免跨集群 Admin 查询错位
+    monkeypatch.setattr(service, "resolve_node", lambda params: node(3, "subcluster"))
+    _, _, subcluster_key = service.target(
+        {
+            "template_id": "NEW_SERIES_SEEN_KEY",
+            "strategy_id": 7,
+            "key_params": {"item_id": 8, "dimension_signature": "sig"},
+        }
+    )
+    assert subcluster_key == f"{service.keys.PUBLIC_KEY_PREFIX}.subcluster.detect.new_series.seen.7.8.sig"
+
+
 def test_node_info_requires_configured_node_and_backend():
     with pytest.raises(Exception, match="node_id"):
         alarm_redis.execute("node_info", {})

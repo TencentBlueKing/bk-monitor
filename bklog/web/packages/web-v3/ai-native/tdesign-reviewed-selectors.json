@@ -1,0 +1,89 @@
+{
+  "features/collection/current/components/business-comp/step3/clean-result-preview-dialog.scss": {
+    ".t-input": "预览表格的编辑框贴合 42px 数据行，紧凑行另用 compact-control。",
+    ".t-input--focused": "预览单元格内的焦点阴影会覆盖表格分隔线。"
+  },
+  "features/collection/current/components/business-comp/step3/field-list.scss": {
+    ".t-input": "字段名和类型控件贴合 48px 可编辑行，并在字段校验失败时显示错误边框。",
+    ".t-input--focused": "可编辑单元格聚焦时显示品牌色边框。",
+    ".t-is-disabled": "只读单元格使用禁用底色，同时排除悬停高亮。",
+    ".t-select__wrap": "类型选择器占满字段行，并将类型错误状态传递给内部输入框。"
+  },
+  "features/collection/current/components/create-operation/step4-storage.scss": {
+    ".t-collapse-panel__body": "集群分组卡片提供背景和边框，内部折叠面板需透明。"
+  },
+  "features/masking/components/masking-add-rule.scss": {
+    ".t-collapse-panel__content": "调试区自行布局内容，面板去除内边距并使用表单底色。",
+    ".t-collapse-panel__header": "调试区折叠标题与规则编辑器对齐，固定 42px 高度。",
+    ".t-drawer__body": "规则编辑器自行设置正文间距和底部调试区。",
+    ".t-drawer__footer": "规则抽屉的提交按钮左对齐，匹配该表单的底部布局。",
+    ".t-drawer__header": "自绘标题的关闭按钮贴靠抽屉左边缘。",
+    ".t-form__controls-content": "规则编辑行的控件与说明按列排列并占满行宽。",
+    ".t-form__item": "规则表单在相邻字段间保留 24px 间隔。",
+    ".t-input-number": "脱敏表达式内的数值框保留固定宽度，避免与其他参数并排时收缩。",
+    ".t-radio-group": "表达式参数横向排列时保持单选组完整。",
+    ".t-textarea": "调试日志输入区由编辑器容器提供边界。",
+    ".t-textarea__inner": "调试日志采用深色样例区和至少 94px 的编辑高度。"
+  },
+  "features/masking/components/masking-confirm-dialog.scss": {
+    ".t-button": "权限表格的行操作与确认框底部操作分别使用紧凑和主操作按钮尺寸。",
+    ".t-dialog__body": "权限确认内容自行设置留白，正文贴合自绘布局。",
+    ".t-dialog__header": "自绘标题替代原生标题占位。",
+    ".t-size-s": "权限表的列间距仅适用于小尺寸模式。",
+    ".t-table": "确认框的权限表铺满内容宽度，并局部设置单元格间距。"
+  },
+  "features/masking/components/masking-setting.scss": {
+    ".t-checkbox": "列设置面板由网格控制行列间距，复选框移除自身外边距。"
+  },
+  "features/retrieval/workbench/components/batch-input/index.scss": {
+    ".t-button": "解析和清空操作须在双栏面板左侧同排对齐。",
+    ".t-dialog": "批量输入双栏面板自行分配留白及边框。",
+    ".t-dialog__body": "正文内边距需与两栏内容边缘对齐。",
+    ".t-dialog__close": "关闭按钮的位置和点击尺寸与批量输入标题对齐。",
+    ".t-dialog__footer": "底部确认区与双栏表单外沿对齐。",
+    ".t-dialog__footer--fullscreen": "底部边距修正只适用于普通弹窗，需排除全屏布局。",
+    ".t-dialog__header": "批量输入标题使用该弹窗的字号和上下间距。",
+    ".t-table__empty": "解析结果占位由右栏提供间距，空态容器去除额外内边距。",
+    ".t-table__empty-row": "清除解析结果空行的单元格内边距，以对齐结果面板。",
+    ".t-textarea__inner": "左栏输入区域使用固定行距，禁止手动拖拽破坏双栏布局。"
+  },
+  "features/retrieval/workbench/result-comp/export-log.vue": {
+    ".t-alert--info": "导出模式提示使用中性背景和紧凑间距。",
+    ".t-alert__icon": "提示图标与导出模式说明的正文行高对齐。",
+    ".t-dialog": "异步导出弹窗的外部留白与通栏页脚共同布局。",
+    ".t-dialog__body": "导出设置正文为底部操作预留间距。",
+    ".t-dialog__close": "异步导出关闭按钮定位在自绘内容的右上角。",
+    ".t-dialog__footer": "异步导出页脚需跨过正文两侧的留白。",
+    ".t-dialog__footer--fullscreen": "通栏宽度补偿仅适用于普通导出弹窗。"
+  },
+  "features/retrieval/workbench/result-comp/update/fields-setting.vue": {
+    ".t-is-active": "选中模板采用整行底色反馈。",
+    ".t-tabs__bar": "模板侧栏通过行底色表示选中状态，隐藏指示条。",
+    ".t-tabs__content": "此处仅用标签页作为导航，字段配置在独立区域渲染。",
+    ".t-tabs__header": "左侧模板导航占满列宽并取消浮动。",
+    ".t-tabs__nav": "导航轨道与模板侧栏等宽。",
+    ".t-tabs__nav-container": "导航容器占满侧栏并移除默认分隔线。",
+    ".t-tabs__nav-item": "每个模板占用一整行，高度 36px。",
+    ".t-tabs__nav-item-text-wrapper": "模板名称块允许收缩并占满可用行宽。",
+    ".t-tabs__nav-item-wrapper": "标签包装层与模板行等宽等高。",
+    ".t-tabs__nav-scroll": "可滚动区域需覆盖侧栏全宽。",
+    ".t-tabs__nav-wrap": "纵向导航外层与模板列表右边缘对齐。"
+  },
+  "features/retrieval/workbench/search-bar/ui-mode/ui-input-option.scss": {
+    ".t-input": "条件编辑器使用底部分隔线与下方输入区域衔接。",
+    ".t-textarea__info_wrapper": "多行输入框的计数信息保留自身高度。",
+    ".t-textarea__inner": "多行编辑区占满剩余空间，避免拖拽改变条件面板布局。"
+  },
+  "features/retrieval/workbench/search-result-chart/index.scss": {
+    ".t-input--focused": "汇聚周期在工具栏内以无边框选择器显示，聚焦时保持相同边界。"
+  },
+  "features/retrieval/workspace/search-bar/scene-filter/filter-panel.scss": {
+    ".t-input--prefix": "宽度约束仅针对承载过滤标签的前缀输入模式。",
+    ".t-input__prefix": "前缀标签容器为后续输入预留 24px 空间。",
+    ".t-tag": "普通标签在空间不足时可收缩，折叠计数保留完整宽度。",
+    ".t-tag--text": "允许标签文字收缩，以便在可用宽度内截断。"
+  },
+  "features/retrieval/workspace/search-result/original-log/standalone-tab/index.scss": {
+    ".t-dialog__header--fullscreen": "全屏原始日志使用自绘标题，压缩原生标题行并保留关闭操作。"
+  }
+}

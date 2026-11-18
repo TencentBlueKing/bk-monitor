@@ -11,3 +11,17 @@
 @mixin compact-control { height: 26px; line-height: 26px; }
 @mixin compact-action { height: 24px; min-width: 54px; line-height: 22px; }
 @mixin filter-operator { width: 140px; border-radius: 0; }
+
+// Shared operation column in the management tables.
+@mixin table-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  white-space: nowrap;
+
+  .t-button--variant-text {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+}

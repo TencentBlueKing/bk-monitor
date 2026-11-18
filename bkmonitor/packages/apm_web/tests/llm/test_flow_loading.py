@@ -58,7 +58,9 @@ class FlowLoadingTests(TestCase):
         self.assertEqual(self.query.query_by_group_ids.call_args.kwargs["fields"], ())
         trace = result["traces"][0]
         self.assertEqual(trace["token_matrix"]["nodes"][0]["value"], 37)
-        definitions = trace["token_matrix"]["nodes"][0]["children"][1]
+        definitions = next(
+            node for node in trace["token_matrix"]["nodes"][0]["children"] if node["id"] == "definitions"
+        )
         self.assertGreater(definitions["value"], 0)
         self.assertNotIn("gen_ai.tool.definitions", trace["flow"][0]["attributes"])
         self.assertEqual(sum(c["tokens"] for c in trace["flow"][0]["token_categories"][:3]), 37)
@@ -178,7 +180,7 @@ class FlowLoadingTests(TestCase):
                 node = trace["flow"][0]
                 self.assertEqual(node["tokens"], expected)
                 self.assertEqual(trace["total_tokens"], 0)
-                self.assertEqual([root["value"] for root in trace["token_matrix"]["nodes"]], [0, 0])
+                self.assertEqual(trace["token_matrix"]["nodes"], [])
                 if not preview:
                     self.assertEqual(node["attributes"]["gen_ai.tool.call.arguments"], arguments)
                     self.assertEqual(node["attributes"]["gen_ai.tool.call.result"], result)

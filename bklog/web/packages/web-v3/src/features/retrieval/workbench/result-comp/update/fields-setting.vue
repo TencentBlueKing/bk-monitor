@@ -31,7 +31,7 @@
       <div v-if="isTemplateConfig" class="fields-config-container">
         <div class="config-container-header">
           <div v-show="!isShowAddInput" class="header-config-operation">
-            <t-button variant="text" theme="primary" class="config-btn" @click="handleClickAddNew">
+            <t-button variant="text" theme="primary" class="config-btn bklog-icon-label-button" @click="handleClickAddNew">
               <i class="bk-icon icon-plus-circle-shape" />
               <span>{{ $t('新建') }}</span>
             </t-button>
@@ -713,14 +713,9 @@ export default {
             height: 100%;
             line-height: 100%;
 
-            &.t-button {
+            &.bklog-icon-label-button {
               padding: 0;
               font-size: var(--bklog-font-action, 14px);
-
-              :deep(.t-button__text) {
-                align-items: center;
-                column-gap: 4px;
-              }
             }
 
             .bk-icon {

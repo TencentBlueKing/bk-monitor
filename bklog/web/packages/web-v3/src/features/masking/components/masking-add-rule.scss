@@ -169,9 +169,9 @@
 
       .debugging-input .t-textarea__inner {
         min-height: 94px;
-        color: #c4c6cc;
+        color: var(--bklog-text-disabled, #c4c6cc);
         /* stylelint-disable-next-line declaration-no-important */
-        background-color: #313238 !important;
+        background-color: var(--bklog-text-primary, #313238) !important;
         border-radius: var(--bklog-radius-control, 2px);
         @include scroller($backgroundColor: #c4c6cc, $width: 4px);
       }

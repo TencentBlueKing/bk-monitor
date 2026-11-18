@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from django.utils.translation import gettext_lazy as _
 
 from semconv.constants import FieldDisplayType, FieldUnit, SpanKind
+from semconv.rum import composite
 from semconv.rum.field import FieldSpec
 
 # ── Span 根级字段 ──────────────────────────────────────────────────────────────
@@ -25,7 +26,9 @@ APP_NAME = FieldSpec(field_name="app_name", field_alias=_("应用"))
 
 TRACE_ID = FieldSpec(field_name="trace_id", field_alias="Trace ID")
 TRACE_STATE = FieldSpec(field_name="trace_state", field_alias=_("Trace 扩展信息"))
-SPAN_NAME = FieldSpec(field_name="span_name", field_alias=_("Span 名称"))
+SPAN_NAME = FieldSpec(
+    field_name="span_name", field_alias=_("Span 名称"), extra_config={"composite": composite.SPAN_NAME}
+)
 SPAN_ID = FieldSpec(field_name="span_id", field_alias="Span ID")
 PARENT_SPAN_ID = FieldSpec(field_name="parent_span_id", field_alias=_("父 Span ID"))
 KIND = FieldSpec(field_name="kind", field_alias=_("调用类型"), option_values=SpanKind)

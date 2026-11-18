@@ -548,6 +548,7 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style lang="scss">
+@use '@/shared/styles/theme/components/contracts' as bklogControls;
 @use '@/shared/styles/mixins/clearfix' as *;
   @use '@/shared/styles/conf' as *;
   @use '@/shared/styles/devops-common.scss' as *;
@@ -555,16 +556,7 @@ import { ServicesInstance } from '@/platform/services';
     padding: 20px 24px;
 
     .collect-table-operate {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      white-space: nowrap;
-
-      .t-button--variant-text {
-        min-width: 0;
-        padding: 0;
-        border: 0;
-      }
+      @include bklogControls.table-row-actions;
     }
 
     .top-operation {
