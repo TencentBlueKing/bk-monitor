@@ -35,7 +35,7 @@ class SessionLevelHandler(BaseRumLevelHandler):
         "resource.user_agent.os.name",
     ]
 
-    MODE = RumQueryMode.SESSION.value
+    MODE: str = RumQueryMode.SESSION.value
     SPEC = SessionSpec
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
