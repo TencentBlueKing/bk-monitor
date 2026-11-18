@@ -2739,6 +2739,27 @@ class UnionSearchHandler:
 
         return new_sort_list
 
+    @staticmethod
+    def _get_time_value(row: dict, time_field: str, default: Any = None) -> Any:
+        """读取时间字段，兼容扁平 dotted key 与折叠后的嵌套结构。"""
+        return get_field_value(row, time_field, default=default)
+
+    @classmethod
+    def _normalize_time_field(cls, rows: list, index_set_obj_mapping: dict) -> None:
+        """按索引集时间字段单位把时间统一为毫秒，写入 unionSearchTimeStamp。"""
+        for row in rows:
+            index_set_obj = index_set_obj_mapping.get(row.get("__index_set_id__"))
+            if not index_set_obj:
+                # 索引集标识或索引集对象缺失时不参与标准化，排序阶段按空值处理
+                continue
+            num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
+            time_value = cls._get_time_value(row, index_set_obj.time_field)
+            try:
+                row["unionSearchTimeStamp"] = int(time_value) * num
+            except (TypeError, ValueError):
+                # 时间字段值缺失或非数值时保留原值，避免中断检索
+                row["unionSearchTimeStamp"] = "" if time_value is None else time_value
+
     def union_search(self, is_export=False):
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=self.index_set_ids)
         if not index_set_objs:
@@ -2844,34 +2865,31 @@ class UnionSearchHandler:
         if len(time_fields) != 1 or len(time_fields_type) != 1 or len(time_fields_unit) != 1:
             # 标准化时间字段
             is_use_custom_time_field = True
-            for info in result_log_list:
-                index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
-                num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
-                try:
-                    info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
-                except ValueError:
-                    info["unionSearchTimeStamp"] = info[index_set_obj.time_field]
-
-            for info in result_origin_log_list:
-                index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
-                num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
-                try:
-                    info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
-                except ValueError:
-                    info["unionSearchTimeStamp"] = info[index_set_obj.time_field]
+            self._normalize_time_field(result_log_list, index_set_obj_mapping)
+            self._normalize_time_field(result_origin_log_list, index_set_obj_mapping)
 
         if not self.sort_list:
             # 默认使用时间字段排序
             if not is_use_custom_time_field:
                 sort_field = list(time_fields)[0]
                 # 时间字段相同 直接以相同时间字段为key进行排序 默认为降序
-                result_log_list = sorted(result_log_list, key=lambda x: str(x[sort_field]), reverse=True)
-                result_origin_log_list = sorted(result_origin_log_list, key=lambda x: str(x[sort_field]), reverse=True)
+                result_log_list = sorted(
+                    result_log_list,
+                    key=lambda x: str(self._get_time_value(x, sort_field, default="")),
+                    reverse=True,
+                )
+                result_origin_log_list = sorted(
+                    result_origin_log_list,
+                    key=lambda x: str(self._get_time_value(x, sort_field, default="")),
+                    reverse=True,
+                )
             else:
                 # 时间字段/时间字段格式/时间字段单位不同  标准化时间字段作为key进行排序 标准字段单位为 millisecond
-                result_log_list = sorted(result_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True)
+                result_log_list = sorted(
+                    result_log_list, key=lambda x: str(x.get("unionSearchTimeStamp", "")), reverse=True
+                )
                 result_origin_log_list = sorted(
-                    result_origin_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True
+                    result_origin_log_list, key=lambda x: str(x.get("unionSearchTimeStamp", "")), reverse=True
                 )
         else:
             result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)
@@ -3016,34 +3034,31 @@ class UnionSearchHandler:
         if len(time_fields) != 1 or len(time_fields_type) != 1 or len(time_fields_unit) != 1:
             # 标准化时间字段
             is_use_custom_time_field = True
-            for info in result_log_list:
-                index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
-                num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
-                try:
-                    info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
-                except ValueError:
-                    info["unionSearchTimeStamp"] = info[index_set_obj.time_field]
-
-            for info in result_origin_log_list:
-                index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
-                num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
-                try:
-                    info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
-                except ValueError:
-                    info["unionSearchTimeStamp"] = info[index_set_obj.time_field]
+            self._normalize_time_field(result_log_list, index_set_obj_mapping)
+            self._normalize_time_field(result_origin_log_list, index_set_obj_mapping)
 
         if not self.sort_list:
             # 默认使用时间字段排序
             if not is_use_custom_time_field:
                 sort_field = list(time_fields)[0]
                 # 时间字段相同 直接以相同时间字段为key进行排序 默认为降序
-                result_log_list = sorted(result_log_list, key=lambda x: str(x[sort_field]), reverse=True)
-                result_origin_log_list = sorted(result_origin_log_list, key=lambda x: str(x[sort_field]), reverse=True)
+                result_log_list = sorted(
+                    result_log_list,
+                    key=lambda x: str(self._get_time_value(x, sort_field, default="")),
+                    reverse=True,
+                )
+                result_origin_log_list = sorted(
+                    result_origin_log_list,
+                    key=lambda x: str(self._get_time_value(x, sort_field, default="")),
+                    reverse=True,
+                )
             else:
                 # 时间字段/时间字段格式/时间字段单位不同  标准化时间字段作为key进行排序 标准字段单位为 millisecond
-                result_log_list = sorted(result_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True)
+                result_log_list = sorted(
+                    result_log_list, key=lambda x: str(x.get("unionSearchTimeStamp", "")), reverse=True
+                )
                 result_origin_log_list = sorted(
-                    result_origin_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True
+                    result_origin_log_list, key=lambda x: str(x.get("unionSearchTimeStamp", "")), reverse=True
                 )
         else:
             result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)
