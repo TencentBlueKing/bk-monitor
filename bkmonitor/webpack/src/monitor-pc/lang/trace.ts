@@ -128,6 +128,8 @@ export default {
   进程选择: 'Process selection',
   采样频率: 'Sampling frequency',
   每小时: 'Every hour',
+  '{n} 分钟后': 'In {n} minutes',
+  '{n} 小时后': 'In {n} hour(s)',
   一天: '1 day',
   一周: '1 week',
   半年: '6 months',
