@@ -8,20 +8,12 @@
   }
 
   .collection-filter-trigger {
-    display: flex;
-    align-items: center;
-    overflow: hidden;
-
     .collection-filter-selected {
       flex: 0 1 auto;
+      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-
-    .bk-input {
-      flex: 1 1 auto;
-      min-width: 0;
     }
   }
 }
