@@ -517,7 +517,12 @@ class ActionInstance(AbstractRecordModel):
             and self.inputs.get("notice_type") == ActionNoticeType.NORMAL
         )
 
-    def get_notice_receiver_display(self, notice_receiver, notice_way=None):
+    def get_notice_receiver_display(
+        self,
+        notice_receiver: Any,
+        notice_way: Any = None,
+        display_mapping: dict[str, str] | None = None,
+    ) -> Any:
         """
         获取通知接收人的展示名
 
@@ -528,20 +533,47 @@ class ActionInstance(AbstractRecordModel):
         if not notice_receiver:
             return notice_receiver
 
-        if not isinstance(notice_receiver, list):
-            return self._convert_receiver(notice_receiver, notice_way)
-
-        receivers = [receiver for receiver in notice_receiver if receiver]
         if not self._need_convert_receiver(notice_way):
+            if not isinstance(notice_receiver, list):
+                return self._stringify_receiver(notice_receiver)
+            receivers = [receiver for receiver in notice_receiver if receiver]
             return ",".join(self._stringify_receiver(receiver) for receiver in receivers)
+
+        receivers = self._expand_receiver_items(notice_receiver)
+        if not receivers:
+            return ""
+        if display_mapping is not None:
+            return ",".join(
+                (display_mapping.get(receiver) or receiver) if isinstance(receiver, str) else str(receiver)
+                for receiver in receivers
+            )
         # 多接收人批量查询，避免逐个调用展示名接口；
-        # 语音串行通知会把整个用户组的成员合并进一个子任务，逐人查询会放大成 N 次请求。
+        # 语音串行通知或含逗号的多接收人字符串会合并多人，逐人查询会放大成 N 次请求。
         if len(receivers) > 1:
             return ",".join(self._batch_convert_receivers(receivers))
-        return ",".join(self._convert_receiver(receiver, notice_way, check_channel=False) for receiver in receivers)
+        return self._convert_receiver(receivers[0], notice_way, check_channel=False)
 
     @staticmethod
-    def _stringify_receiver(receiver):
+    def _expand_receiver_items(notice_receiver: Any) -> list[Any]:
+        """将标量、逗号分隔字符串或列表统一展开为保序接收人项列表（保留非字符串脏元素用于原位回退）"""
+        raw_items = notice_receiver if isinstance(notice_receiver, list) else [notice_receiver]
+        expanded: list[Any] = []
+        for item in raw_items:
+            if not item:
+                continue
+            if isinstance(item, str) and "," in item:
+                expanded.extend(part for part in item.split(",") if part)
+            else:
+                expanded.append(item)
+        return expanded
+
+    @classmethod
+    def _extract_receiver_usernames(cls, notice_receiver: Any) -> list[str]:
+        """提取可用于批量展示名预取的用户名列表"""
+        return [item for item in cls._expand_receiver_items(notice_receiver) if isinstance(item, str) and item]
+
+    @staticmethod
+    def _stringify_receiver(receiver: Any) -> str:
         """非用户渠道的接收人原样转字符串，保留旧行为"""
         return receiver if isinstance(receiver, str) else str(receiver)
 
@@ -551,30 +583,13 @@ class ActionInstance(AbstractRecordModel):
 
         sync_actions_sharding_task 等后台同步任务运行在无 HTTP request 的 Celery cron 中，
         且不会注入 local.bk_tenant_id；需按 bk_biz_id 解析后显式传给查询接口，
-        同时保证 CacheType.USER 缓存键按租户隔离。
+        同时保证 CacheType.USER 缓存键按租户隔离。非零业务解析失败时返回 None 直接回退原标识。
         """
-        if not settings.ENABLE_MULTI_TENANT_MODE:
-            return None
+        from bkmonitor.utils.user import resolve_biz_tenant_id
 
-        from bkmonitor.utils.request import get_request_tenant_id
-        from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-        from constants.common import DEFAULT_TENANT_ID
+        return resolve_biz_tenant_id(self.bk_biz_id, context_label=f"action({self.id})")
 
-        if isinstance(self.bk_biz_id, int | str) and not isinstance(self.bk_biz_id, bool) and self.bk_biz_id != "":
-            try:
-                biz_id = int(self.bk_biz_id)
-                if biz_id != 0:
-                    return bk_biz_id_to_bk_tenant_id(biz_id)
-            except Exception as error:
-                logger.warning(
-                    "resolve bk_tenant_id by bk_biz_id(%s) failed for action(%s): %s",
-                    self.bk_biz_id,
-                    self.id,
-                    error,
-                )
-        return get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID
-
-    def _need_convert_receiver(self, notice_way):
+    def _need_convert_receiver(self, notice_way: Any) -> bool:
         """判断该通知渠道的接收人是否为用户标识"""
         if notice_way is None:
             notice_way = (self.inputs or {}).get("notice_way")
@@ -596,42 +611,22 @@ class ActionInstance(AbstractRecordModel):
         # 会话类渠道是少数派，漏转用户标识比多查一次展示名的代价更大。
         return channel not in (NoticeChannel.WX_BOT, NoticeChannel.BK_CHAT)
 
-    def _batch_convert_receivers(self, receivers):
-        """批量转展示名，查询失败或个别查不到时回退原值"""
+    def _batch_convert_receivers(self, receivers: list[Any]) -> list[str]:
+        """批量转展示名，查询失败、租户解析失败或个别查不到时回退原值"""
         if not settings.ENABLE_MULTI_TENANT_MODE:
             return [self._stringify_receiver(receiver) for receiver in receivers]
 
-        usernames = list(dict.fromkeys(receiver for receiver in receivers if isinstance(receiver, str) and receiver))
-        if not usernames:
-            return [self._stringify_receiver(receiver) for receiver in receivers]
-
-        from core.drf_resource import api
-        from bkmonitor.utils.common_utils import chunks
+        from bkmonitor.utils.user import batch_get_user_display_names
 
         bk_tenant_id = self._get_tenant_id()
-        display_map = {}
-        try:
-            for username_chunk in chunks(usernames, 100):
-                query_params = {"bk_usernames": username_chunk}
-                if bk_tenant_id:
-                    query_params["bk_tenant_id"] = bk_tenant_id
-                for user_info in api.bk_login.batch_query_user_display_info(**query_params) or []:
-                    username, display_name = user_info.get("bk_username"), user_info.get("display_name")
-                    if isinstance(username, str) and username and isinstance(display_name, str) and display_name:
-                        display_map[username] = display_name
-        except Exception as error:
-            logger.warning("batch convert notice_receiver to display name failed for action(%s): %s", self.id, error)
+        display_map = batch_get_user_display_names(receivers, bk_tenant_id=bk_tenant_id, strict_tenant=True)
+        return [
+            (display_map.get(receiver) or receiver) if isinstance(receiver, str) else str(receiver)
+            for receiver in receivers
+        ]
 
-        display_names = []
-        for receiver in receivers:
-            if not isinstance(receiver, str):
-                display_names.append(str(receiver))
-                continue
-            display_names.append(display_map.get(receiver) or receiver)
-        return display_names
-
-    def _convert_receiver(self, receiver, notice_way=None, check_channel=True):
-        """单个接收人转展示名，会话类渠道或转换失败时回退原值"""
+    def _convert_receiver(self, receiver: Any, notice_way: Any = None, check_channel: bool = True) -> str:
+        """单个接收人转展示名，会话类渠道、租户解析失败或转换失败时回退原值"""
         if not isinstance(receiver, str):
             return str(receiver)
         if check_channel and not self._need_convert_receiver(notice_way):
@@ -639,20 +634,31 @@ class ActionInstance(AbstractRecordModel):
 
         from bkmonitor.utils.user import get_user_display_name
 
-        bk_tenant_id = self._get_tenant_id()
-        try:
-            if bk_tenant_id:
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = self._get_tenant_id()
+            if not bk_tenant_id:
+                return receiver
+            try:
                 display_name = get_user_display_name(receiver, bk_tenant_id=bk_tenant_id)
-            else:
+            except Exception as error:
+                logger.warning(
+                    "convert notice_receiver(%s) to display name failed for action(%s): %s",
+                    receiver,
+                    self.id,
+                    error,
+                )
+                return receiver
+        else:
+            try:
                 display_name = get_user_display_name(receiver)
-        except Exception as error:
-            logger.warning(
-                "convert notice_receiver(%s) to display name failed for action(%s): %s",
-                receiver,
-                self.id,
-                error,
-            )
-            return receiver
+            except Exception as error:
+                logger.warning(
+                    "convert notice_receiver(%s) to display name failed for action(%s): %s",
+                    receiver,
+                    self.id,
+                    error,
+                )
+                return receiver
         return display_name if isinstance(display_name, str) and display_name else receiver
 
     def get_content(self, **kwargs):
@@ -724,8 +730,9 @@ class ActionInstance(AbstractRecordModel):
         # 只新增展示名变量，不动 notice_receiver 本身，原因有两点：
         # 1. 它是审计事实（通知实际发给了谁），替换会丢失可追溯性；
         # 2. 它可能是列表，替换成字符串会让自定义模板里的 `| join` 或迭代按字符拆分。
-        # 内置模板已统一使用 {{notice_receiver_display}}；库里存量的 config_schema 快照
-        # 由 fta_web.handlers.register_builtin_plugins 在 post_migrate 时按初始文件覆盖更新。
+        # 内置模板已统一使用 {{notice_receiver_display}}；ActionPlugin 表中的存量插件记录
+        # 由 fta_web.handlers.register_builtin_plugins 在 post_migrate（需 MIGRATE_ACTION_PLUGIN_ENABLED=enabled）
+        # 时按初始文件覆盖更新，更新后新建的 ActionInstance 即生效（历史 ActionInstance.action_plugin 快照不追溯）。
         # 放在模板确定之后且仅在模板引用该变量时转换，避免对审批/汇总/旧快照模板发起无效查询。
         if (
             "notice_receiver_display" in content_template

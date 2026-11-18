@@ -650,6 +650,7 @@ class Sender(BaseSender):
         mentioned_users: dict[str, list[str]] = None,
         mentioned_title: str = None,
         sender: str | None = None,
+        bk_tenant_id: str | None = None,
     ):
         """模块化消息推送"""
 
@@ -670,7 +671,8 @@ class Sender(BaseSender):
 
         send_result: dict[str, Any] = {"errcode": 0, "errmsg": []}
         mention_map = get_wxwork_mention_names(
-            [user for chat_id in chat_ids for user in mentioned_users.get(chat_id, [])]
+            [user for chat_id in chat_ids for user in mentioned_users.get(chat_id, [])],
+            bk_tenant_id=bk_tenant_id,
         )
         for chat_id in chat_ids:
             send_content: str = content
@@ -686,7 +688,15 @@ class Sender(BaseSender):
         return send_result
 
     @classmethod
-    def send_wxwork_content(cls, msgtype, content, chat_ids, mentioned_users=None, mentioned_title=None):
+    def send_wxwork_content(
+        cls,
+        msgtype,
+        content,
+        chat_ids,
+        mentioned_users=None,
+        mentioned_title=None,
+        bk_tenant_id: str | None = None,
+    ):
         """
         发送文本类的内容
         """
@@ -703,7 +713,8 @@ class Sender(BaseSender):
 
         send_result = {"errcode": 0, "errmsg": []}
         mention_map = get_wxwork_mention_names(
-            [user for chat_id in chat_ids for user in mentioned_users.get(chat_id, [])]
+            [user for chat_id in chat_ids for user in mentioned_users.get(chat_id, [])],
+            bk_tenant_id=bk_tenant_id,
         )
         for chat_id in chat_ids:
             params = {"msgtype": msgtype, "chatid": chat_id}
@@ -762,15 +773,22 @@ class Sender(BaseSender):
         send_func: Callable[..., dict[str, Any]] = (
             self.send_wxwork_layouts if self._is_wxwork_layouts_enabled else self.send_wxwork_content
         )
+        retry_kwargs = {"bk_tenant_id": self.bk_tenant_id} if self.bk_tenant_id else {}
         retry_params = {
             "api_module": "bkmonitor.utils.send.Sender",
             "resource": send_func.__name__,
             "args": (self.msg_type, self.content, notice_receivers, self.mentioned_users),
-            "kwargs": dict(),
+            "kwargs": retry_kwargs,
         }
         self._check_blocked_and_raise("wxwork_group", retry_params)
         try:
-            response = send_func(self.msg_type, self.content, notice_receivers, self.mentioned_users)
+            response = send_func(
+                self.msg_type,
+                self.content,
+                notice_receivers,
+                self.mentioned_users,
+                bk_tenant_id=self.bk_tenant_id,
+            )
             if response["errcode"] != 0:
                 result = False
                 message = response["errmsg"]

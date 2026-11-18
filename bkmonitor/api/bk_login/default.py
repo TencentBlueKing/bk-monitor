@@ -317,6 +317,7 @@ class BatchQueryUserDisplayInfoResource(BkUserApiResource):
     批量查询用户展示信息
     """
 
+    TIMEOUT = 5
     cache_type = CacheType.USER
     action = "/api/v3/open/tenant/users/-/display_info/"
     method = "GET"

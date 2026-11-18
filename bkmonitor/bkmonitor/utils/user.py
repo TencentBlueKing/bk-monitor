@@ -8,9 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
 import re
+from collections.abc import Iterable
 from functools import lru_cache
+from typing import Any
 
+import requests
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -18,8 +22,9 @@ from bkmonitor.utils.common_utils import chunks
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.common import DEFAULT_TENANT_ID
-from core.errors.api import BKAPIError
 from core.errors.common import UserInfoMissing
+
+logger = logging.getLogger(__name__)
 
 
 LOGIN_NAME_WITH_DISPLAY_NAME_PATTERN = re.compile(r"^([A-Za-z][A-Za-z0-9._-]*)\(")
@@ -132,7 +137,115 @@ def extract_login_name_from_display_name(display_name: str) -> str | None:
     return None
 
 
-def get_wxwork_mention_names(usernames: list[str]) -> dict[str, str]:
+def resolve_biz_tenant_id(bk_biz_id: Any, context_label: str = "") -> str | None:
+    """
+    按业务 ID 解析所属租户 ID（面向无请求/无线程本地租户的后台动作链路）
+
+    契约：
+    1. 单租户模式返回 None（调用方不做跨系统展示名查询）；
+    2. 非零业务 ID 优先走 bk_biz_id_to_bk_tenant_id：成功返回非空租户 ID，
+       若业务 ID 非法、空间不存在或查询异常则记录 warning 并返回 None（由调用方直接回退原标识，
+       不回落 DEFAULT_TENANT_ID 以杜绝跨租户同名账号串值）；
+    3. 全局业务（0 / "0" / 空 / 未绑定业务）跳过 SpaceApi 查询，回退当前请求/本地租户或 DEFAULT_TENANT_ID。
+    """
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return None
+
+    if isinstance(bk_biz_id, int | str) and not isinstance(bk_biz_id, bool) and bk_biz_id != "":
+        try:
+            biz_id = int(bk_biz_id)
+        except (TypeError, ValueError) as error:
+            logger.warning(
+                "invalid bk_biz_id(%s) when resolving bk_tenant_id%s: %s",
+                bk_biz_id,
+                f" for {context_label}" if context_label else "",
+                error,
+            )
+            return None
+
+        if biz_id != 0:
+            from bkmonitor.utils import tenant as tenant_utils
+
+            try:
+                tenant_id = tenant_utils.bk_biz_id_to_bk_tenant_id(biz_id)
+            except Exception as error:
+                logger.warning(
+                    "resolve bk_tenant_id by bk_biz_id(%s) failed%s: %s",
+                    bk_biz_id,
+                    f" for {context_label}" if context_label else "",
+                    error,
+                )
+                return None
+            return tenant_id if isinstance(tenant_id, str) and tenant_id else None
+
+    return get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID
+
+
+def _is_upstream_unavailable_error(error: BaseException) -> bool:
+    """判断是否属网络超时/连接不可达类故障，用于中止后续分块叠加等待"""
+    if isinstance(error, TimeoutError | requests.exceptions.Timeout | requests.exceptions.ConnectionError):
+        return True
+    return "timeout" in str(error).lower() or "timed out" in str(error).lower()
+
+
+def batch_get_user_display_names(
+    usernames: Iterable[Any],
+    bk_tenant_id: str | None = None,
+    *,
+    strict_tenant: bool = False,
+) -> dict[str, str]:
+    """
+    批量获取用户展示名映射（{bk_username: display_name_or_raw}）
+
+    - 单租户模式下恒等返回原用户名映射，不触发远端调用；
+    - 多租户下按 100 人分批调用 batch_query_user_display_info 并固定传入 bk_tenant_id 隔离 CacheType.USER；
+    - strict_tenant=True 时要求传入有效非空 bk_tenant_id，缺失时直接回退原值而不查默认租户；
+    - 每个分块独立捕获异常防止单块脏数据连坐后续分块，遇到超时/连接不可达则提前中止后续分块。
+    """
+    unique_usernames = list(dict.fromkeys(u for u in usernames if isinstance(u, str) and u))
+    if not unique_usernames:
+        return {}
+
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return {u: u for u in unique_usernames}
+
+    if strict_tenant:
+        if not isinstance(bk_tenant_id, str) or not bk_tenant_id:
+            return {u: u for u in unique_usernames}
+        resolved_tenant_id = bk_tenant_id
+    else:
+        resolved_tenant_id = bk_tenant_id or get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID
+
+    from core.drf_resource import api
+
+    display_map: dict[str, str] = {}
+    for username_chunk in chunks(unique_usernames, 100):
+        query_params: dict[str, Any] = {
+            "bk_usernames": username_chunk,
+            "bk_tenant_id": resolved_tenant_id,
+        }
+        try:
+            for user_info in api.bk_login.batch_query_user_display_info(**query_params) or []:
+                if not isinstance(user_info, dict):
+                    continue
+                username = user_info.get("bk_username")
+                display_name = user_info.get("display_name")
+                if isinstance(username, str) and username and isinstance(display_name, str) and display_name:
+                    display_map[username] = display_name
+        except Exception as error:
+            logger.warning(
+                "batch query user display info failed for tenant(%s), chunk_size(%s): %s",
+                resolved_tenant_id,
+                len(username_chunk),
+                error,
+            )
+            if _is_upstream_unavailable_error(error):
+                break
+
+    return {u: display_map.get(u, u) for u in unique_usernames}
+
+
+def get_wxwork_mention_names(usernames: list[str], bk_tenant_id: str | None = None) -> dict[str, str]:
     """将多租户用户 ID 转换为企业微信提醒使用的英文登录名。"""
 
     if not settings.ENABLE_MULTI_TENANT_MODE:
@@ -144,35 +257,62 @@ def get_wxwork_mention_names(usernames: list[str]) -> dict[str, str]:
 
     from core.drf_resource import api
 
-    user_display_info = []
-    try:
-        for username_chunk in chunks(unique_usernames, 100):
-            user_display_info.extend(api.bk_login.batch_query_user_display_info(bk_usernames=username_chunk) or [])
-    except BKAPIError:
-        return {}
+    # 不复用 batch_get_user_display_names：后者在查不到时回落原 UID，
+    # 企业微信 @提醒若把多租户 UID 当登录名会推错人，因此只收录接口真实返回的展示名。
+    resolved_tenant_id = bk_tenant_id or get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID
+    user_display_info: list[dict[str, Any]] = []
+    for username_chunk in chunks(unique_usernames, 100):
+        query_params: dict[str, Any] = {
+            "bk_usernames": username_chunk,
+            "bk_tenant_id": resolved_tenant_id,
+        }
+        try:
+            user_display_info.extend(api.bk_login.batch_query_user_display_info(**query_params) or [])
+        except Exception as error:
+            logger.warning(
+                "batch query user display info for wxwork mention failed for tenant(%s), chunk_size(%s): %s",
+                resolved_tenant_id,
+                len(username_chunk),
+                error,
+            )
+            if _is_upstream_unavailable_error(error):
+                break
 
     mention_names: dict[str, str] = {}
-    for user_info in user_display_info or []:
+    for user_info in user_display_info:
+        if not isinstance(user_info, dict):
+            continue
         username = user_info.get("bk_username")
-        mention_name = extract_login_name_from_display_name(user_info.get("display_name"))
-        if username and mention_name:
+        mention_name = extract_login_name_from_display_name(user_info.get("display_name") or "")
+        if isinstance(username, str) and username and mention_name:
             mention_names[username] = mention_name
 
     return mention_names
 
 
-def get_user_display_name(username: str, bk_tenant_id: str | None = None):
+def get_user_display_name(username: str, bk_tenant_id: str | None = None) -> str:
     """
     获取用户展示名
     """
+    if not isinstance(username, str) or not username:
+        return username
+
+    if "," in username:
+        parts = [part for part in username.split(",") if part]
+        if not parts:
+            return ""
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            return ",".join(parts)
+        # 与 _batch_convert_receivers 保持同一口径：无有效租户时回退原值，不查默认租户
+        display_map = batch_get_user_display_names(parts, bk_tenant_id=bk_tenant_id, strict_tenant=True)
+        return ",".join(display_map.get(part, part) for part in parts)
 
     if settings.ROLE == "web":
         request = get_request(peaceful=True)
         if request:
-            # 仅当查询的是当前请求用户自身时，才使用请求上下文避免额外的数据库查询
-            # 若查询其他用户的展示名（如告警日志中的操作人），需走正常查询路径
+            # 仅当查询的是当前请求用户自身且租户一致时，才使用请求上下文避免额外远程查询
             if getattr(request.user, "username", None) == username and (
-                not bk_tenant_id or getattr(request.user, "tenant_id", None) == bk_tenant_id
+                bk_tenant_id is None or getattr(request.user, "tenant_id", None) == bk_tenant_id
             ):
                 display_name = getattr(request.user, "display_name", None)
                 if isinstance(display_name, str) and display_name:
@@ -181,19 +321,4 @@ def get_user_display_name(username: str, bk_tenant_id: str | None = None):
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return username
 
-    from core.drf_resource import api
-
-    resolved_tenant_id = bk_tenant_id or get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID
-    query_params = {"bk_usernames": [username], "bk_tenant_id": resolved_tenant_id}
-
-    try:
-        user_display_info = api.bk_login.batch_query_user_display_info(**query_params)
-    except BKAPIError:
-        user_display_info = None
-
-    if user_display_info:
-        display_name = user_display_info[0].get("display_name")
-        if isinstance(display_name, str) and display_name:
-            username = display_name
-
-    return username
+    return batch_get_user_display_names([username], bk_tenant_id=bk_tenant_id).get(username, username)

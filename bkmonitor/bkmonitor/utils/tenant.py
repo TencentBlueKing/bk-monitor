@@ -12,7 +12,7 @@ from constants.common import DEFAULT_TENANT_ID
 logger = logging.getLogger(__name__)
 
 
-def set_local_tenant_id(bk_tenant_id: str):
+def set_local_tenant_id(bk_tenant_id: str | None):
     """
     设置当前线程的租户ID
     """

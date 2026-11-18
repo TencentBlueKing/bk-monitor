@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from copy import deepcopy
 from importlib import import_module
+from typing import Any
 
 import jmespath
 from django.conf import settings
@@ -23,7 +24,11 @@ from alarm_backends.service.fta_action import (
 )
 from bkmonitor.models import ActionPlugin
 from bkmonitor.utils.template import Jinja2Renderer, NoticeRowRenderer
-from bkmonitor.utils.user import get_user_display_name
+from bkmonitor.utils.user import (
+    batch_get_user_display_names,
+    get_user_display_name,
+    resolve_biz_tenant_id,
+)
 from constants.action import ActionStatus, FailureType
 from core.drf_resource.exceptions import CustomException
 from core.errors.alarm_backends import EmptyAssigneeError
@@ -139,6 +144,7 @@ class ActionProcessor(BaseActionProcessor):
 
         显式透传给查询接口，确保 CacheType.USER 缓存键按租户隔离，
         并在无 run_action 线程本地租户上下文的场景下按 bk_biz_id 解析租户。
+        非零业务解析失败时返回 None 直接回退原标识，避免落入默认租户串值。
         """
         if not settings.ENABLE_MULTI_TENANT_MODE:
             return None
@@ -148,59 +154,24 @@ class ActionProcessor(BaseActionProcessor):
             return bk_tenant_id
 
         action = getattr(self, "action", None)
-        bk_biz_id = getattr(action, "bk_biz_id", None)
-        if isinstance(bk_biz_id, int | str) and not isinstance(bk_biz_id, bool) and bk_biz_id != "":
-            try:
-                biz_id = int(bk_biz_id)
-                if biz_id != 0:
-                    from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+        return resolve_biz_tenant_id(
+            getattr(action, "bk_biz_id", None),
+            context_label=f"action({getattr(action, 'id', None)})",
+        )
 
-                    return bk_biz_id_to_bk_tenant_id(biz_id)
-            except Exception as error:
-                logger.warning(
-                    "resolve bk_tenant_id by bk_biz_id(%s) failed for action(%s): %s",
-                    bk_biz_id,
-                    getattr(action, "id", None),
-                    error,
-                )
-
-        from bkmonitor.utils.request import get_request_tenant_id
-        from constants.common import DEFAULT_TENANT_ID
-
-        return get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID
-
-    def _batch_convert_assignees(self, assignees, bk_tenant_id: str | None = None):
-        """批量转展示名，查询失败或个别查不到时回退原值"""
-        usernames = list(dict.fromkeys(assignee for assignee in assignees if isinstance(assignee, str) and assignee))
-        if not usernames:
+    def _batch_convert_assignees(self, assignees: list[Any], bk_tenant_id: str | None = None) -> list[str]:
+        """批量转展示名，查询失败、租户解析失败或个别查不到时回退原值"""
+        if not settings.ENABLE_MULTI_TENANT_MODE:
             return [assignee if isinstance(assignee, str) else str(assignee) for assignee in assignees]
 
-        from bkmonitor.utils.common_utils import chunks
-        from core.drf_resource import api
-
-        display_map = {}
-        try:
-            for username_chunk in chunks(usernames, 100):
-                query_params = {"bk_usernames": username_chunk}
-                if bk_tenant_id:
-                    query_params["bk_tenant_id"] = bk_tenant_id
-                for user_info in api.bk_login.batch_query_user_display_info(**query_params) or []:
-                    username, display_name = user_info.get("bk_username"), user_info.get("display_name")
-                    if isinstance(username, str) and username and isinstance(display_name, str) and display_name:
-                        display_map[username] = display_name
-        except Exception as error:
-            logger.warning(
-                "batch convert assignee to display name failed for action(%s): %s",
-                self.action.id,
-                error,
-            )
-
+        resolved_tenant_id = bk_tenant_id if bk_tenant_id is not None else self._get_tenant_id()
+        display_map = batch_get_user_display_names(assignees, bk_tenant_id=resolved_tenant_id, strict_tenant=True)
         return [
             (display_map.get(assignee) or assignee) if isinstance(assignee, str) else str(assignee)
             for assignee in assignees
         ]
 
-    def get_assignee_display_names(self):
+    def get_assignee_display_names(self) -> list[str]:
         """
         获取负责人展示名
 
@@ -215,11 +186,16 @@ class ActionProcessor(BaseActionProcessor):
         if not assignees:
             return []
 
-        bk_tenant_id = self._get_tenant_id()
-        if settings.ENABLE_MULTI_TENANT_MODE and len(assignees) > 1:
-            return self._batch_convert_assignees(assignees, bk_tenant_id)
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = self._get_tenant_id()
+            if not bk_tenant_id:
+                return [assignee if isinstance(assignee, str) else str(assignee) for assignee in assignees]
+            if len(assignees) > 1:
+                return self._batch_convert_assignees(assignees, bk_tenant_id)
+        else:
+            bk_tenant_id = None
 
-        display_names = []
+        display_names: list[str] = []
         for assignee in assignees:
             if not isinstance(assignee, str):
                 display_names.append(str(assignee))

@@ -265,3 +265,53 @@ class TestMultiTenantAndBatchAssignee:
         message = run_with_api_error(processor)
 
         assert "以当前告警负责人[uid_a,uid_b]" in message
+
+    def test_nonzero_biz_tenant_resolution_failure_falls_back_to_raw_without_default_tenant_query(
+        self, monkeypatch, settings
+    ):
+        """非零业务解析租户失败时直接回退原始负责人标识，不查询默认租户防止同名账号串值"""
+        calls = []
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        monkeypatch.setattr(
+            "bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id",
+            MagicMock(side_effect=ValueError("space not found")),
+        )
+        monkeypatch.setattr(
+            "core.drf_resource.api.bk_login.batch_query_user_display_info",
+            lambda **kwargs: calls.append(kwargs) or [{"bk_username": "admin", "display_name": "系统管理员"}],
+        )
+
+        processor = make_processor(["admin", "uid_b"])
+        processor.action.bk_biz_id = 999
+
+        assert processor.get_assignee_display_names() == ["admin", "uid_b"]
+        assert calls == []
+
+    def test_over_100_assignees_chunked_and_single_tenant_skips_batch_api(self, monkeypatch, settings):
+        calls = []
+
+        def _batch(bk_usernames=None, bk_tenant_id=None):
+            calls.append((len(bk_usernames or []), bk_tenant_id))
+            return [{"bk_username": name, "display_name": f"名_{name}"} for name in bk_usernames or []]
+
+        monkeypatch.setattr("core.drf_resource.api.bk_login.batch_query_user_display_info", _batch)
+
+        # 单租户多人：不调批量接口
+        settings.ENABLE_MULTI_TENANT_MODE = False
+        monkeypatch.setattr(f"{MODULE}.get_user_display_name", lambda username, bk_tenant_id=None: username)
+        single_proc = make_processor(["u_1", "u_2"])
+        assert single_proc.get_assignee_display_names() == ["u_1", "u_2"]
+        assert calls == []
+
+        # 多租户 >100 人：去重后按 100 分块
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        assignees = [*(f"u_{i}" for i in range(101)), "u_0"]
+        multi_proc = make_processor(assignees)
+        multi_proc.bk_tenant_id = "tenant_batch"
+        res = multi_proc.get_assignee_display_names()
+
+        assert calls == [(100, "tenant_batch"), (1, "tenant_batch")]
+        assert len(res) == 102
+        assert res[0] == "名_u_0"
+        assert res[100] == "名_u_100"
+        assert res[101] == "名_u_0"

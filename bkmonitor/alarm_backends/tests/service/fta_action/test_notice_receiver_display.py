@@ -38,8 +38,10 @@ def make_action(inputs=None, content_template=LEGACY_TEMPLATE):
     action.signal = ActionSignal.ABNORMAL
     action.is_parent_action = False
     action.action_config = {"name": "通知"}
+    action.action_config_id = 0
     action.action_plugin = {
         "plugin_type": ActionPluginType.NOTICE,
+        "plugin_key": ActionPluginType.NOTICE,
         "config_schema": {"content_template": content_template},
     }
     action.bk_biz_id = 100
@@ -529,10 +531,14 @@ class TestMultiTenantPropagation:
             set_local_tenant_id(saved_tenant)
 
     def test_batch_query_resource_passes_tenant_header_and_isolates_cache_key(self, monkeypatch, settings):
-        """穿透 BatchQueryUserDisplayInfoResource：验证 RequestSerializer 不影响租户头与缓存键隔离"""
-        from api.bk_login.default import BatchQueryUserDisplayInfoResource
+        """穿透真实缓存层与生产 **kwargs 入口：验证同租户命中缓存、跨租户隔离缓存且请求头正确"""
+        from django.core.cache.backends.locmem import LocMemCache
+
+        from core.drf_resource import api
 
         sent_headers = []
+        fake_cache = LocMemCache("test_batch_user_display_cache", {})
+        fake_mem_cache = LocMemCache("test_batch_user_display_mem_cache", {})
 
         class _FakeResponse:
             def __init__(self, payload):
@@ -546,31 +552,76 @@ class TestMultiTenantPropagation:
                 return {"result": True, "code": 0, "data": self._payload}
 
         def _fake_get(self, url, params=None, headers=None, **kwargs):
+            params = params or {}
+            headers = headers or {}
             sent_headers.append((headers.get("X-Bk-Tenant-Id"), params.get("bk_usernames")))
             tenant = headers.get("X-Bk-Tenant-Id")
             return _FakeResponse([{"bk_username": "uid_a", "display_name": f"{tenant}_张三"}])
 
+        # 开启非 development 环境并挂载纯内存缓存后端，使 UsingCache._cached 走真实缓存读写而不依赖 DB
+        monkeypatch.setattr(settings, "ENVIRONMENT", "production")
         settings.ENABLE_MULTI_TENANT_MODE = True
         settings.BK_USER_API_BASE_URL = "https://bk-user.example.com"
+        monkeypatch.setattr("bkmonitor.utils.cache.cache", fake_cache)
+        monkeypatch.setattr("bkmonitor.utils.cache.mem_cache", fake_mem_cache)
         monkeypatch.setattr("bkmonitor.utils.user.get_global_user", lambda **kwargs: "admin")
         monkeypatch.setattr("requests.sessions.Session.get", _fake_get)
+        fake_cache.clear()
+        fake_mem_cache.clear()
 
-        res = BatchQueryUserDisplayInfoResource()
-        key_a = res._using_cache._cache_key(
-            res._cache_target_func, (), {"bk_usernames": ["uid_a"], "bk_tenant_id": "t1"}
-        )
-        key_b = res._using_cache._cache_key(
-            res._cache_target_func, (), {"bk_usernames": ["uid_a"], "bk_tenant_id": "t2"}
-        )
-        assert key_a != key_b
+        try:
+            # 1. 租户 t1 首次查询：穿透发送 HTTP GET 并写入缓存
+            assert api.bk_login.batch_query_user_display_info(bk_usernames=["uid_a"], bk_tenant_id="t1") == [
+                {"bk_username": "uid_a", "display_name": "t1_张三"}
+            ]
+            # 2. 租户 t1 重复查询：命中缓存，不发起第二次 HTTP GET
+            assert api.bk_login.batch_query_user_display_info(bk_usernames=["uid_a"], bk_tenant_id="t1") == [
+                {"bk_username": "uid_a", "display_name": "t1_张三"}
+            ]
+            assert sent_headers == [("t1", "uid_a")]
 
-        assert res.request({"bk_usernames": ["uid_a"], "bk_tenant_id": "t1"}) == [
-            {"bk_username": "uid_a", "display_name": "t1_张三"}
-        ]
-        assert res.request({"bk_usernames": ["uid_a"], "bk_tenant_id": "t2"}) == [
-            {"bk_username": "uid_a", "display_name": "t2_张三"}
-        ]
-        assert sent_headers == [("t1", "uid_a"), ("t2", "uid_a")]
+            # 3. 租户 t2 查询同名用户：缓存键隔离，不命中 t1 缓存，发起新 HTTP GET
+            assert api.bk_login.batch_query_user_display_info(bk_usernames=["uid_a"], bk_tenant_id="t2") == [
+                {"bk_username": "uid_a", "display_name": "t2_张三"}
+            ]
+            assert sent_headers == [("t1", "uid_a"), ("t2", "uid_a")]
+        finally:
+            fake_cache.clear()
+            fake_mem_cache.clear()
+
+    def test_nonzero_biz_tenant_failure_falls_back_to_raw_without_default_tenant_query(self, monkeypatch, settings):
+        """非零业务解析租户失败或非法业务 ID 时直接回退原始 UID，绝不落入 DEFAULT_TENANT_ID 串值"""
+        calls = []
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        monkeypatch.setattr(
+            "bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id",
+            MagicMock(side_effect=ValueError("space archived")),
+        )
+        monkeypatch.setattr(
+            "core.drf_resource.api.bk_login.batch_query_user_display_info",
+            lambda **kwargs: calls.append(kwargs) or [{"bk_username": "admin", "display_name": "系统管理员"}],
+        )
+
+        for bad_biz in (200, "invalid_biz"):
+            single_action = make_action(
+                inputs={"notice_receiver": "admin", "notice_way": "mail"}, content_template=NEW_TEMPLATE
+            )
+            single_action.bk_biz_id = bad_biz
+            assert (
+                single_action.get_content(notice_way_display="邮件", status_display="成功")["text"]
+                == "发送邮件告警通知给admin成功"
+            )
+
+            multi_action = make_action(
+                inputs={"notice_receiver": ["admin", "uid_b"], "notice_way": "mail"}, content_template=NEW_TEMPLATE
+            )
+            multi_action.bk_biz_id = bad_biz
+            assert (
+                multi_action.get_content(notice_way_display="邮件", status_display="成功")["text"]
+                == "发送邮件告警通知给admin,uid_b成功"
+            )
+
+        assert calls == []
 
 
 class TestEdgeAndResilience:
@@ -687,6 +738,135 @@ class TestEdgeAndResilience:
         action = make_action(inputs={"notice_receiver": ["uid_a"], "notice_way": {"invalid": 1}})
         assert action.get_notice_receiver_display(["uid_a"]) == "uid_a"
         assert action.get_notice_receiver_display("uid_a") == "uid_a"
+
+    def test_comma_separated_receiver_and_list_notice_way_supported(self, monkeypatch, settings):
+        """逗号拼接接收人字符串不应截断丢人，列表型 notice_way 正常按首元素识别渠道"""
+        calls = []
+
+        def _batch(bk_usernames=None, bk_tenant_id=None):
+            calls.append((list(bk_usernames or []), bk_tenant_id))
+            mapping = {"uid_a": "张三", "uid_b": "李四", "uid_c": "王五"}
+            return [{"bk_username": u, "display_name": mapping[u]} for u in bk_usernames if u in mapping]
+
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        monkeypatch.setattr("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id", lambda biz_id: "tenant_demo")
+        monkeypatch.setattr("core.drf_resource.api.bk_login.batch_query_user_display_info", _batch)
+
+        # 1. 逗号分隔标量与混合列表
+        action = make_action(
+            inputs={"notice_receiver": "uid_a,uid_b", "notice_way": ["mail"]}, content_template=NEW_TEMPLATE
+        )
+        assert (
+            action.get_content(notice_way_display="邮件", status_display="成功")["text"]
+            == "发送邮件告警通知给张三,李四成功"
+        )
+        assert action.get_notice_receiver_display(["uid_a,uid_b", "uid_c"], notice_way=["mail"]) == "张三,李四,王五"
+
+        # 2. 列表型会话渠道跳过转换，不发起额外请求
+        before_count = len(calls)
+        bot_action = make_action(
+            inputs={"notice_receiver": "chat_1,chat_2", "notice_way": ["wxwork-bot"]}, content_template=NEW_TEMPLATE
+        )
+        assert bot_action.get_notice_receiver_display("chat_1,chat_2") == "chat_1,chat_2"
+        assert len(calls) == before_count
+
+    def test_sharding_prefetch_eliminates_n_plus_1_in_to_document(self, monkeypatch, settings):
+        """分片同步预取：多条单人通知子任务按租户合并为 1 次批量请求，to_document 循环内零额外请求"""
+        from alarm_backends.service.fta_action.utils import prefetch_receiver_display_mappings, to_document
+
+        calls = []
+
+        def _batch(bk_usernames=None, bk_tenant_id=None):
+            calls.append((list(bk_usernames or []), bk_tenant_id))
+            return [{"bk_username": name, "display_name": f"{bk_tenant_id}_{name}"} for name in bk_usernames or []]
+
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        monkeypatch.setattr(
+            "bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id",
+            lambda biz_id: "t1" if int(biz_id) == 100 else "t2",
+        )
+        monkeypatch.setattr("alarm_backends.service.fta_action.utils.bk_biz_id_to_bk_tenant_id", lambda biz_id: "t1")
+        monkeypatch.setattr(
+            "alarm_backends.service.fta_action.utils.get_notice_display_mapping",
+            lambda way: {"mail": "邮件", "sms": "短信", "qy_weixin": "企业微信", "wxwork-bot": "群机器人"}.get(
+                way, way
+            ),
+        )
+        monkeypatch.setattr("alarm_backends.service.fta_action.utils.get_target_info_from_ctx", lambda *a, **kw: {})
+        monkeypatch.setattr("core.drf_resource.api.bk_login.batch_query_user_display_info", _batch)
+
+        # 构造同租户 3 条单人通知子任务 + 1 条群机器人子任务 + 1 条异租户单人子任务
+        a1 = make_action(inputs={"notice_receiver": "u1", "notice_way": "mail"}, content_template=NEW_TEMPLATE)
+        a2 = make_action(inputs={"notice_receiver": "u2", "notice_way": "sms"}, content_template=NEW_TEMPLATE)
+        a3 = make_action(inputs={"notice_receiver": "u1", "notice_way": "qy_weixin"}, content_template=NEW_TEMPLATE)
+        a_bot = make_action(
+            inputs={"notice_receiver": "chat_99", "notice_way": "wxwork-bot"}, content_template=NEW_TEMPLATE
+        )
+        a_t2 = make_action(inputs={"notice_receiver": "u3", "notice_way": "mail"}, content_template=NEW_TEMPLATE)
+        a_t2.bk_biz_id = 200
+        for idx, inst in enumerate((a1, a2, a3, a_bot, a_t2), start=1):
+            inst.id = idx
+            inst.update_time = inst.create_time
+            inst.end_time = inst.create_time
+            inst.strategy_id = 1
+            inst.alert_level = 1
+            inst.alerts = []
+            inst.ex_data = {}
+            inst.assignee = []
+            inst.parent_action_id = 0
+            inst.execute_times = 1
+            inst.failure_type = None
+
+        maps = prefetch_receiver_display_mappings([a1, a2, a3, a_bot, a_t2])
+        assert calls == [(["u1", "u2"], "t1"), (["u3"], "t2")]
+
+        # 进入 to_document 循环后不应再触发任何 batch_query_user_display_info 调用
+        now = datetime.datetime(2026, 11, 12, 9, 40, 0)
+        docs = [to_document(inst, now, receiver_display_maps=maps) for inst in (a1, a2, a3, a_bot, a_t2)]
+        assert len(calls) == 2
+        assert docs[0].content["text"] == "发送邮件告警通知给t1_u1成功"
+        assert docs[1].content["text"] == "发送短信告警通知给t1_u2成功"
+        assert docs[2].content["text"] == "发送企业微信告警通知给t1_u1成功"
+        assert docs[3].content["text"] == "发送群机器人告警通知给chat_99成功"
+        assert docs[4].content["text"] == "发送邮件告警通知给t2_u3成功"
+
+    def test_prefetch_failure_degrades_to_empty_map_without_raising(self, monkeypatch, settings):
+        """预取是纯优化：内部异常必须被吞掉并返回空映射，否则整片 action 的 ES 文档会全部丢失"""
+        from alarm_backends.service.fta_action.utils import prefetch_receiver_display_mappings
+
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        monkeypatch.setattr("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id", lambda biz_id: "t1")
+
+        # 场景 1：批量查询整体抛非超时异常时，内层回退原值但不外溢（不抛即可，内容为原标识）
+        def _boom(*args, **kwargs):
+            raise BKAPIError(system_name="bk-user", url="display_info", result="unexpected")
+
+        monkeypatch.setattr("core.drf_resource.api.bk_login.batch_query_user_display_info", _boom)
+        action = make_action(inputs={"notice_receiver": "u1", "notice_way": "mail"}, content_template=NEW_TEMPLATE)
+        assert prefetch_receiver_display_mappings([action]) == {"t1": {"u1": "u1"}}
+
+        # 场景 2：批量函数本身抛异常时，外层兜底返回空映射而非中断分片
+        monkeypatch.setattr(
+            "alarm_backends.service.fta_action.utils.batch_get_user_display_names",
+            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("prefetch exploded")),
+        )
+        assert prefetch_receiver_display_mappings([action]) == {}
+
+        # 场景 3：单条实例的属性访问抛异常时，仅跳过该条，其余实例仍正常预取
+        calls = []
+
+        def _batch(bk_usernames=None, bk_tenant_id=None, strict_tenant=False):
+            calls.append((list(bk_usernames or []), bk_tenant_id))
+            return {name: f"{bk_tenant_id}_{name}" for name in bk_usernames or []}
+
+        monkeypatch.setattr("alarm_backends.service.fta_action.utils.batch_get_user_display_names", _batch)
+        broken = make_action(inputs={"notice_receiver": "u_bad", "notice_way": "mail"}, content_template=NEW_TEMPLATE)
+        # 只覆盖该实例自身，不影响 healthy 实例
+        broken._need_convert_receiver = lambda notice_way=None: (_ for _ in ()).throw(ValueError("dirty notice_way"))
+        healthy = make_action(inputs={"notice_receiver": "u1", "notice_way": "mail"}, content_template=NEW_TEMPLATE)
+
+        assert prefetch_receiver_display_mappings([broken, healthy]) == {"t1": {"u1": "t1_u1"}}
+        assert calls == [(["u1"], "t1")]
 
 
 class TestBuiltinNoticeTemplate:
