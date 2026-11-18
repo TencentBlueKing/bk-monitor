@@ -32,6 +32,28 @@
         line-height: 20px;
         color: #ea3636;
       }
+
+      // 结束时间 label 后的提示图标
+      .collection-form-label-tip {
+        display: inline-flex;
+        gap: 4px;
+        align-items: center;
+
+        .icon-hint {
+          font-size: 14px;
+        }
+      }
+
+      // 执行周期快捷选项：@blueking/crontab 未内置选中态，按当前 cron 值给命中的标签加蓝色块
+      .collection-cron-editor {
+        // 快捷选项文案是 .bk-crontab-quick-value 的第 1 个子节点，快捷项从第 2 个开始
+        @for $i from 0 through 4 {
+          &.shortcut-active-#{$i} .bk-crontab-quick-value-item:nth-child(#{$i + 2}) {
+            color: #3a84ff;
+            background: #e1ecff;
+          }
+        }
+      }
     }
 
     .collection-advanced {

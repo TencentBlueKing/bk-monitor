@@ -36,10 +36,10 @@ import {
   canRetryExecution,
   canViewExecution,
   executionConfiguration,
-  executionHostMessage,
   executionSelection,
   formatExecutionDuration,
   hostColumnMinWidths,
+  hostErrorTypeMessage,
 } from '../../utils/collection-history';
 import {
   buildHostCollectionPayload,
@@ -274,19 +274,17 @@ export default defineComponent({
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionExecutionHost) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
       if (column.type === 'process_list') return renderHostProcesses(row);
-      // 执行信息优先展示失败原因类型对应的文案，无 error_type 时沿用后端下发的 message
-      if (column.field === 'message') {
-        const message = executionHostMessage(row);
-        return message ? this.t(message) : '--';
-      }
-      if (column.type === 'status')
+      if (column.type === 'status') {
+        const message = hostErrorTypeMessage(row.error_type);
         return (
           <CollectionExecutionStatus
-            class={{ 'has-failure-message': !!row.message && ['failed', 'timeout'].includes(row.status) }}
-            message={row.message}
+            class={{ 'has-failure-message': !!message && ['failed', 'timeout'].includes(row.status) }}
+            message={message ? this.t(message) : ''}
             status={String(value ?? '')}
           />
         );
+      }
+
       if (column.type === 'datetime') return value ? formatCollectionTime(value as number, this.timezone) : '--';
       if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
       return value ? String(value) : '--';
@@ -488,9 +486,16 @@ export default defineComponent({
                             ` · ${detail.config.collector_config.stack_unwind}`}
                         </dd>
                       </div>
-                      <div>
+                      <div class='collection-execution-process-row'>
                         <dt>{this.t('目标进程')}：</dt>
-                        <dd>{processTag || '--'}</dd>
+                        <dd class='collection-execution-process-value'>
+                          <span
+                            class='collection-execution-process-tag'
+                            title={processTag}
+                          >
+                            {processTag || '--'}
+                          </span>
+                        </dd>
                       </div>
                     </dl>
                     <div class='collection-execution-toolbar'>

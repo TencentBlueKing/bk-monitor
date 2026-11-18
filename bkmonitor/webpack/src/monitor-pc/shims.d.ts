@@ -101,6 +101,7 @@ declare global {
     bk_doc_version: string;
     bk_docs_site_url: string;
     bk_domain: string;
+    bk_iam_my_perm_url?: string;
     bk_iam_url?: string;
     bk_job_url: string;
     bk_log_search_url: string;

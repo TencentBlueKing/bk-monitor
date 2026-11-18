@@ -36,6 +36,7 @@ import {
   processCandidateOptions,
   restoreProcessSelection,
 } from '../../utils/collection-history';
+import CollectionFilterSelect from './collection-filter-select';
 import EmptyStatus from '@/components/empty-status/empty-status';
 import { TraceCellSkeleton } from '@/pages/trace-explore/components/trace-explore-skeleton';
 
@@ -48,14 +49,6 @@ import './collection-filters.scss';
 const SEARCH_DEBOUNCE_TIME = 300;
 // 候选加载中的骨架行数，与下拉高度 200px 下的选项行数一致
 const SKELETON_ROWS = 6;
-
-// allowCreate 的触发器输入清空时，Select 会抛出与内部选中态不一致的空 change（handleInputChange 副作用）；
-// 空值先与组件内部 selected 核对（兼容 ref 未解包形态），仅内部也为空才视为真实清空
-function isInternalSelectionEmpty(refs: Record<string, unknown>, name: string) {
-  const raw = (refs[name] as undefined | { selected?: unknown })?.selected;
-  const selected = (raw as undefined | { value?: unknown })?.value ?? raw;
-  return !Array.isArray(selected) || selected.length === 0;
-}
 
 export default defineComponent({
   name: 'CollectionFilters',
@@ -80,6 +73,14 @@ export default defineComponent({
     const targetCandidates = useCollectionCandidates(bizId, range, ['target']);
     const taskCandidates = useCollectionCandidates(bizId, range, ['task_name']);
     const processCandidates = useCollectionCandidates(bizId, range, ['process_names', 'process_pids']);
+    // 触发器回显文案：进程的已选值是被序列化的结构，选项未渲染时组件库会把它原样展示
+    const processOptionLabels = computed(() => {
+      const labels: Record<string, string> = {};
+      for (const option of processCandidateOptions(processCandidates.candidates.value, processes.value)) {
+        labels[option.id] = option.name;
+      }
+      return labels;
+    });
     const searchTargets = useDebounceFn((keyword: string) => targetCandidates.search(keyword), SEARCH_DEBOUNCE_TIME);
     const searchTasks = useDebounceFn((keyword: string) => taskCandidates.search(keyword), SEARCH_DEBOUNCE_TIME);
     const searchProcesses = useDebounceFn((keyword: string) => processCandidates.search(keyword), SEARCH_DEBOUNCE_TIME);
@@ -165,6 +166,7 @@ export default defineComponent({
       targetCandidates,
       taskCandidates,
       processCandidates,
+      processOptionLabels,
       remoteTargets,
       remoteTasks,
       remoteProcesses,
@@ -240,72 +242,54 @@ export default defineComponent({
         <div class='collection-history-filters'>
           <label>
             <span>IP</span>
-            <Select
-              ref='ipSelect'
-              inputSearch={false}
+            <CollectionFilterSelect
               loading={this.targetCandidates.loading.value}
               modelValue={draft.ips}
+              multipleMode='tag'
               remoteMethod={this.remoteTargets}
               scrollLoading={this.targetCandidates.loading.value && !this.targetCandidates.searching.value}
-              allowCreate
-              collapseTags
-              customContent
-              filterable
               multiple
-              onChange={ips => {
-                const next = ips || [];
-                if (next.length || isInternalSelectionEmpty(this.$refs, 'ipSelect')) this.apply({ ips: next });
-              }}
+              onChange={ips => this.apply({ ips: (ips as string[]) || [] })}
               onScroll-end={() => this.targetCandidates.loadMore()}
             >
               {this.targetCandidates.searching.value ? this.renderSkeleton() : targetOptions()}
-            </Select>
+            </CollectionFilterSelect>
           </label>
           <label>
             <span>{this.t('任务')}</span>
-            <Select
-              ref='taskSelect'
-              inputSearch={false}
+            <CollectionFilterSelect
               loading={this.taskCandidates.loading.value}
               modelValue={draft.task_id ? this.taskName : draft.task_name}
               remoteMethod={this.remoteTasks}
               scrollLoading={this.taskCandidates.loading.value && !this.taskCandidates.searching.value}
-              allowCreate
-              customContent
-              filterable
               onChange={value => {
                 // 选择任务名后改为按名称筛选，不再按任务 ID 定位
-                if (value || isInternalSelectionEmpty(this.$refs, 'taskSelect')) {
-                  this.apply({ task_id: null, task_name: String(value || '') });
-                }
+                this.apply({ task_id: null, task_name: String(value || '') });
               }}
               onScroll-end={() => this.taskCandidates.loadMore()}
             >
               {this.taskCandidates.searching.value ? this.renderSkeleton() : taskOptions()}
-            </Select>
+            </CollectionFilterSelect>
           </label>
           <label>
             <span>{this.t('进程')}</span>
-            <Select
-              inputSearch={false}
+            <CollectionFilterSelect
               loading={this.processCandidates.loading.value}
               modelValue={this.processes}
               multipleMode='tag'
+              optionLabels={this.processOptionLabels}
               placeholder={this.t('进程名或 PID')}
               remoteMethod={this.remoteProcesses}
               scrollLoading={this.processCandidates.loading.value && !this.processCandidates.searching.value}
-              allowCreate
-              customContent
-              filterable
               multiple
               onChange={values => {
-                this.processes = values || [];
+                this.processes = (values as string[]) || [];
                 this.apply(parseProcessSelection(this.processes));
               }}
               onScroll-end={() => this.processCandidates.loadMore()}
             >
               {this.processCandidates.searching.value ? this.renderSkeleton() : processOptions()}
-            </Select>
+            </CollectionFilterSelect>
           </label>
           <div class='collection-history-query'>
             <Button

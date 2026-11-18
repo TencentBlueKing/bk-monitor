@@ -125,34 +125,38 @@ export default defineComponent({
               onInput={value => this.searchFunction(String(value))}
             />
           )}
-          <Radio.Group
-            class='profile-direction-modes'
-            disabled={this.mode === 'callgraph'}
-            modelValue={this.direction}
-            type='capsule'
-            onChange={value => {
-              this.$emit('viewChange', { direction: value });
-            }}
-          >
-            <Radio.Button
-              v-tippy={this.t('显示开头')}
-              label='ltr'
+          {this.mode !== 'callgraph' && (
+            <Radio.Group
+              class='profile-direction-modes'
+              modelValue={this.direction}
+              type='capsule'
+              onChange={value => {
+                this.$emit('viewChange', { direction: value });
+              }}
             >
-              <i
-                class='icon-monitor icon-AB'
-                aria-label={this.t('显示开头')}
-              />
-            </Radio.Button>
-            <Radio.Button
-              v-tippy={this.t('显示结尾')}
-              label='rtl'
-            >
-              <i
-                class='icon-monitor icon-YZ'
-                aria-label={this.t('显示结尾')}
-              />
-            </Radio.Button>
-          </Radio.Group>
+              <Radio.Button
+                v-tippy={this.t('显示开头')}
+                label='ltr'
+              >
+                <i
+                  class='icon-monitor icon-AB'
+                  aria-label={this.t('显示开头')}
+                  role='img'
+                />
+              </Radio.Button>
+              <Radio.Button
+                v-tippy={this.t('显示结尾')}
+                label='rtl'
+              >
+                <i
+                  class='icon-monitor icon-YZ'
+                  aria-label={this.t('显示结尾')}
+                  role='img'
+                />
+              </Radio.Button>
+            </Radio.Group>
+          )}
+
           <span
             class='profile-download-trigger'
             v-tippy={this.t(
@@ -271,10 +275,7 @@ export default defineComponent({
               {showFlame && (
                 <div class='profile-flame-pane'>
                   {this.compared && (
-                    <div
-                      class='profile-diff-legend'
-                      aria-label={this.t('差异图例')}
-                    >
+                    <div class='profile-diff-legend'>
                       {this.diffLegend.map(item => (
                         <span
                           key={item.label}

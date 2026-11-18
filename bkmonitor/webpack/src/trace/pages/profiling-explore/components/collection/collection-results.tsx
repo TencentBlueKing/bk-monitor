@@ -37,6 +37,7 @@ import {
   createHistoryFilters,
   formatExecutionDuration,
   hostColumnMinWidths,
+  hostErrorTypeMessage,
   resultStatusLabels,
 } from '../../utils/collection-history';
 import {
@@ -75,6 +76,8 @@ export default defineComponent({
     range: { type: Array as unknown as PropType<SelectionRange>, default: null },
     rangeError: { type: String, default: '' },
     revision: { type: Number, required: true },
+    // 每次查询重新解析时间表达式，使「近 N 分钟/小时」取最新边界
+    resolveRange: { type: Function as PropType<() => SelectionRange>, default: undefined },
     timezone: { type: String, required: true },
     readonly: Boolean,
   },
@@ -95,6 +98,7 @@ export default defineComponent({
       range: computed(() => props.range),
       revision: computed(() => props.revision),
       readonly: computed(() => props.readonly),
+      resolveRange: () => props.resolveRange?.(),
       onCreated: () => emit('created'),
     });
     const c = useCollectionExecution({
@@ -125,15 +129,50 @@ export default defineComponent({
         value.task_name ||
         value.process_names.length ||
         value.process_pids.length ||
-        value.status
+        value.status.length
       );
     });
+    // 执行范围的条件在筛选器中回填展示：列表仍按执行详情查询，条件只在展示层叠加，
+    // 用户改动任一条件即由 patch 退出执行范围并按新条件查询
+    const displayFilters = computed(() => {
+      const execution = props.state.execution;
+      if (!execution) return props.state.filters;
+      const detail = h.executionDetail.value;
+      const ip =
+        props.selection?.scope === 'host'
+          ? detail?.hosts.find(host => host.bk_host_id === props.selection.bk_host_id)?.ip
+          : '';
+      return {
+        ...props.state.filters,
+        task_id: execution.task_id ?? null,
+        task_name: execution.task_id ? '' : detail?.task_name || '',
+        ips: ip ? [ip] : props.state.filters.ips,
+      };
+    });
+    // 按任务 ID 筛选时用于任务下拉回显的任务名：执行详情返回后记住，退出执行范围仍按 ID 筛选就继续回显，清除任务 ID 后丢弃
+    const historyTaskName = shallowRef('');
+    watch(
+      () => [displayFilters.value.task_id, h.executionDetail.value?.task_name || ''] as const,
+      ([taskId, name], previous) => {
+        if (!taskId) {
+          historyTaskName.value = '';
+          return;
+        }
+        // 详情请求会先清空 executionDetail；任务 ID 已变时不能继续显示上一个任务名
+        if (previous && previous[0] !== taskId && !name) {
+          historyTaskName.value = '';
+          return;
+        }
+        if (name) historyTaskName.value = name;
+      }
+    );
     function patch(value: Partial<CollectionResultsState>) {
-      // 筛选实际变化即退出执行范围；否则刷新仍会请求本次执行详情，列表不会按新条件变化
+      // 筛选实际变化即退出执行范围；否则刷新仍会请求本次执行详情，列表不会按新条件变化。
+      // 执行范围的条件由 displayFilters 回填，比较基准必须是展示条件，否则清空筛选会被判定为无变化
       const exitScope =
         !!props.state.execution &&
         !!value.filters &&
-        JSON.stringify(value.filters) !== JSON.stringify(props.state.filters);
+        JSON.stringify(value.filters) !== JSON.stringify(displayFilters.value);
       emit('change', {
         ...(exitScope ? { result: null } : {}),
         results: { ...props.state, ...value, ...(exitScope ? { execution: null } : {}) },
@@ -187,6 +226,8 @@ export default defineComponent({
       tableRows,
       selectedRow,
       filtered,
+      displayFilters,
+      historyTaskName,
       scrollContainer,
       executionBusy,
       patch,
@@ -226,10 +267,17 @@ export default defineComponent({
     const hostColumns = this.state.execution ? h.hostColumns.value : null;
     // 结果列表使用结果侧状态文案，含解析中，与采集任务历史的文案区分
     const statusFilter = {
-      type: 'single' as const,
+      type: 'multiple' as const,
+      resetValue: [],
+      showConfirmAndReset: true,
       list: Object.keys(resultStatusLabels)
         .filter(key => key !== 'parsing')
         .map(value => ({ value, label: this.t(resultStatusLabels[value]) })),
+    };
+    // 状态列 hover 提示：只按 error_type 命中枚举取文案
+    const failureMessage = (errorType?: string): string => {
+      const message = hostErrorTypeMessage(errorType);
+      return message ? this.t(message) : '';
     };
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionHostResult) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
@@ -239,6 +287,7 @@ export default defineComponent({
       if (column.type === 'status')
         return (
           <CollectionExecutionStatus
+            message={failureMessage(row.error_type)}
             status={row.status}
             result
           />
@@ -283,6 +332,7 @@ export default defineComponent({
             filter: statusFilter,
             cell: (_, { row }) => (
               <CollectionExecutionStatus
+                message={failureMessage(row.error_type)}
                 status={row.status}
                 result
               />
@@ -294,30 +344,13 @@ export default defineComponent({
       <section class='collection-tab-panel collection-history-panel collection-results-panel'>
         <CollectionFilters
           bizId={this.bizId}
-          filters={this.state.filters}
+          filters={this.displayFilters}
           range={this.range}
+          taskName={this.historyTaskName}
           autoQuery
           onChange={filters => this.patch({ filters })}
           onRefresh={h.refresh}
         />
-        {this.state.execution && (
-          <div class='collection-results-scope'>
-            <span>{this.t('当前仅显示本次任务执行的采集结果')}</span>
-            <Button
-              v-tippy={this.t('取消当前执行范围，查看所选时间内的全部采集结果')}
-              theme='primary'
-              text
-              onClick={() =>
-                this.$emit('change', {
-                  result: null,
-                  results: { ...this.state, execution: null, filters: createHistoryFilters() },
-                })
-              }
-            >
-              {this.t('查看全部采集结果')}
-            </Button>
-          </div>
-        )}
         {this.rangeError && (
           <Alert
             theme='danger'
@@ -345,10 +378,11 @@ export default defineComponent({
             filterRow={emptyResult ? () => null : undefined}
             filterValue={{ status: this.state.filters.status }}
             hover={!showSkeleton}
+            resizable={true}
             rowKey='resultKey'
             size='small'
             onFilterChange={value =>
-              this.patch({ filters: { ...this.state.filters, status: String(value.status || '') } })
+              this.patch({ filters: { ...this.displayFilters, status: (value.status || []) as string[] } })
             }
           >
             {{

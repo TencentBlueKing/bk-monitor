@@ -44,6 +44,7 @@ import { useAppReadonlyInject } from '@/pages/provider';
 import type {
   CollectionHost,
   CollectionMeta,
+  CollectionPayload,
   CollectionQueryState,
   CollectionTask,
   CollectionTaskColumn,
@@ -70,6 +71,8 @@ export function useProfilingCollection(
   /** 每页条数，取全局统一分页配置（未配置时由 commonPageSizeGet 写入并返回 10） */
   const pageSize = shallowRef(commonPageSizeGet());
   const editing = shallowRef<CollectionTask>();
+  /** 新建采集的回填配置，如从执行快照回填 */
+  const prefill = shallowRef<Omit<CollectionPayload, 'bk_biz_id'>>();
   const editorOpen = shallowRef(false);
   const detailId = shallowRef<number>();
   const deleting = shallowRef<CollectionTask>();
@@ -141,10 +144,12 @@ export function useProfilingCollection(
     }
   }
 
-  function openEditor(task?: CollectionTask) {
+  function openEditor(task?: CollectionTask, prefillValue?: Omit<CollectionPayload, 'bk_biz_id'>) {
     if (readonly || !meta.value) return;
     detailId.value = undefined;
     editing.value = task;
+    // 回填只用于新建，编辑仍以任务本身为准
+    prefill.value = task ? undefined : prefillValue;
     editorOpen.value = true;
   }
 
@@ -223,6 +228,7 @@ export function useProfilingCollection(
       meta.value = undefined;
       busy.value = undefined;
       editorOpen.value = false;
+      prefill.value = undefined;
       detailId.value = undefined;
       deleting.value = undefined;
       executing.value = undefined;
@@ -249,6 +255,7 @@ export function useProfilingCollection(
     filtered,
     rows,
     editing,
+    prefill,
     editorOpen,
     detailId,
     detail,

@@ -87,3 +87,35 @@ class TestSentinelDataConnectionHardening:
             assert call.kwargs["socket_timeout"] >= REDIS_SOCKET_TIMEOUT_FLOOR
             assert call.kwargs["socket_keepalive"] is True
             assert call.kwargs["socket_connect_timeout"] < call.kwargs["socket_timeout"]
+            assert call.kwargs["password"] == "pwd"
+
+
+class TestCacheConfWithRouter:
+    """独立环境变量路由解析：保留父后端 db/socket_timeout，注入连接韧性参数，且不覆盖 URL 密码。"""
+
+    def test_standalone_url_inherits_db_and_resilient_socket_conf(self, monkeypatch):
+        monkeypatch.setenv("REDIS_CACHE_NEW_SERIES_URL", "redis://:p%40ss%3A1%2F2@192.0.2.10:6379")
+        conf = redis_storage.cache_conf_with_router("service-new_series")
+        assert conf["_cache_type"] == "redis"
+        assert conf["host"] == "192.0.2.10"
+        assert conf["port"] == 6379
+        assert conf["password"] == "p@ss:1/2"
+        assert conf["db"] == redis_storage.CACHE_BACKEND_CONF_MAP["service"]["db"]
+        assert conf["socket_timeout"] >= REDIS_SOCKET_TIMEOUT_FLOOR
+        assert conf["socket_keepalive"] is True
+
+    def test_sentinel_url_preserves_url_password_over_default_settings(self, monkeypatch, mocker):
+        monkeypatch.setenv(
+            "REDIS_CACHE_NEW_SERIES_URL",
+            "sentinel://mymaster:url_master_pwd@192.0.2.11;192.0.2.12:26379/url_sentinel_pwd",
+        )
+        mock_sentinel_cls = mocker.patch.object(redis_storage, "Sentinel")
+        mock_sentinel = mock_sentinel_cls.return_value
+        mock_sentinel.sentinels = []
+
+        conf = redis_storage.cache_conf_with_router("service-new_series")
+        conf.pop("_cache_type", None)
+        SentinelRedisCache(conf)
+
+        assert mock_sentinel_cls.call_args.kwargs["sentinel_kwargs"]["password"] == "url_sentinel_pwd"
+        assert mock_sentinel.master_for.call_args.kwargs["password"] == "url_master_pwd"

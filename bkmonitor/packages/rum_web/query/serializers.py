@@ -40,7 +40,7 @@ class FilterSerializer(serializers.Serializer):
     operator = serializers.CharField(label=_("操作符"))
     options = OptionsSerializer(label=_("操作符选项"), default=dict)
     value = serializers.ListSerializer(
-        label=_("查询值"), child=FilterValueCharField(allow_blank=True), allow_empty=True
+        label=_("查询值"), child=FilterValueCharField(allow_blank=True, trim_whitespace=False), allow_empty=True
     )
 
 

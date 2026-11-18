@@ -175,6 +175,11 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
     margin-top: 4px;
     background-color: #fff;
 
+    // 瀑布列表内容远高于容器，需撑高包含块，否则滚到底部时吸顶失效
+    &.is-height-auto {
+      min-height: max-content;
+    }
+
     .bk-tab,
     .bkmv3-tab {
       position: sticky;

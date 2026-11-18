@@ -2038,7 +2038,7 @@ ACTIVE_PROFILING_QUERY_HANDLERS = {
 
 
 class QueryActiveProfilingHostsResource(Resource):
-    """查询主动 Profiling 已采数据：一台主机的一次执行一行"""
+    """查询主动 Profiling 已采数据：一台主机的一次执行一行，返回本页的行 data 与筛选后的总行数 total"""
 
     RequestSerializer = ActiveProfilingListRequestSerializer
 
@@ -2048,7 +2048,7 @@ class QueryActiveProfilingHostsResource(Resource):
 
 
 class ListActiveProfilingExecutionsResource(Resource):
-    """查询主动 Profiling 任务历史：一次执行一行"""
+    """查询主动 Profiling 任务历史：一次执行一行，返回本页的行 data 与筛选后的总行数 total"""
 
     RequestSerializer = ActiveProfilingListRequestSerializer
 

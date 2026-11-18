@@ -183,3 +183,32 @@ def test_validate_new_series_rejects_invalid_threshold(threshold):
     }
     with pytest.raises(ValidationError):
         validate(_attrs([ns], [_qc()]))
+
+
+def test_new_series_max_series_upper_bound():
+    from constants.strategy import MAX_NEW_SERIES_LIMIT
+
+    serializer = NewSeriesSerializer(data={"detect_range": 3600, "max_series": MAX_NEW_SERIES_LIMIT})
+    serializer.is_valid(raise_exception=True)
+    assert serializer.validated_data["max_series"] == MAX_NEW_SERIES_LIMIT
+
+    over_serializer = NewSeriesSerializer(data={"detect_range": 3600, "max_series": MAX_NEW_SERIES_LIMIT + 1})
+    with pytest.raises(ValidationError):
+        over_serializer.is_valid(raise_exception=True)
+
+    ns_over = {
+        "type": "NewSeries",
+        "level": 1,
+        "config": {"detect_range": 86400, "max_series": MAX_NEW_SERIES_LIMIT + 1},
+    }
+    with pytest.raises(ValidationError):
+        validate(_attrs([ns_over], [_qc()]))
+
+
+def test_runtime_detector_tolerates_legacy_over_limit_max_series():
+    from alarm_backends.service.detect.strategy.new_series import NewSeries
+    from constants.strategy import MAX_NEW_SERIES_LIMIT
+
+    # 保存层限制新建/修改，但运行期检测器必须容忍历史已落库的超大 max_series，避免中断存量策略检测
+    detector = NewSeries(config={"detect_range": 3600, "max_series": MAX_NEW_SERIES_LIMIT + 1})
+    assert detector.max_series == MAX_NEW_SERIES_LIMIT + 1

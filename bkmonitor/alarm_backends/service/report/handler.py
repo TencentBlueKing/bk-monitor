@@ -204,7 +204,9 @@ class ReportHandler:
         receivers = []
         if not item_receivers:
             item_receivers = ReportItems.objects.get(pk=self.item_id, bk_tenant_id=self.bk_tenant_id).receivers
-        groups_data = api.monitor.group_list()
+        groups_data = []
+        if any(receiver["is_enabled"] and receiver["type"] == StaffChoice.group for receiver in item_receivers):
+            groups_data = api.monitor.group_list()
         # 先解析组，再解析人，去掉is_enabled=False的人员
         # 只有开启了订阅的人才需要接收邮件
         for receiver in item_receivers:
@@ -283,7 +285,6 @@ class ReportHandler:
             return var_bk_biz_ids
 
         var_bk_biz_ids = graph_info[0].split(",")
-        setting_notify_group_data = MailReportCacheManager().fetch_groups_and_user_bizs()
 
         if len(var_bk_biz_ids) > 1:
             # 如果是多选业务的内置指标
@@ -293,12 +294,14 @@ class ReportHandler:
             bk_biz_id = int(settings.MAIL_REPORT_BIZ)
             var_bk_biz_ids = handle_superuser(user_bizs)
         elif BuildInBizType.SETTINGS in var_bk_biz_ids:
+            setting_notify_group_data = MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
             # 内置指标-配置管理员组
             bk_biz_id = int(settings.MAIL_REPORT_BIZ)
             var_bk_biz_ids = handle_superuser(
                 setting_notify_group_data["controller_group"]["users_biz"].get(receivers[0], [])
             )
         elif BuildInBizType.NOTIFY in var_bk_biz_ids:
+            setting_notify_group_data = MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
             # 内置指标-告警接收组
             bk_biz_id = int(settings.MAIL_REPORT_BIZ)
             var_bk_biz_ids = handle_superuser(
@@ -595,7 +598,8 @@ class ReportHandler:
         :return: 分组结果 {"ALL-bk_biz_id1,bk_biz_id2-SETTINGS-bk_biz_id1": {user1, user2}}
         """
         send_groups = defaultdict(set)
-        setting_notify_group_data = api.monitor.get_setting_and_notify_group()
+        if all_user_different_graph[BuildInBizType.SETTINGS] or all_user_different_graph[BuildInBizType.NOTIFY]:
+            setting_notify_group_data = MailReportCacheManager.fetch_groups_and_user_bizs(ensure=True)
         for receiver in receivers:
             tag_string = ""  # 用户各类业务串的唯一标志
             if not receiver or len(receiver) == 32 or "webhook(" in receiver:

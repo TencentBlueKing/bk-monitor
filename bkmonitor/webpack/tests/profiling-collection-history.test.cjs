@@ -109,7 +109,11 @@ test('结果链接和历史筛选能恢复，立即执行不能混入任务 ID',
     ips: ['192.0.2.1'], task_id: 7, task_name: '', process_names: ['worker'], process_pids: ['22'], schedule_types: [], status: 'failed',
   };
   const restored = restoreCollectionQuery(JSON.parse(JSON.stringify({ tab: 'results', history, result })));
-  assert.deepEqual(restored.history, history);
+  // 历史存储里的单值字符串状态恢复后统一成数组
+  assert.deepEqual(restored.history, { ...history, status: ['failed'] });
+  // 非法状态值被丢弃，数组里的合法值保留
+  assert.deepEqual(restoreCollectionQuery({ history: { ...history, status: 'legacy' } }).history.status, []);
+  assert.deepEqual(restoreCollectionQuery({ history: { ...history, status: ['failed', 'legacy', 1] } }).history.status, ['failed']);
   // 任务 ID 与任务名互斥：按 ID 定位时丢弃名称关键词，非法 ID 退回按名称筛选
   assert.equal(restoreCollectionQuery({ history: { ...history, task_name: 'cpu' } }).history.task_name, '');
   assert.equal(restoreCollectionQuery({ history: { ...history, task_id: -1 } }).history.task_id, null);

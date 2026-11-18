@@ -29,6 +29,7 @@ import { Alert, Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  CollectionMethodEnum,
   collectionMethodLabels,
   collectionTypeLabels,
   formatCollectionTime,
@@ -121,13 +122,13 @@ export default defineComponent({
             {row('采集类型', collectionTypeLabels[task.collection_type])}
             {task.collector_config.duration_sec !== undefined &&
               row('采集时长', `${task.collector_config.duration_sec}${this.t('秒')}`)}
-            {task.collection_method === 'golang' && (
+            {task.collection_method === CollectionMethodEnum.GOLANG && (
               <>
                 {row('采集地址', task.collector_config.ip_address)}
                 {row('端口', task.collector_config.port)}
               </>
             )}
-            {task.collection_method === 'perf' && (
+            {task.collection_method === CollectionMethodEnum.PERF && (
               <>
                 {row(
                   '采样频率',
@@ -136,7 +137,8 @@ export default defineComponent({
                 {row('栈展开方式', task.collector_config.stack_unwind)}
               </>
             )}
-            {selector &&
+            {task.collection_method !== CollectionMethodEnum.GOLANG &&
+              selector &&
               row(
                 '目标进程',
                 <span

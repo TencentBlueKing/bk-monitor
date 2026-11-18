@@ -2,6 +2,7 @@
 
 from apm_web.llm.resources import CalculateByRangeResource as LLMCalculateByRangeResource
 from apm_web.llm.resources import ListFlowsResource as LLMListFlowsResource
+from apm_web.llm.resources import ListSpansResource as LLMListSpansResource
 from apm_web.llm.resources import ListTracesResource as LLMListTracesResource
 from apm_web.metric.resources import CalculateByRangeResource
 from apm_web.service.resources import ServiceListResource
@@ -25,5 +26,6 @@ class MCPViewSet(ResourceViewSet):
         ResourceRoute("POST", CalculateByRangeResource, endpoint="calculate_by_range"),
         ResourceRoute("POST", LLMListTracesResource, endpoint="llm_mcp_search_traces"),
         ResourceRoute("POST", LLMListFlowsResource, endpoint="llm_mcp_search_flows"),
+        ResourceRoute("POST", LLMListSpansResource, endpoint="llm_mcp_search_spans"),
         ResourceRoute("POST", LLMCalculateByRangeResource, endpoint="llm_mcp_calculate_by_range"),
     ]
