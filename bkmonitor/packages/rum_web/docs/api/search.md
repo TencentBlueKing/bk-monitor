@@ -2073,6 +2073,91 @@ POST /rum/search/timeline/
 | 筛选：请求 | `origin_data.attributes.resource.type` | 取值为 `xhr` 或 `fetch` |
 | 筛选：错误 | `origin_data.attributes.span_type`<br />`origin_data.attributes.outcome.type` | 任一取值为 `error` |
 
+### 2.13 total - 检索结果总数
+
+POST /rum/search/total/
+
+**请求**
+
+```json
+{
+  "bk_biz_id": 2, "app_name": "rum-demo", "mode": "span",
+  "start_time": 1785999600, "end_time": 1785999720,
+  "filters": [], "query_string": ""
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `bk_biz_id` | Integer | 是 | 业务 ID |
+| `app_name` | String | 是 | 应用名称 |
+| `mode` | String | 否 | `span`、`view`、`session`，默认 `span` |
+| `start_time` | Integer | 是 | 开始时间，Unix 秒时间戳 |
+| `end_time` | Integer | 是 | 结束时间，Unix 秒时间戳 |
+| `filters` | Array[Filter] | 否 | 见 [Filter](#11-filter)，默认 `[]` |
+| `query_string` | String | 否 | 查询字符串，默认 `""` |
+
+- *[1] 与 `list_records` 使用相同的应用权限、时间范围和筛选条件，计数不受分页参数影响。*
+
+**响应**
+
+```json
+{"total": 12}
+```
+
+| `mode` | `total` 计数对象 | `time_series` 分组 |
+| --- | --- | --- |
+| `span` | 匹配的原始 Span 记录 | 按 `attributes.span_type` 分组 |
+| `view` | 匹配记录中的 `attributes.view.id` 去重数 | 单个 View 系列 |
+| `session` | 匹配记录中的 `attributes.session.id` 去重数 | 单个 Session 系列 |
+
+- *[1] `total` 为整数，无匹配结果时为 `0`。*
+- *[2] View、Session 在原始表上按非空 ID 去重，包含命中筛选的子 Span，不要求生命周期开始记录存在；配置预聚合表时查询对应层级表。*
+
+### 2.14 time_series - 检索结果趋势
+
+POST /rum/search/time_series/
+
+**请求**
+
+```json
+{
+  "bk_biz_id": 2, "app_name": "rum-demo", "mode": "span",
+  "start_time": 1785999600, "end_time": 1785999720,
+  "filters": [], "query_string": "", "interval": 60
+}
+```
+
+- *[1] 公共参数见 [total](#213-total---检索结果总数)，`interval` 为可选的正整数，单位为秒；省略时按查询窗口计算，最小为 `60 s`。*
+
+**响应**
+
+```json
+{
+  "series": [
+    {
+      "dimensions": {"attributes.span_type": "resource"}, "target": "count(_index){attributes.span_type=resource}",
+      "datapoints": [[6, 1785999600000], [4, 1785999660000]],
+      "metric_field": "_result_", "alias": "_result_", "stat": {},
+      "type": "bar", "dimensions_translation": {}, "unit": ""
+    },
+    {
+      "dimensions": {"attributes.span_type": "error"}, "target": "count(_index){attributes.span_type=error}",
+      "datapoints": [[1, 1785999600000], [1, 1785999660000]],
+      "metric_field": "_result_", "alias": "_result_", "stat": {},
+      "type": "bar", "dimensions_translation": {}, "unit": ""
+    }
+  ],
+  "metrics": [],
+  "query_config": {"interval": 60}
+}
+```
+
+- *[1] `series` 沿用 [Series 协议](#272-response)，`datapoints` 为 `[数量, 毫秒时间戳]`，`query_config.interval` 返回实际分桶秒数。*
+- *[2] Span 按 `attributes.span_type` 分组；View、Session 不分组，`dimensions` 为 `{}`。*
+- *[3] View、Session 在每个时间桶内独立去重，同一 ID 可出现在多个桶中；整段时间的去重总数以 `total` 接口为准，不能将各桶相加。*
+- *[4] 原始表按 `end_time` 分桶，预聚合表按 `start_time` 分桶；序列内的空数据点补 `0`，无匹配序列时 `series` 为 `[]`。*
+
 ## 3 详情页关联数据获取
 
 ### 3.1 Action

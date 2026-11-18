@@ -12,6 +12,7 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from bkmonitor.data_source.utils.base import get_bar_interval_number
 from bkmonitor.utils.time_tools import TIME_ABBREVIATION_MATCH
 from rum_web.constants import RumQueryMode, RumGroupName
 from constants.apm import OperatorGroupRelation
@@ -90,6 +91,16 @@ class RumRecordsRequestSerializer(BaseRumSearchSerializer):
     offset = serializers.IntegerField(label=_("偏移量"), default=0, min_value=0)
     limit = serializers.IntegerField(label=_("每页数量"), default=10, min_value=1)
     sort = serializers.ListField(label=_("排序条件"), child=serializers.CharField(), default=list)
+
+
+class RumTimeSeriesRequestSerializer(BaseRumSearchSerializer):
+    interval = serializers.IntegerField(label=_("时间分桶间隔（秒）"), required=False, min_value=1)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        attrs["interval"] = attrs.get("interval") or get_bar_interval_number(attrs["start_time"], attrs["end_time"])
+        attrs["group_by"] = ["attributes.span_type"] if attrs["mode"] == RumQueryMode.SPAN.value else []
+        return attrs
 
 
 class RumFieldsOptionValuesRequestSerializer(BaseRumSearchSerializer):
