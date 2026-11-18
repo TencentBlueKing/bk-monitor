@@ -3104,32 +3104,34 @@ class CalculateByRangeResourceTestCase(TestCase):
             },
         )
 
-    def test_langfuse_interval_buckets_locally_and_preserves_zero_usage(self):
-        """本地分桶存在样本时真实 0 值桶必须保留，不能被当成空桶丢弃。"""
+    def test_langfuse_interval_buckets_by_end_time_and_preserves_zero_usage(self):
+        """本地分桶与窗口过滤统一使用 end_time，跨窗口起点的长调用不会落到窗口外，且有样本的 0 值桶会被保留。"""
         from bkmonitor.utils.time_tools import time_interval_align
 
         query = make_query()
-        start_time = 1700086400
+        start_time = time_interval_align(1700086400, 60)
         end_time = start_time + 3600
-        aligned_bucket = time_interval_align(start_time, 60)
 
         def fetch_values(_queries, shifted_start, _shifted_end, fields, _limit):
-            self.assertEqual(fields, ["attributes.langfuse.observation.usage_details", "start_time"])
+            self.assertEqual(fields, ["attributes.langfuse.observation.usage_details", "end_time"])
             if shifted_start == start_time:
                 return [
+                    # T-15s 开始、T+10s 结束的跨起点调用应落入 T 桶而非 T-60s 桶，且 0 缓存读取不能被当成空桶丢弃
                     {
                         "attributes.langfuse.observation.usage_details": '{"input": 10, "cache_read_input_tokens": 0}',
-                        "start_time": aligned_bucket * 1_000_000,
+                        "start_time": (start_time - 15) * 1_000_000,
+                        "end_time": (start_time + 10) * 1_000_000,
                     },
                     {
                         "attributes.langfuse.observation.usage_details": '{"input": 8, "cache_read_input_tokens": 0}',
-                        "start_time": (aligned_bucket + 20) * 1_000_000,
+                        "start_time": (start_time + 20) * 1_000_000,
+                        "end_time": (start_time + 30) * 1_000_000,
                     },
                 ]
             return [
                 {
                     "attributes.langfuse.observation.usage_details": '{"input": 5, "cache_read_input_tokens": 0}',
-                    "start_time": (aligned_bucket - 86400 + 10) * 1_000_000,
+                    "end_time": (start_time - 86400 + 15) * 1_000_000,
                 }
             ]
 
@@ -3153,7 +3155,7 @@ class CalculateByRangeResourceTestCase(TestCase):
                 "total": 1,
                 "data": [
                     {
-                        "dimensions": {"time": aligned_bucket},
+                        "dimensions": {"time": start_time},
                         "0s": 0.0,
                         "1d": 0.0,
                         "growth_rates": {"0s": 0, "1d": 0},

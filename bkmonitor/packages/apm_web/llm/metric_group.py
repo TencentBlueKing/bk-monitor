@@ -405,11 +405,15 @@ class LLMMetricGroup(base.BaseMetricGroup):
         if self._is_local_aggregation(aggregation):
             if is_time_bucketed and resolved_interval is not None:
                 bucket_totals: dict[tuple[tuple, int], float] = defaultdict(float)
-                for record in self._usage_records(aggregation.layer, shifted_start, shifted_end, (OtlpKey.START_TIME,)):
+                # _usage_records 沿用 SpanQuery.DEFAULT_TIME_FIELD=end_time 过滤窗口，分桶必须使用同一时间轴
+                for record in self._usage_records(aggregation.layer, shifted_start, shifted_end, (OtlpKey.END_TIME,)):
                     key: tuple = self._dimension_key(record)
                     if self._should_drop_operation_dimension(key):
                         continue
-                    seconds: int = (record.get(OtlpKey.START_TIME) or 0) // MICROSECONDS_PER_SECOND
+                    end_us: int | None = record.get(OtlpKey.END_TIME)
+                    if end_us is None:
+                        continue
+                    seconds: int = end_us // MICROSECONDS_PER_SECOND
                     bucket_ms: int = (
                         time_interval_align(seconds, resolved_interval) * MILLISECONDS_PER_SECOND - bucket_delta_ms
                     )
