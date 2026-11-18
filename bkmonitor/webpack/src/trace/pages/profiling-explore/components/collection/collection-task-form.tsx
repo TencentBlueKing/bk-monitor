@@ -59,8 +59,13 @@ const getNextZIndex = () =>
   (window as unknown as { __bk_zIndex_manager?: { nextZIndex?: () => number } }).__bk_zIndex_manager?.nextZIndex?.() ||
   2000;
 
-/** 时间快捷项相对当前时间的偏移，单位为分钟 */
-const TIME_SHORTCUT_OFFSET_MINUTES = [5, 10, 60];
+/** 时间快捷项，按任务时区的日历单位相对当前时间偏移 */
+const TIME_SHORTCUTS = [
+  { text: '一天', amount: 1, unit: 'day' },
+  { text: '一周', amount: 1, unit: 'week' },
+  { text: '一个月', amount: 1, unit: 'month' },
+  { text: '半年', amount: 6, unit: 'month' },
+] as const;
 
 /** 采集任务新建 / 编辑侧栏表单 */
 export default defineComponent({
@@ -139,16 +144,20 @@ export default defineComponent({
       form.patch({ [key]: selectedDate?.valueOf() ?? null });
     };
     /**
-     * @description 构建时间快捷项，点击后按当前时间偏移直接写入草稿
+     * @description 构建时间快捷项，点击后按当前时间做日历偏移直接写入草稿；结束时间取目标日末尾
      * 只给 onClick 不给 value：单选面板（type=datetime）下 value 返回数组会被组件再包一层导致回填异常，
-     * 直接写草稿也避开了 change 事件里 type=date 时结束时间被改成当日 23:59:59 的处理
+     * 直接写草稿可自行控制口径，结束时间与 change 事件里 type=date 的处理保持一致
      * @param key 目标字段，结束时间 / 执行时间 / 开始时间
      * @returns 日期选择器的 shortcuts 配置
      */
     const timeShortcuts = (key: 'endAt' | 'executeAt' | 'startAt') =>
-      TIME_SHORTCUT_OFFSET_MINUTES.map(minutes => ({
-        text: minutes < 60 ? t('{n} 分钟后', { n: minutes }) : t('{n} 小时后', { n: minutes / 60 }),
-        onClick: () => form.patch({ [key]: Date.now() + minutes * 60 * 1000 }),
+      TIME_SHORTCUTS.map(({ text, amount, unit }) => ({
+        text: t(text),
+        onClick: () => {
+          const target = dayjs().tz(form.draft.value.timezone).add(amount, unit);
+          const value = key === 'endAt' ? target.endOf('day').millisecond(0).valueOf() : target.valueOf();
+          form.patch({ [key]: value });
+        },
       }));
     return {
       t,
@@ -202,7 +211,6 @@ export default defineComponent({
         disabledDate={date => dayjs(date).isBefore(todayStart.format('YYYY-MM-DD'), 'day')}
         modelValue={d[key] ? formatCollectionTime(d[key], d.timezone) : ''}
         placeholder={this.t('请选择日期时间')}
-        shortcutClose={true}
         shortcuts={this.timeShortcuts(key)}
         type='datetime'
         onChange={(value, type) => this.changeDate(key, value as string, type)}
@@ -524,7 +532,22 @@ export default defineComponent({
                           {fieldError('startAt')}
                         </Form.FormItem>
                         <Form.FormItem
-                          label={this.t('结束时间')}
+                          v-slots={{
+                            label: () => (
+                              <span class='collection-form-label-tip'>
+                                {this.t('结束时间')}
+                                {!this.task && (
+                                  <i
+                                    class='icon-monitor icon-hint'
+                                    v-tippy={{
+                                      content: this.t('默认1个月，如需更长，可手动调整结束时间'),
+                                      theme: 'dark',
+                                    }}
+                                  />
+                                )}
+                              </span>
+                            ),
+                          }}
                           required
                         >
                           {dateField('endAt')}

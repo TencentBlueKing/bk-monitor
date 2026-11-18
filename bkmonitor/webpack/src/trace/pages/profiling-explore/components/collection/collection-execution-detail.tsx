@@ -486,9 +486,16 @@ export default defineComponent({
                             ` · ${detail.config.collector_config.stack_unwind}`}
                         </dd>
                       </div>
-                      <div>
+                      <div class='collection-execution-process-row'>
                         <dt>{this.t('目标进程')}：</dt>
-                        <dd>{processTag || '--'}</dd>
+                        <dd class='collection-execution-process-value'>
+                          <span
+                            class='collection-execution-process-tag'
+                            title={processTag}
+                          >
+                            {processTag || '--'}
+                          </span>
+                        </dd>
                       </div>
                     </dl>
                     <div class='collection-execution-toolbar'>
