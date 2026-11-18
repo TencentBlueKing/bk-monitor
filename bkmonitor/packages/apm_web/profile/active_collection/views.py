@@ -12,6 +12,7 @@ from apm_web.decorators import user_visit_record
 from apm_web.profile.active_collection.resources import (
     ActiveProfilingMetaConfigResource,
     CancelExecutionResource,
+    CheckPluginVersionResource,
     DeleteTaskResource,
     EditTaskResource,
     EnableActiveCollectionResource,
@@ -62,7 +63,10 @@ class TasksViewSet(ActiveProfilingViewSet):
 
 
 class HostsViewSet(ActiveProfilingViewSet):
-    resource_routes = [ResourceRoute("POST", QueryHostsResource, endpoint="query", decorators=[user_visit_record])]
+    resource_routes = [
+        ResourceRoute("POST", QueryHostsResource, endpoint="query", decorators=[user_visit_record]),
+        ResourceRoute("POST", CheckPluginVersionResource, endpoint="check_plugin_version"),
+    ]
 
 
 class ExecutionsListViewSet(ActiveProfilingViewSet):

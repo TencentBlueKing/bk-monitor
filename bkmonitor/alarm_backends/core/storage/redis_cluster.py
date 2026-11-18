@@ -353,8 +353,14 @@ def routing_snapshot():
 
 
 @contextmanager
-def routed_client(proxy: RedisProxy, key):
-    """取得 key 当前路由节点的原生客户端，供 WATCH/MULTI 等不能经过 PipelineProxy 的原子事务使用。"""
+def routed_client(proxy, key):
+    """取得 key 当前路由节点的原生客户端，供 WATCH/MULTI 等不能经过 PipelineProxy 的原子事务使用。
+
+    当 proxy 为单实例 Cache（如显式配置了独立 URL 的 service-new_series）时直接返回，跳过按 strategy_id 分片。
+    """
+    if not isinstance(proxy, RedisProxy):
+        yield proxy
+        return
     with routing_snapshot():
         strategy_id = proxy.strategy_id_from_key(key)
         node = get_node_by_strategy_id(strategy_id)

@@ -67,7 +67,7 @@ export default defineComponent({
     return (
       <span
         class='collection-execution-status'
-        v-tippy={{ content: this.message, allowHTML: false, onShow: () => !!this.message }}
+        v-bk-tooltips={{ content: this.message, allowHTML: false, disabled: !this.message }}
       >
         {['running', 'parsing'].includes(this.status) ? (
           <span class='collection-execution-running'>

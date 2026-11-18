@@ -1,0 +1,24 @@
+.param-prepend-text {
+  padding: 0 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 30px;
+  white-space: nowrap;
+
+  &.required {
+    position: relative;
+
+    &::after {
+      position: absolute;
+      top: -1px;
+      right: 7px;
+      color: red;
+      content: '*';
+    }
+  }
+}
+
+.param-prepend-content {
+  color: #fff;
+}

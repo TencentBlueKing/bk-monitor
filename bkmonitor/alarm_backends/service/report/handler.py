@@ -204,7 +204,9 @@ class ReportHandler:
         receivers = []
         if not item_receivers:
             item_receivers = ReportItems.objects.get(pk=self.item_id, bk_tenant_id=self.bk_tenant_id).receivers
-        groups_data = api.monitor.group_list()
+        groups_data = []
+        if any(receiver["is_enabled"] and receiver["type"] == StaffChoice.group for receiver in item_receivers):
+            groups_data = api.monitor.group_list()
         # 先解析组，再解析人，去掉is_enabled=False的人员
         # 只有开启了订阅的人才需要接收邮件
         for receiver in item_receivers:

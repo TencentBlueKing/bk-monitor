@@ -29,6 +29,8 @@ import BkCrontab from '@blueking/crontab';
 import { useI18n } from 'vue-i18n';
 import { Tippy } from 'vue-tippy';
 
+import { CRON_SHORTCUTS } from '../../utils/collection';
+
 import '@blueking/crontab/vue3/vue3.css';
 
 // bk-weweb 把子应用挂在 Shadow DOM 中。input 派发结束后，event.target 会指向宿主节点，
@@ -41,6 +43,10 @@ function pinShadowInputTarget(event: Event) {
     get: () => input,
   });
 }
+
+/** 归一化 cron 空格后匹配快捷项索引，未命中返回 -1 */
+const matchShortcut = (value: string) =>
+  CRON_SHORTCUTS.findIndex(item => item.value === value.trim().replace(/\s+/g, ' '));
 
 export default defineComponent({
   name: 'CollectionCrontab',
@@ -55,12 +61,15 @@ export default defineComponent({
     const editor = shallowRef<InstanceType<typeof BkCrontab>>();
     const editorValue = shallowRef(props.value);
     const editorKey = shallowRef(0);
+    /** 当前 cron 值命中的快捷项索引，-1 表示自定义值 */
+    const activeShortcutIndex = shallowRef(matchShortcut(props.value));
     let currentValue = props.value;
     watch(
       () => props.value,
       value => {
         if (value === currentValue) return;
         currentValue = value;
+        activeShortcutIndex.value = matchShortcut(value);
         editorValue.value = value;
         editorKey.value += 1;
       }
@@ -68,6 +77,7 @@ export default defineComponent({
     function handleChange(value: string) {
       // 组件会合并连续空格，避免将自身 change 值回写到输入框，打断正在编辑的文本和光标。
       currentValue = value;
+      activeShortcutIndex.value = matchShortcut(value);
       emit('change', value);
     }
     async function validate() {
@@ -75,7 +85,7 @@ export default defineComponent({
       await new Promise(resolve => setTimeout(resolve, 120));
       return !!editor.value && !(await editor.value.validate());
     }
-    return { t, locale, editor, editorValue, editorKey, handleChange, validate };
+    return { t, locale, editor, editorValue, editorKey, activeShortcutIndex, handleChange, validate };
   },
   render() {
     const local = this.locale === 'en' ? 'en' : 'zh-CN';
@@ -106,16 +116,13 @@ export default defineComponent({
         <BkCrontab
           key={this.editorKey}
           ref='editor'
-          class='collection-cron-editor'
-          shortcuts={[
-            { label: this.t('每分钟'), value: '* * * * *' },
-            { label: this.t('每小时'), value: '0 * * * *' },
-            { label: this.t('每天'), value: '0 0 * * *' },
-            { label: this.t('每周'), value: '0 0 * * 1' },
-            { label: this.t('每月'), value: '0 0 1 * *' },
+          class={[
+            'collection-cron-editor',
+            this.activeShortcutIndex >= 0 ? `shortcut-active-${this.activeShortcutIndex}` : '',
           ]}
           local={local}
           modelValue={this.editorValue}
+          shortcuts={CRON_SHORTCUTS.map(({ label, value }) => ({ label: this.t(label), value }))}
           onChange={this.handleChange}
         />
       </div>

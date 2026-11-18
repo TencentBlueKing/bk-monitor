@@ -61,8 +61,6 @@ export const collectionMethodLabels: Record<CollectionMethod, string> = {
   [CollectionMethodEnum.GOLANG]: 'Go',
   [CollectionMethodEnum.JAVA]: 'Java',
 };
-/** 周期任务结束时间的默认年份，未由任务回填时取该时区的这一年最后时刻 */
-const DEFAULT_END_YEAR = 2099;
 /** 采集类型对应的展示名 */
 export const collectionTypeLabels = {
   native_cpu: 'Native CPU',
@@ -71,6 +69,22 @@ export const collectionTypeLabels = {
   java_cpu: 'Java CPU',
   java_allocation: 'Java Allocation',
 };
+/** 周期执行快捷项对应的 cron 值 */
+export const ShortcutCronEnum = {
+  EVERY_DAY: '0 0 * * *',
+  EVERY_HOUR: '0 * * * *',
+  EVERY_MINUTE: '* * * * *',
+  EVERY_MONTH: '0 0 1 * *',
+  EVERY_WEEK: '0 0 * * 1',
+} as const;
+/** 执行周期快捷项单一数据源：文案 key 与 cron 值只在此定义，顺序即快捷项渲染顺序 */
+export const CRON_SHORTCUTS = [
+  { label: '每分钟', value: ShortcutCronEnum.EVERY_MINUTE },
+  { label: '每小时', value: ShortcutCronEnum.EVERY_HOUR },
+  { label: '每天', value: ShortcutCronEnum.EVERY_DAY },
+  { label: '每周', value: ShortcutCronEnum.EVERY_WEEK },
+  { label: '每月', value: ShortcutCronEnum.EVERY_MONTH },
+] as const;
 /** 调度方式对应的展示名 */
 export const scheduleLabels = { immediate: '立即执行', once_at: 'trace-指定时间', cron: '周期执行' };
 /** 进程匹配方式对应的展示名 */
@@ -207,10 +221,14 @@ export const collectionFieldError = (field: CollectionFieldKey, message: string)
  * @description 按采集元信息构建表单草稿，传入 task 时回填为编辑态
  * @param meta 采集能力元信息，提供可选方式、类型及默认配置
  * @param timezone 默认时区，任务未指定时区时兜底
- * @param task 待编辑的采集任务，缺省表示新建
+ * @param task 回填来源，待编辑的采集任务或执行配置快照，缺省表示新建
  * @returns 采集表单草稿
  */
-export function createCollectionDraft(meta: CollectionMeta, timezone: string, task?: CollectionTask): CollectionDraft {
+export function createCollectionDraft(
+  meta: CollectionMeta,
+  timezone: string,
+  task?: Omit<CollectionPayload, 'bk_biz_id'>
+): CollectionDraft {
   // 新建默认取后端下发的第一个方式，后端未下发时兜底 perf
   const method = task?.collection_method || meta.collection_methods[0] || CollectionMethodEnum.PERF;
   const collectionType = task?.collection_type || meta.collection_types_by_method[method]?.[0];
@@ -235,13 +253,17 @@ export function createCollectionDraft(meta: CollectionMeta, timezone: string, ta
       selected: [],
     },
     scheduleType: schedule?.type || meta.schedule_types[0],
-    executeAt: schedule && schedule.type !== 'cron' ? schedule.execute_at : null,
-    // 周期任务未回填时，开始时间默认取当前时间，结束时间默认取该时区 2099 年末
+    // 新建 / 周期任务未回填时，执行时间默认取任务时区当前时刻往后 10 分钟
+    executeAt:
+      schedule && schedule.type !== 'cron'
+        ? schedule.execute_at
+        : dayjs().tz(taskTimezone).add(10, 'minute').startOf('minute').valueOf(),
+    // 周期任务未回填时，开始时间默认取当前时间，结束时间默认取该时区一个月后的当天末尾
     startAt: schedule?.type === 'cron' ? schedule.effective_start_at : Date.now(),
     endAt:
       schedule?.type === 'cron'
         ? schedule.effective_end_at
-        : dayjs().tz(taskTimezone).year(DEFAULT_END_YEAR).endOf('year').millisecond(0).valueOf(),
+        : dayjs().tz(taskTimezone).add(1, 'month').endOf('day').millisecond(0).valueOf(),
     cron: schedule?.type === 'cron' ? schedule.cron_expression : (meta.schedule?.cron?.cron_expression ?? ''),
     timezone: taskTimezone,
   };
@@ -494,8 +516,10 @@ export function collectionFieldErrors(
     }
   }
   if (editing && draft.scheduleType === 'immediate') add('scheduleType', '计划任务不支持改为立即执行');
-  if (draft.scheduleType === 'once_at' && (!draft.executeAt || draft.executeAt <= now))
-    add('executeAt', '指定执行时间须晚于当前时间');
+  if (draft.scheduleType === 'once_at') {
+    if (!draft.executeAt) add('executeAt', '请选择执行时间');
+    else if (draft.executeAt <= now) add('executeAt', '指定执行时间须晚于当前时间');
+  }
   if (draft.scheduleType === 'cron') {
     if (!draft.startAt) add('startAt', '请选择开始时间');
     if (!draft.endAt) add('endAt', '请选择结束时间');
@@ -580,13 +604,22 @@ export function immediateCollectionPayload(task: CollectionTask, bizId: number, 
 }
 
 /**
- * @description 进程匹配选择的展示文案，命令行匹配同时展示包含与排除条件
+ * @description 进程匹配选择的展示文案，动态下发展示包含与排除条件，非动态下发展示实际选择的 PID
  * @param selector 进程匹配条件
  * @param t i18n 翻译函数
  * @returns 已翻译的展示文案
  */
 export function processSelectorText(selector: ProcessSelector, t: (key: string) => string): string {
   if (selector.type === 'command') {
+    if (selector.config.enable_dynamic_collection === false) {
+      // 同一 PID 可能分布在多台主机，按主机 + PID 去重，避免折叠掉不同主机上的进程
+      const items = new Map<string, HostPid>();
+      for (const row of selector.config.host_pids || []) {
+        items.set(`${row.bk_host_id}:${row.pid}`, row);
+      }
+      const hostPids = [...items.values()];
+      return hostPids.length ? `PID: ${hostPids.map(row => `#${row.bk_host_id}:${row.pid}`).join(';')}` : '--';
+    }
     const matched = `${t(processLabels.command)} - ${t('包含')}：${selector.config.match_pattern}`;
     return selector.config.exclude_pattern ? `${matched}；${t('排除')}：${selector.config.exclude_pattern}` : matched;
   }
