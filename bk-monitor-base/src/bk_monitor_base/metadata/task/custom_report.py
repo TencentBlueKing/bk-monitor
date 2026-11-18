@@ -115,7 +115,7 @@ def check_event_update():
     logger.info("check_event_update:finished, cost->[%s] seconds", cost_time)
 
 
-def refresh_custom_report_2_node_man(bk_biz_id: int | None = None):
+def refresh_custom_report_2_node_man(bk_biz_id: int | str | None = None):
     # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
     default_version = "0.0.0"
     plugin_infos = api.node_man.get_plugin_info(bk_tenant_id=DEFAULT_TENANT_ID, name="bk-collector")
@@ -124,6 +124,7 @@ def refresh_custom_report_2_node_man(bk_biz_id: int | None = None):
 
     if compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) > 0:
         if bk_biz_id is not None:
+            bk_biz_id = int(bk_biz_id)
             bk_tenant_ids = [bk_biz_id_to_bk_tenant_id(bk_biz_id)]
         else:
             bk_tenant_ids = [tenant["id"] for tenant in list_tenant()]
