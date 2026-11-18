@@ -315,9 +315,14 @@ class ListTenantVariablesResource(BkUserApiResource):
 class BatchQueryUserDisplayInfoResource(BkUserApiResource):
     """
     批量查询用户展示信息
+
+    超时取 10s：该接口同时位于网关鉴权链路（用户租户不匹配时同步校验）
+    与告警通知文案的展示名转换预取路径。过短会让网络抖动直接退化为原始
+    用户标识（展示名丢失），过长会在 bk-user 不可达时拖住登录与分片同步。
+    10s 兼顾两者，且 CacheType.USER 缓存 1h，远端调用频率本身很低。
     """
 
-    TIMEOUT = 5
+    TIMEOUT = 10
     cache_type = CacheType.USER
     action = "/api/v3/open/tenant/users/-/display_info/"
     method = "GET"

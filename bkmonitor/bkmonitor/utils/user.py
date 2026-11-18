@@ -185,7 +185,15 @@ def _is_upstream_unavailable_error(error: BaseException) -> bool:
     """判断是否属网络超时/连接不可达类故障，用于中止后续分块叠加等待"""
     if isinstance(error, TimeoutError | requests.exceptions.Timeout | requests.exceptions.ConnectionError):
         return True
-    return "timeout" in str(error).lower() or "timed out" in str(error).lower()
+
+    error_text = str(error).lower()
+    if "timeout" in error_text or "timed out" in error_text:
+        return True
+
+    # APIResource 捕获 ReadTimeout 后会转换成 BKAPIError，文本为中文「接口返回结果超时」，
+    # 上面的英文关键词匹配不到。若只按英文判定，网络超时时分块中止逻辑不生效，
+    # 后续分块会各自再等满一次超时，叠加放大等待时间，因此补中文判定。
+    return "超时" in error_text
 
 
 def batch_get_user_display_names(
@@ -257,8 +265,12 @@ def get_wxwork_mention_names(usernames: list[str], bk_tenant_id: str | None = No
 
     from core.drf_resource import api
 
-    # 不复用 batch_get_user_display_names：后者在查不到时回落原 UID，
-    # 企业微信 @提醒若把多租户 UID 当登录名会推错人，因此只收录接口真实返回的展示名。
+    # 不复用 batch_get_user_display_names：两者的「查不到」契约相反——后者保证每个用户名都有值
+    # （查不到回落原 UID），而企业微信 @ 的入参必须是英文登录名（见 extract_login_name_from_display_name
+    # 的两个正则），UID 不保证符合该字符集，直接复用会把非法登录名混进名单。因此本函数只收录接口
+    # 真实返回且能提取出登录名的用户，查不到的键直接缺席。
+    # 注意：调用方 send.py 仍按 mention_map.get(user, user) 回退原标识，该回退是既有测试锁定的行为，
+    # 由本函数返回值保证不了「一定不 @ 错人」，不要据此认为风险已消除。
     resolved_tenant_id = bk_tenant_id or get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID
     user_display_info: list[dict[str, Any]] = []
     for username_chunk in chunks(unique_usernames, 100):

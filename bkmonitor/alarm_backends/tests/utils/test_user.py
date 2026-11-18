@@ -138,3 +138,45 @@ def test_get_user_display_name_comma_branch_does_not_fall_back_to_default_tenant
     # 2. 传入有效租户时正常转换，且不分块落到默认租户
     assert get_user_display_name("uid_a,uid_b", bk_tenant_id="tenant_a") == "名_uid_a,名_uid_b"
     assert calls == [(["uid_a", "uid_b"], "tenant_a")]
+
+
+def test_is_upstream_unavailable_error_matches_framework_bkapi_error_timeout():
+    """框架把 ReadTimeout 转成 BKAPIError 后文本为中文「接口返回结果超时」，必须仍被识别为上游不可用"""
+    from bkmonitor.utils.user import _is_upstream_unavailable_error
+
+    # 框架 contrib/api.py 捕获 ReadTimeout 后实际抛出的形态
+    framework_timeout = BKAPIError(
+        system_name="bk-user",
+        url="/api/v3/open/tenant/users/-/display_info/",
+        result="接口返回结果超时",
+    )
+    assert _is_upstream_unavailable_error(framework_timeout) is True
+
+    # 原生超时/连接异常仍然识别
+    assert _is_upstream_unavailable_error(requests.exceptions.ReadTimeout("read timed out")) is True
+    assert _is_upstream_unavailable_error(requests.exceptions.ConnectionError("connection aborted")) is True
+    assert _is_upstream_unavailable_error(TimeoutError("timed out")) is True
+
+    # 普通业务错误不应被误判为上游不可用，否则会提前中止后续分块
+    assert _is_upstream_unavailable_error(BKAPIError(system_name="bk-user", url="x", result="bad param")) is False
+    assert _is_upstream_unavailable_error(ValueError("invalid username")) is False
+
+
+def test_batch_get_user_display_names_breaks_on_framework_timeout_error(settings, monkeypatch):
+    """框架转换后的中文超时异常同样应触发分块中止，避免后续分块叠加等待"""
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    usernames = [f"u_{i}" for i in range(105)]
+    timeout_calls = []
+
+    def _framework_timeout(bk_usernames=None, bk_tenant_id=None):
+        timeout_calls.append(len(list(bk_usernames or [])))
+        raise BKAPIError(system_name="bk-user", url="display_info", result="接口返回结果超时")
+
+    monkeypatch.setattr("core.drf_resource.api.bk_login.batch_query_user_display_info", _framework_timeout)
+
+    res = batch_get_user_display_names(usernames, bk_tenant_id="t1")
+
+    # 只尝试第 1 块即中止，第 2 块不应再发起
+    assert timeout_calls == [100]
+    assert res["u_0"] == "u_0"
+    assert res["u_100"] == "u_100"
