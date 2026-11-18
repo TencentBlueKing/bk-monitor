@@ -76,7 +76,7 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
     const raw = this.pluginDescription?.[this.pluginTypeId] || '';
     // 兼容被二次转义的后端数据：字面的 \n、\" 会导致 markdown 不换行、链接失效
     if (!/\\n|\\"/.test(raw)) return raw;
-    return raw.replace(/\\r/g, '').replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/&gt;/g, '>');
+    return raw.replace(/\\r/g, '').replace(/\\n/g, '\n').replace(/\\"/g, '"');
   }
   protected render() {
     return (
