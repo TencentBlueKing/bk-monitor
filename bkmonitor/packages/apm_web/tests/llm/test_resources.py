@@ -2896,10 +2896,16 @@ class CalculateByRangeResourceTestCase(TestCase):
 
     def test_group_by_model_queries_product_field_and_returns_standard_name(self):
         """该产品未上报 response.model，但返回给前端的维度名仍是请求方传入的标准名。"""
-        query = make_query(
-            records=[
-                {"attributes.gen_ai.request.model": "kimi-k3", "_result_": 2560.5, "_time_": 1700003600000},
-                {"attributes.gen_ai.request.model": "claude-opus-5", "_result_": 13042.0, "_time_": 1700003600000},
+        query = make_query()
+        query.query_field_aggregated_group.side_effect = lambda _queries, _start, _end, _fields, method, _group_by: (
+            [
+                {"attributes.gen_ai.request.model": "kimi-k3", "_result_": 5121.0, "_time_": 1700003600000},
+                {"attributes.gen_ai.request.model": "claude-opus-5", "_result_": 65210.0, "_time_": 1700003600000},
+            ]
+            if method == "SUM"
+            else [
+                {"attributes.gen_ai.request.model": "kimi-k3", "_result_": 2, "_time_": 1700003600000},
+                {"attributes.gen_ai.request.model": "claude-opus-5", "_result_": 5, "_time_": 1700003600000},
             ]
         )
 
@@ -3156,39 +3162,50 @@ class CalculateByRangeResourceTestCase(TestCase):
             },
         )
 
-    def test_duration_averages_aliased_operation_records_instead_of_summing(self):
-        query = make_query()
-        query.query_field_aggregated_group.side_effect = lambda _queries, _start, _end, _fields, method, *_a, **_kw: (
-            [
-                {"attributes.gen_ai.operation.name": "CHAT", "_time_": 1700000060000, "_result_": 1000.0},
-                {"attributes.gen_ai.operation.name": "chat", "_time_": 1700000060000, "_result_": 1400.0},
-            ]
-            if method == "AVG"
-            else [
-                {"attributes.gen_ai.operation.name": "CHAT", "_time_": 1700000060000, "_result_": 1},
-                {"attributes.gen_ai.operation.name": "chat", "_time_": 1700000060000, "_result_": 1},
-            ]
-        )
-        with patch_llm_metric_group(query, product="default"):
-            result = CalculateByRangeResource().request(
-                {
-                    **LLM_METRIC_REQUEST,
-                    "cal_type": "duration",
-                    "group_by": ["gen_ai.operation.name"],
-                    "interval": 60,
-                }
-            )
+    def test_duration_merges_aliased_operations_with_sample_count_weights(self):
+        """99 次 1000us 的旧 completion 与 1 次 9000us 的标准 text_completion 合并后应为加权均值 1080us，而非算术均值 5000us。"""
+        for extra in ({}, {"interval": 60}):
+            with self.subTest(extra=extra):
+                query = make_query()
 
-        self.assertEqual(
-            result["data"],
-            [
-                {
-                    "dimensions": {"gen_ai.operation.name": "chat", "time": 1700000060},
-                    "0s": 1200.0,
-                    "growth_rates": {"0s": 0},
-                }
-            ],
-        )
+                def aggregate(_queries, _start, _end, fields, method, _group_by, **_kwargs):
+                    self.assertEqual(fields, ["elapsed_time"])
+                    if method == "SUM":
+                        return [
+                            {
+                                "attributes.gen_ai.operation.name": "completion",
+                                "_time_": 1700000060000,
+                                "_result_": 99000.0,
+                            },
+                            {
+                                "attributes.gen_ai.operation.name": "text_completion",
+                                "_time_": 1700000060000,
+                                "_result_": 9000.0,
+                            },
+                        ]
+                    return [
+                        {"attributes.gen_ai.operation.name": "completion", "_time_": 1700000060000, "_result_": 99},
+                        {"attributes.gen_ai.operation.name": "text_completion", "_time_": 1700000060000, "_result_": 1},
+                    ]
+
+                query.query_field_aggregated_group.side_effect = aggregate
+                with patch_llm_metric_group(query, product="aidev"):
+                    result = CalculateByRangeResource().request(
+                        {
+                            **LLM_METRIC_REQUEST,
+                            "cal_type": "duration",
+                            "group_by": ["gen_ai.operation.name"],
+                            **extra,
+                        }
+                    )
+
+                expected_dims = {"gen_ai.operation.name": "text_completion"}
+                if "interval" in extra:
+                    expected_dims["time"] = 1700000060
+                self.assertEqual(
+                    result["data"],
+                    [{"dimensions": expected_dims, "0s": 1080.0, "growth_rates": {"0s": 0}}],
+                )
 
     def test_storage_time_bucketing_keeps_real_zero_samples_and_drops_empty_padding(self):
         """按样本数 COUNT(_index) > 0 识别真实零值桶，剔除双窗口均无样本的补齐桶，且同桶内真实 0 排在缺失值 None 之前。"""
@@ -3377,6 +3394,44 @@ class TimeSeriesResourceTestCase(TestCase):
             [
                 ("text_completion", [[5, 1700000000000]]),
                 ("chat", [[20, 1700000000000]]),
+            ],
+        )
+
+    def test_duration_series_grouped_by_operation_uses_weighted_average(self):
+        """时序曲线按操作名归一合并时同样按样本数加权（SUM / COUNT），避免 _merge_datapoints 把两条均值曲线直接相加。"""
+        query = make_query()
+        grafana = mock.Mock()
+        grafana.grafana.graph_unify_query.side_effect = [
+            {
+                "series": [
+                    {"dimensions": {"attributes.gen_ai.operation.name": "completion"}, "datapoints": [[99000.0, 1000]]},
+                    {
+                        "dimensions": {"attributes.gen_ai.operation.name": "text_completion"},
+                        "datapoints": [[9000.0, 1000]],
+                    },
+                ],
+                "unit": "µs",
+            },
+            {
+                "series": [
+                    {"dimensions": {"attributes.gen_ai.operation.name": "completion"}, "datapoints": [[99, 1000]]},
+                    {"dimensions": {"attributes.gen_ai.operation.name": "text_completion"}, "datapoints": [[1, 1000]]},
+                ]
+            },
+        ]
+        with patch_llm_metric_group(query, product="aidev"), mock.patch(f"{GROUP_MODULE}.resource", grafana):
+            result = TimeSeriesResource().request(
+                {**LLM_METRIC_REQUEST, "cal_type": "duration", "group_by": ["gen_ai.operation.name"]}
+            )
+
+        self.assertEqual(
+            result["series"],
+            [
+                {
+                    "dimensions": {"gen_ai.operation.name": "text_completion"},
+                    "target": "text_completion",
+                    "datapoints": [[1080.0, 1000]],
+                }
             ],
         )
 

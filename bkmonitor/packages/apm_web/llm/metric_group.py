@@ -209,12 +209,39 @@ class LLMMetricGroup(base.BaseMetricGroup):
                 "query_config": query_config,
             }
 
+        queries: list[QueryConfigBuilder] = self._queries(aggregation.layer)
+        fields: list[str] = self._fields(aggregation)
+        if aggregation.method == "AVG" and (
+            len(queries) > 1 or any(self._is_operation_dimension(field) for _, field in self.dimension_fields)
+        ):
+            sum_response: dict[str, Any] = resource.grafana.graph_unify_query(
+                self.query.query_field_graph_config(
+                    queries, start_time, end_time, fields, "SUM", interval, self.group_fields
+                )
+            )
+            count_response: dict[str, Any] = resource.grafana.graph_unify_query(
+                self.query.query_field_graph_config(
+                    queries, start_time, end_time, fields, "COUNT", interval, self.group_fields
+                )
+            )
+            sum_series: list[dict[str, Any]] = self._standardize_series_list(sum_response.get("series") or [])
+            count_by_dims: dict[tuple, dict[Any, float]] = {
+                tuple((item.get("dimensions") or {}).items()): {ts: val for val, ts in item.get("datapoints") or []}
+                for item in self._standardize_series_list(count_response.get("series") or [])
+            }
+            for item in sum_series:
+                counts: dict[Any, float] = count_by_dims.get(tuple((item.get("dimensions") or {}).items()), {})
+                item["datapoints"] = [
+                    [(val / counts[ts] if counts.get(ts) else 0.0), ts] for val, ts in item.get("datapoints") or []
+                ]
+            return {**sum_response, "series": sum_series, "query_config": query_config}
+
         response: dict[str, Any] = resource.grafana.graph_unify_query(
             self.query.query_field_graph_config(
-                self._queries(aggregation.layer),
+                queries,
                 start_time,
                 end_time,
-                self._fields(aggregation),
+                fields,
                 aggregation.method,
                 interval,
                 self.group_fields,
@@ -326,9 +353,9 @@ class LLMMetricGroup(base.BaseMetricGroup):
         *,
         is_time_bucketed: bool,
         bucket_delta_ms: int,
-    ) -> dict[tuple, tuple[float, int, tuple, int | None]]:
-        """按标准维度（及对齐后的桶时间）合并存储侧返回的聚合记录。"""
-        merged: dict[tuple, tuple[float, int, tuple, int | None]] = {}
+    ) -> dict[tuple, tuple[float, tuple, int | None]]:
+        """按标准维度（及对齐后的桶时间）累加存储侧返回的聚合记录。"""
+        merged: dict[tuple, tuple[float, tuple, int | None]] = {}
         for record in records:
             key: tuple = self._dimension_key(record)
             if self._should_drop_operation_dimension(key):
@@ -340,15 +367,14 @@ class LLMMetricGroup(base.BaseMetricGroup):
             )
             merge_key: tuple = (*key, time_) if is_time_bucketed else key
             if merge_key in merged:
-                prev_value, prev_count, _, prev_time = merged[merge_key]
+                prev_value, _, prev_time = merged[merge_key]
                 merged[merge_key] = (
                     prev_value + value,
-                    prev_count + 1,
                     key,
                     time_ if time_ is not None else prev_time,
                 )
             else:
-                merged[merge_key] = (value, 1, key, time_)
+                merged[merge_key] = (value, key, time_)
         return merged
 
     def _aggregate(
@@ -405,41 +431,59 @@ class LLMMetricGroup(base.BaseMetricGroup):
         fields: list[str] = self._fields(aggregation)
         query_kwargs: dict[str, Any] = {"interval": resolved_interval} if resolved_interval is not None else {}
 
-        if is_time_bucketed and aggregation.method in {"SUM", "AVG"}:
-            # ES date_histogram 会为无样本桶补 0；按同层样本数 COUNT > 0 区分真实零值桶与无样本空桶
-            val_merged = self._merge_storage_records(
+        if aggregation.method == "AVG":
+            # 多个原始操作名归一或多结果表合并时需按有效耗时样本数加权求均值（SUM / COUNT），不能按组数等权平均
+            sum_merged = self._merge_storage_records(
                 self.query.query_field_aggregated_group(
-                    queries, shifted_start, shifted_end, fields, aggregation.method, self.group_fields, **query_kwargs
+                    queries, shifted_start, shifted_end, fields, "SUM", self.group_fields, **query_kwargs
+                ),
+                is_time_bucketed=is_time_bucketed,
+                bucket_delta_ms=bucket_delta_ms,
+            )
+            count_merged = self._merge_storage_records(
+                self.query.query_field_aggregated_group(
+                    queries, shifted_start, shifted_end, fields, "COUNT", self.group_fields, **query_kwargs
+                ),
+                is_time_bucketed=is_time_bucketed,
+                bucket_delta_ms=bucket_delta_ms,
+            )
+            avg_records: list[dict[str, Any]] = [
+                self._record(
+                    key,
+                    (sum_merged[merge_key][0] if merge_key in sum_merged else 0.0) / count,
+                    shifted_end,
+                    time_,
+                )
+                for merge_key, (count, key, time_) in count_merged.items()
+                if count > 0
+            ]
+            if not avg_records and not is_time_bucketed and not self.group_by:
+                return [self._record((), 0.0, shifted_end)]
+            return avg_records
+
+        if is_time_bucketed and aggregation.method == "SUM":
+            # ES date_histogram 会为无样本桶补 0；按同层样本数 COUNT(_index) > 0 区分真实零值桶与无样本空桶
+            sum_merged = self._merge_storage_records(
+                self.query.query_field_aggregated_group(
+                    queries, shifted_start, shifted_end, fields, "SUM", self.group_fields, **query_kwargs
                 ),
                 is_time_bucketed=True,
                 bucket_delta_ms=bucket_delta_ms,
             )
-            count_fields: list[str] = ["_index"] if aggregation.method == "SUM" else fields
             count_merged = self._merge_storage_records(
                 self.query.query_field_aggregated_group(
-                    queries, shifted_start, shifted_end, count_fields, "COUNT", self.group_fields, **query_kwargs
+                    queries, shifted_start, shifted_end, ["_index"], "COUNT", self.group_fields, **query_kwargs
                 ),
                 is_time_bucketed=True,
                 bucket_delta_ms=bucket_delta_ms,
             )
             return [
-                self._record(
-                    key,
-                    (
-                        val_merged[merge_key][0] / val_merged[merge_key][1]
-                        if aggregation.method == "AVG"
-                        else val_merged[merge_key][0]
-                    )
-                    if merge_key in val_merged
-                    else 0.0,
-                    shifted_end,
-                    time_,
-                )
-                for merge_key, (sample_count, _, key, time_) in count_merged.items()
-                if sample_count > 0
+                self._record(key, sum_merged[merge_key][0] if merge_key in sum_merged else 0.0, shifted_end, time_)
+                for merge_key, (count, key, time_) in count_merged.items()
+                if count > 0
             ]
 
-        # COUNT / DISTINCT 分桶下值为 0 即无匹配样本
+        # COUNT / DISTINCT 分桶下值为 0 即无匹配样本；DISTINCT 在操作名别名碰撞时缺少原始 trace_id 集合，保留相加作为上界近似
         merged = self._merge_storage_records(
             self.query.query_field_aggregated_group(
                 queries, shifted_start, shifted_end, fields, aggregation.method, self.group_fields, **query_kwargs
@@ -448,8 +492,8 @@ class LLMMetricGroup(base.BaseMetricGroup):
             bucket_delta_ms=bucket_delta_ms,
         )
         return [
-            self._record(key, value / count if aggregation.method == "AVG" else value, shifted_end, time_)
-            for value, count, key, time_ in merged.values()
+            self._record(key, value, shifted_end, time_)
+            for value, key, time_ in merged.values()
             if not is_time_bucketed or value > 0
         ]
 
