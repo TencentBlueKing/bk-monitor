@@ -6602,9 +6602,9 @@ class DorisStorage(models.Model, StorageResultTable):
             value = storage_config.get(field_name)
             if field_name in {"field_config_group", "tokenizers"}:
                 value = value if isinstance(value, dict) else {}
-                # 字段/分词配置是集合语义，排序后再比较，避免下发顺序抖动被误判为变更。
+                # 字段列表按集合语义排序去重；分词字符串按原值比较。
                 ddl_config[field_name] = {
-                    key: sorted(item) if isinstance(item, list) else item for key, item in sorted(value.items())
+                    key: sorted(set(item)) if isinstance(item, list) else item for key, item in sorted(value.items())
                 }
             elif field_name in {"json_fields", "original_json_fields"}:
                 ddl_config[field_name] = sorted(set(value)) if isinstance(value, list) else []

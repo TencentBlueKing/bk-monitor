@@ -1040,3 +1040,27 @@ def test_sync_log_physical_table_field_collection_changes(log_doris_records, fie
     assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == (2 if rotates else 1)
     assert previous == original
     assert target == target_before
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("group", ["search_zh", "search_en", "bloomfilter"])
+@pytest.mark.parametrize("change", ["reorder", "duplicate", "add", "remove", "clear"])
+def test_sync_log_physical_table_field_group_set_changes(log_doris_records, group, change):
+    previous = json.loads(json.dumps(LOG_DORIS_OPTION_VALUE))
+    previous["doris_storage_config"]["field_config_group"] = {group: ["log", "json_body"]}
+    first = _sync_log_physical_table(log_doris_records, option_value=previous, previous_option_value=previous)
+    target = json.loads(json.dumps(previous))
+    target["doris_storage_config"]["field_config_group"][group] = {
+        "reorder": ["json_body", "log"],
+        "duplicate": ["json_body", "log", "log"],
+        "add": ["log", "json_body", "host"],
+        "remove": ["log"],
+        "clear": [],
+    }[change]
+    target_before = json.loads(json.dumps(target))
+    second = _sync_log_physical_table(log_doris_records, option_value=target, previous_option_value=previous)
+    rotates = change in {"add", "remove", "clear"}
+    assert (first != second) == rotates
+    assert models.StorageClusterRecord.objects.filter(table_id=LOG_DORIS_TABLE_ID).count() == (2 if rotates else 1)
+    assert previous["doris_storage_config"]["field_config_group"][group] == ["log", "json_body"]
+    assert target == target_before
