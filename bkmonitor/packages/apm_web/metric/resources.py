@@ -72,7 +72,7 @@ from apm_web.utils import (
     get_interval_number,
     handle_filter_fields,
 )
-from bkmonitor.data_source import q_to_dict
+from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.utils.statistics import merge_records, process_growth_rates, process_proportions
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
@@ -89,6 +89,7 @@ from constants.apm import (
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
 from monitor_web.collecting.constant import CollectStatus
+from monitor_web.grafana.resources.unify_query import GraphUnifyQueryResource
 from monitor_web.scene_view.resources import GetHostOrTopoNodeDetailResource
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view import table_format
@@ -359,10 +360,13 @@ class DynamicUnifyQueryResource(Resource, call_analysis.PreCalculateHelperMixin)
             except (KeyError, IndexError):
                 time_shift_function["params"] = [{"id": "n", "value": None}]
 
+            filter_labels = [
+                cond["key"] for cond in filter_dict_to_conditions(query_config.get("filter_dict") or {}, [])
+            ]
             result: dict[str, Any] = helper.router(
                 table_id,
                 metric,
-                used_labels,
+                [*used_labels, *filter_labels],
                 query_params["start_time"],
                 query_params["end_time"],
                 origin_time_shift,
@@ -385,6 +389,12 @@ class DynamicUnifyQueryResource(Resource, call_analysis.PreCalculateHelperMixin)
 
             query_config["table"] = result["table_id"]
             query_config["metrics"][0]["field"] = result["metric"]
+
+            if result.get("filter_dict"):
+                query_config["where"] = filter_dict_to_conditions(
+                    result["filter_dict"], query_config.get("where") or []
+                )
+                validate_data["has_pre_calculate_filter"] = True
 
             # 去掉可能存在的 data_label
             query_config.pop("data_label", None)
@@ -432,6 +442,14 @@ class DynamicUnifyQueryResource(Resource, call_analysis.PreCalculateHelperMixin)
             return
 
         response["query_config"] = backup_query_params
+
+        if validate_data.get("has_pre_calculate_filter"):
+            # 多个原指标可以路由到同一个数值列，无法从列名反推出原指标。
+            serializer = GraphUnifyQueryResource.RequestSerializer(data=backup_query_params)
+            serializer.is_valid(raise_exception=True)
+            params = serializer.validated_data
+            response["metrics"] = GraphUnifyQueryResource.get_metric_info(params) if params["with_metric"] else []
+            return
 
         table_metric_map: dict[str, str] = {**validate_data.get("table_map", {}), **validate_data.get("metric_map", {})}
         if not table_metric_map:
