@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useRouter from '@/hooks/use-router';
@@ -141,30 +141,37 @@ export default defineComponent({
     const storageLoaded = ref(false);
     /** 按存储类型记录离开该类型前的绑定与存储参数 */
     const boundStateByType = ref<Partial<Record<ClusterType, IBoundClusterState>>>({});
+    /** 只有编辑态需要保留已绑定集群，clone 与新建不写快照 */
+    const shouldKeepBinding = computed(() => props.isEdit);
 
     const isValidClusterId = (clusterId: unknown): boolean => Number(clusterId) > 0;
 
+    /** 写入指定存储类型的绑定状态，所有写入路径共用此入口 */
+    const writeBoundState = (type: ClusterType, state: IBoundClusterState) => {
+      boundStateByType.value = {
+        ...boundStateByType.value,
+        [type]: state,
+      };
+    };
+
     /** 记录指定存储类型当前的绑定状态，仅在编辑态且集群 ID 有效时写入 */
     const captureBoundState = (type: ClusterType) => {
-      if (!props.isEdit || !isValidClusterId(clusterSelect.value)) {
+      if (!shouldKeepBinding.value || !isValidClusterId(clusterSelect.value)) {
         return;
       }
       const data = formData.value as any;
-      boundStateByType.value = {
-        ...boundStateByType.value,
-        [type]: {
-          clusterId: Number(clusterSelect.value),
-          retention: data.retention,
-          allocation_min_days: data.allocation_min_days,
-          storage_replies: data.storage_replies,
-          es_shards: data.es_shards,
-        },
-      };
+      writeBoundState(type, {
+        clusterId: Number(clusterSelect.value),
+        retention: data.retention,
+        allocation_min_days: data.allocation_min_days,
+        storage_replies: data.storage_replies,
+        es_shards: data.es_shards,
+      });
     };
 
     /** 切回指定存储类型时恢复该类型记录的绑定状态 */
     const restoreBoundState = (type: ClusterType): boolean => {
-      if (!props.isEdit) {
+      if (!shouldKeepBinding.value) {
         return false;
       }
       const state = boundStateByType.value[type];
@@ -424,6 +431,56 @@ export default defineComponent({
       } finally {
         loading.value = false;
       }
+    };
+
+    /**
+     * configData 异步到达时一次性补齐表单、绑定快照与存储类型。
+     * 仅在编辑态、当前无有效绑定且尚无快照时执行，避免冲掉用户已编辑内容。
+     */
+    const syncFromConfigData = async (configData: Record<string, any>) => {
+      if (!shouldKeepBinding.value || isValidClusterId(clusterSelect.value)) {
+        return;
+      }
+      if (Object.keys(boundStateByType.value).length) {
+        return;
+      }
+      const clusterId = configData?.storage_cluster_id;
+      if (!isValidClusterId(clusterId)) {
+        return;
+      }
+      const reportedType = configData?.storage_cluster_type as ClusterType | undefined;
+      const fallbackType = curCollect.value?.storage_cluster_type as ClusterType | undefined;
+      const isKnownType = (type: ClusterType | undefined) => type === CLUSTER_TYPES.DORIS || type === CLUSTER_TYPES.ES;
+      const targetType = isKnownType(reportedType)
+        ? reportedType
+        : isKnownType(fallbackType)
+          ? fallbackType
+          : activeTab.value;
+      if (reportedType !== targetType) {
+        console.warn('[step4-storage] 存储集群类型缺失或无法识别，已按回退类型处理', reportedType, targetType);
+      }
+      const userEdited = initialFormData.value !== null && hasConfigChanged();
+      const storageFields = normalizeStorageFields(configData);
+      clusterSelect.value = Number(clusterId);
+      Object.assign(formData.value, {
+        storage_cluster_id: Number(clusterId),
+        ...(userEdited ? {} : storageFields),
+      });
+      const data = formData.value as any;
+      writeBoundState(targetType, {
+        clusterId: Number(clusterId),
+        retention: data.retention,
+        allocation_min_days: data.allocation_min_days,
+        storage_replies: data.storage_replies,
+        es_shards: data.es_shards,
+      });
+      // 功能开关关闭时 Doris Tab 不渲染，保持在 ES 才能让只读告警与保留绑定生效
+      const nextType = targetType === CLUSTER_TYPES.DORIS && !isDorisEnabled.value ? CLUSTER_TYPES.ES : targetType;
+      storageList.value = [];
+      storageLoaded.value = false;
+      await handleTabClick(nextType, true);
+      await nextTick();
+      saveInitialFormData();
     };
 
     /**
@@ -937,27 +994,12 @@ export default defineComponent({
       };
       clusterSelect.value = props.configData.storage_cluster_id;
     };
+    // props.configData 由父组件异步获取；数据迟到时一次性补齐，不重跑 initData()，
+    // 避免父组件刷新详情时冲掉用户已编辑的表单内容。
     watch(
       () => props.configData?.storage_cluster_id,
-      clusterId => {
-        const clusterType = props.configData?.storage_cluster_type as ClusterType | undefined;
-        if (
-          (props.isEdit || props.isClone) &&
-          isValidClusterId(clusterId) &&
-          clusterType &&
-          !boundStateByType.value[clusterType]
-        ) {
-          boundStateByType.value = {
-            ...boundStateByType.value,
-            [clusterType]: {
-              clusterId: Number(clusterId),
-              retention: formData.value.retention,
-              allocation_min_days: formData.value.allocation_min_days,
-              storage_replies: formData.value.storage_replies,
-              es_shards: formData.value.es_shards,
-            },
-          };
-        }
+      () => {
+        syncFromConfigData(props.configData);
       },
     );
 
