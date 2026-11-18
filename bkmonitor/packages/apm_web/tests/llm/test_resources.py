@@ -3031,39 +3031,76 @@ class CalculateByRangeResourceTestCase(TestCase):
         self.assertFalse(bad_shift.is_valid())
         self.assertIn("不支持的时间偏移", str(bad_shift.errors))
 
-    def test_interval_buckets_align_time_shifts_and_sort_by_time_desc(self):
-        query = make_query()
+    def _make_real_graph_query(self):
+        """使用真实 LLMQuery.query_field_graph_config 生成查询配置，便于校验 expression / null_as_zero / group_by。"""
+        real_query = LLMQuery([mock.Mock(retention=7)])
+        real_query.build_queries = mock.Mock(return_value=[mock.Mock()])
+
+        def make_qs(start_time, end_time):
+            qs = mock.Mock()
+            state = {"start_time": (start_time or 0) * 1000, "end_time": (end_time or 0) * 1000}
+
+            def set_expr(expr):
+                state["expression"] = expr
+                return qs
+
+            qs.expression.side_effect = set_expr
+            qs.time_agg.return_value = qs
+            qs._state = state
+            return qs
+
+        def add_query(qs, metric_queries):
+            added = mock.Mock()
+            added.config = {**qs._state, "metric_queries": metric_queries}
+            return added
+
+        real_query.get_qs = mock.Mock(side_effect=make_qs)
+        real_query._add_query = mock.Mock(side_effect=add_query)
+        real_query.query_field_aggregated_group = mock.Mock()
+        return real_query
+
+    def test_interval_buckets_reuse_time_series_align_time_shifts_and_exclude_time_from_storage_group_by(self):
+        real_query = self._make_real_graph_query()
         start_time = 1700086400
         end_time = start_time + 3600
+        seen_configs = []
 
-        def aggregate(_queries, shifted_start, _shifted_end, _fields, _method, group_by, **kwargs):
-            self.assertEqual(group_by, ["attributes.gen_ai.request.model", "time"])
-            self.assertEqual(kwargs, {"interval": 600})
-            if shifted_start == start_time:
-                return [
-                    {"attributes.gen_ai.request.model": "kimi-k3", "_time_": start_time * 1000, "_result_": 30},
-                    {"attributes.gen_ai.request.model": "deepseek-v3", "_time_": start_time * 1000, "_result_": 120},
+        def graph_query(config):
+            seen_configs.append(config)
+            self.assertEqual(config["expression"], "q0")
+            self.assertFalse(config["null_as_zero"])
+            if config["start_time"] == start_time:
+                return {
+                    "series": [
+                        {
+                            "dimensions": {"attributes.gen_ai.request.model": "kimi-k3"},
+                            "datapoints": [[30, start_time * 1000], [None, (start_time + 600) * 1000]],
+                        },
+                        {
+                            "dimensions": {"attributes.gen_ai.request.model": "deepseek-v3"},
+                            "datapoints": [[120, start_time * 1000], [80, (start_time + 600) * 1000]],
+                        },
+                    ]
+                }
+            self.assertEqual((config["start_time"], config["end_time"]), (start_time - 86400, end_time - 86400))
+            return {
+                "series": [
                     {
-                        "attributes.gen_ai.request.model": "deepseek-v3",
-                        "_time_": (start_time + 600) * 1000,
-                        "_result_": 80,
-                    },
+                        "dimensions": {"attributes.gen_ai.request.model": "deepseek-v3"},
+                        "datapoints": [
+                            [100, (start_time - 86400) * 1000],
+                            [100, (start_time - 86400 + 600) * 1000],
+                        ],
+                    }
                 ]
-            return [
-                {
-                    "attributes.gen_ai.request.model": "deepseek-v3",
-                    "_time_": (start_time - 86400) * 1000,
-                    "_result_": 100,
-                },
-                {
-                    "attributes.gen_ai.request.model": "deepseek-v3",
-                    "_time_": (start_time - 86400 + 600) * 1000,
-                    "_result_": 100,
-                },
-            ]
+            }
 
-        query.query_field_aggregated_group.side_effect = aggregate
-        with patch_llm_metric_group(query, product="galileo"):
+        grafana = mock.Mock()
+        grafana.grafana.graph_unify_query.side_effect = graph_query
+        with (
+            patch_llm_metric_group(real_query, product="galileo"),
+            mock.patch(f"{GROUP_MODULE}.resource", grafana),
+        ):
             result = CalculateByRangeResource().request(
                 {
                     **LLM_METRIC_REQUEST,
@@ -3077,6 +3114,13 @@ class CalculateByRangeResourceTestCase(TestCase):
                 }
             )
 
+        real_query.query_field_aggregated_group.assert_not_called()
+        self.assertEqual(len(seen_configs), 2)
+        # time 仅作为输出桶维度，不进入存储侧 group_by
+        base_builder = real_query.build_queries.return_value[0].filter.return_value.filter.return_value
+        base_builder.alias.return_value.metric.return_value.group_by.assert_called_with(
+            "attributes.gen_ai.request.model"
+        )
         self.assertEqual(
             result,
             {
@@ -3104,8 +3148,29 @@ class CalculateByRangeResourceTestCase(TestCase):
             },
         )
 
+    def test_handle_dispatches_scalar_to_aggregate_and_interval_to_time_series(self):
+        scalar_query = make_query(records=[{"_result_": 42}])
+        group_scalar = LLMMetricGroup(11, "sand_local_dev", query=scalar_query)
+        with mock.patch.object(group_scalar, "time_series") as ts_mock:
+            records = group_scalar.handle("input_tokens", start_time=100, end_time=200)
+        ts_mock.assert_not_called()
+        self.assertEqual(records, [{"_time_": 200000, "_result_": 42}])
+
+        bucket_query = self._make_real_graph_query()
+        grafana = mock.Mock()
+        grafana.grafana.graph_unify_query.side_effect = [
+            {"series": [{"dimensions": {}, "datapoints": [[15.0, 120000]]}]},
+            {"series": [{"dimensions": {}, "datapoints": [[2, 120000]]}]},
+        ]
+        group_bucket = LLMMetricGroup(11, "sand_local_dev", group_by=["time"], query=bucket_query)
+        self.assertEqual(group_bucket.group_fields, [])
+        with mock.patch(f"{GROUP_MODULE}.resource", grafana):
+            bucket_records = group_bucket.handle("input_tokens", start_time=100, end_time=160, interval=60)
+        bucket_query.query_field_aggregated_group.assert_not_called()
+        self.assertEqual(bucket_records, [{"_time_": 120000, "_result_": 15.0}])
+
     def test_langfuse_interval_buckets_by_end_time_and_preserves_zero_usage(self):
-        """本地分桶与窗口过滤统一使用 end_time，跨窗口起点的长调用不会落到窗口外，且有样本的 0 值桶会被保留。"""
+        """本地分桶收敛到 _local_series：range 模式按 end_time 分桶，跨起点长调用不溢出窗外，且保留真实 0 值桶。"""
         from bkmonitor.utils.time_tools import time_interval_align
 
         query = make_query()
@@ -3116,7 +3181,6 @@ class CalculateByRangeResourceTestCase(TestCase):
             self.assertEqual(fields, ["attributes.langfuse.observation.usage_details", "end_time"])
             if shifted_start == start_time:
                 return [
-                    # T-15s 开始、T+10s 结束的跨起点调用应落入 T 桶而非 T-60s 桶，且 0 缓存读取不能被当成空桶丢弃
                     {
                         "attributes.langfuse.observation.usage_details": '{"input": 10, "cache_read_input_tokens": 0}',
                         "start_time": (start_time - 15) * 1_000_000,
@@ -3166,129 +3230,212 @@ class CalculateByRangeResourceTestCase(TestCase):
 
     def test_duration_merges_aliased_operations_with_sample_count_weights(self):
         """99 次 1000us 的旧 completion 与 1 次 9000us 的标准 text_completion 合并后应为加权均值 1080us，而非算术均值 5000us。"""
-        for extra in ({}, {"interval": 60}):
-            with self.subTest(extra=extra):
-                query = make_query()
+        # 1) 不带 interval：走区间聚合 _aggregate
+        scalar_query = make_query()
+        scalar_query.query_field_aggregated_group.side_effect = lambda _q, _s, _e, fields, method, _g: (
+            self.assertEqual(fields, ["elapsed_time"]),
+            [
+                {"attributes.gen_ai.operation.name": "completion", "_time_": 1700000060000, "_result_": 99000.0},
+                {
+                    "attributes.gen_ai.operation.name": "text_completion",
+                    "_time_": 1700000060000,
+                    "_result_": 9000.0,
+                },
+            ]
+            if method == "SUM"
+            else [
+                {"attributes.gen_ai.operation.name": "completion", "_time_": 1700000060000, "_result_": 99},
+                {"attributes.gen_ai.operation.name": "text_completion", "_time_": 1700000060000, "_result_": 1},
+            ],
+        )[1]
+        with patch_llm_metric_group(scalar_query, product="aidev"):
+            scalar_result = CalculateByRangeResource().request(
+                {**LLM_METRIC_REQUEST, "cal_type": "duration", "group_by": ["gen_ai.operation.name"]}
+            )
+        self.assertEqual(
+            scalar_result["data"],
+            [{"dimensions": {"gen_ai.operation.name": "text_completion"}, "0s": 1080.0, "growth_rates": {"0s": 0}}],
+        )
 
-                def aggregate(_queries, _start, _end, fields, method, _group_by, **_kwargs):
-                    self.assertEqual(fields, ["elapsed_time"])
-                    if method == "SUM":
-                        return [
-                            {
-                                "attributes.gen_ai.operation.name": "completion",
-                                "_time_": 1700000060000,
-                                "_result_": 99000.0,
-                            },
-                            {
-                                "attributes.gen_ai.operation.name": "text_completion",
-                                "_time_": 1700000060000,
-                                "_result_": 9000.0,
-                            },
-                        ]
-                    return [
-                        {"attributes.gen_ai.operation.name": "completion", "_time_": 1700000060000, "_result_": 99},
-                        {"attributes.gen_ai.operation.name": "text_completion", "_time_": 1700000060000, "_result_": 1},
-                    ]
+        # 2) 带 interval：走 handle -> time_series（关闭 TopK）
+        bucket_query = self._make_real_graph_query()
+        grafana = mock.Mock()
+        grafana.grafana.graph_unify_query.side_effect = [
+            {
+                "series": [
+                    {
+                        "dimensions": {"attributes.gen_ai.operation.name": "completion"},
+                        "datapoints": [[99000.0, 1700000060000]],
+                    },
+                    {
+                        "dimensions": {"attributes.gen_ai.operation.name": "text_completion"},
+                        "datapoints": [[9000.0, 1700000060000]],
+                    },
+                ]
+            },
+            {
+                "series": [
+                    {
+                        "dimensions": {"attributes.gen_ai.operation.name": "completion"},
+                        "datapoints": [[99, 1700000060000]],
+                    },
+                    {
+                        "dimensions": {"attributes.gen_ai.operation.name": "text_completion"},
+                        "datapoints": [[1, 1700000060000]],
+                    },
+                ]
+            },
+        ]
+        with (
+            patch_llm_metric_group(bucket_query, product="aidev"),
+            mock.patch(f"{GROUP_MODULE}.resource", grafana),
+        ):
+            bucket_result = CalculateByRangeResource().request(
+                {
+                    **LLM_METRIC_REQUEST,
+                    "cal_type": "duration",
+                    "group_by": ["gen_ai.operation.name"],
+                    "interval": 60,
+                }
+            )
+        for call in grafana.grafana.graph_unify_query.call_args_list:
+            self.assertNotIn("topk(", call.args[0]["expression"])
+            self.assertFalse(call.args[0]["null_as_zero"])
+        self.assertEqual(
+            bucket_result["data"],
+            [
+                {
+                    "dimensions": {"gen_ai.operation.name": "text_completion", "time": 1700000060},
+                    "0s": 1080.0,
+                    "growth_rates": {"0s": 0},
+                }
+            ],
+        )
 
-                query.query_field_aggregated_group.side_effect = aggregate
-                with patch_llm_metric_group(query, product="aidev"):
-                    result = CalculateByRangeResource().request(
-                        {
-                            **LLM_METRIC_REQUEST,
-                            "cal_type": "duration",
-                            "group_by": ["gen_ai.operation.name"],
-                            **extra,
-                        }
-                    )
+    def test_duration_interval_preserves_more_than_20_models_without_independent_topk_truncation(self):
+        """20 个高频快模型（100 次 × 1000us）+ 1 个低频慢模型（1 次 × 1,000,000us）：关闭 TopK 后全部保留且慢模型不被误算为 0。"""
+        real_query = self._make_real_graph_query()
+        ts_ms = 1700000060000
+        fast_models = [f"fast-model-{idx:02d}" for idx in range(20)]
+        slow_model = "slow-model-outlier"
 
-                expected_dims = {"gen_ai.operation.name": "text_completion"}
-                if "interval" in extra:
-                    expected_dims["time"] = 1700000060
-                self.assertEqual(
-                    result["data"],
-                    [{"dimensions": expected_dims, "0s": 1080.0, "growth_rates": {"0s": 0}}],
-                )
+        def graph_query(config):
+            # 若错误下发了 topk(20, ...)，模拟存储侧按当前查询指标截断前 20 名的真实行为
+            has_topk = config["expression"].startswith("topk(")
+            is_sum = len(seen_calls) == 0
+            seen_calls.append(config)
+            if is_sum:
+                series = [
+                    {
+                        "dimensions": {"attributes.gen_ai.response.model": slow_model},
+                        "datapoints": [[1_000_000.0, ts_ms]],
+                    },
+                    *[
+                        {"dimensions": {"attributes.gen_ai.response.model": m}, "datapoints": [[100_000.0, ts_ms]]}
+                        for m in fast_models
+                    ],
+                ]
+            else:
+                series = [
+                    *[
+                        {"dimensions": {"attributes.gen_ai.response.model": m}, "datapoints": [[100, ts_ms]]}
+                        for m in fast_models
+                    ],
+                    {"dimensions": {"attributes.gen_ai.response.model": slow_model}, "datapoints": [[1, ts_ms]]},
+                ]
+            return {"series": series[:20] if has_topk else series}
+
+        seen_calls = []
+        grafana = mock.Mock()
+        grafana.grafana.graph_unify_query.side_effect = graph_query
+        with (
+            patch_llm_metric_group(real_query),
+            mock.patch(f"{GROUP_MODULE}.resource", grafana),
+        ):
+            result = CalculateByRangeResource().request(
+                {
+                    **LLM_METRIC_REQUEST,
+                    "cal_type": "duration",
+                    "group_by": ["gen_ai.response.model"],
+                    "interval": 60,
+                }
+            )
+
+        self.assertEqual([cfg["expression"] for cfg in seen_calls], ["q0", "q0"])
+        self.assertEqual(result["total"], 21)
+        self.assertEqual(result["data"][0]["dimensions"]["gen_ai.response.model"], slow_model)
+        self.assertEqual(result["data"][0]["0s"], 1_000_000.0)
+        self.assertTrue(all(row["0s"] == 1000.0 for row in result["data"][1:]))
 
     def test_storage_time_bucketing_keeps_real_zero_samples_and_drops_empty_padding(self):
         """按样本数 COUNT(_index) > 0 识别真实零值桶，剔除双窗口均无样本的补齐桶，且同桶内真实 0 排在缺失值 None 之前。"""
-        query = make_query()
+        real_query = self._make_real_graph_query()
         start_time = 1700086400
+        calls = []
 
-        def aggregate(_queries, shifted_start, _end, fields, method, _group_by, **_kwargs):
-            if shifted_start == start_time:
-                if method == "COUNT":
-                    return [
-                        # m_zero_today 在 start_time 有 5 条样本但缓存 Token 为 0；start_time+60 无样本（ES 补齐桶）
+        def graph_query(config):
+            idx = len(calls)
+            calls.append(config)
+            self.assertEqual(config["expression"], "q0")
+            self.assertFalse(config["null_as_zero"])
+            is_today = config["start_time"] == start_time
+            # 每个窗口先查 SUM(cache_read)，再查 COUNT(_index)
+            is_count = idx % 2 == 1
+            if is_today:
+                if is_count:
+                    return {
+                        "series": [
+                            {
+                                "dimensions": {"attributes.gen_ai.response.model": "m_zero_today"},
+                                "datapoints": [[5, start_time * 1000], [0, (start_time + 60) * 1000]],
+                            },
+                            {
+                                "dimensions": {"attributes.gen_ai.response.model": "m_yesterday_only"},
+                                "datapoints": [[0, start_time * 1000]],
+                            },
+                        ]
+                    }
+                return {
+                    "series": [
                         {
-                            "attributes.gen_ai.response.model": "m_zero_today",
-                            "_time_": start_time * 1000,
-                            "_result_": 5,
+                            "dimensions": {"attributes.gen_ai.response.model": "m_zero_today"},
+                            "datapoints": [[0.0, start_time * 1000], [0.0, (start_time + 60) * 1000]],
                         },
                         {
-                            "attributes.gen_ai.response.model": "m_zero_today",
-                            "_time_": (start_time + 60) * 1000,
-                            "_result_": 0,
-                        },
-                        # m_yesterday_only 今日无样本
-                        {
-                            "attributes.gen_ai.response.model": "m_yesterday_only",
-                            "_time_": start_time * 1000,
-                            "_result_": 0,
+                            "dimensions": {"attributes.gen_ai.response.model": "m_yesterday_only"},
+                            "datapoints": [[None, start_time * 1000]],
                         },
                     ]
-                self.assertEqual(fields, ["attributes.gen_ai.usage.cache_read.input_tokens"])
-                return [
-                    {"attributes.gen_ai.response.model": "m_zero_today", "_time_": start_time * 1000, "_result_": 0.0},
-                    {
-                        "attributes.gen_ai.response.model": "m_zero_today",
-                        "_time_": (start_time + 60) * 1000,
-                        "_result_": 0.0,
-                    },
-                    {
-                        "attributes.gen_ai.response.model": "m_yesterday_only",
-                        "_time_": start_time * 1000,
-                        "_result_": 0.0,
-                    },
-                ]
+                }
 
-            if method == "COUNT":
-                return [
+            if is_count:
+                return {
+                    "series": [
+                        {
+                            "dimensions": {"attributes.gen_ai.response.model": "m_zero_today"},
+                            "datapoints": [[0, (start_time - 86400) * 1000]],
+                        },
+                        {
+                            "dimensions": {"attributes.gen_ai.response.model": "m_yesterday_only"},
+                            "datapoints": [[3, (start_time - 86400) * 1000]],
+                        },
+                    ]
+                }
+            return {
+                "series": [
                     {
-                        "attributes.gen_ai.response.model": "m_zero_today",
-                        "_time_": (start_time - 86400) * 1000,
-                        "_result_": 0,
-                    },
-                    {
-                        "attributes.gen_ai.response.model": "m_zero_today",
-                        "_time_": (start_time - 86400 + 60) * 1000,
-                        "_result_": 0,
-                    },
-                    {
-                        "attributes.gen_ai.response.model": "m_yesterday_only",
-                        "_time_": (start_time - 86400) * 1000,
-                        "_result_": 3,
-                    },
+                        "dimensions": {"attributes.gen_ai.response.model": "m_yesterday_only"},
+                        "datapoints": [[25.0, (start_time - 86400) * 1000]],
+                    }
                 ]
-            return [
-                {
-                    "attributes.gen_ai.response.model": "m_zero_today",
-                    "_time_": (start_time - 86400) * 1000,
-                    "_result_": 0.0,
-                },
-                {
-                    "attributes.gen_ai.response.model": "m_zero_today",
-                    "_time_": (start_time - 86400 + 60) * 1000,
-                    "_result_": 0.0,
-                },
-                {
-                    "attributes.gen_ai.response.model": "m_yesterday_only",
-                    "_time_": (start_time - 86400) * 1000,
-                    "_result_": 25.0,
-                },
-            ]
+            }
 
-        query.query_field_aggregated_group.side_effect = aggregate
-        with patch_llm_metric_group(query):
+        grafana = mock.Mock()
+        grafana.grafana.graph_unify_query.side_effect = graph_query
+        with (
+            patch_llm_metric_group(real_query),
+            mock.patch(f"{GROUP_MODULE}.resource", grafana),
+        ):
             result = CalculateByRangeResource().request(
                 {
                     **LLM_METRIC_REQUEST,
@@ -3399,42 +3546,33 @@ class TimeSeriesResourceTestCase(TestCase):
             ],
         )
 
-    def test_duration_series_grouped_by_operation_uses_weighted_average(self):
-        """时序曲线按操作名归一合并时同样按样本数加权（SUM / COUNT），避免 _merge_datapoints 把两条均值曲线直接相加。"""
-        query = make_query()
+    def test_default_time_series_keeps_original_topk_and_zero_fill_strategy(self):
+        """原 TimeSeriesResource 入口保持默认展示策略（topk(20, ...) 与 null_as_zero=True），不额外拆分查询。"""
+        real_query = LLMQuery([mock.Mock(retention=7)])
+        real_query.build_queries = mock.Mock(return_value=[mock.Mock()])
+        qs = mock.Mock()
+        qs.expression.return_value = qs
+        qs.time_agg.return_value = qs
+        added = mock.Mock(config={"start_time": 1700000000000, "end_time": 1700003600000})
+        real_query.get_qs = mock.Mock(return_value=qs)
+        real_query._add_query = mock.Mock(return_value=added)
+
         grafana = mock.Mock()
-        grafana.grafana.graph_unify_query.side_effect = [
-            {
-                "series": [
-                    {"dimensions": {"attributes.gen_ai.operation.name": "completion"}, "datapoints": [[99000.0, 1000]]},
-                    {
-                        "dimensions": {"attributes.gen_ai.operation.name": "text_completion"},
-                        "datapoints": [[9000.0, 1000]],
-                    },
-                ],
-                "unit": "µs",
-            },
-            {
-                "series": [
-                    {"dimensions": {"attributes.gen_ai.operation.name": "completion"}, "datapoints": [[99, 1000]]},
-                    {"dimensions": {"attributes.gen_ai.operation.name": "text_completion"}, "datapoints": [[1, 1000]]},
-                ]
-            },
-        ]
-        with patch_llm_metric_group(query, product="aidev"), mock.patch(f"{GROUP_MODULE}.resource", grafana):
+        grafana.grafana.graph_unify_query.return_value = {
+            "series": [{"dimensions": {"attributes.gen_ai.operation.name": "chat"}, "datapoints": [[500.0, 1000]]}],
+            "unit": "µs",
+        }
+        with patch_llm_metric_group(real_query, product="aidev"), mock.patch(f"{GROUP_MODULE}.resource", grafana):
             result = TimeSeriesResource().request(
                 {**LLM_METRIC_REQUEST, "cal_type": "duration", "group_by": ["gen_ai.operation.name"]}
             )
 
+        grafana.grafana.graph_unify_query.assert_called_once()
+        qs.expression.assert_called_once_with("topk(20, q0)")
+        self.assertTrue(grafana.grafana.graph_unify_query.call_args.args[0]["null_as_zero"])
         self.assertEqual(
             result["series"],
-            [
-                {
-                    "dimensions": {"gen_ai.operation.name": "text_completion"},
-                    "target": "text_completion",
-                    "datapoints": [[1080.0, 1000]],
-                }
-            ],
+            [{"dimensions": {"gen_ai.operation.name": "chat"}, "target": "chat", "datapoints": [[500.0, 1000]]}],
         )
 
     def test_input_tokens_series_delegates_to_graph_unify_query(self):
@@ -3563,20 +3701,28 @@ class LLMQueryTestCase(TestCase):
         self.assertEqual(records, [{"_result_": 27}])
         aggregated_value.assert_called_once_with(queries, 1, 2, "trace_id", "DISTINCT")
 
-    def test_aggregated_group_forwards_interval_to_base_query(self):
-        queries = [mock.sentinel.query]
-        with mock.patch.object(LLMQuery, "_query_fields_aggregated_group", return_value=[]) as base_group:
-            self._query().query_field_aggregated_group(queries, 100, 700, ["_index"], "COUNT", ["time"], interval=60)
+    def test_graph_config_disables_topk_and_zero_fill_for_range_bucketing(self):
+        qs = mock.Mock()
+        added = mock.Mock(config={"start_time": 1700000000000, "end_time": 1700003600000})
 
-        base_group.assert_called_once_with(
-            queries=queries,
-            start_time=100,
-            end_time=700,
-            fields=["_index"],
-            method="COUNT",
-            group_by=["time"],
-            interval=60,
-        )
+        with (
+            mock.patch.object(LLMQuery, "get_qs", return_value=qs),
+            mock.patch.object(LLMQuery, "_add_query", return_value=added),
+        ):
+            config = self._query().query_field_graph_config(
+                [mock.Mock()],
+                1700000000,
+                1700003600,
+                ["input", "output"],
+                "SUM",
+                60,
+                ["model"],
+                enable_topk=False,
+                null_as_zero=False,
+            )
+
+        self.assertEqual(qs.expression.call_args.args[0], "(q0 or q1 * 0) + (q1 or q0 * 0)")
+        self.assertFalse(config["null_as_zero"])
 
     def test_field_values_flatten_nested_records(self):
         """存储把 `attributes.x.y` 嵌在 attributes 字典里返回，按扁平键直接取会全部取空。"""
