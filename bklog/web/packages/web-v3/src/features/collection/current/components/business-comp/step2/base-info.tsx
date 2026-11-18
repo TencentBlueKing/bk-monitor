@@ -471,8 +471,7 @@ export default defineComponent({
             </div>
             <div
               class='html-container'
-              // @ts-expect-error
-              domPropsInnerHTML={xssFilter(customTypeIntro.value)}
+              innerHTML={xssFilter(customTypeIntro.value)}
             ></div>
           </div>
         </div>

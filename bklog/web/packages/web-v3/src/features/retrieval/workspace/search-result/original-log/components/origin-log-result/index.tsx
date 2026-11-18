@@ -849,7 +849,7 @@ export default defineComponent({
                     </td>
                     <td
                       style={rowStyle}
-                      domProps={{ innerHTML: renderTimeCell(row) }}
+                      innerHTML={renderTimeCell(row)}
                     ></td>
                     <td style='padding:4px 0'>
                       <RenderJsonCell>
