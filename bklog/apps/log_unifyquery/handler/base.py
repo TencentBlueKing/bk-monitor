@@ -57,6 +57,7 @@ from apps.log_unifyquery.partial import is_partial_result
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
+from apps.utils.function import get_field_value
 from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
@@ -682,7 +683,7 @@ class UnifyQueryHandler:
         log_list = []
         origin_log_list = []
         for log in result_dict["list"]:
-            log = merge_nested_data(log)
+            log = merge_nested_data(log, on_conflict="keep")
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
@@ -690,26 +691,10 @@ class UnifyQueryHandler:
             # 联合索引 增加索引集id信息
             log.update({"__index_set_id__": int(self.index_set_ids[0])})
             if self.export_fields:
-                new_origin_log = {}
-                for _export_field in self.export_fields:
-                    # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
-                    if _export_field in log:
-                        new_origin_log[_export_field] = log[_export_field]
-                    # 处理a.b.c的情况
-                    elif "." in _export_field:
-                        # 在log中找不到时,去log的子级查找
-                        key, *field_list = _export_field.split(".")
-                        _result = log.get(key, {})
-                        for _field in field_list:
-                            if isinstance(_result, dict) and _field in _result:
-                                _result = _result[_field]
-                            else:
-                                _result = ""
-                                break
-                        new_origin_log[_export_field] = _result
-                    else:
-                        new_origin_log[_export_field] = log.get(_export_field, "")
-                origin_log = new_origin_log
+                # 兼容虚拟字段[__set__, __module__, ipv6]与 a.b.c 形式的嵌套字段取值
+                origin_log = {
+                    _export_field: get_field_value(log, _export_field) for _export_field in self.export_fields
+                }
             else:
                 origin_log = log
             _index = log.pop("__index", None)
@@ -791,7 +776,10 @@ class UnifyQueryHandler:
 
     def _log_desensitize(self, log: dict = None):
         """
-        字段脱敏
+        日志字段脱敏
+
+        展开 dotted key 后按配置脱敏并同步原文字段，返回前统一折叠为嵌套结构，
+        保证脱敏开关、是否配置原文字段时返回结构一致
         """
         if not log:
             return log
@@ -803,22 +791,23 @@ class UnifyQueryHandler:
         hits = []
         log = self.desensitize_handler.transform_dict(log, hits=hits)
 
-        # 原文字段应用其他字段的脱敏结果
-        if not self.text_fields:
-            return log
+        if self.text_fields:
+            # 原文字段应用其他字段的脱敏结果
+            log = sync_text_fields(
+                log,
+                self.text_fields,
+                hits,
+                self.desensitize_handler,
+                index_set_id=self.index_set_ids[0] if self.index_set_ids else None,
+            )
 
-        log = sync_text_fields(
-            log,
-            self.text_fields,
-            hits,
-            self.desensitize_handler,
-            index_set_id=self.index_set_ids[0] if self.index_set_ids else None,
-        )
+            # 处理原文字段自身绑定的脱敏逻辑
+            log = self.text_fields_desensitize_handler.transform_dict(log)
 
-        # 处理原文字段自身绑定的脱敏逻辑
-        log = self.text_fields_desensitize_handler.transform_dict(log)
-        # 折叠object对象
-        log = merge_nested_data(log)
+        # 折叠object对象：无论是否配置原文字段都需要还原嵌套结构，
+        # 否则未配置原文字段时会将 dotted key 形态直接返回给调用方
+        # 冲突字段（同层标量键与前缀子路径并存）保留扁平键，避免整次检索失败
+        log = merge_nested_data(log, on_conflict="keep")
         return log
 
     @classmethod

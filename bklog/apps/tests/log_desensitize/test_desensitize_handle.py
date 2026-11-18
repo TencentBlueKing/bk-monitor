@@ -24,14 +24,18 @@ import json
 from django.test import SimpleTestCase, TestCase
 
 from apps.log_desensitize.constants import DesensitizeOperator
+from apps.log_desensitize.exceptions import DesensitizeDataErrorException
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler, DesensitizeRuleHandler
 from apps.log_desensitize.utils import (
     JSON_LEAF_MAX_DEPTH,
     TEXT_FIELD_MASKED_VALUE,
     DesensitizeHit,
+    _has_prefix_conflict,
     expand_nested_data,
+    merge_nested_data,
     sync_text_fields,
 )
+from apps.utils.function import get_field_value
 
 IP_PATTERN = r"\d{1,3}(?:\.\d{1,3}){3}"
 
@@ -324,6 +328,138 @@ class TestSyncTextFields(SimpleTestCase):
         self.assertEqual(result["log"], '{"phones":' + "*" * len("['13800001111']") + "}")
 
 
+class TestGetFieldValue(SimpleTestCase):
+    """
+    导出按 field_alias 取值：兼容扁平（dotted key）与嵌套结构
+    """
+
+    def test_flat_record_direct_hit(self):
+        record = {"body.player.id": "12345", "message": "hello"}
+        self.assertEqual(get_field_value(record, "body.player.id"), "12345")
+        self.assertEqual(get_field_value(record, "message"), "hello")
+
+    def test_nested_record_path_navigation(self):
+        record = {"body": {"player": {"id": "1***5", "tags": ["vip"]}}}
+        self.assertEqual(get_field_value(record, "body.player.id"), "1***5")
+        self.assertEqual(get_field_value(record, "body.player.tags"), ["vip"])
+
+    def test_missing_path_returns_default(self):
+        self.assertEqual(get_field_value({"body": {"player": {}}}, "body.player.id"), "")
+        self.assertEqual(get_field_value({"body": {"player": {}}}, "body.missing.id"), "")
+        self.assertEqual(get_field_value({"body": "plain"}, "body.player.id"), "")
+        # 命中但值为 None 时保持原值，与既有导出行为一致
+        self.assertIsNone(get_field_value({"a": None}, "a"))
+
+    def test_non_dict_record_returns_default(self):
+        self.assertEqual(get_field_value(None, "a.b"), "")
+        self.assertEqual(get_field_value(["a"], "a"), "")
+
+    def test_non_string_field_returns_default(self):
+        # result_schema 的 field_alias 异常（None / 空串）时不能抛异常
+        self.assertEqual(get_field_value({"a": 1}, None), "")
+        self.assertEqual(get_field_value({"a": 1}, ""), "")
+
+
+class TestMergeNestedDataConflict(SimpleTestCase):
+    """
+    折叠 nested data 时「标量键」与「同名前缀子路径」冲突的处理
+    """
+
+    def test_conflict_raise_by_default(self):
+        with self.assertRaises(DesensitizeDataErrorException):
+            merge_nested_data({"a": 1, "a.b": 2})
+
+    def test_prefix_conflict_keep_flat_key(self):
+        with self.assertLogs("apps.log_desensitize.utils", level="WARNING") as captured:
+            result = merge_nested_data({"a": 1, "a.b": 2}, on_conflict="keep")
+        # 标量键与前缀子路径都保留，不丢字段
+        self.assertEqual(result, {"a": 1, "a.b": 2})
+        self.assertEqual(len(captured.output), 1)
+        self.assertIn("conflict, keep flat key: a.b", captured.output[0])
+
+    def test_conflict_result_independent_of_insert_order(self):
+        """key 顺序不同的同一份数据，折叠结果必须一致且不丢字段。"""
+        with self.assertLogs("apps.log_desensitize.utils", level="WARNING"):
+            forward = merge_nested_data({"a": 1, "a.b": 2}, on_conflict="keep")
+        with self.assertLogs("apps.log_desensitize.utils", level="WARNING"):
+            backward = merge_nested_data({"a.b": 2, "a": 1}, on_conflict="keep")
+        expected = {"a": 1, "a.b": 2}
+        self.assertEqual(forward, expected)
+        self.assertEqual(backward, expected)
+
+    def test_invalid_on_conflict_raises(self):
+        with self.assertRaises(ValueError):
+            merge_nested_data({"a.b": 1}, on_conflict="typo")
+
+    def test_no_conflict_unchanged(self):
+        with self.assertNoLogs("apps.log_desensitize.utils", level="WARNING"):
+            result = merge_nested_data({"a.b": 1, "a.c": 2})
+        self.assertEqual(result, {"a": {"b": 1, "c": 2}})
+
+    def test_no_conflict_preserves_input_order(self):
+        """无冲突时 raise 模式保持原始字段顺序，不因 key 段数重排。"""
+        result = merge_nested_data({"a.b": 1, "c": 2, "d.e.f": 3})
+        self.assertEqual(list(result), ["a", "c", "d"])
+
+    def test_keep_no_conflict_preserves_input_order(self):
+        """keep 模式在无冲突时同样保持原始字段顺序。"""
+        with self.assertNoLogs("apps.log_desensitize.utils", level="WARNING"):
+            result = merge_nested_data({"a.b": 1, "c": 2, "d.e.f": 3}, on_conflict="keep")
+        self.assertEqual(list(result), ["a", "c", "d"])
+
+    def test_has_prefix_conflict_scalar_parent(self):
+        self.assertTrue(_has_prefix_conflict({"a": 1, "a.b": 2}))
+
+    def test_has_prefix_conflict_dict_parent(self):
+        # 对象父键 + 同名字路径并存时，折叠顺序同样影响结果
+        self.assertTrue(_has_prefix_conflict({"a": {"c": 2}, "a.b": 1}))
+
+    def test_has_prefix_conflict_none_parent(self):
+        self.assertTrue(_has_prefix_conflict({"a": None, "a.b": 1}))
+
+    def test_has_prefix_conflict_deep_prefix(self):
+        self.assertTrue(_has_prefix_conflict({"a.b": 1, "a.b.c": 2}))
+
+    def test_no_prefix_conflict_flat_only(self):
+        self.assertFalse(_has_prefix_conflict({"a.b": 1, "a.c": 2}))
+
+    def test_no_prefix_conflict_nested_only(self):
+        self.assertFalse(_has_prefix_conflict({"a": {"b": 1}, "c": 2}))
+
+    def test_keep_dict_parent_with_dotted_child(self):
+        """对象父键与同名字路径并存：两种插入顺序结果一致且不丢字段。"""
+        forward = merge_nested_data({"a.b": 1, "a": {"c": 2}}, on_conflict="keep")
+        backward = merge_nested_data({"a": {"c": 2}, "a.b": 1}, on_conflict="keep")
+        expected = {"a": {"c": 2, "b": 1}}
+        self.assertEqual(forward, expected)
+        self.assertEqual(backward, expected)
+
+    def test_raise_conflict_independent_of_insert_order(self):
+        """raise 模式对两种插入顺序都抛异常。"""
+        with self.assertRaises(DesensitizeDataErrorException):
+            merge_nested_data({"a": 1, "a.b": 2})
+        with self.assertRaises(DesensitizeDataErrorException):
+            merge_nested_data({"a.b": 2, "a": 1})
+
+    def test_merge_does_not_mutate_input(self):
+        """合并过程不能修改调用方传入的 dict 值。"""
+        data = {"a.b": 1, "a": {"c": 2}}
+
+        result = merge_nested_data(data, on_conflict="keep")
+
+        self.assertEqual(result, {"a": {"c": 2, "b": 1}})
+        self.assertEqual(data, {"a.b": 1, "a": {"c": 2}})
+
+    def test_merge_does_not_mutate_nested_input(self):
+        """深层 dict 值同样不能被就地合并。"""
+        data = {"a.b.c": 1, "a": {"b": {"d": 2}}}
+
+        result = merge_nested_data(data, on_conflict="keep")
+
+        self.assertEqual(result, {"a": {"b": {"d": 2, "c": 1}}})
+        self.assertEqual(data, {"a.b.c": 1, "a": {"b": {"d": 2}}})
+
+
 class TestPreviewConsistency(SimpleTestCase):
     """
     预览与检索链路使用同一套字段匹配和原文同步逻辑
@@ -364,3 +500,12 @@ class TestPreviewConsistency(SimpleTestCase):
             text_fields=[],
         )
         self.assertEqual(result, {"ip": [None]})
+
+    def test_preview_conflict_field_keeps_flat_key(self):
+        """日志同时存在标量键与前缀子路径：预览不报错，冲突字段保留扁平键。"""
+        result = DesensitizeRuleHandler.preview(
+            logs=[{"a": "10.20.30.40", "a.b": "10.20.30.41"}],
+            field_configs=[{"field_name": "a.b", "rules": self._rules("[IP]", IP_PATTERN)}],
+            text_fields=[],
+        )
+        self.assertEqual(result, {"a.b": ["[IP]"]})
