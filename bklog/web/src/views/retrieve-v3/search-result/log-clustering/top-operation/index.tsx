@@ -25,7 +25,7 @@
  */
 
 import { inject, computed, defineComponent, ref } from 'vue';
-import { quixPage } from '../quix-status';
+import { quixPage } from '../quix-page';
 import Stratege from './strategy';
 import QuickFilter from './quick-filter';
 import useLocale from '@/hooks/use-locale';

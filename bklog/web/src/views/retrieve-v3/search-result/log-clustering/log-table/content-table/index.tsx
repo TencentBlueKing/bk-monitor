@@ -38,7 +38,7 @@ import ClusterEventPopover from './cluster-popover';
 import RemarkEditTip from './remark-edit-tip';
 import PatternAnalysisSlider from './pattern-analysis-slider';
 import { getConditionRouterParams } from './utils';
-import { quixPage } from '../../quix-status';
+import { quixPage } from '../../quix-page';
 import $http from '@/api';
 
 import type { ITableItem } from '../index';
