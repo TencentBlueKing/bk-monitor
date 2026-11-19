@@ -2,12 +2,14 @@ from unittest.mock import Mock, call, patch
 
 from django.test import SimpleTestCase, TestCase
 
+from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
 from apps.log_clustering.constants import RegexRuleTypeEnum, StorageTypeEnum
 from apps.log_clustering.exceptions import RegexTemplateNotExistException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_databus.models import CollectorConfig
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 
 TEST_INDEX_SET_ID = 1
 TEST_BK_BIZ_ID = 2
@@ -35,14 +37,6 @@ class TestClusteringConfigHandler(SimpleTestCase):
         result = ClusteringConfigHandler.list_all_configs()
 
         self.assertTrue(result[0]["placeholder_analysis_supported"])
-
-    @patch("apps.log_clustering.handlers.clustering_config.FeatureToggleObject.switch", return_value=True)
-    def test_mini_clustering_toggle_selects_quix_for_log_index_set(self, mock_switch):
-        index_set = LogIndexSet(index_set_id=TEST_INDEX_SET_ID, scenario_id=Scenario.LOG, space_uid="bkcc__2")
-
-        self.assertTrue(ClusteringConfigHandler._use_quix_clustering(index_set))
-
-        mock_switch.assert_called_once_with(MINI_CLUSTERING_CONFIG, biz_id=TEST_BK_BIZ_ID)
 
     @patch("apps.log_clustering.handlers.clustering_config.FeatureToggleObject.switch", return_value=False)
     def test_mini_clustering_toggle_off_keeps_online_flow(self, mock_switch):
@@ -166,6 +160,53 @@ class TestClusteringConfigHandler(SimpleTestCase):
         result = ClusteringConfigHandler(index_set_id=TEST_INDEX_SET_ID).retrieve()
 
         self.assertTrue(result["placeholder_analysis_supported"])
+
+
+class TestCreateClusteringInGrayBusiness(TestCase):
+    def test_only_v4_collector_uses_quix(self):
+        FeatureToggle.objects.create(name=MINI_CLUSTERING_CONFIG, status="debug", biz_id_white_list=[TEST_BK_BIZ_ID])
+        params = {"clustering_fields": "log", "new_cls_strategy_enable": False, "normal_strategy_enable": False}
+        for enable_v4 in (False, True):
+            with self.subTest(enable_v4=enable_v4):
+                name = "test_v4" if enable_v4 else "test_v3"
+                table_id = f"{TEST_BK_BIZ_ID}_bklog.{name}"
+                collector = CollectorConfig.objects.create(
+                    bk_biz_id=TEST_BK_BIZ_ID,
+                    collector_config_name=name,
+                    collector_config_name_en=name,
+                    table_id=table_id,
+                    enable_v4=enable_v4,
+                )
+                index_set = LogIndexSet.objects.create(
+                    index_set_name=name,
+                    space_uid=f"bkcc__{TEST_BK_BIZ_ID}",
+                    scenario_id=Scenario.LOG,
+                    collector_config_id=collector.collector_config_id,
+                )
+                LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id=table_id)
+
+                with (
+                    patch("apps.log_clustering.handlers.clustering_config.QuixClusteringHandler") as quix,
+                    patch("apps.log_clustering.handlers.clustering_config.access_clustering.delay") as legacy_task,
+                    patch(
+                        "apps.log_clustering.handlers.clustering_config.get_online_clustering_config",
+                        return_value={"collector_clustering_es_storage": {"es_storage": "test_es"}},
+                    ),
+                    patch.object(CollectorConfig, "get_etl_config", return_value={"fields": [{"field_name": "log"}]}),
+                    patch(
+                        "apps.log_clustering.handlers.clustering_config.RegexTemplateHandler.list_templates",
+                        return_value=[{"id": 1, "predefined_varibles": "W10="}],
+                    ),
+                ):
+                    ClusteringConfigHandler().create(index_set.index_set_id, params)
+
+                if enable_v4:
+                    quix.assert_called_once_with(index_set)
+                    quix.return_value.enable.assert_called_once_with(params)
+                    legacy_task.assert_not_called()
+                else:
+                    quix.assert_not_called()
+                    legacy_task.assert_called_once_with(index_set_id=index_set.index_set_id)
 
 
 class TestSynchronousUpdateRegexTemplateSpace(TestCase):
