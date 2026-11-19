@@ -461,11 +461,11 @@ class IntegrationModeTest(TestCase):
     def test_toggle_on_admits_v3(self):
         self.assertTrue(is_nodeman_v3_admitted(2))
 
-    @nodeman_v3_toggle("on", enabled=False)
-    def test_total_switch_off_rejects_feature_toggle_admission(self):
-        self.assertFalse(is_nodeman_v3_admitted(2))
+    @nodeman_v3_toggle("on", enabled=True)
+    def test_env_true_overrides_toggle_off_admission(self):
+        self.assertTrue(is_nodeman_v3_admitted(2))
 
-    @override_settings(ENABLE_NODEMAN_V3_VALUE="")
+    @override_settings(ENABLE_NODEMAN_V3=False)
     def test_missing_toggle_fails_closed(self):
         from apps.feature_toggle.models import FeatureToggle
         from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
@@ -473,7 +473,7 @@ class IntegrationModeTest(TestCase):
         FeatureToggle.origin_objects.filter(name=NODEMAN_V3_COLLECTOR).delete()
         self.assertFalse(is_nodeman_v3_admitted(2))
 
-    @override_settings(ENABLE_NODEMAN_V3_VALUE="")
+    @override_settings(ENABLE_NODEMAN_V3=False)
     def test_toggle_database_error_fails_closed(self):
         from apps.feature_toggle.models import FeatureToggle
 
@@ -483,97 +483,64 @@ class IntegrationModeTest(TestCase):
 
 class EnvOverrideModeTest(TestCase):
     """
-    环境变量强制档位。
+    环境变量强制准入。
 
-    只认字面量 true / false：前者强制打开、后者强制关闭，其余取值交给 DB 灰度。
-    这是「DB 记录屏蔽 settings 导致 env 入口失效」的修复，参考 apps/iam/mode.py
-    的「环境变量优先、命中即短路」形态。
+    ENABLE_NODEMAN_V3 为 true 时跳过 DB 灰度直接准入；其余取值（未设置、false、on、1）
+    一律按 DB 灰度。这是「DB 记录屏蔽 settings 导致 env 入口失效」的修复，
+    参考 apps/iam/mode.py 的「环境变量优先、命中即短路」形态。
     """
 
-    @nodeman_v3_toggle("off", env_value="true")
+    @nodeman_v3_toggle("off", enabled=True)
     def test_true_overrides_toggle_off(self):
         # 现场问题：运维配了 true，但 DB 仍是迁移写入的 off，此时必须按环境变量放行
         self.assertTrue(is_nodeman_v3_admitted(2))
 
-    @nodeman_v3_toggle("on", env_value="true")
+    @nodeman_v3_toggle("on", enabled=True)
     def test_true_does_not_read_toggle(self):
         from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 
-        with patch.object(FeatureToggleObject, "toggle", side_effect=AssertionError("true 档位不应查询 DB")):
+        with patch.object(FeatureToggleObject, "toggle", side_effect=AssertionError("true 时不应查询 DB")):
             self.assertTrue(is_nodeman_v3_admitted(2))
 
-    @nodeman_v3_toggle("debug", biz_ids=[2], env_value="true")
+    @nodeman_v3_toggle("debug", biz_ids=[2], enabled=True)
     def test_true_bypasses_debug_whitelist(self):
         self.assertTrue(is_nodeman_v3_admitted(7))
 
-    @nodeman_v3_toggle("on", env_value="false")
-    def test_false_overrides_toggle_on(self):
-        # 删除 DB 开关后环境变量是唯一逃生阀，false 必须仍然是强制关闭而不是「跟随 DB」
-        self.assertFalse(is_nodeman_v3_admitted(2))
-
-    @nodeman_v3_toggle("on", env_value="false")
-    def test_false_does_not_read_toggle(self):
-        from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-
-        with patch.object(FeatureToggleObject, "toggle", side_effect=AssertionError("false 档位不应查询 DB")):
-            self.assertFalse(is_nodeman_v3_admitted(2))
-
-    @nodeman_v3_toggle("on", env_value="")
-    def test_unset_falls_back_to_toggle_on(self):
-        # 未设置走 DB 灰度，否则 DB 灰度开关永远不可达
+    @nodeman_v3_toggle("on", enabled=False)
+    def test_other_values_fall_back_to_toggle_on(self):
         self.assertTrue(is_nodeman_v3_admitted(2))
 
-    @nodeman_v3_toggle("off", env_value="")
-    def test_unset_with_toggle_off_stays_v2(self):
+    @nodeman_v3_toggle("off", enabled=False)
+    def test_other_values_fall_back_to_toggle_off(self):
         self.assertFalse(is_nodeman_v3_admitted(2))
 
-    @nodeman_v3_toggle("debug", biz_ids=[2], env_value="")
-    def test_unset_keeps_debug_whitelist_semantics(self):
+    @nodeman_v3_toggle("debug", biz_ids=[2], enabled=False)
+    def test_other_values_keep_debug_whitelist_semantics(self):
         self.assertTrue(is_nodeman_v3_admitted(2))
         self.assertFalse(is_nodeman_v3_admitted(7))
 
-    def test_non_literal_values_fall_back_to_toggle(self):
-        # on / 1 / yes 不参与强制档位：只有字面量 true / false 生效，避免同一语义多种写法行为不同
-        for value in ("on", "1", "yes", "enable", "truthy"):
+    def test_non_true_values_fall_back_to_toggle(self):
+        # on / 1 / yes 不是开启意图：只有 true 跳过灰度，其余一律查 DB
+        for value in ("false", "on", "1", "yes", "enable"):
             with self.subTest(env_value=value):
-                with override_settings(ENABLE_NODEMAN_V3_VALUE=value):
-                    with patch("apps.log_databus.nodeman_v3.mode._toggle_allows", return_value=False) as toggle_allows:
-                        self.assertFalse(is_nodeman_v3_admitted(2))
-                    toggle_allows.assert_called_once()
+                with patch("apps.log_databus.nodeman_v3.mode._toggle_allows", return_value=False) as toggle_allows:
+                    self.assertFalse(is_nodeman_v3_admitted(2))
+                toggle_allows.assert_called_once()
 
-    def test_case_insensitive_true_is_accepted(self):
-        # 大小写与首尾空白在读取时已归一化，等价于 true
-        from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-
-        for value in ("TRUE", " True ", "true"):
-            with self.subTest(env_value=value):
-                with override_settings(ENABLE_NODEMAN_V3_VALUE=value):
-                    with patch.object(FeatureToggleObject, "toggle", side_effect=AssertionError("不应查询 DB")):
-                        self.assertTrue(is_nodeman_v3_admitted(2))
-
-    def test_case_insensitive_false_is_accepted(self):
-        from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-
-        for value in ("FALSE", " False ", "false"):
-            with self.subTest(env_value=value):
-                with override_settings(ENABLE_NODEMAN_V3_VALUE=value):
-                    with patch.object(FeatureToggleObject, "toggle", side_effect=AssertionError("不应查询 DB")):
-                        self.assertFalse(is_nodeman_v3_admitted(2))
-
-    @nodeman_v3_toggle("off", env_value="true")
+    @nodeman_v3_toggle("off", enabled=True)
     def test_true_reports_available_even_when_toggle_off(self):
         from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_available
 
-        # 强制打开档位下 V3 会产生字符串 task_id，available 不能因为 DB 是 off 就拦掉
+        # true 时 V3 会产生字符串 task_id，available 不能因为 DB 是 off 就拦掉
         self.assertTrue(is_nodeman_v3_available())
 
-    def test_false_reports_available_only_with_existing_binding(self):
+    def test_not_forced_reports_available_only_with_existing_binding(self):
         from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_available
 
-        with override_settings(ENABLE_NODEMAN_V3_VALUE="false"):
+        with override_settings(ENABLE_NODEMAN_V3=False):
             self.assertFalse(is_nodeman_v3_available())
 
-    @nodeman_v3_toggle("off", env_value="true")
+    @nodeman_v3_toggle("off", enabled=True)
     def test_bulk_resolver_honours_env_override(self):
         config = SimpleNamespace(
             collector_config_id=9001,
@@ -583,9 +550,9 @@ class EnvOverrideModeTest(TestCase):
         )
         self.assertEqual(resolve_nodeman_v3_collector_ids([config]), {9001})
 
-    @nodeman_v3_toggle("on", env_value="true")
+    @nodeman_v3_toggle("on", enabled=True)
     def test_env_override_does_not_bypass_v2_only_scenarios(self):
-        # 环境变量只替换灰度这一层，不能把 custom/client 拉进 V3，
+        # 环境变量只跳过灰度这一层，不能把 custom/client 拉进 V3，
         # 否则会在构造期望态时抛 NotImplementedError
         for scenario in ("custom", "client"):
             with self.subTest(scenario=scenario):
@@ -597,7 +564,7 @@ class EnvOverrideModeTest(TestCase):
                 )
                 self.assertFalse(should_use_nodeman_v3(config))
 
-    @nodeman_v3_toggle("on", env_value="true")
+    @nodeman_v3_toggle("on", enabled=True)
     def test_env_override_does_not_bypass_existing_subscription(self):
         config = SimpleNamespace(
             collector_config_id=9001,
@@ -607,9 +574,9 @@ class EnvOverrideModeTest(TestCase):
         )
         self.assertFalse(should_use_nodeman_v3(config))
 
-    @nodeman_v3_toggle("off", env_value="off")
-    def test_existing_binding_keeps_v3_under_forced_off(self):
-        # 主机上的 V3 子配置一旦失去控制面会永久残留，粘性归属优先于任何环境变量
+    @nodeman_v3_toggle("off", enabled=False)
+    def test_existing_binding_keeps_v3_when_not_forced(self):
+        # 主机上的 V3 子配置一旦失去控制面会永久残留，粘性归属优先于灰度判定
         config = SimpleNamespace(
             collector_config_id=9001,
             bk_biz_id=2,
@@ -740,7 +707,7 @@ class GrayRolloutOwnershipTest(TestCase):
         self.assertEqual(bindings.call_count, 1)
 
     @nodeman_v3_toggle("on", enabled=False)
-    def test_bulk_resolver_total_switch_off_keeps_only_existing_binding(self):
+    def test_bulk_resolver_keeps_binding_and_admits_via_toggle(self):
         from apps.log_databus.nodeman_v3.models import NodeManV3Binding
 
         configs = [
@@ -757,7 +724,9 @@ class GrayRolloutOwnershipTest(TestCase):
             policy_name=build_policy_name(9001),
         )
 
-        self.assertEqual(resolve_nodeman_v3_collector_ids(configs), {9001})
+        # 未强制准入时按 DB 灰度：binding 粘性保留 9001，toggle on 放行 9002，
+        # 存量订阅 9003 仍留在 V2
+        self.assertEqual(resolve_nodeman_v3_collector_ids(configs), {9001, 9002})
 
     def test_custom_scenario_start_uses_v2_path(self):
         # 现场故障：custom 采集项被误判为 V3 后，start 在 build_steps 里抛 NotImplementedError

@@ -1376,11 +1376,8 @@ INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
 USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
 
-# NodeMan V3 准入开关原值。准入判定要区分「未设置」与「显式关闭」：前者按 DB 灰度，
-# 后者强制关闭，解析成布尔后这个差异就丢了，因此保留字符串；
-# ENABLE_NODEMAN_V3 仅作为兼容既有调用的布尔视图，只认字面量 true。
-ENABLE_NODEMAN_V3_VALUE = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "")
-ENABLE_NODEMAN_V3 = ENABLE_NODEMAN_V3_VALUE.strip().lower() == "true"
+# 与监控统一的 NodeMan V3 环境级总开关。为 true 时强制准入，其余取值为 false 并按 DB 灰度。
+ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
 
 # 节点管理 V3 网关地址。留空时按 APIGW 约定拼接，联调环境可直连指定地址；
 # 该地址配置不承担启用开关职责。
