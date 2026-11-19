@@ -1837,6 +1837,10 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         incident = self.get_incident_document(str(validated_request_data["id"]))
         bk_biz_ids = validated_request_data["bk_biz_ids"]
         raw_results = self.get_remote_analysis_results(incident, bk_biz_id=bk_biz_ids[0] if bk_biz_ids else None)
+        return self.format_diagnosis(raw_results, sub_panel, bk_biz_ids, panel)
+
+    def format_diagnosis(self, raw_results, sub_panel, bk_biz_ids, panel="incident_diagnosis"):
+        """Share panel formatting with alert sessions using one consistent analysis snapshot."""
         raw_sub_panel = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {})
         raw_content = raw_sub_panel.get("content")
         # 设置默认返回
