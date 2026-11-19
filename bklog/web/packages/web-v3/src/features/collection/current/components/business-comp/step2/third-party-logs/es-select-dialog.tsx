@@ -26,7 +26,8 @@
 
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { Button as TButton } from 'tdesign-vue-next';
+import { Button as TButton, Form as TForm, FormItem as TFormItem } from 'tdesign-vue-next';
+import type { FormInstanceFunctions, FormRules } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, computed, type PropType } from 'vue';
@@ -128,7 +129,7 @@ export default defineComponent({
     /**
      * 表单引用
      */
-    const formRef = ref<import("@/shared/types/legacy-form").LegacyFormInstance | null>(null);
+    const formRef = ref<FormInstanceFunctions<IEsSelectFormData> | null>(null);
 
     /**
      * 时间精度单位选项列表
@@ -142,7 +143,7 @@ export default defineComponent({
     /**
      * 表单验证规则
      */
-    const formRules = {
+    const formRules: FormRules<IEsSelectFormData> = {
       resultTableId: [
         {
           required: true,
@@ -281,7 +282,7 @@ export default defineComponent({
 
     /**
      * 处理搜索操作
-     * 验证表单后，并行获取索引列表和字段列表
+     * 仅验证索引名称后，并行获取索引列表和字段列表
      */
     const handleSearch = async (): Promise<void> => {
       if (!formRef.value) {
@@ -289,7 +290,8 @@ export default defineComponent({
       }
 
       try {
-        await formRef.value.validate();
+        const valid = await formRef.value.validate({ fields: ['resultTableId'] });
+        if (valid !== true) return;
         searchLoading.value = true;
         tableLoading.value = true;
 
@@ -367,7 +369,8 @@ export default defineComponent({
         /**
          * 验证表单
          */
-        await formRef.value.validate();
+        const valid = await formRef.value.validate();
+        if (valid !== true) return;
       } catch (e) {
         console.warn('表单验证失败:', e);
         return;
@@ -471,20 +474,20 @@ export default defineComponent({
         value={props.isShowDialog}
         onCancel={handleCancel}
       >
-        <bk-form
-          label-width={80}
+        <TForm
+          labelWidth={80}
+          requiredMarkPosition='right'
           ref={formRef}
-          {...{
-            ...{
-              model: formData.value,
-              rules: formRules,
-            },
-          }}
+          data={formData.value}
+          rules={formRules}
         >
-          <bk-form-item
+          <TFormItem
+            v-slots={{
+              help: () => <InfoTips tips={t('支持" * "匹配，不支持其他特殊符号')} />,
+            }}
             label={t('索引')}
-            property='resultTableId'
-            required
+            name='resultTableId'
+            requiredMark
           >
             <bk-input
               class='input-box'
@@ -501,10 +504,9 @@ export default defineComponent({
             >
               {t('搜索')}
             </TButton>
-            <InfoTips tips={t('支持" * "匹配，不支持其他特殊符号')} />
-          </bk-form-item>
+          </TFormItem>
 
-          <bk-form-item class='table-item-box mt-12'>
+          <TFormItem class='table-item-box mt-12' requiredMark={false}>
             {tableData.value.length > 0 && (
               <div class='result-tips'>
                 <i class='bk-icon icon-check-circle-shape' />
@@ -529,11 +531,11 @@ export default defineComponent({
                 },
               ]}
             />
-          </bk-form-item>
-          <bk-form-item
+          </TFormItem>
+          <TFormItem
             label={t('时间字段')}
-            property='time_field'
-            required
+            name='time_field'
+            requiredMark
           >
             <bk-select
               clearable={false}
@@ -551,12 +553,12 @@ export default defineComponent({
                 />
               ))}
             </bk-select>
-          </bk-form-item>
+          </TFormItem>
           {formData.value.time_field_type === 'long' && (
-            <bk-form-item
+            <TFormItem
               label={t('时间精度')}
-              property='time_field_unit'
-              required
+              name='time_field_unit'
+              requiredMark
             >
               <bk-select
                 clearable={false}
@@ -574,9 +576,9 @@ export default defineComponent({
                   />
                 ))}
               </bk-select>
-            </bk-form-item>
+            </TFormItem>
           )}
-        </bk-form>
+        </TForm>
       </bk-dialog>
     );
   },

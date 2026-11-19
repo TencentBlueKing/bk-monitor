@@ -497,7 +497,7 @@ class DataLink(models.Model):
             SurrealDBBindingConfig,
             DataBusConfig,
         ],
-        BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
+        BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
@@ -539,11 +539,16 @@ class DataLink(models.Model):
     REUSE_LEFTOVER_POLICY: dict[tuple[str, type["DataLinkResourceConfigBase"]], Literal["strict", "keep", "delete"]] = {
         # 日志在 ES / Doris 间切换时，需要保留旧存储绑定以支持历史分段查询；
         # compose 只会认领当前生效的绑定，因此旧绑定不应被视为脏数据。
+        # Doris 物理表替换会为同一条链路追加新的 ResultTableConfig：旧结果表仍在承载历史数据，
+        # 必须保留且不与链路解绑，因此同样按 keep 处理。
         (BCS_FEDERAL_PROXY_TIME_SERIES, DataBusConfig): "delete",
         # 图谱切回普通指标后保留的 Databus 继续停止，不阻塞后续组件复用。
         (BK_STANDARD_V2_TIME_SERIES, DataBusConfig): "delete",
         (BCS_FEDERAL_SUBSET_TIME_SERIES, ResultTableConfig): "keep",
         (BCS_FEDERAL_SUBSET_TIME_SERIES, VMStorageBindingConfig): "keep",
+        (BK_LOG, ResultTableConfig): "keep",
+        (BASE_EVENT_V1, ESStorageBindingConfig): "keep",
+        (BASE_EVENT_V1, DorisStorageBindingConfig): "keep",
         (BK_STANDARD_V2_EVENT, ESStorageBindingConfig): "keep",
         (BK_STANDARD_V2_EVENT, DorisStorageBindingConfig): "keep",
         (BK_LOG, ESStorageBindingConfig): "keep",
@@ -990,18 +995,8 @@ class DataLink(models.Model):
 
             rt_config = table_ins.compose_config(fields=fields)
             if is_doris:
-                storage_config = storage.doris_storage_config or {}
-                binding_config = binding_ins.compose_config(
-                    storage_cluster_name=storage.storage_cluster.cluster_name,
-                    storage_keys=storage_config.get("storage_keys", []),
-                    json_fields=storage_config.get("json_fields", []),
-                    original_json_fields=storage_config.get("original_json_fields", []),
-                    field_config_group=storage_config.get("field_config_group", {}),
-                    tokenizers=storage_config.get("tokenizers"),
-                    flush_timeout=storage_config.get("flush_timeout"),
-                    expires=f"{storage.expire_days}d",
-                    table_type=storage.table_type,
-                    rt_name=table_ins.name,
+                binding_config = binding_ins.compose_event_storage_config(
+                    storage, storage.storage_cluster.cluster_name, table_ins.name
                 )
             else:
                 unique_field_list = ResultTableOption.objects.get(
@@ -1303,6 +1298,79 @@ class DataLink(models.Model):
 
         return configs
 
+    def _compose_log_doris_result_table_name(self, *, doris_storage: DorisStorage, table_id: str) -> str:
+        """解析本次要写入的 ResultTable 名称。
+
+        元数据阶段会把它写在 ``DorisStorage.bkbase_table_id``（``{data_biz_id}_{name}``）里，
+        这里只做反解；历史链路没有该记录时回退到链路已有的结果表名。
+        """
+        if doris_storage.bkbase_table_id:
+            return self._strip_bkbase_biz_prefix(doris_storage.bkbase_table_id)
+
+        existing_name = (
+            ResultTableConfig.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+                table_id=table_id,
+            )
+            .order_by("-last_modify_time", "-id")
+            .values_list("name", flat=True)
+            .first()
+        )
+        return existing_name or self.data_link_name
+
+    def _compose_log_doris_binding_name(self, *, doris_storage: DorisStorage, result_table_name: str) -> str:
+        """解析 Doris 存储绑定名称。
+
+        - 已存在指向同一结果表的绑定：沿用它，避免无谓重建；
+        - 结果表已切换（换表）：新绑定与结果表同名，便于追溯；
+        - 历史链路没有元数据记录：沿用链路现有绑定名。
+        """
+        existing_name = (
+            DorisStorageBindingConfig.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+                bkbase_result_table_name=result_table_name,
+            )
+            .order_by("-last_modify_time", "-id")
+            .values_list("name", flat=True)
+            .first()
+        )
+        if existing_name:
+            return existing_name
+        if doris_storage.bkbase_table_id:
+            return result_table_name
+
+        legacy_name = (
+            DorisStorageBindingConfig.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=self.namespace,
+                data_link_name=self.data_link_name,
+            )
+            .order_by("-last_modify_time", "-id")
+            .values_list("name", flat=True)
+            .first()
+        )
+        return legacy_name or result_table_name or self.data_link_name
+
+    def _compose_log_doris_storage_location(self, *, doris_storage: DorisStorage) -> tuple[str | None, str | None]:
+        """解析元数据阶段产出的物理表位置；历史链路返回 ``(None, None)`` 走旧规则渲染。"""
+        physical_tables = doris_storage.physical_tables if isinstance(doris_storage.physical_tables, dict) else {}
+        physical_table = physical_tables.get(DorisStorage.LOG_PHYSICAL_TABLE_ROLE)
+        if not physical_table or not isinstance(physical_table, str):
+            return None, None
+        database, sep, table = physical_table.partition(".")
+        if not (sep and database and table and "." not in table):
+            logger.warning(
+                "compose_log_configs: invalid doris physical table->[%s] for table_id->[%s], fallback to legacy rule",
+                physical_table,
+                doris_storage.table_id,
+            )
+            return None, None
+        return database, table
+
     def compose_log_configs(
         self,
         bk_biz_id: int,
@@ -1345,19 +1413,42 @@ class DataLink(models.Model):
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
             clean_rules = [clean_rule.model_dump() for clean_rule in datalink_option.clean_rules]
 
-            existing_rt = (
-                existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
-            )
-            rt_name = existing_rt.name if existing_rt is not None else self.data_link_name
+            # 日志 Doris 链路的组件名称由元数据阶段产出（DorisStorage.bkbase_table_id），
+            # 这里只负责按名字「已存在则维持、不存在则新建」，不再自行推导表名。
+            doris_target_name: str | None = None
+            if doris_storage and datalink_option.doris_storage_config:
+                doris_target_name = self._compose_log_doris_result_table_name(
+                    doris_storage=doris_storage,
+                    table_id=table_id,
+                )
+                rt_name = doris_target_name
+                existing_rt = (
+                    existing_context.claim(ResultTableConfig, lambda c: c.name == rt_name)
+                    if existing_context is not None
+                    else None
+                )
+            else:
+                existing_rt = (
+                    existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
+                )
+                rt_name = existing_rt.name if existing_rt is not None else self.data_link_name
 
-            # 创建结果表配置
+            # 创建结果表配置：元数据给定了名字时按名字认领（换表后名字会变，旧行保留），
+            # 其余链路沿用原有以链路名匹配的行为，避免影响其他 strategy。
+            rt_lookup: dict[str, Any] = {
+                "bk_tenant_id": self.bk_tenant_id,
+                "namespace": self.namespace,
+                "name": rt_name,
+            }
+            if doris_target_name is None:
+                rt_lookup.update(bk_biz_id=bk_biz_id, data_link_name=self.data_link_name)
             result_table, _ = ResultTableConfig.objects.update_or_create(
-                bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id=bk_biz_id,
-                namespace=self.namespace,
-                data_link_name=self.data_link_name,
-                name=rt_name,
-                defaults={"table_id": table_id},
+                **rt_lookup,
+                defaults={
+                    "bk_biz_id": bk_biz_id,
+                    "data_link_name": self.data_link_name,
+                    "table_id": table_id,
+                },
             )
 
             # 创建存储绑定配置
@@ -1411,23 +1502,41 @@ class DataLink(models.Model):
             # 创建 Doris 存储绑定配置
             if doris_storage and datalink_option.doris_storage_config:
                 storage_option = datalink_option.doris_storage_config
+                binding_name = self._compose_log_doris_binding_name(
+                    doris_storage=doris_storage,
+                    result_table_name=result_table.name,
+                )
                 existing_binding = (
-                    existing_context.claim(DorisStorageBindingConfig, lambda c: True)
+                    existing_context.claim(DorisStorageBindingConfig, lambda c: c.name == binding_name)
                     if existing_context is not None
                     else None
                 )
-                binding_name = existing_binding.name if existing_binding is not None else self.data_link_name
+                # 元数据阶段产出的物理表位置；历史链路没有记录时返回 (None, None)，沿用旧规则渲染。
+                db, table = self._compose_log_doris_storage_location(doris_storage=doris_storage)
+                logger.info(
+                    "compose_log_configs: data_link_name->[%s] table_id->[%s] doris target resolved, "
+                    "rt_name->[%s] binding_name->[%s] db->[%s] table->[%s]",
+                    self.data_link_name,
+                    table_id,
+                    result_table.name,
+                    binding_name,
+                    db,
+                    table,
+                )
+                binding_defaults: dict[str, Any] = {
+                    "bk_biz_id": bk_biz_id,
+                    "data_link_name": self.data_link_name,
+                    "table_id": table_id,
+                    "bkbase_result_table_name": result_table.name,
+                    "doris_cluster_name": doris_storage.storage_cluster.cluster_name,
+                }
+                if db and table:
+                    binding_defaults["physical_tables"] = {"main": f"{db}.{table}"}
                 binding, _ = DorisStorageBindingConfig.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
-                    bk_biz_id=bk_biz_id,
                     namespace=self.namespace,
-                    data_link_name=self.data_link_name,
                     name=binding_name,
-                    defaults={
-                        "table_id": table_id,
-                        "bkbase_result_table_name": result_table.name,
-                        "doris_cluster_name": doris_storage.storage_cluster.cluster_name,
-                    },
+                    defaults=binding_defaults,
                 )
                 bingding_configs.append(
                     binding.compose_config(
@@ -1440,6 +1549,8 @@ class DataLink(models.Model):
                         expires=f"{doris_storage.expire_days}d",
                         flush_timeout=storage_option.flush_timeout,
                         rt_name=result_table.name,
+                        db=db,
+                        table=table,
                     )
                 )
                 databus_sinks.append(
@@ -1924,92 +2035,50 @@ class DataLink(models.Model):
         bk_biz_id: int,
         timezone: int = 0,
         consumer_group: str | None = None,
+        storage_type: str = ClusterInfo.TYPE_ES,
     ) -> list[dict[str, Any]]:
-        """
-        生成基础事件链路配置(固定逻辑)
-        @param data_source: 数据源
-        @param table_id: 监控平台结果表ID
-        @param storage_cluster_name: 存储集群名称(ES)
-        @param bk_biz_id: 业务id
-        @param timezone: 时区 默认0时区
-        """
+        """用系统事件预置清洗，将数据写入选定的单个 Binding。"""
         from metadata.models import ResultTableOption
 
         component_name = f"base_{bk_biz_id}_agent_event"
-
-        logger.info(
-            "compose_base_event_configs: data_link_name->[%s],bk_biz_id->[%s],bk_data_id->[%s],es_cluster_name->[%s],table_id->[%s]"
-            "start to compose configs",
-            self.data_link_name,
-            bk_biz_id,
-            data_source.bk_data_id,
-            storage_cluster_name,
-            table_id,
+        identity = dict(
+            name=component_name,
+            namespace=self.namespace,
+            bk_tenant_id=self.bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            data_link_name=self.data_link_name,
         )
-
-        config_list = []
-
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            es_table_ins, _ = ResultTableConfig.objects.update_or_create(
-                name=component_name,
-                namespace=self.namespace,
-                bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id=bk_biz_id,
-                data_link_name=self.data_link_name,
-                defaults={"table_id": table_id},
-            )
+            rt, _ = ResultTableConfig.objects.update_or_create(**identity, defaults={"table_id": table_id})
+            binding_defaults = {"table_id": table_id, "bkbase_result_table_name": component_name}
+            if storage_type == ClusterInfo.TYPE_DORIS:
+                storage = DorisStorage.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
+                binding, _ = DorisStorageBindingConfig.objects.update_or_create(
+                    **identity, defaults={**binding_defaults, "doris_cluster_name": storage_cluster_name}
+                )
+                binding_config = binding.compose_event_storage_config(storage, storage_cluster_name, component_name)
+            else:
+                binding, _ = ESStorageBindingConfig.objects.update_or_create(
+                    **identity,
+                    defaults={**binding_defaults, "es_cluster_name": storage_cluster_name, "timezone": timezone},
+                )
+                unique_fields = ResultTableOption.objects.get(
+                    bk_tenant_id=self.bk_tenant_id, table_id=table_id, name="es_unique_field_list"
+                ).get_value()
+                binding_config = binding.compose_config(
+                    storage_cluster_name=storage_cluster_name,
+                    write_alias_format=f"write_%Y%m%d_{table_id.replace('.', '_')}",
+                    unique_field_list=unique_fields,
+                )
 
-            es_storage_ins, _ = ESStorageBindingConfig.objects.update_or_create(
-                name=component_name,
-                namespace=self.namespace,
-                bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id=bk_biz_id,
-                data_link_name=self.data_link_name,
-                defaults={
-                    "table_id": table_id,
-                    "bkbase_result_table_name": component_name,
-                    "es_cluster_name": storage_cluster_name,
-                    "timezone": timezone,
-                },
-            )
-
-            fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
-            index_name = table_id.replace(".", "_")
-            write_alias = f"write_%Y%m%d_{index_name}"
-            unique_field_list = json.loads(
-                ResultTableOption.objects.get(table_id=table_id, name="es_unique_field_list").value
-            )
-
-            databus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=component_name,
-                namespace=self.namespace,
-                bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id=bk_biz_id,
-                data_link_name=self.data_link_name,
+            databus, _ = DataBusConfig.objects.update_or_create(
+                **identity,
                 data_id_name=component_name,
-                defaults={
-                    "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{component_name}"],
-                },
+                defaults={"bk_data_id": data_source.bk_data_id, "sink_names": [f"{binding.kind}:{component_name}"]},
             )
-            databus_ins.apply_consumer_group(consumer_group)
-
-            es_rt_config = es_table_ins.compose_config(fields=fields)
-            es_binding_config = es_storage_ins.compose_config(
-                storage_cluster_name=storage_cluster_name,
-                write_alias_format=write_alias,
-                unique_field_list=unique_field_list,
-            )
-            databus_config = databus_ins.compose_base_event_config()
-
-            config_list.extend([es_rt_config, es_binding_config, databus_config])
-            logger.info(
-                "compose_base_event_configs: data_link_name->[%s] composed configs successfully,config_list->[%s]",
-                self.data_link_name,
-                config_list,
-            )
-
-        return config_list
+            databus.apply_consumer_group(consumer_group)
+            fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
+            return [rt.compose_config(fields=fields), binding_config, databus.compose_base_event_config(binding.kind)]
 
     @transaction.atomic(using=DATABASE_CONNECTION_NAME)
     def compose_bcs_federal_proxy_time_series_configs(
@@ -2982,6 +3051,9 @@ class DataLink(models.Model):
                     ClusterInfo.TYPE_VM if graph_relation_option.should_write_vm else ClusterInfo.TYPE_SURREALDB
                 )
 
+        if self.data_link_strategy == self.BASE_EVENT_V1:
+            kwargs["storage_type"] = storage_type
+
         try:
             # 随机命名链路的主名称与 DataId 名独立，source 由 sync_metadata 按真实 DataBus 回填。
             monitor_table_id: str | None = (
@@ -3000,7 +3072,8 @@ class DataLink(models.Model):
                 },
             )
             should_update_bkbase_rt_storage_type = (
-                self.data_link_strategy in {self.GRAPH_RELATION_TIME_SERIES, self.BK_STANDARD_V2_EVENT}
+                self.data_link_strategy
+                in {self.GRAPH_RELATION_TIME_SERIES, self.BK_STANDARD_V2_EVENT, self.BASE_EVENT_V1}
                 and bkbase_rt_record.storage_type != storage_type
             )
         except Exception as e:  # pylint: disable=broad-except
@@ -3500,23 +3573,7 @@ class DataLink(models.Model):
                 data_type="graph" if resolved_storage_type == ClusterInfo.TYPE_SURREALDB else "metric"
             )
         rt_queryset = rt_queryset.order_by("-last_modify_time", "-id")
-        rt_count = rt_queryset.count()
         rt = rt_queryset.first()
-        if rt_count == 0 and self.data_link_strategy != self.BCS_FEDERAL_SUBSET_TIME_SERIES:
-            logger.warning(
-                "sync_metadata: data_link_name->[%s] table_id->[%s] ResultTableConfig not found, "
-                "will record partial BkBaseResultTable",
-                self.data_link_name,
-                table_id,
-            )
-        elif rt_count > 1:
-            logger.error(
-                "sync_metadata: data_link_name->[%s] table_id->[%s] got multiple ResultTableConfig, "
-                "selected name->[%s] to record BkBaseResultTable",
-                self.data_link_name,
-                table_id,
-                rt.name if rt else "",
-            )
 
         databus_queryset = DataBusConfig.objects.filter(
             bk_tenant_id=self.bk_tenant_id,

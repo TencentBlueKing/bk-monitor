@@ -154,8 +154,7 @@ export default defineComponent({
               >
                 <div
                   class='help-md'
-                  // @ts-expect-error
-                  domPropsInnerHTML={xssFilter(item.help_md)}
+                  innerHTML={xssFilter(item.help_md)}
                 />
                 {!!item.button_list.length &&
                   item.button_list.map((sItem: { type: string; url: string|undefined; }, sIndex: unknown) =>

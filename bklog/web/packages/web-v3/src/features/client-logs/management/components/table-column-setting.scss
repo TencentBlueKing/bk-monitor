@@ -1,0 +1,51 @@
+.client-log-column-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--bklog-text-secondary, #63656e);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+
+  .bk-icon {
+    font-size: 14px;
+  }
+
+  &:hover {
+    color: var(--bklog-text-primary, #313238);
+  }
+}
+
+.client-log-column-setting {
+  box-sizing: border-box;
+  width: 480px;
+  padding: 12px;
+
+  &__title {
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: var(--bklog-text-primary, #313238);
+  }
+
+  &__fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+
+    .t-checkbox {
+      margin: 0;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--bklog-border-muted, #dcdee5);
+  }
+}

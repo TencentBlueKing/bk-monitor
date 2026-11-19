@@ -160,7 +160,7 @@ export default defineComponent({
                   >
                     <span>{item.group}</span>
                   </div>
-                  <i18n path={t('已命中 {0} 个内容')}>
+                  <i18n path='已命中 {0} 个内容'>
                     <span class='number'>{item.total}</span>
                   </i18n>
                 </div>

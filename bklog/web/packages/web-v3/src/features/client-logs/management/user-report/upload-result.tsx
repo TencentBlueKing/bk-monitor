@@ -24,14 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { Loading as TLoading } from '@/shared/ui/loading/native';
-
-
 import { Button as TButton } from 'tdesign-vue-next';
 
 import { defineComponent } from 'vue';
 
 import { t } from '@/shared/composables/use-locale';
+import LoadingIcon from '../components/loading-icon';
 import { UploadStatus } from './types';
 
 import './upload-result.scss';
@@ -77,7 +75,7 @@ export default defineComponent({
           class='upload-icon running'
           key='running'
         >
-          <TLoading size='normal'></TLoading>
+          <LoadingIcon size={49} />
         </div>
         <div class='upload-title'>{t('日志上传中...')}</div>
         <div class='upload-desc'>{t('预计等待2-3分钟，窗口关闭后不会影响任务执行')}</div>

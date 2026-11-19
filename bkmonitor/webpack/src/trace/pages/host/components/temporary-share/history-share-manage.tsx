@@ -676,6 +676,8 @@ export default defineComponent({
               colKey: 'create_user',
               title: t('分享人'),
               sorter: true,
+              cell: (_: unknown, { row }: { row: ITableItem }) =>
+                row.create_user ? <bk-user-display-name user-id={row.create_user} /> : '--',
             };
           case 'sort':
             return {
@@ -721,7 +723,13 @@ export default defineComponent({
     });
 
     const accessColumns = [
-      { colKey: 'user', title: t('访问人'), sorter: true },
+      {
+        colKey: 'user',
+        title: t('访问人'),
+        sorter: true,
+        cell: (_: unknown, { row }: { row: IAccessItem }) =>
+          row.user ? <bk-user-display-name user-id={row.user} /> : '--',
+      },
       { colKey: 'time', title: t('访问时间'), sorter: true },
     ];
 

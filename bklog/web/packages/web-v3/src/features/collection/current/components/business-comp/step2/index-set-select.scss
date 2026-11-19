@@ -3,10 +3,22 @@
     width: 100%;
 }
 .index-set-select-extension {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 16px;
+    font-size: var(--bklog-font-body, 12px);
+    background: var(--bklog-surface-disabled, #fafbfd);
+    border-top: 1px solid var(--bklog-border-muted, #dcdee5);
+
+    &:has(.add-index-set-btn):hover {
+        background: var(--bklog-surface-component, #f0f1f5);
+    }
+
     .add-index-set-btn {
         display: block;
         width: 100%;
-        height: 100%;
+        line-height: 40px;
         text-align: center;
         cursor: pointer;
     }

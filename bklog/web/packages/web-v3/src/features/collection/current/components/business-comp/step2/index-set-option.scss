@@ -1,4 +1,15 @@
 .managev2-index-set-checkbox-popover {
+  .t-popup__content {
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .t-select__dropdown-inner {
+    max-height: 260px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   .bk-options {
     .bk-option {
       margin: 0;

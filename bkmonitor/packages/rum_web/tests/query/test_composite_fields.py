@@ -94,6 +94,7 @@ def test_column_layouts_reference_available_fields_and_preserve_query_capabiliti
     if mode == "span":
         assert config["display_fields"] == [
             "span_name",
+            "attributes.span_type",
             "elapsed_time",
             "virtual.browser",
             "attributes.user.id",

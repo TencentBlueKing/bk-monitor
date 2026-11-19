@@ -108,10 +108,11 @@ def test_send_wxwork_markdown_uses_login_name_in_multi_tenant_mode(settings, mon
             "xxx_chat_id_1": ["xxx_id_1", "xxx_id_2"],
             "xxx_chat_id_2": ["xxx_id_1"],
         },
+        bk_tenant_id="tenant_wx",
     )
 
     assert result["errcode"] == 0
-    query_display_info.assert_called_once_with(bk_usernames=["xxx_id_1", "xxx_id_2"])
+    query_display_info.assert_called_once_with(bk_usernames=["xxx_id_1", "xxx_id_2"], bk_tenant_id="tenant_wx")
     assert "<@xxx_login_1><@xxx_login_2>" in post.call_args_list[0].kwargs["json"]["markdown"]["content"]
     assert "<@xxx_login_1>" in post.call_args_list[1].kwargs["json"]["markdown"]["content"]
     assert "<@xxx_login_2>" not in post.call_args_list[1].kwargs["json"]["markdown"]["content"]
@@ -154,9 +155,10 @@ def test_send_wxwork_layouts_uses_login_name_in_multi_tenant_mode(settings, monk
             "xxx_chat_id_1": ["xxx_id_1", "xxx_id_2"],
             "xxx_chat_id_2": ["xxx_id_1"],
         },
+        bk_tenant_id="tenant_wx",
     )
 
-    query_display_info.assert_called_once_with(bk_usernames=["xxx_id_1", "xxx_id_2"])
+    query_display_info.assert_called_once_with(bk_usernames=["xxx_id_1", "xxx_id_2"], bk_tenant_id="tenant_wx")
     assert "<@xxx_login_1><@xxx_login_2>" in post.call_args_list[0].kwargs["json"]["layouts"][0]["text"]
     assert "<@xxx_login_1>" in post.call_args_list[1].kwargs["json"]["layouts"][0]["text"]
     assert "<@xxx_login_2>" not in post.call_args_list[1].kwargs["json"]["layouts"][0]["text"]

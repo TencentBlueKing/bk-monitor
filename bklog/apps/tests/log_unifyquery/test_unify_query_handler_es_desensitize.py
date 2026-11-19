@@ -347,3 +347,45 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         self.assertFalse(handler.is_desensitize)
         log = handler._deal_query_result(fake_unify_result(message="Hello World1234"))["list"][0]
         self.assertEqual(log["message"], "Hello World1234")
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_no_text_fields_keeps_nested_structure(self):
+        """未配置原文字段：点号字段脱敏后返回结构仍为嵌套对象。"""
+        self._put_config(field_configs=[ip_replace_config("__ext_json.http.client")])
+        handler = self._build_handler()
+        record = {
+            "__ext_json.http.client.ip": "10.20.30.40",
+            "__ext_json.http.client.port": 12345,
+            "log": LOG_TEXT,
+        }
+
+        log = handler._deal_query_result(fake_unify_result_record(record))["list"][0]
+
+        self.assertEqual(log["__ext_json"], {"http": {"client": {"ip": "[IP]", "port": "12345"}}})
+        self.assertNotIn("__ext_json.http.client.ip", log)
+        # 未配置原文字段，log 不做原文同步
+        self.assertEqual(log["log"], LOG_TEXT)
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_conflict_log_still_returned(self):
+        """日志同时存在标量键与前缀子路径：入口折叠降级，不中断检索。"""
+        self._put_config(field_configs=[ip_replace_config("a.b")])
+        handler = self._build_handler()
+        record = {"a": "10.20.30.40", "a.b": "10.20.30.41"}
+
+        log = handler._deal_query_result(fake_unify_result_record(record))["list"][0]
+
+        self.assertEqual(log["a"], "10.20.30.40")
+        self.assertEqual(log["a.b"], "[IP]")
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_export_rows_without_export_fields_are_nested(self):
+        """未配置 export_fields 时，导出行为脱敏后的嵌套结构（导出契约）。"""
+        self._put_config(field_configs=[ip_replace_config("__ext_json.http.client")])
+        handler = self._build_handler()
+        record = {"__ext_json.http.client.ip": "10.20.30.40", "log": LOG_TEXT}
+
+        rows = handler.project_export_rows(fake_unify_result_record(record))
+
+        self.assertEqual(rows[0]["__ext_json"], {"http": {"client": {"ip": "[IP]"}}})
+        self.assertNotIn("__ext_json.http.client.ip", rows[0])

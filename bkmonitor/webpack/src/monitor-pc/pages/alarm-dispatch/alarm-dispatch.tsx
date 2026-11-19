@@ -36,7 +36,7 @@ import {
   partialUpdateAssignGroup,
 } from 'monitor-api/modules/model';
 import { Debounce, random } from 'monitor-common/utils';
-import { detailOfFormatWithTimezone } from 'monitor-common/utils/timezone';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { deepClone } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
@@ -191,9 +191,9 @@ export default class AlarmDispatch extends tsc<object> {
   get showRuleGroups(): RuleGroupData[] {
     const list = deepClone(this.renderGroups || []);
     if (this.sortProp && this.sortOrder && list.length) {
-      list.map(item => {
+      list.forEach(item => {
         const { ruleData } = item;
-        ruleData.map(rule => {
+        ruleData.forEach(rule => {
           rule.groupAliasList = [];
           rule[this.sortProp].map(groupId => rule.groupAliasList.push(this.getAlarmGroupByID(groupId)));
         });
@@ -210,11 +210,6 @@ export default class AlarmDispatch extends tsc<object> {
       return list;
     }
     return this.renderGroups;
-  }
-
-  get getSpaceTimezone() {
-    const spaceTimezone = window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.time_zone || '';
-    return spaceTimezone;
   }
 
   created() {
@@ -270,7 +265,7 @@ export default class AlarmDispatch extends tsc<object> {
             isExpan: true,
             ruleData: [],
             editAllowed: !!item?.edit_allowed,
-            updateTime: detailOfFormatWithTimezone(item.update_time, this.getSpaceTimezone),
+            updateTime: formatWithTimezone(item.update_time) as string,
             updateUser: item.update_user,
           })
       ) || [];
@@ -639,7 +634,9 @@ export default class AlarmDispatch extends tsc<object> {
   /** 展开收起全部 */
   handleExpandAll() {
     this.isExpandAll = !this.isExpandAll;
-    this.ruleGroups.forEach(item => item.setExpan(!this.isExpandAll));
+    this.ruleGroups.forEach(item => {
+      item.setExpan(!this.isExpandAll);
+    });
   }
 
   handleEmptyOpreation(type: EmptyStatusOperationType) {

@@ -25,7 +25,7 @@
  */
 import { type PropType, defineComponent, onScopeDispose, shallowRef, watch } from 'vue';
 
-import { Button } from 'bkui-vue';
+import { Button, Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import type { ProfileViewState } from '../../types';
@@ -37,7 +37,7 @@ export default defineComponent({
     view: { type: Object as PropType<ProfileViewState['callGraph']>, default: () => ({ scale: 1, x: 0, y: 0 }) },
   },
   emits: { viewChange: (_view: ProfileViewState['callGraph']) => true },
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useI18n();
     const url = shallowRef('');
     const scale = shallowRef(1);
@@ -69,6 +69,61 @@ export default defineComponent({
     onScopeDispose(() => {
       if (url.value) URL.revokeObjectURL(url.value);
     });
+    // 缺少 width/height 的 SVG 以 viewBox 作为输出尺寸。
+    function svgSize(image: HTMLImageElement) {
+      if (image.naturalWidth && image.naturalHeight) {
+        return { width: image.naturalWidth, height: image.naturalHeight };
+      }
+      const matched = /viewBox\s*=\s*["']([^"']+)["']/i.exec(props.svg)?.[1];
+      const parts = matched?.split(/[\s,]+/).map(Number) ?? [];
+      const width = parts[2];
+      const height = parts[3];
+      return width && height ? { width: Math.ceil(width), height: Math.ceil(height) } : null;
+    }
+    // 导出忽略当前缩放与平移，输出整张调用图。
+    function exportPng() {
+      if (!url.value) return;
+      const fail = () => Message({ theme: 'error', message: t('导出失败，请重试') });
+      const image = new Image();
+      image.onload = () => {
+        // 尺寸计算与画布绘制都可能抛错，统一按导出失败处理，避免静默无响应
+        try {
+          const size = svgSize(image);
+          if (!size) {
+            fail();
+            return;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = size.width;
+          canvas.height = size.height;
+          const context = canvas.getContext('2d');
+          if (!context) {
+            fail();
+            return;
+          }
+          context.fillStyle = '#fff';
+          context.fillRect(0, 0, size.width, size.height);
+          context.drawImage(image, 0, 0, size.width, size.height);
+          canvas.toBlob(blob => {
+            if (!blob) {
+              fail();
+              return;
+            }
+            const link = document.createElement('a');
+            const objectUrl = URL.createObjectURL(blob);
+            link.download = 'profiling-callgraph.png';
+            link.href = objectUrl;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+          });
+        } catch {
+          fail();
+        }
+      };
+      image.onerror = fail;
+      image.src = url.value;
+    }
+    expose({ exportPng });
     return {
       t,
       url,

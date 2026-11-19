@@ -10,6 +10,24 @@
 
     .category-form-item {
         width: 100% !important;
+
+        .t-form__controls-content {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .bk-button-group {
+            display: flex;
+
+            .t-button.t-button--theme-default.is-selected {
+                position: relative;
+                z-index: var(--bklog-z-base);
+                color: var(--bklog-brand-primary, #3a84ff);
+                background-color: var(--bklog-brand-tint, #e1ecff);
+                border-color: var(--bklog-brand-primary, #3a84ff);
+            }
+        }
     }
 
     .auto-convert {
