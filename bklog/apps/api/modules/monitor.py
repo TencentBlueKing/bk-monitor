@@ -41,6 +41,15 @@ class _MonitorApi:
     MODULE = _("Monitor监控平台")
 
     def __init__(self):
+        # Backend-only. Do not forward the connection field to the browser or
+        # Databus apply JSON; only kafka_resource is a public resource reference.
+        self.resolve_clustering_kafka = DataAPI(
+            method="GET",
+            url=f"{MONITOR_APIGATEWAY_ROOT_NEW}app/metadata/resolve_clustering_kafka/",
+            module=self.MODULE,
+            description="解析聚类 Kafka 集群和 KafkaChannel",
+            before_request=add_esb_info_before_request,
+        )
         self.kernel_rpc_call = DataAPI(
             method="POST",
             url=f"{MONITOR_APIGATEWAY_ROOT_NEW}app/kernel_rpc/call/",

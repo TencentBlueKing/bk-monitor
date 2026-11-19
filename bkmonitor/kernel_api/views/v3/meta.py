@@ -131,6 +131,10 @@ class GetClusterInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryClusterInfoResource)]
 
 
+class ResolveClusteringKafkaViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ResolveClusteringKafkaResource)]
+
+
 class GetClusterStatusViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.GetClusterStatusResource)]
 

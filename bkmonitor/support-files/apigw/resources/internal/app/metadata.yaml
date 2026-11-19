@@ -429,6 +429,26 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: metadata get cluster info
+  /app/metadata/resolve_clustering_kafka/:
+    get:
+      operationId: metadata_resolve_clustering_kafka
+      description: 解析聚类 Kafka 连接与 KafkaChannel
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/resolve_clustering_kafka/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: resolve clustering Kafka connection and channel
   /app/metadata/get_cluster_status/:
     get:
       operationId: metadata_get_cluster_status

@@ -839,6 +839,16 @@ class QueryTagValuesResource(MetaDataAPIGWResource):
             return attrs
 
 
+class ResolveClusteringKafkaResource(MetaDataAPIGWResource):
+    """解析聚类 Kafka 连接和 KafkaChannel；不缓存认证信息。"""
+
+    action = "/app/metadata/resolve_clustering_kafka/"
+    method = "GET"
+
+    class RequestSerializer(MetadataBaseSerializer):
+        cluster_id = serializers.IntegerField(min_value=1)
+
+
 class QueryClusterInfoResource(MetaDataAPIGWResource):
     """
     查询集群信息
