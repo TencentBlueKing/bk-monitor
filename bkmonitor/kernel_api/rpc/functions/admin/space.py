@@ -630,14 +630,16 @@ def _build_space_queryset(params: dict[str, Any], bk_tenant_id: str | None):
 
 @KernelRPCRegistry.register(
     FUNC_SPACE_LIST_BY_USER,
-    summary="查询真实用户有监控查看权限的指定业务空间",
-    description="使用监控平台的用户空间 IAM 判定，仅返回指定租户和业务的空间摘要；无授权时 items 为空。",
+    summary="分页查询真实用户有监控查看权限的空间",
+    description="使用监控平台的用户空间 IAM 判定，支持按业务过滤。无可见空间时 items 为空。",
     params_schema={
         "username": "必填，监控 IAM 鉴权的用户名",
         "bk_tenant_id": "必填，具体租户 ID",
-        "bk_biz_id": "必填，业务 ID 或负数空间业务 ID",
+        "bk_biz_id": "可选，业务 ID 或负数空间业务 ID；省略时查询当前租户下的授权空间",
+        "page": "可选，页码，默认 1",
+        "page_size": "可选，每页条数，默认 20，最大 100",
     },
-    example_params={"username": "alice", "bk_tenant_id": "system", "bk_biz_id": 2},
+    example_params={"username": "alice", "bk_tenant_id": "system", "page": 1, "page_size": 20},
 )
 def list_spaces_by_user(params: dict[str, Any]) -> dict[str, Any]:
     from monitor_web.commons.biz.resources import ListSpacesResource
@@ -647,16 +649,22 @@ def list_spaces_by_user(params: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(username, str) or not username.strip():
         raise CustomException(message="username 为必填项")
     biz_id = params.get("bk_biz_id")
-    if type(biz_id) is not int:
+    if "bk_biz_id" in params and type(biz_id) is not int:
         raise CustomException(message="bk_biz_id 必须为整数")
+    page, page_size = normalize_pagination(params)
     spaces = ListSpacesResource.get_space_by_user(tenant, username.strip())
     items = [
         {key: space[key] for key in ("bk_tenant_id", "bk_biz_id", "space_uid", "space_name")}
         for space in spaces
-        if space["bk_tenant_id"] == tenant and space["bk_biz_id"] == biz_id
+        if space["bk_tenant_id"] == tenant and (biz_id is None or space["bk_biz_id"] == biz_id)
     ]
+    items.sort(key=lambda space: space["space_uid"])
+    offset = (page - 1) * page_size
     return build_response(
-        operation="space.list_by_user", func_name=FUNC_SPACE_LIST_BY_USER, bk_tenant_id=tenant, data={"items": items}
+        operation="space.list_by_user",
+        func_name=FUNC_SPACE_LIST_BY_USER,
+        bk_tenant_id=tenant,
+        data={"items": items[offset : offset + page_size], "page": page, "page_size": page_size, "total": len(items)},
     )
 
 
