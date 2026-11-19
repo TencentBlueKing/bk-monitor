@@ -67,6 +67,8 @@ preserveVue3ComponentModel(VueDraggable);
 type FieldDragInstance = InstanceType<typeof VueDraggable> & {
   $props: InstanceType<typeof VueDraggable>['$props'] & { onEnd?: () => void };
 };
+const OPTIONAL_FIELD_LIMIT = 10;
+
 const FieldDraggable = VueDraggable as typeof VueDraggable & (new () => FieldDragInstance);
 
 interface FieldFilterCompProps {
@@ -263,11 +265,10 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
     };
   }
   get indexSetFieldTree() {
-    return this.objectHierarchy(this.indexSetFields());
+    return this.objectHierarchy(this.indexSetFields()).filter(item => item.filterVisible);
   }
   getIsShowIndexSetExpand() {
-    const tree = this.indexSetFieldTree;
-    return tree.length > 10 || tree.some((item) => item.children?.length);
+    return !this.searchKeyword && this.indexSetFieldTree.length > OPTIONAL_FIELD_LIMIT;
   }
   get expandedFieldIdSet() {
     return new Set(Object.keys(this.expandedFieldIds).filter((id) => this.expandedFieldIds[id]));
@@ -331,7 +332,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
   /** 折叠时最多 10 个根；展开全部也只按层挂载，不一次渲染 1117 个节点 */
   get showIndexSetFields() {
     const tree = this.indexSetFieldTree;
-    const roots = this.searchKeyword || this.isShowAllIndexSet ? tree : tree.slice(0, 10);
+    const roots = this.searchKeyword || this.isShowAllIndexSet ? tree : tree.slice(0, OPTIONAL_FIELD_LIMIT);
     return this.getLazyFieldTree(roots);
   }
   get builtInLazyShowFields() {
@@ -707,7 +708,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
             </div>
           )}
           <div class='field-filter-roll'>
-            {!!this.indexSetFieldTree.some((item) => item.filterVisible) && (
+            {this.indexSetFieldTree.length > 0 && (
               <div class='fields-container not-selected optional-field'>
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>

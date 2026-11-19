@@ -37,7 +37,7 @@
     >
       <template #content>
         <div
-          v-loading="{ loading: sliderLoading }"
+          v-loading="{ loading: sliderLoading, indicator: renderDrawerInlineFormSkeleton }"
           class="restore-slider-content"
         >
           <bk-form
@@ -149,6 +149,7 @@
 </template>
 
 <script>
+import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { mapState as mapPiniaState } from 'pinia';
 
 
@@ -316,6 +317,7 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     methods: {
+      renderDrawerInlineFormSkeleton,
       getArchiveList() {
         const query = {
           bk_biz_id: this.bkBizId,

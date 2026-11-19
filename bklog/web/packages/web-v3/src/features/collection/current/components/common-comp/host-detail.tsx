@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { renderCodeSampleSkeleton, renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, ref, watch, nextTick, type PropType } from 'vue';
@@ -341,7 +342,7 @@ export default defineComponent({
 
         {/* 主内容区域 */}
         <div
-          v-loading={{ loading: props.loading }}
+          v-loading={{ loading: props.loading, indicator: renderFieldListSkeleton }}
           class='host-detail-main'
         >
           {showList.value.length === 0 ? (
@@ -430,7 +431,7 @@ export default defineComponent({
                 </div>
                 <div
                   class='content-right-detail'
-                  v-loading={{ loading: itemLoading.value, zIndex: 10 }}
+                  v-loading={{ loading: itemLoading.value, indicator: renderCodeSampleSkeleton, zIndex: 10 }}
                 >
                   <div
                     ref={logContentRef}

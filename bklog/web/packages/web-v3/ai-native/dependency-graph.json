@@ -164,6 +164,10 @@
     "features/client-logs/management/collection-deploy/types.ts",
     "features/client-logs/management/collection-slider/index.scss",
     "features/client-logs/management/collection-slider/index.tsx",
+    "features/client-logs/management/components/loading-icon.scss",
+    "features/client-logs/management/components/loading-icon.tsx",
+    "features/client-logs/management/components/table-column-setting.scss",
+    "features/client-logs/management/components/table-column-setting.tsx",
     "features/client-logs/management/constant.ts",
     "features/client-logs/management/download-message.scss",
     "features/client-logs/management/download-message.ts",
@@ -677,6 +681,7 @@
     "features/retrieval/workbench/search-comp/retrieve-detail-input-editor.scss",
     "features/retrieval/workbench/search-result-chart/index.scss",
     "features/retrieval/workbench/search-result-chart/index.tsx",
+    "features/retrieval/workbench/search-result-chart/no-search-results.svg",
     "features/retrieval/workbench/search-result-panel/field-filter.scss",
     "features/retrieval/workbench/search-result-panel/field-filter.vue",
     "features/retrieval/workbench/search-result-panel/graph-analysis/QueryPanelMetricAdd.vue",
@@ -1402,6 +1407,8 @@
     "shared/ui/empty-status/index.vue",
     "shared/ui/empty-status/types.ts",
     "shared/ui/loading/_shimmer.scss",
+    "shared/ui/loading/drawer-skeleton.scss",
+    "shared/ui/loading/drawer-skeleton.ts",
     "shared/ui/loading/index.scss",
     "shared/ui/loading/index.tsx",
     "shared/ui/loading/list-skeleton.scss",
@@ -2436,6 +2443,11 @@
     },
     {
       "from": "app/shell/app.tsx",
+      "to": "shared/composables/use-resize-observe.ts",
+      "kind": "module"
+    },
+    {
+      "from": "app/shell/app.tsx",
       "to": "shared/global/utils/path.ts",
       "kind": "module"
     },
@@ -3396,6 +3408,11 @@
     },
     {
       "from": "features/archive/classic/archive-repository/repository-slider.vue",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/archive/classic/archive-repository/repository-slider.vue",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -3508,6 +3525,11 @@
       "from": "features/archive/classic/archive-restore/list.vue",
       "to": "shared/styles/devops-common.scss",
       "kind": "style-or-asset"
+    },
+    {
+      "from": "features/archive/classic/archive-restore/restore-slider.vue",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/archive/classic/archive-restore/restore-slider.vue",
@@ -3628,6 +3650,11 @@
       "from": "features/archive/current/archive-list/index.tsx",
       "to": "features/archive/services/archive.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/archive/current/archive-list/list-slider.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/archive/current/archive-list/list-slider.tsx",
@@ -3806,6 +3833,11 @@
     },
     {
       "from": "features/archive/current/archive-repository/repository-slider.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/archive/current/archive-repository/repository-slider.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -3938,6 +3970,11 @@
       "from": "features/archive/current/archive-restore/index.tsx",
       "to": "features/archive/services/archive.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/archive/current/archive-restore/restore-slider.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/archive/current/archive-restore/restore-slider.tsx",
@@ -4506,11 +4543,6 @@
     },
     {
       "from": "features/cleaning/classic/clean-manage/list.vue",
-      "to": "shared/ui/loading/_shimmer.scss",
-      "kind": "style-or-asset"
-    },
-    {
-      "from": "features/cleaning/classic/clean-manage/list.vue",
       "to": "shared/styles/mixins/clearfix.scss",
       "kind": "style-or-asset"
     },
@@ -4637,6 +4669,11 @@
     {
       "from": "features/cleaning/current/clean-template/delete-confirm-popover.tsx",
       "to": "features/cleaning/current/clean-template/delete-confirm-popover.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/cleaning/current/clean-template/detail-slider.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
       "kind": "module"
     },
     {
@@ -4828,6 +4865,11 @@
       "from": "features/cleaning/current/clean-template/list.tsx",
       "to": "features/cleaning/services/clean.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/cleaning/current/clean-template/sync-slider.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/cleaning/current/clean-template/sync-slider.tsx",
@@ -5066,11 +5108,6 @@
     },
     {
       "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
-      "to": "shared/ui/loading/native.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
       "to": "shared/lib/util.js",
       "kind": "module"
     },
@@ -5111,8 +5148,23 @@
     },
     {
       "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
+      "to": "features/client-logs/management/components/table-column-setting.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
+      "to": "features/client-logs/management/components/loading-icon.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
       "to": "features/client-logs/management/collection-deploy/collection-table.scss",
       "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/collection-deploy/index.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "features/client-logs/management/collection-deploy/index.tsx",
@@ -5223,6 +5275,46 @@
       "from": "features/client-logs/management/collection-slider/index.tsx",
       "to": "features/collection/services/collect.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/client-logs/management/components/loading-icon.scss",
+      "to": "shared/assets/images/loading.svg",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/client-logs/management/components/loading-icon.tsx",
+      "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/components/loading-icon.tsx",
+      "to": "features/client-logs/management/components/loading-icon.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/components/table-column-setting.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/client-logs/management/components/table-column-setting.tsx",
+      "to": "features/management/manage-v2/hooks/use-table-setting.ts",
+      "kind": "type"
+    },
+    {
+      "from": "features/client-logs/management/components/table-column-setting.tsx",
+      "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/components/table-column-setting.tsx",
+      "to": "shared/global/overlay/use-overlay-z-index.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/components/table-column-setting.tsx",
+      "to": "features/client-logs/management/components/table-column-setting.scss",
+      "kind": "module"
     },
     {
       "from": "features/client-logs/management/constant.ts",
@@ -5370,6 +5462,11 @@
       "kind": "service-call"
     },
     {
+      "from": "features/client-logs/management/user-report/index.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/client-logs/management/user-report/index.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
@@ -5441,11 +5538,6 @@
     },
     {
       "from": "features/client-logs/management/user-report/report-table.tsx",
-      "to": "shared/ui/loading/native.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/client-logs/management/user-report/report-table.tsx",
       "to": "shared/lib/util.js",
       "kind": "module"
     },
@@ -5476,6 +5568,16 @@
     },
     {
       "from": "features/client-logs/management/user-report/report-table.tsx",
+      "to": "features/client-logs/management/components/table-column-setting.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/user-report/report-table.tsx",
+      "to": "features/client-logs/management/components/loading-icon.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/user-report/report-table.tsx",
       "to": "features/client-logs/management/user-report/types.ts",
       "kind": "module"
     },
@@ -5486,12 +5588,12 @@
     },
     {
       "from": "features/client-logs/management/user-report/upload-result.tsx",
-      "to": "shared/ui/loading/native.ts",
+      "to": "shared/composables/use-locale.ts",
       "kind": "module"
     },
     {
       "from": "features/client-logs/management/user-report/upload-result.tsx",
-      "to": "shared/composables/use-locale.ts",
+      "to": "features/client-logs/management/components/loading-icon.tsx",
       "kind": "module"
     },
     {
@@ -6931,6 +7033,11 @@
     },
     {
       "from": "features/collection/access/issued-slider.vue",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/access/issued-slider.vue",
       "to": "app/state/domains/collection-store.ts",
       "kind": "module"
     },
@@ -8326,7 +8433,7 @@
     },
     {
       "from": "features/collection/current/components/business-comp/step3/collect-issued-slider.scss",
-      "to": "shared/ui/loading/_shimmer.scss",
+      "to": "shared/assets/images/loading.svg",
       "kind": "style-or-asset"
     },
     {
@@ -8501,13 +8608,23 @@
     },
     {
       "from": "features/collection/current/components/common-comp/drag-tag.tsx",
+      "to": "platform/compat/vue3-component-model.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/common-comp/drag-tag.tsx",
       "to": "features/collection/current/components/common-comp/drag-tag.scss",
       "kind": "module"
     },
     {
       "from": "features/collection/current/components/common-comp/host-detail.scss",
-      "to": "shared/ui/loading/_shimmer.scss",
+      "to": "shared/assets/images/loading.svg",
       "kind": "style-or-asset"
+    },
+    {
+      "from": "features/collection/current/components/common-comp/host-detail.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/collection/current/components/common-comp/host-detail.tsx",
@@ -8642,6 +8759,11 @@
     {
       "from": "features/collection/current/components/create-operation/index.scss",
       "to": "features/collection/current/components/create-operation/global.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/index.scss",
+      "to": "shared/assets/images/log-collection/loading.svg",
       "kind": "style-or-asset"
     },
     {
@@ -10566,6 +10688,11 @@
     },
     {
       "from": "features/extraction/classic/manage-extract-permission/index.vue",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/extraction/classic/manage-extract-permission/index.vue",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -10673,6 +10800,11 @@
       "from": "features/extraction/current/extract-config/config-slider.tsx",
       "to": "platform/services/userInfo.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/extraction/current/extract-config/index.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/extraction/current/extract-config/index.tsx",
@@ -11066,6 +11198,11 @@
     },
     {
       "from": "features/extraction/current/extract-task/task-list/index.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/extraction/current/extract-task/task-list/index.tsx",
       "to": "shared/ui/loading/native.ts",
       "kind": "module"
     },
@@ -11322,6 +11459,11 @@
     {
       "from": "features/extraction/download/home/download-url.vue",
       "to": "shared/lib/util.js",
+      "kind": "module"
+    },
+    {
+      "from": "features/extraction/download/home/index.vue",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
       "kind": "module"
     },
     {
@@ -12628,6 +12770,11 @@
       "from": "features/index-sets/log-collection/collection-item/manage-collection/basic-info.vue",
       "to": "shared/styles/mixins/flex.scss",
       "kind": "style-or-asset"
+    },
+    {
+      "from": "features/index-sets/log-collection/collection-item/manage-collection/collection-status.vue",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/index-sets/log-collection/collection-item/manage-collection/collection-status.vue",
@@ -16476,6 +16623,11 @@
     },
     {
       "from": "features/retrieval/workbench/search-result-chart/index.tsx",
+      "to": "features/retrieval/workbench/search-result-chart/no-search-results.svg",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-chart/index.tsx",
       "to": "features/retrieval/workbench/search-result-chart/index.scss",
       "kind": "module"
     },
@@ -17497,6 +17649,11 @@
     {
       "from": "features/retrieval/workbench/search-result-panel/log-result/full-row-viewer.vue",
       "to": "features/retrieval/workbench/search-result-panel/log-result/full-row-viewer-content.vue",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-result/index.vue",
+      "to": "shared/composables/use-resize-observe.ts",
       "kind": "module"
     },
     {
@@ -23951,6 +24108,16 @@
     },
     {
       "from": "shared/global/field-setting.vue",
+      "to": "shared/ui/empty-status/index.vue",
+      "kind": "module"
+    },
+    {
+      "from": "shared/global/field-setting.vue",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/global/field-setting.vue",
       "to": "shared/constants/index.ts",
       "kind": "module"
     },
@@ -24780,8 +24947,23 @@
       "kind": "module"
     },
     {
+      "from": "shared/ui/loading/drawer-skeleton.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/ui/loading/drawer-skeleton.ts",
+      "to": "shared/ui/loading/drawer-skeleton.scss",
+      "kind": "module"
+    },
+    {
       "from": "shared/ui/loading/index.tsx",
       "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
       "kind": "module"
     },
     {

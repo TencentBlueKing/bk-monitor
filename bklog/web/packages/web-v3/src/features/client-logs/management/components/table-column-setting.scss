@@ -1,3 +1,4 @@
+@use '@/shared/styles/theme/components/contracts' as bklogControls;
 .client-log-column-trigger {
   display: inline-flex;
   align-items: center;
@@ -36,9 +37,7 @@
     gap: 12px;
     margin: 16px 0;
 
-    .t-checkbox {
-      margin: 0;
-    }
+    @include bklogControls.checkbox-grid-spacing;
   }
 
   &__actions {

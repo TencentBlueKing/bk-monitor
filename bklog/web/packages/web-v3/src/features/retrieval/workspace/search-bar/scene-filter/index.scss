@@ -13,7 +13,7 @@
 .scene-search-sticky {
   position: sticky;
   top: 52px;
-  z-index: var(--bklog-z-local);
+  z-index: var(--bklog-z-page-top);
   background: #fff;
   display: flex;
   flex-direction: column;
@@ -22,14 +22,6 @@
   border-radius: 4px;
 
   .is-sticky-top & {
-    margin: 0;
-    padding: 0;
-    border-radius: 0;
-
-    .fix-search-bar {
-      width: calc(100vw - var(--left-collection-width) - 12px);
-    }
-
     .query-hint-bar {
       right: 7px;
     }

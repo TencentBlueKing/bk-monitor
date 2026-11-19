@@ -380,6 +380,7 @@
         ".t-button"
       ],
       "sharedContracts": [
+        "filter-input-width",
         "table-row-actions"
       ],
       "semanticDeclarations": 0,
@@ -523,6 +524,42 @@
       "pendingNormalization": 0
     },
     {
+      "file": "features/client-logs/management/collection-deploy/collection-table.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button__text"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 4,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/management/collection-deploy/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [
+        "filter-input-width"
+      ],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
       "file": "features/client-logs/management/collection-slider/index.scss",
       "owner": "business-context",
       "inline": {
@@ -545,12 +582,30 @@
       "file": "features/client-logs/management/collection-slider/index.tsx",
       "owner": "business-context",
       "inline": {
-        "nativeStyleSites": 1,
-        "dynamicStyleSites": 0,
+        "nativeStyleSites": 2,
+        "dynamicStyleSites": 1,
         "pendingInlineNormalization": 0
       },
       "componentClasses": [],
       "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/management/components/table-column-setting.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [
+        "checkbox-grid-spacing"
+      ],
       "semanticDeclarations": 0,
       "contextualDeclarations": 0,
       "localVisualProperties": [],
@@ -571,6 +626,24 @@
       "sharedContracts": [],
       "semanticDeclarations": 0,
       "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/client-logs/management/user-report/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [],
+      "sharedContracts": [
+        "filter-input-width"
+      ],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 0,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -1184,6 +1257,26 @@
       "pendingNormalization": 0
     },
     {
+      "file": "features/collection/current/components/business-comp/step2/base-info.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-button",
+        ".t-button--theme-default",
+        ".t-form__controls-content"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 5,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
       "file": "features/collection/current/components/business-comp/step2/container-collection/append-log-tags.scss",
       "owner": "business-context",
       "inline": {
@@ -1312,11 +1405,13 @@
       },
       "componentClasses": [
         ".t-checkbox__label",
-        ".t-select-option"
+        ".t-popup__content",
+        ".t-select-option",
+        ".t-select__dropdown-inner"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 7,
-      "contextualDeclarations": 10,
+      "contextualDeclarations": 15,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -1415,6 +1510,24 @@
       "sharedContracts": [],
       "semanticDeclarations": 0,
       "contextualDeclarations": 0,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/business-comp/step2/third-party-logs/es-select-dialog.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input__help"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -1535,6 +1648,35 @@
       "contextualDeclarations": 8,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/collection/current/components/common-comp/host-detail.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-collapse",
+        ".t-collapse-panel__body",
+        ".t-collapse-panel__content",
+        ".t-collapse-panel__header",
+        ".t-collapse-panel__icon"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 7,
+      "contextualDeclarations": 3,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-bottom",
+        "color",
+        "font-weight",
+        "line-height"
+      ],
+      "localVisualDeclarations": 6,
       "pendingNormalization": 0
     },
     {
@@ -2786,6 +2928,24 @@
       "pendingNormalization": 0
     },
     {
+      "file": "features/index-sets/log-collection/collection-item/manage-collection/field-info.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-table"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 2,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
       "file": "features/index-sets/log-collection/collection-item/manage-collection/field-info.tsx",
       "owner": "business-context",
       "inline": {
@@ -2991,15 +3151,15 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-checkbox",
         ".t-input__wrap",
         ".t-size-s"
       ],
       "sharedContracts": [
+        "checkbox-grid-spacing",
         "table-row-actions"
       ],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 3,
+      "contextualDeclarations": 2,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -5473,12 +5633,11 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-drawer__body",
         ".t-form__item"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 2,
+      "contextualDeclarations": 1,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -5564,15 +5723,22 @@
       },
       "componentClasses": [
         ".t-button",
+        ".t-drawer--right",
         ".t-drawer__body",
+        ".t-drawer__close-btn",
         ".t-drawer__content-wrapper",
-        ".t-drawer__header"
+        ".t-drawer__header",
+        ".t-icon-close"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 0,
-      "contextualDeclarations": 10,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 19,
+      "localVisualProperties": [
+        "border-radius",
+        "border-right",
+        "border-top"
+      ],
+      "localVisualDeclarations": 3,
       "pendingNormalization": 0
     },
     {
@@ -5634,11 +5800,13 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button--variant-text"
+        ".t-button--variant-text",
+        ".t-checkbox",
+        ".t-input__wrap"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 2,
+      "contextualDeclarations": 5,
       "localVisualProperties": [
         "border"
       ],
@@ -5801,7 +5969,7 @@
         ".t-table__pagination"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 15,
+      "semanticDeclarations": 16,
       "contextualDeclarations": 18,
       "localVisualProperties": [
         "background",
@@ -5839,6 +6007,24 @@
         "line-height"
       ],
       "localVisualDeclarations": 2,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "shared/ui/basic-tab/log-basic-tab.scss",
+      "owner": "shared-control",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-tabs__operations--right"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
       "pendingNormalization": 0
     },
     {

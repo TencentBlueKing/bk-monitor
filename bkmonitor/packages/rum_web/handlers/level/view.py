@@ -37,7 +37,7 @@ class ViewLevelHandler(BaseRumLevelHandler):
         "attributes.user.id",
     ]
 
-    MODE = RumQueryMode.VIEW.value
+    MODE: str = RumQueryMode.VIEW.value
     SPEC = ViewSpec
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):

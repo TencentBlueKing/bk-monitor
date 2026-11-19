@@ -65,6 +65,8 @@ export default defineComponent({
     const highlight = computed(() => props.view.highlight);
     const direction = computed(() => props.view.direction);
     const flame = shallowRef<{ exportPng: () => void }>();
+    // 与 callGraph 属性（SVG 字符串）区分，这里保存组件实例。
+    const callGraphRef = shallowRef<{ exportPng: () => void }>();
     const modes = computed(() => [
       { id: 'table', icon: 'table', label: t('表格') },
       { id: 'combined', icon: 'mc-fenping', label: t('表格和火焰图') },
@@ -88,7 +90,19 @@ export default defineComponent({
     function searchFunction(value: string) {
       emit('viewChange', { keyword: value, highlight: '' });
     }
-    return { t, keyword, highlight, direction, flame, modes, empty, diffLegend, selectFunction, searchFunction };
+    return {
+      t,
+      keyword,
+      highlight,
+      direction,
+      flame,
+      callGraphRef,
+      modes,
+      empty,
+      diffLegend,
+      selectFunction,
+      searchFunction,
+    };
   },
   render() {
     const showFlame = this.mode === 'flame' || this.mode === 'combined';
@@ -164,7 +178,9 @@ export default defineComponent({
                 ? '正在生成 pprof 文件，请稍候'
                 : showFlame
                   ? '下载采集数据或当前火焰图'
-                  : '下载 pprof 文件'
+                  : this.mode === 'callgraph'
+                    ? '下载 pprof 文件或完整调用图'
+                    : '下载 pprof 文件'
             )}
           >
             <Dropdown
@@ -185,6 +201,14 @@ export default defineComponent({
                         onClick={() => this.flame?.exportPng()}
                       >
                         {this.t('导出当前视图 PNG')}
+                      </Dropdown.DropdownItem>
+                    )}
+                    {this.mode === 'callgraph' && (
+                      <Dropdown.DropdownItem
+                        v-tippy={this.t('将完整调用图保存为 PNG 图片')}
+                        onClick={() => this.callGraphRef?.exportPng()}
+                      >
+                        {this.t('导出完整调用图 PNG')}
                       </Dropdown.DropdownItem>
                     )}
                   </Dropdown.DropdownMenu>
@@ -307,6 +331,7 @@ export default defineComponent({
               )}
               {this.mode === 'callgraph' && (
                 <CallGraph
+                  ref='callGraphRef'
                   svg={this.callGraph}
                   view={this.view.callGraph}
                   onViewChange={callGraph => this.$emit('viewChange', { callGraph })}

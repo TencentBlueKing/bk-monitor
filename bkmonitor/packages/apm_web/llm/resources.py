@@ -47,6 +47,7 @@ from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.data_source import get_auto_interval
 from bkmonitor.data_source.utils.statistics import process_growth_rates
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
+from bkmonitor.utils.time_tools import TIME_ABBREVIATION_MATCH
 
 
 class ListTracesResource(Resource):
@@ -405,19 +406,38 @@ class ListSpansResource(Resource):
 
 
 class ListToolCallsResource(Resource):
-    """按 Trace 查询标准工具调用的执行摘要。"""
+    """按 Trace 或会话查询标准工具调用的执行摘要。"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         app_name = serializers.CharField(required=True, label="应用名称")
-        trace_id = serializers.CharField(required=True, label="Trace ID")
+        trace_id = serializers.CharField(required=False, allow_blank=True, default="", label="Trace ID")
+        group_field = serializers.CharField(
+            required=False, default="attributes.gen_ai.conversation.id", label="分组字段"
+        )
+        group_id = serializers.CharField(required=False, allow_blank=True, default="", label="分组值")
+        offset = serializers.IntegerField(required=False, min_value=0, default=0, label="分页偏移")
+        limit = serializers.IntegerField(required=False, min_value=1, max_value=10000, default=10000, label="分页大小")
+
+        def validate(self, attrs):
+            if attrs["trace_id"]:
+                attrs["group_field"] = OtlpKey.TRACE_ID
+                attrs["group_id"] = attrs["trace_id"]
+            if not attrs["group_id"]:
+                raise serializers.ValidationError("group_id 和 trace_id 至少传一个")
+            return attrs
 
     def perform_request(self, validated_request_data):
         application = Application.objects.get(
             bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
         )
         span_query: LLMQuery = get_query(application.build_data_sources())
-        spans: list[dict[str, Any]] = span_query.query_trace_tool_calls(validated_request_data["trace_id"])
+        spans: list[dict[str, Any]] = span_query.query_tool_calls(
+            group_field=validated_request_data["group_field"],
+            group_id=validated_request_data["group_id"],
+            offset=validated_request_data["offset"],
+            limit=validated_request_data["limit"],
+        )
         tool_calls: list[dict[str, Any]] = [
             {
                 "span_id": span.get(OtlpKey.SPAN_ID),
@@ -430,7 +450,13 @@ class ListToolCallsResource(Resource):
             }
             for span in spans
         ]
-        return {"trace_id": validated_request_data["trace_id"], "total": len(tool_calls), "tool_calls": tool_calls}
+        return {
+            "trace_id": validated_request_data["trace_id"],
+            "group_field": validated_request_data["group_field"],
+            "group_id": validated_request_data["group_id"],
+            "total": len(tool_calls),
+            "tool_calls": tool_calls,
+        }
 
 
 class ListFlowsResource(Resource):
@@ -629,6 +655,11 @@ class LLMMetricRequestSerializer(serializers.Serializer):
     cal_type = serializers.ChoiceField(required=True, choices=sorted(LLMMetricGroup.AGGREGATIONS), label="指标类型")
     group_by = serializers.ListField(required=False, default=list, child=serializers.CharField(), label="聚合字段")
 
+    def validate(self, attrs):
+        if attrs["start_time"] > attrs["end_time"]:
+            raise serializers.ValidationError("start_time 不能大于 end_time")
+        return attrs
+
 
 class LLMMetricGroupMixin:
     """解析服务对应的产品，构造 LLM 指标组。"""
@@ -660,10 +691,9 @@ class TimeSeriesResource(LLMMetricGroupMixin, Resource):
     """LLM 指标时序查询。"""
 
     class RequestSerializer(LLMMetricRequestSerializer):
-        # 放大期望聚合周期，避免时间范围拉长后数据点过密，与事件时序图保持一致
-        INTERVAL_FACTOR = 10
+        INTERVAL_FACTOR = LLMMetricGroup.INTERVAL_FACTOR
 
-        interval = serializers.IntegerField(required=False, label="聚合周期")
+        interval = serializers.IntegerField(required=False, min_value=1, label="聚合周期")
 
         def validate(self, attrs):
             attrs = super().validate(attrs)
@@ -698,9 +728,23 @@ class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResour
             child=serializers.CharField(),
             label="时间偏移",
         )
+        interval = serializers.IntegerField(required=False, min_value=1, label="聚合周期")
 
         def validate(self, attrs):
             attrs = super().validate(attrs)
+            attrs["group_by"] = list(dict.fromkeys(attrs["group_by"]))
+            if attrs.get("interval") is not None and LLMQuery.TIME_BUCKET_FIELD not in attrs["group_by"]:
+                attrs["group_by"].append(LLMQuery.TIME_BUCKET_FIELD)
+            elif LLMQuery.TIME_BUCKET_FIELD in attrs["group_by"] and not attrs.get("interval"):
+                attrs["interval"] = get_auto_interval(
+                    LLMMetricGroup.COLLECT_INTERVAL,
+                    attrs["start_time"],
+                    attrs["end_time"],
+                    factor=LLMMetricGroup.INTERVAL_FACTOR,
+                )
+            for time_shift in [attrs["baseline"], *attrs["time_shifts"]]:
+                if not TIME_ABBREVIATION_MATCH.fullmatch(time_shift):
+                    raise serializers.ValidationError(f"不支持的时间偏移：{time_shift}")
             attrs["time_shifts"] = list(dict.fromkeys([*attrs["time_shifts"], self.ZERO_TIME_SHIFT]))
             if len(attrs["time_shifts"]) > 3:
                 raise serializers.ValidationError("最多支持两次时间对比")
@@ -729,17 +773,23 @@ class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResour
         baseline: str = validated_request_data["baseline"]
         cal_type: str = validated_request_data["cal_type"]
         group_fields: list[str] = validated_request_data["group_by"]
-        alias_aggregated_records_map: dict[str, list[dict[str, Any]]] = {}
+        interval: int | None = validated_request_data.get("interval")
+        alias_aggregated_records_map: dict[str, list[dict[str, Any]]] = {
+            time_shift: [] for time_shift in validated_request_data["time_shifts"]
+        }
+        handle_kwargs: dict[str, Any] = {
+            "start_time": validated_request_data["start_time"],
+            "end_time": validated_request_data["end_time"],
+        }
+        if interval is not None:
+            handle_kwargs["interval"] = interval
 
         run_threads(
             [
                 InheritParentThread(
                     target=_collect,
                     args=(time_shift,),
-                    kwargs={
-                        "start_time": validated_request_data["start_time"],
-                        "end_time": validated_request_data["end_time"],
-                    },
+                    kwargs=handle_kwargs,
                 )
                 for time_shift in validated_request_data["time_shifts"]
             ]
@@ -747,8 +797,12 @@ class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResour
 
         merged_records: list[dict[str, Any]] = self._merge(cal_type, group_fields, alias_aggregated_records_map)
         aliases: list[str] = list(alias_aggregated_records_map.keys())
-        # 分组结果按基准列降序，概览页的 TopK 卡片直接取前 N 条
-        merged_records.sort(key=lambda record: record.get(baseline) or 0, reverse=True)
+        # 先按基准列有值优先及数值降序（概览页 TopK 卡片直接取前 N 条，真实 0 排在缺失值 None 之前）；
+        # 启用时间分桶（dimensions 含 time）时，父类 _process_sorted 会利用稳定排序二次重排为「按时间倒序、同桶内按基准值降序」
+        merged_records.sort(
+            key=lambda record: (record.get(baseline) is not None, record.get(baseline) or 0),
+            reverse=True,
+        )
         process_growth_rates(baseline, aliases, merged_records)
 
         return {"total": len(merged_records), "data": self._process_sorted(merged_records)}

@@ -48,7 +48,7 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
     RECORD_ID_FIELD = "span_id"
     FIELD_OPERATIONS = FIELD_OPERATIONS
 
-    MODE = RumQueryMode.SPAN.value
+    MODE: str = RumQueryMode.SPAN.value
     use_precomputed = False
     level_query: "BaseRumQuery | None" = None
 
@@ -135,7 +135,7 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
         return q.filter(cls._build_filters(filters)).query_string(query_string)
 
     def get_queries(
-        self, filters: list[types.Filter] | None = None, query_string: str = ""
+        self, filters: list[types.Filter] | None = None, query_string: str = "", *, for_analysis: bool = True
     ) -> list[QueryConfigBuilder]:
         return [
             self.build_query_q(
@@ -178,7 +178,28 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
         filters: list[types.Filter] | None = None,
         query_string: str = "",
     ) -> int:
-        return super()._query_total(self.get_queries(filters, query_string), start_time, end_time)
+        queries: list[QueryConfigBuilder] = self.get_queries(filters, query_string, for_analysis=False)
+        if self.MODE == RumQueryMode.SPAN.value:
+            return self._query_total(queries, start_time, end_time)
+        return int(self._query_field_aggregated_value(queries, start_time, end_time, self.RECORD_ID_FIELD, "distinct"))
+
+    def query_time_series_config(
+        self,
+        start_time: int,
+        end_time: int,
+        interval: int,
+        group_by: list[str],
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
+    ) -> dict[str, Any]:
+        field, method = (
+            ("_index", "count") if self.MODE == RumQueryMode.SPAN.value else (self.RECORD_ID_FIELD, "distinct")
+        )
+        queries: list[QueryConfigBuilder] = [
+            q.alias("a").metric(field=field, method=method, alias="a").group_by(*group_by).interval(interval)
+            for q in self.get_queries(filters, query_string, for_analysis=False)
+        ]
+        return self._add_query(self.get_qs(start_time, end_time).expression("a"), queries).config
 
     def query_group_list(
         self,

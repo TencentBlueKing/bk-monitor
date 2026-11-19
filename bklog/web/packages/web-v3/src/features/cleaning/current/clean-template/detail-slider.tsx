@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { renderDrawerDetailSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 
 
@@ -349,7 +350,7 @@ export default defineComponent({
               <>
                 <div
                   class='clean-template-detail-content'
-                  v-loading={{ loading: isLoading.value || isCollectorsLoading.value }}
+                  v-loading={{ loading: isLoading.value || isCollectorsLoading.value, indicator: renderDrawerDetailSkeleton }}
                 >
                   <header class='detail-summary'>
                     <div class='detail-summary-main'>

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { renderDrawerDetailSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { Loading as TLoading } from '@/shared/ui/loading/native';
 
 
@@ -638,7 +639,7 @@ export default defineComponent({
               <>
                 <div
                   class='extract-task-detail-content'
-                  v-loading={{ loading: sideSlider.value.isLoading }}
+                  v-loading={{ loading: sideSlider.value.isLoading, indicator: renderDrawerDetailSkeleton }}
                 >
                   <ListBox
                     icon='bklog-icon bklog-info-fill'

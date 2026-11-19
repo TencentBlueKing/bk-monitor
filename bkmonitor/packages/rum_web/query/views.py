@@ -26,6 +26,8 @@ from rum_web.query.resources import (
     RumFieldStatisticsGraphResource,
     RumRecordDetailResource,
     RumTimelineResource,
+    RumTimeSeriesResource,
+    RumTotalResource,
 )
 from rum_web.query.serializers import RumDownloadTopKRequestSerializer
 
@@ -49,6 +51,8 @@ class SearchViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("POST", RumRecordsResource, endpoint="list_records"),
+        ResourceRoute("POST", RumTimeSeriesResource, endpoint="time_series"),
+        ResourceRoute("POST", RumTotalResource, endpoint="total"),
         ResourceRoute("GET", RumViewConfigResource, endpoint="view_config"),
         ResourceRoute("POST", RumFieldsOptionValuesResource, endpoint="get_fields_option_values"),
         ResourceRoute("POST", RumGenerateQueryStringResource, endpoint="generate_query_string"),

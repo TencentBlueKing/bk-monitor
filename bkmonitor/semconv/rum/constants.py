@@ -153,7 +153,6 @@ class RumSpanType(CachedEnum):
         return {
             self.VIEW: [
                 "span_name",
-                "attributes.view.url_template",
                 "attributes.view.loading_time",
                 "virtual.browser",
                 "attributes.user.id",
@@ -196,10 +195,8 @@ class RumSpanType(CachedEnum):
             ],
             self.ACTION: [
                 "span_name",
-                "attributes.view.url_template",
                 "elapsed_time",
-                "attributes.action.type",
-                "attributes.action.frustration.type",
+                "attributes.view.url_template",
                 "virtual.browser",
                 "attributes.user.id",
                 "end_time",
@@ -214,6 +211,7 @@ class RumSpanType(CachedEnum):
             self.CUSTOM: [
                 "span_name",
                 "elapsed_time",
+                "attributes.view.url_template",
                 "virtual.browser",
                 "attributes.user.id",
                 "end_time",

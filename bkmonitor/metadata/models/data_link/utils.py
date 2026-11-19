@@ -93,11 +93,12 @@ def clean_redundant_underscores(table_id: str) -> str:
     return table_id
 
 
-def compose_bkdata_table_id(table_id: str, strategy: str | None = None) -> str:
+def compose_bkdata_table_id(table_id: str, strategy: str | None = None, max_length: int = 40) -> str:
     """
     获取计算平台结果表ID, 计算平台元数据长度限制为40，不可超出
     @param table_id: 监控平台结果表ID
     @param strategy: 链路策略
+    @param max_length: 结果名长度上限，调用方需要拼接版本后缀时传入更小的值
     """
     # 按照 '__default__' 截断，取前半部分
     table_id = table_id.split(".__default__")[0]
@@ -122,10 +123,10 @@ def compose_bkdata_table_id(table_id: str, strategy: str | None = None) -> str:
 
     # 添加 `_fed` 后缀（如果 strategy 为 `bcs_federal_subset_time_series`）
     suffix = "_fed" if strategy == models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES else ""
-    base_length = 40 - len(suffix) - 6  # 留出哈希值和下划线的长度
+    base_length = max(max_length - len(suffix) - 6, 1)  # 留出哈希值和下划线的长度
 
     # 如果长度超过限制，截断并添加哈希值和后缀
-    if len(table_id) + len(suffix) > 40:
+    if len(table_id) + len(suffix) > max_length:
         table_id = f"{table_id[:base_length]}_{hash_suffix}{suffix}"
     else:
         table_id = f"{table_id}{suffix}"

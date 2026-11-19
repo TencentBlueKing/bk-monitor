@@ -25,7 +25,7 @@
  */
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { computed, defineAsyncComponent, defineComponent, KeepAlive, nextTick, onMounted, ref, watch, type Ref } from 'vue';
+import { computed, defineAsyncComponent, defineComponent, KeepAlive, nextTick, onMounted, ref, watch } from 'vue';
 import { releaseBootstrapShell } from '@/app/bootstrap/shell-gate';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router';
@@ -33,6 +33,7 @@ import { useRoute } from 'vue-router';
 import { getFeatureToggleStatus } from '../../shared/composables/use-feature-toggle';
 import { isMonitorIframeContext } from '../../shared/lib/embed-layout-query';
 import useLocale from '../../shared/composables/use-locale';
+import useResizeObserve from '../../shared/composables/use-resize-observe';
 
 import { join } from '@/shared/global/utils/path';
 
@@ -77,7 +78,11 @@ export default defineComponent({
     const { $t } = useLocale();
 
     const noticeComponentHeight = ref(0);
-    const refNoticeComponent: Ref<any | null> = ref(null);
+    const noticeContainer = ref<HTMLElement | null>(null);
+    // The async notice can render or resize after its visibility event.
+    useResizeObserve(noticeContainer, ({ contentRect }) => {
+      noticeComponentHeight.value = contentRect.height;
+    }, false);
     const welcomePageData = ref(null);
 
     const isHeadless = computed(() => route.query.hl === '1');
@@ -137,11 +142,8 @@ export default defineComponent({
      * 公告状态变化
      * @param v
      */
-    const showAlertChange = async (v: boolean) => {
+    const showAlertChange = (v: boolean) => {
       store.updateState({ showAlert: v });
-
-      await nextTick();
-      noticeComponentHeight.value = v ? (refNoticeComponent.value?.$el?.offsetHeight ?? 0) : 0;
     };
 
     /**
@@ -151,7 +153,6 @@ export default defineComponent({
       if (!isAsIframe.value && !isHeadless.value) {
         return (
           <NoticeComponent
-            ref={refNoticeComponent}
             apiUrl={join((window as any).SITE_URL, '/notice/announcements/')}
             onShowAlertChange={showAlertChange}
           />
@@ -286,7 +287,7 @@ export default defineComponent({
         style={noticeComponentStyle.value}
         class={rootClass.value}
       >
-        {renderNoticeComponent()}
+        <div ref={noticeContainer}>{renderNoticeComponent()}</div>
         {renderHeadComponent()}
         {renderAppBody()}
       </div>

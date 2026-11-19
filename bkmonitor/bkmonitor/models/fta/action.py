@@ -40,7 +40,9 @@ from constants.action import (
     ActionStatus,
     ConvergeStatus,
     ConvergeType,
+    NoticeChannel,
     NoticeWay,
+    NoticeWayChannel,
     UserGroupType,
     VoiceNoticeMode,
 )
@@ -515,6 +517,150 @@ class ActionInstance(AbstractRecordModel):
             and self.inputs.get("notice_type") == ActionNoticeType.NORMAL
         )
 
+    def get_notice_receiver_display(
+        self,
+        notice_receiver: Any,
+        notice_way: Any = None,
+        display_mapping: dict[str, str] | None = None,
+    ) -> Any:
+        """
+        获取通知接收人的展示名
+
+        notice_receiver 存的是用户唯一标识，直接渲染会显示成用户看不懂的标识。
+        转换失败时回退原值，不能因转换异常影响文案生成。
+        群机器人 / 蓝鲸信息流的接收人是会话 ID（chatid），不是用户标识，原样展示。
+        """
+        if not notice_receiver:
+            return notice_receiver
+
+        if not self._need_convert_receiver(notice_way):
+            if not isinstance(notice_receiver, list):
+                return self._stringify_receiver(notice_receiver)
+            receivers = [receiver for receiver in notice_receiver if receiver]
+            return ",".join(self._stringify_receiver(receiver) for receiver in receivers)
+
+        receivers = self._expand_receiver_items(notice_receiver)
+        if not receivers:
+            return ""
+        if display_mapping is not None:
+            return ",".join(
+                (display_mapping.get(receiver) or receiver) if isinstance(receiver, str) else str(receiver)
+                for receiver in receivers
+            )
+        # 多接收人批量查询，避免逐个调用展示名接口；
+        # 语音串行通知或含逗号的多接收人字符串会合并多人，逐人查询会放大成 N 次请求。
+        if len(receivers) > 1:
+            return ",".join(self._batch_convert_receivers(receivers))
+        return self._convert_receiver(receivers[0], notice_way, check_channel=False)
+
+    @staticmethod
+    def _expand_receiver_items(notice_receiver: Any) -> list[Any]:
+        """将标量、逗号分隔字符串或列表统一展开为保序接收人项列表（保留非字符串脏元素用于原位回退）"""
+        raw_items = notice_receiver if isinstance(notice_receiver, list) else [notice_receiver]
+        expanded: list[Any] = []
+        for item in raw_items:
+            if not item:
+                continue
+            if isinstance(item, str) and "," in item:
+                expanded.extend(part for part in item.split(",") if part)
+            else:
+                expanded.append(item)
+        return expanded
+
+    @classmethod
+    def _extract_receiver_usernames(cls, notice_receiver: Any) -> list[str]:
+        """提取可用于批量展示名预取的用户名列表"""
+        return [item for item in cls._expand_receiver_items(notice_receiver) if isinstance(item, str) and item]
+
+    @staticmethod
+    def _stringify_receiver(receiver: Any) -> str:
+        """非用户渠道的接收人原样转字符串，保留旧行为"""
+        return receiver if isinstance(receiver, str) else str(receiver)
+
+    def _get_tenant_id(self) -> str | None:
+        """
+        解析动作所属租户 ID
+
+        sync_actions_sharding_task 等后台同步任务运行在无 HTTP request 的 Celery cron 中，
+        且不会注入 local.bk_tenant_id；需按 bk_biz_id 解析后显式传给查询接口，
+        同时保证 CacheType.USER 缓存键按租户隔离。非零业务解析失败时返回 None 直接回退原标识。
+        """
+        from bkmonitor.utils.user import resolve_biz_tenant_id
+
+        return resolve_biz_tenant_id(self.bk_biz_id, context_label=f"action({self.id})")
+
+    def _need_convert_receiver(self, notice_way: Any) -> bool:
+        """判断该通知渠道的接收人是否为用户标识"""
+        if notice_way is None:
+            notice_way = (self.inputs or {}).get("notice_way")
+        if isinstance(notice_way, list):
+            notice_way = notice_way[0] if notice_way else ""
+        if not isinstance(notice_way, str):
+            return True
+        # 归一化历史别名（如 rtx 等价于 qy_weixin）。当前 MAPPING 未收录别名键，
+        # 白名单判断已能正确放行，这里是防御性处理：将来若 MAPPING 收录别名或改回
+        # 「查不到就跳过」的写法，不至于把用户标识漏转成 ID。
+        if notice_way:
+            notice_way = NoticeWay.ALIASES.get(notice_way, notice_way)
+        channel = NoticeWayChannel.MAPPING.get(notice_way)
+        # 蓝鲸信息流子渠道在 inputs 中以 "bkchat|mail" 等带渠道前缀形式存储，
+        # 需对齐 ActionContext.get_notice_channel 剥离前缀判定。
+        if not channel and "|" in notice_way:
+            channel, _ = notice_way.split("|", 1)
+        # 只跳过明确是会话 ID 的渠道（群机器人、蓝鲸信息流），其余一律按用户标识转换。
+        # 会话类渠道是少数派，漏转用户标识比多查一次展示名的代价更大。
+        return channel not in (NoticeChannel.WX_BOT, NoticeChannel.BK_CHAT)
+
+    def _batch_convert_receivers(self, receivers: list[Any]) -> list[str]:
+        """批量转展示名，查询失败、租户解析失败或个别查不到时回退原值"""
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            return [self._stringify_receiver(receiver) for receiver in receivers]
+
+        from bkmonitor.utils.user import batch_get_user_display_names
+
+        bk_tenant_id = self._get_tenant_id()
+        display_map = batch_get_user_display_names(receivers, bk_tenant_id=bk_tenant_id, strict_tenant=True)
+        return [
+            (display_map.get(receiver) or receiver) if isinstance(receiver, str) else str(receiver)
+            for receiver in receivers
+        ]
+
+    def _convert_receiver(self, receiver: Any, notice_way: Any = None, check_channel: bool = True) -> str:
+        """单个接收人转展示名，会话类渠道、租户解析失败或转换失败时回退原值"""
+        if not isinstance(receiver, str):
+            return str(receiver)
+        if check_channel and not self._need_convert_receiver(notice_way):
+            return receiver
+
+        from bkmonitor.utils.user import get_user_display_name
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = self._get_tenant_id()
+            if not bk_tenant_id:
+                return receiver
+            try:
+                display_name = get_user_display_name(receiver, bk_tenant_id=bk_tenant_id)
+            except Exception as error:
+                logger.warning(
+                    "convert notice_receiver(%s) to display name failed for action(%s): %s",
+                    receiver,
+                    self.id,
+                    error,
+                )
+                return receiver
+        else:
+            try:
+                display_name = get_user_display_name(receiver)
+            except Exception as error:
+                logger.warning(
+                    "convert notice_receiver(%s) to display name failed for action(%s): %s",
+                    receiver,
+                    self.id,
+                    error,
+                )
+                return receiver
+        return display_name if isinstance(display_name, str) and display_name else receiver
+
     def get_content(self, **kwargs):
         content_template = kwargs.pop("content_template", "")
         need_action_link = kwargs.pop("need_action_url", False)
@@ -580,6 +726,22 @@ class ActionInstance(AbstractRecordModel):
         content_template = content_template or _("%s执行{{status_display}}") % self.action_config.get(
             "name", _("处理套餐")
         )
+        # 通知接收人在文案里是给人看的，需要转成展示名，否则会渲染成一串用户标识。
+        # 只新增展示名变量，不动 notice_receiver 本身，原因有两点：
+        # 1. 它是审计事实（通知实际发给了谁），替换会丢失可追溯性；
+        # 2. 它可能是列表，替换成字符串会让自定义模板里的 `| join` 或迭代按字符拆分。
+        # 内置模板已统一使用 {{notice_receiver_display}}；ActionPlugin 表中的存量插件记录
+        # 由 fta_web.handlers.register_builtin_plugins 在 post_migrate（需 MIGRATE_ACTION_PLUGIN_ENABLED=enabled）
+        # 时按初始文件覆盖更新，更新后新建的 ActionInstance 即生效（历史 ActionInstance.action_plugin 快照不追溯）。
+        # 放在模板确定之后且仅在模板引用该变量时转换，避免对审批/汇总/旧快照模板发起无效查询。
+        if (
+            "notice_receiver_display" in content_template
+            and kwargs.get("notice_receiver")
+            and "notice_receiver_display" not in kwargs
+        ):
+            kwargs["notice_receiver_display"] = self.get_notice_receiver_display(
+                kwargs["notice_receiver"], kwargs.get("notice_way")
+            )
         text = Jinja2Renderer.render(content_template, kwargs)
 
         content = {
@@ -670,7 +832,14 @@ class ActionInstance(AbstractRecordModel):
             resource_name = retry_param["resource"]
             try:
                 args = retry_param.get("args", ())
-                kwargs = retry_param.get("kwargs", {})
+                kwargs = dict(retry_param.get("kwargs", {}))
+
+                # 租户是熔断记录的可选字段，不在 kwargs 里：kwargs 是跨版本重放契约，
+                # 旧 worker 的方法签名没有 bk_tenant_id 形参，塞进 kwargs 会直接 TypeError。
+                # 新版读取该字段后补进调用参数；旧版不认识这个字段，会原样忽略。
+                retry_tenant_id = retry_param.get("bk_tenant_id")
+                if retry_tenant_id and "bk_tenant_id" not in kwargs:
+                    kwargs["bk_tenant_id"] = retry_tenant_id
 
                 # 核心逻辑：动态导入模块，获取类或方法，然后调用
                 ret = None

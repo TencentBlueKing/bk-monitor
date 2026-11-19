@@ -275,11 +275,13 @@ export default defineComponent({
       const value = (row as unknown as Record<string, unknown>)[column.field];
       if (column.type === 'process_list') return renderHostProcesses(row);
       if (column.type === 'status') {
-        const message = hostErrorTypeMessage(row.error_type);
+        const errorMessage = hostErrorTypeMessage(row.error_type);
+        // 已取消时后端不下发 error_type，hover 提示取后端下发的原始 message
+        const message = row.status === 'cancelled' ? row.message : errorMessage ? this.t(errorMessage) : '';
         return (
           <CollectionExecutionStatus
-            class={{ 'has-failure-message': !!message && ['failed', 'timeout'].includes(row.status) }}
-            message={message ? this.t(message) : ''}
+            class={{ 'has-failure-message': !!message && ['failed', 'timeout', 'cancelled'].includes(row.status) }}
+            message={message || ''}
             status={String(value ?? '')}
           />
         );

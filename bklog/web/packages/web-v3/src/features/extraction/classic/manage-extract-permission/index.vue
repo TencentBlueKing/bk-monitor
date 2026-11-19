@@ -170,7 +170,7 @@
       <template #content>
         <directory-manage
           ref="directoryRef"
-          v-loading="{ loading: isSliderLoading }"
+          v-loading="{ loading: isSliderLoading, indicator: renderDrawerInlineFormSkeleton }"
           :allow-create="allowCreate"
           :strategy-data="strategyData"
           :user-api="userApi"
@@ -182,6 +182,7 @@
 </template>
 
 <script>
+import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { mapState as mapPiniaState } from 'pinia';
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
@@ -223,6 +224,7 @@ import { ServicesInstance } from '@/platform/services';
       this.checkManageAuth();
     },
     methods: {
+      renderDrawerInlineFormSkeleton,
       async checkManageAuth() {
         try {
           const res = await useApplicationStore().checkAllowed({

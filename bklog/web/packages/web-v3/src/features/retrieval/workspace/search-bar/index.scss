@@ -1,18 +1,10 @@
 .v3-search-bar-root {
   position: sticky;
   top: 0;
-  z-index: var(--bklog-z-local);
+  z-index: var(--bklog-z-page-top);
   margin: 0 8px;
+  background: var(--bklog-surface, #fff);
   box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.0784313725);
-
-  &.is-sticky-top {
-    margin: 0;
-
-    .v3-ai-mode-root {
-      margin: 0 8px 8px 8px;
-      background-color: #fff;
-    }
-  }
 
   &.is-ai-mode {
     box-shadow: none;
