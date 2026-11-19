@@ -31,10 +31,10 @@ from apps.log_search.constants import CollectorScenarioEnum
 # 因此不允许新准入；已有 binding 仍按粘性归属继续由 V3 管理。
 V2_ONLY_COLLECTOR_SCENARIOS = frozenset({CollectorScenarioEnum.CUSTOM.value, CollectorScenarioEnum.CLIENT.value})
 
-# 显式取值档位。与「未设置」必须分开：前者是运维主动配置，后者沿用历史默认关闭。
-# true 是现网固定取值，与 on 同为强制打开，运维不必再改 DB 灰度。
-ENV_FORCED_ON_VALUES = frozenset({"on", "true", "1", "yes"})
-ENV_FORCED_OFF_VALUES = frozenset({"off", "false", "0", "no"})
+# 环境变量只认字面量 true / false：前者强制打开、后者强制关闭。
+# 其余取值（含 on / 1 / yes、未设置、空白）一律交给 DB 灰度，避免同一语义多种写法行为不同。
+ENV_FORCED_ON_VALUE = "true"
+ENV_FORCED_OFF_VALUE = "false"
 
 
 def _parse_ids(raw) -> set[int]:
@@ -107,14 +107,14 @@ def _env_forced_state() -> bool | None:
     """
     环境变量的强制档位：True 强制准入、False 强制关闭、None 交给 FeatureToggle 灰度。
 
-    true 与 on 都是强制打开：运维环境的变量取值已固定为 true，若仍要灰度就还得再改 DB，
-    与「环境变量是运维主入口」冲突。未设置与非法值都走 DB 灰度——否则 DB 灰度开关永远
-    不可达，等于把它留成死代码。
+    只认字面量 true / false。运维已在环境里固定使用 true，配了就必须直接生效，不能再要求
+    先改 DB；而 off / 未设置 / 其它值都走 DB 灰度，既保留分批放量能力，
+    也让 on、1 这类写法不会因为实现细节意外变成强制全开。
     """
     env_value = get_nodeman_v3_env_value()
-    if env_value in ENV_FORCED_ON_VALUES:
+    if env_value == ENV_FORCED_ON_VALUE:
         return True
-    if env_value in ENV_FORCED_OFF_VALUES:
+    if env_value == ENV_FORCED_OFF_VALUE:
         return False
     return None
 
@@ -156,12 +156,12 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
     1. 已有 V3 binding                              -> V3（粘性归属）
     2. subscription_id 非空                         -> V2
     3. 采集场景没有订阅步骤实现                       -> V2
-    4. 环境变量 on / true                            -> V3（跳过灰度）
-    5. 环境变量 off / false                          -> V2
+    4. 环境变量 true                                 -> V3（跳过灰度）
+    5. 环境变量 false                                -> V2
     6. FeatureToggle off / 缺失 / DB 异常           -> V2
     7. FeatureToggle on                              -> V3
     8. FeatureToggle debug 命中业务或特殊采集项       -> V3
-    9. 其余（含环境变量未设置）                       -> V2
+    9. 其余（含环境变量未设置 / 其它值）              -> V2
     """
     configs = list(collector_configs)
     collector_ids = {
