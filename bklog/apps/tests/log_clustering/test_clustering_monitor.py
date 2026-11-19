@@ -89,12 +89,12 @@ class TestClusteringMonitorHandler(TestCase):
                 }
                 body = template.render(
                     content={},
-                    alarm={"log_related_fields": related, "current_value": 3},
+                    alarm={"log_related_fields": related, "current_value": 8},
                     strategy=SimpleNamespace(items=[SimpleNamespace(query_configs=[{"agg_interval": 60}])]),
                 )
                 sample = body.split("**日志示例:** ")[1].splitlines()[0]
                 self.assertEqual(sample, "测" * 1024 if size == 1024 else "测" * 1021 + "...")
-                self.assertIn("异常类型: 新类, 近 1 分钟出现次数 (3)", body)
+                self.assertIn("**内容:** 日志聚类检测到新类，近 1 分钟出现次数 (8)", body.splitlines())
                 self.assertIn("**负责人:** owner", body)
                 self.assertIn("保留备注【10:00】(tester", body)
                 self.assertIn(f"[更多日志]({link})", body)
@@ -122,6 +122,17 @@ class TestClusteringMonitorHandler(TestCase):
         algorithm_args = request_params["items"][0]["algorithms"][0]["config"]["args"]
 
         self.assertEqual(algorithm_args["$new_class_alert_th"], 1)
+
+    def test_legacy_and_normal_notices_keep_model_alert_message(self):
+        del self.handler.get_notice
+        for save, kwargs in (
+            (self.handler.save_legacy_new_cls_clustering_strategy, {"table_id": "2_legacy", "metric": "log_count"}),
+            (self.handler.save_normal_clustering_strategy, {}),
+        ):
+            with self.subTest(strategy=save.__name__):
+                save(params={"user_groups": [42]}, **kwargs)
+                notice = self.handler.save_strategy_infos.call_args.kwargs["request_params"]["notice"]
+                self.assertIn("异常类型: {{alarm.bkm_info.alert_msg}}", notice["config"]["template"][0]["message_tmpl"])
 
     def test_new_class_and_normal_strategy_share_log_search_source_config(self):
         self.handler.save_new_cls_clustering_strategy(params={"interval": 30, "threshold": 5})
