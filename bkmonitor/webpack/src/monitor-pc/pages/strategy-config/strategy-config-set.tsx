@@ -29,6 +29,7 @@ import { random } from 'monitor-common/utils/utils';
 
 import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
+import { bkOTInstance } from '../../open-telemetry';
 import * as ruleAuth from './authority-map';
 import StrategyConfigSet from './strategy-config-set-new/strategy-config-set';
 
@@ -87,6 +88,12 @@ export default class MonitorStrategyConfigSet extends Mixins(authorityMixinCreat
     });
   }
   handleSave() {
+    // 子组件仅在保存接口成功后触发 save，跳转前归属到当前编辑页面。
+    bkOTInstance?.reportAction({
+      name: 'strategy_save',
+      attributes: { 'strategy.operation': this.$route.name === 'strategy-config-edit' ? 'edit' : 'create' },
+    });
+    bkOTInstance?.addTiming('strategy_saved');
     this.needCheck = false;
     this.$router.push({ name: 'strategy-config' });
   }
