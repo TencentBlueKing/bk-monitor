@@ -500,6 +500,7 @@ UNIFY_QUERY_ROUTING_RULES = []
 
 # bk-monitor-worker api 地址
 BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")
+ENABLE_BMW_ROUTE_REFRESH = os.getenv("ENABLE_BMW_ROUTE_REFRESH", "false").lower() == "true"
 
 # 告警缓存刷新任务的业务并发度
 ALARM_CACHE_REFRESH_BIZ_CONCURRENT = 3

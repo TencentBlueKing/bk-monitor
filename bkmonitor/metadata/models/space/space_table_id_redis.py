@@ -22,6 +22,7 @@ from django.utils.timezone import now as tz_now
 
 from constants.apm import ApmGlobalTablePrefix
 from constants.common import DEFAULT_TENANT_ID
+from core.drf_resource import api
 from metadata import models
 from metadata.models.constants import DEFAULT_MEASUREMENT, DataIdCreatedFromSystem
 from metadata.models.record_rule.constants import RECORD_RULE_V4_DELETED_RETENTION_DAYS
@@ -84,6 +85,9 @@ class SpaceTableIDRedis:
 
         space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
         bk_tenant_id = space.bk_tenant_id
+        if settings.ENABLE_BMW_ROUTE_REFRESH:
+            api.bmw.refresh_space_route(bk_tenant_id=bk_tenant_id, space_type=space_type, space_id=space_id)
+            return
 
         # 过滤空间关联的数据源信息
         if space_type == SpaceTypes.BKCC.value:
@@ -139,6 +143,11 @@ class SpaceTableIDRedis:
             is_publish,
             bk_tenant_id,
         )
+        use_bmw = settings.ENABLE_BMW_ROUTE_REFRESH
+        if use_bmw and table_id_list and not data_label_list:
+            api.bmw.refresh_data_label_route(bk_tenant_id=bk_tenant_id, table_ids=table_id_list)
+            return
+
         if table_id_list:
             data_labels = self._refine_available_data_label(
                 table_id_list=table_id_list, data_label_list=data_label_list, bk_tenant_id=bk_tenant_id
@@ -148,6 +157,9 @@ class SpaceTableIDRedis:
         else:
             data_labels = None  # 全量刷新不拼接所有标签的 OR 条件。
         if data_labels == []:
+            return
+        if use_bmw and data_labels:
+            api.bmw.refresh_data_label_route(bk_tenant_id=bk_tenant_id, data_labels=data_labels)
             return
 
         aliases = self._get_data_label_aliases(bk_tenant_id, data_label_list=data_labels)
@@ -316,7 +328,8 @@ class SpaceTableIDRedis:
     ) -> None:
         """刷新一个租户的 ``result_table_detail`` 路由。
 
-        本入口同时处理两类结构不同的路由：
+        启用 BMW 定向刷新时，将指定结果表交给 worker 同步刷新。
+        本地刷新同时处理两类结构不同的路由：
 
         * InfluxDB、VM 和预计算指标表沿用原有 payload，不增加日志历史字段；
         * ES/Doris 日志表以 ``ResultTable.default_storage`` 作为顶层当前存储，
@@ -344,6 +357,12 @@ class SpaceTableIDRedis:
             len(table_id_list) if table_id_list else "all",
             is_publish,
         )
+
+        if table_id_list and settings.ENABLE_BMW_ROUTE_REFRESH:
+            api.bmw.refresh_result_table_route(
+                bk_tenant_id=bk_tenant_id, table_ids=table_id_list, is_publish=is_publish
+            )
+            return
 
         # 先按旧流程组装指标路由，后续由日志路由“认领”同名 table_id。这样既能保持
         # 指标和 RecordRule 的原有行为，又不会让已切换到 ES/Doris 的表回退成指标路由。
