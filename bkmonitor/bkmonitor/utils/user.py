@@ -297,6 +297,7 @@ def get_wxwork_mention_names(usernames: list[str], bk_tenant_id: str | None = No
                 break
 
     mention_names: dict[str, str] = {}
+    missing_login_names: list[str] = []
     for user_info in user_display_info:
         if not isinstance(user_info, dict):
             continue
@@ -304,6 +305,19 @@ def get_wxwork_mention_names(usernames: list[str], bk_tenant_id: str | None = No
         mention_name = extract_login_name_from_display_name(user_info.get("display_name") or "")
         if isinstance(username, str) and username and mention_name:
             mention_names[username] = mention_name
+        elif isinstance(username, str) and username:
+            # 提取不到英文登录名（如纯中文展示名）时该用户会从 @ 名单中静默缺席，
+            # 调用方按 mention_map.get(user, user) 回退成 UID，企微不会真正 @ 到人。
+            # 这条日志是现场「@ 了但没提醒」的唯一线索，不要删。
+            missing_login_names.append(username)
+
+    if missing_login_names:
+        logger.warning(
+            "wxwork mention skip %d user(s) without extractable login_name for tenant(%s): %s",
+            len(missing_login_names),
+            resolved_tenant_id,
+            missing_login_names[:20],
+        )
 
     return mention_names
 

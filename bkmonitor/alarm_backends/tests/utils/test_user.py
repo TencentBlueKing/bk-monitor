@@ -66,6 +66,37 @@ def test_get_wxwork_mention_names_queries_users_in_batches(settings, monkeypatch
     assert "all" not in result
 
 
+def test_get_wxwork_mention_names_logs_users_without_login_name(settings, monkeypatch, caplog):
+    """
+    提取不到英文登录名的用户必须从 @ 名单缺席，且留下 warning 日志
+
+    纯中文展示名（如「张三」）走的就是这条路径：该用户会静默缺席，调用方按
+    mention_map.get(user, user) 回退成 UID，企微不会真正 @ 到人。
+    若这条日志被删，现场「@ 了但没提醒」就完全没有线索。
+    """
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    monkeypatch.setattr(
+        "core.drf_resource.api.bk_login.batch_query_user_display_info",
+        lambda **kwargs: [
+            {"bk_username": "xxx_id_ok", "display_name": "xxx_login(xxx_name)"},
+            {"bk_username": "xxx_id_cn", "display_name": "张三"},
+        ],
+    )
+
+    with caplog.at_level("WARNING"):
+        result = get_wxwork_mention_names(["xxx_id_ok", "xxx_id_cn"], bk_tenant_id="tenant_wx")
+
+    # 能提取登录名的进名单，中文展示名的缺席（由调用方回退 UID）
+    assert result == {"xxx_id_ok": "xxx_login"}
+    assert "xxx_id_cn" not in result
+
+    # 缺席必须可观测，且日志里要能定位到具体用户与租户
+    warnings = [record for record in caplog.records if record.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "xxx_id_cn" in warnings[0].getMessage()
+    assert "tenant_wx" in warnings[0].getMessage()
+
+
 def test_get_user_display_name_short_circuits_empty_and_mismatched_username(settings, monkeypatch):
     settings.ENABLE_MULTI_TENANT_MODE = True
     settings.ROLE = "worker"
