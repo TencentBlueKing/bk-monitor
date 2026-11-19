@@ -221,19 +221,39 @@ class StorageHandler:
 
         从 ES 分支等价抽取，供 ES 与 Doris 共用：
         1. 配置了空间类型属性时，直接按空间类型判定；
-        2. 否则找出空间关联的 BKCC 业务，再用业务属性标签匹配 BizProperty。
+        2. 否则找出空间关联的 BKCC 业务，再用业务属性标签匹配 BizProperty；
+        3. 只有进入第 2 步的 reduce 时才校验属性值列表，空值直接判不可见。
 
         :param bk_biz_id: 业务 ID；负数表示 BKCI 等项目空间
         :param bk_biz_labels: 属性标签，形如 {"space_type": ["bkci"], "biz_property": ["value"]}
         :return: 命中返回 True
         """
-        # 如果空间类型不是业务，需要找出该空间关联的业务再做判断(如果有)
-        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-        space_type = parse_space_uid(space_uid)[0]
-        # 如果存在空间类型的属性, 则判断空间类型是否在属性值列表中
+        if not isinstance(bk_biz_labels, dict) or not bk_biz_labels:
+            return False
+
+        # space_type 非空时沿用基线短路语义：命中即返回，不再检查其它属性键。
+        # 该分支不会执行 reduce，因此其它键即使是空列表也不影响结果。
         label_space_type_value_list = bk_biz_labels.get(SpacePropertyEnum.SPACE_TYPE.value, [])
         if label_space_type_value_list:
-            return space_type in label_space_type_value_list
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            space_type = parse_space_uid(space_uid)[0]
+            try:
+                return space_type in label_space_type_value_list
+            except TypeError:
+                # 存量非可迭代值（如整数）按未命中处理，避免接口异常
+                return False
+
+        # 只有走到关联业务 + BizProperty 查询时才会执行 reduce。
+        # 在这里校验所有属性值列表，空列表/非列表值直接 fail-closed，
+        # 避免 functools.reduce 在空序列上抛 TypeError 打挂整批候选查询。
+        for label_values in bk_biz_labels.values():
+            if not isinstance(label_values, (list, tuple)) or not label_values:
+                return False
+            if any(isinstance(label_value, (dict, list, tuple, set)) for label_value in label_values):
+                return False
+
+        # 如果空间类型不是业务，需要找出该空间关联的业务再做判断(如果有)
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
         related_space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
         if not related_space:
             return False
@@ -1151,6 +1171,11 @@ class StorageHandler:
         # 而 batch_connectivity_detect 读的是原始 custom_option，结论相反。
         # _default 集群需要逐条补配可见范围，误配概率最高，故在写入侧直接拒绝。
         visible_config = params["visible_config"]
+        # current_tenant 缺少可信的租户归属判定，读取侧对 Doris 恒拒绝；
+        # HTTP 入口已由 DorisVisibleConfigUpdateSerializer 拦截，这里保留兜底，
+        # 防止直接调用 handler 绕过参数校验写入“保存成功但所有空间不可选”的死配置。
+        if visible_config.get("visible_type") == VisibleEnum.CURRENT_TENANT.value:
+            raise ValidationError(_("Doris 集群不支持「当前租户可见」，请使用「多业务可见」或「全部业务可见」"))
         if (
             registered_system == REGISTERED_SYSTEM_DEFAULT
             and visible_config.get("visible_type") == VisibleEnum.CURRENT_BIZ.value
@@ -1408,31 +1433,27 @@ class StorageHandler:
             cluster_type = cluster_info.get("cluster_type")
             registered_system = cluster_config.get("registered_system")
             try:
-                # 管理端 list() 为支持存量补配不拦截未配置可见范围的 Doris 集群；
-                # 状态查询若对这类集群套用 fail-closed，会使其停留在
-                # batch_connectivity_detect 的 {"status": False} 初值，管理页显示「失败」。
-                # 豁免必须严格对齐 list() 的放行门禁，避免其它业务枚举 cluster_id
-                # 越权查询连通性 / 磁盘信息：
-                #   公共集群 -> list() 比较 settings.BLUEKING_BK_BIZ_ID
-                #   私有集群 -> list() 比较 custom_option["bk_biz_id"]
-                is_unconfigured_doris = (
-                    cluster_type == DORIS_CLUSTER_TYPE and not custom_option.get("visible_config")
-                )
-                if is_unconfigured_doris:
+                # 管理端 list() 对所有 Doris 集群都按归属放行：
+                #   公共集群 -> settings.BLUEKING_BK_BIZ_ID
+                #   私有集群 -> custom_option["bk_biz_id"]
+                # 与是否配置可见范围无关。状态查询必须对齐同一门禁，否则归属业务
+                # 查看“仅开放给其它业务”的已配置集群时会跳过真实状态查询，
+                # 管理页把健康集群显示为「失败」。
+                # 非归属业务仍走 can_visible，保留越权保护。
+                is_doris_owner = False
+                if cluster_type == DORIS_CLUSTER_TYPE:
                     owner_biz_id = (
                         settings.BLUEKING_BK_BIZ_ID
                         if registered_system == REGISTERED_SYSTEM_DEFAULT
                         else custom_option.get("bk_biz_id")
                     )
-                    is_allowed = str(bk_biz_id) == str(owner_biz_id)
-                else:
-                    # 有显式可见范围配置的集群仍走 can_visible，保留越权保护
-                    is_allowed = handler.can_visible(
-                        bk_biz_id,
-                        custom_option,
-                        registered_system,
-                        cluster_type,
-                    )
+                    is_doris_owner = str(bk_biz_id) == str(owner_biz_id)
+                is_allowed = is_doris_owner or handler.can_visible(
+                    bk_biz_id,
+                    custom_option,
+                    registered_system,
+                    cluster_type,
+                )
                 if is_allowed:
                     visible_cluster_ids.append(cluster_id)
             except Exception:  # pylint: disable=broad-except
