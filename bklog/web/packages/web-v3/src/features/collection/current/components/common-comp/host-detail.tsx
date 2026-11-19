@@ -355,7 +355,14 @@ export default defineComponent({
             <div class='host-detail-content'>
               {/* 左侧主机列表 */}
               <div class='content-left'>
-                <bk-collapse value={activeName.value}>
+                {/* value 为受控属性：点击折叠头需回写 activeName，否则展开态不会变化 */}
+                <bk-collapse
+                  value={activeName.value}
+                  expandIconPlacement='right'
+                  onChange={(value: string[]) => {
+                    activeName.value = value ?? [];
+                  }}
+                >
                   {showList.value.map(logItem => (
                     <bk-collapse-item
                       v-slots={{

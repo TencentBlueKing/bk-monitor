@@ -221,7 +221,13 @@ export default defineComponent({
         },
         {
           // 检查数据名是否可用
-          validator: async () => ({ result: (await checkEnNameRepeat()) === true, message: enNameErrorMessage.value }),
+          // TDesign 会执行该字段的全部规则（不像 Element 在首条失败后短路），
+          // 因此空值、格式或长度不合法的非法值需在此直接放行，由前面的规则给出提示，避免无效请求
+          validator: async () => {
+            const value = getCollectorConfigNameEn();
+            if (!value || !enNameRegex.test(value) || value.length < 5 || value.length > 50) return true;
+            return { result: (await checkEnNameRepeat()) === true, message: enNameErrorMessage.value };
+          },
           trigger: 'blur',
         },
       ],
@@ -377,6 +383,7 @@ export default defineComponent({
           ref={formRef}
           class='base-info-form'
           labelWidth={100}
+          requiredMark={false}
           requiredMarkPosition='right'
           {...{
             ...{
@@ -464,8 +471,7 @@ export default defineComponent({
             </div>
             <div
               class='html-container'
-              // @ts-expect-error
-              domPropsInnerHTML={xssFilter(customTypeIntro.value)}
+              innerHTML={xssFilter(customTypeIntro.value)}
             ></div>
           </div>
         </div>

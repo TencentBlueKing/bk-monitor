@@ -1,4 +1,3 @@
-@use '@/shared/ui/loading/shimmer' as *;
 .host-detail-main {
     width: 100%;
     height: 100%;
@@ -7,11 +6,11 @@
         display: inline-block;
         width: 14px;
         height: 14px;
-        @include loading-shimmer;
+        background: url('@/shared/assets/images/loading.svg');
         margin-right: 4px;
-
+        background-size: cover;
         vertical-align: middle;
-
+        animation: spin 2s linear infinite;
     }
     .host-detail-tab {
         display: inline-block;
@@ -89,16 +88,27 @@
         display: flex;
         height: calc(100% - 12px);
         .detail-content-item {
-            .bk-collapse-item-content {
-                padding: 0;
-            }
-            .bk-collapse-item-header {
-                color: #313238;
+            .t-collapse-panel__header {
+                height: 42px;
+                padding: 0 16px;
                 font-size: 12px;
-                padding-left: 16px;
-                background: #F5F7FA;
-                border-top: 1px solid #DCDEE5;
-                border-bottom: 1px solid #DCDEE5;
+                font-weight: normal;
+                line-height: 42px;
+                color: var(--bklog-text-primary, #313238);
+                background: var(--bklog-surface-hover, #f5f7fa);
+                border-top: 1px solid var(--bklog-border-muted, #dcdee5);
+                border-bottom: 1px solid var(--bklog-border-muted, #dcdee5);
+            }
+            .t-collapse-panel__body {
+                background: var(--bklog-surface, #fff);
+                border-bottom: none;
+            }
+            .t-collapse-panel__content {
+                padding: 0;
+                color: inherit;
+            }
+            .t-collapse-panel__icon {
+                color: var(--bklog-text-strong, #4d4f56);
             }
         }
         .content-left {
@@ -109,6 +119,11 @@
             border: 1px solid #DCDEE5;
             border-top: none;
             overflow: auto;
+
+            .t-collapse {
+                background: transparent;
+                border: 0;
+            }
 
             .content-left-title {
                 height: 42px;

@@ -26,7 +26,12 @@
 
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+import {
+  DateRangePicker as TDateRangePicker,
+  RadioGroup as TRadioGroup,
+  Radio as TRadio,
+  type DateRangeValue,
+} from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -75,7 +80,7 @@ export default defineComponent({
       trigger_duration: SUSTAIN_TIME_OPTIONS[0].value, // 持续触发时长(单位 s)
       log_path: '', // 日志路径
       max_file_num: 100, // 最大文件个数
-      fileModifyTimeRange: [new Date(), new Date()], // 文件修改时间范围
+      fileModifyTimeRange: [new Date(), new Date()] as DateRangeValue, // 文件修改时间范围
       comment: '', // 备注
     });
     const formRef = ref(null);
@@ -90,9 +95,12 @@ export default defineComponent({
     const dateRangeRule = {
       required: true,
       trigger: 'blur',
-      validator: (value: string[]) => {
-        // 检查开始时间和结束时间都不为空
-        return value[0] && value[1] && value[0] !== '' && value[1] !== '';
+      validator: (value: DateRangeValue) => {
+        if (!Array.isArray(value) || value.length !== 2 || value.some(time => time == null || time === '')) {
+          return false;
+        }
+        const [start, end] = value.map(time => time instanceof Date ? time.getTime() : new Date(time).getTime());
+        return Number.isFinite(start) && Number.isFinite(end) && start <= end;
       },
     };
 
@@ -182,7 +190,7 @@ export default defineComponent({
         trigger_duration: data.trigger_duration || SUSTAIN_TIME_OPTIONS[0].value,
         log_path: data.log_path,
         max_file_num: data.max_file_num,
-        fileModifyTimeRange: [data.start_time, data.end_time],
+        fileModifyTimeRange: [data.start_time, data.end_time].map(time => time == null || time === '' ? '' : new Date(time)),
         comment: '',
       };
     };
@@ -380,11 +388,15 @@ export default defineComponent({
                       required
                       property='fileModifyTimeRange'
                     >
-                      <bk-date-picker
-                        type='datetimerange'
+                      <TDateRangePicker
                         value={formData.value.fileModifyTimeRange}
-                        onChange={(value: Date[]) => (formData.value.fileModifyTimeRange = value)}
-                        transfer
+                        enableTimePicker
+                        valueType='Date'
+                        format='YYYY-MM-DD HH:mm:ss'
+                        placeholder={[t('开始时间'), t('结束时间')]}
+                        clearable
+                        style={{ width: '100%' }}
+                        onChange={(value: DateRangeValue) => (formData.value.fileModifyTimeRange = value)}
                       />
                     </bk-form-item>
                     <bk-form-item label={t('备注')}>

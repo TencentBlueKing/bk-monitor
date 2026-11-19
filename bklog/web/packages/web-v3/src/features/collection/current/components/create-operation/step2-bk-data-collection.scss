@@ -24,6 +24,7 @@
   .field-setting-box {
     width: 100%;
     .field-setting-alert {
+      align-items: center;
       background: #fdf4e8;
       border: 1px solid #f9d090;
       border-radius: 2px;
@@ -34,9 +35,6 @@
       width: calc(45% - 100px);
       margin-bottom: 5px;
     }
-  }
-  .classify-btns-fixed {
-    z-index: var(--bklog-z-nav-top) !important;
   }
 }
 

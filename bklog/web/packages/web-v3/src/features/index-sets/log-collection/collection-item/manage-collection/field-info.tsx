@@ -39,12 +39,11 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Table, Popup as Popover } from 'tdesign-vue-next';
+import type { PageInfo, PrimaryTableCol } from 'tdesign-vue-next';
 
 import { getFlatObjValues } from '../../../../../shared/lib/util';
 
 import './field-info.scss';
-
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 interface MaskingRule {
   rule_id: number;
@@ -95,16 +94,14 @@ export default class FieldInfo extends tsc<IProps> {
     /** 当前页数 */
     current: 1,
     /** 总数 */
-    count: 1,
+    total: 0,
     /** 每页显示数量 */
-    limit: 10,
+    pageSize: 10,
   };
 
   timeField = '';
 
   tableList: FieldRow[] = [];
-
-  tableShowList: FieldRow[] = [];
 
   recommendRuleIDMap = {};
 
@@ -186,10 +183,9 @@ export default class FieldInfo extends tsc<IProps> {
           preview: findRules?.preview ?? [],
         };
       });
-      this.tableShowList = this.tableList.slice(0, this.pagination.limit);
-      this.changePagination({
+      Object.assign(this.pagination, {
         current: 1,
-        count: this.tableList.length,
+        total: this.tableList.length,
       });
     } catch (e) {
       console.warn(e);
@@ -216,27 +212,11 @@ export default class FieldInfo extends tsc<IProps> {
     }
   }
 
-  pageChange(newPage: number) {
-    const { limit } = this.pagination;
-    const startIndex = (newPage - 1) * limit;
-    const endIndex = newPage * limit;
-    this.tableShowList = this.tableList.slice(startIndex, endIndex);
-    this.changePagination({
-      current: newPage,
+  pageChange({ current, pageSize }: PageInfo) {
+    Object.assign(this.pagination, {
+      current: pageSize === this.pagination.pageSize ? current : 1,
+      pageSize,
     });
-  }
-
-  pageLimitChange(limit: number) {
-    this.tableShowList = this.tableList.slice(0, limit);
-    this.changePagination({
-      limit,
-      current: 1,
-      count: this.tableList.length,
-    });
-  }
-
-  changePagination(pagination = {}) {
-    Object.assign(this.pagination, pagination);
   }
 
   /**
@@ -527,6 +507,20 @@ export default class FieldInfo extends tsc<IProps> {
       },
     };
 
+    const columns: PrimaryTableCol[] = [
+      { colKey: 'field_name', title: this.$t('字段名'), cell: (_h, { row }) => fieldNameSlot.default({ row: row as FieldRow }) },
+      { colKey: 'field_alias', title: this.$t('别名'), cell: (_h, { row }) => nickNameSlot.default({ row: row as FieldRow }) },
+      { colKey: 'field_type', title: this.$t('数据类型') },
+    ];
+    if (this.isShowMaskingTemplate) {
+      columns.push({
+        colKey: 'masking_state',
+        title: this.$t('脱敏状态'),
+        cell: (_h, { row }) => maskingStateSlot.default({ row: row as FieldRow }),
+      });
+    }
+    columns.push({ colKey: 'tokenize_on_chars', title: this.$t('分词符'), className: 'field-tokenize-cell', cell: (_h, { row }) => tokenizeSlot.default({ row: row as FieldRow }) });
+
     return (
       <div class='field-info-table'>
         {this.isShowEditBtn && (
@@ -544,54 +538,13 @@ export default class FieldInfo extends tsc<IProps> {
 
         <Table
           v-loading={{ loading: this.tableLoading }}
-          data={this.tableShowList}
+          rowKey='field_name'
+          columns={columns}
+          data={this.tableList}
           pagination={this.pagination}
           size='small'
           onPageChange={this.pageChange}
-          onPageLimitChange={this.pageLimitChange}
-        >
-          <TableColumn
-            nativeCellSlot={true}
-            key={'field_name'}
-            label={this.$t('字段名')}
-            v-slots={fieldNameSlot}
-          />
-
-          <TableColumn
-            nativeCellSlot={true}
-            key={'field_alias'}
-            label={this.$t('别名')}
-            v-slots={nickNameSlot}
-          />
-
-          <TableColumn
-            key={'field_type'}
-            label={this.$t('数据类型')}
-            prop={'field_type'}
-          />
-
-          {/* <TableColumn
-            label={this.$t('结果样例')}
-            key={'sample'}
-            prop={'field_type'}
-          ></TableColumn> */}
-
-          {this.isShowMaskingTemplate && (
-            <TableColumn
-              nativeCellSlot={true}
-              key={'masking_state'}
-              label={this.$t('脱敏状态')}
-              v-slots={maskingStateSlot}
-            />
-          )}
-
-          <TableColumn
-            nativeCellSlot={true}
-            key={'tokenize_on_chars'}
-            label={this.$t('分词符')}
-            v-slots={tokenizeSlot}
-          />
-        </Table>
+        />
       </div>
     );
   }

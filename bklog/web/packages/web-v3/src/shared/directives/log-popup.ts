@@ -8,6 +8,7 @@ import { Popup } from 'tdesign-vue-next';
 import 'tdesign-vue-next/es/popup/style/index.css';
 
 type Host = HTMLElement & {
+  _logPopupBinding?: DirectiveBinding;
   _logPopupId?: string;
   _logPopupRoot?: HTMLElement;
   _logPopupVisible?: boolean;
@@ -89,12 +90,18 @@ export function paintPopup(
 }
 
 export function bindHoverPopup(el: Host, binding: DirectiveBinding, overflowOnly = false) {
+  el._logPopupBinding = binding;
   const enter = () => {
+    const currentBinding = el._logPopupBinding;
+    if (!currentBinding) return;
     if (overflowOnly && el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight) return;
-    const content = popupContent(binding.value) || (overflowOnly ? el.textContent || '' : '');
-    paintPopup(el, binding, true, content, overflowOnly ? [400, 0] : 0);
+    const content = popupContent(currentBinding.value) || (overflowOnly ? el.textContent || '' : '');
+    paintPopup(el, currentBinding, true, content, overflowOnly ? [400, 0] : 0);
   };
-  const leave = () => paintPopup(el, binding, false, '');
+  const leave = () => {
+    const currentBinding = el._logPopupBinding;
+    if (currentBinding) paintPopup(el, currentBinding, false, '');
+  };
   el._logPopupEnter = enter;
   el._logPopupLeave = leave;
   el.addEventListener('mouseenter', enter);
@@ -102,12 +109,15 @@ export function bindHoverPopup(el: Host, binding: DirectiveBinding, overflowOnly
 }
 
 export function refreshHoverPopup(el: Host, binding: DirectiveBinding, overflowOnly = false) {
+  // 即使弹层尚未显示，也要让下次鼠标事件读取最新配置。
+  el._logPopupBinding = binding;
   if (!el._logPopupVisible) return;
   const content = popupContent(binding.value) || (overflowOnly ? el.textContent || '' : '');
   paintPopup(el, binding, !!content, content, overflowOnly ? [400, 0] : 0);
 }
 
 export function unbindHoverPopup(el: Host) {
+  delete el._logPopupBinding;
   if (el._logPopupEnter) el.removeEventListener('mouseenter', el._logPopupEnter);
   if (el._logPopupLeave) el.removeEventListener('mouseleave', el._logPopupLeave);
   if (el._logPopupRoot) {

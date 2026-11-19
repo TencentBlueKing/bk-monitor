@@ -644,13 +644,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     // 用于追踪 separator_regexp 的变化，确保响应式更新
     const separatorRegexp = computed(() => formData.value.etl_params.separator_regexp);
 
-    onMounted(() => {
+    onMounted(async () => {
       // 清洗列表进入
       if (props.isCleanField) {
-        if (isEditCleanItem.value) {
-          cleanCollectorId.value = Number(route.params.collectorId);
-        }
         initCleanItem();
+        if (isEditCleanItem.value) {
+          await handleCollectorChange(Number(route.params.collectorId));
+        }
         return;
       }
       // 清洗模板进入
@@ -2789,7 +2789,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             </div>
             <div class='confirm-title'>{t('保存模板变更')}</div>
             <div class='confirm-description'>
-              <i18n path={t('当前模板已生效到{0}个采集项，关联{1}个索引集')}>
+              <i18n path='当前模板已生效到{0}个采集项，关联{1}个索引集'>
                 <strong class='collector-count'>{templateCollectorCount.value}</strong>
                 <strong>{templateIndexSetCount.value}</strong>
               </i18n>

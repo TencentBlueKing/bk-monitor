@@ -180,10 +180,10 @@
 
     &.running {
       .status-icon-box {
-        @include loading-shimmer;
-
+        background: url('@/shared/assets/images/log-collection/loading.svg') no-repeat center;
+        background-size: 32px 32px;
         /* 固定像素，避免 contain 的细微重采样 */
-
+        animation: spin 2s linear infinite;
       }
 
       .status-icon {

@@ -1,0 +1,24 @@
+.client-log-loading-icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+  background: var(--bklog-brand-primary, #3a84ff);
+  mask: url('@/shared/assets/images/loading.svg') center / contain no-repeat;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-log-loading-icon {
+    animation: none;
+  }
+}

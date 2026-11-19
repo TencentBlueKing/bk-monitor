@@ -186,8 +186,7 @@ export default defineComponent({
           <div class='bklog-v3-version-right'>
             <div
               class='detail-container'
-              // @ts-expect-error
-              domPropsInnerHTML={
+              innerHTML={
                 (window as any).$xss
                   ? (window as any).$xss(currentLog.value.detail)
                   : (currentLog.value.detail as string)
