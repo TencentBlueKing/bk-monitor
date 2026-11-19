@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, computed, type PropType } from 'vue';
+import { DateRangePicker, type DateRangeValue } from 'tdesign-vue-next';
 
 import useLocale from '@/shared/composables/use-locale';
 
@@ -38,7 +39,7 @@ export default defineComponent({
       required: true,
     },
     timeValue: {
-      type: Array,
+      type: Array as PropType<string[]>,
       required: true,
     },
   },
@@ -47,15 +48,13 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
 
-    const showDatePicker = ref(false); // 是否显示日期选择器
-
     // 时间常量
     const oneDay = 1000 * 60 * 60 * 24;
     const oneWeek = oneDay * 7;
     const oneMonth = oneDay * 30;
 
     // 快捷选项配置
-    const shortcuts = computed(() => [
+    const shortcuts = computed<Array<{ text: string; value: () => [Date, Date] }>>(() => [
       {
         text: t('近一天'),
         value() {
@@ -94,7 +93,7 @@ export default defineComponent({
     ]);
 
     // 短文本枚举映射
-    const shortTextEnum = computed(() => ({
+    const shortTextEnum = computed<Record<string, string>>(() => ({
       [t('近一天')]: '1d',
       [t('近一周')]: '1w',
       [t('近一月')]: '1m',
@@ -105,65 +104,34 @@ export default defineComponent({
       all: t('所有'),
     }));
 
-    // 切换日期选择器显示状态
-    const togglePicker = () => {
-      showDatePicker.value = !showDatePicker.value;
-    };
-
-    // 处理打开状态变化
-    const handleOpenChange = (state: boolean) => {
-      showDatePicker.value = state;
-    };
+    const presets = computed(() => Object.fromEntries(shortcuts.value.map(item => [item.text, item.value])));
+    const shortText = computed(() => shortTextEnum.value[props.timeRange]);
 
     // 处理日期变化
-    const handleDateChange = (date: any) => {
-      // if (type !== undefined) console.log('日期选择事件')
-      // else console.log('快捷键事件')
+    const handleDateChange = (date: DateRangeValue, context: { trigger?: string }) => {
       emit('update:timeValue', date);
+      if (context.trigger !== 'preset') emit('update:timeRange', 'custom');
     };
 
     // 处理快捷键变化
-    const handleShortcutChange = (data: any) => {
-      if (data !== undefined) {
-        emit('update:timeRange', shortTextEnum.value[data.text]);
-      } else {
-        emit('update:timeRange', 'custom');
-      }
+    const handlePresetClick = ({ preset }: { preset: Record<string, unknown> }) => {
+      emit('update:timeRange', shortTextEnum.value[Object.keys(preset)[0]]);
     };
 
     // 主渲染函数
     return () => (
-      <bk-date-picker
-        class='king-date-picker'
-        v-slots={{
-          trigger: () =>
-            props.timeRange !== 'custom' ? (
-              <div
-                class='king-date-trigger'
-                onClick={(e: Event) => {
-                  e.stopPropagation();
-                  togglePicker();
-                }}
-              >
-                <div class={['bk-date-picker-editor', { 'is-focus': showDatePicker.value }]}>
-                  {shortTextEnum.value[props.timeRange]}
-                </div>
-                <div class='icon-wrapper'>
-                  <span class='bklog-icon bklog-date-picker' />
-                </div>
-              </div>
-            ) : null,
-        }}
+      <DateRangePicker
+        class={['king-date-picker', 'file-date-picker', { 'has-shortcut': !!shortText.value }]}
+        rangeInputProps={shortText.value ? { inputProps: [{ value: shortText.value }, { value: '' }] } : {}}
         clearable={false}
-        format='yyyy-MM-dd HH:mm:ss'
-        open={showDatePicker.value}
-        shortcuts={shortcuts.value}
-        type='datetimerange'
+        enableTimePicker
+        format='YYYY-MM-DD HH:mm:ss'
+        valueType='YYYY-MM-DD HH:mm:ss'
+        placeholder={[t('开始时间'), t('结束时间')]}
+        presets={presets.value}
+        presetsPlacement='left'
         value={props.timeValue}
-        shortcut-close
-        use-shortcut-text
-        onOpenChange={handleOpenChange}
-        onShortcutChange={handleShortcutChange}
+        onPresetClick={handlePresetClick}
         onChange={handleDateChange}
       />
     );
