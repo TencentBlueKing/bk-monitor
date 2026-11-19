@@ -19,7 +19,7 @@ Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.si
 | binding           | dict   | 是  | 聚类绑定配置                                                                   |
 | kafka_resource    | dict   | 是  | 已登记的 Kafka 资源引用，kind 为 Kafka                                             |
 | runtime_cluster | dict | 是 | 已登记的 DatabusCluster 引用，同时用于 Databus.spec.preferCluster |
-| recovery_resource | dict | 是 | 已登记的 ElasticSearch 引用，用于结果关联上下文存储 |
+| recovery_resource | dict | 否 | 已登记的 ElasticSearch 引用，用于结果关联上下文存储 |
 | result_mode | string | 否 | update_original（默认）或 append；省略时沿用已登记模式，是否允许切换由调用方决定 |
 | pattern_store | dict | 是 | Pattern 表：`table_id`（metadata 结果表 ID）、`cluster_id`（ES 集群 ID） |
 | result_store | dict | 否 | 独立聚类结果表，字段同 `pattern_store`；`append` 时必填，省略时沿用已登记值 |
@@ -39,6 +39,8 @@ Pattern 字段为 index_set_id、distance_threshold、signature、pattern、patt
 #### binding
 
 `binding` 为 BKBase `LogClusteringSink.spec.clustering.binding`，由调用方按 BKBase 协议组装。metadata 只校验必须提供 `index_id`（用于 BKBase 资源命名），其余字段原样保存和下发；过滤规则、距离档位、版本号和消息大小由调用方与 BKBase 校验。
+
+新建链路可同时省略 `binding.state_index` 和 `recovery_resource`。
 
 ### 请求参数示例
 
@@ -64,12 +66,10 @@ Pattern 字段为 index_set_id、distance_threshold、signature、pattern、patt
         },
         "log_filter": [{"key": "level", "method": "eq", "value": ["ERROR"], "condition": ""}],
         "input_mapping": {"log": "log", "timestamp": "dtEventTimeStamp"},
-        "distance_threshold": "0.5",
-        "state_index": "log-clustering-context"
+        "distance_threshold": "0.5"
     },
     "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "registered_clustering_kafka"},
     "runtime_cluster": {"kind": "DatabusCluster", "namespace": "bklog", "name": "quix_runtime"},
-    "recovery_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "context_es"},
     "pattern_store": {"table_id": "2_bklog.42_pattern", "cluster_id": 3}
 }
 ```

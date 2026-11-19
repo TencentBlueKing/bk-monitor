@@ -260,6 +260,16 @@ def test_binding_requires_index_id(clustering_datalink, bkbase):
     assert not models.LogClusteringSinkConfig.objects.exists()
 
 
+def test_set_without_recovery_fields(clustering_datalink, bkbase):
+    params = build_params()
+    del params["recovery_resource"]
+    params["binding"].pop("state_index", None)
+    SetLogClusteringConfigResource().request(params)
+    clustering = get_sink().compose_config(ES_BINDING_REF)["spec"]["clustering"]
+    assert "recovery_resource" not in clustering
+    assert "state_index" not in clustering["binding"]
+
+
 def test_set_on_attached_sink_only_applies_sink(clustering_datalink, bkbase):
     set_config()
     attach_remotely(bkbase)

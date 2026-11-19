@@ -134,7 +134,6 @@ class TestBuildBinding(SimpleTestCase):
                 "log_filter": [],
                 "input_mapping": {"log": "log", "timestamp": "dtEventTimeStamp"},
                 "distance_threshold": "0.5",
-                "state_index": "log-clustering-42-state",
                 "max_message_bytes": 1048576,
             },
         )

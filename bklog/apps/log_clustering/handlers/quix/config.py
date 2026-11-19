@@ -37,8 +37,6 @@ def get_quix_config() -> dict:
         "profile": "...",               # BKFara 部署方登记的聚类任务 Profile 名称
         "kafka_resource": {"kind": "Kafka", "namespace": "...", "name": "..."},           # BKBase 已登记资源
         "runtime_cluster": {"kind": "DatabusCluster", "namespace": "...", "name": "..."},
-        "recovery_resource": {"kind": "ElasticSearch", "namespace": "...", "name": "..."},
-        "state_index": "...",           # 结果关联上下文索引，首次开启时固定
         "max_message_bytes": 1048576,     # 可选
         "result_modes": {"42": "append"}, # 可选，按索引集选择独立表；仅首次开启读取
     }
@@ -48,9 +46,9 @@ def get_quix_config() -> dict:
     feature_config = (feature.feature_config if feature else None) or {}
     config = copy.deepcopy(feature_config.get(QUIX_FEATURE_CONFIG_KEY) or {})
 
-    missing = [key for key in ("profile", "state_index") if not config.get(key)]
+    missing = [] if config.get("profile") else ["profile"]
 
-    for resource_key in ("kafka_resource", "runtime_cluster", "recovery_resource"):
+    for resource_key in ("kafka_resource", "runtime_cluster"):
         resource = config.get(resource_key) or {}
         missing.extend(f"{resource_key}.{key}" for key in REQUIRED_RESOURCE_KEYS if not resource.get(key))
 

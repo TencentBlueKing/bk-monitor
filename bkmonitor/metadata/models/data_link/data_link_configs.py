@@ -1450,7 +1450,6 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
             "kafka_resource": self.kafka_resource,
             "pattern_store": self.pattern_store,
             "runtime_cluster": self.runtime_cluster,
-            "recovery_resource": self.recovery_resource,
         }
         missing = [field for field, value in required.items() if not value]
         if missing:
@@ -1475,7 +1474,9 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
                     "kafka_resource": {{kafka_resource}},
                     "pattern_store": {{pattern_store}},
                     "runtime_cluster": {{runtime_cluster}},
+                    {% if recovery_resource %}
                     "recovery_resource": {{recovery_resource}},
+                    {% endif %}
                     "result": {{result}},
                     "binding": {{binding}}
                 }
@@ -1491,7 +1492,7 @@ class LogClusteringSinkConfig(DataLinkResourceConfigBase):
             "pattern_store": json.dumps(self._bkbase_refs(self.pattern_store)),
             "result": json.dumps(self._bkbase_refs(self.result or {"mode": "update_original"})),
             "runtime_cluster": json.dumps(self.runtime_cluster),
-            "recovery_resource": json.dumps(self.recovery_resource),
+            "recovery_resource": json.dumps(self.recovery_resource) if self.recovery_resource else None,
             "binding": json.dumps(self.binding),
         }
 

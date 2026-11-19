@@ -19,9 +19,7 @@ TASK_ID = "6f1c2c1e-0000-4000-8000-000000000001"
 QUIX_CONFIG = {
     "profile": "log-clustering-es",
     "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "clustering_kafka"},
-    "recovery_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "context_es"},
     "runtime_cluster": {"kind": "DatabusCluster", "namespace": "quix", "name": "quix-runtime"},
-    "state_index": "log-clustering-42-state",
 }
 MODEL_PARAMETERS = {"delimeter": "WyIgIl0=", "min_members": 3, "max_log_length": 1000}
 

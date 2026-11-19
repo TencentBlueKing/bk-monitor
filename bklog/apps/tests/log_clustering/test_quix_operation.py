@@ -134,6 +134,8 @@ class TestQuixEnableRunner(TestCase):
             params["pattern_store"], {"table_id": "2_bklog.index_set_42_pattern", "cluster_id": STORAGE_CLUSTER_ID}
         )
         self.assertNotIn("result_store", params)
+        self.assertNotIn("recovery_resource", params)
+        self.assertNotIn("state_index", params["binding"])
 
     def create_clustering_config(self):
         ClusteringConfig.objects.create(
