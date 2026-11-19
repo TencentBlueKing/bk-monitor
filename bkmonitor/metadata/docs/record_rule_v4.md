@@ -565,11 +565,13 @@ JSON 导出保留来源目录层级；压缩包沿用目录分隔符转连字符
 ```json
 {
   "max_sources": 20,
-  "max_rules": 20
+  "max_rules": 20,
+  "max_series": 500000,
+  "series_exempt_rule_ids": []
 }
 ```
 
-两个值均使用正整数，未配置的键默认取 20，可按环境调整。`max_sources` 限制单个 Flow 的来源数量，按 BKBase ResultTable 的 namespace/name 去重；`max_rules` 限制 group 下的规则条数。一个 group 仍合并成一个 RecordingRuleNode，规则条数按节点的 config 项数计算，不改变现有 Flow 协议。
+`max_sources` 和 `max_rules` 均使用正整数，未配置的键默认取 20，可按环境调整。`max_sources` 限制单个 Flow 的来源数量，按 BKBase ResultTable 的 namespace/name 去重；`max_rules` 限制 group 下的规则条数。一个 group 仍合并成一个 RecordingRuleNode，规则条数按节点的 config 项数计算，不改变现有 Flow 协议。
 
 - 保存声明和正式解析不因超限失败，仍保留 Spec、Resolved 及 Flow 快照。
 - 预解析仍返回规范化配置和解析记录，额外返回 `deployment_check`，包含 `can_apply`、实际数量、当前上限和 `errors`。超限时 `can_apply=false`，预解析本身不写库或下发。
@@ -579,6 +581,14 @@ JSON 导出保留来源目录层级；压缩包沿用目录分隔符转连字符
 监控侧配置应与当前 BKBase 环境的实际限制保持一致，配置变更遵循现有动态配置缓存刷新机制。
 
 预解析业务错误使用统一的 `{code, message, path}` 条目：`INVALID_CONFIG`、`INVALID_SPACE`、`RULE_NOT_FOUND`、`RESOLVE_FAILED` 沿用后台 API 的 HTTP 200 / `result=false` / `code=3300004`，详情在 `data.errors`。解析成功但超限时，`deployment_check.errors` 返回 `SOURCE_LIMIT_EXCEEDED` 或 `RULE_LIMIT_EXCEEDED`，并提供 `actual` 和 `limit`。API 和 MCP 错误码与处理方式一致，完整示例见各自预解析接口文档。
+
+### 下发前输出 series 检查
+
+下发为运行状态前逐条执行完整表达式的即时 `count(...)` 查询，统计当前输出 series 数量，默认上限 500,000（等于上限允许）。任一语句超限时整个规则组不下发，`execution.error` 包含规则、语句、实际数量、阈值及“请联系监控管理员进行评估，获得许可后再下发。”。查询超时、失败或结果不完整时同样阻止下发并提示重试；已保存声明与原运行 Flow 保留。保存和预解析不执行此查询；停止和删除跳过 series 检查，恢复运行重新检查。
+
+管理员通过动态配置 `RECORD_RULE_V4_CONFIG.max_series` 调整阈值，设为 `0` 则全局跳过 series 查询和检查；或评估后把规则组 ID 加入 `series_exempt_rule_ids`（默认 `[]`）许可下发。豁免跳过 series 查询，不影响 source/rule 上限；配置修改后仍有效，移除 ID 撤销许可。普通请求参数不能绕过检查。配置变更沿用动态配置缓存刷新机制；获批后重新下发即可。检查仅反映下发时的数量，不保证运行期间始终低于阈值。
+
+覆盖 API/MCP、AsCode、Admin 和后台自动刷新；检查使用目标 Flow 对应声明版本，同组语句使用同一个当前时间。未配置 `max_series` 时取 500000，未配置豁免列表时不豁免。本次无需数据库迁移，API 与 Worker 均需更新后才可覆盖所有入口。
 
 ### 指标选择器
 

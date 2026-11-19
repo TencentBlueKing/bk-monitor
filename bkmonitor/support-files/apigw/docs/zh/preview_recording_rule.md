@@ -67,7 +67,7 @@
 }
 ```
 
-上限读取动态 JSON 配置 `RECORD_RULE_V4_CONFIG`，默认 `{"max_sources": 20, "max_rules": 20}`。source 按整个 group 的来源 ResultTable namespace/name 去重，rules 按 group 下规则条数计数。修改动态配置后，下发会按当前生效值重新判断，预解析通过不代表后续下发一定通过。
+上限读取动态 JSON 配置 `RECORD_RULE_V4_CONFIG`，默认 `{"max_sources": 20, "max_rules": 20, "max_series": 500000, "series_exempt_rule_ids": []}`。source 按整个 group 的来源 ResultTable namespace/name 去重，rules 按 group 下规则条数计数。修改动态配置后，下发会按当前生效值重新判断，预解析通过不代表后续下发一定通过。
 
 ### 预解析错误协议
 
@@ -102,3 +102,5 @@
 后两类超限属于部署判定，错误位于 `data.deployment_check.errors`，可同时返回两条。解析成功时调用方还需检查 `deployment_check.can_apply`；超限配置仍允许保存，但真实下发会再次检查并拒绝超限 Flow。
 
 Unified MCP 的 `execute_tool` 成功信封多一层工具结果，部署判定位于 `data.data.deployment_check`；业务预解析失败仍使用上述 `data.errors` 错误信封。网关鉴权、基础字段缺失/类型错误及 Unified MCP 自身的 Schema 校验错误继续使用平台通用协议。
+
+预解析不执行 series 数量查询，`deployment_check.can_apply` 仅反映 source/rule 数量限制。实际下发运行配置时还会检查每条表达式的当前输出 series 数量（默认 500000），超限或查询失败会阻止下发。`max_series=0` 或管理员将规则组 ID 加入 `series_exempt_rule_ids` 时跳过 series 检查。

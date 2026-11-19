@@ -32,6 +32,7 @@ from metadata.models.record_rule.v4.models import (
     RecordRuleV4Resolved,
     now,
 )
+from metadata.models.record_rule.v4.series import check_series_limit
 
 logger = logging.getLogger("metadata")
 
@@ -39,8 +40,7 @@ logger = logging.getLogger("metadata")
 class RecordRuleV4Runner:
     """维护单个目标 Flow，并负责 apply / delete / observe。
 
-    Runner 不解释用户 spec，也不调用 unify-query；它只消费 resolved 快照，
-    生成唯一的目标 Flow，并把这个 Flow 下发到 bkbase。
+    Runner 消费 resolved 快照生成目标 Flow，下发前通过 unify-query 检查输出 series 数量。
     """
 
     def __init__(self, rule: RecordRuleV4, source: str = "system", operator: str = "") -> None:
@@ -125,7 +125,7 @@ class RecordRuleV4Runner:
         )
         try:
             flow_config = RecordRuleV4Flow.with_desired_status(flow.flow_config, self.rule.desired_status)
-            self.apply_flow(flow_config)
+            self.apply_flow(flow_config, flow=flow)
             flow.flow_config = flow_config
             flow.save(update_fields=["flow_config", "updated_at"])
         except Exception as err:
@@ -229,7 +229,7 @@ class RecordRuleV4Runner:
         )
         try:
             flow_config = RecordRuleV4Flow.with_desired_status(flow.flow_config, desired_status)
-            self.apply_flow(flow_config)
+            self.apply_flow(flow_config, flow=flow)
             flow.flow_config = flow_config
             flow.save(update_fields=["flow_config", "updated_at"])
         except Exception as err:
@@ -279,7 +279,7 @@ class RecordRuleV4Runner:
             and self.rule.generation == flow.resolved.generation
         )
 
-    def apply_flow(self, flow_config: dict[str, Any]) -> Any:
+    def apply_flow(self, flow_config: dict[str, Any], *, flow: RecordRuleV4Flow) -> Any:
         """调用 bkbase v4 apply 接口创建或更新 Flow。
 
         这里只提交 Flow payload；BKBase 自动创建输出 ResultTable / VmStorageBinding。
@@ -294,6 +294,8 @@ class RecordRuleV4Runner:
         )
         if not deployment_check["can_apply"]:
             raise ValueError("; ".join(error["message"] for error in deployment_check["errors"]))
+        if flow_config["metadata"]["annotations"]["task_stopped"] != "true":
+            check_series_limit(self.rule, flow.resolved)
         response = api.bkdata.apply_record_rule_flow(bk_tenant_id=self.rule.bk_tenant_id, config=[flow_config])
         self.rule.last_refresh_time = now()
         return response

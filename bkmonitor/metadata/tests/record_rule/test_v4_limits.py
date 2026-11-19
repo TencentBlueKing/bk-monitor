@@ -59,7 +59,12 @@ def set_sources(count, external):
 
 
 def test_config_defaults_and_dynamic_database_updates(mocker):
-    assert ADVANCED_OPTIONS["RECORD_RULE_V4_CONFIG"].default == {"max_sources": 20, "max_rules": 20}
+    assert ADVANCED_OPTIONS["RECORD_RULE_V4_CONFIG"].default == {
+        "max_sources": 20,
+        "max_rules": 20,
+        "max_series": 500000,
+        "series_exempt_rule_ids": [],
+    }
     cache = LocMemCache("record-rule-v4-limit-test", {})
     cache.clear()
     mocker.patch.object(dynamic_settings, "locmem_cache", cache)
