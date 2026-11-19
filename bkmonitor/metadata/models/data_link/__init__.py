@@ -16,9 +16,12 @@ from .data_link_configs import (  # noqa
     SurrealDBBindingConfig,
 )
 
+from .doris_job import DorisJobConfig, DorisJobTableRelation
 from .vm_query_cluster import VmQueryClusterConfig
 
 __all__ = [
+    "DorisJobConfig",
+    "DorisJobTableRelation",
     "VmQueryClusterConfig",
     "DataLinkResourceConfigBase",
     "DataLink",

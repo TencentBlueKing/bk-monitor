@@ -2611,3 +2611,17 @@ def create_single_tenant_system_proc_datalink(data_bk_biz_id: int | None = None,
     SpaceTableIDRedis().push_table_id_detail(
         bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=list(data_id_to_table_id.values()), is_publish=True
     )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def reconcile_doris_jobs():
+    """逐项处理本地发布意图，单个 FE 故障不会阻塞其他 Job。"""
+    from metadata.models.data_link import DorisJobConfig
+    from metadata.service.doris_job import reconcile_job
+
+    ids = DorisJobConfig.objects.filter(reconcile_status="pending").values_list("pk", flat=True)
+    for job_id in ids.iterator():
+        try:
+            reconcile_job(job_id)
+        except Exception:
+            logger.exception("reconcile_doris_jobs: job_id=%s", job_id)
