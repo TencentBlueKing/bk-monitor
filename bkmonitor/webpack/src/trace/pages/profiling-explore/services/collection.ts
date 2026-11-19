@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import {
+  checkPluginVersion,
   createTask,
   deleteTask,
   editTask,
@@ -39,11 +40,20 @@ import type {
   CollectionTarget,
   CollectionTask,
   CollectionTaskColumn,
+  PluginVersionCheckResult,
   PreviewSelector,
   ProcessPreview,
 } from '../types/collection';
 
 const options = (signal: AbortSignal) => ({ signal, needMessage: false });
+
+export function checkHostPluginVersion(
+  bizId: number,
+  target: CollectionTarget,
+  signal: AbortSignal
+): Promise<PluginVersionCheckResult> {
+  return checkPluginVersion({ bk_biz_id: bizId, target_config: target }, options(signal));
+}
 
 export function getCollectionMeta(bizId: number, signal: AbortSignal): Promise<CollectionMeta> {
   return metaConfig({ bk_biz_id: bizId }, options(signal));

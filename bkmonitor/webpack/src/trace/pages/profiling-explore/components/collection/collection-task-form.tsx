@@ -42,6 +42,7 @@ import hostNormalDot from './assets/collection-host-normal-dot.svg';
 import CollectionCrontab from './collection-crontab';
 import CollectionHostSelector from './collection-host-selector';
 import CollectionProcessSelector from './collection-process-selector';
+import HostPluginCheckDialog from './host-plugin-check-dialog';
 
 import type { CollectionFieldKey, CollectionMeta, CollectionPayload, CollectionTask } from '../../types/collection';
 
@@ -273,9 +274,7 @@ export default defineComponent({
                               class='collection-host-edit'
                               aria-label={this.t('编辑主机')}
                               text
-                              onClick={() => {
-                                f.hostSelectorOpen.value = true;
-                              }}
+                              onClick={f.openHostSelector}
                             >
                               <img
                                 alt=''
@@ -324,9 +323,7 @@ export default defineComponent({
                       ) : (
                         <Button
                           class='collection-host-add'
-                          onClick={() => {
-                            f.hostSelectorOpen.value = true;
-                          }}
+                          onClick={f.openHostSelector}
                         >
                           <span class='collection-host-add-inner'>
                             <i class='icon-monitor icon-a-1jiahao' />
@@ -581,12 +578,10 @@ export default defineComponent({
                 </Form>
                 {f.hostSelectorOpen.value && (
                   <CollectionHostSelector
-                    hosts={d.hosts}
+                    hosts={f.selectorHosts.value}
                     service={f.hostServices}
                     onChange={f.changeHosts}
-                    onClose={() => {
-                      f.hostSelectorOpen.value = false;
-                    }}
+                    onClose={f.closeHostSelector}
                   />
                 )}
               </div>
@@ -614,6 +609,13 @@ export default defineComponent({
                 ref='footerBoundary'
                 class='collection-form-footer-boundary'
                 aria-hidden='true'
+              />
+              <HostPluginCheckDialog
+                groups={f.hostPluginCheck.groups.value}
+                show={f.hostPluginCheck.dialogShow.value}
+                onCancel={f.hostPluginCheck.cancel}
+                onContinue={f.hostPluginCheck.handleContinue}
+                onReselect={f.hostPluginCheck.handleReselect}
               />
             </>
           ),
