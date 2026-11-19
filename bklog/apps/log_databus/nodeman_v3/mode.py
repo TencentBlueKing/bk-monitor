@@ -31,6 +31,10 @@ from apps.log_search.constants import CollectorScenarioEnum
 # 因此不允许新准入；已有 binding 仍按粘性归属继续由 V3 管理。
 V2_ONLY_COLLECTOR_SCENARIOS = frozenset({CollectorScenarioEnum.CUSTOM.value, CollectorScenarioEnum.CLIENT.value})
 
+# 显式关闭取值。这些值与「未设置」必须分开：前者是运维主动关断，后者是历史默认关闭，
+# 两者的灰度行为不同，不能合并成同一个布尔。
+ENV_FORCED_OFF_VALUES = frozenset({"off", "false", "0", "no"})
+
 
 def _parse_ids(raw) -> set[int]:
     """容忍数字、字符串及逗号分隔值，非法项忽略并保持 fail-closed。"""
@@ -83,14 +87,43 @@ def get_nodeman_v3_toggle():
     return FeatureToggleObject.toggle(NODEMAN_V3_COLLECTOR)
 
 
-def is_nodeman_v3_enabled() -> bool:
-    """与监控统一的环境级总开关；只接受 settings 中显式的布尔 True。"""
-    return getattr(settings, "ENABLE_NODEMAN_V3", False) is True
+def get_nodeman_v3_env_value() -> str | None:
+    """
+    环境变量取值，小写去空白；未设置或空白返回 None。
+
+    必须保留字符串：解析成布尔后无法区分「没配」与「配了关闭」，而这两者的灰度行为不同。
+    """
+    raw = getattr(settings, "ENABLE_NODEMAN_V3_VALUE", None)
+    value = str(raw).strip().lower() if raw is not None else ""
+    if value:
+        return value
+    # 原值为空时回退布尔开关：生产环境两者由同一环境变量推导，取值一致；
+    # 这里主要兼容 override_settings(ENABLE_NODEMAN_V3=True) 的既有用法。
+    return "true" if getattr(settings, "ENABLE_NODEMAN_V3", False) is True else None
+
+
+def _env_forced_state() -> bool | None:
+    """
+    环境变量的强制档位：True 强制准入、False 强制关闭、None 交给 FeatureToggle 灰度。
+
+    只有 on 能跳过 DB：现网与本地 .env 都在用 true，若把 true 一并改成强制全开，
+    正在用 true + debug 白名单做灰度的环境会在升级后被顶成全量。非法值同样保持历史行为，
+    交给 DB 灰度而不是静默当作关闭。
+    """
+    env_value = get_nodeman_v3_env_value()
+    if env_value == "on":
+        return True
+    if env_value is None or env_value in ENV_FORCED_OFF_VALUES:
+        return False
+    return None
 
 
 def is_nodeman_v3_admitted(bk_biz_id: int | None, collector_config_id: int | None = None) -> bool:
-    """业务或特殊采集项是否同时通过环境总开关与 FeatureToggle 准入 V3。"""
-    return is_nodeman_v3_enabled() and _toggle_allows(get_nodeman_v3_toggle(), bk_biz_id, collector_config_id)
+    """业务或特殊采集项是否准入 V3；环境变量强制档位优先于 FeatureToggle 灰度。"""
+    forced = _env_forced_state()
+    if forced is not None:
+        return forced
+    return _toggle_allows(get_nodeman_v3_toggle(), bk_biz_id, collector_config_id)
 
 
 def has_nodeman_v3_bindings() -> bool:
@@ -105,8 +138,12 @@ def is_nodeman_v3_available() -> bool:
     是否可能出现 V3 字符串任务 ID。
 
     toggle 关闭只停止新准入；已有 binding 仍需查询历史 workflow、状态和详情。
+    on 档位下 DB 可能是 off，此时 V3 仍会产生字符串任务标识，不能按 toggle 判定。
     """
-    toggle = get_nodeman_v3_toggle() if is_nodeman_v3_enabled() else None
+    forced = _env_forced_state()
+    if forced is not None:
+        return forced or has_nodeman_v3_bindings()
+    toggle = get_nodeman_v3_toggle()
     return bool(toggle and toggle.status in {"debug", "on"}) or has_nodeman_v3_bindings()
 
 
@@ -118,11 +155,12 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
     1. 已有 V3 binding                              -> V3（粘性归属）
     2. subscription_id 非空                         -> V2
     3. 采集场景没有订阅步骤实现                       -> V2
-    4. 环境总开关关闭                                -> V2
-    5. FeatureToggle off / 缺失 / DB 异常           -> V2
-    6. FeatureToggle on                              -> V3
-    7. FeatureToggle debug 命中业务或特殊采集项       -> V3
-    8. 其余                                          -> V2
+    4. 环境变量 on                                   -> V3（跳过灰度）
+    5. 环境变量 off / false / 未设置 / 空白           -> V2
+    6. FeatureToggle off / 缺失 / DB 异常           -> V2
+    7. FeatureToggle on                              -> V3
+    8. FeatureToggle debug 命中业务或特殊采集项       -> V3
+    9. 其余                                          -> V2
     """
     configs = list(collector_configs)
     collector_ids = {
@@ -140,8 +178,13 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
             ).values_list("collector_config_id", flat=True)
         )
 
-    # 总开关只限制新准入；已有 binding 在上方优先判定，关闭后仍继续由 V3 管理。
-    toggle = get_nodeman_v3_toggle() if is_nodeman_v3_enabled() else None
+    # 强制档位下不查 toggle，避免 DB 记录反过来限制 on；其余情况沿用原有灰度读取。
+    # 前置条件（binding、subscription_id、场景）仍在环境变量之前判定：环境变量只替换灰度这一层，
+    # 不能把 custom/client 重新拉进 V3，否则会在构造期望态时抛 NotImplementedError。
+    forced = _env_forced_state()
+    toggle = None
+    if forced is None:
+        toggle = get_nodeman_v3_toggle()
     result = set()
     for config in configs:
         collector_config_id = getattr(config, "collector_config_id", None)
@@ -151,6 +194,11 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
         if getattr(config, "subscription_id", None):
             continue
         if getattr(config, "collector_scenario_id", None) in V2_ONLY_COLLECTOR_SCENARIOS:
+            continue
+        if forced:
+            result.add(collector_config_id)
+            continue
+        if forced is False:
             continue
         if _toggle_allows(toggle, getattr(config, "bk_biz_id", None), collector_config_id):
             result.add(collector_config_id)

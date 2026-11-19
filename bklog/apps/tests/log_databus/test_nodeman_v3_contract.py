@@ -481,6 +481,124 @@ class IntegrationModeTest(TestCase):
             self.assertFalse(is_nodeman_v3_admitted(2))
 
 
+class EnvOverrideModeTest(TestCase):
+    """
+    环境变量强制档位。
+
+    运维只需配置环境变量即可决定准入，不必再去改 DB 记录；这是「DB 记录屏蔽 settings
+    导致 env 入口失效」的修复，参考 apps/iam/mode.py 的「环境变量优先、命中即短路」形态。
+    """
+
+    @nodeman_v3_toggle("off", env_value="on")
+    def test_on_overrides_toggle_off(self):
+        # 现场问题：运维配了环境变量，但 DB 仍是迁移写入的 off，此时必须按环境变量放行
+        self.assertTrue(is_nodeman_v3_admitted(2))
+
+    @nodeman_v3_toggle("on", env_value="on")
+    def test_on_does_not_read_toggle(self):
+        from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+
+        with patch.object(FeatureToggleObject, "toggle", side_effect=AssertionError("on 档位不应查询 DB")):
+            self.assertTrue(is_nodeman_v3_admitted(2))
+
+    @nodeman_v3_toggle("on", env_value="off")
+    def test_explicit_off_rejects_even_when_toggle_on(self):
+        self.assertFalse(is_nodeman_v3_admitted(2))
+
+    @nodeman_v3_toggle("on", env_value="false")
+    def test_false_value_keeps_forced_off_semantics(self):
+        # 删除 DB 开关后环境变量是唯一逃生阀，false 必须仍然是强制关闭而不是「跟随 DB」
+        self.assertFalse(is_nodeman_v3_admitted(2))
+
+    @nodeman_v3_toggle("debug", biz_ids=[2], env_value="on")
+    def test_on_bypasses_debug_whitelist(self):
+        self.assertTrue(is_nodeman_v3_admitted(7))
+
+    @nodeman_v3_toggle("on", env_value="true")
+    def test_true_keeps_historical_semantics_and_still_reads_toggle(self):
+        # true 沿用现网口径：允许准入但仍按 DB 灰度。若改成强制全开，
+        # 正在用 true + debug 白名单的环境会在升级后被顶成全量
+        from apps.feature_toggle.models import FeatureToggle
+
+        with patch.object(FeatureToggle.objects, "filter", side_effect=RuntimeError("db unavailable")):
+            self.assertFalse(is_nodeman_v3_admitted(2))
+
+    @nodeman_v3_toggle("on", env_value="")
+    def test_unset_is_off_so_existing_deployments_do_not_flip(self):
+        # 未配置即关闭：若改成「未设置读 DB」，存量环境只要 DB 曾被配成 on 就会突然全量切 V3
+        self.assertFalse(is_nodeman_v3_admitted(2))
+
+    @nodeman_v3_toggle("on", env_value="enable")
+    def test_unknown_value_falls_back_to_toggle(self):
+        self.assertTrue(is_nodeman_v3_admitted(2))
+
+    def test_on_reports_available_even_when_toggle_off(self):
+        from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_available
+
+        # on 档位下 V3 会产生字符串 task_id，available 不能因为 DB 是 off 就拦掉
+        with override_settings(ENABLE_NODEMAN_V3_VALUE="on"):
+            self.assertTrue(is_nodeman_v3_available())
+
+    def test_off_reports_available_only_with_existing_binding(self):
+        from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_available
+
+        with override_settings(ENABLE_NODEMAN_V3_VALUE="off"):
+            self.assertFalse(is_nodeman_v3_available())
+
+    @nodeman_v3_toggle("off", env_value="on")
+    def test_bulk_resolver_honours_env_override(self):
+        config = SimpleNamespace(
+            collector_config_id=9001,
+            bk_biz_id=2,
+            subscription_id=None,
+            collector_scenario_id="row",
+        )
+        self.assertEqual(resolve_nodeman_v3_collector_ids([config]), {9001})
+
+    @nodeman_v3_toggle("on", env_value="on")
+    def test_env_override_does_not_bypass_v2_only_scenarios(self):
+        # 环境变量只替换灰度这一层，不能把 custom/client 拉进 V3，
+        # 否则会在构造期望态时抛 NotImplementedError
+        for scenario in ("custom", "client"):
+            with self.subTest(scenario=scenario):
+                config = SimpleNamespace(
+                    collector_config_id=9001,
+                    bk_biz_id=2,
+                    subscription_id=None,
+                    collector_scenario_id=scenario,
+                )
+                self.assertFalse(should_use_nodeman_v3(config))
+
+    @nodeman_v3_toggle("on", env_value="on")
+    def test_env_override_does_not_bypass_existing_subscription(self):
+        config = SimpleNamespace(
+            collector_config_id=9001,
+            bk_biz_id=2,
+            subscription_id=12345,
+            collector_scenario_id="row",
+        )
+        self.assertFalse(should_use_nodeman_v3(config))
+
+    @nodeman_v3_toggle("off", env_value="off")
+    def test_existing_binding_keeps_v3_under_forced_off(self):
+        # 主机上的 V3 子配置一旦失去控制面会永久残留，粘性归属优先于任何环境变量
+        config = SimpleNamespace(
+            collector_config_id=9001,
+            bk_biz_id=2,
+            subscription_id=None,
+            collector_scenario_id="row",
+        )
+        NodeManV3Binding.objects.create(
+            resource_type=RESOURCE_TYPE_COLLECTOR_CONFIG,
+            resource_key=build_resource_key(9001),
+            bk_biz_id=2,
+            bk_tenant_id="system",
+            collector_config_id=9001,
+            policy_name=build_policy_name(9001),
+        )
+        self.assertTrue(should_use_nodeman_v3(config))
+
+
 @nodeman_v3_toggle("on")
 class GrayRolloutOwnershipTest(TestCase):
     """

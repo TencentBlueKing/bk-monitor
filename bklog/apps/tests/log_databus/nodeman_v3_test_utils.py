@@ -28,8 +28,25 @@ def set_nodeman_v3_toggle(
     return toggle
 
 
-def nodeman_v3_toggle(status: str = "on", *, enabled: bool = True, **config):
-    """同时配置环境总开关和数据库灰度开关，可装饰 TestCase 类或测试方法。"""
+def _env_settings(enabled: bool, env_value: str | None):
+    """
+    组装环境开关的 override。
+
+    只设 ENABLE_NODEMAN_V3 时，准入层按历史口径把它当作 true（允许准入但仍看灰度），
+    这样既有用例不必改写；需要覆盖档位时显式传 env_value。
+    """
+    if env_value is None:
+        return override_settings(ENABLE_NODEMAN_V3=enabled, ENABLE_NODEMAN_V3_VALUE=None)
+    return override_settings(ENABLE_NODEMAN_V3_VALUE=env_value)
+
+
+def nodeman_v3_toggle(status: str = "on", *, enabled: bool = True, env_value: str | None = None, **config):
+    """
+    同时配置环境变量和数据库灰度开关，可装饰 TestCase 类或测试方法。
+
+    env_value 用于覆盖环境变量档位（on / off / true / 非法值 / 空串）；
+    不传时按 enabled 走历史口径。
+    """
 
     def decorator(target):
         if isinstance(target, type):
@@ -41,11 +58,11 @@ def nodeman_v3_toggle(status: str = "on", *, enabled: bool = True, **config):
                 return original_set_up(test_case, *args, **kwargs)
 
             target.setUp = set_up
-            return override_settings(ENABLE_NODEMAN_V3=enabled)(target)
+            return _env_settings(enabled, env_value)(target)
 
         @wraps(target)
         def wrapped(*args, **kwargs):
-            with override_settings(ENABLE_NODEMAN_V3=enabled):
+            with _env_settings(enabled, env_value):
                 set_nodeman_v3_toggle(status, **config)
                 return target(*args, **kwargs)
 
