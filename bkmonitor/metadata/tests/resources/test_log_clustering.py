@@ -15,6 +15,7 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from core.drf_resource.exceptions import CustomException
+from core.errors.api import BKAPIError
 from metadata import models
 from metadata.resources.log_clustering import (
     GetLogClusteringStatusResource,
@@ -359,6 +360,23 @@ def test_es_storage_without_es_option_is_rejected(clustering_datalink, bkbase):
         set_config()
 
 
+def test_invalid_v4_option_does_not_expose_rejected_value(clustering_datalink, bkbase):
+    option = models.ResultTableOption.objects.get(
+        table_id=LOG_TABLE_ID, bk_tenant_id="system", name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK
+    )
+    data = json.loads(option.value)
+    data["es_storage_config"]["timezone"] = "private-invalid-value"
+    option.value = json.dumps(data)
+    option.save(update_fields=["value"])
+
+    with pytest.raises(ValidationError, match="log v4 datalink option is invalid") as error:
+        set_config()
+
+    assert "private-invalid-value" not in str(error.value)
+    assert error.value.__suppress_context__
+    assert not models.LogClusteringSinkConfig.objects.exists()
+
+
 def test_missing_datasource_is_rejected_before_creating_sink(clustering_datalink, bkbase):
     models.DataSourceResultTable.objects.filter(table_id=LOG_TABLE_ID).delete()
 
@@ -519,21 +537,25 @@ def test_status_waits_until_sink_ok(clustering_datalink, bkbase, sink_status):
     assert result["errors"] == []
 
 
-def test_status_keeps_databus_when_sink_query_fails(clustering_datalink, bkbase, mocker):
+def test_status_keeps_databus_when_sink_query_fails(clustering_datalink, bkbase, mocker, caplog):
+    caplog.set_level("WARNING", logger="metadata")
     set_config()
     attach_remotely(bkbase)
     databus = {**bkbase["remote_databus"], "spec": {"sinks": [ES_BINDING_REF]}, "status": {"phase": "Ok"}}
 
     def fetch(kind, name, namespace):
         if kind == "LogClusteringSink":
-            raise RuntimeError("resource unavailable")
+            raise BKAPIError("bkdata", result={"message": "private-upstream-error"})
         return databus
 
     mocker.patch("metadata.models.DataLink.get_existing_component_config", side_effect=fetch)
     result = get_status()
 
     assert (result["ready"], result["detached"]) == (False, True)
-    assert result["errors"] == [{"source": "sink_resource", "message": "resource unavailable"}]
+    assert result["errors"] == [{"source": "sink_resource", "message": "failed to fetch BKBase resource"}]
+    assert "private-upstream-error" not in caplog.text
+    assert "sink_resource" in caplog.text
+    assert "BKAPIError" in caplog.text
 
 
 @pytest.mark.parametrize("field", ["kafka_resource", "runtime_cluster", "recovery_resource"])

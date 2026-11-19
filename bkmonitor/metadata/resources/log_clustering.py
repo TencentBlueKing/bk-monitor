@@ -74,8 +74,8 @@ def get_log_clustering_datalink(bk_tenant_id: str, table_id: str, check_storage:
         raise ValidationError(f"table_id({table_id}) has no log v4 datalink option")
     try:
         datalink_option = LogV4DataLinkOption(**json.loads(option.value))
-    except (pydantic.ValidationError, TypeError, ValueError) as e:
-        raise ValidationError(f"table_id({table_id}) log v4 datalink option is invalid: {e}")
+    except (pydantic.ValidationError, TypeError, ValueError):
+        raise ValidationError(f"table_id({table_id}) log v4 datalink option is invalid") from None
     if not (
         datalink_option.es_storage_config
         and models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists()
@@ -391,9 +391,12 @@ class GetLogClusteringStatusResource(Resource):
                 return func()
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
-                    "GetLogClusteringStatusResource: table_id->[%s] fetch %s failed, error->[%s]", table_id, source, e
+                    "GetLogClusteringStatusResource: table_id->[%s] fetch %s failed, error_type->[%s]",
+                    table_id,
+                    source,
+                    type(e).__name__,
                 )
-                errors.append({"source": source, "message": str(e)})
+                errors.append({"source": source, "message": "failed to fetch BKBase resource"})
                 return None
 
         sink_resource = (
