@@ -16,7 +16,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from django.db import router
-from django.db.models import Q
+from django.db.models import Func, Q, Value
+from django.db.models.functions import NullIf
 from django.utils.translation import gettext as _
 
 from alarm_backends.constants import CONST_MINUTES
@@ -45,6 +46,7 @@ from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import ActionInstance, ConvergeRelation
 from bkmonitor.models.strategy import DutyRule, DutyRuleRelation, UserGroup
+from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.tenant import (
     bk_biz_id_to_bk_tenant_id,
     get_local_tenant_id,
@@ -327,6 +329,17 @@ def sync_action_instances_every_10_secs(last_sync_time=None):
         return
 
 
+def _actions_for_document_sync(action_ids):
+    # 同步只使用策略快照中的名称，数据库端裁掉包含查询配置和目标列表的 items。
+    # 保留历史快照的其余结构及空文本原本对应的 None；仅用于构造 ES 文档。
+    document_strategy = Func(
+        NullIf("strategy", Value("")), Value("$.items"), function="JSON_REMOVE", output_field=JsonField()
+    )
+    return (
+        ActionInstance.objects.filter(id__in=action_ids).defer("strategy").annotate(document_strategy=document_strategy)
+    )
+
+
 @app.task(ignore_result=True, queue="celery_action_cron")
 def sync_actions_sharding_task(action_ids):
     """
@@ -344,10 +357,16 @@ def sync_actions_sharding_task(action_ids):
     }
     all_actions = []
     all_alerts = []
-    for instance in ActionInstance.objects.filter(id__in=action_ids):
+    for instance in _actions_for_document_sync(action_ids):
         all_alerts.extend(instance.alerts)
         all_actions.append(instance)
-    all_alert_docs = {alert.id: alert for alert in AlertDocument.mget(ids=all_alerts)}
+    # 处理记录的目标和维度来自告警，其策略名称来自处理记录自身。
+    all_alert_docs = {
+        alert.id: alert
+        for alert in AlertDocument.mget(
+            ids=all_alerts, fields={"excludes": ["extra_info.strategy", "event.extra_info.strategy"]}
+        )
+    }
     receiver_display_maps = prefetch_receiver_display_mappings(all_actions)
     # 记录需要更新的主任务
     updated_parent_actions = {}
@@ -439,7 +458,7 @@ def sync_updated_parent_actions(updated_parent_actions, alert_docs, current_sync
     updated_actions = failed_actions + partial_failed_actions
 
     # 批量处理需要更新的主任务实例
-    parent_instances = list(ActionInstance.objects.filter(id__in=updated_actions))
+    parent_instances = list(_actions_for_document_sync(updated_actions))
     receiver_display_maps = prefetch_receiver_display_mappings(parent_instances)
     for instance in parent_instances:
         try:
