@@ -108,8 +108,14 @@ class ClusteringConfigHandler:
 
     @staticmethod
     def _use_quix_clustering(log_index_set: LogIndexSet) -> bool:
-        return log_index_set.scenario_id == Scenario.LOG and FeatureToggleObject.switch(
-            MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)
+        return (
+            log_index_set.scenario_id == Scenario.LOG
+            and FeatureToggleObject.switch(
+                MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)
+            )
+            and CollectorConfig.objects.filter(
+                collector_config_id=log_index_set.collector_config_id, enable_v4=True
+            ).exists()
         )
 
     def create(self, index_set_id, params):
