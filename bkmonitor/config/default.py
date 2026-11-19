@@ -604,6 +604,9 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
 # 是否下发平台级别字段标准化配置
 APM_FIELD_NORMALIZER_ENABLED = True
 
+# 是否在平台配置中开启 collector 指标元信息上报。
+BK_COLLECTOR_METRIC_METADATA_ENABLED = False
+
 # 监控管理业务，用于全局资源的注册或初始化等场景
 BKAPP_ADMIN_BIZ_ID = int(os.environ.get("BKAPP_ADMIN_BIZ_ID", 2))
 
