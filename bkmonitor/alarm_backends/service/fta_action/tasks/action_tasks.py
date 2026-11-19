@@ -32,7 +32,11 @@ from alarm_backends.service.fta_action import (
     BaseActionProcessor,
     get_action_timeout_setting,
 )
-from alarm_backends.service.fta_action.utils import PushActionProcessor, to_document
+from alarm_backends.service.fta_action.utils import (
+    PushActionProcessor,
+    prefetch_receiver_display_mappings,
+    to_document,
+)
 from alarm_backends.service.scheduler.app import app
 from alarm_backends.service.scheduler.tasks import perform_sharding_task
 from bkmonitor.action.duty_manage import GroupDutyRuleManager
@@ -344,6 +348,7 @@ def sync_actions_sharding_task(action_ids):
         all_alerts.extend(instance.alerts)
         all_actions.append(instance)
     all_alert_docs = {alert.id: alert for alert in AlertDocument.mget(ids=all_alerts)}
+    receiver_display_maps = prefetch_receiver_display_mappings(all_actions)
     # 记录需要更新的主任务
     updated_parent_actions = {}
     for instance in all_actions:
@@ -354,7 +359,14 @@ def sync_actions_sharding_task(action_ids):
             updated_parent_actions.update({instance.parent_action_id: instance.generate_uuid})
         try:
             alert_doc = all_alert_docs.get(instance.alerts[0]) if instance.alerts else None
-            action_documents.append(to_document(instance, current_sync_time, alerts=[alert_doc] if alert_doc else None))
+            action_documents.append(
+                to_document(
+                    instance,
+                    current_sync_time,
+                    alerts=[alert_doc] if alert_doc else None,
+                    receiver_display_maps=receiver_display_maps,
+                )
+            )
         except BaseException as error:  # NOCC:broad-except(设计如此:)
             logger.exception(
                 "sync action error: %s , action_info %s",
@@ -427,7 +439,9 @@ def sync_updated_parent_actions(updated_parent_actions, alert_docs, current_sync
     updated_actions = failed_actions + partial_failed_actions
 
     # 批量处理需要更新的主任务实例
-    for instance in ActionInstance.objects.filter(id__in=updated_actions):
+    parent_instances = list(ActionInstance.objects.filter(id__in=updated_actions))
+    receiver_display_maps = prefetch_receiver_display_mappings(parent_instances)
+    for instance in parent_instances:
         try:
             # 获取对应的告警文档，用于ES同步
             alert_doc = alert_docs.get(instance.alerts[0]) if instance.alerts else None
@@ -441,7 +455,14 @@ def sync_updated_parent_actions(updated_parent_actions, alert_docs, current_sync
                 instance.status = ActionStatus.PARTIAL_FAILURE
 
             # 将更新后的实例转换为ES文档格式，准备批量同步
-            action_documents.append(to_document(instance, current_sync_time, alerts=[alert_doc] if alert_doc else None))
+            action_documents.append(
+                to_document(
+                    instance,
+                    current_sync_time,
+                    alerts=[alert_doc] if alert_doc else None,
+                    receiver_display_maps=receiver_display_maps,
+                )
+            )
         except BaseException as error:  # NOCC:broad-except(设计如此:)
             # 记录单个实例处理失败的情况，但不影响其他实例的处理
             logger.exception(

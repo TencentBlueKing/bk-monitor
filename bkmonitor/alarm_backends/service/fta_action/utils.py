@@ -12,9 +12,11 @@ import calendar
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import pytz
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.cmdb.host import HostManager
@@ -33,6 +35,7 @@ from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import ActionInstance, DutyArrange, DutyPlan, UserGroup
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bkmonitor.utils.user import _is_upstream_unavailable_error, batch_get_user_display_names
 from constants.action import (
     ACTION_DISPLAY_STATUS_DICT,
     ActionNoticeType,
@@ -173,7 +176,107 @@ class PushActionProcessor:
         )
 
 
-def to_document(action_instance: ActionInstance, current_time, alerts=None):
+def prefetch_receiver_display_mappings(
+    action_instances: list[ActionInstance],
+) -> dict[str, dict[str, str]]:
+    """
+    分片级批量预取通知接收人展示名（按租户分组聚合调用 batch_query_user_display_info）
+
+    背景：普通通知子任务每人拆 1 条记录，sync_actions_sharding_task 单分片最多同步 200 条；
+    预先按租户合并接收人做一次批量查询，可将 200 次串行单查收敛为每租户 1~2 次请求，
+    并在 bk-user 超时故障时避免逐条重复超时阻塞整个 celery_action_cron 分片。
+
+    本函数只做性能优化，不承担正确性：调用点位于分片循环与 bulk_create 之外，
+    异常一旦外溢会导致整片 action 的 ES 文档全部丢失，因此所有异常都在内部消化，
+    失败租户回填「原标识 → 原标识」映射（等价于转换失败回退原值），调用方据此渲染时
+    直接复用回退结果，不再逐条重试（功能不变，仅性能回退）。
+
+    跨租户不叠加等待：某个租户确认上游不可用后，剩余租户直接回填原标识，
+    避免 bk-user 整体故障时按租户数串行叠加超时、把整片写入无限往后推。
+    """
+    if not settings.ENABLE_MULTI_TENANT_MODE or not action_instances:
+        return {}
+
+    receivers_by_tenant: dict[str, list[str]] = defaultdict(list)
+    for instance in action_instances:
+        # 单条实例的脏数据不应废掉整片预取，跳过即可，该实例仍会走逐条转换
+        try:
+            if not instance.action_config:
+                continue
+            if instance.status == ActionStatus.WAITING and (instance.outputs or {}).get("approve_info"):
+                continue
+            config_schema = (instance.action_plugin or {}).get("config_schema") or {}
+            if "notice_receiver_display" not in str(config_schema.get("content_template", "")) and (
+                "notice_receiver_display" not in str(config_schema.get("content_template_with_url", ""))
+            ):
+                continue
+            inputs = instance.inputs or {}
+            raw_receiver = inputs.get("notice_receiver")
+            if not raw_receiver or not instance._need_convert_receiver(inputs.get("notice_way")):
+                continue
+            bk_tenant_id = instance._get_tenant_id()
+            if not bk_tenant_id:
+                continue
+            receivers_by_tenant[bk_tenant_id].extend(instance._extract_receiver_usernames(raw_receiver))
+        except Exception as error:  # NOCC:broad-except(设计如此:预取失败只降级不阻塞)
+            logger.warning(
+                "skip receiver display prefetch for action(%s): %s",
+                getattr(instance, "id", None),
+                error,
+            )
+            continue
+
+    tenant_mappings: dict[str, dict[str, str]] = {}
+    # batch_get_user_display_names 内部会吞掉上游异常（只降级不抛），外层 except 捕获不到，
+    # 必须靠这个出参感知「上游已不可用」，否则每个租户都会各自等满一次超时。
+    upstream_state: dict[str, bool] = {}
+
+    def _raw_mapping(usernames: list[str]) -> dict[str, str]:
+        # 与 batch_get_user_display_names 的返回契约保持一致：只收录非空字符串键，
+        # 否则回填映射会多出脏键，渲染阶段按 key 取值虽不报错，但语义上不该出现。
+        return {username: username for username in dict.fromkeys(usernames) if isinstance(username, str) and username}
+
+    for bk_tenant_id, usernames in receivers_by_tenant.items():
+        if not usernames:
+            continue
+        # 某个租户已确认上游不可用时，剩余租户直接回填原标识：同一份 bk-user 故障
+        # 不会只影响一个租户，再逐个租户等满超时只会把整片写入继续往后推。
+        if upstream_state.get("unavailable"):
+            # 打日志而非静默回填：否则运维只能看到第一个租户的告警，不知道还有多少租户
+            # 的展示名被降级，也无法统计故障影响面。
+            logger.warning(
+                "skip receiver display prefetch for tenant(%s) after upstream unavailable, fallback to raw ids: %s",
+                bk_tenant_id,
+                len(usernames),
+            )
+            tenant_mappings[bk_tenant_id] = _raw_mapping(usernames)
+            continue
+        try:
+            tenant_mappings[bk_tenant_id] = batch_get_user_display_names(
+                usernames,
+                bk_tenant_id=bk_tenant_id,
+                strict_tenant=True,
+                upstream_state=upstream_state,
+            )
+        except Exception as error:  # NOCC:broad-except(设计如此:预取失败只降级不阻塞)
+            logger.warning(
+                "prefetch receiver display mappings failed for tenant(%s), fallback to raw ids: %s",
+                bk_tenant_id,
+                error,
+            )
+            tenant_mappings[bk_tenant_id] = _raw_mapping(usernames)
+            if _is_upstream_unavailable_error(error):
+                upstream_state["unavailable"] = True
+
+    return tenant_mappings
+
+
+def to_document(
+    action_instance: ActionInstance,
+    current_time,
+    alerts=None,
+    receiver_display_maps: dict[str, dict[str, str]] | None = None,
+):
     """
     转存ES格式
     """
@@ -194,6 +297,20 @@ def to_document(action_instance: ActionInstance, current_time, alerts=None):
     if action_status == ActionStatus.FAILURE:
         status_display = _("{}, 失败原因：{}").format(status_display, action_instance.ex_data.get("message", "--"))
 
+    content_kwargs: dict[str, Any] = {
+        "notice_way_display": notice_way_display,
+        "status_display": status_display,
+        "action_name": action_instance.action_config.get("name", ""),
+    }
+    if receiver_display_maps is not None and notice_receiver:
+        action_tenant_id = action_instance._get_tenant_id()
+        if action_tenant_id and action_tenant_id in receiver_display_maps:
+            content_kwargs["notice_receiver_display"] = action_instance.get_notice_receiver_display(
+                notice_receiver,
+                action_instance.inputs.get("notice_way"),
+                display_mapping=receiver_display_maps[action_tenant_id],
+            )
+
     converge_info = getattr(action_instance, "converge_info", {})
     action_info = dict(
         bk_tenant_id=bk_biz_id_to_bk_tenant_id(action_instance.bk_biz_id),
@@ -208,13 +325,7 @@ def to_document(action_instance: ActionInstance, current_time, alerts=None):
         # 针对非结束状态的中间状态统一归为执行中
         status=action_status,
         ex_data=action_instance.ex_data,
-        content=action_instance.get_content(
-            **{
-                "notice_way_display": notice_way_display,
-                "status_display": status_display,
-                "action_name": action_instance.action_config.get("name", ""),
-            }
-        ),
+        content=action_instance.get_content(**content_kwargs),
         bk_biz_id=action_instance.bk_biz_id,
         action_config=action_instance.action_config,
         action_config_id=action_instance.action_config_id,
