@@ -117,6 +117,8 @@ RESOURCE_PHASE_HOVERS: dict[str, Hover] = {
         user_experience=_("浏览器正在确认连接安全并协商加密方式。"),
         source=RESOURCE_TIMING_SOURCE,
     ),
+    # 网络请求场景中，更准确的描述是「建立连接后等待响应首字节」。
+    # 为简化展示，各场景统一使用下方文案。
     "first_byte": _hover(
         _("等待首字节"),
         _("浏览器发出请求后等待响应首字节，期间包含请求传输、服务端处理和网络往返。"),

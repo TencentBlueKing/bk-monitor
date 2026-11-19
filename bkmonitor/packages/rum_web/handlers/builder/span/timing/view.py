@@ -31,14 +31,6 @@ class ViewTimingLayout(TimingLayout):
         end = max(load_end, loading_time)
         return end if end > load_start else None
 
-    def total_duration(self) -> int | float | None:
-        start = self.point("start_time")
-        load_start = self.point("load_event_start") or 0
-        load_end = self.point("load_event_end") or 0
-        if start is None or load_end <= start or load_end < load_start:
-            return None
-        return (self.stable_end() or load_end) - start
-
     def _connection_phases(
         self, connect_start: int | float, connect_end: int | float, *, reused: bool
     ) -> list[Phase | None]:

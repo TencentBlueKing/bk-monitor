@@ -9,14 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.data_source.format import flatten_dict_data
 from semconv.rum.constants import ResourceType
-from rum_web.handlers.builder.base import BaseSection, KeyInfoSection, KeyValueItem, WaterfallSection, group
+from rum_web.handlers.builder.base import BaseSection, KeyInfoSection, WaterfallSection, group
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.hover import RESOURCE_PHASE_HOVERS
 from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
@@ -32,16 +31,21 @@ from rum_web.handlers.builder.span.timing.resource import (
 from rum_web.handlers.builder.utils import get_safe_number, safe_diff, waterfall
 
 
-@dataclass(frozen=True, slots=True)
-class CompressionRatioItem(KeyValueItem):
-    """正文压缩率不含协议头；缺失或分母为零时返回 None。"""
-
-    key: str = "display.compression_ratio"
+class ResponseBodySizeItem:
+    """解压后大小和正文压缩率共用同一个来源。"""
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        decoded_key = "attributes.resource.decoded_body_size"
+        decoded_size = flatten_data.get("attributes.resource.size")
+        if decoded_size is None:
+            decoded_size = flatten_data.get(decoded_key)
+
         encoded = get_safe_number(flatten_data.get("attributes.resource.encoded_body_size"), None)
-        decoded = get_safe_number(flatten_data.get("attributes.resource.decoded_body_size"), None)
-        return {self.key: None if encoded is None or not decoded else 1 - encoded / decoded}
+        decoded = get_safe_number(decoded_size, None)
+        return {
+            decoded_key: decoded_size,
+            "display.compression_ratio": None if encoded is None or not decoded else 1 - encoded / decoded,
+        }
 
 
 class ResourceSpanOverview(SpanOverview):
@@ -52,10 +56,9 @@ DURATION = group("duration", "elapsed_time")
 HTTP_RESULT = group("http_result", "attributes.http.response.status_code", "attributes.outcome.type")
 TRANSFER = group(
     "transfer",
-    CompressionRatioItem(),
     "attributes.resource.transfer_size",
     "attributes.resource.encoded_body_size",
-    "attributes.resource.decoded_body_size",
+    ResponseBodySizeItem(),
 )
 
 
@@ -98,13 +101,14 @@ class LoadingTimingSection(WaterfallSection):
     LAYOUTS = (CrossOriginLayout, ServiceWorkerLayout, LocalLayout, ReusedLayout, NetworkLayout)
 
     def get_data(self) -> dict[str, Any] | None:
-        for timing_prefix in (CURRENT_TIMING_PREFIX, OLD_TIMING_PREFIX):
+        # SDK 双写期间优先使用旧时间点，沿用旧版瀑布图的判定和分段。
+        for timing_prefix in (OLD_TIMING_PREFIX, CURRENT_TIMING_PREFIX):
             start = self.numeric_or_none(f"{timing_prefix}start_time")
             end = self.numeric_or_none(f"{timing_prefix}response_end")
             if start is not None and end is not None:
                 break
         else:
-            return self._waterfall_v1()
+            return self._legacy_waterfall()
         if not 0 <= start < end:
             return None
         for layout_cls in self.LAYOUTS:
@@ -117,7 +121,7 @@ class LoadingTimingSection(WaterfallSection):
         specs = [spec for spec in layout.phases() if spec is not None]
         return waterfall(self.phases(specs), total=end - start)
 
-    def _waterfall_v1(self) -> dict[str, Any] | None:
+    def _legacy_waterfall(self) -> dict[str, Any] | None:
         """兼容仅上报 resource.*.start / duration 的旧版 SDK。
 
         旧 start 是相对资源 entry.startTime 的偏移，缺少还原到 timeOrigin 的基准，

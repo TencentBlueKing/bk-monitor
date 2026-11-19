@@ -85,6 +85,29 @@ class ViewKeyInfoSection(KeyInfoSection):
         ),
     )
 
+    def render(self) -> dict[str, Any] | None:
+        if (
+            self.flatten_data.get("attributes.view.first_byte") is None
+            and ViewTimingLayout(self.flatten_data).matches()
+        ):
+            return ViewNavigationKeyInfoSection(self.flatten_data).render()
+        return super().render()
+
+
+class ViewNavigationKeyInfoSection(KeyInfoSection):
+    DATA = (
+        group("duration", "display.view.duration"),
+        group(
+            "loading",
+            "attributes.view.loading_time",
+            "attributes.view.loading_time_source",
+            "attributes.view.loading_type",
+            KeyValueItem("attributes.view.first_byte", source="attributes.timing.response_start"),
+            KeyValueItem("attributes.view.dom_content_loaded", source="attributes.timing.dom_content_loaded_event_end"),
+            KeyValueItem("attributes.view.load_event", source="attributes.timing.load_event_end"),
+        ),
+    )
+
 
 def vital_group(metric: str, extra: tuple[str, ...] = ()) -> DictItem:
     fields = ("attributes.vital.metric", "attributes.vital.value", *extra)
@@ -133,11 +156,12 @@ class ViewLoadingTimingSection(WaterfallSection):
 
         stable_end = layout.stable_end()
         stable_field = "attributes.view.loading_time"
-        if stable_end is not None and stable_end != self.numeric_or_none(stable_field):
+        loading_time = self.numeric_or_none(stable_field)
+        if stable_end is not None and stable_end != loading_time:
             stable_field = "attributes.timing.load_event_end"
         return waterfall(
             self.phases(specs),
-            total=layout.total_duration(),
+            total=loading_time if loading_time is not None and loading_time >= 0 else None,
             markers=self._build_markers(),
             milestones=self._build_milestones(stable_field, stable_end),
         )

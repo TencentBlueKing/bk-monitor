@@ -59,11 +59,12 @@ class ServiceWorkerLayout(ResourceTimingLayout):
     """B. Service Worker 响应：网络耗时在 SW 内部请求上，主请求看不到 DNS 与建连。"""
 
     def matches(self) -> bool:
-        if not self.uses_old_fields:
-            return self.flatten_data.get("attributes.resource.delivery_type") == "service_worker"
+        # SDK 完成迁移后，Service Worker 判定只需保留 delivery_type == "service_worker"。
+        if not self.uses_old_fields and self.flatten_data.get("attributes.resource.delivery_type") == "service_worker":
+            return True
         return (
             (self.point("worker_start") or 0) > 0
-            and self.point("connect_end") in (0, self.point("fetch_start"))
+            and (self.point("connect_end") or 0) in (0, self.point("fetch_start"))
             and self.flatten_data.get(f"{self.TIMING_PREFIX}worker_matched_router_source") in (None, "", "fetch-event")
             and self.flatten_data.get(f"{self.TIMING_PREFIX}worker_final_router_source") != "cache"
         )
@@ -132,13 +133,19 @@ class NetworkLayout(ResourceTimingLayout):
         ]
 
     def phases(self) -> list[Phase | None]:
-        wait_end = self.point("domain_lookup_start" if self.uses_old_fields else "fetch_start")
+        wait_end = self.point("domain_lookup_start")
         response_start = self.point("response_start")
         if not self.uses_old_fields:
+            fetch_start = self.point("fetch_start")
+            connect_start = self.point("connect_start") or 0
+            if wait_end is None or not (fetch_start or 0) <= wait_end <= connect_start:
+                wait_end = fetch_start
             response_start = response_start or None
         return [
             *self._redirect_and_wait_spans("prepare", wait_end),
             *self.connection(),
+            # D/E 类从 connect_end 起算，让连接阶段与等待首字节阶段接上。
+            # 从 request_start 起算时，connect_end 到 request_start 之间可能出现未归因的空隙。
             self.span("first_byte", self.point("connect_end"), response_start),
             self.span("download", response_start, self.point("response_end")),
         ]
