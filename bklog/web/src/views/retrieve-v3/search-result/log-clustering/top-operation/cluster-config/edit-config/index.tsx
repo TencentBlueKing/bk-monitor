@@ -231,7 +231,11 @@ export default defineComponent({
                 bk_biz_id,
               },
             })
-            .then(() => {
+            .then((res: IResponseData<(string | null)[]>) => {
+              if (quix.value && res.data?.[0] === null) {
+                emit('close');
+                return;
+              }
               bkNotify({
                 title: t('保存待生效'),
                 ...(quix.value ? {} : { message: t('该保存需要10分钟生效, 请耐心等待') }),

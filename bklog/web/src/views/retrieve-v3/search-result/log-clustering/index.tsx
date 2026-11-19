@@ -278,7 +278,13 @@ export default defineComponent({
             ![res.data.flow_create, res.data.flow_run, res.data.data_check].some(step => step.status === 'FAILED');
         if (pending) statusTimer = setTimeout(clusterPolling, 10000);
       } catch (error) {
-        if (seq === statusRequest) statusError.value = error instanceof Error ? error.message : String(error);
+        if (seq !== statusRequest) return;
+        // 更新提交后的第一次刷新可能仍只有上一轮 running 状态，保留已加载的结果并继续轮询。
+        if (quix.value && isShowTopNav.value) {
+          statusTimer = setTimeout(clusterPolling, 10000);
+          return;
+        }
+        statusError.value = error instanceof Error ? error.message : String(error);
       }
     };
 
