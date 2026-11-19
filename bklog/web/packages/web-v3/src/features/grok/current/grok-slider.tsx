@@ -348,6 +348,7 @@ export default defineComponent({
               <BklogLoading
                 class='grok-slider-content'
                 data-testid='grok-slider-loading'
+                  skeleton='drawer-form'
                 loading={props.loading}
               >
                 <bk-form

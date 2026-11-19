@@ -1407,6 +1407,8 @@
     "shared/ui/empty-status/index.vue",
     "shared/ui/empty-status/types.ts",
     "shared/ui/loading/_shimmer.scss",
+    "shared/ui/loading/drawer-skeleton.scss",
+    "shared/ui/loading/drawer-skeleton.ts",
     "shared/ui/loading/index.scss",
     "shared/ui/loading/index.tsx",
     "shared/ui/loading/list-skeleton.scss",
@@ -3406,6 +3408,11 @@
     },
     {
       "from": "features/archive/classic/archive-repository/repository-slider.vue",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/archive/classic/archive-repository/repository-slider.vue",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -3518,6 +3525,11 @@
       "from": "features/archive/classic/archive-restore/list.vue",
       "to": "shared/styles/devops-common.scss",
       "kind": "style-or-asset"
+    },
+    {
+      "from": "features/archive/classic/archive-restore/restore-slider.vue",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/archive/classic/archive-restore/restore-slider.vue",
@@ -3638,6 +3650,11 @@
       "from": "features/archive/current/archive-list/index.tsx",
       "to": "features/archive/services/archive.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/archive/current/archive-list/list-slider.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/archive/current/archive-list/list-slider.tsx",
@@ -3816,6 +3833,11 @@
     },
     {
       "from": "features/archive/current/archive-repository/repository-slider.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/archive/current/archive-repository/repository-slider.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -3948,6 +3970,11 @@
       "from": "features/archive/current/archive-restore/index.tsx",
       "to": "features/archive/services/archive.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/archive/current/archive-restore/restore-slider.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/archive/current/archive-restore/restore-slider.tsx",
@@ -4646,6 +4673,11 @@
     },
     {
       "from": "features/cleaning/current/clean-template/detail-slider.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/cleaning/current/clean-template/detail-slider.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -4833,6 +4865,11 @@
       "from": "features/cleaning/current/clean-template/list.tsx",
       "to": "features/cleaning/services/clean.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/cleaning/current/clean-template/sync-slider.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/cleaning/current/clean-template/sync-slider.tsx",
@@ -6996,6 +7033,11 @@
     },
     {
       "from": "features/collection/access/issued-slider.vue",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/access/issued-slider.vue",
       "to": "app/state/domains/collection-store.ts",
       "kind": "module"
     },
@@ -8578,6 +8620,11 @@
       "from": "features/collection/current/components/common-comp/host-detail.scss",
       "to": "shared/assets/images/loading.svg",
       "kind": "style-or-asset"
+    },
+    {
+      "from": "features/collection/current/components/common-comp/host-detail.tsx",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/collection/current/components/common-comp/host-detail.tsx",
@@ -10641,6 +10688,11 @@
     },
     {
       "from": "features/extraction/classic/manage-extract-permission/index.vue",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/extraction/classic/manage-extract-permission/index.vue",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
     },
@@ -10748,6 +10800,11 @@
       "from": "features/extraction/current/extract-config/config-slider.tsx",
       "to": "platform/services/userInfo.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/extraction/current/extract-config/index.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/extraction/current/extract-config/index.tsx",
@@ -11141,6 +11198,11 @@
     },
     {
       "from": "features/extraction/current/extract-task/task-list/index.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/extraction/current/extract-task/task-list/index.tsx",
       "to": "shared/ui/loading/native.ts",
       "kind": "module"
     },
@@ -11397,6 +11459,11 @@
     {
       "from": "features/extraction/download/home/download-url.vue",
       "to": "shared/lib/util.js",
+      "kind": "module"
+    },
+    {
+      "from": "features/extraction/download/home/index.vue",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
       "kind": "module"
     },
     {
@@ -12703,6 +12770,11 @@
       "from": "features/index-sets/log-collection/collection-item/manage-collection/basic-info.vue",
       "to": "shared/styles/mixins/flex.scss",
       "kind": "style-or-asset"
+    },
+    {
+      "from": "features/index-sets/log-collection/collection-item/manage-collection/collection-status.vue",
+      "to": "shared/ui/loading/list-skeleton.ts",
+      "kind": "module"
     },
     {
       "from": "features/index-sets/log-collection/collection-item/manage-collection/collection-status.vue",
@@ -24036,6 +24108,16 @@
     },
     {
       "from": "shared/global/field-setting.vue",
+      "to": "shared/ui/empty-status/index.vue",
+      "kind": "module"
+    },
+    {
+      "from": "shared/global/field-setting.vue",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/global/field-setting.vue",
       "to": "shared/constants/index.ts",
       "kind": "module"
     },
@@ -24865,8 +24947,23 @@
       "kind": "module"
     },
     {
+      "from": "shared/ui/loading/drawer-skeleton.scss",
+      "to": "shared/ui/loading/_shimmer.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "shared/ui/loading/drawer-skeleton.ts",
+      "to": "shared/ui/loading/drawer-skeleton.scss",
+      "kind": "module"
+    },
+    {
       "from": "shared/ui/loading/index.tsx",
       "to": "shared/ui/loading/native.ts",
+      "kind": "module"
+    },
+    {
+      "from": "shared/ui/loading/index.tsx",
+      "to": "shared/ui/loading/drawer-skeleton.ts",
       "kind": "module"
     },
     {

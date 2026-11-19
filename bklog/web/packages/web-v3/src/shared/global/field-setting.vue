@@ -2,7 +2,7 @@
   <div @click="hideSingleConfigInput">
     <div
       class="bklog-v3 field-setting-wrap"
-      @click="handleOpenSidebar"
+      @click="handleOpenSidebar()"
     >
       <span
         v-log-tooltip.top="t('索引配置')"
@@ -22,7 +22,7 @@
         <div class="index-config-slider-header">
           {{ t('索引配置') }}
           <t-button
-            v-if="!isEdit"
+            v-if="!isEdit && !sliderLoading && !sliderLoadFailed"
             data-test-id="fieldSettingSlider_button_edit"
             theme="default"
             @click="handleEdit"
@@ -33,11 +33,17 @@
       </template>
       <template #content>
         <div
-          v-loading="{ loading: sliderLoading }"
+          v-loading="{ loading: sliderLoading, indicator: renderDrawerInlineFormSkeleton }"
           class="bklog-v3 field-slider-content"
         >
+          <div v-if="sliderLoadFailed" class="index-config-load-error">
+            <EmptyStatus empty-type="500" scene="part" />
+            <t-button theme="primary" variant="outline" @click="handleOpenSidebar(openInEditMode)">
+              {{ t('重试') }}
+            </t-button>
+          </div>
           <bk-form
-            v-if="!sliderLoading"
+            v-else-if="!sliderLoading"
             ref="validateForm"
             class="field-setting-form"
             :class="!isEdit ? 'field-preview-form' : ''"
@@ -224,7 +230,7 @@
               </div>
             </div>
           </bk-form>
-          <div class="submit-container">
+          <div v-if="isEdit && !sliderLoadFailed" class="submit-container">
             <t-button
               v-if="isEdit"
               class="king-button"
@@ -254,6 +260,8 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
 import { ServicesInstance } from '@/platform/services';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 
   import { computed, ref, nextTick } from 'vue';
 
@@ -274,6 +282,8 @@ import { ServicesInstance } from '@/platform/services';
   const router = useRouter();
   const showSlider = ref(false);
   const sliderLoading = ref(false);
+  const sliderLoadFailed = ref(false);
+  const openInEditMode = ref(false);
 
   const tableField = ref([]);
   const cleanType = ref('');
@@ -442,10 +452,7 @@ import { ServicesInstance } from '@/platform/services';
   const { addEvent } = useRetrieveEvent();
   addEvent(RetrieveEvent.INDEX_CONFIG_OPEN, () => {
     hideSingleConfigInput();
-    handleOpenSidebar();
-    nextTick(() => {
-      handleEdit();
-    });
+    void handleOpenSidebar(true);
   });
 
   function formLableFormatter(label: unknown) {
@@ -453,6 +460,7 @@ import { ServicesInstance } from '@/platform/services';
   }
 
   const handleEdit = () => {
+    if (sliderLoading.value || sliderLoadFailed.value || !indexfieldTable.value) return;
     formDataCopy.value = cloneReactiveData(formData.value);
     fieldsCopy.value = cloneReactiveData(indexfieldTable.value.getData());
     isEdit.value = true;
@@ -470,11 +478,25 @@ import { ServicesInstance } from '@/platform/services';
     formData.value.clean_template_id = null;
   };
 
-  const handleOpenSidebar = async () => {
+  const handleOpenSidebar = async (edit = false) => {
+    if (sliderLoading.value) return;
+    openInEditMode.value = edit;
     showSlider.value = true;
+    sliderLoadFailed.value = false;
     sliderLoading.value = true;
-    await initFormData();
-    getStorage();
+    try {
+      sliderLoadFailed.value = !(await initFormData());
+      if (!sliderLoadFailed.value) await getStorage();
+    } catch {
+      sliderLoadFailed.value = true;
+    } finally {
+      sliderLoading.value = false;
+    }
+
+    if (edit && showSlider.value && !sliderLoadFailed.value) {
+      await nextTick();
+      if (showSlider.value) handleEdit();
+    }
   };
   const originBuiltFields = ref([]);
   const indexBuiltField = ref([]);
@@ -483,7 +505,7 @@ import { ServicesInstance } from '@/platform/services';
     const indexSetList = useRetrieveStore().flatIndexSetList;
     const indexSetId = route.params?.indexId;
     const currentIndexSet = indexSetList.find((item) => item.index_set_id === `${indexSetId}`);
-    if (!currentIndexSet?.collector_config_id) return;
+    if (!currentIndexSet?.collector_config_id) return false;
     collectorConfigId.value = currentIndexSet.collector_config_id;
     await ServicesInstance.collect.details({
         params: {
@@ -494,7 +516,7 @@ import { ServicesInstance } from '@/platform/services';
         const collectData = res?.data || {};
         formData.value = collectData;
         cleanType.value = collectData?.etl_config;
-        indexBuiltField.value = collectData?.fields.filter(
+        indexBuiltField.value = (collectData.fields ?? []).filter(
 (          item: { field_name: string; alias_name: string; }) =>
             builtInInitHiddenList.includes(item.field_name) ||
             (builtInInitHiddenList.includes(item.alias_name) && item.field_name !== 'data'),
@@ -535,7 +557,7 @@ import { ServicesInstance } from '@/platform/services';
         formData.value.etl_params.path_regexp = res?.data?.etl_params.path_regexp || '';
         formData.value.etl_params.metadata_fields = res?.data?.etl_params.metadata_fields || [];
       });
-    sliderLoading.value = false;
+    return true;
   };
   const storageList = ref([]);
   const getStorage = async () => {
@@ -664,8 +686,12 @@ import { ServicesInstance } from '@/platform/services';
     width: 100%;
   }
 
-  .index-config-slider .t-drawer__body {
-    padding: 0;
+  .index-config-load-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 32px;
   }
 
   .bklog-v3 {
@@ -690,8 +716,7 @@ import { ServicesInstance } from '@/platform/services';
   .bklog-v3 {
     &.field-slider-content {
       min-height: 394px;
-      max-height: calc(-119px + 100vh);
-      overflow-y: auto;
+
 
       .add-collection-title {
         width: 100%;
@@ -786,8 +811,10 @@ import { ServicesInstance } from '@/platform/services';
       }
 
       .submit-container {
-        position: fixed;
+        position: sticky;
         bottom: 0;
+        background: var(--bklog-surface, #fff);
+        border-top: 1px solid var(--bklog-border-muted, #dcdee5);
         display: flex;
         gap: 10px;
         padding: 16px 36px 16px;

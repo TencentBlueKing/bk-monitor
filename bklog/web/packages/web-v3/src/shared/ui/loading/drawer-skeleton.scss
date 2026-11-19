@@ -1,0 +1,51 @@
+@use './shimmer' as *;
+
+.bklog-drawer-skeleton {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 24px 36px;
+  overflow: hidden;
+  background: var(--bklog-surface, #fff);
+
+  span {
+    @include loading-shimmer;
+    display: block;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+
+  &__field {
+    display: grid;
+    gap: 8px;
+    max-width: 500px;
+    margin-bottom: 16px;
+  }
+
+  &--inline &__field {
+    grid-template-columns: minmax(56px, 110px) minmax(0, 300px);
+    align-items: center;
+    gap: 16px;
+  }
+
+  &--inline &__label {
+    justify-self: end;
+  }
+
+  &__label { width: 72px; max-width: 100%; height: 12px; }
+  &__control { width: 100%; height: 32px; }
+  &__range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  &__textarea { width: 100%; height: 64px; }
+  &__summary { width: 100%; height: 38px; margin-bottom: 20px; }
+  &__dot { width: 12px; height: 12px; border-radius: 50%; }
+
+  &__detail-row {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 360px);
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+  }
+}

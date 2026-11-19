@@ -218,7 +218,7 @@
           <!-- eslint-disable-next-line vue/no-v-html -->
           <template #content>
             <div
-              v-loading="{ loading: detail.loading }"
+              v-loading="{ loading: detail.loading, indicator: renderCodeSampleSkeleton }"
               class="p20 detail-content"
               v-html="$xss(detail.content)"
             ></div>
@@ -235,6 +235,7 @@
 </template>
 
 <script>
+import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
@@ -366,6 +367,7 @@ import { ServicesInstance } from '@/platform/services';
       this.adadScrollEvent();
     },
     methods: {
+      renderCodeSampleSkeleton,
       closeTable(val) {
         this.$refs.unfold[val].style.height = this.$refs.unfold[val].style.height === '' ? '43px' : '';
         this.$refs.icon[val].classList.value =

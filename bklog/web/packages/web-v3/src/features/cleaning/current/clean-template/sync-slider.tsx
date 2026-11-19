@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { Alert as TAlert } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
@@ -168,7 +169,7 @@ export default defineComponent({
             <>
               <div
                 class='clean-template-sync-content'
-                v-loading={{ loading: isCollectorsLoading.value }}
+                v-loading={{ loading: isCollectorsLoading.value, indicator: renderFieldListSkeleton }}
               >
                 {!isConfirmed.value && (
                   <TAlert

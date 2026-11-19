@@ -25,6 +25,7 @@
  */
 
 
+import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
 
@@ -336,7 +337,7 @@ export default defineComponent({
               <>
                 <div
                   class='restore-slider-content'
-                  v-loading={{ loading: sliderLoading.value }}
+                  v-loading={{ loading: sliderLoading.value, indicator: renderDrawerFormSkeleton }}
                 >
                   {/* 加载完成后渲染表单 */}
                   {!sliderLoading.value && (
