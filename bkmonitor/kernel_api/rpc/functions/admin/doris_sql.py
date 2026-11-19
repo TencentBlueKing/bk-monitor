@@ -14,7 +14,7 @@ from kernel_api.rpc.functions.admin.common import build_response, get_bk_tenant_
 from metadata import models
 
 
-def classify_sql(sql: str) -> tuple[str, bool]:
+def parse_statements(sql: str):
     statements = [
         statement
         for statement in sqlparse.parse(sql)
@@ -23,9 +23,17 @@ def classify_sql(sql: str) -> tuple[str, bool]:
             for token in statement.flatten()
         )
     ]
-    if len(statements) != 1:
-        raise CustomException(message="每次只能执行一条 SQL")
-    statement = statements[0]
+    if not statements:
+        raise CustomException(message="SQL 不能为空")
+    return statements
+
+
+def classify_sql(sql: str) -> tuple[str, bool]:
+    classifications = [classify_statement(statement) for statement in parse_statements(sql)]
+    return classifications[-1][0], any(changes for _, changes in classifications)
+
+
+def classify_statement(statement) -> tuple[str, bool]:
     tokens = [token for token in statement.flatten() if not token.is_whitespace and token.ttype not in T.Comment]
     first = tokens[0].normalized.upper()
     kind = statement.get_type()
@@ -57,11 +65,11 @@ def serialize_cell(value):
 @KernelRPCRegistry.register(
     "admin.doris_sql.execute",
     summary="Doris 超级管理员网页 SQL 执行",
-    description="仅供 Admin 超级管理员网页专用代理；不进入 CLI catalog。变更 SQL 必须 confirmed=true；每次执行一个独立连接中的单条语句。",
+    description="仅供 Admin 超级管理员网页专用代理；不进入 CLI catalog。变更 SQL 必须 confirmed=true；脚本中的语句在同一独立连接中顺序执行，返回最后一条语句的结果。",
     params_schema={
         "bk_tenant_id": "租户",
         "cluster_id": "Doris 集群",
-        "sql": "单条 SQL",
+        "sql": "SQL 语句或脚本",
         "database": "可选默认库",
         "confirmed": "变更二次确认",
         "readonly": "由 Admin 环境配置确定",
@@ -74,7 +82,10 @@ def execute_doris_sql(params):
     sql = str(params.get("sql") or "").strip()
     if not sql or len(sql) > 100000:
         raise CustomException(message="SQL 不能为空且最多 100000 字符")
-    kind, requires_confirmation = classify_sql(sql)
+    statements = parse_statements(sql)
+    classifications = [classify_statement(statement) for statement in statements]
+    kind = classifications[-1][0]
+    requires_confirmation = any(changes for _, changes in classifications)
     try:
         cluster_id = int(params.get("cluster_id"))
         max_rows = int(params.get("max_rows", 500))
@@ -115,15 +126,26 @@ def execute_doris_sql(params):
     try:
         cursor = connection.cursor()
         cursor.execute("SET query_timeout = 30")
-        cursor.execute(sql)
-        result["status"] = "executed"
-        if cursor.description:
-            result["columns"] = [column[0] for column in cursor.description]
-            rows = cursor.fetchmany(max_rows + 1)
-            result["rows"] = [[serialize_cell(cell) for cell in row] for row in rows[:max_rows]]
-            result["truncated"] = len(rows) > max_rows
-        else:
-            result["affected_rows"] = cursor.rowcount
+        for index, statement in enumerate(statements, start=1):
+            try:
+                cursor.execute(str(statement))
+                if index < len(statements) and cursor.description:
+                    # SSCursor must consume earlier results before executing the next statement.
+                    while cursor.fetchmany(1000):
+                        pass
+                if index == len(statements):
+                    result["status"] = "executed"
+                    if cursor.description:
+                        result["columns"] = [column[0] for column in cursor.description]
+                        rows = cursor.fetchmany(max_rows + 1)
+                        result["rows"] = [[serialize_cell(cell) for cell in row] for row in rows[:max_rows]]
+                        result["truncated"] = len(rows) > max_rows
+                    else:
+                        result["affected_rows"] = cursor.rowcount
+            except pymysql.MySQLError as error:
+                raise CustomException(
+                    message=f"Doris SQL 第 {index}/{len(statements)} 条语句执行失败，已停止后续执行: {error}"
+                ) from error
         result["elapsed_ms"] = round((time.monotonic() - started) * 1000)
     except pymysql.MySQLError as error:
         raise CustomException(message=f"Doris SQL 执行失败: {error}") from error

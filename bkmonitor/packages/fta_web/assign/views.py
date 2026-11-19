@@ -55,12 +55,12 @@ class AssignGroupViewSet(viewsets.ModelViewSet):
             return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
         return [BusinessActionPermission([ActionEnum.MANAGE_RULE])]
 
-    def list(self, request, *args, **kwargs):
-        request_biz_id = request.query_params.get("bk_biz_id", 0)
-        if request_biz_id:
-            self.queryset = self.queryset.filter(bk_biz_id__in=[GLOBAL_BIZ_ID, request_biz_id])
-        response = super().list(request, *args, **kwargs)
-        return response
+    def get_queryset(self):
+        # BusinessActionPermission 只校验请求业务（未带业务时直接放行），对象鉴权不会按规则组所属业务生效，
+        # 因此数据范围必须收敛到全局规则组和请求业务
+        request_biz_id = getattr(self.request, "biz_id", None)
+        biz_ids = [GLOBAL_BIZ_ID, request_biz_id] if request_biz_id else [GLOBAL_BIZ_ID]
+        return super().get_queryset().filter(bk_biz_id__in=biz_ids)
 
     def perform_destroy(self, instance):
         AlertAssignRule.objects.filter(assign_group_id=instance.id).delete()

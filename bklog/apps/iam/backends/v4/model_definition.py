@@ -83,5 +83,6 @@ def load_model_definition(file_name: str = CURRENT_MODEL_FILE) -> ModelDefinitio
         system_id=resolve_effective_v4_system_id(),
         callback_url=resolve_callback_url(),
         managers=resolve_model_managers(),
+        multi_tenant_mode=settings.ENABLE_MULTI_TENANT_MODE,
         extra_clients=[str(getattr(settings, "APP_CODE", "") or "").strip()],
     )

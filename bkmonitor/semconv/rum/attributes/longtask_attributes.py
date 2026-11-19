@@ -53,7 +53,7 @@ LONG_TASK_SCRIPT_INVOKER_TYPE = FieldSpec(field_name="long_task.script.invoker_t
 LONG_TASK_SCRIPT_SOURCE_FUNCTION_NAME = FieldSpec(
     field_name="long_task.script.source_function_name", field_alias=_("脚本函数名")
 )
-LONG_TASK_SCRIPT_SOURCE_URL = FieldSpec(field_name="long_task.script.source_url", field_alias=_("脚本 URL"))
+LONG_TASK_SCRIPT_SOURCE_URL = FieldSpec(field_name="long_task.script.source_url", field_alias=_("脚本线索"))
 LONG_TASK_SCRIPT_WINDOW_ATTRIBUTION = FieldSpec(
     field_name="long_task.script.window_attribution", field_alias=_("脚本窗口关系")
 )

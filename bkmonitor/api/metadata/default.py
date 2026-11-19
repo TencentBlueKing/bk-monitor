@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
+
 from django.conf import settings
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -16,6 +18,7 @@ from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_local_username, get_request_username
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import CacheResource, Resource, api
 from core.drf_resource.contrib.nested_api import KernelAPIResource
 
@@ -31,6 +34,34 @@ class MetaDataAPIGWResource(KernelAPIResource):
     @property
     def label(self):
         return self.__doc__
+
+    def _request_local_resource(self, resource_class, validated_request_data):
+        from rest_framework.response import Response
+
+        from core.errors.api import BKAPIError
+        from kernel_api.adapters import ApiRenderer
+        from kernel_api.exceptions import api_exception_handler
+
+        request_data = dict(validated_request_data)
+        self._set_tenant_id(request_data)
+        request_data["bk_tenant_id"] = self._get_tenant_id() if settings.ENABLE_MULTI_TENANT_MODE else DEFAULT_TENANT_ID
+        resource = resource_class()
+
+        class LocalRequestSerializer(resource.RequestSerializer):
+            # The HTTP endpoint uses the selected tenant header as its request context.
+            bk_tenant_id = TenantIdField(label="租户ID", prefer_request_tenant=False)
+
+        resource.RequestSerializer = LocalRequestSerializer
+        try:
+            response = Response(resource.request(request_data))
+        except Exception as exc:
+            response = api_exception_handler(exc, None)
+        result = json.loads(
+            ApiRenderer().render(response.data, renderer_context={"response": response, "request": None})
+        )
+        if not result["result"]:
+            raise BKAPIError(system_name=self.module_name, url=self.action, result=result)
+        return self.render_response_data(validated_request_data, result.get("data"))
 
 
 class MetadataBaseSerializer(serializers.Serializer):
@@ -133,6 +164,13 @@ class ListResultTableResource(MetaDataAPIGWResource):
     method = "GET"
     backend_cache_type = CacheType.METADATA
 
+    def perform_request(self, validated_request_data):
+        if settings.ROLE == "worker":
+            from metadata.resources.resources import ListResultTableResource
+
+            return self._request_local_resource(ListResultTableResource, validated_request_data)
+        return super().perform_request(validated_request_data)
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         datasource_type = serializers.CharField(required=False, label="需要过滤的结果表类型，如 system")
@@ -179,6 +217,13 @@ class GetDataIdResource(MetaDataAPIGWResource):
     action = "/app/metadata/get_data_id/"
     method = "GET"
 
+    def perform_request(self, validated_request_data):
+        if settings.ROLE == "worker":
+            from metadata.resources.resources import QueryDataSourceResource
+
+            return self._request_local_resource(QueryDataSourceResource, validated_request_data)
+        return super().perform_request(validated_request_data)
+
     class RequestSerializer(serializers.Serializer):
         bk_data_id = serializers.IntegerField(required=False)
         data_name = serializers.CharField(required=False)
@@ -217,6 +262,13 @@ class GetResultTableStorageResource(MetaDataAPIGWResource):
 
     action = "/app/metadata/get_result_table_storage/"
     method = "GET"
+
+    def perform_request(self, validated_request_data):
+        if settings.ROLE == "worker":
+            from metadata.resources.resources import GetResultTableStorageResult
+
+            return self._request_local_resource(GetResultTableStorageResult, validated_request_data)
+        return super().perform_request(validated_request_data)
 
     class RequestSerializer(serializers.Serializer):
         result_table_list = serializers.CharField(required=True)

@@ -37,6 +37,7 @@ import {
   createHistoryFilters,
   formatExecutionDuration,
   hostColumnMinWidths,
+  hostErrorTypeMessage,
   resultStatusLabels,
 } from '../../utils/collection-history';
 import {
@@ -54,6 +55,7 @@ import CollectionExecutionStatus from './collection-execution-status';
 import CollectionFilters from './collection-filters';
 import CollectionResultDetail from './collection-result-detail';
 import EmptyStatus from '@/components/empty-status/empty-status';
+import { useTableColumnsCache } from '@/hooks/use-table-columns-cache';
 import { TraceCellSkeleton } from '@/pages/trace-explore/components/trace-explore-skeleton';
 
 import type { SelectionRange } from '../../types';
@@ -66,6 +68,19 @@ import './collection-results.scss';
 
 const skeletonRows = Array.from({ length: 10 }, (_, index) => ({ resultKey: `loading-${index}` }));
 
+/** 表格固定配置项（表头吸顶、横向滚动条吸底），滚动容器为结果列表 .collection-history-scroll */
+const resultsTableAffixed = { container: '.collection-history-scroll' };
+
+// 表格追加的操作列 key
+const operationField = 'row-operation';
+
+// 结果列表默认展示列，其余列可在列设置中开启；用户调整后走本地缓存
+const defaultResultFields = ['ip', 'processes', 'collection_type', 'started_at', 'task', 'status', operationField];
+
+// 结果列表显示列与列宽的本地缓存 key；执行范围的列由后端下发，与默认列表分开存储
+const resultColumnsStorageKey = 'trace_profiling_collection_result_columns';
+const executionResultColumnsStorageKey = 'trace_profiling_collection_execution_result_columns';
+
 export default defineComponent({
   name: 'CollectionResults',
   props: {
@@ -75,6 +90,8 @@ export default defineComponent({
     range: { type: Array as unknown as PropType<SelectionRange>, default: null },
     rangeError: { type: String, default: '' },
     revision: { type: Number, required: true },
+    // 每次查询重新解析时间表达式，使「近 N 分钟/小时」取最新边界
+    resolveRange: { type: Function as PropType<() => SelectionRange>, default: undefined },
     timezone: { type: String, required: true },
     readonly: Boolean,
   },
@@ -95,6 +112,7 @@ export default defineComponent({
       range: computed(() => props.range),
       revision: computed(() => props.revision),
       readonly: computed(() => props.readonly),
+      resolveRange: () => props.resolveRange?.(),
       onCreated: () => emit('created'),
     });
     const c = useCollectionExecution({
@@ -107,6 +125,37 @@ export default defineComponent({
         emit('created');
       },
     });
+    // 执行范围下优先使用后端下发的列定义，缺省时沿用固定列
+    const hostColumns = computed(() => (props.state.execution ? h.hostColumns.value : null));
+    // 当前模式的可用列 key：业务列 + 表格追加的操作列
+    const columnKeys = computed(() =>
+      hostColumns.value?.length
+        ? [...hostColumns.value.map(column => column.field), operationField]
+        : defaultResultFields
+    );
+    // 锁定列：目标 IP 是查看结果的入口，操作列承载行操作，列设置中置灰且始终显示
+    const lockedColumns = computed(() => ['ip', operationField].filter(field => columnKeys.value.includes(field)));
+    // 显示列与列宽按列表模式分别缓存，执行范围未返回后端列前不写默认列
+    const { storageColumns, fieldsWidthConfig } = useTableColumnsCache({
+      storageKey: () => (props.state.execution ? executionResultColumnsStorageKey : resultColumnsStorageKey),
+      defaultColumns: () => (props.state.execution ? [] : defaultResultFields),
+      validColumnKeys: () => columnKeys.value,
+    });
+    // 列设置显示列：过滤已下线的列，未配置或全部下线时按当前可用列展示，并补回锁定列
+    const displayColumns = computed(() => {
+      const valid = new Set(columnKeys.value);
+      const cached = storageColumns.value.filter(field => valid.has(field));
+      return [...new Set([...(cached.length ? cached : columnKeys.value), ...lockedColumns.value])];
+    });
+    // 列设置关闭时回写显示列，已下线的列不进入缓存
+    function changeColumns(value: string[]) {
+      const valid = new Set(columnKeys.value);
+      storageColumns.value = [...new Set([...value.filter(field => valid.has(field)), ...lockedColumns.value])];
+    }
+    // 列宽拖拽后回写缓存
+    function changeColumnWidths(value: Record<string, number>) {
+      fieldsWidthConfig.value = value;
+    }
     const tableRows = computed(() => h.records.value.map(row => ({ ...row, resultKey: resultRowKey(row) })));
     const selectedRow = computed(() =>
       h.records.value.find(
@@ -125,15 +174,73 @@ export default defineComponent({
         value.task_name ||
         value.process_names.length ||
         value.process_pids.length ||
-        value.status
+        value.status.length
       );
     });
+    // 执行范围的条件在筛选器中回填展示：列表仍按执行详情查询，条件只在展示层叠加，
+    // 用户改动任一条件即由 patch 退出执行范围并按新条件查询
+    const displayFilters = computed(() => {
+      const execution = props.state.execution;
+      if (!execution) return props.state.filters;
+      const detail = h.executionDetail.value;
+      const ip =
+        props.selection?.scope === 'host'
+          ? detail?.hosts.find(host => host.bk_host_id === props.selection.bk_host_id)?.ip
+          : '';
+      return {
+        ...props.state.filters,
+        task_id: execution.task_id ?? null,
+        task_name: execution.task_id ? '' : detail?.task_name || '',
+        ips: ip ? [ip] : props.state.filters.ips,
+      };
+    });
+    // 按任务 ID 筛选时用于任务下拉回显的任务名：执行详情返回后记住，退出执行范围仍按 ID 筛选就继续回显，清除任务 ID 后丢弃
+    const historyTaskName = shallowRef('');
+    watch(
+      () => [displayFilters.value.task_id, h.executionDetail.value?.task_name || ''] as const,
+      ([taskId, name], previous) => {
+        if (!taskId) {
+          historyTaskName.value = '';
+          return;
+        }
+        // 详情请求会先清空 executionDetail；任务 ID 已变时不能继续显示上一个任务名
+        if (previous && previous[0] !== taskId && !name) {
+          historyTaskName.value = '';
+          return;
+        }
+        if (name) historyTaskName.value = name;
+      }
+    );
+    // 已生效筛选的摘要：结果列表只有状态列筛选，其余条件来自面板
+    const filterSummary = computed(() => {
+      const conditions: string[] = [];
+      const append = (label: string, values: string[]) => {
+        if (values.length) conditions.push(`${label}：${values.join(',')}`);
+      };
+      const value = props.state.filters;
+      // 按任务 ID 筛选时优先展示执行详情回填的任务名，取不到才退化为 ID
+      const taskName = value.task_id ? historyTaskName.value || String(value.task_id) : value.task_name;
+      append('IP', value.ips);
+      append(t('任务'), taskName ? [taskName] : []);
+      // 进程名与 PID 共用面板里的「进程」入口，摘要也合并到一项
+      append(t('进程'), [...value.process_names, ...value.process_pids]);
+      append(
+        t('状态'),
+        value.status.map(status => t((resultStatusLabels as Record<string, string>)[status] || status))
+      );
+      return conditions.join('; ');
+    });
+    // 有筛选且已拿到结果总数时展示摘要行；无结果交给空态，避免占住表格首行
+    const showFilterSummary = computed(
+      () => !!filterSummary.value && h.total.value !== null && !!h.records.value.length
+    );
     function patch(value: Partial<CollectionResultsState>) {
-      // 筛选实际变化即退出执行范围；否则刷新仍会请求本次执行详情，列表不会按新条件变化
+      // 筛选实际变化即退出执行范围；否则刷新仍会请求本次执行详情，列表不会按新条件变化。
+      // 执行范围的条件由 displayFilters 回填，比较基准必须是展示条件，否则清空筛选会被判定为无变化
       const exitScope =
         !!props.state.execution &&
         !!value.filters &&
-        JSON.stringify(value.filters) !== JSON.stringify(props.state.filters);
+        JSON.stringify(value.filters) !== JSON.stringify(displayFilters.value);
       emit('change', {
         ...(exitScope ? { result: null } : {}),
         results: { ...props.state, ...value, ...(exitScope ? { execution: null } : {}) },
@@ -184,9 +291,17 @@ export default defineComponent({
       t,
       h,
       c,
+      hostColumns,
+      displayColumns,
+      lockedColumns,
+      fieldsWidthConfig,
       tableRows,
       selectedRow,
       filtered,
+      displayFilters,
+      historyTaskName,
+      filterSummary,
+      showFilterSummary,
       scrollContainer,
       executionBusy,
       patch,
@@ -195,13 +310,13 @@ export default defineComponent({
       loadVisiblePage,
       reset,
       reload,
+      changeColumns,
+      changeColumnWidths,
     };
   },
   render() {
     const { h, c } = this;
     const showSkeleton = h.loading.value && !h.records.value.length;
-    // 结果为空时由 empty 插槽接管；否则 tdesign 会注入筛选结果行，导致空态不渲染
-    const emptyResult = !showSkeleton && !h.records.value.length;
     const resultLink = (row: CollectionHostResult, text: string) => (
       <span v-tippy={this.t(canViewHostResult(row) ? '查看当前主机的采集结果' : resultUnavailableReason(row))}>
         <Button
@@ -217,19 +332,30 @@ export default defineComponent({
     const renderProcesses = (row: CollectionHostResult) => (
       <span
         class='collection-result-processes'
-        title={row.processes.map(item => `${item.process_name} (${item.pid})`).join('，')}
+        v-overflow-tips={{
+          content: row.processes.map(item => `${item.process_name} (${item.pid})`).join('，'),
+          placement: 'top',
+        }}
       >
         {row.processes.map(item => `${item.process_name} (${item.pid})`).join('，') || '--'}
       </span>
     );
     // 执行范围下优先使用后端下发的列定义，缺省时沿用固定列
-    const hostColumns = this.state.execution ? h.hostColumns.value : null;
+    const hostColumns = this.hostColumns;
     // 结果列表使用结果侧状态文案，含解析中，与采集任务历史的文案区分
     const statusFilter = {
-      type: 'single' as const,
+      type: 'multiple' as const,
+      resetValue: [],
+      showConfirmAndReset: true,
       list: Object.keys(resultStatusLabels)
         .filter(key => key !== 'parsing')
         .map(value => ({ value, label: this.t(resultStatusLabels[value]) })),
+    };
+    // 状态列 hover 提示：已取消取后端下发的 message，其余只按 error_type 命中枚举取文案
+    const failureMessage = (row: CollectionHostResult): string => {
+      if (row.status === 'cancelled') return row.message || '';
+      const message = hostErrorTypeMessage(row.error_type);
+      return message ? this.t(message) : '';
     };
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionHostResult) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
@@ -239,6 +365,7 @@ export default defineComponent({
       if (column.type === 'status')
         return (
           <CollectionExecutionStatus
+            message={failureMessage(row)}
             status={row.status}
             result
           />
@@ -247,7 +374,7 @@ export default defineComponent({
       if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
       return value ? String(value) : '--';
     };
-    const columns: TableProps['columns'] = hostColumns?.length
+    const baseColumns: TableProps['columns'] = hostColumns?.length
       ? [
           ...hostColumns.map<NonNullable<TableProps['columns']>[number]>(column => ({
             colKey: column.field,
@@ -258,7 +385,7 @@ export default defineComponent({
             ...(column.type === 'status' ? { sorter: true, filter: statusFilter } : {}),
             ...(column.type === 'text' ? { ellipsis: true } : {}),
           })),
-          { colKey: 'row-operation', title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
+          { colKey: operationField, title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
         ]
       : [
           { colKey: 'ip', title: this.t('目标 IP'), minWidth: 160, cell: 'ip' },
@@ -275,7 +402,7 @@ export default defineComponent({
             width: 190,
             cell: (_, { row }) => formatCollectionTime(row.started_at, this.timezone),
           },
-          { colKey: 'task', title: this.t('采集任务名'), minWidth: 220, ellipsis: true, cell: 'task' },
+          { colKey: 'task', title: this.t('采集任务名'), minWidth: 220, cell: 'task' },
           {
             colKey: 'status',
             title: this.t('状态'),
@@ -283,41 +410,31 @@ export default defineComponent({
             filter: statusFilter,
             cell: (_, { row }) => (
               <CollectionExecutionStatus
+                message={failureMessage(row)}
                 status={row.status}
                 result
               />
             ),
           },
-          { colKey: 'row-operation', title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
+          { colKey: operationField, title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
         ];
+    // 列宽优先取本地缓存值
+    const columnWidths = this.fieldsWidthConfig;
+    const columns: TableProps['columns'] = baseColumns.map<NonNullable<TableProps['columns']>[number]>(column => {
+      const width = column.colKey === undefined ? undefined : columnWidths[String(column.colKey)];
+      return width ? { ...column, width } : column;
+    });
     return (
       <section class='collection-tab-panel collection-history-panel collection-results-panel'>
         <CollectionFilters
           bizId={this.bizId}
-          filters={this.state.filters}
+          filters={this.displayFilters}
           range={this.range}
+          taskName={this.historyTaskName}
           autoQuery
           onChange={filters => this.patch({ filters })}
           onRefresh={h.refresh}
         />
-        {this.state.execution && (
-          <div class='collection-results-scope'>
-            <span>{this.t('当前仅显示本次任务执行的采集结果')}</span>
-            <Button
-              v-tippy={this.t('取消当前执行范围，查看所选时间内的全部采集结果')}
-              theme='primary'
-              text
-              onClick={() =>
-                this.$emit('change', {
-                  result: null,
-                  results: { ...this.state, execution: null, filters: createHistoryFilters() },
-                })
-              }
-            >
-              {this.t('查看全部采集结果')}
-            </Button>
-          </div>
-        )}
         {this.rangeError && (
           <Alert
             theme='danger'
@@ -331,6 +448,11 @@ export default defineComponent({
           onScroll={this.loadVisiblePage}
         >
           <PrimaryTable
+            bkUiSettings={{
+              checked: this.displayColumns,
+              disabled: this.lockedColumns,
+              rowSize: 'mini',
+            }}
             columns={columns.map(column =>
               showSkeleton
                 ? {
@@ -340,18 +462,45 @@ export default defineComponent({
                   }
                 : column
             )}
-            bkUiSettings={{ disabled: columns.some(column => column.colKey === 'ip') ? ['ip'] : [], rowSize: 'mini' }}
             data={showSkeleton ? skeletonRows : this.tableRows}
-            filterRow={emptyResult ? () => null : undefined}
+            // 常关内置筛选结果行：筛选结果统一由 firstFullRow 渲染，空态仍由 empty 插槽接管
+            filterRow={() => null}
             filterValue={{ status: this.state.filters.status }}
+            headerAffixedTop={resultsTableAffixed}
+            horizontalScrollAffixedBottom={resultsTableAffixed}
             hover={!showSkeleton}
+            needCustomScroll={false}
+            resizable={true}
             rowKey='resultKey'
             size='small'
+            onBkUiSettingsChange={value => this.changeColumns(value.columns)}
+            onColumnResizeChange={context => this.changeColumnWidths(context.columnsWidth)}
             onFilterChange={value =>
-              this.patch({ filters: { ...this.state.filters, status: String(value.status || '') } })
+              this.patch({ filters: { ...this.displayFilters, status: (value.status || []) as string[] } })
             }
           >
             {{
+              // 面板筛选与列筛选统一在这里汇总，覆盖表格内置的筛选结果行
+              firstFullRow: () =>
+                this.showFilterSummary ? (
+                  <div class='t-table__row-filter-inner'>
+                    <div class='t-table__filter-result'>
+                      <span>
+                        {this.t('搜索“{result}”，找到 {count} 条结果', {
+                          result: this.filterSummary,
+                          count: this.h.total.value ?? 0,
+                        })}
+                      </span>
+                      <Button
+                        theme='primary'
+                        text
+                        onClick={this.reset}
+                      >
+                        {this.t('清空筛选')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null,
               empty: () => {
                 if (this.rangeError) return null;
                 const error = h.error.value;
@@ -399,14 +548,13 @@ export default defineComponent({
               ip: ({ row }: { row: CollectionHostResult }) => resultLink(row, row.ip),
               processes: ({ row }: { row: CollectionHostResult }) => renderProcesses(row),
               task: ({ row }: { row: CollectionHostResult }) => (
-                <Button
+                <span
+                  class='task-name-button'
                   v-tippy={this.t('查看本次任务执行详情')}
-                  theme='primary'
-                  text
                   onClick={() => this.openExecution(row)}
                 >
                   {row.task.name}
-                </Button>
+                </span>
               ),
               operations: ({ row }: { row: CollectionHostResult }) => (
                 <div class='collection-row-actions'>

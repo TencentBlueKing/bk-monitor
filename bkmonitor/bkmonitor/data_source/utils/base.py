@@ -27,6 +27,11 @@ class DescendingStr:
     def __init__(self, value):
         self.value = value
 
+    def __eq__(self, other):
+        if not isinstance(other, DescendingStr):
+            return NotImplemented
+        return self.value == other.value
+
     def __lt__(self, other):
         """
         降序，取反原来的比较顺序

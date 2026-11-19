@@ -38,6 +38,8 @@ export interface CollectionExecution extends CollectionExecutionKey {
   collection_type: CollectionType;
   creator: string;
   duration_ms: null | number;
+  // 失败原因类型，状态列据此展示提示；后端未下发或类型未命中枚举时不展示
+  error_type?: string;
   execution_status: string;
   finished_at: null | number;
   hosts: { bk_host_id: number; ip: string }[];
@@ -89,7 +91,8 @@ export interface CollectionHistoryFilters {
   process_pids: string[];
   // 执行方式筛选，取值为 immediate / once_at / cron
   schedule_types: string[];
-  status: string;
+  // 状态列多选筛选，取值需同时兼容任务历史与结果列表两套文案
+  status: string[];
   // 计划任务按 ID 精确定位，与 task_name 二选一；立即执行的任务没有 ID
   task_id: null | number;
   task_name: string;
@@ -99,6 +102,8 @@ export interface CollectionHistoryResult {
   data: CollectionExecution[];
   // 缺省时前端回退到默认列，兼容未下发列定义的后端版本
   task_columns?: CollectionTaskColumn[];
+  // 总行数未知（ES 读到查询上限、后端 API 模块未升级）时后端下发 null
+  total?: null | number;
 }
 
 export interface CollectionResultSelection extends CollectionExecutionKey {

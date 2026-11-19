@@ -286,11 +286,10 @@ class EventListFiltersSerializer(serializers.Serializer):
         child=serializers.ChoiceField(choices=COLLECTION_TYPE_CHOICES),
         required=False,
     )
-    status = serializers.ChoiceField(
-        label="执行状态",
-        choices=EXECUTION_STATUS_CHOICES,
+    status = serializers.ListField(
+        label="执行状态筛选",
+        child=serializers.ChoiceField(choices=EXECUTION_STATUS_CHOICES),
         required=False,
-        allow_blank=True,
     )
 
 
@@ -307,6 +306,11 @@ class ProcessPreviewRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     target_config = TargetConfigSerializer(label="目标主机配置")
     process_selector = PreviewProcessSelectorSerializer(label="进程选择器")
+
+
+class PluginVersionCheckRequestSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    target_config = TargetConfigSerializer(label="目标主机配置")
 
 
 class TaskListRequestSerializer(serializers.Serializer):
@@ -331,6 +335,12 @@ class TaskSubmitRequestSerializer(serializers.Serializer):
     schedule = ScheduleSerializer(label="调度配置")
     collector_config = serializers.DictField(label="采集参数")
     resource_guard_config = ResourceGuardConfigSerializer(label="资源保护参数")
+
+    def to_internal_value(self, data):
+        # 前端 Golang 表单会带 "process_selector": {}，空值按未传处理，交给 validate 判断是否必填
+        if isinstance(data, dict) and "process_selector" in data and data["process_selector"] in ({}, None):
+            data = {key: value for key, value in data.items() if key != "process_selector"}
+        return super().to_internal_value(data)
 
     def validate(self, attrs):
         collection_method = attrs["collection_method"]

@@ -61,7 +61,7 @@ from metadata.models.constants import (
     STRICT_NANO_ES_FORMAT,
     DataIdCreatedFromSystem,
 )
-from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.data_link.utils import (
     find_registered_bkdata_data_id_name,
     get_bkbase_raw_data_name_for_v3_datalink,
@@ -647,6 +647,29 @@ class CreateDownSampleDataFlowResource(Resource):
         tasks.create_statistics_data_flow.delay(table_id, agg_interval)
 
 
+class ApplyDataSourceResource(Resource):
+    """将已有数据源的 DataSource 资源下发到指定 namespace。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_data_id = serializers.IntegerField(required=True, min_value=1, label="数据源ID")
+        target_namespace = serializers.CharField(required=True, max_length=64, label="目标命名空间")
+
+        def validate_target_namespace(self, value):
+            if value in (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG):
+                raise serializers.ValidationError(_("独立 DataSource 不允许下发到受管命名空间 bkmonitor、bklog"))
+            return value
+
+    def perform_request(self, request_data):
+        try:
+            data_source = models.DataSource.objects.get(
+                bk_tenant_id=request_data["bk_tenant_id"], bk_data_id=request_data["bk_data_id"]
+            )
+        except models.DataSource.DoesNotExist:
+            raise ValueError(_("数据源不存在，请确认后重试"))
+        return data_source.apply_to_namespace(target_namespace=request_data["target_namespace"])
+
+
 class QueryDataSourceResource(Resource):
     """查询数据源"""
 
@@ -1054,6 +1077,12 @@ class CreateEventGroupResource(Resource):
         operator = serializers.CharField(required=True, label="创建者")
         event_info_list = serializers.ListField(required=False, label="事件列表", default=None)
         data_label = serializers.CharField(label="数据标签", required=False, default="")
+        default_storage = serializers.ChoiceField(
+            choices=[models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS],
+            required=False,
+            default=models.ClusterInfo.TYPE_ES,
+        )
+        default_storage_config = serializers.DictField(required=False, label="默认存储配置")
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容

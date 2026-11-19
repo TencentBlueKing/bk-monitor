@@ -30,6 +30,10 @@ class NewSeriesAlertMode:
     CHOICES = (ONCE, CONTINUOUS)
 
 
+# 新维度值检测单监控项、维度签名与阈值分组的最大已见维度数硬上限（默认 100000）
+MAX_NEW_SERIES_LIMIT = 500000
+
+
 class DataTarget:
     NONE_TARGET = "none_target"
     SERVICE_TARGET = "service_target"

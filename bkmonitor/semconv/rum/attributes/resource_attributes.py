@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _
 
+from semconv.rum import composite
 from semconv.rum.field import FieldSpec
 from semconv.rum.constants import ResourceType, ResourceRenderBlockingStatus, ResourceCacheHit
 from semconv.constants import FieldUnit, FieldDisplayType
@@ -17,7 +18,12 @@ from constants.otel_query import FieldTypeEnum
 
 
 RESOURCE_TYPE = FieldSpec(field_name="resource.type", field_alias=_("资源类型"), option_values=ResourceType)
-RESOURCE_SIZE = FieldSpec(field_name="resource.size", field_alias=_("资源大小"), field_unit=FieldUnit.BYTES.value)
+RESOURCE_SIZE = FieldSpec(
+    field_name="resource.size",
+    field_alias=_("资源大小"),
+    field_unit=FieldUnit.BYTES.value,
+    extra_config={"composite": composite.RESOURCE_SIZE},
+)
 RESOURCE_TRANSFER_SIZE = FieldSpec(
     field_name="resource.transfer_size", field_alias=_("传输大小"), field_unit=FieldUnit.BYTES.value
 )

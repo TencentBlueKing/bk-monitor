@@ -38,6 +38,7 @@ from core.errors.plugin import (
     PluginIDNotExist,
     RelatedItemsExist,
 )
+from monitor_web.collecting.tencent_cloud import is_qcloud_plugin, new_form_definition
 from monitor_web.models import CollectConfigMeta
 from monitor_web.models.plugin import (
     CollectorPluginMeta,
@@ -172,6 +173,8 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
                         "is_split_measurement": True,
                     }
                 )
+
+                new_form_definition(plugin_config)
 
             plugin_configs.append(plugin_config)
         return plugin_configs
@@ -343,7 +346,10 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         instance: CollectorPluginMeta = self.get_object()
         # 刷新metric json
         instance.refresh_metric_json()
-        return Response(instance.get_plugin_detail())
+        detail = instance.get_plugin_detail()
+        if instance.plugin_type == PluginType.K8S and is_qcloud_plugin(instance.plugin_id, instance.bk_biz_id):
+            new_form_definition(detail)
+        return Response(detail)
 
     @action(methods=["POST"], detail=False)
     def upload_file(self, request, *args, **kwargs):

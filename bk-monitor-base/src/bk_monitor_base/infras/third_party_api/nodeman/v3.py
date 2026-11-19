@@ -96,6 +96,13 @@ class InstallPlugin(NodeManV3Client):
     apigw_path: ClassVar[str] = "api/v3/plugin/install"
 
 
+class ListV2CompatibleProcesses(NodeManV3Client):
+    """查询未迁移 V3 的 bkmonitorbeat 进程状态，返回内容兼容 V2 插件检索。"""
+
+    action: ClassVar[str] = "list_v2_compatible_processes"
+    apigw_path: ClassVar[str] = "api/v3/process/list_v2_compatible"
+
+
 list_hosts = ListHosts()
 distinct_hosts = DistinctHosts()
 list_businesses = ListBusinesses()
@@ -103,3 +110,4 @@ list_network_areas = ListNetworkAreas()
 install_plugin = InstallPlugin()
 list_plugins = ListPlugins()
 list_plugin_releases = ListPluginReleases()
+list_v2_compatible_processes = ListV2CompatibleProcesses()

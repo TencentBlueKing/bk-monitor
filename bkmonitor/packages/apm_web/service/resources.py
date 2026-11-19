@@ -31,7 +31,6 @@ from apm_web.constants import (
     SyncScope,
     CategoryEnum,
     CMDBCategoryIconMap,
-    DataStatus,
     ServiceDetailReqTypeChoices,
     ServiceRelationLogTypeChoices,
 )
@@ -232,13 +231,16 @@ class ServiceInfoResource(Resource):
 
     @classmethod
     def get_profiling_info(cls, app: Application, node: dict[str, Any]) -> dict[str, Any]:
-        """按服务心跳获取当前性能分析状态。"""
-        data_status = ServiceHandler.build_service_data_status(app, [node], data_type=TelemetryDataType.PROFILING.value)
+        """按服务心跳判断是否上报过性能分析数据。
+
+        只要有过上报即视为正常，与最近观测窗口无关：间歇上报的服务（如压测）仍需查看历史时间段的数据，
+        所选时间内是否有数据由页面查询结果体现。
+        """
+        heartbeat: dict[str, Any] = (node.get("heartbeat") or {}).get(TelemetryDataType.PROFILING.value) or {}
         return {
             "application_id": app.application_id,
             "is_enabled_profiling": app.is_enabled_profiling,
-            "is_profiling_data_normal": data_status[node["topo_key"]][TelemetryDataType.PROFILING.value]
-            == DataStatus.NORMAL,
+            "is_profiling_data_normal": bool(app.is_enabled_profiling and heartbeat.get("last_data_at")),
         }
 
     @classmethod

@@ -1,19 +1,19 @@
-@import '../positon-link/position-link.scss';
+@import '../positon-link/position-link';
 @import '../../theme//mixin.scss';
 
 .temporary-share {
   font-size: 12px;
-  color: #63656e;
   line-height: 24px;
+  color: #63656e;
 
   &-icon {
     display: flex;
-    justify-content: center;
     align-items: center;
-    color: #3a84ff;
-    font-size: 12px;
-    cursor: pointer;
+    justify-content: center;
     margin-left: 10px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
   }
 
   .icon-mc-target-link {
@@ -23,38 +23,37 @@
     margin-left: 12px;
 
     &:hover {
-      cursor: pointer;
       color: #3a84ff;
+      cursor: pointer;
     }
   }
 
   .share-wrap {
-    padding: 0 16px;
     display: flex;
     width: 100%;
+    padding: 0 16px;
     margin-bottom: 24px;
   }
 
   .share-item {
     display: flex;
+    flex: 1;
     flex-direction: column;
     width: 100%;
-    flex: 1;
 
     &-title {
-      margin-bottom: 6px;
       width: 100%;
+      margin-bottom: 6px;
       line-height: 20px;
     }
 
     &-content {
-      // flex: 0 0 32px;
-      min-height: 32px;
-      width: 100%;
       display: flex;
+      flex: 1;
       align-items: center;
+      width: 100%;
+      min-height: 32px;
     }
-
 
     .share-link {
       display: flex;
@@ -62,21 +61,21 @@
       width: 100%;
 
       &-input {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        height: 32px;
+        padding: 0 8px;
+        user-select: none;
         border: 1px solid #c4c6cc;
         border-radius: 2px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        padding: 0 8px;
-        flex: 1;
-        user-select: none
       }
 
       &-btn {
-        margin-left: -1px;
-        border-bottom-left-radius: 0px;
-        border-top-left-radius: 0px;
         width: 88px;
+        margin-left: -1px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
       }
     }
   }
@@ -91,12 +90,13 @@
 
     &-btn {
       margin-left: 16px;
+
       // top: -1px
     }
 
     .validity-period-err {
-      color: #ea3636;
       margin-left: 10px;
+      color: #ea3636;
     }
   }
 
@@ -107,12 +107,12 @@
   .shortcuts-list {
     .shortcuts-item {
       height: 32px;
+      padding-left: 16px;
       line-height: 32px;
       color: #63656e;
-      padding-left: 16px;
       cursor: pointer;
 
-      @include ellipsis();
+      @include ellipsis;
 
       &:hover {
         color: #3a84ff;
@@ -127,16 +127,16 @@
       align-items: center;
 
       .link-wrap {
-        font-size: 12px;
-        color: #3a84ff;
         display: flex;
         align-items: center;
         margin-left: 20px;
+        font-size: 12px;
+        color: #3a84ff;
         cursor: pointer;
 
         .icon-setting {
-          font-size: 16px;
           margin-right: 4px;
+          font-size: 16px;
         }
       }
     }

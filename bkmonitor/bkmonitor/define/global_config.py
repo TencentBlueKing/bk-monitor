@@ -35,10 +35,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("QOS_DROP_ACTION_WINDOW", slz.IntegerField(label="处理动作流控窗口大小(秒)", default=60)),
         ("QOS_ALERT_THRESHOLD", slz.IntegerField(label="告警生成流控丢弃阈值", default=100)),
         ("QOS_ALERT_WINDOW", slz.IntegerField(label="告警生成流控窗口大小(秒)", default=60)),
-        (
-            "ALERT_NOTICE_WAY_BY_RECORDS",
-            slz.BooleanField(label="告警列表通知类型按通知记录统计", default=False),
-        ),
         ("SAAS_APP_CODE", slz.CharField(label="SAAS 应用码", default=settings.APP_CODE)),
         ("SAAS_SECRET_KEY", slz.CharField(label="SAAS 应用密钥", default=settings.SECRET_KEY)),
         (
@@ -798,6 +794,13 @@ STANDARD_CONFIGS = OrderedDict(
         (
             "DEFAULT_KAFKA_STORAGE_CLUSTER_ID",
             slz.CharField(label=_("默认 kafka 存储集群ID"), default=None, allow_null=True),
+        ),
+        (
+            "SCENE_DEFAULT_STORAGE_CLUSTERS",
+            slz.DictField(
+                label=_("场景默认存储集群（租户 -> 场景 -> 存储类型 -> 集群ID）"),
+                default={},
+            ),
         ),
         ("BCS_KAFKA_STORAGE_CLUSTER_ID", slz.CharField(label=_("BCS kafka 存储集群ID"), default=None, allow_null=True)),
         (

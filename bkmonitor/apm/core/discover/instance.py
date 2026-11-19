@@ -168,6 +168,7 @@ class InstanceDiscover(CachedDiscoverMixin, DiscoverBase):
         # 使用 Mixin 的通用方法处理缓存刷新
         self.handle_cache_refresh_after_create(
             existing_instances=list(remain_data.values()),
+            remain_data=remain_data,
             created_db_instances=created_instances,
             updated_instances=need_update_instances,
         )

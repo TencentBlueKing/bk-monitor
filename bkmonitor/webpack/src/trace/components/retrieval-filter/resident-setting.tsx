@@ -130,6 +130,8 @@ export default defineComponent({
             ...item,
             value: {
               ...item.value,
+              /** 重置时操作符需回到字段的第一个候选项，避免 exists/not exists 这类无值操作符在清空值后仍然生效 */
+              method: item.field?.methods?.[0]?.value || EMethod.eq,
               value: [],
             },
           }));

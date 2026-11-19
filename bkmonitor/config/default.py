@@ -1758,6 +1758,9 @@ INNER_COLLOCTOR_HOST = ""
 # 外网collector域名
 OUTER_COLLOCTOR_HOST = ""
 
+# 按租户、场景、存储类型指定默认 ClusterInfo ID，运行时由动态配置覆盖。
+SCENE_DEFAULT_STORAGE_CLUSTERS = {}
+
 # ES 需要串行的集群的白名单
 ES_SERIAL_CLUSTER_LIST = []
 ES_CLUSTER_BLACKLIST = []
@@ -1944,9 +1947,10 @@ K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
 #     },
 #     "config_json": []
 # }
+# 可选 skill_repository_url：各环境配置 Skill 仓库以 .git 结尾的 HTTPS 克隆地址，非 GitHub 仓库缺少 .git 时
+# skills CLI 会按网页下载而安装失败；留空时仅展示上传说明。
 TENCENT_CLOUD_METRIC_PLUGIN_CONFIG = {}
 TENCENT_CLOUD_METRIC_PLUGIN_ID = "qcloud_exporter"
-
 # 启用监控目标缓存的业务ID列表
 ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 
@@ -2109,11 +2113,6 @@ BKAPP_RUM_SDK = os.getenv("BKAPP_RUM_SDK", "otlp")  # otlp / ageis
 BKAPP_RUM_ENDPOINT = os.getenv("BKAPP_RUM_ENDPOINT", "")
 BKAPP_RUM_TOKEN = os.getenv("BKAPP_RUM_TOKEN", "")
 BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"
-
-# 告警列表「通知类型」按通知记录统计（新口径开关，默认关闭）。
-# DynamicSettings 先读取静态 settings，此处不定义会在读取时抛 AttributeError；
-# 查询侧部署在 web 角色，因此放在 default.py 而不是只对 worker 生效的 role 配置。
-ALERT_NOTICE_WAY_BY_RECORDS = False
 
 # 同一联邦子链路配置连续收敛失败上限（按轮次，不含投递/抢锁失败）。
 BCS_FEDERATION_RECONCILE_MAX_FAILURES = 5

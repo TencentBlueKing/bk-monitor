@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+from collections import defaultdict
 from itertools import chain
 
 import xxhash
@@ -44,6 +45,7 @@ from bkmonitor.models import (
     AlertAssignGroup,
     AlertAssignRule,
     DutyRule,
+    QueryConfigModel,
     StrategyModel,
     UserGroup,
 )
@@ -220,7 +222,7 @@ def convert_rules(
     4. 配置转换 convert
     5. 配置写入 save
     """
-    strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name")
+    strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "scenario")
     path_strategies = {strategy.path: strategy for strategy in strategies.filter(app=app)}
     name_strategies = {strategy.name.lower(): strategy for strategy in strategies}
 
@@ -255,7 +257,7 @@ def convert_rules(
         dynamic_groups=dynamic_groups,
     )
 
-    records = []
+    pending: list[tuple[str, dict, str, str, StrategyModel | None]] = []
     for path, config in configs.items():
         snippet = snippets.get(config.pop("snippet", ""), "")
         if snippet:
@@ -267,6 +269,26 @@ def convert_rules(
         if old_strategy and hash_str == old_strategy.hash:
             continue
 
+        pending.append((path, config, snippet, hash_str, old_strategy))
+
+    if not pending:
+        return []
+
+    # 仅当 YAML 与旧策略的数据源类型一致时，才允许用旧 scenario 兜底，
+    # 避免规则改了数据源后仍复用不兼容的旧场景。
+    old_strategy_ids = {old_strategy.id for _, _, _, _, old_strategy in pending if old_strategy}
+    if overwrite:
+        pending_names = {str(config.get("name") or "").lower() for _, config, _, _, _ in pending}
+        old_strategy_ids.update(name_strategies[name].id for name in pending_names if name in name_strategies)
+    old_query_types: dict[int, set[tuple[str, str]]] = defaultdict(set)
+    if old_strategy_ids:
+        for row in QueryConfigModel.objects.filter(strategy_id__in=old_strategy_ids).values(
+            "strategy_id", "data_source_label", "data_type_label"
+        ):
+            old_query_types[row["strategy_id"]].add((row["data_source_label"], row["data_type_label"]))
+
+    records = []
+    for path, config, snippet, hash_str, old_strategy in pending:
         schema_error = parse_error = validate_error = obj = None
         try:
             config = parser.check(config)
@@ -274,14 +296,20 @@ def convert_rules(
             schema_error = e
 
         if not schema_error:
+            if overwrite:
+                old_strategy = name_strategies.get(config["name"].lower(), old_strategy)
+
+            fallback_scenario = None
+            if old_strategy:
+                new_query_type = (config["query"]["data_source"], config["query"]["data_type"])
+                if new_query_type in old_query_types.get(old_strategy.id, set()):
+                    fallback_scenario = getattr(old_strategy, "scenario", None)
+
             try:
-                config = parser.parse(config)
+                config = parser.parse(config, fallback_scenario=fallback_scenario)
             except Exception as e:
                 logger.exception(e)
                 parse_error = e
-
-            if overwrite and config["name"].lower() in name_strategies:
-                old_strategy = name_strategies[config["name"].lower()]
 
             if not parse_error:
                 if old_strategy:

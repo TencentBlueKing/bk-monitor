@@ -1,5 +1,6 @@
 import { request } from '../base';
 
+export const validateTencentCloudConfigmap = request('POST', 'rest/v2/collecting_config/validate_tencent_cloud_configmap/');
 export const collectConfigList = request('POST', 'rest/v2/collecting_config/config_list/');
 export const collectConfigDetail = request('GET', 'rest/v2/collecting_config/config_detail/');
 export const toggleCollectConfigStatus = request('POST', 'rest/v2/collecting_config/toggle/');
@@ -35,6 +36,7 @@ export const fetchCollectConfigStat = request('GET', 'rest/v2/collecting_config/
 export const checkPluginVersion = request('POST', 'rest/v2/collecting_config/check_plugin_version/');
 
 export default {
+  validateTencentCloudConfigmap,
   collectConfigList,
   collectConfigDetail,
   toggleCollectConfigStatus,

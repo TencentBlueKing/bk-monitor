@@ -20,6 +20,13 @@
     }
   }
 
+  .issue-name-cell-resolved-icon {
+    flex-shrink: 0;
+    margin-left: 4px;
+    font-size: 16px;
+    line-height: 1;
+  }
+
   .issue-name-cell-edit-btn {
     display: none;
     flex-shrink: 0;

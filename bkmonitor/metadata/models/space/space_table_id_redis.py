@@ -852,13 +852,15 @@ class SpaceTableIDRedis:
                         }
                     )
                 elif doris_db:
+                    # 换表后每代物理表对应一个 BKBase 结果表：历史段必须指向自己那代的结果表，
+                    # 缺失时才回退当前存储值，兼容本特性上线前的历史数据。
                     history.append(
                         {
                             "storage_id": record["cluster_id"],
                             "storage_type": "bk_sql",
                             "storage_name": cluster["cluster_name"],
                             "cluster_name": cluster["cluster_name"],
-                            "db": doris_db,
+                            "db": record["bkbase_table_id"] or doris_db,
                             "measurement": models.ClusterInfo.TYPE_DORIS,
                             "enable_time": record["enable_timestamp"],
                             **{
@@ -1479,13 +1481,21 @@ class SpaceTableIDRedis:
 
     def _compose_bkci_other_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
         logger.info("start to push bkci space other table_id, space_type: %s, space_id: %s", space_type, space_id)
-        exclude_data_id_list = utils.cached_cluster_data_id_list()
+        # 实时排除容器 DataID，避免旧缓存遗漏新集群或变更后的 DataID，覆盖容器过滤。
+        exclude_data_id_list = [
+            data_id
+            for data_ids in models.BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id).values_list(
+                "K8sMetricDataID", "CustomMetricDataID"
+            )
+            for data_id in data_ids
+        ]
         table_id_data_id = get_space_table_id_data_id(
             space_type,
             space_id,
             exclude_data_id_list=exclude_data_id_list,
             include_platform_data_id=False,
-            from_authorization=False,
+            # 普通数据源包含显式授权；容器数据源仍由专用分支生成集群和命名空间过滤。
+            from_authorization=None,
             bk_tenant_id=bk_tenant_id,
         )
         _values = {}

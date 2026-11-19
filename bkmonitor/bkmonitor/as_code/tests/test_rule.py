@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 from copy import deepcopy
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -44,39 +45,186 @@ def make_parser(notice_group_ids=None, action_ids=None):
     )
 
 
-def patch_cmdb_apis():
-    get_topo_tree = mock.patch("bkmonitor.as_code.parse.api.cmdb.get_topo_tree").start()
-    get_topo_tree.side_effect = lambda *args, **kwargs: TopoTree(
-        {
-            "bk_inst_id": 2,
-            "bk_inst_name": "blueking",
-            "bk_obj_id": "biz",
-            "bk_obj_name": "business",
-            "child": [
-                {
-                    "bk_inst_id": 3,
-                    "bk_inst_name": "job",
-                    "bk_obj_id": "set",
-                    "bk_obj_name": "set",
-                    "child": [
-                        {
-                            "bk_inst_id": 5,
-                            "bk_inst_name": "job",
-                            "bk_obj_id": "module",
-                            "bk_obj_name": "module",
-                            "child": [],
-                        }
-                    ],
-                }
-            ],
-        }
+_CMDB_TOPO_TREE = TopoTree(
+    {
+        "bk_inst_id": 2,
+        "bk_inst_name": "blueking",
+        "bk_obj_id": "biz",
+        "bk_obj_name": "business",
+        "child": [
+            {
+                "bk_inst_id": 3,
+                "bk_inst_name": "job",
+                "bk_obj_id": "set",
+                "bk_obj_name": "set",
+                "child": [
+                    {
+                        "bk_inst_id": 5,
+                        "bk_inst_name": "job",
+                        "bk_obj_id": "module",
+                        "bk_obj_name": "module",
+                        "child": [],
+                    }
+                ],
+            }
+        ],
+    }
+)
+
+
+@pytest.fixture
+def cmdb_apis():
+    """隔离 CMDB 远程调用，用例结束自动清理 patch。"""
+    with (
+        mock.patch("bkmonitor.as_code.parse.api.cmdb.get_topo_tree") as get_topo_tree,
+        mock.patch("bkmonitor.as_code.parse.api.cmdb.get_dynamic_query") as get_dynamic_query,
+        mock.patch("bkmonitor.as_code.parse.api.cmdb.search_dynamic_group") as search_dynamic_group,
+    ):
+        get_topo_tree.side_effect = lambda *args, **kwargs: _CMDB_TOPO_TREE
+        get_dynamic_query.side_effect = lambda *args, **kwargs: {"children": []}
+        search_dynamic_group.side_effect = lambda *args, **kwargs: []
+        yield get_topo_tree, get_dynamic_query, search_dynamic_group
+
+
+def _mock_strategies(strategies: list | None = None):
+    """mock StrategyModel 查询，避免 convert_rules 前置查库受多库限制影响。"""
+    strategies = strategies or []
+    strategies_qs = mock.MagicMock()
+    strategies_qs.filter.return_value = strategies
+    strategies_qs.__iter__.side_effect = lambda: iter(strategies)
+    filter_qs = mock.MagicMock()
+    filter_qs.only.return_value = strategies_qs
+    return mock.patch("bkmonitor.as_code.parse.StrategyModel.objects.filter", return_value=filter_qs)
+
+
+def _mock_query_types(mapping: dict[int, tuple[str, str]]):
+    rows = [
+        {"strategy_id": strategy_id, "data_source_label": data_source, "data_type_label": data_type}
+        for strategy_id, (data_source, data_type) in mapping.items()
+    ]
+    query_configs_qs = mock.MagicMock()
+    query_configs_qs.values.return_value = rows
+    return mock.patch("bkmonitor.as_code.parse.QueryConfigModel.objects.filter", return_value=query_configs_qs)
+
+
+def _promql_config(name: str = "promql rule") -> dict:
+    return {
+        "name": name,
+        "query": {
+            "data_source": "prometheus",
+            "data_type": "time_series",
+            "expression": "a",
+            "query_configs": [{"metric": "up", "alias": "a", "interval": 60}],
+        },
+        "detect": {
+            "algorithm": {"fatal": [{"type": "Threshold", "config": ">1"}]},
+            "trigger": "1/5/5",
+        },
+        "notice": {"user_groups": ["ops.yaml"]},
+    }
+
+
+def test_convert_rules_preserves_scenario_for_promql_update(cmdb_apis):
+    """纯 PromQL 更新已有策略时，保留旧 scenario。"""
+    config = _promql_config()
+    old_strategy = SimpleNamespace(
+        id=1,
+        path="promql.yaml",
+        hash="outdated-hash",
+        name=config["name"],
+        app="app1",
+        scenario="os",
     )
 
-    get_dynamic_query = mock.patch("bkmonitor.as_code.parse.api.cmdb.get_dynamic_query").start()
-    get_dynamic_query.side_effect = lambda *args, **kwargs: {"children": []}
+    with _mock_strategies([old_strategy]), _mock_query_types({1: ("prometheus", "time_series")}):
+        records = convert_rules(
+            bk_biz_id=2,
+            app="app1",
+            configs={"promql.yaml": deepcopy(config)},
+            snippets={},
+            notice_group_ids={"ops.yaml": 1},
+            action_ids={},
+        )
 
-    search_dynamic_group = mock.patch("bkmonitor.as_code.parse.api.cmdb.search_dynamic_group").start()
-    search_dynamic_group.side_effect = lambda *args, **kwargs: []
+    assert len(records) == 1
+    assert records[0]["obj"] is not None
+    assert records[0]["obj"].scenario == "os"
+
+
+def test_convert_rules_new_promql_rule_keeps_other_rt(cmdb_apis):
+    """新建旧格式 PromQL 规则仍使用 other_rt。"""
+    config = _promql_config()
+
+    with _mock_strategies([]):
+        records = convert_rules(
+            bk_biz_id=2,
+            app="app1",
+            configs={"promql.yaml": deepcopy(config)},
+            snippets={},
+            notice_group_ids={"ops.yaml": 1},
+            action_ids={},
+        )
+
+    assert len(records) == 1
+    assert records[0]["obj"].scenario == "other_rt"
+
+
+def test_convert_rules_overwrite_by_name_preserves_scenario(cmdb_apis):
+    """overwrite 按名匹配时同样保留旧 scenario。"""
+    config = _promql_config()
+    old_strategy = SimpleNamespace(
+        id=9,
+        path="legacy.yaml",
+        hash="outdated-hash",
+        name=config["name"],
+        app="app1",
+        scenario="host_process",
+    )
+
+    with _mock_strategies([old_strategy]), _mock_query_types({9: ("prometheus", "time_series")}):
+        records = convert_rules(
+            bk_biz_id=2,
+            app="app1",
+            configs={"promql.yaml": deepcopy(config)},
+            snippets={},
+            notice_group_ids={"ops.yaml": 1},
+            action_ids={},
+            overwrite=True,
+        )
+
+    assert len(records) == 1
+    assert records[0]["obj"].scenario == "host_process"
+
+
+def test_convert_rules_changed_query_type_does_not_use_old_scenario(cmdb_apis):
+    """数据源类型变化时，不复用旧 scenario。"""
+    config = _promql_config()
+    config["query"]["data_source"] = "bk_monitor"
+    config["query"]["query_configs"] = [
+        {"metric": "system.cpu_detail.usage", "alias": "a", "method": "avg", "interval": 60}
+    ]
+    old_strategy = SimpleNamespace(
+        id=1,
+        path="promql.yaml",
+        hash="outdated-hash",
+        name=config["name"],
+        app="app1",
+        scenario="os",
+    )
+
+    with _mock_strategies([old_strategy]), _mock_query_types({1: ("prometheus", "time_series")}):
+        records = convert_rules(
+            bk_biz_id=2,
+            app="app1",
+            configs={"promql.yaml": deepcopy(config)},
+            snippets={},
+            notice_group_ids={"ops.yaml": 1},
+            action_ids={},
+        )
+
+    assert len(records) == 1
+    assert records[0]["obj"] is not None, records[0]["validate_error"] or records[0]["schema_error"]
+    assert records[0]["obj"].scenario == "other_rt"
 
 
 def test_strategy_parse_issue_config():
@@ -107,8 +255,7 @@ def test_strategy_parse_issue_config_absent_and_null():
     assert config_with_null_issue["issue_config"] is None
 
 
-def test_convert_rules_passes_issue_config():
-    patch_cmdb_apis()
+def test_convert_rules_passes_issue_config(cmdb_apis):
     code_config = load_rule_config("issue_config.yaml")
 
     records = convert_rules(

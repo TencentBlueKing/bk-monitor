@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { CollectionMethodEnum } from '../utils/collection';
+import type { CollectionMethodEnum, ShortcutCronEnum } from '../utils/collection';
 import type { CollectionHistoryFilters, CollectionResultSelection } from './collection-history';
 import type { CollectionResultsState } from './collection-results';
 import type { TableProps } from '@blueking/tdesign-ui';
@@ -211,3 +211,4 @@ export interface ResourceGuardConfig {
 }
 
 export type ScheduleType = 'cron' | 'immediate' | 'once_at';
+export type ShortcutCron = GetEnumTypeTool<typeof ShortcutCronEnum>;

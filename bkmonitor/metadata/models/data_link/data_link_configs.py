@@ -719,6 +719,29 @@ class DataBusConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
+    def stop_config(self):
+        """停止 Databus 任务，保留远端资源和本地记录。"""
+        from metadata.models.data_link.data_link import DataLink
+
+        try:
+            config = api.bkdata.get_data_link(
+                bk_tenant_id=self.bk_tenant_id,
+                kind=DataLinkKind.get_choice_value(self.kind),
+                namespace=self.namespace,
+                name=self.name,
+            )
+        except Exception as error:
+            if DataLink._is_remote_component_not_found(error):
+                return
+            raise
+        config = copy.deepcopy(config)
+        config["metadata"].setdefault("annotations", {})["task_stopped"] = "true"
+        # 只下发配置，不回写远端 status 等运行态字段。
+        api.bkdata.apply_data_link(
+            bk_tenant_id=self.bk_tenant_id,
+            config=[{key: config[key] for key in ("kind", "metadata", "spec")}],
+        )
+
     def apply_consumer_group(self, consumer_group: str | None) -> None:
         """应用显式 consumer group；已有值优先，空入参不触发更新。"""
         if not consumer_group:
@@ -775,6 +798,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
+                "annotations": {"task_stopped": "false"},
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
                 }
@@ -850,6 +874,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
+                "annotations": {"task_stopped": "false"},
                 "labels": {
                     "bk_biz_id": "{{bk_biz_id}}"
                 }
@@ -922,6 +947,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     "tenant": "{{ tenant }}",
                     {% endif %}
                     "namespace": "{{namespace}}",
+                    "annotations": {"task_stopped": "false"},
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
@@ -1137,6 +1163,9 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         flush_timeout: int | None,
         rt_name: str | None = None,
         tokenizers: dict[str, str] | None = None,
+        db: str | None = None,
+        table: str | None = None,
+        table_type: str = "primary_table",
     ) -> dict[str, Any]:
         """
         组装Doris存储绑定配置
@@ -1146,6 +1175,9 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                 binding 与 RT 同名的调用方式；当 compose 复用到不同名的 RT 时，由
                 调用方显式传入实际 RT name。
             tokenizers: 字段自定义分词规则。None 时不下发，显式空对象仍原样下发。
+            db: 物理库名。传入时以调用方为准（换表后由元数据记录决定），否则沿用默认库。
+            table: 物理表名。传入时以调用方为准（换表后由元数据记录决定），否则沿用
+                ``{name}_{bk_biz_id}`` 的历史规则。
         """
         tpl = """
         {
@@ -1176,11 +1208,11 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                     "kind": "Doris"
                 },
                 "storage_config": {
-                    "table_type": "primary_table",
+                    "table_type": "{{table_type}}",
                     "is_profiling": false,
                     "unique_partition_table": true,
-                    "db": "mapleleaf_{{bk_biz_id}}",
-                    "table": "{{name}}_{{bk_biz_id}}",
+                    "db": "{{db}}",
+                    "table": "{{table}}",
                     "storage_keys": {{storage_keys}},
                     "json_fields": {{json_fields}},
                     "original_json_fields": {{original_json_fields}},
@@ -1195,19 +1227,23 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         }
         """
 
+        data_biz_id = self.datalink_biz_ids.data_biz_id
         render_params = {
             "name": self.name,
             "rt_name": rt_name if rt_name is not None else self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.data_biz_id,
+            "bk_biz_id": data_biz_id,
             "monitor_biz_id": self.datalink_biz_ids.label_biz_id,
             "storage_cluster_name": storage_cluster_name,
+            "table_type": table_type,
             "storage_keys": json.dumps(storage_keys),
             "json_fields": json.dumps(json_fields),
             "field_config_group": json.dumps(field_config_group),
             "original_json_fields": json.dumps(original_json_fields),
             "expires": expires,
             "flush_timeout": json.dumps(flush_timeout),
+            "db": db if db is not None else f"mapleleaf_{data_biz_id}",
+            "table": table if table is not None else f"{self.name}_{data_biz_id}",
         }
         if tokenizers is not None:
             render_params["tokenizers"] = json.dumps(tokenizers)

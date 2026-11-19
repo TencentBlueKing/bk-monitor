@@ -158,8 +158,8 @@
     <section class="import-config-directory">
       <div class="directory-label is-required">{{ $t('目标目录') }}</div>
       <bk-select
-        class="directory-select"
         v-model="targetDirectoryVal"
+        class="directory-select"
         :placeholder="$t('请选择目标目录')"
         searchable
         @change="handleDirectoryChange"
@@ -171,10 +171,18 @@
           :name="item.title"
         />
       </bk-select>
-      <div v-show="directoryErrorShow" class="directory-error">{{ $t('请选择目标目录') }}</div>
+      <div
+        v-show="directoryErrorShow"
+        class="directory-error"
+      >
+        {{ $t('请选择目标目录') }}
+      </div>
     </section>
     <!-- 是否覆盖 -->
-    <section v-if="collapseList.length" :class="['import-config-overwrite', {'is-scroll': isScroll}]">
+    <section
+      v-if="collapseList.length"
+      :class="['import-config-overwrite', { 'is-scroll': isScroll }]"
+    >
       <span class="is-overwrite">
         <span>{{ $t('是否覆盖') }}</span>
         <bk-switcher
@@ -265,9 +273,9 @@
   </article>
 </template>
 <script>
+import { getDirectoryTree } from 'monitor-api/modules/grafana';
 import { transformDataKey } from 'monitor-common/utils/utils';
 import { mapActions } from 'vuex';
-import { getDirectoryTree } from 'monitor-api/modules/grafana';
 
 import ContentEmpty from '../components/content-empty';
 import mixin from './import-mixin';
@@ -465,7 +473,11 @@ export default {
         .filter(item => item.checked && item.type !== 'bkmonitor.models.fta.plugin')
         .map(item => item.uuid);
       this.loading = true;
-      const data = await this.handleImportConfig({ uuids, isOverwriteMode: this.isOverwriteMode, folderId: this.targetDirectoryVal });
+      const data = await this.handleImportConfig({
+        uuids,
+        isOverwriteMode: this.isOverwriteMode,
+        folderId: this.targetDirectoryVal,
+      });
       this.loading = false;
       // 等待状态设置为importing后跳转
       if (data?.importHistoryId) {
@@ -590,7 +602,7 @@ export default {
         return {
           title: item.title,
           id: item.id,
-        }
+        };
       });
     },
     handleDirectoryChange() {
@@ -602,7 +614,7 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-@import './import-common.scss';
+@import './import-common';
 
 $filterIconColor: #64656e;
 $footerBorderColor: #f0f1f5;
@@ -631,6 +643,11 @@ $itemHoverColor: #e1ecff;
         color: $primaryFontColor;
       }
     }
+  }
+
+  :deep(.bk-table-column-selection .bk-table-header-label) {
+    width: 100%;
+    height: 100%;
   }
 }
 
@@ -698,8 +715,8 @@ $itemHoverColor: #e1ecff;
 }
 
 .import-config-directory {
-  margin: 24px 0;
   padding: 0 10px;
+  margin: 24px 0;
 
   .directory-label {
     font-size: 12px;
@@ -707,26 +724,26 @@ $itemHoverColor: #e1ecff;
     color: #313238;
 
     &.is-required {
-      display: inline-block;
       position: relative;
+      display: inline-block;
       padding-right: 14px;
 
       &::after {
-        content: '*';
         position: absolute;
+        top: 50%;
         right: 0;
         bottom: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #ea3636;
         line-height: 1;
+        color: #ea3636;
+        content: '*';
+        transform: translateY(-50%);
       }
     }
   }
 
   .directory-select {
-    margin-top: 8px;
     width: 280px;
+    margin-top: 8px;
     background-color: #fff;
   }
 
@@ -740,6 +757,7 @@ $itemHoverColor: #e1ecff;
 .import-config-overwrite {
   padding: 0 10px;
   margin-bottom: 24px;
+
   &.is-scroll {
     margin-bottom: 60px;
   }
@@ -751,5 +769,5 @@ $itemHoverColor: #e1ecff;
   .footer-button2 {
     margin-left: 78px;
   }
-} 
+}
 </style>

@@ -388,8 +388,8 @@ class Application(AbstractRecordModel):
         return ApmMetaConfig.get_application_config_value(self.application_id, key)
 
     @classmethod
-    @lru_cache_with_ttl(maxsize=128, ttl=60 * 10, decision_to_drop_func=lambda v: v is None)
-    def get_metric_table_id(cls, bk_biz_id, app_name):
+    @lru_cache_with_ttl(maxsize=128, ttl=60 * 10, decision_to_drop_func=lambda table_id: not table_id)
+    def get_metric_table_id(cls, bk_biz_id: int, app_name: str) -> str | None:
         try:
             return cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).values_list(
                 "metric_result_table_id", flat=True

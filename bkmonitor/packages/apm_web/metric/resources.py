@@ -69,9 +69,10 @@ from apm_web.utils import (
     fill_series,
     fill_unify_query_series,
     get_bar_interval_number,
+    get_interval_number,
     handle_filter_fields,
 )
-from bkmonitor.data_source import q_to_dict
+from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.utils.statistics import merge_records, process_growth_rates, process_proportions
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
@@ -358,10 +359,13 @@ class DynamicUnifyQueryResource(Resource, call_analysis.PreCalculateHelperMixin)
             except (KeyError, IndexError):
                 time_shift_function["params"] = [{"id": "n", "value": None}]
 
+            filter_labels = [
+                cond["key"] for cond in filter_dict_to_conditions(query_config.get("filter_dict") or {}, [])
+            ]
             result: dict[str, Any] = helper.router(
                 table_id,
                 metric,
-                used_labels,
+                [*used_labels, *filter_labels],
                 query_params["start_time"],
                 query_params["end_time"],
                 origin_time_shift,
@@ -384,6 +388,11 @@ class DynamicUnifyQueryResource(Resource, call_analysis.PreCalculateHelperMixin)
 
             query_config["table"] = result["table_id"]
             query_config["metrics"][0]["field"] = result["metric"]
+
+            if result.get("filter_dict"):
+                query_config["where"] = filter_dict_to_conditions(
+                    result["filter_dict"], query_config.get("where") or []
+                )
 
             # 去掉可能存在的 data_label
             query_config.pop("data_label", None)
@@ -1017,9 +1026,9 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
     """
 
     METRIC_MAP = {
-        "avg_duration": {"metric": AvgDurationInstance, "type": "range"},
-        "request_count": {"metric": RequestCountInstance, "type": "range"},
-        "error_rate": {"metric": ErrorRateInstance, "ignore_keys": ["status_code"], "type": "range"},
+        "avg_duration": {"calculation_type": metric_group.CalculationType.AVG_DURATION.value},
+        "request_count": {"calculation_type": metric_group.CalculationType.REQUEST_TOTAL.value},
+        "error_rate": {"calculation_type": metric_group.CalculationType.EXCEPTION_RATE.value},
         "p50": {
             "metric": functools.partial(
                 DurationBucket,
@@ -1060,10 +1069,10 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         )
 
     @classmethod
-    def _get_column_metric_mapping(cls, column_metric, metric_params):
-        """
-        获取服务异步列数据映射 (指标)
-        """
+    def _get_column_metric_mapping(
+        cls, column_metric: dict[str, Any], metric_params: dict[str, Any], service_names: list[str]
+    ) -> dict[str, Any]:
+        """查询服务列表的异步指标列，按服务名称返回指标值。"""
 
         if column_metric.get("type") == "instant":
             return ServiceHandler.get_service_metric_instant_mapping(
@@ -1072,23 +1081,29 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
                 ignore_keys=column_metric.get("ignore_keys"),
             )
 
-        interval = get_bar_interval_number(metric_params["start_time"], metric_params["end_time"])
-        response = ServiceHandler.get_service_metric_range_mapping(
-            column_metric["metric"],
-            **metric_params,
-            ignore_keys=column_metric.get("ignore_keys"),
-            extra_params={"interval": interval},
+        start_time, end_time = metric_params["start_time"], metric_params["end_time"]
+        interval = get_bar_interval_number(start_time, end_time)
+        calculation_type = column_metric["calculation_type"]
+        # 平均耗时沿用时序查询步长，其余两列按柱状图间隔取数。三列均按柱状图间隔补点。
+        query_interval = (
+            get_interval_number(start_time, end_time)
+            if calculation_type == metric_group.CalculationType.AVG_DURATION.value
+            else interval
         )
-        # 添加上补空逻辑
-        res = {}
-        for k, v in response.items():
-            res[k] = fill_series(
-                [{"datapoints": v}],
-                metric_params["start_time"],
-                metric_params["end_time"],
-                interval=interval,
-            )[0]["datapoints"]
-        return res
+        response = ServiceHandler.get_service_metric_range_mapping(
+            calculation_type,
+            **metric_params,
+            service_names=service_names,
+            interval=query_interval,
+        )
+        # 仅为命中的请求目标补点，最终响应保留原始服务顺序和重复项。
+        filled: dict[str, list[list[int | float | None]]] = {}
+        for name in dict.fromkeys(service_names):
+            if name not in response:
+                continue
+            series = fill_series([{"datapoints": response[name]}], start_time, end_time, interval=interval)
+            filled[name] = series[0]["datapoints"]
+        return filled
 
     @classmethod
     def _get_condition_service_names(cls, strategy: dict):
@@ -1248,7 +1263,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         elif column in ["strategy_count", "alert_status"]:
             info_mapping = self._get_service_strategy_mapping(column, **metric_params)
         else:
-            info_mapping = self._get_column_metric_mapping(m, metric_params)
+            info_mapping = self._get_column_metric_mapping(m, metric_params, service_names)
 
         for service_name in service_names:
             res.append(

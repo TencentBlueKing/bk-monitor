@@ -25,7 +25,7 @@
  */
 
 import type { DimensionType } from '../../trace-explore/typing';
-import type { RumFieldDisplayType } from './enum';
+import type { RumFieldDisplayType, RumRatingType } from './enum';
 
 export type { DimensionType };
 
@@ -53,6 +53,8 @@ export interface IRumField {
   option_values: IRumFieldOptionValue[];
   /** 别名与字段名的拼音，供左侧栏搜索匹配 */
   pinyinStr: string;
+  /** Web Vitals 等字段的评级阈值，源自 view_config 的 rating_config，列表按它着色 */
+  rating_config: IRumFieldRatingConfig[];
   supported_operations: IRumFieldOperation[];
   type: DimensionType;
 }
@@ -80,6 +82,16 @@ export interface IRumFieldOptionValue {
   value: string;
 }
 
+/**
+ * view_config 下发的评级阈值配置，按上界升序排列。
+ * rating 取值与共享层 RumRatingEnum 对齐；保留 string 联合以兼容后端扩展档位（与详情侧 IRumRatingConfig 同口径）。
+ * value 为该评级的上界（含等号），最差评级不带 value，表示无上界兜底。
+ */
+export interface IRumFieldRatingConfig {
+  rating: RumRatingType | string;
+  value?: number;
+}
+
 /** view_config 接口返回的原始字段结构 */
 export interface IRumRawField {
   field_alias: string;
@@ -92,6 +104,7 @@ export interface IRumRawField {
   is_real: boolean;
   is_searchable: boolean;
   option_values?: IRumFieldOptionValue[];
+  rating_config?: IRumFieldRatingConfig[];
   supported_operations?: IRumFieldOperation[];
 }
 

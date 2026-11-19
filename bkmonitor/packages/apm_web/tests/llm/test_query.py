@@ -17,7 +17,7 @@ from apm_web.llm.query import LLMQuery
 class LLMQueryTestCase(TestCase):
     def test_tool_calls_query_filters_and_projects_without_collapsing(self):
         with mock.patch.object(self.query, "_query_list", return_value=[]) as query_list:
-            self.assertEqual(self.query.query_trace_tool_calls("trace-1"), [])
+            self.assertEqual(self.query.query_tool_calls("trace_id", "trace-1"), [])
 
         query_list.assert_called_once()
         queries, start_time, end_time, offset, limit = query_list.call_args.args
@@ -45,6 +45,20 @@ class LLMQueryTestCase(TestCase):
         self.assertIn("demo", serialized)
         self.assertEqual(config["bk_biz_id"], 11)
 
+    def test_tool_calls_group_filter_and_pagination(self):
+        for group_field in ("trace_id", "attributes.gen_ai.conversation.id", "attributes.gen_ai.operation.name"):
+            with self.subTest(group_field=group_field):
+                with mock.patch.object(self.query, "_query_list", return_value=[]) as query_list:
+                    self.query.query_tool_calls(group_field, "group-1", offset=20, limit=10)
+                queries, start, end, offset, limit = query_list.call_args.args
+                self.assertEqual((offset, limit), (20, 10))
+                reference = (
+                    self.query.build_queries(time_field=OtlpKey.START_TIME)[0]
+                    .filter(**{f"{group_field}__eq": ["group-1"]})
+                    .filter(**{"attributes.gen_ai.operation.name__eq": ["execute_tool"]})
+                )
+                self.assertEqual(queries[0].query.where, reference.query.where)
+
     def test_tool_calls_query_includes_all_application_data_sources(self):
         source = TraceDatasourceTarget.build(
             bk_biz_id=11, app_name="demo", table_id="11_bkapm.trace_demo_second", retention=7
@@ -52,7 +66,7 @@ class LLMQueryTestCase(TestCase):
         query = LLMQuery([*self.query.data_sources, source])
         records = [{"span_id": "span-1"}, {"span_id": "span-2"}]
         with mock.patch.object(query, "_query_list", return_value=records) as query_list:
-            self.assertEqual(query.query_trace_tool_calls("trace-1"), records)
+            self.assertEqual(query.query_tool_calls("trace_id", "trace-1"), records)
         self.assertEqual(len(query_list.call_args.args[0]), 2)
 
     def test_service_fallback_filter_keeps_trace_and_application_scope(self):
@@ -527,9 +541,9 @@ class TracePreviewQueryTestCase(TestCase):
             self.span(6, span_name="tool.execution", attributes={}),
         ]
         cases = [
-            (["chat"], ["span-1", "span-3"]),
+            (["chat"], ["span-1", "span-3", "span-5"]),
             (["invoke_agent"], ["span-2", "span-4"]),
-            (["chat", "invoke_agent"], ["span-1", "span-2", "span-3", "span-4"]),
+            (["chat", "invoke_agent"], ["span-1", "span-2", "span-3", "span-4", "span-5"]),
             (["execute_tool"], []),
             ([], []),
         ]
@@ -546,7 +560,7 @@ class TracePreviewQueryTestCase(TestCase):
         ]
         with mock.patch.object(self.query, "_query_list", side_effect=self.execute(spans)):
             self.assertEqual(self.preview(["trace-1"], "aidev", "input"), [spans[0]])
-            self.assertEqual(self.preview(["trace-1"], "aidev", "output"), [spans[1]])
+            self.assertEqual(self.preview(["trace-1"], "aidev", "output"), [spans[2]])
 
     def test_preview_does_not_require_message_fields(self):
         span = self.span(1)

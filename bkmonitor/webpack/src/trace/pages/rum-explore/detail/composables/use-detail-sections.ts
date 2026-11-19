@@ -32,6 +32,7 @@ import {
   MILESTONES_KEY_MAP,
   RATING_FALLBACK_META,
   RATING_META,
+  RumSectionTypeEnum,
   SECTION_TITLE_MAP,
   VITAL_METRIC_META,
   WATERFALL_FALLBACK_COLORS,
@@ -41,9 +42,9 @@ import {
 } from '../constants';
 import { getCardDescriptor, itemToCard } from '../registry/card-registry';
 import { getSpanTypeDetailConfig } from '../registry/span-type-registry';
-import { RumSectionTypeEnum } from '../typings';
 import { formatDuration } from '@/components/trace-view/utils/date';
 
+import type { RumRatingType } from '../../typings/enum';
 import type { IRumExtraCardBuilder } from '../registry/span-type-registry';
 import type {
   IRumCardHandlers,
@@ -60,7 +61,6 @@ import type {
   IRumTtfbBreakdownVM,
   IRumWaterfallData,
   IRumWaterfallVM,
-  RumRatingType,
 } from '../typings';
 
 const t = (text: string) => window.i18n.t(text) as string;
