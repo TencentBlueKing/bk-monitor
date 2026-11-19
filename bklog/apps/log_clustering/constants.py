@@ -199,7 +199,7 @@ DEFAULT_PATTERN_MONITOR_MSG = (
 NEW_SERIES_NOTICE_TEMPLATE = (
     _CLUSTERING_NOTICE_HEADER
     + """
-**内容:** 日志聚类检测到异常, 异常类型: 新类, 近 {{ (strategy.items[0].query_configs[0]["agg_interval"] / 60) | int }} 分钟出现次数 ({{alarm.current_value | int }})
+**内容:** 日志聚类检测到新类，近 {{ (strategy.items[0].query_configs[0]["agg_interval"] / 60) | int }} 分钟出现次数 ({{alarm.current_value | int }})
 **负责人:** {{ alarm.log_related_fields.owners or '无' }}
 **备注:** {% if alarm.log_related_fields.remark_text %}{{ alarm.log_related_fields.remark_text }}【{{ alarm.log_related_fields.remark_time }}】({{ alarm.log_related_fields.remark_user }} ){% else %}无{% endif %}
 **日志示例:** {{ (alarm.log_related_fields.log or '无') | truncate(1024, true, '...', 0) }}
