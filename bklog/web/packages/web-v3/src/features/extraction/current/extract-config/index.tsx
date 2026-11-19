@@ -25,6 +25,7 @@
  */
 
 
+import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -463,7 +464,7 @@ export default defineComponent({
                 {/* 侧边栏内容组件 */}
                 <ConfigSlider
                   ref={directoryRef}
-                  v-loading={{ loading: isSliderLoading.value }}
+                  v-loading={{ loading: isSliderLoading.value, indicator: renderDrawerInlineFormSkeleton }}
                   allowCreate={allowCreate.value}
                   strategyData={strategyData.value}
                   userApi={userApi.value}

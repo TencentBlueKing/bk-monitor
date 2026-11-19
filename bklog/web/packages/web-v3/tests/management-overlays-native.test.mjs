@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
-import * as Vue from 'vue';
+import { computed, defineComponent, h, normalizeClass, ref, watch } from 'vue';
+
+const vueBindings = { computed, defineComponent, h, normalizeClass, ref, watch };
 
 const source = readFileSync(new URL('../src/platform/compat/tdesign/legacy-bk-controls.tsx', import.meta.url), 'utf8');
 function component(name, next, dependencies) {
@@ -13,7 +15,7 @@ function component(name, next, dependencies) {
 
 test('vertical legacy forms use top labels without a fixed label column; horizontal and inline contracts stay intact', async () => {
   const Form = { name: 'Form' };
-  const cmp = component('BkForm', 'const BkFormItem', { ...Vue, mode3: {}, Form });
+  const cmp = component('BkForm', 'const BkFormItem', { ...vueBindings, mode3: {}, Form });
   for (const formType of ['vertical', 'horizontal', 'inline']) {
     let exposed;
     const data = {}, rules = {};
@@ -36,7 +38,7 @@ test('vertical legacy forms use top labels without a fixed label column; horizon
 
 test('form item ext-cls preserves layout scopes and validation inputs', () => {
   const FormItem = { name: 'FormItem' };
-  const cmp = component('BkFormItem', 'function visibleProp', { ...Vue, mode3: {}, FormItem });
+  const cmp = component('BkFormItem', 'function visibleProp', { ...vueBindings, mode3: {}, FormItem });
   const rules = [{ required: true }];
   const slots = { default: () => 'Synthetic control' };
   const node = cmp.setup({ label: 'Synthetic label', property: 'synthetic', required: true, extCls: 'special-layout' }, {
@@ -51,7 +53,7 @@ test('form item ext-cls preserves layout scopes and validation inputs', () => {
 
 test('drawers preserve custom scope, header/body/footer and async close veto', async () => {
   const Drawer = { name: 'Drawer' };
-  const cmp = component('BkSideslider', 'const BkCollapse', { ...Vue, mode3: {}, Drawer, Z_INDEX_LAYERS: { DRAWER: 2500 }, overlayRegistry: { nextZIndex: () => 2600 } });
+  const cmp = component('BkSideslider', 'const BkCollapse', { ...vueBindings, mode3: {}, Drawer, Z_INDEX_LAYERS: { DRAWER: 2500 }, overlayRegistry: { nextZIndex: () => 2600 } });
   let allow = false, checks = 0;
   const events = [];
   const props = { isShow: true, title: 'Synthetic title', width: 640, transfer: true, quickClose: true, extCls: 'synthetic-drawer', beforeClose: async () => { checks++; return allow; } };
@@ -77,7 +79,7 @@ test('drawers preserve custom scope, header/body/footer and async close veto', a
 
 test('textarea rows map to native autosize without replacing value events or explicit autosize', () => {
   const Textarea = { name: 'Textarea' }, Input = { name: 'Input' };
-  const cmp = component('BkInput', 'function optionNodes', { ...Vue, mode3: {}, modelValue: props => props.value, Textarea, Input });
+  const cmp = component('BkInput', 'function optionNodes', { ...vueBindings, mode3: {}, modelValue: props => props.value, Textarea, Input });
   const events = [];
   const props = { type: 'textarea', rows: 4, value: 'Synthetic input' };
   const render = cmp.setup(props, { attrs: {}, slots: {}, emit: (...args) => events.push(args) });
@@ -91,7 +93,7 @@ test('textarea rows map to native autosize without replacing value events or exp
 
 test('table skeleton integration preserves real data, pagination and filter event payloads', () => {
   const Table = { name: 'Table' }, ManagementListLoading = { name: 'ManagementListLoading' };
-  const cmp = component('BkTable', 'function modelValue', { ...Vue, mode3: {}, Table, ManagementListLoading,
+  const cmp = component('BkTable', 'function modelValue', { ...vueBindings, mode3: {}, Table, ManagementListLoading,
     flattenNodes: () => [], componentName: () => '', attr: () => undefined, cellRenderer() {} });
   const events = [], data = [{ id: 'synthetic-row' }];
   const props = { data, pagination: { current: 2, limit: 10, count: 30 }, size: 'medium', loading: true };

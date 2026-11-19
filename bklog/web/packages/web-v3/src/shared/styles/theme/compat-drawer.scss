@@ -1,5 +1,44 @@
 @use './components/actions' as actions;
 
+// V2 right-hand sidesliders close from the leading edge of the title bar.
+.bklog-compat-drawer.t-drawer--right {
+  > .t-drawer__content-wrapper:has(> .t-drawer__header) {
+    &:has(> .t-drawer__close-btn > .t-icon-close) > .t-drawer__header {
+      padding-left: 46px;
+    }
+
+    > .t-drawer__close-btn:has(> .t-icon-close) {
+      inset: 0 auto auto 0;
+      width: 30px;
+      height: 52px;
+      color: var(--bklog-text-inverse, #fff);
+      background: var(--bklog-brand-primary, #3a84ff);
+      border-radius: 0;
+
+      &:hover {
+        background: var(--bklog-brand-hover, #699df4);
+      }
+
+      &:active {
+        background: var(--bklog-brand-active, #2761dd);
+      }
+
+      > .t-icon-close {
+        display: none;
+      }
+
+      &::after {
+        width: 7px;
+        height: 7px;
+        border-top: 2px solid currentColor;
+        border-right: 2px solid currentColor;
+        content: '';
+        transform: rotate(45deg);
+      }
+    }
+  }
+}
+
 // Only migrated legacy drawers: content components already own their V2 padding.
 .bklog-compat-drawer,
 .bklog-cluster-drawer {

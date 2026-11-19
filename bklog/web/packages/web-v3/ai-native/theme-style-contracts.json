@@ -5633,12 +5633,11 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-drawer__body",
         ".t-form__item"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 2,
+      "contextualDeclarations": 1,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -5724,15 +5723,22 @@
       },
       "componentClasses": [
         ".t-button",
+        ".t-drawer--right",
         ".t-drawer__body",
+        ".t-drawer__close-btn",
         ".t-drawer__content-wrapper",
-        ".t-drawer__header"
+        ".t-drawer__header",
+        ".t-icon-close"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 0,
-      "contextualDeclarations": 10,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 19,
+      "localVisualProperties": [
+        "border-radius",
+        "border-right",
+        "border-top"
+      ],
+      "localVisualDeclarations": 3,
       "pendingNormalization": 0
     },
     {

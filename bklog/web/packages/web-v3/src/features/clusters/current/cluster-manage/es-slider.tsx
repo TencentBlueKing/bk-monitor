@@ -1069,6 +1069,7 @@ export default defineComponent({
                 <BklogLoading
                   class='es-king-slider-content'
                   data-testid='cluster-slider-loading'
+                  skeleton='drawer-form'
                   loading={sliderLoading.value}
                 >
                   {!sliderLoading.value && (

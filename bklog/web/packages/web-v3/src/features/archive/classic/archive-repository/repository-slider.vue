@@ -40,7 +40,7 @@
     >
       <template #content>
         <div
-          v-loading="{ loading: sliderLoading }"
+          v-loading="{ loading: sliderLoading, indicator: renderDrawerInlineFormSkeleton }"
           class="repository-slider-content"
         >
           <bk-form
@@ -316,6 +316,7 @@
 </template>
 
 <script>
+import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { mapState as mapPiniaState } from 'pinia';
 
 
@@ -479,6 +480,7 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     methods: {
+      renderDrawerInlineFormSkeleton,
       async getEsClusterList() {
         const res = await ServicesInstance.source.getEsList({
           query: {

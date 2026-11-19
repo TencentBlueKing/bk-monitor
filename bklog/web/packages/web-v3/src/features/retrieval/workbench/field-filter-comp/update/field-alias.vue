@@ -299,7 +299,7 @@ defineExpose({
           <span>{{ t('批量编辑变量别名') }}</span>
         </div>
       </template>
-      <BklogLoading :loading="sliderLoading" class="sideslider-content">
+      <BklogLoading skeleton="fields" :loading="sliderLoading" class="sideslider-content">
         <TTable
           class="field-table field-alias-table"
           :data="formData"

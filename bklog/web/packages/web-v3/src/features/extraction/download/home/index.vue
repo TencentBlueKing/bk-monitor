@@ -205,7 +205,7 @@
     >
       <template #content>
         <div
-          v-loading="{ loading: sideSlider.isLoading }"
+          v-loading="{ loading: sideSlider.isLoading, indicator: renderDrawerDetailSkeleton }"
           class="task-detail-content"
         >
           <list-box
@@ -246,6 +246,7 @@
 </template>
 
 <script>
+import { renderDrawerDetailSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
@@ -312,6 +313,7 @@ import { ServicesInstance } from '@/platform/services';
       document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     },
     methods: {
+      renderDrawerDetailSkeleton,
       async initTaskList() {
         try {
           clearTimeout(this.timeoutID);
