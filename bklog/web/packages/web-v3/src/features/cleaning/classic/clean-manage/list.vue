@@ -573,10 +573,7 @@ import { ServicesInstance } from '@/platform/services';
       display: flex;
       align-items: center;
 
-      .bk-input-text,
-      .t-input__wrap {
-        width: 320px;
-      }
+      @include bklogControls.filter-input-width(320px);
 
       .operation-icon {
         display: flex;

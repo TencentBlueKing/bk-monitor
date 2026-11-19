@@ -25,3 +25,17 @@
     border: 0;
   }
 }
+
+@mixin filter-input-width($width, $max-width: null) {
+  .bk-input-text,
+  .t-input__wrap {
+    width: $width;
+    max-width: $max-width;
+  }
+}
+
+@mixin checkbox-grid-spacing {
+  .t-checkbox {
+    margin: 0;
+  }
+}

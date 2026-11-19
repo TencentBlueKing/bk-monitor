@@ -5125,6 +5125,11 @@
       "kind": "module"
     },
     {
+      "from": "features/client-logs/management/collection-deploy/index.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
+    },
+    {
       "from": "features/client-logs/management/collection-deploy/index.tsx",
       "to": "app/state/domains/application-store.ts",
       "kind": "module"
@@ -5248,6 +5253,11 @@
       "from": "features/client-logs/management/components/loading-icon.tsx",
       "to": "features/client-logs/management/components/loading-icon.scss",
       "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/components/table-column-setting.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "features/client-logs/management/components/table-column-setting.tsx",
@@ -5413,6 +5423,11 @@
       "from": "features/client-logs/management/index.tsx",
       "to": "features/authorization/services/auth.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/client-logs/management/user-report/index.scss",
+      "to": "shared/styles/theme/components/contracts.scss",
+      "kind": "style-or-asset"
     },
     {
       "from": "features/client-logs/management/user-report/index.tsx",

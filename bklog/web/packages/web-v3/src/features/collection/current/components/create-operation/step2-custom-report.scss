@@ -16,8 +16,11 @@
   }
   .base-info-box {
     .bk-form-item {
-      width: 45%;
       min-width: 680px;
+
+      &:not(.category-form-item) {
+        width: 45%;
+      }
     }
   }
   .bk-button-group {
