@@ -41,6 +41,7 @@ export interface ILabelRecordMap {
   updateTime?: string | TranslateResult;
   updateUser?: string | TranslateResult;
 }
+const USER_KEYS = new Set(['createUser', 'updateUser']);
 interface IChangeRecordProps {
   recordData: ILabelRecordMap;
   show: boolean;
@@ -69,10 +70,10 @@ export default class MyComponent extends tsc<IChangeRecordProps, { onUpdateShow:
 
   created() {
     this.labelMap = {
-      createUser: this.$t('创建人:'),
+      createUser: this.$t('创建人'),
       createTime: this.$t('创建时间'),
       updateUser: this.$t('最近更新人'),
-      updateTime: this.$t('修改时间:'),
+      updateTime: this.$t('修改时间'),
     };
   }
 
@@ -96,8 +97,14 @@ export default class MyComponent extends tsc<IChangeRecordProps, { onUpdateShow:
               key={key}
               class='change-record-item'
             >
-              <span class='item-label'>{this.labelMap[key]}</span>
-              <div class='item-content'>{this.recordData[key] || '--'}</div>
+              <span class='item-label'>{this.labelMap[key]}:</span>
+              <div class='item-content'>
+                {USER_KEYS.has(key) && this.recordData[key] ? (
+                  <bk-user-display-name user-id={this.recordData[key]} />
+                ) : (
+                  this.recordData[key] || '--'
+                )}
+              </div>
             </li>
           ))}
         </ul>

@@ -283,6 +283,33 @@ export default defineComponent({
         return true;
       });
     });
+    // 已生效筛选的摘要：key 优先取表格列标题，值优先取别名
+    const filterSummary = computed(() => {
+      const conditions: string[] = [];
+      const append = (label: string, values: string[]) => {
+        if (values.length) conditions.push(`${label}：${values.join(',')}`);
+      };
+      const columnTitle = (field: string, fallback: string) =>
+        taskColumns.value.find(column => column.field === field)?.name || t(fallback);
+      const taskName = props.filters.task_id
+        ? props.taskName || String(props.filters.task_id)
+        : props.filters.task_name;
+      append('IP', props.filters.ips);
+      append(t('任务'), taskName ? [taskName] : []);
+      // 进程名与 PID 共用面板里的「进程」入口，摘要也合并到一项
+      append(t('进程'), [...props.filters.process_names, ...props.filters.process_pids]);
+      append(
+        columnTitle('schedule_type', '执行方式'),
+        props.filters.schedule_types.map(value => t((scheduleLabels as Record<string, string>)[value] || value))
+      );
+      append(
+        columnTitle('execution_status', '采集结果'),
+        props.filters.status.map(value => t((executionStatusLabels as Record<string, string>)[value] || value))
+      );
+      return conditions.join('; ');
+    });
+    // 有筛选且已拿到结果总数时展示摘要行；无结果交给空态，避免占住表格首行
+    const showFilterSummary = computed(() => !!filterSummary.value && h.total.value !== null && !!h.rows.value.length);
     // 可配置的列 key：业务列 + 表格追加的操作列
     const columnKeys = computed(() => [...taskColumns.value.map(column => column.field), 'operations']);
     // 锁定列：任务名称与操作列是行入口，列设置中置灰且始终显示
@@ -331,6 +358,8 @@ export default defineComponent({
       h,
       c,
       filtered,
+      filterSummary,
+      showFilterSummary,
       scrollContainer,
       taskColumns,
       displayColumns,
@@ -349,8 +378,6 @@ export default defineComponent({
   render() {
     const { h, c } = this;
     const showSkeleton = h.loading.value && !h.rows.value.length;
-    // 结果为空时由 empty 插槽接管；否则 tdesign 会注入筛选结果行，导致空态不渲染
-    const emptyResult = !showSkeleton && !h.rows.value.length;
     // 已知业务字段保留原有渲染形态，其余按列类型兜底
     const renderTaskCell = (column: CollectionTaskColumn, row: CollectionExecution) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
@@ -456,9 +483,10 @@ export default defineComponent({
               name: ({ row }: { row: CollectionExecution }) => (
                 <span
                   class='collection-history-task-name'
+                  v-tippy={this.t('查看本次任务执行详情')}
                   onClick={() => c.open(row)}
                 >
-                  <span v-tippy={this.t('查看本次任务执行详情')}>{row.task_name}</span>
+                  <span>{row.task_name}</span>
                 </span>
               ),
               targets: ({ row }: { row: CollectionExecution }) => (
@@ -512,6 +540,27 @@ export default defineComponent({
                   </span>
                 </div>
               ),
+              // 面板筛选与列筛选统一在这里汇总，覆盖表格内置的筛选结果行
+              firstFullRow: () =>
+                this.showFilterSummary ? (
+                  <div class='t-table__row-filter-inner'>
+                    <div class='t-table__filter-result'>
+                      <span>
+                        {this.t('搜索“{result}”，找到 {count} 条结果', {
+                          result: this.filterSummary,
+                          count: this.h.total.value ?? 0,
+                        })}
+                      </span>
+                      <Button
+                        theme='primary'
+                        text
+                        onClick={this.reset}
+                      >
+                        {this.t('清空筛选')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null,
             }}
             bkUiSettings={{
               checked: this.displayColumns,
@@ -532,7 +581,8 @@ export default defineComponent({
               schedule_type: this.filters.schedule_types,
             }}
             data={showSkeleton ? skeletonRows : this.tableRows}
-            filterRow={emptyResult ? () => null : undefined}
+            // 常关内置筛选结果行：筛选结果统一由 firstFullRow 渲染，空态仍由 empty 插槽接管
+            filterRow={() => null}
             headerAffixedTop={historyTableAffixed}
             horizontalScrollAffixedBottom={historyTableAffixed}
             hover={!showSkeleton}

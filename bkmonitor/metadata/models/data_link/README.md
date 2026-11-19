@@ -168,7 +168,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 | `BCS_FEDERAL_PROXY_TIME_SERIES` | 联邦代理集群时序 | `compose_bcs_federal_proxy_time_series_configs` | `ResultTableConfig` + `VMStorageBindingConfig` | `VM` |
 | `BCS_FEDERAL_SUBSET_TIME_SERIES` | 联邦子集群时序 | `compose_bcs_federal_subset_time_series_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `ConditionalSinkConfig` + `DataBusConfig` | `VM` |
 | `BASEREPORT_TIME_SERIES_V1` | 主机基础采集时序 | `compose_basereport_time_series_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `BasereportSinkConfig` + `ConditionalSinkConfig` + `DataBusConfig` | `VM` |
-| `BASE_EVENT_V1` | 基础事件 | `compose_base_event_configs` | `ResultTableConfig` + `ESStorageBindingConfig` + `DataBusConfig` | `ES` |
+| `BASE_EVENT_V1` | 基础事件 | `compose_base_event_configs` | `ResultTableConfig` + ES/Doris Binding + `DataBusConfig` | 默认 ES，显式选择 Doris |
 | `SYSTEM_PROC_PERF` | 系统进程性能 | `compose_system_proc_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `BasereportSinkConfig` + `DataBusConfig` | `VM` |
 | `SYSTEM_PROC_PORT` | 系统进程端口 | `compose_system_proc_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `BasereportSinkConfig` + `DataBusConfig` | `VM` |
 | `BK_LOG` | 日志链路 | `compose_log_configs` | `ResultTableConfig` + `ESStorageBindingConfig` + `DorisStorageBindingConfig` + `DataBusConfig` | `ES` |
@@ -187,6 +187,11 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 单租户内置链路的 `kafka_cluster_name` 默认为空字符串，为空时使用默认 Kafka 集群，也可传入名称指定集群。
 完整 V4 链路下发成功后才清理旧 Transfer 的 Consul 配置；组装或下发失败时保留旧配置。
 重复执行会复用已注册的 Data ID 和链路组件，并重试未完成的旧配置清理。
+
+按需写入 Doris 时，在单租户入口或多租户 `create_base_event_datalink_for_bkcc()` 中传入
+`storage_type="doris"`。可通过 `storage_cluster_name` 指定本租户的 Doris 集群，省略时使用默认 Doris 集群。
+Databus 继续使用同一 DataID 和预置清洗，仅写入一个 Binding。切换前的 ES 数据通过原结果表按时间分段查询。
+重复下发 Doris 链路时需继续传入 `storage_type="doris"`；原初始化调用仍按 ES 下发。
 
 日志链路的 `log_v4_data_link.doris_storage_config` 和自定义格式链路的
 `custom_format_v4_data_link.doris_storage_config` 均支持自定义分词规则，例如：

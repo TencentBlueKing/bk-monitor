@@ -128,6 +128,8 @@ export default {
   进程选择: 'Process selection',
   采样频率: 'Sampling frequency',
   每小时: 'Every hour',
+  '{n} 分钟后': 'In {n} minutes',
+  '{n} 小时后': 'In {n} hour(s)',
   一天: '1 day',
   一周: '1 week',
   半年: '6 months',
@@ -371,6 +373,7 @@ export default {
   大小: 'Size',
   当前仅显示本次任务执行的采集结果: 'Only collection results from this execution are shown',
   '导出失败，请重试': 'Export failed. Please retry.',
+  '导出完整调用图 PNG': 'Export the full call graph as PNG',
   分享结果: 'Share results',
   '复制当前采集结果链接，访问者需登录并具有业务权限':
     'Copy the link to these collection results. Viewers must log in with business permissions.',
@@ -382,6 +385,7 @@ export default {
   加载下一批采集结果: 'Load more collection results',
   加载下一批任务执行记录: 'Load more execution records',
   '将当前可见火焰图保存为 PNG 图片': 'Save the visible flame graph as a PNG image',
+  '将完整调用图保存为 PNG 图片': 'Save the full call graph as a PNG image',
   '将使用本次执行的历史配置创建一次立即采集，原有执行计划保持不变。':
     'Start an immediate collection using the historical configuration of this execution. The existing schedule will remain unchanged.',
   结果可用: 'Results available',
@@ -406,6 +410,7 @@ export default {
   配置快照: 'Configuration snapshot',
   '切换采样类型：{name}': 'Switch sampling type: {name}',
   清除高亮并恢复完整火焰图: 'Clear highlights and restore the full flame graph',
+  清空筛选: 'Clear filters',
   清空筛选条件并重新查询: 'Clear filters and query again',
   请前往任务管理新建采集任务: 'Go to task management to create a collection task',
   请选择对比条件: 'Select comparison conditions',
@@ -432,6 +437,7 @@ export default {
   使用历史配置重新采集当前主机: 'Re-collect the current host using the historical configuration',
   使用历史配置重新执行本次采集: 'Re-run this collection using the historical configuration',
   '搜索 IP、进程名或 PID': 'Search IP, process name, or PID',
+  '搜索“{result}”，找到 {count} 条结果': 'Search "{result}", found {count} results',
   搜索并高亮相同名称的函数: 'Search and highlight functions with the same name',
   '同一计划的上一轮采集仍在进行，本轮已跳过':
     'The previous round of this task is still running, so this round was skipped.',
@@ -442,6 +448,7 @@ export default {
     'Failed to fetch data from the Go pprof endpoint. Check the address, port, and whether pprof is enabled.',
   下次执行: 'Next execution',
   '下载 pprof 文件': 'Download pprof file',
+  '下载 pprof 文件或完整调用图': 'Download the pprof file or the full call graph',
   下载采集数据或当前火焰图: 'Download collection data or the current flame graph',
   '下载原始 pprof 文件': 'Download the original pprof file',
   '新建 Profiling 采集任务': 'Create Profiling collection task',

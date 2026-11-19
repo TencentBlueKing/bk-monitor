@@ -6,8 +6,10 @@ from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.constants import BASE_EVENT_RESULT_TABLE_FIELD_MAP, DataIdCreatedFromSystem
 from metadata.models.space.constants import EtlConfigs
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.task import tenant
 from metadata.task.tasks import (
+    create_base_event_datalink_for_bkcc,
     create_single_tenant_system_datalink,
     create_single_tenant_system_event_datalink,
     create_single_tenant_system_proc_datalink,
@@ -365,3 +367,80 @@ def test_single_tenant_builtin_links_select_kafka(
     assert all(
         config["spec"]["predefined"]["channel"]["name"] == expected_kafka.cluster_name for config in data_id_configs
     )
+
+
+@pytest.fixture
+def system_event_doris_cluster():
+    return models.ClusterInfo.objects.create(
+        bk_tenant_id=DEFAULT_TENANT_ID,
+        cluster_name="system_event_doris",
+        cluster_type="doris",
+        domain_name="doris.test",
+        port=9030,
+        is_default_cluster=True,
+    )
+
+
+def test_system_event_doris_switch_and_retry(system_event_records, system_event_doris_cluster, mocker):
+    _, _, es, apply_api, cleanup, publish = system_event_records
+    create_single_tenant_system_event_datalink()
+    cleanup.reset_mock()
+    publish.reset_mock()
+    fail = mocker.patch.object(models.DataLink, "apply_data_link_with_retry", side_effect=RuntimeError("apply failed"))
+    with pytest.raises(RuntimeError, match="apply failed"):
+        create_single_tenant_system_event_datalink(storage_type="doris")
+    assert models.ResultTable.objects.get(table_id=es.table_id).default_storage == "elasticsearch"
+    assert not models.StorageClusterRecord.objects.filter(table_id=es.table_id).exists()
+    cleanup.assert_not_called()
+    publish.assert_not_called()
+    mocker.stop(fail)
+
+    for _ in range(2):
+        create_single_tenant_system_event_datalink(storage_type="doris")
+    configs = {v["kind"]: v for v in apply_api.call_args.kwargs["config"]}
+    assert set(configs) == {"ResultTable", "DorisBinding", "Databus"}
+    binding = configs["DorisBinding"]["spec"]
+    assert binding["storage"]["name"] == system_event_doris_cluster.cluster_name
+    assert binding["storage_config"]["json_fields"] == ["event", "dimensions"]
+    bus = configs["Databus"]["spec"]
+    assert bus["sinks"] == [{"kind": "DorisBinding", "name": "base_2_agent_event", "namespace": "bklog"}]
+    assert bus["transforms"] == [{"kind": "PreDefinedLogic", "name": "gse_system_event"}]
+    assert models.ESStorageBindingConfig.objects.filter(table_id=es.table_id).exists()
+    assert models.DorisStorageBindingConfig.objects.filter(table_id=es.table_id).count() == 1
+    routes, _ = SpaceTableIDRedis()._compose_log_table_id_detail(
+        bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=[es.table_id]
+    )
+    route = routes[es.table_id]
+    assert route["db"] == "2_base_2_agent_event"
+    assert route["data_label"] == "system_event"
+    assert [(s["storage_id"], s["db"]) for s in route["storage_cluster_records"]] == [
+        (system_event_doris_cluster.cluster_id, route["db"]),
+        (es.storage_cluster_id, es.index_set),
+    ]
+    create_single_tenant_system_event_datalink()
+    assert models.ResultTable.objects.get(table_id=es.table_id).default_storage == "elasticsearch"
+    assert (
+        models.StorageClusterRecord.objects.get(table_id=es.table_id, is_current=True).cluster_id
+        == es.storage_cluster_id
+    )
+
+
+def test_multi_tenant_system_event_doris(system_event_records, system_event_doris_cluster, settings, mocker):
+    ds, _, _, apply_api, _, publish = system_event_records
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "biz"
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    ds.data_name = "base_42_agent_event"
+    ds.save(update_fields=["data_name"])
+    create_base_event_datalink_for_bkcc("system", 42, system_event_doris_cluster.cluster_name, storage_type="doris")
+    table_id = "base_system_42_event"
+    rt = models.ResultTable.objects.get(table_id=table_id)
+    assert rt.default_storage == "doris"
+    assert rt.get_storage("doris").bkbase_table_id
+    assert not models.ESStorage.objects.filter(table_id=table_id).exists()
+    assert models.StorageClusterRecord.objects.filter(table_id=table_id).count() == 1
+    configs = {v["kind"]: v for v in apply_api.call_args.kwargs["config"]}
+    assert configs["Databus"]["spec"]["sinks"] == [
+        {"kind": "DorisBinding", "namespace": "bklog", "tenant": "system", "name": "base_42_agent_event"}
+    ]
+    publish.assert_called_once_with(bk_tenant_id="system", table_id_list=[table_id], is_publish=True)

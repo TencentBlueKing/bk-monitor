@@ -756,6 +756,21 @@ class ResultTable(models.Model):
         )
         logger.info("result_table:[%s] has create storage on type:[%s]", self.table_id, self.default_storage)
 
+        # 元数据阶段先产出 Doris 物理表名与 BKBase 结果表名（首次接入生成 _v1），datalink 阶段
+        # 再按名字新建或维持 ResultTable / DorisBinding 配置。
+        # is_sync_db 为 False 时既不会真正建存储也不会下发链路，这里同样跳过，避免产出悬空记录。
+        if is_sync_db and self.default_storage == ClusterInfo.TYPE_DORIS:
+            logger.info(
+                "check_and_create_storage: table_id->[%s] tenant->[%s] sync log doris physical table",
+                self.table_id,
+                bk_tenant_id,
+            )
+            DorisStorage.sync_log_physical_table(
+                bk_tenant_id=bk_tenant_id,
+                table_id=self.table_id,
+                bk_biz_id=self.bk_biz_id,
+            )
+
     @classmethod
     def get_result_table_storage_info(cls, table_id, storage_type, bk_tenant_id=DEFAULT_TENANT_ID):
         """
@@ -1341,6 +1356,38 @@ class ResultTable(models.Model):
         related_data_source = self.get_related_datasource()
         is_custom_format = related_data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
 
+        # 换表判定需要「变更前」的 option 与字段类型：字段会在下面被重建，必须在这里先快照。
+        # 不能只在请求带 log option 时快照：仅调整字段类型（field_list 重建）同样可能让原
+        # Doris 物理表不兼容，此时旧 option 取库里当前已生效的配置。
+        previous_log_option_value = None
+        previous_field_types: dict[str, str] | None = None
+        replaces_fields = self.schema_type == self.SCHEMA_TYPE_FREE and field_list is not None
+        new_log_option_value = option.get(ResultTableOption.OPTION_V4_LOG_DATA_LINK) if option is not None else None
+        may_write_doris = (default_storage or self.default_storage) == ClusterInfo.TYPE_DORIS or (
+            external_storage is not None and ClusterInfo.TYPE_DORIS in external_storage
+        )
+        if may_write_doris and (replaces_fields or new_log_option_value is not None):
+            previous_log_option = ResultTableOption.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=self.table_id,
+                name=ResultTableOption.OPTION_V4_LOG_DATA_LINK,
+            ).first()
+            previous_log_option_value = previous_log_option.get_value() if previous_log_option else None
+            previous_field_types = dict(
+                ResultTableField.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id).values_list(
+                    "field_name", "field_type"
+                )
+            )
+            logger.info(
+                "modify: table_id->[%s] snapshot for doris rotation, replaces_fields->[%s] has_log_option->[%s] "
+                "previous_option_found->[%s] previous_field_count->[%s]",
+                self.table_id,
+                replaces_fields,
+                new_log_option_value is not None,
+                previous_log_option_value is not None,
+                len(previous_field_types),
+            )
+
         # 1. 判断是否需要修改中文名
         if table_name_zh is not None:
             self.table_name_zh = table_name_zh
@@ -1748,7 +1795,19 @@ class ResultTable(models.Model):
         except Exception as e:  # pylint: disable=broad-except
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
-        # 如果结果表启用，则刷新清洗配置
+        # 元数据阶段先判定并产出 Doris 物理表名与 BKBase 结果表名（换表时版本 +1 并新开分段），
+        # datalink 阶段再按名字新建或维持 ResultTable / DorisBinding 配置。
+        # 仅写入目标涉及 Doris 时才进入；停用期间也要落库：否则本次写入的新 option 没有换表机会，
+        # 恢复启用时已无「变更前」可比，新分词/索引配置永远不生效（停用期间不 apply）。
+        if may_write_doris:
+            DorisStorage.sync_log_physical_table(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=self.table_id,
+                bk_biz_id=self.bk_biz_id,
+                previous_option_value=previous_log_option_value,
+                previous_field_types=previous_field_types,
+            )
+
         if self.is_enable:
             self.apply_datalink(force_update=force_update_datalink)
         else:

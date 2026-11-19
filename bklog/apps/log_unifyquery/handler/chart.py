@@ -20,6 +20,7 @@ from apps.log_search.constants import MAX_RESULT_WINDOW, MAX_ASYNC_COUNT
 from apps.log_search.exceptions import IndexSetDorisQueryException
 from apps.log_search.models import LogIndexSet
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.utils.function import project_chart_row
 
 
 class UnifyQueryChartHandler(UnifyQueryHandler):
@@ -144,8 +145,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
                 header_written = True
             # 写入数据行到缓冲区
             for record in search_result["list"]:
-                row_values = [record.get(field, "") for field in fields]
-                csv_writer.writerow(row_values)
+                csv_writer.writerow(project_chart_row(record, fields))
             # 获取缓冲区内容，重置缓冲区
             yield row_buffer.getvalue()
             row_buffer.seek(0)

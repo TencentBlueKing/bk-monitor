@@ -31,7 +31,7 @@ import { AlarmTableSkeletonCell } from '../../components/alarm-skeleton';
 import CommonTable from '../../components/alarm-table/components/common-table/common-table';
 import { usePopover } from '../../components/alarm-table/hooks/use-popover';
 import { useEchartsGroupConnect } from '../../composables/use-echarts-group';
-import { ENDED_STATUS_SET, TrendRangeEnum } from '../constant';
+import { IssueStatusEnum, TrendRangeEnum } from '../constant';
 import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './hooks/use-issues-handlers';
 import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
@@ -250,7 +250,7 @@ export default defineComponent({
           rowClassName={({ row }) => {
             const item = row as IssueItem;
             const classes: string[] = [];
-            if (ENDED_STATUS_SET.has(item.status)) classes.push('is-ended');
+            if (item.status === IssueStatusEnum.ARCHIVED) classes.push('is-archived');
             if (this.highlightedRowIds.has(item.id)) classes.push('is-split-highlighted');
             return classes.join(' ');
           }}
