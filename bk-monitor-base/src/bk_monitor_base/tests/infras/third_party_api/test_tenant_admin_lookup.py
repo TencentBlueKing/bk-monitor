@@ -30,3 +30,16 @@ def test_default_admin_login(monkeypatch: pytest.MonkeyPatch) -> None:
     assert blueking.bk_admin_username == "bk_admin"
     monkeypatch.setattr(api.get_config(), "blueking", blueking)
     assert api.get_tenant_admin_username.__wrapped__("system") == "admin"
+
+
+@pytest.mark.parametrize("login,expected", [("  ", "admin"), (" bk_admin ", "virtual-id")])
+def test_single_tenant_configured_login(monkeypatch, login, expected):
+    monkeypatch.setenv("BK_ADMIN_USERNAME", login)
+    monkeypatch.setattr(api.get_config(), "blueking", BlueKingConfig(enable_multi_tenancy=False))
+    with patch.object(api, "request_user_api", return_value={"data": [{"bk_username": "virtual-id"}]}) as lookup:
+        assert api.get_tenant_admin_username.__wrapped__("system") == expected
+        if login.strip():
+            assert lookup.call_args.kwargs["bk_tenant_id"] == "default"
+            assert lookup.call_args.kwargs["params"]["lookups"] == login.strip()
+        else:
+            lookup.assert_not_called()

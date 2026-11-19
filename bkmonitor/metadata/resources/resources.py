@@ -38,6 +38,7 @@ from bkmonitor.utils import consul
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_events, get_built_in_k8s_metrics
 from bkmonitor.utils.request import get_app_code_by_request, get_request, get_request_tenant_id
 from bkmonitor.utils.serializers import TenantIdField
+from bkmonitor.utils.user import single_tenant_backend_username
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import Resource, api
@@ -3240,7 +3241,7 @@ class KafkaTailResource(Resource):
         """
         route_params = {
             "condition": {"channel_id": bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
         }
 
         route_info_list = api.gse.query_route(**route_params)
@@ -3264,7 +3265,7 @@ class KafkaTailResource(Resource):
                 "stream_to_id": stream_to_id,
                 "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
             },
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
         }
 
         kafka_config_list = api.gse.query_stream_to(**kafka_params)

@@ -25,6 +25,8 @@ the project delivered to anyone in the future.
 import sys  # noqa
 import uuid  # noqa
 
+from functools import lru_cache
+
 from apps.api import BKLoginApi  # noqa
 
 from threading import local  # noqa
@@ -192,19 +194,32 @@ def get_admin_username(bk_tenant_id: str) -> str | None:
     if not settings.ENABLE_MULTI_TENANT_MODE:
         return getattr(settings, "COMMON_USERNAME", None)
 
+    login_name = settings.BK_ADMIN_USERNAME
+    return _lookup_admin_username(bk_tenant_id, "bk_admin" if login_name is None else login_name)
+
+
+def single_tenant_backend_username(fallback):
+    """单租户仅在显式配置登录名时解析系统调用身份。"""
+    login_name = (settings.BK_ADMIN_USERNAME or "").strip()
+    if settings.ENABLE_MULTI_TENANT_MODE or not login_name:
+        return fallback
+    return _lookup_admin_username("default", login_name)
+
+
+@lru_cache(maxsize=1000)
+def _lookup_admin_username(bk_tenant_id: str, login_name: str) -> str:
     result = BKLoginApi.batch_lookup_virtual_user(
         {
             "bk_tenant_id": bk_tenant_id,
             "lookup_field": "login_name",
-            "lookups": settings.BK_ADMIN_USERNAME,
+            "lookups": login_name,
             "bk_username": "admin",
         },
         bk_tenant_id=bk_tenant_id,
     )
-    if result:
-        return result[0].get("bk_username")
-    else:
-        raise BaseException("get_admin_username: 获取管理员用户失败")
+    if result and (username := result[0].get("bk_username")):
+        return username
+    raise BaseException("get_admin_username: 获取管理员用户失败")
 
 
 def get_backend_username(peaceful=True, bk_tenant_id: str = "") -> str | None:
@@ -220,8 +235,7 @@ def get_backend_username(peaceful=True, bk_tenant_id: str = "") -> str | None:
             return None
 
         return get_admin_username(bk_tenant_id)
-    else:
-        return "admin"
+    return single_tenant_backend_username("admin")
 
 
 def get_global_user(peaceful=True, bk_tenant_id: str = ""):

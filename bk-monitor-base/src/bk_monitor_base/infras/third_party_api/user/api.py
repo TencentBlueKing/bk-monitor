@@ -111,17 +111,23 @@ def get_tenant_admin_username(bk_tenant_id: str) -> str:
 
     # 非多租户模式下，直接返回默认管理员用户名
     blueking = get_config().blueking
+    login_name = blueking.bk_admin_username
     if not blueking.enable_multi_tenancy:
-        return "admin"
+        if "bk_admin_username" not in blueking.model_fields_set or not login_name.strip():
+            return "admin"
+        bk_tenant_id = "default"
+        login_name = login_name.strip()
 
     result = request_user_api(
         bk_tenant_id=bk_tenant_id,
         method="GET",
         path="api/v3/open/tenant/virtual-users/-/lookup/",
         username="admin",
-        params={"lookup_field": "login_name", "lookups": blueking.bk_admin_username},
+        params={"lookup_field": "login_name", "lookups": login_name},
     )
-    return result["data"][0]["bk_username"]
+    if result.get("data") and (username := result["data"][0].get("bk_username")):
+        return username
+    raise ValueError("获取管理员用户失败")
 
 
 @lru_cache(maxsize=1024)

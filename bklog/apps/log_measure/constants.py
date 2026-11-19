@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,22 +18,30 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
+from django.utils.functional import SimpleLazyObject
 from django.utils.translation import gettext as _
 
 from apps.utils import ChoicesEnum
+from apps.utils.local import single_tenant_backend_username
 from bk_monitor.constants import EVENT_TYPE, TIME_SERIES_TYPE
 from bk_monitor.handler.monitor import BKMonitor
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
-BK_MONITOR_CLIENT = BKMonitor(
-    app_id=settings.APP_CODE,
-    app_token=settings.SECRET_KEY,
-    monitor_host=MONITOR_APIGATEWAY_ROOT,
-    report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
-    bk_username="admin",
-    bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
-)
+
+def _create_monitor_client():
+    return BKMonitor(
+        app_id=settings.APP_CODE,
+        app_token=settings.SECRET_KEY,
+        monitor_host=MONITOR_APIGATEWAY_ROOT,
+        report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
+        bk_username=single_tenant_backend_username("admin"),
+        bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
+    )
+
+
+BK_MONITOR_CLIENT = SimpleLazyObject(_create_monitor_client)
 
 INTERVAL_TYPE = ["month", "week", "day", "hour", "10m", "5m", "1m"]
 STORAGE_CLUSTER_TYPE = "elasticsearch"

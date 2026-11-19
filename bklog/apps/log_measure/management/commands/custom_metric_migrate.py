@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,10 +18,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 
 from django.core.management.base import BaseCommand, CommandError
 from apps.log_measure.constants import DATA_NAMES
+from apps.utils.local import single_tenant_backend_username
 from config.domains import MONITOR_APIGATEWAY_ROOT
 from bk_monitor.handler.monitor import BKMonitor
 
@@ -35,7 +36,7 @@ class Command(BaseCommand):
                 app_token=settings.SECRET_KEY,
                 monitor_host=MONITOR_APIGATEWAY_ROOT,
                 report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
-                bk_username="admin",
+                bk_username=single_tenant_backend_username("admin"),
                 bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
             )
             bk_monitor_client.custom_metric().migrate(data_name_list=DATA_NAMES)

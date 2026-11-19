@@ -60,7 +60,8 @@ from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from bkmonitor.utils.user import (
-    get_admin_username,
+    single_tenant_backend_username,
+    get_backend_username,
     get_global_user,
     get_user_display_name,
     set_local_username,
@@ -232,7 +233,7 @@ def update_metric_list():
         )
 
         # 刷新指定租户的指标列表结果表
-        set_local_username(get_admin_username(bk_tenant_id=bk_tenant_id))
+        set_local_username(get_backend_username(bk_tenant_id=bk_tenant_id))
         _update_metric_list(bk_tenant_id, period, offset)
 
         # 更新此轮分发任务时间戳
@@ -392,7 +393,7 @@ def append_metric_list_cache(bk_tenant_id: str, result_table_id_list: list[str])
         return
 
     set_local_tenant_id(bk_tenant_id=bk_tenant_id)
-    set_local_username(username=get_admin_username(bk_tenant_id=bk_tenant_id))
+    set_local_username(username=get_backend_username(bk_tenant_id=bk_tenant_id))
 
     if not result_table_id_list:
         return
@@ -546,7 +547,7 @@ def append_event_metric_list_cache(bk_biz_id: int, bk_event_group_id: int):
     bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
     set_local_tenant_id(bk_tenant_id=bk_tenant_id)
-    set_local_username(username=get_admin_username(bk_tenant_id=bk_tenant_id))
+    set_local_username(username=get_backend_username(bk_tenant_id=bk_tenant_id))
 
     event_group_id = int(bk_event_group_id)
     event_type = CustomEventGroup.objects.get(bk_biz_id=bk_biz_id, bk_event_group_id=event_group_id).type
@@ -587,7 +588,7 @@ def update_task_running_status(task_id):
     task = get_task(task_id=task_id)
     bk_tenant_id = task.bk_tenant_id
     set_local_tenant_id(bk_tenant_id=bk_tenant_id)
-    set_local_username(username=get_admin_username(bk_tenant_id=bk_tenant_id))
+    set_local_username(username=get_backend_username(bk_tenant_id=bk_tenant_id))
     resource.uptime_check.update_task_running_status(task_id)
 
 
@@ -993,7 +994,7 @@ def collect_metric(collect):
     try:
         from bkmonitor.utils.request import set_request_username
 
-        set_request_username(settings.COMMON_USERNAME)
+        set_request_username(single_tenant_backend_username(settings.COMMON_USERNAME))
         start_time = time.time()
         collect.collect()
         end_time = time.time()
