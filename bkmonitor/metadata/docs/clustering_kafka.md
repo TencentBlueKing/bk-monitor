@@ -9,13 +9,13 @@
 实施计划：
 
 - [x] resolver、API 客户端、后端路由和网关声明。
-- [x] 日志平台 MonitorApi 调用适配；不替换现有 V3 业务入口。
+- [x] 移除日志平台的连接查询客户端。解析接口供 bkfara Runtime 通过应用授权调用。
 - [x] 租户、已注册映射、明文／SCRAM、未同步字段及单租户默认值单元回归。
 - [ ] PR review 和各环境的网关同步／资源授权。
 - [ ] 日志平台新业务链路采用请求；发布后完整业务联调。
 
 只提交 PR，不发布，不迁移资源。
 
-单租户的 metadata 租户 system 与 BKBase 默认 tenant 不混用：返回引用省略 tenant，交给 BKBase 原生默认值。多租户返回实际 tenant。日志平台 API 客户端新增 `MonitorApi.resolve_clustering_kafka`；原有 V3 聚类启停入口不改，日志平台新链路按联调文档传 ID 与引用。
+单租户的 metadata 租户 system 与 BKBase 默认 tenant 不混用：返回引用省略 tenant，交给 BKBase 原生默认值。多租户返回实际 tenant。日志平台负责新链路的业务接入。创建任务时提交 ID，拿到公开的 KafkaChannel 引用后下发 Databus。下发失败时保留任务 ID，用同一创建幂等键恢复调用。
 
 验证：11 项隔离单元测试通过；覆盖已同步认证快照，防止未同步的 ClusterInfo 修改分裂两端连接。Python 语法和网关后端路径／认证声明检查通过。ORM 与外部服务使用模拟对象，未运行完整 metadata 数据库测试、实际网关授权或业务 E2E。
