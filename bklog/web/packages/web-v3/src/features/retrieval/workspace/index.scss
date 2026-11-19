@@ -38,35 +38,22 @@
     }
   }
 
-  &.is-sticky-top-result {
-    .search-result-panel {
-      &.flex {
-        .search-result-content {
-          .original-log-panel {
-            .original-log-panel-tools {
-              top: calc(var(--top-searchbar-height) + var(--scene-toolbar-height, 0px));
-              padding: 1px 0 1px 0;
-            }
+  .search-result-panel.flex .search-result-content .original-log-panel {
+    // Both sticky offsets are relative to the results scroll container.
+    --bklog-result-tools-sticky-top: calc(var(--top-searchbar-height, 0px) + var(--scene-toolbar-height, 0px));
 
-            .bklog-result-box {
-              .bklog-result-container {
-                &.show-header {
-                  overflow: visible;
-                  .bklog-row-container {
-                    overflow: visible;
-                    &.row-header {
-                      position: sticky;
-                      top: calc(var(--top-searchbar-height) + var(--scene-toolbar-height, 0px) + 32px);
-                      left: calc(var(--left-collection-width) + var(--left-field-setting-width) + 8px);
+    .bklog-result-container.show-header {
+      overflow: visible;
 
-                      .right {
-                        right: 8px;
-                      }
-                    }
-                  }
-                }
-              }
-            }
+      .bklog-row-container {
+        overflow: visible;
+
+        &.row-header {
+          top: calc(var(--bklog-result-tools-sticky-top) + var(--bklog-result-tools-height, 0px));
+          left: calc(var(--left-collection-width) + var(--left-field-setting-width) + 8px);
+
+          .right {
+            right: 8px;
           }
         }
       }

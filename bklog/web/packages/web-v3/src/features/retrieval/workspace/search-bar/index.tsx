@@ -137,13 +137,15 @@ export default defineComponent({
      * @param height 搜索栏高度
      */
     const handleHeightChange = (height: number) => {
-      if (height === searchBarHeight.value || RetrieveHelper.aiAssitantHelper.activePosition !== 'search-bar') {
+      if (height === searchBarHeight.value) {
         return;
       }
 
       searchBarHeight.value = height;
       RetrieveHelper.setSearchBarHeight(height);
-      updateAiAssitantPosition();
+      if (RetrieveHelper.aiAssitantHelper.activePosition === 'search-bar') {
+        updateAiAssitantPosition();
+      }
     };
 
     /**

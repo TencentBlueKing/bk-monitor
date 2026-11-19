@@ -3,7 +3,7 @@
   "id": "features/client-logs",
   "purpose": "按源码职责归属的业务域；功能边界以实际组件和服务为准",
   "root": "src/features/client-logs",
-  "files": 45,
+  "files": 49,
   "entryPoints": [
     "features/client-logs/management/collection-deploy/index.tsx",
     "features/client-logs/management/collection-slider/index.tsx",

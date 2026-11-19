@@ -164,6 +164,10 @@
     "features/client-logs/management/collection-deploy/types.ts",
     "features/client-logs/management/collection-slider/index.scss",
     "features/client-logs/management/collection-slider/index.tsx",
+    "features/client-logs/management/components/loading-icon.scss",
+    "features/client-logs/management/components/loading-icon.tsx",
+    "features/client-logs/management/components/table-column-setting.scss",
+    "features/client-logs/management/components/table-column-setting.tsx",
     "features/client-logs/management/constant.ts",
     "features/client-logs/management/download-message.scss",
     "features/client-logs/management/download-message.ts",
@@ -677,6 +681,7 @@
     "features/retrieval/workbench/search-comp/retrieve-detail-input-editor.scss",
     "features/retrieval/workbench/search-result-chart/index.scss",
     "features/retrieval/workbench/search-result-chart/index.tsx",
+    "features/retrieval/workbench/search-result-chart/no-search-results.svg",
     "features/retrieval/workbench/search-result-panel/field-filter.scss",
     "features/retrieval/workbench/search-result-panel/field-filter.vue",
     "features/retrieval/workbench/search-result-panel/graph-analysis/QueryPanelMetricAdd.vue",
@@ -2432,6 +2437,11 @@
     {
       "from": "app/shell/app.tsx",
       "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "app/shell/app.tsx",
+      "to": "shared/composables/use-resize-observe.ts",
       "kind": "module"
     },
     {
@@ -4506,11 +4516,6 @@
     },
     {
       "from": "features/cleaning/classic/clean-manage/list.vue",
-      "to": "shared/ui/loading/_shimmer.scss",
-      "kind": "style-or-asset"
-    },
-    {
-      "from": "features/cleaning/classic/clean-manage/list.vue",
       "to": "shared/styles/mixins/clearfix.scss",
       "kind": "style-or-asset"
     },
@@ -5066,11 +5071,6 @@
     },
     {
       "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
-      "to": "shared/ui/loading/native.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
       "to": "shared/lib/util.js",
       "kind": "module"
     },
@@ -5107,6 +5107,16 @@
     {
       "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
       "to": "features/client-logs/management/hooks/use-download-file.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
+      "to": "features/client-logs/management/components/table-column-setting.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/collection-deploy/collection-table.tsx",
+      "to": "features/client-logs/management/components/loading-icon.tsx",
       "kind": "module"
     },
     {
@@ -5223,6 +5233,41 @@
       "from": "features/client-logs/management/collection-slider/index.tsx",
       "to": "features/collection/services/collect.ts",
       "kind": "service-call"
+    },
+    {
+      "from": "features/client-logs/management/components/loading-icon.scss",
+      "to": "shared/assets/images/loading.svg",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/client-logs/management/components/loading-icon.tsx",
+      "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/components/loading-icon.tsx",
+      "to": "features/client-logs/management/components/loading-icon.scss",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/components/table-column-setting.tsx",
+      "to": "features/management/manage-v2/hooks/use-table-setting.ts",
+      "kind": "type"
+    },
+    {
+      "from": "features/client-logs/management/components/table-column-setting.tsx",
+      "to": "shared/composables/use-locale.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/components/table-column-setting.tsx",
+      "to": "shared/global/overlay/use-overlay-z-index.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/components/table-column-setting.tsx",
+      "to": "features/client-logs/management/components/table-column-setting.scss",
+      "kind": "module"
     },
     {
       "from": "features/client-logs/management/constant.ts",
@@ -5441,11 +5486,6 @@
     },
     {
       "from": "features/client-logs/management/user-report/report-table.tsx",
-      "to": "shared/ui/loading/native.ts",
-      "kind": "module"
-    },
-    {
-      "from": "features/client-logs/management/user-report/report-table.tsx",
       "to": "shared/lib/util.js",
       "kind": "module"
     },
@@ -5476,6 +5516,16 @@
     },
     {
       "from": "features/client-logs/management/user-report/report-table.tsx",
+      "to": "features/client-logs/management/components/table-column-setting.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/user-report/report-table.tsx",
+      "to": "features/client-logs/management/components/loading-icon.tsx",
+      "kind": "module"
+    },
+    {
+      "from": "features/client-logs/management/user-report/report-table.tsx",
       "to": "features/client-logs/management/user-report/types.ts",
       "kind": "module"
     },
@@ -5486,12 +5536,12 @@
     },
     {
       "from": "features/client-logs/management/user-report/upload-result.tsx",
-      "to": "shared/ui/loading/native.ts",
+      "to": "shared/composables/use-locale.ts",
       "kind": "module"
     },
     {
       "from": "features/client-logs/management/user-report/upload-result.tsx",
-      "to": "shared/composables/use-locale.ts",
+      "to": "features/client-logs/management/components/loading-icon.tsx",
       "kind": "module"
     },
     {
@@ -8326,7 +8376,7 @@
     },
     {
       "from": "features/collection/current/components/business-comp/step3/collect-issued-slider.scss",
-      "to": "shared/ui/loading/_shimmer.scss",
+      "to": "shared/assets/images/loading.svg",
       "kind": "style-or-asset"
     },
     {
@@ -8501,12 +8551,17 @@
     },
     {
       "from": "features/collection/current/components/common-comp/drag-tag.tsx",
+      "to": "platform/compat/vue3-component-model.ts",
+      "kind": "module"
+    },
+    {
+      "from": "features/collection/current/components/common-comp/drag-tag.tsx",
       "to": "features/collection/current/components/common-comp/drag-tag.scss",
       "kind": "module"
     },
     {
       "from": "features/collection/current/components/common-comp/host-detail.scss",
-      "to": "shared/ui/loading/_shimmer.scss",
+      "to": "shared/assets/images/loading.svg",
       "kind": "style-or-asset"
     },
     {
@@ -8642,6 +8697,11 @@
     {
       "from": "features/collection/current/components/create-operation/index.scss",
       "to": "features/collection/current/components/create-operation/global.scss",
+      "kind": "style-or-asset"
+    },
+    {
+      "from": "features/collection/current/components/create-operation/index.scss",
+      "to": "shared/assets/images/log-collection/loading.svg",
       "kind": "style-or-asset"
     },
     {
@@ -16476,6 +16536,11 @@
     },
     {
       "from": "features/retrieval/workbench/search-result-chart/index.tsx",
+      "to": "features/retrieval/workbench/search-result-chart/no-search-results.svg",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-chart/index.tsx",
       "to": "features/retrieval/workbench/search-result-chart/index.scss",
       "kind": "module"
     },
@@ -17497,6 +17562,11 @@
     {
       "from": "features/retrieval/workbench/search-result-panel/log-result/full-row-viewer.vue",
       "to": "features/retrieval/workbench/search-result-panel/log-result/full-row-viewer-content.vue",
+      "kind": "module"
+    },
+    {
+      "from": "features/retrieval/workbench/search-result-panel/log-result/index.vue",
+      "to": "shared/composables/use-resize-observe.ts",
       "kind": "module"
     },
     {
