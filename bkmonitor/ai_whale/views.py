@@ -25,7 +25,6 @@ from ai_whale.resources.resources import (
     CreateFeedbackResource,
     GetFeedbackReasonsResource,
     GetMCPAccessTokenResource,
-    StopSessionContentResource,
 )
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
@@ -47,7 +46,6 @@ class SessionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", CreateChatSessionResource),
         ResourceRoute("GET", RetrieveChatSessionResource),
-        ResourceRoute("GET", RetrieveChatSessionResource, pk_field="session_code"),
         ResourceRoute("PUT", UpdateChatSessionResource, pk_field="session_code"),
         ResourceRoute("DELETE", DestroyChatSessionResource, pk_field="session_code"),
         ResourceRoute("POST", RenameChatSessionResource, pk_field="session_code", endpoint="ai_rename"),
@@ -61,7 +59,6 @@ class SessionContentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
         ResourceRoute("PUT", UpdateChatSessionContentResource, pk_field="id"),
         ResourceRoute("DELETE", DestroyChatSessionContentResource, pk_field="id"),
         ResourceRoute("POST", BatchDeleteSessionContentResource, endpoint="batch_delete"),
-        ResourceRoute("POST", StopSessionContentResource, endpoint="stop"),
     ]
 
 
