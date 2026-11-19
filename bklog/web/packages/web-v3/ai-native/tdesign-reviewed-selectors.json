@@ -1,4 +1,19 @@
 {
+  "features/client-logs/management/collection-deploy/collection-table.scss": {
+    ".t-button__text": "采集名称是表格内的可点击文本，内部文字容器铺满单元格以实现长名称省略。"
+  },
+  "features/collection/current/components/business-comp/step2/base-info.scss": {
+    ".t-button": "数据分类按钮作为分段控件，选中项边框需要覆盖相邻按钮边框。",
+    ".t-button--theme-default": "仅默认主题的分类按钮使用选中配色。",
+    ".t-form__controls-content": "数据分类表单的按钮组和说明按列排列并横向铺满。"
+  },
+  "features/collection/current/components/business-comp/step2/index-set-option.scss": {
+    ".t-popup__content": "索引集复选下拉由内层列表承担滚动，弹层容器负责裁剪。",
+    ".t-select__dropdown-inner": "索引集列表限高 260px 并阻止滚动传递到采集表单。"
+  },
+  "features/collection/current/components/business-comp/step2/third-party-logs/es-select-dialog.scss": {
+    ".t-input__help": "第三方 ES 选择弹窗的输入说明与筛选框保持紧凑间距。"
+  },
   "features/collection/current/components/business-comp/step3/clean-result-preview-dialog.scss": {
     ".t-input": "预览表格的编辑框贴合 42px 数据行，紧凑行另用 compact-control。",
     ".t-input--focused": "预览单元格内的焦点阴影会覆盖表格分隔线。"
@@ -9,8 +24,18 @@
     ".t-is-disabled": "只读单元格使用禁用底色，同时排除悬停高亮。",
     ".t-select__wrap": "类型选择器占满字段行，并将类型错误状态传递给内部输入框。"
   },
+  "features/collection/current/components/common-comp/host-detail.scss": {
+    ".t-collapse": "主机详情左栏自身提供面板边界，内层折叠容器使用透明背景。",
+    ".t-collapse-panel__body": "主机详情组的正文使用表面背景，由标题提供分隔线。",
+    ".t-collapse-panel__content": "主机详情内容与左右分栏对齐，由业务内容管理内边距。",
+    ".t-collapse-panel__header": "主机详情组标题沿用左栏的 42px 行高和分隔线。",
+    ".t-collapse-panel__icon": "折叠箭头与主机详情组标题采用一致的文本对比度。"
+  },
   "features/collection/current/components/create-operation/step4-storage.scss": {
     ".t-collapse-panel__body": "集群分组卡片提供背景和边框，内部折叠面板需透明。"
+  },
+  "features/index-sets/log-collection/collection-item/manage-collection/field-info.scss": {
+    ".t-table": "只压缩字段信息表格的分词设置列，使控件在单元格内对齐。"
   },
   "features/masking/components/masking-add-rule.scss": {
     ".t-collapse-panel__content": "调试区自行布局内容，面板去除内边距并使用表单底色。",
@@ -31,9 +56,6 @@
     ".t-dialog__header": "自绘标题替代原生标题占位。",
     ".t-size-s": "权限表的列间距仅适用于小尺寸模式。",
     ".t-table": "确认框的权限表铺满内容宽度，并局部设置单元格间距。"
-  },
-  "features/masking/components/masking-setting.scss": {
-    ".t-checkbox": "列设置面板由网格控制行列间距，复选框移除自身外边距。"
   },
   "features/retrieval/workbench/components/batch-input/index.scss": {
     ".t-button": "解析和清空操作须在双栏面板左侧同排对齐。",

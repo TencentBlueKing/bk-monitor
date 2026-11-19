@@ -96,9 +96,7 @@
   box-sizing: border-box;
   padding: 12px;
 
-  .t-checkbox {
-    margin: 0;
-  }
+  @include bklogControls.checkbox-grid-spacing;
 
   .masking-column-config-title {
     grid-column: 1 / -1;

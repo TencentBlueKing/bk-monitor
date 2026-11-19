@@ -377,14 +377,14 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button",
-        ".t-input__wrap"
+        ".t-button"
       ],
       "sharedContracts": [
+        "filter-input-width",
         "table-row-actions"
       ],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 2,
+      "contextualDeclarations": 1,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -549,12 +549,12 @@
         "dynamicStyleSites": 0,
         "pendingInlineNormalization": 0
       },
-      "componentClasses": [
-        ".t-input__wrap"
+      "componentClasses": [],
+      "sharedContracts": [
+        "filter-input-width"
       ],
-      "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 2,
+      "contextualDeclarations": 0,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -602,12 +602,12 @@
         "dynamicStyleSites": 0,
         "pendingInlineNormalization": 0
       },
-      "componentClasses": [
-        ".t-checkbox"
+      "componentClasses": [],
+      "sharedContracts": [
+        "checkbox-grid-spacing"
       ],
-      "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 1,
+      "contextualDeclarations": 0,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -638,12 +638,12 @@
         "dynamicStyleSites": 0,
         "pendingInlineNormalization": 0
       },
-      "componentClasses": [
-        ".t-input__wrap"
+      "componentClasses": [],
+      "sharedContracts": [
+        "filter-input-width"
       ],
-      "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 2,
+      "contextualDeclarations": 0,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -3151,15 +3151,15 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-checkbox",
         ".t-input__wrap",
         ".t-size-s"
       ],
       "sharedContracts": [
+        "checkbox-grid-spacing",
         "table-row-actions"
       ],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 3,
+      "contextualDeclarations": 2,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -5794,11 +5794,13 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button--variant-text"
+        ".t-button--variant-text",
+        ".t-checkbox",
+        ".t-input__wrap"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 2,
+      "contextualDeclarations": 5,
       "localVisualProperties": [
         "border"
       ],
