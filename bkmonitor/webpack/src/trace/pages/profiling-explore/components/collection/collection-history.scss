@@ -22,14 +22,25 @@
     font-size: 12px;
   }
 
+  // 筛选摘要行沿用表格默认筛选行结构，补齐 bkui 按钮与文字的间距
+  .t-table__filter-result > .bk-button {
+    margin-left: 24px;
+  }
+
   // 用普通文本承载省略号，按钮内部结构会把列宽撑开
   .collection-history-task-name {
-    display: block;
+    display: inline-flex;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     color: #3a84ff;
     white-space: nowrap;
     cursor: pointer;
+
+    & > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     &:hover {
       color: #5594fa;

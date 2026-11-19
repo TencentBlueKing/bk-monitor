@@ -211,6 +211,29 @@ export default defineComponent({
         if (name) historyTaskName.value = name;
       }
     );
+    // 已生效筛选的摘要：结果列表只有状态列筛选，其余条件来自面板
+    const filterSummary = computed(() => {
+      const conditions: string[] = [];
+      const append = (label: string, values: string[]) => {
+        if (values.length) conditions.push(`${label}：${values.join(',')}`);
+      };
+      const value = props.state.filters;
+      // 按任务 ID 筛选时优先展示执行详情回填的任务名，取不到才退化为 ID
+      const taskName = value.task_id ? historyTaskName.value || String(value.task_id) : value.task_name;
+      append('IP', value.ips);
+      append(t('任务'), taskName ? [taskName] : []);
+      // 进程名与 PID 共用面板里的「进程」入口，摘要也合并到一项
+      append(t('进程'), [...value.process_names, ...value.process_pids]);
+      append(
+        t('状态'),
+        value.status.map(status => t((resultStatusLabels as Record<string, string>)[status] || status))
+      );
+      return conditions.join('; ');
+    });
+    // 有筛选且已拿到结果总数时展示摘要行；无结果交给空态，避免占住表格首行
+    const showFilterSummary = computed(
+      () => !!filterSummary.value && h.total.value !== null && !!h.records.value.length
+    );
     function patch(value: Partial<CollectionResultsState>) {
       // 筛选实际变化即退出执行范围；否则刷新仍会请求本次执行详情，列表不会按新条件变化。
       // 执行范围的条件由 displayFilters 回填，比较基准必须是展示条件，否则清空筛选会被判定为无变化
@@ -277,6 +300,8 @@ export default defineComponent({
       filtered,
       displayFilters,
       historyTaskName,
+      filterSummary,
+      showFilterSummary,
       scrollContainer,
       executionBusy,
       patch,
@@ -292,8 +317,6 @@ export default defineComponent({
   render() {
     const { h, c } = this;
     const showSkeleton = h.loading.value && !h.records.value.length;
-    // 结果为空时由 empty 插槽接管；否则 tdesign 会注入筛选结果行，导致空态不渲染
-    const emptyResult = !showSkeleton && !h.records.value.length;
     const resultLink = (row: CollectionHostResult, text: string) => (
       <span v-tippy={this.t(canViewHostResult(row) ? '查看当前主机的采集结果' : resultUnavailableReason(row))}>
         <Button
@@ -440,7 +463,8 @@ export default defineComponent({
                 : column
             )}
             data={showSkeleton ? skeletonRows : this.tableRows}
-            filterRow={emptyResult ? () => null : undefined}
+            // 常关内置筛选结果行：筛选结果统一由 firstFullRow 渲染，空态仍由 empty 插槽接管
+            filterRow={() => null}
             filterValue={{ status: this.state.filters.status }}
             headerAffixedTop={resultsTableAffixed}
             horizontalScrollAffixedBottom={resultsTableAffixed}
@@ -456,6 +480,27 @@ export default defineComponent({
             }
           >
             {{
+              // 面板筛选与列筛选统一在这里汇总，覆盖表格内置的筛选结果行
+              firstFullRow: () =>
+                this.showFilterSummary ? (
+                  <div class='t-table__row-filter-inner'>
+                    <div class='t-table__filter-result'>
+                      <span>
+                        {this.t('搜索“{result}”，找到 {count} 条结果', {
+                          result: this.filterSummary,
+                          count: this.h.total.value ?? 0,
+                        })}
+                      </span>
+                      <Button
+                        theme='primary'
+                        text
+                        onClick={this.reset}
+                      >
+                        {this.t('清空筛选')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null,
               empty: () => {
                 if (this.rangeError) return null;
                 const error = h.error.value;

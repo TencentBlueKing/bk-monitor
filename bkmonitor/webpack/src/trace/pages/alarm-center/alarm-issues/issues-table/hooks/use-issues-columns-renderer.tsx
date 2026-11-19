@@ -97,10 +97,11 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     renderCtx: TableCellRenderContext
   ): SlotReturnValue => {
     const regressionConfig = ISSUES_REGRESSION_MAP[String(row.is_regression)];
+    const isResolved = row.status === IssueStatusEnum.RESOLVED;
     const exceptionText = getIssueExceptionText(row);
 
     return (
-      <div class='issues-name-col'>
+      <div class={['issues-name-col', { 'is-resolved': isResolved }]}>
         <div class='issues-name-title'>
           <span
             style={{
@@ -137,6 +138,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           <IssueNameCell
             ellipsisClass={renderCtx.isEnabledCellEllipsis(column)}
             name={row.name || ''}
+            resolved={isResolved}
             onShowDetail={() => rendererCtx.handleShowDetail(row)}
             onSubmit={(newName: string) => rendererCtx.handleNameChange(row, newName)}
           />

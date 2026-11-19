@@ -1,5 +1,7 @@
 import logging
 import multiprocessing
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, wait
 from typing import Any, final
 from urllib.parse import urljoin
 
@@ -240,18 +242,18 @@ class BcsKubeClient:
     def core_api(self):
         return client.CoreV1Api(client.ApiClient(self.auth))
 
-    def client_request(self, client_api, **kwargs):
+    def client_request(self, client_api: Callable[..., Any], **kwargs: Any) -> Any:
         """
         带超时时间的请求
         """
+        # SDK 的异步模式会把每个临时 ApiClient 的线程池一直保留到进程退出。
+        params = {"_request_timeout": self._REQUEST_TIMEOUT, **kwargs, "async_req": False}
+        executor = ThreadPoolExecutor(max_workers=1)
         try:
-            default_params = {
-                "async_req": True,
-                "_request_timeout": self._REQUEST_TIMEOUT,
-            }
-            default_params.update(kwargs)
-            t = client_api(**default_params)
-            return t.get(self._REQUEST_TIMEOUT)
+            future = executor.submit(client_api, **params)
+            if not wait([future], timeout=self._REQUEST_TIMEOUT).done:
+                raise multiprocessing.TimeoutError
+            return future.result()
         except multiprocessing.TimeoutError:
             logger.warning(
                 f"[BcsKubeClient] {client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}) timeout"
@@ -270,3 +272,6 @@ class BcsKubeClient:
                 logger.error(
                     f"[BcsKubeClient] failed to {client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}), error: {e}"
                 )
+        finally:
+            # 调用方到期即返回，在途请求结束后回收线程。
+            executor.shutdown(wait=False, cancel_futures=True)

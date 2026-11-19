@@ -102,6 +102,8 @@ export interface CollectionHistoryResult {
   data: CollectionExecution[];
   // 缺省时前端回退到默认列，兼容未下发列定义的后端版本
   task_columns?: CollectionTaskColumn[];
+  // 总行数未知（ES 读到查询上限、后端 API 模块未升级）时后端下发 null
+  total?: null | number;
 }
 
 export interface CollectionResultSelection extends CollectionExecutionKey {

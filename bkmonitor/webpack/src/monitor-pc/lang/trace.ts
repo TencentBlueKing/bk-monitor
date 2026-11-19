@@ -410,6 +410,7 @@ export default {
   配置快照: 'Configuration snapshot',
   '切换采样类型：{name}': 'Switch sampling type: {name}',
   清除高亮并恢复完整火焰图: 'Clear highlights and restore the full flame graph',
+  清空筛选: 'Clear filters',
   清空筛选条件并重新查询: 'Clear filters and query again',
   请前往任务管理新建采集任务: 'Go to task management to create a collection task',
   请选择对比条件: 'Select comparison conditions',
@@ -436,6 +437,7 @@ export default {
   使用历史配置重新采集当前主机: 'Re-collect the current host using the historical configuration',
   使用历史配置重新执行本次采集: 'Re-run this collection using the historical configuration',
   '搜索 IP、进程名或 PID': 'Search IP, process name, or PID',
+  '搜索“{result}”，找到 {count} 条结果': 'Search "{result}", found {count} results',
   搜索并高亮相同名称的函数: 'Search and highlight functions with the same name',
   '同一计划的上一轮采集仍在进行，本轮已跳过':
     'The previous round of this task is still running, so this round was skipped.',

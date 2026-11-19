@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 
 from django.utils.translation import gettext as _
@@ -19,12 +17,12 @@ from alarm_backends.core.cache.key import CHECK_RESULT_CACHE_KEY
 from alarm_backends.core.control.record_parser import RecordParser
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.detect_result import ANOMALY_LABEL
-from bkmonitor.models import AnomalyRecord
+from alarm_backends.core.storage.redis_cluster import routed_client
 
 logger = logging.getLogger("trigger")
 
 
-class AnomalyChecker(object):
+class AnomalyChecker:
     """
     异常检测逻辑
     """
@@ -50,6 +48,8 @@ class AnomalyChecker(object):
         self.anomaly_ids = {
             level: anomaly_info["anomaly_id"] for level, anomaly_info in list(self.point["anomaly"].items())
         }
+        self.levels = [str(level) for level in sorted(map(int, self.anomaly_ids))]
+        self.first_window = None
         self.record_parser = RecordParser(point)
         # shortcut
         self.dimensions_md5 = self.record_parser.dimensions_md5
@@ -74,11 +74,10 @@ class AnomalyChecker(object):
         """
 
         anomaly_level, anomaly_timestamps = self.check_anomaly()
-        anomaly_records = self.gen_anomaly_records()
         event_record = self.gen_event_record(anomaly_level, anomaly_timestamps)
 
         result_message = _(
-            "[trigger 处理结果] ({result}) record({record_id}), " "strategy({strategy_id}), item({item_id})"
+            "[trigger 处理结果] ({result}) record({record_id}), strategy({strategy_id}), item({item_id})"
         ).format(
             strategy_id=self.strategy_id,
             item_id=self.item_id,
@@ -86,10 +85,10 @@ class AnomalyChecker(object):
             result=bool(event_record),
         )
         if event_record:
-            result_message = "{}, anomaly({})".format(result_message, self.anomaly_ids[str(anomaly_level)])
+            result_message = f"{result_message}, anomaly({self.anomaly_ids[str(anomaly_level)]})"
         logger.info(result_message)
 
-        return anomaly_records, event_record
+        return event_record
 
     def gen_event_record(self, anomaly_level, anomaly_timestamps):
         """
@@ -107,63 +106,24 @@ class AnomalyChecker(object):
             "trigger": {
                 "level": str(anomaly_level),
                 "anomaly_ids": [
-                    "{dimensions_md5}.{timestamp}.{strategy_id}.{item_id}.{level}".format(
-                        dimensions_md5=self.dimensions_md5,
-                        timestamp=timestamp,
-                        strategy_id=self.strategy_id,
-                        item_id=self.item_id,
-                        level=anomaly_level,
-                    )
+                    f"{self.dimensions_md5}.{timestamp}.{self.strategy_id}.{self.item_id}.{anomaly_level}"
                     for timestamp in anomaly_timestamps
                 ],
             },
         }
         return event_info
 
-    def gen_anomaly_records(self):
-        """
-        创建异常记录
-        :rtype: list[AnomalyRecord]
-        """
-        origin_alarm = {
-            "data": self.point["data"],
-            "anomaly": self.point["anomaly"],
-        }
-        records = []
-        for level, anomaly_info in list(self.point["anomaly"].items()):
-            anomaly_record = AnomalyRecord(
-                anomaly_id=anomaly_info["anomaly_id"],
-                source_time=self.record_parser.mysql_time,
-                strategy_id=self.strategy_id,
-                origin_alarm=origin_alarm,
-                event_id="",
-            )
-            records.append(anomaly_record)
-        return records
-
     def check_anomaly(self):
         """
         异常检测
         :return 触发告警的告警级别，如果都没触发告警，则返回 -1
         """
-        levels = sorted([int(level) for level in list(self.point["anomaly"].keys())])
-        # 按照算法级别从高到低判断，如果高级别算法已经触发了，则无需判断低级别
-        anomaly_level = -1
         anomaly_timestamps = []
-        for level in levels:
-            if anomaly_level != -1:
-                logger.debug(
-                    "anomaly record ({anomaly_id}) skip trigger because"
-                    "high level anomaly record (level: {level}) has been trigger.".format(
-                        anomaly_id=self.anomaly_ids[str(level)], level=anomaly_level
-                    )
-                )
-                continue
-            is_triggered, anomaly_timestamps = self._check_anomaly_by_level(str(level))
+        for level in self.levels:
+            is_triggered, anomaly_timestamps = self._check_anomaly_by_level(level)
             if is_triggered:
-                # 高级别算法满足触发条件
-                anomaly_level = level
-        return anomaly_level, anomaly_timestamps
+                return int(level), anomaly_timestamps
+        return -1, anomaly_timestamps
 
     def _check_anomaly_by_level(self, level):
         """
@@ -171,33 +131,16 @@ class AnomalyChecker(object):
         :param str level: 告警级别
         :return: 二元组：是否被触发，异常次数
         """
-        try:
-            trigger_config = self.trigger_configs[level]
-        except KeyError:
-            trigger_configs = self.trigger_configs.values()
-            if not trigger_configs:
-                # 如果该等级没有在策略中配置，则不检测
-                logger.error(
-                    "strategy({}), item({}) level({}) trigger config not exists".format(
-                        self.strategy_id, self.item_id, level
-                    )
-                )
-                return False, []
-
-            # 默认兜底，trigger 配置当前所有告警级别默认一致
-            trigger_config = list(trigger_configs)[0]
-
-        check_cache_key = CHECK_RESULT_CACHE_KEY.get_key(
-            strategy_id=self.strategy_id,
-            item_id=self.item_id,
-            dimensions_md5=self.dimensions_md5,
-            level=level,
-        )
-        # 在对应的打点队列中取出打点信息。时间范围为source_time前后的一个窗口偏移量
-        check_window_offset = trigger_config["check_window_size"] * self.check_window_unit - 1
-        check_results = CHECK_RESULT_CACHE_KEY.client.zrangebyscore(
-            name=check_cache_key, min=self.source_time - check_window_offset, max=self.source_time, withscores=True
-        )
+        config = self._trigger_config(level)
+        if config is None:
+            logger.error(
+                "strategy(%s), item(%s) level(%s) trigger config not exists", self.strategy_id, self.item_id, level
+            )
+            return False, []
+        if level == self.levels[0] and self.first_window is not None:
+            check_results, self.first_window = self.first_window, None
+        else:
+            check_results = self._read_window(CHECK_RESULT_CACHE_KEY.client, level, config)
         # 统计包含异常标记的key的数量，并与trigger_count进行比较
         anomaly_timestamps = []
         for label, score in check_results:
@@ -205,15 +148,57 @@ class AnomalyChecker(object):
                 anomaly_timestamps.append(int(score))
 
         anomaly_times = len(anomaly_timestamps)
-        is_triggered = anomaly_times >= trigger_config["trigger_count"]
+        is_triggered = anomaly_times >= config["trigger_count"]
         if anomaly_times >= 2 and not is_triggered and self.is_no_data_point(self.point):
             # 无数据判定补充：
             # 1. 所有检测记录均为异常点
             # 2. 异常点间时间差异符合无数据配置的周期
             start, end = anomaly_timestamps[0], anomaly_timestamps[-1]
             always_nodata = anomaly_times == len(check_results)
-            is_triggered = always_nodata and (
-                (end - start) >= (trigger_config["trigger_count"] - 1) * self.check_window_unit
-            )
+            is_triggered = always_nodata and ((end - start) >= (config["trigger_count"] - 1) * self.check_window_unit)
 
         return is_triggered, anomaly_timestamps
+
+    def _trigger_config(self, level):
+        # 旧策略可能缺少对应级别的配置，沿用第一个触发配置。
+        if level in self.trigger_configs:
+            return self.trigger_configs[level]
+        return next(iter(self.trigger_configs.values()), None)
+
+    def _window_key(self, level):
+        return CHECK_RESULT_CACHE_KEY.get_key(
+            strategy_id=self.strategy_id, item_id=self.item_id, dimensions_md5=self.dimensions_md5, level=level
+        )
+
+    def _read_window(self, client, level, config):
+        offset = config["check_window_size"] * self.check_window_unit - 1
+        return client.zrangebyscore(
+            self._window_key(level), self.source_time - offset, self.source_time, withscores=True
+        )
+
+    @staticmethod
+    def prefetch_first_windows(checkers):
+        """同一策略批读每个点必查的最高优先级窗口，后续级别仅在未触发时查询。"""
+        if len(checkers) < 2:
+            return
+        first = checkers[0]
+        try:
+            with routed_client(CHECK_RESULT_CACHE_KEY.client, first._window_key(first.levels[0])) as client:
+                with client.pipeline(transaction=False) as pipe:
+                    pending = []
+                    for checker in checkers:
+                        level = checker.levels[0]
+                        config = checker._trigger_config(level)
+                        if config is not None and checker.strategy_id == first.strategy_id:
+                            checker._read_window(pipe, level, config)
+                            pending.append(checker)
+                    results = pipe.execute(raise_on_error=False)
+        except Exception:
+            # 点已出队。批读失败时让原有逐点读取和错误隔离继续处理。
+            logger.exception(
+                "prefetch trigger windows failed for strategy(%s), item(%s)", first.strategy_id, first.item_id
+            )
+            return
+        for checker, result in zip(pending, results):
+            if not isinstance(result, Exception):
+                checker.first_window = result
