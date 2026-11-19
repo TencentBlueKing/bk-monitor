@@ -162,7 +162,7 @@
           }
         }
         .t-input__inner {
-          font-size: 13px;
+          font-size: var(--bklog-font-body, 12px);
           color: var(--bklog-text-secondary, #63656e);
         }
       }
