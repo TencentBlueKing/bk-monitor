@@ -63,19 +63,20 @@ class ActionSearchHandler(BaseSearchHandler):
                         )
                     )
 
-        search_obj = base_search.filter("terms", bk_biz_id=biz_to_search_detail).source(
-            fields=["id", "action_name", "bk_biz_id"]
-        )
-
-        for action in search_obj.scan():
-            search_results.append(
-                SearchResultItem(
-                    bk_biz_id=int(action.bk_biz_id),
-                    title=action.action_name,
-                    view="event-center-action-detail",
-                    view_args={"params": {"id": action.id}},
-                )
+        if biz_to_search_detail:
+            search_obj = base_search.filter("terms", bk_biz_id=biz_to_search_detail).source(
+                fields=["id", "action_name", "bk_biz_id"]
             )
+
+            for action in search_obj.scan():
+                search_results.append(
+                    SearchResultItem(
+                        bk_biz_id=int(action.bk_biz_id),
+                        title=action.action_name,
+                        view="event-center-action-detail",
+                        view_args={"params": {"id": action.id}},
+                    )
+                )
 
         self.add_permission_for_results(results=search_results, action=ActionEnum.VIEW_EVENT)
         return search_results
