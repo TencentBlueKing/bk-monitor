@@ -677,6 +677,50 @@ def test_export_rejects_samples_over_limit(result_apis, mocker):
         ExportResultsResource().request(IMMEDIATE_EXPORT_REQUEST)
 
 
+@pytest.mark.parametrize(
+    ("resource_cls", "request_data"),
+    [
+        (QueryResultsResource, PLANNED_RESULT_REQUEST),
+        (QueryResultDataTypesResource, PLANNED_DATA_TYPES_REQUEST),
+        (ExportResultsResource, PLANNED_EXPORT_REQUEST),
+    ],
+)
+def test_results_filter_single_process_by_pid(result_apis, resource_cls, request_data):
+    result_apis["bkdata"].return_value = {"list": [export_profile_sample(700, "main", "work")]}
+
+    resource_cls().request({**request_data, "pid": 2341})
+
+    # 查看、采样类型与导出共用定位条件，只多一个 pid 标签，不按 comm 过滤
+    assert sent_profile_query(result_apis["bkdata"])["api_params"]["label_filter"] == {
+        "scheduled_at": "1788411800000",
+        "bk_host_id": "456",
+        "task_id": "123",
+        "pid": "2341",
+    }
+
+
+@pytest.mark.parametrize("pid", [None, ""])
+@pytest.mark.parametrize(
+    ("resource_cls", "request_data"),
+    [
+        (QueryResultsResource, PLANNED_RESULT_REQUEST),
+        (QueryResultDataTypesResource, PLANNED_DATA_TYPES_REQUEST),
+        (ExportResultsResource, PLANNED_EXPORT_REQUEST),
+    ],
+)
+def test_results_empty_pid_returns_all_processes(result_apis, resource_cls, request_data, pid):
+    result_apis["bkdata"].return_value = {"list": [export_profile_sample(700, "main", "work")]}
+
+    resource_cls().request({**request_data, "pid": pid})
+
+    # 前端“全部进程”传 null 或空串，与不传一样不带 pid
+    assert sent_profile_query(result_apis["bkdata"])["api_params"]["label_filter"] == {
+        "scheduled_at": "1788411800000",
+        "bk_host_id": "456",
+        "task_id": "123",
+    }
+
+
 @pytest.fixture
 def beat_plugin_status(mocker):
     mocker.patch("apm_web.profile.active_collection.resources.PLUGIN_MIN_VERSION", {"bkmonitorbeat": "2.10.0"})
@@ -878,6 +922,9 @@ def test_active_collection_routes_are_registered():
         (ResultExportRequestSerializer, IMMEDIATE_EXPORT_REQUEST),
         (ResultDataTypesRequestSerializer, PLANNED_DATA_TYPES_REQUEST),
         (ResultDataTypesRequestSerializer, IMMEDIATE_DATA_TYPES_REQUEST),
+        (ResultQueryRequestSerializer, {**IMMEDIATE_RESULT_REQUEST, "pid": 2341}),
+        (ResultExportRequestSerializer, {**PLANNED_EXPORT_REQUEST, "pid": 2341}),
+        (ResultDataTypesRequestSerializer, {**PLANNED_DATA_TYPES_REQUEST, "pid": 2341}),
     ],
 )
 def test_request_serializers_accept_doc_payload(serializer_cls, params):
@@ -976,6 +1023,10 @@ def test_request_serializers_accept_doc_payload(serializer_cls, params):
         (ResultQueryRequestSerializer, {**PLANNED_DATA_TYPES_REQUEST, "diagram_types": ["table"]}),
         (ResultExportRequestSerializer, PLANNED_DATA_TYPES_REQUEST),
         (ResultDataTypesRequestSerializer, {**PLANNED_DATA_TYPES_REQUEST, "finished_at": RESULT_STARTED_AT - 1}),
+        # pid 只接受单个正整数
+        (ResultQueryRequestSerializer, {**PLANNED_RESULT_REQUEST, "pid": 0}),
+        (ResultQueryRequestSerializer, {**PLANNED_RESULT_REQUEST, "pid": [2341]}),
+        (ResultExportRequestSerializer, {**PLANNED_EXPORT_REQUEST, "pid": "abc"}),
         (
             ExecutionCancelRequestSerializer,
             {
