@@ -138,9 +138,12 @@ def test_reference_omits_tenant_in_single_tenant_mode():
     }
 
 
-@pytest.mark.parametrize(
-    "empty_field", ["binding", "kafka_resource", "pattern_store", "runtime_cluster", "recovery_resource"]
-)
+def test_compose_config_omits_recovery_resource(default_biz):
+    spec = build_sink(recovery_resource={}).compose_config(RAW_SINK)["spec"]
+    assert "recovery_resource" not in spec["clustering"]
+
+
+@pytest.mark.parametrize("empty_field", ["binding", "kafka_resource", "pattern_store", "runtime_cluster"])
 def test_compose_config_rejects_incomplete_sink(empty_field, default_biz):
     with pytest.raises(ValueError, match=empty_field):
         build_sink(**{empty_field: {}}).compose_config(RAW_SINK)

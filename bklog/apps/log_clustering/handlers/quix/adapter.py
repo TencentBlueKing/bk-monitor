@@ -138,7 +138,6 @@ def build_binding(runtime: LogClusteringRuntime, clustering_config: dict, max_me
         "log_filter": clustering_config["log_filter"],
         "input_mapping": clustering_config["input_mapping"],
         "distance_threshold": clustering_config["distance_threshold"],
-        "state_index": runtime.state_index,
     }
     if max_message_bytes:
         binding["max_message_bytes"] = max_message_bytes

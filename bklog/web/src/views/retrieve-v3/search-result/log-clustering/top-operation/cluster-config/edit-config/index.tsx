@@ -29,7 +29,7 @@ import TextHighlight from 'vue-text-highlight';
 import FilterRule from '@/components/filter-rule';
 import RuleConfigOperate from '@/components/rule-config-operate';
 import RuleTable from '@/components/rule-table';
-import { quixPage } from '../../../quix-status';
+import { quixPage } from '../../../quix-page';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { bkNotify } from 'bk-magic-vue';
@@ -232,18 +232,17 @@ export default defineComponent({
               },
             })
             .then((res: IResponseData<(string | null)[]>) => {
-              if (quix.value) {
-                bkNotify({ title: t(res.data?.[0] ? '配置已提交，等待生效' : '配置没有变化'), offsetY: 80 });
-                page?.refresh();
+              if (quix.value && res.data?.[0] === null) {
                 emit('close');
                 return;
               }
               bkNotify({
                 title: t('保存待生效'),
-                message: t('该保存需要10分钟生效, 请耐心等待'),
+                ...(quix.value ? {} : { message: t('该保存需要10分钟生效, 请耐心等待') }),
                 limitLine: 3,
                 offsetY: 80,
               });
+              if (quix.value) page?.refresh();
               emit('close');
             })
             .finally(() => {

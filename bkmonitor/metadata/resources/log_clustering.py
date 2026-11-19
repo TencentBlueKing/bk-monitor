@@ -201,7 +201,7 @@ class SetLogClusteringConfigResource(Resource):
         binding = serializers.DictField(label="聚类绑定配置")
         kafka_resource = LogClusteringResourceRefSerializer(label="聚类 Kafka 资源引用")
         runtime_cluster = LogClusteringResourceRefSerializer(label="专用 Databus 集群")
-        recovery_resource = LogClusteringResourceRefSerializer(label="结果关联存储资源")
+        recovery_resource = LogClusteringResourceRefSerializer(label="结果关联存储资源", required=False)
         result_mode = serializers.ChoiceField(choices=RESULT_MODES, required=False)
         pattern_store = LogClusteringStoreSerializer(label="Pattern 表")
         result_store = LogClusteringStoreSerializer(label="独立聚类结果表", required=False)
@@ -214,8 +214,9 @@ class SetLogClusteringConfigResource(Resource):
             references = [
                 ("kafka_resource", attrs["kafka_resource"], "Kafka"),
                 ("runtime_cluster", attrs["runtime_cluster"], "DatabusCluster"),
-                ("recovery_resource", attrs["recovery_resource"], "ElasticSearch"),
             ]
+            if "recovery_resource" in attrs:
+                references.append(("recovery_resource", attrs["recovery_resource"], "ElasticSearch"))
             for field, ref, kind in references:
                 if ref["kind"] != kind:
                     raise ValidationError({field: f"kind must be {kind}"})
@@ -232,7 +233,7 @@ class SetLogClusteringConfigResource(Resource):
             "binding": validated_request_data["binding"],
             "kafka_resource": validated_request_data["kafka_resource"],
             "runtime_cluster": validated_request_data["runtime_cluster"],
-            "recovery_resource": validated_request_data["recovery_resource"],
+            "recovery_resource": validated_request_data.get("recovery_resource", {}),
         }
 
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)

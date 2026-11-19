@@ -31,7 +31,7 @@ import MainHeader from './main-header';
 import $http from '@/api';
 import ClusteringLoader from '@/skeleton/clustering-loader.vue';
 import ContentTable, { IPagination, GroupListState } from './content-table';
-import { quixPage } from '../quix-status';
+import { quixPage } from '../quix-page';
 import { type LogPattern } from '@/services/log-clustering';
 import { type IResponseData } from '@/services/type';
 

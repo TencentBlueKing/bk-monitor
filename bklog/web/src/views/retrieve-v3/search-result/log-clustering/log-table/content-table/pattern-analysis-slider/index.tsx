@@ -34,7 +34,7 @@ import $http, { axiosInstance } from '@/api';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { blobDownload } from '@/common/util';
 import { getConditionRouterParams } from '../utils';
-import { quixPage } from '../../../quix-status';
+import { quixPage } from '../../../quix-page';
 import { type ClusteringConfigData } from '../index';
 import './index.scss';
 

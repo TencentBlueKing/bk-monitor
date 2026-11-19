@@ -286,7 +286,6 @@ class QuixClusteringOperationRunner:
                 binding=build_binding(self.runtime, clustering_config, self.quix_config.get("max_message_bytes")),
                 kafka_resource=self.quix_config["kafka_resource"],
                 runtime_cluster=self.quix_config["runtime_cluster"],
-                recovery_resource=self.quix_config["recovery_resource"],
                 result_mode=clustering_config.get("result_mode", "update_original"),
             ),
         )

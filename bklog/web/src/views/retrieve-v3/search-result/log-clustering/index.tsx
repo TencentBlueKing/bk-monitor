@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, provide, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import useLocale from '@/hooks/use-locale';
-import QuixStatusBanner, { quixPage } from './quix-status';
+import { quixPage } from './quix-page';
 import ClusteringLoader from '@/skeleton/clustering-loader.vue';
 import useStore from '@/hooks/use-store';
 import useFieldNameHook from '@/hooks/use-field-name';
@@ -278,7 +278,13 @@ export default defineComponent({
             ![res.data.flow_create, res.data.flow_run, res.data.data_check].some(step => step.status === 'FAILED');
         if (pending) statusTimer = setTimeout(clusterPolling, 10000);
       } catch (error) {
-        if (seq === statusRequest) statusError.value = error instanceof Error ? error.message : String(error);
+        if (seq !== statusRequest) return;
+        // 更新提交后的第一次刷新可能仍只有上一轮 running 状态，保留已加载的结果并继续轮询。
+        if (quix.value && isShowTopNav.value) {
+          statusTimer = setTimeout(clusterPolling, 10000);
+          return;
+        }
+        statusError.value = error instanceof Error ? error.message : String(error);
       }
     };
 
@@ -399,31 +405,44 @@ export default defineComponent({
             width-list={loadingWidthList.global}
             is-loading
           />
+        ) : statusError.value ? (
+          <bk-exception
+            type='500'
+            scene='part'
+          >
+            <span>{statusError.value}</span>
+            <bk-button
+              text
+              on-click={clusterPolling}
+            >
+              {t('重新获取状态')}
+            </bk-button>
+          </bk-exception>
         ) : (
           <div class='log-cluster-table-container'>
-            {statusError.value && (
-              <div
-                role='alert'
-                class='quix-status'
+            {!window.IS_EXTERNAL && quix.value?.phase === 'stopped' && quix.value.can_reopen && (
+              <bk-button
+                text
+                disabled={submitting.value}
+                on-click={() => submitAction('reopen')}
               >
-                {statusError.value}
+                {t('重新开启聚类')}
+              </bk-button>
+            )}
+            {!window.IS_EXTERNAL &&
+              !showQuixProgress.value &&
+              quix.value?.operation?.status === 'failed' &&
+              quix.value.operation.operation_type !== 'disable' &&
+              quix.value.phase !== 'stopped' && (
                 <bk-button
                   text
-                  on-click={clusterPolling}
+                  disabled={submitting.value}
+                  title={quix.value.operation.last_error}
+                  on-click={() => submitAction('retry')}
                 >
-                  {t('重新获取状态')}
+                  {t('重试')}
                 </bk-button>
-              </div>
-            )}
-            {quix.value && (
-              <QuixStatusBanner
-                status={quix.value}
-                showProgress={exhibitAll.value && !statusError.value && showQuixProgress.value}
-                busy={submitting.value || !!statusError.value}
-                on-retry={() => submitAction('retry')}
-                on-reopen={() => submitAction('reopen')}
-              />
-            )}
+              )}
             {isShowTopNav.value && (
               // 顶部工具栏
               <TopOperation
@@ -457,7 +476,7 @@ export default defineComponent({
                     />
                   );
                 }
-                if (isShowClusterStep.value && (statusError.value || !clusterStepData.value)) return null;
+                if (isShowClusterStep.value && !clusterStepData.value) return null;
                 if (isShowClusterStep.value && quix.value && !showQuixProgress.value) {
                   return null;
                 }
@@ -482,7 +501,7 @@ export default defineComponent({
                   );
                 }
                 if (!isTableReady.value) {
-                  return statusError.value ? null : (
+                  return (
                     <clustering-loader
                       width-list={loadingWidthList.global}
                       is-loading

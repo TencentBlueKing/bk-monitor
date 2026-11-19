@@ -133,7 +133,6 @@ class QuixClusteringHandler:
         enable_fields = {
             "phase": ClusteringRuntimePhaseEnum.ENABLING.value,
             "pending_config": clustering_config,
-            "state_index": quix_config["state_index"],
         }
         # 业务配置与可调度操作一起提交，保存失败时不能由定时恢复任务继续开启。
         with transaction.atomic():
