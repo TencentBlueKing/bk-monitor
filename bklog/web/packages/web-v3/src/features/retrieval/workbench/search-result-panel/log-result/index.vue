@@ -25,8 +25,8 @@
 -->
 
 <template>
-  <div class="original-log-panel">
-    <div :class="['original-log-panel-tools', { 'trace-log-panel': isMonitorTrace }]">
+  <div class="original-log-panel" :style="{ '--bklog-result-tools-height': `${resultToolsHeight}px` }">
+    <div ref="resultTools" :class="['original-log-panel-tools', { 'trace-log-panel': isMonitorTrace }]">
       <div class="left-operate">
         <div class="bk-button-group">
           <span
@@ -113,6 +113,8 @@
 
 <script>
 import { mapState as mapPiniaState } from 'pinia';
+import { ref } from 'vue';
+import useResizeObserve from '@/shared/composables/use-resize-observe';
 
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
@@ -158,6 +160,16 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
         type: Boolean,
         default: true,
       },
+    },
+    setup() {
+      const resultTools = ref(null);
+      const resultToolsHeight = ref(0);
+
+      useResizeObserve(resultTools, ({ target }) => {
+        resultToolsHeight.value = target.getBoundingClientRect().height;
+      }, false);
+
+      return { resultTools, resultToolsHeight };
     },
     data() {
       return {

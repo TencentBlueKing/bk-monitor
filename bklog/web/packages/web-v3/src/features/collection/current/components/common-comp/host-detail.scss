@@ -91,7 +91,7 @@
             .t-collapse-panel__header {
                 height: 42px;
                 padding: 0 16px;
-                font-size: 12px;
+                font-size: var(--bklog-font-body, 12px);
                 font-weight: normal;
                 line-height: 42px;
                 color: var(--bklog-text-primary, #313238);
