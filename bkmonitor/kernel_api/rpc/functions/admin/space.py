@@ -37,6 +37,7 @@ from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.utils import es_tools
 
 FUNC_SPACE_LIST = "admin.space.list"
+FUNC_SPACE_LIST_BY_USER = "admin.space.list_by_user"
 FUNC_SPACE_DETAIL = "admin.space.detail"
 FUNC_SPACE_ES_USAGE = "admin.space.es_usage"
 
@@ -625,6 +626,38 @@ def _build_space_queryset(params: dict[str, Any], bk_tenant_id: str | None):
             queryset = queryset.filter(**{field: field_value})
 
     return queryset
+
+
+@KernelRPCRegistry.register(
+    FUNC_SPACE_LIST_BY_USER,
+    summary="查询真实用户有监控查看权限的指定业务空间",
+    description="使用监控平台的用户空间 IAM 判定，仅返回指定租户和业务的空间摘要；无授权时 items 为空。",
+    params_schema={
+        "username": "必填，监控 IAM 鉴权的用户名",
+        "bk_tenant_id": "必填，具体租户 ID",
+        "bk_biz_id": "必填，业务 ID 或负数空间业务 ID",
+    },
+    example_params={"username": "alice", "bk_tenant_id": "system", "bk_biz_id": 2},
+)
+def list_spaces_by_user(params: dict[str, Any]) -> dict[str, Any]:
+    from monitor_web.commons.biz.resources import ListSpacesResource
+
+    tenant = require_bk_tenant_id(params)
+    username = params.get("username")
+    if not isinstance(username, str) or not username.strip():
+        raise CustomException(message="username 为必填项")
+    biz_id = params.get("bk_biz_id")
+    if type(biz_id) is not int:
+        raise CustomException(message="bk_biz_id 必须为整数")
+    spaces = ListSpacesResource.get_space_by_user(tenant, username.strip())
+    items = [
+        {key: space[key] for key in ("bk_tenant_id", "bk_biz_id", "space_uid", "space_name")}
+        for space in spaces
+        if space["bk_tenant_id"] == tenant and space["bk_biz_id"] == biz_id
+    ]
+    return build_response(
+        operation="space.list_by_user", func_name=FUNC_SPACE_LIST_BY_USER, bk_tenant_id=tenant, data={"items": items}
+    )
 
 
 @KernelRPCRegistry.register(
