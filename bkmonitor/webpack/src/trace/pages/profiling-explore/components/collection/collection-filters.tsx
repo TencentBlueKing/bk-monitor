@@ -74,11 +74,13 @@ export default defineComponent({
     }
     // 任一候选接口失败即提示，具体文案由渲染层提供
     const candidateError = computed(() => ipError.value || processError.value || taskError.value);
-    // 重试时清掉失败标记，下拉再次打开会自然重试
+    // 重试时清掉失败标记并递增版本号，强制重挂选择器重新预加载、重新拉取候选
+    const revision = shallowRef(0);
     function reloadCandidates() {
       ipError.value = false;
       processError.value = false;
       taskError.value = false;
+      revision.value += 1;
     }
     // 外部筛选变化时同步草稿
     watch(
@@ -115,6 +117,7 @@ export default defineComponent({
       setProcessError,
       setTaskError,
       candidateError,
+      revision,
       reloadCandidates,
       submit,
       apply,
@@ -129,6 +132,7 @@ export default defineComponent({
           <div class='collection-history-filter-item'>
             <span>IP</span>
             <CollectionValueTagSelector
+              key={this.revision}
               bizId={this.bizId}
               fields={['target']}
               range={this.range}
@@ -140,6 +144,7 @@ export default defineComponent({
           <div class='collection-history-filter-item'>
             <span>{this.t('任务')}</span>
             <CollectionSingleSelect
+              key={this.revision}
               bizId={this.bizId}
               modelValue={draft.task_id ? this.taskName : draft.task_name}
               placeholder={this.t('请选择')}
@@ -154,6 +159,7 @@ export default defineComponent({
           <div class='collection-history-filter-item'>
             <span>{this.t('进程')}</span>
             <CollectionValueTagSelector
+              key={this.revision}
               bizId={this.bizId}
               fields={['process_names', 'process_pids']}
               placeholder={this.t('进程名或 PID')}

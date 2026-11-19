@@ -126,11 +126,15 @@ export default defineComponent({
       limit: number,
       signal: AbortSignal
     ) {
-      const key = `${field}:${keyword}:${limit}`;
-      const cached = candidateCache.get(key);
+      // 捕获请求发出时的业务、范围与缓存实例，返回后只写入属于这次上下文的缓存
+      const bizId = props.bizId;
+      const currentCache = candidateCache;
+      const key = `${bizId}:${range[0]}:${range[1]}:${field}:${keyword}:${limit}`;
+      const cached = currentCache.get(key);
       if (cached) return cached;
-      const list = await getCollectionCandidates(props.bizId, range, field, { keyword, limit }, signal);
-      candidateCache.set(key, list);
+      const list = await getCollectionCandidates(bizId, range, field, { keyword, limit }, signal);
+      if (signal.aborted || currentCache !== candidateCache) return [];
+      currentCache.set(key, list);
       return list;
     }
 
@@ -233,6 +237,7 @@ export default defineComponent({
       { deep: true, immediate: true }
     );
     watch([() => props.bizId, () => props.range], () => {
+      valueController?.abort();
       candidateCache = new Map();
       preload();
     });

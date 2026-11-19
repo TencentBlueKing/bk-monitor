@@ -95,8 +95,9 @@ export default defineComponent({
       },
       { immediate: true }
     );
-    // 时间范围变化后候选失效，重新打开下拉时重新请求
+    // 业务或时间范围变化后候选失效，中止进行中的请求并清空缓存
     watch([() => props.bizId, () => props.range], () => {
+      controller?.abort();
       cache = new Map();
     });
 
@@ -184,23 +185,20 @@ export default defineComponent({
         Math.max(params.limit || COLLECTION_CANDIDATE_PAGE_SIZE, COLLECTION_CANDIDATE_PAGE_SIZE),
         COLLECTION_CANDIDATE_MAX_LIMIT
       );
-      const key = `${keyword}:${limit}`;
-      let list = cache.get(key);
+      // 捕获请求发出时的业务、范围与缓存实例，返回后只写入属于这次上下文的缓存
+      const bizId = props.bizId;
+      const currentCache = cache;
+      const key = `${bizId}:${range[0]}:${range[1]}:${keyword}:${limit}`;
+      let list = currentCache.get(key);
       if (!list) {
         controller?.abort();
         const current = new AbortController();
         controller = current;
         try {
-          const items = await getCollectionCandidates(
-            props.bizId,
-            range,
-            'task_name',
-            { keyword, limit },
-            current.signal
-          );
-          if (current.signal.aborted) return { count: 0, list: [] };
+          const items = await getCollectionCandidates(bizId, range, 'task_name', { keyword, limit }, current.signal);
+          if (current.signal.aborted || currentCache !== cache) return { count: 0, list: [] };
           list = items.map(item => ({ id: String(item.value), name: item.alias || String(item.value) }));
-          cache.set(key, list);
+          currentCache.set(key, list);
         } catch {
           if (!current.signal.aborted) emit('error', true);
           return { count: 0, list: [] };
