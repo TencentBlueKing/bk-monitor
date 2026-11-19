@@ -178,14 +178,25 @@ const BkTable = defineComponent({
         const filters = attr(propsOf, 'filters') as { text?: string; label?: string; value: unknown }[] | undefined;
         const multiple = attr(propsOf, 'filterMultiple', 'filter-multiple') !== false;
         const renderHeader = attr(propsOf, 'renderHeader', 'render-header') as ((...args: unknown[]) => unknown) | undefined;
+        const fixed = attr(propsOf, 'fixed') as string | undefined;
         if (type === 'selection') {
-          return [{ colKey: 'row-select', type: 'multiple', width: width || 50 }];
+          const selectable = attr(propsOf, 'selectable') as ((row: unknown, index: number) => boolean) | undefined;
+          return [{
+            colKey: 'row-select',
+            type: 'multiple',
+            width: width || 50,
+            disabled: typeof selectable === 'function'
+              ? ({ row, rowIndex }: { row: unknown; rowIndex: number }) => !selectable(row, rowIndex)
+              : undefined,
+          }];
         }
         return [{
           colKey: key,
           title: renderHeader ? () => renderHeader(h, { column: { label } }) : label || '',
           width,
           minWidth,
+          sorter: attr(propsOf, 'sortable') === 'custom' ? true : undefined,
+          fixed: fixed === 'left' || fixed === 'right' ? fixed : undefined,
           ellipsis: attr(propsOf, 'showOverflowTooltip', 'show-overflow-tooltip') !== undefined,
           className: attr(propsOf, 'className', 'class-name'),
           cell: cellRenderer(node),
@@ -233,10 +244,17 @@ const BkTable = defineComponent({
           }
           emit('filter-change', payload);
         },
+        onSortChange: (sort: { sortBy?: string; descending?: boolean } | { sortBy?: string; descending?: boolean }[]) => {
+          const info = Array.isArray(sort) ? sort[0] : sort;
+          emit('sort-change', {
+            prop: info?.sortBy,
+            order: info?.sortBy ? (info.descending ? 'descending' : 'ascending') : null,
+          });
+        },
         onRowClick: ({ row }: { row: unknown }) => emit('row-click', row),
-        onSelectChange: (keys: unknown[]) => {
+        onSelectChange: (keys: unknown[], context?: { selectedRowData?: unknown[] }) => {
           emit('select', keys);
-          emit('selection-change', keys);
+          emit('selection-change', context?.selectedRowData?.filter(row => row != null) || []);
         },
       }, { empty: slots.empty || (() => props.emptyText) });
       return props.loading === undefined ? content() : h(ManagementListLoading, { loading: props.loading }, { default: content });

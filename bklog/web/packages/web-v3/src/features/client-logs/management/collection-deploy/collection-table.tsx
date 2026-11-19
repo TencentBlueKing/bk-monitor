@@ -24,9 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { Loading as TLoading } from '@/shared/ui/loading/native';
-
-
 import { Button as TButton } from 'tdesign-vue-next';
 
 import { computed, defineComponent, ref, type PropType } from 'vue';
@@ -40,6 +37,8 @@ import { TaskStatus, TaskScene, type CollectionTask, type CreatorFilterOption, t
 import { useTableSetting } from '@/features/management/manage-v2/hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
 import { useDownloadFile } from '../hooks/use-download-file';
+import TableColumnSetting from '../components/table-column-setting';
+import LoadingIcon from '../components/loading-icon';
 
 import './collection-table.scss';
 
@@ -222,6 +221,17 @@ export default defineComponent({
       searchTask(props.indexSetId, conditions, [row.processed_at, 'now']);
     };
 
+    const textSlot = (field: string) => ({
+      default: ({ row }: { row: CollectionTask }) => (
+        <div
+          class='overflow-hidden-text'
+          v-log-overflow-tips
+        >
+          {String(row[field] ?? '')}
+        </div>
+      ),
+    });
+
     // 任务名称插槽
     const nameSlot = {
       default: ({ row }: { row: CollectionTask }) => (
@@ -231,14 +241,26 @@ export default defineComponent({
           theme='primary'
           onClick={() => viewTask(row)} variant={(true) ? 'text' : ('base')}
         >
-          {row.task_name}
+          <span
+            class='name-button-text'
+            v-log-overflow-tips
+          >
+            {row.task_name}
+          </span>
         </TButton>
       ),
     };
 
     // openid插槽
     const openidSlot = {
-      default: ({ row }: { row: CollectionTask }) => <span class=''>{row.openid.split('\n').join(';')}</span>,
+      default: ({ row }: { row: CollectionTask }) => (
+        <div
+          class='overflow-hidden-text'
+          v-log-overflow-tips
+        >
+          {row.openid.split('\n').join(';')}
+        </div>
+      ),
     };
 
     // 任务状态插槽
@@ -267,7 +289,7 @@ export default defineComponent({
 
         const renderStatusIcon = () => {
           if (loadingStatuses.includes(row.status)) {
-            return <TLoading size="small"></TLoading>;
+            return <LoadingIcon />;
           }
           if (failedStatuses.includes(row.status)) {
             return <div class='status-dot status-failed'></div>;
@@ -292,7 +314,12 @@ export default defineComponent({
             >
               {renderStatusIcon()}
             </div>
-            {row.status_name}
+            <div
+              class='overflow-hidden-text'
+              v-log-overflow-tips
+            >
+              {row.status_name}
+            </div>
           </div>
         );
       },
@@ -300,13 +327,23 @@ export default defineComponent({
 
     // 创建人插槽
     const creatorSlot = {
-      default: ({ row }: { row: CollectionTask }) => <bk-user-display-name user-id={row.created_by}></bk-user-display-name>,
+      default: ({ row }: { row: CollectionTask }) => (
+        <div
+          class='overflow-hidden-text'
+          v-log-overflow-tips
+        >
+          <bk-user-display-name user-id={row.created_by}></bk-user-display-name>
+        </div>
+      ),
     };
 
     // 客户端类型插槽
     const platformSlot = {
       default: ({ row }: { row: CollectionTask }) => (
-        <div class='platform-row'>
+        <div
+          class='platform-row overflow-hidden-text'
+          v-log-overflow-tips
+        >
           {CLIENT_TYPE_OPTIONS.find(option => option.value === row.platform)?.label || row.platform}
         </div>
       ),
@@ -315,7 +352,10 @@ export default defineComponent({
     // 触发频率插槽
     const frequencySlot = {
       default: ({ row }: { row: CollectionTask }) => (
-        <div class='frequency-row'>
+        <div
+          class='frequency-row overflow-hidden-text'
+          v-log-overflow-tips
+        >
           {TRIGGER_FREQUENCY_OPTIONS.find(option => option.value === row.frequency)?.label || row.frequency}
         </div>
       ),
@@ -384,6 +424,7 @@ export default defineComponent({
           data={props.data}
           pagination={props.pagination}
           outer-border={false}
+          filter-row={() => null}
           ref={logTableRef}
           onPage-change={handlePageChange}
           onPage-limit-change={handlePageLimitChange}
@@ -407,6 +448,7 @@ export default defineComponent({
               width='100'
               label={t('任务 ID')}
               prop='task_id'
+              v-slots={textSlot('task_id')}
             />
           )}
           <bk-table-column
@@ -445,12 +487,13 @@ export default defineComponent({
             <bk-table-column
               key='scene_name'
               class-name='filter-column overflow-hidden-text'
-              width='100'
+              width='120'
               label={t('任务阶段')}
               prop='scene_name'
               column-key='scene'
               filters={taskScenes}
               filter-multiple={false}
+              v-slots={textSlot('scene_name')}
             />
           )}
           {checkFields('created_by') && (
@@ -475,7 +518,8 @@ export default defineComponent({
               width='190'
               label={t('创建时间')}
               prop='created_at'
-              sortable
+              sortable='custom'
+              v-slots={textSlot('created_at')}
             />
           )}
           {checkFields('log_path') && (
@@ -485,6 +529,7 @@ export default defineComponent({
               min-width='160'
               label={t('日志路径')}
               prop='log_path'
+              v-slots={textSlot('log_path')}
             />
           )}
           {checkFields('frequency') && (
@@ -516,26 +561,28 @@ export default defineComponent({
               width='120'
               label={t('最大文件个数')}
               prop='max_file_num'
+              v-slots={textSlot('max_file_num')}
             />
           )}
           <bk-table-column
             nativeCellSlot={true}
             label={t('操作')}
-            width='150'
+            width='190'
             fixed='right'
             v-slots={operateSlot}
           />
           <bk-table-column
-            type='setting'
             key='setting'
-          >
-            <bk-table-setting-content
-              v-en-style='width: 530px'
-              fields={columnSetting.value.fields}
-              selected={columnSetting.value.selectedFields}
-              onSettingChange={handleSettingChange}
-            />
-          </bk-table-column>
+            width='44'
+            fixed='right'
+            render-header={() => (
+              <TableColumnSetting
+                fields={columnSetting.value.fields}
+                selected={columnSetting.value.selectedFields}
+                onChange={handleSettingChange}
+              />
+            )}
+          />
         </bk-table>
       </div>
     );

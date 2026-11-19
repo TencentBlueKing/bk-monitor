@@ -1,9 +1,20 @@
 .log-table {
   .name-button {
+    justify-content: flex-start;
     width: 100%;
+    max-width: 100%;
+    padding: 0;
     text-align: left;
 
-    >div {
+    .t-button__text {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .name-button-text {
+      display: block;
       overflow: hidden;
       text-overflow: ellipsis;
       overflow-wrap: normal;
@@ -14,9 +25,11 @@
 
   .status-row {
     display: flex;
+    align-items: center;
 
     .status-icon {
       display: flex;
+      flex: none;
       align-items: center;
       justify-content: center;
       width: 16px;
@@ -56,6 +69,7 @@
     align-items: center;
 
     .king-button {
+      flex: none;
       margin-right: 16px;
     }
   }
@@ -75,12 +89,11 @@
     }
   }
 
-  .overflow-hidden-text {
-    .cell {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      overflow-wrap: normal;
-      white-space: nowrap;
-    }
+  div.overflow-hidden-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    white-space: nowrap;
   }
 }

@@ -24,9 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { Loading as TLoading } from '@/shared/ui/loading/native';
-
-
 import { Button as TButton } from 'tdesign-vue-next';
 
 import { computed, defineComponent, ref, watch } from 'vue';
@@ -38,6 +35,8 @@ import { t } from '@/shared/composables/use-locale';
 import { useTableSetting } from '@/features/management/manage-v2/hooks/use-table-setting';
 import { useSearchTask } from '../hooks/use-search-task';
 import { useDownloadFile } from '../hooks/use-download-file';
+import TableColumnSetting from '../components/table-column-setting';
+import LoadingIcon from '../components/loading-icon';
 import { FileUploadStatus, UserReportItem } from './types';
 
 import './report-table.scss';
@@ -50,6 +49,10 @@ export default defineComponent({
   props: {
     data: {
       type: Array as () => UserReportItem[],
+      default: () => [],
+    },
+    selectedFileNames: {
+      type: Array as () => string[],
       default: () => [],
     },
     keyword: {
@@ -185,6 +188,17 @@ export default defineComponent({
       ),
     };
 
+    const fileSizeSlot = {
+      default: ({ row }: { row: UserReportItem }) => (
+        <div
+          class='overflow-hidden-text'
+          v-log-overflow-tips
+        >
+          {formatFileSize(row.file_size)}
+        </div>
+      ),
+    };
+
     // 文件MD5插槽
     const md5Slot = {
       default: ({ row }) => (
@@ -213,10 +227,7 @@ export default defineComponent({
             key={row.status}
           >
             {row.status === FileUploadStatus.RUNNING ? (
-              <TLoading
-                size="small"
-                class='status-spin'
-              ></TLoading>
+              <LoadingIcon class='status-spin' />
             ) : (
               <div class='status-dot-wrapper'>
                 <span class={`status-dot ${row.status}`}></span>
@@ -349,8 +360,7 @@ export default defineComponent({
     };
 
     const handleSelectionChange = (selection: UserReportItem[]) => {
-      // 提取所有选中项的 file_name
-      const fileNames = selection.map(item => item.file_name).filter(fileName => fileName); // 过滤掉空值
+      const fileNames = selection.filter(isRowSelectable).map(item => item.file_name);
 
       // 传递给父组件
       emit('selection-change', fileNames);
@@ -358,7 +368,7 @@ export default defineComponent({
 
     // 行是否可选择（与上传按钮的判断逻辑一致）
     const isRowSelectable = (row: UserReportItem) => {
-      return row.status === FileUploadStatus.FAILED || row.status === FileUploadStatus.PENDING;
+      return !!row.file_name && (row.status === FileUploadStatus.FAILED || row.status === FileUploadStatus.PENDING);
     };
 
     // 上传文件
@@ -449,6 +459,8 @@ export default defineComponent({
       <div class='report-table'>
         <bk-table
           data={props.data}
+          row-key='file_name'
+          selected-row-keys={props.selectedFileNames}
           pagination={pagination.value}
           outer-border={false}
           ref={reportTableRef}
@@ -509,11 +521,11 @@ export default defineComponent({
             <bk-table-column
               key='file_size'
               class-name='filter-column'
-              width='100'
+              width='120'
               label={t('文件大小')}
               prop='file_size'
               sortable='custom'
-              formatter={(row: UserReportItem) => formatFileSize(row.file_size)}
+              v-slots={fileSizeSlot}
             />
           )}
           {checkFields('md5') && (
@@ -632,16 +644,17 @@ export default defineComponent({
             v-slots={operateSlot}
           />
           <bk-table-column
-            type='setting'
             key='setting'
-          >
-            <bk-table-setting-content
-              v-en-style='width: 530px'
-              fields={columnSetting.value.fields}
-              selected={columnSetting.value.selectedFields}
-              onSettingChange={handleSettingChange}
-            />
-          </bk-table-column>
+            width='44'
+            fixed='right'
+            render-header={() => (
+              <TableColumnSetting
+                fields={columnSetting.value.fields}
+                selected={columnSetting.value.selectedFields}
+                onChange={handleSettingChange}
+              />
+            )}
+          />
         </bk-table>
       </div>
     );

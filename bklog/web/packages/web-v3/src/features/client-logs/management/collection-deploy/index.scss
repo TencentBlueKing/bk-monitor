@@ -5,8 +5,10 @@
     justify-content: space-between;
     margin-bottom: 16px;
     
-    .bk-input-text{
+    .bk-input-text,
+    .t-input__wrap {
         width: 480px;
+        max-width: 100%;
     }
   }
 }

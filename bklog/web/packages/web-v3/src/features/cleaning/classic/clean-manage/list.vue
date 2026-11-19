@@ -573,7 +573,8 @@ import { ServicesInstance } from '@/platform/services';
       display: flex;
       align-items: center;
 
-      .bk-input-text {
+      .bk-input-text,
+      .t-input__wrap {
         width: 320px;
       }
 

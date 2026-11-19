@@ -113,6 +113,20 @@ export default defineComponent({
     // 存放选中的文件名
     const selectedFileNames = ref<string[]>([]);
 
+    const filterUploadableFileNames = (fileNames: string[]) => {
+      const uploadableNames = new Set(
+        tableData.value.list
+          .filter(item => item.status === FileUploadStatus.PENDING || item.status === FileUploadStatus.FAILED)
+          .map(item => item.file_name),
+      );
+      return fileNames.filter(fileName => !!fileName && uploadableNames.has(fileName));
+    };
+
+    // 轮询或上传改变文件状态时，同步移除已不能上传的选中项。
+    watch(() => tableData.value.list, () => {
+      selectedFileNames.value = filterUploadableFileNames(selectedFileNames.value);
+    }, { flush: 'sync' });
+
     // 获取同步记录状态的方法
     const getSyncRecord = async (recordId: string): Promise<{ status: string } | null> => {
       try {
@@ -302,6 +316,7 @@ export default defineComponent({
     // 获取用户上报数据
     const fetchUserReportData = async () => {
       isLoading.value = true;
+      selectedFileNames.value = [];
       try {
         const params = {
           query: {
@@ -398,18 +413,19 @@ export default defineComponent({
 
     // 批量上传按钮点击事件
     const handleBatchUpload = () => {
-      if (selectedFileNames.value.length > 0) {
+      const fileNames = filterUploadableFileNames(selectedFileNames.value);
+      if (fileNames.length > 0) {
+        selectedFileNames.value = [];
         handleUpload({
-          file_name_list: [...selectedFileNames.value],
+          file_name_list: fileNames,
           openid_list: [],
         });
-        selectedFileNames.value = [];
       }
     };
 
     // 处理表格选中项变化
     const handleSelectionChange = (fileNames: string[]) => {
-      selectedFileNames.value = fileNames;
+      selectedFileNames.value = filterUploadableFileNames(fileNames);
     };
 
     // 更新表格中匹配项的状态
@@ -594,6 +610,7 @@ export default defineComponent({
         {/* 表格区域 */}
         <ReportTable
           data={tableData.value.list}
+          selectedFileNames={selectedFileNames.value}
           total={tableData.value.total}
           keyword={searchKeyword.value}
           loading={isLoading.value}
