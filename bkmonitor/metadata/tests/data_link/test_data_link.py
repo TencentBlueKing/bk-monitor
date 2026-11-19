@@ -5733,6 +5733,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
         {
             "kind": "Databus",
             "metadata": {
+                "annotations": {"task_stopped": "false"},
                 "labels": {"bk_biz_id": "1"},
                 "name": "base_1_agent_event",
                 "namespace": "bklog",

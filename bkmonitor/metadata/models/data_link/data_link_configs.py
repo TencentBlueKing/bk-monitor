@@ -932,7 +932,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose data_id config",
         )
 
-    def compose_base_event_config(self):
+    def compose_base_event_config(self, binding_kind: str = DataLinkKind.ESSTORAGEBINDING.value):
         """
         基础事件清洗总线配置（固定逻辑）
         原先的1000 基础事件
@@ -956,7 +956,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     "consumerGroup": {{consumer_group}},
                     {% endif %}
                     "sinks": [{
-                        "kind": "ElasticSearchBinding",
+                        "kind": "{{binding_kind}}",
                         "name": "{{name}}",
                         {% if tenant %}
                         "tenant": "{{ tenant }}",
@@ -981,6 +981,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         render_params = {
             "name": self.name,
+            "binding_kind": binding_kind,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "maintainers": json.dumps(maintainer),
@@ -1151,6 +1152,21 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name: ClassVar[str] = "Doris存储绑定配置"
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def compose_event_storage_config(self, storage, storage_cluster_name: str, rt_name: str):
+        storage_config = storage.doris_storage_config or {}
+        return self.compose_config(
+            storage_cluster_name=storage_cluster_name,
+            storage_keys=storage_config.get("storage_keys", []),
+            json_fields=storage_config.get("json_fields", []),
+            original_json_fields=storage_config.get("original_json_fields", []),
+            field_config_group=storage_config.get("field_config_group", {}),
+            tokenizers=storage_config.get("tokenizers"),
+            flush_timeout=storage_config.get("flush_timeout"),
+            expires=f"{storage.expire_days}d",
+            table_type=storage.table_type,
+            rt_name=rt_name,
+        )
 
     def compose_config(
         self,
