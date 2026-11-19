@@ -107,7 +107,7 @@ class Command(BaseCommand):
         elif action in ("detach", "relations"):
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 job = jobs.select_for_update().get(pk=job_id)
-                if job.reconcile_status == "pending":
+                if job.reconcile_status in ("pending", "verifying"):
                     raise CommandError("请等待或撤销当前动作")
                 if action == "detach":
                     job.delete()

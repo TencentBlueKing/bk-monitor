@@ -2615,11 +2615,13 @@ def create_single_tenant_system_proc_datalink(data_bk_biz_id: int | None = None,
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def reconcile_doris_jobs():
-    """逐项处理本地发布意图，单个 FE 故障不会阻塞其他 Job。"""
+    """pending 进入依赖检查，verifying 只回读上次 DDL 的结果。
+    扫描结果只是候选 ID；同一 ID 被重叠的扫描选中时，由单 Job 行锁决定如何处理。
+    """
     from metadata.models.data_link import DorisJobConfig
     from metadata.service.doris_job import reconcile_job
 
-    ids = DorisJobConfig.objects.filter(reconcile_status="pending").values_list("pk", flat=True)
+    ids = DorisJobConfig.objects.filter(reconcile_status__in=("pending", "verifying")).values_list("pk", flat=True)
     for job_id in ids.iterator():
         try:
             reconcile_job(job_id)
