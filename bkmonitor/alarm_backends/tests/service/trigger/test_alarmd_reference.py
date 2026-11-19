@@ -20,6 +20,7 @@ from django.conf import settings
 from alarm_backends.core.alarmd import reference_publisher as reference_publisher_module
 from alarm_backends.core.alarmd.reference_publisher import ReferenceDecisionPublishError
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
+from alarm_backends.service.trigger.checker import AnomalyChecker
 from alarm_backends.service.trigger.processor import TriggerProcessor
 from alarm_backends.tests.alarmd_fixtures import TRIGGER_POINT, TRIGGER_STRATEGY
 
@@ -32,14 +33,11 @@ def test_trigger_reference_capture_is_lightweight_and_follows_real_checker_resul
     processor.get_strategy_snapshot = mock.Mock(return_value=strategy)
     processor.get_strategy_snapshot_legacy_json = mock.Mock()
 
-    checker = mock.Mock()
-    checker.check.return_value = ([], event_record)
-    checker.is_no_data_point.return_value = False
     with (
-        mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
+        mock.patch.object(AnomalyChecker, "check", return_value=event_record),
         mock.patch.object(processor, "is_alarmd_reference_selected", return_value=True),
     ):
-        processor.process_point(json.dumps(point))
+        processor.process_points([json.dumps(point)])
 
     assert processor.reference_candidates == [
         {
@@ -55,14 +53,11 @@ def test_trigger_reference_is_not_captured_outside_shadow_eligibility():
     processor = _processor()
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
     processor.get_strategy_snapshot_legacy_json = mock.Mock()
-    checker = mock.Mock()
-    checker.check.return_value = ([], None)
-
     with (
-        mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
+        mock.patch.object(AnomalyChecker, "check", return_value=None),
         mock.patch.object(processor, "is_alarmd_reference_selected", return_value=False),
     ):
-        processor.process_point(json.dumps(copy.deepcopy(TRIGGER_POINT)))
+        processor.process_points([json.dumps(TRIGGER_POINT)])
 
     assert processor.reference_candidates == []
     processor.get_strategy_snapshot_legacy_json.assert_not_called()
@@ -71,15 +66,11 @@ def test_trigger_reference_is_not_captured_outside_shadow_eligibility():
 def test_trigger_reference_is_not_captured_without_abnormal_event():
     processor = _processor()
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
-    checker = mock.Mock()
-    checker.check.return_value = ([], None)
-    checker.is_no_data_point.return_value = False
-
     with (
-        mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
+        mock.patch.object(AnomalyChecker, "check", return_value=None),
         mock.patch.object(processor, "is_alarmd_reference_selected", return_value=True),
     ):
-        processor.process_point(json.dumps(copy.deepcopy(TRIGGER_POINT)))
+        processor.process_points([json.dumps(TRIGGER_POINT)])
 
     assert processor.reference_candidates == []
 
@@ -88,15 +79,11 @@ def test_trigger_reference_capture_uses_event_presence_not_mapping_truthiness():
     point = copy.deepcopy(TRIGGER_POINT)
     processor = _processor()
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
-    checker = mock.Mock()
-    checker.check.return_value = ([], {})
-    checker.is_no_data_point.return_value = False
-
     with (
-        mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
+        mock.patch.object(AnomalyChecker, "check", return_value={}),
         mock.patch.object(processor, "is_alarmd_reference_selected", return_value=True),
     ):
-        processor.process_point(json.dumps(point))
+        processor.process_points([json.dumps(point)])
 
     assert processor.reference_candidates == [
         {
@@ -111,15 +98,12 @@ def test_trigger_reference_does_not_capture_nodata_points():
     processor = _processor()
     processor.get_strategy_snapshot = mock.Mock(return_value=copy.deepcopy(TRIGGER_STRATEGY))
     processor.capture_alarmd_reference_candidate = mock.Mock()
-    checker = mock.Mock()
-    checker.check.return_value = ([], None)
-    checker.is_no_data_point.return_value = True
-
     with (
-        mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker", return_value=checker),
+        mock.patch.object(AnomalyChecker, "check", return_value=_triggered_event(TRIGGER_POINT)),
+        mock.patch.object(AnomalyChecker, "is_no_data_point", return_value=True),
         mock.patch.object(processor, "is_alarmd_reference_selected", return_value=True) as is_selected,
     ):
-        processor.process_point(json.dumps(copy.deepcopy(TRIGGER_POINT)))
+        processor.process_points([json.dumps(TRIGGER_POINT)])
 
     processor.capture_alarmd_reference_candidate.assert_not_called()
     is_selected.assert_not_called()
@@ -202,7 +186,7 @@ def test_trigger_reference_eligibility_failure_is_fail_open_and_cached(caplog):
 
 def test_trigger_push_completes_monitor_event_before_reference_publish():
     processor = _processor()
-    processor.event_records = [{"event_record": {"data": {}}, "anomaly_records": []}]
+    processor.event_records = [{"event_record": {"data": {}}}]
     processor.reference_candidates = [{"input_id": "candidate"}]
     calls = []
     processor.push_event_to_kafka = lambda records: calls.append(("monitor-event", records))
@@ -215,7 +199,7 @@ def test_trigger_push_completes_monitor_event_before_reference_publish():
 
 def test_trigger_monitor_event_failure_prevents_reference_publish():
     processor = _processor()
-    processor.event_records = [{"event_record": {"data": {}}, "anomaly_records": []}]
+    processor.event_records = [{"event_record": {"data": {}}}]
     processor.reference_candidates = [{"input_id": "candidate"}]
     processor.push_event_to_kafka = mock.Mock(side_effect=RuntimeError("monitor event failed"))
     processor.enqueue_alarmd_reference_candidates = mock.Mock()
@@ -543,8 +527,9 @@ def _processor():
     processor.strategy_id = 1
     processor.item_id = 1
     processor.strategy = SimpleNamespace(bk_biz_id=2, name="strategy")
+    processor.progress_callback = None
     processor.anomaly_points = []
-    processor.anomaly_records = []
+    processor.anomaly_record_count = 0
     processor.event_records = []
     processor.reference_candidates = []
     processor._strategy_snapshot_legacy_json = {}

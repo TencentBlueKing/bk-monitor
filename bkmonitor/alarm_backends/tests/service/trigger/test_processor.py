@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,14 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
-from datetime import datetime
-from uuid import uuid4
 
-import mock
+from unittest import mock
 from django.test import TestCase
-from six.moves import range
 
 from alarm_backends.core.cache.key import (
     ANOMALY_LIST_KEY,
@@ -27,7 +22,7 @@ from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.trigger.processor import TriggerProcessor
 from alarm_backends.tests.alarmd_fixtures import TRIGGER_POINT as POINT
 from alarm_backends.tests.alarmd_fixtures import TRIGGER_STRATEGY as STRATEGY
-from bkmonitor.models import AnomalyRecord, CacheNode, time_tools
+from bkmonitor.models import AnomalyRecord, CacheNode
 from core.errors.alarm_backends import StrategyNotFound
 
 EVENT = {
@@ -67,29 +62,6 @@ EVENT = {
 }
 
 
-def mocked_check():
-    anomaly_records = []
-    for i in range(3):
-        anomaly_records.append(
-            AnomalyRecord(
-                anomaly_id=uuid4().hex,
-                source_time=time_tools.mysql_time(datetime.now()),
-                strategy_id=1,
-                origin_alarm={},
-                event_id="",
-            )
-        )
-    return anomaly_records, EVENT
-
-
-#
-# Strategy = mock.patch('alarm_backends.service.trigger.processor.Strategy').start()
-# Strategy.get_strategy_snapshot_by_key.side_effect = lambda key: STRATEGY if key == 'xxx' else None
-#
-# check_func = mock.patch('alarm_backends.service.trigger.processor.AnomalyChecker.check').start()
-# check_func.side_effect = mocked_check
-
-
 class TestProcessor(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -99,7 +71,7 @@ class TestProcessor(TestCase):
 
         cls.check_func = mock.patch("alarm_backends.service.trigger.processor.AnomalyChecker.check")
         mock_check = cls.check_func.start()
-        mock_check.side_effect = mocked_check
+        mock_check.return_value = EVENT
 
     @classmethod
     def tearDownClass(cls):
@@ -167,7 +139,7 @@ class TestProcessor(TestCase):
 
     def test_process_point(self):
         processor = TriggerProcessor(1, 1)
-        processor.process_point(json.dumps(POINT))
+        processor.process_points([json.dumps(POINT)])
         self.assertEqual(len(processor.event_records), 1)
 
     def test_process(self):
