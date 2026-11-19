@@ -61,6 +61,14 @@ export const createEventsAnalysisModule = (options: IShootingModuleContext, $t: 
   };
   const { renderCommonPopover } = createPopoverRenderers(options, $t);
 
+  // 使用 Cantor 配对将父事件、子事件和字段索引编码为唯一值，避免固定进制导致索引碰撞
+  const pairPopoverIndex = (left: number, right: number) => {
+    const sum = left + right;
+    return (sum * (sum + 1)) / 2 + right;
+  };
+  const getEventPopoverIndex = (itemIndex: number, subContentIndex: number, fieldIndex: number) =>
+    pairPopoverIndex(pairPopoverIndex(itemIndex, subContentIndex), fieldIndex);
+
   const renderEventValue = (value: unknown, index: number, needJumpIcon = false) => {
     const content = String(value ?? '');
     return renderCommonPopover(content, index, 'event_field', {
@@ -387,7 +395,11 @@ export const createEventsAnalysisModule = (options: IShootingModuleContext, $t: 
             return null;
           }
           const needJumpIcon = EVENTS_NEED_JUMP_PAGE.has(item.type) && key === 'event_name';
-          const popoverIndex = Number(item.$index ?? 0) * 10000 + Number(subContent.$index ?? 0) * 100 + fieldIndex;
+          const popoverIndex = getEventPopoverIndex(
+            Number(item.$index ?? 0),
+            Number(subContent.$index ?? 0),
+            fieldIndex
+          );
           return (
             <TableContentItem
               key={key}
