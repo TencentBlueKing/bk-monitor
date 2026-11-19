@@ -32,6 +32,15 @@ from core.errors.api import BKAPIError
 from fta_web.issue.source_analysis import is_issue_ai_analysis_enabled_for_biz
 
 
+def _ai_runtime_available():
+    backend = getattr(settings, "AI_AGENT_BACKEND", "aidev")
+    if backend != "hermes":
+        return backend == "aidev"
+    from ai_agent.services.hermes_runtime import runtime_available
+
+    return runtime_available()
+
+
 class Platform:
     """
     平台信息
@@ -216,7 +225,9 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             # 是否开启AI助手
             "ENABLE_AI_ASSISTANT": (
                 "true"
-                if settings.AIDEV_API_BASE_URL and os.getenv("ENABLE_AI_ASSISTANT", "enabled") == "enabled"
+                if settings.AIDEV_API_BASE_URL
+                and os.getenv("ENABLE_AI_ASSISTANT", "enabled") == "enabled"
+                and _ai_runtime_available()
                 else "false"
             ),
             # APM 日志转发接口 Url
