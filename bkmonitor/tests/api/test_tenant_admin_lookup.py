@@ -38,11 +38,11 @@ def test_configured_single_tenant_datalink(settings, mocker):
 
     from api.bk_login.default import BatchLookupVirtualUserResource
     from api.bkdata.default import GetDataLink
-    from bkmonitor.utils.user import _lookup_admin_username
+    from bkmonitor.utils.user import _single_tenant_admin_username
 
     settings.ENABLE_MULTI_TENANT_MODE = False
     settings.BK_ADMIN_USERNAME = "  service-login  "
-    _lookup_admin_username.cache_clear()
+    _single_tenant_admin_username.cache_clear()
     lookup = mocker.patch.object(
         api.bk_login, "batch_lookup_virtual_user", return_value=[{"bk_username": "virtual-id"}]
     )

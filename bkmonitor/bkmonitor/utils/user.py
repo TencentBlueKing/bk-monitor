@@ -74,19 +74,26 @@ def single_tenant_backend_username(fallback):
     login_name = (settings.BK_ADMIN_USERNAME or "").strip()
     if settings.ENABLE_MULTI_TENANT_MODE or not login_name:
         return fallback
-    return _lookup_admin_username("default", login_name)
+    return _single_tenant_admin_username(login_name)
 
 
 @lru_cache(maxsize=1000)
-def _lookup_admin_username(bk_tenant_id: str, login_name: str) -> str:
+def _single_tenant_admin_username(login_name: str) -> str:
+    username = _lookup_admin_username("default", login_name)
+    if not username:
+        raise ValueError(_("get_admin_username: 获取管理员用户失败"))
+    return username
+
+
+def _lookup_admin_username(bk_tenant_id: str, login_name: str) -> str | None:
     from core.drf_resource import api
 
     # 获取管理员用户
     result = api.bk_login.batch_lookup_virtual_user(
         bk_tenant_id=bk_tenant_id, lookup_field="login_name", lookups=login_name, bk_username="admin"
     )
-    if result and (username := result[0].get("bk_username")):
-        return username
+    if result:
+        return result[0].get("bk_username")
     raise ValueError(_("get_admin_username: 获取管理员用户失败"))
 
 

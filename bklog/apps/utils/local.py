@@ -71,7 +71,7 @@ def get_request_id():
         return str(uuid.uuid4())
 
 
-def get_request_username(default="admin"):
+def get_request_username(default="admin", *, use_backend=False):
     """
     获取请求的用户名
     """
@@ -80,11 +80,13 @@ def get_request_username(default="admin"):
     username = ""
     with ignored(Exception):
         username = get_request().user.username or get_local_param("request.username", default="")
-    if not username and "celery" in sys.argv:
+    if username:
+        return username
+    if "celery" in sys.argv:
         username = default
         if settings.ENABLE_MULTI_TENANT_MODE:
-            username = get_backend_username()
-    return username
+            return get_backend_username()
+    return single_tenant_backend_username(username) if use_backend else username
 
 
 def get_request_external_username():
@@ -203,11 +205,18 @@ def single_tenant_backend_username(fallback):
     login_name = (settings.BK_ADMIN_USERNAME or "").strip()
     if settings.ENABLE_MULTI_TENANT_MODE or not login_name:
         return fallback
-    return _lookup_admin_username("default", login_name)
+    return _single_tenant_admin_username(login_name)
 
 
 @lru_cache(maxsize=1000)
-def _lookup_admin_username(bk_tenant_id: str, login_name: str) -> str:
+def _single_tenant_admin_username(login_name: str) -> str:
+    username = _lookup_admin_username("default", login_name)
+    if not username:
+        raise BaseException("get_admin_username: 获取管理员用户失败")
+    return username
+
+
+def _lookup_admin_username(bk_tenant_id: str, login_name: str) -> str | None:
     result = BKLoginApi.batch_lookup_virtual_user(
         {
             "bk_tenant_id": bk_tenant_id,
@@ -217,8 +226,8 @@ def _lookup_admin_username(bk_tenant_id: str, login_name: str) -> str:
         },
         bk_tenant_id=bk_tenant_id,
     )
-    if result and (username := result[0].get("bk_username")):
-        return username
+    if result:
+        return result[0].get("bk_username")
     raise BaseException("get_admin_username: 获取管理员用户失败")
 
 

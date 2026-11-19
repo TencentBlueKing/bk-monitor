@@ -109,15 +109,26 @@ def get_tenant_admin_username(bk_tenant_id: str) -> str:
         正常情况下相关信息不会变化，所以直接缓存结果。
     """
 
-    # 非多租户模式下，直接返回默认管理员用户名
     blueking = get_config().blueking
-    login_name = blueking.bk_admin_username
     if not blueking.enable_multi_tenancy:
-        if "bk_admin_username" not in blueking.model_fields_set or not login_name.strip():
-            return "admin"
-        bk_tenant_id = "default"
-        login_name = login_name.strip()
+        return single_tenant_backend_username("admin")
+    return _lookup_admin_username(bk_tenant_id, blueking.bk_admin_username)
 
+
+def single_tenant_backend_username(fallback: str) -> str:
+    blueking = get_config().blueking
+    if blueking.enable_multi_tenancy or "bk_admin_username" not in blueking.model_fields_set:
+        return fallback
+    login_name = blueking.bk_admin_username.strip()
+    return _single_tenant_admin_username(login_name) if login_name else fallback
+
+
+@lru_cache(maxsize=1024)
+def _single_tenant_admin_username(login_name: str) -> str:
+    return _lookup_admin_username("default", login_name)
+
+
+def _lookup_admin_username(bk_tenant_id: str, login_name: str) -> str:
     result = request_user_api(
         bk_tenant_id=bk_tenant_id,
         method="GET",

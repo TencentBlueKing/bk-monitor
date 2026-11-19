@@ -25,6 +25,7 @@ from typing_extensions import override
 
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
+from bk_monitor_base.infras.third_party_api.user.api import single_tenant_backend_username
 from bk_monitor_base.metadata import config, models
 from bk_monitor_base.metadata.config import (
     ES_ROUTE_ALLOW_URL,
@@ -3130,7 +3131,7 @@ class KafkaTailResource(Resource):
         """
         route_params: dict[str, dict[str, Any]] = {
             "condition": {"channel_id": datasource.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.blueking.common_username},
+            "operation": {"operator_name": single_tenant_backend_username(settings.blueking.common_username)},
         }
 
         route_info_list = api.gse.query_route(bk_tenant_id=DEFAULT_TENANT_ID, **route_params)
@@ -3154,7 +3155,7 @@ class KafkaTailResource(Resource):
                 "stream_to_id": stream_to_id,
                 "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
             },
-            "operation": {"operator_name": settings.blueking.common_username},
+            "operation": {"operator_name": single_tenant_backend_username(settings.blueking.common_username)},
         }
 
         kafka_config_list = api.gse.query_stream_to(bk_tenant_id=DEFAULT_TENANT_ID, **kafka_params)
