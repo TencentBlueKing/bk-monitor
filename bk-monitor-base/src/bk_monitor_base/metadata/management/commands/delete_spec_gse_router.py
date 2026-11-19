@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand, CommandError
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
 from bk_monitor_base.infras.third_party_api.errors import BkApiError
+from bk_monitor_base.infras.third_party_api.user.api import single_tenant_backend_username
 from bk_monitor_base.metadata import config
 from bk_monitor_base.metadata.config import settings
 
@@ -26,7 +27,10 @@ class Command(BaseCommand):
         # 处理路由名称
         params: dict[str, dict[str, Any]] = {
             "condition": {"channel_id": bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.blueking.common_username, "method": "specification"},
+            "operation": {
+                "operator_name": single_tenant_backend_username(settings.blueking.common_username),
+                "method": "specification",
+            },
             "specification": {"route": router_name_list},
         }
 
@@ -43,7 +47,7 @@ class Command(BaseCommand):
         # 返回剩余的路由
         params = {
             "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": bk_data_id},
-            "operation": {"operator_name": settings.blueking.common_username},
+            "operation": {"operator_name": single_tenant_backend_username(settings.blueking.common_username)},
         }
         try:
             remained_router = api.gse.query_route(bk_tenant_id=DEFAULT_TENANT_ID, **params)

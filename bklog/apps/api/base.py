@@ -23,6 +23,7 @@ import hashlib
 import json
 import math
 import re
+import sys
 import time
 from copy import deepcopy
 from enum import Enum
@@ -54,6 +55,7 @@ from apps.utils.local import (
     get_request_id,
     get_request_tenant_id,
     get_request_username,
+    single_tenant_backend_username,
 )
 from apps.utils.log import logger
 from apps.utils.log_sanitization import sanitize_headers
@@ -66,10 +68,14 @@ def get_request_api_headers(params):
     """
     获取api网关鉴权认证请求头
     """
+    username = params.get("bk_username") or get_request_username(default="")
+    if not username and "celery" in sys.argv:
+        has_ticket = any(params.get(key) for key in ("bk_token", "access_token", "bk_ticket"))
+        username = "admin" if has_ticket else single_tenant_backend_username("admin")
     api_headers = {
         "bk_app_code": settings.APP_CODE,
         "bk_app_secret": settings.SECRET_KEY,
-        "bk_username": params.get("bk_username") or get_request_username(),
+        "bk_username": username,
     }
     api_headers.update(params)
     return json.dumps(api_headers)

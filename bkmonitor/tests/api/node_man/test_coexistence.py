@@ -130,7 +130,7 @@ def test_v3_native_request_and_no_fallback(outcome, override, expected_url):
             BKNODEMAN_V3_API_BASE_URL=override,
             BK_COMPONENT_API_URL="https://gateway.example.com/",
         ),
-        mock.patch.object(v3, "get_admin_username", return_value="tenant-admin"),
+        mock.patch.object(v3, "get_backend_username", return_value="tenant-admin"),
         mock.patch.object(resource.session, "request", return_value=response) as request,
     ):
         if outcome == "network_error":

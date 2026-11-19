@@ -14,6 +14,7 @@ from kubernetes.dynamic.resource import ResourceInstance
 
 from bk_monitor_base.config.all import get_config
 from bk_monitor_base.infras import third_party_api as api
+from bk_monitor_base.infras.third_party_api.user.api import single_tenant_backend_username
 from bk_monitor_base.metadata import config, models
 from bk_monitor_base.metadata.models import (
     BcsFederalClusterInfo,
@@ -2962,7 +2963,9 @@ class Command(BaseCommand):
                 try:
                     params = {
                         "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": data_id},
-                        "operation": {"operator_name": get_config().blueking.common_username},
+                        "operation": {
+                            "operator_name": single_tenant_backend_username(get_config().blueking.common_username)
+                        },
                     }
                     details.update({"gse_route_query_params": params})
                     route_config = api.gse.query_route(**params)

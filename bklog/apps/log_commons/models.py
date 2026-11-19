@@ -33,6 +33,7 @@ from apps.log_commons.constants import DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS
 from apps.log_commons.exceptions import IllegalMaintainerException
 from apps.models import OperateRecordModel
 from apps.utils.local import get_local_username, get_request_username
+from apps.utils.local import single_tenant_backend_username
 from apps.utils.log import logger
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -314,7 +315,7 @@ class ExternalPermission(OperateRecordModel):
             # operator和creator保持一致
             "operator": username,
             # 这里是因为需要使用admin创建单据，方能越过创建单据的权限限制
-            "bk_username": "admin",
+            "bk_username": single_tenant_backend_username("admin"),
             "fields": [
                 {"key": "bk_biz_id", "value": bk_biz_id},
                 {"key": "bk_biz_name", "value": bk_biz_name},

@@ -29,7 +29,7 @@ from django.utils import translation
 
 from apps.log_esquery.permission import EsquerySearchPermissions
 from apps.utils import build_auth_args
-from apps.utils.local import get_request, get_backend_username
+from apps.utils.local import get_request, get_backend_username, single_tenant_backend_username
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
@@ -128,11 +128,13 @@ def update_bkdata_auth_info(params):
         # 如果使用 bkdata token 鉴权，需要设置鉴权方式，如果是用户鉴权，直接沿用原来的用户
         params["bkdata_authentication_method"] = params.get("bkdata_authentication_method") or "token"
         params["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+        if params.get("no_request") and not settings.ENABLE_MULTI_TENANT_MODE:
+            params.setdefault("bk_username", "admin")
     else:
         # 如果是用户授权，设置为admin超级管理员
         params["bkdata_authentication_method"] = "user"
-        params["bk_username"] = "admin"
-        params["operator"] = "admin"
+        params["bk_username"] = single_tenant_backend_username("admin")
+        params["operator"] = params["bk_username"]
     return params
 
 
@@ -159,6 +161,8 @@ if (
         return params
 
     def add_esb_info_before_request_for_bkdata_token(params):  # pylint: disable=function-name-too-long
+        if not settings.ENABLE_MULTI_TENANT_MODE and settings.FEATURE_TOGGLE.get("bkdata_token_auth") == "on":
+            params.setdefault("bk_username", "admin")
         params = add_esb_info_before_request(params)
         params = add_app_info_before_request(params)
         params = update_bkdata_auth_info(params)

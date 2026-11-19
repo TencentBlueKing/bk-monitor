@@ -823,9 +823,17 @@ class HostInspectionWorkerTest(SimpleTestCase):
             },
         }
 
-        _run_remote_inspection(record)
+        with (
+            override_settings(ENABLE_MULTI_TENANT_MODE=False, BK_ADMIN_USERNAME="inspection-login"),
+            patch(
+                "apps.utils.local.BKLoginApi.batch_lookup_virtual_user", return_value=[{"bk_username": "inspection-id"}]
+            ),
+        ):
+            _run_remote_inspection(record)
 
         kwargs = execute.call_args.kwargs
+        self.assertEqual(kwargs["bk_username"], "inspection-id")
+        self.assertEqual(get_status.call_args.kwargs["params"]["bk_username"], "inspection-id")
         self.assertEqual(kwargs["script_language"], 1)
         self.assertEqual(
             base64.b64decode(kwargs["script_param"]).decode("ascii"),

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 import logging
 import time
@@ -34,6 +34,7 @@ from apps.log_databus.handlers.check_collector.checker.base_checker import Check
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CleanStash
 from apps.log_search.constants import TimeEnum
+from apps.utils.local import single_tenant_backend_username
 from bk_monitor.api.client import Client
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
@@ -154,7 +155,7 @@ class TransferChecker(Checker):
                 bk_app_secret=app_secret,
                 monitor_host=monitor_host,
                 report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
-                bk_username="admin",
+                bk_username=single_tenant_backend_username("admin"),
             )
             try:
                 result = bk_monitor_client.unify_query(data=params)
@@ -178,5 +179,7 @@ class TransferChecker(Checker):
             self.append_warning_info(message)
             return
         self.append_normal_info(
-            _("[请求监控接口] [unify_query] {metric_name}: {value}").format(metric_name=metric_name, value=max(datapoints))
+            _("[请求监控接口] [unify_query] {metric_name}: {value}").format(
+                metric_name=metric_name, value=max(datapoints)
+            )
         )
