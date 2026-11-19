@@ -31,8 +31,9 @@ from apps.log_search.constants import CollectorScenarioEnum
 # 因此不允许新准入；已有 binding 仍按粘性归属继续由 V3 管理。
 V2_ONLY_COLLECTOR_SCENARIOS = frozenset({CollectorScenarioEnum.CUSTOM.value, CollectorScenarioEnum.CLIENT.value})
 
-# 显式关闭取值。这些值与「未设置」必须分开：前者是运维主动关断，后者是历史默认关闭，
-# 两者的灰度行为不同，不能合并成同一个布尔。
+# 显式取值档位。与「未设置」必须分开：前者是运维主动配置，后者沿用历史默认关闭。
+# true 是现网固定取值，与 on 同为强制打开，运维不必再改 DB 灰度。
+ENV_FORCED_ON_VALUES = frozenset({"on", "true", "1", "yes"})
 ENV_FORCED_OFF_VALUES = frozenset({"off", "false", "0", "no"})
 
 
@@ -97,8 +98,8 @@ def get_nodeman_v3_env_value() -> str | None:
     value = str(raw).strip().lower() if raw is not None else ""
     if value:
         return value
-    # 原值为空时回退布尔开关：生产环境两者由同一环境变量推导，取值一致；
-    # 这里主要兼容 override_settings(ENABLE_NODEMAN_V3=True) 的既有用法。
+    # 原值为空时回退布尔开关：生产环境两者由同一环境变量推导；这里主要兼容
+    # override_settings(ENABLE_NODEMAN_V3=True) 的既有用法，等价于环境变量 true。
     return "true" if getattr(settings, "ENABLE_NODEMAN_V3", False) is True else None
 
 
@@ -106,14 +107,14 @@ def _env_forced_state() -> bool | None:
     """
     环境变量的强制档位：True 强制准入、False 强制关闭、None 交给 FeatureToggle 灰度。
 
-    只有 on 能跳过 DB：现网与本地 .env 都在用 true，若把 true 一并改成强制全开，
-    正在用 true + debug 白名单做灰度的环境会在升级后被顶成全量。非法值同样保持历史行为，
-    交给 DB 灰度而不是静默当作关闭。
+    true 与 on 都是强制打开：运维环境的变量取值已固定为 true，若仍要灰度就还得再改 DB，
+    与「环境变量是运维主入口」冲突。未设置与非法值都走 DB 灰度——否则 DB 灰度开关永远
+    不可达，等于把它留成死代码。
     """
     env_value = get_nodeman_v3_env_value()
-    if env_value == "on":
+    if env_value in ENV_FORCED_ON_VALUES:
         return True
-    if env_value is None or env_value in ENV_FORCED_OFF_VALUES:
+    if env_value in ENV_FORCED_OFF_VALUES:
         return False
     return None
 
@@ -155,12 +156,12 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
     1. 已有 V3 binding                              -> V3（粘性归属）
     2. subscription_id 非空                         -> V2
     3. 采集场景没有订阅步骤实现                       -> V2
-    4. 环境变量 on                                   -> V3（跳过灰度）
-    5. 环境变量 off / false / 未设置 / 空白           -> V2
+    4. 环境变量 on / true                            -> V3（跳过灰度）
+    5. 环境变量 off / false                          -> V2
     6. FeatureToggle off / 缺失 / DB 异常           -> V2
     7. FeatureToggle on                              -> V3
     8. FeatureToggle debug 命中业务或特殊采集项       -> V3
-    9. 其余                                          -> V2
+    9. 其余（含环境变量未设置）                       -> V2
     """
     configs = list(collector_configs)
     collector_ids = {

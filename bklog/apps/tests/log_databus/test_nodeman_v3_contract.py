@@ -465,7 +465,7 @@ class IntegrationModeTest(TestCase):
     def test_total_switch_off_rejects_feature_toggle_admission(self):
         self.assertFalse(is_nodeman_v3_admitted(2))
 
-    @override_settings(ENABLE_NODEMAN_V3=True)
+    @override_settings(ENABLE_NODEMAN_V3_VALUE="")
     def test_missing_toggle_fails_closed(self):
         from apps.feature_toggle.models import FeatureToggle
         from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
@@ -473,7 +473,7 @@ class IntegrationModeTest(TestCase):
         FeatureToggle.origin_objects.filter(name=NODEMAN_V3_COLLECTOR).delete()
         self.assertFalse(is_nodeman_v3_admitted(2))
 
-    @override_settings(ENABLE_NODEMAN_V3=True)
+    @override_settings(ENABLE_NODEMAN_V3_VALUE="")
     def test_toggle_database_error_fails_closed(self):
         from apps.feature_toggle.models import FeatureToggle
 
@@ -515,17 +515,42 @@ class EnvOverrideModeTest(TestCase):
         self.assertTrue(is_nodeman_v3_admitted(7))
 
     @nodeman_v3_toggle("on", env_value="true")
-    def test_true_keeps_historical_semantics_and_still_reads_toggle(self):
-        # true 沿用现网口径：允许准入但仍按 DB 灰度。若改成强制全开，
-        # 正在用 true + debug 白名单的环境会在升级后被顶成全量
+    def test_true_is_forced_on(self):
+        # 运维环境的变量取值已固定为 true，配置即强制打开，不必再改 DB
         from apps.feature_toggle.models import FeatureToggle
 
         with patch.object(FeatureToggle.objects, "filter", side_effect=RuntimeError("db unavailable")):
-            self.assertFalse(is_nodeman_v3_admitted(2))
+            self.assertTrue(is_nodeman_v3_admitted(2))
+
+    @nodeman_v3_toggle("off", env_value="true")
+    def test_true_overrides_toggle_off(self):
+        self.assertTrue(is_nodeman_v3_admitted(2))
+
+    @nodeman_v3_toggle("debug", biz_ids=[2], env_value="true")
+    def test_true_bypasses_debug_whitelist(self):
+        self.assertTrue(is_nodeman_v3_admitted(7))
+
+    @nodeman_v3_toggle("on", env_value="1")
+    def test_numeric_one_is_forced_on(self):
+        from apps.feature_toggle.models import FeatureToggle
+
+        with patch.object(FeatureToggle.objects, "filter", side_effect=RuntimeError("db unavailable")):
+            self.assertTrue(is_nodeman_v3_admitted(2))
+
+    @nodeman_v3_toggle("on", env_value="yes")
+    def test_yes_is_forced_on(self):
+        from apps.feature_toggle.models import FeatureToggle
+
+        with patch.object(FeatureToggle.objects, "filter", side_effect=RuntimeError("db unavailable")):
+            self.assertTrue(is_nodeman_v3_admitted(2))
 
     @nodeman_v3_toggle("on", env_value="")
-    def test_unset_is_off_so_existing_deployments_do_not_flip(self):
-        # 未配置即关闭：若改成「未设置读 DB」，存量环境只要 DB 曾被配成 on 就会突然全量切 V3
+    def test_unset_falls_back_to_toggle(self):
+        # 未设置走 DB 灰度，否则 DB 灰度开关永远不可达
+        self.assertTrue(is_nodeman_v3_admitted(2))
+
+    @nodeman_v3_toggle("off", env_value="")
+    def test_unset_with_toggle_off_stays_v2(self):
         self.assertFalse(is_nodeman_v3_admitted(2))
 
     @nodeman_v3_toggle("on", env_value="enable")

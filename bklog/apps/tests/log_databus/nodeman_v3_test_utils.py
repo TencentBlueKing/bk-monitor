@@ -32,12 +32,14 @@ def _env_settings(enabled: bool, env_value: str | None):
     """
     组装环境开关的 override。
 
-    只设 ENABLE_NODEMAN_V3 时，准入层按历史口径把它当作 true（允许准入但仍看灰度），
-    这样既有用例不必改写；需要覆盖档位时显式传 env_value。
+    enabled 只表达「是否强制关闭」：True 表示不做强制、交给 DB 灰度（与历史语义一致），
+    False 表示强制关闭。要验证 on / true 的强制打开语义，显式传 env_value。
     """
-    if env_value is None:
-        return override_settings(ENABLE_NODEMAN_V3=enabled, ENABLE_NODEMAN_V3_VALUE=None)
-    return override_settings(ENABLE_NODEMAN_V3_VALUE=env_value)
+    if env_value is not None:
+        return override_settings(ENABLE_NODEMAN_V3_VALUE=env_value)
+    if enabled:
+        return override_settings(ENABLE_NODEMAN_V3_VALUE="")
+    return override_settings(ENABLE_NODEMAN_V3_VALUE="false")
 
 
 def nodeman_v3_toggle(status: str = "on", *, enabled: bool = True, env_value: str | None = None, **config):

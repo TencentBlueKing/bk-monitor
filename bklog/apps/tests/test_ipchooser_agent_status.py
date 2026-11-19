@@ -119,7 +119,7 @@ class FillAgentStatusTest(SimpleTestCase):
 
         self._assert_agent_statuses(result, [0, 1, 0])
 
-    @override_settings(ENABLE_NODEMAN_V3=True)
+    @override_settings(ENABLE_NODEMAN_V3_VALUE="")
     def test_non_bkcc_space_admission_matches_collector_and_query_uses_related_biz(self):
         toggle = Toggle(status="debug", biz_id_white_list=[-99])
         config = CollectorConfig(collector_config_id=9001, bk_biz_id=-99, subscription_id=None)
@@ -146,7 +146,7 @@ class FillAgentStatusTest(SimpleTestCase):
         self.assertEqual(payload["exact_include_conditions"]["bk_host_id"], [1, 2, 3])
         v2_query.assert_not_called()
 
-    @override_settings(ENABLE_NODEMAN_V3=True)
+    @override_settings(ENABLE_NODEMAN_V3_VALUE="")
     def test_non_bkcc_space_keeps_v2_when_only_related_biz_is_whitelisted(self):
         toggle = Toggle(status="debug", biz_id_white_list=[2])
         config = CollectorConfig(collector_config_id=9001, bk_biz_id=-99, subscription_id=None)
@@ -174,7 +174,7 @@ class FillAgentStatusTest(SimpleTestCase):
 
 
 class BizAgentStatusTest(SimpleTestCase):
-    @override_settings(ENABLE_NODEMAN_V3=True)
+    @override_settings(ENABLE_NODEMAN_V3_VALUE="")
     def test_non_bkcc_space_uses_original_biz_for_admission_and_related_biz_for_query(self):
         toggle = Toggle(status="debug", biz_id_white_list=[-99])
         with (
@@ -197,7 +197,7 @@ class BizAgentStatusTest(SimpleTestCase):
         mock_get_client.assert_called_once_with(2)
         v2_query.assert_not_called()
 
-    @override_settings(ENABLE_NODEMAN_V3=True)
+    @override_settings(ENABLE_NODEMAN_V3_VALUE="")
     def test_non_bkcc_space_keeps_v2_when_only_related_biz_is_whitelisted(self):
         toggle = Toggle(status="debug", biz_id_white_list=[2])
         with (
