@@ -1,0 +1,430 @@
+import datetime
+from unittest.mock import MagicMock, Mock, patch
+
+from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
+
+from apps.log_clustering.constants import (
+    ClusteringOperationStatusEnum,
+    ClusteringOperationTypeEnum,
+    ClusteringRuntimePhaseEnum,
+)
+from apps.exceptions import ApiRequestError
+from apps.log_clustering.exceptions import QuixClusteringConfigInvalidException
+from apps.log_clustering.handlers.quix.adapter import build_clustering_config
+from apps.log_clustering.handlers.quix.operation import (
+    POLL_INTERVAL_SECONDS,
+    WAIT_TIMEOUT_SECONDS,
+    QuixClusteringOperationRunner,
+)
+from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
+from apps.log_search.models import LogIndexSet
+
+INDEX_SET_ID = 42
+TASK_ID = "task-uuid"
+KAFKA = {"cluster_ref": "quix-e2e", "input_topic": f"lc-{TASK_ID}-in", "partitions": 2}
+QUIX_CONFIG = {
+    "profile": "test-clustering-es",
+    "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "kafka"},
+    "recovery_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "context_es"},
+    "runtime_cluster": {"kind": "DatabusCluster", "namespace": "quix", "name": "quix-runtime"},
+    "state_index": "log-clustering-42-state",
+}
+SET_RESULT = {
+    "attached": True,
+    "applied_scope": "datalink",
+    "sink": {"tenant": "system", "namespace": "bklog", "name": "bkm_lcs_1001_abc"},
+    "databus": {"tenant": "system", "namespace": "bklog", "name": "bklog_databus"},
+}
+ADOPTED_STATUS = {
+    "ready": True,
+    "enabled": True,
+    "sink_phase": "Ok",
+    "errors": [],
+}
+STORAGE_CLUSTER_ID = 3
+
+
+def create_enable_operation():
+    _, operation = LogClusteringRuntime.start_operation(
+        INDEX_SET_ID,
+        ClusteringOperationTypeEnum.ENABLE.value,
+        {},
+        defaults={
+            "bk_biz_id": 2,
+            "collector_config_id": 10,
+            "table_id": "2_bklog.demo",
+            "bk_data_id": 1001,
+            "phase": ClusteringRuntimePhaseEnum.ENABLING.value,
+            "pending_config": build_clustering_config("log", []),
+            "state_index": "log-clustering-42-state",
+        },
+    )
+    return operation
+
+
+class TestQuixWorkerRegistration(SimpleTestCase):
+    def test_worker_loads_operation_and_recovery_tasks(self):
+        from config import celery_app
+
+        module = "apps.log_clustering.tasks.quix"
+        self.assertIn(module, celery_app.loader.default_modules)
+        celery_app.loader.import_default_modules()
+        self.assertIn(f"{module}.run_quix_clustering_operation", celery_app.tasks)
+        self.assertIn(f"{module}.resume_stale_quix_clustering_operations", celery_app.tasks)
+
+
+class TestQuixEnableRunner(TestCase):
+    def setUp(self):
+        LogIndexSet.objects.create(
+            index_set_id=INDEX_SET_ID, space_uid="bkcc__2", storage_cluster_id=STORAGE_CLUSTER_ID
+        )
+        self.operation = create_enable_operation()
+        self.bkfara = MagicMock()
+        self.bkfara.create_task.return_value = {"task_id": TASK_ID}
+        self.bkfara.get_task.return_value = {
+            "status": "READY",
+            "trained_model_ref": {"uri": "model"},
+            "control_version": 1,
+            "current_generation": 1,
+        }
+        self.bkfara.get_clustering.return_value = {
+            "state": "RUNNING",
+            "target_model_ref": {"uri": "model"},
+            "all_ready_model_ref": {"uri": "model"},
+            "kafka": KAFKA,
+            "input_revision": 1,
+        }
+        self.transfer = MagicMock()
+        self.transfer.set_log_clustering_config.return_value = SET_RESULT
+        self.transfer.get_log_clustering_status.return_value = ADOPTED_STATUS
+        for target, value in (
+            ("apps.log_clustering.handlers.quix.operation.BkFaraApi", self.bkfara),
+            ("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=QUIX_CONFIG)),
+            ("apps.log_clustering.handlers.quix.operation.TransferApi", self.transfer),
+            ("apps.log_clustering.handlers.quix.operation.LogIndexSet.set_tag", Mock()),
+        ):
+            patcher = patch(target, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def run_operation(self):
+        return QuixClusteringOperationRunner(self.operation.operation_id).run()
+
+    def test_append_mode_is_forwarded_from_saved_config_on_retry(self):
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        runtime.pending_config["result_mode"] = "append"
+        runtime.save()
+        runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        runner._step_metadata_set()
+        params = self.transfer.set_log_clustering_config.call_args.args[0]
+        self.assertEqual(params["result_mode"], "append")
+        self.assertEqual(params["pattern_store"]["table_id"], "2_bklog.index_set_42_pattern")
+        self.assertEqual(
+            params["result_store"], {"table_id": "2_bklog.index_set_42_clustered", "cluster_id": STORAGE_CLUSTER_ID}
+        )
+        runner._step_metadata_set()
+        self.assertEqual(self.transfer.set_log_clustering_config.call_args.args[0], params)
+
+    def test_store_tables_follow_source_database_and_index_set_cluster(self):
+        runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        runner._step_metadata_set()
+        params = self.transfer.set_log_clustering_config.call_args.args[0]
+        self.assertEqual(
+            params["pattern_store"], {"table_id": "2_bklog.index_set_42_pattern", "cluster_id": STORAGE_CLUSTER_ID}
+        )
+        self.assertNotIn("result_store", params)
+
+    def create_clustering_config(self):
+        ClusteringConfig.objects.create(
+            index_set_id=INDEX_SET_ID,
+            bk_biz_id=2,
+            min_members=1,
+            max_dist_list="0.5",
+            predefined_varibles="",
+            delimeter="",
+            max_log_length=1000,
+            clustering_fields="log",
+            access_finished=False,
+        )
+
+    def test_canceled_operation_is_not_restarted_by_stale_runner(self):
+        runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        LogClusteringOperation.objects.filter(pk=self.operation.pk).update(
+            status=ClusteringOperationStatusEnum.CANCELED.value
+        )
+
+        self.assertIsNone(runner.run())
+
+        self.bkfara.create_task.assert_not_called()
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
+            ClusteringOperationStatusEnum.CANCELED.value,
+        )
+
+    def test_binding_available_before_workers_ready(self):
+        self.bkfara.get_task.return_value.update(status="TRAINING", trained_model_ref=None)
+        self.bkfara.get_clustering.return_value.update(state="STARTING", all_ready_model_ref=None)
+        self.assertIsNone(self.run_operation())
+        self.transfer.set_log_clustering_config.assert_called_once()
+        self.assertEqual(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).phase, "running")
+
+    def test_missing_input_revision_waits_without_submitting(self):
+        self.bkfara.get_clustering.return_value["input_revision"] = None
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.transfer.set_log_clustering_config.assert_not_called()
+
+    def test_register_routes_records_metadata_errors_and_only_waits_when_pending(self):
+        ready = self.transfer.get_log_clustering_status.return_value
+        error = {"source": "sink_resource", "message": "resource unavailable"}
+        self.transfer.get_log_clustering_status.side_effect = [{**ready, "ready": False}, {**ready, "errors": [error]}]
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.step, "register_query_routes")
+        self.assertEqual(self.operation.retry_count, 0)
+        self.assertFalse(self.operation.last_error)
+
+        self.assertGreater(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.operation.refresh_from_db()
+        # metadata 返回的具体原因记入操作，按步骤重试上限结束。
+        self.assertIn("sink_resource: resource unavailable", self.operation.last_error)
+        self.assertEqual(self.operation.retry_count, 1)
+        self.transfer.bulk_create_or_update_log_router.assert_not_called()
+
+    def test_pattern_registration_retries_bulk_route_without_reapplying_binding(self):
+        self.transfer.bulk_create_or_update_log_router.side_effect = [
+            None,
+            ApiRequestError("publish failed"),
+            None,
+            None,
+        ]
+        self.run_operation()
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.step, "register_query_routes")
+        self.run_operation()
+        first, failed, replay, retry = self.transfer.bulk_create_or_update_log_router.call_args_list
+        self.assertEqual(first, replay)
+        self.assertEqual(failed, retry)
+        clustered, pattern = first.args[0], retry.args[0]
+        self.assertEqual(clustered["data_label"], "bklog_index_set_42_clustered")
+        self.assertEqual(clustered["table_info"][0]["source_type"], "log")
+        self.assertEqual(clustered["table_info"][0]["index_set"], "2_bklog_demo")
+        self.assertEqual(clustered["table_info"][0]["cluster_id"], STORAGE_CLUSTER_ID)
+        self.assertEqual(
+            clustered["table_info"][0]["query_alias_settings"],
+            [{"field_name": "__log_signature", "query_alias": "signature"}],
+        )
+        self.assertEqual(pattern["data_label"], "bklog_index_set_42_pattern")
+        self.assertEqual((pattern["space_type"], pattern["space_id"]), ("bkcc", "2"))
+        self.assertEqual(pattern["table_info"][0]["index_set"], "2_bklog_index_set_42_pattern")
+        self.assertEqual(pattern["table_info"][0]["origin_table_id"], "2_bklog.index_set_42_pattern")
+        self.assertEqual(pattern["table_info"][0]["cluster_id"], STORAGE_CLUSTER_ID)
+        self.assertEqual(pattern["table_info"][0]["options"][0]["value"], "true")
+        self.transfer.set_log_clustering_config.assert_called_once()
+
+    def test_append_routes_clustered_label_to_independent_result(self):
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        runtime.pending_config["result_mode"] = "append"
+        runtime.save()
+        sync = Mock()
+        with patch("apps.log_clustering.handlers.quix.operation.BaseIndexSetHandler.sync_router", sync):
+            self.run_operation()
+        clustered, pattern = [call.args[0] for call in self.transfer.bulk_create_or_update_log_router.call_args_list]
+        self.assertEqual(clustered["data_label"], "bklog_index_set_42_clustered")
+        table = clustered["table_info"][0]
+        self.assertEqual(
+            (table["origin_table_id"], table["index_set"], table["cluster_id"]),
+            ("2_bklog.index_set_42_clustered", "2_bklog_index_set_42_clustered", STORAGE_CLUSTER_ID),
+        )
+        self.assertEqual(table["query_alias_settings"], [{"field_name": "__log_signature", "query_alias": "signature"}])
+        self.assertEqual(pattern["table_info"][0]["origin_table_id"], "2_bklog.index_set_42_pattern")
+        # 独立结果表不改普通检索路由。
+        sync.assert_not_called()
+
+    def test_route_registration_syncs_normal_router_for_source_write(self):
+        sync = Mock()
+        with patch("apps.log_clustering.handlers.quix.operation.BaseIndexSetHandler.sync_router", sync):
+            self.run_operation()
+        sync.assert_called_once()
+        self.assertTrue(sync.call_args.kwargs["raise_exception"])
+
+    def test_enable_activates_config_after_route_registration(self):
+        self.create_clustering_config()
+        self.run_operation()
+
+        self.assertIsNone(self.run_operation())
+
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.RUNNING.value)
+        self.assertEqual((runtime.bkfara_task_id, runtime.control_version, runtime.input_revision), (TASK_ID, 1, 1))
+        self.assertEqual(runtime.kafka_binding, KAFKA)
+        self.assertEqual(runtime.sink, SET_RESULT["sink"])
+        self.assertIsNone(runtime.pending_config)
+        self.assertEqual(runtime.active_config["distance_threshold"], "0.5")
+        self.assertTrue(ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID).access_finished)
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
+            ClusteringOperationStatusEnum.SUCCESS.value,
+        )
+
+        set_params = self.transfer.set_log_clustering_config.call_args.args[0]
+        self.assertNotIn("operation_id", set_params)
+        self.assertEqual(set_params["binding"]["task_id"], TASK_ID)
+        self.assertEqual(set_params["binding"]["config_revision"], 1)
+        self.bkfara.configure_clustering.assert_not_called()
+
+    def test_waiting_step_reschedules_without_recreating_task(self):
+        self.bkfara.get_task.return_value = {"status": "TRAINING"}
+
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        operation = LogClusteringOperation.objects.get(pk=self.operation.pk)
+        self.assertEqual(operation.step, "read_binding")
+        self.assertIsNotNone(operation.next_retry_at)
+
+        self.run_operation()
+
+        self.bkfara.create_task.assert_called_once()
+        operation.refresh_from_db()
+        self.assertEqual([item["step"] for item in operation.steps], ["create_task", "read_binding"])
+
+    def test_rejected_create_does_not_reschedule(self):
+        error = ApiRequestError("ALGORITHM_MINIMUM_EXCEEDS_BUDGET")
+        error.http_status = 422
+        self.bkfara.create_task.side_effect = error
+
+        self.assertIsNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, ClusteringOperationStatusEnum.FAILED.value)
+        self.assertIsNone(self.operation.next_retry_at)
+        self.assertIn("ALGORITHM_MINIMUM_EXCEEDS_BUDGET", self.operation.last_error)
+
+    def test_wait_timeout_fails_operation(self):
+        self.bkfara.get_task.return_value = {"status": "TRAINING"}
+        self.run_operation()
+        operation = LogClusteringOperation.objects.get(pk=self.operation.pk)
+        expired = timezone.now() - datetime.timedelta(seconds=WAIT_TIMEOUT_SECONDS + 1)
+        operation.steps[-1]["time"] = expired.strftime("%Y-%m-%d %H:%M:%S")
+        operation.save()
+
+        self.assertIsNone(self.run_operation())
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
+            ClusteringOperationStatusEnum.FAILED.value,
+        )
+
+    def test_unknown_result_retries_with_same_idempotency_key(self):
+        self.bkfara.create_task.side_effect = [ApiRequestError("request failed"), {"task_id": TASK_ID}]
+
+        delay = self.run_operation()
+        self.run_operation()
+
+        self.assertGreater(delay, POLL_INTERVAL_SECONDS)
+        first_key, second_key = (call.args[0]["Idempotency-Key"] for call in self.bkfara.create_task.call_args_list)
+        self.assertEqual(first_key, second_key)
+        self.assertEqual(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).bkfara_task_id, TASK_ID)
+
+    def test_invalid_environment_fails_without_retry(self):
+        with patch(
+            "apps.log_clustering.handlers.quix.operation.get_quix_config",
+            side_effect=QuixClusteringConfigInvalidException(),
+        ):
+            self.assertIsNone(self.run_operation())
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=self.operation.pk).status, ClusteringOperationStatusEnum.FAILED.value
+        )
+        self.bkfara.create_task.assert_not_called()
+
+    def test_model_parameters_are_sent_from_snapshot(self):
+        parameters = {"delimeter": "encoded-delimiter", "predefined_variables": "encoded-regex"}
+        self.operation.request_snapshot = {"model_parameters": parameters}
+        self.operation.save()
+        self.run_operation()
+        request = self.bkfara.create_task.call_args.args[0]
+        self.assertEqual(request["training"], {"parameters": parameters})
+        self.assertEqual(request["profile"], QUIX_CONFIG["profile"])
+        self.assertNotIn("kafka", request)
+
+    def test_pending_databus_does_not_publish_routes(self):
+        self.transfer.get_log_clustering_status.return_value = {**ADOPTED_STATUS, "ready": False}
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.transfer.bulk_create_or_update_log_router.assert_not_called()
+
+    def test_adoption_waits_until_databus_references_sink(self):
+        self.transfer.get_log_clustering_status.return_value = {**ADOPTED_STATUS, "ready": False}
+
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.assertEqual(
+            LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).phase,
+            ClusteringRuntimePhaseEnum.ENABLING.value,
+        )
+
+    def test_adoption_waits_when_remote_status_query_failed(self):
+        self.transfer.get_log_clustering_status.return_value = {
+            **ADOPTED_STATUS,
+            "errors": [{"source": "databus_resource", "message": "timeout"}],
+        }
+
+        self.assertGreater(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.assertEqual(LogClusteringOperation.objects.get(pk=self.operation.pk).step, "register_query_routes")
+
+    def test_resumed_wait_after_timeout_restarts_wait_clock(self):
+        self.bkfara.get_task.return_value = {"status": "TRAINING"}
+        self.run_operation()
+        operation = LogClusteringOperation.objects.get(pk=self.operation.pk)
+        operation.steps[-1]["time"] = "2000-01-01 00:00:00"
+        operation.save()
+        self.run_operation()
+        operation.refresh_from_db()
+        self.assertEqual(operation.status, ClusteringOperationStatusEnum.FAILED.value)
+
+        operation.status = ClusteringOperationStatusEnum.PENDING.value
+        operation.save()
+
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
+            ClusteringOperationStatusEnum.RUNNING.value,
+        )
+
+    def test_retry_replays_first_request_payload_after_config_change(self):
+        self.bkfara.create_task.side_effect = [ApiRequestError("request failed"), {"task_id": TASK_ID}]
+        self.run_operation()
+        changed_config = {**QUIX_CONFIG, "profile": "changed"}
+
+        with patch("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=changed_config)):
+            self.run_operation()
+
+        first_payload, second_payload = (call.args[0] for call in self.bkfara.create_task.call_args_list)
+        self.assertEqual(first_payload, second_payload)
+        self.assertEqual(second_payload["profile"], QUIX_CONFIG["profile"])
+
+    def test_finish_is_atomic_with_operation_success(self):
+        self.create_clustering_config()
+
+        with patch(
+            "apps.log_clustering.handlers.quix.operation.LogIndexSet.set_tag", Mock(side_effect=RuntimeError("down"))
+        ):
+            self.run_operation()
+
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.ENABLING.value)
+        self.assertIsNotNone(runtime.pending_config)
+        self.assertNotEqual(
+            LogClusteringOperation.objects.get(pk=self.operation.pk).status,
+            ClusteringOperationStatusEnum.SUCCESS.value,
+        )
+
+    def test_finish_rerun_does_not_promote_cleared_pending_config(self):
+        self.create_clustering_config()
+        self.run_operation()
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        active_config = runtime.active_config
+        LogClusteringOperation.objects.filter(pk=self.operation.pk).update(
+            status=ClusteringOperationStatusEnum.RUNNING.value
+        )
+
+        self.assertIsNone(self.run_operation())
+
+        runtime.refresh_from_db()
+        self.assertEqual(runtime.active_config, active_config)
+        self.assertIsNone(runtime.pending_config)

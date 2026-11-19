@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount, shallowRef, set, markRaw } from 'vue';
+import { computed, defineComponent, inject, ref, watch, onMounted, onBeforeUnmount, shallowRef, set, markRaw } from 'vue';
 import useStore from '@/hooks/use-store';
 import { moduleLargeDataCacheService, clusterTableWorkerService } from '@/storage';
 import useLocale from '@/hooks/use-locale';
@@ -31,6 +31,7 @@ import MainHeader from './main-header';
 import $http from '@/api';
 import ClusteringLoader from '@/skeleton/clustering-loader.vue';
 import ContentTable, { IPagination, GroupListState } from './content-table';
+import { quixPage } from '../quix-status';
 import { type LogPattern } from '@/services/log-clustering';
 import { type IResponseData } from '@/services/type';
 
@@ -89,6 +90,7 @@ export default defineComponent({
   setup(props, { expose, emit }) {
     const store = useStore();
     const { t } = useLocale();
+    const quix = inject(quixPage, undefined);
 
     const initFilterSortMap = () => ({
       filter: {
@@ -416,7 +418,8 @@ export default defineComponent({
       const addition = [
         ...getClusterSearchAddition(),
         {
-          field: `__dist_${props.requestData?.pattern_level}`,
+          // 小型化聚类以 signature 作为签名字段
+          field: quix?.status.value ? 'signature' : `__dist_${props.requestData?.pattern_level}`,
           operator: 'is',
           value: signature,
         },

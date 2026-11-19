@@ -43,6 +43,7 @@ NEW_CLASS_FIELD_PREFIX = "dist"
 
 NEW_CLASS_SENSITIVITY_FIELD = "sensitivity"
 SIGNATURE_FIELD = "signature"
+QUIX_SIGNATURE_FIELD = "__log_signature"
 NEW_CLASS_QUERY_FIELDS = [SIGNATURE_FIELD]
 NEW_CLASS_QUERY_TIME_RANGE = "customized"
 NEW_CLASS_ALERT_SEARCH_PAGE_SIZE = 5000
@@ -95,6 +96,11 @@ ALARM_INTERVAL_CLUSTERING = 7200
 AGG_DIMENSION_NORMAL = ["__dist_05"]
 CLUSTERED_LOG_AGG_CONDITION = [
     {"key": "__dist_05", "dimension_name": "__dist_05", "value": [""], "method": "neq", "condition": "and"}
+]
+# 日志聚类小型化告警统一使用 signature 签名字段
+QUIX_AGG_DIMENSION_NORMAL = [SIGNATURE_FIELD]
+QUIX_CLUSTERED_LOG_AGG_CONDITION = [
+    {"key": SIGNATURE_FIELD, "dimension_name": SIGNATURE_FIELD, "value": [""], "method": "exists", "condition": "and"}
 ]
 # 新类告警
 LEGACY_NEW_CLASS_AGG_DIMENSION = ["sensitivity", SIGNATURE_FIELD]
@@ -161,7 +167,7 @@ DEFAULT_ACTION_CONFIG = {
 }
 NOT_NEED_EDIT_NODES = ["format_signature"]
 
-DEFAULT_PATTERN_MONITOR_MSG = """
+_CLUSTERING_NOTICE_HEADER = """
 {{content.level}}
 {{content.begin_time}}
 {{content.time}}
@@ -173,7 +179,11 @@ DEFAULT_PATTERN_MONITOR_MSG = """
 {{content.target}}
 {{content.dimension}}
 {{content.detail}}
+"""
 
+DEFAULT_PATTERN_MONITOR_MSG = (
+    _CLUSTERING_NOTICE_HEADER
+    + """
 **内容:** 日志聚类检测到异常, 异常类型: {{alarm.bkm_info.alert_msg}}, 近 {{ (strategy.items[0].query_configs[0]["agg_interval"]\
  / 60) | int }} 分钟出现次数 ({{alarm.current_value | int }})
 **负责人:** {{ json.loads(alarm.related_info)["owners"] or '无' }}
@@ -183,6 +193,19 @@ DEFAULT_PATTERN_MONITOR_MSG = """
 **日志示例:** {{ json.loads(alarm.related_info)["log"] }}
 [更多日志]({{ json.loads(alarm.related_info)["bklog_link"] }})
 """
+)
+
+# NewSeries 事件没有 BKData 异常类型。解析完整关联信息，避免长日志截断后续的备注和跳转链接。
+NEW_SERIES_NOTICE_TEMPLATE = (
+    _CLUSTERING_NOTICE_HEADER
+    + """
+**内容:** 日志聚类检测到异常, 异常类型: 新类, 近 {{ (strategy.items[0].query_configs[0]["agg_interval"] / 60) | int }} 分钟出现次数 ({{alarm.current_value | int }})
+**负责人:** {{ alarm.log_related_fields.owners or '无' }}
+**备注:** {% if alarm.log_related_fields.remark_text %}{{ alarm.log_related_fields.remark_text }}【{{ alarm.log_related_fields.remark_time }}】({{ alarm.log_related_fields.remark_user }} ){% else %}无{% endif %}
+**日志示例:** {{ (alarm.log_related_fields.log or '无') | truncate(1024, true, '...', 0) }}
+{% if alarm.log_related_fields.bklog_link %}[更多日志]({{ alarm.log_related_fields.bklog_link }}){% endif %}
+"""
+)
 
 PATTERN_MONITOR_MSG_BY_SWITCH = """
 {{content.level}}
@@ -265,6 +288,73 @@ class StorageTypeEnum(ChoicesEnum):
         (ELASTICSEARCH, _("Elasticsearch")),
         (DORIS, _("Doris")),
     )
+
+
+class ClusteringRuntimePhaseEnum(ChoicesEnum):
+    """轻量化聚类运行阶段"""
+
+    ENABLING = "enabling"
+    RUNNING = "running"
+    UPDATING = "updating"
+    DISABLING = "disabling"
+    STOPPED = "stopped"
+    REOPENING = "reopening"
+
+    _choices_labels = (
+        (ENABLING, _("开启中")),
+        (RUNNING, _("运行中")),
+        (UPDATING, _("更新中")),
+        (DISABLING, _("关闭中")),
+        (STOPPED, _("已关闭")),
+        (REOPENING, _("重开中")),
+    )
+
+
+class ClusteringOperationTypeEnum(ChoicesEnum):
+    """轻量化聚类控制操作类型"""
+
+    ENABLE = "enable"
+    UPDATE = "update"
+    UPDATE_MODEL = "update_model"
+    DISABLE = "disable"
+    REOPEN = "reopen"
+
+    _choices_labels = (
+        (ENABLE, _("开启")),
+        (UPDATE, _("更新过滤规则")),
+        (UPDATE_MODEL, _("更新模型参数")),
+        (DISABLE, _("关闭")),
+        (REOPEN, _("重开")),
+    )
+
+
+class ClusteringOperationStatusEnum(ChoicesEnum):
+    """轻量化聚类控制操作状态"""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    AWAITING_RECEIPT = "awaiting_receipt"
+    FAILED = "failed"
+    SUCCESS = "success"
+    CANCELED = "canceled"
+
+    _choices_labels = (
+        (PENDING, _("等待执行")),
+        (RUNNING, _("执行中")),
+        (AWAITING_RECEIPT, _("配置已下发，待采用确认")),
+        (FAILED, _("失败")),
+        (SUCCESS, _("成功")),
+        (CANCELED, _("已取消")),
+    )
+
+    @classmethod
+    def unfinished_statuses(cls) -> tuple:
+        # 失败的操作需要原样续跑或显式取消，期间同索引不能开始新的控制操作
+        return cls.PENDING.value, cls.RUNNING.value, cls.AWAITING_RECEIPT.value, cls.FAILED.value
+
+    @classmethod
+    def runnable_statuses(cls) -> tuple:
+        return cls.PENDING.value, cls.RUNNING.value, cls.AWAITING_RECEIPT.value
 
 
 # 日志聚类失败重试次数

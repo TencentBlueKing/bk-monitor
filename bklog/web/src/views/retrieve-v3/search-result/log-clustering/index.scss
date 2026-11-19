@@ -6,3 +6,19 @@
     height: 100%;
   }
 }
+
+.quix-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #f0f5ff;
+  overflow-wrap: anywhere;
+
+  .quix-actions {
+    display: flex;
+    gap: 12px;
+    margin-left: auto;
+  }
+}

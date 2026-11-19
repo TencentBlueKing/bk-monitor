@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, ref, computed, watch } from 'vue';
+import { inject, defineComponent, onMounted, ref, computed, watch } from 'vue';
 import TextHighlight from 'vue-text-highlight';
 
 import FilterRule from '@/components/filter-rule';
 import RuleConfigOperate from '@/components/rule-config-operate';
 import RuleTable from '@/components/rule-table';
+import { quixPage } from '../../../quix-status';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { bkNotify } from 'bk-magic-vue';
@@ -67,6 +68,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
+    const page = inject(quixPage);
+    const quix = computed(() => Boolean(page?.status.value));
 
     const ruleConfigOperateRef = ref<any>(null);
     const ruleOperateRef = ref<any>();
@@ -228,7 +231,13 @@ export default defineComponent({
                 bk_biz_id,
               },
             })
-            .then(() => {
+            .then((res: IResponseData<(string | null)[]>) => {
+              if (quix.value) {
+                bkNotify({ title: t(res.data?.[0] ? '配置已提交，等待生效' : '配置没有变化'), offsetY: 80 });
+                page?.refresh();
+                emit('close');
+                return;
+              }
               bkNotify({
                 title: t('保存待生效'),
                 message: t('该保存需要10分钟生效, 请耐心等待'),

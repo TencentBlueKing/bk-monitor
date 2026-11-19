@@ -26,7 +26,6 @@
 
 import { defineComponent, computed, type PropType } from 'vue';
 
-import useLocale from '@/hooks/use-locale';
 
 import './index.scss';
 
@@ -43,22 +42,15 @@ export default defineComponent({
       }>,
       default: () => {},
     },
+    operatorName: String,
     isCreate: {
       type: Boolean,
       default: true,
     },
   },
   setup(props, { emit }) {
-    const { t } = useLocale();
 
     const displayValueList = computed(() => props.data.values.slice(0, 3));
-
-    const opMap = {
-      '=': '=',
-      '!=': '!=',
-      contains: t('包含'),
-      'not contains': t('不包含'),
-    };
 
     const handleClickTrigger = () => {
       emit('click');
@@ -84,8 +76,8 @@ export default defineComponent({
               <span class='name-title'>
                 {props.data.field_alias}({props.data.field_name})
               </span>
-              <span class={{ 'opt-sign': true, 'is-negtive': ['!=', 'not contains'].includes(props.data.op) }}>
-                {opMap[props.data.op]}
+              <span class={{ 'opt-sign': true, 'is-negtive': props.data.op === '!=' || props.data.op?.startsWith('not') }}>
+                {props.operatorName}
               </span>
               <div
                 class='close-main'
