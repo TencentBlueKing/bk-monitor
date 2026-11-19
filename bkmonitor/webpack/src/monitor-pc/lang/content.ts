@@ -632,4 +632,8 @@ export default {
   统计分析: 'Statistics analysis',
   'Token 统计分析': 'Token statistics analysis',
   复位省略: 'Reset ellipsis',
+  '总 Token': 'Total Tokens',
+  缓存读数: 'Cache reads',
+  耗时统计分析: 'Duration statistics analysis',
+  缓存命中率: 'Cache hit rate',
 };
