@@ -28,6 +28,11 @@
     @include flex-align(center);
   }
 
+  /* 模型 Span 的统计条：与下方时间流留出间距 */
+  &-model-stats {
+    padding-top: 16px;
+  }
+
   &-stat-card {
     flex: 1 0 0;
     gap: 2px;

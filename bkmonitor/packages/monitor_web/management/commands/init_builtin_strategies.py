@@ -66,7 +66,7 @@ class Command(BaseCommand):
         from bkm_space.api import SpaceApi
         from bkm_space.define import Space
         from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
-        from bkmonitor.utils.user import get_admin_username, set_local_username
+        from bkmonitor.utils.user import get_backend_username, set_local_username
         from core.drf_resource import api
         from monitor_web.strategies.built_in import run_build_in
 
@@ -141,7 +141,7 @@ class Command(BaseCommand):
             # 记录并跳过该租户、继续其余，保证"不漏覆盖"不被单点失败拖垮。
             try:
                 set_local_tenant_id(bk_tenant_id=bk_tenant_id)
-                set_local_username(get_admin_username(bk_tenant_id=bk_tenant_id))
+                set_local_username(get_backend_username(bk_tenant_id=bk_tenant_id))
             except Exception:
                 skipped += 1
                 logger.exception("[init_builtin_strategies] setup failed, skip tenant=%s", bk_tenant_id)
@@ -223,13 +223,13 @@ class Command(BaseCommand):
         """
         from bkmonitor.models import QueryConfigModel, StrategyModel
         from bkmonitor.utils.tenant import set_local_tenant_id
-        from bkmonitor.utils.user import get_admin_username, set_local_username
+        from bkmonitor.utils.user import get_backend_username, set_local_username
 
         renamed = 0
         scanned = 0
         for bk_tenant_id, biz_ids in tenant_to_biz_ids.items():
             try:
-                admin = get_admin_username(bk_tenant_id=bk_tenant_id)
+                admin = get_backend_username(bk_tenant_id=bk_tenant_id)
                 set_local_tenant_id(bk_tenant_id=bk_tenant_id)
                 set_local_username(admin)
             except Exception:

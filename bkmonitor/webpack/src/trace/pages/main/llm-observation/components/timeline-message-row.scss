@@ -425,6 +425,12 @@
     background: #f7f9fc;
   }
 
+  // 矩阵工具行定位命中：与 Span 行高亮保持一致，背景落在可见行上
+  &.is-highlighted .llm-timeline-row-main {
+    background: #f0f5ff;
+    box-shadow: inset 2px 0 0 $primary-color;
+  }
+
   &.is-tool:hover .llm-timeline-row-actions {
     display: flex;
   }

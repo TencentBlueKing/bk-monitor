@@ -1,0 +1,71 @@
+@import '../../../../../theme/theme';
+@import '../../../../../theme/mixin';
+
+/* Figma Chart：浅灰底 #f2f6fc、圆角 4、上下双块各 40px，中间网格线分隔 */
+.llm-trend-chart-wrap {
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 4px;
+  margin-bottom: 16px;
+  background: #f2f6fc;
+  border-radius: 4px;
+
+  @include flex-column;
+}
+
+/* 高度由内部 ECharts 画布（含顶部留白与时间轴）决定，避免时间轴被裁切 */
+.llm-trend-chart {
+  position: relative;
+  width: 100%;
+  height: auto;
+}
+
+/* 桶柱 hover 面板的定位锚点：贴合耗时绘图区底边、桶柱中心 */
+.llm-trend-stats-anchor {
+  position: absolute;
+  display: block;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* 面板弹层外壳，与耗时统计 Popover 保持一致 */
+.bk-popover.bk-pop2-content.llm-trend-stats-popover {
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e4e9f2;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px 0 rgb(25 25 41 / 12%);
+}
+
+.llm-trend-empty {
+  padding: 20px 0;
+  font-size: $font-size-base;
+  color: #8f9fbd;
+  text-align: center;
+}
+
+/* 框选后的复位按钮，沿用监控默认样式 */
+.llm-trend-restore {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 36px;
+  height: 20px;
+  font-size: $font-size-base;
+  cursor: pointer;
+  background-color: #fff;
+  border: 1px solid #c4c6cc;
+  border-radius: 2px;
+
+  @include flex-center;
+
+  &:hover {
+    color: $primary-color;
+    border-color: $primary-color;
+  }
+}

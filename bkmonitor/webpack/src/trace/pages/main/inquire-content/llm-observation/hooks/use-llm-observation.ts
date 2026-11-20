@@ -31,6 +31,7 @@ import { CancelToken } from 'monitor-api/cancel';
 import { listFlows } from 'monitor-api/modules/llm_web';
 import { useI18n } from 'vue-i18n';
 
+import { mergeTokenMatrixNodes } from '../../../llm-observation/utils/token-matrix';
 import { collectAncestorSpanIds } from '../utils/duration-stats';
 import {
   buildIoPreviews,
@@ -40,8 +41,11 @@ import {
   countSpanKinds,
   flattenVisibleSpanRows,
   pickConversationId,
+  pickSpanName,
+  resolveSpanKind,
 } from '../utils/transform';
 
+import type { LlmTrendTimeRange } from '../utils/trend-buckets';
 import type {
   LlmExecutionFilter,
   LlmFlowsResponse,
@@ -50,6 +54,7 @@ import type {
   LlmIoPreview,
   LlmOverviewStats,
   LlmSpanRowView,
+  LlmTokenMatrixNode,
   LlmTraceView,
 } from '../utils/typings';
 
@@ -118,6 +123,8 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   const showSession = shallowRef(false);
   const filter = shallowRef<LlmExecutionFilter>('all');
   const keyword = shallowRef('');
+  /** 趋势图框选后同步到 Span 列表的时间范围（微秒），null 表示未框选 */
+  const trendRange = shallowRef<LlmTrendTimeRange | null>(null);
   const expandedTraceIds = shallowRef<Set<string>>(new Set());
   const expandedSpanIds = shallowRef<Set<string>>(new Set());
   const ioPreviews = shallowRef<Map<string, LlmIoPreview>>(new Map());
@@ -126,6 +133,8 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   const flowLoadedTraceIds = shallowRef<Set<string>>(new Set());
   const loadingTraceIds = shallowRef<Set<string>>(new Set());
   const highlightedSpanId = shallowRef('');
+  /** 已点开过的 Trace，矩阵按这些 id 动态累加，收起不扣减 */
+  const matrixTraceIds = shallowRef<Set<string>>(new Set());
   let highlightTimer = 0;
   let cancelFetch = () => {};
   let cancelIoFetch = () => {};
@@ -151,6 +160,16 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
 
   const stats = computed(() => buildStatCards(traces.value, t, overviewStats.value));
   const kindCounts = computed(() => countSpanKinds(traces.value));
+  const tokenMatrixNodes = computed(() =>
+    mergeTokenMatrixNodes(
+      traces.value.reduce<LlmTokenMatrixNode[][]>((groups, item) => {
+        if (matrixTraceIds.value.has(item.trace_id) && item.token_matrix?.nodes?.length) {
+          groups.push(item.token_matrix.nodes);
+        }
+        return groups;
+      }, [])
+    )
+  );
   /** 仅对已展开的 Trace 计算 flatten 行；筛选/关键字变化时复算 rows，不重复请求接口 */
   const structureBlocks = computed<TraceBlockView[]>(() =>
     traces.value.map(item => {
@@ -165,6 +184,8 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
               expandedSpanIds: expandedSpanIds.value,
               filter: filter.value,
               keyword: keyword.value,
+              // 趋势图只展示展开中的 Trace，其框选范围同步过滤该 Trace 的 Span 行
+              timeRange: trendRange.value,
             })
           : [],
       };
@@ -217,25 +238,36 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     loadingTraceIds.value = next;
   };
 
+  const includeMatrixTrace = (traceId: string) => {
+    if (!traceId || matrixTraceIds.value.has(traceId)) return;
+    matrixTraceIds.value = new Set([...matrixTraceIds.value, traceId]);
+  };
+
   /** 会话模式刷新列表时保留已懒加载过的 flow，避免重复请求 */
   const mergeSessionTraces = (nextTraces: LlmFlowTrace[], prevTraces: LlmFlowTrace[], loadedIds: Set<string>) => {
     const prevMap = new Map(prevTraces.map(item => [item.trace_id, item]));
     return nextTraces.map(item => {
-      if (item.flow?.length) return item;
       const prev = prevMap.get(item.trace_id);
+      const tokenMatrix = item.token_matrix || prev?.token_matrix;
+      if (item.flow?.length) return { ...item, token_matrix: tokenMatrix };
       if (prev && loadedIds.has(item.trace_id)) {
-        return { ...item, flow: prev.flow || [] };
+        return { ...item, flow: prev.flow || [], token_matrix: tokenMatrix };
       }
-      return { ...item, flow: item.flow || [] };
+      return { ...item, flow: item.flow || [], token_matrix: tokenMatrix };
     });
   };
 
   const applyOverviewResponse = (data: LlmFlowsResponse, traceId: string, useSession: boolean, requestId: number) => {
     appliedOverviewRequestId = requestId;
     const nextTraces = sortTraces(data?.traces || [], traceId, useSession);
+    const prevMap = new Map(traces.value.map(item => [item.trace_id, item]));
     const merged = useSession
       ? mergeSessionTraces(nextTraces, traces.value, flowLoadedTraceIds.value)
-      : nextTraces.map(item => ({ ...item, flow: item.flow || [] }));
+      : nextTraces.map(item => ({
+          ...item,
+          flow: item.flow || [],
+          token_matrix: item.token_matrix || prevMap.get(item.trace_id)?.token_matrix,
+        }));
     traces.value = merged;
     overviewStats.value = data
       ? {
@@ -269,7 +301,21 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     }
   };
 
+  const applyTokenMatrices = (data: LlmFlowsResponse) => {
+    const incoming = data?.traces || [];
+    if (!incoming.length) return;
+    let changed = false;
+    const next = traces.value.map(item => {
+      const detail = incoming.find(trace => trace.trace_id === item.trace_id);
+      if (!detail?.token_matrix) return item;
+      changed = true;
+      return { ...item, token_matrix: detail.token_matrix };
+    });
+    if (changed) traces.value = next;
+  };
+
   const applyIoPreviews = (data: LlmFlowsResponse) => {
+    applyTokenMatrices(data);
     const nextIo = new Map(ioPreviews.value);
     for (const [key, value] of buildIoPreviews(data?.traces || [])) nextIo.set(key, value);
     ioPreviews.value = nextIo;
@@ -405,11 +451,13 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       traces.value = [];
       overviewStats.value = null;
       flowLoadedTraceIds.value = new Set();
+      matrixTraceIds.value = new Set();
       loading.value = false;
       return;
     }
 
     loading.value = true;
+    matrixTraceIds.value = new Set();
     const useSession = showSession.value && Boolean(conversationId.value);
     const params = {
       bk_biz_id: bizId,
@@ -442,6 +490,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       traces.value = [];
       overviewStats.value = null;
       flowLoadedTraceIds.value = new Set();
+      matrixTraceIds.value = new Set();
     } finally {
       if (requestId === overviewRequestId) {
         loading.value = false;
@@ -462,6 +511,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     }
     expandedTraceIds.value = nextTraceIds;
     expandedSpanIds.value = nextSpanIds;
+    includeMatrixTrace(currentTraceId);
   };
 
   const handleSessionChange = (checked: boolean) => {
@@ -482,10 +532,18 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       expandedTraceIds.value = new Set();
       return;
     }
+    // 切换展开的 Trace 后趋势图重建，旧的框选范围不再适用
+    trendRange.value = null;
     expandedTraceIds.value = new Set([traceId]);
+    includeMatrixTrace(traceId);
     if (!flowLoadedTraceIds.value.has(traceId)) {
       loadTraceFlow(traceId);
     }
+  };
+
+  /** 趋势图框选 / 复位：同步趋势图自身与 Span 列表的时间范围 */
+  const handleTrendSelect = (range: LlmTrendTimeRange | null) => {
+    trendRange.value = range;
   };
 
   /** Span 子树可同时展开多个，Trace 块仅展开一项。 */
@@ -502,6 +560,8 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     if (!item) return;
     filter.value = 'all';
     keyword.value = '';
+    // 目标 Span 可能落在框选范围外，定位前清空时间范围避免行被过滤
+    trendRange.value = null;
     const next = new Set(expandedSpanIds.value);
     for (const ancestorId of collectAncestorSpanIds(item.flow, spanId)) {
       next.add(ancestorId);
@@ -519,6 +579,29 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     });
   };
 
+  /** 工具叶子点击：在已累加矩阵对应的 Trace 中定位同名 TOOL Span */
+  const locateToolByName = (toolName: string) => {
+    const name = toolName.trim();
+    if (!name) return;
+    // 已累加矩阵的 Trace 优先，其余兜底；一次排序分组，保持各组内原顺序
+    const ordered = [...traces.value].sort(
+      (left, right) =>
+        Number(matrixTraceIds.value.has(right.trace_id)) - Number(matrixTraceIds.value.has(left.trace_id))
+    );
+    for (const trace of ordered) {
+      let target: LlmFlowSpan | undefined;
+      // 单次遍历：同时判断类型、名称与最早 start_time，省去多次 filter 和 sort
+      for (const span of collectSpanList(trace.flow)) {
+        if (resolveSpanKind(span) !== 'TOOL') continue;
+        if (pickSpanName(span, 'TOOL') !== name) continue;
+        if (!target || span.start_time < target.start_time) target = span;
+      }
+      if (!target) continue;
+      locateSpan(trace.trace_id, target.span_id);
+      return;
+    }
+  };
+
   /** 切换 Trace / 应用 / 空间时清空会话模式与筛选，避免沿用上一 Trace 的 UI 状态 */
   watch(
     () => [get(options.appName), get(options.traceId), get(options.bizId)] as const,
@@ -531,8 +614,10 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       showSession.value = false;
       filter.value = 'all';
       keyword.value = '';
+      trendRange.value = null;
       overviewStats.value = null;
       flowLoadedTraceIds.value = new Set();
+      matrixTraceIds.value = new Set();
       loadingTraceIds.value = new Set();
       highlightedSpanId.value = '';
       spanRowCache.clear();
@@ -562,15 +647,19 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     handleFilterChange,
     handleKeywordChange,
     handleSessionChange,
+    handleTrendSelect,
     hasTraces,
     highlightedSpanId,
     keyword,
     kindCounts,
     loading,
     locateSpan,
+    locateToolByName,
     ioLoading,
     showSession,
     stats,
+    tokenMatrixNodes,
+    trendRange,
     toggleSpan,
     toggleTrace,
     traceBlocks,

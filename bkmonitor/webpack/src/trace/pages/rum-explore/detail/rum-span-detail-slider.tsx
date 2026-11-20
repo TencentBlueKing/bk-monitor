@@ -497,6 +497,7 @@ export default defineComponent({
         <>
           <DetailHeader
             data={headerVM.value}
+            onCopy={() => copyText(JSON.stringify(originData.value, null, 2))}
             onItemClick={(key, value) => emit('conditionAdd', key, value)}
           />
           {renderTabs()}

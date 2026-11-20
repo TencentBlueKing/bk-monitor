@@ -21,7 +21,7 @@
     @include flex-align(center);
 
     &:hover {
-      background: #C1CDE5;
+      background: #c1cde5;
     }
 
     .llm-collapse-section-arrow {
@@ -40,6 +40,21 @@
     color: #111214;
 
     @include flex-align(center);
+  }
+
+  &-aside {
+    flex-shrink: 0;
+    gap: 8px;
+
+    @include flex-align(center);
+  }
+
+  &-tokens {
+    font-family: arial, sans-serif;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #66748f;
+    white-space: nowrap;
   }
 
   &-icon {

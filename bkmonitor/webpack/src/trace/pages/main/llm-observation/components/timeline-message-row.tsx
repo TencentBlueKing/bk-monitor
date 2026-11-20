@@ -52,6 +52,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 矩阵工具行定位命中：短暂高亮该行 */
+    highlighted: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     viewAlone: (_detail: LlmDetailSliderContent) => true,
@@ -322,11 +327,13 @@ export default defineComponent({
 
     return () => (
       <div
+        // 矩阵工具行定位入口：只给工具行挂锚点，避免非工具行也带工具语义的 id
+        id={props.part.role === 'tool' ? `llm-tool-part-${props.part.id}` : undefined}
         ref={setRowRef}
         class={[
           'llm-timeline-row',
           `is-${props.part.role}`,
-          { 'is-expanded': expanded.value, 'is-error': props.part.isError },
+          { 'is-expanded': expanded.value, 'is-error': props.part.isError, 'is-highlighted': props.highlighted },
         ]}
       >
         {props.connectTop ? <span class='llm-timeline-row-line is-top' /> : null}

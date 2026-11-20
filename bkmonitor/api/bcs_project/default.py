@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -17,6 +16,7 @@ import six
 from django.conf import settings
 from rest_framework import serializers
 
+from bkmonitor.utils.user import single_tenant_backend_username
 from core.drf_resource.contrib.api import APIResource
 
 logger = logging.getLogger(__name__)
@@ -34,20 +34,18 @@ class BcsProjectBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     IS_STANDARD_FORMAT = False
 
     def get_request_url(self, validated_request_data):
-        return (
-            super(BcsProjectBaseResource, self).get_request_url(validated_request_data).format(**validated_request_data)
-        )
+        return super().get_request_url(validated_request_data).format(**validated_request_data)
 
     def get_headers(self):
         return {
             "Authorization": f"Bearer {settings.BCS_API_GATEWAY_TOKEN}",
-            "X-Project-Username": settings.COMMON_USERNAME,
+            "X-Project-Username": single_tenant_backend_username(settings.COMMON_USERNAME),
         }
 
     def render_response_data(self, validated_request_data, response_data):
         # 检查返回数据的格式，并进行相应的处理
         if isinstance(response_data, dict):
-            return response_data.get('data', {})
+            return response_data.get("data", {})
         else:
             return response_data
 
@@ -68,7 +66,7 @@ class GetProjectsResource(BcsProjectBaseResource):
         is_detail = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, validated_request_data):
-        projects = super(GetProjectsResource, self).perform_request(validated_request_data)
+        projects = super().perform_request(validated_request_data)
         count = projects["total"]
         project_list = projects.get("results") or []
         # 如果每页的数量大于count，则不用继续请求，否则需要继续请求
@@ -77,7 +75,7 @@ class GetProjectsResource(BcsProjectBaseResource):
             start_offset = 1
             while start_offset <= max_offset:
                 validated_request_data.update({"limit": self.default_limit, "offset": start_offset})
-                resp_data = super(GetProjectsResource, self).perform_request(validated_request_data)
+                resp_data = super().perform_request(validated_request_data)
                 project_list.extend(resp_data.get("results") or [])
                 start_offset += 1
         # 因为返回数据内容太多，抽取必要的字段

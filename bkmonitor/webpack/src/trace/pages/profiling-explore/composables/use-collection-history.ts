@@ -178,6 +178,12 @@ export function useCollectionHistory({
         });
       // 总数与列表同源，取首个下发 total 的页；本轮所有页都未下发时按未知处理
       total.value = results.find(result => typeof result.total === 'number')?.total ?? null;
+      // 列表被整体替换，翻页状态按本轮最后一页重算，否则窗口滑动新增的记录无法继续加载
+      const lastPage = results[results.length - 1];
+      const pageFull = !!lastPage && lastPage.data.length === COLLECTION_HISTORY_PAGE_SIZE;
+      hasMore.value = pageFull && (typeof total.value !== 'number' || rows.value.length < total.value);
+      // 列表已重建，此前因重复页暂停的自动补页重新放行
+      canAutoFill.value = true;
       // 列表已是本轮时间窗的数据，翻页边界同步，避免后续加载更多拉取旧窗口
       pageRange = queryRange;
       // 列表行数可能因新记录插入而变化，翻页游标跟随实际加载条数

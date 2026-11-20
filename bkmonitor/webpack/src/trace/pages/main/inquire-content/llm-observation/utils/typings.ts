@@ -24,7 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import type { LlmStatisticCard } from '../../../llm-observation/components/statistic-cards';
+import type { LlmTokenMatrixNode } from '../../../llm-observation/utils/token-matrix';
 import type { LlmKvPair } from '../../../llm-observation/utils/typings';
+
+export type { LlmTokenMatrixNode } from '../../../llm-observation/utils/token-matrix';
+
+/** 统计卡片，复用公共 LlmStatisticCard */
+export type LlmStatCard = LlmStatisticCard;
 
 /**
  * Trace 详情 LLM 观测模块的类型定义。
@@ -89,6 +96,8 @@ export interface LlmFlowTrace {
   output_tokens?: number;
   start_time?: number;
   status?: string;
+  /** include_input_output=true 时返回，供顶部 treemap */
+  token_matrix?: LlmTokenMatrix;
   total_tokens?: number;
   trace_id: string;
   user_id?: string;
@@ -134,6 +143,12 @@ export type LlmOverviewStats = Pick<
   | 'total_tokens'
 >;
 
+/** list_flows traces[].token_matrix，输入 / 输出两棵树，供矩形树布局 */
+export interface LlmTokenMatrix {
+  estimated_to_reported_ratio: number;
+  nodes: LlmTokenMatrixNode[];
+}
+
 /**
  * 页面节点类型，由 attributes.gen_ai.operation.name 归类。
  * 未命中 Agent / 模型 / Tool 时不归类，按通用 GenAI Span 展示。
@@ -164,15 +179,6 @@ export interface LlmSpanRowView {
   /** 与主名称不同的 SpanName。 */
   subtitle: string;
   traceId: string;
-}
-
-/** 统计卡片 */
-export interface LlmStatCard {
-  key: string;
-  label: string;
-  theme?: 'success';
-  unit?: string;
-  value: string;
 }
 
 export interface LlmToolPreview {

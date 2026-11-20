@@ -97,6 +97,8 @@ export interface CollectionPayload {
   process_selector?: ProcessSelector;
   resource_guard_config: ResourceGuardConfig;
   schedule: CollectionSchedule;
+  // 立即执行关联的计划 ID；新建、编辑计划时不传
+  source_task_id?: number;
   target_config: CollectionTarget;
 }
 

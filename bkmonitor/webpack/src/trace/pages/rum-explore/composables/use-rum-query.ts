@@ -82,6 +82,11 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   const commonParams = shallowRef<IRumCommonParams>({ ...EMPTY_COMMON_PARAMS });
   /** 生成查询字符串中 */
   const generateQueryStringLoading = shallowRef(false);
+  /**
+   * Session / View / Span 共用的常驻筛选缓存。
+   * 只在用户改当前 tab 上已有字段时增删；目标 tab 没有的 key 不参与检索，但留在这里。
+   */
+  const residentValueCache = shallowRef<Record<string, IWhereItem>>({});
 
   function buildFilters(): IRumFilter[] {
     const merged = mergeWhereList(where.value || [], commonWhere.value || []) as IRumFilter[];
@@ -174,6 +179,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     filterMode.value = (query.filterMode as EMode) || EMode.ui;
     where.value = tryURLDecodeParse<IWhereItem[]>(query.where, []);
     commonWhere.value = tryURLDecodeParse<IWhereItem[]>(query.commonWhere, []);
+    residentValueCache.value = buildResidentValueCache(commonWhere.value);
     queryString.value = tryURLDecode(query.queryString);
     if (typeof query.showResidentBtn === 'undefined') {
       showResidentBtn.value = true;
@@ -187,7 +193,58 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     where.value = [];
     commonWhere.value = [];
     queryString.value = '';
+    residentValueCache.value = {};
     handleQuery();
+  }
+
+  /** 用当前 tab 的常驻字段解释这次编辑：填了的 key 覆盖缓存，从已生效条件里清掉的 key 才删除。 */
+  function syncResidentValueCache(next: IWhereItem[], residentKeys: string[]) {
+    const previousKeys = new Set((commonWhere.value || []).map(item => item.key));
+    const nextKeys = new Set(next.map(item => item.key));
+    const residentKeySet = new Set(residentKeys);
+    const cache: Record<string, IWhereItem> = { ...residentValueCache.value };
+    for (const item of next) {
+      if (!item?.key) continue;
+      cache[item.key] = cloneResidentWhereItem(item);
+    }
+    for (const key of previousKeys) {
+      if (residentKeySet.has(key) && !nextKeys.has(key)) delete cache[key];
+    }
+    residentValueCache.value = cache;
+  }
+
+  /** 按目标 tab 的常驻字段顺序取出缓存；没有的 key 不返回，缓存本身不动。 */
+  function projectResidentWhere(residentKeys: string[]) {
+    const cache = residentValueCache.value;
+    const projected: IWhereItem[] = [];
+    const seen = new Set<string>();
+    for (const key of residentKeys) {
+      const item = cache[key];
+      if (!item || seen.has(key)) continue;
+      seen.add(key);
+      projected.push(cloneResidentWhereItem(item));
+    }
+    return projected;
+  }
+
+  function clearResidentValueCache() {
+    residentValueCache.value = {};
+  }
+
+  function snapshotResidentValueCache() {
+    return { ...residentValueCache.value };
+  }
+
+  /** 把快照里指定 key 写回缓存，用于「字段从常驻列表移除」而不是用户清空值。 */
+  function restoreResidentValueCache(snapshot: Record<string, IWhereItem>, keys: string[]) {
+    if (!keys.length) return;
+    const cache: Record<string, IWhereItem> = { ...residentValueCache.value };
+    for (const key of keys) {
+      const item = snapshot[key];
+      if (!item) continue;
+      cache[key] = cloneResidentWhereItem(item);
+    }
+    residentValueCache.value = cache;
   }
 
   /**
@@ -299,5 +356,28 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     whereChange,
     showResidentChange,
     queryStringChange,
+    syncResidentValueCache,
+    projectResidentWhere,
+    clearResidentValueCache,
+    snapshotResidentValueCache,
+    restoreResidentValueCache,
+  };
+}
+
+function buildResidentValueCache(items: IWhereItem[]) {
+  const cache: Record<string, IWhereItem> = {};
+  if (!Array.isArray(items)) return cache;
+  for (const item of items) {
+    if (!item?.key) continue;
+    cache[item.key] = cloneResidentWhereItem(item);
+  }
+  return cache;
+}
+
+function cloneResidentWhereItem(item: IWhereItem): IWhereItem {
+  return {
+    ...item,
+    value: Array.isArray(item.value) ? [...item.value] : [],
+    ...(item.options ? { options: { ...item.options } } : {}),
   };
 }

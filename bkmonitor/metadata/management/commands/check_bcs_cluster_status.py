@@ -60,6 +60,7 @@ from metadata.models.storage import (
 from metadata.models.vm.record import AccessVMRecord
 from metadata.utils import consul_tools, hash_util
 from bkmonitor.utils.tenant import set_local_tenant_id
+from bkmonitor.utils.user import single_tenant_backend_username
 
 
 def recode_final_result(fun):
@@ -3280,7 +3281,7 @@ class Command(BaseCommand):
                 try:
                     params = {
                         "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": data_id},
-                        "operation": {"operator_name": settings.COMMON_USERNAME},
+                        "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
                     }
                     details.update({"gse_route_query_params": params})
                     route_config = api.gse.query_route(**params)

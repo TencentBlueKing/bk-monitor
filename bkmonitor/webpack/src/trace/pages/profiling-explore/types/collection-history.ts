@@ -63,6 +63,8 @@ export interface CollectionExecutionDetail extends CollectionExecution {
   // 缺省时前端回退到默认列，兼容未下发列定义的后端版本
   host_columns?: CollectionExecutionColumn[];
   hosts: CollectionExecutionHost[];
+  // 立即执行记录关联的计划 ID，重新执行、重试失败项、单主机重新采集时回传
+  source_task_id?: number;
   total_hosts: number;
 }
 

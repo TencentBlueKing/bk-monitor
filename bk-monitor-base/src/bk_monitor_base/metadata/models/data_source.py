@@ -15,6 +15,7 @@ from django.utils.translation import gettext as _
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID, DEFAULT_USERNAME
 from bk_monitor_base.infras.third_party_api.errors import BkApiError
+from bk_monitor_base.infras.third_party_api.user.api import single_tenant_backend_username
 from bk_monitor_base.metadata import config
 from bk_monitor_base.metadata.config import settings
 from bk_monitor_base.metadata.constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
@@ -999,7 +1000,7 @@ class DataSource(models.Model):
         result = api.gse.add_route(
             bk_tenant_id=self.bk_tenant_id or DEFAULT_TENANT_ID,
             metadata={"channel_id": self.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            operation={"operator_name": settings.blueking.common_username},
+            operation={"operator_name": single_tenant_backend_username(settings.blueking.common_username)},
             route=[self.gse_route_config],
         )
         return result.get("channel_id", -1) == self.bk_data_id
@@ -1013,7 +1014,7 @@ class DataSource(models.Model):
             result = api.gse.query_route(
                 bk_tenant_id=self.bk_tenant_id,
                 condition={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": self.bk_data_id},
-                operation={"operator_name": DEFAULT_USERNAME},
+                operation={"operator_name": single_tenant_backend_username(DEFAULT_USERNAME)},
             )
             return True
         except BkApiError as e:
@@ -1024,7 +1025,7 @@ class DataSource(models.Model):
         params = {
             "bk_tenant_id": self.bk_tenant_id,
             "metadata": {"channel_id": self.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": DEFAULT_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(DEFAULT_USERNAME)},
             "route": [self.gse_route_config],
         }
         result = api.gse.add_route(**params)
@@ -1037,7 +1038,7 @@ class DataSource(models.Model):
 
         params = {
             "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": self.bk_data_id},
-            "operation": {"operator_name": settings.blueking.common_username},
+            "operation": {"operator_name": single_tenant_backend_username(settings.blueking.common_username)},
         }
         try:
             result = api.gse.query_route(bk_tenant_id=self.bk_tenant_id or DEFAULT_TENANT_ID, **params)
