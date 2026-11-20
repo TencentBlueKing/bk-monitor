@@ -30,7 +30,7 @@ import { ref } from 'vue';
 
 import { ConditionOperator } from '@/app/state/condition-operator';
 
-export default () => {
+export default ({ showDuringDebounce = false } = {}) => {
   const store = useApplicationStore();
 
   const isRequesting = ref(false);
@@ -47,6 +47,14 @@ export default () => {
   const isValidateEgges = (field: any) => {
     isValidateItem.value = ['keyword'].includes(field.field_type);
     return isValidateItem.value;
+  };
+
+  const cancelPendingFieldEgges = () => {
+    clearTimeout(requestTimer);
+    for (const task of taskPool) {
+      task.pending = false;
+    }
+    setIsRequesting(false);
   };
 
   /**
@@ -66,7 +74,6 @@ export default () => {
         return task.fields[0] === field && task.query_value === value && task.pending;
       })
     ) {
-      setIsRequesting(false);
       return;
     }
 
@@ -84,7 +91,12 @@ export default () => {
     }
 
     const size = (value?.length ?? 0) > 0 ? 50 : 100;
-    requestTimer && clearTimeout(requestTimer);
+    if (showDuringDebounce) {
+      cancelPendingFieldEgges();
+      setIsRequesting(true);
+    } else {
+      clearTimeout(requestTimer);
+    }
     requestTimer = setTimeout(() => {
       setIsRequesting(true);
 
@@ -143,6 +155,7 @@ export default () => {
 
   return {
     requestFieldEgges,
+    cancelPendingFieldEgges,
     isValidateEgges,
     isRequesting,
     setIsRequesting,
