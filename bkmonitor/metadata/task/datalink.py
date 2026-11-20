@@ -95,7 +95,7 @@ def _resolve_custom_format_vm_dependencies(rt: ResultTable) -> tuple[ClusterInfo
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def apply_custom_format_datalink(bk_tenant_id: str, table_id: str) -> None:
+def apply_custom_format_datalink(bk_tenant_id: str, table_id: str, *, finalize: bool = True) -> None:
     """按 ResultTable Option 创建或更新一条自定义格式单目标 DataLink。"""
     rt = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
     relations = list(
@@ -175,8 +175,10 @@ def apply_custom_format_datalink(bk_tenant_id: str, table_id: str) -> None:
     inner_kafka_channel_name = ""
     storage_cluster_id: int | None = None
     try:
-        if not data_id_name:
-            data_source.register_to_bkbase(bk_biz_id=target_bk_biz_id, namespace=namespace)
+        if not data_id_name or not finalize:
+            data_source.register_to_bkbase(
+                bk_biz_id=target_bk_biz_id, namespace=namespace, update_created_from=finalize
+            )
         data_id_name = get_registered_bkdata_data_id_name(data_source, namespace=namespace)
 
         if option.target_storage_type == ClusterInfo.TYPE_VM:
@@ -231,7 +233,7 @@ def apply_custom_format_datalink(bk_tenant_id: str, table_id: str) -> None:
                 "vm_result_table_id": bkbase_rt.bkbase_table_id,
             },
         )
-    if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
+    if finalize and data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
         data_source.delete_consul_config()
 
 
@@ -654,7 +656,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
+def apply_event_group_datalink(bk_tenant_id: str, table_id: str, *, finalize: bool = True, refresh_route: bool = True):
     """创建/更新事件组V4数据链路
 
     Args:
@@ -701,7 +703,7 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             bk_tenant_id,
             table_id,
         )
-        ds.register_to_bkbase(bk_biz_id=rt.bk_biz_id, namespace="bklog")
+        ds.register_to_bkbase(bk_biz_id=rt.bk_biz_id, namespace="bklog", update_created_from=finalize)
 
     # 获取数据链路
     bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id=table_id).first()
@@ -713,13 +715,15 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             data_link_name,
         )
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            datalink = DataLink.objects.create(
+            datalink, _ = DataLink.objects.update_or_create(
                 bk_tenant_id=bk_tenant_id,
                 data_link_name=data_link_name,
-                namespace="bklog",
-                data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
-                bk_data_id=ds.bk_data_id,
-                table_ids=[table_id],
+                defaults={
+                    "namespace": "bklog",
+                    "data_link_strategy": DataLink.BK_STANDARD_V2_EVENT,
+                    "bk_data_id": ds.bk_data_id,
+                    "table_ids": [table_id],
+                },
             )
             if bkbase_rt is not None:
                 # data_link_name 是主键，直接更新原记录，避免 save() 留下空名称映射。
@@ -758,10 +762,13 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
 
         from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
-        SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True)
+        if refresh_route:
+            SpaceTableIDRedis().push_table_id_detail(
+                bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True
+            )
 
     # 清理transfer链路配置
-    if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
+    if finalize and data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
         logger.info(
             "apply_event_group_datalink: tenant(%s) %s datasource created_from change to bkdata, clean consul config for datasource->[%s]",
             bk_tenant_id,
