@@ -25,7 +25,7 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
-import { Button, Dialog, Loading } from 'bkui-vue';
+import { Button, Dialog } from 'bkui-vue';
 import { Warn } from 'bkui-vue/lib/icon';
 import { useI18n } from 'vue-i18n';
 
@@ -35,18 +35,16 @@ import type { InvalidHostGroup } from '../../types/collection';
 
 import './host-plugin-check-dialog.scss';
 
-/** 采集器版本校验弹窗：加载态与校验不通过共用同一个弹窗，避免弹窗反复开关 */
+/** 采集器版本校验不通过弹窗：只提示不拦截，用户可选择继续采集或重新选择主机 */
 export default defineComponent({
   name: 'HostPluginCheckDialog',
   props: {
     /** 弹窗是否展示 */
     show: { type: Boolean, required: true },
-    /** 版本校验不通过的主机分组，为空时弹窗展示加载态 */
+    /** 版本校验不通过的主机分组 */
     groups: { type: Array as PropType<InvalidHostGroup[]>, required: true },
   },
   emits: {
-    /** 加载态下点击「停止校验」，中止校验并直接放行已选主机 */
-    cancel: () => true,
     /** 校验不通过时点击「继续」，保留已选主机 */
     continue: () => true,
     /** 校验不通过时点击「重新选择」，关闭弹窗让用户重新选择主机 */
@@ -57,11 +55,10 @@ export default defineComponent({
     return { t };
   },
   /**
-   * @description 渲染校验弹窗：无异常主机时展示校验进度，否则展示异常主机与后续操作
+   * @description 渲染校验不通过弹窗：展示异常主机与后续操作
    * @returns 弹窗节点
    */
   render() {
-    const hasWarning = this.groups.length > 0;
     return (
       // dialogType 默认是 operation，不显式指定会渲染出多余的确定/取消底部操作栏
       <Dialog
@@ -77,41 +74,23 @@ export default defineComponent({
           header: () => (
             <div class='collection-check-dialog-header'>
               <Warn class='collection-check-dialog-icon' />
-              <span class='collection-check-dialog-title'>
-                {hasWarning ? this.t('版本校验不通过') : this.t('版本校验')}
-              </span>
+              <span class='collection-check-dialog-title'>{this.t('版本校验不通过')}</span>
             </div>
           ),
-          default: () =>
-            hasWarning ? (
-              <div class='collection-check-dialog-content'>
-                <HostPluginVersionWarning groups={this.groups} />
-                <div class='collection-check-dialog-actions'>
-                  <Button
-                    theme='primary'
-                    onClick={() => this.$emit('continue')}
-                  >
-                    {this.t('继续')}
-                  </Button>
-                  <Button onClick={() => this.$emit('reselect')}>{this.t('重新选择')}</Button>
-                </div>
+          default: () => (
+            <div class='collection-check-dialog-content'>
+              <HostPluginVersionWarning groups={this.groups} />
+              <div class='collection-check-dialog-actions'>
+                <Button
+                  theme='primary'
+                  onClick={() => this.$emit('continue')}
+                >
+                  {this.t('继续')}
+                </Button>
+                <Button onClick={() => this.$emit('reselect')}>{this.t('重新选择')}</Button>
               </div>
-            ) : (
-              <div class='collection-check-dialog-content'>
-                <div class='collection-check-dialog-loading'>
-                  <Loading
-                    loading={true}
-                    mode='spin'
-                    size='large'
-                    theme='primary'
-                  />
-                  <span class='collection-check-dialog-loading-text'>{this.t('正在校验采集器版本')}</span>
-                </div>
-                <div class='collection-check-dialog-actions'>
-                  <Button onClick={() => this.$emit('cancel')}>{this.t('停止校验')}</Button>
-                </div>
-              </div>
-            ),
+            </div>
+          ),
         }}
       </Dialog>
     );

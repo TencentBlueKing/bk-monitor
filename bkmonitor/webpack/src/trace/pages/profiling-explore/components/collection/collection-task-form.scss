@@ -192,6 +192,38 @@
       }
     }
 
+    // 校验中接管主机字段：与主机摘要块等高同底，替换时表单不产生跳动
+    .collection-host-checking {
+      box-sizing: border-box;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      height: 32px;
+      padding: 0 12px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #63656e;
+      white-space: nowrap;
+      background: #f0f1f5;
+      border-radius: 4px;
+
+      .collection-host-checking-spinner {
+        box-sizing: border-box;
+        flex-shrink: 0;
+        width: 14px;
+        height: 14px;
+        border: 2px solid #dcdee5;
+        border-top-color: #3a84ff;
+        border-radius: 50%;
+        animation: collection-host-checking-rotate 0.8s linear infinite;
+      }
+
+      // 跳过入口与提示文案拉开一档，避免读成同一句话
+      .collection-host-checking-skip {
+        margin-left: 4px;
+      }
+    }
+
     .collection-process-empty {
       display: grid;
       place-items: center;
@@ -245,6 +277,12 @@
 
   .collection-form-footer-boundary {
     height: 1px;
+  }
+}
+
+@keyframes collection-host-checking-rotate {
+  to {
+    transform: rotate(360deg);
   }
 }
 
