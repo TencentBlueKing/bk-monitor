@@ -497,6 +497,8 @@ SKIP_PLUGIN_DEBUG = False
 # 统一查询模块配置
 UNIFY_QUERY_URL = f"http://{os.getenv('BK_MONITOR_UNIFY_QUERY_HOST')}:{os.getenv('BK_MONITOR_UNIFY_QUERY_PORT')}/"
 UNIFY_QUERY_ROUTING_RULES = []
+# Named native-query endpoints scoped to this installation (for example, test).
+ADMIN_UNIFY_QUERY_TARGETS = {}
 
 # bk-monitor-worker api 地址
 BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")

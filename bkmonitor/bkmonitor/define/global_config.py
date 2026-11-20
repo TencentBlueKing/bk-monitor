@@ -17,6 +17,12 @@ from rest_framework import serializers as slz
 
 ADVANCED_OPTIONS = OrderedDict(
     [
+        (
+            "ADMIN_UNIFY_QUERY_TARGETS",
+            slz.DictField(
+                label="Admin 原生统一查询实例", child=slz.URLField(), default=settings.ADMIN_UNIFY_QUERY_TARGETS
+            ),
+        ),
         ("UNIFY_QUERY_ROUTING_RULES", slz.ListField(label="统一查询路由规则", default=[])),
         (
             "ENABLE_BMW_ROUTE_REFRESH",
