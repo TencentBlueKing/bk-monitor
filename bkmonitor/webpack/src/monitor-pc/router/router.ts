@@ -27,7 +27,7 @@
 
 import Vue from 'vue';
 
-import { getBizRouteHref, isValidBizId } from 'monitor-common/utils';
+import { getBizRouteHref, isAlarmCenterRouteHash, isShareRouteHash, isValidBizId, parseBizId } from 'monitor-common/utils';
 import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
 import { getUrlParam, random } from 'monitor-common/utils/utils';
 import VueRouter, { type Route, type RouteConfig } from 'vue-router';
@@ -106,8 +106,36 @@ const specialReportRouteList = [
   'grafana-admin',
   'redis-management',
 ];
+const BIZ_ENTRY_ALLOW_ROUTES = new Set([
+  'no-business',
+  'share',
+  'redis-management',
+  'event-center',
+  'event-center-detail',
+  'event-center-action-detail',
+  'alarm-center',
+  'alarm-center-detail',
+]);
+
+const hasBizInSpaceList = (bizId: number) =>
+  (store.getters.bizList || []).some(item => Number(item.bk_biz_id) === bizId || Number(item.id) === bizId);
+
 router.beforeEach(async (to, from, next) => {
   store.commit('app/SET_PADDING_ROUTE', to);
+  const urlBizId = parseBizId(getUrlParam('bizId'));
+  const routeHash = `#${to.fullPath}`;
+  if (
+    (store.getters.bizList || []).length &&
+    Number.isFinite(urlBizId) &&
+    urlBizId !== 0 &&
+    urlBizId !== -1 &&
+    !hasBizInSpaceList(urlBizId) &&
+    !BIZ_ENTRY_ALLOW_ROUTES.has(String(to.name)) &&
+    !isShareRouteHash(routeHash) &&
+    !isAlarmCenterRouteHash(routeHash)
+  ) {
+    return next({ name: 'no-business', replace: true });
+  }
   // 空闲初始化introduce数据
   if (store.getters.bizList?.length) {
     introduce.initIntroduce(to);

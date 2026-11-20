@@ -34,7 +34,7 @@ import { createApp } from 'vue';
 import Api from 'monitor-api/api';
 import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
-import { getUrlParam, mergeSpaceList, parseBizId, setGlobalBizId } from 'monitor-common/utils';
+import { getUrlParam, mergeSpaceList, parseBizId, resolveEntryBizId, setGlobalBizId } from 'monitor-common/utils';
 
 import { bkUiMessage } from './common/message';
 import directives from './directive/index';
@@ -74,7 +74,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
   Api.model
     .enhancedContext({
       space_uid: spaceUid || undefined,
-      bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
+      bk_biz_id: !spaceUid ? resolveEntryBizId(bizId) || process.env.defaultBizId : undefined,
       context_type: 'basic',
     })
     .then(data => {

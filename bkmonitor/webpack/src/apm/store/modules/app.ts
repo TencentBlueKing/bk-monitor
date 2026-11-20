@@ -29,7 +29,7 @@
  * @Description:
  */
 
-import { docCookies, getBizRouteHref, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
+import { docCookies, getBizRouteHref, LANGUAGE_COOKIE_KEY, rememberRecentBizId } from 'monitor-common/utils';
 import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import store from '@store/store';
@@ -70,7 +70,7 @@ class AppStore extends VuexModule implements IAppState {
   handleChangeBizId({ bizId, ctx }) {
     window.cc_biz_id = +bizId;
     window.bk_biz_id = +bizId;
-    localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${bizId}`);
+    rememberRecentBizId(bizId);
     const { navId } = ctx.$route.meta;
     const handleReload = () => {
       const { needClearQuery } = ctx.$route.meta;
