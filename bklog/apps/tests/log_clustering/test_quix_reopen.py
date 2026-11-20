@@ -77,6 +77,17 @@ class TestQuixReopenRunner(TestCase):
     def run_operation(self):
         return QuixClusteringOperationRunner(self.operation.operation_id).run()
 
+    def test_legacy_reopen_uses_applied_kafka_after_environment_replacement(self):
+        config = {**QUIX_CONFIG, "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "replacement"}}
+        with patch("apps.log_clustering.handlers.quix.operation.get_quix_config", return_value=config):
+            self.run_operation()
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, "success")
+        self.assertEqual(
+            self.transfer.set_log_clustering_config.call_args.args[0]["kafka_resource"], QUIX_CONFIG["kafka_resource"]
+        )
+        self.transfer.get_data_id.assert_not_called()
+
     def test_reopen_completes_without_runtime_receipt(self):
         self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "clustering_status": {}}
         self.assertIsNone(self.run_operation())
