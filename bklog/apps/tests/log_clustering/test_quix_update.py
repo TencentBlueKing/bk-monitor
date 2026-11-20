@@ -340,6 +340,7 @@ class TestQuixClusteringHandlerUpdate(TestCase):
 
     def test_changed_rules_start_update(self, mock_delay):
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        runtime.active_config["kafka_cluster_id"] = 21
         runtime.active_config["result_mode"] = "append"
         runtime.save()
         operation_id = QuixClusteringHandler(self.index_set).update(
@@ -350,6 +351,7 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.UPDATING.value)
         self.assertEqual(runtime.pending_config["log_filter"][0]["value"], ["WARN"])
         self.assertEqual(runtime.pending_config["result_mode"], "append")
+        self.assertEqual(runtime.pending_config["kafka_cluster_id"], 21)
         self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["ERROR"])
         clustering_config = ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual((clustering_config.filter_rules, clustering_config.regex_template_id), (ERROR_RULES, 3))

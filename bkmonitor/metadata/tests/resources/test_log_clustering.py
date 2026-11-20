@@ -17,6 +17,7 @@ from rest_framework.exceptions import ValidationError
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from metadata import models
+from metadata.models.data_link.data_link_configs import ClusterConfig
 from metadata.resources.log_clustering import (
     GetLogClusteringStatusResource,
     OperateLogClusteringResource,
@@ -196,6 +197,37 @@ def attach_remotely(state: dict) -> None:
         "kind": "Databus",
         "metadata": {},
         "spec": {"sinks": [get_sink().reference], "preferCluster": copy.deepcopy(RUNTIME_CLUSTER)},
+    }
+
+
+def test_source_kafka_resolves_only_in_source_namespace(clustering_datalink, bkbase):
+    cluster = models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_name="source_kafka",
+        cluster_type="kafka",
+        domain_name="kafka.example",
+        port=9092,
+        is_default_cluster=False,
+        registered_to_bkbase=True,
+    )
+    channel = {"kind": "KafkaChannel", "name": cluster.cluster_name}
+    ClusterConfig.objects.create(
+        bk_tenant_id="system", namespace="bkmonitor", origin_config={"kind": "KafkaChannel"}, **channel
+    )
+    params = build_params(kafka_cluster_id=cluster.cluster_id)
+    del params["kafka_resource"]
+    with pytest.raises(ValidationError, match="not registered"):
+        SetLogClusteringConfigResource().request(params)
+    registration = ClusterConfig.objects.create(bk_tenant_id="system", namespace="bklog", **channel)
+    with pytest.raises(ValidationError, match="not registered"):
+        SetLogClusteringConfigResource().request(params)
+    registration.origin_config = {"kind": "KafkaChannel"}
+    registration.save()
+    SetLogClusteringConfigResource().request(params)
+    sink = get_sink()
+    assert sink.compose_config(raw_sink=ES_BINDING_REF)["spec"]["clustering"]["kafka_resource"] == {
+        **channel,
+        "namespace": "bklog",
     }
 
 
