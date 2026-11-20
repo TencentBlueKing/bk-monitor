@@ -12,6 +12,7 @@ NUMBER_REGEX_LST = ["NUMBER", "PERIOD", "IP", "CAPACITY"]
 PATTERN_GAP_REGEX = r"[\s\S]*?"
 PATTERN_PLACEHOLDER_REGEX = re.compile(r"#([A-Za-z0-9_-]+)#")
 PATTERN_TOKEN_REGEX = re.compile(r"#([A-Za-z0-9_-]+)#|\*")
+BKBASE_PATTERN_VARIABLE_REGEX = re.compile(r"\$([a-zA-Z0-9-_]+)")
 
 RISK_REASON_NO_PLACEHOLDER = "no_placeholder"
 RISK_REASON_UNKNOWN_PLACEHOLDER = "unknown_placeholder"
@@ -35,6 +36,11 @@ def is_remark_group_inherit_allowed(feature_config, bk_biz_id) -> bool:
 
 def format_pattern(pattern):
     return " {}".format(" ".join([f"#{o.name}#" if hasattr(o, "name") else o for o in pattern])) if pattern else ""
+
+
+def to_placeholder_pattern(pattern):
+    """BKBase 链路写入的 Pattern 以 $NAME 表示占位符，统一转成日志平台展示和解析使用的 #NAME#"""
+    return BKBASE_PATTERN_VARIABLE_REGEX.sub(r"#\1#", pattern or "")
 
 
 def sort_func(elem):

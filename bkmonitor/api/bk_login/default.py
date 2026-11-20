@@ -294,6 +294,9 @@ class BatchLookupVirtualUserResource(BkUserApiResource):
     批量查询虚拟用户
     """
 
+    def use_apigw(self):
+        return True
+
     action = "/api/v3/open/tenant/virtual-users/-/lookup/"
     method = "GET"
 

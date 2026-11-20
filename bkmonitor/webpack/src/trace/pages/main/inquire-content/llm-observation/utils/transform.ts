@@ -27,6 +27,7 @@
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
 import { formatTokenCount, getByPath, pickNumber, stringifyContent } from '../../../llm-observation/utils/helpers';
 
+import type { LlmTrendTimeRange } from './trend-buckets';
 import type {
   LlmExecutionFilter,
   LlmFlowSpan,
@@ -79,6 +80,7 @@ const OUTPUT_TOKEN_KEYS = ['gen_ai.usage.output_tokens', 'gen_ai.usage.completio
 const CACHE_READ_TOKEN_KEYS = ['gen_ai.usage.cache_read.input_tokens'];
 const CACHE_WRITE_TOKEN_KEYS = ['gen_ai.usage.cache_write.input_tokens', 'gen_ai.usage.cache_creation.input_tokens'];
 
+/** Token 压缩单位表，按阈值从大到小匹配（1e6 → m，1e3 → k） */
 const TOKEN_UNITS: [number, string][] = [
   [1e6, 'm'],
   [1e3, 'k'],
@@ -113,8 +115,8 @@ export function buildStatCards(
   let outputTokens = 0;
   let cacheRead = 0;
   let cacheWrite = 0;
-  // let modelCount = 0;
-  // let toolCount = 0;
+  let modelCount = 0;
+  let toolCount = 0;
   let minStart = Number.POSITIVE_INFINITY;
   let maxEnd = 0;
 
@@ -124,9 +126,9 @@ export function buildStatCards(
     outputTokens += usage.output;
     cacheRead += usage.cacheRead;
     cacheWrite += usage.cacheWrite;
-    // const kind = resolveSpanKind(span);
-    // if (kind === 'LLM') modelCount += 1;
-    // if (kind === 'TOOL') toolCount += 1;
+    const kind = resolveSpanKind(span);
+    if (kind === 'LLM') modelCount += 1;
+    if (kind === 'TOOL') toolCount += 1;
     if (span.start_time < minStart) minStart = span.start_time;
     if (span.end_time > maxEnd) maxEnd = span.end_time;
   }
@@ -149,13 +151,13 @@ export function buildStatCards(
 
   return [
     { key: 'duration', label: t('总耗时'), value: durationParts.value, unit: durationParts.unit },
-    // { key: 'model', label: t('模型调用'), value: formatTokenCount(modelCount) },
+    { key: 'model', label: t('模型调用'), value: formatTokenCount(modelCount) },
     { key: 'input', label: t('输入 Tokens'), value: formatTokenCount(inputTokens) },
     { key: 'output', label: t('输出 Tokens'), value: formatTokenCount(outputTokens) },
-    { key: 'total', label: t('总 Tokens'), value: formatTokenCount(totalTokens), theme: 'success' },
+    { key: 'total', label: t('总 Tokens'), value: formatTokenCount(totalTokens) },
     { key: 'cacheRead', label: t('缓存读数'), value: formatTokenCount(cacheRead) },
     { key: 'cacheWrite', label: t('缓存写入'), value: formatTokenCount(cacheWrite) },
-    // { key: 'tool', label: t('工具调用'), value: formatTokenCount(toolCount) },
+    { key: 'tool', label: t('工具调用'), value: formatTokenCount(toolCount) },
   ];
 }
 
@@ -234,35 +236,44 @@ export function extractConversationId(spans: LlmFlowSpan[]): string {
   return '';
 }
 
-/** 按展开态、类型筛选和关键字展开为表格行，保留匹配节点的祖先以维持层级 */
+/** 按展开态、类型筛选、关键字和框选时间范围展开为表格行，保留匹配节点的祖先以维持层级 */
 export function flattenVisibleSpanRows(
   flow: LlmFlowSpan[],
   options: {
     expandedSpanIds: Set<string>;
     filter: LlmExecutionFilter;
     keyword: string;
+    /** 趋势图框选时间范围（微秒），null / 缺省表示不做时间过滤 */
+    timeRange?: LlmTrendTimeRange | null;
   }
 ): LlmSpanRowView[] {
   const trees = toTree(flow);
   const keyword = options.keyword.trim().toLowerCase();
+  const timeRange = options.timeRange || null;
   const rows: LlmSpanRowView[] = [];
 
+  // 递归展开：ancestorsExpanded 为 false 时仅下探子节点、不产生行，用于被筛掉的父节点仍保留匹配后代
   const walk = (nodes: SpanTreeNode[], depth: number, ancestorsExpanded: boolean, lineGuideLevel: number) => {
-    const visibleNodes = nodes.filter(node => nodeMatchesOrHasMatch(node, options.filter, keyword));
+    // 过滤出自身或后代命中的节点；过滤后重新判定 isLast，保证关系竖线收尾正确
+    const visibleNodes = nodes.filter(node => nodeMatchesOrHasMatch(node, options.filter, keyword, timeRange));
     visibleNodes.forEach((node, index) => {
       const isLast = index === visibleNodes.length - 1;
+      // 祖先链均展开时才输出当前行，否则仅作为占位向下寻找匹配后代
       if (ancestorsExpanded) {
         rows.push(toSpanRowView(node, depth, isLast, lineGuideLevel));
       }
       const expanded = options.expandedSpanIds.has(node.span.span_id);
       if (node.children.length) {
+        // 非根 Agent 节点额外缩进一级关系竖线，与子级层级对齐
         const kind = resolveSpanKind(node.span);
         const childLineGuideLevel = depth > 0 && kind === 'AGENT' ? lineGuideLevel + 1 : lineGuideLevel;
+        // 子级展开态 = 祖先链已展开且当前节点自展开
         walk(node.children, depth + 1, ancestorsExpanded && expanded, childLineGuideLevel);
       }
     });
   };
 
+  // 根层级恒为展开，深度 / 缩进均从 0 起步
   walk(trees, 0, true, 0);
   return rows;
 }
@@ -330,15 +341,21 @@ export function splitDuration(microseconds: number): { unit: string; value: stri
   return { value: matched[1], unit: matched[2] };
 }
 
+/** 后端预览转换：tool 消息取工具列表，其余消息按原始值（字符串 / KV）展开 */
 function messageToPieces(preview: LlmMessagePreview): LlmIoPiece[] {
   if (preview.source !== 'tool') return valueToPieces(preview.value);
   return [{ type: 'tools', tools: preview.tools }];
 }
 
-/** 节点自身或任一后代命中筛选/关键字时保留，以便祖先链仍可见 */
-function nodeMatchesOrHasMatch(node: SpanTreeNode, filter: LlmExecutionFilter, keyword: string): boolean {
-  if (spanMatches(node.span, filter, keyword)) return true;
-  return node.children.some(child => nodeMatchesOrHasMatch(child, filter, keyword));
+/** 节点自身或任一后代命中筛选/关键字/时间范围时保留，以便祖先链仍可见 */
+function nodeMatchesOrHasMatch(
+  node: SpanTreeNode,
+  filter: LlmExecutionFilter,
+  keyword: string,
+  timeRange: LlmTrendTimeRange | null
+): boolean {
+  if (spanMatches(node.span, filter, keyword, timeRange)) return true;
+  return node.children.some(child => nodeMatchesOrHasMatch(child, filter, keyword, timeRange));
 }
 
 /**
@@ -347,6 +364,7 @@ function nodeMatchesOrHasMatch(node: SpanTreeNode, filter: LlmExecutionFilter, k
  */
 const ioPreviewCache = new WeakMap<LlmFlowSpan, LlmIoPreview>();
 
+/** 取单个 Span 的输入输出预览，命中缓存则直接复用，保证行内引用稳定 */
 function pickIoPreview(span: LlmFlowSpan): LlmIoPreview {
   const cached = ioPreviewCache.get(span);
   if (cached) return cached;
@@ -389,13 +407,19 @@ function pickTraceTitle(flow: LlmFlowSpan[]): string {
   return flow[0]?.span_name || '';
 }
 
-/** 关键字匹配 span 标识、展示名、attributes 序列化文本 */
-function spanMatches(span: LlmFlowSpan, filter: LlmExecutionFilter, keyword: string): boolean {
+/** 类型 / 关键字 / 时间范围匹配；无命中条件时恒为 true */
+function spanMatches(
+  span: LlmFlowSpan,
+  filter: LlmExecutionFilter,
+  keyword: string,
+  timeRange: LlmTrendTimeRange | null
+): boolean {
   const kind = resolveSpanKind(span);
   if (filter === 'error' && !isErrorSpan(span)) return false;
   if (filter === 'agent' && kind !== 'AGENT') return false;
   if (filter === 'llm' && kind !== 'LLM') return false;
   if (filter === 'tool' && kind !== 'TOOL') return false;
+  if (timeRange && (span.start_time < timeRange[0] || span.start_time > timeRange[1])) return false;
   if (!keyword) return true;
   const haystack = [
     span.span_id,
@@ -435,6 +459,7 @@ function toSpanRowView(node: SpanTreeNode, depth: number, isLast: boolean, lineG
   };
 }
 
+/** 将 childs 树递归包装为带后代计数的内部树节点，供展开 / 缩进计算使用 */
 function toTree(nodes: LlmFlowSpan[]): SpanTreeNode[] {
   return (nodes || []).map(span => {
     const children = toTree(span.childs || []);
@@ -442,6 +467,7 @@ function toTree(nodes: LlmFlowSpan[]): SpanTreeNode[] {
   });
 }
 
+/** 原始 value 转为展示片段：字符串按文本、对象按 KV 列表，空值不产出片段 */
 function valueToPieces(value: LlmFlowSpan['input']): LlmIoPiece[] {
   if (typeof value === 'string') return value ? [{ type: 'text', text: value }] : [];
   if (!value) return [];

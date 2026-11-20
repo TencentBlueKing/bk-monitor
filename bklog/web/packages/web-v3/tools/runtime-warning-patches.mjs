@@ -108,6 +108,11 @@ function patchAiBlueking(code) {
 
 function patchModule(id, code) {
   const path = id.replaceAll('\\', '/');
+  if (path.endsWith('/x-mavon-editor/dist/mavon-editor.js')) {
+    // The editor builds a /pattern/g string for replacing image placeholders.
+    const next = code.replace('reg=eval(reg_str)', 'reg=new RegExp(reg_str.slice(1,-2),"g")');
+    return next === code ? null : next;
+  }
   if (path.includes('/@vue/compat/') || path.includes('/vue/dist/vue.esm-bundler')) {
     const next = patchVueRuntime(code);
     return next === code ? null : next;
@@ -138,7 +143,7 @@ export function runtimeWarningPatchesEsbuildPlugin() {
   return {
     name: 'runtime-warning-patches',
     setup(build) {
-      build.onLoad({ filter: /@vue\+compat|@vue\/compat|vuedraggable|ai-blueking/ }, async (args) => {
+      build.onLoad({ filter: /@vue\+compat|@vue\/compat|vuedraggable|ai-blueking|x-mavon-editor/ }, async (args) => {
         if (!/\.(?:m?js|cjs)$/.test(args.path)) return null;
         const { readFile } = await import('node:fs/promises');
         const source = await readFile(args.path, 'utf8');

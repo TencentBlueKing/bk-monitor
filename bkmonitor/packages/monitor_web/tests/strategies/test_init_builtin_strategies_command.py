@@ -27,7 +27,7 @@ def _common_patches(run_build_in, *, list_tenant=None, list_spaces=None, derive_
         mock.patch("monitor_web.strategies.built_in.run_build_in", run_build_in),
         mock.patch("bkmonitor.utils.tenant.set_local_tenant_id", mock.Mock()),
         mock.patch("bkmonitor.utils.user.set_local_username", mock.Mock()),
-        mock.patch("bkmonitor.utils.user.get_admin_username", mock.Mock(return_value="admin")),
+        mock.patch("bkmonitor.utils.user.get_backend_username", mock.Mock(return_value="admin")),
     ]
     if list_tenant is not None:
         patches.append(mock.patch("core.drf_resource.api.bk_login.list_tenant", mock.Mock(return_value=list_tenant)))
@@ -115,7 +115,7 @@ def test_bad_tenant_skipped_others_continue():
         stack.enter_context(mock.patch("monitor_web.strategies.built_in.run_build_in", run_build_in))
         stack.enter_context(mock.patch("bkmonitor.utils.tenant.set_local_tenant_id", mock.Mock()))
         stack.enter_context(mock.patch("bkmonitor.utils.user.set_local_username", mock.Mock()))
-        stack.enter_context(mock.patch("bkmonitor.utils.user.get_admin_username", mock.Mock(side_effect=get_admin)))
+        stack.enter_context(mock.patch("bkmonitor.utils.user.get_backend_username", mock.Mock(side_effect=get_admin)))
         stack.enter_context(
             mock.patch(
                 "core.drf_resource.api.bk_login.list_tenant", mock.Mock(return_value=[{"id": "t_bad"}, {"id": "t_ok"}])
@@ -139,7 +139,7 @@ def test_bk_tenant_id_narrows_without_listing_all_tenants():
         stack.enter_context(mock.patch("monitor_web.strategies.built_in.run_build_in", run_build_in))
         stack.enter_context(mock.patch("bkmonitor.utils.tenant.set_local_tenant_id", mock.Mock()))
         stack.enter_context(mock.patch("bkmonitor.utils.user.set_local_username", mock.Mock()))
-        stack.enter_context(mock.patch("bkmonitor.utils.user.get_admin_username", mock.Mock(return_value="admin")))
+        stack.enter_context(mock.patch("bkmonitor.utils.user.get_backend_username", mock.Mock(return_value="admin")))
         stack.enter_context(mock.patch("core.drf_resource.api.bk_login.list_tenant", list_tenant))
         stack.enter_context(
             mock.patch("bkm_space.api.SpaceApi.list_spaces", mock.Mock(return_value=[SimpleNamespace(bk_biz_id=7)]))
@@ -181,7 +181,7 @@ def test_tenant_list_spaces_failure_skipped_others_continue():
         stack.enter_context(mock.patch("monitor_web.strategies.built_in.run_build_in", run_build_in))
         stack.enter_context(mock.patch("bkmonitor.utils.tenant.set_local_tenant_id", mock.Mock()))
         stack.enter_context(mock.patch("bkmonitor.utils.user.set_local_username", mock.Mock()))
-        stack.enter_context(mock.patch("bkmonitor.utils.user.get_admin_username", mock.Mock(return_value="admin")))
+        stack.enter_context(mock.patch("bkmonitor.utils.user.get_backend_username", mock.Mock(return_value="admin")))
         stack.enter_context(
             mock.patch(
                 "core.drf_resource.api.bk_login.list_tenant", mock.Mock(return_value=[{"id": "t_bad"}, {"id": "t_ok"}])
@@ -229,7 +229,7 @@ def _rename_patches():
         mock.patch("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id", mock.Mock(return_value="t1")),
         mock.patch("bkmonitor.utils.tenant.set_local_tenant_id", mock.Mock()),
         mock.patch("bkmonitor.utils.user.set_local_username", mock.Mock()),
-        mock.patch("bkmonitor.utils.user.get_admin_username", mock.Mock(return_value="admin")),
+        mock.patch("bkmonitor.utils.user.get_backend_username", mock.Mock(return_value="admin")),
     ]
 
 

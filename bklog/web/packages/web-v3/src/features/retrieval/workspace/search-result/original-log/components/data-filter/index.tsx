@@ -184,17 +184,17 @@ export default defineComponent({
     const acceptTagChange = (current: string[], proposed: (string | number)[], context: TagInputChangeContext) =>
       context.trigger === 'enter' && current.includes(String(context.item)) ? [...current] : proposed.map(String);
 
-    const handleOpenFieldsConfig = (e: any) => {
+    const handleOpenFieldsConfig = (e: MouseEvent) => {
       if (!fieldConfigPopoverInstance) {
         fieldConfigPopoverInstance = createRawTippyOverlay(
-          e.target,
+          e.currentTarget as HTMLElement,
           {
             allowHTML: true,
             content: fieldConfigRef.value.getDom(),
-            placement: 'bottom',
-            trigger: 'click',
+            placement: 'bottom-end',
+            trigger: 'manual',
             maxWidth: 380,
-            theme: 'light field-config-popover',
+            theme: 'field-config-popover',
             hideOnClick: false,
             interactive: true,
             arrow: true,

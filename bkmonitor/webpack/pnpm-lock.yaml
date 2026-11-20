@@ -450,8 +450,8 @@ importers:
         specifier: ^2.0.7
         version: 2.0.7(dompurify@3.4.17)
       '@blueking/open-telemetry':
-        specifier: ^0.0.34
-        version: 0.0.34
+        specifier: ^0.0.35-beta.14
+        version: 0.0.35-beta.14
       '@blueking/platform-config':
         specifier: ^1.0.5
         version: 1.0.5
@@ -1707,8 +1707,13 @@ packages:
     peerDependencies:
       dompurify: '>=2.5.4'
 
-  '@blueking/open-telemetry@0.0.34':
-    resolution: {integrity: sha512-KEOKcwo8WHln2n5o8+Qg5PoDwOAMWnDRGNvqhpgy30uBNcaAV9EsfZxPuV87ip2PuNdpP1Crm6KhPN2LWlh5Rg==}
+  '@blueking/open-telemetry@0.0.35-beta.14':
+    resolution: {integrity: sha512-uVGWKmJaE/IJxJVjP3o1ATT3WU+E47OH5xXmhkEN9WwDCbl6iIWBnKUuSX3ca4tUVutQ4kol3oqanq6tTmCyWQ==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@blueking/platform-config@1.0.5':
     resolution: {integrity: sha512-z88WCgnPJ1V5XzFMcftEEwDVz3Cvfn7VWv+mRlfh+LfBBDJyUrwX4uhkMYr06kP+35NPIky8ZdETFb2VWDoMyg==}
@@ -9380,9 +9385,6 @@ packages:
   wbuf@1.7.3:
     resolution: {integrity: sha512-O84QOnr0icsbFGLS0O3bI5FswxzRr8/gHwWkDlQFskhSPryQXvrTMxjxGP4+iWYoauLoBvfDpkrOauZ+0iZpDA==}
 
-  web-vitals@5.2.0:
-    resolution: {integrity: sha512-i2z98bEmaCqSDiHEDu+gHl/dmR4Q+TxFmG3/13KkMO+o8UxQzCqWaDRCiLgEa41nlO4VpXSI0ASa1xWmO9sBlA==}
-
   web-worker@1.5.0:
     resolution: {integrity: sha512-RiMReJrTAiA+mBjGONMnjVDP2u3p9R1vkcGz6gDIrOMT3oGuYwX2WRMYI9ipkphSuE5XKEhydbhNEJh4NY9mlw==}
 
@@ -10906,7 +10908,7 @@ snapshots:
     dependencies:
       dompurify: 3.4.17
 
-  '@blueking/open-telemetry@0.0.34':
+  '@blueking/open-telemetry@0.0.35-beta.14':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/context-zone': 2.7.1(@opentelemetry/api@1.9.1)
@@ -10917,7 +10919,6 @@ snapshots:
       '@opentelemetry/sdk-trace-base': 2.7.1(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-trace-web': 2.7.1(@opentelemetry/api@1.9.1)
       '@opentelemetry/semantic-conventions': 1.41.1
-      web-vitals: 5.2.0
     transitivePeerDependencies:
       - supports-color
 
@@ -19539,8 +19540,6 @@ snapshots:
   wbuf@1.7.3:
     dependencies:
       minimalistic-assert: 1.0.1
-
-  web-vitals@5.2.0: {}
 
   web-worker@1.5.0: {}
 

@@ -84,13 +84,20 @@ def get_nodeman_v3_toggle():
 
 
 def is_nodeman_v3_enabled() -> bool:
-    """与监控统一的环境级总开关；只接受 settings 中显式的布尔 True。"""
+    """
+    环境变量是否强制准入 V3。
+
+    只认 true：其余取值（含未设置、false、on、1）一律返回 False 并按 DB 灰度。
+    因此无需保留原始字符串——布尔本身就是 == "true" 的结果，与强制语义一致。
+    """
     return getattr(settings, "ENABLE_NODEMAN_V3", False) is True
 
 
 def is_nodeman_v3_admitted(bk_biz_id: int | None, collector_config_id: int | None = None) -> bool:
-    """业务或特殊采集项是否同时通过环境总开关与 FeatureToggle 准入 V3。"""
-    return is_nodeman_v3_enabled() and _toggle_allows(get_nodeman_v3_toggle(), bk_biz_id, collector_config_id)
+    """业务或特殊采集项是否准入 V3；环境变量为 true 时跳过 FeatureToggle 灰度。"""
+    if is_nodeman_v3_enabled():
+        return True
+    return _toggle_allows(get_nodeman_v3_toggle(), bk_biz_id, collector_config_id)
 
 
 def has_nodeman_v3_bindings() -> bool:
@@ -105,8 +112,11 @@ def is_nodeman_v3_available() -> bool:
     是否可能出现 V3 字符串任务 ID。
 
     toggle 关闭只停止新准入；已有 binding 仍需查询历史 workflow、状态和详情。
+    环境变量为 true 时 DB 可能是 off，此时 V3 仍会产生字符串任务标识，不能按 toggle 判定。
     """
-    toggle = get_nodeman_v3_toggle() if is_nodeman_v3_enabled() else None
+    if is_nodeman_v3_enabled():
+        return True
+    toggle = get_nodeman_v3_toggle()
     return bool(toggle and toggle.status in {"debug", "on"}) or has_nodeman_v3_bindings()
 
 
@@ -118,7 +128,7 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
     1. 已有 V3 binding                              -> V3（粘性归属）
     2. subscription_id 非空                         -> V2
     3. 采集场景没有订阅步骤实现                       -> V2
-    4. 环境总开关关闭                                -> V2
+    4. 环境变量 true                                 -> V3（跳过灰度）
     5. FeatureToggle off / 缺失 / DB 异常           -> V2
     6. FeatureToggle on                              -> V3
     7. FeatureToggle debug 命中业务或特殊采集项       -> V3
@@ -140,8 +150,11 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
             ).values_list("collector_config_id", flat=True)
         )
 
-    # 总开关只限制新准入；已有 binding 在上方优先判定，关闭后仍继续由 V3 管理。
-    toggle = get_nodeman_v3_toggle() if is_nodeman_v3_enabled() else None
+    # 环境变量为 true 时不查 toggle，避免 DB 记录反过来限制准入。
+    # 前置条件（binding、subscription_id、场景）必须先判定：环境变量只跳过灰度这一层，
+    # 不能把 custom/client 拉进 V3，否则会在构造期望态时抛 NotImplementedError。
+    env_admitted = is_nodeman_v3_enabled()
+    toggle = None if env_admitted else get_nodeman_v3_toggle()
     result = set()
     for config in configs:
         collector_config_id = getattr(config, "collector_config_id", None)
@@ -152,7 +165,7 @@ def resolve_nodeman_v3_collector_ids(collector_configs) -> set[int]:
             continue
         if getattr(config, "collector_scenario_id", None) in V2_ONLY_COLLECTOR_SCENARIOS:
             continue
-        if _toggle_allows(toggle, getattr(config, "bk_biz_id", None), collector_config_id):
+        if env_admitted or _toggle_allows(toggle, getattr(config, "bk_biz_id", None), collector_config_id):
             result.add(collector_config_id)
     return result
 

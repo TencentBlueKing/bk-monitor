@@ -19,7 +19,9 @@ from semconv.rum.constants import RumSpanType, ViewLoadingTimeSource, ViewLoadin
 from rum_web.handlers.builder.base import BaseSection, DictItem, KeyInfoSection, KeyValueItem, WaterfallSection, group
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.hover import (
+    VIEW_NAVIGATION_PHASE_HOVERS,
     VIEW_PHASE_HOVERS,
+    clone_hover,
     get_milestone_hover,
     get_vital_hover,
 )
@@ -31,7 +33,8 @@ from rum_web.handlers.builder.span.base import (
     insert_after,
     named,
 )
-from rum_web.handlers.builder.utils import build_rating_config, get_safe_number, safe_diff, waterfall
+from rum_web.handlers.builder.span.timing.view import ViewTimingLayout
+from rum_web.handlers.builder.utils import build_rating_config, get_safe_number, phase, safe_diff, waterfall
 
 
 VITAL_METRICS = ("ttfb", "fcp", "lcp", "inp", "cls")
@@ -82,6 +85,29 @@ class ViewKeyInfoSection(KeyInfoSection):
         ),
     )
 
+    def render(self) -> dict[str, Any] | None:
+        if (
+            self.flatten_data.get("attributes.view.first_byte") is None
+            and ViewTimingLayout(self.flatten_data).matches()
+        ):
+            return ViewNavigationKeyInfoSection(self.flatten_data).render()
+        return super().render()
+
+
+class ViewNavigationKeyInfoSection(KeyInfoSection):
+    DATA = (
+        group("duration", "display.view.duration"),
+        group(
+            "loading",
+            "attributes.view.loading_time",
+            "attributes.view.loading_time_source",
+            "attributes.view.loading_type",
+            KeyValueItem("attributes.view.first_byte", source="attributes.timing.response_start"),
+            KeyValueItem("attributes.view.dom_content_loaded", source="attributes.timing.dom_content_loaded_event_end"),
+            KeyValueItem("attributes.view.load_event", source="attributes.timing.load_event_end"),
+        ),
+    )
+
 
 def vital_group(metric: str, extra: tuple[str, ...] = ()) -> DictItem:
     fields = ("attributes.vital.metric", "attributes.vital.value", *extra)
@@ -103,27 +129,55 @@ class ViewWebVitalsSection(BaseSection):
 
 class ViewLoadingTimingSection(WaterfallSection):
     KEY = "loading_timing"
-    MIN_START = 0
-    PHASE_HOVERS = VIEW_PHASE_HOVERS
+    PHASE_HOVERS = VIEW_NAVIGATION_PHASE_HOVERS
     PHASE_ALIASES = {
-        "prepare": _("浏览器准备"),
+        "redirect": _("重定向"),
+        "prepare": _("发起前等待"),
         "dns": _("DNS 查询"),
-        "connect": _("网络连接建立"),
+        "connect": _("建立连接"),
+        "tls": _("TLS 建连"),
         "first_byte": _("等待首字节"),
-        "dom_processing": _("内容传输与 DOM 处理"),
-        "resource_load": _("剩余资源加载"),
+        "download": _("内容传输"),
+        "dom_parsing": _("DOM 解析"),
+        "resource_load": _("资源加载"),
         "page_stable": _("页面趋于稳定"),
     }
-    TTFB_PHASES = (("first_byte", "request"), ("connect", "connection"), ("dns", "dns"))
-    VIEW_PHASES = ("dom_processing", "resource_load", "page_stable")
-    VIEW_POINTS = ("first_byte", "dom_content_loaded", "load_event", "loading_time")
-    MILESTONES = (
-        ("dom_complete", "attributes.view.dom_complete"),
-        ("load_event", "attributes.view.load_event"),
-        ("page_stable", "attributes.view.loading_time"),
-    )
 
-    def _build_phases(self, is_auto: bool) -> list[dict[str, Any] | None]:
+    def get_data(self) -> dict[str, Any] | None:
+        if self.flatten_data.get("attributes.view.loading_type") != ViewLoadingType.INITIAL_LOAD.value:
+            return None
+
+        layout = ViewTimingLayout(self.flatten_data)
+        if not layout.matches():
+            return self._legacy_waterfall()
+        specs = [spec for spec in layout.phases() if spec is not None]
+        if not specs:
+            return self._legacy_waterfall()
+
+        stable_end = layout.stable_end()
+        stable_field = "attributes.view.loading_time"
+        loading_time = self.numeric_or_none(stable_field)
+        if stable_end is not None and stable_end != loading_time:
+            stable_field = "attributes.timing.load_event_end"
+        return waterfall(
+            self.phases(specs),
+            total=loading_time if loading_time is not None and loading_time >= 0 else None,
+            markers=self._build_markers(),
+            milestones=self._build_milestones(stable_field, stable_end),
+        )
+
+    def _legacy_waterfall(self) -> dict[str, Any] | None:
+        """用旧 SDK 的 View 和 TTFB 字段构建瀑布图。"""
+        aliases = {
+            "prepare": _("浏览器准备"),
+            "dns": _("DNS 查询"),
+            "connect": _("网络连接建立"),
+            "first_byte": _("等待首字节"),
+            "dom_processing": _("内容传输与 DOM 处理"),
+            "resource_load": _("剩余资源加载"),
+            "page_stable": _("页面趋于稳定"),
+        }
+
         def ttfb(field: str) -> int | float | None:
             return self.numeric_or_none(vital_key("ttfb", f"attributes.vital.{field}"))
 
@@ -132,20 +186,37 @@ class ViewLoadingTimingSection(WaterfallSection):
         ]
         end = ttfb("value")
         # TTFB 各段从首字节时间逆推，输出仍按 prepare → dns → connect → first_byte 排序。
-        for key, segment in self.TTFB_PHASES:
+        for key, segment in (("first_byte", "request"), ("connect", "connection"), ("dns", "dns")):
             duration = ttfb(f"ttfb.{segment}_duration")
             end = safe_diff(end, duration)
             specs.insert(1, (key, end, duration))
-        points = [self.numeric_or_none(f"attributes.view.{point}") for point in self.VIEW_POINTS]
-        for key, start, stop in zip(self.VIEW_PHASES, points, points[1:]):
-            duration = safe_diff(stop, start)
-            if key == "page_stable":
-                if not is_auto:
-                    continue
-                # 自动计时可能有浮点负差，稳定阶段保留零时长。
-                duration = None if duration is None else max(0, duration)
-            specs.append((key, start, duration))
-        return self.phases(specs)
+
+        first_byte = self.numeric_or_none("attributes.view.first_byte")
+        dom_loaded = self.numeric_or_none("attributes.view.dom_content_loaded")
+        load_event = self.numeric_or_none("attributes.view.load_event")
+        loading_time = self.numeric_or_none("attributes.view.loading_time")
+        is_auto = self.flatten_data.get("attributes.view.loading_time_source") == ViewLoadingTimeSource.AUTO.value
+        specs.extend(
+            (
+                ("dom_processing", first_byte, safe_diff(dom_loaded, first_byte)),
+                ("resource_load", dom_loaded, safe_diff(load_event, dom_loaded)),
+            )
+        )
+        if is_auto:
+            duration = safe_diff(loading_time, load_event)
+            # 自动计时可能有浮点负差，稳定阶段保留零时长。
+            specs.append(("page_stable", load_event, max(0, duration) if duration is not None else None))
+        phases = (
+            phase(key, aliases[key], start, duration, min_start=0, hover=clone_hover(VIEW_PHASE_HOVERS.get(key)))
+            for key, start, duration in specs
+        )
+        total = loading_time if loading_time is not None and loading_time >= 0 else None
+        data = waterfall(phases, total=total, markers=self._build_markers())
+        if data is not None:
+            data["milestones"] = self._build_milestones(
+                "attributes.view.loading_time", loading_time if is_auto else None
+            )
+        return data
 
     def _build_markers(self) -> list[dict[str, Any]]:
         markers: list[dict[str, Any]] = []
@@ -164,29 +235,27 @@ class ViewLoadingTimingSection(WaterfallSection):
             markers.append(marker)
         return markers
 
-    def _build_milestones(self, is_auto: bool) -> list[dict[str, Any]]:
+    def _build_milestones(self, stable_field: str, stable_end: int | float | None) -> list[dict[str, Any]]:
+        def point(timing_field: str, fallback_field: str) -> tuple[str, int | float | None]:
+            value = self.numeric_or_none(timing_field)
+            if value is not None and value > 0:
+                return timing_field, value
+            return fallback_field, self.numeric_or_none(fallback_field)
+
+        points = (
+            ("dom_complete", *point("attributes.timing.dom_complete", "attributes.view.dom_complete")),
+            ("load_event", *point("attributes.timing.load_event_end", "attributes.view.load_event")),
+            ("page_stable", stable_field, stable_end),
+        )
         milestones: list[dict[str, Any]] = []
-        for key, field in self.MILESTONES:
-            value = self.numeric_or_none(field)
-            if value is None or (key == "page_stable" and not is_auto):
+        for key, field, value in points:
+            if value is None:
                 continue
             milestone: dict[str, Any] = {"key": key, "field_name": field, "value": value}
             if (hover := get_milestone_hover(key)) is not None:
                 milestone["hover"] = hover
             milestones.append(milestone)
         return milestones
-
-    def get_data(self) -> dict[str, Any] | None:
-        if self.flatten_data.get("attributes.view.loading_type") != ViewLoadingType.INITIAL_LOAD.value:
-            return None
-        is_auto = self.flatten_data.get("attributes.view.loading_time_source") == ViewLoadingTimeSource.AUTO.value
-        loading_time = self.numeric_or_none("attributes.view.loading_time")
-        total = loading_time if loading_time is not None and loading_time >= 0 else None
-        # total_duration 只取 loading_time，标记超出时由前端扩展横轴。
-        data = waterfall(self._build_phases(is_auto), total=total, markers=self._build_markers())
-        if data is not None:
-            data["milestones"] = self._build_milestones(is_auto)
-        return data
 
 
 class ViewSpanBuilder(SpanBuilder):
@@ -202,15 +271,21 @@ class ViewSpanBuilder(SpanBuilder):
         flatten_data = flatten_dict_data(span)
         flat_related = [flatten_dict_data(item) for item in related_spans]
         views = [item for item in flat_related if item.get("attributes.span_type") == RumSpanType.VIEW.value]
-        latest_view = max(
-            views,
-            key=lambda item: get_safe_number(item.get("attributes.view.version")) or 0,
-            default=None,
+        views.append(flatten_data)
+        views.sort(key=lambda item: get_safe_number(item.get("attributes.view.version")), reverse=True)
+        latest_view = views[0]
+        # 导航时间点随 View 生命周期补报，按版本覆盖已上报的字段。
+        flatten_data.update(
+            {
+                field: value
+                for snapshot in reversed(views)
+                for field, value in snapshot.items()
+                if field.startswith(ViewTimingLayout.TIMING_PREFIX) or field == "attributes.view.dom_interactive"
+            }
         )
-        if latest_view:
-            flatten_data.update({field: latest_view[field] for field in VIEW_SNAPSHOT_FIELDS if field in latest_view})
+        flatten_data.update({field: latest_view[field] for field in VIEW_SNAPSHOT_FIELDS if field in latest_view})
         # 瞬时 View 的根级 start_time 是上报时刻，优先使用最新快照的导航开始时间（ms）。
-        started_at = _finite((latest_view or {}).get("attributes.view.started_at")) or _finite(
+        started_at = _finite(latest_view.get("attributes.view.started_at")) or _finite(
             flatten_data.get("attributes.view.started_at")
         )
         if started_at is not None:

@@ -247,7 +247,7 @@
   }
 
   .is-duration {
-    width: 104px;
+    width: 116px;
     cursor: pointer;
 
     .icon-mc-statistical {
@@ -294,6 +294,42 @@
     .icon-monitor {
       color: #4d4f56;
     }
+  }
+
+  /* Token 列表头输入 / 输出图例，色点与行内 Token 标识语义对应 */
+  .llm-token-legend {
+    gap: 8px;
+    margin-left: 4px;
+    cursor: default;
+
+    @include flex-align(center);
+  }
+
+  .llm-token-legend-item {
+    gap: 4px;
+    font-family: 'PingFang SC', sans-serif;
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 16px;
+    color: #4e5e7a;
+    white-space: nowrap;
+
+    @include flex-align(center);
+  }
+
+  .llm-token-legend-dot {
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .llm-token-legend-item.is-input .llm-token-legend-dot {
+    background: #88a3d6;
+  }
+
+  .llm-token-legend-item.is-output .llm-token-legend-dot {
+    background: #8c85ea;
   }
 
   .is-action {

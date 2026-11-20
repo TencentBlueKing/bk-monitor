@@ -29,7 +29,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { type IHandleGetUserConfig, EMethod, EMode } from '../../components/retrieval-filter/typing';
+import { type IHandleGetUserConfig, type IWhereItem, EMethod, EMode } from '../../components/retrieval-filter/typing';
 import {
   mergeWhereList,
   traceWhereChangeFormatter,
@@ -112,6 +112,8 @@ export default defineComponent({
     const { handleGetUserConfig: getDefaultAppConfig, handleSetUserConfig: setDefaultAppConfig } = useUserConfig();
     const { handleGetUserConfig: getThumbtackConfig, handleSetUserConfig: setThumbtackConfig } = useUserConfig();
     const { handleGetUserConfig: getResidentConfig, handleSetUserConfig: setResidentConfig } = useUserConfig();
+    /** 只读另一份用户配置，避免和常驻设置的保存 id 互相覆盖 */
+    const { handleGetUserConfig: getResidentFieldConfig } = useUserConfig();
 
     const isCollapsed = shallowRef(false);
     /** Span 详情抽屉的上下文，为 null 时抽屉关闭 */
@@ -128,6 +130,18 @@ export default defineComponent({
     const applicationLoading = shallowRef(true);
     const applicationError = shallowRef(false);
     let disposed = false;
+    /** 切 tab 的代数。连点时只让最后一次回填常驻条件 */
+    let modeChangeSeq = 0;
+    /** 视图配置未就绪时挂起的等待，卸载时统一取消 */
+    const viewConfigWaitStops = new Set<() => void>();
+    /** 当前视角「全部」常驻字段，用来区分用户清空和「这个 tab 本来就没有该字段」 */
+    const activeResidentKeys = shallowRef<string[]>([]);
+    /** 已解析过常驻字段的「视角 + 应用」，避免同一次切换重复请求 */
+    const residentKeysReadyId = shallowRef('');
+    /** 目标 tab 的常驻字段还没解析完时先挡住检索栏，避免空条件先挂上再回填 */
+    const residentProjecting = shallowRef(false);
+    /** 调整常驻字段列表时，组件会先抛出值变化；用这份快照把「移除字段」和「清空值」分开 */
+    let residentCacheBeforeFieldEdit: null | Record<string, IWhereItem> = null;
     const applicationList = shallowRef<IRumApplication[]>([]);
     const thumbtackList = shallowRef<string[]>([]);
     const defaultApplication = shallowRef('');
@@ -169,7 +183,13 @@ export default defineComponent({
         return String(row?.[RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? '');
       }),
     });
-    const configLoading = computed(() => applicationLoading.value || viewConfigCtx.loading.value);
+    const configLoading = computed(
+      () =>
+        applicationLoading.value ||
+        viewConfigCtx.loading.value ||
+        residentProjecting.value ||
+        (!!store.appName && viewConfigCtx.ready.value && residentKeysReadyId.value !== residentKeysCacheId())
+    );
     // tagValueDisplayFormatter 用于让已选条件 tag 按字段单位与枚举别名展示
     const { getFieldValues, tagValueDisplayFormatter } = useRumFieldValues(
       computed(() => viewConfigCtx.viewConfig.value.fields)
@@ -307,6 +327,15 @@ export default defineComponent({
       timezone => updateTimezone(timezone)
     );
 
+    /** 首次进入或视角配置刷新后，补齐当前 tab 的常驻字段，用户清空值时才知道该删哪个 key */
+    watch(
+      () => [viewConfigCtx.ready.value, store.mode, store.appName] as const,
+      ([ready]) => {
+        if (!ready) return;
+        void resolveAllResidentKeys(modeChangeSeq);
+      }
+    );
+
     /** 自动刷新 */
     let autoRefreshTimer: number = null;
     watch(
@@ -344,42 +373,142 @@ export default defineComponent({
       ]);
     }
 
+    function residentKeysCacheId(mode: RumModeType = store.mode) {
+      return `${mode}\0${store.appName}`;
+    }
+
+    function filterSearchableResidentKeys(keys: string[]) {
+      const searchable = new Set(viewConfigCtx.retrievalFields.value.map(field => field.name));
+      const result: string[] = [];
+      const seen = new Set<string>();
+      for (const key of keys) {
+        if (!key || seen.has(key) || !searchable.has(key)) continue;
+        seen.add(key);
+        result.push(key);
+      }
+      return result;
+    }
+
+    /** 等到这一次切换对应的视图配置落地；失败或被更新的切换打断时返回 false */
+    function waitForViewConfig(seq: number): Promise<boolean> {
+      if (disposed || seq !== modeChangeSeq) return Promise.resolve(false);
+      if (viewConfigCtx.ready.value) return Promise.resolve(true);
+      if (viewConfigCtx.error.value && !viewConfigCtx.loading.value) return Promise.resolve(false);
+      return new Promise(resolve => {
+        let settled = false;
+        let stop = () => {};
+        const finish = (ready: boolean) => {
+          if (settled) return;
+          settled = true;
+          stop();
+          viewConfigWaitStops.delete(cancel);
+          resolve(ready);
+        };
+        const cancel = () => finish(false);
+        stop = watch(
+          () => [viewConfigCtx.ready.value, viewConfigCtx.error.value, viewConfigCtx.loading.value] as const,
+          ([ready, error, loading]) => {
+            if (disposed || seq !== modeChangeSeq) {
+              finish(false);
+              return;
+            }
+            if (ready) finish(true);
+            else if (error && !loading) finish(false);
+          }
+        );
+        viewConfigWaitStops.add(cancel);
+      });
+    }
+
+    /**
+     * 当前视角在「全部」下的常驻字段。
+     * 用户保存过就用用户配置，否则用视图配置的 resident_fields；具体 span 类型不走这里。
+     */
+    async function resolveAllResidentKeys(seq: number) {
+      if (disposed || seq !== modeChangeSeq) return [];
+      const cacheId = residentKeysCacheId();
+      if (viewConfigCtx.ready.value && residentKeysReadyId.value === cacheId) {
+        return activeResidentKeys.value;
+      }
+      const configKey = `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}`;
+      const savedPromise = getResidentFieldConfig<string[]>(configKey);
+      const ready = await waitForViewConfig(seq);
+      const saved = await savedPromise;
+      if (!ready || disposed || seq !== modeChangeSeq || residentKeysCacheId() !== cacheId) return [];
+      const source =
+        Array.isArray(saved) && saved.length ? saved : viewConfigCtx.viewConfig.value.resident_fields || [];
+      const keys = filterSearchableResidentKeys(source);
+      activeResidentKeys.value = keys;
+      residentKeysReadyId.value = cacheId;
+      return keys;
+    }
+
+    function appliedResidentKeys(allKeys: string[]) {
+      if (store.mode === RumModeEnum.SPAN && spanTypeCtx.activeSpanType.value) {
+        return spanTypeResidentFields.value;
+      }
+      return allKeys;
+    }
+
+    function invalidateResidentProjection() {
+      modeChangeSeq += 1;
+      residentProjecting.value = false;
+    }
+
     function handleAppNameChange() {
+      invalidateResidentProjection();
       queryCtx.where.value = [];
       queryCtx.commonWhere.value = [];
+      queryCtx.clearResidentValueCache();
+      activeResidentKeys.value = [];
+      residentKeysReadyId.value = '';
       setDefaultAppConfig(JSON.stringify(store.appName));
       queryCtx.handleQuery();
     }
 
     /**
-     * @description 切换检索视角（store.mode 唯一写入口）：检索字段按视角下发，旧视角条件在新视角无法解析，故清空全部条件并重置排序。
-     * @param {RumModeType} mode 目标视角
-     * @param {boolean} shouldQuery 是否立即检索；需先写入新条件时传 false，由调用方在条件就绪后触发
+     * 切换 Session / View / Span。
+     * 上方检索条件和语句清空；常驻筛选按三个 tab 共用缓存回填，目标 tab 没有的 key 不参与检索也不删除。
+     * @param mode 目标视角
+     * @param shouldQuery 是否立即检索；下钻要先写上点击条件时传 false
+     * @returns 是否仍是最后一次切换。连点时较早的一次返回 false，调用方不要再改条件
      */
-    function handleModeChange(mode: RumModeType, shouldQuery = true) {
+    async function handleModeChange(mode: RumModeType, shouldQuery = true) {
+      const seq = ++modeChangeSeq;
+      // 常驻字段按视角异步取，先卸掉检索栏，等回填后再挂上，避免空值覆盖组件内部状态后填不回去
+      residentProjecting.value = true;
       store.mode = mode;
       store.userSort = null;
       queryCtx.where.value = [];
-      queryCtx.commonWhere.value = [];
       queryCtx.queryString.value = '';
-      if (shouldQuery) queryCtx.handleQuery();
+      queryCtx.commonWhere.value = [];
+      try {
+        const allKeys = await resolveAllResidentKeys(seq);
+        if (disposed || seq !== modeChangeSeq) return false;
+        queryCtx.commonWhere.value = queryCtx.projectResidentWhere(appliedResidentKeys(allKeys));
+        if (shouldQuery) queryCtx.handleQuery();
+        return true;
+      } finally {
+        if (seq === modeChangeSeq) residentProjecting.value = false;
+      }
     }
 
     /**
-     * @description 数量列下钻统一编排：调用方已给出目标视角与条件，这里只负责切视角、重置类型筛选并应用条件。
-     *              handleConditionChange 内部触发一次检索与 URL 同步。
-     * @param {IRumCountDrillDown} options 目标视角与跳转后携带的检索条件
+     * 数量列下钻：切到目标视角、类型回到全部，并带上点击的条件。
+     * 常驻筛选仍按目标 tab 的字段从共用缓存回填。
      */
-    function handleCountDrillDown(options: IRumCountDrillDown) {
-      handleModeChange(options.targetMode, false);
-      handleSpanTypeChange(ALL_SPAN_TYPE, false);
+    async function handleCountDrillDown(options: IRumCountDrillDown) {
+      store.spanType = ALL_SPAN_TYPE;
+      const applied = await handleModeChange(options.targetMode, false);
+      if (!applied || disposed) return;
       handleConditionChange(options.condition, false);
     }
 
     /**
-     * @description 切换 span 类型筛选，按切换后的类型裁剪常驻条件（回到「全部」时清空）并默认重新检索。
-     * @param {string} type 点击的类型；setSpanType 为 toggle 语义，重复点击回到「全部」，判断须以 activeSpanType 为准
-     * @param {boolean} shouldQuery 是否立即检索；需先改写条件时传 false，由调用方在条件就绪后触发
+     * 切换 span 类型只改当前生效的常驻条件：具体类型裁掉没有的字段，回到「全部」清空。
+     * 这里不写共用缓存，切到其他 tab 时仍能按 key 填回来。
+     * @param type 点击的类型；setSpanType 为 toggle 语义，重复点击回到「全部」，判断须以 activeSpanType 为准
+     * @param shouldQuery 是否立即检索；需先改写条件时传 false，由调用方在条件就绪后触发
      */
     function handleSpanTypeChange(type: string, shouldQuery = true) {
       spanTypeCtx.setSpanType(type);
@@ -397,6 +526,59 @@ export default defineComponent({
     async function handleThumbtackChange(list: string[]) {
       thumbtackList.value = list;
       await setThumbtackConfig(JSON.stringify(list));
+    }
+
+    function handleCommonWhereChange(value: IWhereItem[]) {
+      residentCacheBeforeFieldEdit = queryCtx.snapshotResidentValueCache();
+      const residentKeys = appliedResidentKeys(activeResidentKeys.value);
+      queryCtx.syncResidentValueCache(value, residentKeys);
+      queryCtx.commonWhere.value = value;
+      queryCtx.handleQuery();
+      Promise.resolve().then(() => {
+        residentCacheBeforeFieldEdit = null;
+      });
+    }
+
+    /**
+     * 常驻字段列表保存。确认设置时组件会先抛值变化，再调用这里。
+     * 从列表里移除的字段不算用户清空，把刚被同步删掉的缓存写回去。
+     */
+    async function handleSetResidentConfig(value: string) {
+      const snapshot = residentCacheBeforeFieldEdit;
+      residentCacheBeforeFieldEdit = null;
+      if (!spanTypeCtx.activeSpanType.value) {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            const nextKeys = filterSearchableResidentKeys(parsed.map(key => String(key)));
+            activeResidentKeys.value = nextKeys;
+            residentKeysReadyId.value = residentKeysCacheId();
+            if (snapshot) {
+              const nextKeySet = new Set(nextKeys);
+              queryCtx.restoreResidentValueCache(
+                snapshot,
+                Object.keys(snapshot).filter(key => !nextKeySet.has(key))
+              );
+            }
+          }
+        } catch {
+          // 字段列表不是数组时保持当前 key，避免误把缓存当成已清空
+        }
+      }
+      return setResidentConfig(value);
+    }
+
+    function handleApplyFavorite(favorite: Parameters<typeof favoriteCtx.applyFavorite>[0]) {
+      invalidateResidentProjection();
+      queryCtx.clearResidentValueCache();
+      activeResidentKeys.value = [];
+      residentKeysReadyId.value = '';
+      residentCacheBeforeFieldEdit = null;
+      favoriteCtx.applyFavorite(favorite);
+      // 收藏没改视角时，视图配置不会重新 ready，需要主动补一次常驻字段
+      if (viewConfigCtx.ready.value && residentKeysReadyId.value !== residentKeysCacheId()) {
+        void resolveAllResidentKeys(modeChangeSeq);
+      }
     }
 
     /** 维度面板与表格单元格触发的条件追加 */
@@ -648,6 +830,9 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       disposed = true;
+      invalidateResidentProjection();
+      for (const cancel of viewConfigWaitStops) cancel();
+      viewConfigWaitStops.clear();
       window.clearInterval(autoRefreshTimer);
     });
 
@@ -687,8 +872,11 @@ export default defineComponent({
       getFieldValues,
       getResidentConfig,
       getResidentConfigCustom,
+      handleSetResidentConfig,
       setResidentConfig,
       handleAppNameChange,
+      handleApplyFavorite,
+      handleCommonWhereChange,
       handleConditionChange,
       handleEventsCellClick,
       handleModeChange,
@@ -720,7 +908,7 @@ export default defineComponent({
             ref='favoriteBoxRef'
             defaultFavoriteId={queryCtx.urlFavoriteId.value}
             type='rum'
-            onChange={favoriteCtx.applyFavorite}
+            onChange={this.handleApplyFavorite}
             onClose={() => {
               favoriteCtx.favoriteShow.value = false;
             }}
@@ -767,7 +955,7 @@ export default defineComponent({
                 filterMode={queryCtx.filterMode.value}
                 getValueFn={this.getFieldValues}
                 handleGetUserConfig={this.getResidentConfigCustom as IHandleGetUserConfig}
-                handleSetUserConfig={this.setResidentConfig}
+                handleSetUserConfig={this.handleSetResidentConfig}
                 isShowClear={true}
                 isShowCopy={true}
                 isShowFavorite={true}
@@ -782,10 +970,7 @@ export default defineComponent({
                 tagValueDisplayFormatter={this.tagValueDisplayFormatter}
                 where={queryCtx.where.value}
                 whereFormatter={traceWhereFormatter}
-                onCommonWhereChange={value => {
-                  queryCtx.commonWhere.value = value;
-                  queryCtx.handleQuery();
-                }}
+                onCommonWhereChange={this.handleCommonWhereChange}
                 onCopyWhere={queryCtx.copyWhere}
                 onFavorite={isEdit => favoriteCtx.saveFavorite(isEdit, () => this.favoriteBoxRef?.refreshGroupList())}
                 onModeChange={queryCtx.modeChange}

@@ -10,24 +10,6 @@ Metadata 当前已有 `RecordRule` 预计算链路，主要面向 bkbase V3 计�
 
 新的预计算模块面向 bkbase V4 链路，入口不再直接复用旧的 SQL 转换逻辑，而是先通过 unify-query 的 check 接口做只解析、只预览的路由与 MetricQL 生成，再基于返回信息创建 V4 recording rule flow。
 
-## Flow 独立网关配置
-
-RecordRule V4 的创建、更新、启停、删除和状态查询支持使用独立 BKBase 网关：
-
-```bash
-BKAPP_BKDATA_RECORD_RULE_API_BASE_URL="https://gateway.example.com/api/bk-base/prod/"
-```
-
-配置值是完整网关前缀，不包含 `/v4/apply/` 等接口路径，对应 Django 配置
-`BKDATA_RECORD_RULE_API_BASE_URL`。为空时沿用公共 BKBase 网关：优先使用
-`BKDATA_API_BASE_URL`，否则使用 `${BK_COMPONENT_API_URL}/api/bk-base/prod/`。
-
-修改环境变量后，需要重启执行 RecordRule 请求的服务和任务进程。
-该配置只影响 RecordRule V4 Flow，普通 DataLink 等调用继续使用公共网关；
-接口路径、鉴权、租户参数和 Flow 内容沿用现有协议，请求失败不会自动切换到公共网关。
-默认新网关已有依赖的源表和存储资源，本配置不执行资源迁移。
-后续公共网关切换完成后，可清空该配置，让 RecordRule V4 跟随公共网关。
-
 ## Unify Query 解析预览
 
 V4 预计算支持两种用户输入方式，分别对应 unify-query 的两个 check 接口：
@@ -432,10 +414,15 @@ class RecordRuleV4(BaseModelWithTime):
 
 ### API 封装复用
 
-`api/bkdata/default.py` 已有 V4 apply / delete 通用封装，V4 recording rule 不需要新增专用 bkdata API Resource：
+预计算 V4 Flow 通过公共 BKBase 网关访问，网关地址取自 `BKDATA_API_BASE_URL`，默认使用 `${BK_COMPONENT_API_URL}/api/bk-base/prod/`。
 
-- `ApplyDataLink` -> `POST /v4/apply/`
-- `DeleteDataLink` -> `DELETE /v4/namespaces/{namespace}/{kind}/{name}/`
+| 操作 | BKData 接口 | 单租户请求路径 |
+| --- | --- | --- |
+| 创建、更新、启停 | `ApplyDataLink` | `POST /v4/apply/` |
+| 查询状态 | `GetDataLink` | `GET /v4/namespaces/{namespace}/{kind}/{name}/` |
+| 删除 | `DeleteDataLink` | `DELETE /v4/namespaces/{namespace}/{kind}/{name}/` |
+
+多租户模式下，查询和删除路径在 `/v4/` 后包含 `tenants/{bk_tenant_id}/`。下发和查询使用目标租户的虚拟管理员身份，删除使用 `BK_DATA_PROJECT_MAINTAINER`。
 
 ### 定时任务
 

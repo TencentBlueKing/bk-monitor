@@ -1,28 +1,28 @@
 .cluster-step-container-main {
-  min-height: calc(100vh - 410px);
   display: flex;
   justify-content: center;
+  min-height: calc(100vh - 410px);
   padding-top: 90px;
 
   .top-time {
-    flex-direction: column;
-    font-size: 20px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    font-size: 20px;
 
     .time-str {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      position: relative;
 
       .error-main-title {
-        color: #313238;
         font-size: 24px;
-        font-face: MicrosoftYaHei;
         font-weight: 700;
         line-height: 32px;
+        color: #313238;
+        font-face: MicrosoftYaHei;
       }
 
       .bk-assist {
@@ -32,10 +32,10 @@
 
       .dash-line {
         position: absolute;
+        right: 3px;
+        bottom: 3px;
         width: 85px;
         height: 2px;
-        bottom: 3px;
-        right: 3px;
         border-bottom: 1px dashed #c4c6cc;
       }
     }
@@ -62,10 +62,10 @@
     }
 
     .time-tips {
-      font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-weight: 700;
 
       .time {
         display: inline-block;
@@ -81,22 +81,27 @@
     .error-message {
       width: 848px;
       padding: 8px 16px;
-      background: #fff0f0;
-      border-radius: 8px;
       margin-top: 16px;
       font-size: 12px;
+      font-weight: 400;
       line-height: 20px;
       color: #313238;
-      font-weight: 400;
+      background: #fff0f0;
+      border-radius: 8px;
 
       .error-reason {
-        color: #e71818;
         margin-right: 16px;
+        color: #e71818;
       }
 
       .error {
         word-break: break-all; /* 允许在长单词或URL中间进行换行 */
         white-space: pre-wrap; /* 保留换行符，但允许在必要时自动换行 */
+      }
+
+      .retry-button {
+        margin-left: 16px;
+        font-size: 12px;
       }
     }
   }
@@ -136,19 +141,19 @@
           .title-box {
             display: flex;
             align-items: center;
-            padding-left: 16px;
             height: 28px;
+            padding-left: 16px;
 
             .num-div {
               margin-right: 6px;
 
               .step-num {
-                font-family: Arial-Black;
-                font-weight: 900;
-                font-size: 32px;
-                color: #a3b1cc;
                 height: 28px;
                 margin-top: 4px;
+                font-family: Arial-Black;
+                font-size: 32px;
+                font-weight: 900;
+                color: #a3b1cc;
               }
 
               .bk-icon {
@@ -166,18 +171,18 @@
 
             .title {
               font-family: MicrosoftYaHei-Bold;
-              font-weight: 700;
               font-size: 20px;
+              font-weight: 700;
               color: #313238;
             }
           }
 
           .description-text {
+            padding: 12px 26px 0 44px;
             font-family: MicrosoftYaHei;
             font-size: 12px;
-            color: #4d4f56;
-            padding: 12px 26px 0 44px;
             line-height: 20px;
+            color: #4d4f56;
           }
         }
 
@@ -195,6 +200,7 @@
         }
       }
     }
+
     .icon-angle-double-right-line {
       margin: 155px 25px 0;
       color: rgba(105, 157, 244, 0.9);

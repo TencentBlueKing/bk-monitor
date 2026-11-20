@@ -36,7 +36,6 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { BK_LOG_STORAGE } from '@/app/state/store.type';
 import dayjs from 'dayjs';
 import DOMPurify from 'dompurify';
-import JSONBigNumber from 'json-bignumber';
 
 
 /**
@@ -666,8 +665,9 @@ export function readBlobResponse(response) {
  * 读取 Blob 为 JSON（Bidi 清洗 + 长整型精度保留）
  * @param {Blob} resp
  */
-export function readBlobRespToJson(resp) {
-  return readBlobResponse(resp).then(resText => JSONBigNumber.parse(resText));
+export async function readBlobRespToJson(resp) {
+  const [text, { default: JSONBigNumber }] = await Promise.all([readBlobResponse(resp), import('json-bignumber')]);
+  return JSONBigNumber.parse(text);
 }
 
 /**
@@ -677,6 +677,7 @@ export function readBlobRespToJson(resp) {
  * @param {ReadableStream<string>} stream
  */
 export async function* parseJSONArrayStream(stream) {
+  const { default: JSONBigNumber } = await import('json-bignumber');
   const reader = stream.getReader();
   let buffer = '';
   let start = -1;
@@ -737,6 +738,7 @@ export async function processHugeJSON(response, onItem) {
 
   if (!canStream) {
     const text = await readBlobByFileReader(response).then(sanitizeBidi);
+    const { default: JSONBigNumber } = await import('json-bignumber');
     const list = JSONBigNumber.parse(text);
     if (Array.isArray(list)) {
       for (let i = 0; i < list.length; i++) {

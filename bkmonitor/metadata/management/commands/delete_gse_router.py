@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -10,13 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from typing import List
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 
 from bkmonitor.utils import consul
+from bkmonitor.utils.user import single_tenant_backend_username
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config, models
@@ -40,7 +39,7 @@ class Command(BaseCommand):
             return
         self._delete_gse_router(data_id_list)
 
-    def _can_delete_gse_router(self, data_id_list: List, is_force: bool) -> bool:
+    def _can_delete_gse_router(self, data_id_list: list, is_force: bool) -> bool:
         """检查数据源可以删除路由
 
         - 是否强制删除，如果强制返回，则直接返回，否则检查下面两个
@@ -66,13 +65,16 @@ class Command(BaseCommand):
 
         return True
 
-    def _delete_gse_router(self, data_id_list: List) -> bool:
+    def _delete_gse_router(self, data_id_list: list) -> bool:
         """删除数据源的路由"""
         is_successful, successful_data_ids_list, failed_data_ids_list = True, [], []
         for data_id in data_id_list:
             params = {
                 "condition": {"channel_id": data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-                "operation": {"operator_name": settings.COMMON_USERNAME, "method": "all"},
+                "operation": {
+                    "operator_name": single_tenant_backend_username(settings.COMMON_USERNAME),
+                    "method": "all",
+                },
             }
             try:
                 api.gse.delete_route(params)

@@ -24,6 +24,7 @@ from metadata.models.data_link.data_link_configs import (
     DataLinkResourceConfigBase,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
+    LogClusteringSinkConfig,
     ResultTableConfig,
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
@@ -44,6 +45,7 @@ ALL_DATA_LINK_COMPONENT_KINDS: list[type[DataLinkResourceConfigBase]] = [
     SurrealDBBindingConfig,
     BasereportSinkConfig,
     ConditionalSinkConfig,
+    LogClusteringSinkConfig,
     DataBusConfig,
 ]
 

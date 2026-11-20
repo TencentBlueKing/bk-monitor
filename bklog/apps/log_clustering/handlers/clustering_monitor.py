@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from functools import cached_property
+
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
@@ -50,8 +52,11 @@ from apps.log_clustering.constants import (
     LEGACY_NEW_CLASS_AGG_CONDITION,
     LEGACY_NEW_CLASS_AGG_DIMENSION,
     NEW_SERIES_ALGORITHM_TYPE,
+    NEW_SERIES_NOTICE_TEMPLATE,
     NEW_SERIES_THRESHOLD_CONFIG_KEY,
     PATTERN_MONITOR_MSG_BY_SWITCH,
+    QUIX_AGG_DIMENSION_NORMAL,
+    QUIX_CLUSTERED_LOG_AGG_CONDITION,
     SIGNATURE_FIELD,
     TRIGGER_CONFIG,
     StrategiesType,
@@ -63,6 +68,7 @@ from apps.log_clustering.exceptions import (
 from apps.log_clustering.models import (
     ClusteringConfig,
     ClusteringRemark,
+    LogClusteringRuntime,
     SignatureStrategySettings,
 )
 from apps.log_clustering.utils.monitor import MonitorUtils
@@ -87,6 +93,11 @@ class ClusteringMonitorHandler:
             else self.clustering_config.related_space_pre_bk_biz_id
         )
         self.conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
+
+    @cached_property
+    def is_quix(self):
+        """小型化聚类的告警以 signature 为签名字段，旧聚类沿用 __dist_05。"""
+        return LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).exists()
 
     def _build_log_search_query_config(self, agg_dimension, agg_condition):
         """构造日志聚类告警共用的日志检索数据源配置。"""
@@ -118,7 +129,8 @@ class ClusteringMonitorHandler:
         if self.clustering_config.new_cls_strategy_output or self.clustering_config.new_cls_pattern_rt:
             return True
         flow_config = self.clustering_config.log_count_aggregation_flow or {}
-        if flow_config.get("include_agg") is False:
+        # 没有 BKData 日志数量聚合流时旧链路无结果表可用，固定使用 NewSeries。
+        if flow_config.get("include_agg") is False or not flow_config.get("agg"):
             return False
         return not self.is_new_class_new_series_enabled()
 
@@ -246,7 +258,7 @@ class ClusteringMonitorHandler:
                 "query_configs": [
                     self._build_log_search_query_config(
                         agg_dimension=agg_dimension,
-                        agg_condition=CLUSTERED_LOG_AGG_CONDITION,
+                        agg_condition=QUIX_CLUSTERED_LOG_AGG_CONDITION if self.is_quix else CLUSTERED_LOG_AGG_CONDITION,
                     )
                 ],
                 "algorithms": [
@@ -263,6 +275,7 @@ class ClusteringMonitorHandler:
         notice = self.get_notice(
             label_index_set_id=label_index_set_id,
             user_groups=params.get("user_groups"),
+            message_template=NEW_SERIES_NOTICE_TEMPLATE,
         )
         request_params = {
             "type": "monitor",
@@ -277,10 +290,12 @@ class ClusteringMonitorHandler:
             "notice": notice,
         }
 
-        # NewSeries 的 signature 维度依赖聚类结果表读别名，保存策略前确保路由已同步。
-        from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
+        if not self.is_quix:
+            # 旧聚类 NewSeries 的 signature 维度依赖聚类结果表读别名，保存策略前确保路由已同步；
+            # 小型化的聚类路由由开启流程注册。
+            from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 
-        DataFlowHandler.sync_clustered_route(index_set_id=self.index_set_id, raise_exception=True)
+            DataFlowHandler.sync_clustered_route(index_set_id=self.index_set_id, raise_exception=True)
         strategy_id = self.save_strategy_infos(
             strategy_type=StrategiesType.NEW_CLS_strategy,
             pattern_level=pattern_level,
@@ -301,6 +316,7 @@ class ClusteringMonitorHandler:
         labels = DEFAULT_LABEL.copy()
         labels += [f"LogClustering/Count/{label_index_set_id}"]
         name = f"{self.index_set.index_set_name} - 日志数量突增异常告警"
+        agg_dimension = QUIX_AGG_DIMENSION_NORMAL if self.is_quix else AGG_DIMENSION_NORMAL
         args = {
             "$alert_down": "1",
             "$sensitivity": params.get("sensitivity", 5),
@@ -318,8 +334,8 @@ class ClusteringMonitorHandler:
                 "metric_type": "log",
                 "query_configs": [
                     self._build_log_search_query_config(
-                        agg_dimension=AGG_DIMENSION_NORMAL,
-                        agg_condition=CLUSTERED_LOG_AGG_CONDITION,
+                        agg_dimension=agg_dimension,
+                        agg_condition=QUIX_CLUSTERED_LOG_AGG_CONDITION if self.is_quix else CLUSTERED_LOG_AGG_CONDITION,
                     )
                 ],
                 "algorithms": [
@@ -340,7 +356,7 @@ class ClusteringMonitorHandler:
         notice = self.get_notice(
             label_index_set_id=label_index_set_id,
             user_groups=params.get("user_groups"),
-            dimensions=AGG_DIMENSION_NORMAL,
+            dimensions=agg_dimension,
         )
 
         request_params = {
@@ -363,7 +379,9 @@ class ClusteringMonitorHandler:
 
         return {"strategy_id": strategy_id, "label_name": labels}
 
-    def get_notice(self, label_index_set_id, user_groups, dimensions=None):
+    def get_notice(
+        self, label_index_set_id, user_groups, dimensions=None, message_template=DEFAULT_PATTERN_MONITOR_MSG
+    ):
         if not user_groups:
             # 没配置告警组的就创建一个默认的
             user_groups = [
@@ -373,9 +391,7 @@ class ClusteringMonitorHandler:
                 )
             ]
         dimensions = dimensions or []
-        anomaly_template = DEFAULT_PATTERN_MONITOR_MSG.replace(
-            "__clustering_field__", self.clustering_config.clustering_fields
-        )
+        anomaly_template = message_template.replace("__clustering_field__", self.clustering_config.clustering_fields)
         notice = {
             "config_id": 0,
             "user_groups": user_groups,
@@ -606,11 +622,12 @@ class ClusteringMonitorHandler:
 
         # 获取维度条件
         groups = params.get("groups", {})
-        agg_dimension = ["__dist_05"]
+        signature_field = SIGNATURE_FIELD if self.is_quix else AGG_DIMENSION_NORMAL[0]
+        agg_dimension = [signature_field]
         agg_condition = [
             {
-                "key": "__dist_05",
-                "dimension_name": "__dist_05",
+                "key": signature_field,
+                "dimension_name": signature_field,
                 "value": [params["signature"]],
                 "method": "eq",
                 "condition": "and",

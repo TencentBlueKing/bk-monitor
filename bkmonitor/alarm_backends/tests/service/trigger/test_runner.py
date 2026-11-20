@@ -158,14 +158,14 @@ def test_trigger_processor_returns_pulled_count(mocker):
     processor.strategy = mocker.MagicMock()
     processor.strategy.in_alarm_time.return_value = (True, None)
     processor.anomaly_points = ["first", "second"]
-    processor.process_point = mocker.MagicMock()
+    processor.process_points = mocker.MagicMock()
     processor.push = mocker.MagicMock()
     processor.progress_callback = None
 
     pulled_count = processor.process()
 
     assert pulled_count == 2
-    assert processor.process_point.call_args_list == [mocker.call("first"), mocker.call("second")]
+    processor.process_points.assert_called_once_with(["first", "second"])
     processor.push.assert_called_once_with()
 
 
@@ -176,8 +176,7 @@ def test_trigger_processor_progress_callback_failure_is_not_swallowed(mocker):
     processor.pull = mocker.MagicMock(return_value=1)
     processor.strategy = mocker.MagicMock()
     processor.strategy.in_alarm_time.return_value = (True, None)
-    processor.anomaly_points = ["point"]
-    processor.process_point = mocker.MagicMock(side_effect=ValueError("point failed"))
+    processor.anomaly_points = ["invalid JSON"]
     processor.progress_callback = mocker.MagicMock(side_effect=RuntimeError("lease expired"))
     processor.push = mocker.MagicMock()
 
