@@ -70,6 +70,8 @@ export function useCollectionExecution({
   const actionError = shallowRef('');
   let controller: AbortController;
   let actionController: AbortController;
+  // 静默刷新独立于主动请求，不参与 loading，失败也不影响详情状态
+  let silentController: AbortController | null = null;
   const hosts = computed(() => {
     const search = keyword.value.trim().toLowerCase();
     const status = hostStatus.value;
@@ -87,7 +89,14 @@ export function useCollectionExecution({
     );
   });
 
+  function abortSilentRefresh() {
+    silentController?.abort();
+    silentController = null;
+  }
+
   async function refresh() {
+    // 主动加载优先：取消进行中的静默刷新，避免两处同时改写详情
+    abortSilentRefresh();
     controller?.abort();
     controller = new AbortController();
     const current = controller;
@@ -105,6 +114,24 @@ export function useCollectionExecution({
     }
   }
 
+  /**
+   * 静默刷新详情：不展示骨架、不覆盖 error，失败时保留当前详情；
+   * 主动请求进行中或已有静默请求时跳过，避免两处同时改写详情
+   */
+  async function silentRefresh() {
+    if (loading.value || silentController || !selected.value) return;
+    const current = new AbortController();
+    silentController = current;
+    try {
+      const result = await getCollectionExecution(bizId.value, selected.value, current.signal);
+      if (!current.signal.aborted) detail.value = result;
+    } catch {
+      /* 静默刷新失败保留现有详情，由下一轮轮询或用户主动刷新兜底 */
+    } finally {
+      if (silentController === current) silentController = null;
+    }
+  }
+
   function open(execution: CollectionExecutionKey & Pick<CollectionExecution, 'execution_status' | 'task_name'>) {
     if (busy.value) return;
     selected.value = execution;
@@ -119,6 +146,7 @@ export function useCollectionExecution({
   function close() {
     if (busy.value) return;
     controller?.abort();
+    abortSilentRefresh();
     selected.value = null;
     detail.value = null;
     loading.value = false;
@@ -202,6 +230,7 @@ export function useCollectionExecution({
   onScopeDispose(() => {
     controller?.abort();
     actionController?.abort();
+    abortSilentRefresh();
   });
   return {
     selected,
@@ -219,6 +248,7 @@ export function useCollectionExecution({
     open,
     close,
     refresh,
+    silentRefresh,
     renameExecution,
     requestAction,
     dismissAction,
