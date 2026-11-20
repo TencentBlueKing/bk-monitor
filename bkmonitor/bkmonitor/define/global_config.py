@@ -19,6 +19,12 @@ ADVANCED_OPTIONS = OrderedDict(
     [
         ("UNIFY_QUERY_ROUTING_RULES", slz.ListField(label="统一查询路由规则", default=[])),
         (
+            "ENABLE_BMW_ROUTE_REFRESH",
+            slz.BooleanField(
+                label="通过 bk-monitor-worker 定向刷新 metadata 查询路由", default=settings.ENABLE_BMW_ROUTE_REFRESH
+            ),
+        ),
+        (
             "ALARM_BACKEND_CLUSTER_ROUTING_RULES",
             slz.ListField(
                 label="集群路由规则",

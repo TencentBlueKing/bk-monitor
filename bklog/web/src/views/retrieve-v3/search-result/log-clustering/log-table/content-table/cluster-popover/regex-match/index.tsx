@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, nextTick, watch } from 'vue';
+import { computed, inject, defineComponent, ref, nextTick, watch } from 'vue';
+import { quixPage } from '../../../../quix-page';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { createRawTippyOverlay, useDialogVisible } from '@/global/overlay';
@@ -65,6 +66,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
+    const page = inject(quixPage);
     const store = useStore();
 
     const previewBtnRef = ref<HTMLElement>();
@@ -431,6 +433,7 @@ export default defineComponent({
               message: t('更新成功'),
               theme: 'success',
             });
+            page?.refresh();
             handleConfirmSuccess();
           }
         });

@@ -156,3 +156,18 @@ class ModelFileUnpickleForbiddenException(BaseClusteringException):
 class ModelFileStructureInvalidException(BaseClusteringException):
     ERROR_CODE = "029"
     MESSAGE = _("AIOPS 模型文件结构非法: {detail}")
+
+
+class ClusteringOperationConflictException(BaseClusteringException):
+    ERROR_CODE = "031"
+    MESSAGE = _("索引集({index_set_id})存在未结束的聚类操作({operation_id})，请等待完成或取消后再试")
+
+
+class QuixClusteringConfigInvalidException(BaseClusteringException):
+    ERROR_CODE = "036"
+    MESSAGE = _("日志聚类轻量化环境配置不完整: {detail}")
+
+
+class QuixClusteringParamsInvalidException(BaseClusteringException):
+    ERROR_CODE = "037"
+    MESSAGE = _("日志聚类轻量化参数不合法: {detail}")

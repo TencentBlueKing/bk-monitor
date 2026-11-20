@@ -25,6 +25,7 @@ class DataLinkNameScene(Enum):
     RECORD_RULE = "rr"  # 预计算输出
     FEDERAL_PROXY = "fp"  # 联邦父集群
     FEDERAL_SUBSET = "fs"  # 联邦子集群
+    LOG_CLUSTERING_SINK = "lcs"  # 日志聚类包装 Sink
 
 
 class DataLinkKind(Enum):
@@ -48,6 +49,7 @@ class DataLinkKind(Enum):
     DORIS = "Doris"
     SURREALDB = "SurrealDB"
     SURREALDBBINDING = "SurrealDBBinding"
+    LOGCLUSTERINGSINK = "LogClusteringSink"
 
     choices_labels = (
         (DATAID, "dataids"),
@@ -67,6 +69,7 @@ class DataLinkKind(Enum):
         (KAFKACHANNEL, "kafkachannels"),
         (SURREALDB, "surrealdbs"),
         (SURREALDBBINDING, "surrealdbbindings"),
+        (LOGCLUSTERINGSINK, "logclusteringsinks"),
     )
 
     @classmethod

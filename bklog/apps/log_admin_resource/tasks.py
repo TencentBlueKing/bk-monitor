@@ -33,6 +33,7 @@ from apps.log_admin_resource.inspection_runtime import (
 from apps.log_admin_resource.inspection_tasks import ResourceInspectionTaskRecord, store_bounded_inspection_result
 from apps.log_commons.job import JobHelper
 from apps.log_databus.constants import DEFAULT_BK_USERNAME, DEFAULT_EXECUTE_SCRIPT_ACCOUNT, JOB_SUCCESS_STATUS
+from apps.utils.local import single_tenant_backend_username
 from apps.utils.task import high_priority_task
 
 
@@ -311,11 +312,12 @@ def _run_remote_inspection(record: dict[str, Any]) -> dict[str, Any]:
     target_server = JobHelper.adapt_hosts_target_server(
         bk_biz_id=target["bk_biz_id"], hosts=[{"bk_host_id": target["bk_host_id"]}]
     )
+    username = single_tenant_backend_username(DEFAULT_BK_USERNAME)
     execute_result = JobHelper.execute_script(
         script_content=script_content,
         target_server=target_server,
         bk_biz_id=target["bk_biz_id"],
-        bk_username=DEFAULT_BK_USERNAME,
+        bk_username=username,
         account=DEFAULT_EXECUTE_SCRIPT_ACCOUNT,
         task_name="BKLog read-only host collector inspection",
         script_param=base64.b64encode(" ".join(probe_arguments).encode("ascii")).decode("ascii"),
@@ -341,7 +343,7 @@ def _run_remote_inspection(record: dict[str, Any]) -> dict[str, Any]:
         status = JobApi.get_job_instance_status(
             params={
                 "bk_biz_id": target["bk_biz_id"],
-                "bk_username": DEFAULT_BK_USERNAME,
+                "bk_username": username,
                 "job_instance_id": job_instance_id,
                 "return_ip_result": True,
             },

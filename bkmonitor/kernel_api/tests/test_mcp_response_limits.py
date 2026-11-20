@@ -44,6 +44,7 @@ if not settings.configured:
         RSA_PRIVATE_KEY="",
         TRANSLATE_SNMP_TRAP_DIMENSIONS=False,
         SMS_NOTICE_TEMPLATE_MODE="legacy",
+        ENABLE_BMW_ROUTE_REFRESH=False,
     )
     django.setup()
 

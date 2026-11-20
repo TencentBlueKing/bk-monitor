@@ -14,6 +14,7 @@ from .data_link_configs import (  # noqa
     LogDataBusConfig,
     GraphRelationBindingConfig,
     SurrealDBBindingConfig,
+    LogClusteringSinkConfig,
 )
 
 from .doris_job import DorisJobConfig, DorisJobTableRelation
@@ -38,4 +39,5 @@ __all__ = [
     "DorisStorageBindingConfig",
     "GraphRelationBindingConfig",
     "SurrealDBBindingConfig",
+    "LogClusteringSinkConfig",
 ]

@@ -60,12 +60,7 @@ LOG_DESENSITIZE = "log_desensitize"
 # AI 助手
 AI_ASSISTANT = "ai_assistant"
 
-# 日志聚类小型化配置
-# {
-#   "predict_cluster": {
-#     "default": "http://log_cluster_server:8080/api"
-#   }
-# }
+# 日志聚类小型化开关
 MINI_CLUSTERING_CONFIG = "mini_clustering_config"
 
 # 场景化检索按业务灰度开关

@@ -16,7 +16,12 @@ from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request
-from bkmonitor.utils.user import get_admin_username
+from bkmonitor.utils.user import (
+    get_admin_username,
+    get_local_username,
+    get_request_username,
+    single_tenant_backend_username,
+)
 from constants.dataflow import AutoOffsetResets
 from core.drf_resource import APIResource
 from core.errors.common import UserInfoMissing
@@ -221,22 +226,29 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
         _user_request = serializers.BooleanField(required=False, label="是否指定使用 user 鉴权请求接口", default=False)
 
     def full_request_data(self, validated_request_data):
+        user_request = validated_request_data.get("_user_request", False)
+        use_token = not user_request and bool(settings.BKDATA_DATA_TOKEN)
+        configured = not settings.ENABLE_MULTI_TENANT_MODE and (settings.BK_ADMIN_USERNAME or "").strip()
+        # Token 请求沿用原网关身份，不依赖虚拟管理员查询。
+        if use_token and configured and not getattr(self, "bk_username", None):
+            self.bk_username = get_request_username() or get_local_username() or settings.COMMON_USERNAME
         validated_request_data = super().full_request_data(validated_request_data)
-        if validated_request_data.get("_user_request", False):
-            validated_request_data["bkdata_authentication_method"] = "user"
-            self.bk_username = settings.COMMON_USERNAME
+        if use_token:
+            validated_request_data["bkdata_authentication_method"] = "token"
+            validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
+            return validated_request_data
+
+        self.bk_username = single_tenant_backend_username(settings.COMMON_USERNAME)
+        validated_request_data["bkdata_authentication_method"] = "user"
+        if configured:
+            validated_request_data["bk_username"] = self.bk_username
+        if user_request:
             validated_request_data.pop("_user_request", None)
         else:
-            if settings.BKDATA_DATA_TOKEN:
-                validated_request_data["bkdata_authentication_method"] = "token"
-                validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
-            else:
-                validated_request_data["bkdata_authentication_method"] = "user"
-                self.bk_username = settings.COMMON_USERNAME
-                try:
-                    validated_request_data["_origin_user"] = get_request().user.username
-                except Exception:
-                    pass
+            try:
+                validated_request_data["_origin_user"] = get_request().user.username
+            except Exception:
+                pass
         return validated_request_data
 
 
@@ -271,7 +283,7 @@ class DataAccessAPIResource(BkDataAPIGWResource, metaclass=abc.ABCMeta):
             if not self.bk_username:
                 raise UserInfoMissing
         else:
-            self.bk_username = settings.BK_DATA_PROJECT_MAINTAINER
+            self.bk_username = single_tenant_backend_username(settings.BK_DATA_PROJECT_MAINTAINER)
         validated_request_data["bk_username"] = self.bk_username
         return validated_request_data
 
@@ -1257,34 +1269,6 @@ class DeleteDataLink(DataAccessAPIResource):
         name = serializers.CharField(label="资源名称")
 
 
-class ApplyRecordRuleFlow(ApplyDataLink):
-    """通过预计算专用网关创建或更新 Flow"""
-
-    use_tenant_admin = False
-
-    @property
-    def base_url(self):
-        return settings.BKDATA_RECORD_RULE_API_BASE_URL or BkDataAPIGWResource.base_url
-
-
-class GetRecordRuleFlow(GetDataLink):
-    """通过预计算专用网关查询 Flow"""
-
-    use_tenant_admin = False
-
-    @property
-    def base_url(self):
-        return settings.BKDATA_RECORD_RULE_API_BASE_URL or BkDataAPIGWResource.base_url
-
-
-class DeleteRecordRuleFlow(DeleteDataLink):
-    """通过预计算专用网关删除 Flow"""
-
-    @property
-    def base_url(self):
-        return settings.BKDATA_RECORD_RULE_API_BASE_URL or BkDataAPIGWResource.base_url
-
-
 class NotifyLogDataIdChanged(DataAccessAPIResource):
     action = "/v4/tmp/notify_log_dataid_changed/"
     method = "PUT"
@@ -1486,8 +1470,8 @@ class GetStorageMetricsDataCount(DataAccessAPIResource):
 
     def full_request_data(self, validated_request_data):
         validated_request_data = super().full_request_data(validated_request_data)
-        validated_request_data["bk_username"] = settings.COMMON_USERNAME
-        self.bk_username = settings.COMMON_USERNAME
+        self.bk_username = single_tenant_backend_username(settings.COMMON_USERNAME)
+        validated_request_data["bk_username"] = self.bk_username
         return validated_request_data
 
 
@@ -1504,8 +1488,8 @@ class GetDataBusSamplingData(DataAccessAPIResource):
 
     def full_request_data(self, validated_request_data):
         validated_request_data = super().full_request_data(validated_request_data)
-        validated_request_data["bk_username"] = settings.COMMON_USERNAME
-        self.bk_username = settings.COMMON_USERNAME
+        self.bk_username = single_tenant_backend_username(settings.COMMON_USERNAME)
+        validated_request_data["bk_username"] = self.bk_username
         return validated_request_data
 
 
@@ -1523,8 +1507,8 @@ class GetRawDataStoragesInfo(DataAccessAPIResource):
 
     def full_request_data(self, validated_request_data):
         validated_request_data = super().full_request_data(validated_request_data)
-        validated_request_data["bk_username"] = settings.COMMON_USERNAME
-        self.bk_username = settings.COMMON_USERNAME
+        self.bk_username = single_tenant_backend_username(settings.COMMON_USERNAME)
+        validated_request_data["bk_username"] = self.bk_username
         return validated_request_data
 
 

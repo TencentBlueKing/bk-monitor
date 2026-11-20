@@ -1,8 +1,7 @@
 from abc import ABC
 
-from django.conf import settings
-
 from apps.api import BkDataQueryApi
+from apps.api.modules.utils import update_bkdata_auth_info
 
 
 class Sql(ABC):
@@ -99,16 +98,11 @@ class BkData(Sql):
         if self._order_by:
             order_by = f"ORDER BY {','.join([r.to_sql() for r in self._order_by])}"
         where_conditions = " AND ".join([where.to_sql() for where in self._where])
-        return "SELECT {} FROM {} WHERE {} {} LIMIT {}".format(
-            fields, self._rt, where_conditions, order_by, self._limit
-        )
+        return f"SELECT {fields} FROM {self._rt} WHERE {where_conditions} {order_by} LIMIT {self._limit}"
 
     def query(self) -> list:
         params = {"sql": self.to_sql()}
-        if settings.FEATURE_TOGGLE.get("bkdata_token_auth", "off") == "on":
-            params.update({"bkdata_authentication_method": "token", "bkdata_data_token": settings.BKDATA_DATA_TOKEN})
-        else:
-            params.update({"bkdata_authentication_method": "user", "bk_username": "admin", "operator": "admin"})
+        update_bkdata_auth_info(params)
         # 无需登录态校验，统一用平台权限
         params.update({"no_request": True})
         return BkDataQueryApi.query(params, request_cookies=False)["list"]

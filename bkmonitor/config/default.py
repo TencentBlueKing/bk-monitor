@@ -500,6 +500,7 @@ UNIFY_QUERY_ROUTING_RULES = []
 
 # bk-monitor-worker api 地址
 BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")
+ENABLE_BMW_ROUTE_REFRESH = os.getenv("ENABLE_BMW_ROUTE_REFRESH", "false").lower() == "true"
 
 # 告警缓存刷新任务的业务并发度
 ALARM_CACHE_REFRESH_BIZ_CONCURRENT = 3
@@ -1317,8 +1318,6 @@ MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
 # bkdata api base url
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
-# RecordRule V4 Flow 专用网关，未配置时沿用公共 BKBase 网关
-BKDATA_RECORD_RULE_API_BASE_URL = os.getenv("BKAPP_BKDATA_RECORD_RULE_API_BASE_URL", "")
 # RecordingRule V4 动态配置的静态默认值，source 按实际 Flow 去重，rules 按 group 条数计数。
 RECORD_RULE_V4_CONFIG = {"max_sources": 20, "max_rules": 20}
 # bkdata api only for query data (not required)
@@ -1665,20 +1664,6 @@ AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
 AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE = os.getenv("BK_AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE", "bkm-mcp-client")
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
-# Hermes SDK 由获授权的运行镜像提供；公共构建不声明私有包依赖。
-AI_AGENT_BACKEND = os.getenv("AI_AGENT_BACKEND", "aidev")
-# Enable with the AG-UI frontend upgrade; legacy clients retain their protocol.
-AI_AGENT_STREAM_PROTOCOL = os.getenv("AI_AGENT_STREAM_PROTOCOL", "legacy")
-AI_AGENT_HERMES_HOME = os.getenv("AI_AGENT_HERMES_HOME", "/tmp/bkmonitor-hermes")
-AI_AGENT_HERMES_MAX_ITERATIONS = int(os.getenv("AI_AGENT_HERMES_MAX_ITERATIONS", "15"))
-AI_AGENT_HERMES_ACCESS_TOKEN = os.getenv("AI_AGENT_HERMES_ACCESS_TOKEN", "")
-AI_AGENT_HERMES_LLM_API_KEY = os.getenv("AI_AGENT_HERMES_LLM_API_KEY", "")
-AI_AGENT_HERMES_LLM_BASE_URL = os.getenv("AI_AGENT_HERMES_LLM_BASE_URL", "")
-AI_AGENT_HERMES_LLM_MODEL = os.getenv("AI_AGENT_HERMES_LLM_MODEL", "")
-AI_AGENT_HERMES_LLM_PROVIDER = os.getenv("AI_AGENT_HERMES_LLM_PROVIDER", "")
-AI_AGENT_OTEL_ENABLED = os.getenv("AI_AGENT_OTEL_ENABLED", "false").lower() == "true"
-AI_AGENT_OTEL_CAPTURE_CONTENT = os.getenv("AI_AGENT_OTEL_CAPTURE_CONTENT", "false").lower() == "true"
-AI_AGENT_STREAM_HEARTBEAT_INTERVAL_SECONDS = float(os.getenv("AI_AGENT_STREAM_HEARTBEAT_INTERVAL_SECONDS", "10"))
 # OpenClaw 自愈分析 MCP 配置
 OPENCLAW_RECOVERING_BK_BIZ_ID = 0
 OPENCLAW_RECOVERING_APM_APP_NAME = ""
@@ -2052,7 +2037,7 @@ HOME_PAGE_ALARM_GRAPH_LIMIT = 10
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
-BK_ADMIN_USERNAME = os.getenv("BK_ADMIN_USERNAME", "bk_admin")
+BK_ADMIN_USERNAME = os.getenv("BK_ADMIN_USERNAME")
 # 自定义格式 VM 链路使用的 inner KafkaChannel，key 为 "<tenant>:<namespace>"。
 BKBASE_INNER_KAFKA_CHANNEL_MAP = json.loads(os.getenv("BKBASE_INNER_KAFKA_CHANNEL_MAP", "{}"))
 # 是否启用全局租户（blueapps依赖）

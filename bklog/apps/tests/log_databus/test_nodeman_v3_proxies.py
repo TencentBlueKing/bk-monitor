@@ -104,7 +104,7 @@ class BizProxiesTest(SimpleTestCase):
         self.assertEqual(get_host_biz_proxies(2), [])
 
 
-@override_settings(ENABLE_NODEMAN_V3=True)
+@override_settings(ENABLE_NODEMAN_V3=False)
 class ProxyHostInfoViewTest(SimpleTestCase):
     def setUp(self):
         self.view = CollectorViewSet()
@@ -149,16 +149,6 @@ class ProxyHostInfoViewTest(SimpleTestCase):
         )
         self.v3.assert_called_once_with(2)
         self.v2.assert_not_called()
-
-    @override_settings(ENABLE_NODEMAN_V3=False)
-    def test_total_switch_off_preserves_v2(self):
-        response = self.view.get_proxy_host_info(None).data
-
-        self.assertEqual(response[0], self.default_region)
-        self.assertEqual(response[1]["urls"][0]["report_url"], "http://127.0.0.1:4317")
-        self.v2.assert_called_once_with({"bk_biz_id": 2})
-        self.v3.assert_not_called()
-        self.v3_toggle.assert_not_called()
 
     def test_feature_toggle_off_preserves_v2(self):
         self.toggle.status = "off"

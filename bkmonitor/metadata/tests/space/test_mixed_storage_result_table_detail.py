@@ -1360,7 +1360,7 @@ def test_log_route_redis_write_error_keeps_post_process_tolerance():
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(ENABLE_MULTI_TENANT_MODE=True)
+@override_settings(ENABLE_MULTI_TENANT_MODE=True, ENABLE_BMW_ROUTE_REFRESH=True)
 @pytest.mark.parametrize("table_id_list", [None, []])
 def test_none_and_empty_table_id_list_keep_tenant_full_refresh_compatibility(table_id_list):
     _create_cluster(

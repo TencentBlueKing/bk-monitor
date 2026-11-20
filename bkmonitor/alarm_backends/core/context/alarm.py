@@ -644,6 +644,15 @@ class Alarm(BaseContextObject):
         return ""
 
     @cached_property
+    def log_related_fields(self) -> dict:
+        """供通知模板按字段读取完整的关联日志。"""
+        try:
+            record = json.loads(self.log_raw_related_info)
+        except (TypeError, ValueError):
+            return {}
+        return record if isinstance(record, dict) else {}
+
+    @cached_property
     def description(self):
         if self.end_description:
             # 如果有恢复信息，直接返回恢复内容

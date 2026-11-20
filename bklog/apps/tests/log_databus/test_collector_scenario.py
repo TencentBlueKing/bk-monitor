@@ -59,13 +59,14 @@ class TestCollectorScenarioDataId(SimpleTestCase):
         with (
             patch(f"{MODULE}.TransferApi.get_data_id", return_value={"bk_data_id": 1001}),
             patch(f"{MODULE}.TransferApi.create_data_id") as create_data_id,
-            patch(f"{MODULE}.TransferApi.modify_data_id"),
-            patch(f"{MODULE}.ClusteringConfig.objects.filter") as filter_clustering,
+            patch(f"{MODULE}.TransferApi.modify_data_id") as modify_data_id,
             patch(f"{MODULE}.FeatureToggleObject.switch") as feature_switch,
         ):
-            filter_clustering.return_value.first.return_value = None
             result = CollectorScenario.update_or_create_data_id(data_name="2_log_demo", bk_biz_id=2)
 
         self.assertEqual(result, 1001)
         create_data_id.assert_not_called()
         feature_switch.assert_not_called()
+        modify_params = modify_data_id.call_args.args[0]
+        self.assertEqual(modify_params["etl_config"], "bk_flat_batch")
+        self.assertFalse(modify_params["option"]["is_log_cluster"])

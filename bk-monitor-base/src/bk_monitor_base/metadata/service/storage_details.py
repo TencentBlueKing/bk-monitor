@@ -7,6 +7,7 @@ from django.db.models import Q
 
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.third_party_api.errors import BkApiError
+from bk_monitor_base.infras.third_party_api.user.api import single_tenant_backend_username
 from bk_monitor_base.metadata import config, models
 from bk_monitor_base.metadata.config import settings
 from bk_monitor_base.metadata.models.space.space_data_source import get_real_biz_id
@@ -80,7 +81,7 @@ class ResultTableAndDataSource:
         """查询GSE路由信息"""
         params = {
             "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": bk_data_id},
-            "operation": {"operator_name": settings.blueking.common_username},
+            "operation": {"operator_name": single_tenant_backend_username(settings.blueking.common_username)},
         }
         try:
             result = api.gse.query_route(bk_tenant_id=self.bk_tenant_id, **params)
