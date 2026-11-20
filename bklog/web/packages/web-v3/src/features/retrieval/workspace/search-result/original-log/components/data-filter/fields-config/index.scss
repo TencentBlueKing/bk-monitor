@@ -1,6 +1,11 @@
 .fields-config-tippy {
+  display: flex;
+  flex-direction: column;
   width: 376px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 32px);
   .config-title {
+    flex-shrink: 0;
     padding: 20px 24px 0;
     font-size: 20px;
     font-weight: normal;
@@ -9,6 +14,7 @@
   }
 
   .field-list-container {
+    min-height: 0;
     max-height: 400px;
     padding: 10px 24px;
     overflow: auto;
@@ -63,6 +69,7 @@
 
   .config-buttons {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     justify-content: flex-end;
     height: 50px;
@@ -72,6 +79,15 @@
 }
 
 .tippy-box[data-theme~='field-config-popover'] {
+  color: var(--bklog-text-primary);
+  background-color: var(--bklog-surface);
+  border: 1px solid var(--bklog-border-muted);
+  box-shadow: var(--bklog-shadow-popup);
+
+  .tippy-arrow {
+    color: var(--bklog-surface);
+  }
+
   .tippy-content {
     padding: 0 !important;
   }
