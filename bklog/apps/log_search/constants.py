@@ -1889,6 +1889,15 @@ class OperatorEnum:
     }
 
 
+TEXT_FIELD_TYPES = ("text", "match_only_text")
+
+_TEXT_OPERATORS = [
+    OperatorEnum.CONTAINS_MATCH_PHRASE,
+    OperatorEnum.NOT_CONTAINS_MATCH_PHRASE,
+    OperatorEnum.EXISTS,
+    OperatorEnum.NOT_EXISTS,
+]
+
 OPERATORS = {
     "keyword": [
         OperatorEnum.EQ_WILDCARD,
@@ -1898,12 +1907,8 @@ OPERATORS = {
         OperatorEnum.CONTAINS,
         OperatorEnum.NOT_CONTAINS,
     ],
-    "text": [
-        OperatorEnum.CONTAINS_MATCH_PHRASE,
-        OperatorEnum.NOT_CONTAINS_MATCH_PHRASE,
-        OperatorEnum.EXISTS,
-        OperatorEnum.NOT_EXISTS,
-    ],
+    "text": list(_TEXT_OPERATORS),
+    "match_only_text": list(_TEXT_OPERATORS),
     "integer": [
         OperatorEnum.EQ,
         OperatorEnum.NE,

@@ -37,6 +37,7 @@ from apps.log_esquery.type_constants import (
     type_search_dict,
     type_time_range_dict,
 )
+from apps.log_search.constants import TEXT_FIELD_TYPES
 from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     ScenarioQueryIndexFailException,
@@ -142,8 +143,12 @@ class EsQuery(object):
 
     def compatibility_result(self, result):
         # 兼容ES不同版本的Total
-        if "hits" in result and "total" in result["hits"] and isinstance(result["hits"]["total"], dict):
-            result["hits"]["total"] = result["hits"]["total"]["value"]
+        if (
+            isinstance(result, dict)
+            and isinstance(result.get("hits"), dict)
+            and isinstance(result["hits"].get("total"), dict)
+        ):
+            result["hits"]["total"] = result["hits"]["total"].get("value", 0)
         return result
 
     def search(self):
@@ -243,7 +248,7 @@ class EsQuery(object):
 
         result = client.scroll(indices, scroll_id, scroll)
 
-        return result
+        return self.compatibility_result(result)
 
     # 调用客户端执行dsl
     def dsl(self):
@@ -510,11 +515,12 @@ class EsQuery(object):
 
         field_list = []
         for field_name, field_info in field_data.get("fields", {}).items():
+            field_type = field_info.get("type", "object")
             field_list.append({
                 "field_name": field_name,
-                "field_type": field_info.get("type", "object"),
-                "is_analyzed": field_info.get("type") == "text",
-                "es_doc_values": field_info.get("type") != "text",
+                "field_type": field_type,
+                "is_analyzed": field_type in TEXT_FIELD_TYPES,
+                "es_doc_values": field_type not in TEXT_FIELD_TYPES,
                 "description": field_info.get("description", ""),
                 "field_alias": field_info.get("alias", ""),
                 "is_display": True,

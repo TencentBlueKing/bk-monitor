@@ -968,9 +968,6 @@ ES_PUBLIC_STORAGE_DURATION = int(os.environ.get("BKAPP_ES_PUBLIC_STORAGE_DURATIO
 # 公共集群存储容量限制
 ES_STORAGE_CAPACITY = os.environ.get("BKAPP_ES_STORAGE_CAPACITY", 0)
 
-# ES兼容：默认关闭，可以通过环境变量调整
-ES_COMPATIBILITY = int(os.environ.get("BKAPP_ES_COMPATIBILITY", 0))
-
 # scroll滚动查询：默认关闭，通过环境变量控制
 FEATURE_EXPORT_SCROLL = os.environ.get("BKAPP_FEATURE_EXPORT_SCROLL", False)
 

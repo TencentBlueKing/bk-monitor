@@ -650,3 +650,230 @@ class TestEsquery(TestCase):
             serialize_result.update({"track_total_hits": False})
             res = custom_params_valid(EsQuerySearchAttrSerializer, serialize_params)
             self.assertEqual(res, serialize_result)
+
+
+class TestEs8Es9Compat(TestCase):
+    def setUp(self) -> None:
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def tearDown(self) -> None:
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def test_es_version_helpers(self):
+        from apps.log_esquery.utils.es_client import (
+            get_es_major_version,
+            is_es_version_gte,
+            parse_es_version,
+        )
+
+        self.assertEqual(parse_es_version("9.4.3"), (9, 4, 3))
+        self.assertEqual(parse_es_version("8.19.19"), (8, 19, 19))
+        self.assertEqual(parse_es_version("7.17.13-SNAPSHOT"), (7, 17, 13))
+        self.assertEqual(parse_es_version("6.8.0"), (6, 8, 0))
+        self.assertEqual(parse_es_version("5.6.16"), (5, 6, 16))
+        self.assertIsNone(parse_es_version(""))
+        self.assertIsNone(parse_es_version(None))
+        self.assertIsNone(parse_es_version("unknown"))
+
+        self.assertEqual(get_es_major_version("9.4.3"), 9)
+        self.assertEqual(get_es_major_version("8.19.19"), 8)
+        self.assertEqual(get_es_major_version("6.8.0"), 6)
+        self.assertIsNone(get_es_major_version(None))
+
+        self.assertTrue(is_es_version_gte("9.4.3", (7, 2)))
+        self.assertTrue(is_es_version_gte("8.19.19", (7, 2)))
+        self.assertTrue(is_es_version_gte("7.2.0", (7, 2)))
+        self.assertFalse(is_es_version_gte("7.1.9", (7, 2)))
+        self.assertFalse(is_es_version_gte("6.8.0", (7, 2)))
+        self.assertTrue(is_es_version_gte(None, (7, 2), default=True))
+        self.assertFalse(is_es_version_gte(None, (7, 2), default=False))
+
+    def test_get_es_client_dispatch_without_compat_headers(self):
+        from django.conf import settings
+        from elasticsearch import Elasticsearch
+        from elasticsearch5 import Elasticsearch as Elasticsearch5
+        from elasticsearch6 import Elasticsearch as Elasticsearch6
+
+        from apps.log_esquery.utils.es_client import get_es_client
+
+        self.assertFalse(hasattr(settings, "ES_COMPATIBILITY"))
+
+        client_5 = get_es_client(version="5.6.16", hosts=["127.0.0.1"], username="u", password="p", port=9200)
+        client_6 = get_es_client(version="6.8.0", hosts=["127.0.0.1"], username="u", password="p", port=9200)
+        client_7 = get_es_client(version="7.17.13", hosts=["127.0.0.1"], username="u", password="p", port=9200)
+        client_8 = get_es_client(version="8.19.19", hosts=["127.0.0.1"], username="u", password="p", port=9200)
+        client_9 = get_es_client(version="9.4.3", hosts=["127.0.0.1"], username="u", password="p", port=9200)
+        client_unknown = get_es_client(version="", hosts=["127.0.0.1"], username="u", password="p", port=9200)
+
+        self.assertIsInstance(client_5, Elasticsearch5)
+        self.assertIsInstance(client_6, Elasticsearch6)
+        for client in (client_7, client_8, client_9, client_unknown):
+            self.assertIsInstance(client, Elasticsearch)
+            headers = getattr(client.transport, "headers", None) or {}
+            self.assertNotIn("compatible-with", str(headers).lower())
+
+    def test_get_cluster_es_version_and_interval_params(self):
+        from unittest.mock import patch
+
+        from apps.log_esquery.utils.es_client import (
+            build_date_histogram_interval_params,
+            get_cluster_es_version,
+        )
+
+        self.assertIsNone(get_cluster_es_version(None))
+        self.assertIsNone(get_cluster_es_version(-1))
+
+        with patch(
+            "apps.api.TransferApi.get_cluster_info",
+            side_effect=[
+                [{"cluster_config": {"version": "9.4.3"}}],
+                [{"cluster_config": {"version": "6.8.0"}}],
+            ],
+        ) as mock_cluster_info:
+            self.assertEqual(get_cluster_es_version(101), "9.4.3")
+            self.assertEqual(get_cluster_es_version(101), "9.4.3")
+            self.assertEqual(get_cluster_es_version(103), "6.8.0")
+            self.assertEqual(mock_cluster_info.call_count, 2)
+            mock_cluster_info.assert_any_call({"cluster_id": 101})
+            mock_cluster_info.assert_any_call({"cluster_id": 103})
+
+        with patch("apps.api.TransferApi.get_cluster_info", side_effect=RuntimeError("boom")):
+            self.assertIsNone(get_cluster_es_version(102))
+
+        self.assertEqual(build_date_histogram_interval_params("10m", "9.4.3"), {"fixed_interval": "10m"})
+        self.assertEqual(build_date_histogram_interval_params("5m", "8.19.19"), {"fixed_interval": "5m"})
+        self.assertEqual(build_date_histogram_interval_params("30s", "7.2.0"), {"fixed_interval": "30s"})
+        self.assertEqual(build_date_histogram_interval_params("5m", None), {"fixed_interval": "5m"})
+        for cal in ("1m", "1h", "1d", "1w", "1M"):
+            self.assertEqual(build_date_histogram_interval_params(cal, "9.4.3"), {"calendar_interval": cal})
+            self.assertEqual(build_date_histogram_interval_params(cal, "6.8.0"), {"interval": cal})
+        self.assertEqual(build_date_histogram_interval_params("10m", "7.1.9"), {"interval": "10m"})
+
+    @FakeRedis("apps.utils.cache.cache")
+    @patch(
+        "apps.log_esquery.esquery.client.QueryClientLog.QueryClientLog.mapping",
+        return_value=QUERY_MAPPING_RESULT_LOG,
+    )
+    @patch("apps.log_esquery.esquery.client.QueryClientLog.QueryClientLog.scroll")
+    def test_esquery_scroll_normalizes_dict_hits_total(self, mock_scroll, mock_mapping):
+        base_params = copy.deepcopy(SEARCH_DICT)
+        base_params.update({"scenario_id": Scenario.LOG, "scroll": "5m", "scroll_id": "scroll-1"})
+
+        mock_scroll.return_value = {
+            "_scroll_id": "scroll-2",
+            "hits": {"total": {"value": 123, "relation": "eq"}, "hits": []},
+        }
+        res = EsQuery(copy.deepcopy(base_params)).scroll()
+        self.assertEqual(res["hits"]["total"], 123)
+
+        mock_scroll.return_value = {
+            "_scroll_id": "scroll-3",
+            "hits": {"total": {"value": 0, "relation": "eq"}, "hits": []},
+        }
+        res_zero = EsQuery(copy.deepcopy(base_params)).scroll()
+        self.assertEqual(res_zero["hits"]["total"], 0)
+
+    def test_scene_fields_supports_match_only_text(self):
+        from unittest.mock import patch
+
+        mock_resp = {
+            "fields": {
+                "msg": {"type": "match_only_text", "description": "message"},
+                "status": {"type": "keyword", "description": "status"},
+            }
+        }
+        with patch("apps.api.UnifyQueryApi.query_field_map", return_value=mock_resp):
+            result = EsQuery.scene_fields(
+                space_uid="bkcc__2",
+                table_id_conditions=[[{"field": "table_id", "op": "eq", "values": ["2_bklog.test"]}]],
+            )
+
+        fields_by_name = {item["field_name"]: item for item in result["fields"]}
+        self.assertEqual(fields_by_name["msg"]["field_type"], "match_only_text")
+        self.assertTrue(fields_by_name["msg"]["is_analyzed"])
+        self.assertFalse(fields_by_name["msg"]["es_doc_values"])
+        self.assertEqual(fields_by_name["status"]["field_type"], "keyword")
+        self.assertFalse(fields_by_name["status"]["is_analyzed"])
+        self.assertTrue(fields_by_name["status"]["es_doc_values"])
+
+    def test_query_client_template_add_analyzer_details_es8_es9_typeless(self):
+        from apps.log_esquery.esquery.client.QueryClientTemplate import QueryClientTemplate
+
+        settings_data = {
+            "idx_a": {
+                "settings": {
+                    "index": {
+                        "analysis": {
+                            "analyzer": {
+                                "my_custom": {"type": "custom", "tokenizer": "standard"},
+                                "my_tok_analyzer": {"type": "custom", "tokenizer": "my_tok"},
+                            },
+                            "tokenizer": {
+                                "my_tok": {"type": "ngram", "min_gram": 2},
+                            },
+                        }
+                    }
+                }
+            }
+        }
+
+        empty_typeless = {
+            "idx_a": {
+                "mappings": {
+                    "dynamic_templates": [{"strings_as_keywords": {"match_mapping_type": "string"}}],
+                }
+            }
+        }
+        res_empty = QueryClientTemplate.add_analyzer_details(copy.deepcopy(empty_typeless), copy.deepcopy(settings_data))
+        self.assertEqual(
+            res_empty["idx_a"]["mappings"]["dynamic_templates"][0]["strings_as_keywords"]["match_mapping_type"],
+            "string",
+        )
+
+        typeless_with_props = {
+            "idx_a": {
+                "mappings": {
+                    "dynamic_templates": [],
+                    "properties": {
+                        "log": {"type": "text", "analyzer": "my_custom"},
+                        "title": {"type": "text", "analyzer": "my_tok_analyzer"},
+                    },
+                }
+            }
+        }
+        res_typeless = QueryClientTemplate.add_analyzer_details(typeless_with_props, copy.deepcopy(settings_data))
+        props = res_typeless["idx_a"]["mappings"]["properties"]
+        self.assertEqual(
+            props["log"]["analyzer_details"],
+            {"type": "custom", "tokenizer": "standard", "tokenizer_details": None},
+        )
+        self.assertEqual(
+            props["title"]["analyzer_details"],
+            {
+                "type": "custom",
+                "tokenizer": "my_tok",
+                "tokenizer_details": {"type": "ngram", "min_gram": 2},
+            },
+        )
+
+        typed_es6 = {
+            "idx_a": {
+                "mappings": {
+                    "_doc": {
+                        "properties": {
+                            "log": {"type": "text", "analyzer": "my_custom"},
+                        }
+                    }
+                }
+            }
+        }
+        res_typed = QueryClientTemplate.add_analyzer_details(typed_es6, copy.deepcopy(settings_data))
+        self.assertEqual(
+            res_typed["idx_a"]["mappings"]["_doc"]["properties"]["log"]["analyzer_details"],
+            {"type": "custom", "tokenizer": "standard", "tokenizer_details": None},
+        )
+

@@ -27,11 +27,16 @@ from collections import defaultdict
 from django.conf import settings
 from elasticsearch_dsl import A, Search
 
+from apps.log_esquery.utils.es_client import (
+    build_date_histogram_interval_params,
+    get_cluster_es_version,
+)
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import DateHistogramException
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
 )
+from apps.log_search.models import LogIndexSet, Scenario
 from apps.utils.local import get_local_param
 from apps.utils.log import logger
 from apps.utils.time_handler import (
@@ -165,6 +170,21 @@ class AggsHandlers(AggsBase):
         return aggs
 
     @classmethod
+    def _get_es_version(cls, index_set_id) -> str | None:
+        try:
+            index_set = (
+                LogIndexSet.objects.filter(index_set_id=index_set_id)
+                .only("scenario_id", "storage_cluster_id")
+                .first()
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("query index_set es version failed, index_set_id=%s, error=%s", index_set_id, e)
+            return None
+        if not index_set or index_set.scenario_id not in (Scenario.LOG, Scenario.ES):
+            return None
+        return get_cluster_es_version(index_set.storage_cluster_id)
+
+    @classmethod
     def date_histogram(cls, index_set_id, query_data: dict):
         query_data = copy.deepcopy(query_data)
         s = Search()
@@ -182,6 +202,7 @@ class AggsHandlers(AggsBase):
 
         time_format = cls.TIME_FORMAT_MAP.get(interval, cls.TIME_FORMAT)
         datetime_format = cls.DATETIME_FORMAT_MAP.get(interval, cls.DATETIME_FORMAT)
+        interval_params = build_date_histogram_interval_params(interval, es_version=cls._get_es_version(index_set_id))
 
         time_field, time_field_type, time_field_unit = SearchHandlerEsquery.init_time_field(index_set_id)
         # https://github.com/elastic/elasticsearch/issues/42270 非date类型不支持timezone, time format也无效
@@ -191,7 +212,7 @@ class AggsHandlers(AggsBase):
             date_histogram = A(
                 "date_histogram",
                 field=time_field,
-                interval=interval,
+                **interval_params,
                 format=time_format,
                 time_zone=time_zone,
                 min_doc_count=cls.MIN_DOC_COUNT,
@@ -208,7 +229,7 @@ class AggsHandlers(AggsBase):
             date_histogram = A(
                 "date_histogram",
                 field=time_field,
-                interval=interval,
+                **interval_params,
                 min_doc_count=cls.MIN_DOC_COUNT,
                 extended_bounds={"min": min_value, "max": max_value},
             )

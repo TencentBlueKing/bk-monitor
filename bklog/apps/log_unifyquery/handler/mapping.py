@@ -41,6 +41,7 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
     LOG_ASYNC_FIELDS,
     OPERATORS,
+    TEXT_FIELD_TYPES,
     FieldBuiltInEnum,
     SearchScopeEnum,
     DorisFieldTypeEnum,
@@ -237,8 +238,8 @@ class UnifyQueryMappingHandler:
                     "is_editable": True,
                     "tag": field.get("tag", ""),
                     "origin_field": field.get("origin_field", ""),
-                    "es_doc_values": field.get("is_agg", False),
-                    "is_analyzed": field.get("is_analyzed", False),
+                    "es_doc_values": False if field_type == "match_only_text" else field.get("is_agg", False),
+                    "is_analyzed": True if field_type == "match_only_text" else field.get("is_analyzed", False),
                     "field_operator": OPERATORS.get(field_type, []),
                     "is_case_sensitive": field.get("is_case_sensitive", False),
                     "tokenize_on_chars": tokenize_on_chars,
@@ -257,7 +258,9 @@ class UnifyQueryMappingHandler:
             for field in fields_list:
                 field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field)
                 field["field_operator"] = OPERATORS.get(field["field_type"], [])
-                field["es_doc_values"] = field["field_type"] not in ["text", "object"] and field["field_name"] not in [
+                field["es_doc_values"] = field["field_type"] not in (*TEXT_FIELD_TYPES, "object") and field[
+                    "field_name"
+                ] not in [
                     "dtEventTime",
                     "localTime",
                     "thedate",
@@ -456,7 +459,7 @@ class UnifyQueryMappingHandler:
         type_text_fields = [
             field["field_name"]
             for field in final_fields_list
-            if field["field_type"] == "text" and not field["field_name"].startswith("_")
+            if field["field_type"] in TEXT_FIELD_TYPES and not field["field_name"].startswith("_")
         ]
         if type_text_fields:
             return type_text_fields[:2]

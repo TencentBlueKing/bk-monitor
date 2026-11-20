@@ -562,3 +562,115 @@ class TestSearchHandler(TestCase):
     def test_init_indices_str(self):
         indices_str = self.search_handler._init_indices_str()
         self.assertEqual(indices_str, CLUSTERED_RT)
+
+    def test_extract_hits_total_and_can_scroll(self):
+        self.assertEqual(SearchHandler._extract_hits_total({"hits": {"total": {"value": 42, "relation": "eq"}}}), 42)
+        self.assertEqual(SearchHandler._extract_hits_total({"hits": {"total": {"value": 0, "relation": "eq"}}}), 0)
+        self.assertEqual(SearchHandler._extract_hits_total({"hits": {"total": 7}}), 7)
+        self.assertEqual(SearchHandler._extract_hits_total({}), 0)
+        self.assertEqual(SearchHandler._extract_hits_total(None), 0)
+
+        self.search_handler.scenario_id = "log"
+        self.search_handler.is_scroll = True
+        self.search_handler.size = 15000
+        self.assertTrue(
+            self.search_handler._can_scroll(
+                {"_scroll_id": "s1", "hits": {"total": {"value": 10001, "relation": "eq"}}}
+            )
+        )
+        self.assertFalse(
+            self.search_handler._can_scroll({"_scroll_id": "s2", "hits": {"total": {"value": 0, "relation": "eq"}}})
+        )
+
+    def test_scroll_handles_dict_hits_total(self):
+        search_result = {
+            "_scroll_id": "s1",
+            "hits": {"total": {"value": 2, "relation": "eq"}, "hits": [{"_id": "1"}]},
+        }
+        self.search_handler.size = 5
+        self.search_handler.scroll = "5m"
+        with (
+            patch("apps.log_search.handlers.search.search_handlers_esquery.MAX_RESULT_WINDOW", 1),
+            patch(
+                "apps.log_search.handlers.search.search_handlers_esquery.BkLogApi.scroll",
+                side_effect=[
+                    {"_scroll_id": "s2", "hits": {"total": {"value": 2, "relation": "eq"}, "hits": [{"_id": "2"}]}},
+                    {"_scroll_id": "s3", "hits": {"total": {"value": 0, "relation": "eq"}, "hits": []}},
+                ],
+            ),
+        ):
+            self.search_handler._scroll(search_result)
+        self.assertEqual(len(search_result["hits"]["hits"]), 2)
+        self.assertEqual(search_result["hits"]["total"], 0)
+
+    def test_multi_search_and_deal_query_result_dict_hits_total(self):
+        import copy
+
+        part_1 = {
+            "took": 5,
+            "timed_out": False,
+            "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0},
+            "hits": {"total": {"value": 3, "relation": "eq"}, "hits": [{"_id": "1", "_source": {"dtEventTimeStamp": 1}}]},
+        }
+        part_2 = {
+            "took": 4,
+            "timed_out": False,
+            "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0},
+            "hits": {"total": {"value": 2, "relation": "eq"}, "hits": [{"_id": "2", "_source": {"dtEventTimeStamp": 2}}]},
+        }
+        self.search_handler.indices = "idx_a,idx_b"
+        self.search_handler.start_time = "2026-01-01 00:00:00"
+        self.search_handler.end_time = "2026-01-01 01:00:00"
+        self.search_handler.storage_cluster_id = 1
+        self.search_handler.sort_list = []
+        self.search_handler._filter = None
+        history_cluster = Mock(storage_cluster_id=2)
+
+        def _search_by_cluster(params):
+            return copy.deepcopy(part_1 if params["storage_cluster_id"] == 1 else part_2)
+
+        with (
+            patch.object(SearchHandler, "_init_filter", return_value=[]),
+            patch("apps.log_search.handlers.search.search_handlers_esquery.StorageClusterRecord") as mock_record,
+            patch.object(
+                self.search_handler,
+                "fetch_esquery_method",
+                return_value=_search_by_cluster,
+            ),
+        ):
+            mock_record.objects.filter.return_value.exclude.return_value = [history_cluster]
+            merged = self.search_handler._multi_search(once_size=1)
+        self.assertEqual(merged["hits"]["total"], 5)
+
+        empty_1 = copy.deepcopy(part_1)
+        empty_1["hits"] = {"total": {"value": 0, "relation": "eq"}, "hits": []}
+        empty_2 = copy.deepcopy(part_2)
+        empty_2["hits"] = {"total": {"value": 0, "relation": "eq"}, "hits": []}
+        self.search_handler._filter = None
+
+        def _search_empty_by_cluster(params):
+            return copy.deepcopy(empty_1 if params["storage_cluster_id"] == 1 else empty_2)
+
+        with (
+            patch.object(SearchHandler, "_init_filter", return_value=[]),
+            patch("apps.log_search.handlers.search.search_handlers_esquery.StorageClusterRecord") as mock_record,
+            patch.object(
+                self.search_handler,
+                "fetch_esquery_method",
+                return_value=_search_empty_by_cluster,
+            ),
+        ):
+            mock_record.objects.filter.return_value.exclude.return_value = [history_cluster]
+            merged_empty = self.search_handler._multi_search(once_size=1)
+        self.assertEqual(merged_empty["hits"]["total"], 0)
+
+        es9_result = copy.deepcopy(DOT_DICT)
+        es9_result["hits"]["total"] = {"value": 3, "relation": "eq"}
+        dealt = self.search_handler._deal_query_result(es9_result)
+        self.assertEqual(dealt["total"], 3)
+
+        es9_zero = copy.deepcopy(DOT_DICT)
+        es9_zero["hits"] = {"total": {"value": 0, "relation": "eq"}, "hits": []}
+        dealt_zero = self.search_handler._deal_query_result(es9_zero)
+        self.assertEqual(dealt_zero["total"], 0)
+

@@ -482,6 +482,7 @@ class EtlConfigChoices(ChoicesEnum):
 NODE_ATTR_PREFIX_BLACKLIST = [
     "ml.",
     "xpack.",
+    "transform.",
 ]
 
 BKDATA_ES_TYPE_MAP = {

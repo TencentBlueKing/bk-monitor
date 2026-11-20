@@ -1616,3 +1616,131 @@ class TestStorageRetentionCompat(TestCase):
 
         self.assertEqual(result[0]["retention"], 0)
         self.assertEqual(result[0]["storage_cluster_id"], -1)
+
+
+class TestStorageEs8Es9Compat(TestCase):
+    def test_is_data_node(self):
+        from apps.log_databus.handlers.storage import StorageHandler
+
+        self.assertTrue(StorageHandler._is_data_node({"roles": ["data_hot"]}, {}))
+        self.assertTrue(StorageHandler._is_data_node({"roles": ["data_warm"]}, {}))
+        self.assertTrue(StorageHandler._is_data_node({"roles": ["data_cold"]}, {}))
+        self.assertTrue(StorageHandler._is_data_node({"roles": ["data_content"]}, {}))
+        self.assertTrue(StorageHandler._is_data_node({"roles": ["data"]}, {}))
+        self.assertFalse(StorageHandler._is_data_node({"roles": ["master", "ingest"]}, {}))
+        self.assertFalse(StorageHandler._is_data_node({"roles": ["transform"]}, {}))
+        self.assertFalse(StorageHandler._is_data_node({"roles": []}, {}))
+
+        self.assertFalse(StorageHandler._is_data_node({}, {"data": "false"}))
+        self.assertTrue(StorageHandler._is_data_node({}, {"data": "true"}))
+        self.assertTrue(StorageHandler._is_data_node({}, {}))
+
+    def test_list_node_attrs_es8_es9_compat(self):
+        from unittest.mock import MagicMock, patch
+
+        from apps.log_databus.handlers.storage import StorageHandler
+
+        mock_es_client = MagicMock()
+        mock_es_client.transport.perform_request.return_value = {
+            "nodes": {
+                "coord_only": {
+                    "name": "coord-1",
+                    "host": "10.0.0.1",
+                    "ip": "10.0.0.1",
+                    "roles": [],
+                    "settings": {"node": {}},
+                },
+                "master_only": {
+                    "name": "master-1",
+                    "host": "10.0.0.2",
+                    "ip": "10.0.0.2",
+                    "roles": ["master"],
+                    "settings": {"node": {"attr": {"tag": "master"}}},
+                },
+                "hot_node": {
+                    "name": "hot-1",
+                    "host": "10.0.0.3",
+                    "ip": "10.0.0.3",
+                    "roles": ["data_hot", "ingest"],
+                    "settings": {"node": {"attr": {"tag": "hot", "transform": {"enabled": "true"}}}},
+                },
+                "warm_no_attr": {
+                    "name": "warm-1",
+                    "host": "10.0.0.4",
+                    "ip": "10.0.0.4",
+                    "roles": ["data_warm"],
+                    "settings": {"node": {}},
+                },
+            }
+        }
+
+        with (
+            patch(
+                "apps.log_databus.handlers.storage.get_es_client",
+                return_value=mock_es_client,
+            ),
+            patch(
+                "apps.log_databus.handlers.storage.es_client_ping",
+                return_value=True,
+            ),
+        ):
+            attrs = StorageHandler().list_node_attrs(
+                bk_biz_id=2,
+                domain_name="127.0.0.1",
+                port=9200,
+                username="u",
+                password="p",
+            )
+
+        self.assertEqual(
+            attrs,
+            [
+                {"attr": "tag", "value": "hot", "id": "hot_node", "name": "hot-1", "host": "10.0.0.3", "ip": "10.0.0.3"},
+            ],
+        )
+
+    def test_get_hot_warm_node_info_es8_es9_roles(self):
+        from unittest.mock import MagicMock, patch
+
+        from apps.log_databus.handlers.storage import StorageHandler
+
+        mock_es_client = MagicMock()
+        mock_es_client.cat.nodeattrs.return_value = [
+            {"host": "10.0.0.1", "attr": "temperature", "value": "hot", "ip": "10.0.0.1"},
+            {"host": "10.0.0.2", "attr": "temperature", "value": "warm", "ip": "10.0.0.2"},
+        ]
+        mock_es_client.cat.nodes.return_value = [
+            {"ip": "10.0.0.1", "node.role": "h"},
+            {"ip": "10.0.0.5", "node.role": "s"},
+            {"ip": "10.0.0.2", "node.role": "w"},
+            {"ip": "10.0.0.3", "node.role": "c"},
+            {"ip": "10.0.0.4", "node.role": "f"},
+            {"ip": "10.0.0.6", "node.role": "m"},
+            {"ip": "10.0.0.7", "node.role": "-"},
+        ]
+
+        params = {
+            "version": "9.4.3",
+            "domain_name": "127.0.0.1",
+            "port": 9200,
+            "schema": "http",
+            "auth_info": {"username": "u", "password": "p"},
+            "enable_hot_warm": False,
+            "hot_attr_name": "temperature",
+            "hot_attr_value": "hot",
+            "warm_attr_name": "temperature",
+            "warm_attr_value": "warm",
+        }
+        with patch("apps.log_databus.handlers.storage.get_es_client", return_value=mock_es_client):
+            self.assertEqual(StorageHandler().get_hot_warm_node_info(params), (2, 3))
+
+            mock_es_client.cat.nodes.return_value = [
+                {"ip": "10.0.0.8", "node.role": "di"},
+                {"ip": "10.0.0.9", "node.role": "m"},
+            ]
+            es7_params = {**params, "version": "7.17.13"}
+            self.assertEqual(StorageHandler().get_hot_warm_node_info(es7_params), (1, 0))
+
+            hot_warm_params = {**params, "enable_hot_warm": True}
+            self.assertEqual(StorageHandler().get_hot_warm_node_info(hot_warm_params), (1, 1))
+

@@ -24,6 +24,7 @@ from apps.log_search.constants import (
     MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
     MAX_RESULT_WINDOW,
     OPERATORS,
+    TEXT_FIELD_TYPES,
     FieldBuiltInEnum,
     IndexSetDataType,
 )
@@ -640,8 +641,10 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                         "is_editable": True,
                         "tag": item.get("tag", ""),
                         "origin_field": item.get("origin_field", ""),
-                        "es_doc_values": item.get("is_agg", ft != "text"),
-                        "is_analyzed": item.get("is_analyzed", ft == "text"),
+                        "es_doc_values": False
+                        if ft == "match_only_text"
+                        else item.get("is_agg", ft not in TEXT_FIELD_TYPES),
+                        "is_analyzed": True if ft == "match_only_text" else item.get("is_analyzed", ft in TEXT_FIELD_TYPES),
                         "field_operator": OPERATORS.get(ft, []),
                         "is_case_sensitive": item.get("is_case_sensitive", False),
                         "tokenize_on_chars": tokenize_on_chars,
@@ -661,8 +664,8 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                         "is_editable": True,
                         "tag": "",
                         "origin_field": "",
-                        "es_doc_values": ft != "text",
-                        "is_analyzed": ft == "text",
+                        "es_doc_values": ft not in TEXT_FIELD_TYPES,
+                        "is_analyzed": ft in TEXT_FIELD_TYPES,
                         "field_operator": OPERATORS.get(ft, []),
                         "is_case_sensitive": False,
                         "tokenize_on_chars": "",

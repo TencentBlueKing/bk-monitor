@@ -35,6 +35,89 @@ from apps.log_esquery.exceptions import (
     EsClientHostPortException,
     EsClientSocketException,
 )
+from apps.utils.cache import cache_five_minute
+from apps.utils.log import logger
+
+ES_NEW_SYNTAX_MIN_VERSION = (7, 2)
+CALENDAR_INTERVALS = {
+    "1m",
+    "minute",
+    "1h",
+    "hour",
+    "1d",
+    "day",
+    "1w",
+    "week",
+    "1M",
+    "month",
+    "1q",
+    "quarter",
+    "1y",
+    "year",
+}
+
+
+def parse_es_version(version: str | None) -> tuple[int, ...] | None:
+    """解析 ES 版本号为主/次/修订版本整数元组，无法解析时返回 None。"""
+    if not version or not isinstance(version, str):
+        return None
+    cleaned = version.strip().lstrip("vV").split("-", 1)[0]
+    if not cleaned:
+        return None
+    parts = []
+    for segment in cleaned.split(".")[:3]:
+        if segment.isdigit():
+            parts.append(int(segment))
+        elif segment.lower() == "x" and parts:
+            parts.append(0)
+        else:
+            return None
+    return tuple(parts) if parts else None
+
+
+def get_es_major_version(version: str | None) -> int | None:
+    parsed = parse_es_version(version)
+    return parsed[0] if parsed else None
+
+
+def is_es_version_gte(version: str | None, target: tuple[int, ...], default: bool = True) -> bool:
+    parsed = parse_es_version(version)
+    if parsed is None:
+        return default
+    width = max(len(parsed), len(target))
+    padded_version = parsed + (0,) * (width - len(parsed))
+    padded_target = target + (0,) * (width - len(target))
+    return padded_version >= padded_target
+
+
+def build_date_histogram_interval_params(interval: str, es_version: str | None = None) -> dict[str, str]:
+    """按 ES 版本与窗口语义构造 date_histogram 间隔参数。"""
+    if not is_es_version_gte(es_version, ES_NEW_SYNTAX_MIN_VERSION, default=True):
+        return {"interval": interval}
+    if interval in CALENDAR_INTERVALS:
+        return {"calendar_interval": interval}
+    return {"fixed_interval": interval}
+
+
+@cache_five_minute("es_cluster_version_{storage_cluster_id}", need_md5=True)
+def _fetch_cluster_es_version(*, storage_cluster_id: int) -> str | None:
+    from apps.api import TransferApi
+
+    cluster_info = TransferApi.get_cluster_info({"cluster_id": storage_cluster_id})
+    if not cluster_info:
+        return None
+    return cluster_info[0].get("cluster_config", {}).get("version")
+
+
+def get_cluster_es_version(storage_cluster_id: int | None) -> str | None:
+    """查询并缓存存储集群 ES 版本，失败时降级返回 None。"""
+    if not storage_cluster_id or storage_cluster_id == -1:
+        return None
+    try:
+        return _fetch_cluster_es_version(storage_cluster_id=storage_cluster_id)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning("get cluster es version failed, cluster_id=%s, error=%s", storage_cluster_id, e)
+        return None
 
 
 def get_es_client(
@@ -49,11 +132,13 @@ def get_es_client(
     **kwargs,
 ) -> Elasticsearch:
     # 根据版本加载客户端
-    if version and version.startswith("5."):
+    major_version = get_es_major_version(version)
+    if major_version == 5:
         es_client = Elasticsearch5
-    elif version and version.startswith("6."):
+    elif major_version == 6:
         es_client = Elasticsearch6
     else:
+        # 7.x/8.x/9.x 统一复用 7.17 客户端，不走兼容头，DSL 与响应在业务层按版本适配
         es_client = Elasticsearch
 
     # 由于IPV6地址需要加[], 所以需要对hosts进行处理
