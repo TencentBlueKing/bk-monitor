@@ -64,19 +64,20 @@ from apps.utils.time_handler import timestamp_to_datetime
 API_AUTH_KEYS = ["bk_app_code", "bk_app_secret", "bk_username", "bk_token", "access_token", "bk_ticket"]
 
 
-def get_request_api_headers(params):
+def get_request_api_headers(params, *, use_implicit_user_auth=True):
     """
     获取api网关鉴权认证请求头
     """
-    username = params.get("bk_username") or get_request_username(default="")
-    if not username and "celery" in sys.argv:
-        has_ticket = any(params.get(key) for key in ("bk_token", "access_token", "bk_ticket"))
-        username = "admin" if has_ticket else single_tenant_backend_username("admin")
     api_headers = {
         "bk_app_code": settings.APP_CODE,
         "bk_app_secret": settings.SECRET_KEY,
-        "bk_username": username,
     }
+    if use_implicit_user_auth:
+        username = params.get("bk_username") or get_request_username(default="")
+        if not username and "celery" in sys.argv:
+            has_ticket = any(params.get(key) for key in ("bk_token", "access_token", "bk_ticket"))
+            username = "admin" if has_ticket else single_tenant_backend_username("admin")
+        api_headers["bk_username"] = username
     api_headers.update(params)
     return json.dumps(api_headers)
 
@@ -232,6 +233,7 @@ class DataAPI:
         no_query_params=False,
         pagination_style=PaginationStyle.LIMIT_OFFSET.value,
         bk_tenant_id: str | Callable[[dict], str] = "",
+        use_implicit_user_auth=True,
     ):
         """
         初始化一个请求句柄
@@ -284,6 +286,7 @@ class DataAPI:
         self.pagination_style = pagination_style
 
         self.bk_tenant_id = bk_tenant_id
+        self.use_implicit_user_auth = use_implicit_user_auth
         self.headers = None
         self.no_query_params = no_query_params
 
@@ -548,7 +551,8 @@ class DataAPI:
             value = params.get(key)
             if value:
                 api_auth_params[key] = value
-        session.headers.update({"X-Bkapi-Authorization": get_request_api_headers(api_auth_params)})
+        authorization = get_request_api_headers(api_auth_params, use_implicit_user_auth=self.use_implicit_user_auth)
+        session.headers.update({"X-Bkapi-Authorization": authorization})
 
         if self.header_keys:
             headers = {key: params.get(key) for key in self.header_keys if key in params}

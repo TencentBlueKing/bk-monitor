@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import SimpleTestCase, override_settings
 
 from apps.api.modules.utils import update_bkdata_auth_info
@@ -21,10 +22,8 @@ class BackendUsernameTest(SimpleTestCase):
         self.assertEqual(params["operator"], "virtual-id")
         lookup.assert_called_once_with(
             {
-                "bk_tenant_id": "default",
                 "lookup_field": "login_name",
                 "lookups": "service-login",
-                "bk_username": "admin",
             },
             bk_tenant_id="default",
         )
@@ -54,16 +53,23 @@ class BackendUsernameTest(SimpleTestCase):
 
         response = Mock(status_code=200)
         response.json.return_value = {"code": 0, "result": True, "data": [{"bk_username": "virtual-id"}]}
-        with patch("requests.sessions.Session.request", return_value=response) as send:
+        with (
+            patch("requests.sessions.Session.request", return_value=response) as send,
+            patch.object(local.sys, "argv", ["celery"]),
+            patch("apps.api.base.get_request_username", side_effect=AssertionError("unexpected user lookup")),
+        ):
             self.assertEqual(local.get_backend_username(bk_tenant_id="system"), "virtual-id")
             resource = local.BKLoginApi.batch_lookup_virtual_user
             self.assertEqual(resource.headers["X-Bk-Tenant-Id"], "default")
-            self.assertEqual(json.loads(resource.headers["X-Bkapi-Authorization"])["bk_username"], "admin")
+            self.assertEqual(
+                json.loads(resource.headers["X-Bkapi-Authorization"]),
+                {"bk_app_code": settings.APP_CODE, "bk_app_secret": settings.SECRET_KEY},
+            )
             self.assertIn("/api/v3/open/tenant/virtual-users/-/lookup/", send.call_args.kwargs["url"])
             self.assertEqual(send.call_args.kwargs["params"]["lookups"], "service-login")
-            self.assertEqual(
-                json.loads(get_request_api_headers({"bk_username": "request-user"}))["bk_username"], "request-user"
-            )
+            self.assertNotIn("bk_username", send.call_args.kwargs["params"])
+            headers = get_request_api_headers({"bk_username": "request-user"}, use_implicit_user_auth=False)
+            self.assertEqual(json.loads(headers)["bk_username"], "request-user")
             send.assert_called_once()
 
     @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_ADMIN_USERNAME=None)
