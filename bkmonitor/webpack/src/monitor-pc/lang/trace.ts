@@ -438,6 +438,7 @@ export default {
   使用历史配置重新执行本次采集: 'Re-run this collection using the historical configuration',
   '搜索 IP、进程名或 PID': 'Search IP, process name, or PID',
   '搜索“{result}”，找到 {count} 条结果': 'Search "{result}", found {count} results',
+  '{label}：{value}': '{label}: {value}',
   搜索并高亮相同名称的函数: 'Search and highlight functions with the same name',
   '同一计划的上一轮采集仍在进行，本轮已跳过':
     'The previous round of this task is still running, so this round was skipped.',
