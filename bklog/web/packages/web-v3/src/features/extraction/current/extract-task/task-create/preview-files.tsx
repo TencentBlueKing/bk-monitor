@@ -479,6 +479,7 @@ export default defineComponent({
                 <bk-select
                   clearable={false}
                   data-test-id='addNewExtraction_div_selectPreviewAddress'
+                  minCollapsedNum={1}
                   value={previewIp.value}
                   multiple
                   show-select-all
@@ -493,7 +494,7 @@ export default defineComponent({
                   ))}
                 </bk-select>
               </div>
-              <div class='file-search-option'>
+              <div class='file-search-option file-search-time'>
                 <div class='file-search-label'>{t('时间范围')}</div>
                 <FileDatePicker
                   timeRange={timeRange.value}
@@ -602,7 +603,7 @@ export default defineComponent({
               />
               <bk-table-column
                 label={t('文件大小')}
-                width={100}
+                width={120}
                 prop='size'
                 sortable='custom'
               />

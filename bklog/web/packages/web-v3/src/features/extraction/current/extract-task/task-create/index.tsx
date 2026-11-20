@@ -474,6 +474,7 @@ export default defineComponent({
                   <TButton
                     class='select-target-button'
                     data-test-id='addNewExtraction_button_selectTheServer'
+                    theme='default'
                     icon={() => <span class={`bk-icon icon-${'plus'}`} />}
                     onClick={() => (showSelectDialog.value = true)}
                   >

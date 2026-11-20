@@ -2,10 +2,28 @@
   width: 360px;
   margin-right: 20px;
 
+  .file-date-shortcut-label {
+    display: none;
+  }
+
   &.has-shortcut {
-    .t-range-input__inner-right,
-    .t-range-input__inner-separator {
-      display: none;
+    .t-range-input__prefix {
+      position: absolute;
+      inset: 0 auto 0 8px;
+      pointer-events: none;
+    }
+
+    .t-range-input-popup:not(.t-range-input-popup--visible) {
+      .file-date-shortcut-label {
+        display: inline;
+      }
+
+      // Keep native focus/blur working while the shortcut label covers the values.
+      .t-range-input__inner-left,
+      .t-range-input__inner-right,
+      .t-range-input__inner-separator {
+        opacity: 0;
+      }
     }
   }
 }

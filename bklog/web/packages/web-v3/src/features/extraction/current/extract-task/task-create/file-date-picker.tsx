@@ -122,7 +122,7 @@ export default defineComponent({
     return () => (
       <DateRangePicker
         class={['king-date-picker', 'file-date-picker', { 'has-shortcut': !!shortText.value }]}
-        rangeInputProps={shortText.value ? { inputProps: [{ value: shortText.value }, { value: '' }] } : {}}
+        label={shortText.value ? () => <span class='file-date-shortcut-label'>{shortText.value}</span> : undefined}
         clearable={false}
         enableTimePicker
         format='YYYY-MM-DD HH:mm:ss'
