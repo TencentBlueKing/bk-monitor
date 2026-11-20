@@ -33,9 +33,14 @@ test('production artifact checks reject missing resources and origin-root asset 
   mkdirSync(join(dir, 'assets'));
   writeFileSync(join(dir, 'index.html'), productionHtml('<head><title>x</title><script type="module" src="./assets/app.js"></script><link href="./assets/app.css"></head>'));
   writeFileSync(join(dir, 'assets/app.js'), 'export const synthetic = true;');
-  writeFileSync(join(dir, 'assets/app.css'), 'body { color: red; }');
+  const cssPath = join(dir, 'assets/app.css');
+  const inlineSvg = '.synthetic { background-image: url("data:image/svg+xml,%3Csvg%3E%3Cpath fill=\'url(%23pattern-1)\'/%3E%3C/svg%3E"); }';
+  writeFileSync(cssPath, inlineSvg);
   writeFileSync(join(dir, 'asset-manifest.js'), 'self.assetData =["__STATIC_URL__assets/app.js","__STATIC_URL__assets/app.css"];');
   assert.equal(verifyProductionBuild(dir).status, 'PRODUCTION_DELIVERY_VERIFIED');
+  writeFileSync(cssPath, inlineSvg + '.missing { background-image: url("missing%20image.svg#fragment"); }');
+  assert.throws(() => verifyProductionBuild(dir), /Missing\/escaping asset: missing%20image\.svg#fragment/);
+  writeFileSync(cssPath, inlineSvg);
   writeFileSync(join(dir, '.env.local'), 'SYNTHETIC_ONLY=true');
   assert.throws(() => verifyProductionBuild(dir), /Private/);
   rmSync(join(dir, '.env.local'));
@@ -49,7 +54,7 @@ test('production artifact checks reject missing resources and origin-root asset 
 test('Make installer works on npm-only hosts and isolates both commands to the Vue3 package', t => {
   const dir = mkdtempSync(join(tmpdir(), 'bklog-build-bootstrap-synthetic-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const trace = join(dir, 'trace.txt'), shim = join(dir, 'npx');
+  const trace = join(dir, 'trace.txt'), shim = join(dir, 'npm');
   writeFileSync(shim, `#!/bin/sh\nprintf '%s\\n' "$PWD|$NODE_ENV|$*" >> "$SYNTHETIC_TRACE"\n`);
   chmodSync(shim, 0o755);
   const result = spawnSync(process.execPath, [fileURLToPath(new URL('../../../scripts/build-web.mjs', import.meta.url))], {
@@ -58,8 +63,8 @@ test('Make installer works on npm-only hosts and isolates both commands to the V
   assert.equal(result.status, 0, result.stderr);
   const lines = readFileSync(trace, 'utf8').trim().split('\n');
   assert.equal(lines.length, 2);
-  assert.ok(lines.every(line => line.includes('/packages/web-v3|') && line.includes('|--yes pnpm@')));
+  assert.ok(lines.every(line => line.includes('/packages/web-v3|') && line.includes('|--loglevel=error exec --yes --package pnpm@')));
   assert.match(lines[0], /--ignore-workspace install --frozen-lockfile --prod=false$/);
-  assert.match(lines[1], /\|production\|--yes pnpm@/);
+  assert.match(lines[1], /\|production\|--loglevel=error exec --yes --package pnpm@/);
   assert.match(lines[1], /--ignore-workspace run build$/);
 });

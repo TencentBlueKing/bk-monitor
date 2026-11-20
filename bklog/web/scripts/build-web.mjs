@@ -14,7 +14,7 @@ for (const args of [
   let result = spawnSync(process.env.PNPM || 'pnpm', args, { cwd: packageRoot, env, stdio: 'inherit' });
   // Existing build hosts may only have Node/npm. Bootstrap the pinned pnpm via npm.
   if (!process.env.PNPM && result.error?.code === 'ENOENT') {
-    result = spawnSync('npx', ['--yes', manager, ...args], { cwd: packageRoot, env, stdio: 'inherit' });
+    result = spawnSync('npm', ['--loglevel=error', 'exec', '--yes', '--package', manager, '--', 'pnpm', ...args], { cwd: packageRoot, env, stdio: 'inherit' });
   }
   if (result.error) { console.error(result.error.message); process.exit(1); }
   if (result.status !== 0) process.exit(result.status || 1);
