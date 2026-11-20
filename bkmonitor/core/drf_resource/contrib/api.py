@@ -78,6 +78,8 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
     METRIC_REPORT_NOW = True
     # CMDB API 已在请求头的 x-bkapi-authorization 中包含了 bk_username，不需要在请求参数中重复添加
     INSERT_BK_USERNAME_TO_REQUEST_DATA = True
+    # 部分应用态资源只校验应用凭证，不应从请求上下文或后台管理员补充用户身份。
+    USE_IMPLICIT_USER_AUTH = True
 
     ignore_error_msg_list = []
 
@@ -177,7 +179,7 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
         auth_params = {"bk_app_code": settings.APP_CODE, "bk_app_secret": settings.SECRET_KEY}
         if getattr(self, "bk_username", None):
             auth_params["bk_username"] = self.bk_username
-        else:
+        elif self.USE_IMPLICIT_USER_AUTH:
             request = get_request(peaceful=True)
             if request and not getattr(request, "external_user", None):
                 auth_params.update(get_bk_login_ticket(request))
