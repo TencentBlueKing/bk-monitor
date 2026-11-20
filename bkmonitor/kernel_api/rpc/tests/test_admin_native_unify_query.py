@@ -7,11 +7,23 @@ from unittest.mock import Mock
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from django.db import connection
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.define.global_config import ADVANCED_OPTIONS
+from bkmonitor.models import GlobalConfig
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin import native_unify_query as native
+
+
+def test_target_config_registration_round_trip():
+    field = ADVANCED_OPTIONS["ADMIN_UNIFY_QUERY_TARGETS"]
+    options_column = GlobalConfig._meta.get_field("options")
+    stored = options_column.get_db_prep_save(field._kwargs, connection)
+    config = GlobalConfig(data_type="Dict", options=options_column.from_db_value(stored, None, connection))
+    targets = {"test": "http://uq-test.example:10205"}
+    assert config.get_serializer().run_validation(targets) == targets
 
 
 @pytest.fixture
