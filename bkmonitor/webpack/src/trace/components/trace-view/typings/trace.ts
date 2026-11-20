@@ -120,6 +120,24 @@ export type SpanLlmDetail = {
   span_type: SpanLlmType;
   /** OTEL status：code=2 为错误，需在观测页展示 Alert */
   status?: SpanLlmStatus;
+  /** 模型 Span 的输入 / 输出 Token 矩形树，供观测页展开区渲染 */
+  token_matrix?: SpanLlmTokenMatrix;
+};
+
+/** llm_detail.token_matrix：输入 / 输出两棵树，可直接驱动矩形树布局 */
+export type SpanLlmTokenMatrix = {
+  estimated_to_reported_ratio?: number;
+  nodes: SpanLlmTokenMatrixNode[];
+};
+
+/** Token 矩阵节点；叶子 children 为 []，工具叶子带 call_count */
+export type SpanLlmTokenMatrixNode = {
+  call_count?: number;
+  children: SpanLlmTokenMatrixNode[];
+  estimated_to_reported_ratio?: number;
+  id: string;
+  name: string;
+  value: number;
 };
 
 /** LLM Span 状态，与后端 llm_detail.status 对齐 */

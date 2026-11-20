@@ -31,6 +31,7 @@ import ErrorAlert from './components/error-alert';
 import InputTab from './components/input-tab';
 import ModelTimeline from './components/model-timeline';
 import OutputTab from './components/output-tab';
+import LlmStatisticCards from './components/statistic-cards';
 import ToolDescBar from './components/tool-desc-bar';
 import ToolPanel from './components/tool-panel';
 import { formatSecondCount, formatTokenCount, pickNumber, pickOptionalNumber, pickString } from './utils/helpers';
@@ -40,6 +41,7 @@ import { countOutputObservation, parseOutputObservation } from './utils/parse-ou
 import { collectObservationHits, LLM_OBSERVATION_SEARCH_KEY } from './utils/search';
 
 import type { SpanLlmDetail } from '../../../components/trace-view/typings';
+import type { LlmStatisticCard } from './components/statistic-cards';
 
 import './index.scss';
 
@@ -207,9 +209,9 @@ export default defineComponent({
       emit('searchActiveIndex', firstHit.index);
     };
 
-    /** Token / 模型 / 耗时统计卡片；工具类型不展示，「模型 & 厂商」「首 Token 耗时」仅模型场景 */
+    /** Token / 模型 / 耗时统计卡片；工具类型不展示 */
     const stats = computed<LlmStatCard[]>(() => {
-      if (isToolSpan.value) return [];
+      if (isToolSpan.value || isModelSpan.value) return [];
 
       const attrs = attributes.value;
       const inputTokens = pickNumber(attrs, ['gen_ai.usage.input_tokens', 'gen_ai.usage.prompt_tokens']);
@@ -217,31 +219,8 @@ export default defineComponent({
       const totalTokens = pickNumber(attrs, ['gen_ai.usage.total_tokens']) || inputTokens + outputTokens;
       const cacheReadTokens = pickNumber(attrs, ['gen_ai.usage.cache_read.input_tokens']);
       const cacheHitRate = inputTokens > 0 ? (cacheReadTokens / inputTokens) * 100 : 0;
-      const firstChunk = pickOptionalNumber(attrs, ['gen_ai.response.time_to_first_chunk']);
-      const modelCards: LlmStatCard[] = isModelSpan.value
-        ? [
-            {
-              extra: pickString(attrs, ['gen_ai.provider.name']),
-              key: 'model',
-              label: t('模型 & 厂商'),
-              value: pickString(attrs, ['gen_ai.request.model']) || '--',
-            },
-          ]
-        : [];
-      const firstTokenCards: LlmStatCard[] = isModelSpan.value
-        ? [
-            {
-              key: 'firstToken',
-              label: t('首 Token 耗时'),
-              unit: firstChunk === undefined ? undefined : 's',
-              value: firstChunk === undefined ? '--' : firstChunk,
-            },
-          ]
-        : [];
 
       return [
-        ...modelCards,
-        ...firstTokenCards,
         { key: 'total', label: t('总 Tokens'), value: totalTokens, theme: 'success' },
         {
           extra: cacheHitRate > 0 ? t('缓存命中率：{0}%', [Number(cacheHitRate.toFixed(2))]) : undefined,
@@ -262,6 +241,59 @@ export default defineComponent({
         },
       ];
     });
+
+    /** 模型 Span 统计条：顺序与文案按模型场景定制，值统一格式化为字符串 */
+    const modelCards = computed<LlmStatisticCard[]>(() => {
+      if (!isModelSpan.value) return [];
+
+      const attrs = attributes.value;
+      const inputTokens = pickNumber(attrs, ['gen_ai.usage.input_tokens', 'gen_ai.usage.prompt_tokens']);
+      const outputTokens = pickNumber(attrs, ['gen_ai.usage.output_tokens', 'gen_ai.usage.completion_tokens']);
+      const totalTokens = pickNumber(attrs, ['gen_ai.usage.total_tokens']) || inputTokens + outputTokens;
+      const cacheReadTokens = pickNumber(attrs, ['gen_ai.usage.cache_read.input_tokens']);
+      const cacheWriteTokens = pickNumber(attrs, ['gen_ai.usage.cache_write.input_tokens']);
+      const cacheHitRate = inputTokens > 0 ? (cacheReadTokens / inputTokens) * 100 : 0;
+      const firstChunk = pickOptionalNumber(attrs, ['gen_ai.response.time_to_first_chunk']);
+      const model = pickString(attrs, ['gen_ai.request.model']);
+      const provider = pickString(attrs, ['gen_ai.provider.name']);
+
+      return [
+        {
+          key: 'model',
+          label: t('模型 & 厂商'),
+          value: [model, provider].filter(Boolean).join(' / ') || '--',
+        },
+        { key: 'input', label: t('输入 Tokens'), value: formatTokenCount(inputTokens) },
+        { key: 'output', label: t('输出 Tokens'), value: formatTokenCount(outputTokens) },
+        { key: 'total', label: t('总 Tokens'), value: formatTokenCount(totalTokens) },
+        {
+          key: 'firstToken',
+          label: t('首 Token 耗时'),
+          unit: firstChunk === undefined ? undefined : 's',
+          value: firstChunk === undefined ? '--' : formatSecondCount(firstChunk),
+        },
+        { key: 'cacheRead', label: t('缓存读数'), value: formatTokenCount(cacheReadTokens) },
+        { key: 'cacheWrite', label: t('缓存写入'), value: formatTokenCount(cacheWriteTokens) },
+        {
+          key: 'cacheHitRate',
+          label: t('缓存命中率'),
+          unit: '%',
+          value: String(Math.round(cacheHitRate * 100) / 100),
+        },
+      ];
+    });
+
+    /** 模型 Span 的输入 / 输出 Token 矩形树 */
+    const tokenMatrixNodes = computed(() => props.llmDetail?.token_matrix?.nodes ?? []);
+
+    /** 矩阵工具行定位请求：token 递增以支持重复点击同一工具 */
+    const locateTool = shallowRef<null | { name: string; token: number }>(null);
+    let locateToolToken = 0;
+
+    const handleLocateTool = (name: string) => {
+      if (!name) return;
+      locateTool.value = { name, token: ++locateToolToken };
+    };
 
     const inputCount = computed(() => countInputObservation(inputObservation.value));
     const outputCount = computed(() => countOutputObservation(outputObservation.value));
@@ -304,7 +336,15 @@ export default defineComponent({
             />
           ) : null}
           {errorMessage.value ? <ErrorAlert message={errorMessage.value} /> : null}
-          {stats.value.length > 0 && (
+          {isModelSpan.value ? (
+            <div class='llm-observation-model-stats'>
+              <LlmStatisticCards
+                cards={modelCards.value}
+                nodes={tokenMatrixNodes.value}
+                onLocate-tool={handleLocateTool}
+              />
+            </div>
+          ) : stats.value.length > 0 ? (
             <div class='llm-observation-stats'>
               {stats.value.map(item => {
                 const displayValue =
@@ -345,11 +385,15 @@ export default defineComponent({
                 );
               })}
             </div>
-          )}
+          ) : null}
           {isToolSpan.value ? (
             <ToolPanel attributes={attributes.value} />
           ) : isModelSpan.value ? (
-            <ModelTimeline attributes={attributes.value} />
+            <ModelTimeline
+              attributes={attributes.value}
+              locateTool={locateTool.value}
+              tokenMatrixNodes={tokenMatrixNodes.value}
+            />
           ) : (
             <div class='llm-observation-io'>
               <div class='llm-observation-toolbar'>

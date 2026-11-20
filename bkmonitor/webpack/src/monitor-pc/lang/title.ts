@@ -328,6 +328,8 @@ export default {
   '缓存 Tokens 总数': 'Total Cached Tokens',
   '请求数（提问数）': 'Requests (Questions)',
   模型调用次数: 'Model Invocations',
+  模型调用: 'Model Invocations',
+  工具调用: 'Tool Calls',
   '输入输出 Token 趋势': 'Input / Output Token Trend',
   '输入 Tokens': 'Input Tokens',
   '输出 Tokens': 'Output Tokens',

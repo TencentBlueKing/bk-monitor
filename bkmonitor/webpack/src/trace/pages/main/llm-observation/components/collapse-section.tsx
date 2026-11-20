@@ -25,6 +25,7 @@
  */
 import { defineComponent, inject, shallowRef, watch } from 'vue';
 
+import { formatTokenCount } from '../utils/helpers';
 import { LLM_OBSERVATION_SEARCH_KEY } from '../utils/search';
 
 import './collapse-section.scss';
@@ -67,6 +68,11 @@ export default defineComponent({
     showCount: {
       type: Boolean,
       default: true,
+    },
+    /** 分区 Token 消耗；未传入时不展示 */
+    tokens: {
+      type: Number,
+      default: null,
     },
   },
   setup(props, { slots }) {
@@ -112,7 +118,13 @@ export default defineComponent({
             {props.showCount ? <span class='llm-collapse-section-count'>{props.count}</span> : null}
             {slots.extra?.()}
           </div>
-          <i class='icon-monitor icon-arrow-down llm-collapse-section-arrow' />
+          <div class='llm-collapse-section-aside'>
+            {/* tokens 计数：未传入时不展示 */}
+            {props.tokens == null ? null : (
+              <span class='llm-collapse-section-tokens'>{`${formatTokenCount(props.tokens)} tokens`}</span>
+            )}
+            <i class='icon-monitor icon-arrow-down llm-collapse-section-arrow' />
+          </div>
         </div>
         {expanded.value ? <div class='llm-collapse-section-body'>{slots.default?.()}</div> : null}
       </div>
