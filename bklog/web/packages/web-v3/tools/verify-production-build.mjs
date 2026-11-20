@@ -21,7 +21,10 @@ export function verifyProductionBuild(output = productionOutput) {
   const walk = dir => readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(resolve(dir, entry.name)) : [resolve(dir, entry.name)]);
   const files = walk(root);
   for (const file of files.filter(file => file.endsWith('.css') && !file.includes('/legacy-v1/'))) {
-    for (const [, url] of readFileSync(file, 'utf8').matchAll(/url\(["']?([^)'"\s]+)["']?\)/g)) {
+    // Quoted SVG data URLs can contain their own url(#...) references.
+    const cssUrls = /\burl\(\s*(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|([^)'"\s]+))\s*\)/gi;
+    for (const [, doubleQuoted, singleQuoted, unquoted] of readFileSync(file, 'utf8').matchAll(cssUrls)) {
+      const url = doubleQuoted ?? singleQuoted ?? unquoted;
       if (/^(?:data:|https?:|\/\/|#)/.test(url)) continue;
       check(url, dirname(file));
     }

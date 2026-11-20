@@ -120,6 +120,14 @@
     "#paraglide/*": "./.paraglide/*"
   },
   "pnpm": {
+    "ignoredBuiltDependencies": [
+      "@parcel/watcher",
+      "core-js",
+      "esbuild",
+      "protobufjs",
+      "vue-demi",
+      "vuex-module-decorators"
+    ],
     "peerDependencyRules": {
       "ignoreMissing": [
         "bkui-vue",
