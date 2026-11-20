@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from enum import Enum
 
 DEFAULT_SERVICE_NAME = "default"
@@ -53,6 +54,7 @@ class CallGraphResponseDataMode:
 PROFILE_UPLOAD_RECORD_NEW_FILE_NAME = "Profile-{}.pprof"
 
 PROFILE_EXPORT_FILE_NAME = "{app_name}-{data_type}-{time}.{format}"
+PROFILE_MCP_EXPORT_PATH = "profiling/mcp_export/"
 
 
 class CallGraph:

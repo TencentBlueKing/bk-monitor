@@ -66,6 +66,7 @@ from bkmonitor.utils.user import (
     get_user_display_name,
     set_local_username,
 )
+from apm_web.profile.constants import PROFILE_MCP_EXPORT_PATH
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -1425,6 +1426,7 @@ _DEFAULT_BKREPO_CLEAN_EXPIRE_HOURS = 24
 _BKREPO_CLEAN_CONFIGS: list[dict[str, Any]] = [
     {"path": "as_code/export/", "expire_hours": 24},
     {"path": "as_code/", "expire_hours": 24},
+    {"path": PROFILE_MCP_EXPORT_PATH, "expire_hours": 1},
     # render/image/<type>/<YYYYMMDDHH>/<filename>
     {
         "path": "render/image/dashboard/",
@@ -1689,7 +1691,7 @@ def clean_bkrepo_temp_file():
 
     不同目录可通过 ``expire_hours`` 配置各自的过期时长。
     """
-    if not os.getenv("USE_BKREPO"):
+    if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() != "true":
         return
 
     from bkstorages.backends.bkrepo import BKGenericRepoClient

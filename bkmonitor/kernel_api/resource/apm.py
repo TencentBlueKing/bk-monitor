@@ -9,17 +9,24 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from urllib.parse import urlsplit
+from uuid import uuid4
 
+from bkstorages.utils import safe_join
 from django.conf import settings
 from rest_framework import serializers
+from rest_framework.exceptions import APIException
 
 from apm.resources import ListApplicationResources, QueryTraceDetailResource, QuerySpanDetailResource
+from apm_web.profile.constants import DEFAULT_EXPORT_FORMAT, EBPF_PROFILING_APP_PREFIX, PROFILE_MCP_EXPORT_PATH
+from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.profile.resources import (
     GrafanaQueryProfileLabelResource,
     GrafanaQueryProfileResource,
     ListApplicationServicesResource,
     QueryServicesDetailResource,
 )
+from apm_web.profile.serializers import ProfileQueryExportSerializer
 from apm_web.trace.resources import ListTraceViewConfigResource, ListFlattenSpanResource
 from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
@@ -210,3 +217,86 @@ class QueryGraphProfileResource(Resource):
 
     def perform_request(self, validated_request_data):
         return GrafanaQueryProfileResource().request(**validated_request_data)
+
+
+class ProfileExportUnavailable(APIException):
+    status_code = 503
+    default_detail = "Profiling export download is currently unavailable."
+    default_code = "profile_export_unavailable"
+
+
+class ExportProfilePprofResource(Resource):
+    """导出 APM 服务的采样或当前业务上传的 Profile，返回限时下载链接。"""
+
+    DOWNLOAD_TTL_SECONDS = 15 * 60
+
+    class RequestSerializer(ProfileQueryExportSerializer):
+        start_time = serializers.IntegerField(min_value=1)
+        end_time = serializers.IntegerField(min_value=1)
+        start = end = None
+        export_format = serializers.HiddenField(default=DEFAULT_EXPORT_FORMAT)
+        confirm = serializers.BooleanField()
+
+        def validate(self, attrs):
+            attrs = super().validate(attrs)
+            if not attrs.pop("confirm"):
+                raise serializers.ValidationError({"confirm": "Confirm the pprof export before calling this tool."})
+            if attrs["global_query"] and not attrs["profile_id"]:
+                raise serializers.ValidationError({"profile_id": "Provide a Profile ID uploaded in the current space."})
+            if not attrs["global_query"] and attrs["app_name"].startswith(EBPF_PROFILING_APP_PREFIX):
+                raise serializers.ValidationError({"app_name": "Select an APM application with Profiling enabled."})
+            duration = attrs["end_time"] - attrs["start_time"]
+            limit = min(settings.MCP_MAX_TIME_SPAN_SECONDS, settings.APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS)
+            if not 0 < duration <= limit:
+                raise serializers.ValidationError(
+                    {"time_span": f"Expected a positive time span of at most {limit} seconds."}
+                )
+            return attrs
+
+    @staticmethod
+    def _redact_storage_request(response, *args, **kwargs):
+        # The storage SDK logs a curl command from response.request.
+        request = response.request.copy()
+        request.headers.pop("Authorization", None)
+        request.body = None
+        response.request = request
+
+    def perform_request(self, validated_request_data):
+        from apm_web.profile.views import EmptyProfileExport, InvalidProfileScope, ProfileQueryViewSet
+
+        try:
+            profile = ProfileQueryViewSet.query_export(validated_request_data).content
+        except EmptyProfileExport as exc:
+            raise serializers.ValidationError({"profile": str(exc)}, code="empty_profile") from exc
+        except InvalidProfileScope as exc:
+            raise serializers.ValidationError({"profile_id": str(exc)}, code="invalid_profile_scope") from exc
+
+        client = ProfilingFileHandler().bk_repo_storage.client
+        client.get_client().hooks["response"].append(self._redact_storage_request)
+        if client.get_bucket_metadata().get("public") is not False:
+            raise ProfileExportUnavailable("Profiling exports require a private artifact repository.")
+
+        filename = f"profile-{uuid4().hex}.pprof"
+        key = f"{PROFILE_MCP_EXPORT_PATH}{filename}"
+        client.upload_fileobj(profile, key=key, allow_overwrite=False)
+        download_url = client.generate_presigned_url(key=key, expires_in=self.DOWNLOAD_TTL_SECONDS)
+
+        # The storage client can return an unsigned fallback when the object is missing.
+        unsigned_url = safe_join(
+            client.endpoint_url, f"generic/temporary/token/download/{client.project}/{client.bucket}/{key}"
+        )
+        url = urlsplit(download_url)
+        if (
+            url.scheme not in {"http", "https"}
+            or not url.hostname
+            or url.username is not None
+            or download_url == unsigned_url
+        ):
+            raise ProfileExportUnavailable()
+
+        return {
+            "download_url": download_url,
+            "filename": filename,
+            "size_bytes": len(profile),
+            "expires_in_seconds": self.DOWNLOAD_TTL_SECONDS,
+        }

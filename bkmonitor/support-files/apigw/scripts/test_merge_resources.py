@@ -707,7 +707,7 @@ if __name__ == "__main__":
 
 
 def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
-    """Personal authentication must remain user-scoped and never opt in mutations implicitly."""
+    """Keep personal authentication user-scoped and require explicit review of export opt-ins."""
     import shutil
 
     registry_path = _SCRIPT.parents[3] / "kernel_api/unified_mcp/registry.py"
@@ -727,6 +727,7 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
     shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
     merge_resources_func(tmp_path / "resources")
     merged = yaml.safe_load((tmp_path / "resources.yaml").read_text())["paths"]
+    personal_token_exports = {"export_profile_pprof"}
     enabled = set()
     for path, methods in merged.items():
         for operation in methods.values():
@@ -736,7 +737,16 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
             name = operation["operationId"]
             assert config["userVerifiedRequired"] is True
             assert config["appVerifiedRequired"] is False
-            assert not {"mutation", "task", "export"}.intersection(capabilities.get(aliases.get(name, name), ()))
+            operation_capabilities = set(capabilities.get(aliases.get(name, name), ()))
+            assert not {"mutation", "task"}.intersection(operation_capabilities)
+            if name in personal_token_exports:
+                assert "export" in operation_capabilities
+                assert config["resourcePermissionRequired"] is True
+                schema = operation["requestBody"]["content"]["application/json"]["schema"]
+                assert "confirm" in schema["required"]
+                assert schema["properties"]["confirm"]["enum"] == [True]
+            else:
+                assert "export" not in operation_capabilities
             enabled.add(name)
     assert {
         "search_logs",
@@ -746,6 +756,7 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
         "lookup_tool_schema",
         "lookup_permissions",
         "lookup_metadata",
+        *personal_token_exports,
     } <= enabled
     assert "execute_tool" not in enabled
 
