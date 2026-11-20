@@ -11,6 +11,7 @@ Issue 合并/拆分功能单测：覆盖 Resolver fast-path noop + 异常类 + c
 """
 
 import threading
+import time
 
 import pytest
 
@@ -18,6 +19,19 @@ from bkmonitor.issue_merge import (
     IssueMergeResolver,
     MergeResolverContext,
 )
+
+
+@pytest.fixture(autouse=True)
+def _pin_es_retention(monkeypatch):
+    """固定 Issue 索引保留期。
+
+    天索引分支以 `now - FTA_ES_RETENTION` 为界决定走天索引还是通配；用例里写死的
+    2026 年 id 若随真实时间推进越界，断言会莫名变成"走了通配"。这里把保留期固定成
+    足够长，保证固定 id 始终落在"按天索引查询"的分支。
+    """
+    from django.conf import settings
+
+    monkeypatch.setattr(settings, "FTA_ES_RETENTION", 36500, raising=False)
 
 
 class TestIssueLogContentResource:
@@ -1113,3 +1127,282 @@ class TestIssueTopNResource:
         assert captured["request_data"]["end_time"] == self.END_TIME
         assert all(issue_resources.IssueQueryHandler(**params).bucket_count_suffix == "" for params in sliced_params)
         assert result == {"doc_count": 0, "fields": []}
+
+
+class TestIssueTrendResourceIndexScoping:
+    """IssueTrendResource 归属校验：按 id 内嵌时间戳定位天索引。
+
+    背景：原实现用 all_indices=True 查询 bkfta_issue_*_read（全部历史天索引），
+    实测单次 454~2218ms。issue_id 内嵌 create_time，可直接定位到天索引。
+    """
+
+    # 两条 id 分属不同天索引：2026-11-10 与 2026-06-17
+    ISSUE_IDS = ["1794285361616afe83", "17816902556b8cd53d"]
+    DAY_INDEXES = ["bkfta_issue_20260617_read", "bkfta_issue_20261110_read"]
+
+    @staticmethod
+    def _hit(issue_id: str):
+        from unittest.mock import MagicMock
+
+        hit = MagicMock()
+        hit.meta.id = issue_id
+        return hit
+
+    @staticmethod
+    def _fake_search(monkeypatch, hits, captured: dict):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from fta_web.issue import resources
+
+        search = MagicMock()
+        search.filter.return_value = search
+        search.source.return_value = search
+        search.params.return_value = search
+        search.execute.return_value = SimpleNamespace(hits=hits)
+
+        def _search(**kwargs):
+            captured.update(kwargs)
+            return search
+
+        monkeypatch.setattr(resources.IssueDocument, "search", _search)
+        return search
+
+    def test_queries_day_indices_derived_from_issue_id(self, monkeypatch):
+        from fta_web.issue.resources import IssueTrendResource
+
+        captured = {}
+        self._fake_search(monkeypatch, [self._hit(i) for i in self.ISSUE_IDS], captured)
+
+        allowed = IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, [5000140])
+
+        assert allowed == set(self.ISSUE_IDS)
+        # 只查各 id 所在的天索引，不再走全索引通配
+        assert captured["index"] == self.DAY_INDEXES
+        assert "all_indices" not in captured
+
+    def test_keeps_bk_biz_id_filter(self, monkeypatch):
+        """bk_biz_id 条件就是归属校验本身，不能被优化掉。"""
+        from fta_web.issue.resources import IssueTrendResource
+
+        captured = {}
+        search = self._fake_search(monkeypatch, [], captured)
+
+        IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, [5000140])
+
+        kwargs_list = [call.kwargs for call in search.filter.call_args_list]
+        assert any("_id" in kw for kw in kwargs_list)
+        assert any(kw.get("bk_biz_id") == [5000140] for kw in kwargs_list)
+
+    def test_unauthorized_issue_is_dropped(self, monkeypatch):
+        from fta_web.issue.resources import IssueTrendResource
+
+        # 只命中第一条；第二条可能属于其他业务
+        captured = {}
+        self._fake_search(monkeypatch, [self._hit(self.ISSUE_IDS[0])], captured)
+
+        allowed = IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, [5000140])
+
+        assert allowed == {self.ISSUE_IDS[0]}
+
+    def test_unparsable_id_falls_back_to_all_indices(self, monkeypatch):
+        from fta_web.issue import resources as res
+
+        captured = {}
+        self._fake_search(monkeypatch, [], captured)
+
+        def _raise(_):
+            raise ValueError("bad issue id")
+
+        monkeypatch.setattr(res.IssueDocument, "parse_timestamp_by_id", _raise)
+
+        res.IssueTrendResource._get_allowed_issue_ids(["bad-issue-id"], [5000140])
+
+        assert captured.get("all_indices") is True
+
+    def test_missing_id_logs_warning_without_full_scan(self, monkeypatch, caplog):
+        """未命中的 id 只告警，不回退全索引（否则一个越权 id 就会打回 2 秒）。"""
+        import logging
+
+        from fta_web.issue.resources import IssueTrendResource
+
+        captured = {}
+        self._fake_search(monkeypatch, [self._hit(self.ISSUE_IDS[0])], captured)
+
+        with caplog.at_level(logging.WARNING):
+            IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, [5000140])
+
+        assert any("unmatched in day indices" in record.getMessage() for record in caplog.records)
+        assert "all_indices" not in captured
+
+    # ---- 天索引数量上限：避免 URL 超过 ES http.max_initial_line_length(4KB) ----
+
+    @staticmethod
+    def _ids_spanning_days(days: int) -> list[str]:
+        base = 1794200000
+        return [f"{base - index * 86400}{'a' * 8}" for index in range(days)]
+
+    def test_day_index_count_at_limit_still_uses_day_indices(self, monkeypatch):
+        from fta_web.issue.resources import MAX_DAY_INDEXES_PER_QUERY, IssueTrendResource
+
+        ids = self._ids_spanning_days(MAX_DAY_INDEXES_PER_QUERY)
+        captured = {}
+        self._fake_search(monkeypatch, [], captured)
+
+        IssueTrendResource._get_allowed_issue_ids(ids, [5000140])
+
+        assert "index" in captured
+        assert len(captured["index"]) == MAX_DAY_INDEXES_PER_QUERY
+        assert "all_indices" not in captured
+
+    def test_too_many_day_indices_falls_back_to_all_indices(self, monkeypatch):
+        from fta_web.issue.resources import MAX_DAY_INDEXES_PER_QUERY, IssueTrendResource
+
+        ids = self._ids_spanning_days(MAX_DAY_INDEXES_PER_QUERY + 1)
+        captured = {}
+        self._fake_search(monkeypatch, [], captured)
+
+        IssueTrendResource._get_allowed_issue_ids(ids, [5000140])
+
+        assert captured.get("all_indices") is True
+        assert "index" not in captured
+
+
+class TestIssueTrendStaleIndexFallback:
+    """创建日读别名已过期（但文档仍存活于共享物理索引）时的兜底。
+
+    背景：ILM 轮转会让同一物理索引累积多个日期的读别名；过期别名清理后，只要索引
+    还被别的别名引用就会保留。此时 `bkfta_issue_*_read` 通配仍能查到文档，按创建日
+    查却会落空。这类 id 必须走通配兜底，否则列表里仍在的 Issue 会丢掉趋势。
+    """
+
+    RECENT_ID = f"{int(time.time()) - 10 * 86400}{'d' * 8}"  # 10 天前创建
+    BIZ_IDS = [5000140]
+
+    @pytest.fixture(autouse=True)
+    def _pin_es_retention(self, monkeypatch):
+        """同名遮蔽模块级 fixture：本类需要"刚好超过保留期"的样本。
+
+        用同名而不是另起一个名字，是为了让 pytest 按作用域就近解析、只保留这一个；
+        否则两个 autouse fixture 会同时生效，最终值取决于应用顺序。
+        """
+        from django.conf import settings
+
+        monkeypatch.setattr(settings, "FTA_ES_RETENTION", 365, raising=False)
+
+    @staticmethod
+    def _hit(issue_id: str):
+        from unittest.mock import MagicMock
+
+        hit = MagicMock()
+        hit.meta.id = issue_id
+        return hit
+
+    @staticmethod
+    def _stale_id(days_ago: int = 400) -> str:
+        return f"{int(time.time()) - days_ago * 86400}{'c' * 8}"
+
+    def _patch_search(self, monkeypatch, hits_for_call):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from fta_web.issue import resources
+
+        calls = []
+        filters = []
+
+        def _search(**kwargs):
+            calls.append(kwargs)
+            search = MagicMock()
+            recorded = []
+            filters.append(recorded)
+
+            def _filter(*args, **kw):
+                recorded.append((args, kw))
+                return search
+
+            search.filter.side_effect = _filter
+            search.source.return_value = search
+            search.params.return_value = search
+            search.execute.return_value = SimpleNamespace(hits=hits_for_call(len(calls) - 1))
+            return search
+
+        monkeypatch.setattr(resources.IssueDocument, "search", _search)
+        return calls, filters
+
+    def test_stale_id_uses_wildcard_query(self, monkeypatch):
+        from fta_web.issue.resources import IssueTrendResource
+
+        stale_id = self._stale_id()
+        calls, filters = self._patch_search(monkeypatch, lambda _: [self._hit(stale_id)])
+
+        allowed = IssueTrendResource._get_allowed_issue_ids([stale_id], self.BIZ_IDS)
+
+        assert allowed == {stale_id}
+        assert len(calls) == 1
+        assert calls[0].get("all_indices") is True
+        assert "index" not in calls[0]
+        # 兜底查询仍带业务归属过滤
+        assert any(kw.get("bk_biz_id") == self.BIZ_IDS for _, kw in filters[0])
+
+    def test_cleaned_alias_issue_still_returns_trend(self, monkeypatch):
+        """回归用例：较早创建、创建日别名已清理、但仍能在通配查询命中的 Issue。"""
+        from fta_web.issue.resources import IssueTrendResource
+
+        stale_id = self._stale_id()
+
+        # 第 1 次调用：按天索引查（只命中最近的 id，旧 id 的别名已被清理）
+        # 第 2 次调用：通配查（两个 id 都能命中）
+        def _hits(call_index: int):
+            if call_index == 0:
+                return [self._hit(self.RECENT_ID)]
+            return [self._hit(self.RECENT_ID), self._hit(stale_id)]
+
+        calls, filters = self._patch_search(monkeypatch, _hits)
+
+        allowed = IssueTrendResource._get_allowed_issue_ids([self.RECENT_ID, stale_id], self.BIZ_IDS)
+
+        assert allowed == {self.RECENT_ID, stale_id}
+        assert len(calls) == 2
+        assert "index" in calls[0] and "all_indices" not in calls[0]
+        assert calls[1].get("all_indices") is True
+        # 兜底查询只针对 stale id，且业务过滤仍在
+        filtered_ids = [kw["_id"] for _, kw in filters[1] if "_id" in kw]
+        assert filtered_ids == [[stale_id]]
+        assert any(kw.get("bk_biz_id") == self.BIZ_IDS for _, kw in filters[1])
+
+    def test_stale_id_missing_in_wildcard_is_dropped(self, monkeypatch):
+        """通配也查不到（文档已随索引删除）时，该 id 被剔除且不误报为漏检异常。"""
+        from fta_web.issue.resources import IssueTrendResource
+
+        stale_id = self._stale_id()
+        self._patch_search(monkeypatch, lambda _: [])
+
+        allowed = IssueTrendResource._get_allowed_issue_ids([stale_id], self.BIZ_IDS)
+
+        assert allowed == set()
+
+    def test_id_just_past_retention_uses_wildcard_query(self, monkeypatch):
+        """边界：创建于 (retention + 1 小时) 前的 id，别名可能已被 ILM 清理，必须走通配。"""
+        from fta_web.issue.resources import IssueTrendResource
+
+        edge_id = f"{int(time.time()) - 365 * 86400 - 3600}{'e' * 8}"
+        calls, _ = self._patch_search(monkeypatch, lambda _: [self._hit(edge_id)])
+
+        allowed = IssueTrendResource._get_allowed_issue_ids([edge_id], self.BIZ_IDS)
+
+        assert allowed == {edge_id}
+        assert calls[0].get("all_indices") is True
+
+    def test_id_within_retention_still_uses_day_index(self, monkeypatch):
+        """对照：明显仍在保留期内的 id 仍按天索引查，不因余量误判。"""
+        from fta_web.issue.resources import IssueTrendResource
+
+        inner_id = f"{int(time.time()) - 300 * 86400}{'f' * 8}"
+        calls, _ = self._patch_search(monkeypatch, lambda _: [self._hit(inner_id)])
+
+        allowed = IssueTrendResource._get_allowed_issue_ids([inner_id], self.BIZ_IDS)
+
+        assert allowed == {inner_id}
+        assert "index" in calls[0]
+        assert "all_indices" not in calls[0]
