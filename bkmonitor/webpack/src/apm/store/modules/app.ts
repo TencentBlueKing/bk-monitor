@@ -70,7 +70,8 @@ class AppStore extends VuexModule implements IAppState {
   handleChangeBizId({ bizId, ctx }) {
     window.cc_biz_id = +bizId;
     window.bk_biz_id = +bizId;
-    rememberRecentBizId(bizId);
+    const bizItem = (this.bizList || []).find(item => +item.bk_biz_id === +bizId || +item.id === +bizId);
+    rememberRecentBizId(bizId, !bizItem || Boolean(bizItem.is_demo));
     const { navId } = ctx.$route.meta;
     const handleReload = () => {
       const { needClearQuery } = ctx.$route.meta;

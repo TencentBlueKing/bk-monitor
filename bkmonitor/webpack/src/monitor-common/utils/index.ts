@@ -122,6 +122,7 @@ export const setGlobalBizId = () => {
   const isNoBusiness = location.hash.indexOf('no-business') > -1;
   const isSpecialAlarmCenterEntry = isAlarmCenterRouteHash(location.hash);
   const isShareEntry = isShareRouteHash(location.hash);
+  const isTokenEntry = !!window.__BK_WEWEB_DATA__?.token;
 
   const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
   const defaultBizId = Number(window.default_biz_id) || '';
@@ -146,7 +147,8 @@ export const setGlobalBizId = () => {
     const parsed = parseBizId(id);
     window.cc_biz_id = parsed;
     window.bk_biz_id = parsed;
-    rememberRecentBizId(parsed, isDemo(id));
+    const matchedSpace = bizList.find(item => +item.bk_biz_id === parsed);
+    rememberRecentBizId(parsed, !matchedSpace || Boolean(matchedSpace.is_demo));
   };
   const setLocationSearch = (bizId: number | string) => {
     if (location.search.match(/(space_uid|bizId)=([^#&/]+)/gim)) {
@@ -156,9 +158,11 @@ export const setGlobalBizId = () => {
     }
     return false;
   };
-  // 业务不在空间列表中时进入无权限页。只放行分享页和告警外链，首页不放行。
-  if (bizId && !isInSpaceList(bizId) && !isSpecialAlarmCenterEntry && !isShareEntry) {
-    location.href = `${location.origin}${location.pathname}?${`bizId=${bizId}`}#/no-business`;
+  // 业务不在空间列表中时进入无权限页。首页不放行；分享页、分享 token 和告警外链继续放行。
+  if (bizId && !isInSpaceList(bizId) && !isSpecialAlarmCenterEntry && !isShareEntry && !isTokenEntry) {
+    if (!isNoBusiness) {
+      location.href = `${location.origin}${location.pathname}?bizId=${bizId}#/no-business`;
+    }
     return true;
   }
 
@@ -189,7 +193,11 @@ export const setGlobalBizId = () => {
     const cachedBizId = parseBizId(localBizId);
     const cachedSpace = bizList.find(item => +item.bk_biz_id === cachedBizId);
     const recentBizId = !spaceUid && cachedSpace && !cachedSpace.is_demo ? cachedBizId : '';
-    const newBizId = recentBizId || defaultBizId || spaceItem?.bk_biz_id || window.cc_biz_id;
+    const backendBizId = window.cc_biz_id;
+    const backendEchoesDemoCache = Boolean(cachedSpace?.is_demo) && +backendBizId === cachedBizId;
+    const nonDemoBizId = bizList.find(item => !item.is_demo)?.bk_biz_id;
+    const newBizId =
+      recentBizId || defaultBizId || spaceItem?.bk_biz_id || (backendEchoesDemoCache ? nonDemoBizId : backendBizId);
     if ((isSpecialAlarmCenterEntry || isCanAllIn) && !bizList.length) {
       bizId = newBizId && newBizId !== -1 ? newBizId : 0;
     } else if (spaceUid) {

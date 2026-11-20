@@ -132,7 +132,8 @@ router.beforeEach(async (to, from, next) => {
     !hasBizInSpaceList(urlBizId) &&
     !BIZ_ENTRY_ALLOW_ROUTES.has(String(to.name)) &&
     !isShareRouteHash(routeHash) &&
-    !isAlarmCenterRouteHash(routeHash)
+    !isAlarmCenterRouteHash(routeHash) &&
+    !window.__BK_WEWEB_DATA__?.token
   ) {
     return next({ name: 'no-business', replace: true });
   }

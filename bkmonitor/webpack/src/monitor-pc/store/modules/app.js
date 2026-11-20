@@ -113,7 +113,7 @@ const mutations = {
     const bizItem = state.bizIdMap.get(parsed);
     window.space_uid = bizItem?.space_uid;
     state.bizId = parsed;
-    rememberRecentBizId(parsed, Boolean(bizItem?.is_demo));
+    rememberRecentBizId(parsed, !bizItem || Boolean(bizItem.is_demo));
   },
   [SET_APP_STATE](state, data) {
     for (const [key, value] of Object.entries(data)) {
@@ -177,7 +177,7 @@ const mutations = {
     window.bk_biz_id = +bizId;
     const bizItem = state.bizIdMap.get(+bizId);
     window.space_uid = bizItem?.space_uid;
-    rememberRecentBizId(bizId, Boolean(bizItem?.is_demo));
+    rememberRecentBizId(bizId, !bizItem || Boolean(bizItem.is_demo));
     this.commit('app/SET_BIZ_ID', +bizId);
     const { navId } = ctx.$route.meta;
     const handleReload = () => {

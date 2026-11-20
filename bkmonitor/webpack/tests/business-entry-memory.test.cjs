@@ -172,10 +172,29 @@ for (const hash of ['#/trace/alarm-center/detail/alert-id', '#/share/example-tok
   });
 }
 
-test('非分享页即使有微前端 token，不存在的业务也进入无权限页', () => {
-  const entry = setup({ href: 'https://monitor.example.com/?bizId=303#/strategy-config', token: 'example-token' });
+test('分享子应用 token 入口保留显式业务', () => {
+  const href = 'https://monitor.example.com/?bizId=303#/strategy-config';
+  const entry = setup({ href, token: 'example-token' });
+  assert.equal(entry.initialize(), 303);
+  assert.equal(entry.location.href, href);
+  assert.equal(entry.window.bk_biz_id, 303);
+});
+
+test('已在无权限页时不再改写地址', () => {
+  const href = 'https://monitor.example.com/?bizId=303#/no-business';
+  const entry = setup({ href });
   assert.equal(entry.initialize(), true);
-  assert.equal(entry.location.href, 'https://monitor.example.com/?bizId=303#/no-business');
+  assert.equal(entry.location.href, href);
+});
+
+test('演示业务缓存与后端回显相同时改用其他非演示业务', () => {
+  const entry = setup({
+    localBizId: '202',
+    backendBizId: 202,
+    spaces: [{ bk_biz_id: 101 }, { bk_biz_id: 202, is_demo: true }],
+  });
+  assert.equal(entry.initialize(), false);
+  assert.equal(entry.location.href, 'https://monitor.example.com/?bizId=101');
 });
 
 test('首页携带不在空间列表中的业务时进入无权限页', () => {
