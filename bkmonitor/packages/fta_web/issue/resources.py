@@ -642,6 +642,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
 
         is_active = execution.status in SourceAnalysisStatus.ACTIVE_STATUSES
         is_failed = execution.status == SourceAnalysisStatus.FAILED
+        execution_reference = cls.serialize_execution_reference(execution.execution_reference)
         failure = None
         if is_failed:
             failure_message = execution.failure_message
@@ -652,7 +653,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
                 "message": failure_message,
                 "retryable": bool(execution.failure_retryable),
                 "request_id": execution.failure_request_id,
-                "execution_reference": cls.serialize_execution_reference(execution.execution_reference),
+                "execution_reference": execution_reference,
             }
 
         return {
@@ -673,6 +674,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
             "started_at": SourceAnalysisBaseResource.to_timestamp(execution.started_at),
             "finished_at": SourceAnalysisBaseResource.to_timestamp(execution.finished_at),
             "updated_at": SourceAnalysisBaseResource.to_timestamp(execution.update_time),
+            "execution_reference": execution_reference,
             "failure_stage": execution.failure_stage if is_failed else None,
             "failure": failure,
             "result": cls.serialize_result(execution),
@@ -1529,7 +1531,11 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         if terminal and status == "succeeded":
             if not cls._mark_running(execution, SourceAnalysisStage.VALIDATING):
                 return None
-            return cls._validate_and_persist_result(execution, task_state.get("result"))
+            return cls._validate_and_persist_result(
+                execution,
+                task_state.get("result"),
+                execution_reference=cls.normalize_execution_reference(task_state),
+            )
         if not terminal or status != "failed":
             cls._mark_failed(
                 execution,
@@ -1559,7 +1565,12 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         return None
 
     @classmethod
-    def _validate_and_persist_result(cls, execution: IssueSourceAnalysisExecution, raw_result) -> None:
+    def _validate_and_persist_result(
+        cls,
+        execution: IssueSourceAnalysisExecution,
+        raw_result,
+        execution_reference: dict | None = None,
+    ) -> None:
         """get_task 成功终态只持久化通过 v1.0.0 Schema 与业务语义校验的结果。"""
 
         try:
@@ -1585,6 +1596,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
                 result_type=result["result_type"],
                 result_payload=result,
                 result_schema_version=SOURCE_ANALYSIS_RESULT_SCHEMA_VERSION,
+                execution_reference=execution_reference,
             )
         except SourceAnalysisInvalidStatusTransitionError:
             execution.refresh_from_db()
