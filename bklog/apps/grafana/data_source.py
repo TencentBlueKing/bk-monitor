@@ -166,10 +166,9 @@ class CustomIndexSetESDataSource:
 class ESBodyAdapter:
     """该类用于兼容Grafana ES7的语法与日志检索的body查询语法"""
 
-    def __init__(self, body: dict[str, Any], es_version: str = None, legacy_fallback: bool = False):
+    def __init__(self, body: dict[str, Any], es_version: str = None):
         self.body = body
         self.es_version = es_version
-        self.legacy_fallback = legacy_fallback
 
     @staticmethod
     def adapt_interval(body: dict[str, Any] = None) -> dict[str, Any]:
@@ -212,10 +211,10 @@ class ESBodyAdapter:
     def adapt(self):
         """适配Grafana ES请求"""
         body = deepcopy(self.body)
-        # 仅低版本 ES 或遗留链路向下改写为 interval / _term，ES 7.2+/8/9 保留原生语法
-        if not is_es_version_gte(self.es_version, ES_NEW_SYNTAX_MIN_VERSION, default=not self.legacy_fallback):
+        # 仅低版本 ES 向下改写为 interval / _term，ES 7.2+/8/9 保留原生语法
+        if not is_es_version_gte(self.es_version, ES_NEW_SYNTAX_MIN_VERSION):
             body = self.adapt_interval(body=body)
-        if not is_es_version_gte(self.es_version, (6, 0), default=not self.legacy_fallback):
+        if not is_es_version_gte(self.es_version, (6, 0)):
             self.adapt_aggs(body=body)
         return body
 
@@ -224,8 +223,6 @@ class CustomESDataSourceTemplate:
     """
     自定义ES数据源模板模板, 各个Scenario的数据源都继承这个模板
     """
-
-    legacy_fallback: bool = False
 
     def __init__(self, index_set_id: int):
         self.index_set_id = index_set_id
@@ -288,11 +285,7 @@ class CustomESDataSourceTemplate:
         return self.get_client().mapping(index=self.index)
 
     def query(self, body: dict[str, Any]):
-        body = ESBodyAdapter(
-            body=body,
-            es_version=self.get_es_version(),
-            legacy_fallback=self.legacy_fallback,
-        ).adapt()
+        body = ESBodyAdapter(body=body, es_version=self.get_es_version()).adapt()
         return self._query(body=body)
 
     def _query(self, body: dict[str, Any]):
@@ -325,13 +318,6 @@ class ESCustomESDataSource(CustomESDataSourceTemplate):
 
 
 class BkDataCustomESDataSource(CustomESDataSourceTemplate):
-    legacy_fallback: bool = True
-
-    def __init__(self, index_set_id: int):
-        super().__init__(index_set_id=index_set_id)
-
-    def get_es_version(self) -> str | None:
-        return None
 
     def query_bkdata(self, body: dict[str, Any] = None) -> list[dict[str, Any]]:
         """

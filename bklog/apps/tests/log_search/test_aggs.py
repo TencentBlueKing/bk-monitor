@@ -108,7 +108,7 @@ class TestAggsHandlersDateHistogram(TestCase):
             ("8.19.19", "1d", "long", {"calendar_interval": "1d"}),
             ("6.8.0", "5m", "date", {"interval": "5m"}),
             ("6.8.0", "1d", "long", {"interval": "1d"}),
-            (None, "10m", "date", {"fixed_interval": "10m"}),
+            (None, "10m", "date", {"interval": "10m"}),
         ]
 
         for es_version, interval, time_field_type, expected_interval_dict in cases:

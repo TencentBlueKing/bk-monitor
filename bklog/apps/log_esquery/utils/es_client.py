@@ -38,49 +38,30 @@ from apps.log_esquery.exceptions import (
 from apps.utils.cache import cache_five_minute
 from apps.utils.log import logger
 
+# date_histogram 的 interval 参数在 7.2 起被 fixed_interval/calendar_interval 取代，8.0 起移除
 ES_NEW_SYNTAX_MIN_VERSION = (7, 2)
-CALENDAR_INTERVALS = {
-    "1m",
-    "minute",
-    "1h",
-    "hour",
-    "1d",
-    "day",
-    "1w",
-    "week",
-    "1M",
-    "month",
-    "1q",
-    "quarter",
-    "1y",
-    "year",
-}
+# calendar_interval 只接受单个单位，5m/30s 这类倍数只能用 fixed_interval
+CALENDAR_INTERVALS = frozenset(
+    {"1m", "1h", "1d", "1w", "1M", "1q", "1y"}
+    | {"minute", "hour", "day", "week", "month", "quarter", "year"}
+)
 
 
 def parse_es_version(version: str | None) -> tuple[int, ...] | None:
     """解析 ES 版本号为主/次/修订版本整数元组，无法解析时返回 None。"""
-    if not version or not isinstance(version, str):
-        return None
-    cleaned = version.strip().lstrip("vV").split("-", 1)[0]
-    if not cleaned:
+    if not version:
         return None
     parts = []
-    for segment in cleaned.split(".")[:3]:
-        if segment.isdigit():
-            parts.append(int(segment))
-        elif segment.lower() == "x" and parts:
-            parts.append(0)
-        else:
+    for segment in str(version).strip().split(".")[:3]:
+        segment = segment.split("-", 1)[0]
+        if not segment.isdigit():
             return None
-    return tuple(parts) if parts else None
+        parts.append(int(segment))
+    return tuple(parts) or None
 
 
-def get_es_major_version(version: str | None) -> int | None:
-    parsed = parse_es_version(version)
-    return parsed[0] if parsed else None
-
-
-def is_es_version_gte(version: str | None, target: tuple[int, ...], default: bool = True) -> bool:
+def is_es_version_gte(version: str | None, target: tuple[int, ...], default: bool = False) -> bool:
+    """判断 ES 版本是否不低于 target，版本未知时返回 default。"""
     parsed = parse_es_version(version)
     if parsed is None:
         return default
@@ -92,7 +73,8 @@ def is_es_version_gte(version: str | None, target: tuple[int, ...], default: boo
 
 def build_date_histogram_interval_params(interval: str, es_version: str | None = None) -> dict[str, str]:
     """按 ES 版本与窗口语义构造 date_histogram 间隔参数。"""
-    if not is_es_version_gte(es_version, ES_NEW_SYNTAX_MIN_VERSION, default=True):
+    # 版本未知时保持旧语法，避免老集群查询失败；interval 在 7.x 仅告警不报错
+    if not is_es_version_gte(es_version, ES_NEW_SYNTAX_MIN_VERSION):
         return {"interval": interval}
     if interval in CALENDAR_INTERVALS:
         return {"calendar_interval": interval}
@@ -132,13 +114,12 @@ def get_es_client(
     **kwargs,
 ) -> Elasticsearch:
     # 根据版本加载客户端
-    major_version = get_es_major_version(version)
-    if major_version == 5:
+    if version and version.startswith("5."):
         es_client = Elasticsearch5
-    elif major_version == 6:
+    elif version and version.startswith("6."):
         es_client = Elasticsearch6
     else:
-        # 7.x/8.x/9.x 统一复用 7.17 客户端，不走兼容头，DSL 与响应在业务层按版本适配
+        # 7.x/8.x/9.x 统一复用 7.17 客户端，响应在业务层按版本适配
         es_client = Elasticsearch
 
     # 由于IPV6地址需要加[], 所以需要对hosts进行处理

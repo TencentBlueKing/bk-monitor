@@ -47,7 +47,6 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
     LOG_ASYNC_FIELDS,
     OPERATORS,
-    TEXT_FIELD_TYPES,
     FieldBuiltInEnum,
     FieldDataTypeEnum,
     SearchScopeEnum,
@@ -479,7 +478,7 @@ class MappingHandlers:
         type_text_fields = [
             field["field_name"]
             for field in final_fields_list
-            if field["field_type"] in TEXT_FIELD_TYPES and not field["field_name"].startswith("_")
+            if field["field_type"] == "text" and not field["field_name"].startswith("_")
         ]
         if type_text_fields:
             return type_text_fields[:2]
@@ -639,7 +638,7 @@ class MappingHandlers:
                     doc_values = doc_values_farther_dict.get("doc_values", True)
 
                 es_doc_values = doc_values
-                if field_type in (*TEXT_FIELD_TYPES, "object"):
+                if field_type in ["text", "object"]:
                     es_doc_values = False
 
                 is_case_sensitive = cls.is_case_sensitive(properties_dict[key])
@@ -675,7 +674,7 @@ class MappingHandlers:
 
     @staticmethod
     def _is_analyzed(field_type: str):
-        return field_type in TEXT_FIELD_TYPES
+        return field_type == "text"
 
     @classmethod
     def get_fields_recursively(cls, p_key, properties_dict: dict, field_types=None) -> list:
@@ -706,7 +705,7 @@ class MappingHandlers:
                         doc_values = doc_values_farther_dict.get("doc_values", True)
 
                     es_doc_values = doc_values
-                    if field_type in (*TEXT_FIELD_TYPES, "object"):
+                    if field_type in ["text", "object"]:
                         es_doc_values = False
 
                     # @TODO tag：兼容前端代码，后面需要删除

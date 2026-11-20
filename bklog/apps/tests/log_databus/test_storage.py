@@ -1634,6 +1634,9 @@ class TestStorageEs8Es9Compat(TestCase):
         self.assertFalse(StorageHandler._is_data_node({}, {"data": "false"}))
         self.assertTrue(StorageHandler._is_data_node({}, {"data": "true"}))
         self.assertTrue(StorageHandler._is_data_node({}, {}))
+        # settings 中的 roles 为逗号分隔字符串
+        self.assertTrue(StorageHandler._is_data_node({}, {"roles": "data_hot,master"}))
+        self.assertFalse(StorageHandler._is_data_node({}, {"roles": "master"}))
 
     def test_list_node_attrs_es8_es9_compat(self):
         from unittest.mock import MagicMock, patch

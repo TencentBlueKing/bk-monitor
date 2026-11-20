@@ -1210,17 +1210,15 @@ class StorageHandler:
             data = es_client.transport.perform_request("GET", "/_nodes/settings")
             nodes = data["nodes"]
             for node_key, node_info in nodes.items():
-                node = node_info.get("settings", {}).get("node", {})
+                node = node_info["settings"]["node"]
                 if not self._is_data_node(node_info, node):
                     continue
                 attr = node.get("attr") or {}
-                if not attr:
-                    continue
                 additional_params = {
                     "id": node_key,
-                    "name": node_info.get("name", ""),
-                    "ip": node_info.get("ip", ""),
-                    "host": node_info.get("host", ""),
+                    "name": node_info["name"],
+                    "ip": node_info["ip"],
+                    "host": node_info["host"],
                 }
                 datanode_list.extend(self.flatten_json(attr, additional_params))
         except Exception as e:
@@ -1237,13 +1235,14 @@ class StorageHandler:
     @staticmethod
     def _is_data_node(node_info: dict, node_settings: dict) -> bool:
         """判断节点是否承担数据节点角色（兼容 ES 5-7 node.data 与 ES 8/9 node.roles）。"""
+        # roles 在节点顶层是数组，在 settings 中是逗号分隔字符串
         roles = node_info.get("roles")
         if roles is None:
             roles = node_settings.get("roles")
         if roles is not None:
             if isinstance(roles, str):
-                roles = [role.strip() for role in roles.split(",") if role.strip()]
-            return any(str(role) == "data" or str(role).startswith("data_") for role in roles)
+                roles = roles.split(",")
+            return any(role == "data" or role.startswith("data_") for role in roles)
         if "data" in node_settings:
             return str(node_settings["data"]).lower() == "true"
         return True

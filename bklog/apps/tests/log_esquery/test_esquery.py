@@ -665,7 +665,6 @@ class TestEs8Es9Compat(TestCase):
 
     def test_es_version_helpers(self):
         from apps.log_esquery.utils.es_client import (
-            get_es_major_version,
             is_es_version_gte,
             parse_es_version,
         )
@@ -679,28 +678,20 @@ class TestEs8Es9Compat(TestCase):
         self.assertIsNone(parse_es_version(None))
         self.assertIsNone(parse_es_version("unknown"))
 
-        self.assertEqual(get_es_major_version("9.4.3"), 9)
-        self.assertEqual(get_es_major_version("8.19.19"), 8)
-        self.assertEqual(get_es_major_version("6.8.0"), 6)
-        self.assertIsNone(get_es_major_version(None))
-
         self.assertTrue(is_es_version_gte("9.4.3", (7, 2)))
         self.assertTrue(is_es_version_gte("8.19.19", (7, 2)))
         self.assertTrue(is_es_version_gte("7.2.0", (7, 2)))
         self.assertFalse(is_es_version_gte("7.1.9", (7, 2)))
         self.assertFalse(is_es_version_gte("6.8.0", (7, 2)))
+        self.assertFalse(is_es_version_gte(None, (7, 2)))
         self.assertTrue(is_es_version_gte(None, (7, 2), default=True))
-        self.assertFalse(is_es_version_gte(None, (7, 2), default=False))
 
-    def test_get_es_client_dispatch_without_compat_headers(self):
-        from django.conf import settings
+    def test_get_es_client_dispatch(self):
         from elasticsearch import Elasticsearch
         from elasticsearch5 import Elasticsearch as Elasticsearch5
         from elasticsearch6 import Elasticsearch as Elasticsearch6
 
         from apps.log_esquery.utils.es_client import get_es_client
-
-        self.assertFalse(hasattr(settings, "ES_COMPATIBILITY"))
 
         client_5 = get_es_client(version="5.6.16", hosts=["127.0.0.1"], username="u", password="p", port=9200)
         client_6 = get_es_client(version="6.8.0", hosts=["127.0.0.1"], username="u", password="p", port=9200)
@@ -747,7 +738,9 @@ class TestEs8Es9Compat(TestCase):
         self.assertEqual(build_date_histogram_interval_params("10m", "9.4.3"), {"fixed_interval": "10m"})
         self.assertEqual(build_date_histogram_interval_params("5m", "8.19.19"), {"fixed_interval": "5m"})
         self.assertEqual(build_date_histogram_interval_params("30s", "7.2.0"), {"fixed_interval": "30s"})
-        self.assertEqual(build_date_histogram_interval_params("5m", None), {"fixed_interval": "5m"})
+        # 版本未知或获取失败时保持旧语法，避免老集群查询失败
+        self.assertEqual(build_date_histogram_interval_params("5m", None), {"interval": "5m"})
+        self.assertEqual(build_date_histogram_interval_params("5m", "unknown"), {"interval": "5m"})
         for cal in ("1m", "1h", "1d", "1w", "1M"):
             self.assertEqual(build_date_histogram_interval_params(cal, "9.4.3"), {"calendar_interval": cal})
             self.assertEqual(build_date_histogram_interval_params(cal, "6.8.0"), {"interval": cal})
@@ -776,29 +769,6 @@ class TestEs8Es9Compat(TestCase):
         }
         res_zero = EsQuery(copy.deepcopy(base_params)).scroll()
         self.assertEqual(res_zero["hits"]["total"], 0)
-
-    def test_scene_fields_supports_match_only_text(self):
-        from unittest.mock import patch
-
-        mock_resp = {
-            "fields": {
-                "msg": {"type": "match_only_text", "description": "message"},
-                "status": {"type": "keyword", "description": "status"},
-            }
-        }
-        with patch("apps.api.UnifyQueryApi.query_field_map", return_value=mock_resp):
-            result = EsQuery.scene_fields(
-                space_uid="bkcc__2",
-                table_id_conditions=[[{"field": "table_id", "op": "eq", "values": ["2_bklog.test"]}]],
-            )
-
-        fields_by_name = {item["field_name"]: item for item in result["fields"]}
-        self.assertEqual(fields_by_name["msg"]["field_type"], "match_only_text")
-        self.assertTrue(fields_by_name["msg"]["is_analyzed"])
-        self.assertFalse(fields_by_name["msg"]["es_doc_values"])
-        self.assertEqual(fields_by_name["status"]["field_type"], "keyword")
-        self.assertFalse(fields_by_name["status"]["is_analyzed"])
-        self.assertTrue(fields_by_name["status"]["es_doc_values"])
 
     def test_query_client_template_add_analyzer_details_es8_es9_typeless(self):
         from apps.log_esquery.esquery.client.QueryClientTemplate import QueryClientTemplate

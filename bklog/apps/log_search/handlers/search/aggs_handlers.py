@@ -171,15 +171,10 @@ class AggsHandlers(AggsBase):
 
     @classmethod
     def _get_es_version(cls, index_set_id) -> str | None:
-        try:
-            index_set = (
-                LogIndexSet.objects.filter(index_set_id=index_set_id)
-                .only("scenario_id", "storage_cluster_id")
-                .first()
-            )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning("query index_set es version failed, index_set_id=%s, error=%s", index_set_id, e)
-            return None
+        """获取索引集对应存储集群的 ES 版本，非 LOG/ES 场景返回 None。"""
+        index_set = (
+            LogIndexSet.objects.filter(index_set_id=index_set_id).only("scenario_id", "storage_cluster_id").first()
+        )
         if not index_set or index_set.scenario_id not in (Scenario.LOG, Scenario.ES):
             return None
         return get_cluster_es_version(index_set.storage_cluster_id)

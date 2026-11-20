@@ -909,8 +909,6 @@ class SearchHandler:
 
                 if not merge_result:
                     merge_result = _result
-                    if isinstance(merge_result.get("hits"), dict) and "total" in merge_result["hits"]:
-                        merge_result["hits"]["total"] = self._extract_hits_total(merge_result)
                     continue
 
                 # 处理took
@@ -927,7 +925,7 @@ class SearchHandler:
                 # 处理 hits
                 if "hits" not in merge_result:
                     merge_result["hits"] = {"total": 0, "max_score": None, "hits": []}
-                merge_result["hits"]["total"] = self._extract_hits_total(merge_result) + self._extract_hits_total(_result)
+                merge_result["hits"]["total"] += _result.get("hits", {}).get("total", 0)
                 merge_result["hits"]["hits"].extend(_result.get("hits", {}).get("hits", []))
 
                 # 处理 aggregations
@@ -1062,18 +1060,11 @@ class SearchHandler:
                 from_favorite_id=self.from_favorite_id,
             )
 
-    @staticmethod
-    def _extract_hits_total(result: dict) -> int:
-        total = result.get("hits", {}).get("total", 0) if isinstance(result, dict) else 0
-        if isinstance(total, dict):
-            return total.get("value", 0)
-        return total or 0
-
     def _can_scroll(self, result) -> bool:
         return (
             self.scenario_id != Scenario.BKDATA
             and self.is_scroll
-            and self._extract_hits_total(result) > MAX_RESULT_WINDOW
+            and result["hits"]["total"] > MAX_RESULT_WINDOW
             and self.size > MAX_RESULT_WINDOW
         )
 
@@ -1102,7 +1093,7 @@ class SearchHandler:
             else:
                 search_result["hits"]["hits"].extend(scroll_result["hits"]["hits"])
             result_size = len(search_result["hits"]["hits"])
-            search_result["hits"]["total"] = self._extract_hits_total(scroll_result)
+            search_result["hits"]["total"] = scroll_result["hits"]["total"]
 
         return search_result
 
@@ -2320,8 +2311,7 @@ class SearchHandler:
         log_list: list = []
         agg_result: dict = {}
         origin_log_list: list = []
-        hits_total = self._extract_hits_total(result_dict)
-        if not hits_total:
+        if not result_dict.get("hits", {}).get("total"):
             result.update(
                 {"total": 0, "took": 0, "list": log_list, "aggs": agg_result, "origin_log_list": origin_log_list}
             )
@@ -2363,7 +2353,7 @@ class SearchHandler:
 
         result.update(
             {
-                "total": hits_total,
+                "total": result_dict["hits"]["total"],
                 "took": result_dict["took"],
                 "list": log_list,
                 "origin_log_list": origin_log_list,
