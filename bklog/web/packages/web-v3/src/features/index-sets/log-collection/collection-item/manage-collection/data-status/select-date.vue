@@ -25,38 +25,30 @@
 -->
 
 <template>
-  <bk-date-picker
-    :class="['king-date-picker', isDaily && 'daily']"
+  <DateRangePicker
+    :class="['king-date-picker', { daily: isDaily, 'has-shortcut': shortText && !isShowDatePicker }]"
     :clearable="false"
-    :editable="true"
-    :format="isDaily ? 'yyyy-MM-dd' : 'yyyy-MM-dd HH:mm:ss'"
-    :open="isShowDatePicker"
-    :placement="isDaily ? 'bottom-end' : 'bottom-start'"
-    :shortcuts="shortcuts"
-    :type="pickerType"
+    allow-input
+    :format="isDaily ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'"
+    :value-type="isDaily ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'"
+    :enable-time-picker="pickerType === 'datetimerange'"
+    :range-input-props="shortText && !isShowDatePicker ? { inputProps: [{ value: shortText }, { value: '' }] } : {}"
+    :popup-props="{ placement: isDaily ? 'bottom-right' : 'bottom-left', onVisibleChange: handleOpenChange }"
+    :presets="presets"
+    presets-placement="left"
     :value="datePickerValue"
     @change="handleDateChange"
-    @open-change="handleOpenChange"
-    @shortcut-change="handleShortcutChange"
-  >
-    <template #trigger>
-      <div
-        v-if="shortText"
-        @click.stop="togglePicker"
-      >
-        <div :class="['bk-date-picker-editor', { 'is-focus': isShowDatePicker }]">
-          {{ shortText }}
-        </div>
-        <div class="icon-wrapper">
-          <span class="bklog-icon bklog-date-picker"></span>
-        </div>
-      </div>
-    </template>
-  </bk-date-picker>
+    @pick="pickedDates += 1"
+    @confirm="handleConfirm"
+    @preset-click="handlePresetClick"
+  />
 </template>
 
 <script>
+  import { DateRangePicker } from 'tdesign-vue-next';
+
   export default {
+    components: { DateRangePicker },
   emits: ["update:date-picker-value","update:datePickerValue","update:time-range","update:timeRange","date-picker-change","datePickerChange"],
 
     props: {
@@ -81,6 +73,7 @@
     data() {
       return {
         isShowDatePicker: false,
+        pickedDates: 0,
         dateHistory: {}, // 日期组件历史值，每次开启记录，关闭比较，变化就搜索
         shortTextEnum: this.isDaily
           ? {
@@ -218,34 +211,35 @@
       };
     },
     computed: {
+      presets() {
+        return Object.fromEntries(this.shortcuts.map(item => [item.text, item.value]));
+      },
       shortText() {
         return this.shortTextEnum[this.timeRange];
       },
     },
     methods: {
-      togglePicker() {
-        this.isShowDatePicker = !this.isShowDatePicker;
-      },
-      handleDateChange(date) {
-        // if (type !== undefined) console.log('日期选择事件')
-        // else console.log('快捷键事件')
+      handleDateChange(date, context) {
         this.$emit('update:date-picker-value', date);
-      },
-      handleShortcutChange(data) {
-        if (data !== undefined) {
-          // 快捷键事件
-          const timeRange = this.shortTextEnum[data.text];
-          this.$emit('update:time-range', timeRange);
-          this.isShowDatePicker = false;
-        } else {
-          // 日期选择事件
-          this.$emit('update:time-range', 'customized');
+        if (context.trigger !== 'preset') this.$emit('update:time-range', 'customized');
+        // 原生组件完成选择后会自行关闭弹层，同步执行关闭后的刷新逻辑。
+        if (context.trigger === 'enter' || (context.trigger === 'pick' && this.pickedDates >= 2)) {
+          this.handleOpenChange(false);
         }
       },
+      handlePresetClick({ preset }) {
+        this.$emit('update:time-range', this.shortTextEnum[Object.keys(preset)[0]]);
+        this.handleOpenChange(false);
+      },
+      handleConfirm({ partial }) {
+        if (partial === 'end') this.handleOpenChange(false);
+      },
       handleOpenChange(state) {
+        if (state === this.isShowDatePicker) return;
         this.isShowDatePicker = state;
+        if (state) this.pickedDates = 0;
         // 因为事件可能会在日期数据变化前触发，所以需要等数据更新后再处理
-        setTimeout(() => {
+        this.$nextTick(() => {
           if (state === true) {
             this.dateHistory = {
               timeRange: this.timeRange,
@@ -253,6 +247,7 @@
               time1: this.datePickerValue[1],
             };
           } else {
+            if (this.datePickerValue.length !== 2 || this.datePickerValue.some(time => !time)) return;
             // 关闭日期组件，检查值是否变化
             const { timeRange, time0, time1 } = this.dateHistory;
             if (this.timeRange !== 'customized') {
@@ -279,23 +274,14 @@
     width: 320px;
 
     &.daily {
-      width: 220px;
+      width: 240px;
     }
 
-    :deep(.bk-date-picker-editor) {
-      line-height: 30px;
-      background: #fff;
-
-      &.is-focus {
-        border-color: #3a84ff;
+    &.has-shortcut {
+      :deep(.t-range-input__inner-right),
+      :deep(.t-range-input__inner-separator) {
+        display: none;
       }
-    }
-
-    :deep(.icon-date-picker) {
-      position: absolute;
-      top: 7px;
-      left: 7px;
-      font-size: 18px;
     }
   }
 </style>

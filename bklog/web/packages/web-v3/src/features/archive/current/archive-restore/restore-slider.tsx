@@ -30,7 +30,13 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
 
 
-import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
+import {
+  MessagePlugin as TDesignMessage,
+  Button as TButton,
+  DateRangePicker as TDateRangePicker,
+  type DateRangeValue,
+} from 'tdesign-vue-next';
+import dayjs from 'dayjs';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, reactive, computed, watch, onMounted } from 'vue';
@@ -156,9 +162,10 @@ export default defineComponent({
     };
 
     // 时间范围变更处理
-    const handleTimeChange = (val: any) => {
-      formData.start_time = val[0];
-      formData.end_time = val[1];
+    const handleTimeChange = (val: DateRangeValue) => {
+      formData.datePickerValue = val.map(String);
+      formData.start_time = formData.datePickerValue[0] || '';
+      formData.end_time = formData.datePickerValue[1] || '';
     };
 
     // 过期时间变更处理
@@ -270,7 +277,7 @@ export default defineComponent({
               notice_user,
               start_time: startTime,
               end_time: endTime,
-              datePickerValue: [startTime, endTime],
+              datePickerValue: [startTime, endTime].map(time => time ? dayjs(time).format('YYYY-MM-DD HH:mm') : ''),
               datePickerExpired: expiredTime,
             });
           } else {
@@ -309,12 +316,11 @@ export default defineComponent({
         datePickerValue: [
           {
             validator: (val: any) => {
-              if (val.length) {
-                return !!val.every((item: any) => item);
-              }
-              return false;
+              if (!Array.isArray(val) || val.length !== 2 || val.some(time => !time)) return false;
+              const [start, end] = val.map(time => new Date(time).getTime());
+              return Number.isFinite(start) && Number.isFinite(end) && start <= end;
             },
-            trigger: 'blur',
+            trigger: 'all',
           },
         ],
         notice_user: [
@@ -393,16 +399,16 @@ export default defineComponent({
                         property='datePickerValue'
                         required
                       >
-                        <bk-date-picker
+                        <TDateRangePicker
                           disabled={isEdit.value}
-                          format='yyyy-MM-dd HH:mm'
-                          placeholder={t('选择日期时间范围')}
-                          type='datetimerange'
+                          enableTimePicker
+                          format='YYYY-MM-DD HH:mm'
+                          valueType='YYYY-MM-DD HH:mm'
+                          placeholder={[t('开始时间'), t('结束时间')]}
+                          clearable
+                          style={{ width: '100%' }}
                           value={formData.datePickerValue}
-                          onChange={(val: string[]) => {
-                            formData.datePickerValue = val;
-                            handleTimeChange(val);
-                          }}
+                          onChange={handleTimeChange}
                         />
                       </bk-form-item>
 

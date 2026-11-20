@@ -3,7 +3,6 @@
 @use '@/shared/styles/space-tag-option' as *;
 .es-king-slider-content {
   min-height: 394px;
-  overflow-y: auto;
 
   .add-collection-title {
     width: 100%;
@@ -85,6 +84,10 @@
         margin-top: 18px;
       }
 
+      .t-input-number {
+        width: 100%;
+      }
+
       .es-address {
         width: 108%;
       }
@@ -136,9 +139,11 @@
       }
     }
 
-    .scope-radio {
-      &:not(:last-child) {
-        margin: 0 26px 14px 0;
+    .scope-radio-group {
+      gap: 14px 26px;
+
+      .scope-radio {
+        margin: 0;
       }
     }
 
@@ -170,13 +175,14 @@
       width: 100%;
     }
 
+    .cluster-owner-label {
+      cursor: pointer;
+      border-bottom: 1px dashed var(--bklog-border-hover, #979ba5);
+    }
+
     :deep(.is-error .user-selector-container) {
       border-color: #ff5656;
     }
-  }
-
-  .illustrate {
-    margin-bottom: 80px;
   }
 
   .bk-form-textarea {
@@ -209,17 +215,28 @@
 
   .flex-space {
     display: flex;
+    width: 100%;
 
     @include flex-justify(space-between);
 
     .flex-space-item {
       width: 48%;
+      min-width: 0;
 
       @include flex-justify(space-between);
 
-      .bk-select,
-      .t-input__wrap {
+      .t-input-number--column {
+        .t-input-number__decrease,
+        .t-input-number__increase {
+          opacity: 1;
+          visibility: visible;
+        }
+      }
+
+      > .t-select__wrap,
+      > .t-input-number {
         flex: 1;
+        min-width: 0;
       }
 
       :deep(.t-input__inner) {
@@ -244,14 +261,17 @@
   .tippy-tooltip {
     padding: 0.3rem 0.6rem;
   }
+}
 
-  .submit-container {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    padding: 8px 0 8px 20px;
-    background: #fafbfd;
-    border-top: 1px solid #dcdee5;
+.bklog-cluster-drawer .t-drawer__footer {
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+  padding: 8px 20px;
+  background: var(--bklog-surface-disabled, #fafbfd);
+
+  > .t-button + .t-button {
+    margin-left: 0;
   }
 }
 

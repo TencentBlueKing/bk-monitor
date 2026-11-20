@@ -25,7 +25,7 @@
  */
 
 
-import { AddIcon } from 'tdesign-icons-vue-next';
+import { AddIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Button as TButton, Input as TInput, Drawer as TDrawer, Option as TOption, Select as TSelect } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -1014,7 +1014,8 @@ export default defineComponent({
               <TInput
                 class='collection-index-set-search'
                 value={indexSetSearch.value}
-                placeholder={t('请输入关键字')}
+                placeholder={t('输入关键字搜索')}
+                prefixIcon={() => <SearchIcon />}
                 clearable
                 onChange={value => { indexSetSearch.value = String(value); }}
               />

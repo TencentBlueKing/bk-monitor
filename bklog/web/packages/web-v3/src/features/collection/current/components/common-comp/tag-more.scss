@@ -289,19 +289,35 @@
   }
 }
 
-.collection-label-picker {
+.collection-label-picker,
+.collection-index-set-picker {
   &.t-popup .t-popup__content {
+    max-height: none;
     margin: 0;
+    overflow: hidden;
     border: 1px solid var(--bklog-border-muted, #dcdee5);
     border-radius: 1px;
   }
-  .collection-label-search {
+
+  .t-select__dropdown-inner {
+    max-height: 260px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .collection-label-search,
+  .collection-index-set-search {
+    box-sizing: border-box;
+    width: 100%;
     padding: 0 5px;
+    margin: 0;
 
     .t-input {
       height: 32px;
       padding: 0;
       border: 0;
+      border-bottom: 1px solid var(--bklog-border-muted, #dcdee5);
+      border-radius: 0;
       box-shadow: none;
     }
 
@@ -309,28 +325,59 @@
       height: 32px;
       padding: 0 10px 0 30px;
       font-size: var(--bklog-font-body, 12px);
-      border-bottom: 1px solid var(--bklog-border-muted, #dcdee5);
     }
 
-    .t-input__prefix {
+    .t-input .t-input__prefix {
       position: absolute;
       left: 5px;
-      color: var(--bklog-text-placeholder, #979ba5);
+      margin: 0;
+
+      > .t-icon {
+        color: var(--bklog-text-placeholder, #979ba5);
+      }
     }
   }
 
-  .new-label-container {
+  .new-label-container,
+  .index-set-inline-extension {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
     padding: 0 16px;
-    background: #fafbfd;
-    border-top: 1px solid #dcdee5;
+    font-size: var(--bklog-font-body, 12px);
+    background: var(--bklog-surface-disabled, #fafbfd);
+    border-top: 1px solid var(--bklog-border-muted, #dcdee5);
 
     &:hover {
-      background: #f0f1f5;
+      background: var(--bklog-surface-component, #f0f1f5);
+    }
+
+    .add-new-label,
+    .add-index-set-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      color: var(--bklog-text-secondary, #63656e);
+      cursor: pointer;
+
+      &:hover {
+        color: var(--bklog-brand-primary, #3a84ff);
+      }
+    }
+
+    .icon-plus-circle {
+      margin-right: 4px;
     }
   }
+}
 
+.collection-label-picker {
   .label-option.is-keyboard-active {
-    background: #eaf3ff;
+    background: var(--bklog-brand-tint-subtle, #eaf3ff);
   }
 }
 
@@ -361,11 +408,10 @@
   }
   .t-input__prefix, .t-input__label { width: 100%; min-width: 0; flex: 1; margin: 0; }
   .t-input__inner, .t-input__suffix { display: none; }
+  // Borderless multi-select restores its input when opened. Keep it out of
+  // the custom trigger's layout so it cannot add an empty line to the cell.
+  .t-select-input.t-select-input--popup-visible .t-input__inner {
+    display: none;
+  }
   .tag-more-select-trigger { flex: 1; min-width: 0; }
-}
-
-.collection-index-set-picker .collection-index-set-search {
-  box-sizing: border-box;
-  width: calc(100% - 16px);
-  margin: 8px;
 }
