@@ -353,8 +353,12 @@ ETL_CONFIG_TO_STRATEGY = {
 }
 
 
+class SimpleDatabusRelationError(ValueError):
+    """无法为指定 Databus 重建简单链路关系。"""
+
+
 def rebuild_simple_databus_relation(
-    databus: DataBusConfig, dry_run: bool = True
+    databus: DataBusConfig, dry_run: bool = True, *, raise_on_skip: bool = False
 ) -> DataLink | dict[str, object] | None:
     """重建简单的 DataBus 关联关系。
 
@@ -365,6 +369,7 @@ def rebuild_simple_databus_relation(
 
     Args:
         databus: 待处理的 DataBusConfig 实例，其 data_link_name 应为空。
+        raise_on_skip: 为 True 时抛出携带本次跳过原因的异常，供人工操作展示。
         dry_run: 若为 True，仅解析关联组件信息并以 dict 返回，不写入数据库。
 
     Returns:
@@ -373,31 +378,36 @@ def rebuild_simple_databus_relation(
     """
     from metadata.models.data_source import DataSource
 
+    def skip(level: int, message: str, *args: object) -> None:
+        logger.log(level, message, *args)
+        if raise_on_skip:
+            raise SimpleDatabusRelationError(message % args)
+
     databus_name = databus.name
     rebuilt_data_link_name = _compose_rebuilt_simple_data_link_name(databus)
     if DataLink.objects.filter(data_link_name=rebuilt_data_link_name).exists():
-        logger.error(
+        return skip(
+            logging.ERROR,
             "rebuild_simple_databus_relation: databus->[%s] data_link_name->[%s] already exists, skip",
             databus_name,
             rebuilt_data_link_name,
         )
-        return None
 
     # Step 1: 简单链路只处理尚未归属 DataLink 的 DataBus，已有归属直接跳过避免覆盖关系。
     if databus.data_link_name and databus.data_link_name != rebuilt_data_link_name:
-        logger.warning(
+        return skip(
+            logging.WARNING,
             "rebuild_simple_databus_relation: databus->[%s] already has data_link_name->[%s], skip",
             databus_name,
             databus.data_link_name,
         )
-        return None
     if databus.status not in REBUILDABLE_DATABUS_STATUSES:
-        logger.warning(
+        return skip(
+            logging.WARNING,
             "rebuild_simple_databus_relation: databus->[%s] status->[%s] is not Ok/Pending, skip",
             databus_name,
             databus.status,
         )
-        return None
 
     # Step 2: 通过 DataBus.source 指向的 DataIdConfig 解析真实 bk_data_id，并校验 DataBus 记录一致性。
     try:
@@ -407,22 +417,22 @@ def rebuild_simple_databus_relation(
             name=databus.data_id_name,
         )
     except DataIdConfig.DoesNotExist:
-        logger.warning(
+        return skip(
+            logging.WARNING,
             "rebuild_simple_databus_relation: databus->[%s] DataIdConfig with data_id_name->[%s] not found, skip",
             databus_name,
             databus.data_id_name,
         )
-        return None
 
     resolved_bk_data_id = data_id_config.bk_data_id
     if not resolved_bk_data_id:
-        logger.warning(
+        return skip(
+            logging.WARNING,
             "rebuild_simple_databus_relation: databus->[%s] DataIdConfig name->[%s] has empty bk_data_id->[%s], skip",
             databus_name,
             data_id_config.name,
             resolved_bk_data_id,
         )
-        return None
 
     # Step 3: 简单链路优先限定为 BKDATA 来源；VM 迁移链路允许通过 AccessVMRecord 反查监控侧 DataSource。
     dsrt_from_vm_record = None
@@ -432,12 +442,12 @@ def rebuild_simple_databus_relation(
     ).first()
     if not data_source:
         if not _is_vm_only_simple_sink_names(databus.sink_names):
-            logger.warning(
+            return skip(
+                logging.WARNING,
                 "rebuild_simple_databus_relation: databus->[%s] DataSource with bk_data_id->[%s] not found, skip",
                 databus_name,
                 resolved_bk_data_id,
             )
-            return None
 
         # v3 迁移 v4 的 VM 链路可能由 BKBase 独立申请 data_id，监控侧 DataSource 中没有这条 bk_data_id。
         # 此时只能先用 AccessVMRecord.bk_base_data_id 找到监控 table_id，再反查真实 DataSource。
@@ -448,59 +458,58 @@ def rebuild_simple_databus_relation(
             )
         )
         if len(access_vm_records) != 1:
-            logger.warning(
+            return skip(
+                logging.WARNING,
                 "rebuild_simple_databus_relation: databus->[%s] bk_base_data_id->[%s] "
                 "got AccessVMRecord count->[%s], skip",
                 databus_name,
                 resolved_bk_data_id,
                 len(access_vm_records),
             )
-            return None
 
         dsrt_from_vm_record = DataSourceResultTable.objects.filter(
             bk_tenant_id=databus.bk_tenant_id,
             table_id=access_vm_records[0].result_table_id,
         ).first()
         if not dsrt_from_vm_record:
-            logger.warning(
+            return skip(
+                logging.WARNING,
                 "rebuild_simple_databus_relation: databus->[%s] DataSourceResultTable with table_id->[%s] "
                 "not found, skip",
                 databus_name,
                 access_vm_records[0].result_table_id,
             )
-            return None
 
         data_source = DataSource.objects.filter(
             bk_tenant_id=databus.bk_tenant_id,
             bk_data_id=dsrt_from_vm_record.bk_data_id,
         ).first()
         if not data_source:
-            logger.warning(
+            return skip(
+                logging.WARNING,
                 "rebuild_simple_databus_relation: databus->[%s] DataSource with bk_data_id->[%s] not found, skip",
                 databus_name,
                 dsrt_from_vm_record.bk_data_id,
             )
-            return None
     elif data_source.created_from != DataIdCreatedFromSystem.BKDATA.value:
-        logger.info(
+        return skip(
+            logging.INFO,
             "rebuild_simple_databus_relation: databus->[%s] DataSource bk_data_id->[%s] created_from->[%s] "
             "is not bkdata, skip",
             databus_name,
             data_source.bk_data_id,
             data_source.created_from,
         )
-        return None
 
-    # 检查databus的bk_data_id是否与DataIdConfig的bk_data_id一致
+    # 此处比较 Databus 与反查到的监控 DataSource，VM 迁移场景下两个 DataID 可能不同。
     if databus.bk_data_id != 0 and databus.bk_data_id != data_source.bk_data_id:
-        logger.warning(
-            "rebuild_simple_databus_relation: databus->[%s] bk_data_id->[%s] "
-            "is not equal to DataIdConfig bk_data_id->[%s], skip",
+        return skip(
+            logging.WARNING,
+            "Databus %s 的 bk_data_id=%s，与监控 DataSource 的 bk_data_id=%s 不一致，无法重建简单链路",
             databus_name,
             databus.bk_data_id,
             data_source.bk_data_id,
         )
-        return None
 
     # Step 4: 简单链路要求 data_id 只关联一张监控结果表，该 table_id 是后续回填的唯一真值源。
     if dsrt_from_vm_record:
@@ -513,26 +522,26 @@ def rebuild_simple_databus_relation(
             )
         )
     if len(dsrt_instances) != 1:
-        logger.warning(
+        return skip(
+            logging.WARNING,
             "rebuild_simple_databus_relation: databus->[%s] bk_data_id->[%s] got DataSourceResultTable count->[%s], "
             "skip",
             databus_name,
             data_source.bk_data_id,
             len(dsrt_instances),
         )
-        return None
     table_id = dsrt_instances[0].table_id
 
     # 获取结果表所属业务ID，对齐apply_datalink的逻辑
     try:
         result_table = ResultTable.objects.get(bk_tenant_id=databus.bk_tenant_id, table_id=table_id)
     except ResultTable.DoesNotExist:
-        logger.warning(
+        return skip(
+            logging.WARNING,
             "rebuild_simple_databus_relation: databus->[%s] ResultTable with table_id->[%s] not found, skip",
             databus_name,
             table_id,
         )
-        return None
 
     if result_table.default_storage in [ClusterInfo.TYPE_VM, ClusterInfo.TYPE_INFLUXDB]:
         target_bk_biz_id = result_table.get_target_bk_biz_id()
@@ -546,21 +555,21 @@ def rebuild_simple_databus_relation(
     sink_map: dict[str, list[str]] = {}
     for entry in databus.sink_names:
         if ":" not in entry:
-            logger.warning(
+            return skip(
+                logging.WARNING,
                 "rebuild_simple_databus_relation: databus->[%s] has invalid sink_names entry->[%s], skip",
                 databus_name,
                 entry,
             )
-            return None
         kind, name = entry.split(":", 1)
         model = SIMPLE_STORAGE_BINDING_MODELS.get(kind)
         if model is None:
-            logger.info(
+            return skip(
+                logging.INFO,
                 "rebuild_simple_databus_relation: databus->[%s] has non-simple sink kind->[%s], skip",
                 databus_name,
                 kind,
             )
-            return None
         sink_map.setdefault(kind, []).append(name)
 
     for kind, names in sink_map.items():
@@ -573,24 +582,26 @@ def rebuild_simple_databus_relation(
         instances_by_name = {instance.name: instance for instance in queryset}
         missing = [name for name in names if name not in instances_by_name]
         if missing:
-            logger.warning(
+            return skip(
+                logging.WARNING,
                 "rebuild_simple_databus_relation: databus->[%s] sink component kind->[%s] name->[%s] "
                 "not found in DB, skip",
                 databus_name,
                 kind,
                 ", ".join(missing),
             )
-            return None
         sink_instances.extend(instances_by_name[name] for name in names)
 
     if not sink_instances:
-        logger.warning("rebuild_simple_databus_relation: databus->[%s] has empty sink_names, skip", databus_name)
-        return None
+        return skip(
+            logging.WARNING, "rebuild_simple_databus_relation: databus->[%s] has empty sink_names, skip", databus_name
+        )
 
     # Step 6: 检查 sink 冲突，避免把已归属其他链路的 binding 拉进来。
     for instance in sink_instances:
         if instance.data_link_name and instance.data_link_name != rebuilt_data_link_name:
-            logger.error(
+            return skip(
+                logging.ERROR,
                 "rebuild_simple_databus_relation: databus->[%s] sink component kind->[%s] name->[%s] "
                 "already has data_link_name->[%s], conflict detected, skip",
                 databus_name,
@@ -598,20 +609,19 @@ def rebuild_simple_databus_relation(
                 instance.name,
                 instance.data_link_name,
             )
-            return None
 
     # Step 7: 通过 binding.bkbase_result_table_name 找到 ResultTableConfig，并校验本地存储记录。
     rt_name_map: dict[str, list[SimpleStorageBindingConfig]] = {}
     for instance in sink_instances:
         if not instance.bkbase_result_table_name:
-            logger.warning(
+            return skip(
+                logging.WARNING,
                 "rebuild_simple_databus_relation: databus->[%s] binding kind->[%s] name->[%s] "
                 "has empty bkbase_result_table_name, skip",
                 databus_name,
                 instance.kind,
                 instance.name,
             )
-            return None
         rt_name_map.setdefault(instance.bkbase_result_table_name, []).append(instance)
 
     rts_by_name = {
@@ -624,30 +634,31 @@ def rebuild_simple_databus_relation(
     }
     missing_rts = [name for name in rt_name_map if name not in rts_by_name]
     if missing_rts:
-        logger.warning(
+        return skip(
+            logging.WARNING,
             "rebuild_simple_databus_relation: databus->[%s] ResultTableConfig name->[%s] not found in DB, skip",
             databus_name,
             ", ".join(missing_rts),
         )
-        return None
 
     rt_instances = [rts_by_name[name] for name in rt_name_map]
     for rt in rt_instances:
         if rt.data_link_name and rt.data_link_name != rebuilt_data_link_name:
-            logger.error(
+            return skip(
+                logging.ERROR,
                 "rebuild_simple_databus_relation: databus->[%s] ResultTableConfig name->[%s] "
                 "already has data_link_name->[%s], conflict detected, skip",
                 databus_name,
                 rt.name,
                 rt.data_link_name,
             )
-            return None
         rt.table_id = table_id
 
     for sink_instance in sink_instances:
         rt = rts_by_name[sink_instance.bkbase_result_table_name]
         if not _simple_storage_exists(sink_instance, table_id, rt.bkbase_table_id):
-            logger.warning(
+            return skip(
+                logging.WARNING,
                 "rebuild_simple_databus_relation: databus->[%s] binding kind->[%s] name->[%s] "
                 "storage relation for table_id->[%s] bkbase_table_id->[%s] not found, skip",
                 databus_name,
@@ -656,18 +667,17 @@ def rebuild_simple_databus_relation(
                 table_id,
                 rt.bkbase_table_id,
             )
-            return None
         sink_instance.table_id = table_id
 
     # Step 8: 简单链路只通过 DataSource.etl_config 推断 DataLink 策略。
     strategy = ETL_CONFIG_TO_STRATEGY.get(data_source.etl_config)
     if strategy is None:
-        logger.warning(
+        return skip(
+            logging.WARNING,
             "rebuild_simple_databus_relation: databus->[%s] etl_config->[%s] not in strategy map, skip",
             databus_name,
             data_source.etl_config,
         )
-        return None
 
     table_ids = [table_id]
     bkbase_result_table = _build_simple_bkbase_result_table(
@@ -678,21 +688,21 @@ def rebuild_simple_databus_relation(
         binding=sink_instances[0],
     )
     if bkbase_result_table is None:
-        logger.warning(
+        return skip(
+            logging.WARNING,
             "rebuild_simple_databus_relation: databus->[%s] cannot build BkBaseResultTable for table_id->[%s], skip",
             databus_name,
             table_id,
         )
-        return None
     bkbase_result_table_conflicts = _find_bkbase_result_table_conflicts(bkbase_result_table)
     if bkbase_result_table_conflicts:
-        logger.warning(
+        return skip(
+            logging.WARNING,
             "rebuild_simple_databus_relation: databus->[%s] BkBaseResultTable unique fields conflict, "
             "conflicts->[%s], skip",
             databus_name,
             bkbase_result_table_conflicts,
         )
-        return None
 
     # Step 9: dry_run 只返回解析结果，实际重建在事务中统一更新 DataLink 和组件归属。
     if dry_run:
