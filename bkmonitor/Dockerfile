@@ -1,9 +1,5 @@
 ARG PYTHON_BASE_IMAGE=tencentos/tencentos4-minimal:4.4-v20250922
 
-# Internal CI may override this empty stage with an approved private wheel context.
-FROM scratch AS ai-agent-runtime-wheels
-WORKDIR /wheels
-
 FROM ${PYTHON_BASE_IMAGE} AS python-base
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -46,29 +42,23 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     && uv sync --locked --no-install-project --no-dev --active \
         --no-binary-package pillow --config-settings-package pillow:freetype=enable
 
-# Optional private runtime: CI supplies an approved hash-locked manifest and
-# package credentials as BuildKit secrets. The public build needs neither.
+# Optional private AI agent runtime. The default build (false) only runs uv sync --locked
+# and needs no extra build arguments, secrets, or pipeline changes.
+ARG pypi_index_url=https://pypi.org/simple/
 ARG AI_AGENT_HERMES_ENABLED=false
-ARG AI_AGENT_RUNTIME_LOCK_SHA256
-RUN --mount=type=secret,id=ai_agent_runtime_requirements \
+ARG AI_AGENT_HERMES_PACKAGES="bkai-hermes-core==0.8.2.dev1 bkai-otel-hermes==1.3.0"
+ARG AI_AGENT_PIP_EXTRA_INDEX_URL=""
+RUN --mount=type=bind,source=bkmonitor/pyproject.toml,target=/run/monitor-pyproject.toml \
+    --mount=type=bind,source=bkmonitor/scripts,target=/run/monitor-scripts \
     --mount=type=secret,id=python_package_config \
-    --mount=type=bind,from=ai-agent-runtime-wheels,target=/run/ai-agent-runtime-wheels \
-    --mount=type=bind,source=bkmonitor/scripts/check_ai_agent_runtime.py,target=/tmp/check_ai_agent_runtime.py \
-    if [ "${AI_AGENT_HERMES_ENABLED}" = "true" ]; then \
-        test -s /run/secrets/ai_agent_runtime_requirements \
-        && test -s /run/secrets/python_package_config \
-        && test -n "${AI_AGENT_RUNTIME_LOCK_SHA256}" \
-        && printf '%s  %s\n' "${AI_AGENT_RUNTIME_LOCK_SHA256}" /run/secrets/ai_agent_runtime_requirements | sha256sum -c - \
-        && PIP_CONFIG_FILE=/run/secrets/python_package_config \
-            /app/venv/bin/python -m pip install --disable-pip-version-check \
-                --no-cache-dir --no-deps --require-hashes --no-binary=pillow \
-                --find-links /run/ai-agent-runtime-wheels \
-                -r /run/secrets/ai_agent_runtime_requirements \
-        && /app/venv/bin/python -m pip check \
-        && /app/venv/bin/python /tmp/check_ai_agent_runtime.py --required; \
-    elif [ "${AI_AGENT_HERMES_ENABLED}" != "false" ]; then \
-        echo 'AI_AGENT_HERMES_ENABLED must be true or false' >&2; exit 1; \
-    fi
+    --mount=type=secret,id=python_package_netrc,target=/root/.netrc \
+    case "${AI_AGENT_HERMES_ENABLED}" in \
+        true) /app/venv/bin/python /run/monitor-scripts/install_ai_agent_runtime.py \
+            && /app/venv/bin/python -m pip check \
+            && /app/venv/bin/python /run/monitor-scripts/check_ai_agent_runtime.py --required ;; \
+        false) ;; \
+        *) echo 'AI_AGENT_HERMES_ENABLED must be true or false' >&2; exit 1 ;; \
+    esac
 
 # build frontend
 FROM node:24.22.2-bookworm-slim AS node-builder
