@@ -579,6 +579,46 @@ paths:
                   type: boolean
                   enum: [true]
                   description: Set to true after the user requests the export. 用户明确要求导出后传 true。
+      responses:
+        '200':
+          description: The exported pprof download metadata. pprof 下载信息。
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [result, code, message, data]
+                properties:
+                  result:
+                    type: boolean
+                    enum: [true]
+                  code:
+                    type: integer
+                    enum: [200]
+                  message:
+                    type: string
+                  trace_id:
+                    type: string
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required: [download_url, filename, size_bytes, expires_in_seconds]
+                    properties:
+                      download_url:
+                        type: string
+                        format: uri
+                        description: Temporary signed URL for downloading the gzip-compressed file. gzip 压缩文件的临时签名下载链接。
+                      filename:
+                        type: string
+                        minLength: 1
+                        description: Suggested local filename with the .pprof extension. 建议保存为此 .pprof 文件名。
+                      size_bytes:
+                        type: integer
+                        minimum: 1
+                        description: Compressed file size in bytes. 压缩文件的字节数。
+                      expires_in_seconds:
+                        type: integer
+                        minimum: 1
+                        description: Download link lifetime in seconds from issuance. 链接从签发起的有效秒数。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -595,6 +635,7 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+          oauth2PersonalClientEnabled: true
   /mcp/calculate_by_range/:
     post:
       operationId: apm_mcp_calculate_by_range

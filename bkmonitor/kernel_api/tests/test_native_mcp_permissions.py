@@ -3690,6 +3690,47 @@ def test_direct_profile_export_requires_verified_gateway_user(direct_gateway, io
     ordinary.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "native_enabled,mcp_allowed,native_allowed,status",
+    [
+        (False, True, False, 200),
+        (False, False, True, 403),
+        (True, True, False, 200),
+        (True, False, True, 200),
+        (True, False, False, 403),
+    ],
+)
+def test_profile_export_personal_token_uses_the_configured_permissions(
+    monkeypatch, direct_gateway, io, native_enabled, mcp_allowed, native_allowed, status
+):
+    monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", ["export_profile_pprof"] if native_enabled else [])
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: {
+        "using_apm_mcp": mcp_allowed,
+        "view_business_v2": native_allowed,
+    }[query.action.id]
+    args = {
+        "bk_biz_id": "2",
+        "global_query": True,
+        "profile_id": "synthetic-profile",
+        "start_time": 1710000000,
+        "end_time": 1710000060,
+        "confirm": True,
+    }
+
+    response, _, _, ordinary = direct_gateway("export_profile_pprof", args, marker=True, bearer=True)
+
+    assert response.status_code == status
+    expected_actions = ["using_apm_mcp"]
+    if native_enabled and not mcp_allowed:
+        expected_actions.append("view_business_v2")
+    assert [call.args[0].action.id for call in io.monitor.iam_client.is_allowed.call_args_list] == expected_actions
+    ordinary.assert_not_called()
+    if status == 200:
+        io.dispatch.assert_called_once_with("export_profile_pprof", args)
+    else:
+        io.dispatch.assert_not_called()
+
+
 def test_direct_legacy_checks_additional_actions(monkeypatch, direct_gateway, io):
     monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
     io.monitor.iam_client.is_allowed.side_effect = lambda query: query.action.id == "using_log_collection_mcp"

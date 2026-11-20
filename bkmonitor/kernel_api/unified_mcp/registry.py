@@ -722,6 +722,7 @@ class ToolDefinition:
     resource_arg: str = "bk_biz_id"  # 默认从哪个参数取得业务／资源上下文。
     backend_derived_fields: tuple[str, ...] = ()  # 由服务端派生、模型无需传入的字段。
     native_permission: dict[str, Any] | None = None  # 可选的原生权限及资源映射。
+    output_schema: dict[str, Any] | None = None  # OpenAPI 成功响应中 data 的 Schema。
 
     def normalize_standalone_args(self, tool_args):
         """适配 standalone 历史标量字符串，Schema 和资源校验仍由执行器负责。
@@ -852,7 +853,7 @@ class ToolDefinition:
 
     def schema_payload(self, catalog_version: str) -> dict[str, Any]:
         """生成 lookup_tool_schema 返回的完整调用契约。"""
-        return {
+        payload = {
             "catalog_version": catalog_version,
             "tool_name": self.name,
             "description": self.description,
@@ -869,6 +870,10 @@ class ToolDefinition:
             "returns": "返回结构沿用现有业务 API。",
             "backend_derived_fields": list(self.backend_derived_fields),
         }
+        if self.output_schema is not None:
+            payload["output_schema"] = deepcopy(self.output_schema)
+            payload["returns"] = "业务返回字段见 output_schema。"
+        return payload
 
 
 class ToolRegistry:
@@ -945,6 +950,13 @@ def _extract_input_schema(operation: dict[str, Any]) -> dict[str, Any]:
     if required:
         result["required"] = required
     return result
+
+
+def _extract_output_schema(operation: dict[str, Any]) -> dict[str, Any] | None:
+    """从 OpenAPI 的成功响应信封提取业务数据 Schema。"""
+    response = (operation.get("responses") or {}).get("200") or {}
+    schema = (response.get("content") or {}).get("application/json", {}).get("schema") or {}
+    return deepcopy((schema.get("properties") or {}).get("data"))
 
 
 def _normalize_public_schema(tool_name: str, schema: dict[str, Any]) -> dict[str, Any]:
@@ -1200,6 +1212,7 @@ def load_tool_registry(root: Path | None = None, *, native_tools: tuple[str, ...
                         forwards_confirmation=forwards_confirmation,
                         backend_derived_fields=BACKEND_DERIVED_FIELDS.get(tool_name, ()),
                         native_permission=deepcopy(NATIVE_PERMISSIONS[tool_name]) if tool_name in enabled else None,
+                        output_schema=_extract_output_schema(operation),
                     )
 
     # Step 7: 校验工具、Metadata 和权限契约一一对应，避免静默漏注册或无权限开放。

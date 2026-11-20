@@ -1,8 +1,12 @@
 import gzip
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+import yaml
+from django.conf import settings
+from jsonschema import Draft7Validator
 from requests import Request, Response
 from rest_framework.exceptions import ValidationError
 
@@ -10,7 +14,8 @@ from apm_web.profile.constants import PROFILE_MCP_EXPORT_PATH
 from apm_web.profile.models import Profile, Sample, ValueType
 from apm_web.profile.views import ProfileQueryViewSet
 from apm_web.models import ProfileUploadRecord
-from kernel_api.resource import apm
+from kernel_api.adapters import ApiRenderer
+from kernel_api.resource import apm, unified_mcp
 
 
 @pytest.fixture
@@ -94,6 +99,15 @@ def test_export_uploads_original_gzip_pprof_and_returns_download_metadata(monkey
     key = f"{PROFILE_MCP_EXPORT_PATH}{result['filename']}"
     storage.upload_fileobj.assert_called_once_with(uploaded, key=key, allow_overwrite=False)
     storage.generate_presigned_url.assert_called_once_with(key=key, expires_in=900)
+
+    contract = unified_mcp.LookupToolSchemaResource().request(tool_name="export_profile_pprof")
+    resource_file = Path(settings.BASE_DIR) / "support-files/apigw/resources/internal/user/apm_mcp.yaml"
+    operation = yaml.safe_load(resource_file.read_text())["paths"]["/mcp/export_profile_pprof/"]["post"]
+    envelope_schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
+    assert contract["output_schema"] == envelope_schema["properties"]["data"]
+    assert set(contract["output_schema"]["required"]) == set(result)
+    envelope = ApiRenderer().get_result(result, renderer_context={"response": SimpleNamespace(status_code=200)})
+    Draft7Validator(envelope_schema, format_checker=Draft7Validator.FORMAT_CHECKER).validate(envelope)
 
 
 def test_uploaded_profile_cannot_be_exported_from_another_business(monkeypatch, export_args, storage):
