@@ -3,10 +3,14 @@
     height: 440px;
     overflow: auto;
 
+    .t-tree__label.t-is-checked {
+      background-color: transparent;
+    }
+
     .checkbox-container {
       padding: 0 0 7px 20px;
       line-height: 22px;
       border-bottom: 1px solid #dfdfdf;
     }
   }
-} 
+}

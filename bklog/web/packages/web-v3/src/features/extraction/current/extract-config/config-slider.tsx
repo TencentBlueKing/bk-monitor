@@ -374,6 +374,7 @@ export default defineComponent({
               <div class='flex-box'>
                 <TButton
                   size='small'
+                  theme='default'
                   onClick={() => {
                     showSelectDialog.value = true;
                   }}
