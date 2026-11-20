@@ -40,3 +40,4 @@ register(
 register(models.RumAppConfig)
 register(models.RumDataSource)
 register(models.MetricDataSource)
+register(models.DataLink, ("bk_biz_id",), ("bk_biz_id",))
