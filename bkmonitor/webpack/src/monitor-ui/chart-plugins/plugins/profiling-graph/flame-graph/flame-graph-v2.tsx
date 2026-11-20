@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { shallowRef } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
@@ -302,8 +302,21 @@ export default defineComponent({
     function handleResizeGraph() {
       chartInstance?.resize();
     }
+    // 图表区域滚动时关闭 tooltip 与右键菜单：tooltip appendToBody 为 false 渲染在图表容器内，
+    // 滚动后会与内容错位甚至滚出可视区，故滚动即关闭（capture 阶段监听，可捕获祖先滚动容器的滚动）
+    function handleScroll() {
+      chartInstance?.dispatchAction({ type: 'hideTip' });
+      if (showContextMenu.value) {
+        showContextMenu.value = false;
+        contextMenuRect.value.left = -1;
+      }
+    }
+    onMounted(() => {
+      window.addEventListener('scroll', handleScroll, true);
+    });
     onBeforeUnmount(() => {
       removeListener(wrapperRef.value, handleResizeGraph);
+      window.removeEventListener('scroll', handleScroll, true);
     });
     return {
       chartRef,
