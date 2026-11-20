@@ -81,7 +81,9 @@ const fallbackHostColumns: CollectionExecutionColumn[] = [
 
 // 详情处于采集中时静默刷新的间隔，静默刷新不展示骨架与 loading
 const SILENT_REFRESH_INTERVAL = 5000;
-// 同一详情连续静默刷新的上限：采集时长最长 300s（60 轮），取 90 轮（450s）留出下发与状态落库延迟
+// 视为过渡态、需要继续轮询的执行状态：采集中与解析中
+const pendingExecutionStatuses = ['running', 'parsing'];
+// 同一详情连续静默刷新的上限：采集加解析最长约 300s（60 轮），取 90 轮（450s）覆盖整段过渡态并留出状态落库延迟
 const SILENT_REFRESH_LIMIT = 90;
 
 export default defineComponent({
@@ -121,8 +123,10 @@ export default defineComponent({
       if (!selection?.bk_host_id || !detail) return undefined;
       return executionResultRows(detail).find(host => host.bk_host_id === selection.bk_host_id);
     });
-    // 详情处于采集中时静默轮询刷新，直到不再采集中；关闭侧栏时组件卸载即停止
-    const hasPendingExecution = computed(() => props.controller.detail.value?.execution_status === 'running');
+    // 详情处于采集中或解析中时静默轮询刷新，直到进入终态；关闭侧栏时组件卸载即停止
+    const hasPendingExecution = computed(() =>
+      pendingExecutionStatuses.includes(props.controller.detail.value?.execution_status ?? '')
+    );
     let silentRefreshCount = 0;
     let silentRefreshStopped = false;
     let silentRefreshTimer: null | ReturnType<typeof setTimeout> = null;
@@ -134,7 +138,7 @@ export default defineComponent({
     function scheduleSilentRefresh() {
       if (silentRefreshStopped) return;
       stopSilentRefresh();
-      // 主动加载中、加载失败、提交操作中、不再采集中或已达刷新上限时不再轮询
+      // 主动加载中、加载失败、提交操作中、不在采集中或解析中或已达刷新上限时不再轮询
       if (
         props.controller.loading.value ||
         props.controller.error.value ||
@@ -151,7 +155,7 @@ export default defineComponent({
         silentRefreshCount += 1;
         await props.controller.silentRefresh();
         if (silentRefreshStopped) return;
-        // 采集中状态消失时 watch 会结束轮询，这里负责继续下一轮
+        // 过渡态消失时 watch 会结束轮询，这里负责继续下一轮
         scheduleSilentRefresh();
       }, SILENT_REFRESH_INTERVAL);
     }
@@ -171,6 +175,10 @@ export default defineComponent({
       },
       { immediate: true }
     );
+    // 提交操作一开始就中止在途静默请求，避免旧响应把改名、终止后的详情覆盖回去
+    watch([() => props.controller.busy.value, rerunBusy, renameBusy], ([busy, rerun, rename]) => {
+      if (busy || rerun || rename) props.controller.cancelSilentRefresh();
+    });
     watch(
       () => props.controller.selected.value,
       () => {

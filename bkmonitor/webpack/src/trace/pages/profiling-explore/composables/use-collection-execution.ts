@@ -120,11 +120,13 @@ export function useCollectionExecution({
    */
   async function silentRefresh() {
     if (loading.value || silentController || !selected.value) return;
+    const execution = selected.value;
     const current = new AbortController();
     silentController = current;
     try {
-      const result = await getCollectionExecution(bizId.value, selected.value, current.signal);
-      if (!current.signal.aborted) detail.value = result;
+      const result = await getCollectionExecution(bizId.value, execution, current.signal);
+      // 期间切换了执行记录或本地改名（selected 已被替换）时丢弃旧响应，避免覆盖最新详情
+      if (!current.signal.aborted && selected.value === execution) detail.value = result;
     } catch {
       /* 静默刷新失败保留现有详情，由下一轮轮询或用户主动刷新兜底 */
     } finally {
@@ -249,6 +251,7 @@ export function useCollectionExecution({
     close,
     refresh,
     silentRefresh,
+    cancelSilentRefresh: abortSilentRefresh,
     renameExecution,
     requestAction,
     dismissAction,
