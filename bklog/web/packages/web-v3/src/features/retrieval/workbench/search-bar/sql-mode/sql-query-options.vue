@@ -2,7 +2,7 @@
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { asDictionary } from '@/shared/utils/typed-record';
 
-  import { ComputedRef, Ref, computed, nextTick, ref, watch } from 'vue';
+  import { ComputedRef, Ref, computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
   import useFieldNameHook from '@/shared/composables/use-field-name';
   // @ts-ignore
@@ -20,6 +20,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
   import { storeRuntimeCacheService } from '@/app/state/services/runtime-cache.service.js';
   import { FieldInfoItem } from '@/app/state/store.type.ts';
   import { excludesFields } from '../utils/const.common.ts'; // @ts-ignore
+  import { DropdownLoadingSkeleton } from '@/shared/ui/loading/skeleton';
   import FavoriteList from '../components/favorite-list';
 
   const props = defineProps({
@@ -91,7 +92,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
   });
   const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.filteredFieldList);
 
-  const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
+  const { isRequesting, requestFieldEgges, isValidateEgges, cancelPendingFieldEgges } = useFieldEgges({ showDuringDebounce: true });
 
   /** 获取数字类型的字段name */
   const getNumTypeFieldList = computed(() => {
@@ -132,6 +133,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
 
   const refDropdownEl: Ref<HTMLElement | null> = ref(null);
   const activeIndex: Ref<number | null> = ref(null);
+  let isDropdownOpen = false;
 
   const operatorSelectList = ref([
     {
@@ -167,6 +169,9 @@ import { asDictionary } from '@/shared/utils/typed-record';
    * @param {String} [param]
    */
   const showWhichDropdown = (param?: OptionItemType[] | string) => {
+    if (param !== OptionItemType.Value) {
+      cancelPendingFieldEgges();
+    }
     activeType.value.length = 0;
     activeType.value = [];
     if (typeof param === 'string') {
@@ -209,6 +214,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
       return;
     }
 
+    cancelPendingFieldEgges();
     valueList.value = (getValueList(retrieveDropdownData.value[fieldName] ?? {}) ?? []).filter(
       item => item?.indexOf(value) !== -1,
     );
@@ -270,6 +276,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
   // 根据当前输入关键字计算提示内容
   const calculateDropdown = () => {
     if (!originFieldList().length) {
+      showWhichDropdown();
       return;
     }
 
@@ -490,7 +497,7 @@ import { asDictionary } from '@/shared/utils/typed-record';
     const { code } = e;
     const catchKeyCode = ['ArrowUp', 'ArrowDown', 'Enter', 'NumpadEnter'];
 
-    if (code === 'Escape' || !catchKeyCode.includes(code)) {
+    if (!catchKeyCode.includes(code) || isRequesting.value) {
       return;
     }
 
@@ -568,15 +575,19 @@ import { asDictionary } from '@/shared/utils/typed-record';
       showOption.value.showContinue ||
       (showOption.value.showOperator && operatorSelectList.value.length);
 
-    if (beforeShownValue) {
+    isDropdownOpen = Boolean(beforeShownValue);
+    if (isDropdownOpen) {
       // capture： true 避免执行顺序导致编辑器的 enter 事件误触发
       document.addEventListener('keydown', handleKeydown, { capture: true });
     }
 
-    return beforeShownValue;
+    return isDropdownOpen;
   };
 
   const beforeHideFn = () => {
+    isDropdownOpen = false;
+    debounceUpdate.cancel();
+    cancelPendingFieldEgges();
     activeIndex.value = null;
     document.removeEventListener('keydown', handleKeydown, { capture: true });
   };
@@ -612,12 +623,13 @@ import { asDictionary } from '@/shared/utils/typed-record';
   });
 
   watch(
-    () => [props.value, props.focusPosition],
+    () => [props.value, props.focusPosition, store.indexId, totalFields.value],
     () => {
-      debounceUpdate();
+      if (isDropdownOpen) debounceUpdate();
     },
-    { immediate: true, deep: true },
   );
+
+  onBeforeUnmount(beforeHideFn);
 
   watch(activeIndex, () => {
     emits('active-change', activeIndex.value);
@@ -660,14 +672,14 @@ import { asDictionary } from '@/shared/utils/typed-record';
         </div>
       </div>
       <!-- 搜索提示 -->
-      <ul
+      <div
         ref="refDropdownEl"
-        v-loading="{ loading: isRequesting, size: 'small' }"
-        :class="['sql-query-options', { 'is-loading': isRequesting }]"
+        class="sql-query-options"
+        :aria-busy="isRequesting"
       >
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">
-          <div class="control-list">
+          <ul class="control-list">
             <li
               v-for="item in fieldList"
               :key="item"
@@ -685,12 +697,16 @@ import { asDictionary } from '@/shared/utils/typed-record';
                 {{ fieldNameShow(item) }}
               </div>
             </li>
-          </div>
+          </ul>
         </template>
 
         <!-- 字段对应值 -->
-        <template v-if="showOption.showValue">
-          <div class="control-list">
+        <DropdownLoadingSkeleton v-if="showOption.showValue && isRequesting" :item-height="32" />
+        <div v-else-if="showOption.showValue && !valueList.length" class="value-empty">
+          {{ $t('无匹配的数据') }}
+        </div>
+        <template v-else-if="showOption.showValue">
+          <ul class="control-list">
             <li
               v-for="item in valueList"
               :key="item"
@@ -708,11 +724,11 @@ import { asDictionary } from '@/shared/utils/typed-record';
                 {{ item }}
               </div>
             </li>
-          </div>
+          </ul>
         </template>
         <!-- : :* -->
         <template v-if="showOption.showColon">
-          <div class="control-list">
+          <ul class="control-list">
             <li
               class="list-item colon-list-item"
               data-bklog-v3-pop-click-item
@@ -749,8 +765,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
                 </i18n>
               </div>
             </li>
-          </div>
-          <div
+          </ul>
+          <ul
             v-if="showOption.showOperator"
             class="control-list"
           >
@@ -776,11 +792,11 @@ import { asDictionary } from '@/shared/utils/typed-record';
                 </i18n>
               </div>
             </li>
-          </div>
+          </ul>
         </template>
         <!-- AND OR -->
         <template v-if="showOption.showContinue">
-          <div class="control-list">
+          <ul class="control-list">
             <li
               class="list-item continue-list-item"
               data-bklog-v3-pop-click-item
@@ -835,9 +851,9 @@ import { asDictionary } from '@/shared/utils/typed-record';
                 </i18n>
               </div>
             </li>
-          </div>
+          </ul>
         </template>
-      </ul>
+      </div>
       <FavoriteList
         :search-value="value"
         @change="handleFavoriteClick"
@@ -866,8 +882,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
       .sql-query-header {
         display: flex;
         align-items: center;
-        height: 48px;
-        padding-left: 16px;
+        flex: 0 0 48px;
+        padding-inline: 16px;
         background-color: #fafbfd;
         border-bottom: 1px solid #dcdee5;
         border-radius: 2px 2px 0 0;
@@ -1041,17 +1057,8 @@ import { asDictionary } from '@/shared/utils/typed-record';
       }
 
       /* FavoriteList 自适应 */
-      :deep(.favorite-list) {
+      :deep(.favorite-footer) {
         flex-shrink: 0;
-      }
-    }
-  }
-</style>
-<style lang="scss">
-  .sql-query-options {
-    .bk-loading {
-      .bk-loading-wrapper {
-        left: 5%;
       }
     }
   }

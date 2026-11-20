@@ -818,6 +818,7 @@ import { ServicesInstance } from '@/platform/services';
       <div
         v-loading="{
           loading: isAiLoading,
+          indicator: searchMode !== 'sql',
           theme: 'colorful',
           size: 'small',
           text: $t('AI 解析中...'),

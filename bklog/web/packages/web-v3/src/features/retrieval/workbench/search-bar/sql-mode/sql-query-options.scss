@@ -1,14 +1,19 @@
 .sql-query-options {
   position: relative;
   width: 100%;
-  min-height: 100px;
-  height: 100%;
 
   overflow-y: auto;
   background: #fff;
 
-  &.is-loading {
-    min-height: 40px;
+  .control-list {
+    padding: 0;
+    margin: 0;
+  }
+
+  .value-empty {
+    padding: 0 16px;
+    line-height: 32px;
+    color: var(--bklog-text-placeholder);
   }
 
   .list-item {
