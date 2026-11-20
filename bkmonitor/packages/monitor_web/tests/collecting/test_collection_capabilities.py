@@ -101,7 +101,9 @@ def test_concurrent_statistics_keep_tenant_headers_and_results_isolated(config_c
 
     with (
         mock.patch.object(FetchSubscriptionStatistic, "full_request_data", synchronized_request_data),
-        mock.patch("api.node_man.default.get_admin_username", side_effect=lambda bk_tenant_id: f"{bk_tenant_id}-admin"),
+        mock.patch(
+            "api.node_man.default.get_backend_username", side_effect=lambda bk_tenant_id: f"{bk_tenant_id}-admin"
+        ),
         mock.patch("requests.sessions.Session.request", side_effect=transport) as query,
         ThreadPoolExecutor(max_workers=2) as pool,
     ):

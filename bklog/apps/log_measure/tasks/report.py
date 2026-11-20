@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
 import logging
@@ -34,6 +34,7 @@ from apps.feature_toggle.models import FeatureToggle
 from apps.log_measure.constants import COLLECTOR_IMPORT_PATHS, LOG_MEASURE_METRIC_TOGGLE
 from apps.log_measure.models import MetricDataHistory
 from apps.log_measure.utils.metric import MetricUtils
+from apps.utils.local import single_tenant_backend_username
 from apps.utils.task import high_priority_periodic_task
 from bk_monitor.handler.monitor import BKMonitor
 from bk_monitor.utils.collector import MetricCollector
@@ -60,7 +61,7 @@ def bk_monitor_report():
         app_token=settings.SECRET_KEY,
         monitor_host=MONITOR_APIGATEWAY_ROOT,
         report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
-        bk_username="admin",
+        bk_username=single_tenant_backend_username("admin"),
         bk_biz_id=settings.BLUEKING_BK_BIZ_ID,
     )
     custom_metric_instance = bk_monitor_client.custom_metric()
@@ -124,7 +125,7 @@ def bk_monitor_collect():
                 "data_names": [metric["data_name"]],
                 "sub_types": [metric["sub_type"]] if metric["sub_type"] else None,
             }
-            logger.info("[statistics_data] metric->{} receive collection task.".format(metric_id))
+            logger.info(f"[statistics_data] metric->{metric_id} receive collection task.")
             collect_metrics.delay(
                 import_paths, collect_params["namespaces"], collect_params["data_names"], collect_params["sub_types"]
             )

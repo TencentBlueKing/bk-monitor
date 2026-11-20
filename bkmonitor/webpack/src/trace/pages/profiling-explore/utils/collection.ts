@@ -600,6 +600,7 @@ export function immediateCollectionPayload(task: CollectionTask, bizId: number, 
     collector_config,
     resource_guard_config,
     schedule: { type: 'immediate', execute_at: now, timezone: task.schedule.timezone },
+    source_task_id: task.task_id,
   };
 }
 

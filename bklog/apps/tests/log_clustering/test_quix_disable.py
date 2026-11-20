@@ -1,0 +1,401 @@
+from unittest.mock import MagicMock, Mock, patch
+
+from django.test import TestCase
+
+from apps.log_clustering.constants import (
+    ClusteringOperationStatusEnum,
+    ClusteringOperationTypeEnum,
+    ClusteringRuntimePhaseEnum,
+)
+from apps.log_clustering.exceptions import (
+    ClusteringAccessNotSupportedException,
+    ClusteringConfigHasExistException,
+    ClusteringOperationConflictException,
+    QuixClusteringParamsInvalidException,
+)
+from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+from apps.log_clustering.handlers.quix.handler import QuixClusteringHandler
+from apps.log_clustering.handlers.quix.operation import (
+    POLL_INTERVAL_SECONDS,
+    QuixClusteringOperationRunner,
+)
+from apps.log_clustering.models import ClusteringConfig, LogClusteringOperation, LogClusteringRuntime
+from apps.log_search.models import LogIndexSet
+from apps.tests.log_clustering.test_quix_operation import INDEX_SET_ID, QUIX_CONFIG
+from apps.tests.log_clustering.test_quix_update import WARN_RULES, create_running_runtime
+
+BOUNDARY = {"0": 10, "1": 10}
+SINK = {"name": "sink"}
+DETACHED = {
+    "configured": True,
+    "attached": False,
+    "detached": True,
+}
+
+
+class TestQuixDisableRunner(TestCase):
+    def setUp(self):
+        create_running_runtime()
+        LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(phase="disabling", sink=SINK)
+        _, self.operation = LogClusteringRuntime.start_operation(
+            INDEX_SET_ID, ClusteringOperationTypeEnum.DISABLE.value, {}
+        )
+        self.bkfara = MagicMock()
+        self.bkfara.stop_clustering.return_value = {"state": "STOPPED"}
+        self.transfer = MagicMock()
+        self.transfer.get_log_clustering_status.side_effect = [DETACHED]
+        self.delete_tag = Mock()
+        for target, value in (
+            ("apps.log_clustering.handlers.quix.operation.BkFaraApi", self.bkfara),
+            ("apps.log_clustering.handlers.quix.operation.TransferApi", self.transfer),
+            ("apps.log_clustering.handlers.quix.operation.LogIndexSet.delete_tag_by_name", self.delete_tag),
+            ("apps.log_clustering.handlers.quix.operation.get_quix_config", Mock(return_value=QUIX_CONFIG)),
+        ):
+            patcher = patch(target, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def run_operation(self):
+        return QuixClusteringOperationRunner(self.operation.operation_id).run()
+
+    def test_raw_binding_allows_stop_without_boundary(self):
+        self.assertIsNone(self.run_operation())
+        self.operation.refresh_from_db()
+        self.assertEqual(
+            [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list], ["disable", "detach"]
+        )
+        self.assertEqual(self.operation.status, "success")
+        self.bkfara.stop_clustering.assert_called_once_with(
+            {
+                "task_id": "task-uuid",
+                "Idempotency-Key": self.operation.get_idempotency_key("stop"),
+                "completion": {"storage_complete": False, "binding_removed": True},
+            }
+        )
+        self.delete_tag.assert_called_once()
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        self.assertEqual(runtime.phase, "stopped")
+
+    @patch("apps.log_clustering.handlers.quix.handler.QuixClusteringHandler._get_bkfara_clustering", return_value={})
+    @patch("apps.log_clustering.handlers.quix.operation.LogIndexSet.set_tag")
+    @patch("apps.log_clustering.tasks.quix.run_quix_clustering_operation.delay")
+    def test_reopen_while_cleanup_waits_cancels_old_stop(self, delay, set_tag, get_clustering):
+        handler = QuixClusteringHandler(LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2"))
+        self.transfer.get_log_clustering_status.side_effect = None
+        self.transfer.get_log_clustering_status.return_value = DETACHED
+        # 模拟升级前已停在旧关闭回执步骤的操作。
+        for step in ("disable_clustering", "clear_local_clustering", "detach", "wait_detached"):
+            self.operation.record_step(step, "success")
+        self.operation.step = "confirm_closed"
+        self.operation.status = "awaiting_receipt"
+        self.operation.save()
+        status = handler.get_access_status()
+        self.assertEqual(status["flow_run"]["status"], "SUCCESS")
+        self.assertEqual((status["quix"]["phase"], status["quix"]["can_reopen"]), ("stopped", True))
+        with self.captureOnCommitCallbacks(execute=True):
+            reopen = handler.reopen()
+        delay.assert_called_once_with(reopen)
+        self.assertIsNone(self.run_operation())  # 已经排队的旧收尾任务
+        self.bkfara.stop_clustering.assert_not_called()
+        binding = {"input_topic": "original"}
+        LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(kafka_binding=binding, input_revision=1)
+        LogIndexSet.objects.create(index_set_id=INDEX_SET_ID, space_uid="bkcc__2", storage_cluster_id=3)
+        self.bkfara.get_clustering.return_value = {"kafka": binding, "input_revision": 1, "state": "RUNNING"}
+        self.transfer.get_log_clustering_status.return_value = {"ready": True}
+        self.transfer.set_log_clustering_config.return_value = {"sink": SINK}
+        self.assertIsNone(QuixClusteringOperationRunner(reopen).run())
+        self.bkfara.restart_clustering.assert_not_called()
+        self.assertEqual(
+            [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list],
+            ["enable"],
+        )
+        self.transfer.set_log_clustering_config.assert_called_once()
+
+    @patch("apps.log_clustering.handlers.quix.handler.QuixClusteringHandler._get_bkfara_clustering", return_value={})
+    def test_disable_timeout_does_not_report_stopped(self, get_clustering):
+        self.transfer.operate_log_clustering.side_effect = TimeoutError("unknown apply result")
+        self.assertGreater(self.run_operation(), 0)
+        handler = QuixClusteringHandler(LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2"))
+        self.assertEqual(handler.get_access_status()["quix"]["phase"], "disabling")
+        self.delete_tag.assert_not_called()
+
+    @patch("apps.log_clustering.handlers.quix.handler.QuixClusteringHandler._get_bkfara_clustering", return_value={})
+    def test_accepted_disable_survives_local_cleanup_failure(self, get_clustering):
+        self.delete_tag.side_effect = [RuntimeError("tag write failed"), None]
+        self.assertGreater(self.run_operation(), 0)
+
+        handler = QuixClusteringHandler(LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2"))
+        status = handler.get_access_status()
+        self.assertEqual(status["quix"]["phase"], "stopped")
+        self.assertEqual(status["flow_run"]["status"], "SUCCESS")
+        self.transfer.get_log_clustering_status.assert_not_called()
+        self.bkfara.stop_clustering.assert_not_called()
+
+        self.assertIsNone(self.run_operation())
+        self.assertEqual(self.delete_tag.call_count, 2)
+        self.assertEqual(
+            [call.args[0]["action"] for call in self.transfer.operate_log_clustering.call_args_list],
+            ["disable", "detach"],
+        )
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, "success")
+
+    def test_reopen_cannot_overtake_inflight_detach(self):
+        self.transfer.get_log_clustering_status.side_effect = [{**DETACHED, "detached": False}]
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        handler = QuixClusteringHandler(LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2"))
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            handler.reopen()
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.step, "wait_detached")
+        self.bkfara.restart_clustering.assert_not_called()
+
+    def test_bound_stop_waits_for_raw_binding_then_resumes_without_reapplying(self):
+        self.transfer.get_log_clustering_status.side_effect = [
+            {**DETACHED, "detached": False},
+            DETACHED,
+        ]
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.bkfara.stop_clustering.assert_not_called()
+        self.assertIsNone(self.run_operation())
+        self.assertEqual(
+            [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list], ["disable", "detach"]
+        )
+        self.bkfara.stop_clustering.assert_called_once()
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, "success")
+
+    def test_resume_old_awaiting_receipt_operation_detaches_without_new_disable(self):
+        self.operation.record_step("disable_clustering", "success")
+        self.operation.record_step("clear_local_clustering", "success")
+        self.operation.step = "confirm_closed"
+        self.operation.status = "awaiting_receipt"
+        self.operation.save()
+        self.transfer.get_log_clustering_status.side_effect = [DETACHED]
+        self.assertIsNone(self.run_operation())
+        self.assertEqual([c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list], ["detach"])
+        self.bkfara.stop_clustering.assert_called_once()
+
+    def test_previously_detached_operation_stops_without_polling_again(self):
+        for step in ("disable_clustering", "clear_local_clustering", "detach", "wait_detached"):
+            self.operation.record_step(step, "success")
+        self.operation.step = "confirm_closed"
+        self.operation.status = "awaiting_receipt"
+        self.operation.save()
+        self.assertIsNone(self.run_operation())
+        self.bkfara.stop_clustering.assert_called_once()
+        self.assertEqual(self.transfer.mock_calls, [])
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, "success")
+
+    def test_local_detached_flag_does_not_skip_business_close(self):
+        self.transfer.get_log_clustering_status.side_effect = None
+        self.transfer.get_log_clustering_status.return_value = {"configured": True, "attached": False}
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.assertEqual(
+            [c.args[0]["action"] for c in self.transfer.operate_log_clustering.call_args_list], ["disable", "detach"]
+        )
+        self.bkfara.stop_clustering.assert_not_called()
+        self.assertIsNone(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).candidate_boundary)
+
+    def test_detach_errors_or_old_reference_cannot_confirm_configuration(self):
+        self.transfer.get_log_clustering_status.side_effect = None
+        runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        for patch_value in (
+            {"errors": ["unavailable"]},
+            {"detached": False},
+        ):
+            with self.subTest(patch_value=patch_value):
+                self.transfer.get_log_clustering_status.return_value = {**DETACHED, **patch_value}
+                self.assertFalse(runner._step_wait_detached())
+
+    def test_never_bound_task_stops_without_reading_partitions(self):
+        LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(sink={})
+        self.assertIsNone(self.run_operation())
+        self.assertEqual(self.transfer.mock_calls, [])
+        self.bkfara.stop_clustering.assert_called_once()
+        self.bkfara.get_clustering.assert_not_called()
+
+    def test_unbound_without_task_does_not_call_provider(self):
+        LogClusteringRuntime.objects.filter(index_set_id=INDEX_SET_ID).update(sink={}, bkfara_task_id="")
+        self.assertIsNone(self.run_operation())
+        self.assertEqual(self.bkfara.mock_calls, [])
+        self.assertEqual(self.transfer.mock_calls, [])
+
+    def test_stop_retry_reuses_request_and_key_until_stopped(self):
+        self.bkfara.stop_clustering.side_effect = [TimeoutError(), {"state": "DRAINING"}, {"state": "STOPPED"}]
+        self.assertGreater(self.run_operation(), 0)
+        self.assertEqual(self.run_operation(), POLL_INTERVAL_SECONDS)
+        self.assertIsNone(self.run_operation())
+        first, second, third = self.bkfara.stop_clustering.call_args_list
+        self.assertEqual(second, third)
+        self.assertEqual(first, second)
+        self.transfer.get_log_clustering_status.assert_called_once()
+
+
+@patch("apps.log_clustering.tasks.quix.run_quix_clustering_operation.delay")
+class TestQuixClusteringHandlerDisable(TestCase):
+    def setUp(self):
+        self.runtime = create_running_runtime()
+        self.index_set = LogIndexSet(index_set_id=INDEX_SET_ID, space_uid="bkcc__2")
+
+    def test_disable_from_running(self, mock_delay):
+        operation_id = QuixClusteringHandler(self.index_set).disable()
+
+        runtime = LogClusteringRuntime.objects.get(pk=self.runtime.pk)
+        self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.DISABLING.value)
+        mock_delay.assert_called_once_with(operation_id)
+
+    def start_update(self, status: str, applied: bool) -> LogClusteringOperation:
+        update_id = QuixClusteringHandler(self.index_set).update({"filter_rules": WARN_RULES})
+        operation = LogClusteringOperation.objects.get(operation_id=update_id)
+        if applied:
+            operation.record_step("metadata_set", ClusteringOperationStatusEnum.SUCCESS.value)
+        operation.status = status
+        operation.save()
+        return operation
+
+    def test_disable_supersedes_failed_update_and_drops_unapplied_rules(self, mock_delay):
+        update = self.start_update(ClusteringOperationStatusEnum.FAILED.value, applied=False)
+
+        QuixClusteringHandler(self.index_set).disable()
+
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=update.pk).status, ClusteringOperationStatusEnum.CANCELED.value
+        )
+        runtime = LogClusteringRuntime.objects.get(pk=self.runtime.pk)
+        self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.DISABLING.value)
+        self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["ERROR"])
+        self.assertIsNone(runtime.pending_config)
+
+    def test_disable_supersedes_awaiting_update_and_keeps_applied_rules(self, mock_delay):
+        update = self.start_update(ClusteringOperationStatusEnum.AWAITING_RECEIPT.value, applied=True)
+
+        QuixClusteringHandler(self.index_set).disable()
+
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=update.pk).status, ClusteringOperationStatusEnum.CANCELED.value
+        )
+        runtime = LogClusteringRuntime.objects.get(pk=self.runtime.pk)
+        self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["WARN"])
+        self.assertIsNone(runtime.pending_config)
+
+    def test_disable_keeps_update_with_unconfirmed_metadata_write(self, mock_delay):
+        update = self.start_update(ClusteringOperationStatusEnum.FAILED.value, applied=False)
+        update.request_payloads = {"metadata_set": {"binding": {"task_id": "task-uuid"}}}
+        update.step = "metadata_set"
+        update.save()
+        mock_delay.reset_mock()
+
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            QuixClusteringHandler(self.index_set).disable()
+
+        update.refresh_from_db()
+        self.runtime.refresh_from_db()
+        self.assertEqual(update.status, ClusteringOperationStatusEnum.FAILED.value)
+        self.assertEqual(self.runtime.phase, ClusteringRuntimePhaseEnum.UPDATING.value)
+        self.assertEqual(self.runtime.pending_config["log_filter"][0]["value"], ["WARN"])
+        mock_delay.assert_not_called()
+
+    def test_disable_does_not_treat_unknown_enable_write_as_unbound(self, mock_delay):
+        enable = LogClusteringOperation.objects.get(operation_type=ClusteringOperationTypeEnum.ENABLE.value)
+        LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(
+            phase=ClusteringRuntimePhaseEnum.ENABLING.value, sink={}
+        )
+        for step in ("create_task", "update_model_parameters", "metadata_set"):
+            with self.subTest(step=step):
+                enable.status = ClusteringOperationStatusEnum.FAILED.value
+                enable.step = step
+                enable.steps = []
+                enable.request_payloads = {step: {"request": "persisted before sending"}}
+                enable.save()
+
+                with self.assertRaises(QuixClusteringParamsInvalidException):
+                    QuixClusteringHandler(self.index_set).disable()
+
+                enable.refresh_from_db()
+                self.assertEqual(enable.status, ClusteringOperationStatusEnum.FAILED.value)
+        self.assertFalse(
+            LogClusteringOperation.objects.filter(operation_type=ClusteringOperationTypeEnum.DISABLE.value).exists()
+        )
+        mock_delay.assert_not_called()
+
+    def test_disable_does_not_supersede_running_operation(self, mock_delay):
+        update = self.start_update(ClusteringOperationStatusEnum.RUNNING.value, applied=False)
+        mock_delay.reset_mock()
+
+        with self.assertRaises(ClusteringOperationConflictException):
+            QuixClusteringHandler(self.index_set).disable()
+
+        self.assertEqual(
+            LogClusteringOperation.objects.get(pk=update.pk).status, ClusteringOperationStatusEnum.RUNNING.value
+        )
+        mock_delay.assert_not_called()
+
+    def test_unbound_stopped_clustering_can_be_enabled_again(self, mock_delay):
+        LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(
+            phase=ClusteringRuntimePhaseEnum.STOPPED.value, sink={}, bkfara_task_id="old-task"
+        )
+        collector_config = Mock(
+            collector_config_id=10,
+            collector_config_name_en="demo",
+            bk_biz_id=2,
+            table_id="2_bklog.demo",
+            bk_data_id=1,
+            storage_cluster_type="elasticsearch",
+        )
+        collector_config.get_etl_config.return_value = {"fields": []}
+        with (
+            patch("apps.log_clustering.handlers.quix.handler.get_quix_config", Mock(return_value=QUIX_CONFIG)),
+            patch(
+                "apps.log_clustering.handlers.quix.handler.CollectorConfig.objects.get",
+                Mock(return_value=collector_config),
+            ),
+            patch("apps.log_clustering.handlers.quix.handler.Space.get_tenant_id", Mock(return_value="system")),
+            patch(
+                "apps.log_clustering.handlers.quix.handler.RegexTemplateHandler.list_templates",
+                Mock(return_value=[{"id": 1, "predefined_varibles": "W10="}]),
+            ),
+        ):
+            result = QuixClusteringHandler(self.index_set).enable({"clustering_fields": "log"})
+
+        runtime = LogClusteringRuntime.objects.get(pk=self.runtime.pk)
+        self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.ENABLING.value)
+        self.assertEqual((runtime.bkfara_task_id, runtime.active_config), ("", {}))
+        mock_delay.assert_called_once_with(result["operation_id"])
+
+    def test_bound_stopped_clustering_cannot_be_enabled_again(self, mock_delay):
+        LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(
+            phase=ClusteringRuntimePhaseEnum.STOPPED.value, sink=SINK
+        )
+
+        with self.assertRaises(ClusteringConfigHasExistException):
+            QuixClusteringHandler(self.index_set).enable({"clustering_fields": "log"})
+        mock_delay.assert_not_called()
+
+    def test_stopped_runtime_cannot_disable_again(self, mock_delay):
+        LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
+
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            QuixClusteringHandler(self.index_set).disable()
+        mock_delay.assert_not_called()
+
+    def test_resubmit_resumes_failed_disable_with_fixed_boundary(self, mock_delay):
+        first_id = QuixClusteringHandler(self.index_set).disable()
+        LogClusteringRuntime.objects.filter(pk=self.runtime.pk).update(candidate_boundary=BOUNDARY)
+        LogClusteringOperation.objects.filter(operation_id=first_id).update(
+            status=ClusteringOperationStatusEnum.FAILED.value
+        )
+
+        second_id = QuixClusteringHandler(self.index_set).disable()
+
+        self.assertEqual(second_id, first_id)
+        self.assertEqual(LogClusteringRuntime.objects.get(pk=self.runtime.pk).candidate_boundary, BOUNDARY)
+
+    def test_close_requires_quix_runtime(self, mock_delay):
+        LogClusteringRuntime.objects.all().delete()
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(filter_rules=[])
+
+        with self.assertRaises(ClusteringAccessNotSupportedException):
+            ClusteringConfigHandler(index_set_id=INDEX_SET_ID).close()
+        mock_delay.assert_not_called()

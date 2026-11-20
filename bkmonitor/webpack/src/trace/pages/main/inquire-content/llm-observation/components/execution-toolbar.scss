@@ -35,6 +35,15 @@
 
     @include flex-align(center);
   }
+
+  &-right {
+    flex: 1 1 0;
+    gap: 24px;
+    min-width: 0;
+
+    @include flex-align(center);
+    @include flex-justify(flex-end);
+  }
 }
 
 .llm-execution-session {
@@ -125,5 +134,47 @@
   .bk-input--suffix-icon {
     font-size: $font-size-large;
     color: #979ba5;
+  }
+}
+
+/* Figma Legend：10x10 色块 + 12px 文案，项间距 20，色块与文案间距 6 */
+.llm-trend-legend {
+  flex: 0 0 auto;
+  gap: 20px;
+  height: 32px;
+
+  @include flex-align(center);
+}
+
+.llm-trend-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.llm-trend-legend-label {
+  font-family: 'Microsoft YaHei', sans-serif;
+  font-size: $font-size-base;
+  line-height: 20px;
+  color: #4e5e7a;
+}
+
+.llm-trend-legend-item {
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+
+  @include flex-align(center);
+
+  &:hover .llm-trend-legend-label {
+    color: $primary-color;
+  }
+
+  &.is-dim .llm-trend-legend-swatch {
+    opacity: 0.35;
+  }
+
+  &.is-dim .llm-trend-legend-label {
+    color: #c4c6cc;
   }
 }

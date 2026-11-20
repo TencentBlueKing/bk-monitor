@@ -686,8 +686,9 @@
       @extend %overflow-popover-scrollable;
     }
 
-    // Trace 字段类型（可滚动 + 文本颜色，非等宽字体）
-    &__trace-field {
+    // Trace 和事件字段类型（可滚动 + 文本颜色，非等宽字体）
+    &__trace-field,
+    &__event-field {
       line-height: 20px;
       color: #313238;
       word-break: break-all;

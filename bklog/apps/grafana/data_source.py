@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,14 +18,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Dict, List, Union
+from typing import Any
 
 from django.conf import settings
 
 from apps.api import BkDataQueryApi
+from apps.api.modules.utils import update_bkdata_auth_info
 from apps.constants import ApiTokenAuthType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.models import FeatureToggle
@@ -41,6 +42,7 @@ from apps.log_search.models import LogIndexSet, Scenario
 from apps.utils.thread import MultiExecuteFunc
 from bk_dataview.grafana.provisioning import Datasource
 from bkm_space.utils import bk_biz_id_to_space_uid
+import builtins
 
 
 @dataclass
@@ -60,13 +62,13 @@ class CustomIndexSetESDataSource:
         return token_obj.token
 
     @classmethod
-    def list(cls, space_uid: str) -> List["CustomIndexSetESDataSource"]:
+    def list(cls, space_uid: str) -> list["CustomIndexSetESDataSource"]:
         """获取列表"""
         token = cls.get_token(space_uid=space_uid)
-        index_sets: List["CustomIndexSetESDataSource"] = []
+        index_sets: list[CustomIndexSetESDataSource] = []
         index_set_objs = LogIndexSet.objects.filter(space_uid=space_uid).iterator()
         for index_set_obj in index_set_objs:
-            indexes: List[Dict[str, Any]] = index_set_obj.indexes
+            indexes: list[dict[str, Any]] = index_set_obj.indexes
             if not indexes:
                 continue
             result_table_id = indexes[0].get("result_table_id", "")
@@ -119,7 +121,7 @@ class CustomIndexSetESDataSource:
         )
 
     @classmethod
-    def list_datasource(cls, bk_biz_id: int) -> List[Datasource]:
+    def list_datasource(cls, bk_biz_id: int) -> builtins.list[Datasource]:
         """Grafana ES数据源"""
         if not FeatureToggleObject.switch(name=GRAFANA_CUSTOM_ES_DATASOURCE, biz_id=bk_biz_id):
             return []
@@ -130,8 +132,13 @@ class CustomIndexSetESDataSource:
     def get_or_create_feature_config(cls) -> FeatureToggle:
         obj, __ = FeatureToggle.objects.get_or_create(
             name=GRAFANA_CUSTOM_ES_DATASOURCE,
-            defaults={"status": "debug", "is_viewed": False, "feature_config": {}, "biz_id_white_list": [],
-                      "biz_id_black_list": []},
+            defaults={
+                "status": "debug",
+                "is_viewed": False,
+                "feature_config": {},
+                "biz_id_white_list": [],
+                "biz_id_black_list": [],
+            },
         )
         return obj
 
@@ -154,11 +161,11 @@ class CustomIndexSetESDataSource:
 class ESBodyAdapter:
     """该类用于兼容Grafana ES7的语法与日志检索的body查询语法"""
 
-    def __init__(self, body: Dict[str, Any]):
+    def __init__(self, body: dict[str, Any]):
         self.body = body
 
     @staticmethod
-    def adapt_interval(body: Dict[str, Any] = None) -> Dict[str, Any]:
+    def adapt_interval(body: dict[str, Any] = None) -> dict[str, Any]:
         """
         data_histogram的时间间隔字段名为fixed_interval, 但是我们的接口是interval
         """
@@ -173,7 +180,7 @@ class ESBodyAdapter:
         return new_dict
 
     @staticmethod
-    def adapt_aggs(body: Dict[str, Any] = None):
+    def adapt_aggs(body: dict[str, Any] = None):
         """
         聚合的时候, order的字段名为_key, 但是我们的接口是_term
         """
@@ -209,7 +216,7 @@ class CustomESDataSourceTemplate:
         self.storage_cluster_id: int = self.data.storage_cluster_id
         self.index: str = self.get_index()
 
-    def get_client(self) -> Union[QueryClientBkData, QueryClientLog, QueryClientEs]:
+    def get_client(self) -> QueryClientBkData | QueryClientLog | QueryClientEs:
         return QueryClient(self.scenario_id, storage_cluster_id=self.storage_cluster_id).get_instance()
 
     def get_index(self):
@@ -230,7 +237,7 @@ class CustomESDataSourceTemplate:
         )
 
     @staticmethod
-    def compatible_mapping(mapping: Dict[str, Any]) -> Dict[str, Any]:
+    def compatible_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
         """
         兼容Grafana高版本只支持7.10+以上的情况, mapping结构需要调整
         """
@@ -257,17 +264,17 @@ class CustomESDataSourceTemplate:
         """
         return self.get_client().mapping(index=self.index)
 
-    def query(self, body: Dict[str, Any]):
+    def query(self, body: dict[str, Any]):
         body = ESBodyAdapter(body=body).adapt()
         return self._query(body=body)
 
-    def _query(self, body: Dict[str, Any]):
+    def _query(self, body: dict[str, Any]):
         """
         各个继承类如果需要自定义查询逻辑, 重写这个方法
         """
         return self.get_client().query(index=self.index, body=body)
 
-    def msearch(self, sql_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def msearch(self, sql_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """批量查询"""
         multi_execute_func = MultiExecuteFunc()
         for idx, body in enumerate(sql_list):
@@ -294,7 +301,7 @@ class BkDataCustomESDataSource(CustomESDataSourceTemplate):
     def __init__(self, index_set_id: int):
         super().__init__(index_set_id=index_set_id)
 
-    def query_bkdata(self, body: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    def query_bkdata(self, body: dict[str, Any] = None) -> list[dict[str, Any]]:
         """
         封装查询bkdata
         查询的时候传body, 不传body为获取mapping
@@ -309,13 +316,10 @@ class BkDataCustomESDataSource(CustomESDataSourceTemplate):
             "sql": json.dumps(sql),
             "no_request": True,
         }
-        if settings.FEATURE_TOGGLE.get("bkdata_token_auth", "off") == "on":
-            params.update({"bkdata_authentication_method": "token", "bkdata_data_token": settings.BKDATA_DATA_TOKEN})
-        else:
-            params.update({"bkdata_authentication_method": "user", "bk_username": "admin", "operator": "admin"})
+        update_bkdata_auth_info(params)
         return BkDataQueryApi.query(params, request_cookies=False)["list"]
 
-    def _query(self, body: Dict[str, Any]):
+    def _query(self, body: dict[str, Any]):
         return self.query_bkdata(body=body)
 
     def _mapping(self):
@@ -325,7 +329,7 @@ class BkDataCustomESDataSource(CustomESDataSourceTemplate):
 class CustomESDataSourceHandler:
     """自定义es数据源"""
 
-    def __init__(self, index_set_id: int = None, sql_list: List[Dict[str, Any]] = None):
+    def __init__(self, index_set_id: int = None, sql_list: list[dict[str, Any]] = None):
         self.index_set_id = index_set_id
         self.sql_list = sql_list or []
         # 没传index_set_id时, 从sql_list里获取
@@ -335,7 +339,7 @@ class CustomESDataSourceHandler:
         self.scenario_id: str = self.data.scenario_id
         self.storage_cluster_id: int = self.data.storage_cluster_id
 
-    def get_instance(self) -> Union[LogCustomESDataSource, ESCustomESDataSource, BkDataCustomESDataSource]:
+    def get_instance(self) -> LogCustomESDataSource | ESCustomESDataSource | BkDataCustomESDataSource:
         """获取处理实例"""
         return {
             Scenario.LOG: LogCustomESDataSource,
@@ -346,8 +350,8 @@ class CustomESDataSourceHandler:
     def mapping(self):
         return self.get_instance().mapping()
 
-    def query(self, body: Dict[str, Any]):
+    def query(self, body: dict[str, Any]):
         return self.get_instance().query(body=body)
 
-    def msearch(self) -> List[Dict[str, Any]]:
+    def msearch(self) -> list[dict[str, Any]]:
         return self.get_instance().msearch(sql_list=self.sql_list)

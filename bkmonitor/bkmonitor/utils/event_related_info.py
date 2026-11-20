@@ -22,6 +22,7 @@ from bkmonitor.data_source import load_data_source, DataSource, UnifyQuery
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import Event, QueryConfigModel
 from bkmonitor.utils.alert_drilling import (
+    CLUSTERING_SIGNATURE_FIELD,
     ClusteringType,
     get_alert_query_config_or_none,
     get_log_clustering_filter_dict,
@@ -36,6 +37,9 @@ __all__ = ["get_event_relation_info", "get_alert_relation_info"]
 from core.drf_resource import api
 
 logger = logging.getLogger("fta_action.run")
+
+# 小型化聚类结果里的签名元数据字段，关联日志展示时去掉。
+SIGNATURE_RECORD_FIELDS = {CLUSTERING_SIGNATURE_FIELD, "__log_signature", "__log_cluster_publish_revision"}
 
 
 def get_event_relation_info(event: Event):
@@ -183,6 +187,7 @@ def get_clustering_log(
     end_time_str = time_tools.utc2biz_str(end_time)
 
     sensitivity, signatures = next(iter(extra_filter_dict.items()))
+    is_signature_field: bool = sensitivity == CLUSTERING_SIGNATURE_FIELD
     builtin_dimension_fields = ["sensitivity", "signature", "__dist_05"]
 
     addition = [{"field": sensitivity, "operator": "=", "value": ",".join(str(signature) for signature in signatures)}]
@@ -205,7 +210,8 @@ def get_clustering_log(
 
     # 查询关联日志，最多展示1条
     record = {}
-    log_signature = None
+    # 小型化告警的 signature 维度就是签名，无需从日志字段中提取。
+    log_signature = str(signatures[0]) if is_signature_field and signatures else None
     try:
         log_data_source = load_data_source(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG).init_by_query_config(
             {
@@ -227,9 +233,9 @@ def get_clustering_log(
         if logs:
             record = logs[0]
             for key in record.copy():
-                if key.startswith("__dist_"):
+                if key.startswith("__dist_") or (is_signature_field and key in SIGNATURE_RECORD_FIELDS):
                     # 获取pattern
-                    if key == sensitivity:
+                    if key == sensitivity and not is_signature_field:
                         log_signature = record[key]
                     # 去掉数据签名相关字段，精简显示内容
                     record.pop(key)
@@ -256,9 +262,11 @@ def get_clustering_log(
                 "start_time": start_time_str,
                 "end_time": end_time_str,
                 "index_set_id": index_set_id,
-                "pattern_level": sensitivity.lstrip("__dist_"),
                 "show_new_pattern": False,
             }
+            # 小型化只有单一档位，由日志平台使用默认值。
+            if not is_signature_field:
+                pattern_params["pattern_level"] = sensitivity.lstrip("__dist_")
             # 增加聚类分组参数
             group_by = [group for group in group_by if group not in builtin_dimension_fields]
             if group_by:

@@ -30,6 +30,7 @@ from apps.log_databus.constants import (
     KAFKA_SSL_CONFIG_ITEMS,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
+from apps.utils.local import single_tenant_backend_username
 
 logger = logging.getLogger()
 
@@ -62,7 +63,7 @@ class RouteChecker(Checker):
     def query_route(self):
         params = {
             "condition": {"channel_id": self.bk_data_id},
-            "operation": {"operator_name": DEFAULT_BK_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(DEFAULT_BK_USERNAME)},
         }
         try:
             data = GseApi.query_route(params)
@@ -79,7 +80,7 @@ class RouteChecker(Checker):
         stream_id = route_info["stream_to"]["stream_to_id"]
         params = {
             "condition": {"stream_to_id": stream_id, "plat_name": DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": DEFAULT_BK_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(DEFAULT_BK_USERNAME)},
         }
         try:
             data = GseApi.query_stream_to(params)

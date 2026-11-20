@@ -112,11 +112,13 @@ RESOURCE_PHASE_HOVERS: dict[str, Hover] = {
         source=RESOURCE_TIMING_SOURCE,
     ),
     "tls": _hover(
-        _("TLS 握手"),
+        _("TLS 建连"),
         _("HTTPS 连接在传输内容前确认服务器身份并建立加密通道；非 HTTPS 或复用连接时可能没有该阶段。"),
         user_experience=_("浏览器正在确认连接安全并协商加密方式。"),
         source=RESOURCE_TIMING_SOURCE,
     ),
+    # 网络请求场景中，更准确的描述是「建立连接后等待响应首字节」。
+    # 为简化展示，各场景统一使用下方文案。
     "first_byte": _hover(
         _("等待首字节"),
         _("浏览器发出请求后等待响应首字节，期间包含请求传输、服务端处理和网络往返。"),
@@ -124,7 +126,7 @@ RESOURCE_PHASE_HOVERS: dict[str, Hover] = {
         source=RESOURCE_TIMING_SOURCE,
     ),
     "download": _hover(
-        _("内容下载"),
+        _("内容传输"),
         _("浏览器从收到响应首字节开始，持续接收资源内容，直到响应结束。"),
         user_experience=_("浏览器正在接收资源内容。"),
         source=RESOURCE_TIMING_SOURCE,
@@ -172,6 +174,40 @@ VIEW_PHASE_HOVERS: dict[str, Hover] = {
         _("页面稳定等待"),
         _("RUM 在 Load 事件后继续观察网络请求、资源加载和 DOM 变化，直到页面在一段时间内没有活动。"),
         user_experience=_("页面不再继续跳动、补充内容或频繁请求，用户感觉页面趋于稳定。"),
+        source=LOADING_TIME_SOURCE,
+    ),
+}
+
+VIEW_NAVIGATION_PHASE_HOVERS: dict[str, Hover] = {
+    **{key: RESOURCE_PHASE_HOVERS[key] for key in ("redirect", "dns", "connect", "tls", "download")},
+    "prepare": _hover(
+        _("发起前等待"),
+        _("从导航开始或重定向结束，到浏览器开始获取主文档的时间。"),
+        user_experience=_("浏览器正在准备获取页面内容。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "first_byte": _hover(
+        _("等待首字节"),
+        _("从连接完成或开始获取主文档，到浏览器收到响应首字节的时间。"),
+        user_experience=_("浏览器正在发送请求并等待页面开始返回内容。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "dom_parsing": _hover(
+        _("DOM 解析"),
+        _("收到主文档后，浏览器完成剩余 HTML 解析、DOM 构建和相关同步脚本执行。"),
+        user_experience=_("页面结构正在生成，内容开始陆续出现。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "resource_load": _hover(
+        _("资源加载"),
+        _("从 HTML 解析完成到 load 事件开始，包含延迟执行的脚本、DOMContentLoaded 处理和子资源加载。"),
+        user_experience=_("页面结构已就绪，脚本和其他资源继续加载、执行。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "page_stable": _hover(
+        _("页面趋于稳定"),
+        _("从 load 事件开始，到事件处理结束与自动 Loading Time 中较晚的时间。"),
+        user_experience=_("页面内容加载完成，逐渐稳定下来。"),
         source=LOADING_TIME_SOURCE,
     ),
 }

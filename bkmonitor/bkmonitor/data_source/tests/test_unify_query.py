@@ -672,6 +672,7 @@ class TestUnifyQuery:
             expression="",
         )
         mocker.patch.object(query, "use_unify_query", return_value=True)
+        mocker.patch("bkmonitor.data_source.data_source.has_log_clustered_route", return_value=False)
         get_dimension_data = mocker.patch(
             "bkmonitor.data_source.unify_query.query.api.unify_query.get_dimension_data",
             return_value={"values": {"signature": ["signature-1"]}},

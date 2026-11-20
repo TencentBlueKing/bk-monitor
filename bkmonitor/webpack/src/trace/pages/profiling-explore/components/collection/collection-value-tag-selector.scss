@@ -1,0 +1,10 @@
+/* stylelint-disable selector-class-pattern */
+// ValueTagSelector 自带固定宽度，放进筛选栏栅格时跟随列宽
+.collection-value-tag-selector {
+  position: relative;
+  z-index: 600;
+
+  .vue3_retrieval__value-tag-selector-component {
+    width: 100%;
+  }
+}

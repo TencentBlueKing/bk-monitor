@@ -10,10 +10,11 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import json
+from unittest.mock import patch
 
-import arrow
 import pytest
 from django.test import TestCase
+from redis.exceptions import ResponseError
 
 from alarm_backends.constants import NO_DATA_TAG_DIMENSION
 from alarm_backends.core.alarmd.reference import build_reference_trigger_decision_candidate
@@ -23,7 +24,6 @@ from alarm_backends.service.trigger.checker import AnomalyChecker
 from alarm_backends.tests.alarmd_fixtures import TRIGGER_POINT as POINT
 from alarm_backends.tests.alarmd_fixtures import TRIGGER_STRATEGY as STRATEGY
 from bkmonitor.models import CacheNode
-from bkmonitor.utils import time_tools
 from core.errors.alarm_backends import StrategyItemNotFound
 
 pytestmark = pytest.mark.django_db
@@ -108,7 +108,7 @@ class TestChecker(TestCase):
         strategy = copy.deepcopy(STRATEGY)
         strategy["update_time"] = 1569246480
         raw = json.dumps(strategy, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        _, event_record = AnomalyChecker(point, strategy, 1).check()
+        event_record = AnomalyChecker(point, strategy, 1).check()
         batch = build_reference_trigger_decision_candidate(
             strategy=strategy,
             legacy_json=raw,
@@ -344,32 +344,61 @@ class TestChecker(TestCase):
             ],
         )
 
-    def test_gen_anomaly_records(self):
-        checker = AnomalyChecker(POINT, STRATEGY, 1)
-        records = checker.gen_anomaly_records()
-        self.assertEqual(len(records), 3)
-        self.assertEqual(records[0].source_time, time_tools.mysql_time(arrow.get(1569246480).datetime))
-        self.assertEqual(records[0].strategy_id, 1)
-        anomaly_ids = {record.anomaly_id for record in records}
-        self.assertSetEqual(
-            anomaly_ids,
-            {
-                "55a76cf628e46c04a052f4e19bdb9dbf.1569246480.1.1.1",
-                "55a76cf628e46c04a052f4e19bdb9dbf.1569246480.1.1.2",
-                "55a76cf628e46c04a052f4e19bdb9dbf.1569246480.1.1.3",
-            },
-        )
-
     def test_check_no_anomaly(self):
         self.insert_check_result(0)
         checker = AnomalyChecker(POINT, STRATEGY, 1)
-        anomaly_records, event_record = checker.check()
-        self.assertEqual(len(anomaly_records), 3)
+        event_record = checker.check()
         self.assertIsNone(event_record)
 
     def test_check(self):
         self.insert_check_result(2)
         checker = AnomalyChecker(POINT, STRATEGY, 1)
-        anomaly_records, event_record = checker.check()
-        self.assertEqual(len(anomaly_records), 3)
+        event_record = checker.check()
         self.assertEqual(event_record["trigger"]["level"], "2")
+
+    def test_prefetch_preserves_level_priority_and_reads_lower_levels_on_demand(self):
+        self.insert_check_result(2)
+        first, second = (AnomalyChecker(copy.deepcopy(POINT), STRATEGY, 1) for _ in range(2))
+        AnomalyChecker.prefetch_first_windows([first, second])
+
+        for checker in (first, second):
+            with patch.object(checker, "_read_window", wraps=checker._read_window) as read:
+                level, timestamps = checker.check_anomaly()
+            self.assertEqual(level, 2)
+            self.assertEqual(timestamps, [1569246240, 1569246420])
+            self.assertEqual([call.args[1] for call in read.call_args_list], ["2"])
+
+    def test_empty_prefetched_window_is_a_valid_result(self):
+        point = copy.deepcopy(POINT)
+        point["anomaly"] = {"1": point["anomaly"]["1"]}
+        checkers = [AnomalyChecker(point, STRATEGY, 1) for _ in range(2)]
+        AnomalyChecker.prefetch_first_windows(checkers)
+        for checker in checkers:
+            with patch.object(checker, "_read_window", side_effect=AssertionError):
+                self.assertEqual(checker.check_anomaly(), (-1, []))
+
+    def test_prefetch_failure_keeps_point_reads(self):
+        self.insert_check_result(3)
+        checkers = [AnomalyChecker(POINT, STRATEGY, 1) for _ in range(2)]
+        with patch("alarm_backends.service.trigger.checker.routed_client", side_effect=ConnectionError):
+            AnomalyChecker.prefetch_first_windows(checkers)
+        for checker in checkers:
+            self.assertEqual(checker.check_anomaly(), (1, [1569246240, 1569246360, 1569246480]))
+
+    def test_bad_window_does_not_shift_other_pipeline_replies(self):
+        self.insert_check_result(3)
+        good = AnomalyChecker(POINT, STRATEGY, 1)
+        bad = AnomalyChecker(POINT, STRATEGY, 1)
+        empty = AnomalyChecker(POINT, STRATEGY, 1)
+        bad.dimensions_md5 = "wrong-type"
+        empty.dimensions_md5 = "empty"
+        CHECK_RESULT_CACHE_KEY.client.set(bad._window_key("1"), "not a sorted set")
+
+        AnomalyChecker.prefetch_first_windows([good, bad, empty])
+
+        with patch.object(good, "_read_window", side_effect=AssertionError):
+            self.assertEqual(good.check_anomaly()[0], 1)
+        with self.assertRaises(ResponseError):
+            bad.check_anomaly()
+        with patch.object(empty, "_read_window", side_effect=AssertionError):
+            self.assertEqual(empty._check_anomaly_by_level("1"), (False, []))

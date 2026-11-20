@@ -109,19 +109,36 @@ def get_tenant_admin_username(bk_tenant_id: str) -> str:
         正常情况下相关信息不会变化，所以直接缓存结果。
     """
 
-    # 非多租户模式下，直接返回默认管理员用户名
     blueking = get_config().blueking
     if not blueking.enable_multi_tenancy:
-        return "admin"
+        return single_tenant_backend_username("admin")
+    return _lookup_admin_username(bk_tenant_id, blueking.bk_admin_username)
 
+
+def single_tenant_backend_username(fallback: str) -> str:
+    blueking = get_config().blueking
+    if blueking.enable_multi_tenancy or "bk_admin_username" not in blueking.model_fields_set:
+        return fallback
+    login_name = blueking.bk_admin_username.strip()
+    return _single_tenant_admin_username(login_name) if login_name else fallback
+
+
+@lru_cache(maxsize=1024)
+def _single_tenant_admin_username(login_name: str) -> str:
+    return _lookup_admin_username("default", login_name)
+
+
+def _lookup_admin_username(bk_tenant_id: str, login_name: str) -> str:
     result = request_user_api(
         bk_tenant_id=bk_tenant_id,
         method="GET",
         path="api/v3/open/tenant/virtual-users/-/lookup/",
         username="admin",
-        params={"lookup_field": "login_name", "lookups": blueking.bk_admin_username},
+        params={"lookup_field": "login_name", "lookups": login_name},
     )
-    return result["data"][0]["bk_username"]
+    if result.get("data") and (username := result["data"][0].get("bk_username")):
+        return username
+    raise ValueError("获取管理员用户失败")
 
 
 @lru_cache(maxsize=1024)

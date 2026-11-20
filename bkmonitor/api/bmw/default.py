@@ -64,3 +64,27 @@ class RemoveTaskResource(MonitorWorkerAPIGWResource):
 
     action = "bmw/task/"
     method = "DELETE"
+
+
+class RefreshResultTableRouteResource(MonitorWorkerAPIGWResource):
+    """刷新结果表详情路由"""
+
+    action = "bmw/metadata/routes/result-table/refresh"
+    method = "POST"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+
+class RefreshDataLabelRouteResource(MonitorWorkerAPIGWResource):
+    """刷新数据标签路由"""
+
+    action = "bmw/metadata/routes/data-label/refresh"
+    method = "POST"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+
+class RefreshSpaceRouteResource(MonitorWorkerAPIGWResource):
+    """刷新单个空间的查询路由"""
+
+    action = "bmw/metadata/routes/space/refresh"
+    method = "POST"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False

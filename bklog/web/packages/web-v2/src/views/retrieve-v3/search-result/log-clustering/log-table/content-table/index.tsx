@@ -24,7 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, isRef, nextTick, onBeforeUnmount, onMounted, ref, type PropType } from 'vue';
+import {
+  computed,
+  defineComponent,
+  inject,
+  isRef,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  type PropType,
+} from 'vue';
 import TextHighlight from 'vue-text-highlight';
 
 import useLocale from '@/hooks/use-locale';
@@ -38,6 +48,7 @@ import ClusterEventPopover from './cluster-popover';
 import RemarkEditTip from './remark-edit-tip';
 import PatternAnalysisSlider from './pattern-analysis-slider';
 import { getConditionRouterParams } from './utils';
+import { quixPage } from '../../quix-page';
 import $http from '@/api';
 
 import type { ITableItem } from '../index';
@@ -137,6 +148,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
+    const quix = inject(quixPage, undefined);
     const getOwners = (row?: LogPattern | null) => {
       const owners = row?.owners as any;
       if (Array.isArray(owners)) return owners as string[];
@@ -264,7 +276,8 @@ export default defineComponent({
         });
       }
       additionList.push({
-        field: `__dist_${props.requestData?.pattern_level}`,
+        // 小型化聚类以 signature 作为签名字段
+        field: quix?.status.value ? 'signature' : `__dist_${props.requestData?.pattern_level}`,
         operator: 'is',
         value: [row.signature?.toString() ?? ''],
         isLink,

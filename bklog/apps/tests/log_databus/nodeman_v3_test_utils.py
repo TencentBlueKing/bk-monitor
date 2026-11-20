@@ -28,8 +28,13 @@ def set_nodeman_v3_toggle(
     return toggle
 
 
-def nodeman_v3_toggle(status: str = "on", *, enabled: bool = True, **config):
-    """同时配置环境总开关和数据库灰度开关，可装饰 TestCase 类或测试方法。"""
+def nodeman_v3_toggle(status: str = "on", *, enabled: bool = False, **config):
+    """
+    同时配置环境变量和数据库灰度开关，可装饰 TestCase 类或测试方法。
+
+    默认 enabled=False 表示环境变量未强制准入，交给 DB 灰度，与灰度类用例一致；
+    需要验证环境变量强制准入时传 enabled=True。
+    """
 
     def decorator(target):
         if isinstance(target, type):

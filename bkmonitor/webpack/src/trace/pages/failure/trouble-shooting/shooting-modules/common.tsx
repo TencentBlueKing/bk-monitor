@@ -45,6 +45,7 @@ export const TableContentItem = (props: {
   needTitle: boolean;
   showLabel: boolean;
   value: any;
+  valueContent?: JSX.Element;
 }) => (
   <span class='table-content-item'>
     {props.showLabel && (
@@ -58,13 +59,15 @@ export const TableContentItem = (props: {
         {props.label}
       </span>
     )}
-    <span
-      class='item-value'
-      title={props.needTitle ? String(props.value) : null}
-    >
-      {props.value}
-      {props.needJumpIcon && <i class='icon-monitor icon-fenxiang icon-jump-page' />}
-    </span>
+    {props.valueContent || (
+      <span
+        class='item-value'
+        title={props.needTitle ? String(props.value) : null}
+      >
+        {props.value}
+        {props.needJumpIcon && <i class='icon-monitor icon-fenxiang icon-jump-page' />}
+      </span>
+    )}
   </span>
 );
 

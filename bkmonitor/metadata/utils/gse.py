@@ -12,6 +12,8 @@ from typing import Any
 
 from django.conf import settings
 
+from bkmonitor.utils.user import single_tenant_backend_username
+
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -61,7 +63,7 @@ class KafkaGseSyncer:
         kafka_auth = cls._get_kafka_sasl_auth(mq_cluster)
         params = {
             "condition": {"stream_to_id": mq_cluster.gse_stream_to_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             "specification": {
                 "stream_to": {
                     "name": name,
@@ -85,7 +87,7 @@ class KafkaGseSyncer:
         kafka_auth = cls._get_kafka_sasl_auth(mq_cluster)
         params = {
             "metadata": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             "stream_to": {
                 "name": name,
                 "report_mode": cls.DEFAULT_STREAM_TO_REPORT_MODEL,
@@ -108,7 +110,7 @@ class KafkaGseSyncer:
                     "stream_to_id": config.ZK_GSE_DATA_CLUSTER_ID,
                     "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
                 },
-                "operation": {"operator_name": settings.COMMON_USERNAME},
+                "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             }
             result = api.gse.query_stream_to(bk_tenant_id=DEFAULT_TENANT_ID, **params)
             return bool(result)

@@ -26,6 +26,8 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
+import { useI18n } from 'vue-i18n';
+
 import type { IRumDetailHeaderVM, IRumOverviewItemVM } from '../../typings';
 
 import './detail-header.scss';
@@ -45,8 +47,11 @@ export default defineComponent({
   emits: {
     /** 点击公共信息里的链接项（会话 / 视图 / View 详情） */
     itemClick: (_key: string, _value: string) => true,
+    /** 复制当前记录的原始 Span JSON */
+    copy: () => true,
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 点击公共信息项：回传原始值，展示文本可能已经过单位换算或枚举别名 */
     const handleItemClick = (item: IRumOverviewItemVM) => {
       if (!item.isLink || !item.value) return;
@@ -80,6 +85,11 @@ export default defineComponent({
                   {badge.text}
                 </span>
               ))}
+              <i
+                class='icon-monitor icon-mc-copy header-copy'
+                v-bk-tooltips={{ content: t('复制') }}
+                onClick={() => emit('copy')}
+              />
             </div>
             <div class='header-info-items'>
               {data.items.map(item => (

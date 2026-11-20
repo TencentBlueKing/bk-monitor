@@ -294,7 +294,7 @@ class RecordRuleV4Runner:
         )
         if not deployment_check["can_apply"]:
             raise ValueError("; ".join(error["message"] for error in deployment_check["errors"]))
-        response = api.bkdata.apply_record_rule_flow(bk_tenant_id=self.rule.bk_tenant_id, config=[flow_config])
+        response = api.bkdata.apply_data_link(bk_tenant_id=self.rule.bk_tenant_id, config=[flow_config])
         self.rule.last_refresh_time = now()
         return response
 
@@ -302,7 +302,7 @@ class RecordRuleV4Runner:
         """调用 bkbase 删除 Flow；可把 Not Found 视为删除成功。"""
 
         try:
-            return api.bkdata.delete_record_rule_flow(
+            return api.bkdata.delete_data_link(
                 bk_tenant_id=self.rule.bk_tenant_id,
                 namespace=RECORD_RULE_V4_BKBASE_NAMESPACE,
                 kind="flows",
@@ -325,7 +325,7 @@ class RecordRuleV4Runner:
             return RecordRuleV4FlowStatus.ABNORMAL.value
 
         try:
-            flow_info = api.bkdata.get_record_rule_flow(
+            flow_info = api.bkdata.get_data_link(
                 bk_tenant_id=self.rule.bk_tenant_id,
                 namespace=RECORD_RULE_V4_BKBASE_NAMESPACE,
                 kind="flows",

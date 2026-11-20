@@ -18,7 +18,7 @@ from elasticsearch_dsl import Q
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import StrategyModel
-from bkmonitor.utils.user import set_local_username
+from bkmonitor.utils.user import single_tenant_backend_username, set_local_username
 from constants.action import ActionPluginType, ActionStatus
 from constants.alert import EVENT_SEVERITY_DICT
 from core.drf_resource import resource
@@ -41,7 +41,7 @@ class AlertActionCollector(BaseCollector):
     @cached_property
     def biz_alert_data(self):
         all_data = {}
-        set_local_username(settings.COMMON_USERNAME)
+        set_local_username(single_tenant_backend_username(settings.COMMON_USERNAME))
         for time_range, days in [("1d", 1), ("7d", 7), ("15d", 15), ("30d", 30)]:
             details = {}
             statistics = resource.home.statistics(page=0, days=days)["details"]
