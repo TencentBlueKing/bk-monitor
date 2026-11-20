@@ -187,6 +187,14 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         return Response(data=ProfileUploadRecordSLZ(queryset, many=True).data)
 
 
+class EmptyProfileExport(ValueError):
+    """No valid samples matched the export query."""
+
+
+class InvalidProfileScope(ValueError):
+    """The uploaded profile was not specified or does not belong to the current business."""
+
+
 class ProfileQueryViewSet(ProfileBaseViewSet):
     """Profile Query viewSet"""
 
@@ -681,7 +689,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         """
         bk_biz_id = validated_data["bk_biz_id"]
         if validated_data.get("is_compared") and not validated_data.get("diff_profile_id"):
-            raise ValueError(_("全局对比查询需要指定 diff_profile_id"))
+            raise InvalidProfileScope(_("全局对比查询需要指定 diff_profile_id"))
 
         for key in ("profile_id", "diff_profile_id"):
             if key not in validated_data:
@@ -691,9 +699,9 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
                 # 未开启对比时 diff_profile_id 本就为空
                 if key == "diff_profile_id":
                     continue
-                raise ValueError(_("全局查询需要指定 profile_id"))
+                raise InvalidProfileScope(_("全局查询需要指定 profile_id"))
             if not ProfileUploadRecord.objects.filter(bk_biz_id=bk_biz_id, profile_id=profile_id).exists():
-                raise ValueError(_("上传记录({}) 不存在").format(profile_id))
+                raise InvalidProfileScope(_("上传记录({}) 不存在").format(profile_id))
 
     @staticmethod
     def _examine_application(bk_biz_id: int, app_name: str) -> dict:
@@ -793,19 +801,21 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     def export(self, request: Request):
         serializer = ProfileQueryExportSerializer(data=request.data or request.query_params)
         serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
+        return self.query_export(serializer.validated_data)
 
-        essentials = self.get_essentials(validated_data)
+    @classmethod
+    def query_export(cls, validated_data):
+        essentials = cls.get_essentials(validated_data)
         bk_biz_id = essentials["bk_biz_id"]
         app_name = essentials["app_name"]
         service_name = essentials["service_name"]
         result_table_id = essentials["result_table_id"]
-        extra_params = self.get_query_limit_params(essentials, validated_data["data_type"])
+        extra_params = cls.get_query_limit_params(essentials, validated_data["data_type"])
 
-        start, end = self.enlarge_duration(
+        start, end = cls.enlarge_duration(
             validated_data["start"], validated_data["end"], offset=validated_data["offset"]
         )
-        doris_converter = self.query(
+        doris_converter = cls.query(
             bk_biz_id=bk_biz_id,
             app_name=app_name,
             service_name=service_name,
@@ -817,13 +827,13 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             sample_type=validated_data["data_type"],
             converter=ConverterType.Profile,
             agg_method=validated_data["agg_method"],
-            agg_interval=self.get_agg_interval(start, end),
+            agg_interval=cls.get_agg_interval(start, end),
             extra_params=extra_params,
         )
 
         # transfer data
         export_format = validated_data.get("export_format", DEFAULT_EXPORT_FORMAT)
-        return self.build_export_response(doris_converter, app_name, validated_data["data_type"], export_format)
+        return cls.build_export_response(doris_converter, app_name, validated_data["data_type"], export_format)
 
     @staticmethod
     def build_export_response(doris_converter, app_name, data_type, export_format):
@@ -836,7 +846,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         )
 
         if not doris_converter or not doris_converter.profile.sample_type or not doris_converter.profile.sample:
-            raise ValueError(_("当前查询条件未查询到有效 Profiling 数据，无法导出"))
+            raise EmptyProfileExport(_("当前查询条件未查询到有效 Profiling 数据，无法导出"))
 
         response = HttpResponse(
             gzip.compress(doris_converter.profile.SerializeToString()), content_type="application/octet-stream"

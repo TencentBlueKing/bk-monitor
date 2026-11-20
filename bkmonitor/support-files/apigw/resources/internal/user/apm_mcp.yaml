@@ -502,6 +502,99 @@ paths:
           appVerifiedRequired: false
           resourcePermissionRequired: true
           oauth2PersonalClientEnabled: true
+  /mcp/export_profile_pprof/:
+    post:
+      operationId: export_profile_pprof
+      description: >-
+        Export a continuous profile for an APM service or a profile uploaded in the current space.
+        The file is a gzip-compressed pprof.
+        Use when the user needs a usable file for a pipeline or offline analysis. Use
+        get_profile_application_service to identify the app and service, and get_profile_type to select the sample type
+        for continuous profiles. For an uploaded profile, set global_query=true and pass its profile_id.
+        Returns download_url, filename, size_bytes and expires_in_seconds. Fetch the file within 15 minutes and
+        save it as filename. The link grants temporary access to the file. Pass confirm=true when the user requests
+        the export.
+        将 APM 应用服务的持续性能数据或当前空间上传的 Profile 导出为 gzip 压缩的 pprof 文件。
+        持续性能数据先用 get_profile_application_service 确认应用与服务，再用 get_profile_type 选择采样类型。
+        已上传的 Profile 使用 global_query=true 并传入其 profile_id。
+        返回限时下载链接、文件名、文件大小与有效秒数。请在 15 分钟内下载并保存，妥善保管链接。
+        用户明确要求导出时传 confirm=true。
+      tags:
+      - apm_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id, start_time, end_time, confirm]
+              oneOf:
+              - required: [app_name, service_name]
+                properties:
+                  global_query:
+                    enum: [false]
+              - required: [global_query, profile_id]
+                properties:
+                  global_query:
+                    enum: [true]
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID in BlueKing Monitor. 业务 ID。
+                app_name:
+                  type: string
+                  description: APM application name from get_profile_application_service. APM 应用名。
+                service_name:
+                  type: string
+                  description: Service name from get_profile_application_service. 服务名。
+                start_time:
+                  type: integer
+                  minimum: 1
+                  description: Start Unix timestamp in seconds. 起始 Unix 时间戳，单位秒。
+                end_time:
+                  type: integer
+                  minimum: 1
+                  description: End Unix timestamp in seconds. The default maximum range is 30 minutes. 结束 Unix 时间戳，单位秒，默认跨度上限 30 分钟。
+                data_type:
+                  type: string
+                  default: cpu/nanoseconds
+                  description: Sample type from get_profile_type. 采样类型，默认 cpu/nanoseconds。
+                agg_method:
+                  type: string
+                  maxLength: 64
+                  description: Aggregation method from get_profile_type. 采样聚合方式。
+                profile_id:
+                  type: string
+                  minLength: 1
+                  description: Required for an uploaded profile. Optional for continuous profiles. 上传记录模式必填，持续性能分析模式可选。
+                global_query:
+                  type: boolean
+                  default: false
+                  description: Export a profile uploaded in the current space. 是否导出当前空间的已上传 Profile。
+                filter_labels:
+                  type: object
+                  additionalProperties: true
+                  description: Optional label filters. Use get_profile_label to discover available keys. 可选标签过滤条件。
+                confirm:
+                  type: boolean
+                  enum: [true]
+                  description: Set to true after the user requests the export. 用户明确要求导出后传 true。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_mcp/export_profile_pprof/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
   /mcp/calculate_by_range/:
     post:
       operationId: apm_mcp_calculate_by_range

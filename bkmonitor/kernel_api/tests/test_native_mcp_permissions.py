@@ -322,8 +322,8 @@ def test_mcp_resource_without_serializer_still_passes_through(validated_log_reso
 def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     native = registry.get_tool_registry()
     tool = native.get("search_logs")
-    assert len(native) == 100
-    assert sum(bool(tool.native_permission) for tool in native.list()) == 92
+    assert len(native) == 101
+    assert sum(bool(tool.native_permission) for tool in native.list()) == 93
     assert native.get("llm_mcp_search_spans").native_permission["resource_type"] == "apm_application"
     assert {
         tool.name for tool in native.list() if not tool.permission_exempt and tool.category != "recording_rule"
@@ -633,6 +633,7 @@ def test_field_analyze_publishes_both_conditional_prerequisite_chains(monkeypatc
         ("get_index_set_fields", ["bk_biz_id", "index_set_id"]),
         ("search_event_log", ["bk_biz_id"]),
         ("query_graph_profile", ["bk_biz_id", "app_name"]),
+        ("export_profile_pprof", ["bk_biz_id"]),
     ],
 )
 def test_tool_summaries_preserve_required_context(monkeypatch, native_enabled, tool_name, native_context):
@@ -641,6 +642,12 @@ def test_tool_summaries_preserve_required_context(monkeypatch, native_enabled, t
     tool = registry.get_tool_registry().get(tool_name)
 
     assert tool.summary()["required_context"] == (native_context if native_enabled else ["bk_biz_id"])
+
+
+def test_profile_pprof_export_native_permission_matches_query_scope():
+    tool = registry.get_tool_registry().get("export_profile_pprof")
+    assert tool.resolve_native_permission({"app_name": "demo"})["action_id"] == "view_apm_application_v2"
+    assert tool.resolve_native_permission({"global_query": True})["action_id"] == "view_business_v2"
 
 
 @pytest.mark.parametrize("tool_name", ["search_logs", "analyze_field"])
@@ -3370,6 +3377,8 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         request = request_factory(
             path or tool.backend_path, args if args is not None else log_args(), method or tool.backend_method
         )
+        if not gateway:
+            del request.jwt
         if script_name:
             request.path = script_name.rstrip("/") + request.path
         if not marker:
@@ -3671,6 +3680,14 @@ def test_direct_route_auto_detection_excludes_non_queries(name):
 def test_direct_readonly_route_uses_registered_aliases(suffix):
     tool = registry.get_tool_registry().get("search_logs")
     assert registry.resolve_readonly_tool("POST", tool.backend_path.rstrip("/") + suffix) is tool
+
+
+@pytest.mark.parametrize("identity", [{"verified": False}, {"valid_jwt": False}, {"gateway": False}])
+def test_direct_profile_export_requires_verified_gateway_user(direct_gateway, io, identity):
+    response, _, _, ordinary = direct_gateway("export_profile_pprof", spoof_headers=True, **identity)
+    assert response.status_code == 403
+    io.dispatch.assert_not_called()
+    ordinary.assert_not_called()
 
 
 def test_direct_legacy_checks_additional_actions(monkeypatch, direct_gateway, io):
