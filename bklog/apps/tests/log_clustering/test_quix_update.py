@@ -20,6 +20,7 @@ from apps.log_search.models import LogIndexSet
 from apps.tests.log_clustering.test_quix_operation import (
     ADOPTED_STATUS,
     INDEX_SET_ID,
+    KAFKA_CHANNEL,
     QUIX_CONFIG,
     create_enable_operation,
 )
@@ -531,6 +532,8 @@ class TestQuixClusteringHandlerUpdate(TestCase):
     @patch("apps.log_clustering.handlers.quix.operation.BkFaraApi")
     def test_field_update_is_applied_to_existing_binding(self, bkfara, transfer, collector_get, mock_delay):
         collector_get.return_value.get_etl_config.return_value = {"fields": [{"field_name": "message"}]}
+        self.runtime.active_config["kafka_resource"] = KAFKA_CHANNEL
+        self.runtime.save(update_fields=["active_config"])
         self.index_set.save()
         handler = QuixClusteringHandler(self.index_set)
         operation_id = handler.update({"clustering_fields": "message"})
@@ -543,7 +546,9 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         runner = QuixClusteringOperationRunner(operation_id)
         with patch("apps.log_clustering.handlers.quix.operation.get_quix_config", return_value=QUIX_CONFIG):
             self.assertEqual(runner.run(), POLL_INTERVAL_SECONDS)
-        binding = transfer.set_log_clustering_config.call_args.args[0]["binding"]
+        params = transfer.set_log_clustering_config.call_args.args[0]
+        self.assertEqual(params["kafka_resource"], KAFKA_CHANNEL)
+        binding = params["binding"]
         self.assertEqual(binding["input_mapping"], {"log": "message", "timestamp": "dtEventTimeStamp"})
         self.assertEqual(binding["task_id"], self.runtime.bkfara_task_id)
         config = ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID)

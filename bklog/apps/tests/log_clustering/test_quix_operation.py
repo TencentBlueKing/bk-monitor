@@ -23,6 +23,7 @@ from apps.log_search.models import LogIndexSet
 INDEX_SET_ID = 42
 TASK_ID = "task-uuid"
 KAFKA = {"cluster_ref": "quix-e2e", "input_topic": f"lc-{TASK_ID}-in", "partitions": 2}
+KAFKA_CHANNEL = {"kind": "KafkaChannel", "tenant": "system", "namespace": "bkbase", "name": "quix-kafka"}
 QUIX_CONFIG = {
     "profile": "test-clustering-es",
     "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "kafka"},
@@ -271,9 +272,29 @@ class TestQuixEnableRunner(TestCase):
 
         set_params = self.transfer.set_log_clustering_config.call_args.args[0]
         self.assertNotIn("operation_id", set_params)
+        self.assertEqual(set_params["kafka_resource"], QUIX_CONFIG["kafka_resource"])
         self.assertEqual(set_params["binding"]["task_id"], TASK_ID)
         self.assertEqual(set_params["binding"]["config_revision"], 1)
         self.bkfara.configure_clustering.assert_not_called()
+
+    def test_enable_uses_bkfara_kafka_channel(self):
+        self.bkfara.get_clustering.return_value["kafka_resource"] = KAFKA_CHANNEL
+        with (
+            patch(
+                "apps.log_clustering.handlers.quix.operation.get_quix_config",
+                return_value={**QUIX_CONFIG, "kafka_cluster_id": 123},
+            ),
+            patch("apps.log_clustering.handlers.quix.operation.BaseIndexSetHandler.sync_router"),
+        ):
+            self.run_operation()
+
+        self.assertEqual(self.bkfara.create_task.call_args.args[0]["kafka_cluster_id"], 123)
+        params = self.transfer.set_log_clustering_config.call_args.args[0]
+        self.assertEqual(params["kafka_resource"], KAFKA_CHANNEL)
+        self.assertEqual(params["binding"]["kafka"], KAFKA)
+        self.assertEqual(
+            LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).active_config["kafka_resource"], KAFKA_CHANNEL
+        )
 
     def test_waiting_step_reschedules_without_recreating_task(self):
         self.bkfara.get_task.return_value = {"status": "TRAINING"}

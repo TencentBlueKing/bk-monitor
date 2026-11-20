@@ -212,14 +212,14 @@ class SetLogClusteringConfigResource(Resource):
             if attrs.get("result_mode") == "append" and not attrs.get("result_store"):
                 raise ValidationError({"result_store": "required when result_mode is append"})
             references = [
-                ("kafka_resource", attrs["kafka_resource"], "Kafka"),
-                ("runtime_cluster", attrs["runtime_cluster"], "DatabusCluster"),
+                ("kafka_resource", attrs["kafka_resource"], ("Kafka", "KafkaChannel")),
+                ("runtime_cluster", attrs["runtime_cluster"], ("DatabusCluster",)),
             ]
             if "recovery_resource" in attrs:
-                references.append(("recovery_resource", attrs["recovery_resource"], "ElasticSearch"))
-            for field, ref, kind in references:
-                if ref["kind"] != kind:
-                    raise ValidationError({field: f"kind must be {kind}"})
+                references.append(("recovery_resource", attrs["recovery_resource"], ("ElasticSearch",)))
+            for field, ref, kinds in references:
+                if ref["kind"] not in kinds:
+                    raise ValidationError({field: f"kind must be {' or '.join(kinds)}"})
                 if ref.get("tenant", attrs["bk_tenant_id"]) != attrs["bk_tenant_id"]:
                     raise ValidationError({field: "cross-tenant resource reference is not allowed"})
                 if settings.ENABLE_MULTI_TENANT_MODE:

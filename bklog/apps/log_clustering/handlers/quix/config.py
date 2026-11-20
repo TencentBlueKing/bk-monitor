@@ -35,12 +35,13 @@ def get_quix_config() -> dict:
     读取 MINI_CLUSTERING_CONFIG 开关 feature_config 中的 bkbase_quix 配置，结构：
     {
         "profile": "...",               # BKFara 部署方登记的聚类任务 Profile 名称
-        "kafka_resource": {"kind": "Kafka", "namespace": "...", "name": "..."},           # BKBase 已登记资源
+        "kafka_cluster_id": 123,           # metadata 登记的聚类 Kafka 集群 ID
+        "kafka_resource": {...},           # 兼容未返回 KafkaChannel 的旧任务
         "runtime_cluster": {"kind": "DatabusCluster", "namespace": "...", "name": "..."},
         "max_message_bytes": 1048576,     # 可选
         "result_modes": {"42": "append"}, # 可选，按索引集选择独立表；仅首次开启读取
     }
-    任务模板、Worker Profile 和 Kafka 绑定由 BKFara 解析；这里保留 BKBase 所需的资源引用。
+    BKFara 根据集群 ID 解析 Kafka 绑定及 BKBase 资源引用。
     """
     feature = FeatureToggleObject.toggle(MINI_CLUSTERING_CONFIG)
     feature_config = (feature.feature_config if feature else None) or {}
@@ -48,7 +49,10 @@ def get_quix_config() -> dict:
 
     missing = [] if config.get("profile") else ["profile"]
 
-    for resource_key in ("kafka_resource", "runtime_cluster"):
+    resource_keys = ("runtime_cluster",)
+    if config.get("kafka_cluster_id") is None:
+        resource_keys += ("kafka_resource",)
+    for resource_key in resource_keys:
         resource = config.get(resource_key) or {}
         missing.extend(f"{resource_key}.{key}" for key in REQUIRED_RESOURCE_KEYS if not resource.get(key))
 

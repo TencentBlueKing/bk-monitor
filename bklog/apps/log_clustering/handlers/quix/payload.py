@@ -25,8 +25,10 @@ import copy
 
 
 def build_create_task_payload(index_set_id: int, quix_config: dict, model_parameters: dict | None = None) -> dict:
-    """模型参数使用算法字段与编码，由调用方完成业务配置适配。Kafka 绑定从服务端回读。"""
+    """组装模型参数与可选 Kafka 集群 ID，Kafka 绑定从服务端回读。"""
     payload = {"profile": quix_config["profile"], "index_id": str(index_set_id)}
+    if (kafka_cluster_id := quix_config.get("kafka_cluster_id")) is not None:
+        payload["kafka_cluster_id"] = kafka_cluster_id
     if model_parameters is not None:
         payload["training"] = {"parameters": copy.deepcopy(model_parameters)}
     return payload

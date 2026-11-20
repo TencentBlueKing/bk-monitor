@@ -199,14 +199,16 @@ def attach_remotely(state: dict) -> None:
     }
 
 
-def test_first_set_creates_sink_and_applies_whole_datalink(clustering_datalink, bkbase):
-    result = set_config()
+@pytest.mark.parametrize("kafka_kind", ["Kafka", "KafkaChannel"])
+def test_first_set_creates_sink_and_applies_whole_datalink(clustering_datalink, bkbase, kafka_kind):
+    kafka_resource = {**KAFKA_RESOURCE, "kind": kafka_kind}
+    result = set_config(kafka_resource=kafka_resource)
 
     sink = get_sink()
     assert sink.name.startswith("bkm_lcs_91101_")
     assert sink.attached is True
     assert sink.binding["log_filter"] == BINDING["log_filter"]
-    assert sink.kafka_resource == KAFKA_RESOURCE
+    assert sink.kafka_resource == kafka_resource
     bkbase["apply_log_datalink"].assert_called_once_with(bk_tenant_id="system", table_id=LOG_TABLE_ID)
     bkbase["apply_data_link"].assert_not_called()
     assert result["applied_scope"] == "datalink"

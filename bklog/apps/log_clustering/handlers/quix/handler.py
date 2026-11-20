@@ -175,8 +175,9 @@ class QuixClusteringHandler:
             filter_rules = params.get("filter_rules", business_config.filter_rules or [])
             clustering_fields = params.get("clustering_fields") or runtime.active_config["input_mapping"]["log"]
             clustering_config = build_clustering_config(clustering_fields, filter_rules)
-            if "result_mode" in runtime.active_config:
-                clustering_config["result_mode"] = runtime.active_config["result_mode"]
+            for key in ("result_mode", "kafka_resource"):
+                if key in runtime.active_config:
+                    clustering_config[key] = runtime.active_config[key]
             if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
                 collector = CollectorConfig.objects.get(collector_config_id=runtime.collector_config_id)
                 ClusteringConfigHandler.pre_check_fields(

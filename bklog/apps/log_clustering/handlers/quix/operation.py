@@ -270,25 +270,36 @@ class QuixClusteringOperationRunner:
         clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
         if not clustering.get("kafka") or clustering.get("input_revision") is None:
             return False
+        pending_config = self.runtime.pending_config
+        if kafka_resource := clustering.get("kafka_resource"):
+            # 和 Topic 绑定一并保存，后续更新沿用同一通道。
+            pending_config = {**(pending_config or self.runtime.active_config), "kafka_resource": kafka_resource}
         self._save_runtime(
             control_version=task["control_version"],
             generation=task["current_generation"],
             kafka_binding=clustering["kafka"],
             input_revision=clustering["input_revision"],
+            pending_config=pending_config,
         )
         return True
 
     def _step_metadata_set(self) -> bool:
         clustering_config = self.runtime.pending_config or self.runtime.active_config
-        params = self.operation.get_request_payload(
-            "metadata_set",
-            lambda: self._clustering_config_params(
+
+        def build_payload():
+            kafka_resource = clustering_config.get("kafka_resource") or self.quix_config.get("kafka_resource")
+            if not kafka_resource:
+                raise QuixClusteringConfigInvalidException(
+                    QuixClusteringConfigInvalidException.MESSAGE.format(detail="missing kafka_resource")
+                )
+            return self._clustering_config_params(
                 binding=build_binding(self.runtime, clustering_config, self.quix_config.get("max_message_bytes")),
-                kafka_resource=self.quix_config["kafka_resource"],
+                kafka_resource=kafka_resource,
                 runtime_cluster=self.quix_config["runtime_cluster"],
                 result_mode=clustering_config.get("result_mode", "update_original"),
-            ),
-        )
+            )
+
+        params = self.operation.get_request_payload("metadata_set", build_payload)
         result = TransferApi.set_log_clustering_config(params.copy())
         self._save_runtime(sink=result["sink"])
         return True
