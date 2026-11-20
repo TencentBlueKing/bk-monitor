@@ -36,7 +36,7 @@ import {
 } from '../../constant';
 import { replaceEntityInText } from '../entity-replace';
 import { GENERAL_EVENT_MAX_EXPANDED_LINES, isExpandedJsonOverLineLimit } from '../json-expanded-lines';
-import { createInteractionExecutor, handleCopy, TableContentItem } from './common';
+import { createInteractionExecutor, createPopoverRenderers, handleCopy, TableContentItem } from './common';
 
 import type { IEventsAnalysis, IEventsContentsData, IInteraction } from '../../types';
 import type { IShootingModuleContext, TranslateFn } from './module-context';
@@ -58,6 +58,31 @@ export const createEventsAnalysisModule = (options: IShootingModuleContext, $t: 
     const detailRef = availabilityRef;
     const eventInteraction = interaction ? { ...interaction, drawer_type: 'event' as const } : interaction;
     executeInteraction(eventInteraction, title, detailRef);
+  };
+  const { renderCommonPopover } = createPopoverRenderers(options, $t);
+
+  // 使用 Cantor 配对将父事件、子事件和字段索引编码为唯一值，避免固定进制导致索引碰撞
+  const pairPopoverIndex = (left: number, right: number) => {
+    const sum = left + right;
+    return (sum * (sum + 1)) / 2 + right;
+  };
+  const getEventPopoverIndex = (itemIndex: number, subContentIndex: number, fieldIndex: number) =>
+    pairPopoverIndex(pairPopoverIndex(itemIndex, subContentIndex), fieldIndex);
+
+  const renderEventValue = (value: unknown, index: number, needJumpIcon = false) => {
+    const content = String(value ?? '');
+    return renderCommonPopover(content, index, 'event_field', {
+      contentCls: 'overflow-popover-content__event-field',
+      renderDefault: onMouseenter => (
+        <span
+          class='item-value'
+          onMouseenter={onMouseenter}
+        >
+          {content}
+          {needJumpIcon && <i class='icon-monitor icon-fenxiang icon-jump-page' />}
+        </span>
+      ),
+    });
   };
 
   const hasInteractiveAction = (interaction?: IInteraction) => ['drawer', 'link'].includes(interaction?.action);
@@ -360,7 +385,7 @@ export const createEventsAnalysisModule = (options: IShootingModuleContext, $t: 
     // 否则渲染表格
     return (
       <span class='table-content'>
-        {Object.entries(item.fields).map(([key, value]) => {
+        {Object.entries(item.fields).map(([key, value], fieldIndex) => {
           // tmp告警事件需要特殊处理，event_name已经作为子标题展示
           if (
             (item.type === 'tmp_events' && key === 'event_name') ||
@@ -369,14 +394,20 @@ export const createEventsAnalysisModule = (options: IShootingModuleContext, $t: 
           ) {
             return null;
           }
+          const needJumpIcon = EVENTS_NEED_JUMP_PAGE.has(item.type) && key === 'event_name';
+          const popoverIndex = getEventPopoverIndex(
+            Number(item.$index ?? 0),
+            Number(subContent.$index ?? 0),
+            fieldIndex
+          );
           return (
             <TableContentItem
               key={key}
               label={value}
-              needJumpIcon={EVENTS_NEED_JUMP_PAGE.has(item.type) && key === 'event_name'}
               needTitle={false}
               showLabel={item.type !== 'tencent_cloud_notice_events'} // 特殊类型不显示label
               value={subContent[key]}
+              valueContent={renderEventValue(subContent[key], popoverIndex, needJumpIcon)}
             />
           );
         })}
