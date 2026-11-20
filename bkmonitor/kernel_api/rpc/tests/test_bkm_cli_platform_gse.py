@@ -595,6 +595,4 @@ def test_configured_single_tenant_gse_operator(settings, mocker):
     )
     assert gse.guard_query_route({"channel_id": 1})["operation"]["operator_name"] == "resolved"
     assert gse.guard_query_stream_to({"stream_to_id": 2})["operation"]["operator_name"] == "resolved"
-    lookup.assert_called_once_with(
-        bk_tenant_id="default", lookup_field="login_name", lookups="gse-service-login", bk_username="admin"
-    )
+    lookup.assert_called_once_with(bk_tenant_id="default", lookup_field="login_name", lookups="gse-service-login")

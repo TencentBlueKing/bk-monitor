@@ -102,3 +102,77 @@ def test_query_token_does_not_require_admin_lookup(settings, mocker):
     assert params["bkdata_authentication_method"] == "token"
     assert params["bkdata_data_token"] == "test-token"
     lookup.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("resource_name", "params", "request_user", "local_user", "multi", "token", "expected_user", "lookup_tenant"),
+    [
+        ("query_data", {}, None, None, True, "", "virtual-user", "query-tenant"),
+        ("query_data", {"bk_username": ""}, None, None, True, "", "virtual-user", "query-tenant"),
+        ("query_data", {"bk_username": "caller"}, "viewer", None, True, "", "caller", None),
+        ("query_data", {}, None, "job-user", True, "", "job-user", None),
+        ("query_profile_data", {"_user_request": True}, "viewer", None, True, "test-token", "viewer", None),
+        ("query_data", {}, "viewer", None, True, "test-token", "viewer", None),
+        ("query_data", {}, None, None, False, "", "virtual-user", "default"),
+        ("query_data", {}, None, None, False, "test-token", "legacy", None),
+    ],
+)
+def test_query_sync_outbound_identity(
+    settings,
+    mocker,
+    monkeypatch,
+    resource_name,
+    params,
+    request_user,
+    local_user,
+    multi,
+    token,
+    expected_user,
+    lookup_tenant,
+):
+    from bkmonitor.utils.local import local
+    from bkmonitor.utils.user import _single_tenant_admin_username
+    from core.drf_resource.contrib.api import APIResource
+
+    settings.ENABLE_MULTI_TENANT_MODE = multi
+    settings.BK_ADMIN_USERNAME = "query-service-login"
+    settings.BKDATA_DATA_TOKEN = token
+    settings.COMMON_USERNAME = "legacy"
+    settings.SAAS_APP_CODE = "query-app"
+    settings.SAAS_SECRET_KEY = "test-key"
+    get_admin_username.cache_clear()
+    _single_tenant_admin_username.cache_clear()
+    request = mocker.Mock(user=mocker.Mock(username=request_user)) if request_user else None
+    monkeypatch.setattr(local, "current_request", request, raising=False)
+    monkeypatch.setattr(local, "username", local_user, raising=False)
+    mocker.patch.object(APIResource, "report_api_request_count_metric")
+
+    lookup_response = mocker.Mock()
+    lookup_response.json.return_value = {"code": 0, "data": [{"bk_username": "virtual-user"}]}
+    lookup = mocker.patch("requests.sessions.Session.get", return_value=lookup_response)
+    query_response = mocker.Mock()
+    query_response.json.return_value = {"code": 0, "data": {"list": []}}
+    query = mocker.patch("requests.sessions.Session.request", return_value=query_response)
+
+    result = getattr(api.bkdata, resource_name)(sql="SELECT 1", bk_tenant_id="query-tenant", **params)
+
+    assert result == {"list": []}
+    query.assert_called_once()
+    outbound = query.call_args.kwargs
+    assert outbound["url"].endswith("/v3/queryengine/query_sync/")
+    assert outbound["headers"]["X-Bk-Tenant-Id"] == "query-tenant"
+    assert json.loads(outbound["headers"]["x-bkapi-authorization"]) == {
+        "bk_app_code": "query-app",
+        "bk_app_secret": "test-key",
+        "bk_username": expected_user,
+    }
+    assert outbound["json"]["bk_username"] == expected_user
+    token_auth = token and not params.get("_user_request")
+    assert outbound["json"]["bkdata_authentication_method"] == ("token" if token_auth else "user")
+    assert outbound["json"].get("bkdata_data_token") == (token if token_auth else None)
+    if lookup_tenant:
+        lookup.assert_called_once()
+        assert lookup.call_args.kwargs["headers"]["X-Bk-Tenant-Id"] == lookup_tenant
+        assert lookup.call_args.kwargs["params"] == {"lookup_field": "login_name", "lookups": "query-service-login"}
+    else:
+        lookup.assert_not_called()
