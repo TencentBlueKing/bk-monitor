@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useRouter from '@/hooks/use-router';
@@ -52,6 +52,14 @@ interface IStorageFieldData {
   retention?: number | string | null;
   storage_replies?: number | string | null;
   storage_shards_nums?: number | string | null;
+}
+
+interface IBoundClusterState {
+  clusterId: number;
+  retention: number | string | null;
+  allocation_min_days: number | string | null;
+  storage_replies: number | string | null;
+  es_shards: number | string | null;
 }
 
 export default defineComponent({
@@ -129,6 +137,59 @@ export default defineComponent({
       ...normalizeStorageFields(props.configData),
     });
     const cleanStash = ref({});
+    /** 列表是否已成功加载，用于区分绑定集群不可见与列表请求失败 */
+    const storageLoaded = ref(false);
+    /** 按存储类型记录离开该类型前的绑定与存储参数 */
+    const boundStateByType = ref<Partial<Record<ClusterType, IBoundClusterState>>>({});
+    /** 只有编辑态需要保留已绑定集群，clone 与新建不写快照 */
+    const shouldKeepBinding = computed(() => props.isEdit);
+
+    const isValidClusterId = (clusterId: unknown): boolean => Number(clusterId) > 0;
+
+    /** 写入指定存储类型的绑定状态，所有写入路径共用此入口 */
+    const writeBoundState = (type: ClusterType, state: IBoundClusterState) => {
+      boundStateByType.value = {
+        ...boundStateByType.value,
+        [type]: state,
+      };
+    };
+
+    /** 记录指定存储类型当前的绑定状态，仅在编辑态且集群 ID 有效时写入 */
+    const captureBoundState = (type: ClusterType) => {
+      if (!shouldKeepBinding.value || !isValidClusterId(clusterSelect.value)) {
+        return;
+      }
+      const data = formData.value as any;
+      writeBoundState(type, {
+        clusterId: Number(clusterSelect.value),
+        retention: data.retention,
+        allocation_min_days: data.allocation_min_days,
+        storage_replies: data.storage_replies,
+        es_shards: data.es_shards,
+      });
+    };
+
+    /** 切回指定存储类型时恢复该类型记录的绑定状态 */
+    const restoreBoundState = (type: ClusterType): boolean => {
+      if (!shouldKeepBinding.value) {
+        return false;
+      }
+      const state = boundStateByType.value[type];
+      if (!state || !isValidClusterId(state.clusterId)) {
+        return false;
+      }
+      clusterSelect.value = state.clusterId;
+      clusterData.value = {};
+      (formData.value as any).storage_cluster_id = state.clusterId;
+      Object.assign(formData.value, {
+        retention: state.retention,
+        allocation_min_days: state.allocation_min_days,
+        storage_replies: state.storage_replies,
+        es_shards: state.es_shards,
+      });
+      return true;
+    };
+
     /**
      * 初始表单数据快照，用于对比是否有变更
      */
@@ -164,7 +225,7 @@ export default defineComponent({
           query: restQuery,
         });
       },
-      onTabChange: async (type, _previousType, isInitial) => {
+      onTabChange: async (type, previousType, isInitial) => {
         const currentQuery = { ...route.query };
         currentQuery.tab = type === CLUSTER_TYPES.DORIS ? 'doris' : 'es';
         router.replace({
@@ -174,8 +235,16 @@ export default defineComponent({
         });
 
         if (!isInitial) {
+          if (previousType !== type) {
+            captureBoundState(previousType);
+          }
           storageList.value = [];
-          resetClusterSelection();
+          storageLoaded.value = false;
+          if (!restoreBoundState(type)) {
+            resetClusterSelection();
+          }
+          await getStorage();
+          return;
         }
         await getStorage();
       },
@@ -195,6 +264,30 @@ export default defineComponent({
       },
     ]);
 
+    /** 当前绑定的集群是否仍在后端返回的候选列表中 */
+    const isBoundClusterSelectable = computed(() =>
+      // configData 透传的 storage_cluster_id 可能是字符串，候选列表是数字，
+      // 统一用 Number 归一化后比较，避免类型不一致误弹「集群已不在可选范围」提示
+      storageList.value.some(item => Number(item.storage_cluster_id) === Number(clusterSelect.value)),
+    );
+
+    /** 是否为“编辑态 + 已绑定集群不可选”场景，此时只做只读回显，不允许把不可见集群重新选中 */
+    const isBoundClusterUnavailable = computed(
+      () => props.isEdit && !loading.value && isValidClusterId(clusterSelect.value) && !isBoundClusterSelectable.value,
+    );
+
+    /** 绑定集群不可见且列表已加载时，存储参数只展示已保存值 */
+    const isStorageReadOnly = computed(
+      () =>
+        props.isEdit && storageLoaded.value && isValidClusterId(clusterSelect.value) && !isBoundClusterSelectable.value,
+    );
+
+    /** 绑定集群的展示名称，collect/details 已返回 storage_display_name / storage_cluster_name */
+    const boundClusterDisplayName = computed(() => {
+      const data = formData.value as any;
+      return data.storage_display_name || data.storage_cluster_name || String(clusterSelect.value ?? '');
+    });
+
     /**
      * 是否为自定义上报
      */
@@ -202,9 +295,7 @@ export default defineComponent({
     /**
      * 最大存储天数
      */
-    const daysMax = computed(() => {
-      return clusterData.value?.setup_config?.retention_days_max || 7;
-    });
+    const daysMax = computed(() => clusterData.value?.setup_config?.retention_days_max || STORAGE_DEFAULTS.retention);
     /**
      * 最大副本数
      */
@@ -221,61 +312,65 @@ export default defineComponent({
     /**
      * 表单校验规则
      */
-    const formRules = computed(() => ({
-      retention: [
-        {
-          validator: val => Number(val) <= daysMax.value,
-          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
-          trigger: 'blur',
-        },
-        {
-          validator: val => Number(val) <= daysMax.value,
-          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
-          trigger: 'change',
-        },
-      ],
-      allocation_min_days: [
-        {
-          validator: val => Number(val) <= daysMax.value,
-          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
-          trigger: 'blur',
-        },
-        {
-          validator: val => Number(val) <= daysMax.value,
-          message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
-          trigger: 'change',
-        },
-        {
-          validator: val => Number(val) <= Number(formData.value.retention),
-          message: t('热数据天数不能大于过期时间'),
-          trigger: 'blur',
-        },
-      ],
-      storage_replies: [
-        {
-          validator: val => Number(val) <= numberOfReplicasMax.value,
-          message: () => t('最大自定义副本数为: {n}', { n: numberOfReplicasMax.value }),
-          trigger: 'blur',
-        },
-        {
-          validator: val => Number(val) <= numberOfReplicasMax.value,
-          message: () => t('最大自定义副本数为: {n}', { n: numberOfReplicasMax.value }),
-          trigger: 'change',
-        },
-      ],
-      es_shards: [
-        {
-          validator: val => Number(val) <= esShardsMax.value,
-          message: () => t('最大自定义分片数为: {n}', { n: esShardsMax.value }),
-          trigger: 'blur',
-        },
-        {
-          validator: val => Number(val) <= esShardsMax.value,
-          message: () => t('最大自定义分片数为: {n}', { n: esShardsMax.value }),
-          trigger: 'change',
-        },
-      ],
-    }));
+    const formRules = computed(() =>
+      isStorageReadOnly.value
+        ? {}
+        : {
+            retention: [
+              {
+                validator: val => Number(val) <= daysMax.value,
+                message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+                trigger: 'blur',
+              },
+              {
+                validator: val => Number(val) <= daysMax.value,
+                message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+                trigger: 'change',
+              },
+            ],
+            allocation_min_days: [
+              {
+                validator: val => Number(val) <= daysMax.value,
+                message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+                trigger: 'blur',
+              },
+              {
+                validator: val => Number(val) <= daysMax.value,
+                message: () => t('最大自定义天数为{n}', { n: daysMax.value }),
+                trigger: 'change',
+              },
+              {
+                validator: val => Number(val) <= Number(formData.value.retention),
+                message: t('热数据天数不能大于过期时间'),
+                trigger: 'blur',
+              },
+            ],
+            storage_replies: [
+              {
+                validator: val => Number(val) <= numberOfReplicasMax.value,
+                message: () => t('最大自定义副本数为: {n}', { n: numberOfReplicasMax.value }),
+                trigger: 'blur',
+              },
+              {
+                validator: val => Number(val) <= numberOfReplicasMax.value,
+                message: () => t('最大自定义副本数为: {n}', { n: numberOfReplicasMax.value }),
+                trigger: 'change',
+              },
+            ],
+            es_shards: [
+              {
+                validator: val => Number(val) <= esShardsMax.value,
+                message: () => t('最大自定义分片数为: {n}', { n: esShardsMax.value }),
+                trigger: 'blur',
+              },
+              {
+                validator: val => Number(val) <= esShardsMax.value,
+                message: () => t('最大自定义分片数为: {n}', { n: esShardsMax.value }),
+                trigger: 'change',
+              },
+            ],
+          },
+    );
 
     const showGroupText = computed(() => {
       const custom =
@@ -329,12 +424,63 @@ export default defineComponent({
 
         if (res.data) {
           storageList.value = sortByPermission(res.data);
+          storageLoaded.value = true;
         }
       } catch (error) {
         showClusterSelectError(error);
       } finally {
         loading.value = false;
       }
+    };
+
+    /**
+     * configData 异步到达时一次性补齐表单、绑定快照与存储类型。
+     * 仅在编辑态、当前无有效绑定且尚无快照时执行，避免冲掉用户已编辑内容。
+     */
+    const syncFromConfigData = async (configData: Record<string, any>) => {
+      if (!shouldKeepBinding.value || isValidClusterId(clusterSelect.value)) {
+        return;
+      }
+      if (Object.keys(boundStateByType.value).length) {
+        return;
+      }
+      const clusterId = configData?.storage_cluster_id;
+      if (!isValidClusterId(clusterId)) {
+        return;
+      }
+      const reportedType = configData?.storage_cluster_type as ClusterType | undefined;
+      const fallbackType = curCollect.value?.storage_cluster_type as ClusterType | undefined;
+      const isKnownType = (type: ClusterType | undefined) => type === CLUSTER_TYPES.DORIS || type === CLUSTER_TYPES.ES;
+      const targetType = isKnownType(reportedType)
+        ? reportedType
+        : isKnownType(fallbackType)
+          ? fallbackType
+          : activeTab.value;
+      if (reportedType !== targetType) {
+        console.warn('[step4-storage] 存储集群类型缺失或无法识别，已按回退类型处理', reportedType, targetType);
+      }
+      const userEdited = initialFormData.value !== null && hasConfigChanged();
+      const storageFields = normalizeStorageFields(configData);
+      clusterSelect.value = Number(clusterId);
+      Object.assign(formData.value, {
+        storage_cluster_id: Number(clusterId),
+        ...(userEdited ? {} : storageFields),
+      });
+      const data = formData.value as any;
+      writeBoundState(targetType, {
+        clusterId: Number(clusterId),
+        retention: data.retention,
+        allocation_min_days: data.allocation_min_days,
+        storage_replies: data.storage_replies,
+        es_shards: data.es_shards,
+      });
+      // 功能开关关闭时 Doris Tab 不渲染，保持在 ES 才能让只读告警与保留绑定生效
+      const nextType = targetType === CLUSTER_TYPES.DORIS && !isDorisEnabled.value ? CLUSTER_TYPES.ES : targetType;
+      storageList.value = [];
+      storageLoaded.value = false;
+      await handleTabClick(nextType, true);
+      await nextTick();
+      saveInitialFormData();
     };
 
     /**
@@ -356,7 +502,7 @@ export default defineComponent({
      * @param row
      */
     const handleChooseCluster = row => {
-      if (row.storage_cluster_id !== clusterSelect.value) {
+      if (Number(row.storage_cluster_id) !== Number(clusterSelect.value)) {
         handleSelectStorageCluster(row);
       }
       clusterSelect.value = row.storage_cluster_id;
@@ -375,6 +521,7 @@ export default defineComponent({
       }
       // 切换集群后清除表单校验错误提示
       storageFormRef.value?.clearError();
+      captureBoundState(activeTab.value);
     };
     /**
      * 获取采集项清洗缓存
@@ -447,6 +594,7 @@ export default defineComponent({
             showClusterSelectError(error);
           });
       }
+      captureBoundState(clusterType ?? activeTab.value);
       await handleTabClick(clusterType ?? activeTab.value, true);
       if (!isCustomReport.value) {
         await getCleanStash();
@@ -501,6 +649,17 @@ export default defineComponent({
           on-tab-click={handleTabClick}
         />
 
+        {isBoundClusterUnavailable.value && (
+          <bk-alert
+            class='bound-cluster-alert'
+            type='warning'
+            title={t('当前绑定集群：{name}（ID：{id}），该集群已不在当前可选范围，保存时将保留原绑定。', {
+              name: boundClusterDisplayName.value,
+              id: clusterSelect.value,
+            })}
+          />
+        )}
+
         <bk-collapse value={activeName.value}>{collapseList.value.map(item => renderCollapseItem(item))}</bk-collapse>
       </div>
     );
@@ -532,6 +691,7 @@ export default defineComponent({
             <bk-input
               class='number-input'
               type='number'
+              disabled={isStorageReadOnly.value}
               value={formData.value.retention}
               min={1}
               on-input={val => {
@@ -558,6 +718,7 @@ export default defineComponent({
                 <bk-input
                   class='number-input'
                   type='number'
+                  disabled={isStorageReadOnly.value}
                   min={0}
                   value={formData.value.allocation_min_days}
                   on-input={val => {
@@ -583,6 +744,7 @@ export default defineComponent({
               <bk-input
                 class='number-input'
                 type='number'
+                disabled={isStorageReadOnly.value}
                 min={0}
                 value={formData.value.storage_replies}
                 on-input={val => {
@@ -603,6 +765,7 @@ export default defineComponent({
               <bk-input
                 class='number-input'
                 type='number'
+                disabled={isStorageReadOnly.value}
                 min={1}
                 value={formData.value.es_shards}
                 on-input={val => {
@@ -794,7 +957,7 @@ export default defineComponent({
      * @param options.callback 保存完成后的回调函数
      */
     const handleSubmitSave = async ({ action = 'next', callback }: ISubmitOptions = {}) => {
-      if (!clusterSelect.value) {
+      if (!isValidClusterId(clusterSelect.value)) {
         showMessage(t('请选择集群'), 'error');
         callback?.(false);
         return;
@@ -831,15 +994,14 @@ export default defineComponent({
       };
       clusterSelect.value = props.configData.storage_cluster_id;
     };
-    // watch(
-    //   () => props.isEdit || props.isClone,
-    //   (val: boolean) => {
-    //     if (val) {
-    //       initData(val);
-    //     }
-    //   },
-    //   { immediate: true },
-    // );
+    // props.configData 由父组件异步获取；数据迟到时一次性补齐，不重跑 initData()，
+    // 避免父组件刷新详情时冲掉用户已编辑的表单内容。
+    watch(
+      () => props.configData?.storage_cluster_id,
+      () => {
+        syncFromConfigData(props.configData);
+      },
+    );
 
     expose({
       hasConfigChanged,

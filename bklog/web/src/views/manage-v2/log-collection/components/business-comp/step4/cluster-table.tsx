@@ -307,7 +307,7 @@ export default defineComponent({
         if (!props.clusterSelect) {
           return;
         }
-        const targetCluster = val.find(item => item.storage_cluster_id === props.clusterSelect);
+        const targetCluster = val.find(item => Number(item.storage_cluster_id) === Number(props.clusterSelect));
         if (targetCluster) {
           handleSelectCluster(targetCluster);
         }
