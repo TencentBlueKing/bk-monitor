@@ -47,7 +47,6 @@ export default {
   已停用配置: 'Configuration disabled',
   已启用配置: 'Configuration enabled',
   异常采集目标: 'Abnormal collection target',
-  版本校验: 'Version verification',
   所含内容文件: 'Content file included',
   未分组的指标: 'Ungrouped Metrics',
   未分组视图: 'Ungrouped View',

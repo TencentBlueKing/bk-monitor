@@ -267,7 +267,25 @@ export default defineComponent({
                     required
                   >
                     <div class='collection-host-selection'>
-                      {d.hosts.length ? (
+                      {f.hostPluginCheck.verifying.value ? (
+                        <div class='collection-host-checking'>
+                          <span
+                            class='collection-host-checking-spinner'
+                            aria-hidden='true'
+                          />
+                          <span>{this.t('正在校验采集器版本')}</span>
+                          {f.hostPluginCheck.skipable.value && (
+                            <Button
+                              class='collection-host-checking-skip'
+                              theme='primary'
+                              text
+                              onClick={f.hostPluginCheck.skip}
+                            >
+                              {this.t('跳过校验')}
+                            </Button>
+                          )}
+                        </div>
+                      ) : d.hosts.length ? (
                         <div class='collection-host-summary'>
                           <span class='collection-host-selected'>
                             <Button
@@ -588,7 +606,7 @@ export default defineComponent({
               <div class={['collection-form-footer', { 'is-sticky': this.footerSticky }]}>
                 <div>
                   <Button
-                    disabled={!d.name.trim() || !d.hosts.length}
+                    disabled={!d.name.trim() || !d.hosts.length || f.hostPluginCheck.verifying.value}
                     loading={f.loading.value}
                     theme='primary'
                     onClick={async () => {
@@ -613,7 +631,6 @@ export default defineComponent({
               <HostPluginCheckDialog
                 groups={f.hostPluginCheck.groups.value}
                 show={f.hostPluginCheck.dialogShow.value}
-                onCancel={f.hostPluginCheck.cancel}
                 onContinue={f.hostPluginCheck.handleContinue}
                 onReselect={f.hostPluginCheck.handleReselect}
               />

@@ -156,9 +156,12 @@ export function useCollectionForm(
   async function changeHosts(hosts: CollectionHost[]) {
     // 先关闭选择框再校验，避免校验弹窗与选择弹窗叠加
     hostSelectorOpen.value = false;
-    // 校验通过（或用户选择继续 / 停止校验）后才写入表单，未确认前草稿保持原值
+    // 校验通过（或用户选择继续 / 跳过校验 / 超时兜底）后才写入表单，未确认前草稿保持原值
     pendingHosts.value = hosts;
-    if (!(await hostPluginCheck.verify(hosts))) {
+    const decision = await hostPluginCheck.verify(hosts);
+    // 结果已过期：由最新一轮校验接管，这里不改动任何状态，避免覆盖较新的选择
+    if (decision === 'stale') return;
+    if (decision === 'reselect') {
       // 用户选择重新选择：回到选择框，用暂存值回填刚才的勾选
       hostSelectorOpen.value = true;
       return;

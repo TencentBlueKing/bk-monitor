@@ -23,23 +23,6 @@
   display: flex;
   flex-direction: column;
 
-  // 加载态与结果态高度接近，避免切换时弹窗跳动
-  .collection-check-dialog-loading {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    align-items: center;
-    justify-content: center;
-    min-height: 96px;
-    font-size: 14px;
-    line-height: 22px;
-    color: #63656e;
-
-    .collection-check-dialog-loading-text {
-      line-height: 20px;
-    }
-  }
-
   .collection-check-dialog-actions {
     display: flex;
     gap: 8px;
