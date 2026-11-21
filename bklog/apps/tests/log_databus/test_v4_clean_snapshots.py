@@ -1094,7 +1094,13 @@ EXPECTED_DELIMITER_BASIC = {
         {
             "input_id": "iter_string",
             "output_id": "bk_separator_object",
-            "operator": {"type": "split_str", "delimiter": "|", "max_parts": None},
+            "operator": {
+                "type": "split_str",
+                "delimiter": "|",
+                "max_parts": None,
+                "error_strategy": "drop",
+                "min_parts": 3,
+            },
         },
         {
             "input_id": "bk_separator_object",
@@ -1325,7 +1331,13 @@ EXPECTED_DELIMITER_DELETE_SKIP = {
         {
             "input_id": "iter_string",
             "output_id": "bk_separator_object",
-            "operator": {"type": "split_str", "delimiter": ",", "max_parts": None},
+            "operator": {
+                "type": "split_str",
+                "delimiter": ",",
+                "max_parts": None,
+                "error_strategy": "drop",
+                "min_parts": 5,
+            },
         },
         {
             "input_id": "bk_separator_object",
@@ -1559,6 +1571,7 @@ EXPECTED_REGEXP_BASIC = {
             "operator": {
                 "type": "regex",
                 "regex": '(?P<request_ip>[\\d\\.]+)\\s+-\\s+-\\s+\\[(?P<request_time>[^\\]]+)\\]\\s+\\"(?P<method>\\w+)',
+                "error_strategy": "drop",
             },
         },
         {
@@ -2482,7 +2495,13 @@ EXPECTED_DELIMITER_TIME_FIELD = {
         {
             "input_id": "iter_string",
             "output_id": "bk_separator_object",
-            "operator": {"type": "split_str", "delimiter": "|", "max_parts": None},
+            "operator": {
+                "type": "split_str",
+                "delimiter": "|",
+                "max_parts": None,
+                "error_strategy": "drop",
+                "min_parts": 4,
+            },
         },
         {
             "input_id": "bk_separator_object",
