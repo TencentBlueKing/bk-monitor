@@ -574,12 +574,13 @@ class TimeSeriesGroup(CustomGroupBase):
     def get_metric_from_bkdata(self) -> list:
         """通过bkdata获取数据信息"""
 
-        # TODO: 多租户 BkBase关联信息
         from metadata.models import AccessVMRecord, BCSClusterInfo
 
         default_resp = []
         try:
-            vm_rt = AccessVMRecord.objects.get(result_table_id=self.table_id).vm_result_table_id
+            vm_rt = AccessVMRecord.objects.get(
+                bk_tenant_id=self.bk_tenant_id, result_table_id=self.table_id
+            ).vm_result_table_id
         except AccessVMRecord.DoesNotExist:
             return default_resp
         # 获取指标
