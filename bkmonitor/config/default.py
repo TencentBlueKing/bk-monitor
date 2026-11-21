@@ -1414,6 +1414,8 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
 # BKFara 源码分析使用独立 APIGW；联调环境由 BKFara 提供具体地址。
 BKFARA_APIGW_BASE_URL = os.getenv("BKAPP_BKFARA_APIGW_BASE_URL") or os.getenv("BKFARA_APIGW_BASE_URL", "")
+# 降噪查询保持 TLS 校验；内部 CA 可通过部署环境传入受信任的证书文件。
+BKFARA_CA_BUNDLE = os.getenv("BKAPP_BKFARA_CA_BUNDLE") or os.getenv("BKFARA_CA_BUNDLE", "")
 # 源码分析流水线访问监控的环境；部署阶段（prod/stag）不能区分目标集群。
 # 默认沿用模板的 bkte，BKOP 部署需显式配置为 bkop。
 BKAI_MCP_ENV = os.getenv("BKAPP_BKAI_MCP_ENV") or os.getenv("BKAI_MCP_ENV") or "bkte"
