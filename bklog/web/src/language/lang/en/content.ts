@@ -25,19 +25,11 @@
  */
 
 export default {
-  '准备聚类任务及 Kafka 绑定': 'Preparing the clustering task and Kafka binding',
-  接入数据链路并注册查询路由: 'Configuring the data link and registering query routes',
-  链路就绪后展示聚类结果: 'Clustering results appear once the data link is ready',
-  聚类接入失败: 'Clustering setup failed',
-  正在开启聚类: 'Enabling clustering',
-  正在重新开启聚类: 'Restarting clustering',
   以指定值开头: 'Starts with',
   不以指定值开头: 'Does not start with',
   以指定值结尾: 'Ends with',
   不以指定值结尾: 'Does not end with',
-  重新开启聚类: 'Restart clustering',
   获取聚类状态失败: 'Could not retrieve clustering status',
-  重新获取状态: 'Refresh status',
   请选择业务: 'Please select a business',
   '正则匹配：': 'Regex matching:',
   '范围匹配：': 'Range matching:',

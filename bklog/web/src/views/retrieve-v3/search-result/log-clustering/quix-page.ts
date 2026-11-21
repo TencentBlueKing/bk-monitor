@@ -26,5 +26,4 @@
 import type { ComputedRef, InjectionKey } from 'vue';
 import type { QuixStatus } from '@/services/retrieve';
 
-export const quixPage: InjectionKey<{ status: ComputedRef<QuixStatus | undefined>; refresh: () => void }> =
-  Symbol('quixPage');
+export const quixPage: InjectionKey<ComputedRef<QuixStatus | undefined>> = Symbol('quixPage');
