@@ -399,9 +399,18 @@ class DataSource(models.Model):
         )
         return {"bk_data_id": self.bk_data_id, "name": name, "target_namespace": target_namespace}
 
-    def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor", bkbase_data_name: str = ""):
+    def register_to_bkbase(
+        self,
+        bk_biz_id: int,
+        namespace: str = "bkmonitor",
+        bkbase_data_name: str = "",
+        *,
+        update_created_from: bool = True,
+    ):
         """
         将当前data_id注册到计算平台
+
+        update_created_from=False 仅注册资源，供原地升级单独安排归属切换。
 
         Args:
             bk_biz_id: 业务ID
@@ -452,9 +461,10 @@ class DataSource(models.Model):
         api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
         apply_data_source_config(bk_tenant_id=self.bk_tenant_id, data_source_config=data_source_config)
 
-        # 更新数据源的创建来源
-        self.created_from = DataIdCreatedFromSystem.BKDATA.value
-        self.save()
+        # 升级准备阶段只注册组件，避免归属变化触发后台清理 Transfer。
+        if update_created_from:
+            self.created_from = DataIdCreatedFromSystem.BKDATA.value
+            self.save()
 
     @classmethod
     def apply_for_data_id_from_bkdata(
