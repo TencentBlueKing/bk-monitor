@@ -27,17 +27,16 @@ function loadCallback(file, select, context) {
   return vm.runInNewContext(js, context);
 }
 
-function pollContext(ready) {
-  const previous = { quix: { phase: 'running', distance_threshold: '0.5' } };
+function pollContext(...responses) {
   const ctx = {
     indexSetId: { value: '42' },
-    initializedIndex: { value: ready ? '42' : '' },
-    quix: { value: ready ? previous.quix : undefined },
-    isShowTopNav: { value: ready },
-    clusterStepData: { value: ready ? previous : null },
+    initializedIndex: { value: '' },
+    clusterStepData: { value: null },
     statusError: { value: '' },
     isClusterActive: { value: true },
-    isShowClusterStep: { value: !ready },
+    isShowClusterStep: { value: true },
+    clusterSwitch: { value: true },
+    totalFields: { value: [{}] },
     statusRequest: 0,
     statusTimer: null,
     stopPolling() {
@@ -47,10 +46,9 @@ function pollContext(ready) {
       assert.equal(delay, 10000);
       return callback;
     },
-    getClusterConfigStatus: async () => {
-      throw new Error('timeout');
-    },
-    Error,
+    getClusterConfigStatus: async () => responses.shift(),
+    filterGroupList() {},
+    initTableOperator: async () => {},
   };
   ctx.clusterPolling = loadCallback(
     'index.tsx',
@@ -60,27 +58,50 @@ function pollContext(ready) {
   return ctx;
 }
 
-test('failed background polls preserve the initialized result and retry until success', async () => {
-  const ctx = pollContext(true);
-  const previous = ctx.clusterStepData.value;
-  await ctx.clusterPolling();
-  await ctx.statusTimer();
-  assert.equal(ctx.clusterStepData.value, previous);
-  assert.equal(ctx.statusError.value, '');
-  assert.equal(ctx.isShowClusterStep.value, false);
-  const result = { quix: { ...previous.quix, operation: { status: 'success' } } };
-  ctx.getClusterConfigStatus = async () => ({ code: 0, data: result });
-  await ctx.statusTimer();
-  assert.equal(ctx.clusterStepData.value, result);
-  assert.equal(ctx.statusTimer, null);
-});
+for (const lightweight of [true, false]) {
+  const mode = lightweight ? 'lightweight' : 'legacy';
+  function response(status) {
+    const finished = status === 'success';
+    const step = { status: status.toUpperCase() };
+    const data = { access_finished: finished, flow_create: step, flow_run: step, data_check: step };
+    if (lightweight) {
+      data.quix = {
+        phase: finished ? 'running' : 'enabling',
+        distance_threshold: finished ? '0.5' : null,
+        operation: { operation_type: 'enable', status },
+      };
+    }
+    return { code: 0, data };
+  }
 
-test('initial status failure still offers a manual retry', async () => {
-  const ctx = pollContext(false);
-  await ctx.clusterPolling();
-  assert.equal(ctx.statusError.value, 'timeout');
-  assert.equal(ctx.statusTimer, null);
-});
+  test(mode + ' first enable polls until results are ready', async () => {
+    const ctx = pollContext(response('running'), response('success'));
+    await ctx.clusterPolling();
+    assert.equal(ctx.isShowClusterStep.value, true);
+    await ctx.statusTimer();
+    assert.equal(ctx.isShowClusterStep.value, false);
+    assert.equal(ctx.initializedIndex.value, '42');
+    assert.equal(ctx.statusTimer, null);
+  });
+
+  test(mode + ' first enable failure stays on the original progress page', async () => {
+    const ctx = pollContext(response('failed'));
+    await ctx.clusterPolling();
+    assert.equal(ctx.isShowClusterStep.value, true);
+    assert.equal(ctx.statusTimer, null);
+  });
+}
+
+for (const status of ['running', 'awaiting_receipt', 'failed']) {
+  test('opening results during update does not start polling: ' + status, async () => {
+    const quix = { phase: 'updating', distance_threshold: '0.5', operation: { operation_type: 'update', status } };
+    const ctx = pollContext({ code: 0, data: { quix } });
+    await ctx.clusterPolling();
+    assert.equal(ctx.initializedIndex.value, '42');
+    assert.equal(ctx.isShowClusterStep.value, false);
+    assert.equal(ctx.statusTimer, null);
+  });
+}
 
 for (const [name, quix, operation, notices] of [
   ['unchanged lightweight settings', true, null, 0],
@@ -90,7 +111,6 @@ for (const [name, quix, operation, notices] of [
   test(name, () => {
     const messages = [],
       events = [];
-    let refreshes = 0;
     const callback = loadCallback(
       'top-operation/cluster-config/edit-config/index.tsx',
       node => {
@@ -108,15 +128,13 @@ for (const [name, quix, operation, notices] of [
         quix: { value: quix },
         t: key => key,
         bkNotify: options => messages.push(options),
-        page: { refresh: () => refreshes++ },
         emit: event => events.push(event),
       },
     );
     callback({ data: [operation] });
     assert.deepEqual(events, ['close']);
     assert.equal(messages.length, notices);
-    assert.equal(refreshes, quix && operation ? 1 : 0);
     if (notices) assert.equal(messages[0].title, '保存待生效');
-    if (!quix) assert.equal(messages[0].message, '该保存需要10分钟生效, 请耐心等待');
+    if (notices) assert.equal(messages[0].message, '该保存需要10分钟生效, 请耐心等待');
   });
 }

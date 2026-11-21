@@ -57,7 +57,6 @@ export default defineComponent({
     let statusRequest = 0;
     const initializedIndex = ref('');
     const statusError = ref('');
-    const submitting = ref(false);
     const loadingWidthList = {
       global: [''],
       notCompared: [150, 90, 90, ''],
@@ -108,10 +107,7 @@ export default defineComponent({
     const globalLoading = computed(() => indexFieldInfo.value.is_loading);
     const clusteringConfig = computed(() => indexSetFieldConfig.value.clustering_config);
     const quix = computed(() => clusterStepData.value?.quix);
-    const showQuixProgress = computed(
-      () => isShowClusterStep.value && ['enabling', 'reopening'].includes(quix.value?.phase ?? ''),
-    );
-    provide(quixPage, { status: quix, refresh: () => void clusterPolling() });
+    provide(quixPage, quix);
     const clusterSwitch = computed(() =>
       quix.value ? Boolean(quix.value.distance_threshold) : Boolean(clusteringConfig.value?.is_active),
     );
@@ -133,7 +129,6 @@ export default defineComponent({
       isShowClusterStep.value = true;
       clusterStepData.value = null;
       statusError.value = '';
-      submitting.value = false;
       void clusterPolling();
     });
 
@@ -183,10 +178,10 @@ export default defineComponent({
     };
 
     const initTableOperator = async (id: string, seq: number) => {
-      const { log_clustering_level_year_on_year: yearOnYearList, log_clustering_level } =
+      const { log_clustering_level_year_on_year: yearOnYearList, log_clustering_level: levels } =
         store.state.globals.globalsData;
       const activeLevel = quix.value?.distance_threshold?.replace('.', '');
-      const clusterLevel = activeLevel ? [activeLevel] : [...log_clustering_level];
+      const clusterLevel = activeLevel ? [activeLevel] : [...levels];
       let patternLevel;
       if (clusterLevel && clusterLevel.length > 0) {
         // 判断奇偶数来取pattern中间值
@@ -249,7 +244,8 @@ export default defineComponent({
 
     const clusterPolling = async () => {
       stopPolling();
-      const seq = ++statusRequest;
+      statusRequest += 1;
+      const seq = statusRequest;
       const id = indexSetId.value;
       if (!id || !isClusterActive.value) return;
       try {
@@ -265,49 +261,28 @@ export default defineComponent({
         if (res.code !== 0) throw new Error(res.message || t('获取聚类状态失败'));
         clusterStepData.value = res.data;
         const state = res.data.quix;
-        isShowClusterStep.value = state ? !state.distance_threshold : !res.data.access_finished;
-        if (!isShowClusterStep.value && initializedIndex.value !== id && totalFields.value.length) {
+        isShowClusterStep.value = state
+          ? state.phase === 'enabling' && !state.distance_threshold
+          : !res.data.access_finished;
+        if (
+          !isShowClusterStep.value &&
+          (!state || clusterSwitch.value) &&
+          initializedIndex.value !== id &&
+          totalFields.value.length
+        ) {
           filterGroupList();
           await initTableOperator(id, seq);
           if (seq === statusRequest) initializedIndex.value = id;
         }
         if (seq !== statusRequest) return;
         const pending = state
-          ? ['pending', 'running', 'awaiting_receipt'].includes(state.operation?.status ?? '')
-          : !res.data.access_finished &&
-            ![res.data.flow_create, res.data.flow_run, res.data.data_check].some(step => step.status === 'FAILED');
-        if (pending) statusTimer = setTimeout(clusterPolling, 10000);
+          ? state.operation?.operation_type === 'enable' &&
+            ['pending', 'running', 'awaiting_receipt'].includes(state.operation.status)
+          : ![res.data.flow_create, res.data.flow_run, res.data.data_check].some(step => step.status === 'FAILED');
+        if (isShowClusterStep.value && pending) statusTimer = setTimeout(clusterPolling, 10000);
       } catch (error) {
         if (seq !== statusRequest) return;
-        // 更新提交后的第一次刷新可能仍只有上一轮 running 状态，保留已加载的结果并继续轮询。
-        if (quix.value && isShowTopNav.value) {
-          statusTimer = setTimeout(clusterPolling, 10000);
-          return;
-        }
         statusError.value = error instanceof Error ? error.message : String(error);
-      }
-    };
-
-    const submitAction = async (action: 'retry' | 'reopen') => {
-      if (submitting.value || !quix.value) return;
-      const id = indexSetId.value;
-      submitting.value = true;
-      try {
-        const api = {
-          retry: 'retryClusteringAccess',
-          reopen: 'reopenClusteringAccess',
-        }[action];
-        await $http.request(`retrieve/${api}`, {
-          params: {
-            index_set_id: id,
-            ...(action === 'retry' && { operation_id: quix.value.operation?.operation_id }),
-          },
-        });
-      } finally {
-        if (id === indexSetId.value && isClusterActive.value) {
-          submitting.value = false;
-          await clusterPolling();
-        }
       }
     };
 
@@ -390,7 +365,7 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       if (isClusterActive.value) {
-        statusRequest++;
+        statusRequest += 1;
         isClusterActive.value = false;
         store.commit('updateState', { clusterParams: null });
         setRouteParams();
@@ -405,44 +380,8 @@ export default defineComponent({
             width-list={loadingWidthList.global}
             is-loading
           />
-        ) : statusError.value ? (
-          <bk-exception
-            type='500'
-            scene='part'
-          >
-            <span>{statusError.value}</span>
-            <bk-button
-              text
-              on-click={clusterPolling}
-            >
-              {t('重新获取状态')}
-            </bk-button>
-          </bk-exception>
         ) : (
           <div class='log-cluster-table-container'>
-            {!window.IS_EXTERNAL && quix.value?.phase === 'stopped' && quix.value.can_reopen && (
-              <bk-button
-                text
-                disabled={submitting.value}
-                on-click={() => submitAction('reopen')}
-              >
-                {t('重新开启聚类')}
-              </bk-button>
-            )}
-            {!window.IS_EXTERNAL &&
-              !showQuixProgress.value &&
-              quix.value?.operation?.status === 'failed' &&
-              quix.value.operation.operation_type !== 'disable' &&
-              quix.value.phase !== 'stopped' && (
-                <bk-button
-                  text
-                  disabled={submitting.value}
-                  title={quix.value.operation.last_error}
-                  on-click={() => submitAction('retry')}
-                >
-                  {t('重试')}
-                </bk-button>
-              )}
             {isShowTopNav.value && (
               // 顶部工具栏
               <TopOperation
@@ -462,35 +401,17 @@ export default defineComponent({
             )}
             {exhibitAll.value ? (
               (() => {
-                if (
-                  quix.value?.phase === 'stopped' &&
-                  !quix.value.can_reopen &&
-                  !quix.value.distance_threshold &&
-                  !window.IS_EXTERNAL
-                ) {
-                  return (
-                    <QuickOpenCluster
-                      indexSetId={indexSetId.value}
-                      totalFields={totalFields.value}
-                      on-create-cluster={handleClusterCreate}
-                    />
-                  );
-                }
-                if (isShowClusterStep.value && !clusterStepData.value) return null;
-                if (isShowClusterStep.value && quix.value && !showQuixProgress.value) {
-                  return null;
-                }
-                if (isShowClusterStep.value) {
-                  // 聚类启动失败
+                if (statusError.value || isShowClusterStep.value) {
+                  if (!statusError.value && !clusterStepData.value) return null;
                   return (
                     <cluster-start-fail
                       cluster-step-data={clusterStepData.value}
-                      busy={submitting.value}
-                      on-retry={() => submitAction('retry')}
+                      status-error={statusError.value}
                     />
                   );
                 }
                 if (!clusterSwitch.value || !clusterStepData.value) {
+                  if (quix.value && (quix.value.phase !== 'stopped' || quix.value.can_reopen)) return null;
                   // 快速开启日志聚类
                   return (
                     <QuickOpenCluster
@@ -500,14 +421,13 @@ export default defineComponent({
                     />
                   );
                 }
-                if (!isTableReady.value) {
+                if (!isTableReady.value)
                   return (
                     <clustering-loader
                       width-list={loadingWidthList.global}
                       is-loading
                     />
                   );
-                }
                 return (
                   <log-table
                     ref={logTableRef}
