@@ -832,7 +832,7 @@ class SpaceTableIDRedis:
             # DorisStorage。虚拟表没有对应 Storage 配置时，再回退关联实体表的同类型配置。
             es_db = target_es.get("index_set") or origin_es.get("index_set")
             es_source_type = target_es.get("source_type") or origin_es.get("source_type")
-            # Doris 物理表名只存在于 DorisStorage；虚拟表未单独配置时回退实体表。
+            # 当前 BKBase 结果表也用作旧分段未保存结果表 ID 时的回退值。
             doris_db = target_doris.get("bkbase_table_id") or origin_doris.get("bkbase_table_id")
 
             # 虽名为 history，该列表实际包含实体表所有未删除的当前和历史分段；
@@ -870,7 +870,7 @@ class SpaceTableIDRedis:
                             "enable_time": record["enable_timestamp"],
                         }
                     )
-                elif doris_db:
+                elif segment_db := record["bkbase_table_id"] or doris_db:
                     # 换表后每代物理表对应一个 BKBase 结果表：历史段必须指向自己那代的结果表，
                     # 缺失时才回退当前存储值，兼容本特性上线前的历史数据。
                     history.append(
@@ -879,7 +879,7 @@ class SpaceTableIDRedis:
                             "storage_type": "bk_sql",
                             "storage_name": cluster["cluster_name"],
                             "cluster_name": cluster["cluster_name"],
-                            "db": record["bkbase_table_id"] or doris_db,
+                            "db": segment_db,
                             "measurement": models.ClusterInfo.TYPE_DORIS,
                             "enable_time": record["enable_timestamp"],
                             **{

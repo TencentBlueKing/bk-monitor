@@ -89,6 +89,7 @@ class _BKLoginApi:
             url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenant/virtual-users/-/lookup/",
             module=self.MODULE,
             description="获取虚拟用户",
+            use_implicit_user_auth=False,
         )
 
         self.list_department_profiles = DataAPI(

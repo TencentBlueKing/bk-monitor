@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 import pytest
@@ -18,9 +19,25 @@ def test_tenant_admin_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
                 bk_tenant_id=tenant,
                 method="GET",
                 path="api/v3/open/tenant/virtual-users/-/lookup/",
-                username="admin",
+                use_implicit_user_auth=False,
                 params={"lookup_field": "login_name", "lookups": "custom-login"},
             )
+
+
+def test_lookup_sends_only_app_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    """管理员尚待解析时，使用应用凭证按登录名查询目标租户。"""
+    blueking = BlueKingConfig(enable_multi_tenancy=True, bk_admin_username="service-login")
+    monkeypatch.setattr(api.get_config(), "blueking", blueking)
+    with patch.object(api.requests, "request") as send:
+        send.return_value.json.return_value = {"data": [{"bk_username": "virtual-id"}]}
+        assert api.get_tenant_admin_username.__wrapped__("tenant-a") == "virtual-id"
+        kwargs = send.call_args.kwargs
+        assert kwargs["headers"]["X-Bk-Tenant-Id"] == "tenant-a"
+        assert json.loads(kwargs["headers"]["X-Bkapi-Authorization"]) == {
+            "bk_app_code": blueking.app_code,
+            "bk_app_secret": blueking.app_secret,
+        }
+        assert kwargs["params"] == {"lookup_field": "login_name", "lookups": "service-login"}
 
 
 def test_default_admin_login(monkeypatch: pytest.MonkeyPatch) -> None:
