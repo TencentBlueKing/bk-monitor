@@ -265,8 +265,7 @@ class QuixClusteringOperationRunner:
                 raise QuixClusteringParamsInvalidException(str(exc)) from exc
             raise
         config = dict(self.runtime.pending_config or {})
-        if "kafka_cluster_id" in payload:
-            config["kafka_cluster_id"] = payload["kafka_cluster_id"]
+        config["kafka_cluster_id"] = payload["kafka_cluster_id"]
         self._save_runtime(bkfara_task_id=result["task_id"], pending_config=config)
         return True
 
@@ -281,9 +280,7 @@ class QuixClusteringOperationRunner:
         if task.get("current_generation") is None:
             return False
         clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
-        if "kafka_cluster_id" in (self.runtime.pending_config or {}) and not (
-            clustering.get("runtime_status") or {}
-        ).get("ready"):
+        if not (clustering.get("runtime_status") or {}).get("ready"):
             return False
         if not clustering.get("kafka") or clustering.get("input_revision") is None:
             return False
@@ -312,38 +309,12 @@ class QuixClusteringOperationRunner:
     def _clustering_config_params(self, result_mode: str, **params) -> dict:
         """聚类配置请求：Pattern 表与独立结果表的名称和集群由日志平台决定。"""
         config = self.runtime.pending_config or self.runtime.active_config
-        if "kafka_cluster_id" in config:
-            params["kafka_cluster_id"] = config["kafka_cluster_id"]
-        elif self.operation.operation_type == ClusteringOperationTypeEnum.ENABLE.value:
-            # 升级前已创建、尚未首次下发的任务继续沿用旧开启流程。
-            params["kafka_resource"] = self.quix_config["kafka_resource"]
-        else:
-            params["kafka_resource"] = self._last_applied_kafka_resource()
+        params["kafka_cluster_id"] = config["kafka_cluster_id"]
         targets = build_store_targets(self.runtime, result_mode)
         params.update(result_mode=result_mode, pattern_store=targets["pattern"])
         if result_mode == "append":
             params["result_store"] = targets["clustered"]
         return self._metadata_params(**params)
-
-    def _last_applied_kafka_resource(self) -> dict:
-        # metadata_set 成功后，后续路由发布仍可能失败，按步骤回执选取快照。
-        history = (
-            LogClusteringOperation.objects.filter(
-                index_set_id=self.runtime.index_set_id,
-                request_payloads__metadata_set__binding__task_id=self.runtime.bkfara_task_id,
-            )
-            .order_by("-pk")
-            .values_list("steps", "request_payloads")
-        )
-        for steps, payloads in history.iterator():
-            if any(
-                step["step"] == "metadata_set" and step["status"] == ClusteringOperationStatusEnum.SUCCESS.value
-                for step in steps
-            ):
-                return payloads["metadata_set"]["kafka_resource"]
-        raise QuixClusteringConfigInvalidException(
-            f"找不到聚类任务 {self.runtime.bkfara_task_id} 已成功下发的 Kafka 引用"
-        )
 
     def _step_register_query_routes(self) -> bool:
         status = TransferApi.get_log_clustering_status(self._metadata_params())

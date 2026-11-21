@@ -34,16 +34,10 @@ ADOPTED = {
 
 def create_running_runtime() -> LogClusteringRuntime:
     operation = create_enable_operation()
-    operation.record_step("metadata_set", ClusteringOperationStatusEnum.SUCCESS.value)
-    LogClusteringOperation.objects.filter(pk=operation.pk).update(
-        status=ClusteringOperationStatusEnum.SUCCESS.value,
-        request_payloads={
-            "metadata_set": {"binding": {"task_id": "task-uuid"}, "kafka_resource": QUIX_CONFIG["kafka_resource"]}
-        },
-    )
+    LogClusteringOperation.objects.filter(pk=operation.pk).update(status=ClusteringOperationStatusEnum.SUCCESS.value)
     runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
     runtime.phase = ClusteringRuntimePhaseEnum.RUNNING.value
-    runtime.active_config = build_clustering_config("log", ERROR_RULES)
+    runtime.active_config = {**build_clustering_config("log", ERROR_RULES), "kafka_cluster_id": 21}
     runtime.pending_config = None
     runtime.bkfara_task_id = "task-uuid"
     runtime.save()
@@ -65,7 +59,7 @@ class TestQuixUpdateRunner(TestCase):
     def setUp(self):
         runtime = create_running_runtime()
         runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
-        runtime.pending_config = build_clustering_config("log", WARN_RULES)
+        runtime.pending_config = {**build_clustering_config("log", WARN_RULES), "kafka_cluster_id": 21}
         runtime.save()
         _, self.operation = LogClusteringRuntime.start_operation(
             INDEX_SET_ID, ClusteringOperationTypeEnum.UPDATE.value, {"filter_rules": WARN_RULES}
@@ -89,29 +83,6 @@ class TestQuixUpdateRunner(TestCase):
 
     def run_operation(self):
         return QuixClusteringOperationRunner(self.operation.operation_id).run()
-
-    def test_legacy_update_reuses_last_applied_kafka_after_env_removal(self):
-        applied = {"kind": "Kafka", "namespace": "legacy", "name": "applied"}
-        for operation_id, task_id, ref, success in (
-            ("applied-before-route-failure", "task-uuid", applied, True),
-            ("other-task", "different-task", {"name": "other"}, True),
-            ("failed-set", "task-uuid", {"name": "failed"}, False),
-        ):
-            LogClusteringOperation.objects.create(
-                operation_id=operation_id,
-                index_set_id=INDEX_SET_ID,
-                operation_type="update",
-                status="failed",
-                request_payloads={"metadata_set": {"binding": {"task_id": task_id}, "kafka_resource": ref}},
-                steps=[{"step": "metadata_set", "status": "success" if success else "failed"}],
-            )
-        with patch(
-            "apps.log_clustering.handlers.quix.operation.get_quix_config",
-            return_value={key: value for key, value in QUIX_CONFIG.items() if key != "kafka_resource"},
-        ):
-            self.run_operation()
-        self.assertEqual(self.transfer.set_log_clustering_config.call_args.args[0]["kafka_resource"], applied)
-        self.transfer.get_data_id.assert_not_called()
 
     def test_update_waits_for_link_without_promoting_rules(self):
         self.transfer.get_log_clustering_status.return_value = {**ADOPTED, "ready": False}

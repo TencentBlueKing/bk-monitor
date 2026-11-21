@@ -17,8 +17,7 @@ Databus 尚未引用聚类 Sink 时按日志链路完整下发（Databus.spec.si
 | bk_tenant_id      | string | 否  | 租户ID，缺省时取请求租户                                                            |
 | table_id          | string | 是  | 日志采集项对应的监控结果表ID                                                          |
 | binding           | dict   | 是  | 聚类绑定配置                                                                   |
-| kafka_cluster_id | int | 条件必选 | 与创建 BKFara 任务相同的源 Kafka 集群 ID。metadata 按租户和源链路命名空间解析 KafkaChannel。 |
-| kafka_resource | dict | 条件必选 | 兼容旧调用方的 Kafka 引用，与 kafka_cluster_id 二选一。 |
+| kafka_cluster_id | int | 是 | 与创建 BKFara 任务相同的源 Kafka 集群 ID。metadata 按租户和源链路命名空间解析 KafkaChannel。 |
 | runtime_cluster | dict | 是 | 已登记的 DatabusCluster 引用，同时用于 Databus.spec.preferCluster |
 | recovery_resource | dict | 否 | 已登记的 ElasticSearch 引用，用于结果关联上下文存储 |
 | result_mode | string | 否 | update_original（默认）或 append；省略时沿用已登记模式，是否允许切换由调用方决定 |

@@ -25,7 +25,6 @@ TASK_ID = "task-uuid"
 KAFKA = {"cluster_ref": "quix-e2e", "input_topic": f"lc-{TASK_ID}-in", "partitions": 2}
 QUIX_CONFIG = {
     "profile": "test-clustering-es",
-    "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "kafka"},
     "recovery_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "context_es"},
     "runtime_cluster": {"kind": "DatabusCluster", "namespace": "quix", "name": "quix-runtime"},
     "state_index": "log-clustering-42-state",
@@ -118,6 +117,7 @@ class TestQuixEnableRunner(TestCase):
         runtime.pending_config["result_mode"] = "append"
         runtime.save()
         runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        runner._step_create_task()
         runner._step_metadata_set()
         params = self.transfer.set_log_clustering_config.call_args.args[0]
         self.assertEqual(params["result_mode"], "append")
@@ -130,6 +130,7 @@ class TestQuixEnableRunner(TestCase):
 
     def test_store_tables_follow_source_database_and_index_set_cluster(self):
         runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        runner._step_create_task()
         runner._step_metadata_set()
         params = self.transfer.set_log_clustering_config.call_args.args[0]
         self.assertEqual(

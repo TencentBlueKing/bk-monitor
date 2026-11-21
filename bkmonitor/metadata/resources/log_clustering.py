@@ -224,8 +224,7 @@ class SetLogClusteringConfigResource(Resource):
         table_id = serializers.CharField(label="监控结果表ID")
         # 由调用方按 BKBase LogClusteringSink 协议组装，metadata 原样保存和下发。
         binding = serializers.DictField(label="聚类绑定配置")
-        kafka_cluster_id = serializers.IntegerField(label="源日志 Kafka 集群 ID", min_value=1, required=False)
-        kafka_resource = LogClusteringResourceRefSerializer(label="旧任务 Kafka 资源引用", required=False)
+        kafka_cluster_id = serializers.IntegerField(label="源日志 Kafka 集群 ID", min_value=1)
         runtime_cluster = LogClusteringResourceRefSerializer(label="专用 Databus 集群")
         recovery_resource = LogClusteringResourceRefSerializer(label="结果关联存储资源", required=False)
         result_mode = serializers.ChoiceField(choices=RESULT_MODES, required=False)
@@ -237,11 +236,7 @@ class SetLogClusteringConfigResource(Resource):
                 raise ValidationError({"binding": "index_id is required"})
             if attrs.get("result_mode") == "append" and not attrs.get("result_store"):
                 raise ValidationError({"result_store": "required when result_mode is append"})
-            if ("kafka_resource" in attrs) == ("kafka_cluster_id" in attrs):
-                raise ValidationError("provide exactly one of kafka_cluster_id and kafka_resource")
             references = [("runtime_cluster", attrs["runtime_cluster"], "DatabusCluster")]
-            if "kafka_resource" in attrs:
-                references.append(("kafka_resource", attrs["kafka_resource"], "Kafka"))
             if "recovery_resource" in attrs:
                 references.append(("recovery_resource", attrs["recovery_resource"], "ElasticSearch"))
             for field, ref, kind in references:
@@ -257,9 +252,7 @@ class SetLogClusteringConfigResource(Resource):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_id = validated_request_data["table_id"]
         datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
-        kafka_resource = validated_request_data.get("kafka_resource")
-        if "kafka_cluster_id" in validated_request_data:
-            kafka_resource = get_log_kafka_channel(datalink, validated_request_data["kafka_cluster_id"])
+        kafka_resource = get_log_kafka_channel(datalink, validated_request_data["kafka_cluster_id"])
         config_fields = {
             "binding": validated_request_data["binding"],
             "kafka_resource": kafka_resource,
