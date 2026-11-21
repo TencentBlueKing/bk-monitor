@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const axios = require('axios');
 const path = require('node:path');
 const { test } = require('node:test');
 const vm = require('node:vm');
@@ -46,7 +47,13 @@ function pollContext(...responses) {
       assert.equal(delay, 10000);
       return callback;
     },
-    getClusterConfigStatus: async () => responses.shift(),
+    axios,
+    Error,
+    getClusterConfigStatus: async () => {
+      const result = responses.shift();
+      if (result instanceof Error) throw result;
+      return result;
+    },
     filterGroupList() {},
     initTableOperator: async () => {},
   };
@@ -57,6 +64,14 @@ function pollContext(...responses) {
   );
   return ctx;
 }
+
+test('a first status request without confirmed progress does not start polling', async () => {
+  const ctx = pollContext(new axios.AxiosError('Network Error', 'ERR_NETWORK'));
+  await ctx.clusterPolling();
+  assert.equal(ctx.clusterStepData.value, null);
+  assert.equal(ctx.statusError.value, 'Network Error');
+  assert.equal(ctx.statusTimer, null);
+});
 
 for (const lightweight of [true, false]) {
   const mode = lightweight ? 'lightweight' : 'legacy';
@@ -83,6 +98,27 @@ for (const lightweight of [true, false]) {
     assert.equal(ctx.initializedIndex.value, '42');
     assert.equal(ctx.statusTimer, null);
   });
+
+  for (const terminal of ['success', 'failed']) {
+    test(mode + ' preserves progress across a 502 and a disconnect until ' + terminal, async () => {
+      const gatewayError = new axios.AxiosError('Bad Gateway', 'ERR_BAD_RESPONSE', {}, {}, { status: 502 });
+      const networkError = new axios.AxiosError('Network Error', 'ERR_NETWORK');
+      const running = response('running');
+      const result = response(terminal);
+      const ctx = pollContext(running, gatewayError, networkError, result);
+      await ctx.clusterPolling();
+      for (let i = 0; i < 2; i++) {
+        await ctx.statusTimer();
+        assert.equal(ctx.clusterStepData.value, running.data);
+        assert.equal(ctx.statusError.value, '');
+        assert.equal(ctx.isShowClusterStep.value, true);
+      }
+      await ctx.statusTimer();
+      assert.equal(ctx.clusterStepData.value, result.data);
+      assert.equal(ctx.isShowClusterStep.value, terminal === 'failed');
+      assert.equal(ctx.statusTimer, null);
+    });
+  }
 
   test(mode + ' first enable failure stays on the original progress page', async () => {
     const ctx = pollContext(response('failed'));

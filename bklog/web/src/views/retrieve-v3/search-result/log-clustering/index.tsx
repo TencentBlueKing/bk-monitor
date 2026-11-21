@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, provide, ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import axios from 'axios';
 import useLocale from '@/hooks/use-locale';
 import { quixPage } from './quix-page';
 import ClusteringLoader from '@/skeleton/clustering-loader.vue';
@@ -274,16 +275,23 @@ export default defineComponent({
           await initTableOperator(id, seq);
           if (seq === statusRequest) initializedIndex.value = id;
         }
-        if (seq !== statusRequest) return;
-        const pending = state
-          ? state.operation?.operation_type === 'enable' &&
-            ['pending', 'running', 'awaiting_receipt'].includes(state.operation.status)
-          : ![res.data.flow_create, res.data.flow_run, res.data.data_check].some(step => step.status === 'FAILED');
-        if (isShowClusterStep.value && pending) statusTimer = setTimeout(clusterPolling, 10000);
       } catch (error) {
         if (seq !== statusRequest) return;
-        statusError.value = error instanceof Error ? error.message : String(error);
+        const transient =
+          axios.isAxiosError(error) && !axios.isCancel(error) && (!error.response || error.response.status >= 500);
+        if (!transient || !isShowClusterStep.value || !clusterStepData.value) {
+          statusError.value = error instanceof Error ? error.message : String(error);
+          return;
+        }
       }
+      // 按最后一次成功取得的接入进度继续；一次网络错误不能判定后台任务失败。
+      const progress = clusterStepData.value;
+      if (seq !== statusRequest || !isShowClusterStep.value || !progress) return;
+      const pending = progress.quix
+        ? progress.quix.operation?.operation_type === 'enable' &&
+          ['pending', 'running', 'awaiting_receipt'].includes(progress.quix.operation.status)
+        : ![progress.flow_create, progress.flow_run, progress.data_check].some(step => step.status === 'FAILED');
+      if (pending) statusTimer = setTimeout(clusterPolling, 10000);
     };
 
     // 数据指纹操作
