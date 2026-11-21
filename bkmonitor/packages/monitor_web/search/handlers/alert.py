@@ -55,19 +55,20 @@ class AlertSearchHandler(BaseSearchHandler):
                         )
                     )
 
-        search_obj = base_search.filter("terms", **{"event.bk_biz_id": biz_to_search_detail}).source(
-            fields=["id", "alert_name", "event.bk_biz_id"]
-        )
-
-        for alert in search_obj.scan():
-            search_results.append(
-                SearchResultItem(
-                    bk_biz_id=alert.event.bk_biz_id,
-                    title=alert.alert_name,
-                    view="event-center-detail",
-                    view_args={"params": {"id": alert.id}},
-                )
+        if biz_to_search_detail:
+            search_obj = base_search.filter("terms", **{"event.bk_biz_id": biz_to_search_detail}).source(
+                fields=["id", "alert_name", "event.bk_biz_id"]
             )
+
+            for alert in search_obj.scan():
+                search_results.append(
+                    SearchResultItem(
+                        bk_biz_id=alert.event.bk_biz_id,
+                        title=alert.alert_name,
+                        view="event-center-detail",
+                        view_args={"params": {"id": alert.id}},
+                    )
+                )
 
         self.add_permission_for_results(results=search_results, action=ActionEnum.VIEW_EVENT)
         return search_results
