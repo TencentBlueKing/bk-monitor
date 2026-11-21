@@ -240,12 +240,22 @@ class QuixClusteringOperationRunner:
     def _step_create_task(self) -> bool:
         if self.runtime.bkfara_task_id:
             return True
-        payload = self.operation.get_request_payload(
-            "create_task",
-            lambda: build_create_task_payload(
+
+        def create_payload():
+            payload = build_create_task_payload(
                 self.runtime.index_set_id, self.quix_config, self.operation.request_snapshot.get("model_parameters")
-            ),
-        )
+            )
+            source = TransferApi.get_data_id(
+                {"bk_data_id": self.runtime.bk_data_id, "no_request": True}, bk_tenant_id=self.runtime.bk_tenant_id
+            )
+            cluster_id = ((source.get("mq_config") or {}).get("cluster_config") or {}).get("cluster_id")
+            if type(cluster_id) is not int or cluster_id <= 0:
+                raise QuixClusteringConfigInvalidException(
+                    f"Invalid Kafka cluster ID for DataID {self.runtime.bk_data_id}"
+                )
+            return {**payload, "kafka_cluster_id": cluster_id}
+
+        payload = self.operation.get_request_payload("create_task", create_payload)
         try:
             result = BkFaraApi.create_task(
                 {**payload, "Idempotency-Key": self.operation.get_idempotency_key("create_task")}
@@ -254,7 +264,9 @@ class QuixClusteringOperationRunner:
             if exc.http_status == 422:
                 raise QuixClusteringParamsInvalidException(str(exc)) from exc
             raise
-        self._save_runtime(bkfara_task_id=result["task_id"])
+        config = dict(self.runtime.pending_config or {})
+        config["kafka_cluster_id"] = payload["kafka_cluster_id"]
+        self._save_runtime(bkfara_task_id=result["task_id"], pending_config=config)
         return True
 
     def _step_read_binding(self) -> bool:
@@ -268,6 +280,8 @@ class QuixClusteringOperationRunner:
         if task.get("current_generation") is None:
             return False
         clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
+        if not (clustering.get("runtime_status") or {}).get("ready"):
+            return False
         if not clustering.get("kafka") or clustering.get("input_revision") is None:
             return False
         self._save_runtime(
@@ -284,7 +298,6 @@ class QuixClusteringOperationRunner:
             "metadata_set",
             lambda: self._clustering_config_params(
                 binding=build_binding(self.runtime, clustering_config, self.quix_config.get("max_message_bytes")),
-                kafka_resource=self.quix_config["kafka_resource"],
                 runtime_cluster=self.quix_config["runtime_cluster"],
                 result_mode=clustering_config.get("result_mode", "update_original"),
             ),
@@ -295,6 +308,8 @@ class QuixClusteringOperationRunner:
 
     def _clustering_config_params(self, result_mode: str, **params) -> dict:
         """聚类配置请求：Pattern 表与独立结果表的名称和集群由日志平台决定。"""
+        config = self.runtime.pending_config or self.runtime.active_config
+        params["kafka_cluster_id"] = config["kafka_cluster_id"]
         targets = build_store_targets(self.runtime, result_mode)
         params.update(result_mode=result_mode, pattern_store=targets["pattern"])
         if result_mode == "append":
