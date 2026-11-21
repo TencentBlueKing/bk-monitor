@@ -105,6 +105,12 @@ class IncidentOperationManager:
 
         # 从 kwargs 中提取 incident_document（不存入 extra_info）
         incident_document = kwargs.pop("incident_document", None)
+        notify_assignee_change = (
+            kwargs.pop("notify_assignee_change", False) is True
+            and operation_type == IncidentOperationType.UPDATE
+            and kwargs.get("incident_key") == "assignees"
+        )
+        notice_trigger = operation_type in cls.NOTICE_TRIGGER_OPERATIONS or notify_assignee_change
         operate_time = operate_time if operate_time else int(time.time())
 
         IncidentOperationDocument.bulk_create(
@@ -122,7 +128,7 @@ class IncidentOperationManager:
 
         # 根据操作类型决定是否发送通知
         notice_enabled = getattr(settings, "ENABLE_BK_INCIDENT_NOTICE", False)
-        if send_notice and operation_type in cls.NOTICE_TRIGGER_OPERATIONS:
+        if send_notice and notice_trigger:
             logger.info(
                 "[IncidentNotice][Trigger] incident_id=%s operation=%s notice_enabled=%s send_notice=%s "
                 "has_incident_document=%s",
@@ -133,7 +139,7 @@ class IncidentOperationManager:
                 bool(incident_document),
             )
         if notice_enabled and send_notice:
-            if operation_type in cls.NOTICE_TRIGGER_OPERATIONS:
+            if notice_trigger:
                 cls._send_incident_notice(
                     incident_id,
                     operation_type,
@@ -267,6 +273,7 @@ class IncidentOperationManager:
         incident_name: str = None,
         should_send_notice: bool = None,
         notice_config: dict = None,
+        notice_event_key: str = None,
     ) -> IncidentOperationDocument:
         """记录生成故障
         文案: 生成故障，包含{alert_count}个告警，负责人为{handlers}
@@ -291,6 +298,7 @@ class IncidentOperationManager:
             assignees=assignees,
             incident_document=incident_document,
             notice_config=notice_config,
+            notice_event_key=notice_event_key,
         )
 
     @classmethod
@@ -365,6 +373,7 @@ class IncidentOperationManager:
                     merge_info=merge_info,
                     should_send_notice=should_send_notice,
                     notice_config=kwargs.get("notice_config"),
+                    notice_event_key=kwargs.get("notice_event_key"),
                 )
             if to_value == IncidentStatus.RECOVERED.value:
                 return cls.record_operation(
@@ -374,6 +383,7 @@ class IncidentOperationManager:
                     send_notice=cls.resolve_notice_switch(True, should_send_notice),
                     incident_document=kwargs.get("incident_document"),
                     notice_config=kwargs.get("notice_config"),
+                    notice_event_key=kwargs.get("notice_event_key"),
                 )
             if to_value == IncidentStatus.RECOVERING.value:
                 # 观察中事件：观察时长由 notice.py 中的 _format_observe_duration 从 end_time 实时计算
@@ -384,6 +394,7 @@ class IncidentOperationManager:
                     send_notice=cls.resolve_notice_switch(True, should_send_notice),
                     incident_document=kwargs.get("incident_document"),
                     notice_config=kwargs.get("notice_config"),
+                    notice_event_key=kwargs.get("notice_event_key"),
                 )
             # 故障重新打开：从观察中（RECOVERING）变为异常（ABNORMAL）
             if to_value == IncidentStatus.ABNORMAL.value and from_value == IncidentStatus.RECOVERING.value:
@@ -394,6 +405,7 @@ class IncidentOperationManager:
                     send_notice=cls.resolve_notice_switch(True, should_send_notice),
                     incident_document=kwargs.get("incident_document"),
                     notice_config=kwargs.get("notice_config"),
+                    notice_event_key=kwargs.get("notice_event_key"),
                 )
 
         enum_class = INCIDENT_ATTRIBUTE_VALUE_ENUMS.get(incident_key)
@@ -405,6 +417,14 @@ class IncidentOperationManager:
             from_value=str(enum_class(from_value).alias) if enum_class else from_value,
             to_value=str(enum_class(to_value).alias) if enum_class else to_value,
             incident_key_alias=INCIDENT_ATTRIBUTE_ALIAS_MAPPINGS.get(incident_key, incident_key),
+            send_notice=cls.resolve_notice_switch(
+                incident_key == "assignees" and kwargs.get("notify_assignee_change") is True,
+                kwargs.get("should_send_notice"),
+            ),
+            notify_assignee_change=kwargs.get("notify_assignee_change") is True,
+            incident_document=kwargs.get("incident_document"),
+            notice_config=kwargs.get("notice_config"),
+            notice_event_key=kwargs.get("notice_event_key"),
         )
 
     @classmethod
@@ -432,6 +452,7 @@ class IncidentOperationManager:
         alert_count: int = None,
         should_send_notice: bool = None,
         notice_config: dict = None,
+        notice_event_key: str = None,
     ):
         """记录故障合并
         文案:
@@ -486,6 +507,7 @@ class IncidentOperationManager:
             link_incident_doc_id=target_incident_doc_id,
             action={"type": "link", "target": "incident", "params": ["link_incident_doc_id"]},
             notice_config=notice_config,
+            notice_event_key=notice_event_key,
         )
 
         # 给合并目标故障，记录 incident_merge 记录
@@ -502,6 +524,7 @@ class IncidentOperationManager:
             alert_count=alert_count,  # 传递告警数量
             action={"type": "link", "target": "incident", "params": ["link_incident_doc_id"]},
             notice_config=notice_config,
+            notice_event_key=notice_event_key,
         )
 
         return True

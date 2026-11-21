@@ -23,7 +23,7 @@
         <div class="content">
             <div class="field">
                 <span class="field-label">故障名称：</span>
-                <span class="field-value">【{{ level }}】{{ incident_name }}</span>
+                <span class="field-value">【{{ level }}】{{ incident_name | e }}</span>
             </div>
             <div class="field">
                 <span class="field-label">通知时间：</span>
@@ -35,7 +35,7 @@
             </div>
             <div class="field">
                 <span class="field-label">故障根因：</span>
-                <span class="field-value">{{ incident_reason }}</span>
+                <span class="field-value">{{ incident_reason | e }}</span>
             </div>
             <div class="field">
                 <span class="field-label">故障状态：</span>
@@ -51,7 +51,7 @@
             </div>
             <div class="field">
                 <span class="field-label">故障负责人：</span>
-                <span class="field-value">{{ assignees }}</span>
+                <span class="field-value">{{ assignees | e }}</span>
             </div>
             <div class="field">
                 <span class="field-label">故障诊断详情：</span>
