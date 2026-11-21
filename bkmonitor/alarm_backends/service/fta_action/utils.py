@@ -373,11 +373,14 @@ def get_target_info_from_ctx(action_instance: ActionInstance, alerts: list[Alert
 
     action_ctx = ActionContext(action_instance, alerts=alerts, use_alert_snap=True)
     target = action_ctx.target
+    strategy = (
+        action_instance.document_strategy if hasattr(action_instance, "document_strategy") else action_instance.strategy
+    )
     target_info = {
         "bk_biz_name": target.business.bk_biz_name,
         "bk_target_display": action_ctx.alarm.target_display,
         "dimensions": [d.to_dict() for d in action_ctx.alarm.new_dimensions.values()],
-        "strategy_name": action_instance.strategy.get("name") or "--",
+        "strategy_name": strategy.get("name") or "--",
         "operate_target_string": action_ctx.action_instance.operate_target_string,
     }
     try:
