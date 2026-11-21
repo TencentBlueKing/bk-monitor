@@ -288,6 +288,30 @@ def switch_source(cluster_id, when):
     )
 
 
+@pytest.mark.parametrize("existing_mapping", [None, {}, {"dynamic": "strict"}])
+def test_pattern_mapping_allows_periodic_alias_maintenance(log_datalink, mocker, existing_mapping):
+    from metadata.task.tasks import _manage_es_storage
+
+    models.ESStorage.objects.filter(table_id=LOG_TABLE_ID).update(index_settings=json.dumps({"number_of_shards": 3}))
+    sink = create_clustering_sink()
+    if existing_mapping is not None:
+        prepare_clustering_stores(sink)
+        models.ESStorage.objects.filter(pk=pattern_storage(sink).pk).update(
+            mapping_settings=json.dumps(existing_mapping)
+        )
+    prepare_clustering_stores(sink)
+    storage = pattern_storage(sink)
+    assert json.loads(storage.mapping_settings) == (existing_mapping or {"properties": {}})
+    assert storage.index_body["mappings"]["properties"]["signature"]["type"] == "keyword"
+
+    mocker.patch.object(storage, "index_exist", return_value=True)
+    update = mocker.patch.object(storage, "update_index_and_aliases")
+    for method in ("create_snapshot", "clean_index_v2", "clean_history_es_index", "clean_snapshot", "reallocate_index"):
+        mocker.patch.object(storage, method)
+    _manage_es_storage(storage)
+    update.assert_called_once_with(ahead_time=storage.slice_gap)
+
+
 def test_register_managed_pattern_once_per_index(log_datalink):
     settings = {"index.routing.allocation.include.rack": "test-rack", "number_of_shards": 3}
     models.ESStorage.objects.filter(table_id=LOG_TABLE_ID).update(index_settings=json.dumps(settings), retention=7)
