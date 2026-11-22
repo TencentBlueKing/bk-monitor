@@ -665,7 +665,7 @@ export default defineComponent({
       if (signature) {
         additionList.push({
           // 小型化聚类以 signature 作为签名字段
-          field: quix?.status.value ? 'signature' : `__dist_${patternLevel}`,
+          field: quix?.value ? 'signature' : `__dist_${patternLevel}`,
           operator: 'is',
           value: [signature.toString()],
           isLink: true,
