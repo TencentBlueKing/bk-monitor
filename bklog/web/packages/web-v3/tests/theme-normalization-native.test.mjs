@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeStyle, styleDeclarations, resolveSemanticVariables } from '../tools/tdesign-style-source.mjs';
+import { sharedComponentLiteralViolations } from '../tools/theme-style-coverage.mjs';
 import { loadTypeScript } from './helpers/load-typescript.mjs';
 
 test('normalization preserves comments, pseudo states, variables, functions, and business geometry', () => {
@@ -33,6 +34,13 @@ test('shared configuration preserves locale, explicit defaults and independent n
   a.drawer.closeOnOverlayClick = false;
   assert.equal(b.drawer.closeOnOverlayClick, true);
   assert.equal(locale.drawer.closeOnOverlayClick, undefined);
+});
+
+test('shared component styles reject standard literals that already have tokens', () => {
+  assert.deepEqual(sharedComponentLiteralViolations('shared/styles/theme/components/buttons.scss', 'a { color: #fff; }'), ['hex:#fff']);
+  assert.deepEqual(sharedComponentLiteralViolations('shared/styles/theme/components/display.scss', 'a { color: #14a568; }'), []);
+  assert.deepEqual(sharedComponentLiteralViolations('features/example.scss', 'a { color: #fff; font-size: 12px; }'), []);
+  assert.deepEqual(sharedComponentLiteralViolations('shared/styles/theme/components/options.scss', 'a { font-size: 12px; border-radius: 2px; border: 1px solid transparent; }'), ['font-size', 'border-radius', 'border-width']);
 });
 
 test('semantic equivalence resolves nested CSS functions without rewriting quoted strings', () => {

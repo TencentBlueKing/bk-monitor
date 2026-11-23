@@ -4,7 +4,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: var(--bklog-space-4);
   width: 100%;
   min-width: 0;
   height: 100%;
@@ -18,13 +18,13 @@
     flex: none;
     width: 14px;
     height: 16px;
-    font-size: var(--bklog-font-action, 14px);
-    line-height: var(--bklog-line-height-small, 16px);
+    font-size: var(--bklog-font-action);
+    line-height: var(--bklog-line-height-small);
   }
 
   > .t-button__text {
     margin: 0;
-    font-size: var(--bklog-font-action, 14px);
+    font-size: var(--bklog-font-action);
     line-height: 24px;
   }
 }

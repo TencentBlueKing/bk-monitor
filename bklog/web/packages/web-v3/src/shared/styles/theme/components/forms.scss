@@ -12,20 +12,20 @@
 
 .bklog-form--drawer-stack {
   --bklog-form-item-before: 0px;
-  --bklog-form-item-after: 24px;
+  --bklog-form-item-after: var(--bklog-space-24);
   --bklog-form-item-adjacent: 0px;
   width: 100%;
   min-width: 0;
 }
 .bklog-form--drawer-compact {
-  --bklog-form-item-before: 12px;
+  --bklog-form-item-before: var(--bklog-space-12);
   --bklog-form-item-after: 0px;
-  --bklog-form-item-adjacent: 12px;
+  --bklog-form-item-adjacent: var(--bklog-space-12);
 }
 .bklog-form--drawer-cluster {
   --bklog-form-item-before: 18px;
   --bklog-form-item-after: 0px;
-  --bklog-form-item-adjacent: 8px;
+  --bklog-form-item-adjacent: var(--bklog-space-8);
 }
 :is(.t-form.bklog-form--drawer-stack, .t-form.bklog-form--drawer-compact, .t-form.bklog-form--drawer-cluster) {
   .t-form__item {
