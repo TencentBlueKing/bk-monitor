@@ -10,11 +10,16 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
+import math
+import os
+import tempfile
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache, lru_cache
 from typing import Any
 from urllib.parse import quote
 
@@ -24,12 +29,33 @@ from django.utils.translation import gettext as _
 from apm_web.llm.adapter.utils import nonnegative_int
 from apm_web.llm.constants import SpanType
 
+logger = logging.getLogger(__name__)
+
+TIKTOKEN_ENCODING_URL = "https://openaipublic.blob.core.windows.net/encodings/{name}.tiktoken"
+
 CONTENT_CATEGORIES = {
     "system": ("gen_ai.system_instructions", "系统提示词"),
     "definitions": ("gen_ai.tool.definitions", "可用工具"),
     "input": ("gen_ai.input.messages", "输入"),
     "output": ("gen_ai.output.messages", "输出"),
 }
+
+
+@cache
+def load_encoding(name: str) -> tiktoken.Encoding | None:
+    """只加载本地已缓存的词表，避免在请求内同步下载；缓存路径规则与 tiktoken.load.read_file_cached 一致。"""
+    default_dir: str = os.path.join(tempfile.gettempdir(), "data-gym-cache")
+    cache_dir: str = os.environ.get("TIKTOKEN_CACHE_DIR", os.environ.get("DATA_GYM_CACHE_DIR", default_dir))
+    cache_key: str = hashlib.sha1(TIKTOKEN_ENCODING_URL.format(name=name).encode()).hexdigest()
+    if not cache_dir or not os.path.isfile(os.path.join(cache_dir, cache_key)):
+        logger.warning("[LLM] tiktoken 词表 %s 未缓存于 %s，改用字节数粗估 Token", name, cache_dir)
+        return None
+    return tiktoken.get_encoding(name)
+
+
+def estimate_token_count(text: str) -> int:
+    """词表缺失时按 UTF-8 字节数粗估；分项会再按上报用量校准，只需保持相对比例。"""
+    return math.ceil(len(text.encode("utf-8")) / 4)
 
 
 class TokenCounter:
@@ -40,11 +66,14 @@ class TokenCounter:
             name = tiktoken.encoding_name_for_model(model)
         except KeyError:
             name = "cl100k_base"
-        self.encoding = tiktoken.get_encoding(name if name == "o200k_base" else "cl100k_base")
-        encode = self.encoding.encode_ordinary
+        encoding: tiktoken.Encoding | None = load_encoding(name if name == "o200k_base" else "cl100k_base")
+        self.encoding = encoding
+        count_chunk: Callable[[str], int] = (
+            (lambda chunk: len(encoding.encode_ordinary(chunk))) if encoding else estimate_token_count
+        )
         # 超长无空白片段的 BPE 编码可能呈二次耗时，分段限制延迟。
         self._count = lru_cache(maxsize=512)(
-            lambda text: sum(len(encode(text[start : start + 8192])) for start in range(0, len(text), 8192))
+            lambda text: sum(count_chunk(text[start : start + 8192]) for start in range(0, len(text), 8192))
         )
 
     def count(self, value: Any) -> int:

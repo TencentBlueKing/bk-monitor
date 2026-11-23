@@ -93,6 +93,11 @@ COPY --chown=${username}:${username} bk-monitor-base/ /bk-monitor-base/
 # Verify the copied environment against the final image's libraries and fonts.
 RUN /app/venv/bin/python /app/code/scripts/verify_pillow_build.py
 
+# Bundle tokenizer files so LLM token estimation never downloads them while serving requests.
+ENV TIKTOKEN_CACHE_DIR=/app/tiktoken_cache
+RUN /app/venv/bin/python -c "import tiktoken; [tiktoken.get_encoding(name) for name in ('cl100k_base', 'o200k_base')]" \
+    && chmod -R a+rX ${TIKTOKEN_CACHE_DIR}
+
 ARG version
 RUN echo ${version} > /app/code/VERSION && rm -r /app/code/webpack && cp /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
 

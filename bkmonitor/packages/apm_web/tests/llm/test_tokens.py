@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from unittest import TestCase
+from tempfile import TemporaryDirectory
+from unittest import TestCase, mock
+
+import tiktoken
 
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.utils import recover_front_truncated_messages, repair_truncated_json
-from apm_web.llm.tokens import TokenCounter, build_token_matrix
+from apm_web.llm.tokens import TokenCounter, build_token_matrix, load_encoding
 from apm_web.tests.llm.test_detail import entity_set, raw_span
+
+
+def setUpModule():
+    # 精确计数断言依赖真实词表，测试环境缺失时先显式下载到缓存，业务代码本身不再联网。
+    for name in ("cl100k_base", "o200k_base"):
+        tiktoken.get_encoding(name)
+    load_encoding.cache_clear()
 
 
 def model_span(span_id="model-1", trace_id="trace-1", **usage):
@@ -144,6 +154,23 @@ class TokenMatrixTests(TestCase):
         self.assertEqual(TokenCounter("unknown-model").encoding.name, "cl100k_base")
         self.assertEqual(TokenCounter("gpt-4o").count("hello"), 1)
         self.assertGreater(TokenCounter("gpt-4o").count("<|endoftext|>"), 0)
+
+    def test_missing_tokenizer_cache_estimates_without_downloading(self):
+        load_encoding.cache_clear()
+        self.addCleanup(load_encoding.cache_clear)
+        with (
+            TemporaryDirectory() as cache_dir,
+            mock.patch.dict("os.environ", {"TIKTOKEN_CACHE_DIR": cache_dir}),
+            mock.patch("tiktoken.load.read_file", side_effect=AssertionError("should not download")),
+            self.assertLogs("apm_web.llm.tokens", level="WARNING"),
+        ):
+            counter = TokenCounter("gpt-4o")
+            self.assertIsNone(counter.encoding)
+            self.assertEqual(counter.count("hello"), 2)
+            self.assertEqual(counter.count("你好"), 2)
+            self.assertEqual(counter.count(""), 0)
+            matrix = build_token_matrix([model_span(input_tokens=10, output_tokens=2)])
+        self.assertEqual(sum(root["value"] for root in matrix["nodes"]), 12)
 
     def test_zero_tool_nodes_are_omitted_without_changing_retained_call_counts(self):
         spans = []
