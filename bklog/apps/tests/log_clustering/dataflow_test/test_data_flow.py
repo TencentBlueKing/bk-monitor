@@ -16,7 +16,6 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
-from apps.log_search.views.index_set_views import IndexSetViewSet
 from apps.log_search.models import LogIndexSet
 
 ALL_FIELDS_DICT = {
@@ -530,32 +529,6 @@ class TestPatternSearch(TestCase):
                 {"field_name": "log", "query_alias": "message", "path_type": "text"},
             ],
         )
-
-    @patch.object(MappingHandlers, "get_mapping_field_names", autospec=True, return_value=CLUSTERED_ES_FIELD_NAMES)
-    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")
-    def test_sync_clustered_es_route_uses_the_saved_prediction_cluster(self, mock_bulk, mock_mapping):
-        LogIndexSet.objects.create(**{**LOG_INDEX_SET_CREATE_PARAMS, "index_set_id": 31})
-        ClusteringConfig.objects.create(
-            **{
-                **CLUSTERINGCONFIG_CREATE_PARAMS,
-                "index_set_id": 31,
-                "storage_type": StorageTypeEnum.ELASTICSEARCH.value,
-                "clustered_rt": "2_bklog_31_clustered",
-                "es_storage": "tenant_es",
-                "options": {"predict_es_storage": {"cluster_name": "tenant_es", "cluster_id": 8}},
-            }
-        )
-
-        self.assertTrue(DataFlowHandler.sync_clustered_route(index_set_id=31, raise_exception=True))
-
-        self.assertEqual(mock_bulk.call_args.args[0]["table_info"][0]["cluster_id"], 8)
-        self.assertEqual(mock_mapping.call_args.args[0].storage_cluster_id, 8)
-
-        view = IndexSetViewSet()
-        with patch.object(view, "params_valid", return_value={"page": 1, "pagesize": 10}):
-            routers = view.list_es_router(None).data["list"]
-        clustered_router = next(router for router in routers if router["index_set"] == "2_bklog_31_clustered")
-        self.assertEqual(clustered_router["cluster_id"], 8)
 
     @patch.object(MappingHandlers, "get_mapping_field_names", return_value={"log_level", "__dist_05"})
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")

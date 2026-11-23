@@ -152,12 +152,7 @@ class ClusteringConfigHandler:
         default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT) or {}
         storage_type = conf.get("storage_type", StorageTypeEnum.ELASTICSEARCH.value)
         doris_storage = conf.get("doris_storage", "") if storage_type == StorageTypeEnum.DORIS.value else ""
-        es_storage, es_cluster_id = (
-            get_predict_es_storage(conf) if storage_type == StorageTypeEnum.ELASTICSEARCH.value else ("", None)
-        )
-        options = (
-            {"predict_es_storage": {"cluster_name": es_storage, "cluster_id": es_cluster_id}} if es_storage else None
-        )
+        es_storage = get_predict_es_storage(conf) if storage_type == StorageTypeEnum.ELASTICSEARCH.value else ""
 
         if collector_config_id:
             # 配置检查
@@ -195,7 +190,6 @@ class ClusteringConfigHandler:
                 collector_config_id=collector_config_id,
                 collector_config_name_en=collector_config_name_en,
                 es_storage=es_storage,
-                options=options,
                 storage_type=storage_type,
                 doris_storage=doris_storage,
                 min_members=params.get(

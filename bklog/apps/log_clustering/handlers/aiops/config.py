@@ -47,17 +47,15 @@ def get_online_clustering_config(bk_biz_id: int):
                 "model_id": "tenant_a_model",
                 "tspider_cluster": "tenant_a_tspider",
                 "signature_format_udf": "udf_signature_format_tenant_a",
-                "predict_es_storage": {"cluster_name": "tenant_a_es", "cluster_id": 101}
+                "predict_es_storage": "tenant_a_es"
             }
         }
     }
 
     Tenant values are optional overrides. If a field is absent under the tenant key,
-    the top-level value is used. The optional predict_es_storage binds the
-    BKBase cluster name to the matching BKMonitor cluster ID. Omit cluster_id
-    if the BKBase name points to the source index set's physical ES cluster.
-    Only initial index configuration creation reads predict_es_storage.
-    Flow creation, retry and update use the persisted index binding.
+    the top-level value is used. The optional predict_es_storage is the
+    BKBase name for the source index set's physical ES cluster. It is only
+    read when creating the clustering configuration and saved as es_storage.
     """
     config = deepcopy(FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config)
     bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id)
@@ -75,16 +73,10 @@ def get_signature_format_udf(config: dict) -> str:
     return udf
 
 
-def get_predict_es_storage(config: dict) -> tuple[str, int | None]:
-    storage = config.get("predict_es_storage")
-    if storage is None:
-        return "", None
-    if not isinstance(storage, dict):
-        raise ValueError(_("predict_es_storage 必须是包含 cluster_name 的对象"))
-    cluster_name = storage.get("cluster_name")
-    if not isinstance(cluster_name, str) or not cluster_name or len(cluster_name) > 64:
-        raise ValueError(_("predict_es_storage.cluster_name 必须是长度不超过 64 的 BKBase 集群名"))
-    cluster_id = storage.get("cluster_id")
-    if cluster_id is not None and (type(cluster_id) is not int or cluster_id <= 0):
-        raise ValueError(_("predict_es_storage.cluster_id 必须是正整数"))
-    return cluster_name, cluster_id
+def get_predict_es_storage(config: dict) -> str:
+    cluster_name = config.get("predict_es_storage")
+    if cluster_name is None:
+        return ""
+    if not isinstance(cluster_name, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", cluster_name):
+        raise ValueError(_("predict_es_storage 必须是有效的 BKBase ES 集群名"))
+    return cluster_name

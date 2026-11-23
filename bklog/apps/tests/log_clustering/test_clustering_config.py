@@ -4,7 +4,6 @@ from django.test import SimpleTestCase, TestCase
 
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
-from apps.log_clustering.components.collections.data_access_component import AddResourceGroupService
 from apps.log_clustering.constants import RegexRuleTypeEnum, StorageTypeEnum
 from apps.log_clustering.exceptions import ClusteringConfigHasExistException, RegexTemplateNotExistException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
@@ -178,24 +177,15 @@ class TestCreateClusteringInGrayBusiness(TestCase):
                 return_value=[{"id": 1, "predefined_varibles": "W10="}],
             ),
         ):
-            get_config.return_value = {"predict_es_storage": {"cluster_name": "first_es", "cluster_id": 8}}
+            get_config.return_value = {"predict_es_storage": "first_es"}
             ClusteringConfigHandler().create(index_set.index_set_id, params)
-            get_config.return_value = {"predict_es_storage": {"cluster_name": "different_es", "cluster_id": 9}}
+            get_config.return_value = {"predict_es_storage": "different_es"}
             with self.assertRaises(ClusteringConfigHasExistException):
                 ClusteringConfigHandler().create(index_set.index_set_id, params)
 
         config = ClusteringConfig.get_by_index_set_id(index_set.index_set_id)
         self.assertEqual(config.es_storage, "first_es")
-        self.assertEqual(config.predict_es_cluster_id, 8)
         start.assert_called_once_with(index_set_id=index_set.index_set_id)
-
-        node_data = Mock()
-        node_data.get_one_of_inputs.return_value = index_set.index_set_id
-        with patch("apps.log_clustering.components.collections.data_access_component.DataAccessHandler") as handler:
-            self.assertTrue(AddResourceGroupService()._execute(node_data, None))
-        handler.return_value.add_cluster_group.assert_called_once_with(
-            "2_source", TEST_BK_BIZ_ID, cluster_name="first_es"
-        )
 
     def test_only_v4_collector_uses_quix(self):
         FeatureToggle.objects.create(name=MINI_CLUSTERING_CONFIG, status="debug", biz_id_white_list=[TEST_BK_BIZ_ID])
@@ -224,7 +214,10 @@ class TestCreateClusteringInGrayBusiness(TestCase):
                     patch("apps.log_clustering.handlers.clustering_config.access_clustering.delay") as legacy_task,
                     patch(
                         "apps.log_clustering.handlers.clustering_config.get_online_clustering_config",
-                        return_value={"collector_clustering_es_storage": {"es_storage": "test_es"}},
+                        return_value={
+                            "collector_clustering_es_storage": {"es_storage": "test_es"},
+                            "predict_es_storage": "tenant_es",
+                        },
                     ),
                     patch.object(CollectorConfig, "get_etl_config", return_value={"fields": [{"field_name": "log"}]}),
                     patch(
@@ -241,6 +234,8 @@ class TestCreateClusteringInGrayBusiness(TestCase):
                 else:
                     quix.assert_not_called()
                     legacy_task.assert_called_once_with(index_set_id=index_set.index_set_id)
+                    config = ClusteringConfig.get_by_index_set_id(index_set.index_set_id)
+                    self.assertEqual(config.es_storage, "tenant_es")
 
 
 class TestSynchronousUpdateRegexTemplateSpace(TestCase):

@@ -1748,7 +1748,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
     @classmethod
     def _get_clustered_es_field_names(
-        cls, index_set: LogIndexSet, clustering_config: ClusteringConfig, cluster_id: int
+        cls, index_set: LogIndexSet, clustering_config: ClusteringConfig
     ) -> set[str] | None:
         """
         获取聚类结果表在 ES 上的真实字段名，返回 None 表示这次拿不到
@@ -1764,7 +1764,7 @@ class DataFlowHandler(BaseAiopsHandler):
                 indices=clustering_config.clustered_rt,
                 index_set_id=index_set.index_set_id,
                 scenario_id=Scenario.BKDATA,
-                storage_cluster_id=cluster_id,
+                storage_cluster_id=index_set.storage_cluster_id,
                 time_field=index_set.time_field,
                 only_search=True,
             ).get_mapping_field_names()
@@ -1779,10 +1779,9 @@ class DataFlowHandler(BaseAiopsHandler):
 
     @classmethod
     def _build_clustered_es_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
-        cluster_id = clustering_config.predict_es_cluster_id or index_set.storage_cluster_id
         route_params = {
             **cls._build_clustered_route_base_params(index_set, clustering_config),
-            "cluster_id": cluster_id,
+            "cluster_id": index_set.storage_cluster_id,
             "index_set": clustering_config.clustered_rt,
             "table_id": BaseIndexSetHandler.get_rt_id(
                 index_set.index_set_id,
@@ -1792,7 +1791,7 @@ class DataFlowHandler(BaseAiopsHandler):
         signature_alias = cls._build_clustered_signature_alias_setting(clustering_config)
         # 入口索引集的别名是按源表字段配的，聚类结果表的字段集合与源表并不一致。
         # 别名指向的物理字段在聚类结果表里不存在时，改写后一定查不到数据，因此按真实 mapping 裁剪。
-        clustered_field_names = cls._get_clustered_es_field_names(index_set, clustering_config, cluster_id)
+        clustered_field_names = cls._get_clustered_es_field_names(index_set, clustering_config)
         inherited_alias_settings = []
         for alias_setting in index_set.query_alias_settings or []:
             # 字段集合拿不到时不裁剪：新建聚类和 ES 抖动都会走到这里，
@@ -1925,7 +1924,7 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
         #  填充签名字段打平节点-聚类结果表输出RT
         clustering_config.clustered_rt = predict_flow_dict["format_signature"]["result_table_id"]
-        clustering_config.save(update_fields=["predict_flow", "predict_flow_id", "model_output_rt", "clustered_rt"])
+        clustering_config.save()
         # 创建聚类结果表路由信息
         self.sync_clustered_route(index_set_id=index_set_id, raise_exception=True)
 
@@ -1940,7 +1939,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
         online_task = self.create_online_task(index_set_id=index_set_id)
         clustering_config.online_task_id = online_task["ci_id"]
-        clustering_config.save(update_fields=["online_task_id"])
+        clustering_config.save()
         return result
 
     def update_predict_flow(self, index_set_id):
@@ -1985,7 +1984,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
-        clustering_config.save(update_fields=["predict_flow", "model_output_rt"])
+        clustering_config.save()
         self.sync_clustered_route(index_set_id=index_set_id, raise_exception=True)
         logger.info(f"update predict flow success: flow_id -> {clustering_config.predict_flow_id}")
 

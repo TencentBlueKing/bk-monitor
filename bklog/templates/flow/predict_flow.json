@@ -668,7 +668,7 @@
       "name": "{{predict.format_signature.result_table_id}}(elastic_storage)",
       "physical_table_name": "",
       "bk_biz_id": {{predict.bk_biz_id}},
-      "cluster": {{predict.es_cluster | string | tojson}},
+      "cluster": "{{predict.es_cluster}}",
       "analyzed_fields": {{predict.es.analyzed_fields}},
       "date_fields": [],
       "doc_values_fields": {{predict.es.doc_values_fields}},

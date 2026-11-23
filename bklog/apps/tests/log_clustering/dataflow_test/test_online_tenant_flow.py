@@ -178,7 +178,7 @@ class TestOnlineTenantFlow(SimpleTestCase):
             "project_id": 1001,
             "bk_username": "tenant_admin",
             "signature_format_udf": "tenant_signature_udf",
-            "predict_es_storage": {"cluster_name": "tenant_es", "cluster_id": 8},
+            "predict_es_storage": "tenant_es",
         }
         handler = DataFlowHandler()
         with (
@@ -240,7 +240,7 @@ class TestOnlineTenantFlow(SimpleTestCase):
             }
             resolve.return_value = {
                 **tenant_conf,
-                "predict_es_storage": {"cluster_name": "other_es", "cluster_id": 9},
+                "predict_es_storage": "other_es",
             }
             config.es_storage = "corrected_es"
             handler.update_predict_flow(30)

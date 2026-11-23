@@ -25,6 +25,7 @@ class TestOnlineTenantConfig(SimpleTestCase):
 
         self.assertEqual(config["project_id"], 1)
         self.assertEqual(config["model_id"], "system_model")
+        self.assertEqual(get_predict_es_storage(config), "")
 
     @patch("apps.log_clustering.handlers.aiops.config.Space.get_tenant_id")
     @patch("apps.log_clustering.handlers.aiops.config.FeatureToggleObject.toggle")
@@ -39,7 +40,7 @@ class TestOnlineTenantConfig(SimpleTestCase):
                 "pattern_storage_cluster": "system_pattern",
                 "collector_clustering_es_storage": {"es_storage": "system_es"},
                 "doris_storage": "system_doris",
-                "predict_es_storage": {"cluster_name": "system_es", "cluster_id": 7},
+                "predict_es_storage": "system_es",
                 "log_pattern_expires": 30,
                 "tenant_resource_configs": {
                     "tenant_a": {
@@ -47,7 +48,7 @@ class TestOnlineTenantConfig(SimpleTestCase):
                         "model_id": "tenant_model",
                         "tspider_cluster": "tenant_ts",
                         "signature_format_udf": "tenant_signature_udf",
-                        "predict_es_storage": {"cluster_name": "tenant_es"},
+                        "predict_es_storage": "tenant_es",
                     }
                 },
             }
@@ -60,7 +61,7 @@ class TestOnlineTenantConfig(SimpleTestCase):
         self.assertEqual(config["model_id"], "tenant_model")
         self.assertEqual(config["tspider_cluster"], "tenant_ts")
         self.assertEqual(config["signature_format_udf"], "tenant_signature_udf")
-        self.assertEqual(get_predict_es_storage(config), ("tenant_es", None))
+        self.assertEqual(get_predict_es_storage(config), "tenant_es")
         self.assertEqual(config["pattern_storage_cluster"], "system_pattern")
         self.assertEqual(config["log_pattern_expires"], 30)
         self.assertEqual(config["collector_clustering_es_storage"], {"es_storage": "system_es"})
@@ -76,6 +77,7 @@ class TestOnlineTenantConfig(SimpleTestCase):
                 "bk_biz_id": 2,
                 "model_id": "system_model",
                 "tspider_cluster": "system_ts",
+                "predict_es_storage": "system_es",
                 "tenant_resource_configs": {},
             }
         )
@@ -86,16 +88,10 @@ class TestOnlineTenantConfig(SimpleTestCase):
         self.assertEqual(config["bk_biz_id"], 2)
         self.assertEqual(config["model_id"], "system_model")
         self.assertEqual(config["pattern_storage_cluster"], "system_ts")
+        self.assertEqual(get_predict_es_storage(config), "system_es")
 
     def test_invalid_predict_es_storage_is_rejected(self):
-        for storage in (
-            "tenant_es",
-            {"cluster_id": 8},
-            {"cluster_name": "es", "cluster_id": 0},
-            {"cluster_name": "es", "cluster_id": True},
-            {"cluster_name": "es", "cluster_id": "8"},
-            {"cluster_name": "a" * 65},
-        ):
+        for storage in ("", "es name", 'es"name', 8, "a" * 65):
             with self.subTest(storage=storage), self.assertRaisesRegex(ValueError, "predict_es_storage"):
                 get_predict_es_storage({"predict_es_storage": storage})
 
