@@ -2651,26 +2651,17 @@ class IssueTrendResource(Resource):
         create_time，因此可由 id 直接定位到天索引，把查询范围从 `bkfta_issue_*_read`
         的全部历史索引收敛到 1~N 个。
 
-        功能说明：`terms bk_biz_id` 条件不可省略 —— 它就是归属校验本身。去掉后其他业务的
-        Issue 也会通过校验，响应中会多出这些 ID 的全零曲线。
+        功能说明：
+        1. `terms bk_biz_id` 条件不可省略 —— 它就是归属校验本身。去掉后其他业务的
+           Issue 也会通过校验，响应中会多出这些 ID 的全零曲线。
+        2. 天索引未命中的 id 会合并成**一次**全索引通配补查。这样以下漏查都能找回：
+           文档实际落在别的日期索引（迁移/回填）、该日读别名已被 ILM 清理（保留期
+           曾被调小、或轮转时同一物理索引累积了多种日期别名）、以及别名按天 00:00
+           过期与 id 精确时间戳之间的边界差。补查同样带 `bk_biz_id`，跨业务的 id
+           补查后仍是丢弃；最坏耗时约等于改造前（一次天索引 + 一次通配）。
         """
-        # 创建日已超出保留期的 id 不再按天索引查：ILM 轮转时同一物理索引会累积多个日期的
-        # 读别名，过期别名被清理后索引只要还被别的别名引用就会保留。此时文档仍能被
-        # `bkfta_issue_*_read` 通配找到，按创建日查却会落空，导致列表里仍在的 Issue
-        # 丢掉趋势。这类 id 走通配查询（同样带 bk_biz_id 过滤）。
-        #
-        # 阈值提前 1 天：ILM 判定别名过期用的是别名日期当天 00:00（`ilm.py` 里
-        # `strptime(..., "%Y%m%d")`），而这里按 id 内嵌的精确秒数比较。设创建时刻在
-        # 当天的偏移为 x（0~86400 秒），别名在 `D0 + retention` 过期，而按 id 比较要到
-        # `D0 + x + retention` 才判为过期，中间会漏判最长 1 天。把阈值提前 1 天可保证
-        # "判为 stale" 不晚于 "别名被清理"，代价只是少量边界 id 多走一次通配。
-        retention_days = int(getattr(settings, "FTA_ES_RETENTION", 0) or 365)
-        margin_days = min(1, max(retention_days - 1, 0))
-        stale_before = int(time.time()) - (retention_days - margin_days) * 24 * 60 * 60
-
         day_indexes: list[str] = []
-        recent_ids: list[str] = []
-        stale_ids: list[str] = []
+        parseable_ids: list[str] = []
         unparsable_ids: list[str] = []
         for issue_id in requested_ids:
             try:
@@ -2680,42 +2671,35 @@ class IssueTrendResource(Resource):
                 # 保留仅为防御内部调用绕过序列化校验的场景，此时退回全索引查询。
                 unparsable_ids.append(issue_id)
                 continue
-            if timestamp < stale_before:
-                stale_ids.append(issue_id)
-                continue
-            recent_ids.append(issue_id)
+            parseable_ids.append(issue_id)
             day_indexes.append(IssueDocument.build_read_index_name_by_timestamp(timestamp))
 
         unique_day_indexes = sorted(set(day_indexes))
-        # 需要走通配查询的 id：解析不出时间的、创建日已超保留期的
-        wildcard_ids = unparsable_ids + stale_ids
         allowed_ids: set[str] = set()
         if unique_day_indexes and len(unique_day_indexes) <= MAX_DAY_INDEXES_PER_QUERY:
-            allowed_ids = IssueTrendResource._query_allowed_ids(recent_ids, bk_biz_ids, index=unique_day_indexes)
+            allowed_ids = IssueTrendResource._query_allowed_ids(parseable_ids, bk_biz_ids, index=unique_day_indexes)
         elif unique_day_indexes:
             # 极端场景：id 横跨过多天索引，索引名列表会把 URL 撑超 ES 的
             # http.max_initial_line_length（默认 4KB，约 150 个索引名）。
-            # 此时退回全索引通配，行为与改造前一致，且不会比原来更慢。
+            # 此时直接走一次全索引通配，行为与改造前一致。
             logger.warning(
                 "[issue-trend] issue ids span %d day indices, fallback to all indices (bk_biz_ids=%s)",
                 len(unique_day_indexes),
                 bk_biz_ids,
             )
-            wildcard_ids = list(requested_ids)
+            return IssueTrendResource._query_allowed_ids(sorted(set(requested_ids)), bk_biz_ids)
 
-        if wildcard_ids:
-            allowed_ids |= IssueTrendResource._query_allowed_ids(sorted(set(wildcard_ids)), bk_biz_ids)
-
-        unmatched_recent = [issue_id for issue_id in recent_ids if issue_id not in allowed_ids]
-        if unmatched_recent and len(unique_day_indexes) <= MAX_DAY_INDEXES_PER_QUERY:
-            # 只告警、不回退全索引：若持续出现，说明 id 内嵌时间戳与文档实际落盘索引日
-            # 不一致（迁移/回填数据），或请求混入了其他业务的 id。
+        # 未命中不等于"无权限"，见上面功能说明第 2 点；合并成一次补查，每请求最多一次。
+        unmatched_ids = [issue_id for issue_id in parseable_ids if issue_id not in allowed_ids]
+        unmatched_ids.extend(unparsable_ids)
+        if unmatched_ids:
             logger.warning(
-                "[issue-trend] %d/%d issue ids unmatched in day indices, bk_biz_ids=%s",
-                len(unmatched_recent),
-                len(recent_ids),
+                "[issue-trend] %d/%d issue ids unmatched in day indices, fallback to all indices, bk_biz_ids=%s",
+                len(unmatched_ids),
+                len(requested_ids),
                 bk_biz_ids,
             )
+            allowed_ids |= IssueTrendResource._query_allowed_ids(sorted(set(unmatched_ids)), bk_biz_ids)
         return allowed_ids
 
     @staticmethod

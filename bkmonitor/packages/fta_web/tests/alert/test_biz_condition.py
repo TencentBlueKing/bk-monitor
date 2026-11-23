@@ -469,8 +469,12 @@ def test_list_space_dicts_by_biz_ids_empty_input_skips_query(monkeypatch):
     assert space_api.InjectSpaceApi.list_space_dicts_by_biz_ids([]) == []
 
 
-def test_parse_biz_item_normalizes_string_biz_ids(monkeypatch):
-    """字符串型 biz_id 也要归一化为 int，避免集合求交时被静默判成"全部无权限"。"""
+def test_parse_biz_item_string_biz_ids_stay_unauthorized(monkeypatch):
+    """字符串 biz_id 不做类型归一化：旧实现中 "2" 与 2 不相等，会落入 unauthorized。
+
+    归一化会把原本"无权限"的畸形值变成"有权限"（且 "-1" 字符串会进全业务分支），
+    属于语义放宽；收窄查询侧只把 int 放进候选，因此结果与旧实现一致。
+    """
     _patch_request(monkeypatch)
     captured = {}
 
@@ -486,9 +490,54 @@ def test_parse_biz_item_normalizes_string_biz_ids(monkeypatch):
 
     authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item(["1", "2", "3"])
 
-    assert sorted(captured["candidates"]) == [1, 2, 3]
-    assert sorted(authorized_bizs) == [1, 2]
-    assert unauthorized_bizs == [3]
+    assert captured["candidates"] == []
+    assert authorized_bizs == []
+    assert sorted(unauthorized_bizs) == ["1", "2", "3"]
+
+
+@pytest.mark.parametrize("bad_biz_id", ["abc", None])
+def test_parse_biz_item_non_numeric_biz_id_is_unauthorized_not_error(monkeypatch, bad_biz_id):
+    """Incident 的 bk_biz_ids 不带 child 约束，可能传入非数字值：不能抛错变成 500。"""
+    _patch_request(monkeypatch)
+    captured = {}
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action, candidate_biz_ids=None):
+            captured["candidates"] = candidate_biz_ids
+            return [{"bk_biz_id": 2}], False
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+
+    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([2, bad_biz_id])
+
+    assert authorized_bizs == [2]
+    assert unauthorized_bizs == [bad_biz_id]
+    assert captured["candidates"] == [2]
+
+
+def test_parse_biz_item_float_biz_id_not_truncated(monkeypatch):
+    """float 不能被 int() 截断成整数业务（2.7 不应变成业务 2）。"""
+    _patch_request(monkeypatch)
+    captured = {}
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action, candidate_biz_ids=None):
+            captured["candidates"] = candidate_biz_ids
+            return [{"bk_biz_id": 2}], False
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+
+    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([2, 2.7])
+
+    assert authorized_bizs == [2]
+    assert unauthorized_bizs == [2.7]
+    assert captured["candidates"] == [2]
 
 
 def test_parse_biz_item_falls_back_when_narrowed_query_fails(monkeypatch, caplog):

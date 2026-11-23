@@ -847,11 +847,6 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
 
     @classmethod
     def parse_biz_item(self, bk_biz_ids, **kwargs):
-        if bk_biz_ids is not None:
-            # 契约：bk_biz_ids 必须是 int 列表（各调用方在 serializer 层已完成类型转换）。
-            # 这里显式归一化，避免字符串 id 在集合求交时被静默判成"全部无权限"，
-            # 也避免 "-1" 字符串绕过全业务分支。
-            bk_biz_ids = [int(biz_id) for biz_id in bk_biz_ids]
         if "authorized_bizs" in kwargs:
             authorized_bizs = kwargs["authorized_bizs"] if kwargs["authorized_bizs"] is not None else bk_biz_ids
             unauthorized_bizs = kwargs["unauthorized_bizs"] if kwargs["unauthorized_bizs"] is not None else []
@@ -873,13 +868,16 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
                 # 收窄后的 all_granted 只代表"候选是否全部授权"，不具备全租户语义，
                 # 因此这里不写 TENANT_WIDE_AUTHORIZED_REQUEST_ATTR（该标记仅对 -1 请求有意义）。
                 candidate_biz_ids = list(set(bk_biz_ids or []))
+                narrowed_candidates = [
+                    biz_id for biz_id in candidate_biz_ids if isinstance(biz_id, int) and not isinstance(biz_id, bool)
+                ]
                 spaces = None
                 # SpaceApi 由 settings.BKM_SPACE_API_CLASS 动态决定，收窄查询是本项目新增的方法；
                 # 若部署侧换了实现且未提供该方法，直接走全量路径（不抛异常、不打日志）。
                 if hasattr(SpaceApi, "list_space_dicts_by_biz_ids"):
                     try:
                         spaces, _ = permission.filter_space_list_by_action_with_scope(
-                            ActionEnum.VIEW_BUSINESS, candidate_biz_ids=candidate_biz_ids
+                            ActionEnum.VIEW_BUSINESS, candidate_biz_ids=narrowed_candidates
                         )
                     except Exception:
                         # 收窄路径依赖 metadata_space 直查，不经过进程内缓存；异常时退回全量路径，
