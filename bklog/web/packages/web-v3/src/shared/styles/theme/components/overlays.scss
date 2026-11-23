@@ -5,10 +5,10 @@
   .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
     width: auto;
     margin: 0 -32px -32px;
-    padding: 7px 24px;
+    padding: 7px var(--bklog-space-24);
     text-align: right;
-    background: var(--bklog-surface-disabled, #fafbfd);
-    border-top: 1px solid var(--bklog-border-muted, #dcdee5);
+    background: var(--bklog-surface-disabled);
+    border-top: var(--bklog-border-width) solid var(--bklog-border-muted);
 
     @include actions.bklog-dialog-footer-buttons;
 
@@ -34,10 +34,10 @@
 
   // V2 bk-sideslider 页脚同样右对齐，确定在前、取消在后。
   .t-drawer__footer {
-    padding: 7px 24px;
+    padding: 7px var(--bklog-space-24);
     text-align: right;
-    background: var(--bklog-surface-disabled, #fafbfd);
-    border-top: 1px solid var(--bklog-border-muted, #dcdee5);
+    background: var(--bklog-surface-disabled);
+    border-top: var(--bklog-border-width) solid var(--bklog-border-muted);
 
     @include actions.bklog-dialog-footer-buttons;
   }

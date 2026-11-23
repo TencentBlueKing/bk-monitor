@@ -5757,7 +5757,7 @@
         ".t-size-s"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 3,
+      "semanticDeclarations": 4,
       "contextualDeclarations": 7,
       "localVisualProperties": [
         "line-height"
@@ -5783,12 +5783,10 @@
         ".t-size-s"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 11,
+      "semanticDeclarations": 12,
       "contextualDeclarations": 2,
-      "localVisualProperties": [
-        "background-color"
-      ],
-      "localVisualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
       "pendingNormalization": 0
     },
     {
@@ -5891,15 +5889,14 @@
         ".t-select__list"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 11,
+      "semanticDeclarations": 20,
       "contextualDeclarations": 28,
       "localVisualProperties": [
         "background-color",
-        "border-radius",
         "color",
         "line-height"
       ],
-      "localVisualDeclarations": 6,
+      "localVisualDeclarations": 4,
       "pendingNormalization": 0
     },
     {
@@ -5918,7 +5915,7 @@
         ".t-drawer__footer"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 4,
+      "semanticDeclarations": 6,
       "contextualDeclarations": 11,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
@@ -5937,7 +5934,7 @@
         ".t-button__text"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 3,
+      "semanticDeclarations": 4,
       "contextualDeclarations": 15,
       "localVisualProperties": [
         "border-radius",

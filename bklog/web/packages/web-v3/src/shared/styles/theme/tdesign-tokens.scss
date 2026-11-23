@@ -1,4 +1,21 @@
 // Verified against installed TDesign CSS; component-specific sizes live in profiles.
+// Geometry follows :root. Color mappings stay on the light block until a dark palette exists.
+:root {
+  --td-font-size-body-small: var(--bklog-font-body);
+  --td-font-size-body-medium: var(--bklog-font-body);
+  --td-line-height-body-small: var(--bklog-line-height-small);
+  --td-line-height-body-medium: var(--bklog-line-height-body);
+  --td-comp-size-s: var(--bklog-control-size-small);
+  --td-comp-size-m: var(--bklog-control-size-medium);
+  --td-comp-size-l: var(--bklog-control-size-large);
+  --td-radius-default: var(--bklog-radius-control);
+  --td-radius-medium: var(--bklog-radius-control);
+  --td-radius-large: var(--bklog-radius-control);
+  --td-radius-extraLarge: var(--bklog-radius-control);
+  --td-shadow-1: var(--bklog-shadow-small);
+  --td-shadow-2: var(--bklog-shadow-popup);
+}
+
 :root:not([theme-mode='dark']) {
   --td-brand-color-1: var(--bklog-brand-tint-subtle);
   --td-brand-color-2: var(--bklog-brand-tint);
@@ -28,17 +45,4 @@
   --td-bg-color-component: var(--bklog-surface-component);
   --td-bg-color-component-hover: var(--bklog-surface-component-hover);
   --td-bg-color-component-disabled: var(--bklog-surface-disabled);
-  --td-font-size-body-small: var(--bklog-font-body);
-  --td-font-size-body-medium: var(--bklog-font-body);
-  --td-line-height-body-small: var(--bklog-line-height-small);
-  --td-line-height-body-medium: var(--bklog-line-height-body);
-  --td-comp-size-s: var(--bklog-control-size-small);
-  --td-comp-size-m: var(--bklog-control-size-medium);
-  --td-comp-size-l: var(--bklog-control-size-large);
-  --td-radius-default: var(--bklog-radius-control);
-  --td-radius-medium: var(--bklog-radius-control);
-  --td-radius-large: var(--bklog-radius-control);
-  --td-radius-extraLarge: var(--bklog-radius-control);
-  --td-shadow-1: var(--bklog-shadow-small);
-  --td-shadow-2: var(--bklog-shadow-popup);
 }
