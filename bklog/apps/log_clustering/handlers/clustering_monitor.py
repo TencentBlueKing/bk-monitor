@@ -19,12 +19,14 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from copy import deepcopy
 from functools import cached_property
 
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
 from apps.api import MonitorApi
+from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE, NEW_CLASS_ALERT_NEW_SERIES
 from apps.log_clustering.constants import (
@@ -430,10 +432,7 @@ class ClusteringMonitorHandler:
                 "pattern_level": pattern_level,
             },
         )
-        if signature_strategy_settings.strategy_id and self.get_strategy(
-            strategy_type, signature_strategy_settings.strategy_id
-        ):
-            # 如果策略存在，则更新告警策略
+        if signature_strategy_settings.strategy_id and self._read_strategy(signature_strategy_settings.strategy_id):
             request_params["id"] = signature_strategy_settings.strategy_id
         strategy = MonitorApi.save_alarm_strategy_v3(params=request_params)
         strategy_id = strategy["id"]
@@ -463,14 +462,43 @@ class ClusteringMonitorHandler:
         )
         return strategy_id
 
-    def get_strategy(self, strategy_type, strategy_id):
-        # 获取告警策略信息
+    def _read_strategy(self, strategy_id):
         conditions = [{"key": "strategy_id", "value": [strategy_id]}]
-        result_data = MonitorApi.search_alarm_strategy_v3({"bk_biz_id": self.bk_biz_id, "conditions": conditions})
-        if not result_data["strategy_config_list"]:
+        result = MonitorApi.search_alarm_strategy_v3({"bk_biz_id": self.bk_biz_id, "conditions": conditions})
+        return next(iter(result["strategy_config_list"]), None)
+
+    def _bound_strategy(self, strategy_type):
+        strategy_id = (
+            SignatureStrategySettings.objects.filter(
+                index_set_id=self.index_set_id, strategy_type=strategy_type, signature="", is_deleted=False
+            )
+            .values_list("strategy_id", flat=True)
+            .first()
+        )
+        return self._read_strategy(strategy_id) if strategy_id else None
+
+    def _managed_algorithm(self, strategy, strategy_type):
+        if strategy_type == StrategiesType.NEW_CLS_strategy and any(
+            algo["type"] == NEW_SERIES_ALGORITHM_TYPE for item in strategy["items"] for algo in item["algorithms"]
+        ):
+            algorithm_type = NEW_SERIES_ALGORITHM_TYPE
+        else:
+            algorithm_type = "IntelligentDetect"
+        matches = [
+            (item, algorithm)
+            for item in strategy["items"]
+            for algorithm in item["algorithms"]
+            if algorithm["type"] == algorithm_type
+        ]
+        if len(matches) != 1:
+            raise ValidationError(_("无法唯一识别聚类检测算法，请在监控平台检查策略配置"))
+        return matches[0]
+
+    def get_strategy(self, strategy_type, strategy_id):
+        strategy_config = self._read_strategy(strategy_id)
+        if not strategy_config:
             return {}
-        strategy_config = result_data["strategy_config_list"][0]
-        algorithms_config = strategy_config["items"][0]["algorithms"][0]
+        _, algorithms_config = self._managed_algorithm(strategy_config, strategy_type)
         level = algorithms_config["level"]
         user_groups = strategy_config["notice"]["user_groups"]
         label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
@@ -501,20 +529,89 @@ class ClusteringMonitorHandler:
             data.update({"sensitivity": sensitivity})
         return data
 
+    def _patch_strategy(self, strategy_id, patch):
+        MonitorApi.update_partial_strategy_v3(
+            params={"bk_biz_id": self.bk_biz_id, "ids": [strategy_id], "edit_data": {"strategy_config": patch}}
+        )
+
     def resave_new_cls_clustering_strategy(self):
-        """按监控侧现有参数重存 NewSeries 策略，用于分组字段变更联动。"""
-        strategy_settings = SignatureStrategySettings.objects.filter(
-            index_set_id=self.index_set_id,
-            strategy_type=StrategiesType.NEW_CLS_strategy,
-            signature="",
-            is_deleted=False,
-        ).first()
-        if not strategy_settings or not strategy_settings.strategy_id:
-            return None
-        params = self.get_strategy(StrategiesType.NEW_CLS_strategy, strategy_settings.strategy_id)
-        if not params:
-            return None
-        return self.save_new_cls_clustering_strategy(params=params)
+        """分组联动只下发查询维度。过滤条件等配置由监控在事务内保留。"""
+        strategy = self._bound_strategy(StrategiesType.NEW_CLS_strategy)
+        if not strategy:
+            return
+        item, algorithm = self._managed_algorithm(strategy, StrategiesType.NEW_CLS_strategy)
+        if algorithm["type"] != NEW_SERIES_ALGORITHM_TYPE:
+            return
+        queries = item["query_configs"]
+        if len(queries) != 1 or str(queries[0].get("index_set_id")) != str(self.index_set_id):
+            raise ValidationError(_("新类告警查询与当前索引集不匹配，请在监控平台检查策略配置"))
+        query = queries[0]
+        dimensions = list(dict.fromkeys([SIGNATURE_FIELD, *(self.clustering_config.group_fields or [])]))
+        if set(query["agg_dimension"]) == set(dimensions):
+            return
+        self._patch_strategy(
+            strategy["id"],
+            {"items": [{"id": item["id"], "query_dimensions": {"id": query["id"], "agg_dimension": dimensions}}]},
+        )
+
+    def _update_existing_strategy(self, strategy, strategy_type, params):
+        patch = {}
+        if "user_groups" in params and set(params["user_groups"]) != set(strategy["notice"]["user_groups"]):
+            groups = params["user_groups"] or [
+                MonitorUtils.get_or_create_notice_group(
+                    log_index_set_id=self.clustering_config.new_cls_index_set_id or self.index_set_id,
+                    bk_biz_id=self.bk_biz_id,
+                )
+            ]
+            patch["notice"] = {"user_groups": groups}
+
+        if params.keys() - {"user_groups"}:
+            item, algorithm = self._managed_algorithm(strategy, strategy_type)
+            updated = deepcopy(algorithm)
+            config = updated["config"]
+            if algorithm["type"] == NEW_SERIES_ALGORITHM_TYPE:
+                if "threshold" in params and params["threshold"] != config.get(NEW_SERIES_THRESHOLD_CONFIG_KEY, 0) + 1:
+                    config[NEW_SERIES_THRESHOLD_CONFIG_KEY] = params["threshold"] - 1
+                if "interval" in params and params["interval"] != config.get("detect_range", 0) // DAY:
+                    config["detect_range"] = params["interval"] * DAY
+            else:
+                argument_fields = (
+                    (("sensitivity", "$sensitivity"),)
+                    if strategy_type == StrategiesType.NORMAL_STRATEGY
+                    else (("interval", "$new_class_interval"), ("threshold", "$new_class_alert_th"))
+                )
+                for field, arg in argument_fields:
+                    if field in params and str(config.get("args", {}).get(arg)) != str(params[field]):
+                        config.setdefault("args", {})[arg] = params[field]
+
+            if "level" in params and params["level"] != algorithm["level"]:
+                updated["level"] = params["level"]
+                detects = strategy["detects"]
+                if not any(d["level"] == updated["level"] for d in detects):
+                    old_rules = [d for d in detects if d["level"] == algorithm["level"]]
+                    shared_level = any(
+                        a["id"] != algorithm["id"] and a["level"] == algorithm["level"]
+                        for other in strategy["items"]
+                        for a in other["algorithms"]
+                    )
+                    if len(old_rules) != 1 or shared_level:
+                        raise ValidationError(_("无法唯一迁移当前级别的触发规则，请在监控平台调整级别"))
+                    patch["expected_detects"] = detects
+                    patch["detects"] = [
+                        dict(d, level=updated["level"]) if d == old_rules[0] else d
+                        for d in sorted(detects, key=lambda d: d["id"])
+                    ]
+            if updated != algorithm:
+                patch["items"] = [
+                    {
+                        "id": item["id"],
+                        "expected_algorithms": item["algorithms"],
+                        "algorithms": [updated if a["id"] == algorithm["id"] else a for a in item["algorithms"]],
+                    }
+                ]
+        if patch:
+            self._patch_strategy(strategy["id"], patch)
+        return {"strategy_id": strategy["id"], "label_name": strategy["labels"]}
 
     @atomic
     def delete_strategy(self, strategy_type):
@@ -547,7 +644,22 @@ class ClusteringMonitorHandler:
         MonitorApi.delete_alarm_strategy_v3(params={"bk_biz_id": self.bk_biz_id, "ids": [strategy_id]})
         return strategy_id
 
+    @atomic
     def create_or_update_clustering_strategy(self, strategy_type, params=None):
+        # 同一索引集的并发创建和分组联动共用配置行锁，避免重复创建监控策略。
+        self.clustering_config = ClusteringConfig.objects.select_for_update().get(pk=self.clustering_config.pk)
+        # 接入流程不传表单，沿用原有模板同步数据源和模型配置。
+        strategy = self._bound_strategy(strategy_type) if params is not None else None
+        params = dict(params or {})
+        edited_id = params.pop("strategy_id", None)
+        changed_fields = params.pop("changed_fields", None)
+        if edited_id and (not strategy or strategy["id"] != edited_id):
+            raise ValidationError(_("关联策略已变化，请刷新后重试"))
+        if strategy:
+            if changed_fields is not None:
+                params = {key: params[key] for key in changed_fields if key in params}
+            return self._update_existing_strategy(strategy, strategy_type, params)
+
         # 创建/更新 新类或数量突增报警
         if strategy_type == StrategiesType.NORMAL_STRATEGY:
             result = self.save_normal_clustering_strategy(params=params)

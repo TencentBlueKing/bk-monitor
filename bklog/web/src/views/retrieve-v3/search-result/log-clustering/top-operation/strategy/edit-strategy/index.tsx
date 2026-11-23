@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { clusteringStrategyPayload } from '@/services/log-clustering';
 import { defineComponent, ref, computed, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import $http from '@/api';
@@ -161,12 +162,12 @@ export default defineComponent({
       try {
         await strategyFromRef.value.validate();
         const submitPostStr = isAlarmType.value ? 'retrieve/newClsStrategy' : 'retrieve/normalStrategy';
-        const { label_name, ...otherData } = formData.value;
+        const original = props.isEdit ? props.configData?.[props.type] : undefined;
         const res = await $http.request(submitPostStr, {
           params: {
             index_set_id: props.indexId,
           },
-          data: otherData,
+          data: clusteringStrategyPayload(formData.value, original),
         });
         if (res.code === 0) {
           bkMessage({

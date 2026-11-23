@@ -720,12 +720,13 @@ class PatternHandler:
 
         return model_to_dict(remark_obj)
 
+    @atomic
     def update_group_fields(self, group_fields: list):
         """
         更新分组字段
         """
         self._clustering_config.group_fields = group_fields
-        self._clustering_config.save()
+        self._clustering_config.save(update_fields=["group_fields"])
         if self._clustering_config.new_cls_strategy_enable:
             from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 

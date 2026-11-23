@@ -1526,3 +1526,123 @@ def test_legacy_unrelated_patch_preserves_existing_nodata_config(strategy_config
 
     item.refresh_from_db()
     assert item.no_data_config["agg_dimension"] == ["stale"]
+
+
+def test_query_dimension_patch_preserves_monitor_filters(strategy_config_fixture, settings):
+    strategy = strategy_config_fixture["strategy"]
+    item = strategy_config_fixture["first_item"]
+    query = strategy_config_fixture["query_config_a"]
+    strategy_config_fixture["query_config_extra"].delete()
+    item.target = [[]]
+    item.save(update_fields=["target"])
+    set_log_query(query, ["pod"], log_conditions())
+    query.config["query_string"] = "severity:error"
+    query.config["custom_option"] = {"keep": True}
+    query.save(update_fields=["config"])
+    settings.LOG_UNIFY_QUERY_BLACK_BIZ_LIST_ENV = []
+    perform_strategy_config_patch(
+        [strategy.id],
+        {
+            "items": [
+                {
+                    "id": item.id,
+                    "query_dimensions": {"id": query.id, "agg_dimension": ["signature", "cluster"]},
+                }
+            ]
+        },
+    )
+    query.refresh_from_db()
+    assert set(query.config["agg_dimension"]) == {"signature", "cluster"}
+    assert query.config["agg_condition"] == log_conditions()
+    assert query.config["query_string"] == "severity:error"
+    assert query.config["custom_option"] == {"keep": True}
+
+
+def test_dimension_patch_rejects_existing_issue_reference(strategy_config_fixture):
+    from bkmonitor.models.issue import StrategyIssueConfig
+
+    strategy = strategy_config_fixture["strategy"]
+    item = strategy_config_fixture["first_item"]
+    query = strategy_config_fixture["query_config_a"]
+    strategy_config_fixture["query_config_extra"].delete()
+    item.target = [[]]
+    item.save(update_fields=["target"])
+    StrategyIssueConfig.objects.create(
+        bk_biz_id=BK_BIZ_ID, strategy_id=strategy.id, aggregate_dimensions=["bk_target_ip"], alert_levels=[2]
+    )
+    with pytest.raises(ValidationError, match="bk_target_ip"):
+        perform_strategy_config_patch(
+            [strategy.id],
+            {
+                "items": [
+                    {
+                        "id": item.id,
+                        "query_dimensions": {"id": query.id, "agg_dimension": ["cluster"]},
+                    }
+                ]
+            },
+        )
+    query.refresh_from_db()
+    assert query.config["agg_dimension"] == ["bk_target_ip"]
+    assert_strategy_metadata_unchanged(strategy, strategy.update_time, strategy.update_user)
+
+
+@pytest.mark.parametrize("component", ["algorithms", "detects"])
+def test_stale_component_replacement_rolls_back(strategy_config_fixture, component):
+    strategy = strategy_config_fixture["strategy"]
+    if component == "algorithms":
+        item = strategy_config_fixture["first_item"]
+        patch = {"items": [{"id": item.id, "algorithms": [make_algorithm_payload(2, 5)], "expected_algorithms": []}]}
+    else:
+        patch = {"detects": [make_detect_payload(2, 2)], "expected_detects": []}
+    with pytest.raises(ValidationError, match="策略配置已变化"):
+        perform_strategy_config_patch([strategy.id], patch)
+    assert_strategy_metadata_unchanged(strategy, strategy.update_time, strategy.update_user)
+
+
+@pytest.mark.parametrize("change_args,uses_sdk", [(True, False), (True, True), (False, False)])
+def test_guarded_intelligent_algorithm_edit_refreshes_changed_model_args(
+    strategy_config_fixture, settings, mocker, change_args, uses_sdk
+):
+    strategy = strategy_config_fixture["strategy"]
+    item = strategy_config_fixture["first_item"]
+    query = strategy_config_fixture["query_config_a"]
+    strategy_config_fixture["query_config_extra"].delete()
+    query.config.update(query_string="severity:error", agg_condition=log_conditions())
+    query.save(update_fields=["config"])
+    algorithm = strategy_config_fixture["algorithm_a"]
+    algorithm.type = "IntelligentDetect"
+    algorithm.config = {"args": {"$sensitivity": 2}, "plan_id": 6, "visual_type": "none", "custom_option": True}
+    algorithm.save()
+    current = Strategy.from_models([strategy])[0]
+    current_item = next(i for i in current.items if i.id == item.id)
+    expected = [a.to_dict() for a in current_item.algorithms]
+    changed = copy.deepcopy(expected)
+    edited = next(a for a in changed if a["id"] == algorithm.id)
+    if change_args:
+        edited["config"]["args"]["$sensitivity"] = 3
+    else:
+        edited["level"] = 1
+    settings.IS_ACCESS_BK_DATA = True
+
+    def check_access(q, algorithm_type, plan_id):
+        assert (q.id, algorithm_type, plan_id) == (query.id, "IntelligentDetect", 6)
+        if uses_sdk:
+            q.intelligent_detect = {"use_sdk": True, "status": "preparing"}
+        return not uses_sdk
+
+    check = mocker.patch.object(Strategy, "check_aiops_query_config", side_effect=check_access)
+    access = mocker.patch.object(Strategy, "access_algorithm_by_query_config")
+    perform_strategy_config_patch(
+        [strategy.id], {"items": [{"id": item.id, "algorithms": changed, "expected_algorithms": expected}]}
+    )
+    assert check.call_count == int(change_args)
+    assert access.call_count == int(change_args and not uses_sdk)
+    algorithm.refresh_from_db()
+    assert algorithm.config["args"]["$sensitivity"] == (3 if change_args else 2)
+    assert algorithm.config["custom_option"] is True
+    query.refresh_from_db()
+    assert query.config["agg_condition"] == log_conditions()
+    assert query.config["query_string"] == "severity:error"
+    if uses_sdk:
+        assert query.config["intelligent_detect"]["status"] == "preparing"

@@ -32,6 +32,8 @@ import type { From } from 'bk-magic-vue';
 import './index.scss';
 import $http from '../../../../../../api';
 
+import { clusteringStrategyPayload } from '@/services/log-clustering';
+
 type FormType = 'alarm' | 'increase';
 type StrategyType = 'new_cls_strategy' | 'normal_strategy';
 
@@ -60,6 +62,7 @@ export default class Strategy extends tsc<object> {
     increase: 'normal_strategy',
   };
   isEdit = false;
+  savedForms: Partial<Record<FormType, Record<string, any>>> = {};
   baseAlarmFormData = null;
   baseIncreaseFormData = null;
   labelName = [];
@@ -205,13 +208,13 @@ export default class Strategy extends tsc<object> {
     this.strategyFromRef.validate().then(() => {
       const submitPostStr = this.isAlarmType ? 'retrieve/newClsStrategy' : 'retrieve/normalStrategy';
       const data = this.isAlarmType ? this.alarmFormData : this.increaseFormData;
-      const { label_name: _labelName, ...otherData } = data;
+      const payload = clusteringStrategyPayload(data, this.isEdit ? this.savedForms[this.activeType] : undefined);
       $http
         .request(submitPostStr, {
           params: {
             index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
           },
-          data: otherData,
+          data: payload,
         })
         .then(res => {
           if (res.code === 0) {
@@ -298,6 +301,7 @@ export default class Strategy extends tsc<object> {
         for (const vItem of values) {
           const isSubmit = JSON.stringify(vItem.data) !== '{}';
           this[this.infoKeyData[vItem.type].submit] = isSubmit;
+          this.savedForms[vItem.type] = isSubmit ? structuredClone(vItem.data) : undefined;
           if (isSubmit) {
             Object.assign(this[this.infoKeyData[vItem.type].data], vItem.data);
           } else {

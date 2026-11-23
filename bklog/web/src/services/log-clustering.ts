@@ -24,6 +24,19 @@
  * IN THE SOFTWARE.
  */
 
+/** 只标记本次编辑过的字段，避免表单打开后覆盖监控侧的新配置。 */
+export function clusteringStrategyPayload(form: Record<string, any>, original?: Record<string, any>) {
+  const fields = ['level', 'interval', 'threshold', 'sensitivity', 'user_groups'].filter(key => key in form);
+  const payload = Object.fromEntries(fields.map(key => [key, form[key]]));
+  if (!original?.strategy_id) return payload;
+  const changed = fields.filter(key => {
+    if (key !== 'user_groups') return Number(form[key]) !== Number(original[key]);
+    const groups = (values: number[]) => [...values].sort((a, b) => a - b).join(',');
+    return groups(form[key]) !== groups(original[key]);
+  });
+  return { ...payload, strategy_id: original.strategy_id, changed_fields: changed };
+}
+
 /**
  * 通知列表
  */
