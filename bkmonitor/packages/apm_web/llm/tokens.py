@@ -10,12 +10,10 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import math
 import os
-import tempfile
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -31,8 +29,6 @@ from apm_web.llm.constants import SpanType
 
 logger = logging.getLogger(__name__)
 
-TIKTOKEN_ENCODING_URL = "https://openaipublic.blob.core.windows.net/encodings/{name}.tiktoken"
-
 CONTENT_CATEGORIES = {
     "system": ("gen_ai.system_instructions", "系统提示词"),
     "definitions": ("gen_ai.tool.definitions", "可用工具"),
@@ -43,12 +39,9 @@ CONTENT_CATEGORIES = {
 
 @cache
 def load_encoding(name: str) -> tiktoken.Encoding | None:
-    """只加载本地已缓存的词表，避免在请求内同步下载；缓存路径规则与 tiktoken.load.read_file_cached 一致。"""
-    default_dir: str = os.path.join(tempfile.gettempdir(), "data-gym-cache")
-    cache_dir: str = os.environ.get("TIKTOKEN_CACHE_DIR", os.environ.get("DATA_GYM_CACHE_DIR", default_dir))
-    cache_key: str = hashlib.sha1(TIKTOKEN_ENCODING_URL.format(name=name).encode()).hexdigest()
-    if not cache_dir or not os.path.isfile(os.path.join(cache_dir, cache_key)):
-        logger.warning("[LLM] tiktoken 词表 %s 未缓存于 %s，改用字节数粗估 Token", name, cache_dir)
+    """仅在镜像预置词表（设置 TIKTOKEN_CACHE_DIR）时加载，否则粗估，避免在请求内同步下载。"""
+    if not os.environ.get("TIKTOKEN_CACHE_DIR"):
+        logger.warning("[LLM] TIKTOKEN_CACHE_DIR is not set, estimating %s tokens by UTF-8 bytes", name)
         return None
     return tiktoken.get_encoding(name)
 

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from copy import deepcopy
-from tempfile import TemporaryDirectory
+from tempfile import gettempdir
 from unittest import TestCase, mock
 
 import tiktoken
@@ -13,11 +14,19 @@ from apm_web.llm.adapter.utils import recover_front_truncated_messages, repair_t
 from apm_web.llm.tokens import TokenCounter, build_token_matrix, load_encoding
 from apm_web.tests.llm.test_detail import entity_set, raw_span
 
+tiktoken_cache_env = mock.patch.dict("os.environ", {"TIKTOKEN_CACHE_DIR": os.path.join(gettempdir(), "data-gym-cache")})
+
 
 def setUpModule():
-    # 精确计数断言依赖真实词表，测试环境缺失时先显式下载到缓存，业务代码本身不再联网。
+    # 精确计数断言依赖真实词表，模拟镜像预置缓存目录并提前下载，业务代码本身不再联网。
+    tiktoken_cache_env.start()
     for name in ("cl100k_base", "o200k_base"):
         tiktoken.get_encoding(name)
+    load_encoding.cache_clear()
+
+
+def tearDownModule():
+    tiktoken_cache_env.stop()
     load_encoding.cache_clear()
 
 
@@ -155,15 +164,15 @@ class TokenMatrixTests(TestCase):
         self.assertEqual(TokenCounter("gpt-4o").count("hello"), 1)
         self.assertGreater(TokenCounter("gpt-4o").count("<|endoftext|>"), 0)
 
-    def test_missing_tokenizer_cache_estimates_without_downloading(self):
+    def test_unset_tokenizer_cache_estimates_without_downloading(self):
         load_encoding.cache_clear()
         self.addCleanup(load_encoding.cache_clear)
         with (
-            TemporaryDirectory() as cache_dir,
-            mock.patch.dict("os.environ", {"TIKTOKEN_CACHE_DIR": cache_dir}),
+            mock.patch.dict("os.environ"),
             mock.patch("tiktoken.load.read_file", side_effect=AssertionError("should not download")),
             self.assertLogs("apm_web.llm.tokens", level="WARNING"),
         ):
+            os.environ.pop("TIKTOKEN_CACHE_DIR", None)
             counter = TokenCounter("gpt-4o")
             self.assertIsNone(counter.encoding)
             self.assertEqual(counter.count("hello"), 2)
