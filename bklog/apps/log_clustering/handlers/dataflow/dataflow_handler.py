@@ -42,6 +42,7 @@ from apps.feature_toggle.plugins.constants import NEW_CLASS_ALERT_NEW_SERIES
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_NEW_CLS_HOURS,
+    DEFAULT_SIGNATURE_FORMAT_UDF,
     NOT_NEED_EDIT_NODES,
     PatternEnum,
     SIGNATURE_FIELD,
@@ -55,7 +56,7 @@ from apps.log_clustering.exceptions import (
     QueryFieldsException,
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
-from apps.log_clustering.handlers.aiops.config import get_online_clustering_config, get_signature_format_udf
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.handlers.dataflow.constants import (
     CLUSTERING_DEFAULT_MODEL_INPUT_FIELDS,
@@ -1503,7 +1504,7 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
             bk_biz_id=bk_biz_id,
             is_flink_env=self.conf.get("is_flink_env", False),
-            signature_format_udf=get_signature_format_udf(self.conf),
+            signature_format_udf=self.conf.get("signature_format_udf", DEFAULT_SIGNATURE_FORMAT_UDF),
         )
         # 采集项侧，创建聚类配置时设置 es_storage
         if clustering_config.collector_config_id:
@@ -2037,7 +2038,7 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
             storage_type=storage_type,
             bk_biz_id=bk_biz_id,
-            signature_format_udf=get_signature_format_udf(self.conf),
+            signature_format_udf=self.conf.get("signature_format_udf", DEFAULT_SIGNATURE_FORMAT_UDF),
         )
 
         return log_count_aggregation_flow

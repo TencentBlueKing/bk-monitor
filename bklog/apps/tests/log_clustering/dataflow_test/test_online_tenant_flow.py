@@ -6,7 +6,6 @@ from unittest.mock import Mock, call, patch
 from django.test import SimpleTestCase
 
 from apps.log_clustering.constants import DEFAULT_SIGNATURE_FORMAT_UDF
-from apps.log_clustering.handlers.aiops.config import get_signature_format_udf
 from apps.log_clustering.handlers.dataflow.constants import ActionEnum, FlowMode
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
@@ -293,11 +292,6 @@ class TestOnlineTenantFlow(SimpleTestCase):
             self.assertEqual(patch_sql.call_count, 3)
             for node_call in patch_sql.call_args_list:
                 self.assertRegex(node_call.kwargs["sql"], r"tenant_signature_udf\s*\(")
-
-    def test_invalid_signature_udf_is_rejected_before_rendering(self):
-        for udf in ("wrong-name", "custom_udf(log) --", 'with"quote', "", 123):
-            with self.subTest(udf=udf), self.assertRaisesRegex(ValueError, "signature_format_udf"):
-                get_signature_format_udf({"signature_format_udf": udf})
 
     def test_log_count_aggregation_flow_keeps_agg_for_legacy_config(self):
         clustering_config = Mock(

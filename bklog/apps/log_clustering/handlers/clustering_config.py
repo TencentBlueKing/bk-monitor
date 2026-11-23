@@ -45,7 +45,7 @@ from apps.log_clustering.exceptions import (
     DorisStorageNotExistException,
     RegexTemplateNotExistException,
 )
-from apps.log_clustering.handlers.aiops.config import get_online_clustering_config, get_predict_es_storage
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
@@ -152,7 +152,9 @@ class ClusteringConfigHandler:
         default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT) or {}
         storage_type = conf.get("storage_type", StorageTypeEnum.ELASTICSEARCH.value)
         doris_storage = conf.get("doris_storage", "") if storage_type == StorageTypeEnum.DORIS.value else ""
-        es_storage = get_predict_es_storage(conf) if storage_type == StorageTypeEnum.ELASTICSEARCH.value else ""
+        es_storage = (
+            (conf.get("predict_es_storage") or "") if storage_type == StorageTypeEnum.ELASTICSEARCH.value else ""
+        )
 
         if collector_config_id:
             # 配置检查
