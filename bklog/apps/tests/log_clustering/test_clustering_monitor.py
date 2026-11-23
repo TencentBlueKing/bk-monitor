@@ -314,6 +314,48 @@ class TestClusteringMonitorHandler(TestCase):
         )
 
     @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
+    def test_multilevel_form_reads_and_edits_the_same_algorithm(self, update):
+        current = self.strategy_snapshot()
+        item = current["items"][0]
+        primary = item["algorithms"][0]
+        secondary = dict(primary, id=42, level=1, config={**primary["config"], "threshold": 19})
+        item["algorithms"].insert(0, secondary)
+        other = deepcopy(item)
+        other["id"] = 22
+        other["query_configs"][0].update(id=32, index_set_id=456)
+        other["algorithms"] = [dict(secondary, id=40)]
+        current["items"].insert(0, other)
+        self.handler._read_strategy = Mock(return_value=deepcopy(current))
+
+        form = self.handler.get_strategy(StrategiesType.NEW_CLS_strategy, current["id"])
+        self.assertEqual((form["level"], form["threshold"]), (2, 5))
+
+        # 模拟再次读取监控策略时，算法返回顺序与打开表单时不同。
+        item["algorithms"].reverse()
+        self.handler._bound_strategy = Mock(return_value=current)
+        for edits, expected_patch in (
+            ({"user_groups": [8]}, {"notice": {"user_groups": [8]}}),
+            (
+                {"threshold": 9},
+                {
+                    "items": [
+                        {
+                            "id": item["id"],
+                            "algorithms": [dict(primary, config={**primary["config"], "threshold": 8}), secondary],
+                        }
+                    ]
+                },
+            ),
+        ):
+            with self.subTest(edits=edits):
+                serializer = NewClsStrategySerializer(data={**form, **edits})
+                serializer.is_valid(raise_exception=True)
+                self.handler.create_or_update_clustering_strategy(
+                    StrategiesType.NEW_CLS_strategy, serializer.validated_data
+                )
+                self.assertEqual(update.call_args.kwargs["params"]["edit_data"]["strategy_config"], expected_patch)
+
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
     def test_manual_save_skips_update_when_visible_values_match(self, update):
         self.handler._bound_strategy = Mock(return_value=self.strategy_snapshot())
         self.handler.create_or_update_clustering_strategy(

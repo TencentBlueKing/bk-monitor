@@ -477,6 +477,24 @@ class ClusteringMonitorHandler:
         )
         return self._read_strategy(strategy_id) if strategy_id else None
 
+    def _new_series_query(self, strategy):
+        new_series_items = [
+            item
+            for item in strategy["items"]
+            if any(algorithm["type"] == NEW_SERIES_ALGORITHM_TYPE for algorithm in item["algorithms"])
+        ]
+        if not new_series_items:
+            return None
+        matches = [
+            (item, query)
+            for item in new_series_items
+            for query in item["query_configs"]
+            if str(query.get("index_set_id")) == str(self.index_set_id)
+        ]
+        if len(matches) != 1:
+            raise ValidationError(_("无法唯一识别当前索引集的新类告警查询，请在监控平台检查策略配置"))
+        return matches[0]
+
     def _managed_algorithm(self, strategy, strategy_type):
         if strategy_type == StrategiesType.NEW_CLS_strategy and any(
             algo["type"] == NEW_SERIES_ALGORITHM_TYPE for item in strategy["items"] for algo in item["algorithms"]
@@ -490,9 +508,14 @@ class ClusteringMonitorHandler:
             for algorithm in item["algorithms"]
             if algorithm["type"] == algorithm_type
         ]
-        if len(matches) != 1:
-            raise ValidationError(_("无法唯一识别聚类检测算法，请在监控平台检查策略配置"))
-        return matches[0]
+        if len(matches) == 1:
+            return matches[0]
+        if matches and algorithm_type == NEW_SERIES_ALGORITHM_TYPE:
+            item, _query = self._new_series_query(strategy)
+            # 页面只有一组算法参数。按持久化 ID 选定同一条，编辑级别或列表换序都不会切换目标。
+            algorithms = (a for a in item["algorithms"] if a["type"] == NEW_SERIES_ALGORITHM_TYPE)
+            return item, min(algorithms, key=lambda a: a["id"])
+        raise ValidationError(_("无法唯一识别聚类检测算法，请在监控平台检查策略配置"))
 
     def get_strategy(self, strategy_type, strategy_id):
         strategy_config = self._read_strategy(strategy_id)
@@ -539,22 +562,10 @@ class ClusteringMonitorHandler:
         strategy = self._bound_strategy(StrategiesType.NEW_CLS_strategy)
         if not strategy:
             return
-        new_series_items = [
-            item
-            for item in strategy["items"]
-            if any(algorithm["type"] == NEW_SERIES_ALGORITHM_TYPE for algorithm in item["algorithms"])
-        ]
-        if not new_series_items:
+        target = self._new_series_query(strategy)
+        if not target:
             return
-        matches = [
-            (item, query)
-            for item in new_series_items
-            for query in item["query_configs"]
-            if str(query.get("index_set_id")) == str(self.index_set_id)
-        ]
-        if len(matches) != 1:
-            raise ValidationError(_("无法唯一识别当前索引集的新类告警查询，请在监控平台检查策略配置"))
-        item, query = matches[0]
+        item, query = target
         dimensions = list(dict.fromkeys([SIGNATURE_FIELD, *(self.clustering_config.group_fields or [])]))
         if set(query["agg_dimension"]) == set(dimensions):
             return
