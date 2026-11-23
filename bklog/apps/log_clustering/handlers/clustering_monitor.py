@@ -552,6 +552,24 @@ class ClusteringMonitorHandler:
         changes = {key: value for key, value in params.items() if key in form and str(value) != str(form[key])}
         algorithm = strategy["items"][0]["algorithms"][0]
         config = algorithm["config"]
+        if algorithm["type"] == NEW_SERIES_ALGORITHM_TYPE and strategy_type == StrategiesType.NEW_CLS_strategy:
+            if "interval" in changes:
+                config["detect_range"] = changes["interval"] * DAY
+            if "threshold" in changes:
+                config[NEW_SERIES_THRESHOLD_CONFIG_KEY] = changes["threshold"] - 1
+        elif algorithm["type"] == "IntelligentDetect":
+            for field, arg in (
+                ("interval", "$new_class_interval"),
+                ("threshold", "$new_class_alert_th"),
+                ("sensitivity", "$sensitivity"),
+            ):
+                if field in changes:
+                    config.setdefault("args", {})[arg] = changes[field]
+        elif changes.keys() & {"interval", "threshold", "sensitivity"}:
+            raise ValidationError(
+                _("当前检测算法 {} 不支持页面提交的聚类参数，请在监控平台编辑策略").format(algorithm["type"])
+            )
+
         if "user_groups" in changes:
             strategy["notice"]["user_groups"] = changes["user_groups"] or [
                 MonitorUtils.get_or_create_notice_group(
@@ -574,19 +592,6 @@ class ClusteringMonitorHandler:
                     raise ValidationError(_("无法确定该级别对应的触发规则，请在监控平台调整级别"))
                 rules[0]["level"] = level
             algorithm["level"] = level
-        if algorithm["type"] == NEW_SERIES_ALGORITHM_TYPE:
-            if "interval" in changes:
-                config["detect_range"] = changes["interval"] * DAY
-            if "threshold" in changes:
-                config[NEW_SERIES_THRESHOLD_CONFIG_KEY] = changes["threshold"] - 1
-        elif algorithm["type"] == "IntelligentDetect":
-            for field, arg in (
-                ("interval", "$new_class_interval"),
-                ("threshold", "$new_class_alert_th"),
-                ("sensitivity", "$sensitivity"),
-            ):
-                if field in changes:
-                    config.setdefault("args", {})[arg] = changes[field]
         if changes:
             self._save_existing_strategy(strategy)
         return {"strategy_id": strategy["id"], "label_name": strategy["labels"]}

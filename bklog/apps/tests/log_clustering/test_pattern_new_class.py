@@ -115,7 +115,7 @@ class TestPatternHandlerGetNewClass(TestCase):
         monitor_handler.resave_new_cls_clustering_strategy.assert_called_once_with()
 
     @patch("apps.log_clustering.handlers.clustering_monitor.ClusteringMonitorHandler")
-    def test_monitor_rejection_rolls_back_group_fields(self, handler_cls):
+    def test_group_fields_and_editor_are_committed_only_after_monitor_accepts(self, handler_cls):
         config = ClusteringConfig.objects.create(
             index_set_id=123,
             bk_biz_id=2,
@@ -126,14 +126,28 @@ class TestPatternHandlerGetNewClass(TestCase):
             group_fields=["pod"],
             new_cls_strategy_enable=True,
         )
+        previous_update = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        ClusteringConfig.objects.filter(pk=config.pk).update(updated_at=previous_update, updated_by="previous-editor")
+        config.refresh_from_db()
         self.handler._clustering_config = config
         monitor = handler_cls.return_value
         monitor.is_legacy_new_class_strategy.return_value = False
         monitor.resave_new_cls_clustering_strategy.side_effect = ValueError("aggregate_dimensions")
-        with self.assertRaisesRegex(ValueError, "aggregate_dimensions"):
+        with patch("apps.models.get_request_username", return_value="group-editor"):
+            with self.assertRaisesRegex(ValueError, "aggregate_dimensions"):
+                self.handler.update_group_fields(["cluster"])
+            config.refresh_from_db()
+            self.assertEqual(
+                (config.group_fields, config.updated_by, config.updated_at),
+                (["pod"], "previous-editor", previous_update),
+            )
+
+            monitor.resave_new_cls_clustering_strategy.side_effect = None
             self.handler.update_group_fields(["cluster"])
+
         config.refresh_from_db()
-        self.assertEqual(config.group_fields, ["pod"])
+        self.assertEqual((config.group_fields, config.updated_by), (["cluster"], "group-editor"))
+        self.assertGreater(config.updated_at, previous_update)
 
     def test_extract_new_class_tuple_from_alert_falls_back_to_dist_field(self):
         self.handler._pattern_level = "05"

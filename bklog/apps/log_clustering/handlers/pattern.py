@@ -726,7 +726,7 @@ class PatternHandler:
         更新分组字段
         """
         self._clustering_config.group_fields = group_fields
-        self._clustering_config.save(update_fields=["group_fields"])
+        self._clustering_config.save(update_fields=["group_fields", "updated_by", "updated_at"])
         if self._clustering_config.new_cls_strategy_enable:
             from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 

@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 from django.test import TestCase
 from jinja2 import Environment
 
+from apps.exceptions import ValidationError
 from apps.log_clustering.constants import NEW_SERIES_ALGORITHM_TYPE, StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.serializers import NewClsStrategySerializer
@@ -282,6 +283,22 @@ class TestClusteringMonitorHandler(TestCase):
         algorithms[0]["config"]["threshold"] = 10
         current["notice"]["user_groups"] = [8]
         save.assert_called_once_with(params=current)
+
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
+    def test_unsupported_algorithm_rejects_the_whole_form(self, save):
+        current = self.strategy_snapshot()
+        current["items"][0]["algorithms"].insert(
+            0, {"id": 42, "type": "Threshold", "level": 1, "config": [[{"method": "gte", "threshold": 3}]]}
+        )
+        self.handler._bound_strategy = Mock(return_value=deepcopy(current))
+        form = NewClsStrategySerializer(data={"interval": 1, "threshold": 11, "level": 1, "user_groups": [8]})
+        form.is_valid(raise_exception=True)
+
+        with self.assertRaises(ValidationError):
+            self.handler.create_or_update_clustering_strategy(StrategiesType.NEW_CLS_strategy, form.validated_data)
+
+        save.assert_not_called()
+        self.assertEqual(self.handler._bound_strategy.return_value, current)
 
     @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
     def test_level_edit_preserves_trigger_options(self, save):
