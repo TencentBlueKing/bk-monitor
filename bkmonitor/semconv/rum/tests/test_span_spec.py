@@ -12,12 +12,15 @@ import pytest
 
 from semconv.constants import SpanKind, SpanStatusCode
 from semconv.rum.constants import (
+    ActionEndReason,
+    ErrorSource,
+    ResourceType,
     RumSpanType,
     SdkLanguage,
     ViewLoadingType,
     VitalMetric,
-    OutcomeType,
     NetworkStatus,
+    OutcomeType,
     NetworkConnectionType,
 )
 from semconv.rum.attributes import (
@@ -167,12 +170,9 @@ class TestSpanSpec:
             "attributes.browser.viewport.width",
             "attributes.code.lineno",
             "attributes.code.filepath",
-            "attributes.device.id",
-            "attributes.error.message",
             "attributes.error.source",
-            "attributes.error.handled",
             "attributes.session.id",
-            "attributes.session.has_replay",
+            "attributes.tab.id",
             "attributes.blank_screen.reason",
             "attributes.blank_screen.empty_ratio",
             "attributes.view.id",
@@ -180,19 +180,22 @@ class TestSpanSpec:
             "attributes.view.url",
             "attributes.view.url_template",
             "attributes.view.end_reason",
-            "attributes.resource.decoded_body_size",
             "attributes.resource.encoded_body_size",
             "attributes.resource.transfer_size",
             "attributes.resource.delivery_type",
             "attributes.resource.render_blocking_status",
-            "attributes.resource.cache.hit",
+            "attributes.resource.initiator_type",
+            "attributes.action.name",
+            "attributes.action.ids",
+            "attributes.action.target.path",
             "attributes.network.effective_type",
             "attributes.outcome.type",
             "attributes.vital.id",
+            "attributes.vital.version",
             "attributes.vital.lcp.target",
-            "attributes.vital.lcp.element_render_delay",
-            "attributes.vital.inp.input_delay",
-            "attributes.vital.ttfb.dns_duration",
+            "attributes.vital.inp.target_selector",
+            "attributes.vital.cls.target_selector",
+            "attributes.timing.incomplete",
             # resource.*
             "resource.user_agent.name",
             "resource.device.type",
@@ -201,7 +204,6 @@ class TestSpanSpec:
             # events.*
             "events.name",
             "events.timestamp",
-            "events.attributes.exception.message",
             "events.attributes.exception.type",
             # Web Vitals 虚拟字段（根级）
             "LCP",
@@ -213,7 +215,9 @@ class TestSpanSpec:
     )
     def test_field_full_name(self, path: str):
         """所有已注册字段路径，get_full_field_name() 均返回完整路径。"""
-        assert SpanSpec.from_field(path).get_full_field_name() == path
+        spec = SpanSpec.from_field(path)
+        assert spec in SpanSpec.fields()
+        assert spec.get_full_field_name() == path
 
     # ------------------------------------------------------------------
     # 字段语义与原始 spec 一致（field_name 对齐）
@@ -255,6 +259,9 @@ class TestSpanSpec:
             ("attributes.vital.metric", VitalMetric),
             ("attributes.network.status", NetworkStatus),
             ("attributes.network.connection.type", NetworkConnectionType),
+            ("attributes.action.end_reason", ActionEndReason),
+            ("attributes.error.source", ErrorSource),
+            ("attributes.resource.type", ResourceType),
             ("attributes.outcome.type", OutcomeType),
             ("resource.telemetry.sdk.language", SdkLanguage),
         ],
@@ -283,6 +290,8 @@ class TestSpanSpec:
             ("start_time", "us", "datetime"),
             ("end_time", "us", "datetime"),
             ("elapsed_time", "us", "duration"),
+            ("attributes.timing.fetch_start", "ms", "duration"),
+            ("attributes.view.custom_timings.checkout_ready", "ms", "duration"),
         ],
     )
     def test_time_field_metadata(self, path: str, unit: str, display_type):
@@ -290,6 +299,18 @@ class TestSpanSpec:
         spec = SpanSpec.from_field(path)
         assert spec.field_unit == unit
         assert spec.field_display_type == display_type
+
+    def test_deprecated_fields_are_unregistered(self):
+        fields = {spec.get_full_field_name() for spec in SpanSpec.fields()}
+        assert fields.isdisjoint(
+            {
+                "attributes.error.handled",
+                "attributes.session.has_replay",
+                "attributes.view.previous",
+                "attributes.resource.cache.hit",
+                "events.attributes.exception.message",
+            }
+        )
 
     # ------------------------------------------------------------------
     # Web Vitals 单位、展示类型与评级阈值

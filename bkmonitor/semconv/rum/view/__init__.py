@@ -44,7 +44,6 @@ class ViewSpec(FieldSpec):
     ATTRIBUTES_VIEW_NAME = common.raw_field("attributes.view.name")
     ATTRIBUTES_VIEW_LOADING_TYPE = common.raw_field("attributes.view.loading_type")
     ATTRIBUTES_VIEW_URL = common.raw_field("attributes.view.url")
-    ATTRIBUTES_VIEW_PREVIOUS = common.raw_field("attributes.view.previous")
     ATTRIBUTES_VIEW_URL_TEMPLATE = common.raw_field("attributes.view.url_template")
     ATTRIBUTES_VIEW_PREVIOUS_URL_TEMPLATE = common.raw_field("attributes.view.previous_url_template")
     ATTRIBUTES_VIEW_LOADING_TIME = common.raw_field("attributes.view.loading_time", FieldTypeEnum.DOUBLE.value)
