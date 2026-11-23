@@ -13,7 +13,6 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -53,11 +52,6 @@ class StrictSerializer(serializers.Serializer):
         return super().to_internal_value(data)
 
 
-class QueryDimensionsSerializer(StrictSerializer):
-    id = serializers.IntegerField(min_value=1)
-    agg_dimension = serializers.ListField(child=serializers.CharField(), allow_empty=True)
-
-
 class ItemPatchSerializer(StrictSerializer):
     id = serializers.IntegerField(required=False)
     name = serializers.CharField(required=False)
@@ -67,16 +61,7 @@ class ItemPatchSerializer(StrictSerializer):
         required=False, allow_blank=True, max_length=ItemModel._meta.get_field("metric_type").max_length
     )
     query_configs = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=False)
-    query_dimensions = QueryDimensionsSerializer(required=False)
     algorithms = Algorithm.Serializer(many=True, required=False)
-    expected_algorithms = serializers.ListField(child=serializers.DictField(), required=False)
-
-    def validate(self, attrs):
-        if "query_dimensions" in attrs and "query_configs" in attrs:
-            raise ValidationError(_("查询维度与完整查询配置不能同时提交"))
-        if "expected_algorithms" in attrs and "algorithms" not in attrs:
-            raise ValidationError(_("expected_algorithms 必须与 algorithms 同时传入"))
-        return attrs
 
 
 class NoticePatchSerializer(StrictSerializer):
@@ -88,14 +73,11 @@ class StrategyConfigPatchSerializer(StrictSerializer):
     scenario = serializers.CharField(required=False, max_length=StrategyModel._meta.get_field("scenario").max_length)
     items = ItemPatchSerializer(many=True, required=False)
     detects = Detect.Serializer(many=True, required=False)
-    expected_detects = serializers.ListField(child=serializers.DictField(), required=False)
     notice = NoticePatchSerializer(required=False)
     labels = serializers.ListField(required=False, child=serializers.CharField(), allow_empty=True)
     expected_labels = serializers.ListField(required=False, child=serializers.CharField(), allow_empty=True)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        if "expected_detects" in attrs and "detects" not in attrs:
-            raise ValidationError(_("expected_detects 必须与 detects 同时传入"))
         if "expected_labels" in attrs and "labels" not in attrs:
             raise ValidationError(_("expected_labels 必须与 labels 同时传入"))
         return attrs
@@ -106,8 +88,6 @@ class ItemPatchChange:
     item: Item
     fields: set[str] = field(default_factory=set)
     query_configs: bool = False
-    dimension_query: QueryConfig | None = None
-    changed_aiops_plan_ids: list[int] = field(default_factory=list)
     algorithms: bool = False
 
 
@@ -174,9 +154,7 @@ class StrategyConfigUpdater:
         cls._apply_label_patch(candidate, validated_patch)
         candidate.inherit_dynamic_alert_level_mode()
         query_item_patches: list[dict[str, Any]] = [
-            item_patch
-            for item_patch in validated_patch.get("items", [])
-            if {"query_configs", "query_dimensions"} & item_patch.keys()
+            item_patch for item_patch in validated_patch.get("items", []) if "query_configs" in item_patch
         ]
         if query_item_patches:
             candidate_items: dict[int, Item] = {item.id: item for item in candidate.items}
@@ -185,9 +163,6 @@ class StrategyConfigUpdater:
                 candidate.supplement_inst_target_dimension(items=[item])
                 item.normalize_query_dimensions(candidate.bk_biz_id)
                 item.align_no_data_dimensions(candidate.bk_biz_id)
-
-        if candidate.issue_config and any("query_dimensions" in item for item in query_item_patches):
-            candidate.issue_config.validate(candidate)
 
         # 完整序列化器检查字段之间的约束，其默认值不用于回写。优先级分组键留到差异判断后按需计算。
         strategy_dict: dict[str, Any] = candidate.to_dict(convert_dashboard=False, generate_priority_group_key=False)
@@ -246,17 +221,10 @@ class StrategyConfigUpdater:
 
         for change in plan.item_changes.values():
             cls._save_item(change)
-            if change.dimension_query is not None:
-                query = change.dimension_query
-                # 从锁内读取的原始 JSON 更新维度，保留旧版本或其他调用方写入的查询选项。
-                query.instance.config = {**query.instance.config, "agg_dimension": query.agg_dimension}
-                query.instance.save(update_fields=["config"])
-            elif change.query_configs:
+            if change.query_configs:
                 change.item.save_query_configs()
             if change.algorithms:
                 change.item.save_algorithms(preserve_ids=True)
-                for plan_id in change.changed_aiops_plan_ids:
-                    cls._refresh_intelligent_detect(candidate, change.item, plan_id)
 
         if plan.detects:
             candidate.save_detects()
@@ -267,20 +235,6 @@ class StrategyConfigUpdater:
             )
         if plan.labels:
             cls._save_labels(candidate)
-
-    @staticmethod
-    def _refresh_intelligent_detect(strategy: Strategy, item: Item, plan_id: int) -> None:
-        """模型入参变化后，让已接入的计算平台 Flow 或 SDK 重新采用新参数。"""
-        if not settings.IS_ACCESS_BK_DATA:
-            return
-        algorithm_type = AlgorithmModel.AlgorithmChoices.IntelligentDetect
-        for query in item.query_configs:
-            if strategy.check_aiops_query_config(query, algorithm_type, plan_id):
-                strategy.access_algorithm_by_query_config(query, algorithm_type)
-            elif getattr(query, "intelligent_detect", {}).get("use_sdk"):
-                stored = QueryConfigModel.objects.get(id=query.id, item_id=item.id)
-                stored.config = {**stored.config, "intelligent_detect": query.intelligent_detect}
-                stored.save(update_fields=["config"])
 
     @staticmethod
     def _apply_strategy_patch(candidate: Strategy, patch: dict[str, Any]) -> None:
@@ -306,19 +260,8 @@ class StrategyConfigUpdater:
 
             if "query_configs" in item_patch:
                 item.query_configs = cls._build_query_configs(item, item_patch["query_configs"])
-            if "query_dimensions" in item_patch:
-                dimensions = item_patch["query_dimensions"]
-                if len(item.query_configs) != 1:
-                    raise ValidationError(_("局部修改维度需要单查询监控项"))
-                query = item.query_configs[0]
-                if query.id != dimensions["id"] or not hasattr(query, "agg_dimension"):
-                    raise ValidationError(_("查询配置不存在或不支持聚合维度"))
-                query.agg_dimension = dimensions["agg_dimension"]
             if "algorithms" in item_patch:
-                cls._check_expected_components(item.algorithms, item_patch.get("expected_algorithms"))
-                item.algorithms = cls._build_algorithms(
-                    item, item_patch["algorithms"], preserve_options="expected_algorithms" in item_patch
-                )
+                item.algorithms = cls._build_algorithms(item, item_patch["algorithms"])
             if isinstance(item.query_output_config, dict):
                 item.validate_query_output_compatibility(item.query_output_config)
 
@@ -359,9 +302,7 @@ class StrategyConfigUpdater:
         return built_configs
 
     @staticmethod
-    def _build_algorithms(
-        item: Item, algorithms: list[dict[str, Any]], *, preserve_options: bool = False
-    ) -> list[Algorithm]:
+    def _build_algorithms(item: Item, algorithms: list[dict[str, Any]]) -> list[Algorithm]:
         current_by_id: dict[int, Algorithm] = {algorithm.id: algorithm for algorithm in item.algorithms}
         current_by_key: dict[tuple[str, int], Algorithm | None] = {}
         for algorithm in item.algorithms:
@@ -384,23 +325,8 @@ class StrategyConfigUpdater:
                 if matched.instance is not None:
                     # 差异比较必须使用最终有效配置，否则 serializer 默认值会让相同请求反复写入。
                     algorithm.config = algorithm._merge_with_db_config(matched.instance)
-                    if (
-                        preserve_options
-                        and matched.type == algorithm.type
-                        and isinstance(matched.config, dict)
-                        and isinstance(algorithm.config, dict)
-                    ):
-                        # 锁内快照中当前序列化器未暴露的存量选项也要保留。
-                        algorithm.config = {**matched.config, **algorithm.config}
             built_algorithms.append(algorithm)
         return built_algorithms
-
-    @classmethod
-    def _check_expected_components(cls, current, expected):
-        if expected is None:
-            return
-        if cls._normalize_collection([entry.to_dict() for entry in current]) != cls._normalize_collection(expected):
-            raise ValidationError(_("策略配置已变化，请刷新后重试"))
 
     @staticmethod
     def _apply_detect_patches(candidate: Strategy, patch: dict[str, Any]) -> None:
@@ -408,7 +334,6 @@ class StrategyConfigUpdater:
             return
 
         current_detects: list[Detect] = candidate.detects
-        StrategyConfigUpdater._check_expected_components(current_detects, patch.get("expected_detects"))
         detects: list[Detect] = []
         for index, config in enumerate(patch["detects"]):
             detect = Detect(candidate.id, **copy.deepcopy(config))
@@ -451,28 +376,16 @@ class StrategyConfigUpdater:
                 ):
                     change.fields.add(field_name)
             # 查询配置保留顺序语义；算法和检测配置按无序集合比较，数据库 ID 不参与内容比较。
-            if {"query_configs", "query_dimensions"} & item_patch.keys() and (
+            if "query_configs" in item_patch and (
                 [cls._without_id(config.to_dict()) for config in current_item.query_configs]
             ) != ([cls._without_id(config.to_dict()) for config in candidate_item.query_configs]):
                 change.query_configs = True
-                if "query_dimensions" in item_patch:
-                    change.dimension_query = candidate_item.query_configs[0]
             if current_item.no_data_config != candidate_item.no_data_config:
                 change.fields.add("no_data_config")
             if "algorithms" in item_patch and cls._normalize_collection(
                 [cls._without_id(config.to_dict()) for config in current_item.algorithms]
             ) != cls._normalize_collection([cls._without_id(config.to_dict()) for config in candidate_item.algorithms]):
                 change.algorithms = True
-                # 带快照的编辑只刷新实际变更模型入参的存量算法。
-                if "expected_algorithms" in item_patch:
-                    old_algorithms = {algo.id: algo for algo in current_item.algorithms}
-                    change.changed_aiops_plan_ids = [
-                        algo.config["plan_id"]
-                        for algo in candidate_item.algorithms
-                        if algo.type == AlgorithmModel.AlgorithmChoices.IntelligentDetect
-                        and algo.id in old_algorithms
-                        and algo.config.get("args") != old_algorithms[algo.id].config.get("args")
-                    ]
 
             if change.fields or change.query_configs or change.algorithms:
                 plan.item_changes[candidate_item.id] = change

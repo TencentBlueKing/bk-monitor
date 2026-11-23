@@ -1,3 +1,4 @@
+from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -16,7 +17,6 @@ class TestClusteringMonitorHandler(TestCase):
         self.handler.index_set = SimpleNamespace(index_set_name="test-index-set", time_field="dtEventTimeStamp")
         self.handler.log_index_set_data = {"result_table_id": "2_bklog.rt_create"}
         self.handler.clustering_config = SimpleNamespace(
-            pk=123,
             new_cls_index_set_id=None,
             new_cls_strategy_output="",
             new_cls_pattern_rt="",
@@ -27,9 +27,6 @@ class TestClusteringMonitorHandler(TestCase):
             bk_biz_id=2,
         )
         self.handler.bk_biz_id = 2
-        lock = patch("apps.log_clustering.handlers.clustering_monitor.ClusteringConfig.objects.select_for_update")
-        lock.start().return_value.get.return_value = self.handler.clustering_config
-        self.addCleanup(lock.stop)
         self.handler.conf = {"agg_interval": 60}
         self.handler.get_notice = Mock(return_value={"signal": ["abnormal"]})
         self.handler.save_strategy_infos = Mock(return_value=9527)
@@ -248,25 +245,30 @@ class TestClusteringMonitorHandler(TestCase):
         }
 
     @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
-    def test_resave_sends_only_query_dimensions(self, update):
-        self.handler._bound_strategy = Mock(return_value=self.strategy_snapshot())
+    def test_resave_preserves_query_filters_when_updating_dimensions(self, update):
+        current = self.strategy_snapshot()
+        self.handler._bound_strategy = Mock(side_effect=lambda _: deepcopy(current))
         self.handler.resave_new_cls_clustering_strategy()
+        query = dict(current["items"][0]["query_configs"][0], agg_dimension=["signature", "service_name"])
         update.assert_called_once_with(
             params={
                 "bk_biz_id": 2,
                 "ids": [17],
-                "edit_data": {
-                    "strategy_config": {
-                        "items": [
-                            {"id": 21, "query_dimensions": {"id": 31, "agg_dimension": ["signature", "service_name"]}}
-                        ]
-                    }
-                },
+                "edit_data": {"strategy_config": {"items": [{"id": 21, "query_configs": [query]}]}},
             }
         )
         self.handler.clustering_config.group_fields = ["pod"]
         self.handler.resave_new_cls_clustering_strategy()
         self.assertEqual(update.call_count, 1)
+
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
+    def test_group_change_with_issue_keeps_filters_and_uses_validated_save(self, save):
+        current = self.strategy_snapshot()
+        current["issue_config"] = {"aggregate_dimensions": ["pod"], "alert_levels": [2]}
+        self.handler._bound_strategy = Mock(return_value=deepcopy(current))
+        self.handler.resave_new_cls_clustering_strategy()
+        current["items"][0]["query_configs"][0]["agg_dimension"] = ["signature", "service_name"]
+        save.assert_called_once_with(params=current)
 
     @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
     def test_manual_save_applies_form_values_and_preserves_monitor_only_settings(self, update):
@@ -275,12 +277,12 @@ class TestClusteringMonitorHandler(TestCase):
         params = {"threshold": 11, "interval": 30, "level": 1, "user_groups": [42]}
         self.handler.create_or_update_clustering_strategy(StrategiesType.NEW_CLS_strategy, params)
         patch_data = update.call_args.kwargs["params"]["edit_data"]["strategy_config"]
-        self.assertEqual(set(patch_data), {"items", "notice", "expected_detects", "detects"})
+        self.assertEqual(set(patch_data), {"items", "notice", "detects"})
         self.assertEqual(patch_data["notice"], {"user_groups": [42]})
         self.assertEqual(patch_data["detects"], [dict(current["detects"][0], level=1)])
         (item,) = patch_data["items"]
         # 手动保存不下发查询配置，包括监控侧的过滤条件和检索语句。
-        self.assertEqual(set(item), {"id", "algorithms", "expected_algorithms"})
+        self.assertEqual(set(item), {"id", "algorithms"})
         self.assertEqual(item["algorithms"][0]["level"], 1)
         self.assertEqual(
             item["algorithms"][0]["config"], {"threshold": 10, "detect_range": 30 * 86400, "alert_mode": "continuous"}
@@ -308,8 +310,8 @@ class TestClusteringMonitorHandler(TestCase):
         self.assertEqual(patch_data["items"][0]["algorithms"][0]["level"], 1)
         self.assertNotIn("query_configs", patch_data["items"][0])
 
-    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
-    def test_legacy_and_count_alert_update_only_requested_argument(self, update):
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
+    def test_legacy_and_count_alert_update_only_requested_argument(self, save):
         for strategy_type, params, arg in (
             (StrategiesType.NEW_CLS_strategy, {"threshold": 8}, "$new_class_alert_th"),
             (StrategiesType.NORMAL_STRATEGY, {"sensitivity": 8}, "$sensitivity"),
@@ -318,13 +320,10 @@ class TestClusteringMonitorHandler(TestCase):
                 current = self.strategy_snapshot()
                 algo = current["items"][0]["algorithms"][0]
                 algo.update(type="IntelligentDetect", config={"args": {"$custom": 5}, "plan_id": 6})
-                self.handler._bound_strategy = Mock(return_value=current)
+                self.handler._bound_strategy = Mock(return_value=deepcopy(current))
                 self.handler.create_or_update_clustering_strategy(strategy_type, params)
-                patch = update.call_args.kwargs["params"]["edit_data"]["strategy_config"]
-                (item,) = patch["items"]
-                self.assertEqual(item["algorithms"][0]["config"], {"args": {"$custom": 5, arg: 8}, "plan_id": 6})
-                self.assertNotIn("query_configs", item)
-                self.assertEqual(set(patch), {"items"})
+                algo["config"]["args"][arg] = 8
+                save.assert_called_with(params=current)
 
     @patch("apps.feature_toggle.handlers.toggle.FeatureToggleObject.toggle", return_value=None)
     def test_new_series_gray_switch_defaults_to_on(self, _mock_toggle):

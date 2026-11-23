@@ -535,7 +535,7 @@ class ClusteringMonitorHandler:
         )
 
     def resave_new_cls_clustering_strategy(self):
-        """分组联动只下发查询维度。过滤条件等配置由监控在事务内保留。"""
+        """在监控现有查询上更新聚合维度，保留过滤条件和检索语句。"""
         strategy = self._bound_strategy(StrategiesType.NEW_CLS_strategy)
         if not strategy:
             return
@@ -549,10 +549,18 @@ class ClusteringMonitorHandler:
         dimensions = list(dict.fromkeys([SIGNATURE_FIELD, *(self.clustering_config.group_fields or [])]))
         if set(query["agg_dimension"]) == set(dimensions):
             return
-        self._patch_strategy(
-            strategy["id"],
-            {"items": [{"id": item["id"], "query_dimensions": {"id": query["id"], "agg_dimension": dimensions}}]},
-        )
+        query["agg_dimension"] = dimensions
+        if strategy.get("issue_config"):
+            # 完整保存入口会校验已有 Issue 配置引用的维度。
+            self._save_existing_strategy(strategy)
+        else:
+            self._patch_strategy(strategy["id"], {"items": [{"id": item["id"], "query_configs": queries}]})
+
+    @staticmethod
+    def _save_existing_strategy(strategy):
+        # 存量策略的可选字符串可能为 null，保存接口仅接受字符串或省略。
+        params = {k: v for k, v in strategy.items() if v is not None or k not in ("app", "path", "priority_group_key")}
+        MonitorApi.save_alarm_strategy_v3(params=params)
 
     def _update_existing_strategy(self, strategy, strategy_type, params):
         patch = {}
@@ -596,16 +604,23 @@ class ClusteringMonitorHandler:
                     )
                     if len(old_rules) != 1 or shared_level:
                         raise ValidationError(_("无法唯一迁移当前级别的触发规则，请在监控平台调整级别"))
-                    patch["expected_detects"] = detects
                     patch["detects"] = [
                         dict(d, level=updated["level"]) if d == old_rules[0] else d
                         for d in sorted(detects, key=lambda d: d["id"])
                     ]
+            if algorithm["type"] == "IntelligentDetect" and config.get("args") != algorithm["config"].get("args"):
+                # 旧模型的参数依赖完整保存流程来刷新计算任务。
+                algorithm.update(updated)
+                if "notice" in patch:
+                    strategy["notice"].update(patch["notice"])
+                if "detects" in patch:
+                    strategy["detects"] = patch["detects"]
+                self._save_existing_strategy(strategy)
+                return {"strategy_id": strategy["id"], "label_name": strategy["labels"]}
             if updated != algorithm:
                 patch["items"] = [
                     {
                         "id": item["id"],
-                        "expected_algorithms": item["algorithms"],
                         "algorithms": [updated if a["id"] == algorithm["id"] else a for a in item["algorithms"]],
                     }
                 ]
@@ -644,10 +659,7 @@ class ClusteringMonitorHandler:
         MonitorApi.delete_alarm_strategy_v3(params={"bk_biz_id": self.bk_biz_id, "ids": [strategy_id]})
         return strategy_id
 
-    @atomic
     def create_or_update_clustering_strategy(self, strategy_type, params=None):
-        # 同一索引集的并发创建和分组联动共用配置行锁，避免重复创建监控策略。
-        self.clustering_config = ClusteringConfig.objects.select_for_update().get(pk=self.clustering_config.pk)
         # 接入流程不传表单，沿用原有模板同步数据源和模型配置。
         if params is not None:
             strategy = self._bound_strategy(strategy_type)
