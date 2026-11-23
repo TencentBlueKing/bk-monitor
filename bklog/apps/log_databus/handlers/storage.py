@@ -74,7 +74,7 @@ from apps.log_esquery.utils.es_client import (
 )
 from apps.log_esquery.utils.es_route import EsRoute
 from apps.log_search.models import BizProperty, Scenario, Space
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import get_local_param, get_request_tenant_id, get_request_username
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
@@ -96,7 +96,15 @@ class StorageHandler:
         self.cluster_id = cluster_id
         super().__init__()
 
-    def can_visible(self, bk_biz_id, custom_option, registered_system, cluster_type=None) -> bool:
+    def can_visible(
+        self,
+        bk_biz_id,
+        custom_option,
+        registered_system,
+        cluster_type=None,
+        bk_tenant_id=None,
+        space_tenant_id=None,
+    ) -> bool:
         """判断空间是否可见目标存储集群。
 
         ES 集群（cluster_type 非 doris）沿用历史兼容语义：系统预置且无归属业务直接可见、
@@ -108,10 +116,12 @@ class StorageHandler:
         :param custom_option: 集群自定义配置
         :param registered_system: 集群注册来源，_default 表示平台预置
         :param cluster_type: 集群类型，doris 时走严格的默认拒绝判定
+        :param bk_tenant_id: 集群列表查询所用的租户
+        :param space_tenant_id: 请求空间所属租户
         :return: 可见返回 True
         """
         if cluster_type == DORIS_CLUSTER_TYPE:
-            return self._can_visible_doris(bk_biz_id, custom_option)
+            return self._can_visible_doris(bk_biz_id, custom_option, bk_tenant_id, space_tenant_id)
 
         # 兼容系统预置集群未设置集群ID的情况
         if registered_system == REGISTERED_SYSTEM_DEFAULT and not custom_option["bk_biz_id"]:
@@ -154,7 +164,7 @@ class StorageHandler:
         return False
 
     @classmethod
-    def _can_visible_doris(cls, bk_biz_id, custom_option) -> bool:
+    def _can_visible_doris(cls, bk_biz_id, custom_option, bk_tenant_id=None, space_tenant_id=None) -> bool:
         """Doris 集群可见性判定（fail-closed）。
 
         未明确指定开放目标时，任何业务或项目空间
@@ -167,10 +177,12 @@ class StorageHandler:
         3. current_biz 仅归属空间可见；
         4. multi_biz 名单为空视为未配置，非空按字符串精确比对；
         5. biz_attr 标签为空视为未配置，非空复用 _match_biz_attr；
-        6. current_tenant 判定尚未实现，按目标默认拒绝。
+        6. current_tenant 仅对同租户的空间可见，缺少任一租户上下文时拒绝。
 
         :param bk_biz_id: 业务 ID
         :param custom_option: 集群自定义配置，允许为空
+        :param bk_tenant_id: 集群列表查询所用的租户
+        :param space_tenant_id: 请求空间所属租户
         :return: 可见返回 True
         """
         custom_option = custom_option or {}
@@ -207,22 +219,34 @@ class StorageHandler:
                 return False
             return cls._match_biz_attr(bk_biz_id, bk_biz_labels)
 
-        # 当前租户可见：判定函数自身无 bk_tenant_id 入参、无租户校验，
-        # 「集群信息按 X-Bk-Tenant-Id 过滤」只是框架隐式前提，不能等价于同租户内授权粒度。
-        # 按目标「只有显式 all_biz 才对所有业务可选」，判定补齐前不得放行。
+        # 当前租户可见：集群列表由 Metadata 按查询租户隔离，只有请求空间
+        # 与集群列表同租户时才命中；缺少任一租户上下文按未指定开放目标处理。
         if visible_type == VisibleEnum.CURRENT_TENANT.value:
-            return False
+            if not bk_tenant_id or not space_tenant_id:
+                return False
+            return str(bk_tenant_id) == str(space_tenant_id)
 
         return False
 
     @staticmethod
-    def _match_biz_attr(bk_biz_id, bk_biz_labels) -> bool:
+    def _has_valid_label_values(label_values) -> bool:
+        """属性值列表必须是非空标量序列。
+
+        空序列会让 functools.reduce 抛 TypeError；字符串是子串判断、
+        字典是键判断，都不等价于可见范围匹配，因此同样拒绝。
+        """
+        if not isinstance(label_values, (list, tuple)) or not label_values:
+            return False
+        return not any(isinstance(label_value, (dict, list, tuple, set)) for label_value in label_values)
+
+    @classmethod
+    def _match_biz_attr(cls, bk_biz_id, bk_biz_labels) -> bool:
         """按业务属性判断空间是否命中可见范围。
 
         从 ES 分支等价抽取，供 ES 与 Doris 共用：
         1. 配置了空间类型属性时，直接按空间类型判定；
         2. 否则找出空间关联的 BKCC 业务，再用业务属性标签匹配 BizProperty；
-        3. 只有进入第 2 步的 reduce 时才校验属性值列表，空值直接判不可见。
+        3. 属性值列表必须为非空的标量序列，畸形值直接判不可见。
 
         :param bk_biz_id: 业务 ID；负数表示 BKCI 等项目空间
         :param bk_biz_labels: 属性标签，形如 {"space_type": ["bkci"], "biz_property": ["value"]}
@@ -235,21 +259,17 @@ class StorageHandler:
         # 该分支不会执行 reduce，因此其它键即使是空列表也不影响结果。
         label_space_type_value_list = bk_biz_labels.get(SpacePropertyEnum.SPACE_TYPE.value, [])
         if label_space_type_value_list:
+            if not cls._has_valid_label_values(label_space_type_value_list):
+                return False
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
             space_type = parse_space_uid(space_uid)[0]
-            try:
-                return space_type in label_space_type_value_list
-            except TypeError:
-                # 存量非可迭代值（如整数）按未命中处理，避免接口异常
-                return False
+            return space_type in label_space_type_value_list
 
         # 只有走到关联业务 + BizProperty 查询时才会执行 reduce。
         # 在这里校验所有属性值列表，空列表/非列表值直接 fail-closed，
         # 避免 functools.reduce 在空序列上抛 TypeError 打挂整批候选查询。
         for label_values in bk_biz_labels.values():
-            if not isinstance(label_values, (list, tuple)) or not label_values:
-                return False
-            if any(isinstance(label_value, (dict, list, tuple, set)) for label_value in label_values):
+            if not cls._has_valid_label_values(label_values):
                 return False
 
         # 如果空间类型不是业务，需要找出该空间关联的业务再做判断(如果有)
@@ -322,6 +342,14 @@ class StorageHandler:
             post_visible=True,
         )
 
+        # 集群列表由 Metadata 按请求租户隔离；空间租户单独解析，两者只用于
+        # current_tenant 的同租户判定，其它可见类型不受影响。
+        bk_tenant_id = get_request_tenant_id()
+        try:
+            space_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[storage] resolve space tenant failed, bk_biz_id=%s", bk_biz_id)
+            space_tenant_id = None
         cluster_groups = [
             cluster
             for cluster in cluster_groups
@@ -330,6 +358,8 @@ class StorageHandler:
                 cluster["cluster_config"].get("custom_option"),
                 cluster["cluster_config"]["registered_system"],
                 cluster.get("cluster_type"),
+                bk_tenant_id,
+                space_tenant_id,
             )
         ]
 
@@ -745,8 +775,10 @@ class StorageHandler:
             for bk_biz_id in custom_visible_bk_biz
         ]
 
-        # 如果这个存在说明是老的可见范围配置
-        if custom_visible_bk_biz:
+        # 根级名单是旧格式的兼容回退，只在没有显式可见范围配置时生效，
+        # 不能覆盖管理员写入的 visible_config。
+        has_visible_config = bool(cluster_obj["cluster_config"]["custom_option"].get("visible_config"))
+        if custom_visible_bk_biz and not has_visible_config:
             cluster_obj["cluster_config"]["custom_option"]["visible_config"] = {
                 "visible_type": VisibleEnum.MULTI_BIZ.value,
                 "visible_bk_biz": [
@@ -1157,6 +1189,8 @@ class StorageHandler:
         cluster_config = cluster_objs[0]["cluster_config"]
         registered_system = cluster_config.get("registered_system")
         raw_custom_option = cluster_config.get("custom_option") or {}
+        if not isinstance(raw_custom_option, dict):
+            raw_custom_option = {}
 
         # 权限校验：公共集群仅蓝鲸业务可改；非公共集群仅归属业务可改
         if registered_system == REGISTERED_SYSTEM_DEFAULT:
@@ -1171,11 +1205,6 @@ class StorageHandler:
         # 而 batch_connectivity_detect 读的是原始 custom_option，结论相反。
         # _default 集群需要逐条补配可见范围，误配概率最高，故在写入侧直接拒绝。
         visible_config = params["visible_config"]
-        # current_tenant 缺少可信的租户归属判定，读取侧对 Doris 恒拒绝；
-        # HTTP 入口已由 DorisVisibleConfigUpdateSerializer 拦截，这里保留兜底，
-        # 防止直接调用 handler 绕过参数校验写入“保存成功但所有空间不可选”的死配置。
-        if visible_config.get("visible_type") == VisibleEnum.CURRENT_TENANT.value:
-            raise ValidationError(_("Doris 集群不支持「当前租户可见」，请使用「多业务可见」或「全部业务可见」"))
         if (
             registered_system == REGISTERED_SYSTEM_DEFAULT
             and visible_config.get("visible_type") == VisibleEnum.CURRENT_BIZ.value
@@ -1184,6 +1213,8 @@ class StorageHandler:
 
         # 只覆盖 visible_config，保留其余 custom_option 字段
         new_custom_option = copy.deepcopy(raw_custom_option)
+        # 根级名单会在读取侧回退成可见范围，写入新格式时同步清理，避免再次覆盖显式配置
+        new_custom_option.pop("visible_bk_biz", None)
         new_custom_option["visible_config"] = visible_config
 
         # 存储设置为可选项，仅在传入时按键合并，避免未传时清掉管理员已配置的上限
@@ -1448,11 +1479,15 @@ class StorageHandler:
                         else custom_option.get("bk_biz_id")
                     )
                     is_doris_owner = str(bk_biz_id) == str(owner_biz_id)
+                # 状态链路按业务反查租户查询集群列表，列表租户与空间租户同源，
+                # 因此传入同一值；current_tenant 在该链路只对同租户空间放行。
                 is_allowed = is_doris_owner or handler.can_visible(
                     bk_biz_id,
                     custom_option,
                     registered_system,
                     cluster_type,
+                    bk_tenant_id,
+                    bk_tenant_id,
                 )
                 if is_allowed:
                     visible_cluster_ids.append(cluster_id)

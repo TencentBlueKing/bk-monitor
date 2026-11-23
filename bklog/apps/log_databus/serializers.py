@@ -728,6 +728,26 @@ class AuthInfoSerializer(serializers.Serializer):
     password = serializers.CharField(label=_("密码"), allow_blank=True)
 
 
+def validate_doris_bk_biz_labels(bk_biz_labels):
+    """校验 Doris 业务属性标签的值列表，避免空序列在 reduce 上抛 TypeError。
+
+    space_type 非空时读取侧只按该键短路判定，其余键不参与查询；
+    否则所有键都会进入查询，需要逐一校验。
+    """
+    space_type_values = bk_biz_labels.get(SpacePropertyEnum.SPACE_TYPE.value)
+    if space_type_values:
+        targets = [(SpacePropertyEnum.SPACE_TYPE.value, space_type_values)]
+    else:
+        targets = list(bk_biz_labels.items())
+    for label_key, label_values in targets:
+        if not isinstance(label_values, (list, tuple)) or not label_values:
+            raise ValidationError(_("业务属性「{label_key}」的值列表不能为空").format(label_key=label_key))
+        if any(isinstance(label_value, (dict, list, tuple, set)) for label_value in label_values):
+            raise ValidationError(
+                _("业务属性「{label_key}」的值必须是字符串或数字").format(label_key=label_key)
+            )
+
+
 class VisibleSerializer(serializers.Serializer):
     visible_type = serializers.ChoiceField(label=_("可见类型"), choices=VisibleEnum.get_choices())
     visible_bk_biz = serializers.ListField(
@@ -741,38 +761,8 @@ class VisibleSerializer(serializers.Serializer):
         if attrs["visible_type"] == VisibleEnum.MULTI_BIZ.value and not attrs.get("visible_bk_biz"):
             raise ValidationError(_("可见类型为多业务时，可见业务范围不能为空"))
 
-        if attrs["visible_type"] == VisibleEnum.BIZ_ATTR.value:
-            bk_biz_labels = attrs.get("bk_biz_labels") or {}
-            if not bk_biz_labels:
-                raise ValidationError(_("可见类型为业务属性时，业务标签不能为空"))
-
-            # space_type 非空时读取侧走短路，不参与 BizProperty 查询；
-            # 为保持 ES 既有语义，只校验会进入 reduce 的属性值列表。
-            space_type_values = bk_biz_labels.get(SpacePropertyEnum.SPACE_TYPE.value)
-            if space_type_values:
-                # 非空 space_type 仍须是列表，避免整数/字符串等畸形值写入后永不可见
-                if not isinstance(space_type_values, (list, tuple)):
-                    raise ValidationError(
-                        _("业务属性「{label_key}」的值必须是列表").format(
-                            label_key=SpacePropertyEnum.SPACE_TYPE.value
-                        )
-                    )
-                if any(isinstance(label_value, (dict, list, tuple, set)) for label_value in space_type_values):
-                    raise ValidationError(
-                        _("业务属性「{label_key}」的值必须是字符串或数字").format(
-                            label_key=SpacePropertyEnum.SPACE_TYPE.value
-                        )
-                    )
-            else:
-                for label_key, label_values in bk_biz_labels.items():
-                    if not isinstance(label_values, (list, tuple)) or not label_values:
-                        raise ValidationError(
-                            _("业务属性「{label_key}」的值列表不能为空").format(label_key=label_key)
-                        )
-                    if any(isinstance(label_value, (dict, list, tuple, set)) for label_value in label_values):
-                        raise ValidationError(
-                            _("业务属性「{label_key}」的值必须是字符串或数字").format(label_key=label_key)
-                        )
+        if attrs["visible_type"] == VisibleEnum.BIZ_ATTR.value and not attrs.get("bk_biz_labels"):
+            raise ValidationError(_("可见类型为业务属性时，业务标签不能为空"))
         return attrs
 
 
@@ -957,9 +947,9 @@ class DorisVisibleConfigUpdateSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        # ES 的读取侧仍兼容 current_tenant，这里只约束 Doris 的写入口
-        if attrs["visible_config"].get("visible_type") == VisibleEnum.CURRENT_TENANT.value:
-            raise ValidationError(_("Doris 集群不支持「当前租户可见」，请使用「多业务可见」或「全部业务可见」"))
+        visible_config = attrs["visible_config"]
+        if visible_config.get("visible_type") == VisibleEnum.BIZ_ATTR.value:
+            validate_doris_bk_biz_labels(visible_config.get("bk_biz_labels") or {})
         return attrs
 
 

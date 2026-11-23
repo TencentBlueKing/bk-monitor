@@ -6,6 +6,7 @@ from django.test import TestCase, override_settings
 
 from apps.api.modules.transfer import parse_cluster_info
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, REGISTERED_SYSTEM_DEFAULT, VisibleEnum
+from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_search.models import LogIndexSet
 
 
@@ -77,19 +78,27 @@ def _no_index_sets(__):
     return LogIndexSet.objects.none()
 
 
-def _legacy_all_biz_records():
-    """构造 all_biz 回填后的数据形态。
+def _legacy_backfill_records():
+    """复现改动前 filter_doris_cluster 对未配置集群的两处默认回填。
 
-    依据旧版 filter_doris_cluster 对未配置集群回填 all_biz 的行为；
-    该形态下 101 与 102 都会返回，可确认 all_biz 是唯一恒真分支。
-    这里不执行旧实现，只保留其产生的数据形态。
+    只变换测试内的纯字典：公共集群回填 all_biz，私有集群回填 current_biz。
+    变换后的记录仍走当前的归一化与过滤链路，唯一变量是可见性判定语义。
     """
 
     records = copy.deepcopy(ACCEPTANCE_CLUSTERS)
-    records[0]["cluster_config"]["custom_option"] = {
-        "bk_biz_id": BLUEKING_BK_BIZ_ID,
-        "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
-    }
+    for record in records:
+        config = record["cluster_config"]
+        custom_option = config.get("custom_option") or {}
+        if not isinstance(custom_option, dict):
+            custom_option = {}
+        if not custom_option.get("visible_config"):
+            visible_type = (
+                VisibleEnum.ALL_BIZ.value
+                if config.get("registered_system") == REGISTERED_SYSTEM_DEFAULT
+                else VisibleEnum.CURRENT_BIZ.value
+            )
+            custom_option["visible_config"] = {"visible_type": visible_type}
+        config["custom_option"] = custom_option
     return records
 
 
@@ -148,9 +157,32 @@ class TestDorisClusterGroupsBeforeAfter(TestCase):
         self.assertTrue(content["result"], content.get("message"))
         return [item["storage_cluster_id"] for item in content["data"]]
 
-    def test_legacy_all_biz_shape_vs_unconfigured_shape(self):
-        # 只比较返回的 ID 集合，不依赖顺序，故用 assertCountEqual。
-        before_ids = self._cluster_ids(_legacy_all_biz_records())
+    def _legacy_cluster_ids(self, records):
+        """按改动前的语义装配响应：归一化与过滤共用当前实现，判定不传 cluster_type。"""
+
+        parsed = [parse_cluster_info(copy.deepcopy(record)) for record in records]
+        handler = StorageHandler()
+        groups = StorageHandler.filter_cluster_groups(
+            parsed,
+            TARGET_SPACE_ID,
+            is_default=True,
+            enable_archive=False,
+            post_visible=True,
+        )
+        return [
+            cluster["cluster_config"]["cluster_id"]
+            for cluster in groups
+            if handler.can_visible(
+                TARGET_SPACE_ID,
+                cluster["cluster_config"]["custom_option"],
+                cluster["cluster_config"]["registered_system"],
+            )
+        ]
+
+    def test_same_sample_before_and_after_fix(self):
+        """同一份脱敏样例：改动前返回 101、102，改动后仅返回 102。"""
+
+        before_ids = self._legacy_cluster_ids(_legacy_backfill_records())
         after_ids = self._cluster_ids(copy.deepcopy(ACCEPTANCE_CLUSTERS))
 
         self.assertCountEqual(before_ids, [101, 102])

@@ -195,6 +195,49 @@ class TestCanVisible(SimpleTestCase):
         with patch("apps.log_databus.handlers.storage.bk_biz_id_to_space_uid", return_value="bkci__101"):
             self.assertIs(self.handler.can_visible(-101, custom_option, "other"), False)
 
+    def test_es_read_side_keeps_legacy_results_for_valid_labels(self):
+        """抽取 _match_biz_attr 后，ES 合法配置的判定结论与改动前一致。"""
+        cases = (
+            ({"space_type": ["bkci"]}, "bkci__101", True),
+            ({"space_type": ["bkci"]}, "bkcc__100", False),
+            ({"space_type": ["bkci"], "biz_property": []}, "bkci__101", True),
+            ({}, "bkci__101", False),
+        )
+        for labels, space_uid, expected in cases:
+            with self.subTest(labels=labels, space_uid=space_uid):
+                custom_option = {
+                    "bk_biz_id": OWNER_BIZ,
+                    "visible_config": {
+                        "visible_type": VisibleEnum.BIZ_ATTR.value,
+                        "bk_biz_labels": labels,
+                    },
+                }
+                with patch(
+                    "apps.log_databus.handlers.storage.bk_biz_id_to_space_uid",
+                    return_value=space_uid,
+                ):
+                    self.assertIs(
+                        self.handler.can_visible(TARGET_BIZ, custom_option, "other"),
+                        expected,
+                    )
+
+    def test_es_read_side_truthy_non_list_space_type_is_invisible(self):
+        """ES 侧共用校验后，畸形空间类型不再被子串/键判断误放行。"""
+        for labels in ({"space_type": "bkci"}, {"space_type": {"bkci": 1}}):
+            with self.subTest(labels=labels):
+                custom_option = {
+                    "bk_biz_id": OWNER_BIZ,
+                    "visible_config": {
+                        "visible_type": VisibleEnum.BIZ_ATTR.value,
+                        "bk_biz_labels": labels,
+                    },
+                }
+                with patch(
+                    "apps.log_databus.handlers.storage.bk_biz_id_to_space_uid",
+                    side_effect=AssertionError("should not be called"),
+                ):
+                    self.assertIs(self.handler.can_visible(TARGET_BIZ, custom_option, "other"), False)
+
 
 @override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
 class TestFilterDorisCluster(TestCase):
@@ -318,6 +361,30 @@ class TestFilterDorisCluster(TestCase):
         visible_config = obj["cluster_config"]["custom_option"]["visible_config"]
         self.assertEqual(visible_config["visible_type"], VisibleEnum.MULTI_BIZ.value)
         self.assertEqual(visible_config["visible_bk_biz"][0]["bk_biz_id"], TARGET_BIZ)
+
+    def test_explicit_all_biz_wins_over_legacy_root_list(self):
+        cluster_obj = _doris_cluster_obj(
+            registered_system="other",
+            custom_option={
+                "bk_biz_id": OWNER_BIZ,
+                "visible_bk_biz": [TARGET_BIZ],
+                "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+                "admin": ["admin"],
+                "description": "keep me",
+            },
+        )
+        is_append, obj = StorageHandler.filter_doris_cluster(
+            OWNER_BIZ, is_default=True, post_visible=True, cluster_obj=copy.deepcopy(cluster_obj)
+        )
+        self.assertTrue(is_append)
+        custom_option = obj["cluster_config"]["custom_option"]
+        self.assertEqual(
+            custom_option["visible_config"]["visible_type"],
+            VisibleEnum.ALL_BIZ.value,
+        )
+        self.assertIs(StorageHandler._can_visible_doris(TARGET_BIZ, custom_option), True)
+        self.assertEqual(custom_option["admin"], ["admin"])
+        self.assertEqual(custom_option["description"], "keep me")
 
 
 @override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
@@ -497,17 +564,49 @@ class TestUpdateVisibleConfig(TestCase):
         with self.assertRaises(StorageNotExistException):
             self._run_update([], params)
 
-    def test_current_tenant_is_rejected(self):
-        """读取侧对 Doris 恒拒绝 current_tenant，写入侧必须同步关闭入口。"""
+    def test_current_tenant_is_allowed(self):
         params = {
             "cluster_id": 10,
             "bk_biz_id": OWNER_BIZ,
             "visible_config": {"visible_type": VisibleEnum.CURRENT_TENANT.value},
         }
-        with self.assertRaises(ValidationError) as ctx:
-            self._run_update(self._private_cluster_info(), params)
+        mock_api, _, _ = self._run_update(self._private_cluster_info(), params)
 
-        self.assertIn("当前租户", str(ctx.exception))
+        modify_params = mock_api.modify_cluster_info.call_args[0][0]
+        self.assertEqual(
+            modify_params["custom_option"]["visible_config"]["visible_type"],
+            VisibleEnum.CURRENT_TENANT.value,
+        )
+
+    def test_update_clears_legacy_root_visible_bk_biz(self):
+        cluster_info = [
+            {
+                "cluster_config": {
+                    "registered_system": "other",
+                    "custom_option": {
+                        "bk_biz_id": OWNER_BIZ,
+                        "visible_bk_biz": [TARGET_BIZ],
+                        "visible_config": {"visible_type": VisibleEnum.CURRENT_BIZ.value},
+                        "admin": ["admin"],
+                        "description": "keep me",
+                        "setup_config": {"retention_days_max": 30},
+                    },
+                }
+            }
+        ]
+        params = {
+            "cluster_id": 10,
+            "bk_biz_id": OWNER_BIZ,
+            "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+        }
+        mock_api, _, _ = self._run_update(cluster_info, params)
+
+        custom_option = mock_api.modify_cluster_info.call_args[0][0]["custom_option"]
+        self.assertNotIn("visible_bk_biz", custom_option)
+        self.assertEqual(custom_option["visible_config"], params["visible_config"])
+        self.assertEqual(custom_option["admin"], ["admin"])
+        self.assertEqual(custom_option["description"], "keep me")
+        self.assertEqual(custom_option["setup_config"], {"retention_days_max": 30})
 
     def test_private_cluster_wrong_biz_forbidden(self):
         cluster_info = [
@@ -672,7 +771,7 @@ class TestDorisVisibleConfigSerializer(SimpleTestCase):
         with self.assertRaises(ValidationError):
             serializer.is_valid()
 
-    def test_current_tenant_is_rejected(self):
+    def test_current_tenant_is_allowed(self):
         serializer = DorisVisibleConfigUpdateSerializer(
             data={
                 "cluster_id": 10,
@@ -680,10 +779,11 @@ class TestDorisVisibleConfigSerializer(SimpleTestCase):
                 "visible_config": {"visible_type": VisibleEnum.CURRENT_TENANT.value},
             }
         )
-        with self.assertRaises(ValidationError) as ctx:
-            serializer.is_valid()
-
-        self.assertIn("当前租户", str(ctx.exception))
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(
+            serializer.validated_data["visible_config"]["visible_type"],
+            VisibleEnum.CURRENT_TENANT.value,
+        )
 
     def test_valid_all_biz(self):
         serializer = DorisVisibleConfigUpdateSerializer(
@@ -735,7 +835,7 @@ class TestDorisVisibleConfigSerializer(SimpleTestCase):
 
 
 class TestVisibleSerializerBizAttr(SimpleTestCase):
-    """共享 VisibleSerializer：只校验会进入 reduce 的属性值列表。"""
+    """共享 VisibleSerializer 保持 ES 写入契约，属性值列表校验只作用于 Doris 入口。"""
 
     def test_space_type_short_circuit_allows_empty_other_labels(self):
         serializer = VisibleSerializer(
@@ -746,29 +846,38 @@ class TestVisibleSerializerBizAttr(SimpleTestCase):
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
-    def test_pure_empty_labels_are_rejected(self):
-        for labels in ({"space_type": []}, {"biz_property": []}):
+    def test_es_write_contract_keeps_legacy_label_shapes_valid(self):
+        for labels in (
+            {"space_type": []},
+            {"biz_property": []},
+            {"biz_property": "value"},
+            {"space_type": 123},
+            {"space_type": "bkci"},
+            {"space_type": {"bkci": True}},
+            {"space_type": [{"id": "bkci"}]},
+        ):
             with self.subTest(labels=labels):
                 serializer = VisibleSerializer(
                     data={"visible_type": VisibleEnum.BIZ_ATTR.value, "bk_biz_labels": labels}
                 )
-                with self.assertRaises(ValidationError):
-                    serializer.is_valid()
+                self.assertTrue(serializer.is_valid(), serializer.errors)
 
-    def test_non_list_labels_are_rejected(self):
-        serializer = VisibleSerializer(
-            data={"visible_type": VisibleEnum.BIZ_ATTR.value, "bk_biz_labels": {"biz_property": "value"}}
-        )
-        with self.assertRaises(ValidationError):
-            serializer.is_valid()
-
-    def test_space_type_must_be_list_of_scalars(self):
-        for value in (123, "bkci", {"bkci": True}, [{"id": "bkci"}]):
-            with self.subTest(value=value):
-                serializer = VisibleSerializer(
+    def test_doris_entry_rejects_legacy_label_shapes(self):
+        for labels in (
+            {"space_type": []},
+            {"biz_property": []},
+            {"biz_property": "value"},
+            {"space_type": 123},
+            {"space_type": "bkci"},
+            {"space_type": {"bkci": True}},
+            {"space_type": [{"id": "bkci"}]},
+        ):
+            with self.subTest(labels=labels):
+                serializer = DorisVisibleConfigUpdateSerializer(
                     data={
-                        "visible_type": VisibleEnum.BIZ_ATTR.value,
-                        "bk_biz_labels": {"space_type": value},
+                        "cluster_id": 10,
+                        "bk_biz_id": OWNER_BIZ,
+                        "visible_config": {"visible_type": VisibleEnum.BIZ_ATTR.value, "bk_biz_labels": labels},
                     }
                 )
                 with self.assertRaises(ValidationError):
@@ -1936,14 +2045,51 @@ class TestDorisVisibleRule(SimpleTestCase):
 
         self._assert_visible(custom_option, True, False)
 
-    def test_current_tenant_is_rejected_on_read_side(self):
-        # 写入侧已由 DorisVisibleConfigUpdateSerializer 关闭；读取侧保持 fail-closed
+    def test_current_tenant_matches_only_same_tenant(self):
         custom_option = {
             "bk_biz_id": self.OWNER_BIZ_ID,
             "visible_config": {"visible_type": VisibleEnum.CURRENT_TENANT.value},
         }
+        self.assertIs(
+            StorageHandler._can_visible_doris(
+                self.OWNER_BIZ_ID, custom_option, bk_tenant_id="tenant-a", space_tenant_id="tenant-a"
+            ),
+            True,
+        )
+        self.assertIs(
+            StorageHandler._can_visible_doris(
+                self.SPACE_BIZ_ID, custom_option, bk_tenant_id="tenant-a", space_tenant_id="tenant-b"
+            ),
+            False,
+        )
 
-        self._assert_visible(custom_option, False, False)
+    def test_current_tenant_without_tenant_context_is_invisible(self):
+        custom_option = {
+            "bk_biz_id": self.OWNER_BIZ_ID,
+            "visible_config": {"visible_type": VisibleEnum.CURRENT_TENANT.value},
+        }
+        self.assertIs(StorageHandler._can_visible_doris(self.OWNER_BIZ_ID, custom_option), False)
+        self.assertIs(
+            StorageHandler._can_visible_doris(self.OWNER_BIZ_ID, custom_option, bk_tenant_id="tenant-a"),
+            False,
+        )
+        self.assertIs(
+            StorageHandler._can_visible_doris(self.OWNER_BIZ_ID, custom_option, space_tenant_id="tenant-a"),
+            False,
+        )
+
+    def test_all_biz_ignores_tenant_context(self):
+        custom_option = {
+            "bk_biz_id": self.OWNER_BIZ_ID,
+            "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+        }
+        self.assertIs(
+            StorageHandler._can_visible_doris(
+                self.SPACE_BIZ_ID, custom_option, bk_tenant_id="tenant-a", space_tenant_id="tenant-b"
+            ),
+            True,
+        )
+        self.assertIs(StorageHandler._can_visible_doris(self.SPACE_BIZ_ID, custom_option), True)
 
     def test_clearing_visible_config_makes_cluster_invisible_again(self):
         custom_option = {
@@ -2074,6 +2220,47 @@ class TestDorisVisibleRuleBizAttrFailClosed(SimpleTestCase):
         }
         with patch("apps.log_databus.handlers.storage.bk_biz_id_to_space_uid", return_value="bkci__101"):
             self.assertIs(StorageHandler._can_visible_doris(self.SPACE_BIZ_ID, custom_option), False)
+
+    def test_truthy_non_list_space_type_is_invisible_without_external_call(self):
+        for labels in ({"space_type": "bkci"}, {"space_type": {"bkci": 1}}, {"space_type": ["bkci", ["x"]]}):
+            with self.subTest(labels=labels):
+                custom_option = {
+                    "bk_biz_id": self.OWNER_BIZ_ID,
+                    "visible_config": {
+                        "visible_type": VisibleEnum.BIZ_ATTR.value,
+                        "bk_biz_labels": labels,
+                    },
+                }
+                with patch(
+                    "apps.log_databus.handlers.storage.bk_biz_id_to_space_uid",
+                    side_effect=AssertionError("should not be called"),
+                ), patch(
+                    "apps.log_databus.handlers.storage.SpaceApi.get_related_space",
+                    side_effect=AssertionError("should not be called"),
+                ):
+                    self.assertIs(
+                        StorageHandler._can_visible_doris(self.OWNER_BIZ_ID, custom_option),
+                        False,
+                    )
+                    self.assertIs(
+                        StorageHandler._can_visible_doris(self.SPACE_BIZ_ID, custom_option),
+                        False,
+                    )
+
+    def test_legal_space_type_short_circuit_still_matches(self):
+        custom_option = {
+            "bk_biz_id": self.OWNER_BIZ_ID,
+            "visible_config": {
+                "visible_type": VisibleEnum.BIZ_ATTR.value,
+                "bk_biz_labels": {"space_type": ["bkci"]},
+            },
+        }
+        with patch(
+            "apps.log_databus.handlers.storage.bk_biz_id_to_space_uid",
+            side_effect=_fake_space_uid,
+        ):
+            self.assertIs(StorageHandler._can_visible_doris(self.SPACE_BIZ_ID, custom_option), True)
+            self.assertIs(StorageHandler._can_visible_doris(self.OWNER_BIZ_ID, custom_option), False)
 
 
 @override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
@@ -2243,14 +2430,13 @@ class TestDorisClusterGroupsApi(TestCase):
     IGNORE_IAM_PERMISSION=True,
 )
 class TestDorisVisibleConfigApi(TestCase):
-    """HTTP 入口：Doris 写入 current_tenant 必须在参数校验阶段被拒。"""
+    """HTTP 入口：Doris 写入 current_tenant 应通过参数校验并进入 handler。"""
 
-    def test_current_tenant_write_is_rejected(self):
-        # 参数校验阶段就应拒绝，不能进入 handler
+    def test_current_tenant_write_is_allowed(self):
         with patch(
             "apps.log_databus.handlers.storage.StorageHandler.update_visible_config",
-            side_effect=AssertionError("handler should not be called"),
-        ):
+            return_value={},
+        ) as mock_update:
             response = self.client.put(
                 "/api/v1/databus/storage/10/visible_config/",
                 data=json.dumps(
@@ -2264,9 +2450,12 @@ class TestDorisVisibleConfigApi(TestCase):
 
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content)
-        self.assertIs(content["result"], False)
-        self.assertEqual(content["code"], "3600001")
-        self.assertIn("当前租户", content["message"])
+        self.assertIs(content["result"], True)
+        mock_update.assert_called_once()
+        self.assertEqual(
+            mock_update.call_args[0][0]["visible_config"]["visible_type"],
+            VisibleEnum.CURRENT_TENANT.value,
+        )
 
 
 @override_settings(BLUEKING_BK_BIZ_ID=BLUEKING_BK_BIZ_ID)
@@ -2587,7 +2776,7 @@ class TestDorisPublicClusterCurrentBizGuard(TestCase):
 
         self.assertIn("公共集群不支持", str(ctx.exception))
 
-    def test_public_cluster_current_tenant_is_rejected(self):
+    def test_public_cluster_current_tenant_is_allowed(self):
         cluster_obj = _doris_cluster_obj(
             registered_system=REGISTERED_SYSTEM_DEFAULT,
             custom_option={},
@@ -2605,11 +2794,16 @@ class TestDorisPublicClusterCurrentBizGuard(TestCase):
         with patch(
             "apps.log_databus.handlers.storage.TransferApi.get_cluster_info",
             return_value=[cluster_obj],
-        ):
-            with self.assertRaises(ValidationError) as ctx:
-                StorageHandler(cluster_id=10).update_visible_config(params)
+        ), patch(
+            "apps.log_databus.handlers.storage.TransferApi.modify_cluster_info",
+            return_value={},
+        ) as mock_modify:
+            StorageHandler(cluster_id=10).update_visible_config(params)
 
-        self.assertIn("当前租户", str(ctx.exception))
+        self.assertEqual(
+            mock_modify.call_args[0][0]["custom_option"]["visible_config"]["visible_type"],
+            VisibleEnum.CURRENT_TENANT.value,
+        )
 
     def test_public_cluster_multi_biz_is_allowed(self):
         """合法范围不得被误拦；同时隔离写入后的三处外部依赖。"""

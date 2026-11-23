@@ -283,3 +283,52 @@ class TestDorisVisibleMatrixApi(TestCase):
 
         self.assertCountEqual(self._query(configured, SPACE_BIZ_ID), [CLUSTER_ID])
         self.assertCountEqual(self._query(cleared, SPACE_BIZ_ID), [])
+
+    def test_current_tenant_matches_only_same_tenant(self):
+        """候选列表：同租户命中，跨租户拒绝，全部业务可见不受影响。"""
+
+        custom_option = {
+            "bk_biz_id": OWNER_BIZ_ID,
+            "visible_config": {"visible_type": VisibleEnum.CURRENT_TENANT.value},
+        }
+        with patch(
+            "apps.log_databus.handlers.storage.get_request_tenant_id",
+            return_value="tenant-a",
+        ), patch(
+            "apps.log_databus.handlers.storage.Space.get_tenant_id",
+            return_value="tenant-a",
+        ):
+            self.assertCountEqual(self._query(custom_option, SPACE_BIZ_ID), [CLUSTER_ID])
+
+        with patch(
+            "apps.log_databus.handlers.storage.get_request_tenant_id",
+            return_value="tenant-a",
+        ), patch(
+            "apps.log_databus.handlers.storage.Space.get_tenant_id",
+            return_value="tenant-b",
+        ):
+            self.assertCountEqual(self._query(custom_option, SPACE_BIZ_ID), [])
+
+        all_biz_option = {
+            "bk_biz_id": OWNER_BIZ_ID,
+            "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+        }
+        with patch(
+            "apps.log_databus.handlers.storage.get_request_tenant_id",
+            return_value="tenant-a",
+        ), patch(
+            "apps.log_databus.handlers.storage.Space.get_tenant_id",
+            return_value="tenant-b",
+        ):
+            self.assertCountEqual(self._query(all_biz_option, SPACE_BIZ_ID), [CLUSTER_ID])
+
+    def test_explicit_all_biz_wins_over_legacy_root_list(self):
+        """候选列表：旧根级名单与显式 all_biz 共存时，A/B 两个空间都能选到。"""
+
+        custom_option = {
+            "bk_biz_id": OWNER_BIZ_ID,
+            "visible_bk_biz": [SPACE_BIZ_ID],
+            "visible_config": {"visible_type": VisibleEnum.ALL_BIZ.value},
+        }
+        self.assertCountEqual(self._query(custom_option, OWNER_BIZ_ID), [CLUSTER_ID])
+        self.assertCountEqual(self._query(custom_option, SPACE_BIZ_ID), [CLUSTER_ID])
