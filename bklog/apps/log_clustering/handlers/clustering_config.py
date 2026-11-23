@@ -185,7 +185,7 @@ class ClusteringConfigHandler:
 
         # 创建流程
         # 聚类配置优先级：参数传入 -> 数据库默认配置 -> 代码默认配置
-        clustering_config, created = ClusteringConfig.objects.get_or_create(
+        clustering_config, created = ClusteringConfig.objects.update_or_create(
             index_set_id=index_set_id,
             defaults=dict(
                 model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
@@ -219,10 +219,6 @@ class ClusteringConfigHandler:
                 access_finished=False,
             ),
         )
-        if not created:
-            raise ClusteringConfigHasExistException(
-                ClusteringConfigHasExistException.MESSAGE.format(index_set_id=index_set_id)
-            )
         # 空间是否存在模板
         regex_template = RegexTemplateHandler().list_templates(space_uid=log_index_set.space_uid)[0]
         clustering_config.regex_template_id = regex_template["id"]
