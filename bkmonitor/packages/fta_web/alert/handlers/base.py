@@ -856,11 +856,41 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
             except Exception:
                 return bk_biz_ids, []
             permission = Permission(username=req.user.username, bk_tenant_id=get_request_tenant_id())
-            spaces, tenant_wide_authorized = permission.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
-            setattr(req, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR, tenant_wide_authorized)
-            authorized_bizs = [space["bk_biz_id"] for space in spaces]
-            if -1 not in bk_biz_ids:
-                authorized_bizs = list(set(bk_biz_ids) & set(authorized_bizs))
+            if -1 in (bk_biz_ids or []):
+                # 全业务请求：必须按全租户空间构造候选，tenant_wide_authorized 语义依赖它
+                spaces, tenant_wide_authorized = permission.filter_space_list_by_action_with_scope(
+                    ActionEnum.VIEW_BUSINESS
+                )
+                setattr(req, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR, tenant_wide_authorized)
+                authorized_bizs = [space["bk_biz_id"] for space in spaces]
+            else:
+                # 显式业务列表：只针对请求的业务构造候选，避免按全租户空间做 O(N) 计算。
+                # 收窄后的 all_granted 只代表"候选是否全部授权"，不具备全租户语义，
+                # 因此这里不写 TENANT_WIDE_AUTHORIZED_REQUEST_ATTR（该标记仅对 -1 请求有意义）。
+                candidate_biz_ids = list(set(bk_biz_ids or []))
+                narrowed_candidates = [
+                    biz_id for biz_id in candidate_biz_ids if isinstance(biz_id, int) and not isinstance(biz_id, bool)
+                ]
+                spaces = None
+                # SpaceApi 由 settings.BKM_SPACE_API_CLASS 动态决定，收窄查询是本项目新增的方法；
+                # 若部署侧换了实现且未提供该方法，直接走全量路径（不抛异常、不打日志）。
+                if hasattr(SpaceApi, "list_space_dicts_by_biz_ids"):
+                    try:
+                        spaces, _ = permission.filter_space_list_by_action_with_scope(
+                            ActionEnum.VIEW_BUSINESS, candidate_biz_ids=narrowed_candidates
+                        )
+                    except Exception:
+                        # 收窄路径依赖 metadata_space 直查，不经过进程内缓存；异常时退回全量路径，
+                        # 使失败模式与改造前一致（全量路径可命中缓存）。两者都失败时异常照常上抛。
+                        logger.warning(
+                            "[iam] narrowed biz scope query failed, fallback to full space list (bk_biz_ids=%s)",
+                            candidate_biz_ids,
+                            exc_info=True,
+                        )
+                if spaces is None:
+                    spaces, _ = permission.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
+                # 请求的业务 ∩ 有权限的业务；与旧实现结果一致
+                authorized_bizs = list(set(candidate_biz_ids) & {space["bk_biz_id"] for space in spaces})
             unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
         unauthorized_bizs = [biz_id for biz_id in unauthorized_bizs if biz_id != -1]
         return authorized_bizs, unauthorized_bizs
