@@ -43,6 +43,7 @@ NEW_CLASS_FIELD_PREFIX = "dist"
 
 NEW_CLASS_SENSITIVITY_FIELD = "sensitivity"
 SIGNATURE_FIELD = "signature"
+DEFAULT_SIGNATURE_FORMAT_UDF = "udf_single_signature_format_java"
 QUIX_SIGNATURE_FIELD = "__log_signature"
 NEW_CLASS_QUERY_FIELDS = [SIGNATURE_FIELD]
 NEW_CLASS_QUERY_TIME_RANGE = "customized"
