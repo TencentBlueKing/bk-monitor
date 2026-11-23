@@ -35,11 +35,40 @@ class TestQueryBodyCompat(SimpleTestCase):
         self.assertEqual(body, original)
 
     def test_clients_adapt_shared_body_using_each_connection_version(self):
-        body = {"aggs": {"hist": {"date_histogram": {"field": "ts", "interval": "5m"}}}}
+        intervals = {
+            "hist": "5m",
+            "milliseconds": 60000,
+            "single_millisecond": 1,
+            "second": "second",
+            "single_second": "1s",
+        }
+        body = {
+            "aggs": {
+                name: {"date_histogram": {"field": "ts", "interval": interval}} for name, interval in intervals.items()
+            }
+        }
         original = copy.deepcopy(body)
+        modern_aggs = {
+            "hist": {"date_histogram": {"field": "ts", "fixed_interval": "5m"}},
+            "milliseconds": {"date_histogram": {"field": "ts", "fixed_interval": "60000ms"}},
+            "single_millisecond": {"date_histogram": {"field": "ts", "fixed_interval": "1ms"}},
+            "second": {"date_histogram": {"field": "ts", "calendar_interval": "second"}},
+            "single_second": {"date_histogram": {"field": "ts", "calendar_interval": "1s"}},
+        }
+        versions = (
+            (None, False),
+            ("unknown", False),
+            ("5.6.16", False),
+            ("6.8.0", False),
+            ("7.1.0", False),
+            ("7.2.0", True),
+            ("7.17.13", True),
+            ("8.19.19", True),
+            ("9.4.3", True),
+        )
         for name in ("QueryClientLog", "QueryClientEs"):
             module = import_module(f"apps.log_esquery.esquery.client.{name}")
-            for version in ("5.6.16", "6.8.0", "7.1.0", "8.19.19", "9.4.3"):
+            for version, use_modern_syntax in versions:
                 with self.subTest(client=name, version=version):
                     es = MagicMock()
                     client = getattr(module, name)(storage_cluster_id=77)
@@ -55,8 +84,7 @@ class TestQueryBodyCompat(SimpleTestCase):
                     ):
                         client.query("2_bklog.test", body, track_total_hits=True)
                     sent = es.search.call_args.kwargs["body"]
-                    interval = {"fixed_interval": "5m"} if version.startswith(("8.", "9.")) else {"interval": "5m"}
-                    self.assertEqual(sent["aggs"]["hist"]["date_histogram"], {"field": "ts", **interval})
+                    self.assertEqual(sent["aggs"], modern_aggs if use_modern_syntax else original["aggs"])
                     self.assertTrue(sent["track_total_hits"])
                     self.assertEqual(body, original)
 

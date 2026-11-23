@@ -42,7 +42,8 @@ from apps.log_esquery.exceptions import (
 ES_NEW_SYNTAX_MIN_VERSION = (7, 2)
 # calendar_interval 只接受单个单位，5m/30s 这类倍数只能用 fixed_interval
 CALENDAR_INTERVALS = frozenset(
-    {"1m", "1h", "1d", "1w", "1M", "1q", "1y"} | {"minute", "hour", "day", "week", "month", "quarter", "year"}
+    {"1s", "1m", "1h", "1d", "1w", "1M", "1q", "1y"}
+    | {"second", "minute", "hour", "day", "week", "month", "quarter", "year"}
 )
 
 
@@ -70,11 +71,14 @@ def is_es_version_gte(version: str | None, target: tuple[int, ...], default: boo
     return padded_version >= padded_target
 
 
-def build_date_histogram_interval_params(interval: str, es_version: str | None = None) -> dict[str, str]:
+def build_date_histogram_interval_params(interval: str | int, es_version: str | None = None) -> dict[str, str | int]:
     """按 ES 版本与窗口语义构造 date_histogram 间隔参数。"""
     # 版本未知时保持旧语法，避免老集群查询失败；interval 在 7.x 仅告警不报错
     if not is_es_version_gte(es_version, ES_NEW_SYNTAX_MIN_VERSION):
         return {"interval": interval}
+    # 旧 interval 的整数值以毫秒为单位。
+    if isinstance(interval, int):
+        return {"fixed_interval": f"{interval}ms"}
     if interval in CALENDAR_INTERVALS:
         return {"calendar_interval": interval}
     return {"fixed_interval": interval}
