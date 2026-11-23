@@ -23,8 +23,7 @@ import arrow
 from pipeline.builder import Data, EmptyEndEvent, EmptyStartEvent, Var, build_tree
 from pipeline.parser import PipelineParser
 
-from apps.log_clustering.constants import DEFAULT_SIGNATURE_FORMAT_UDF
-from apps.log_clustering.handlers.aiops.config import get_online_clustering_config, get_signature_format_udf
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.log_clustering.components.collections.data_access_component import (
     AddProjectData,
     AddResourceGroupSet,
@@ -127,19 +126,6 @@ class AiopsBkdataOnlineService(BasePipeLineService):
 class UpdateOnlineService(BasePipeLineService):
     """更新流程"""
 
-    @staticmethod
-    def get_changed_signature_format_udf(clustering_config: ClusteringConfig) -> str | None:
-        if not (clustering_config.predict_flow_id and clustering_config.log_count_aggregation_flow_id):
-            return None
-
-        udf = get_signature_format_udf(get_online_clustering_config(clustering_config.bk_biz_id))
-        if any(
-            (flow or {}).get("signature_format_udf", DEFAULT_SIGNATURE_FORMAT_UDF) != udf
-            for flow in (clustering_config.predict_flow, clustering_config.log_count_aggregation_flow)
-        ):
-            return udf
-        return None
-
     def build_data_context(self, params, *args, **kwargs) -> Data:
         data_context = Data()
         data_context.inputs["${index_set_id}"] = Var(type=Var.PLAIN, value=params["index_set_id"])
@@ -178,16 +164,11 @@ class UpdateOnlineService(BasePipeLineService):
             clustering_config.save(update_fields=model_fields)
             current = current.extend(UpdateOnlineModel(index_set_id=index_set_id).update_online_model)
 
-        # 3. 聚类字段和 UDF 变更都需要重新生成预测 SQL。
-        fields_changed = (
-            "clustering_fields" in params and clustering_config.clustering_fields != params["clustering_fields"]
-        )
-        if fields_changed:
+        # 3. 检查聚类字段是否有变更
+        if "clustering_fields" in params and clustering_config.clustering_fields != params["clustering_fields"]:
             clustering_config.clustering_fields = params["clustering_fields"]
             clustering_config.save(update_fields=["clustering_fields"])
-        signature_format_udf = kwargs.get("signature_format_udf")
-        if fields_changed or signature_format_udf is not None:
-            current = current.extend(UpdateClusteringField(index_set_id, signature_format_udf).update_clustering_field)
+            current = current.extend(UpdateClusteringField(index_set_id=index_set_id).update_clustering_field)
 
         if current.type() == start.type():
             # 没有任何修改则不做处理

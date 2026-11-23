@@ -249,14 +249,12 @@ class ClusteringConfigHandler:
             log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
             return QuixClusteringHandler(log_index_set).update(params)
 
-        service = UpdateOnlineService()
-        signature_format_udf = service.get_changed_signature_format_udf(self.data)
         params = {
             "index_set_id": self.index_set_id,
             "params": params,
-            "signature_format_udf": signature_format_udf,
         }
 
+        service = UpdateOnlineService()
         data = service.build_data_context(params)
         pipeline = service.build_pipeline(data, **params)
 
@@ -271,10 +269,6 @@ class ClusteringConfigHandler:
             {"operate": OperatorServiceEnum.UPDATE, "task_id": pipeline.id, "time": int(now_time.timestamp())}
         )
         self.data.save(update_fields=["task_records"])
-
-        if signature_format_udf is not None:
-            # UDF 同步节点在两个 Flow 更新完成后负责重启。
-            return pipeline.id
 
         # 延迟10分钟重启flow
         from apps.log_clustering.tasks.flow import restart_flow

@@ -240,12 +240,11 @@ class TestOnlineTenantFlow(SimpleTestCase):
             }
             resolve.return_value = {
                 **tenant_conf,
-                "signature_format_udf": "new_signature_udf",
                 "predict_es_storage": {"cluster_name": "other_es", "cluster_id": 9},
             }
             config.es_storage = "corrected_es"
             handler.update_predict_flow(30)
-            self.assertIn("new_signature_udf(log_signature)", patch_sql.call_args.kwargs["sql"])
+            self.assertIn("tenant_signature_udf(log_signature)", patch_sql.call_args.kwargs["sql"])
             self.assertEqual(config.predict_flow["es_cluster"], "corrected_es")
             self.assertEqual(config.es_storage, "corrected_es")
 
@@ -290,11 +289,10 @@ class TestOnlineTenantFlow(SimpleTestCase):
                     for node in sql_nodes
                 ]
             }
-            resolve.return_value = {}
             handler.update_log_count_aggregation_flow(30)
             self.assertEqual(patch_sql.call_count, 3)
             for node_call in patch_sql.call_args_list:
-                self.assertRegex(node_call.kwargs["sql"], rf"{DEFAULT_SIGNATURE_FORMAT_UDF}\s*\(")
+                self.assertRegex(node_call.kwargs["sql"], r"tenant_signature_udf\s*\(")
 
     def test_invalid_signature_udf_is_rejected_before_rendering(self):
         for udf in ("wrong-name", "custom_udf(log) --", 'with"quote', "", 123):
@@ -330,7 +328,11 @@ class TestOnlineTenantFlow(SimpleTestCase):
             render_obj={"log_count_aggregation": flow_config},
         )
 
-        node_ids = {node["id"] for node in json.loads(rendered)}
+        nodes = json.loads(rendered)
+        for node in nodes:
+            if node["node_type"] == "realtime":
+                self.assertRegex(node["sql"], rf"{DEFAULT_SIGNATURE_FORMAT_UDF}\s*\(")
+        node_ids = {node["id"] for node in nodes}
         self.assertEqual(node_ids, {447364, 587866, 587868, 589424})
         self.assertNotIn(447374, node_ids)
         self.assertNotIn(447376, node_ids)

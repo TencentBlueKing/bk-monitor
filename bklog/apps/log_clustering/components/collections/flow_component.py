@@ -26,7 +26,6 @@ from pipeline.core.flow.activity import StaticIntervalGenerator
 
 from apps.log_clustering.constants import StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
-from apps.log_clustering.handlers.dataflow.constants import ActionEnum
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import DataFlowResourceUsageType, InnerTag
@@ -197,19 +196,8 @@ class UpdateClusteringFieldService(BaseService):
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        signature_format_udf = data.get_one_of_inputs("signature_format_udf")
-        if signature_format_udf is not None:
-            handler = DataFlowHandler()
-            handler.update_predict_flow(index_set_id, signature_format_udf=signature_format_udf)
-            handler.update_log_count_aggregation_flow(
-                index_set_id, signature_format_udf=signature_format_udf, restart=False
-            )
-            for flow_id in (clustering_config.predict_flow_id, clustering_config.log_count_aggregation_flow_id):
-                if flow_id:
-                    handler.operator_flow(
-                        flow_id=flow_id, action=ActionEnum.RESTART, bk_biz_id=clustering_config.bk_biz_id
-                    )
-        elif clustering_config.predict_flow_id:
+        if clustering_config.predict_flow_id:
+            # 更新flow 中的参与聚类和非参与聚类的节点
             DataFlowHandler().update_predict_flow(index_set_id=index_set_id)
         elif self.data.pre_treat_flow_id:
             # 更新flow
@@ -224,13 +212,9 @@ class UpdateClusteringFieldComponent(Component):
 
 
 class UpdateClusteringField:
-    def __init__(self, index_set_id: int, signature_format_udf: str | None = None):
+    def __init__(self, index_set_id: int):
         self.update_clustering_field = ServiceActivity(
             component_code="update_clustering_field",
             name=f"update_clustering_field:{index_set_id}",
         )
         self.update_clustering_field.component.inputs.index_set_id = Var(type=Var.SPLICE, value="${index_set_id}")
-        if signature_format_udf is not None:
-            self.update_clustering_field.component.inputs.signature_format_udf = Var(
-                type=Var.PLAIN, value=signature_format_udf
-            )
