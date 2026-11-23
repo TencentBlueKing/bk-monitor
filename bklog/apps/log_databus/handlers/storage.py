@@ -39,7 +39,6 @@ from apps.constants import (
     UserOperationTypeEnum,
 )
 from apps.decorators import user_operation_record
-from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import (
@@ -217,7 +216,17 @@ class StorageHandler:
             # 属性条件为空等价于未指定开放目标，必须拒绝
             if not bk_biz_labels:
                 return False
-            return cls._match_biz_attr(bk_biz_id, bk_biz_labels)
+            # 仅 Doris 路径挡住会让整批候选查询抛异常的坏配置。space_type 缺失
+            # 或为空时会进入 reduce，此处提前拒绝空值与非列表值；其余形态沿用
+            # _match_biz_attr 的基线判定，异常一律按不可见处理，避免打挂整批。
+            if not bk_biz_labels.get(SpacePropertyEnum.SPACE_TYPE.value):
+                for label_values in bk_biz_labels.values():
+                    if not isinstance(label_values, (list, tuple)) or not label_values:
+                        return False
+            try:
+                return cls._match_biz_attr(bk_biz_id, bk_biz_labels)
+            except TypeError:
+                return False
 
         # 当前租户可见：集群列表由 Metadata 按查询租户隔离，只有请求空间
         # 与集群列表同租户时才命中；缺少任一租户上下文按未指定开放目标处理。
@@ -228,25 +237,13 @@ class StorageHandler:
 
         return False
 
-    @staticmethod
-    def _has_valid_label_values(label_values) -> bool:
-        """属性值列表必须是非空标量序列。
-
-        空序列会让 functools.reduce 抛 TypeError；字符串是子串判断、
-        字典是键判断，都不等价于可见范围匹配，因此同样拒绝。
-        """
-        if not isinstance(label_values, (list, tuple)) or not label_values:
-            return False
-        return not any(isinstance(label_value, (dict, list, tuple, set)) for label_value in label_values)
-
     @classmethod
     def _match_biz_attr(cls, bk_biz_id, bk_biz_labels) -> bool:
         """按业务属性判断空间是否命中可见范围。
 
-        从 ES 分支等价抽取，供 ES 与 Doris 共用：
+        供 ES 与 Doris 共用：
         1. 配置了空间类型属性时，直接按空间类型判定；
-        2. 否则找出空间关联的 BKCC 业务，再用业务属性标签匹配 BizProperty；
-        3. 属性值列表必须为非空的标量序列，畸形值直接判不可见。
+        2. 否则找出空间关联的 BKCC 业务，再用业务属性标签匹配 BizProperty。
 
         :param bk_biz_id: 业务 ID；负数表示 BKCI 等项目空间
         :param bk_biz_labels: 属性标签，形如 {"space_type": ["bkci"], "biz_property": ["value"]}
@@ -256,21 +253,11 @@ class StorageHandler:
             return False
 
         # space_type 非空时沿用基线短路语义：命中即返回，不再检查其它属性键。
-        # 该分支不会执行 reduce，因此其它键即使是空列表也不影响结果。
         label_space_type_value_list = bk_biz_labels.get(SpacePropertyEnum.SPACE_TYPE.value, [])
         if label_space_type_value_list:
-            if not cls._has_valid_label_values(label_space_type_value_list):
-                return False
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
             space_type = parse_space_uid(space_uid)[0]
             return space_type in label_space_type_value_list
-
-        # 只有走到关联业务 + BizProperty 查询时才会执行 reduce。
-        # 在这里校验所有属性值列表，空列表/非列表值直接 fail-closed，
-        # 避免 functools.reduce 在空序列上抛 TypeError 打挂整批候选查询。
-        for label_values in bk_biz_labels.values():
-            if not cls._has_valid_label_values(label_values):
-                return False
 
         # 如果空间类型不是业务，需要找出该空间关联的业务再做判断(如果有)
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)
@@ -1200,16 +1187,7 @@ class StorageHandler:
             if raw_custom_option.get("bk_biz_id") != bk_biz_id:
                 raise StorageNotPermissionException()
 
-        # 公共集群的 bk_biz_id 会被 filter_doris_cluster 强制改写为蓝鲸业务。
-        # 若写入 current_biz，_can_visible_doris 只会把它判给蓝鲸业务；
-        # 而 batch_connectivity_detect 读的是原始 custom_option，结论相反。
-        # _default 集群需要逐条补配可见范围，误配概率最高，故在写入侧直接拒绝。
         visible_config = params["visible_config"]
-        if (
-            registered_system == REGISTERED_SYSTEM_DEFAULT
-            and visible_config.get("visible_type") == VisibleEnum.CURRENT_BIZ.value
-        ):
-            raise ValidationError(_("公共集群不支持「当前业务可见」，请使用「多业务可见」或「全部业务可见」"))
 
         # 只覆盖 visible_config，保留其余 custom_option 字段
         new_custom_option = copy.deepcopy(raw_custom_option)

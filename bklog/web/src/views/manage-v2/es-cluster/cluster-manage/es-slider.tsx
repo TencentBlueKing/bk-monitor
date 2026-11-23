@@ -38,7 +38,6 @@ import { useSpaceSelector } from '../../hooks/use-space-selector';
 import ManageHelper from '../../manage-helper.ts';
 import EsDialog from './es-dialog.tsx';
 import { CLUSTER_TYPES } from './use-cluster-type';
-import { hasEmptyDorisBizAttrValue } from './visible-config-validation';
 import http from '@/api';
 
 import './es-slider.scss';
@@ -199,11 +198,10 @@ export default defineComponent({
     const isDoris = computed(() => props.clusterType === CLUSTER_TYPES.DORIS);
     const isMultiTenant = computed(() => !!store.state.userMeta?.bk_tenant_id);
     const visibleScopeOptions = computed(() => {
-      const options: any[] = [...visibleScopeSelectList.value];
       if (isMultiTenant.value) {
-        options.push({ id: 'current_tenant', name: t('当前租户可见') });
+        return [...visibleScopeSelectList.value, { id: 'current_tenant', name: t('当前租户可见') }];
       }
-      return options;
+      return visibleScopeSelectList.value;
     });
 
     // 冷热设置不对，禁用提交
@@ -583,9 +581,6 @@ export default defineComponent({
       if (visibleType === 'biz_attr' && !bkBizLabelsList.value.length) {
         messageType = t('可见类型为业务属性时，业务标签不能为空');
       }
-      if (isDoris.value && visibleType === 'biz_attr' && hasEmptyDorisBizAttrValue(bkBizLabelsList.value)) {
-        messageType = t('请为每个空间属性选择具体的值');
-      }
       if (messageType) {
         Message({ theme: 'error', message: messageType });
         return false;
@@ -887,7 +882,6 @@ export default defineComponent({
               key={item.id}
               class='scope-radio'
               value={item.id}
-              disabled={item.disabled}
             >
               {item.name}
             </bk-radio>

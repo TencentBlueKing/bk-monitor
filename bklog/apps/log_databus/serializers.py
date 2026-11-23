@@ -29,7 +29,6 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as SlzValidationError
 
 from apps.api import TransferApi
-from apps.constants import SpacePropertyEnum
 from apps.exceptions import ValidationError
 from apps.generic import DataModelSerializer
 from apps.log_commons.serializers import BkIpSerializer
@@ -728,26 +727,6 @@ class AuthInfoSerializer(serializers.Serializer):
     password = serializers.CharField(label=_("密码"), allow_blank=True)
 
 
-def validate_doris_bk_biz_labels(bk_biz_labels):
-    """校验 Doris 业务属性标签的值列表，避免空序列在 reduce 上抛 TypeError。
-
-    space_type 非空时读取侧只按该键短路判定，其余键不参与查询；
-    否则所有键都会进入查询，需要逐一校验。
-    """
-    space_type_values = bk_biz_labels.get(SpacePropertyEnum.SPACE_TYPE.value)
-    if space_type_values:
-        targets = [(SpacePropertyEnum.SPACE_TYPE.value, space_type_values)]
-    else:
-        targets = list(bk_biz_labels.items())
-    for label_key, label_values in targets:
-        if not isinstance(label_values, (list, tuple)) or not label_values:
-            raise ValidationError(_("业务属性「{label_key}」的值列表不能为空").format(label_key=label_key))
-        if any(isinstance(label_value, (dict, list, tuple, set)) for label_value in label_values):
-            raise ValidationError(
-                _("业务属性「{label_key}」的值必须是字符串或数字").format(label_key=label_key)
-            )
-
-
 class VisibleSerializer(serializers.Serializer):
     visible_type = serializers.ChoiceField(label=_("可见类型"), choices=VisibleEnum.get_choices())
     visible_bk_biz = serializers.ListField(
@@ -944,13 +923,6 @@ class DorisVisibleConfigUpdateSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     visible_config = VisibleSerializer(label=_("可见范围配置"))
     setup_config = DorisSetupConfigSerializer(label=_("存储设置"), required=False)
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        visible_config = attrs["visible_config"]
-        if visible_config.get("visible_type") == VisibleEnum.BIZ_ATTR.value:
-            validate_doris_bk_biz_labels(visible_config.get("bk_biz_labels") or {})
-        return attrs
 
 
 class TokenizeOnCharsSerializer(serializers.Serializer):
