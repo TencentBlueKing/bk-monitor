@@ -945,6 +945,14 @@ def test_log_doris_table_identity_is_random_and_collision_free():
         assert len(name) + len("2_") <= models.DorisStorage.BKBASE_TABLE_ID_MAX_LENGTH
 
 
+def test_log_doris_table_identity_truncates_at_underscore():
+    rt_name, physical_table = models.DorisStorage._compose_log_doris_table_identity(
+        table_id="489_bklog.bkms_formal_herogame_fd_go", db="mapleleaf_100147", max_name_length=33, version=1
+    )
+    assert re.fullmatch(r"bkm_489_bklog_bkms_[a-z0-9]{10}_v1", rt_name)
+    assert physical_table == f"mapleleaf_100147.{rt_name}"
+
+
 def test_log_doris_table_identity_keeps_random_token_for_large_versions():
     """版本号变长时只截断可读片段，随机串不被削弱。"""
     base_v1 = models.DorisStorage._compose_log_doris_table_base("2_bklog.very_long_table_id_name", max_length=34)
