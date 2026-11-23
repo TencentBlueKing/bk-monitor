@@ -1,3 +1,5 @@
+@use '@/shared/styles/theme/components/contracts' as bklogControls;
+
 .authorization-list-page {
   display: flex;
   flex-direction: column;
@@ -212,6 +214,20 @@
           color: #63656e;
         }
 
+        .t-table th {
+          white-space: nowrap;
+        }
+
+        .authorization-row-actions {
+          @include bklogControls.table-row-actions;
+
+          .t-button--variant-text {
+            height: 22px;
+            font-size: var(--bklog-font-body, 12px);
+            line-height: 22px;
+          }
+        }
+
         .resource-item {
           line-height: 20px;
         }
@@ -240,6 +256,70 @@
         }
       }
     }
+  }
+}
+
+.authorization-column-setting-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: var(--bklog-font-action, 14px);
+  color: var(--bklog-text-secondary, #63656e);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+
+  &:hover {
+    color: var(--bklog-brand-primary, #3a84ff);
+  }
+}
+
+.authorization-column-setting-popup {
+  padding: 0;
+}
+
+.authorization-column-setting {
+  width: 360px;
+  font-size: var(--bklog-font-body, 12px);
+  color: var(--bklog-text-primary, #313238);
+
+  &__content {
+    padding: 20px;
+  }
+
+  &__title {
+    margin-bottom: 16px;
+    font-size: var(--bklog-font-action, 14px);
+    font-weight: 500;
+  }
+
+  &__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    color: var(--bklog-text-secondary, #63656e);
+  }
+
+  &__fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 8px;
+
+    .t-checkbox {
+      margin: 0;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--bklog-border-muted, #dcdee5);
   }
 }
 

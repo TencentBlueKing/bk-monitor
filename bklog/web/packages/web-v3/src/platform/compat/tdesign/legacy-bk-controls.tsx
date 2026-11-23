@@ -43,6 +43,7 @@ import {
   Textarea,
   TimePicker,
   type DatePickerProps,
+  type PopupProps,
 } from 'tdesign-vue-next';
 import BkSearchSelect from '@/shared/ui/bk-search-select';
 import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
@@ -375,6 +376,7 @@ const BkSelect = defineComponent({
   },
   emits: ['update:modelValue', 'change', 'input', 'toggle', 'clear', 'selected'],
   setup(props, { attrs, slots, emit }) {
+    const popupZIndex = ref<number>();
     const publish = (value: unknown) => {
       emit('update:modelValue', value);
       emit('input', value);
@@ -391,10 +393,16 @@ const BkSelect = defineComponent({
       loading: props.loading,
       placeholder: props.placeholder,
       options: optionNodes(flattenNodes(slots.default?.())),
-      popupProps: props.extPopoverCls ? { overlayClassName: props.extPopoverCls } : undefined,
+      popupProps: {
+        overlayClassName: props.extPopoverCls || undefined,
+        zIndex: popupZIndex.value,
+      },
       onChange: publish,
       onClear: () => emit('clear'),
-      onPopupVisibleChange: (visible: boolean) => emit('toggle', visible),
+      onPopupVisibleChange: (visible: boolean) => {
+        if (visible) popupZIndex.value = overlayRegistry.nextZIndex();
+        emit('toggle', visible);
+      },
     }, {
       panelBottomContent: slots.extension,
       empty: slots.empty,
@@ -1128,6 +1136,7 @@ function normalizeBkDateFormat(format?: string) {
 const BkDatePicker = defineComponent({
   name: 'bk-date-picker',
   ...mode3,
+  inheritAttrs: false,
   props: {
     value: { type: [String, Number, Date, Array], default: undefined },
     modelValue: { type: [String, Number, Date, Array], default: undefined },
@@ -1148,11 +1157,23 @@ const BkDatePicker = defineComponent({
   },
   emits: ['update:modelValue', 'change', 'input'],
   setup(props, { attrs, emit }) {
+    const popupZIndex = ref<number>();
     return () => {
       const format = normalizeBkDateFormat(props.format);
       const disabledDate = props.options?.disabledDate;
+      const popupProps = (attrs.popupProps ?? attrs['popup-props']) as PopupProps | undefined;
+      const onVisibleChange: NonNullable<PopupProps['onVisibleChange']> = (visible, context) => {
+        // 日期选择后内部会直接关闭面板，不能依赖关闭通知才能分配下一层。
+        if (visible) popupZIndex.value = overlayRegistry.nextZIndex();
+        popupProps?.onVisibleChange?.(visible, context);
+      };
       return h(DatePicker, {
         ...attrs,
+        popupProps: {
+          ...popupProps,
+          zIndex: popupProps?.zIndex ?? popupZIndex.value,
+          onVisibleChange,
+        },
         format,
         valueType: normalizeBkDateFormat(props.valueType) ?? format,
         disableDate: props.disableDate ?? (typeof disabledDate === 'function'
