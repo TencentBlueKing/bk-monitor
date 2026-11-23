@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from copy import deepcopy
 from functools import cached_property
 
 from django.db.transaction import atomic
@@ -477,51 +476,14 @@ class ClusteringMonitorHandler:
         )
         return self._read_strategy(strategy_id) if strategy_id else None
 
-    def _new_series_query(self, strategy):
-        new_series_items = [
-            item
-            for item in strategy["items"]
-            if any(algorithm["type"] == NEW_SERIES_ALGORITHM_TYPE for algorithm in item["algorithms"])
-        ]
-        if not new_series_items:
-            return None
-        matches = [
-            (item, query)
-            for item in new_series_items
-            for query in item["query_configs"]
-            if str(query.get("index_set_id")) == str(self.index_set_id)
-        ]
-        if len(matches) != 1:
-            raise ValidationError(_("无法唯一识别当前索引集的新类告警查询，请在监控平台检查策略配置"))
-        return matches[0]
-
-    def _managed_algorithm(self, strategy, strategy_type):
-        if strategy_type == StrategiesType.NEW_CLS_strategy and any(
-            algo["type"] == NEW_SERIES_ALGORITHM_TYPE for item in strategy["items"] for algo in item["algorithms"]
-        ):
-            algorithm_type = NEW_SERIES_ALGORITHM_TYPE
-        else:
-            algorithm_type = "IntelligentDetect"
-        matches = [
-            (item, algorithm)
-            for item in strategy["items"]
-            for algorithm in item["algorithms"]
-            if algorithm["type"] == algorithm_type
-        ]
-        if len(matches) == 1:
-            return matches[0]
-        if matches and algorithm_type == NEW_SERIES_ALGORITHM_TYPE:
-            item, _query = self._new_series_query(strategy)
-            # 页面只有一组算法参数。按持久化 ID 选定同一条，编辑级别或列表换序都不会切换目标。
-            algorithms = (a for a in item["algorithms"] if a["type"] == NEW_SERIES_ALGORITHM_TYPE)
-            return item, min(algorithms, key=lambda a: a["id"])
-        raise ValidationError(_("无法唯一识别聚类检测算法，请在监控平台检查策略配置"))
-
     def get_strategy(self, strategy_type, strategy_id):
-        strategy_config = self._read_strategy(strategy_id)
-        if not strategy_config:
+        strategy = self._read_strategy(strategy_id)
+        if not strategy:
             return {}
-        _, algorithms_config = self._managed_algorithm(strategy_config, strategy_type)
+        return self._strategy_form(strategy_type, strategy_id, strategy)
+
+    def _strategy_form(self, strategy_type, strategy_id, strategy_config):
+        algorithms_config = strategy_config["items"][0]["algorithms"][0]
         level = algorithms_config["level"]
         user_groups = strategy_config["notice"]["user_groups"]
         label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
@@ -552,31 +514,31 @@ class ClusteringMonitorHandler:
             data.update({"sensitivity": sensitivity})
         return data
 
-    def _patch_strategy(self, strategy_id, patch):
-        MonitorApi.update_partial_strategy_v3(
-            params={"bk_biz_id": self.bk_biz_id, "ids": [strategy_id], "edit_data": {"strategy_config": patch}}
-        )
-
     def resave_new_cls_clustering_strategy(self):
-        """在监控现有查询上更新聚合维度，保留过滤条件和检索语句。"""
+        """分组变化只同步当前索引集 NewSeries 查询的聚合维度。"""
         strategy = self._bound_strategy(StrategiesType.NEW_CLS_strategy)
         if not strategy:
             return
-        target = self._new_series_query(strategy)
-        if not target:
+        items = [
+            item
+            for item in strategy["items"]
+            if any(algorithm["type"] == NEW_SERIES_ALGORITHM_TYPE for algorithm in item["algorithms"])
+        ]
+        if not items:
             return
-        item, query = target
+        queries = [
+            query
+            for item in items
+            for query in item["query_configs"]
+            if str(query.get("index_set_id")) == str(self.index_set_id)
+        ]
+        if len(queries) != 1:
+            raise ValidationError(_("无法唯一识别当前索引集的新类告警查询，请在监控平台检查策略配置"))
+        query = queries[0]
         dimensions = list(dict.fromkeys([SIGNATURE_FIELD, *(self.clustering_config.group_fields or [])]))
-        if set(query["agg_dimension"]) == set(dimensions):
-            return
-        query["agg_dimension"] = dimensions
-        if strategy.get("issue_config"):
-            # 完整保存入口会校验已有 Issue 配置引用的维度。
+        if set(query["agg_dimension"]) != set(dimensions):
+            query["agg_dimension"] = dimensions
             self._save_existing_strategy(strategy)
-        else:
-            self._patch_strategy(
-                strategy["id"], {"items": [{"id": item["id"], "query_configs": item["query_configs"]}]}
-            )
 
     @staticmethod
     def _save_existing_strategy(strategy):
@@ -585,73 +547,48 @@ class ClusteringMonitorHandler:
         MonitorApi.save_alarm_strategy_v3(params=params)
 
     def _update_existing_strategy(self, strategy, strategy_type, params):
-        patch = {}
-        if "user_groups" in params and set(params["user_groups"]) != set(strategy["notice"]["user_groups"]):
-            groups = params["user_groups"] or [
+        form = self._strategy_form(strategy_type, strategy["id"], strategy)
+        # 旧模型的表单参数可能是数字字符串，NewSeries 周期在页面上以整天展示。
+        changes = {key: value for key, value in params.items() if key in form and str(value) != str(form[key])}
+        algorithm = strategy["items"][0]["algorithms"][0]
+        config = algorithm["config"]
+        if "user_groups" in changes:
+            strategy["notice"]["user_groups"] = changes["user_groups"] or [
                 MonitorUtils.get_or_create_notice_group(
                     log_index_set_id=self.clustering_config.new_cls_index_set_id or self.index_set_id,
                     bk_biz_id=self.bk_biz_id,
                 )
             ]
-            patch["notice"] = {"user_groups": groups}
-
-        if params.keys() - {"user_groups"}:
-            item, algorithm = self._managed_algorithm(strategy, strategy_type)
-            updated = deepcopy(algorithm)
-            config = updated["config"]
-            if algorithm["type"] == NEW_SERIES_ALGORITHM_TYPE:
-                if "threshold" in params and params["threshold"] != config.get(NEW_SERIES_THRESHOLD_CONFIG_KEY, 0) + 1:
-                    config[NEW_SERIES_THRESHOLD_CONFIG_KEY] = params["threshold"] - 1
-                if "interval" in params and params["interval"] != config.get("detect_range", 0) // DAY:
-                    config["detect_range"] = params["interval"] * DAY
-            else:
-                argument_fields = (
-                    (("sensitivity", "$sensitivity"),)
-                    if strategy_type == StrategiesType.NORMAL_STRATEGY
-                    else (("interval", "$new_class_interval"), ("threshold", "$new_class_alert_th"))
+        if "level" in changes:
+            level = changes["level"]
+            detects = strategy["detects"]
+            if not any(rule["level"] == level for rule in detects):
+                # 单算法旧模板的唯一触发规则可能与原算法级别不同。
+                levels = [a["level"] for item in strategy["items"] for a in item["algorithms"]]
+                rules = (
+                    detects
+                    if len(levels) == 1 and len(detects) == 1
+                    else [rule for rule in detects if rule["level"] == algorithm["level"]]
                 )
-                for field, arg in argument_fields:
-                    if field in params and str(config.get("args", {}).get(arg)) != str(params[field]):
-                        config.setdefault("args", {})[arg] = params[field]
-
-            if "level" in params and params["level"] != algorithm["level"]:
-                updated["level"] = params["level"]
-                detects = strategy["detects"]
-                if not any(d["level"] == updated["level"] for d in detects):
-                    old_rules = [d for d in detects if d["level"] == algorithm["level"]]
-                    other_levels = {
-                        a["level"]
-                        for other in strategy["items"]
-                        for a in other["algorithms"]
-                        if a["id"] != algorithm["id"]
-                    }
-                    # 旧智能告警模板的唯一触发规则固定为 2 级，可以随唯一算法一起迁移。
-                    if algorithm["type"] == "IntelligentDetect" and not other_levels and len(detects) == 1:
-                        old_rules = detects
-                    if len(old_rules) != 1 or algorithm["level"] in other_levels:
-                        raise ValidationError(_("无法唯一迁移当前级别的触发规则，请在监控平台调整级别"))
-                    patch["detects"] = [
-                        dict(d, level=updated["level"]) if d == old_rules[0] else d
-                        for d in sorted(detects, key=lambda d: d["id"])
-                    ]
-            if algorithm["type"] == "IntelligentDetect" and config.get("args") != algorithm["config"].get("args"):
-                # 旧模型的参数依赖完整保存流程来刷新计算任务。
-                algorithm.update(updated)
-                if "notice" in patch:
-                    strategy["notice"].update(patch["notice"])
-                if "detects" in patch:
-                    strategy["detects"] = patch["detects"]
-                self._save_existing_strategy(strategy)
-                return {"strategy_id": strategy["id"], "label_name": strategy["labels"]}
-            if updated != algorithm:
-                patch["items"] = [
-                    {
-                        "id": item["id"],
-                        "algorithms": [updated if a["id"] == algorithm["id"] else a for a in item["algorithms"]],
-                    }
-                ]
-        if patch:
-            self._patch_strategy(strategy["id"], patch)
+                if len(rules) != 1 or levels.count(algorithm["level"]) > 1:
+                    raise ValidationError(_("无法确定该级别对应的触发规则，请在监控平台调整级别"))
+                rules[0]["level"] = level
+            algorithm["level"] = level
+        if algorithm["type"] == NEW_SERIES_ALGORITHM_TYPE:
+            if "interval" in changes:
+                config["detect_range"] = changes["interval"] * DAY
+            if "threshold" in changes:
+                config[NEW_SERIES_THRESHOLD_CONFIG_KEY] = changes["threshold"] - 1
+        elif algorithm["type"] == "IntelligentDetect":
+            for field, arg in (
+                ("interval", "$new_class_interval"),
+                ("threshold", "$new_class_alert_th"),
+                ("sensitivity", "$sensitivity"),
+            ):
+                if field in changes:
+                    config.setdefault("args", {})[arg] = changes[field]
+        if changes:
+            self._save_existing_strategy(strategy)
         return {"strategy_id": strategy["id"], "label_name": strategy["labels"]}
 
     @atomic

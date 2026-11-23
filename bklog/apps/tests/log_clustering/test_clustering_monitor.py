@@ -5,7 +5,6 @@ from unittest.mock import Mock, patch
 from django.test import TestCase
 from jinja2 import Environment
 
-from apps.exceptions import ValidationError
 from apps.log_clustering.constants import NEW_SERIES_ALGORITHM_TYPE, StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.serializers import NewClsStrategySerializer
@@ -245,166 +244,53 @@ class TestClusteringMonitorHandler(TestCase):
             "detects": [{"id": 51, "level": 2, "trigger_config": {"count": 1, "check_window": 9}}],
         }
 
-    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
-    def test_resave_preserves_query_filters_when_updating_dimensions(self, update):
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
+    def test_group_change_only_updates_dimensions_of_bound_query(self, save):
         current = self.strategy_snapshot()
-        self.handler._bound_strategy = Mock(side_effect=lambda _: deepcopy(current))
-        self.handler.resave_new_cls_clustering_strategy()
-        query = dict(current["items"][0]["query_configs"][0], agg_dimension=["signature", "service_name"])
-        update.assert_called_once_with(
-            params={
-                "bk_biz_id": 2,
-                "ids": [17],
-                "edit_data": {"strategy_config": {"items": [{"id": 21, "query_configs": [query]}]}},
-            }
-        )
-        self.handler.clustering_config.group_fields = ["pod"]
-        self.handler.resave_new_cls_clustering_strategy()
-        self.assertEqual(update.call_count, 1)
-
-    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
-    def test_group_change_targets_one_query_with_multiple_new_series_levels(self, update):
-        current = self.strategy_snapshot()
-        item = current["items"][0]
-        item["algorithms"].append(dict(item["algorithms"][0], id=42, level=1))
-        other = deepcopy(item)
-        other["id"] = 22
-        other["query_configs"][0].update(id=32, index_set_id=456)
-        other["algorithms"] = [dict(item["algorithms"][0], id=43)]
-        current["items"].insert(0, other)
+        other = dict(current["items"][0]["query_configs"][0], id=32, index_set_id=456)
+        current["items"][0]["query_configs"].insert(0, other)
         self.handler._bound_strategy = Mock(return_value=deepcopy(current))
 
         self.handler.resave_new_cls_clustering_strategy()
 
-        query = dict(item["query_configs"][0], agg_dimension=["signature", "service_name"])
-        patch_data = update.call_args.kwargs["params"]["edit_data"]["strategy_config"]
-        self.assertEqual(patch_data, {"items": [{"id": item["id"], "query_configs": [query]}]})
-
-        other["query_configs"][0]["index_set_id"] = 123
-        self.handler._bound_strategy.return_value = current
-        with self.assertRaises(ValidationError):
-            self.handler.resave_new_cls_clustering_strategy()
-        self.assertEqual(update.call_count, 1)
+        current["items"][0]["query_configs"][1]["agg_dimension"] = ["signature", "service_name"]
+        save.assert_called_once_with(params=current)
+        self.handler.resave_new_cls_clustering_strategy()
+        self.assertEqual(save.call_count, 1)
 
     @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
-    def test_group_change_with_issue_keeps_filters_and_uses_validated_save(self, save):
+    def test_manual_save_only_updates_changed_form_fields(self, save):
         current = self.strategy_snapshot()
-        current["issue_config"] = {"aggregate_dimensions": ["pod"], "alert_levels": [2]}
+        algorithms = current["items"][0]["algorithms"]
+        algorithms.append(dict(algorithms[0], id=40, level=1, config={"threshold": 19, "detect_range": 86400}))
+        # 监控可配置非整天的周期，页面只显示整天。
+        algorithms[0]["config"]["detect_range"] += 60
+        self.handler._read_strategy = Mock(return_value=current)
         self.handler._bound_strategy = Mock(return_value=deepcopy(current))
-        self.handler.resave_new_cls_clustering_strategy()
-        current["items"][0]["query_configs"][0]["agg_dimension"] = ["signature", "service_name"]
+        strategy_type = StrategiesType.NEW_CLS_strategy
+        form = self.handler.get_strategy(strategy_type, current["id"])
+        self.assertEqual((form["level"], form["threshold"], form["interval"]), (2, 5, 1))
+
+        serializer = NewClsStrategySerializer(data=form)
+        serializer.is_valid(raise_exception=True)
+        self.handler.create_or_update_clustering_strategy(strategy_type, serializer.validated_data)
+        save.assert_not_called()
+
+        serializer = NewClsStrategySerializer(data={**form, "threshold": 11, "user_groups": [8]})
+        serializer.is_valid(raise_exception=True)
+        self.handler.create_or_update_clustering_strategy(strategy_type, serializer.validated_data)
+        algorithms[0]["config"]["threshold"] = 10
+        current["notice"]["user_groups"] = [8]
         save.assert_called_once_with(params=current)
 
-    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
-    def test_manual_save_applies_form_values_and_preserves_monitor_only_settings(self, update):
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
+    def test_level_edit_preserves_trigger_options(self, save):
         current = self.strategy_snapshot()
-        self.handler._bound_strategy = Mock(return_value=current)
-        params = {"threshold": 11, "interval": 30, "level": 1, "user_groups": [42]}
-        self.handler.create_or_update_clustering_strategy(StrategiesType.NEW_CLS_strategy, params)
-        patch_data = update.call_args.kwargs["params"]["edit_data"]["strategy_config"]
-        self.assertEqual(set(patch_data), {"items", "notice", "detects"})
-        self.assertEqual(patch_data["notice"], {"user_groups": [42]})
-        self.assertEqual(patch_data["detects"], [dict(current["detects"][0], level=1)])
-        (item,) = patch_data["items"]
-        # 手动保存不下发查询配置，包括监控侧的过滤条件和检索语句。
-        self.assertEqual(set(item), {"id", "algorithms"})
-        self.assertEqual(item["algorithms"][0]["level"], 1)
-        self.assertEqual(
-            item["algorithms"][0]["config"], {"threshold": 10, "detect_range": 30 * 86400, "alert_mode": "continuous"}
-        )
-
-    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
-    def test_multilevel_form_reads_and_edits_the_same_algorithm(self, update):
-        current = self.strategy_snapshot()
-        item = current["items"][0]
-        primary = item["algorithms"][0]
-        secondary = dict(primary, id=42, level=1, config={**primary["config"], "threshold": 19})
-        item["algorithms"].insert(0, secondary)
-        other = deepcopy(item)
-        other["id"] = 22
-        other["query_configs"][0].update(id=32, index_set_id=456)
-        other["algorithms"] = [dict(secondary, id=40)]
-        current["items"].insert(0, other)
-        self.handler._read_strategy = Mock(return_value=deepcopy(current))
-
-        form = self.handler.get_strategy(StrategiesType.NEW_CLS_strategy, current["id"])
-        self.assertEqual((form["level"], form["threshold"]), (2, 5))
-
-        # 模拟再次读取监控策略时，算法返回顺序与打开表单时不同。
-        item["algorithms"].reverse()
-        self.handler._bound_strategy = Mock(return_value=current)
-        for edits, expected_patch in (
-            ({"user_groups": [8]}, {"notice": {"user_groups": [8]}}),
-            (
-                {"threshold": 9},
-                {
-                    "items": [
-                        {
-                            "id": item["id"],
-                            "algorithms": [dict(primary, config={**primary["config"], "threshold": 8}), secondary],
-                        }
-                    ]
-                },
-            ),
-        ):
-            with self.subTest(edits=edits):
-                serializer = NewClsStrategySerializer(data={**form, **edits})
-                serializer.is_valid(raise_exception=True)
-                self.handler.create_or_update_clustering_strategy(
-                    StrategiesType.NEW_CLS_strategy, serializer.validated_data
-                )
-                self.assertEqual(update.call_args.kwargs["params"]["edit_data"]["strategy_config"], expected_patch)
-
-    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
-    def test_manual_save_skips_update_when_visible_values_match(self, update):
-        self.handler._bound_strategy = Mock(return_value=self.strategy_snapshot())
-        self.handler.create_or_update_clustering_strategy(
-            StrategiesType.NEW_CLS_strategy, {"threshold": 5, "interval": 1, "level": 2, "user_groups": [7]}
-        )
-        update.assert_not_called()
-
-    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
-    def test_manual_level_preserves_trigger_and_notification_options(self, update):
-        self.handler._bound_strategy = Mock(return_value=self.strategy_snapshot())
-        self.handler.create_or_update_clustering_strategy(
-            StrategiesType.NEW_CLS_strategy, {"level": 1, "user_groups": [8]}
-        )
-        patch_data = update.call_args.kwargs["params"]["edit_data"]["strategy_config"]
-        self.assertEqual(patch_data["notice"], {"user_groups": [8]})
-        self.assertEqual(
-            patch_data["detects"], [{"id": 51, "level": 1, "trigger_config": {"count": 1, "check_window": 9}}]
-        )
-        self.assertEqual(patch_data["items"][0]["algorithms"][0]["level"], 1)
-        self.assertNotIn("query_configs", patch_data["items"][0])
-
-    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
-    def test_legacy_level_change_reuses_the_only_detect_rule(self, update):
-        for strategy_type in (StrategiesType.NORMAL_STRATEGY, StrategiesType.NEW_CLS_strategy):
-            with self.subTest(strategy_type=strategy_type):
-                current = self.strategy_snapshot()
-                item = current["items"][0]
-                algorithm = item["algorithms"][0]
-                algorithm.update(type="IntelligentDetect", level=1, config={"plan_id": 6, "args": {}})
-                rule = current["detects"][0]
-                rule["recovery_config"] = {"check_window": 5}
-                self.handler._bound_strategy = Mock(return_value=current)
-
-                self.handler.create_or_update_clustering_strategy(strategy_type, {"level": 3})
-
-                patch_data = update.call_args.kwargs["params"]["edit_data"]["strategy_config"]
-                self.assertEqual(
-                    patch_data,
-                    {
-                        "items": [{"id": item["id"], "algorithms": [dict(algorithm, level=3)]}],
-                        "detects": [dict(rule, level=3)],
-                    },
-                )
-
-                item["algorithms"].append(dict(algorithm, type="Threshold", id=42, level=2))
-                update.reset_mock()
-                with self.assertRaises(ValidationError):
-                    self.handler.create_or_update_clustering_strategy(strategy_type, {"level": 3})
-                update.assert_not_called()
+        self.handler._bound_strategy = Mock(return_value=deepcopy(current))
+        self.handler.create_or_update_clustering_strategy(StrategiesType.NEW_CLS_strategy, {"level": 1})
+        current["items"][0]["algorithms"][0]["level"] = 1
+        current["detects"][0]["level"] = 1
+        save.assert_called_once_with(params=current)
 
     @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
     def test_legacy_and_count_alert_update_only_requested_argument(self, save):

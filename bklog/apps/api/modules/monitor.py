@@ -84,14 +84,6 @@ class _MonitorApi:
             before_request=add_esb_info_before_request,
             bk_tenant_id=biz_to_tenant_getter(),
         )
-        self.update_partial_strategy_v3 = DataAPI(
-            method="POST",
-            url=self._build_url("alarm_strategy/update_bulk/", "update_partial_strategy_v3/"),
-            module=self.MODULE,
-            description="局部更新告警策略",
-            before_request=add_esb_info_before_request,
-            bk_tenant_id=biz_to_tenant_getter(),
-        )
         self.save_alarm_strategy_v3 = DataAPI(
             method="POST",
             url=self._build_url("alarm_strategy/save/", "save_alarm_strategy_v3/"),
