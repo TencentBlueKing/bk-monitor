@@ -596,7 +596,7 @@
     },
     {
       "bk_biz_id": {{predict.bk_biz_id}},
-      "sql": "SELECT {{predict.format_signature.fields}}, __dist_05 FROM {{predict.clustering_predict.result_table_id}}, lateral table(udf_single_signature_format_java(log_signature)) as T(__dist_05)",
+      "sql": "SELECT {{predict.format_signature.fields}}, __dist_05 FROM {{predict.clustering_predict.result_table_id}}, lateral table({{predict.signature_format_udf}}(log_signature)) as T(__dist_05)",
       "table_name": "{{predict.format_signature.table_name}}",
       "name": "签名字段打平",
       "count_freq": null,
@@ -668,7 +668,7 @@
       "name": "{{predict.format_signature.result_table_id}}(elastic_storage)",
       "physical_table_name": "",
       "bk_biz_id": {{predict.bk_biz_id}},
-      "cluster": "{{predict.es_cluster}}",
+      "cluster": {{predict.es_cluster | string | tojson}},
       "analyzed_fields": {{predict.es.analyzed_fields}},
       "date_fields": [],
       "doc_values_fields": {{predict.es.doc_values_fields}},

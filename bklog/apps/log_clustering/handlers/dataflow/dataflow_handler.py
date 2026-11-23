@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 import copy
 import json
 import os
+import re
 from dataclasses import asdict
 
 import arrow
@@ -42,6 +43,7 @@ from apps.feature_toggle.plugins.constants import NEW_CLASS_ALERT_NEW_SERIES
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_NEW_CLS_HOURS,
+    DEFAULT_SIGNATURE_FORMAT_UDF,
     NOT_NEED_EDIT_NODES,
     PatternEnum,
     SIGNATURE_FIELD,
@@ -55,7 +57,7 @@ from apps.log_clustering.exceptions import (
     QueryFieldsException,
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
-from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config, get_predict_es_storage
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.handlers.dataflow.constants import (
     CLUSTERING_DEFAULT_MODEL_INPUT_FIELDS,
@@ -1424,6 +1426,12 @@ class DataFlowHandler(BaseAiopsHandler):
             doris_fields.append({"alias": dist_field, "field": dist_field, "type": "string", "config": ""})
         return doris_fields
 
+    def _get_signature_format_udf(self) -> str:
+        udf = self.conf.get("signature_format_udf", DEFAULT_SIGNATURE_FORMAT_UDF)
+        if not isinstance(udf, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", udf):
+            raise ValueError(_("signature_format_udf 必须是有效的 SQL 函数名"))
+        return udf
+
     def _init_predict_flow(
         self,
         result_table_id: str,
@@ -1503,6 +1511,7 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
             bk_biz_id=bk_biz_id,
             is_flink_env=self.conf.get("is_flink_env", False),
+            signature_format_udf=self._get_signature_format_udf(),
         )
         # 采集项侧，创建聚类配置时设置 es_storage
         if clustering_config.collector_config_id:
@@ -1579,7 +1588,14 @@ class DataFlowHandler(BaseAiopsHandler):
                 )
             )
         else:
-            predict_flow.es_cluster = clustering_config.es_storage
+            if clustering_config.predict_flow_id:
+                saved_flow = clustering_config.predict_flow or {}
+                cluster_name = saved_flow.get("es_cluster")
+                cluster_id = saved_flow.get("es_cluster_id")
+            else:
+                cluster_name, cluster_id = get_predict_es_storage(self.conf)
+            predict_flow.es_cluster = cluster_name or clustering_config.es_storage
+            predict_flow.es_cluster_id = cluster_id
             predict_flow.es.expires = es_storage["expires"]
             predict_flow.es.has_replica = json.dumps(es_storage.get("has_replica", False))
             predict_flow.es.json_fields = json.dumps(es_storage.get("json_fields", []))
@@ -1747,7 +1763,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
     @classmethod
     def _get_clustered_es_field_names(
-        cls, index_set: LogIndexSet, clustering_config: ClusteringConfig
+        cls, index_set: LogIndexSet, clustering_config: ClusteringConfig, cluster_id: int
     ) -> set[str] | None:
         """
         获取聚类结果表在 ES 上的真实字段名，返回 None 表示这次拿不到
@@ -1763,7 +1779,7 @@ class DataFlowHandler(BaseAiopsHandler):
                 indices=clustering_config.clustered_rt,
                 index_set_id=index_set.index_set_id,
                 scenario_id=Scenario.BKDATA,
-                storage_cluster_id=index_set.storage_cluster_id,
+                storage_cluster_id=cluster_id,
                 time_field=index_set.time_field,
                 only_search=True,
             ).get_mapping_field_names()
@@ -1778,9 +1794,10 @@ class DataFlowHandler(BaseAiopsHandler):
 
     @classmethod
     def _build_clustered_es_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
+        cluster_id = (clustering_config.predict_flow or {}).get("es_cluster_id") or index_set.storage_cluster_id
         route_params = {
             **cls._build_clustered_route_base_params(index_set, clustering_config),
-            "cluster_id": index_set.storage_cluster_id,
+            "cluster_id": cluster_id,
             "index_set": clustering_config.clustered_rt,
             "table_id": BaseIndexSetHandler.get_rt_id(
                 index_set.index_set_id,
@@ -1790,7 +1807,7 @@ class DataFlowHandler(BaseAiopsHandler):
         signature_alias = cls._build_clustered_signature_alias_setting(clustering_config)
         # 入口索引集的别名是按源表字段配的，聚类结果表的字段集合与源表并不一致。
         # 别名指向的物理字段在聚类结果表里不存在时，改写后一定查不到数据，因此按真实 mapping 裁剪。
-        clustered_field_names = cls._get_clustered_es_field_names(index_set, clustering_config)
+        clustered_field_names = cls._get_clustered_es_field_names(index_set, clustering_config, cluster_id)
         inherited_alias_settings = []
         for alias_setting in index_set.query_alias_settings or []:
             # 字段集合拿不到时不裁剪：新建聚类和 ES 抖动都会走到这里，
@@ -1920,6 +1937,8 @@ class DataFlowHandler(BaseAiopsHandler):
         result = BkDataDataFlowApi.create_flow(request_dict)
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.predict_flow_id = result["flow_id"]
+        if es_cluster := predict_flow_dict.get("es_cluster"):
+            clustering_config.es_storage = es_cluster
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
         #  填充签名字段打平节点-聚类结果表输出RT
         clustering_config.clustered_rt = predict_flow_dict["format_signature"]["result_table_id"]
@@ -2036,6 +2055,7 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
             storage_type=storage_type,
             bk_biz_id=bk_biz_id,
+            signature_format_udf=self._get_signature_format_udf(),
         )
 
         return log_count_aggregation_flow

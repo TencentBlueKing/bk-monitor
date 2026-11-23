@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 from django.conf import settings
 from django.test import SimpleTestCase
 
-from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config, get_predict_es_storage
 from apps.log_clustering.handlers.pipline_service.aiops_service_online import operator_aiops_service_online
 
 
@@ -39,12 +39,15 @@ class TestOnlineTenantConfig(SimpleTestCase):
                 "pattern_storage_cluster": "system_pattern",
                 "collector_clustering_es_storage": {"es_storage": "system_es"},
                 "doris_storage": "system_doris",
+                "predict_es_storage": {"cluster_name": "system_es", "cluster_id": 7},
                 "log_pattern_expires": 30,
                 "tenant_resource_configs": {
                     "tenant_a": {
                         "project_id": 1001,
                         "model_id": "tenant_model",
                         "tspider_cluster": "tenant_ts",
+                        "signature_format_udf": "tenant_signature_udf",
+                        "predict_es_storage": {"cluster_name": "tenant_es"},
                     }
                 },
             }
@@ -56,6 +59,8 @@ class TestOnlineTenantConfig(SimpleTestCase):
         self.assertEqual(config["bk_biz_id"], 2)
         self.assertEqual(config["model_id"], "tenant_model")
         self.assertEqual(config["tspider_cluster"], "tenant_ts")
+        self.assertEqual(config["signature_format_udf"], "tenant_signature_udf")
+        self.assertEqual(get_predict_es_storage(config), ("tenant_es", None))
         self.assertEqual(config["pattern_storage_cluster"], "system_pattern")
         self.assertEqual(config["log_pattern_expires"], 30)
         self.assertEqual(config["collector_clustering_es_storage"], {"es_storage": "system_es"})
@@ -81,6 +86,18 @@ class TestOnlineTenantConfig(SimpleTestCase):
         self.assertEqual(config["bk_biz_id"], 2)
         self.assertEqual(config["model_id"], "system_model")
         self.assertEqual(config["pattern_storage_cluster"], "system_ts")
+
+    def test_invalid_predict_es_storage_is_rejected(self):
+        for storage in (
+            "tenant_es",
+            {"cluster_id": 8},
+            {"cluster_name": "es", "cluster_id": 0},
+            {"cluster_name": "es", "cluster_id": True},
+            {"cluster_name": "es", "cluster_id": "8"},
+            {"cluster_name": "a" * 65},
+        ):
+            with self.subTest(storage=storage), self.assertRaisesRegex(ValueError, "predict_es_storage"):
+                get_predict_es_storage({"predict_es_storage": storage})
 
 
 class TestOnlineTenantPipeline(SimpleTestCase):

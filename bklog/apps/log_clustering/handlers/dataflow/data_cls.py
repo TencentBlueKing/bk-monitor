@@ -24,7 +24,7 @@ from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
-from apps.log_clustering.constants import StorageTypeEnum
+from apps.log_clustering.constants import DEFAULT_SIGNATURE_FORMAT_UDF, StorageTypeEnum
 
 
 @dataclass
@@ -424,6 +424,8 @@ class PredictDataFlowCls:
     es_cluster: str = ""
     doris: DorisCls = field(default_factory=DorisCls)
     doris_storage: str = ""
+    signature_format_udf: str = DEFAULT_SIGNATURE_FORMAT_UDF
+    es_cluster_id: int | None = None
 
 
 @dataclass
@@ -442,6 +444,7 @@ class LogCountAggregationFlowCls:
     signature: dict
     pattern: dict
     bk_biz_id: int
+    signature_format_udf: str = DEFAULT_SIGNATURE_FORMAT_UDF
 
 
 @dataclass

@@ -21,6 +21,8 @@ the project delivered to anyone in the future.
 
 from copy import deepcopy
 
+from django.utils.translation import gettext as _
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_search.models import Space
@@ -29,7 +31,7 @@ TENANT_RESOURCE_CONFIGS_KEY = "tenant_resource_configs"
 
 
 def get_online_clustering_config(bk_biz_id: int):
-    """Resolve temporary tenant-specific resources for the online clustering flow.
+    """Resolve tenant-specific resources for the online clustering flow.
 
     Example:
     {
@@ -41,13 +43,19 @@ def get_online_clustering_config(bk_biz_id: int):
             "tenant_a": {
                 "project_id": 1001,
                 "model_id": "tenant_a_model",
-                "tspider_cluster": "tenant_a_tspider"
+                "tspider_cluster": "tenant_a_tspider",
+                "signature_format_udf": "udf_signature_format_tenant_a",
+                "predict_es_storage": {"cluster_name": "tenant_a_es", "cluster_id": 101}
             }
         }
     }
 
     Tenant values are optional overrides. If a field is absent under the tenant key,
-    the top-level value is used.
+    the top-level value is used. The optional predict_es_storage binds the
+    BKBase cluster name to the matching BKMonitor cluster ID. Omit cluster_id
+    if the BKBase name points to the source index set's physical ES cluster.
+    An explicit retry of failed prediction-flow creation uses these settings,
+    while an already created flow retains its storage binding.
     """
     config = deepcopy(FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config)
     bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id)
@@ -56,3 +64,18 @@ def get_online_clustering_config(bk_biz_id: int):
     config.update(tenant_config)
     config["pattern_storage_cluster"] = config.get("pattern_storage_cluster") or config.get("tspider_cluster")
     return config
+
+
+def get_predict_es_storage(config: dict) -> tuple[str, int | None]:
+    storage = config.get("predict_es_storage")
+    if storage is None:
+        return "", None
+    if not isinstance(storage, dict):
+        raise ValueError(_("predict_es_storage 必须是包含 cluster_name 的对象"))
+    cluster_name = storage.get("cluster_name")
+    if not isinstance(cluster_name, str) or not cluster_name or len(cluster_name) > 64:
+        raise ValueError(_("predict_es_storage.cluster_name 必须是长度不超过 64 的 BKBase 集群名"))
+    cluster_id = storage.get("cluster_id")
+    if cluster_id is not None and (type(cluster_id) is not int or cluster_id <= 0):
+        raise ValueError(_("predict_es_storage.cluster_id 必须是正整数"))
+    return cluster_name, cluster_id
