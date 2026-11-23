@@ -97,15 +97,15 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   };
 
   rules = {
-    authorized_users: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
-    action_id: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
-    action_multiple: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
-    resources: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
+    authorized_users: [{ required: true, message: $i18n.t('必填项'), trigger: 'all' }],
+    action_id: [{ required: true, message: $i18n.t('必填项'), trigger: 'all' }],
+    action_multiple: [{ required: true, message: $i18n.t('必填项'), trigger: 'all' }],
+    resources: [{ required: true, message: $i18n.t('必填项'), trigger: 'all' }],
     expire_time: [{ required: true, message: $i18n.t('必填项'), trigger: 'change' }],
   };
 
   actionRules = {
-    select: [{ required: true, message: $i18n.t('必填项'), trigger: 'blur' }],
+    select: [{ required: true, message: $i18n.t('必填项'), trigger: 'all' }],
   };
 
   /** 编辑授权且为操作实例的弹窗 */
@@ -149,7 +149,6 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   @Watch('value')
   async handleValueChange(val: boolean) {
     if (val) {
-      this.formRef.clearError();
       this.authorizedUsersList = await this.getAuthListData();
       if (this.rowData) {
         for (const key of Object.keys(this.rowData ?? {})) {
@@ -160,7 +159,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           }
         }
 
-        this.$nextTick(() => {
+        await this.$nextTick(() => {
           this.formData.resources.splice(0, this.formData.resources.length, ...(this.rowData.resources || []));
         });
       } else {
@@ -172,7 +171,19 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           action_multiple: [],
         });
       }
+      await this.clearInitializedValidation();
     }
+  }
+
+  async clearInitializedValidation() {
+    await this.$nextTick();
+    // change 校验是异步的，等待本轮校验完成后再清除，避免错误状态被写回。
+    await Promise.allSettled([
+      this.formRef?.validate(),
+      this.actionFormRef?.validate(),
+    ]);
+    this.formRef?.clearError();
+    this.actionFormRef?.clearError();
   }
 
   async handleActionChange(val: string) {
@@ -347,9 +358,8 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
     this.baseUserList = val ? this.formData.authorized_users : [];
   }
 
-  handleSelectAloneType(authorizeType: AddType) {
+  async handleSelectAloneType(authorizeType: AddType) {
     this.addType = authorizeType;
-    this.formRef.clearError();
     if (this.isAloneAddForm) {
       this.formData.action_id = '';
       this.formData.resources = [];
@@ -358,6 +368,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
       this.actionCatchSelectObj = {};
       this.actionData.actionShowList = [];
     }
+    await this.clearInitializedValidation();
   }
 
   // 获取被授权人，操作实例tab栏的列表数据
@@ -378,7 +389,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   render() {
     const aloneAuthorizeSlot = () => {
       return (
-        <div>
+        <div class='alone-authorize-fields'>
           <bk-form-item
             v-show={this.isAloneAddForm}
             error-display-type='normal'
@@ -390,6 +401,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             </div>
             <bk-tag-input
               v-model={this.formData.authorized_users}
+              minCollapsedNum={1}
               allow-create={true}
               disabled={!!this.rowData && this.viewType === 'user'}
               list={this.authorizedShowUsersList}
@@ -441,6 +453,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             </div>
             <bk-select
               v-model={this.formData.resources}
+              minCollapsedNum={1}
               disabled={!!this.rowData && this.viewType === 'resource'}
               multiple
               searchable
@@ -460,16 +473,23 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
 
     const batchAuthorizeSlot = () => {
       return (
-        <div style='margin-bottom: 8px;'>
+        <div
+          class={{
+            'batch-authorize-fields': true,
+            'has-action-fields': !this.isAloneAddForm && !this.rowData && this.actionData.actionShowList.length > 0,
+          }}
+          style='margin-bottom: 8px;'
+        >
           <i18n
             class='import-user-content'
             v-show={!(this.isAloneAddForm || this.rowData)}
             path='导入{0}的权限配置'
           >
             <bk-select
-              style='min-width: 120px; display: inline-block;'
+              style='width: 120px; display: inline-block; vertical-align: middle;'
               v-model={this.exportUser}
-              behavior='simplicity'
+              placeholder={this.$t('请选择')}
+              size='small'
               popover-min-width={200}
               searchable
               onSelected={this.handleSelectExportConfig}
@@ -495,6 +515,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             </div>
             <bk-tag-input
               v-model={this.formData.authorized_users}
+              minCollapsedNum={1}
               allow-create={true}
               disabled={!!this.rowData && this.viewType === 'user'}
               list={this.authorizedShowUsersList}
@@ -552,6 +573,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
                 </div>
                 <bk-select
                   v-model={action.select}
+                  minCollapsedNum={1}
                   disabled={!!this.rowData && this.viewType === 'resource'}
                   multiple
                   searchable
@@ -607,6 +629,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
       >
         <bk-form
           ref='formRef'
+          class='authorization-form'
           form-type='vertical'
           {...{
             ...{
@@ -619,12 +642,16 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
             <div class='select-group bk-button-group'>
               <TButton
                 class={{ 'is-selected': this.isAloneAddForm }}
+                theme='default'
+                variant='outline'
                 onClick={() => this.handleSelectAloneType('alone')}
               >
                 {$i18n.t('单独授权')}
               </TButton>
               <TButton
                 class={{ 'is-selected': !this.isAloneAddForm }}
+                theme='default'
+                variant='outline'
                 onClick={() => this.handleSelectAloneType('batch')}
               >
                 {$i18n.t('批量授权')}

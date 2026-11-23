@@ -1,52 +1,126 @@
-.bk-date-picker {
-  width: 100%;
-}
-
-.import-user-content {
-  display: block;
-  margin-bottom: 10px;
-  font-size: 12px;
-
-  .bk-select {
-    margin-top: -14px;
-    transform: translateY(8px);
+.authorization-form {
+  // V2 的 bk-form 为块级布局：标签独占一行，控件占满整行
+  .t-form__controls-content {
+    display: block;
   }
-}
 
-.bk-form-checkbox {
-  margin-right: 10px;
-}
-
-.bk-form {
-  .bk-label {
-    font-size: 12px;
+  // 对齐 V2 normal 错误展示：提示参与布局，避免覆盖下一项标签。
+  .t-form__controls > .t-input__extra {
+    position: static;
+    white-space: normal;
   }
-}
 
-.custom-label {
-  font-size: 12px;
+  .t-date-picker {
+    width: 100%;
+  }
 
-  .label {
-    &.required::after {
-      display: inline-block;
-      margin-left: 6px;
-      color: #ea3636;
-      content: '*';
+  .alone-authorize-fields > .t-form__item:not(:last-child) {
+    // 与操作实例到截止时间之间现有的 8px 间距保持一致。
+    margin-bottom: 8px;
+  }
+
+  .batch-authorize-fields {
+    > .t-form__item:not(.t-form__item--last),
+    > .t-form > .t-form__item:not(.t-form__item--last) {
+      margin-bottom: 8px;
+    }
+
+    &.has-action-fields > .t-form {
+      margin-top: 8px;
     }
   }
 
-  .hint {
-    margin-left: 10px;
-    line-height: 20px;
-    color: #ff9c01;
+  .import-user-content {
+    display: block;
+    margin-bottom: 10px;
+    font-size: var(--bklog-font-body, 12px);
+    line-height: var(--bklog-line-height-body, 20px);
+    color: var(--bklog-text-secondary, #63656e);
+
+    .t-select__wrap {
+      display: inline-block;
+      width: 120px;
+      margin: 0 4px;
+      vertical-align: middle;
+    }
+
+    .t-input {
+      background-color: transparent;
+      border-color: var(--bklog-border-control, #c4c6cc);
+      border-width: 0 0 1px;
+      border-radius: 0;
+      box-shadow: none;
+
+      &:hover,
+      &.t-input--focused {
+        border-color: var(--bklog-brand-primary, #3a84ff);
+      }
+    }
   }
-}
 
-.select-group {
-  width: 100%;
-  margin: 16px 0 12px 0;
+  .custom-label {
+    margin-bottom: 6px;
+    font-size: var(--bklog-font-body, 12px);
+    line-height: var(--bklog-line-height-body, 20px);
+    color: var(--bklog-text-secondary, #63656e);
 
-  .t-button {
-    width: 50%;
+    .label {
+      &.required::after {
+        display: inline-block;
+        margin-left: 6px;
+        color: var(--bklog-status-error, #ea3636);
+        content: '*';
+      }
+    }
+
+    .hint {
+      margin-left: 10px;
+      line-height: var(--bklog-line-height-body, 20px);
+      color: var(--bklog-status-warning, #ff9c01);
+    }
+  }
+
+  // 对齐 V2 的 bk-button-group：相邻按钮边框重叠，首尾圆角，选中态浅蓝底蓝框
+  .select-group {
+    display: flex;
+    width: 100%;
+    margin: 16px 0 12px;
+
+    .t-button {
+      flex: 1;
+      height: 32px;
+      margin: 0 0 0 -1px;
+      font-size: var(--bklog-font-action, 14px);
+      color: var(--bklog-text-secondary, #63656e);
+      background-color: var(--bklog-surface, #fff);
+      border: 1px solid var(--bklog-border-control, #c4c6cc);
+      border-radius: 0;
+      box-shadow: none;
+
+      &:first-child {
+        margin-left: 0;
+        border-radius: var(--bklog-radius-control, 2px) 0 0 var(--bklog-radius-control, 2px);
+      }
+
+      &:last-child {
+        border-radius: 0 var(--bklog-radius-control, 2px) var(--bklog-radius-control, 2px) 0;
+      }
+
+      &:hover {
+        position: relative;
+        z-index: var(--bklog-z-base);
+        color: var(--bklog-brand-primary, #3a84ff);
+        background-color: var(--bklog-surface, #fff);
+        border-color: var(--bklog-brand-primary, #3a84ff);
+      }
+
+      &.is-selected {
+        position: relative;
+        z-index: var(--bklog-z-base);
+        color: var(--bklog-brand-primary, #3a84ff);
+        background-color: var(--bklog-brand-tint, #e1ecff);
+        border-color: var(--bklog-brand-primary, #3a84ff);
+      }
+    }
   }
 }
