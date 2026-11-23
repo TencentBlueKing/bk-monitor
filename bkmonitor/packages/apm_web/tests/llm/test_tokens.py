@@ -2,13 +2,32 @@
 
 from __future__ import annotations
 
+import os
 from copy import deepcopy
-from unittest import TestCase
+from tempfile import gettempdir
+from unittest import TestCase, mock
+
+import tiktoken
 
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.utils import recover_front_truncated_messages, repair_truncated_json
-from apm_web.llm.tokens import TokenCounter, build_token_matrix
+from apm_web.llm.tokens import TokenCounter, build_token_matrix, load_encoding
 from apm_web.tests.llm.test_detail import entity_set, raw_span
+
+tiktoken_cache_env = mock.patch.dict("os.environ", {"TIKTOKEN_CACHE_DIR": os.path.join(gettempdir(), "data-gym-cache")})
+
+
+def setUpModule():
+    # 精确计数断言依赖真实词表，模拟镜像预置缓存目录并提前下载，业务代码本身不再联网。
+    tiktoken_cache_env.start()
+    for name in ("cl100k_base", "o200k_base"):
+        tiktoken.get_encoding(name)
+    load_encoding.cache_clear()
+
+
+def tearDownModule():
+    tiktoken_cache_env.stop()
+    load_encoding.cache_clear()
 
 
 def model_span(span_id="model-1", trace_id="trace-1", **usage):
@@ -144,6 +163,23 @@ class TokenMatrixTests(TestCase):
         self.assertEqual(TokenCounter("unknown-model").encoding.name, "cl100k_base")
         self.assertEqual(TokenCounter("gpt-4o").count("hello"), 1)
         self.assertGreater(TokenCounter("gpt-4o").count("<|endoftext|>"), 0)
+
+    def test_unset_tokenizer_cache_estimates_without_downloading(self):
+        load_encoding.cache_clear()
+        self.addCleanup(load_encoding.cache_clear)
+        with (
+            mock.patch.dict("os.environ"),
+            mock.patch("tiktoken.load.read_file", side_effect=AssertionError("should not download")),
+            self.assertLogs("apm_web.llm.tokens", level="WARNING"),
+        ):
+            os.environ.pop("TIKTOKEN_CACHE_DIR", None)
+            counter = TokenCounter("gpt-4o")
+            self.assertIsNone(counter.encoding)
+            self.assertEqual(counter.count("hello"), 2)
+            self.assertEqual(counter.count("你好"), 2)
+            self.assertEqual(counter.count(""), 0)
+            matrix = build_token_matrix([model_span(input_tokens=10, output_tokens=2)])
+        self.assertEqual(sum(root["value"] for root in matrix["nodes"]), 12)
 
     def test_zero_tool_nodes_are_omitted_without_changing_retained_call_counts(self):
         spans = []
