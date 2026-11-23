@@ -213,11 +213,6 @@ class UserGroupsSerializer(serializers.Serializer):
 
 
 class StrategySerializer(serializers.Serializer):
-    strategy_id = serializers.IntegerField(required=False)
-    changed_fields = serializers.ListField(
-        child=serializers.ChoiceField(choices=("level", "user_groups", "interval", "threshold", "sensitivity")),
-        required=False,
-    )
     level = serializers.ChoiceField(label=_("告警级别"), choices=StrategiesAlarmLevelEnum.get_choices())
     user_groups = serializers.ListField(child=serializers.IntegerField(), label=_("告警组"))
 

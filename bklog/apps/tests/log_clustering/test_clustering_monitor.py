@@ -269,32 +269,30 @@ class TestClusteringMonitorHandler(TestCase):
         self.assertEqual(update.call_count, 1)
 
     @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
-    def test_manual_save_preserves_unedited_monitor_parameters(self, update):
+    def test_manual_save_applies_form_values_and_preserves_monitor_only_settings(self, update):
         current = self.strategy_snapshot()
         self.handler._bound_strategy = Mock(return_value=current)
-        params = {
-            "strategy_id": 17,
-            "changed_fields": ["threshold"],
-            "threshold": 11,
-            "interval": 30,
-            "level": 1,
-            "user_groups": [42],
-        }
+        params = {"threshold": 11, "interval": 30, "level": 1, "user_groups": [42]}
         self.handler.create_or_update_clustering_strategy(StrategiesType.NEW_CLS_strategy, params)
         patch_data = update.call_args.kwargs["params"]["edit_data"]["strategy_config"]
-        self.assertEqual(set(patch_data), {"items"})
+        self.assertEqual(set(patch_data), {"items", "notice", "expected_detects", "detects"})
+        self.assertEqual(patch_data["notice"], {"user_groups": [42]})
+        self.assertEqual(patch_data["detects"], [dict(current["detects"][0], level=1)])
         (item,) = patch_data["items"]
+        # 手动保存不下发查询配置，包括监控侧的过滤条件和检索语句。
         self.assertEqual(set(item), {"id", "algorithms", "expected_algorithms"})
-        self.assertEqual(item["expected_algorithms"], current["items"][0]["algorithms"])
-        self.assertEqual(item["algorithms"][0]["level"], 2)
+        self.assertEqual(item["algorithms"][0]["level"], 1)
         self.assertEqual(
-            item["algorithms"][0]["config"], {"threshold": 10, "detect_range": 86400, "alert_mode": "continuous"}
+            item["algorithms"][0]["config"], {"threshold": 10, "detect_range": 30 * 86400, "alert_mode": "continuous"}
         )
-        for fields, value in (([], 11), (["threshold"], 5)):
-            self.handler.create_or_update_clustering_strategy(
-                StrategiesType.NEW_CLS_strategy, {**params, "changed_fields": fields, "threshold": value}
-            )
-        self.assertEqual(update.call_count, 1)
+
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
+    def test_manual_save_skips_update_when_visible_values_match(self, update):
+        self.handler._bound_strategy = Mock(return_value=self.strategy_snapshot())
+        self.handler.create_or_update_clustering_strategy(
+            StrategiesType.NEW_CLS_strategy, {"threshold": 5, "interval": 1, "level": 2, "user_groups": [7]}
+        )
+        update.assert_not_called()
 
     @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
     def test_manual_level_preserves_trigger_and_notification_options(self, update):

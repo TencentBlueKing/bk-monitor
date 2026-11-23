@@ -649,16 +649,10 @@ class ClusteringMonitorHandler:
         # 同一索引集的并发创建和分组联动共用配置行锁，避免重复创建监控策略。
         self.clustering_config = ClusteringConfig.objects.select_for_update().get(pk=self.clustering_config.pk)
         # 接入流程不传表单，沿用原有模板同步数据源和模型配置。
-        strategy = self._bound_strategy(strategy_type) if params is not None else None
-        params = dict(params or {})
-        edited_id = params.pop("strategy_id", None)
-        changed_fields = params.pop("changed_fields", None)
-        if edited_id and (not strategy or strategy["id"] != edited_id):
-            raise ValidationError(_("关联策略已变化，请刷新后重试"))
-        if strategy:
-            if changed_fields is not None:
-                params = {key: params[key] for key in changed_fields if key in params}
-            return self._update_existing_strategy(strategy, strategy_type, params)
+        if params is not None:
+            strategy = self._bound_strategy(strategy_type)
+            if strategy:
+                return self._update_existing_strategy(strategy, strategy_type, params)
 
         # 创建/更新 新类或数量突增报警
         if strategy_type == StrategiesType.NORMAL_STRATEGY:
