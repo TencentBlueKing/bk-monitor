@@ -148,11 +148,9 @@ class RecordRule(BaseModelWithTime):
         )
 
     @classmethod
-    def get_dst_table_id(cls, table_id: str, existing_dst_table_id: str = "") -> str:
+    def get_dst_table_id(cls, table_id: str) -> str:
         """获取要写入的结果表"""
-        return (
-            f"{settings.metadata.default_bkdata_biz_id}_{utils.compose_rule_table_id(table_id, existing_dst_table_id)}"
-        )
+        return f"{settings.metadata.default_bkdata_biz_id}_{utils.compose_rule_table_id(table_id)}"
 
 
 @final
@@ -171,9 +169,9 @@ class ResultTableFlow(BaseModelWithTime):
         verbose_name_plural = "结果表计算流程记录"
 
     @classmethod
-    def compose_flow_name(cls, table_id: str, existing_dst_table_id: str = "") -> str:
+    def compose_flow_name(cls, table_id: str) -> str:
         """组装计算流程名称"""
-        return utils.compose_rule_table_id(table_id, existing_dst_table_id)
+        return utils.compose_rule_table_id(table_id)
 
     @classmethod
     def compose_source_node(cls, vm_table_ids: list) -> list[dict[str, Any]]:
@@ -227,7 +225,7 @@ class ResultTableFlow(BaseModelWithTime):
             # "count_freq": rule_record.count_freq,
             "sql_list": rule_record.bk_sql_config,
         }
-        name = utils.compose_rule_table_id(table_id, rule_record.dst_vm_table_id)
+        name = utils.compose_rule_table_id(table_id)
         return {
             "id": len(from_result_table_ids) + 1,
             "name": name,
@@ -261,8 +259,8 @@ class ResultTableFlow(BaseModelWithTime):
         """
         from bk_monitor_base.metadata.models.vm import utils as vm_utils
 
+        rt_name = RecordRule.get_dst_table_id(table_id)
         rt_obj = RecordRule.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
-        rt_name = RecordRule.get_dst_table_id(table_id, rt_obj.dst_vm_table_id)
         vm_info: dict[str, Any] = vm_utils.get_vm_cluster_id_name(
             bk_tenant_id=bk_tenant_id, space_type=rt_obj.space_type, space_id=rt_obj.space_id
         )
@@ -301,7 +299,7 @@ class ResultTableFlow(BaseModelWithTime):
         # 组装参数
         req_data = {
             "project_id": settings.metadata.bk_data_record_rule_project_id,
-            "flow_name": cls.compose_flow_name(table_id, rule_obj.dst_vm_table_id),
+            "flow_name": cls.compose_flow_name(table_id),
         }
 
         # 检测并授权结果表

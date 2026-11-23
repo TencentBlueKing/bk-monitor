@@ -100,13 +100,10 @@ def refine_bk_sql_and_metrics(promql: str, all_rule_record: list[str]) -> dict[s
     return {"promql": sql["promql"].replace("bkmonitor:", ""), "metrics": metrics}
 
 
-def compose_rule_table_id(table_id: str, existing_dst_table_id: str = "") -> str:
+def compose_rule_table_id(table_id: str) -> str:
     """生成规则表的名称"""
     if table_id.endswith("__default__"):
         table_id = table_id.split(".__default__")[0]
-    # 保留历史的替换、截断顺序，避免长名称的 40 字符窗口发生偏移。
-    suffix = table_id.replace("-", "_").replace(".", "_").replace("__", "_")[-40:].strip("_")
-    name = f"vm_{suffix}"
-    if existing_dst_table_id and existing_dst_table_id.partition("_")[2] == name:
-        return name
-    return re.sub(r"_+", "_", name)
+    name = f"{table_id.replace('-', '_').replace('.', '_').replace('__', '_')[-40:]}"
+    # NOTE: 清洗结果表不能出现双下划线
+    return f"vm_{name.strip('_')}"

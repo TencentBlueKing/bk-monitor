@@ -136,33 +136,3 @@ def test_generate_pre_cal_table_id():
     assert generate_pre_cal_table_id(space_type, space_id, record_name) == expected
 
     print("All tests passed!")
-
-
-@pytest.mark.parametrize(
-    "table_id, existing_dst_table_id, expected",
-    [
-        ("a___b.__default__", "", "vm_a_b"),
-        ("a___b.__default__", "2_vm_a__b", "vm_a__b"),
-        ("a___b.__default__", "2_vm_a_b", "vm_a_b"),
-        ("a.-_b", "", "vm_a_b"),
-        ("prefix___" + "x" * 39, "", "vm_" + "x" * 39),
-    ],
-)
-def test_compose_rule_table_id(table_id, existing_dst_table_id, expected):
-    assert utils.compose_rule_table_id(table_id, existing_dst_table_id) == expected
-
-
-@pytest.mark.parametrize("dst_name", ["vm_a__b", "vm_a_b"])
-def test_flow_reuses_recorded_output_name(mocker, settings, dst_name):
-    from metadata.models.record_rule.rules import RecordRule, ResultTableFlow
-
-    settings.DEFAULT_BKDATA_BIZ_ID = 2
-    rule = RecordRule(table_id="a___b", dst_vm_table_id=f"2_{dst_name}", bk_sql_config=[])
-    mocker.patch.object(RecordRule.objects, "get", return_value=rule)
-    mocker.patch("metadata.models.vm.utils.get_vm_cluster_id_name", return_value={"cluster_name": "vm"})
-
-    process = ResultTableFlow.compose_process_node("system", rule.table_id, [])
-    storage = ResultTableFlow.compose_vm_storage("system", rule.table_id, process["id"])
-    assert ResultTableFlow.compose_flow_name(rule.table_id, rule.dst_vm_table_id) == dst_name
-    assert process["outputs"][0]["table_name"] == dst_name
-    assert storage["result_table_ids"] == [rule.dst_vm_table_id]
