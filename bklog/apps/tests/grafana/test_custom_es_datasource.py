@@ -2,7 +2,6 @@ import copy
 import json
 from unittest.mock import MagicMock, patch
 
-from django.core.cache import cache
 from django.test import TestCase
 
 import bk_dataview.grafana  # noqa: F401
@@ -15,12 +14,6 @@ from apps.log_search.models import Scenario
 
 
 class TestESBodyAdapterAndCustomDataSource(TestCase):
-    def setUp(self) -> None:
-        cache.clear()
-
-    def tearDown(self) -> None:
-        cache.clear()
-
     def test_custom_es_datasource_query_routing(self):
         mock_query_client = MagicMock()
         mock_query_client.query.return_value = {"hits": {"total": 1, "hits": []}}

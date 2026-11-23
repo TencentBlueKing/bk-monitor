@@ -653,16 +653,6 @@ class TestEsquery(TestCase):
 
 
 class TestEs8Es9Compat(TestCase):
-    def setUp(self) -> None:
-        from django.core.cache import cache
-
-        cache.clear()
-
-    def tearDown(self) -> None:
-        from django.core.cache import cache
-
-        cache.clear()
-
     def test_es_version_helpers(self):
         from apps.log_esquery.utils.es_client import (
             is_es_version_gte,
