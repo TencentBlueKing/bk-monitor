@@ -15,6 +15,7 @@ from django.db.models import Count
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    ResourceNotFound,
     PAGE_LIST_TENANT_SCHEMA,
     SAFETY_LEVEL_WRITE,
     build_response,
@@ -431,6 +432,7 @@ def list_custom_reports(params: dict[str, Any]) -> dict[str, Any]:
     example_params={"bk_tenant_id": "system", "report_type": "custom_metric", "group_id": 1},
 )
 def get_custom_report_detail(params: dict[str, Any]) -> dict[str, Any]:
+    scope = {"bk_biz_id": params["bk_biz_id"]} if params.get("bk_biz_id") is not None else {}
     bk_tenant_id = get_bk_tenant_id(params)
     report_type = _normalize_report_type(params.get("report_type"), required=True)
     group_id = _normalize_int(params.get("group_id"), "group_id", required=True)
@@ -438,17 +440,19 @@ def get_custom_report_detail(params: dict[str, Any]) -> dict[str, Any]:
     if report_type == REPORT_TYPE_METRIC:
         try:
             group = models.TimeSeriesGroup.objects.get(
-                bk_tenant_id=bk_tenant_id, time_series_group_id=group_id, is_delete=False
+                bk_tenant_id=bk_tenant_id, time_series_group_id=group_id, is_delete=False, **scope
             )
         except models.TimeSeriesGroup.DoesNotExist as error:
-            raise CustomException(message=f"未找到 TimeSeriesGroup: group_id={group_id}") from error
+            raise ResourceNotFound(message=f"未找到 TimeSeriesGroup: group_id={group_id}") from error
         report = _serialize_time_series_group(group, _metric_count_map([group.time_series_group_id]))
         report.update({"description": None, "token": None, "status": None})
     elif report_type == REPORT_TYPE_EVENT:
         try:
-            group = models.EventGroup.objects.get(bk_tenant_id=bk_tenant_id, event_group_id=group_id, is_delete=False)
+            group = models.EventGroup.objects.get(
+                bk_tenant_id=bk_tenant_id, event_group_id=group_id, is_delete=False, **scope
+            )
         except models.EventGroup.DoesNotExist as error:
-            raise CustomException(message=f"未找到 EventGroup: group_id={group_id}") from error
+            raise ResourceNotFound(message=f"未找到 EventGroup: group_id={group_id}") from error
         report = _serialize_event_group(group)
         report.update({"description": None, "token": None, "status": group.status})
     else:
@@ -494,14 +498,15 @@ def get_custom_report_detail(params: dict[str, Any]) -> dict[str, Any]:
     example_params={"bk_tenant_id": "system", "group_id": 1, "page": 1, "page_size": 20},
 )
 def list_custom_report_scopes(params: dict[str, Any]) -> dict[str, Any]:
+    scope = {"bk_biz_id": params["bk_biz_id"]} if params.get("bk_biz_id") is not None else {}
     bk_tenant_id = get_bk_tenant_id(params)
     group_id = _normalize_int(params.get("group_id"), "group_id", required=True)
     page, page_size = normalize_pagination(params)
 
     if not models.TimeSeriesGroup.objects.filter(
-        bk_tenant_id=bk_tenant_id, time_series_group_id=group_id, is_delete=False
+        bk_tenant_id=bk_tenant_id, time_series_group_id=group_id, is_delete=False, **scope
     ).exists():
-        raise CustomException(message=f"未找到 TimeSeriesGroup: group_id={group_id}")
+        raise ResourceNotFound(message=f"未找到 TimeSeriesGroup: group_id={group_id}")
 
     queryset = models.TimeSeriesScope.objects.filter(group_id=group_id)
     scope_name = str(params.get("scope_name") or "").strip()
@@ -540,14 +545,15 @@ def list_custom_report_scopes(params: dict[str, Any]) -> dict[str, Any]:
     example_params={"bk_tenant_id": "system", "group_id": 1, "page": 1, "page_size": 20},
 )
 def list_custom_report_metrics(params: dict[str, Any]) -> dict[str, Any]:
+    scope = {"bk_biz_id": params["bk_biz_id"]} if params.get("bk_biz_id") is not None else {}
     bk_tenant_id = get_bk_tenant_id(params)
     group_id = _normalize_int(params.get("group_id"), "group_id", required=True)
     page, page_size = normalize_pagination(params, default_page_size=20, max_page_size=200)
 
     if not models.TimeSeriesGroup.objects.filter(
-        bk_tenant_id=bk_tenant_id, time_series_group_id=group_id, is_delete=False
+        bk_tenant_id=bk_tenant_id, time_series_group_id=group_id, is_delete=False, **scope
     ).exists():
-        raise CustomException(message=f"未找到 TimeSeriesGroup: group_id={group_id}")
+        raise ResourceNotFound(message=f"未找到 TimeSeriesGroup: group_id={group_id}")
 
     queryset = models.TimeSeriesMetric.objects.filter(group_id=group_id)
     field_name = str(params.get("field_name") or "").strip()
@@ -600,7 +606,7 @@ def refresh_custom_report_metrics(params: dict[str, Any]) -> dict[str, Any]:
             bk_tenant_id=bk_tenant_id, time_series_group_id=group_id, is_delete=False
         )
     except models.TimeSeriesGroup.DoesNotExist as error:
-        raise CustomException(message=f"未找到 TimeSeriesGroup: group_id={group_id}") from error
+        raise ResourceNotFound(message=f"未找到 TimeSeriesGroup: group_id={group_id}") from error
 
     datasource = _load_datasource_map(bk_tenant_id, [group.bk_data_id]).get(group.bk_data_id)
     created_from = datasource.created_from if datasource else None

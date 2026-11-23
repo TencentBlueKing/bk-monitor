@@ -130,3 +130,14 @@ def test_removed_configs_are_hidden_from_lists_details_and_children(records):
     for query in (config.get_config, config.related):
         with pytest.raises(CustomException):
             query("assignment", {**records, "id": 2})
+
+
+def test_user_scoped_public_groups_and_foreign_children(records):
+    from kernel_api.rpc.functions.admin.common import ResourceNotFound
+
+    config.UserGroup.objects.bulk_create([config.UserGroup(id=20, name="公共轮值", bk_biz_id=0)])
+    user_scope = config.list_configs("user_group", records, include_public=True)["data"]
+    assert {row["bk_biz_id"] for row in user_scope["items"]} == {-12, 0}
+    assert config.get_config("user_group", {**records, "id": 20}, include_public=True)["data"]["config"]["id"] == 20
+    with pytest.raises(ResourceNotFound):
+        config.related("user_group", {**records, "id": 3}, include_public=True)

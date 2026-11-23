@@ -26,7 +26,7 @@ from bkmonitor.utils import time_tools
 from constants.shield import ShieldStatus
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
-from kernel_api.rpc.functions.admin.common import build_response, paginate_queryset
+from kernel_api.rpc.functions.admin.common import ResourceNotFound, build_response, paginate_queryset
 
 
 @dataclass(frozen=True)
@@ -136,7 +136,10 @@ def validate(serializer, params):
     return serializer.validated_data
 
 
-def scoped(query, params):
+def scoped(query, params, include_public=False):
+    if include_public:
+        # 用户态调用方已解析并鉴权当前租户的具体业务；用户组页面同时展示公共组。
+        return query.filter(bk_biz_id__in=[0, params["bk_biz_id"]])
     tenant = params.get("bk_tenant_id")
     if settings.ENABLE_MULTI_TENANT_MODE and tenant and tenant != "__all__":
         spaces = SpaceApi.list_spaces(bk_tenant_id=tenant)
@@ -157,8 +160,8 @@ def response(action, params, data):
     return build_response(operation=name, func_name="admin." + name, bk_tenant_id=params.get("bk_tenant_id"), data=data)
 
 
-def config_rows(spec, params):
-    rows = scoped(spec.model.objects.all(), params)
+def config_rows(spec, params, include_public=False):
+    rows = scoped(spec.model.objects.all(), params, include_public)
     if spec.model is Shield:
         # 与 Shield.status 相同的状态定义，允许在分页前过滤。
         rows = rows.annotate(
@@ -177,10 +180,10 @@ def list_params(spec, **kwargs):
     return serializer
 
 
-def list_configs(kind, params):
+def list_configs(kind, params, *, include_public=False):
     spec = RESOURCES[kind]
     p = validate(list_params(spec, data=params), params)
-    query = config_rows(spec, p)
+    query = config_rows(spec, p, include_public)
     for field in ("id", "is_enabled", *spec.filters):
         if field in p:
             query = query.filter(**{field: p[field]})
@@ -190,26 +193,29 @@ def list_configs(kind, params):
     return response(kind + "_list", p, page_data(rows, p))
 
 
-def get_config(kind, params):
+def get_config(kind, params, *, include_public=False):
     spec = RESOURCES[kind]
     p = validate(Target(data=params), params)
     row = (
-        config_rows(spec, p).filter(id=p["id"]).values(*COMMON, spec.title, *spec.summary, *AUDIT, *spec.detail).first()
+        config_rows(spec, p, include_public)
+        .filter(id=p["id"])
+        .values(*COMMON, spec.title, *spec.summary, *AUDIT, *spec.detail)
+        .first()
     )
     if row is None:
-        raise CustomException(message="当前查询范围内未找到" + spec.label)
+        raise ResourceNotFound(message="当前查询范围内未找到" + spec.label)
     if kind == "action":
         row["execute_config"] = redact_config(row["execute_config"], "", [])
     return response(kind + "_detail", p, {"config": row})
 
 
-def related(kind, params):
+def related(kind, params, *, include_public=False):
     p = validate(RelatedPage(data=params), params)
-    parent_query = scoped(RESOURCES[kind].model.objects.all(), p).filter(id=p["id"])
+    parent_query = scoped(RESOURCES[kind].model.objects.all(), p, include_public).filter(id=p["id"])
     fields = ("id", "bk_biz_id", "duty_rules") if kind == "user_group" else ("id", "bk_biz_id")
     parent = parent_query.values(*fields).first()
     if parent is None:
-        raise CustomException(message="当前查询范围内未找到" + RESOURCES[kind].label)
+        raise ResourceNotFound(message="当前查询范围内未找到" + RESOURCES[kind].label)
     if kind == "user_group":
         rules = DutyRule.objects.filter(id__in=parent["duty_rules"] or [], bk_biz_id__in=[0, parent["bk_biz_id"]])
         rows = (

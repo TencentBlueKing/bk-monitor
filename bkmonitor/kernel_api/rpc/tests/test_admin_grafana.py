@@ -73,3 +73,31 @@ def test_scoped_list_history_and_config(target):
 def test_unavailable_target_never_falls_back_to_current(target, overrides):
     with pytest.raises(CustomException):
         grafana.get_config({**target, **overrides})
+
+
+def test_user_query_filters_dashboard_before_history_and_count(target, monkeypatch):
+    from unittest.mock import Mock
+    from bk_dataview.permissions import GrafanaRole
+    from bkmonitor.iam import ActionEnum
+    from kernel_api.rpc.functions.admin import user_query
+    from monitor_web.grafana.permissions import DashboardPermission
+
+    user = Mock(username="u", bk_tenant_id=target["bk_tenant_id"])
+    user.is_allowed_by_biz.side_effect = lambda biz, action: action == ActionEnum.VIEW_BUSINESS
+    monkeypatch.setattr(user_query, "Permission", lambda **kw: user)
+    acl = Mock(return_value=(GrafanaRole.Anonymous, {}))
+    monkeypatch.setattr(DashboardPermission, "get_visible_dashboards", acl)
+    params = {"bk_tenant_id": target["bk_tenant_id"], "username": "u", "space_uid": "bkcc__2"}
+
+    def call(op, query):
+        return user_query.user_query({**params, "operation": "grafana." + op, "query": query})["data"]
+
+    assert call("list", {})["result"]["total"] == 0
+    for op in ["config", "version_list"]:
+        assert not call(op, {"dashboard_id": 10})["allowed"]
+    acl.return_value = (GrafanaRole.Anonymous, {"host-10": 1})
+    assert call("list", {})["result"]["total"] == 1
+    assert call("version_list", {"dashboard_id": 10})["result"]["total"] == 2
+    assert call("config", {"dashboard_id": 10, "version": 1})["result"]["version"] == 1
+    assert not call("config", {"dashboard_id": 12})["allowed"]
+    acl.assert_called_with("u", "2", force_check=True, bk_tenant_id=target["bk_tenant_id"])

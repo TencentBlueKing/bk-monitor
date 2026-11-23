@@ -9,6 +9,7 @@ from bk_dataview.redaction import redact_config
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    ResourceNotFound,
     build_response,
     normalize_pagination,
     paginate_queryset,
@@ -35,10 +36,11 @@ def _dashboards(params):
     return Dashboard.objects.filter(org_id__in=org_ids, is_folder=0)
 
 
-def _dashboard(params, *fields):
-    row = _dashboards(params).filter(id=params.get("dashboard_id")).values(*fields).first()
+def _dashboard(params, *fields, dashboards=None):
+    rows = _dashboards(params) if dashboards is None else dashboards
+    row = rows.filter(id=params.get("dashboard_id")).values(*fields).first()
     if row is None:
-        raise CustomException(message="该业务下不存在指定仪表盘")
+        raise ResourceNotFound(message="该业务下不存在指定仪表盘")
     return row
 
 
@@ -62,11 +64,14 @@ def _page(queryset, params):
     example_params={**EXAMPLE, "keyword": "CPU", "page": 1, "page_size": 20},
 )
 def list_dashboards(params):
-    dashboards = _dashboards(params)
+    return _response("grafana.list", params, dashboard_page(_dashboards(params), params))
+
+
+def dashboard_page(dashboards, params):
     keyword = params.get("keyword")
     if keyword:
         dashboards = dashboards.filter(Q(title__icontains=keyword) | Q(uid__icontains=keyword))
-    return _response("grafana.list", params, _page(dashboards.order_by("-updated", "id").values(*SUMMARY), params))
+    return _page(dashboards.order_by("-updated", "id").values(*SUMMARY), params)
 
 
 @KernelRPCRegistry.register(
@@ -76,8 +81,8 @@ def list_dashboards(params):
     params_schema={**TARGET, **PAGING},
     example_params={**EXAMPLE, "dashboard_id": 10},
 )
-def list_versions(params):
-    dashboard = _dashboard(params, "id")
+def list_versions(params, *, dashboards=None):
+    dashboard = _dashboard(params, "id", dashboards=dashboards)
     versions = DashboardVersion.objects.filter(dashboard_id=dashboard["id"]).order_by("-version")
     return _response(
         "grafana.version_list", params, _page(versions.values("version", "created", "created_by", "message"), params)
@@ -91,17 +96,17 @@ def list_versions(params):
     params_schema={**TARGET, "version": "可选，历史版本号；省略读取当前配置"},
     example_params={**EXAMPLE, "dashboard_id": 10, "version": 1},
 )
-def get_config(params):
+def get_config(params, *, dashboards=None):
     version = params.get("version")
     if version is None:
-        row = _dashboard(params, *SUMMARY, "data")
+        row = _dashboard(params, *SUMMARY, "data", dashboards=dashboards)
         raw = row.pop("data")
         version = row["version"]
     else:
-        row = _dashboard(params, *SUMMARY)
+        row = _dashboard(params, *SUMMARY, dashboards=dashboards)
         snapshot = DashboardVersion.objects.filter(dashboard_id=row["id"], version=version).values("data").first()
         if snapshot is None:
-            raise CustomException(message="该仪表盘不存在指定历史版本")
+            raise ResourceNotFound(message="该仪表盘不存在指定历史版本")
         raw = snapshot["data"]
     paths = []
     config = redact_config(json.loads(raw), "", paths)

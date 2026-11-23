@@ -29,6 +29,10 @@ MAX_LIST_FILTER_VALUES = 100
 MAX_LIST_FILTER_STRING_LENGTH = 255
 
 
+class ResourceNotFound(CustomException):
+    """资源不在给定的查询范围中。"""
+
+
 def normalize_bk_tenant_id(value: Any) -> str | None:
     if value in (None, ""):
         return None
