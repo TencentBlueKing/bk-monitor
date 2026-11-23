@@ -13,7 +13,7 @@ from functools import partial
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from rum_web.constants import RumQueryMode
 from rum_web.handlers.builder.utils import get_safe_number
-from rum_web.handlers.query.fallback import BaseFallbackRumQuery, Summaries, SummaryTasks
+from rum_web.handlers.query.fallback import BaseFallbackRumQuery, Record, Summaries, SummaryTasks
 from semconv.rum.constants import RumSpanType, ViewPhase, VitalMetric
 from semconv.rum.view import ViewSpec
 
@@ -39,16 +39,35 @@ class ViewQuery(BaseFallbackRumQuery):
         q = q.filter(**{"attributes.span_type": [RumSpanType.VITAL.value]}).order_by("end_time desc")
         vital_q = q.filter(
             **{"attributes.vital.metric": [alias for metric in metrics for alias in (metric, metric.upper())]}
-        ).values(self.group_field, "attributes.vital.metric", "attributes.vital.value", "end_time")
+        ).values(
+            self.group_field,
+            "attributes.vital.id",
+            "attributes.vital.version",
+            "attributes.vital.metric",
+            "attributes.vital.value",
+            "end_time",
+        )
         records = self._query_list(self._get_summary_queries(vital_q), None, None, 0, self.QUERY_MAX_LIMIT)
-        result: Summaries = {}
-        for record_id, record in sorted(
-            self._group_records(records, ids), key=lambda item: get_safe_number(item[1].get("end_time")), reverse=True
-        ):
+        # 版本只在同一指标 ID 内比较，无版本时按结束时间选择。
+        snapshots: dict[tuple[str, str, str], tuple[int | float, int | float, Record]] = {}
+        for record_id, record in self._group_records(records, ids):
             metric = record.get("attributes.vital.metric")
             if not isinstance(metric, str) or metric.lower() not in metrics:
                 continue
-            result.setdefault(record_id, {}).setdefault(
-                f"web_vitals.{metric.lower()}", record.get("attributes.vital.value")
-            )
+            vital_id = record.get("attributes.vital.id")
+            if not isinstance(vital_id, str):
+                vital_id = ""
+            version = get_safe_number(record.get("attributes.vital.version")) if vital_id else 0
+            end_time = get_safe_number(record.get("end_time"))
+            key = (record_id, metric.lower(), vital_id)
+            previous = snapshots.get(key)
+            if previous is None or (version, end_time) > previous[:2]:
+                snapshots[key] = (version, end_time, record)
+
+        # 同一 View 的同名指标可以有多个 ID，继续按结束时间回填最新值。
+        result: Summaries = {}
+        for (record_id, metric, _), (_, _, record) in sorted(
+            snapshots.items(), key=lambda item: item[1][1], reverse=True
+        ):
+            result.setdefault(record_id, {}).setdefault(f"web_vitals.{metric}", record.get("attributes.vital.value"))
         return result
