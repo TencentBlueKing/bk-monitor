@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { AsyncComponentLoader } from 'vue';
+import type { AsyncComponentLoader, Component } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 
 import { createVersionedAsyncView, createManageAsyncView } from './async-view';
@@ -106,8 +106,12 @@ const V2MaskingEdit = () =>
   import(
     /* webpackChunkName: 'v2-field-masking-separate' */ '@/features/collection/current/components/masking-operation/index'
   );
+// vue-class-component 7 导出 Vue 2 构造函数，Router 4 缓存后可能在后续导航中误将其作为懒加载函数调用。
+// 提前转换为 options，避免白屏或生产环境导航报错，同时保留 render、状态初始化和路由守卫。
 const MaskingList = () =>
-  import(/* webpackChunkName: 'manage-data-link-conf' */ '@/features/cleaning/classic/clean-masking/list');
+  import(/* webpackChunkName: 'manage-data-link-conf' */ '@/features/cleaning/classic/clean-masking/list').then(
+    module => (module.default as unknown as { options: Component }).options,
+  );
 const ClientLogView = { name: 'ClientLogView', template: '<router-view></router-view>' };
 
 const v2CleanTempCreate = () =>

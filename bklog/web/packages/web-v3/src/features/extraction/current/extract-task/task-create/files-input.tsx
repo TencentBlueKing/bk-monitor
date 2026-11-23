@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Input as TInput } from 'tdesign-vue-next';
+import { Input as TInput, Popup as TPopup } from 'tdesign-vue-next';
 
 import { defineComponent, ref, computed, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
+
+import './files-input.scss';
 
 export default defineComponent({
   emits: ["update:value","update:select"],
@@ -51,7 +53,7 @@ export default defineComponent({
     const showValue = ref(''); // 显示的输入值
     const searchValue = ref(''); // 搜索框的值
 
-    const selectDropdownRef = ref<any>(null);
+    const isDropdownVisible = ref(false);
 
     // 过滤后的文件路径列表
     const filesSearchedPath = computed(() => {
@@ -94,7 +96,7 @@ export default defineComponent({
       showValue.value = val;
       emit('update:value', val);
       emit('update:select', val);
-      selectDropdownRef.value?.hideHandler();
+      isDropdownVisible.value = false;
     };
 
     // 验证路径是否有效
@@ -113,74 +115,61 @@ export default defineComponent({
 
     // 主渲染函数
     return () => (
-      <bk-popover
-        ref={selectDropdownRef}
-        class='bk-select-dropdown extract-files-input'
+      <TPopup
+        class='extract-files-input'
+        overlayClassName='extract-files-dropdown'
+        placement='bottom-left'
+        showArrow={false}
+        trigger='click'
+        visible={isDropdownVisible.value}
+        onVisibleChange={visible => (isDropdownVisible.value = visible)}
         v-slots={{
           // 默认插槽：输入框
           default: () => (
             <TInput
-              class={isError.value ? 'is-error' : ''}
               data-test-id='addNewExtraction_input_specifyFolder'
+              status={isError.value ? 'error' : 'default'}
               value={showValue.value}
-              onChange={value => ((val: string) => {
+              onChange={value => {
+                const val = String(value);
                 showValue.value = val;
                 handleChange(val);
-              })(String(value))}
+              }}
             />
           ),
           // 内容插槽：下拉选项列表
           content: () => (
-            <div
-              style='width: 671px; height: 224px'
-              class='bk-select-dropdown-content'
-            >
+            <div class='extract-files-dropdown-content'>
               {/* 搜索框 */}
-              <div
-                style='height: 32px'
-                class='bk-select-search-wrapper'
-              >
-                <i class='bk-icon icon-search left-icon' />
-                <input
-                  class='bk-select-search-input'
-                  placeholder={t('输入关键字搜索')}
-                  type='text'
-                  value={searchValue.value}
-                  onInput={(e: any) => (searchValue.value = e.target.value)}
-                />
-              </div>
+              <TInput
+                class='extract-files-search'
+                borderless
+                placeholder={t('输入关键字搜索')}
+                prefixIcon={() => <i class='bk-icon icon-search' />}
+                value={searchValue.value}
+                onChange={value => (searchValue.value = String(value))}
+              />
               {/* 选项列表容器 */}
-              <div
-                style='max-height: 190px'
-                class='bk-options-wrapper'
-              >
-                <ul
-                  style='max-height: 190px'
-                  class='bk-options bk-options-single'
-                >
-                  {/* 渲染过滤后的选项列表 */}
-                  {filesSearchedPath.value.map((option: string) => (
-                    <li
-                      key={option}
-                      class='bk-option'
+              <ul class='extract-files-options'>
+                {/* 渲染过滤后的选项列表 */}
+                {filesSearchedPath.value.map((option: string) => (
+                  <li key={option}>
+                    <button
+                      class={['extract-files-option', { 'is-selected': option === showValue.value }]}
+                      type='button'
+                      aria-pressed={option === showValue.value}
                       onClick={() => handleSelectOption(option)}
                     >
-                      <div class='bk-option-content'>{option}</div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                      {option}
+                    </button>
+                  </li>
+                ))}
+              </ul>
               {/* 空状态显示 */}
-              {!filesSearchedPath.value.length && <div class='bk-select-empty'>{t('暂无选项')}</div>}
+              {!filesSearchedPath.value.length && <div class='extract-files-empty'>{t('暂无选项')}</div>}
             </div>
           ),
         }}
-        animation='slide-toggle'
-        distance={16}
-        offset={-1}
-        placement='bottom-start'
-        theme='light bk-select-dropdown'
-        trigger='click'
       />
     );
   },

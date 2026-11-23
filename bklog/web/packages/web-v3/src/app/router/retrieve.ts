@@ -27,6 +27,7 @@
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineAsyncComponent, defineComponent, h, computed, onBeforeUnmount, onMounted, ref, Suspense } from 'vue';
+import type { Component } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 
 import {
@@ -110,7 +111,12 @@ const Retrieve = defineComponent({
       ]);
   },
 });
-const ExternalAuth = () => import(/* webpackChunkName: 'externalAuth' */ '@/features/authorization/authorization-list');
+// vue-class-component 7 导出 Vue 2 构造函数，Router 4 缓存后可能在后续导航中误将其作为懒加载函数调用。
+// 提前转换为 options，避免白屏或生产环境导航报错，同时保留 render、状态初始化和路由守卫。
+const ExternalAuth = () =>
+  import(/* webpackChunkName: 'externalAuth' */ '@/features/authorization/authorization-list').then(
+    module => (module.default as unknown as { options: Component }).options,
+  );
 const ShareLink = () => import(/* webpackChunkName: 'share-link' */ '@/features/sharing/index.tsx');
 const DataIdUrl = () => import(/* webpackChunkName: 'data-id-url' */ '@/features/data-id/index.tsx');
 const TemplateManage = () => import('@/features/retrieval/workspace/search-result/template-manage/index.tsx');

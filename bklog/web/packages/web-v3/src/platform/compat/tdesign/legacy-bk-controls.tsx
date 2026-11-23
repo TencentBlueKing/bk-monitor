@@ -7,6 +7,7 @@ import {
   ref,
   watch,
   type App,
+  type PropType,
   type VNode,
   type VNodeArrayChildren,
 } from 'vue';
@@ -41,6 +42,7 @@ import {
   TagInput,
   Textarea,
   TimePicker,
+  type DatePickerProps,
 } from 'tdesign-vue-next';
 import BkSearchSelect from '@/shared/ui/bk-search-select';
 import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
@@ -1118,6 +1120,11 @@ const BkPagination = defineComponent({
   },
 });
 
+function normalizeBkDateFormat(format?: string) {
+  // 仅转换旧日期模板，保留原生格式中的星期 token 和转义文本。
+  return format?.replace(/^yyyy-MM-dd(?=$|[ T])/, 'YYYY-MM-DD');
+}
+
 const BkDatePicker = defineComponent({
   name: 'bk-date-picker',
   ...mode3,
@@ -1128,12 +1135,29 @@ const BkDatePicker = defineComponent({
     placeholder: { type: String, default: '' },
     clearable: { type: Boolean, default: true },
     disabled: { type: Boolean, default: false },
+    format: { type: String, default: undefined },
+    valueType: { type: String, default: undefined },
+    options: {
+      type: Object as PropType<{ disabledDate?: (date: Date) => boolean }>,
+      default: undefined,
+    },
+    disableDate: {
+      type: [Array, Object, Function] as PropType<DatePickerProps['disableDate']>,
+      default: undefined,
+    },
   },
   emits: ['update:modelValue', 'change', 'input'],
   setup(props, { attrs, emit }) {
-    return () =>
-      h(DatePicker, {
+    return () => {
+      const format = normalizeBkDateFormat(props.format);
+      const disabledDate = props.options?.disabledDate;
+      return h(DatePicker, {
         ...attrs,
+        format,
+        valueType: normalizeBkDateFormat(props.valueType) ?? format,
+        disableDate: props.disableDate ?? (typeof disabledDate === 'function'
+          ? (date: string | number | Date) => disabledDate(date instanceof Date ? date : new Date(date))
+          : undefined),
         value: modelValue(props) as string,
         enableTimePicker: props.type === 'datetime',
         placeholder: props.placeholder,
@@ -1145,6 +1169,7 @@ const BkDatePicker = defineComponent({
           emit('change', value);
         },
       });
+    };
   },
 });
 

@@ -94,7 +94,7 @@ export default defineComponent({
     // 文件修改时间范围的自定义验证规则
     const dateRangeRule = {
       required: true,
-      trigger: 'blur',
+      trigger: 'all',
       validator: (value: DateRangeValue) => {
         if (!Array.isArray(value) || value.length !== 2 || value.some(time => time == null || time === '')) {
           return false;

@@ -74,8 +74,7 @@
     }
   }
 
-  .extract-files-input,
-  .extract-files-input .bk-tooltip-ref {
+  .extract-files-input {
     display: block;
     width: 100%;
   }
@@ -88,6 +87,10 @@
     .file-search-option {
       flex: 1;
       min-width: 0;
+    }
+
+    .file-search-time {
+      min-width: 360px;
     }
 
     .king-date-picker {
@@ -234,15 +237,12 @@
   }
 
   .extraction-direction-tips {
+    padding: 6px 8px;
     color: #4d4f56;
     background: #f0f5ff;
     border-color: #a3c5fd;
 
-    .t-alert {
-      padding: 6px 8px;
-    }
-
-    .t-alert__message {
+    .t-alert__description {
       display: flex;
       gap: 8px;
       align-items: flex-start;
