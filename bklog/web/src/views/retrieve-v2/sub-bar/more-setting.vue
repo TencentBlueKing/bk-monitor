@@ -20,6 +20,7 @@
   const indexSetItem = computed(() =>
     store.state.retrieve.flatIndexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
   );
+  const isPlatformIndex = computed(() => Boolean(indexSetItem.value?.is_platform_index));
   /** 判断当前索引集是否是索引组（有子节点） */
   const isIndexGroup = computed(() => {
     return (indexSetItem.value?.children?.length ?? 0) > 0;
@@ -93,7 +94,7 @@
   const initJumpRouteList = detailStr => {
     if (!detailStr) return;
     if (!['log', 'es', 'bkdata', 'custom', 'setIndex', 'indexGroup'].includes(detailStr)) {
-      showSettingMenuList.value = isAiopsToggle.value ? settingMenuList.value : [];
+      showSettingMenuList.value = isAiopsToggle.value ? filterPlatformClusteringMenu(settingMenuList.value) : [];
       return;
     }
     // 赋值详情路由的key
@@ -106,14 +107,21 @@
     }
     // 日志脱敏的路由key
     maskingRouteKey.value = detailStr;
-    const isShowClusterSet = clusterIsActive.value || storeIsShowClusterStep.value;
-    // 判断是否展示字段设置
+    const isShowClusterSet = !isPlatformIndex.value && (clusterIsActive.value || storeIsShowClusterStep.value);
+    // 判断是否展示字段设置；平台级索引集不提供日志聚类设置入口
     const filterMenuList = isAiopsToggle.value
-      ? settingMenuList.value.filter(item => (isShowClusterSet ? true : item.id !== 'clustering'))
+      ? filterPlatformClusteringMenu(
+          settingMenuList.value.filter(item => (isShowClusterSet ? true : item.id !== 'clustering')),
+        )
       : [];
     const filterList = accessList.value.filter(item => (isShowMaskingTemplate.value ? true : item.id !== 'logMasking'));
     // 合并其他
     showSettingMenuList.value = [...filterMenuList.concat(filterList)];
+  };
+
+  const filterPlatformClusteringMenu = menuList => {
+    if (!isPlatformIndex.value) return menuList;
+    return menuList.filter(item => item.id !== 'clustering');
   };
 
   const setShowLiList = setItem => {
@@ -143,6 +151,10 @@
 
   const handleMenuClick = val => {
     // 不属于新开页面的操作
+    if (val === 'clustering' && isPlatformIndex.value) {
+      return;
+    }
+
     if (['index', 'extract', 'clustering'].includes(val)) {
       emit('update:is-show-cluster-setting', true);
       return;
@@ -189,7 +201,7 @@
   };
 
   watch(
-    [indexSetItem, clusterIsActive, storeIsShowClusterStep],
+    [indexSetItem, clusterIsActive, storeIsShowClusterStep, isPlatformIndex],
     () => {
       setShowLiList({
         scenario_id: indexSetItem.value?.scenario_id,

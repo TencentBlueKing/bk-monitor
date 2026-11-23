@@ -28,6 +28,8 @@
   const indexSetItems = computed(() =>
     store.state.retrieve.flatIndexSetList?.filter(item => indexSetIds.value.includes(`${item.index_set_id}`)),
   );
+  // 平台级索引集跨空间可见，聚类入口不展示
+  const isPlatformIndex = computed(() => indexSetItems.value?.some(item => item.is_platform_index) ?? false);
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const requestAddition = computed(() => store.getters.requestAddition);
@@ -51,6 +53,7 @@
 
   const isExternal = computed(() => window.IS_EXTERNAL === true);
   const isSceneMode = computed(() => store.getters.isSceneMode);
+  const isClusteringEnable = computed(() => isAiopsToggle.value && !isSceneMode.value && !isPlatformIndex.value);
   const isChartEnable = computed(
     () =>
       !store.getters.isUnionSearch &&
@@ -70,7 +73,7 @@
   const panelList = computed(() => {
     return [
       { name: 'origin', label: $t('原始日志'), disabled: false },
-      { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value || isSceneMode.value },
+      { name: 'clustering', label: $t('日志聚类'), disabled: !isClusteringEnable.value },
       { name: 'graph_analysis', label: $t('图表分析'), disabled: !isChartEnable.value },
       { name: 'grep', label: $t('Grep模式'), disabled: !isGrepEnable.value },
     ];
@@ -151,14 +154,14 @@
   };
 
   watch(
-    () => [isGrepEnable.value, isChartEnable.value, isAiopsToggle.value],
-    ([grepEnable, graphEnable, aiopsEnable]) => {
+    () => [isGrepEnable.value, isChartEnable.value, isClusteringEnable.value],
+    ([grepEnable, graphEnable, clusteringEnable]) => {
       // graphAnalysis: 兼容旧版本 graphAnalysis
       if (['clustering', 'graphAnalysis', 'grep', 'graph_analysis'].includes(route.query.tab)) {
         if (
           (!grepEnable && route.query.tab === 'grep') ||
           (!graphEnable && (route.query.tab === 'graphAnalysis' || route.query.tab === 'graph_analysis')) ||
-          (!aiopsEnable && route.query.tab === 'clustering')
+          (!clusteringEnable && route.query.tab === 'clustering')
         ) {
           emit('input', 'origin', false);
         }

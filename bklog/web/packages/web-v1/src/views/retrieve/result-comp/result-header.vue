@@ -360,6 +360,9 @@
             return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
         }
       },
+      isPlatformIndex() {
+        return Boolean(this.indexSetItem?.is_platform_index);
+      },
       /** 日志聚类开关 */
       clusterSwitch() {
         return this.clusteringData?.is_active;
@@ -384,6 +387,7 @@
         immediate: true,
         handler(val) {
           this.setShowLiList(val);
+          this.handleShowSettingMenuListChange();
         },
       },
       clusteringData: {
@@ -462,6 +466,7 @@
         document.hidden ? clearTimeout(this.refreshTimer) : this.setRefreshTime();
       },
       handleMenuClick(val) {
+        if (val === 'clustering' && this.isPlatformIndex) return;
         // 不属于新开页面的操作
         if (['index', 'extract', 'clustering'].includes(val)) {
           this.$emit('setting-menu-click', val);
@@ -488,7 +493,8 @@
         window.iframeParent.open(href, '_blank');
       },
       handleShowSettingMenuListChange() {
-        const isShowClusterSet = this.clusteringData?.is_active || this.storeIsShowClusterStep;
+        const isShowClusterSet =
+          !this.isPlatformIndex && (this.clusteringData?.is_active || this.storeIsShowClusterStep);
         this.showSettingMenuList = this.catchSettingMenuList.filter(item => {
           return item.id === 'clustering' ? isShowClusterSet : true;
         });
