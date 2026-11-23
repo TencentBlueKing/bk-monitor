@@ -4,8 +4,15 @@ from django.test import SimpleTestCase, TestCase
 
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
-from apps.log_clustering.constants import RegexRuleTypeEnum, StorageTypeEnum
-from apps.log_clustering.exceptions import RegexTemplateNotExistException
+from apps.log_clustering.components.collections.data_access_component import AddResourceGroupService
+from apps.log_clustering.components.collections.flow_component import (
+    UpdateClusteringField,
+    UpdateClusteringFieldService,
+)
+from apps.log_clustering.constants import DEFAULT_SIGNATURE_FORMAT_UDF, RegexRuleTypeEnum, StorageTypeEnum
+from apps.log_clustering.handlers.dataflow.constants import ActionEnum
+from apps.log_clustering.handlers.pipline_service.aiops_service_online import UpdateOnlineService
+from apps.log_clustering.exceptions import ClusteringConfigHasExistException, RegexTemplateNotExistException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_databus.models import CollectorConfig
@@ -65,6 +72,87 @@ class TestClusteringConfigHandler(SimpleTestCase):
 
         self.assertEqual(result, "operation-id")
         mock_quix_handler.return_value.update.assert_called_once_with({"filter_rules": []})
+
+    def test_save_schedules_both_online_flows_when_only_signature_udf_changes(self):
+        config = Mock(
+            index_set_id=TEST_INDEX_SET_ID,
+            bk_biz_id=TEST_BK_BIZ_ID,
+            predict_flow_id=11,
+            log_count_aggregation_flow_id=12,
+            predict_flow={"signature_format_udf": "tenant_udf"},
+            log_count_aggregation_flow={},
+            task_records=[],
+        )
+        with (
+            patch.object(ClusteringConfig, "get_by_index_set_id", return_value=config),
+            patch("apps.log_clustering.handlers.clustering_config.LogClusteringRuntime.objects.filter") as runtime,
+            patch(
+                "apps.log_clustering.handlers.pipline_service.aiops_service_online.get_online_clustering_config",
+                return_value={"signature_format_udf": "tenant_udf"},
+            ),
+            patch(
+                "apps.log_clustering.handlers.pipline_service.aiops_service_online.UpdateClusteringField",
+                wraps=UpdateClusteringField,
+            ) as step,
+            patch.object(UpdateOnlineService, "start_pipeline") as start_pipeline,
+            patch("apps.log_clustering.tasks.flow.restart_flow.apply_async") as restart,
+        ):
+            runtime.return_value.exists.return_value = False
+            task_id = ClusteringConfigHandler(index_set_id=TEST_INDEX_SET_ID).update({})
+
+        step.assert_called_once_with(TEST_INDEX_SET_ID, "tenant_udf")
+        self.assertEqual(task_id, start_pipeline.call_args.args[0].id)
+        restart.assert_not_called()
+
+    def test_old_snapshots_without_udf_match_the_default(self):
+        config = Mock(
+            bk_biz_id=TEST_BK_BIZ_ID,
+            predict_flow_id=11,
+            log_count_aggregation_flow_id=12,
+            predict_flow={},
+            log_count_aggregation_flow={},
+        )
+        with patch(
+            "apps.log_clustering.handlers.pipline_service.aiops_service_online.get_online_clustering_config",
+            return_value={},
+        ):
+            self.assertIsNone(UpdateOnlineService.get_changed_signature_format_udf(config))
+            config.log_count_aggregation_flow = {"signature_format_udf": "previous_udf"}
+            self.assertEqual(UpdateOnlineService.get_changed_signature_format_udf(config), DEFAULT_SIGNATURE_FORMAT_UDF)
+
+    def test_signature_udf_updates_both_graphs_before_either_restart(self):
+        config = Mock(bk_biz_id=TEST_BK_BIZ_ID, predict_flow_id=11, log_count_aggregation_flow_id=12)
+        data = Mock()
+        data.get_one_of_inputs.side_effect = {
+            "index_set_id": TEST_INDEX_SET_ID,
+            "signature_format_udf": "tenant_udf",
+        }.get
+        with (
+            patch.object(ClusteringConfig, "get_by_index_set_id", return_value=config),
+            patch("apps.log_clustering.components.collections.flow_component.DataFlowHandler") as handler_cls,
+        ):
+            handler = handler_cls.return_value
+            step = UpdateClusteringFieldService()
+            handler.update_log_count_aggregation_flow.side_effect = RuntimeError("aggregation SQL update failed")
+            with self.assertRaisesRegex(RuntimeError, "aggregation SQL update failed"):
+                step._execute(data, None)
+            handler.operator_flow.assert_not_called()
+
+            handler.reset_mock()
+            handler.update_log_count_aggregation_flow.side_effect = None
+            self.assertTrue(step._execute(data, None))
+
+        self.assertEqual(
+            handler.mock_calls,
+            [
+                call.update_predict_flow(TEST_INDEX_SET_ID, signature_format_udf="tenant_udf"),
+                call.update_log_count_aggregation_flow(
+                    TEST_INDEX_SET_ID, signature_format_udf="tenant_udf", restart=False
+                ),
+                call.operator_flow(flow_id=11, action=ActionEnum.RESTART, bk_biz_id=TEST_BK_BIZ_ID),
+                call.operator_flow(flow_id=12, action=ActionEnum.RESTART, bk_biz_id=TEST_BK_BIZ_ID),
+            ],
+        )
 
     def test_placeholder_analysis_supported_property(self):
         supported_config = ClusteringConfig(storage_type=StorageTypeEnum.DORIS.value, clustered_rt=TEST_CLUSTERED_RT)
@@ -163,6 +251,39 @@ class TestClusteringConfigHandler(SimpleTestCase):
 
 
 class TestCreateClusteringInGrayBusiness(TestCase):
+    def test_first_creation_persists_es_settings_and_duplicate_keeps_the_binding(self):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_es", space_uid=f"bkcc__{TEST_BK_BIZ_ID}", scenario_id=Scenario.BKDATA
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_source")
+        params = {"clustering_fields": "log", "new_cls_strategy_enable": False, "normal_strategy_enable": False}
+        with (
+            patch("apps.log_clustering.handlers.clustering_config.access_clustering.delay") as start,
+            patch("apps.log_clustering.handlers.clustering_config.get_online_clustering_config") as get_config,
+            patch(
+                "apps.log_clustering.handlers.clustering_config.RegexTemplateHandler.list_templates",
+                return_value=[{"id": 1, "predefined_varibles": "W10="}],
+            ),
+        ):
+            get_config.return_value = {"predict_es_storage": {"cluster_name": "first_es", "cluster_id": 8}}
+            ClusteringConfigHandler().create(index_set.index_set_id, params)
+            get_config.return_value = {"predict_es_storage": {"cluster_name": "different_es", "cluster_id": 9}}
+            with self.assertRaises(ClusteringConfigHasExistException):
+                ClusteringConfigHandler().create(index_set.index_set_id, params)
+
+        config = ClusteringConfig.get_by_index_set_id(index_set.index_set_id)
+        self.assertEqual(config.es_storage, "first_es")
+        self.assertEqual(config.predict_es_cluster_id, 8)
+        start.assert_called_once_with(index_set_id=index_set.index_set_id)
+
+        node_data = Mock()
+        node_data.get_one_of_inputs.return_value = index_set.index_set_id
+        with patch("apps.log_clustering.components.collections.data_access_component.DataAccessHandler") as handler:
+            self.assertTrue(AddResourceGroupService()._execute(node_data, None))
+        handler.return_value.add_cluster_group.assert_called_once_with(
+            "2_source", TEST_BK_BIZ_ID, cluster_name="first_es"
+        )
+
     def test_only_v4_collector_uses_quix(self):
         FeatureToggle.objects.create(name=MINI_CLUSTERING_CONFIG, status="debug", biz_id_white_list=[TEST_BK_BIZ_ID])
         params = {"clustering_fields": "log", "new_cls_strategy_enable": False, "normal_strategy_enable": False}

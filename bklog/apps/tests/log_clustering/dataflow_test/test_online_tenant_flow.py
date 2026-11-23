@@ -6,6 +6,7 @@ from unittest.mock import Mock, call, patch
 from django.test import SimpleTestCase
 
 from apps.log_clustering.constants import DEFAULT_SIGNATURE_FORMAT_UDF
+from apps.log_clustering.handlers.aiops.config import get_signature_format_udf
 from apps.log_clustering.handlers.dataflow.constants import ActionEnum, FlowMode
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
@@ -161,7 +162,7 @@ class TestOnlineTenantFlow(SimpleTestCase):
         self.assertEqual(clustering_config.new_cls_pattern_rt, "")
         self.assertEqual(result["flow_id"], 91)
 
-    def test_predict_flow_uses_tenant_resources_on_create_and_preserves_storage_on_update(self):
+    def test_predict_flow_uses_database_storage_on_create_retry_and_update(self):
         config = ClusteringConfig(
             bk_biz_id=2,
             index_set_id=30,
@@ -223,9 +224,9 @@ class TestOnlineTenantFlow(SimpleTestCase):
             handler.create_predict_flow(30)
             nodes = create_flow.call_args.args[0]["nodes"]
             self.assertIn("tenant_signature_udf(log_signature)", nodes[-2]["sql"])
-            self.assertEqual(nodes[-1]["cluster"], "tenant_es")
-            self.assertEqual(config.es_storage, "tenant_es")
-            self.assertEqual(config.predict_flow["es_cluster_id"], 8)
+            self.assertEqual(nodes[-1]["cluster"], "old_es")
+            self.assertEqual(config.es_storage, "old_es")
+            self.assertEqual(config.predict_flow["es_cluster"], "old_es")
 
             get_graph.return_value = {
                 "nodes": [
@@ -242,10 +243,11 @@ class TestOnlineTenantFlow(SimpleTestCase):
                 "signature_format_udf": "new_signature_udf",
                 "predict_es_storage": {"cluster_name": "other_es", "cluster_id": 9},
             }
+            config.es_storage = "corrected_es"
             handler.update_predict_flow(30)
             self.assertIn("new_signature_udf(log_signature)", patch_sql.call_args.kwargs["sql"])
-            self.assertEqual(config.predict_flow["es_cluster"], "tenant_es")
-            self.assertEqual(config.predict_flow["es_cluster_id"], 8)
+            self.assertEqual(config.predict_flow["es_cluster"], "corrected_es")
+            self.assertEqual(config.es_storage, "corrected_es")
 
     def test_aggregation_creation_and_update_render_all_signature_udf_calls(self):
         config = Mock(
@@ -295,12 +297,9 @@ class TestOnlineTenantFlow(SimpleTestCase):
                 self.assertRegex(node_call.kwargs["sql"], rf"{DEFAULT_SIGNATURE_FORMAT_UDF}\s*\(")
 
     def test_invalid_signature_udf_is_rejected_before_rendering(self):
-        handler = DataFlowHandler()
         for udf in ("wrong-name", "custom_udf(log) --", 'with"quote', "", 123):
-            with self.subTest(udf=udf):
-                handler.conf = {"signature_format_udf": udf}
-                with self.assertRaisesRegex(ValueError, "signature_format_udf"):
-                    handler._get_signature_format_udf()
+            with self.subTest(udf=udf), self.assertRaisesRegex(ValueError, "signature_format_udf"):
+                get_signature_format_udf({"signature_format_udf": udf})
 
     def test_log_count_aggregation_flow_keeps_agg_for_legacy_config(self):
         clustering_config = Mock(

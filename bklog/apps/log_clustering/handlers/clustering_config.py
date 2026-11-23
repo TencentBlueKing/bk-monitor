@@ -143,7 +143,6 @@ class ClusteringConfigHandler:
 
         clustering_fields = params.get("clustering_fields", DEFAULT_CLUSTERING_FIELDS)
 
-        es_storage = ""
         collector_config_name_en = ""
 
         # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
@@ -153,6 +152,12 @@ class ClusteringConfigHandler:
         default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT) or {}
         storage_type = conf.get("storage_type", StorageTypeEnum.ELASTICSEARCH.value)
         doris_storage = conf.get("doris_storage", "") if storage_type == StorageTypeEnum.DORIS.value else ""
+        es_storage, es_cluster_id = (
+            get_predict_es_storage(conf) if storage_type == StorageTypeEnum.ELASTICSEARCH.value else ("", None)
+        )
+        options = (
+            {"predict_es_storage": {"cluster_name": es_storage, "cluster_id": es_cluster_id}} if es_storage else None
+        )
 
         if collector_config_id:
             # 配置检查
@@ -164,10 +169,7 @@ class ClusteringConfigHandler:
                 raise CollectorStorageNotExistException(
                     CollectorStorageNotExistException.MESSAGE.format(collector_config_id=collector_config_id)
                 )
-            es_storage = collector_clustering_es_storage.get("es_storage", "")
-            if storage_type == StorageTypeEnum.ELASTICSEARCH.value:
-                cluster_name, _cluster_id = get_predict_es_storage(conf)
-                es_storage = cluster_name or es_storage
+            es_storage = es_storage or collector_clustering_es_storage.get("es_storage", "")
             if not es_storage:
                 raise CollectorEsStorageNotExistException(
                     CollectorEsStorageNotExistException.MESSAGE.format(collector_config_id=collector_config_id)
@@ -186,13 +188,14 @@ class ClusteringConfigHandler:
 
         # 创建流程
         # 聚类配置优先级：参数传入 -> 数据库默认配置 -> 代码默认配置
-        clustering_config, created = ClusteringConfig.objects.update_or_create(
+        clustering_config, created = ClusteringConfig.objects.get_or_create(
             index_set_id=index_set_id,
             defaults=dict(
                 model_id=conf.get("model_id", ""),  # 模型id 需要判断是否为预测 flow流程
                 collector_config_id=collector_config_id,
                 collector_config_name_en=collector_config_name_en,
                 es_storage=es_storage,
+                options=options,
                 storage_type=storage_type,
                 doris_storage=doris_storage,
                 min_members=params.get(
@@ -220,6 +223,10 @@ class ClusteringConfigHandler:
                 access_finished=False,
             ),
         )
+        if not created:
+            raise ClusteringConfigHasExistException(
+                ClusteringConfigHasExistException.MESSAGE.format(index_set_id=index_set_id)
+            )
         # 空间是否存在模板
         regex_template = RegexTemplateHandler().list_templates(space_uid=log_index_set.space_uid)[0]
         clustering_config.regex_template_id = regex_template["id"]
@@ -242,12 +249,14 @@ class ClusteringConfigHandler:
             log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
             return QuixClusteringHandler(log_index_set).update(params)
 
+        service = UpdateOnlineService()
+        signature_format_udf = service.get_changed_signature_format_udf(self.data)
         params = {
             "index_set_id": self.index_set_id,
             "params": params,
+            "signature_format_udf": signature_format_udf,
         }
 
-        service = UpdateOnlineService()
         data = service.build_data_context(params)
         pipeline = service.build_pipeline(data, **params)
 
@@ -262,6 +271,10 @@ class ClusteringConfigHandler:
             {"operate": OperatorServiceEnum.UPDATE, "task_id": pipeline.id, "time": int(now_time.timestamp())}
         )
         self.data.save(update_fields=["task_records"])
+
+        if signature_format_udf is not None:
+            # UDF 同步节点在两个 Flow 更新完成后负责重启。
+            return pipeline.id
 
         # 延迟10分钟重启flow
         from apps.log_clustering.tasks.flow import restart_flow

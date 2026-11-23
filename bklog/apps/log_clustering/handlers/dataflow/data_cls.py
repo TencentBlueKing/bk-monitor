@@ -425,7 +425,6 @@ class PredictDataFlowCls:
     doris: DorisCls = field(default_factory=DorisCls)
     doris_storage: str = ""
     signature_format_udf: str = DEFAULT_SIGNATURE_FORMAT_UDF
-    es_cluster_id: int | None = None
 
 
 @dataclass

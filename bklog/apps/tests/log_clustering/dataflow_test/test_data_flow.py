@@ -16,6 +16,7 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
+from apps.log_search.views.index_set_views import IndexSetViewSet
 from apps.log_search.models import LogIndexSet
 
 ALL_FIELDS_DICT = {
@@ -540,7 +541,8 @@ class TestPatternSearch(TestCase):
                 "index_set_id": 31,
                 "storage_type": StorageTypeEnum.ELASTICSEARCH.value,
                 "clustered_rt": "2_bklog_31_clustered",
-                "predict_flow": {"es_cluster": "tenant_es", "es_cluster_id": 8},
+                "es_storage": "tenant_es",
+                "options": {"predict_es_storage": {"cluster_name": "tenant_es", "cluster_id": 8}},
             }
         )
 
@@ -548,6 +550,12 @@ class TestPatternSearch(TestCase):
 
         self.assertEqual(mock_bulk.call_args.args[0]["table_info"][0]["cluster_id"], 8)
         self.assertEqual(mock_mapping.call_args.args[0].storage_cluster_id, 8)
+
+        view = IndexSetViewSet()
+        with patch.object(view, "params_valid", return_value={"page": 1, "pagesize": 10}):
+            routers = view.list_es_router(None).data["list"]
+        clustered_router = next(router for router in routers if router["index_set"] == "2_bklog_31_clustered")
+        self.assertEqual(clustered_router["cluster_id"], 8)
 
     @patch.object(MappingHandlers, "get_mapping_field_names", return_value={"log_level", "__dist_05"})
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.bulk_create_or_update_log_router")

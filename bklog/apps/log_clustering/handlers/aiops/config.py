@@ -19,12 +19,14 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import re
 from copy import deepcopy
 
 from django.utils.translation import gettext as _
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
+from apps.log_clustering.constants import DEFAULT_SIGNATURE_FORMAT_UDF
 from apps.log_search.models import Space
 
 TENANT_RESOURCE_CONFIGS_KEY = "tenant_resource_configs"
@@ -54,8 +56,8 @@ def get_online_clustering_config(bk_biz_id: int):
     the top-level value is used. The optional predict_es_storage binds the
     BKBase cluster name to the matching BKMonitor cluster ID. Omit cluster_id
     if the BKBase name points to the source index set's physical ES cluster.
-    An explicit retry of failed prediction-flow creation uses these settings,
-    while an already created flow retains its storage binding.
+    Only initial index configuration creation reads predict_es_storage.
+    Flow creation, retry and update use the persisted index binding.
     """
     config = deepcopy(FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config)
     bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id)
@@ -64,6 +66,13 @@ def get_online_clustering_config(bk_biz_id: int):
     config.update(tenant_config)
     config["pattern_storage_cluster"] = config.get("pattern_storage_cluster") or config.get("tspider_cluster")
     return config
+
+
+def get_signature_format_udf(config: dict) -> str:
+    udf = config.get("signature_format_udf", DEFAULT_SIGNATURE_FORMAT_UDF)
+    if not isinstance(udf, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", udf):
+        raise ValueError(_("signature_format_udf 必须是有效的 SQL 函数名"))
+    return udf
 
 
 def get_predict_es_storage(config: dict) -> tuple[str, int | None]:

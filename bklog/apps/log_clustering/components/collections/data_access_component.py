@@ -107,13 +107,14 @@ class AddResourceGroupService(BaseService):
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
-        if clustering_config.es_storage:
+        if clustering_config.es_storage and not (clustering_config.options or {}).get("predict_es_storage"):
             return True
         es_storage_name = DataAccessHandler().add_cluster_group(
-            clustering_config.source_rt_name, clustering_config.bk_biz_id
+            clustering_config.source_rt_name, clustering_config.bk_biz_id, cluster_name=clustering_config.es_storage
         )
-        clustering_config.es_storage = es_storage_name
-        clustering_config.save()
+        if not clustering_config.es_storage:
+            clustering_config.es_storage = es_storage_name
+            clustering_config.save(update_fields=["es_storage"])
         return True
 
 

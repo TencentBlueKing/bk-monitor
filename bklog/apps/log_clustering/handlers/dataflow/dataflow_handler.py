@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 import copy
 import json
 import os
-import re
 from dataclasses import asdict
 
 import arrow
@@ -43,7 +42,6 @@ from apps.feature_toggle.plugins.constants import NEW_CLASS_ALERT_NEW_SERIES
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_NEW_CLS_HOURS,
-    DEFAULT_SIGNATURE_FORMAT_UDF,
     NOT_NEED_EDIT_NODES,
     PatternEnum,
     SIGNATURE_FIELD,
@@ -57,7 +55,7 @@ from apps.log_clustering.exceptions import (
     QueryFieldsException,
 )
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
-from apps.log_clustering.handlers.aiops.config import get_online_clustering_config, get_predict_es_storage
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config, get_signature_format_udf
 from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.handlers.dataflow.constants import (
     CLUSTERING_DEFAULT_MODEL_INPUT_FIELDS,
@@ -1426,12 +1424,6 @@ class DataFlowHandler(BaseAiopsHandler):
             doris_fields.append({"alias": dist_field, "field": dist_field, "type": "string", "config": ""})
         return doris_fields
 
-    def _get_signature_format_udf(self) -> str:
-        udf = self.conf.get("signature_format_udf", DEFAULT_SIGNATURE_FORMAT_UDF)
-        if not isinstance(udf, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", udf):
-            raise ValueError(_("signature_format_udf 必须是有效的 SQL 函数名"))
-        return udf
-
     def _init_predict_flow(
         self,
         result_table_id: str,
@@ -1441,6 +1433,7 @@ class DataFlowHandler(BaseAiopsHandler):
         index_set_id: int,
         clustering_config,
         clustering_fields="log",
+        signature_format_udf: str | None = None,
     ):
         """
         初始化 predict_flow
@@ -1511,7 +1504,7 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
             bk_biz_id=bk_biz_id,
             is_flink_env=self.conf.get("is_flink_env", False),
-            signature_format_udf=self._get_signature_format_udf(),
+            signature_format_udf=signature_format_udf or get_signature_format_udf(self.conf),
         )
         # 采集项侧，创建聚类配置时设置 es_storage
         if clustering_config.collector_config_id:
@@ -1588,14 +1581,7 @@ class DataFlowHandler(BaseAiopsHandler):
                 )
             )
         else:
-            if clustering_config.predict_flow_id:
-                saved_flow = clustering_config.predict_flow or {}
-                cluster_name = saved_flow.get("es_cluster")
-                cluster_id = saved_flow.get("es_cluster_id")
-            else:
-                cluster_name, cluster_id = get_predict_es_storage(self.conf)
-            predict_flow.es_cluster = cluster_name or clustering_config.es_storage
-            predict_flow.es_cluster_id = cluster_id
+            predict_flow.es_cluster = clustering_config.es_storage
             predict_flow.es.expires = es_storage["expires"]
             predict_flow.es.has_replica = json.dumps(es_storage.get("has_replica", False))
             predict_flow.es.json_fields = json.dumps(es_storage.get("json_fields", []))
@@ -1794,7 +1780,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
     @classmethod
     def _build_clustered_es_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
-        cluster_id = (clustering_config.predict_flow or {}).get("es_cluster_id") or index_set.storage_cluster_id
+        cluster_id = clustering_config.predict_es_cluster_id or index_set.storage_cluster_id
         route_params = {
             **cls._build_clustered_route_base_params(index_set, clustering_config),
             "cluster_id": cluster_id,
@@ -1937,12 +1923,10 @@ class DataFlowHandler(BaseAiopsHandler):
         result = BkDataDataFlowApi.create_flow(request_dict)
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.predict_flow_id = result["flow_id"]
-        if es_cluster := predict_flow_dict.get("es_cluster"):
-            clustering_config.es_storage = es_cluster
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
         #  填充签名字段打平节点-聚类结果表输出RT
         clustering_config.clustered_rt = predict_flow_dict["format_signature"]["result_table_id"]
-        clustering_config.save()
+        clustering_config.save(update_fields=["predict_flow", "predict_flow_id", "model_output_rt", "clustered_rt"])
         # 创建聚类结果表路由信息
         self.sync_clustered_route(index_set_id=index_set_id, raise_exception=True)
 
@@ -1957,10 +1941,10 @@ class DataFlowHandler(BaseAiopsHandler):
 
         online_task = self.create_online_task(index_set_id=index_set_id)
         clustering_config.online_task_id = online_task["ci_id"]
-        clustering_config.save()
+        clustering_config.save(update_fields=["online_task_id"])
         return result
 
-    def update_predict_flow(self, index_set_id):
+    def update_predict_flow(self, index_set_id, signature_format_udf: str | None = None):
         """
         update_predict_flow
         @param index_set_id:
@@ -1989,6 +1973,7 @@ class DataFlowHandler(BaseAiopsHandler):
                 index_set_id=clustering_config.index_set_id,
                 clustering_config=clustering_config,
                 clustering_fields=all_fields_dict.get(clustering_config.clustering_fields),
+                signature_format_udf=signature_format_udf,
             )
         )
         predict_flow = self._render_template(
@@ -2002,7 +1987,7 @@ class DataFlowHandler(BaseAiopsHandler):
 
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
-        clustering_config.save()
+        clustering_config.save(update_fields=["predict_flow", "model_output_rt"])
         self.sync_clustered_route(index_set_id=index_set_id, raise_exception=True)
         logger.info(f"update predict flow success: flow_id -> {clustering_config.predict_flow_id}")
 
@@ -2013,6 +1998,7 @@ class DataFlowHandler(BaseAiopsHandler):
         index_set_id: int,
         clustering_config: ClusteringConfig,
         include_agg: bool = True,
+        signature_format_udf: str | None = None,
     ):
         """
         初始化 create_log_count_aggregation_flow
@@ -2055,7 +2041,7 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
             storage_type=storage_type,
             bk_biz_id=bk_biz_id,
-            signature_format_udf=self._get_signature_format_udf(),
+            signature_format_udf=signature_format_udf or get_signature_format_udf(self.conf),
         )
 
         return log_count_aggregation_flow
@@ -2117,7 +2103,9 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.save()
         return result
 
-    def update_log_count_aggregation_flow(self, index_set_id):
+    def update_log_count_aggregation_flow(
+        self, index_set_id, signature_format_udf: str | None = None, restart: bool = True
+    ):
         """
         update_log_count_aggregation_flow
         @param index_set_id:
@@ -2141,6 +2129,8 @@ class DataFlowHandler(BaseAiopsHandler):
                 bk_biz_id=clustering_config.bk_biz_id,  # 当前业务id
                 index_set_id=clustering_config.index_set_id,
                 clustering_config=clustering_config,
+                include_agg=(clustering_config.log_count_aggregation_flow or {}).get("include_agg", True),
+                signature_format_udf=signature_format_udf,
             )
         )
         log_count_aggregation_flow = self._render_template(
@@ -2151,8 +2141,8 @@ class DataFlowHandler(BaseAiopsHandler):
         # 更新画布结构
         self.deal_predict_flow(nodes=nodes, flow=flow, bk_biz_id=clustering_config.bk_biz_id)
 
-        # 重启 flow
-        self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART, bk_biz_id=clustering_config.bk_biz_id)
+        if restart:
+            self.operator_flow(flow_id=flow_id, action=ActionEnum.RESTART, bk_biz_id=clustering_config.bk_biz_id)
         clustering_config.log_count_aggregation_flow = log_count_aggregation_flow_dict
         clustering_config.save(update_fields=["log_count_aggregation_flow"])
         logger.info(f"update agg flow success: flow_id -> {clustering_config.log_count_aggregation_flow_id}")

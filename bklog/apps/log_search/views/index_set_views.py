@@ -82,9 +82,7 @@ class DesensitizeConfigWritePermission(IAMPermission):
 
         index_set_id = view.kwargs[view.lookup_url_kwarg or view.lookup_field]
         collector_config_id = (
-            LogIndexSet.objects.filter(index_set_id=index_set_id)
-            .values_list("collector_config_id", flat=True)
-            .first()
+            LogIndexSet.objects.filter(index_set_id=index_set_id).values_list("collector_config_id", flat=True).first()
         )
 
         # collector_config_id=0 在语义上等同于「无采集项」（合法值从 1 开始），
@@ -368,12 +366,12 @@ class IndexSetViewSet(ModelViewSet):
         if params.get("space_uid", ""):
             qs = qs.filter(space_uid=params["space_uid"])
 
-        clustering_config_list = list(clustered_qs.values("index_set_id", "clustered_rt"))
+        clustering_config_list = list(clustered_qs.only("index_set_id", "clustered_rt", "es_storage", "options"))
         total = qs.count() + len(clustering_config_list)
         qs = qs[(params["page"] - 1) * params["pagesize"] : params["page"] * params["pagesize"]]
 
         index_set_ids = list(qs.values_list("index_set_id", flat=True))
-        clustering_index_set_ids = [clustering_config["index_set_id"] for clustering_config in clustering_config_list]
+        clustering_index_set_ids = [clustering_config.index_set_id for clustering_config in clustering_config_list]
 
         index_set_list = list(qs.values())
         clustering_index_set_list = list(LogIndexSet.objects.filter(index_set_id__in=clustering_index_set_ids).values())
@@ -456,14 +454,14 @@ class IndexSetViewSet(ModelViewSet):
         # 聚类索引路由创建，追加至列表末尾，不支持space过滤
         if qs.count() < params["pagesize"]:
             for clustering_config in clustering_config_list:
-                clustered_rt = clustering_config["clustered_rt"]
-                index_set_id = clustering_config["index_set_id"]
+                clustered_rt = clustering_config.clustered_rt
+                index_set_id = clustering_config.index_set_id
                 index_set = clustering_index_set_dict.get(index_set_id, None)
                 if not clustered_rt or not index_set:
                     continue
                 router_list.append(
                     {
-                        "cluster_id": index_set["storage_cluster_id"],
+                        "cluster_id": clustering_config.predict_es_cluster_id or index_set["storage_cluster_id"],
                         "index_set": clustered_rt,
                         "source_type": Scenario.BKDATA,
                         "data_label": BaseIndexSetHandler.get_data_label(index_set_id, clustered_rt=clustered_rt),

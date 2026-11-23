@@ -214,17 +214,19 @@ class DataAccessHandler(BaseAiopsHandler):
             params["consume_position"] = "tail"
         return BkDataDatabusApi.post_tasks(params=params)
 
-    def add_cluster_group(self, result_table_id, bk_biz_id):
+    def add_cluster_group(self, result_table_id, bk_biz_id, cluster_name: str | None = None):
         self.conf = get_online_clustering_config(bk_biz_id)
-        storage_config = BkDataMetaApi.result_tables.storages(
-            self._set_bkdata_request_params({"result_table_id": result_table_id}, bk_biz_id=bk_biz_id)
-        )
+        if not cluster_name:
+            storage_config = BkDataMetaApi.result_tables.storages(
+                self._set_bkdata_request_params({"result_table_id": result_table_id}, bk_biz_id=bk_biz_id)
+            )
+            cluster_name = storage_config["es"]["storage_cluster"]["cluster_name"]
         cluster_resource_groups = BkDataResourceCenterApi.cluster_query_digest(
             params=self._set_bkdata_request_params(
                 {
                     "resource_type": "storage",
                     "service_type": "es",
-                    "cluster_name": storage_config["es"]["storage_cluster"]["cluster_name"],
+                    "cluster_name": cluster_name,
                 },
                 bk_biz_id=bk_biz_id,
             )
@@ -240,4 +242,4 @@ class DataAccessHandler(BaseAiopsHandler):
             )
         )
 
-        return storage_config["es"]["storage_cluster"]["cluster_name"]
+        return cluster_name

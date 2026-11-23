@@ -405,6 +405,13 @@ class ClusteringConfig(SoftDeleteModel):
     doris_storage = models.CharField(_("doris 存储集群"), max_length=64, null=True, blank=True, default=None)
 
     @property
+    def predict_es_cluster_id(self) -> int | None:
+        storage = (self.options or {}).get("predict_es_storage") or {}
+        if storage.get("cluster_name") == self.es_storage:
+            return storage.get("cluster_id")
+        return None
+
+    @property
     def placeholder_analysis_supported(self) -> bool:
         return self.storage_type == StorageTypeEnum.DORIS.value and bool(self.clustered_rt)
 
