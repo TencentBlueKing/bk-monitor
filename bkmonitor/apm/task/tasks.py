@@ -142,7 +142,8 @@ def topo_discover_cron():
                 bk_biz_id,
                 app_name,
             )
-            raise
+            # 单个应用派发失败不能阻塞同轮其余应用
+            continue
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -198,6 +199,9 @@ def datasource_discover_cron() -> None:
                         )
             except LockError:
                 logger.info(f"skipped: [datasource_discover_cron] already running. app_id: {app_id}")
+                continue
+            except Exception:
+                logger.exception(f"[datasource_discover_cron] dispatch {data_type} task failed for app_id: {app_id}")
                 continue
 
 
