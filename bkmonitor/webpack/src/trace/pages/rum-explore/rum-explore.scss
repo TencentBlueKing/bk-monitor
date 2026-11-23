@@ -51,6 +51,13 @@
     overflow: hidden;
     background: #fff;
     border-radius: 2px;
+
+    /* 趋势图固定在表格上方，列表容器占满剩余高度并保留自身滚动 */
+    .rum-explore-view {
+      flex: 1;
+      height: auto;
+      min-height: 0;
+    }
   }
 
   .rum-explore-mode-placeholder {

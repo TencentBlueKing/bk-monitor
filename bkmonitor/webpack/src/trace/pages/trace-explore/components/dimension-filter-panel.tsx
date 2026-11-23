@@ -105,6 +105,17 @@ export default defineComponent({
       if (!selectField.value) return '';
       return getTraceFieldUnit(selectField.value.name);
     });
+    /** 统计弹层字段：补充单位与展示模式标记 */
+    const statisticsField = computed(() => {
+      if (!selectField.value) return null;
+      const fieldUnit = selectFieldUnit.value;
+      return {
+        ...selectField.value,
+        field_unit: fieldUnit,
+        isDuration: ['us', 'ms', 'μs'].includes(fieldUnit),
+        isInteger: ['double', 'long', 'integer'].includes(selectField.value.type),
+      };
+    });
     /** 点击维度项后展示统计弹窗 */
     async function handleDimensionItemClick(e: Event, item: IDimensionFieldTreeItem) {
       destroyPopover();
@@ -191,6 +202,7 @@ export default defineComponent({
       dimensionTreeList,
       selectField,
       selectFieldUnit,
+      statisticsField,
       handleSearch,
       popoverInstance,
       statisticsListRef,
@@ -250,9 +262,7 @@ export default defineComponent({
         <StatisticsList
           ref='statisticsListRef'
           commonParams={this.params}
-          field={this.selectField ? { ...this.selectField, field_unit: this.selectFieldUnit } : null}
-          isDuration={['us', 'ms', 'μs'].includes(this.selectFieldUnit)}
-          isInteger={['double', 'long', 'integer'].includes(this.selectField?.type)}
+          field={this.statisticsField}
           isShow={this.showStatisticsPopover}
           onConditionChange={this.handleConditionChange}
           onContentRendered={this.updatePopoverPosition}

@@ -80,10 +80,8 @@ export interface IStatisticsDataCallbacks {
 export interface IStatisticsDataProps {
   api: IStatisticsApi;
   commonParams: ICommonParams;
-  /** 统计分析的字段对象，字段名/单位/类型/枚举值等均从这里取值 */
-  field: IStatisticsFieldItem | null;
-  isDuration: boolean;
-  isInteger: boolean;
+  /** 统计分析的字段对象；传数组时展示 Tab，字段名/单位/类型/枚举值/展示模式等均从当前激活字段取值 */
+  field: IStatisticsFieldItem | IStatisticsFieldItem[] | null;
   isShow: boolean;
   timeRange: null | TimeRangeType;
 }
@@ -105,12 +103,23 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   const appStore = useAppStore();
   const store = useTraceExploreStore();
 
-  /** 展示模式：耗时 / 数值 / 文本 */
-  const mode = computed<StatisticsMode>(() => resolveStatisticsMode(props.isDuration, props.isInteger));
+  /** 归一化后的字段列表：field 为数组时对应多个 Tab，单字段只有一项 */
+  const fieldList = computed<IStatisticsFieldItem[]>(() => {
+    if (!props.field) return [];
+    return Array.isArray(props.field) ? props.field : [props.field];
+  });
+  /** 当前激活的字段下标 */
+  const activeFieldIndex = shallowRef(0);
+  /** 当前激活的字段 */
+  const activeField = computed<IStatisticsFieldItem | null>(() => fieldList.value[activeFieldIndex.value] || null);
+  /** 展示模式：耗时 / 数值 / 文本，由字段自带的标记决定 */
+  const mode = computed<StatisticsMode>(() =>
+    resolveStatisticsMode(!!activeField.value?.isDuration, !!activeField.value?.isInteger)
+  );
   /** 字段单位，未选字段时兜底空串 */
-  const fieldUnit = computed(() => props.field?.field_unit || '');
+  const fieldUnit = computed(() => activeField.value?.field_unit || '');
   /** 字段类型，未选字段时兜底 text */
-  const fieldType = computed(() => props.field?.type || 'text');
+  const fieldType = computed(() => activeField.value?.type || 'text');
   const currentTimeRange = computed<TimeRangeType>(() => props.timeRange || store.timeRange);
 
   /** 展示的范围文本 */
@@ -118,7 +127,8 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   const infoLoading = shallowRef(false);
   const popoverLoading = shallowRef(false);
 
-  const localField = shallowRef('');
+  /** 当前统计的字段名 */
+  const localField = computed(() => activeField.value?.name || '');
   /** 获取字段统计接口次数，用于判断接口取消后的逻辑 */
   const getStatisticsListCount = shallowRef(1);
   /** 获取字段信息接口次数 */
@@ -140,11 +150,17 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   const sliderLoadMoreLoading = shallowRef(false);
   const sliderListPage = shallowRef(1);
   const sliderDimensionList = reactive<ITopKField>({ ...EMPTY_TOPK_FIELD });
+  /** 侧栏请求序号：切换字段 Tab 或关闭侧栏后递增，让在途的 loadMore 结果直接丢弃 */
+  const sliderRequestCount = shallowRef(0);
 
   watch(
     () => props.isShow,
     async val => {
       if (val) {
+        // 每次打开都从第一个字段开始
+        activeFieldIndex.value = 0;
+        // 上一次侧栏可能未关闭，重新打开时一并复位，避免侧栏残留上一个字段的数据
+        resetSliderState();
         await handleShowStatistics();
       } else {
         resetStatisticsState();
@@ -167,7 +183,7 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   function aliasFormatter(value: number | string) {
     return resolveTopKAlias(value as string, {
       fieldName: localField.value,
-      optionValues: props.field?.option_values,
+      optionValues: activeField.value?.option_values,
       unit: fieldUnit.value,
     });
   }
@@ -183,7 +199,6 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   /** 弹窗打开：耗时字段与普通字段走两条数据流 */
   async function handleShowStatistics() {
     infoLoading.value = true;
-    localField.value = props.field?.name || '';
     if (mode.value !== 'duration') {
       rangeText.value = handleTransformTime(currentTimeRange.value);
       getStatisticsList();
@@ -218,6 +233,16 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
     setTopKData(statisticsList);
     statisticsInfo.value = { ...EMPTY_STATISTICS_INFO };
     chartData.value = [];
+  }
+
+  /** 切换字段 Tab：清空当前统计数据后按新字段重新请求 */
+  async function handleTabChange(index: number) {
+    if (index === activeFieldIndex.value) return;
+    activeFieldIndex.value = index;
+    // 侧栏展示的是上一个字段的全量数据，切 Tab 时一并关闭并清空
+    resetSliderState();
+    resetStatisticsState();
+    await handleShowStatistics();
   }
 
   /** 耗时topK列表逻辑特殊，通过traceFieldStatisticsGraph接口返回的数据由前端生成 */
@@ -361,21 +386,33 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   async function loadMore() {
     if (sliderLoadMoreLoading.value) return;
     sliderLoadMoreLoading.value = true;
+    const count = sliderRequestCount.value;
     const data = await props.api
       .fieldsTopK(withTimeParams({ limit: sliderListPage.value * TOPK_SLIDER_PAGE_SIZE, fields: [localField.value] }))
       .catch(() => []);
+    // 期间切换了字段 Tab 或关闭了侧栏，丢弃过期结果，避免旧字段数据写进侧栏
+    if (count !== sliderRequestCount.value) return;
     applyTopKData(sliderDimensionList, data[0]);
     sliderLoadMoreLoading.value = false;
     sliderListPage.value += 1;
   }
 
+  /** 复位侧栏：关闭并清空全量列表，页码回到第一页，同时作废在途的 loadMore */
+  function resetSliderState() {
+    sliderRequestCount.value += 1;
+    sliderShow.value = false;
+    sliderLoadMoreLoading.value = false;
+    sliderListPage.value = 1;
+    setTopKData(sliderDimensionList);
+  }
+
   function handleSliderShowChange(show: boolean) {
-    sliderShow.value = show;
-    sliderShowChange();
-    if (!show) {
-      sliderListPage.value = 1;
-      setTopKData(sliderDimensionList);
+    if (show) {
+      sliderShow.value = true;
+    } else {
+      resetSliderState();
     }
+    sliderShowChange();
   }
 
   /** 下载：耗时字段本地生成 CSV，其余走接口 */
@@ -419,6 +456,9 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
 
   return {
     mode,
+    fieldList,
+    activeField,
+    activeFieldIndex,
     localField,
     rangeText,
     infoLoading,
@@ -435,5 +475,6 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
     loadMore,
     handleSliderShowChange,
     handleDownload,
+    handleTabChange,
   };
 }

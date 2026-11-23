@@ -1,0 +1,54 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
+.trend-chart-panel {
+  flex-shrink: 0;
+
+  .chart-collapse-header {
+    padding: 0 12px;
+
+    .header-custom {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      height: 100%;
+    }
+  }
+
+  .chart-collapse-header-trigger {
+    .header-trigger-default {
+      .chart-trigger-description {
+        margin-left: 4px;
+        color: #63656e;
+      }
+    }
+  }
+
+  .trend-summary {
+    margin-left: 4px;
+    color: #63656e;
+
+    .count {
+      color: #e71818;
+    }
+  }
+
+  .trend-summary-skeleton {
+    display: inline-block;
+    width: 180px;
+    height: 12px;
+    vertical-align: middle;
+
+    @include skeleton.surface;
+  }
+
+  .trend-chart-panel-container {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    padding: 0 6px 6px;
+
+    .explore-chart {
+      width: 100%;
+    }
+  }
+}
