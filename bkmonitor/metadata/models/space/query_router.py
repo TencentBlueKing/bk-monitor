@@ -27,10 +27,14 @@ def normalize_query_router_config(config: dict[str, Any] | None, default_space_t
     if filter_value not in {"space_id", "bk_biz_id"}:
         raise ValueError(f"query_router_config.filter_value: {filter_value} is invalid")
 
+    filter_key = config.get("filter_key")
+    if filter_key is not None and not isinstance(filter_key, str):
+        raise ValueError("query_router_config.filter_key must be a string")
+
     normalized = {
         "space_type": space_type,
         "filter_value": filter_value,
-        "filter_key": config.get("filter_key") or "bk_biz_id",
+        "filter_key": filter_key or "bk_biz_id",
     }
     if "exempt_owner" in config:
         if not isinstance(config["exempt_owner"], bool):

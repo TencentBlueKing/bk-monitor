@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 from typing import Any
 
@@ -627,8 +628,18 @@ def test_compose_vm_short_link_table_ids_global_and_owner_filters(exempt_owner):
         is_global=True,
     )
 
-    owner_values = SpaceTableIDRedis()._compose_vm_short_link_table_ids(owner)
-    other_values = SpaceTableIDRedis()._compose_vm_short_link_table_ids(other)
+    # 通用表选项与短链路冲突时，路由和共享范围均由短链路决定。
+    for table_id in (TABLE_ID, global_table_id):
+        models.ResultTableOption.objects.create(
+            bk_tenant_id=BK_TENANT_ID,
+            table_id=table_id,
+            name=models.ResultTableOption.OPTION_QUERY_ROUTER_CONFIG,
+            value_type=models.ResultTableOption.TYPE_DICT,
+            value=json.dumps({"filter_key": "other_key", "exempt_owner": False}),
+        )
+    client = SpaceTableIDRedis()
+    owner_values = client._compose_bkcc_space_table_ids(owner)
+    other_values = client._compose_bkcc_space_table_ids(other)
 
     assert owner_values[TABLE_ID] == {"filters": []}
     assert owner_values[global_table_id] == {"filters": [{"appid": "315"}] if exempt_owner is False else []}

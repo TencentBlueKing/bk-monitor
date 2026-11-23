@@ -1267,11 +1267,17 @@ class SpaceTableIDRedis:
     def _compose_global_table_ids(self, space: models.Space) -> dict[str, dict[str, list[dict[str, Any]]]]:
         """按结果表的 query_router_config 组装全局路由。"""
 
+        # 单业务短链路在其他空间也不能通过结果表选项被共享。
+        short_link_table_ids = models.VMShortLinkRecord.objects.filter(
+            bk_tenant_id=space.bk_tenant_id, is_deleted=False
+        ).values("table_id")
         options = list(
             models.ResultTableOption.objects.filter(
                 bk_tenant_id=space.bk_tenant_id,
                 name=models.ResultTableOption.OPTION_QUERY_ROUTER_CONFIG,
-            ).values("table_id", "value", "value_type")
+            )
+            .exclude(table_id__in=short_link_table_ids)
+            .values("table_id", "value", "value_type")
         )
         if not options:
             return {}
@@ -1311,7 +1317,8 @@ class SpaceTableIDRedis:
                 router_space_type = config["space_type"]
                 if router_space_type not in supported_space_types:
                     raise ValueError(f"query_router_config.space_type {router_space_type} is not supported")
-            except (AttributeError, TypeError, ValueError, json.JSONDecodeError) as err:
+                route = compose_query_route(config, space, is_owner=result_table.bk_biz_id == current_bk_biz_id)
+            except (AttributeError, TypeError, ValueError) as err:
                 logger.warning(
                     "_compose_global_table_ids: invalid query_router_config, "
                     "table_id->[%s], bk_tenant_id->[%s], error->[%s]",
@@ -1321,7 +1328,6 @@ class SpaceTableIDRedis:
                 )
                 continue
 
-            route = compose_query_route(config, space, is_owner=result_table.bk_biz_id == current_bk_biz_id)
             if route is not None:
                 values[table_id] = route
         return values
@@ -1337,12 +1343,21 @@ class SpaceTableIDRedis:
             if not record.is_global:
                 values[record.table_id] = {"filters": []}
                 continue
-            route = compose_query_route(
-                record.normalized_query_router_config,
-                space,
-                is_owner=record.space_type == space.space_type_id and record.space_id == space.space_id,
-                short_link=True,
-            )
+            try:
+                route = compose_query_route(
+                    record.normalized_query_router_config,
+                    space,
+                    is_owner=record.space_type == space.space_type_id and record.space_id == space.space_id,
+                    short_link=True,
+                )
+            except (AttributeError, TypeError, ValueError) as err:
+                logger.warning(
+                    "_compose_vm_short_link_table_ids: invalid query_router_config, table_id->[%s], tenant->[%s]: %s",
+                    record.table_id,
+                    space.bk_tenant_id,
+                    err,
+                )
+                continue
             if route is not None:
                 values[record.table_id] = route
         return values

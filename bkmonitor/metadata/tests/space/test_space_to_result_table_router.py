@@ -484,6 +484,17 @@ def test_global_table_exempt_owner(create_or_delete_records, storage, exempt_own
 def test_compose_global_table_ids_ignore_invalid_or_ineligible_options(create_or_delete_records):
     create_global_table(table_id="valid_default.log", query_router_config={})
     create_global_table(table_id="invalid_exemption.log", query_router_config={"exempt_owner": "false"})
+    create_global_table(table_id="invalid_filter.log", query_router_config={"filter_key": {"key": "appid"}})
+    create_global_table(table_id="numeric_filter.log", query_router_config={"filter_key": 7})
+    models.VMShortLinkRecord.objects.create(
+        table_id="invalid_filter.short_link",
+        vm_result_table_id="invalid_vmrt",
+        vm_cluster_id=1,
+        space_type="bkcc",
+        space_id="1",
+        is_global=True,
+        query_router_config={"filter_key": ["appid"]},
+    )
     create_global_table(table_id="invalid_json.log", query_router_config={}, raw_value="{")
     create_global_table(
         table_id="invalid_type.log",
@@ -523,6 +534,9 @@ def test_compose_global_table_ids_ignore_invalid_or_ineligible_options(create_or
         "vm_storage.log": {"filters": [{"bk_biz_id": str(space.get_bk_biz_id())}]},
         "empty_filter_key.log": {"filters": [{"bk_biz_id": space.space_id}]},
     }
+    routes = SpaceTableIDRedis()._compose_bksaas_space_table_ids(space)
+    assert routes["valid_default.log"] == values["valid_default.log"]
+    assert "invalid_filter.short_link" not in routes
     assert models.ResultTableOption.OPTION_QUERY_ROUTER_CONFIG not in models.ResultTableOption.QUERY_OPTION_NAME_LIST
 
 
