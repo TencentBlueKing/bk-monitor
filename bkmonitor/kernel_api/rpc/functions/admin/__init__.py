@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from . import (
+    alarm_config,
     alarm_query,
     alarm_redis,
     alarm_strategy,
@@ -57,6 +58,7 @@ from . import (
 )
 
 __all__ = [
+    "alarm_config",
     "alarm_query",
     "alarm_redis",
     "alarm_strategy",
