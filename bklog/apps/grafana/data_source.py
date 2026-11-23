@@ -37,11 +37,6 @@ from apps.log_esquery.esquery.client.QueryClient import QueryClient
 from apps.log_esquery.esquery.client.QueryClientBkData import QueryClientBkData
 from apps.log_esquery.esquery.client.QueryClientEs import QueryClientEs
 from apps.log_esquery.esquery.client.QueryClientLog import QueryClientLog
-from apps.log_esquery.utils.es_client import (
-    ES_NEW_SYNTAX_MIN_VERSION,
-    get_cluster_es_version,
-    is_es_version_gte,
-)
 from apps.log_search.constants import DEFAULT_TIME_FIELD
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.utils.thread import MultiExecuteFunc
@@ -166,9 +161,8 @@ class CustomIndexSetESDataSource:
 class ESBodyAdapter:
     """该类用于兼容Grafana ES7的语法与日志检索的body查询语法"""
 
-    def __init__(self, body: dict[str, Any], es_version: str = None):
+    def __init__(self, body: dict[str, Any]):
         self.body = body
-        self.es_version = es_version
 
     @staticmethod
     def adapt_interval(body: dict[str, Any] = None) -> dict[str, Any]:
@@ -177,11 +171,8 @@ class ESBodyAdapter:
         """
         new_dict = {}
         for k, v in body.items():
-            if k == "date_histogram" and isinstance(v, dict):
-                if "fixed_interval" in v:
-                    v["interval"] = v.pop("fixed_interval")
-                elif "calendar_interval" in v:
-                    v["interval"] = v.pop("calendar_interval")
+            if k == "date_histogram" and "fixed_interval" in v:
+                v["interval"] = v.pop("fixed_interval")
             if isinstance(v, dict):
                 new_dict[k] = ESBodyAdapter.adapt_interval(v)
             else:
@@ -195,14 +186,11 @@ class ESBodyAdapter:
         """
         if isinstance(body, dict):
             for k, v in body.items():
-                if k == "aggs" and isinstance(v, dict):
+                if k == "aggs":
                     for agg_key in v:
                         if (
-                            isinstance(v[agg_key], dict)
-                            and "terms" in v[agg_key]
-                            and isinstance(v[agg_key]["terms"], dict)
+                            "terms" in v[agg_key]
                             and "order" in v[agg_key]["terms"]
-                            and isinstance(v[agg_key]["terms"]["order"], dict)
                             and "_key" in v[agg_key]["terms"]["order"]
                         ):
                             v[agg_key]["terms"]["order"] = {"_term": v[agg_key]["terms"]["order"]["_key"]}
@@ -211,11 +199,8 @@ class ESBodyAdapter:
     def adapt(self):
         """适配Grafana ES请求"""
         body = deepcopy(self.body)
-        # 仅低版本 ES 向下改写为 interval / _term，ES 7.2+/8/9 保留原生语法
-        if not is_es_version_gte(self.es_version, ES_NEW_SYNTAX_MIN_VERSION):
-            body = self.adapt_interval(body=body)
-        if not is_es_version_gte(self.es_version, (6, 0)):
-            self.adapt_aggs(body=body)
+        body = self.adapt_interval(body=body)
+        self.adapt_aggs(body=body)
         return body
 
 
@@ -230,11 +215,6 @@ class CustomESDataSourceTemplate:
         self.scenario_id: str = self.data.scenario_id
         self.storage_cluster_id: int = self.data.storage_cluster_id
         self.index: str = self.get_index()
-
-    def get_es_version(self) -> str | None:
-        if self.scenario_id in (Scenario.LOG, Scenario.ES):
-            return get_cluster_es_version(self.storage_cluster_id)
-        return None
 
     def get_client(self) -> QueryClientBkData | QueryClientLog | QueryClientEs:
         return QueryClient(self.scenario_id, storage_cluster_id=self.storage_cluster_id).get_instance()
@@ -285,7 +265,8 @@ class CustomESDataSourceTemplate:
         return self.get_client().mapping(index=self.index)
 
     def query(self, body: dict[str, Any]):
-        body = ESBodyAdapter(body=body, es_version=self.get_es_version()).adapt()
+        if self.scenario_id == Scenario.BKDATA:
+            body = ESBodyAdapter(body=body).adapt()
         return self._query(body=body)
 
     def _query(self, body: dict[str, Any]):
@@ -318,6 +299,8 @@ class ESCustomESDataSource(CustomESDataSourceTemplate):
 
 
 class BkDataCustomESDataSource(CustomESDataSourceTemplate):
+    def __init__(self, index_set_id: int):
+        super().__init__(index_set_id=index_set_id)
 
     def query_bkdata(self, body: dict[str, Any] = None) -> list[dict[str, Any]]:
         """

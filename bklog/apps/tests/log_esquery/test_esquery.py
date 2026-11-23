@@ -707,33 +707,8 @@ class TestEs8Es9Compat(TestCase):
             headers = getattr(client.transport, "headers", None) or {}
             self.assertNotIn("compatible-with", str(headers).lower())
 
-    def test_get_cluster_es_version_and_interval_params(self):
-        from unittest.mock import patch
-
-        from apps.log_esquery.utils.es_client import (
-            build_date_histogram_interval_params,
-            get_cluster_es_version,
-        )
-
-        self.assertIsNone(get_cluster_es_version(None))
-        self.assertIsNone(get_cluster_es_version(-1))
-
-        with patch(
-            "apps.api.TransferApi.get_cluster_info",
-            side_effect=[
-                [{"cluster_config": {"version": "9.4.3"}}],
-                [{"cluster_config": {"version": "6.8.0"}}],
-            ],
-        ) as mock_cluster_info:
-            self.assertEqual(get_cluster_es_version(101), "9.4.3")
-            self.assertEqual(get_cluster_es_version(101), "9.4.3")
-            self.assertEqual(get_cluster_es_version(103), "6.8.0")
-            self.assertEqual(mock_cluster_info.call_count, 2)
-            mock_cluster_info.assert_any_call({"cluster_id": 101})
-            mock_cluster_info.assert_any_call({"cluster_id": 103})
-
-        with patch("apps.api.TransferApi.get_cluster_info", side_effect=RuntimeError("boom")):
-            self.assertIsNone(get_cluster_es_version(102))
+    def test_interval_params(self):
+        from apps.log_esquery.utils.es_client import build_date_histogram_interval_params
 
         self.assertEqual(build_date_histogram_interval_params("10m", "9.4.3"), {"fixed_interval": "10m"})
         self.assertEqual(build_date_histogram_interval_params("5m", "8.19.19"), {"fixed_interval": "5m"})
@@ -798,7 +773,9 @@ class TestEs8Es9Compat(TestCase):
                 }
             }
         }
-        res_empty = QueryClientTemplate.add_analyzer_details(copy.deepcopy(empty_typeless), copy.deepcopy(settings_data))
+        res_empty = QueryClientTemplate.add_analyzer_details(
+            copy.deepcopy(empty_typeless), copy.deepcopy(settings_data)
+        )
         self.assertEqual(
             res_empty["idx_a"]["mappings"]["dynamic_templates"][0]["strings_as_keywords"]["match_mapping_type"],
             "string",
@@ -846,4 +823,3 @@ class TestEs8Es9Compat(TestCase):
             res_typed["idx_a"]["mappings"]["_doc"]["properties"]["log"]["analyzer_details"],
             {"type": "custom", "tokenizer": "standard", "tokenizer_details": None},
         )
-

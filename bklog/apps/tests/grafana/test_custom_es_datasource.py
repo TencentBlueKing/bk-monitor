@@ -8,7 +8,6 @@ from django.test import TestCase
 import bk_dataview.grafana  # noqa: F401
 from apps.grafana.data_source import (
     BkDataCustomESDataSource,
-    ESBodyAdapter,
     ESCustomESDataSource,
     LogCustomESDataSource,
 )
@@ -21,66 +20,6 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
 
     def tearDown(self) -> None:
         cache.clear()
-
-    def _build_body(self):
-        return {
-            "aggs": {
-                "hist": {
-                    "date_histogram": {
-                        "field": "dtEventTimeStamp",
-                        "fixed_interval": "5m",
-                    },
-                    "aggs": {
-                        "terms_agg": {
-                            "terms": {
-                                "field": "status",
-                                "order": {"_key": "asc"},
-                            }
-                        }
-                    },
-                },
-                "cal_hist": {
-                    "date_histogram": {
-                        "field": "dtEventTimeStamp",
-                        "calendar_interval": "1h",
-                    }
-                },
-                "malformed_non_dict": "ignored",
-            }
-        }
-
-    def test_es_body_adapter_versions(self):
-        body = self._build_body()
-
-        for ver in ("9.4.3", "8.19.19", "7.14.2"):
-            adapted = ESBodyAdapter(copy.deepcopy(body), es_version=ver).adapt()
-            self.assertEqual(adapted["aggs"]["hist"]["date_histogram"]["fixed_interval"], "5m")
-            self.assertEqual(adapted["aggs"]["cal_hist"]["date_histogram"]["calendar_interval"], "1h")
-            self.assertEqual(adapted["aggs"]["hist"]["aggs"]["terms_agg"]["terms"]["order"], {"_key": "asc"})
-
-        adapted_es6 = ESBodyAdapter(copy.deepcopy(body), es_version="6.8.0").adapt()
-        self.assertEqual(adapted_es6["aggs"]["hist"]["date_histogram"], {"field": "dtEventTimeStamp", "interval": "5m"})
-        self.assertEqual(
-            adapted_es6["aggs"]["cal_hist"]["date_histogram"], {"field": "dtEventTimeStamp", "interval": "1h"}
-        )
-        self.assertEqual(adapted_es6["aggs"]["hist"]["aggs"]["terms_agg"]["terms"]["order"], {"_key": "asc"})
-
-        adapted_es5 = ESBodyAdapter(copy.deepcopy(body), es_version="5.6.16").adapt()
-        self.assertEqual(adapted_es5["aggs"]["hist"]["date_histogram"], {"field": "dtEventTimeStamp", "interval": "5m"})
-        self.assertEqual(
-            adapted_es5["aggs"]["cal_hist"]["date_histogram"], {"field": "dtEventTimeStamp", "interval": "1h"}
-        )
-        self.assertEqual(adapted_es5["aggs"]["hist"]["aggs"]["terms_agg"]["terms"]["order"], {"_term": "asc"})
-
-        # 版本未知时保持旧语法改写，避免老集群查询失败
-        adapted_unknown = ESBodyAdapter(copy.deepcopy(body), es_version=None).adapt()
-        self.assertEqual(
-            adapted_unknown["aggs"]["hist"]["date_histogram"], {"field": "dtEventTimeStamp", "interval": "5m"}
-        )
-        self.assertEqual(
-            adapted_unknown["aggs"]["cal_hist"]["date_histogram"], {"field": "dtEventTimeStamp", "interval": "1h"}
-        )
-        self.assertEqual(adapted_unknown["aggs"]["hist"]["aggs"]["terms_agg"]["terms"]["order"], {"_term": "asc"})
 
     def test_custom_es_datasource_query_routing(self):
         mock_query_client = MagicMock()
@@ -102,7 +41,6 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
         )
         with (
             patch("apps.grafana.data_source.LogIndexSet") as mock_model,
-            patch("apps.grafana.data_source.get_cluster_es_version", return_value="9.4.3"),
             patch("apps.grafana.data_source.QueryClient") as mock_client_cls,
         ):
             mock_model.objects.filter.return_value.first.return_value = fake_log_index_set
@@ -123,7 +61,6 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
         )
         with (
             patch("apps.grafana.data_source.LogIndexSet") as mock_model,
-            patch("apps.grafana.data_source.get_cluster_es_version", return_value=None),
             patch("apps.grafana.data_source.QueryClient") as mock_client_cls,
         ):
             mock_model.objects.filter.return_value.first.return_value = fake_es_index_set
@@ -132,8 +69,7 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
             ds_es = ESCustomESDataSource(index_set_id=11)
             ds_es.query(copy.deepcopy(body))
             sent_body = mock_query_client.query.call_args.kwargs["body"]
-            # 版本获取失败时按旧语法下发，避免老集群不支持 fixed_interval
-            self.assertEqual(sent_body["aggs"]["hist"]["date_histogram"]["interval"], "5m")
+            self.assertEqual(sent_body["aggs"]["hist"]["date_histogram"]["fixed_interval"], "5m")
 
         fake_bkdata_index_set = MagicMock(
             index_set_id=12,

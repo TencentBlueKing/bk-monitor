@@ -19,8 +19,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import ipaddress
 import socket
+from copy import deepcopy
 
 from django.utils.translation import gettext_lazy as _
 from elasticsearch import Elasticsearch as Elasticsearch
@@ -35,15 +37,12 @@ from apps.log_esquery.exceptions import (
     EsClientHostPortException,
     EsClientSocketException,
 )
-from apps.utils.cache import cache_five_minute
-from apps.utils.log import logger
 
 # date_histogram 的 interval 参数在 7.2 起被 fixed_interval/calendar_interval 取代，8.0 起移除
 ES_NEW_SYNTAX_MIN_VERSION = (7, 2)
 # calendar_interval 只接受单个单位，5m/30s 这类倍数只能用 fixed_interval
 CALENDAR_INTERVALS = frozenset(
-    {"1m", "1h", "1d", "1w", "1M", "1q", "1y"}
-    | {"minute", "hour", "day", "week", "month", "quarter", "year"}
+    {"1m", "1h", "1d", "1w", "1M", "1q", "1y"} | {"minute", "hour", "day", "week", "month", "quarter", "year"}
 )
 
 
@@ -81,25 +80,38 @@ def build_date_histogram_interval_params(interval: str, es_version: str | None =
     return {"fixed_interval": interval}
 
 
-@cache_five_minute("es_cluster_version_{storage_cluster_id}", need_md5=True)
-def _fetch_cluster_es_version(*, storage_cluster_id: int) -> str | None:
-    from apps.api import TransferApi
+def adapt_es_query_body(body: dict, es_version: str | None) -> dict:
+    """使用实际连接版本转换聚合语法，避免多集群查询共用可变请求。"""
+    body = deepcopy(body)
 
-    cluster_info = TransferApi.get_cluster_info({"cluster_id": storage_cluster_id})
-    if not cluster_info:
-        return None
-    return cluster_info[0].get("cluster_config", {}).get("version")
+    def adapt_aggs(aggs):
+        if not isinstance(aggs, dict):
+            return
+        for agg in aggs.values():
+            if not isinstance(agg, dict):
+                continue
+            histogram = agg.get("date_histogram")
+            if isinstance(histogram, dict):
+                if "interval" in histogram and is_es_version_gte(es_version, ES_NEW_SYNTAX_MIN_VERSION):
+                    histogram.update(build_date_histogram_interval_params(histogram.pop("interval"), es_version))
+                elif not is_es_version_gte(es_version, ES_NEW_SYNTAX_MIN_VERSION):
+                    for key in ("fixed_interval", "calendar_interval"):
+                        if key in histogram:
+                            histogram["interval"] = histogram.pop(key)
+            terms = agg.get("terms")
+            if isinstance(terms, dict):
+                order = terms.get("order")
+                orders = order if isinstance(order, list) else [order]
+                old_key, new_key = ("_term", "_key") if is_es_version_gte(es_version, (6, 0)) else ("_key", "_term")
+                for item in orders:
+                    if isinstance(item, dict) and old_key in item:
+                        item[new_key] = item.pop(old_key)
+            adapt_aggs(agg.get("aggs"))
+            adapt_aggs(agg.get("aggregations"))
 
-
-def get_cluster_es_version(storage_cluster_id: int | None) -> str | None:
-    """查询并缓存存储集群 ES 版本，失败时降级返回 None。"""
-    if not storage_cluster_id or storage_cluster_id == -1:
-        return None
-    try:
-        return _fetch_cluster_es_version(storage_cluster_id=storage_cluster_id)
-    except Exception as e:  # pylint: disable=broad-except
-        logger.warning("get cluster es version failed, cluster_id=%s, error=%s", storage_cluster_id, e)
-        return None
+    adapt_aggs(body.get("aggs"))
+    adapt_aggs(body.get("aggregations"))
+    return body
 
 
 def get_es_client(
@@ -130,7 +142,7 @@ def get_es_client(
             ip = ipaddress.ip_address(host)
             # 如果是 IPv6 地址，返回带方括号的格式
             if isinstance(ip, ipaddress.IPv6Address):
-                host = f'[{host}]'
+                host = f"[{host}]"
         except ValueError:
             # 如果不是有效的 IP 地址，返回原始主机名
             pass

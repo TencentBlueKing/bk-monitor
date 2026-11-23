@@ -510,12 +510,11 @@ class EsQuery(object):
 
         field_list = []
         for field_name, field_info in field_data.get("fields", {}).items():
-            field_type = field_info.get("type", "object")
             field_list.append({
                 "field_name": field_name,
-                "field_type": field_type,
-                "is_analyzed": field_type == "text",
-                "es_doc_values": field_type != "text",
+                "field_type": field_info.get("type", "object"),
+                "is_analyzed": field_info.get("type") == "text",
+                "es_doc_values": field_info.get("type") != "text",
                 "description": field_info.get("description", ""),
                 "field_alias": field_info.get("alias", ""),
                 "is_display": True,
