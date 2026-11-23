@@ -1,7 +1,6 @@
 import datetime
 from types import SimpleNamespace
 
-import pytest
 from pytest_mock import MockerFixture
 
 from apm.task import tasks
@@ -101,11 +100,13 @@ def test_datasource_cron_dispatches_independent_module_switches(mocker: MockerFi
         assert client.get(f"apm.tasks.datasource.discover.{app_id}") is not None
 
     dispatch = mocker.patch("apm.task.tasks.datasource_discover_handler.delay", side_effect=check_dispatch_lock)
+    lock = mocker.spy(tasks.ApmCacheHandler, "distributed_lock")
     tasks.datasource_discover_cron()
     assert dispatch.call_args_list == [
         mocker.call(sources[1], 10, int(now.timestamp()) - 600, "metric"),
         mocker.call(sources[0], 10, int(now.timestamp()) - 600, "log"),
     ]
+    assert [call.kwargs["app_id"] for call in lock.call_args_list] == [20, 10]
     assert client.get("apm.tasks.datasource.discover.10") is None
     assert client.get("apm.tasks.datasource.discover.20") is None
 
@@ -132,23 +133,27 @@ def test_datasource_cron_skips_legacy_locked_app_and_continues(mocker: MockerFix
     ]
 
 
-def test_datasource_cron_releases_lock_when_dispatch_fails(mocker: MockerFixture) -> None:
+def test_datasource_cron_releases_lock_and_continues_when_dispatch_fails(mocker: MockerFixture) -> None:
     mocker.patch("apm.task.tasks.timezone.now", return_value=datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC))
     mocker.patch("apm.task.tasks.ApmApplication.objects.filter").return_value.values.return_value = [
         {"id": 10, "bk_biz_id": 2, "app_name": "app", "is_enabled_log": False, "is_enabled_metric": True},
+        {"id": 20, "bk_biz_id": 2, "app_name": "next", "is_enabled_log": False, "is_enabled_metric": True},
     ]
-    mocker.patch("apm.task.tasks.MetricDataSource.objects.filter", return_value=[make_app(2, "app")])
+    sources = [make_app(2, "app"), make_app(2, "next")]
+    mocker.patch("apm.task.tasks.MetricDataSource.objects.filter", return_value=sources)
     mocker.patch("apm.task.tasks.LogDataSource.objects.filter", return_value=[])
     client = tasks.ApmCacheHandler().redis_client
 
     def fail_dispatch(source: SimpleNamespace, interval: int, start_time: int, data_type: str) -> None:
-        assert client.get("apm.tasks.datasource.discover.10") is not None
-        raise RuntimeError("dispatch failed")
+        if source.app_name == "app":
+            assert client.get("apm.tasks.datasource.discover.10") is not None
+            raise RuntimeError("dispatch failed")
 
-    mocker.patch("apm.task.tasks.datasource_discover_handler.delay", side_effect=fail_dispatch)
-    with pytest.raises(RuntimeError, match="dispatch failed"):
-        tasks.datasource_discover_cron()
+    dispatch = mocker.patch("apm.task.tasks.datasource_discover_handler.delay", side_effect=fail_dispatch)
+    tasks.datasource_discover_cron()
+    assert [call.args[0].app_name for call in dispatch.call_args_list] == ["app", "next"]
     assert client.get("apm.tasks.datasource.discover.10") is None
+    assert client.get("apm.tasks.datasource.discover.20") is None
 
 
 def test_profile_cron_filters_enabled_apps_and_runs_synchronously(mocker: MockerFixture) -> None:

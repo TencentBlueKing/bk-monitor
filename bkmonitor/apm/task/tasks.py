@@ -189,14 +189,16 @@ def datasource_discover_cron() -> None:
         }
         for key, datasource in datasource_mapping.items():
             app_id: int = valid_application_mapping[key]["id"]
+            # 未命中本轮的应用不访问 Redis 锁
+            if app_id % interval != slug:
+                continue
             try:
                 apm_cache_handler = ApmCacheHandler()
                 with apm_cache_handler.distributed_lock("datasource_discover", app_id=app_id):
-                    if app_id % interval == slug:
-                        logger.info(f"[datasource_discover_cron] delay {data_type} task for app_id: {app_id}")
-                        datasource_discover_handler.delay(
-                            datasource, interval, current_timestamp - interval * 60, data_type
-                        )
+                    logger.info(f"[datasource_discover_cron] delay {data_type} task for app_id: {app_id}")
+                    datasource_discover_handler.delay(
+                        datasource, interval, current_timestamp - interval * 60, data_type
+                    )
             except LockError:
                 logger.info(f"skipped: [datasource_discover_cron] already running. app_id: {app_id}")
                 continue
