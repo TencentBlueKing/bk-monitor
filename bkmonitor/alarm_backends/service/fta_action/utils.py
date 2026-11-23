@@ -108,11 +108,7 @@ class PushActionProcessor:
                 # 当通知策略是语音通知的时候，不走收敛模块， 通过执行模块进行收敛
                 # 从策略中匹配防御规则
                 # TODO 当没有策略的情况下的告警推送
-                strategy = action_instance.strategy
-                if strategy:
-                    for action in strategy.get("actions", []) + [strategy.get("notice")]:
-                        if action and action["id"] == action_instance.strategy_relation_id:
-                            converge_config = action["options"].get("converge_config")
+                converge_config = action_instance.get_strategy_converge_config()
 
                 if (
                     not converge_config

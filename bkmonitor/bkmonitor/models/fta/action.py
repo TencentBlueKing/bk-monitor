@@ -355,6 +355,15 @@ class ActionInstance(AbstractRecordModel):
             return {key: value[0] if isinstance(value, list) else value for key, value in self.inputs.items()}
         return self.inputs
 
+    def get_strategy_converge_config(self):
+        """Return the convergence configuration for this action's strategy relation."""
+        strategy = self.strategy or {}
+        converge_config = None
+        for relation in strategy.get("actions", []) + [strategy.get("notice")]:
+            if relation and relation["id"] == self.strategy_relation_id:
+                converge_config = relation["options"].get("converge_config")
+        return converge_config
+
     def create_sub_actions(self, need_create=True):
         """
         创建通知子任务
