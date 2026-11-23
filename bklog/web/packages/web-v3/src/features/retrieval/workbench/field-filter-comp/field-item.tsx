@@ -57,6 +57,7 @@ import { LocationQueryValue } from 'vue-router';
 const { resolveObjectFieldChildrenCount, shouldShowObjectFieldTreeMeta } = objectFieldTreeMeta;
 interface FieldItemProps {
   type?: string;
+  omitRoot?: boolean;
   fieldItem?: any;
   fieldAliasMap?: object;
   showFieldAlias?: boolean;
@@ -78,6 +79,8 @@ interface FieldItem {
 class FieldItem extends tsc<FieldItemProps> {
   @Prop({ type: String, default: 'visible', validator: (v) => ['visible', 'hidden'].includes(v as string) })
   type!: string;
+  /** 显示字段拖拽需要原生 li 作为排序节点，外层由列表提供。 */
+  @Prop({ type: Boolean, default: false }) omitRoot!: boolean;
   @Prop({ type: Object, default: () => ({}) }) fieldItem!: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap!: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias!: boolean;
@@ -322,8 +325,8 @@ class FieldItem extends tsc<FieldItemProps> {
     const showAnalysisOperation = this.isShowFieldsAnalysis && !this.isFrontStatistics;
     const showOperationText = showAnalysisOperation || this.isFieldDisplayToggleSupported;
 
-    return (
-      <li class='filed-item'>
+    const content = (
+      <>
         <TPopup
           ref='analysisPopup'
           visible={this.analysisActive}
@@ -348,7 +351,7 @@ class FieldItem extends tsc<FieldItemProps> {
           <div class={{ 'filed-title': true, expanded: this.isExpand }}>
             <div onClick={this.handleClickAnalysisItem}>
               {/* 拖动字段位置按钮 */}
-              <div class='bklog-drag-dots-box'>
+              <div class='bklog-drag-dots-box' onClick={(event: MouseEvent) => event.stopPropagation()}>
                 <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
               </div>
 
@@ -500,8 +503,9 @@ class FieldItem extends tsc<FieldItemProps> {
             onClose={this.closeSlider}
           ></TDrawer>
         )}
-      </li>
+      </>
     );
+    return this.omitRoot ? content : <li class='filed-item'>{content}</li>;
   }
 }
 
