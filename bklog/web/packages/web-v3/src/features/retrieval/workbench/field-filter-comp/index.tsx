@@ -408,7 +408,12 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
 
   @Watch('visibleFields', { immediate: true, deep: true })
   watchVisibleFields() {
-    this.dragVisibleFields = this.visibleFields.map((item) => item.field_name);
+    const next = this.visibleFields.map((item) => item.field_name);
+    const current = this.dragVisibleFields;
+    if (next.length === current.length && next.every((name, index) => name === current[index])) {
+      return;
+    }
+    this.dragVisibleFields = next;
   }
 
   // 字段类型过滤：可聚合、字段类型
@@ -670,7 +675,7 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
               {this.visibleFields.filter((item) => item.filterVisible).length ? (
                 <FieldDraggable
                   class='filed-list'
-                  v-model={this.dragVisibleFields}
+                  list={this.dragVisibleFields}
                   itemKey={(name: string) => name}
                   {...this.dragOptions}
                   onEnd={this.handleVisibleMoveEnd}
@@ -682,22 +687,23 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
                         : undefined;
                       if (!item) return [];
                       return [
-                        <FieldItem
-                          key={item.field_name}
-                          v-show={item.filterVisible}
-                          datePickerValue={this.datePickerValue}
-                          fieldAliasMap={this.fieldAliasMap}
-                          fieldItem={item}
-                          isFrontStatistics={this.isFrontStatistics}
-                          retrieveParams={this.retrieveParams}
-                          showFieldAlias={this.showFieldAlias}
-                          statisticalFieldData={this.statisticalFieldsData[item.field_name]}
-                          type='visible'
-                          visibleFields={this.visibleFields}
-                          onToggleItem={({ type, fieldItem }: { type: string; fieldItem: FieldTreeNode }) =>
-                            this.handleToggleItem(type, fieldItem)
-                          }
-                        />,
+                        <li key={item.field_name} class='filed-item' v-show={item.filterVisible}>
+                          <FieldItem
+                            omitRoot
+                            datePickerValue={this.datePickerValue}
+                            fieldAliasMap={this.fieldAliasMap}
+                            fieldItem={item}
+                            isFrontStatistics={this.isFrontStatistics}
+                            retrieveParams={this.retrieveParams}
+                            showFieldAlias={this.showFieldAlias}
+                            statisticalFieldData={this.statisticalFieldsData[item.field_name]}
+                            type='visible'
+                            visibleFields={this.visibleFields}
+                            onToggleItem={({ type, fieldItem }: { type: string; fieldItem: FieldTreeNode }) =>
+                              this.handleToggleItem(type, fieldItem)
+                            }
+                          />
+                        </li>,
                       ];
                     },
                   }}

@@ -91,7 +91,7 @@ export default defineComponent({
       trigger: 'click',
       interactive: true,
       placement: 'bottom-start',
-      theme: 'light',
+      theme: 'bklog-basic-light',
       onShow: () => {
         let sortList = structuredClone(toWorkerMessage(localSortFields.value));
         if (sortStatus.value !== undefined) {
