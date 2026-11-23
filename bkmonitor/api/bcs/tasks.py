@@ -33,6 +33,7 @@ from bkmonitor.models import (
     BCSWorkload,
 )
 from bkmonitor.utils.ip import exploded_ip
+from bkmonitor.utils.tenant import is_biz_in_tenant
 from core.drf_resource import api
 from core.prometheus import metrics
 
@@ -82,8 +83,11 @@ def save_resource_batch(resource, batch, sync_fields):
 
     with transaction.atomic(using=database):
         existing = {}
-        for model in manager.select_for_update().filter(query):
-            key = identity(model)
+        # 历史 Cluster 可能写在其他租户下，按表上唯一的业务/集群键复用原行。
+        cluster_keys = {model.unique_hash: key for key, model in incoming.items()} if resource is BCSCluster else {}
+        lookup = query | Q(unique_hash__in=cluster_keys) if cluster_keys else query
+        for model in manager.select_for_update().filter(lookup):
+            key = cluster_keys.get(model.unique_hash, identity(model))
             if key in existing:
                 # Cluster 没有独立自然唯一约束，歧义必须失败，不能任取一行覆盖配置。
                 raise ValueError(f"ambiguous {resource.__name__} identity: {key}")
@@ -156,21 +160,28 @@ def sync_bcs_cluster_to_db() -> list[BCSCluster]:
     for tenant in api.bk_login.list_tenant():
         tenant_id = tenant["id"]
         try:
-            models = BCSCluster.load_list_from_api({"bk_tenant_id": tenant_id})
+            inventory = BCSCluster.load_list_from_api({"bk_tenant_id": tenant_id})
             # 在写入前验证整份名录，跨批重复和既有歧义均不能触发尾删。
-            cluster_ids = [model.bcs_cluster_id for model in models]
+            cluster_ids = [model.bcs_cluster_id for model in inventory]
             if len(cluster_ids) != len(set(cluster_ids)):
                 raise ValueError("duplicate cluster identity in tenant inventory")
+            # BCS 名录可能跨租户，只有业务所属租户可以写入。
+            models = [model for model in inventory if is_biz_in_tenant(model.bk_biz_id, tenant_id)]
             tenant_filter = {"bk_tenant_id": tenant_id}
             bulk_save_resources(BCSCluster, models, "unique_hash", sync_fields, tenant_filter, delete_missing=False)
-            tenant_inventories.append((tenant_id, set(cluster_ids)))
+            tenant_inventories.append((tenant_id, {model.unique_hash: model.bcs_cluster_id for model in inventory}))
             cluster_models.extend(models)
         except Exception as exc_info:
             failures.append(exc_info)
             logger.exception("sync_bcs_cluster_to_db tenant(%s) failed", tenant_id)
 
     # 全部基础名录提交后再清理；删除失败时保留 Cluster，供下轮重试。
-    for tenant_id, cluster_ids in tenant_inventories:
+    synced_owners = {model.unique_hash: model.bk_tenant_id for model in cluster_models}
+    for tenant_id, inventory_ids in tenant_inventories:
+        # 归属未知或所属租户本轮未成功写入时，保留名录中的旧记录，供下轮纠正。
+        cluster_ids = {
+            cluster_id for key, cluster_id in inventory_ids.items() if synced_owners.get(key, tenant_id) == tenant_id
+        }
         try:
             with transaction.atomic(using=database):
                 stale_clusters = manager.filter(bk_tenant_id=tenant_id).exclude(bcs_cluster_id__in=cluster_ids)
