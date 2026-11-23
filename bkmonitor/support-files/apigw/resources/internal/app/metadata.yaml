@@ -19,6 +19,26 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: apply data source to a namespace
+  /app/metadata/list_data_source_namespaces/:
+    get:
+      operationId: metadata_list_data_source_namespaces
+      description: 查询数据源已注册的命名空间及状态
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/list_data_source_namespaces/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: List registered namespaces and statuses for a data source
   /app/metadata/get_event_group/:
     get:
       operationId: metadata_get_event_group

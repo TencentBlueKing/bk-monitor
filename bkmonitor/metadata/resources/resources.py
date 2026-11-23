@@ -671,6 +671,23 @@ class ApplyDataSourceResource(Resource):
         return data_source.apply_to_namespace(target_namespace=request_data["target_namespace"])
 
 
+class ListDataSourceNamespacesResource(Resource):
+    """查询数据源在当前租户下的命名空间登记。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_data_id = serializers.IntegerField(min_value=1, label="数据源ID")
+
+    def perform_request(self, request_data):
+        return list(
+            models.DataIdConfig.objects.filter(
+                bk_tenant_id=request_data["bk_tenant_id"], bk_data_id=request_data["bk_data_id"]
+            )
+            .order_by("namespace", "name")
+            .values("namespace", "name", "status")
+        )
+
+
 class QueryDataSourceResource(Resource):
     """查询数据源"""
 
