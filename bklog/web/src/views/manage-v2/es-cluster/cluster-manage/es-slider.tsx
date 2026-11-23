@@ -200,13 +200,6 @@ export default defineComponent({
     const isMultiTenant = computed(() => !!store.state.userMeta?.bk_tenant_id);
     const visibleScopeOptions = computed(() => {
       const options: any[] = [...visibleScopeSelectList.value];
-      if (isDoris.value) {
-        // 存量 Doris 配置可能是 current_tenant：仅回显，禁止再次选择
-        if (formData.value.visible_config.visible_type === 'current_tenant') {
-          options.push({ id: 'current_tenant', name: t('当前租户可见'), disabled: true });
-        }
-        return options;
-      }
       if (isMultiTenant.value) {
         options.push({ id: 'current_tenant', name: t('当前租户可见') });
       }
@@ -589,9 +582,6 @@ export default defineComponent({
       }
       if (visibleType === 'biz_attr' && !bkBizLabelsList.value.length) {
         messageType = t('可见类型为业务属性时，业务标签不能为空');
-      }
-      if (isDoris.value && visibleType === 'current_tenant') {
-        messageType = t('当前租户可见已下线，请重新选择可见范围');
       }
       if (isDoris.value && visibleType === 'biz_attr' && hasEmptyDorisBizAttrValue(bkBizLabelsList.value)) {
         messageType = t('请为每个空间属性选择具体的值');
