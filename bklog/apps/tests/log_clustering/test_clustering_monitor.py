@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 from django.test import TestCase
 from jinja2 import Environment
 
+from apps.exceptions import ValidationError
 from apps.log_clustering.constants import NEW_SERIES_ALGORITHM_TYPE, StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.serializers import NewClsStrategySerializer
@@ -261,6 +262,30 @@ class TestClusteringMonitorHandler(TestCase):
         self.handler.resave_new_cls_clustering_strategy()
         self.assertEqual(update.call_count, 1)
 
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
+    def test_group_change_targets_one_query_with_multiple_new_series_levels(self, update):
+        current = self.strategy_snapshot()
+        item = current["items"][0]
+        item["algorithms"].append(dict(item["algorithms"][0], id=42, level=1))
+        other = deepcopy(item)
+        other["id"] = 22
+        other["query_configs"][0].update(id=32, index_set_id=456)
+        other["algorithms"] = [dict(item["algorithms"][0], id=43)]
+        current["items"].insert(0, other)
+        self.handler._bound_strategy = Mock(return_value=deepcopy(current))
+
+        self.handler.resave_new_cls_clustering_strategy()
+
+        query = dict(item["query_configs"][0], agg_dimension=["signature", "service_name"])
+        patch_data = update.call_args.kwargs["params"]["edit_data"]["strategy_config"]
+        self.assertEqual(patch_data, {"items": [{"id": item["id"], "query_configs": [query]}]})
+
+        other["query_configs"][0]["index_set_id"] = 123
+        self.handler._bound_strategy.return_value = current
+        with self.assertRaises(ValidationError):
+            self.handler.resave_new_cls_clustering_strategy()
+        self.assertEqual(update.call_count, 1)
+
     @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
     def test_group_change_with_issue_keeps_filters_and_uses_validated_save(self, save):
         current = self.strategy_snapshot()
@@ -309,6 +334,35 @@ class TestClusteringMonitorHandler(TestCase):
         )
         self.assertEqual(patch_data["items"][0]["algorithms"][0]["level"], 1)
         self.assertNotIn("query_configs", patch_data["items"][0])
+
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.update_partial_strategy_v3")
+    def test_legacy_level_change_reuses_the_only_detect_rule(self, update):
+        for strategy_type in (StrategiesType.NORMAL_STRATEGY, StrategiesType.NEW_CLS_strategy):
+            with self.subTest(strategy_type=strategy_type):
+                current = self.strategy_snapshot()
+                item = current["items"][0]
+                algorithm = item["algorithms"][0]
+                algorithm.update(type="IntelligentDetect", level=1, config={"plan_id": 6, "args": {}})
+                rule = current["detects"][0]
+                rule["recovery_config"] = {"check_window": 5}
+                self.handler._bound_strategy = Mock(return_value=current)
+
+                self.handler.create_or_update_clustering_strategy(strategy_type, {"level": 3})
+
+                patch_data = update.call_args.kwargs["params"]["edit_data"]["strategy_config"]
+                self.assertEqual(
+                    patch_data,
+                    {
+                        "items": [{"id": item["id"], "algorithms": [dict(algorithm, level=3)]}],
+                        "detects": [dict(rule, level=3)],
+                    },
+                )
+
+                item["algorithms"].append(dict(algorithm, type="Threshold", id=42, level=2))
+                update.reset_mock()
+                with self.assertRaises(ValidationError):
+                    self.handler.create_or_update_clustering_strategy(strategy_type, {"level": 3})
+                update.assert_not_called()
 
     @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
     def test_legacy_and_count_alert_update_only_requested_argument(self, save):

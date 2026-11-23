@@ -539,13 +539,22 @@ class ClusteringMonitorHandler:
         strategy = self._bound_strategy(StrategiesType.NEW_CLS_strategy)
         if not strategy:
             return
-        item, algorithm = self._managed_algorithm(strategy, StrategiesType.NEW_CLS_strategy)
-        if algorithm["type"] != NEW_SERIES_ALGORITHM_TYPE:
+        new_series_items = [
+            item
+            for item in strategy["items"]
+            if any(algorithm["type"] == NEW_SERIES_ALGORITHM_TYPE for algorithm in item["algorithms"])
+        ]
+        if not new_series_items:
             return
-        queries = item["query_configs"]
-        if len(queries) != 1 or str(queries[0].get("index_set_id")) != str(self.index_set_id):
-            raise ValidationError(_("新类告警查询与当前索引集不匹配，请在监控平台检查策略配置"))
-        query = queries[0]
+        matches = [
+            (item, query)
+            for item in new_series_items
+            for query in item["query_configs"]
+            if str(query.get("index_set_id")) == str(self.index_set_id)
+        ]
+        if len(matches) != 1:
+            raise ValidationError(_("无法唯一识别当前索引集的新类告警查询，请在监控平台检查策略配置"))
+        item, query = matches[0]
         dimensions = list(dict.fromkeys([SIGNATURE_FIELD, *(self.clustering_config.group_fields or [])]))
         if set(query["agg_dimension"]) == set(dimensions):
             return
@@ -554,7 +563,9 @@ class ClusteringMonitorHandler:
             # 完整保存入口会校验已有 Issue 配置引用的维度。
             self._save_existing_strategy(strategy)
         else:
-            self._patch_strategy(strategy["id"], {"items": [{"id": item["id"], "query_configs": queries}]})
+            self._patch_strategy(
+                strategy["id"], {"items": [{"id": item["id"], "query_configs": item["query_configs"]}]}
+            )
 
     @staticmethod
     def _save_existing_strategy(strategy):
@@ -597,12 +608,16 @@ class ClusteringMonitorHandler:
                 detects = strategy["detects"]
                 if not any(d["level"] == updated["level"] for d in detects):
                     old_rules = [d for d in detects if d["level"] == algorithm["level"]]
-                    shared_level = any(
-                        a["id"] != algorithm["id"] and a["level"] == algorithm["level"]
+                    other_levels = {
+                        a["level"]
                         for other in strategy["items"]
                         for a in other["algorithms"]
-                    )
-                    if len(old_rules) != 1 or shared_level:
+                        if a["id"] != algorithm["id"]
+                    }
+                    # 旧智能告警模板的唯一触发规则固定为 2 级，可以随唯一算法一起迁移。
+                    if algorithm["type"] == "IntelligentDetect" and not other_levels and len(detects) == 1:
+                        old_rules = detects
+                    if len(old_rules) != 1 or algorithm["level"] in other_levels:
                         raise ValidationError(_("无法唯一迁移当前级别的触发规则，请在监控平台调整级别"))
                     patch["detects"] = [
                         dict(d, level=updated["level"]) if d == old_rules[0] else d
