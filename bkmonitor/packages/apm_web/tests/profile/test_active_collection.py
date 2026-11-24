@@ -737,6 +737,12 @@ def test_result_query_keeps_multi_values_of_form_data_with_empty_pid():
     assert form_data["pid"] == ""
 
 
+@pytest.mark.parametrize("data", [["pid"], "pid", None])
+def test_result_query_rejects_non_object_body(data):
+    # 请求体不是对象时按格式错误校验失败，不因取 pid 抛异常
+    assert not ResultQueryRequestSerializer(data=data).is_valid()
+
+
 @pytest.fixture
 def beat_plugin_status(mocker):
     mocker.patch("apm_web.profile.active_collection.resources.PLUGIN_MIN_VERSION", {"bkmonitorbeat": "2.10.0"})
