@@ -417,6 +417,7 @@ if "paas" in BK_PAAS_HOST:
 else:
     BK_CC_HOST = "://cmdb.".join(BK_PAAS_HOST.split("://"))
 BKDATA_URL = BK_PAAS_HOST
+BKBASE_V4_URL = os.environ.get("BKBASE_V4_URL", "")
 MONITOR_URL = ""
 BK_DOC_URL = "https://bk.tencent.com/docs/"
 BK_LOG_ACCESS_GUIDE_URL = os.getenv("BKAPP_LOG_ACCESS_GUIDE_URL", "")
