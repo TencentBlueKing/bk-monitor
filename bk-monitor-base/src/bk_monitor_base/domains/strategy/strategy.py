@@ -1155,18 +1155,19 @@ class QueryConfig(AbstractConfig):
         self.id = id
         self.metric_id = metric_id or ""
         self.instance = instance
-        # 存量脏数据自愈 + 写入兜底：custom/event 未显式提供 custom_event_name 时，按 metric_id 后缀补齐
-        # （格式 custom.event.<结果表>.<事件名|__INDEX__>）。显式传空串表示"整个事件源"，不做覆盖。
+        # 存量脏数据自愈 + 写入兜底：custom/event 未显式提供 custom_event_name 时，按 metric_id 补齐。
+        # metric_id 格式为 custom.event.<结果表>.<事件名|__INDEX__>，事件名本身可能包含点，
+        # 因此必须用 result_table_id 精确剥离前缀而不能按点切分；前缀不匹配时不猜测（保持缺省）。
+        # 显式传空串表示"整个事件源"，不做覆盖。
         if (
             data_source_label == DataSourceLabel.CUSTOM
             and data_type_label == DataTypeLabel.EVENT
             and "custom_event_name" not in kwargs
-            and self.metric_id.startswith("custom.event.")
         ):
-            metric_suffix = self.metric_id[len("custom.event.") :]
-            if "." in metric_suffix:
-                event_name = metric_suffix.rsplit(".", 1)[-1]
-                kwargs["custom_event_name"] = "" if event_name == "__INDEX__" else event_name
+            prefix = f"{DataSourceLabel.CUSTOM}.{DataTypeLabel.EVENT}.{kwargs.get('result_table_id') or ''}."
+            metric_suffix = self.metric_id[len(prefix) :] if self.metric_id.startswith(prefix) else ""
+            if metric_suffix:
+                kwargs["custom_event_name"] = "" if metric_suffix == "__INDEX__" else metric_suffix
 
         serializer_class = self.get_serializer_class(data_source_label, data_type_label)
         serializer = serializer_class(data=kwargs)
