@@ -32,13 +32,7 @@ import type { IDimensionFieldTreeItem } from '../../trace-explore/typing';
 import type { IRumField } from '../typings';
 
 /** 统计分析弹层展示的字段，RUM 检索的字段会额外携带 field_unit */
-export type IStatisticsFieldItem = {
-  /** 是否耗时字段，由调用方按检索语义判定 */
-  isDuration?: boolean;
-  /** 是否数值字段，由调用方按检索语义判定 */
-  isInteger?: boolean;
-} & IDimensionFieldTreeItem &
-  Pick<IRumField, 'field_display_type' | 'field_unit'>;
+export type IStatisticsFieldItem = IDimensionFieldTreeItem & Pick<IRumField, 'field_display_type' | 'field_unit'>;
 
 /**
  * 字段统计分析弹层。
@@ -68,13 +62,8 @@ export function useFieldStatisticsPopover(placement: Props['placement'] = 'right
     activeFieldName.value = field.name;
     if (!field.is_dimensions) return;
     // 聚合结果可能混合 CLS 与耗时指标，不能把 vital 作为固定时间单位。
-    const normalizedField =
+    selectField.value =
       field.field_unit === 'vital' ? { ...field, field_unit: '', field_display_type: undefined } : field;
-    selectField.value = {
-      ...normalizedField,
-      isDuration: normalizedField.field_display_type === 'duration' || normalizedField.field_unit === 'bytes',
-      isInteger: ['double', 'long', 'integer', 'float'].includes(normalizedField.type),
-    };
     const contentEl = statisticsListRef.value?.$refs?.dimensionPopover as HTMLDivElement | undefined;
     if (!contentEl) return;
 

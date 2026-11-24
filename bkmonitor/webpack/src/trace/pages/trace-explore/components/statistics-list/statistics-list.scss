@@ -1,27 +1,4 @@
 .trace-explore-dimension-statistics-popover {
-  /* 字段 Tab：贴齐弹层左右边缘，整行下边框，激活项由 bkui 的下划线示意 */
-  .statistics-field-tab {
-    margin: -12px -12px 12px;
-
-    .bk-tab-header {
-      padding: 0 24px;
-    }
-
-    .bk-tab-header-item {
-      padding: 0;
-      font-size: 14px;
-      color: #232529;
-
-      & + .bk-tab-header-item {
-        margin-left: 32px;
-      }
-    }
-
-    .bk-tab-content {
-      display: none;
-    }
-  }
-
   .load-more {
     margin: 8px 0 0 46px;
     font-size: 12px;
