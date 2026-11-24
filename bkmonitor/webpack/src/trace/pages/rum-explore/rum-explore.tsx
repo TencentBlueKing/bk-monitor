@@ -50,7 +50,6 @@ import RumExploreSkeleton from './components/rum-explore-skeleton/rum-explore-sk
 import RumExploreTable from './components/rum-explore-table';
 import RumExploreView from './components/rum-explore-view/rum-explore-view';
 import RumSpanTypeFilter from './components/rum-span-type-filter';
-import RumTrendChart from './components/rum-trend-chart/rum-trend-chart';
 import {
   useRumActiveRow,
   useRumColumnConfig,
@@ -766,12 +765,6 @@ export default defineComponent({
       queryCtx.setUrlParams();
     }
 
-    /** 总趋势图框选：与头部时间选择器一致写入时间范围并同步 URL，避免刷新后回到旧区间 */
-    function handleTrendDataZoomChange(value: [number, number]) {
-      store.timeRange = value;
-      queryCtx.setUrlParams();
-    }
-
     function handleCreateApp() {
       const url = location.href.replace(location.hash, '#/apm/home');
       window.open(url, '_blank');
@@ -891,7 +884,6 @@ export default defineComponent({
       handleSortChange,
       handleSpanTypeChange,
       handleThumbtackChange,
-      handleTrendDataZoomChange,
       handleCountDrillDown,
       handleCreateApp,
       tagValueDisplayFormatter,
@@ -1032,12 +1024,6 @@ export default defineComponent({
                           loading={tableCtx.loading.value && !!tableCtx.tableData.value.length}
                           onRetry={tableCtx.retry}
                         />
-                        {this.configLoading ? null : (
-                          <RumTrendChart
-                            commonParams={queryCtx.commonParams.value}
-                            onDataZoomChange={this.handleTrendDataZoomChange}
-                          />
-                        )}
                         <RumExploreView
                           ref='rumExploreViewRef'
                           v-slots={{

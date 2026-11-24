@@ -310,6 +310,8 @@ export default defineComponent({
           api={this.statisticsApi}
           commonParams={this.commonParams as any}
           field={this.selectField}
+          isDuration={this.selectField?.field_display_type === 'duration' || this.selectField?.field_unit === 'bytes'}
+          isInteger={['double', 'long', 'integer', 'float'].includes(this.selectField?.type)}
           isShow={this.showPopover}
           timeRange={this.timeRange as any}
           onConditionChange={this.handleConditionChange}
