@@ -134,19 +134,9 @@ def reader_positions(pid, info):
         return None
 
 
-def snapshot(policy, request):
+def target_source_path(policy, request):
     path, operation = request["path"], request["operation"]
     reading_content = operation == "read"
-    if request.get("path_space") == "collector":
-        # Reverse a collector-visible path only when it identifies one target mount.
-        mappings = [(host, key) for key, host in policy["mounts"].items() if host and inside(path, host)]
-        if not mappings:
-            raise ValueError("collector_path_outside_target_mounts")
-        longest = max(len(host) for host, _ in mappings)
-        logical = [os.path.join(key, os.path.relpath(path, host)) for host, key in mappings if len(host) == longest]
-        if len(logical) != 1:
-            raise ValueError("collector_path_ambiguous")
-        path = os.path.normpath(logical[0])
     if request.get("via"):
         via = request["via"]
         if reading_content and not matches(via, policy["patterns"], ancestors=True):
@@ -159,30 +149,53 @@ def snapshot(policy, request):
         raise ValueError("source_outside_configured_paths")
     name, resolved, links = open_parent(path, policy, operation != "readlink", reading_content)
 
-    def excluded(*paths):
-        return any(re.search(rule, value) for rule in policy.get("exclude", []) for value in paths)
-
-    if reading_content and excluded(path, resolved, os.path.join(os.getcwd(), name)):
+    collector_path = os.path.normpath(os.path.join(os.getcwd(), name))
+    if reading_content and any(
+        re.search(rule, value) for rule in policy.get("exclude", []) for value in (path, resolved, collector_path)
+    ):
         raise ValueError("source_excluded_by_input")
-    info = os.lstat(name)
+    return name, path, resolved, links, collector_path
+
+
+def snapshot(policy, request):
+    path, operation = request["path"], request["operation"]
+    native = request.get("path_space") == "collector"
+    if native:
+        if operation not in ("list", "readlink", "stat") or "via" in request:
+            raise ValueError("collector_paths_support_metadata_only")
+        # Keep the original path for follow-ups. Kernel magic links may have no equivalent
+        # canonical pathname (for instance a mounted process root or a deleted file).
+        name = collector_path = path
+        info = os.lstat(path) if operation == "readlink" else os.stat(path)
+    else:
+        name, path, resolved, links, collector_path = target_source_path(policy, request)
+        info = os.lstat(name)
     result = {
         "path": path,
-        "resolved_path": resolved,
-        "collector_path": os.path.normpath(os.path.join(os.getcwd(), name)),
-        "links": links,
+        "path_space": "collector" if native else "target",
+        "collector_path": collector_path,
         "sampled_at": timestamp(time.time()),
         "device": info.st_dev,
         "inode": info.st_ino,
+        "mode": info.st_mode,
         "size_bytes": info.st_size,
         "mtime": timestamp(info.st_mtime),
         "mtime_epoch": info.st_mtime,
     }
+    if not native:
+        result.update(resolved_path=resolved, links=links)
     if operation == "readlink":
         result["target"] = os.readlink(name)
     elif operation == "list":
-        descend(name)
+        if not native:
+            descend(name)
         # Include every observed name so a misconfigured pattern can be diagnosed.
-        proc = subprocess.Popen(["find", ".", "-mindepth", "1", "-maxdepth", "1", "-print0"], stdout=subprocess.PIPE)
+        find = "/usr/bin/find" if os.path.isfile("/usr/bin/find") else "/bin/find"
+        proc = subprocess.Popen(
+            [find, ".", "-mindepth", "1", "-maxdepth", "1", "-print0"],
+            cwd=path if native else None,
+            stdout=subprocess.PIPE,
+        )
         try:
             raw = proc.stdout.read(65537)
         finally:

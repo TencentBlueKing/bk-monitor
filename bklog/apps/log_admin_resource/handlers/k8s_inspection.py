@@ -428,8 +428,12 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     include_source_sample = bool(params.get("include_source_sample", False))
     source_step = params.get("source_step")
     if source_step is not None:
-        if not target or target.get("type") != "pod_container" or "collector" not in groups:
-            raise ValidationError("source_step requires a Pod/container target and collector evidence")
+        default_space = "target" if source_step["operation"] == "read" or "via" in source_step else "collector"
+        source_step = {"path_space": default_space, **source_step}
+        if not target or "collector" not in groups:
+            raise ValidationError("source_step requires a target and collector evidence")
+        if source_step["path_space"] == "target" and target["type"] != "pod_container":
+            raise ValidationError("target paths require a Pod/container target")
         if source or include_source_sample:
             raise ValidationError("source_step and legacy source sampling are mutually exclusive")
         if source_step.get("path_space") == "collector" and (
@@ -982,9 +986,9 @@ FUNCTIONS = {
                 "source_step": {
                     "type": "object",
                     "description": (
-                        "Inspect a logical path in the selected Pod from the collector. List all observed directory "
-                        "entries, including files outside collection rules. Follow links with readlink and inspect "
-                        "file activity with stat. Only read requires a matching configured log file."
+                        "List directories, inspect file activity or inspect links directly in the collector container. "
+                        "Use returned entry paths in subsequent calls. To follow a link, list or stat its path. "
+                        "Use target space for business-container logical paths or configured file contents."
                     ),
                     "properties": {
                         "operation": {"type": "string", "enum": ["list", "readlink", "stat", "read"]},
@@ -992,7 +996,7 @@ FUNCTIONS = {
                         "path_space": {
                             "type": "string",
                             "enum": ["target", "collector"],
-                            "description": "Defaults to target. Use collector with a returned collector_path for metadata.",
+                            "description": "Metadata defaults to collector paths. Read and via default to target paths.",
                         },
                         "via": {
                             "type": "string",
@@ -1024,7 +1028,7 @@ FUNCTIONS = {
                         "container_name": "app",
                     },
                     "evidence_groups": ["collector"],
-                    "source_step": {"operation": "readlink", "path": "/app/logs"},
+                    "source_step": {"operation": "list", "path": "/var/host/data/log"},
                 }
             },
             {

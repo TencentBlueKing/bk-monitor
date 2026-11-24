@@ -127,9 +127,17 @@ def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_
 
 
 def inspect_source_step(client, candidate, parsed, target, expected, data_id, request, collector_pod):
-    policy = source_policy(
-        parsed, target, expected, data_id, collector_pod, metadata_only=request["operation"] != "read"
-    )
+    native = request.get("path_space") == "collector"
+    if native:
+        if request["operation"] not in {"list", "stat", "readlink"} or "via" in request:
+            raise FixedProbeError("invalid_collector_step", "collector paths support metadata operations only")
+        policy = {}
+        identity = {}
+    else:
+        policy = source_policy(
+            parsed, target, expected, data_id, collector_pod, metadata_only=request["operation"] != "read"
+        )
+        identity = {"pod_uid": target["pod_uid"], "container_id": target["container"]["container_id"]}
     policy["interval"] = min(10, max(1, int(parsed["values"].get("observation_seconds") or 5)))
     policy["pid"] = int(parsed["values"].get("process_pid") or 0)
     encoded = base64.b64encode(json.dumps([policy, request]).encode()).decode("ascii")
@@ -161,8 +169,7 @@ def inspect_source_step(client, candidate, parsed, target, expected, data_id, re
         "summary": "file evidence from the selected collector container",
         "evidence": {
             "request": request,
-            "pod_uid": target["pod_uid"],
-            "container_id": target["container"]["container_id"],
+            **identity,
             "collector_pod_uid": candidate.pod_uid,
             **result,
         },

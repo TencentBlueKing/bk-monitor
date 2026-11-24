@@ -558,14 +558,25 @@ class K8sInspectionHandlerTest(SimpleTestCase):
             "evidence_groups": ["collector"],
             "target": {"type": "pod_container", "namespace": "demo", "pod_name": "app", "container_name": "main"},
         }
-        for step in [
-            {"operation": "readlink", "path": "/logs"},
-            {"operation": "list", "path": "/volume", "via": "/logs"},
+        for step, space in [
+            ({"operation": "readlink", "path": "/logs"}, "collector"),
+            ({"operation": "list", "path": "/volume", "via": "/logs"}, "target"),
         ]:
             response = start_k8s_inspection({**params, "source_step": step})
             task = ResourceInspectionTaskRecord.get(response["task_id"])
-            self.assertEqual(task["request_options"]["source_step"], step)
-        self.assertEqual(dispatch.call_count, 2)
+            self.assertEqual(task["request_options"]["source_step"], {**step, "path_space": space})
+        direct = start_k8s_inspection(
+            {
+                **params,
+                "target": {"type": "node", "node_name": "node"},
+                "source_step": {"operation": "list", "path": "/"},
+            }
+        )
+        self.assertEqual(
+            ResourceInspectionTaskRecord.get(direct["task_id"])["request_options"]["source_step"]["path_space"],
+            "collector",
+        )
+        self.assertEqual(dispatch.call_count, 3)
         for change in [
             {"evidence_groups": ["control_plane"]},
             {"target": {"type": "node", "node_name": "node"}},
@@ -1494,21 +1505,22 @@ class SourcePolicyTest(SimpleTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
             (root / "logs").symlink_to("/volume/demo")
-            policy = {"mounts": {"/": str(root)}, "patterns": ["/logs/app.log"]}
             with (
-                patch("apps.log_admin_resource.k8s_source_step.source_policy", return_value=policy),
+                patch("apps.log_admin_resource.k8s_source_step.source_policy") as policy,
                 patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=execute),
             ):
                 result = inspect_source_step(
                     None,
                     SimpleNamespace(pod_uid="collector-uid"),
                     {"values": {}},
-                    {"pod_uid": "app-uid", "container": {"container_id": "runtime-id"}},
+                    {"type": "node", "node_name": "node-a"},
                     [],
                     7,
-                    {"operation": "readlink", "path": "/logs"},
+                    {"operation": "readlink", "path": str(root / "logs"), "path_space": "collector"},
                     {},
                 )
+            policy.assert_not_called()
+            self.assertNotIn("pod_uid", result["evidence"])
             self.assertEqual(result["status"], "success")
             observation = result["evidence"]["observation"]
             self.assertEqual(observation["target"], "/volume/demo")

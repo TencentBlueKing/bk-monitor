@@ -130,14 +130,40 @@ class SourceStepTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside_configured"):
             self.run_step("read", listing["entries"][0])
 
-    def test_collector_metadata_requires_a_mapped_path_and_respects_nested_mounts(self):
-        with self.assertRaisesRegex(ValueError, "outside_target_mounts"):
-            self.run_step("list", "/unmapped", path_space="collector")
-        with self.assertRaisesRegex(ValueError, "outside_scope"):
-            self.run_step("list", str(self.volume / "secret"), path_space="collector")
-        self.policy["mounts"]["/another"] = str(self.volume)
-        with self.assertRaisesRegex(ValueError, "ambiguous"):
-            self.run_step("stat", str(self.file), path_space="collector")
+    def test_native_metadata_uses_the_collector_namespace_without_a_mount_map(self):
+        self.policy = {"pid": 0, "interval": 0}
+        alias = self.root / "outside"
+        alias.symlink_to("../volume/service")
+        native = {"path_space": "collector"}
+        self.assertEqual(self.run_step("readlink", str(alias), **native)["observation"]["target"], "../volume/service")
+        result = self.run_step("list", str(alias), **native)["observation"]
+        child = str(alias / "app.log")
+        self.assertEqual(result["entries"], [child])
+        observed = self.run_step("stat", child, **native)["second"]
+        self.assertEqual((observed["collector_path"], observed["inode"]), (child, self.file.stat().st_ino))
+        with self.assertRaisesRegex(ValueError, "metadata_only"):
+            self.run_step("read", child, **native)
+        alias.unlink()
+        alias.symlink_to("missing")
+        self.assertEqual(self.run_step("readlink", str(alias), **native)["observation"]["target"], "missing")
+        with self.assertRaises(FileNotFoundError):
+            self.run_step("stat", str(alias), **native)
+
+    @unittest.skipUnless(sys.platform.startswith("linux") and os.path.isdir("/dev/shm"), "requires Linux tmpfs")
+    def test_native_metadata_follows_link_across_mounts(self):
+        with tempfile.TemporaryDirectory(dir="/dev/shm") as mounted:
+            destination = Path(mounted)
+            self.assertNotEqual(self.root.stat().st_dev, destination.stat().st_dev)
+            link = self.root / "mounted"
+            link.symlink_to(destination)
+            log = destination / "new.log"
+            log.touch()
+            listing = self.run_step("list", str(link), path_space="collector")["observation"]
+            self.assertEqual(listing["entries"], [str(link / "new.log")])
+            with patch.object(probe.time, "sleep", side_effect=lambda _: log.write_bytes(b"new")):
+                result = self.run_step("stat", listing["entries"][0], path_space="collector")
+            self.assertEqual((result["growth_bytes"], result["second"]["inode"]), (3, log.stat().st_ino))
+            self.assertEqual(result["second"]["device"], destination.stat().st_dev)
 
     def test_single_file_mount_metadata(self):
         self.policy["mounts"]["/single"] = str(self.file)

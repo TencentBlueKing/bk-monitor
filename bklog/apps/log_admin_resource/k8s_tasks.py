@@ -284,16 +284,19 @@ def run_k8s_inspection(task_id: str) -> None:
                     _pod_after,
                 )
                 _revalidate_candidate(client, selected, required_bk_envs)
-                target = control_evidence["target"]
-                pod = object_to_dict(client.read_pod(target["namespace"], target["pod_name"]))
-                matched = target_config_matches(options["target"], pod, expected)
-                identity = safe_target_snapshot(options["target"], pod, matched)
-                if (
-                    not matched
-                    or identity["pod_uid"] != target["pod_uid"]
-                    or identity["container"]["container_id"] != target["container"]["container_id"]
-                ):
-                    raise FixedProbeError("source_target_changed", "source Pod/container changed during observation")
+                if options["source_step"].get("path_space") != "collector":
+                    target = control_evidence["target"]
+                    pod = object_to_dict(client.read_pod(target["namespace"], target["pod_name"]))
+                    matched = target_config_matches(options["target"], pod, expected)
+                    identity = safe_target_snapshot(options["target"], pod, matched)
+                    if (
+                        not matched
+                        or identity["pod_uid"] != target["pod_uid"]
+                        or identity["container"]["container_id"] != target["container"]["container_id"]
+                    ):
+                        raise FixedProbeError(
+                            "source_target_changed", "source Pod/container changed during observation"
+                        )
             if "reload_observation" in probes:
                 rendered_configs = ((deep_probes.get("main_config_mounted") or {}).get("evidence") or {}).get(
                     "child_configs"
