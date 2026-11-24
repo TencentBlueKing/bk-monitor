@@ -952,8 +952,19 @@ class K8sInspectionHandlerTest(SimpleTestCase):
             ResourceInspectionTaskRecord.update(task_id, task_status="success")
             for payload in (b"token=fixture-only\n", b"\xff\x00", b""):
                 observation = {"raw_hex_chunks": [payload.hex()], "returned_bytes": len(payload)}
-                probes = {"source_path": {"evidence": {"observation": observation}}, "other": {"text": "token=value"}}
-                ResourceInspectionTaskRecord.store_result(task_id, {"probes": probes})
+                probes = {
+                    "source_path": {
+                        "status": "success",
+                        "code": "source_step_completed",
+                        "evidence": {
+                            "request": ResourceInspectionTaskRecord.get(task_id)["request_options"]["source_step"],
+                            "observation": observation,
+                        },
+                    },
+                    "other": {"text": "token=value"},
+                }
+                ResourceInspectionTaskRecord.store_result(task_id, {"probes": probes}, source_read=True)
+                self.assertIsNone(ResourceInspectionTaskRecord.load_result(task_id))
                 published = get_k8s_inspection_detail({"task_id": task_id})["evidence"]["probes"]
                 row = published["source_path"]["evidence"]["observation"]
                 actual = (
@@ -965,6 +976,112 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[]):
             with self.assertRaises(BklogPermissionError):
                 get_k8s_inspection_detail({"task_id": task_id})
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_detail_checks_worker_evidence_for_each_requested_file_operation(self, _identity):
+        from apps.log_admin_resource.collector_probe_evidence import _source_probe
+        from apps.log_admin_resource.k8s_tasks import _finish, _timed_probe
+
+        other = _timed_probe({"status": "success", "code": "observed", "summary": "control plane", "evidence": {}})
+        legacy = _timed_probe(
+            _source_probe(
+                values={},
+                streams={},
+                first_rows=[{"path": "/logs/old.log"}],
+                second_rows=[],
+                allowed_patterns=["/logs/*"],
+                source=None,
+                include_sample=False,
+                error=None,
+            )
+        )
+        self.assertEqual(legacy["code"], "source_paths_inspected")
+        with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader-a"]):
+            for operation in ("list", "stat", "readlink", "read"):
+                step = {"operation": operation, "path": "/logs/app"}
+                record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+                    app_code="reader-a",
+                    bk_tenant_id="tenant-a",
+                    target={},
+                    request_options={"source_step": step},
+                    task_type=TASK_TYPE_K8S_INSPECTION,
+                )
+                task_id = record["task_id"]
+                for source in (
+                    legacy,
+                    _timed_probe(
+                        {
+                            "status": "success",
+                            "code": "source_step_completed",
+                            "summary": "step",
+                            "evidence": {
+                                "request": {**step, "path": "/logs/old"},
+                                "observation": {"raw_hex_chunks": ["61"]},
+                            },
+                        }
+                    ),
+                    _timed_probe(
+                        {
+                            "status": "success",
+                            "code": "source_step_completed",
+                            "summary": "step",
+                            "evidence": {"request": step, "observation": {}},
+                        }
+                    ),
+                ):
+                    ResourceInspectionTaskRecord.set_probe(task_id, "source_path", source)
+                    _finish(task_id, record, {"source_path": source, "control_plane": other}, "success", None)
+                    if source is legacy and operation == "read":
+                        # Baseline Worker stores under the legacy key. Model its actual persisted result.
+                        backing = ResourceInspectionTaskRecord
+                        payload = backing.load_result(task_id, source_read=True)
+                        backing.cache().delete(backing._result_key(task_id, source_read=True))
+                        backing.store_result(task_id, payload)
+                    result = get_k8s_inspection_detail({"task_id": task_id})
+                    validate_params(result, DETAIL_RESPONSE_SCHEMA, "response")
+                    self.assertEqual(result["task_status"], "partial")
+                    self.assertTrue(result["error"]["retryable"])
+                    self.assertEqual(result["error"]["code"], "source_step_unconfirmed")
+                    self.assertEqual(result["probes"]["source_path"]["status"], "failed")
+                    self.assertIsNone(result["evidence"]["probes"]["source_path"]["evidence"])
+                    self.assertEqual(result["evidence"]["probes"]["control_plane"], other)
+                observations = {
+                    "list": {"entries": []},
+                    "stat": {"inode": 42},
+                    "readlink": {"target": "/data/log"},
+                    "read": {"returned_bytes": 0, "raw_hex_chunks": []},
+                }
+                completed = _timed_probe(
+                    {
+                        "status": "success",
+                        "code": "source_step_completed",
+                        "summary": "step",
+                        "evidence": {"request": step, "observation": observations[operation]},
+                    }
+                )
+                ResourceInspectionTaskRecord.set_probe(task_id, "source_path", completed)
+                _finish(task_id, record, {"source_path": completed, "control_plane": other}, "success", None)
+                detail = get_k8s_inspection_detail({"task_id": task_id})
+                validate_params(detail, DETAIL_RESPONSE_SCHEMA, "response")
+                self.assertEqual(detail["task_status"], "success")
+                if operation == "read":
+                    self.assertEqual(
+                        detail["evidence"]["probes"]["source_path"]["evidence"]["observation"]["content"], ""
+                    )
+                diagnostic = {"code": "response_compacted", "message": "bounded result", "retryable": True}
+                _finish(task_id, record, {"control_plane": other}, "partial", diagnostic)
+                self.assertEqual(get_k8s_inspection_detail({"task_id": task_id})["error"], diagnostic)
+                failed = _timed_probe(
+                    {
+                        "status": "failed",
+                        "code": "source_step_incomplete",
+                        "summary": "source unavailable",
+                        "evidence": {"request": step},
+                    }
+                )
+                _finish(task_id, record, {"source_path": failed, "control_plane": other}, "partial", None)
+                detail = get_k8s_inspection_detail({"task_id": task_id})
+                self.assertEqual(detail["evidence"]["probes"]["source_path"], failed)
 
     def test_registry_exposes_k8s_start_and_detail(self):
         metadata = AdminResourceRegistry.call("__meta__", {"action": "list"}, app_code="reader-a")
@@ -1570,6 +1687,65 @@ class SourcePolicyTest(SimpleTestCase):
         pod["spec"]["containers"][0]["volumeMounts"][0]["subPath"] = "subdirectory"
         with self.assertRaisesRegex(FixedProbeError, "no verified host root"):
             source_policy(parsed, target, expected, 7, pod, metadata_only=True)
+
+    def test_volume_identity_sources_follow_pod_mount_type_and_renderer(self):
+        from apps.log_admin_resource.k8s_source_step import _rendered_mount_paths, _target_mounts
+
+        pod_root = "/custom/kubelet/pods/pod-uid"
+        rendered = {
+            "mounts": [{"container_path": "/pvc", "host_path": "/var/host" + pod_root + "/volumes/plugin/pv-a"}]
+        }
+        target = {
+            "pod_uid": "pod-uid",
+            "container": {
+                "name": "main",
+                "volume_mounts": [
+                    {"name": "work", "mountPath": "/work", "volume": {"type": "empty_dir"}},
+                    {"name": "cache", "mountPath": "/sub", "subPathExpr": "$(POD)", "volume": {"type": "empty_dir"}},
+                    {"name": "disk", "mountPath": "/pvc", "volume": {"type": "persistent_volume_claim"}},
+                    {"name": "private", "mountPath": "/private", "volume": {"type": "secret"}},
+                ],
+            },
+        }
+        for config in (
+            rendered,
+            {
+                "remove_path_prefix": "/var/host",
+                "mount_infos": [{"dest": "/pvc", "source": pod_root + "/volumes/plugin/pv-a"}],
+            },
+        ):
+            mapping = {dst: {src} for dst, src in _rendered_mount_paths(config)}
+            _, sources, _ = _target_mounts(target, mapping)
+            self.assertEqual(
+                sources,
+                {
+                    "/pvc": pod_root + "/volumes/plugin/pv-a",
+                    "/work": "/var/lib/kubelet/pods/pod-uid/volumes/kubernetes.io~empty-dir/work",
+                    "/sub": "/var/lib/kubelet/pods/pod-uid/volume-subpaths/cache/main/1",
+                },
+            )
+        subpath_pin = pod_root + "/volume-subpaths/pv-synthetic/main/1"
+        empty_dir = pod_root + "/volumes/kubernetes.io~empty-dir/work"
+        _, sources, _ = _target_mounts(target, {"/sub": {subpath_pin}, "/work": {empty_dir}})
+        self.assertEqual((sources["/sub"], sources["/work"]), (subpath_pin, empty_dir))
+        for paths in ({"/proc/123/root/pvc"}, {pod_root + "/volumes/plugin/pv-a", pod_root + "/volumes/plugin/pv-b"}):
+            self.assertNotIn("/pvc", _target_mounts(target, {"/pvc": paths})[1])
+
+    def test_long_cr_name_does_not_prevent_matching_the_selected_log_directory(self):
+        from apps.log_admin_resource.k8s_source_step import source_directories, source_read_binding
+
+        target = {"type": "pod_container", "container": {"container_id": "a" * 64}, "matched_container_config_ids": [7]}
+        config = {
+            "name": ".".join(["a" * 55] * 4),
+            "collector_type": ContainerCollectorType.CONTAINER,
+            "container_config_id": 7,
+            "spec": {"path": ["/logs/*.log"]},
+        }
+        self.assertEqual(collector_child_config_hints(target, [config]), [])
+        self.assertEqual(source_read_binding(target, [config], {"path": "/logs/current"}), ("/logs", {7}))
+        self.assertEqual(source_directories(target, [{**config, "container_config_id": 8}]), {})
+        self.assertEqual(source_directories({**target, "type": "node"}, [config]), {})
+        self.assertEqual(source_directories(target, [{**config, "container_config_id": None}]), {None: {"/logs"}})
 
     def test_source_step_executes_fixed_script_and_returns_path_metadata(self):
         import subprocess
@@ -2465,7 +2641,8 @@ class K8sInspectionWorkerTest(SimpleTestCase):
                     config_client.return_value.read_bklog_config.side_effect = lambda *_: deepcopy(config)
                     run_k8s_inspection.run(task_id)
 
-                result = ResourceInspectionTaskRecord.load_result(task_id)
+                result = ResourceInspectionTaskRecord.load_result(task_id, source_read=True)
+                self.assertIsNone(ResourceInspectionTaskRecord.load_result(task_id))
                 source = result["probes"]["source_path"]
                 for key in ("registrar", "progress", "collector_process"):
                     self.assertEqual(result["probes"][key]["evidence"], {"marker": key})
@@ -2566,7 +2743,8 @@ class K8sInspectionWorkerTest(SimpleTestCase):
                     inspect_source_step=run_step,
                 ):
                     run_k8s_inspection.run(task_id)
-                result = ResourceInspectionTaskRecord.load_result(task_id)
+                result = ResourceInspectionTaskRecord.load_result(task_id, source_read=True)
+                self.assertIsNone(ResourceInspectionTaskRecord.load_result(task_id))
                 self.assertEqual(result["probes"]["progress"]["evidence"], {"marker": "progress"})
                 valid = change in ("stable", "unrelated")
                 self.assertEqual(result["probes"]["source_path"]["status"], "success" if valid else "failed")

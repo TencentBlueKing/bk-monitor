@@ -71,8 +71,10 @@ class SourceStepTest(unittest.TestCase):
         log = mounted / "app.log"
         log.write_bytes(b"mounted")
         logical = "/var/run/service"
-        self.policy.update(mounts={logical: True}, directories=[logical])
-        self.mountinfo.write_text("2 1 0:4 / /run/service rw - tmpfs tmpfs rw\n")
+        self.policy.update(
+            mounts={logical: True}, mount_sources={logical: "/container/run/service"}, directories=[logical]
+        )
+        self.mountinfo.write_text("1 0 0:2 / /run rw - tmpfs tmpfs rw\n2 1 0:4 / /run/service rw - tmpfs tmpfs rw\n")
         self.assertEqual(self.run_step("stat", logical + "/app.log")["second"]["inode"], log.stat().st_ino)
         if sys.platform.startswith("linux"):
             for path, options in [
@@ -81,6 +83,32 @@ class SourceStepTest(unittest.TestCase):
             ]:
                 row = self.run_step("read", path, **options)["observation"]
                 self.assertEqual(bytes.fromhex("".join(row["raw_hex_chunks"])), log.read_bytes())
+        for path in ("/run", "/run/app.log"):
+            with self.assertRaisesRegex(ValueError, "outside_scope"):
+                self.run_step("list", path)
+        alias = self.root / "var/run"
+        other = self.root / "other/service"
+        other.mkdir(parents=True)
+        (other / "app.log").write_bytes(b"second fixture")
+        with self.mountinfo.open("a") as stream:
+            stream.write("3 0 0:5 / /other/service rw - tmpfs tmpfs rw\n")
+        with patch.dict(self.policy, host_path_mounts=[logical]):
+            with self.assertRaisesRegex(ValueError, "identity_unverified"):
+                self.run_step("stat", logical + "/app.log")
+        alias.unlink()
+        alias.symlink_to("../other")
+        for path in (logical + "/app.log", "/other/service/app.log"):
+            with self.assertRaisesRegex(ValueError, "identity_unverified"):
+                self.run_step("stat", path)
+        alias.unlink()
+        alias.symlink_to("../run")
+        with patch.dict(self.policy, mount_sources={}):
+            with self.assertRaisesRegex(ValueError, "identity_unverified"):
+                self.run_step("read", logical + "/app.log")
+        self.policy["mounts"]["/run"] = False
+        with self.assertRaisesRegex(ValueError, "outside_scope"):
+            self.run_step("stat", logical + "/app.log")
+        del self.policy["mounts"]["/run"]
         self.policy["mounts"]["/run/service"] = False
         with self.assertRaisesRegex(ValueError, "outside_scope"):
             self.run_step("stat", logical + "/app.log")

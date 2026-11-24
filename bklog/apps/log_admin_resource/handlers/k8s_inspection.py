@@ -524,6 +524,41 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     return _start_response(current, reused=reused)
 
 
+def _publish_source_step(step, probe):
+    """Return whether the Worker supplied evidence for the requested step."""
+    source = probe.get("evidence")
+    if not isinstance(source, dict) or source.get("request") != sanitize_json(step, redact_text=True):
+        return False
+    if probe.get("status") == "failed":
+        return True
+    if probe.get("code") != "source_step_completed" or probe.get("status") != "success":
+        return False
+    row = source.get("observation") or {}
+    if not isinstance(row, dict):
+        return False
+    operation = step["operation"]
+    if operation == "stat":
+        return "inode" in row or all("inode" in (source.get(key) or {}) for key in ("first", "second"))
+    if operation == "list":
+        return isinstance(row.get("entries"), list)
+    if operation == "readlink":
+        return isinstance(row.get("target"), str)
+    chunks = row.pop("raw_hex_chunks", None)
+    if not isinstance(chunks, list):
+        return False
+    try:
+        data = bytes.fromhex("".join(chunks))
+    except (TypeError, ValueError):
+        return False
+    if len(data) != row.get("returned_bytes") or len(data) > step.get("length", 1024):
+        return False
+    try:
+        row.update(content=data.decode("utf-8"), content_encoding="utf-8")
+    except UnicodeDecodeError:
+        row.update(content=base64.b64encode(data).decode("ascii"), content_encoding="base64")
+    return True
+
+
 def get_k8s_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
     task_id = params["task_id"]
     app_code, tenant_id = _request_identity()
@@ -541,23 +576,36 @@ def get_k8s_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
     record = ResourceInspectionTaskRecord.normalize_timeout(record)
     task_status = record.get("task_status")
     evidence = None
+    summaries = sanitize_json(record.get("probes") or {}, redact_text=True)
     error = sanitize_json(record.get("error"), redact_text=True) if record.get("error") else None
     if task_status not in ACTIVE_STATUSES and ResourceInspectionTaskRecord.result_expired(record):
         task_status = "expired"
         error = {"code": "task_expired", "message": "inspection evidence has expired", "retryable": False}
     elif task_status not in ACTIVE_STATUSES:
-        evidence = sanitize_json(ResourceInspectionTaskRecord.load_result(task_id), redact_text=True)
-        if evidence and (step or {}).get("operation") == "read":
-            source = evidence.get("probes", {}).get("source_path", {}).get("evidence") or {}
-            observation = source.get("observation") or {}
-            if "raw_hex_chunks" in observation:
-                data = bytes.fromhex("".join(observation.pop("raw_hex_chunks")))
-                try:
-                    observation["content"] = data.decode("utf-8")
-                    observation["content_encoding"] = "utf-8"
-                except UnicodeDecodeError:
-                    observation["content"] = base64.b64encode(data).decode("ascii")
-                    observation["content_encoding"] = "base64"
+        evidence = sanitize_json(
+            ResourceInspectionTaskRecord.load_result(task_id, source_read=(step or {}).get("operation") == "read"),
+            redact_text=True,
+        )
+        if step:
+            probes = (evidence or {}).get("probes") or {}
+            source = probes.get("source_path") or {}
+            if (source or task_status in {"success", "partial"}) and not _publish_source_step(step, source):
+                message = "the Worker result does not confirm the requested file operation"
+                missing = {"code": "source_step_unconfirmed", "message": message, "retryable": True}
+                summary = {
+                    "status": "failed",
+                    "code": missing["code"],
+                    "summary": message,
+                    "started_at": None,
+                    "finished_at": None,
+                    "duration_ms": 0,
+                }
+                summaries["source_path"] = summary
+                if evidence is not None:
+                    evidence.setdefault("probes", {})["source_path"] = {**summary, "evidence": None, "warnings": []}
+                    evidence.update(partial=True, error=evidence.get("error") or error or missing)
+                if task_status in {"success", "partial"}:
+                    task_status, error = "partial", error or (evidence or {}).get("error") or missing
 
     return {
         "task_id": task_id,
@@ -571,7 +619,7 @@ def get_k8s_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
         "finished_at": record.get("finished_at"),
         "heartbeat_at": record.get("heartbeat_at"),
         "result_expires_at": record.get("result_expires_at"),
-        "probes": sanitize_json(record.get("probes") or {}, redact_text=True),
+        "probes": summaries,
         "evidence": evidence,
         "partial": task_status == "partial" or bool(isinstance(evidence, dict) and evidence.get("partial")),
         "error": error,

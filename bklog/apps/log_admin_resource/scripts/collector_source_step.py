@@ -150,30 +150,72 @@ def link_destination(parent, target, policy, links):
     return os.path.join(current, *pending)
 
 
-def is_mountpoint(path, policy):
+def mountinfo_path(path):
     escaped = path.replace("\\", "\\134").replace(" ", "\\040").replace("\t", "\\011").replace("\n", "\\012")
-    return escaped.encode("utf-8") in policy["active_mounts"]
+    return escaped.encode("utf-8")
+
+
+def is_mountpoint(path, policy):
+    return mountinfo_path(path) in policy["active_mounts"]
+
+
+def node_source_identity(source):
+    # A source is only an independent witness. Never read file contents here.
+    # Refuse links, including procfs magic links, in this node-side lookup.
+    if not source or not source.startswith("/") or os.path.normpath(source) != source or source == "/":
+        return None
+    if any(inside(source, fs) for fs in ("/proc", "/sys", "/dev")):
+        return None
+    os.chdir(os.path.dirname(HOST_PROC))
+    names = parts(source)
+    for name in names[:-1]:
+        descend(name)
+    info = os.lstat(names[-1])
+    if stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode):
+        return info
+    return None
 
 
 def bind_mount_paths(policy):
-    # mountinfo uses the actual mount destination. A Pod may spell its parent
-    # through an image symlink. Resolve parents inside the pinned target root;
-    # the leaf must still be a mount in the kernel table on every observation.
     declared = policy["mounts"]
     resolved = dict(declared)
-    # Resolve declaration names independently. An alias for a nested mount may
-    # be shorter than its parent alias. Enforce the completed table for all I/O.
-    lookup = dict(policy, mounts={}, active_mounts=frozenset())
+    identities = {}
+    blocked = set()
+    alias_components = {}
+    lookup = dict(policy, mounts={}, active_mounts=frozenset(), record_components=alias_components)
     for path, allowed in declared.items():
         if path == "/" or is_mountpoint(path, policy):
             continue
         try:
             _, parent, _ = open_parent(os.path.dirname(path), lookup, True)
         except (IOError, OSError, ValueError):
+            blocked.add(path)
             continue
         destination = os.path.join(parent, os.path.basename(path))
         resolved[destination] = allowed and resolved.get(destination, True)
-    policy["mounts"] = resolved
+        if not allowed or destination == path or not is_mountpoint(destination, policy):
+            continue
+        try:
+            # Both a node hostPath and an image alias can be repointed. With
+            # two live destinations of that name, today's node inode alone
+            # cannot identify which mount the runtime originally installed.
+            if path in policy.get("host_path_mounts", ()):
+                suffix = mountinfo_path("/" + os.path.basename(path))
+                if sum(entry.endswith(suffix) for entry in policy["active_mounts"]) > 1:
+                    raise ValueError("ambiguous_host_path_mount")
+            source = node_source_identity(policy.get("mount_sources", {}).get(path))
+            name, _, _ = open_parent(destination, dict(lookup, record_components=None), False)
+            if source is not None and os.path.samestat(source, os.lstat(name)):
+                identities[destination] = source
+                continue
+        except (IOError, OSError, ValueError):
+            pass
+        blocked.add(path)
+        if destination not in declared:
+            blocked.add(destination)
+    policy.update(
+        mounts=resolved, mount_identities=identities, blocked_aliases=blocked, alias_components=alias_components
+    )
 
 
 def open_parent(path, policy, follow_leaf, links=None):
@@ -186,7 +228,10 @@ def open_parent(path, policy, follow_leaf, links=None):
         os.fchdir(policy["root_fd"])
         if policy["mounts"].get("/") is False:
             raise ValueError("mount_unavailable_or_outside_scope: /")
+        if any(inside(path, key) for key in policy.get("blocked_aliases", ())):
+            raise ValueError("target_volume_identity_unverified: " + path)
         tail = parts(path)
+        transit = False
         parent = "/"
         for index, name in enumerate(tail):
             last = index == len(tail) - 1
@@ -194,14 +239,36 @@ def open_parent(path, policy, follow_leaf, links=None):
             policy["resolving_path"] = logical
             allowed = policy["mounts"].get(logical)
             mounted = is_mountpoint(logical, policy)
-            if allowed is False or (mounted and not allowed):
+            if mounted and allowed is None:
+                # Traverse an undeclared runtime parent only on a literal path to a
+                # known live child mount. No inspection or link redirects in transit.
+                transit = any(
+                    ok and inside(path, key) and inside(key, logical) and is_mountpoint(key, policy)
+                    for key, ok in policy["mounts"].items()
+                )
+                if not transit:
+                    raise ValueError("mount_unavailable_or_outside_scope: " + logical)
+            if allowed is False:
                 raise ValueError("mount_unavailable_or_outside_scope: " + logical)
             if allowed and not mounted:
                 raise ValueError("target_volume_mount_unavailable: " + logical)
+            if allowed:
+                transit = False
+            witness = policy.get("mount_identities", {}).get(logical)
+            if witness is not None and not os.path.samestat(witness, os.lstat(name)):
+                raise ValueError("target_volume_identity_unverified: " + logical)
             if last and not follow_leaf:
                 return name, logical, links
-            if stat.S_ISLNK(os.lstat(name).st_mode):
-                target = os.readlink(name)
+            target = os.readlink(name) if stat.S_ISLNK(os.lstat(name).st_mode) else None
+            components = policy.get("record_components")
+            if components is not None:
+                if components.setdefault(logical, target) != target:
+                    raise ValueError("target_volume_identity_unverified: " + logical)
+            if policy.get("alias_components", {}).get(logical, target) != target:
+                raise ValueError("target_volume_identity_unverified: " + logical)
+            if target is not None:
+                if transit:
+                    raise ValueError("mount_unavailable_or_outside_scope: " + logical)
                 hop = {"path": logical, "target": target}
                 links.append(hop)
                 target_path = link_destination(parent, target, policy, links)

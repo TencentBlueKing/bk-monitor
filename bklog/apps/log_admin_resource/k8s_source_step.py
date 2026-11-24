@@ -27,20 +27,55 @@ def _collector_has_host_root(pod):
     )
 
 
-def _target_mounts(target):
-    mounts = {}
-    for mount in target["container"]["volume_mounts"]:
+def _target_mounts(target, rendered_sources):
+    mounts, sources, host_paths = {}, {}, []
+    container = target["container"]
+    uid = target.get("pod_uid") or ""
+    for index, mount in enumerate(container["volume_mounts"]):
         path = mount.get("mount_path") or mount.get("mountPath")
         if not path:
             continue
         volume = mount["volume"]
         host = volume.get("path")
         sub_path = mount.get("sub_path") or mount.get("subPath") or ""
-        mounts[posixpath.normpath(path)] = bool(
+        path = posixpath.normpath(path)
+        mounts[path] = bool(
             volume.get("type") in {"empty_dir", "persistent_volume_claim"}
             or (host and posixpath.normpath("/" + posixpath.join(host, sub_path).lstrip("/")) != "/")
         )
-    return mounts
+        if not mounts[path]:
+            continue
+        name = mount.get("name")
+        pod_dir = f"/pods/{uid}/"
+        references = {
+            src: src.split(pod_dir, 1)[1]
+            for src in rendered_sources.get(path, ())
+            if uid and pod_dir in src and posixpath.normpath(src) == src
+        }
+        if sub_path or mount.get("subPathExpr") or mount.get("sub_path_expr"):
+            if uid and name and container.get("name"):
+                suffix = f"/{container['name']}/{index}"
+                # For a PVC kubelet can use the backing PV's name in its subpath pin.
+                pins = [
+                    src
+                    for src, tail in references.items()
+                    if tail.startswith("volume-subpaths/") and tail.endswith(suffix) and len(tail.split("/")) == 4
+                ]
+                if len(pins) <= 1:
+                    sources[path] = pins[0] if pins else f"/var/lib/kubelet{pod_dir}volume-subpaths/{name}{suffix}"
+        elif host:
+            sources[path] = host
+            host_paths.append(path)
+        elif uid and name and volume.get("type") == "empty_dir":
+            tail = f"volumes/kubernetes.io~empty-dir/{name}"
+            matches = [src for src, relative in references.items() if relative == tail]
+            if len(matches) <= 1:
+                sources[path] = matches[0] if matches else f"/var/lib/kubelet{pod_dir}{tail}"
+        elif volume.get("type") == "persistent_volume_claim":
+            candidates = [src for src, tail in references.items() if tail.startswith("volumes/")]
+            if len(candidates) == 1:
+                sources[path] = candidates[0]
+    return mounts, sources, host_paths
 
 
 def _rendered_inputs(parsed, hints, data_id):
@@ -55,12 +90,39 @@ def _rendered_inputs(parsed, hints, data_id):
                 yield config
 
 
+def _rendered_mount_paths(config):
+    """Yield node paths only when the renderer's host-prefix convention is known."""
+    for field, dest, src in (("mounts", "container_path", "host_path"), ("mount_infos", "dest", "source")):
+        mappings = config.get(field)
+        if not isinstance(mappings, list) or (
+            field == "mount_infos" and config.get("remove_path_prefix") != "/var/host"
+        ):
+            continue
+        for mapping in mappings:
+            if not isinstance(mapping, dict):
+                continue
+            source, destination = mapping.get(src), mapping.get(dest)
+            if not isinstance(source, str) or not isinstance(destination, str):
+                continue
+            if field == "mounts":
+                if not source.startswith("/var/host/"):
+                    continue
+                source = source.removeprefix("/var/host")
+            if source.startswith("/") and posixpath.normpath(source) == source:
+                yield posixpath.normpath(destination), source
+
+
 def source_directories(target, expected):
     by_config = {}
+    if target.get("type") != "pod_container":
+        return by_config
+    matched_ids = {str(value) for value in target.get("matched_container_config_ids") or []}
     for item in expected:
-        if item.get("collector_type") != ContainerCollectorType.CONTAINER or not collector_child_config_hints(
-            target, [item]
-        ):
+        if item.get("collector_type") != ContainerCollectorType.CONTAINER:
+            continue
+        # Cluster-bound CRs have no SaaS config ID and have already passed target_config_matches.
+        config_id = item["container_config_id"]
+        if config_id is not None and str(config_id) not in matched_ids:
             continue
         patterns = set()
         for path in item["spec"].get("path") or []:
@@ -94,27 +156,27 @@ def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_
         raise FixedProbeError("host_proc_unavailable", "the collector has no verified host root mount")
     by_config = source_directories(target, expected)
     pids = set()
+    rendered_sources = {}
     for item in expected:
         if item["container_config_id"] not in by_config:
             continue
         hints = collector_child_config_hints(target, [item])
         for config in _rendered_inputs(parsed, hints, data_id):
-            # Only use a rendered process root as a PID hint. Host source paths
-            # can be renamed or rebound independently of the live Pod mount.
             roots = [config.get("root_fs")]
-            mounts = config.get("mount_infos")
-            if config.get("remove_path_prefix") == "/var/host" and isinstance(mounts, list):
-                roots.extend(
-                    "/var/host" + mount["source"]
-                    for mount in mounts
-                    if isinstance(mount, dict) and mount.get("dest") == "/" and isinstance(mount.get("source"), str)
-                )
+            for destination, source in _rendered_mount_paths(config):
+                if destination == "/":
+                    roots.append("/var/host" + source)
+                else:
+                    rendered_sources.setdefault(destination, set()).add(source)
             for root in roots:
                 match = re.fullmatch(r"/var/host/proc/([1-9][0-9]*)/root", root) if isinstance(root, str) else None
                 if match:
                     pids.add(match[1])
+    mounts, sources, host_paths = _target_mounts(target, rendered_sources)
     policy = {
-        "mounts": _target_mounts(target),
+        "mounts": mounts,
+        "mount_sources": sources,
+        "host_path_mounts": host_paths,
         "runtime_id": (target["container"].get("container_id") or "").split("://")[-1],
     }
     if len(pids) == 1:

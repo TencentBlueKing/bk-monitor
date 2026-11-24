@@ -1203,7 +1203,8 @@ def _finish(
         "partial": partial,
         "error": error,
     }
-    response_compacted = _store_bounded_result(task_id, result)
+    step = (current.get("request_options") or {}).get("source_step") or {}
+    response_compacted = _store_bounded_result(task_id, result, source_read=step.get("operation") == "read")
     if response_compacted and task_status == "success":
         task_status = "partial"
         error = _task_error("response_compacted")
@@ -1217,7 +1218,7 @@ def _finish(
     )
 
 
-def _store_bounded_result(task_id: str, result: dict[str, Any]) -> bool:
+def _store_bounded_result(task_id: str, result: dict[str, Any], *, source_read: bool = False) -> bool:
     return store_bounded_inspection_result(
         task_id,
         result,
@@ -1228,6 +1229,7 @@ def _store_bounded_result(task_id: str, result: dict[str, Any]) -> bool:
             {"maximum_response_bytes": ResourceInspectionTaskRecord.MAX_RESULT_BYTES},
         ),
         compaction_error=_task_error("response_compacted"),
+        source_read=source_read,
     )
 
 
