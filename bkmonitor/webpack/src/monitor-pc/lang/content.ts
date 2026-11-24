@@ -640,4 +640,11 @@ export default {
   缓存读数: 'Cache reads',
   耗时统计分析: 'Duration statistics analysis',
   缓存命中率: 'Cache hit rate',
+
+  // 采集器版本校验
+  正在校验采集器版本: 'Verifying collector version',
+  '以下 {n} 台主机的 {plugin}': 'The following {n} hosts: {plugin}',
+  '{name} 版本低于 {version}': '{name} version is lower than {version}',
+  '可能出现采集失败或无数据上报，是否继续采集？':
+    'Collection may fail or no data may be reported. Continue collecting?',
 };

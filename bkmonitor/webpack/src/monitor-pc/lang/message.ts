@@ -623,4 +623,5 @@ export default {
   '数据可用性校验失败，已禁止跳转': 'Data availability verification failed, jump prohibited',
   '当前数据不可用，无法跳转': 'Current data is unavailable, unable to jump',
   数据可用性校验失败: 'Data availability verification failed',
+  '版本校验失败，请稍后重试': 'Version verification failed. Please try again later',
 };
