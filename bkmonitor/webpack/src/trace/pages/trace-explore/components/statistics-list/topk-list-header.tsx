@@ -84,13 +84,17 @@ export default defineComponent({
     return (
       <>
         <div class='dimension-top-k-title'>
-          <span
-            class='field-name'
-            v-overflow-tips
-          >
-            {this.displayName}
-          </span>
-          <span class='divider' />
+          {this.displayName && (
+            <>
+              <span
+                class='field-name'
+                v-overflow-tips
+              >
+                {this.displayName}
+              </span>
+              <span class='divider' />
+            </>
+          )}
           <span class='desc'>
             {this.t('去重后的字段统计')} ({this.distinctCount || 0})
           </span>
