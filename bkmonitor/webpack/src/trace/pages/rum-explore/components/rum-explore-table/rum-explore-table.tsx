@@ -205,7 +205,7 @@ export default defineComponent({
       destroyPopover,
       openPopover,
       updatePopoverPosition,
-    } = useFieldStatisticsPopover('bottom');
+    } = useFieldStatisticsPopover();
 
     /** 场景渲染器：按检索模式选择场景实例，负责产出声明式列配置与表头渲染 */
     const { defaultGetCellValue, transformColumns, tableScenarioClassName, tableRowKey } = useScenarioRenderer(

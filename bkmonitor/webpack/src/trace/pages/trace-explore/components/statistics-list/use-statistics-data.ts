@@ -159,8 +159,6 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
       if (val) {
         // 每次打开都从第一个字段开始
         activeFieldIndex.value = 0;
-        // 上一次侧栏可能未关闭，重新打开时一并复位，避免侧栏残留上一个字段的数据
-        resetSliderState();
         await handleShowStatistics();
       } else {
         resetStatisticsState();
@@ -239,8 +237,6 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   async function handleTabChange(index: number) {
     if (index === activeFieldIndex.value) return;
     activeFieldIndex.value = index;
-    // 侧栏展示的是上一个字段的全量数据，切 Tab 时一并关闭并清空
-    resetSliderState();
     resetStatisticsState();
     await handleShowStatistics();
   }
