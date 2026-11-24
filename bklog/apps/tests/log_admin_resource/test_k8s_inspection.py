@@ -2335,6 +2335,60 @@ class K8sInspectionWorkerTest(SimpleTestCase):
             task_type=TASK_TYPE_K8S_INSPECTION,
         )[0]
 
+    def test_source_step_failures_preserve_other_evidence_and_mark_task_partial(self):
+        target = {"type": "node", "node_name": "node-a"}
+        step = {"operation": "stat", "path_space": "collector", "path": "/logs/missing"}
+        for output, code in [
+            (('{"error":"missing","failed_path":"/logs/missing"}', "", 0), "source_step_incomplete"),
+            (FixedProbeError("source_directory_unknown", "missing directory mapping"), "source_directory_unknown"),
+            (('{"observation":{"inode":11}}', "", 0), "collector_identity_changed"),
+        ]:
+            with self.subTest(code=code):
+                record = self._record(target=target, groups=["collector", "progress"])
+                task_id = record["task_id"]
+                ResourceInspectionTaskRecord.update(
+                    task_id, request_options={**record["request_options"], "source_step": step}
+                )
+                binding = daemon_set(), collector_pod()
+                validation = [
+                    binding,
+                    binding,
+                    FixedProbeError(code, "collector changed") if code == "collector_identity_changed" else binding,
+                ]
+                deep = {
+                    name: probe(evidence={"marker": name})
+                    for name in ("registrar", "progress", "collector_process", "source_path")
+                }
+                with (
+                    patch.multiple(
+                        "apps.log_admin_resource.k8s_tasks",
+                        _load_bound_collector=MagicMock(return_value=collector()),
+                        ContainerCollectorConfig=MagicMock(),
+                        expected_bklog_configs=MagicMock(return_value=[]),
+                        K8sInspectionClient=MagicMock(),
+                        _control_plane_probe=MagicMock(return_value=(probe(evidence={"target": target}), "node-a", [])),
+                        _discover_candidates=MagicMock(return_value=([candidate()], [], [])),
+                        _revalidate_candidate=MagicMock(side_effect=validation),
+                        _config_map_probe=MagicMock(return_value=(probe(), None)),
+                        _pod_logs_probe=MagicMock(return_value=probe()),
+                        run_fixed_collector_probe=MagicMock(return_value={"values": {}}),
+                        build_probe_evidence=MagicMock(return_value=deep),
+                    ),
+                    patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=[output]),
+                ):
+                    run_k8s_inspection.run(task_id)
+                stored = ResourceInspectionTaskRecord.get(task_id)
+                result = ResourceInspectionTaskRecord.load_result(task_id)
+                self.assertEqual(stored["task_status"], "partial")
+                self.assertTrue(result["partial"])
+                for name in ("registrar", "progress", "collector_process"):
+                    self.assertEqual(result["probes"][name]["evidence"], {"marker": name})
+                source = result["probes"]["source_path"]
+                self.assertEqual((source["status"], source["code"]), ("failed", code))
+                self.assertNotIn("observation", source["evidence"])
+                if code == "source_step_incomplete":
+                    self.assertEqual(source["evidence"]["failed_path"], step["path"])
+
     @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[])
     @patch("apps.log_admin_resource.k8s_tasks.K8sInspectionClient")
     def test_queued_original_read_is_denied_before_cluster_access_after_revocation(self, client):

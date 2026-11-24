@@ -17,6 +17,9 @@ import sys
 import time
 
 
+HOST_PROC = "/var/host/proc"
+
+
 def parts(path):
     return [part for part in path.split("/") if part]
 
@@ -54,27 +57,77 @@ def mount_for(path, policy):
 
 def collector_location(path, policy):
     base, root = mount_for(path, policy)
+    root = policy.get("mounted_paths", {}).get(base, root)
     return os.path.normpath(os.path.join(root, path[len(base) :].lstrip("/")))
 
 
-def enter_process_root(container_id):
+def enter_process_root(container_id, namespace_init=False, mount_path="/"):
     # cwd is the pinned proc PID directory. Check membership and open root relative to
     # that handle, so PID reuse cannot switch the container between those operations.
     if not re.match(r"^[0-9a-f]{64}\Z", container_id):
         raise ValueError("target_process_identity_unverified")
+    if namespace_init:
+        with open("status") as stream:
+            if not any(
+                line.startswith("NSpid:") and len(line.split()) > 2 and line.split()[-1] == "1" for line in stream
+            ):
+                raise ValueError("target_process_identity_unverified")
     scope = re.compile(r"^(?:(?:cri-containerd|docker|crio)-)?%s(?:\.scope)?$" % container_id)
     with open("cgroup") as stream:
         for line in stream:
             fields = line.rstrip("\n").split(":", 2)
-            if len(fields) == 3 and any(scope.match(part) for part in parts(fields[2])):
+            if len(fields) == 3 and any(
+                scope.match(part) for part in (parts(fields[2])[-1:] if namespace_init else parts(fields[2]))
+            ):
                 break
         else:
             raise ValueError("target_process_identity_unverified")
+    if mount_path != "/":
+        # Read relative to the same pinned PID directory as cgroup and root.
+        escaped = mount_path.replace("\\", "\\134").replace(" ", "\\040").replace("\t", "\\011").replace("\n", "\\012")
+        with open("mountinfo", "rb") as stream:
+            if not any(line.split()[4] == escaped.encode("utf-8") for line in stream):
+                raise ValueError("target_volume_mount_unavailable")
     fd = os.open("root", os.O_RDONLY | os.O_DIRECTORY)
     try:
         os.fchdir(fd)
     finally:
         os.close(fd)
+
+
+def enter_mounted_volume(base, policy):
+    # A node alias may have changed since kubelet mounted it. Use the mount pinned
+    # by the target's mount namespace, never the current destination of the alias.
+    container_id = policy.get("runtime_id", "")
+    if not re.match(r"^[0-9a-f]{64}\Z", container_id):
+        raise ValueError("target_process_identity_unverified")
+    for part in parts(HOST_PROC):
+        descend(part)
+    proc_fd = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        runtime = policy.get("runtime_root") or ""
+        rendered_pid = re.match(r"^" + re.escape(HOST_PROC) + r"/([1-9][0-9]*)/root\Z", runtime)
+        if rendered_pid:
+            pids = [rendered_pid.group(1)]
+        elif policy.get("namespace_init_pid"):
+            pids = [policy["namespace_init_pid"]]
+        else:
+            pids = [pid for pid in os.listdir(".") if pid.isdigit()]
+        for pid in pids:
+            os.fchdir(proc_fd)
+            try:
+                descend(pid)
+                enter_process_root(container_id, namespace_init=not rendered_pid, mount_path=base)
+            except (OSError, IOError, ValueError):
+                if rendered_pid:
+                    raise
+                continue
+            if not rendered_pid:
+                policy["namespace_init_pid"] = pid
+            return os.path.join(HOST_PROC, pid, "root")
+        raise ValueError("target_process_identity_unverified")
+    finally:
+        os.close(proc_fd)
 
 
 def link_destination(parent, target, policy, links):
@@ -102,20 +155,34 @@ def open_parent(path, policy, follow_leaf, links=None):
         policy["resolving_path"] = path
         base, root = mount_for(path, policy)
         os.chdir("/")
+        policy.get("mounted_paths", {}).pop(base, None)
         root_parts = parts(root)
         for index, name in enumerate(root_parts):
             policy["resolving_path"] = "/" + "/".join(root_parts[: index + 1])
-            if path == base and index == len(root_parts) - 1 and stat.S_ISREG(os.lstat(name).st_mode):
+            mode = os.lstat(name).st_mode
+            if stat.S_ISLNK(mode):
+                if (
+                    index == len(root_parts) - 1
+                    and base == "/"
+                    and root == policy.get("runtime_root")
+                    and re.match(r"^" + re.escape(HOST_PROC) + r"/[1-9][0-9]*/root\Z", root)
+                ):
+                    enter_process_root(policy["runtime_id"])
+                    continue
+                os.chdir("/")
+                process_root = enter_mounted_volume(base, policy)
+                policy.setdefault("mounted_paths", {})[base] = os.path.join(process_root, base.lstrip("/"))
+                components = parts(base)
+                for component in components[:-1]:
+                    descend(component)
+                if components:
+                    if path == base:
+                        return components[-1], base, links
+                    descend(components[-1])
+                break
+            if path == base and index == len(root_parts) - 1 and stat.S_ISREG(mode):
                 return name, base, links
-            if (
-                index == len(root_parts) - 1
-                and base == "/"
-                and root == policy.get("runtime_root")
-                and re.match(r"^/var/host/proc/[1-9][0-9]*/root\Z", root)
-            ):
-                enter_process_root(policy["runtime_id"])
-            else:
-                descend(name)
+            descend(name)
         tail = parts(path[len(base) :])
         parent = base
         for index, name in enumerate(tail):
@@ -192,6 +259,37 @@ def target_source_path(policy, request):
     return name, path, resolved, links, collector_location(resolved, policy)
 
 
+def logical_collector_file(path, anchor, policy):
+    # Match actual directory identities, including aliases and mount roots that
+    # have unrelated path prefixes on the node. Raw I/O always uses target fds.
+    observed = os.stat(path)
+    canonical = os.path.realpath(path)
+    try:
+        if not os.path.samestat(observed, os.stat(canonical)):
+            canonical = path
+    except OSError:
+        canonical = path  # Kernel magic links can lack a usable canonical pathname.
+    ancestors = {}
+    parent = canonical
+    while parent != "/":
+        info = os.stat(parent)
+        ancestors[(info.st_dev, info.st_ino)] = os.path.relpath(canonical, parent)
+        parent = os.path.dirname(parent)
+    scopes = [key for key, root in policy["mounts"].items() if root and inside(key, anchor) and key != anchor]
+    for scope in sorted(scopes, key=len, reverse=True) + [anchor]:
+        try:
+            name, _, _ = open_parent(scope, policy, True)
+            info = os.lstat(name)
+        except (OSError, IOError, ValueError):
+            if scope == anchor:
+                raise
+            continue
+        suffix = ancestors.get((info.st_dev, info.st_ino))
+        if suffix is not None:
+            return os.path.normpath(os.path.join(scope, suffix))
+    raise ValueError("outside_target_log_directory")
+
+
 def read_target_file(policy, request):
     # Identify a concrete directory from target-bound directory patterns. Never authorize
     # the caller-supplied parent, the host root, or a sibling of the resolved directory.
@@ -211,31 +309,32 @@ def read_target_file(policy, request):
     if anchor == "/" or (hops and base == "/" and root != policy.get("runtime_root")):
         raise ValueError("unverified_log_directory_link")
     descend(name)
-    physical_root = collector_location(anchor, policy)
     root_fd = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
     try:
         if native:
-            # Look up the collector pathname only for comparison. All content is opened
-            # below the independently resolved target directory using the pinned handle.
-            canonical = os.path.realpath(path)
-            canonical_root = os.path.realpath(physical_root)
-            if not inside(canonical, canonical_root):
-                raise ValueError("outside_target_log_directory")
-            relative = os.path.relpath(canonical, canonical_root)
+            actual = logical_collector_file(path, anchor, policy)
         elif request.get("via"):
             if not inside(path, anchor):
                 raise ValueError("path_outside_source_anchor")
-            relative = os.path.relpath(path, anchor)
+            actual = path
         else:
-            relative = os.path.relpath(path, directory)
-        actual = os.path.normpath(os.path.join(anchor, relative))
+            actual = os.path.normpath(os.path.join(anchor, os.path.relpath(path, directory)))
         name, resolved, links = open_parent(actual, policy, True)
         physical = collector_location(resolved, policy)
-        if not inside(resolved, anchor) or not inside(physical, physical_root):
+        if not inside(resolved, anchor):
             raise ValueError("outside_target_log_directory")
+        for link in links:
+            link_mount, _ = mount_for(link["path"], policy)
+            if inside(link_mount, anchor) and not inside(link["resolved_path"], link_mount):
+                raise ValueError("outside_target_log_directory")
+        final_mount, _ = mount_for(resolved, policy)
+        if final_mount != base and inside(final_mount, anchor):
+            # open_parent has already pinned the parent below the verified child
+            # mount. Reopening below the outer volume would read its hidden file.
+            return name, path, resolved, hops + links, physical
         # Reopen beneath the pinned directory without following links between checks.
         os.fchdir(root_fd)
-        components = parts(os.path.relpath(physical, physical_root))
+        components = parts(os.path.relpath(resolved, anchor))
         if not components or components == ["."]:
             raise ValueError("source_not_regular")
         for component in components[:-1]:

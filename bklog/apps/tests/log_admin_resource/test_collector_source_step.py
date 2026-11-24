@@ -140,6 +140,57 @@ class SourceStepTest(unittest.TestCase):
         result = self.run_step("read", "/logs/test.log")["observation"]
         self.assertEqual(result["raw_hex_chunks"], ["6c6f67"])
 
+    def test_mount_source_alias_uses_target_mount_and_refuses_unverified_mount(self):
+        runtime_id = "c" * 64
+        proc_root = self.root.parent / "host-proc"
+        process = proc_root / "27"
+        process.mkdir(parents=True)
+        (process / "root").symlink_to(self.root)
+        (process / "cgroup").write_text("0::/docker-" + runtime_id + ".scope\n")
+        (process / "status").write_text("NSpid:\t27\t1\n")
+        (process / "mountinfo").write_text("1 2 0:3 / /mounted rw - tmpfs tmpfs rw\n")
+        mounted = self.root / "mounted"
+        mounted.mkdir()
+        (mounted / "a.log").write_bytes(b"bound mount")
+        node_alias = self.root.parent / "node-alias"
+        node_alias.symlink_to(self.volume)
+        (self.volume / "a.log").write_bytes(b"different volume")
+        self.policy.update(directories=["/mounted"], runtime_id=runtime_id)
+        self.policy["mounts"]["/mounted"] = str(node_alias)
+        with patch.object(probe, "HOST_PROC", str(proc_root)):
+            meta = self.run_step("stat", "/mounted/a.log")["second"]
+            self.assertEqual(meta["inode"], (mounted / "a.log").stat().st_ino)
+            if sys.platform.startswith("linux"):
+                row = self.run_step("read", meta["collector_path"], path_space="collector", via="/mounted")[
+                    "observation"
+                ]
+                self.assertEqual(bytes.fromhex("".join(row["raw_hex_chunks"])), b"bound mount")
+                with self.assertRaisesRegex(ValueError, "outside_target_log_directory|identity_mismatch"):
+                    self.run_step("read", str(node_alias / "a.log"), path_space="collector", via="/mounted")
+            (process / "mountinfo").write_text("")
+            with self.assertRaises(ValueError):
+                self.run_step("stat", "/mounted/a.log")
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "requires Linux tmpfs and O_PATH")
+    def test_nested_mount_raw_read_uses_child_volume_and_rejects_sibling_link(self):
+        with tempfile.TemporaryDirectory(dir="/dev/shm") as tmp:
+            nested = Path(tmp)
+            self.policy["mounts"]["/data/service/archive"] = str(nested)
+            (self.directory / "archive").mkdir()
+            (self.directory / "archive/app.log").write_bytes(b"hidden")
+            file = nested / "app.log"
+            file.write_bytes(b"mounted")
+            for path, args in [
+                ("/logs/archive/app.log", {}),
+                (str(file), {"path_space": "collector", "via": "/logs"}),
+            ]:
+                row = self.run_step("read", path, **args)["observation"]
+                self.assertEqual((row["device"], row["inode"]), (file.stat().st_dev, file.stat().st_ino))
+                self.assertEqual(bytes.fromhex("".join(row["raw_hex_chunks"])), b"mounted")
+            (nested / "other").symlink_to("../app.log")
+            with self.assertRaisesRegex(ValueError, "outside_target_log_directory"):
+                self.run_step("read", "/logs/archive/other")
+
     def test_special_files_and_unresolved_paths_have_no_content(self):
         os.mkfifo(self.directory / "pipe")
         with self.assertRaisesRegex(ValueError, "source_not_regular"):

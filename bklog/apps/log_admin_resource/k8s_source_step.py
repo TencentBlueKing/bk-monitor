@@ -123,10 +123,9 @@ def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_
     for path, hosts in observed_mounts.items():
         if len(hosts) == 1:
             mounts[path] = next(iter(hosts))
-    policy = {"mounts": mounts}
+    policy = {"mounts": mounts, "runtime_id": (target["container"].get("container_id") or "").split("://")[-1]}
     if "/" in observed_mounts and mounts["/"]:
         policy["runtime_root"] = mounts["/"]
-        policy["runtime_id"] = target["container"]["container_id"].split("://")[-1]
     if metadata_only:
         return policy
     if not directories:
@@ -169,7 +168,7 @@ def inspect_source_step(client, candidate, parsed, target, expected, data_id, re
         ) from exc
     failed = bool(result.get("error"))
     return {
-        "status": "warning" if failed else "success",
+        "status": "failed" if failed else "success",
         "code": "source_step_incomplete" if failed else "source_step_completed",
         "summary": "file evidence from the selected collector container",
         "evidence": {

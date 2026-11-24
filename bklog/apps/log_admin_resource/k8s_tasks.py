@@ -278,34 +278,9 @@ def run_k8s_inspection(task_id: str) -> None:
                 config_map_main=config_map_main,
                 expected_specs=[item["spec"] for item in expected],
             )
-            if options.get("source_step"):
-                deep_probes["source_path"] = inspect_source_step(
-                    client,
-                    selected,
-                    parsed_probe,
-                    control_evidence["target"],
-                    expected,
-                    collector.bk_data_id,
-                    options["source_step"],
-                    _pod_after,
-                )
-                _revalidate_candidate(client, selected, required_bk_envs)
-                if (
-                    options["source_step"].get("path_space") != "collector"
-                    or options["source_step"]["operation"] == "read"
-                ):
-                    target = control_evidence["target"]
-                    pod = object_to_dict(client.read_pod(target["namespace"], target["pod_name"]))
-                    matched = target_config_matches(options["target"], pod, expected)
-                    identity = safe_target_snapshot(options["target"], pod, matched)
-                    if (
-                        not matched
-                        or identity["pod_uid"] != target["pod_uid"]
-                        or identity["container"]["container_id"] != target["container"]["container_id"]
-                    ):
-                        raise FixedProbeError(
-                            "source_target_changed", "source Pod/container changed during observation"
-                        )
+            step = options.get("source_step")
+            if step:
+                deep_probes.pop("source_path", None)
             if "reload_observation" in probes:
                 rendered_configs = ((deep_probes.get("main_config_mounted") or {}).get("evidence") or {}).get(
                     "child_configs"
@@ -326,6 +301,36 @@ def run_k8s_inspection(task_id: str) -> None:
                 probe = _timed_probe(probe)
                 probes[name] = probe
                 _save_probe(task_id, name, probe)
+
+            if step:
+                target = control_evidence["target"]
+                try:
+                    source_probe = inspect_source_step(
+                        client, selected, parsed_probe, target, expected, collector.bk_data_id, step, _pod_after
+                    )
+                    _revalidate_candidate(client, selected, required_bk_envs)
+                    if step.get("path_space") != "collector" or step["operation"] == "read":
+                        pod = object_to_dict(client.read_pod(target["namespace"], target["pod_name"]))
+                        matched = target_config_matches(options["target"], pod, expected)
+                        identity = safe_target_snapshot(options["target"], pod, matched)
+                        if not matched or (identity["pod_uid"], identity["container"]["container_id"]) != (
+                            target["pod_uid"],
+                            target["container"]["container_id"],
+                        ):
+                            raise FixedProbeError(
+                                "source_target_changed", "source Pod/container changed during observation"
+                            )
+                except SoftTimeLimitExceeded:
+                    raise
+                except FixedProbeError as exc:
+                    source_probe = _probe("failed", exc.code, str(exc), {"request": step})
+                except Exception:
+                    logger.exception("Kubernetes source step failed, task_id=%s", task_id)
+                    source_probe = _probe(
+                        "failed", "source_step_failed", "file observation could not be completed", {"request": step}
+                    )
+                probes["source_path"] = _timed_probe(source_probe)
+                _save_probe(task_id, "source_path", probes["source_path"])
 
         task_status = _aggregate_status(probes)
         error = _task_error("no_usable_evidence") if task_status == "failed" else None
