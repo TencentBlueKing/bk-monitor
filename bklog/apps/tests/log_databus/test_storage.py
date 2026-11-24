@@ -2181,6 +2181,18 @@ class TestDorisConnectivityVisibility(TestCase):
 class TestDorisPublicClusterVisibleConfigWrite(TestCase):
     """公共 Doris 集群的写入口保留既有可见类型。"""
 
+    def setUp(self):
+        # update_visible_config 末尾会投递操作记录任务；类级统一隔离，
+        # 避免用例向真实 broker 发消息（CI 无 redis 时会连接失败）。
+        username_patcher = patch(
+            "apps.log_databus.handlers.storage.get_request_username", return_value="test_user"
+        )
+        record_patcher = patch("apps.log_databus.handlers.storage.user_operation_record.delay")
+        username_patcher.start()
+        self.addCleanup(username_patcher.stop)
+        self.mock_record = record_patcher.start()
+        self.addCleanup(record_patcher.stop)
+
     def test_public_cluster_current_biz_is_allowed(self):
         cluster_obj = _doris_cluster_obj(
             registered_system=REGISTERED_SYSTEM_DEFAULT,
@@ -2240,7 +2252,7 @@ class TestDorisPublicClusterVisibleConfigWrite(TestCase):
         )
 
     def test_public_cluster_multi_biz_is_allowed(self):
-        """合法范围不得被误拦；同时隔离写入后的三处外部依赖。"""
+        """合法范围不得被误拦，且写入后确实投递了操作记录任务。"""
         cluster_obj = _doris_cluster_obj(
             registered_system=REGISTERED_SYSTEM_DEFAULT,
             custom_option={},
@@ -2261,16 +2273,11 @@ class TestDorisPublicClusterVisibleConfigWrite(TestCase):
         ), patch(
             "apps.log_databus.handlers.storage.TransferApi.modify_cluster_info",
             return_value={},
-        ) as mock_modify, patch(
-            "apps.log_databus.handlers.storage.get_request_username",
-            return_value="test_user",
-        ), patch(
-            "apps.log_databus.handlers.storage.user_operation_record.delay",
-        ) as mock_record:
+        ) as mock_modify:
             StorageHandler(cluster_id=10).update_visible_config(params)
 
         self.assertEqual(
             mock_modify.call_args.args[0]["custom_option"]["visible_config"]["visible_type"],
             VisibleEnum.MULTI_BIZ.value,
         )
-        mock_record.assert_called_once()
+        self.mock_record.assert_called_once()
