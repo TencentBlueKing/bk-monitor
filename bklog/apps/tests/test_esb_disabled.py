@@ -22,7 +22,12 @@ from apps.log_commons import views
 from apps.log_databus.tasks.itsm import failed_ticket_clean
 
 
-@override_settings(ESB_DISABLED=True, ENABLE_MULTI_TENANT_MODE=False, PAAS_API_HOST="https://gateway.example.com")
+@override_settings(
+    ESB_DISABLED=True,
+    ENABLE_MULTI_TENANT_MODE=False,
+    PAAS_API_HOST="https://gateway.example.com",
+    BK_API_URL_TMPL="https://{api_name}.example.test/custom",
+)
 class EsbDisabledTest(SimpleTestCase):
     def setUp(self):
         self.users = _BKLoginApi()
@@ -44,9 +49,6 @@ class EsbDisabledTest(SimpleTestCase):
         self.users.lookup_users.assert_called_once_with({"lookup_field": "bk_username", "lookups": "tenant-user-id"})
 
     def test_selector_search_pages_tenant_openapi_then_paginates_matches(self):
-        self.assertEqual(
-            self.users.list_users.url, "https://gateway.example.com/api/bk-user/prod/api/v3/open/tenant/users/"
-        )
         other = {"bk_username": "other", "login_name": "other", "display_name": "Other"}
         self.users.list_users = Mock(
             side_effect=[
@@ -133,6 +135,32 @@ class EsbDisabledTest(SimpleTestCase):
 
 
 class LoginSettingsCompatibilityTest(SimpleTestCase):
+    @override_settings(
+        PAAS_API_HOST="https://paas.example.test",
+        BK_API_URL_TMPL="https://{api_name}.example.test/custom",
+    )
+    def test_user_management_gateway_addresses(self):
+        for multi in (False, True):
+            for disabled in (False, True):
+                with (
+                    self.subTest(multi=multi, disabled=disabled),
+                    override_settings(ENABLE_MULTI_TENANT_MODE=multi, ESB_DISABLED=disabled),
+                ):
+                    client = _BKLoginApi()
+                    root = (
+                        "https://bk-user.example.test/custom" if disabled else "https://paas.example.test/api/bk-user"
+                    )
+                    open_api = root + "/prod/api/v3/open/"
+                    self.assertEqual(client.batch_lookup_virtual_user.url, open_api + "tenant/virtual-users/-/lookup/")
+                    if multi:
+                        self.assertEqual(client.list_tenant.url, open_api + "tenants/")
+                    if disabled:
+                        users = open_api + "tenant/users/"
+                        self.assertEqual(client.list_users.url, users)
+                        self.assertEqual(client.lookup_users.url, users + "-/lookup/")
+                        self.assertEqual(client.user_detail.url, users + "{user_id}/")
+                        self.assertEqual(client.user_departments.url, users + "{user_id}/departments/")
+
     def test_login_strategy_and_final_gateway_template(self):
         # 设置在 Django 启动时解析，子进程避免复用当前测试进程已加载的配置。
         app_root = Path(__file__).resolve().parents[2]

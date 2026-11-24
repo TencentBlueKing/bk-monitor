@@ -80,8 +80,13 @@ class _BKLoginApi:
         return f"{settings.PAAS_API_HOST}{new_path}" if self.use_apigw else f"{USER_MANAGE_APIGATEWAY_ROOT}{old_path}"
 
     def __init__(self):
-        user_root = f"{settings.PAAS_API_HOST}/api/bk-user/prod/api/v3/open/tenant/users/"
         if settings.ESB_DISABLED:
+            user_gateway = settings.BK_API_URL_TMPL.format(api_name="bk-user")
+        else:
+            user_gateway = f"{settings.PAAS_API_HOST}/api/bk-user"
+        open_api = f"{user_gateway}/prod/api/v3/open/"
+        if settings.ESB_DISABLED:
+            user_root = open_api + "tenant/users/"
             self.lookup_users = TenantUserAPI(
                 method="GET", url=user_root + "-/lookup/", module=self.MODULE, description="按账号查询用户"
             )
@@ -116,7 +121,7 @@ class _BKLoginApi:
         if settings.ENABLE_MULTI_TENANT_MODE:
             self.list_tenant = DataAPI(
                 method="GET",
-                url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenants/",
+                url=open_api + "tenants/",
                 module=self.MODULE,
                 description="获取租户列表",
             )
@@ -126,7 +131,7 @@ class _BKLoginApi:
 
         self.batch_lookup_virtual_user = DataAPI(
             method="GET",
-            url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenant/virtual-users/-/lookup/",
+            url=open_api + "tenant/virtual-users/-/lookup/",
             module=self.MODULE,
             description="获取虚拟用户",
             use_implicit_user_auth=False,

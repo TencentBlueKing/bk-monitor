@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 from django.test import override_settings
+from rest_framework.test import APIRequestFactory
 
 from bk_monitor_base.config.blueking import BlueKingConfig
 from bk_monitor_base.infras.third_party_api.cmdb.client import SearchBusiness as BaseSearchBusiness
@@ -14,13 +15,14 @@ from bk_monitor_base.infras.third_party_api.cmsi.client import SendMail as BaseS
 from bk_monitor_base.infras.third_party_api.job.client import GetJobInstanceStatus
 
 from api.bk_login.default import BkUserApiResource, GetAllUserResource, GetUserInfo, LookupTenantUsersResource
-from bkmonitor.utils.cache import CacheType
 from api.cmdb.client import SearchBusiness
 from api.cmsi.default import SendMail
 from api.job.default import GetJobInstanceStatusResource
 from api.log_search.default import ESQuerySearchResource
 from api.node_man.default import StartDebugResource
 from api.sops.default import GetTaskStatusResource
+from bkmonitor.utils.cache import CacheType
+from monitor_web.commons.user.views import UserViewSet
 
 
 @override_settings(
@@ -120,6 +122,52 @@ def test_fuzzy_search_uses_tenant_openapi_and_paginates_matches():
         result = resource.request(fuzzy_lookups="ali", page=2, page_size=1)
     assert result == {"count": 2, "results": [{"username": "last-id", "display_name": "ALICE", "logo": ""}]}
     assert [call.args[0] for call in query.call_args_list] == [{"page": n, "page_size": 1000} for n in (1, 2)]
+
+
+@override_settings(ESB_DISABLED=True, ENABLE_MULTI_TENANT_MODE=True)
+def test_selector_forwards_only_search_fields_and_uses_request_tenant():
+    view = UserViewSet.as_view({"get": "list_users"})
+    request = APIRequestFactory().get("/", {"page": "2", "page_size": "5", "app_code": "selector", "extra": "unused"})
+
+    def list_page(resource, params):
+        assert params == {"page": 2, "page_size": 5}
+        assert resource.get_headers()["X-Bk-Tenant-Id"] == "current-tenant"
+        return {"count": 0, "results": []}
+
+    with (
+        patch.object(
+            GetAllUserResource, "perform_request", autospec=True, side_effect=GetAllUserResource.perform_request
+        ) as lookup,
+        patch("core.drf_resource.contrib.api.get_request_tenant_id", return_value="current-tenant"),
+        patch("core.drf_resource.contrib.api.make_userinfo", return_value={"bk_username": "alice"}),
+        patch.object(BkUserApiResource, "perform_request", list_page),
+    ):
+        response = view(request)
+    assert response.status_code == 200
+    assert lookup.call_args.args[1] == {"page": 2, "page_size": 5}
+    assert {"bk_username", "bk_tenant_id"}.isdisjoint(UserViewSet.RequestSerializer().fields)
+
+
+@pytest.mark.parametrize(("field", "value"), [("page", "bad"), ("page_size", ""), ("page", "0"), ("page_size", "-1")])
+@override_settings(ESB_DISABLED=True)
+def test_selector_rejects_invalid_pagination_before_lookup(field, value):
+    view = UserViewSet.as_view({"get": "list_users"})
+    request = APIRequestFactory().get("/", {"fuzzy_lookups": "alice", field: value})
+    with patch.object(GetAllUserResource, "__call__") as lookup:
+        assert view(request).status_code == 400
+        lookup.assert_not_called()
+
+
+@pytest.mark.parametrize("multi", [False, True])
+def test_selector_preserves_legacy_query_parameters_with_default_esb(multi):
+    view = UserViewSet.as_view({"get": "list_users"})
+    request = APIRequestFactory().get("/", {"page": "1", "exact_lookups": "alice,bob", "app_code": "selector"})
+    with (
+        override_settings(ESB_DISABLED=False, ENABLE_MULTI_TENANT_MODE=multi),
+        patch.object(GetAllUserResource, "__call__", return_value={"count": 0, "results": []}) as lookup,
+    ):
+        assert view(request).status_code == 200
+        lookup.assert_called_once_with(page=["1"], exact_lookups=["alice,bob"])
 
 
 @override_settings(ESB_DISABLED=True, ENABLE_MULTI_TENANT_MODE=False)
