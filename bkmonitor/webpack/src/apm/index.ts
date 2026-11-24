@@ -59,10 +59,16 @@ window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
 const bizId = parseBizId(getUrlParam('bizId'));
 
-/** URL 中的业务是否已经出现在当前用户的空间列表 */
+/** URL 指定的业务或空间是否已经出现在当前用户的空间列表。没有 bizId 时按 space_uid 判断。 */
 const hasRequestedBizAccess = () => {
-  if (!Number.isFinite(bizId)) return true;
-  return (window.space_list || []).some(item => +item.bk_biz_id === bizId);
+  const spaceList = window.space_list || [];
+  if (Number.isFinite(bizId)) {
+    return spaceList.some(item => +item.bk_biz_id === bizId);
+  }
+  if (spaceUid) {
+    return spaceList.some(item => item.space_uid === spaceUid);
+  }
+  return true;
 };
 
 setVue(Vue as VueInstance);
