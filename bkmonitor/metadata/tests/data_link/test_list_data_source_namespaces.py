@@ -11,6 +11,7 @@ def test_list_data_source_namespaces(mocker):
         ("tenant-a", 101, "shared", "source", ""),
         ("tenant-a", 101, "bkmonitor", "second", "Pending"),
         ("tenant-a", 101, "bkmonitor", "first", "Ok"),
+        ("tenant-a", 101, "bklog", "logs", "Ok"),
         ("tenant-b", 101, "other-tenant", "source", "Ok"),
         ("tenant-a", 102, "other-data-id", "source", "Ok"),
     ]:
@@ -20,6 +21,10 @@ def test_list_data_source_namespaces(mocker):
 
     resource = ListDataSourceNamespacesResource()
     assert resource.request(bk_data_id=101, bk_tenant_id="tenant-b") == [
+        {"namespace": "shared", "name": "source", "status": ""},
+    ]
+    assert resource.request(bk_data_id=101, include_builtin="true") == [
+        {"namespace": "bklog", "name": "logs", "status": "Ok"},
         {"namespace": "bkmonitor", "name": "first", "status": "Ok"},
         {"namespace": "bkmonitor", "name": "second", "status": "Pending"},
         {"namespace": "shared", "name": "source", "status": ""},

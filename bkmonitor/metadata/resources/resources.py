@@ -90,6 +90,8 @@ from metadata.utils.es_tools import get_client
 
 logger = logging.getLogger("metadata")
 
+_MANAGED_DATA_SOURCE_NAMESPACES = (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG)
+
 
 class FieldSerializer(serializers.Serializer):
     field_name = serializers.CharField(required=True, label="字段名")
@@ -657,7 +659,7 @@ class ApplyDataSourceResource(Resource):
         target_namespace = serializers.CharField(required=True, max_length=64, label="目标命名空间")
 
         def validate_target_namespace(self, value):
-            if value in (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG):
+            if value in _MANAGED_DATA_SOURCE_NAMESPACES:
                 raise serializers.ValidationError(_("独立 DataSource 不允许下发到受管命名空间 bkmonitor、bklog"))
             return value
 
@@ -677,15 +679,15 @@ class ListDataSourceNamespacesResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         bk_data_id = serializers.IntegerField(min_value=1, label="数据源ID")
+        include_builtin = serializers.BooleanField(default=False, label="包含内置命名空间")
 
     def perform_request(self, request_data):
-        return list(
-            models.DataIdConfig.objects.filter(
-                bk_tenant_id=request_data["bk_tenant_id"], bk_data_id=request_data["bk_data_id"]
-            )
-            .order_by("namespace", "name")
-            .values("namespace", "name", "status")
+        configs = models.DataIdConfig.objects.filter(
+            bk_tenant_id=request_data["bk_tenant_id"], bk_data_id=request_data["bk_data_id"]
         )
+        if not request_data["include_builtin"]:
+            configs = configs.exclude(namespace__in=_MANAGED_DATA_SOURCE_NAMESPACES)
+        return list(configs.order_by("namespace", "name").values("namespace", "name", "status"))
 
 
 class QueryDataSourceResource(Resource):
