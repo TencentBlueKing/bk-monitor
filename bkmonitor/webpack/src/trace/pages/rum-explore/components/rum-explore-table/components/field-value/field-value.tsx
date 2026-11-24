@@ -37,7 +37,7 @@ import {
   SPAN_TYPE_META,
 } from '../../../../constants';
 import { formatFieldValue } from '../../../../utils/array-field-formatter';
-import { hasFieldValue } from '../../column-layout';
+import { hasFieldValue } from '../../column-builder/column-layout';
 import CountValue, { resolveCountField } from './count-value';
 import { canOpenRecordDetail, isSpanName, spanNameHover } from './detail-value';
 import FieldTarget from './field-target';

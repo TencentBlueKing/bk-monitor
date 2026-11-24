@@ -26,8 +26,8 @@
 import { computed } from 'vue';
 
 import { isRumFieldSortable, RUM_RECORD_ID_FIELD_MAP } from '../../../constants';
-import { mapSortKeys, resolveColumnLayout } from '../column-layout';
-import { buildRumColumnRenderer } from '../column-renderer';
+import { mapSortKeys, resolveColumnLayout } from '../column-builder/column-layout';
+import { buildRumColumnRenderer } from '../column-builder/column-renderer';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { IRumField, IRumSpanRecord, RumModeType } from '../../../typings';

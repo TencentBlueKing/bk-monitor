@@ -31,7 +31,7 @@ import {
   VIEW_ID_FIELD,
   VIEW_URL_FIELD,
 } from '../../../../constants';
-import { hasFieldValue } from '../../column-layout';
+import { hasFieldValue } from '../../column-builder/column-layout';
 
 import type { IRumSpanRecord, RumModeType } from '../../../../typings';
 import type { FieldActions } from './field-value';

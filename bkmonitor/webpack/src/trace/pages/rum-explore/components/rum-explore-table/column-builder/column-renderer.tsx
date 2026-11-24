@@ -23,20 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { EVENTS_FIELD_PREFIX, RumModeEnum, SESSION_ID_FIELD, SPAN_TYPE_FIELD, VIEW_URL_FIELD } from '../../constants';
-import { ARRAY_ITEM_EMPTY_PLACEHOLDER } from '../../utils/array-field-formatter';
+import { EVENTS_FIELD_PREFIX, RumModeEnum, SESSION_ID_FIELD, SPAN_TYPE_FIELD, VIEW_URL_FIELD } from '../../../constants';
+import { ARRAY_ITEM_EMPTY_PLACEHOLDER } from '../../../utils/array-field-formatter';
+import ColumnHeader from '../components/column-header/column-header';
+import ActionPlaceholder from '../components/composite-cell/action-placeholder';
+import CompositeCell from '../components/composite-cell/composite-cell';
+import EventsCell from '../components/events-cell/events-cell';
+import { resolveCountField } from '../components/field-value/count-value';
+import FieldValue from '../components/field-value/field-value';
 import { hasFieldValue, resolveCompositeRows } from './column-layout';
-import ColumnHeader from './components/column-header/column-header';
-import ActionPlaceholder from './components/composite-cell/action-placeholder';
-import CompositeCell from './components/composite-cell/composite-cell';
-import EventsCell from './components/events-cell/events-cell';
-import { resolveCountField } from './components/field-value/count-value';
-import FieldValue from './components/field-value/field-value';
 
-import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
-import type { IRumField, IRumSpanRecord, RumModeType } from '../../typings';
+import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
+import type { IRumField, IRumSpanRecord, RumModeType } from '../../../typings';
+import type { RumColumnActions } from '../hooks/use-rum-columns';
 import type { CompositeRow, CompositeValue, resolveColumnLayout } from './column-layout';
-import type { RumColumnActions } from './hooks/use-rum-columns';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 /**
