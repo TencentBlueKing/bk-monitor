@@ -98,6 +98,11 @@ export function buildDurationSpanStats(
   return items.slice(0, 10);
 }
 
+/** 当前类型是否存在 Span，供面板按数据隐藏空 Tab */
+export function hasKindSpans(flow: LlmFlowSpan[], kind: LlmSpanKind): boolean {
+  return collectKindSpans(flow, kind).length > 0;
+}
+
 /** 展开全部节点后按 spanId 取行，供详情侧栏复用现有 LlmSpanRowView */
 export function findSpanRowView(flow: LlmFlowSpan[], spanId: string): LlmSpanRowView | undefined {
   const expandedSpanIds = new Set(collectSpanList(flow).map(span => span.span_id));

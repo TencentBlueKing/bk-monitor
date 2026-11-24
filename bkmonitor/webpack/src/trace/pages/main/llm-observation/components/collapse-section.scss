@@ -3,6 +3,8 @@
 
 .llm-collapse-section {
   width: 100%;
+  /* 色块定位时 scrollIntoView(block: 'start') 预留吸顶高度，避免分区标题被筛选条遮挡 */
+  scroll-margin-top: var(--llm-section-sticky-top, 90px);
 
   @include flex-column;
 
