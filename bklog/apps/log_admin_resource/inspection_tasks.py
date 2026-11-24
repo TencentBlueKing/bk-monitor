@@ -7,7 +7,6 @@ learn Celery/JOB identifiers.
 
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 import uuid
@@ -40,6 +39,7 @@ def store_bounded_inspection_result(
     compaction_probe: dict[str, Any],
     compaction_error: dict[str, Any],
     source_read: bool = False,
+    preserve_probe: str | None = None,
 ) -> bool:
     """Persist a final result, compacting it deterministically above 10 MiB."""
 
@@ -50,7 +50,11 @@ def store_bounded_inspection_result(
         if "10 MiB response limit" not in str(error):
             raise
 
-    compacted = _compact_inspection_value(copy.deepcopy(result))
+    probes = dict(result["probes"])
+    exact = probes.pop(preserve_probe, None)
+    compacted = _compact_inspection_value({**result, "probes": probes})
+    if exact is not None:
+        compacted["probes"][preserve_probe] = exact
     compacted["probes"]["response_limit"] = compaction_probe
     compacted["partial"] = True
     compacted["error"] = compaction_error

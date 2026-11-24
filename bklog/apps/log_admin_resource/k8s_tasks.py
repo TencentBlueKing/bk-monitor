@@ -290,26 +290,32 @@ def run_k8s_inspection(task_id: str) -> None:
                     continue
                 if name == "progress":
                     ResourceInspectionTaskRecord.update(task_id, phase="progress")
-                probe.setdefault("probe_metadata", parsed_probe.get("metadata"))
+                probe["probe_metadata"] = parsed_probe.get("metadata")
                 probe = _timed_probe(probe)
                 probes[name] = probe
                 _save_probe(task_id, name, probe)
 
             if step:
+                source_started = time.monotonic()
+                source_started_at = timezone.now().isoformat()
                 target = control_evidence["target"]
                 try:
                     if isinstance(collector, ClusterInspectionContext):
                         load_cluster_context(collector.bcs_cluster_id, record["target"]["bklog_config"])
                     binding = None
-                    if step["operation"] == "read":
-                        if not isinstance(collector, ClusterInspectionContext):
+                    uses_target = step.get("path_space") != "collector" or step["operation"] == "read"
+                    if uses_target:
+                        if step["operation"] == "read" and not isinstance(collector, ClusterInspectionContext):
                             binding = source_read_binding(target, expected, step)
-                        binding = _revalidate_source_target(client, record, target, expected, binding)
+                        container, binding = _revalidate_source_target(client, record, target, expected, binding)
+                        # The public control-plane snapshot can contain masked mount paths.
+                        # Keep the original rule selection, but execute against verified Pod data.
+                        target = {**target, "container": container}
                     source_probe = inspect_source_step(
                         client, selected, parsed_probe, target, expected, collector.bk_data_id, step, _pod_after
                     )
                     _revalidate_candidate(client, selected, required_bk_envs)
-                    if step.get("path_space") != "collector" or step["operation"] == "read":
+                    if uses_target:
                         _revalidate_source_target(client, record, target, expected, binding)
                     if isinstance(collector, ClusterInspectionContext):
                         load_cluster_context(collector.bcs_cluster_id, record["target"]["bklog_config"])
@@ -324,6 +330,11 @@ def run_k8s_inspection(task_id: str) -> None:
                     source_probe = _probe(
                         "failed", "source_step_failed", "file observation could not be completed", {"request": step}
                     )
+                source_probe.update(
+                    started_at=source_started_at,
+                    finished_at=timezone.now().isoformat(),
+                    duration_ms=round((time.monotonic() - source_started) * 1000, 2),
+                )
                 probes["source_path"] = _timed_probe(source_probe)
                 _save_probe(task_id, "source_path", probes["source_path"])
 
@@ -386,8 +397,8 @@ def _revalidate_source_target(client, record, target, expected, binding):
         remaining = config_ids.intersection(current_ids)
         if not remaining:
             raise FixedProbeError("source_read_scope_changed", "source log directory lost its matching collection rule")
-        return directory, remaining
-    return None
+        binding = directory, remaining
+    return identity["container"], binding
 
 
 def _load_bound_collector(record: dict[str, Any]) -> CollectorConfig | ClusterInspectionContext:
@@ -1204,7 +1215,7 @@ def _finish(
         "error": error,
     }
     step = (current.get("request_options") or {}).get("source_step") or {}
-    response_compacted = _store_bounded_result(task_id, result, source_read=step.get("operation") == "read")
+    response_compacted = _store_bounded_result(task_id, result, source_operation=step.get("operation"))
     if response_compacted and task_status == "success":
         task_status = "partial"
         error = _task_error("response_compacted")
@@ -1218,7 +1229,7 @@ def _finish(
     )
 
 
-def _store_bounded_result(task_id: str, result: dict[str, Any], *, source_read: bool = False) -> bool:
+def _store_bounded_result(task_id: str, result: dict[str, Any], *, source_operation: str | None = None) -> bool:
     return store_bounded_inspection_result(
         task_id,
         result,
@@ -1229,7 +1240,10 @@ def _store_bounded_result(task_id: str, result: dict[str, Any], *, source_read: 
             {"maximum_response_bytes": ResourceInspectionTaskRecord.MAX_RESULT_BYTES},
         ),
         compaction_error=_task_error("response_compacted"),
-        source_read=source_read,
+        source_read=source_operation == "read",
+        # A single file step is already bounded by the transport. Preserve its
+        # identifiers as a unit; truncating one path can change the next lookup.
+        preserve_probe="source_path" if source_operation else None,
     )
 
 

@@ -32,6 +32,7 @@ from apps.log_admin_resource.k8s_inspection import (
     discover_inspection_targets,
     safe_spec_projection,
     expected_bklog_configs,
+    protect_source_paths,
     require_source_read_access,
     target_identity,
 )
@@ -563,6 +564,12 @@ def _publish_source_step(step, probe):
     source = probe.get("evidence")
     if not isinstance(source, dict) or source.get("request") != sanitize_json(step, redact_text=True):
         return False
+    # The task record still has the original request, even for results from older Workers.
+    public_step = dict(step)
+    protect_source_paths(public_step)
+    source["request"] = sanitize_json(public_step, redact_text=True)
+    if source.pop("source_paths_checked", False) is not True:
+        protect_source_paths(source, legacy=True)
     # JSON clients may round a 64-bit inode. Convert only at the public
     # boundary so both new and cached Worker samples retain their identity.
     for key in ("observation", "first", "second"):
@@ -582,7 +589,7 @@ def _publish_source_step(step, probe):
     if operation == "list":
         return _publish_source_listing(row)
     if operation == "readlink":
-        return isinstance(row.get("target"), str)
+        return isinstance(row.get("target"), str) or "target" in row.get("unavailable_paths", {})
     chunks = row.pop("raw_hex_chunks", None)
     if not isinstance(chunks, list):
         return False
@@ -1098,7 +1105,8 @@ FUNCTIONS = {
                         "unavailable_entries identifies non-reusable UTF-8 entries by original one-based position "
                         "and reason. A client-side redaction placeholder is also display-only. "
                         "Non-UTF-8 names are reported separately as non_utf8_names_hex and cannot be used as paths. "
-                        "To follow a link, list or stat its path. "
+                        "readlink.target is link text and may be relative. Follow it by using list or stat on the original path. "
+                        "Unavailable path fields are null with the reason in unavailable_paths. "
                         "Use target space for business-container paths. Management allowlisted apps can read original "
                         "bytes from target log directories. content_bytes is the exact byte array. content is a display "
                         "value (UTF-8 or base64) that clients may redact. inode is an exact decimal string."

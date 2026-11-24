@@ -19,6 +19,7 @@ import time
 
 
 HOST_PROC = "/var/host/proc"
+MAX_SYMLINKS = 40
 
 
 def parts(path):
@@ -49,8 +50,13 @@ def inside(path, directory):
     return path == directory or path.startswith(directory.rstrip("/") + "/")
 
 
+def fs_path(path):
+    # The API uses UTF-8 even when the collector's Python filesystem encoding is ASCII.
+    return path if isinstance(path, bytes) else path.encode("utf-8")
+
+
 def descend(name):
-    fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    fd = os.open(fs_path(name), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
         os.fchdir(fd)
     finally:
@@ -60,7 +66,7 @@ def descend(name):
 def read_link(name):
     # Request the bytes from the kernel on both Python 2 and 3. Surrogate-escaped
     # targets cannot be stored in the UTF-8 JSON evidence sent by the Worker.
-    target = os.readlink(name if isinstance(name, bytes) else name.encode("utf-8"))
+    target = os.readlink(fs_path(name))
     try:
         return target.decode("utf-8")
     except UnicodeDecodeError:
@@ -180,7 +186,7 @@ def node_source_identity(source):
     names = parts(source)
     for name in names[:-1]:
         descend(name)
-    info = os.lstat(names[-1])
+    info = os.lstat(fs_path(names[-1]))
     if stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode):
         return info
     return None
@@ -215,7 +221,7 @@ def bind_mount_paths(policy):
                     raise ValueError("ambiguous_host_path_mount")
             source = node_source_identity(policy.get("mount_sources", {}).get(path))
             name, _, _ = open_parent(destination, dict(lookup, record_components=None), False)
-            if source is not None and os.path.samestat(source, os.lstat(name)):
+            if source is not None and os.path.samestat(source, os.lstat(fs_path(name))):
                 identities[destination] = source
                 continue
         except (IOError, OSError, ValueError):
@@ -234,7 +240,7 @@ def open_parent(path, policy, follow_leaf, links=None):
     if links is None:
         links = []
     require_directory = False
-    while len(links) <= 32:
+    while True:
         policy["resolving_path"] = path
         os.fchdir(policy["root_fd"])
         if policy["mounts"].get("/") is False:
@@ -266,11 +272,11 @@ def open_parent(path, policy, follow_leaf, links=None):
             if allowed:
                 transit = False
             witness = policy.get("mount_identities", {}).get(logical)
-            if witness is not None and not os.path.samestat(witness, os.lstat(name)):
+            if witness is not None and not os.path.samestat(witness, os.lstat(fs_path(name))):
                 raise ValueError("target_volume_identity_unverified: " + logical)
             if last and not follow_leaf:
                 return name, logical, links
-            target = read_link(name) if stat.S_ISLNK(os.lstat(name).st_mode) else None
+            target = read_link(name) if stat.S_ISLNK(os.lstat(fs_path(name)).st_mode) else None
             components = policy.get("record_components")
             if components is not None:
                 if components.setdefault(logical, target) != target:
@@ -280,6 +286,8 @@ def open_parent(path, policy, follow_leaf, links=None):
             if target is not None:
                 if transit:
                     raise ValueError("mount_unavailable_or_outside_scope: " + logical)
+                if len(links) >= MAX_SYMLINKS:
+                    raise ValueError("too_many_symlinks")
                 hop = {"path": logical, "target": target}
                 links.append(hop)
                 if last and target.endswith(("/", "/.")):
@@ -297,7 +305,6 @@ def open_parent(path, policy, follow_leaf, links=None):
             parent = logical
         else:
             return ".", "/", links
-    raise ValueError("too_many_symlinks")
 
 
 def timestamp(seconds):
@@ -355,24 +362,24 @@ def target_source_path(policy, request):
 def logical_collector_file(path, anchor, policy):
     # Match actual directory identities, including aliases and mount roots that
     # have unrelated path prefixes on the node. Raw I/O always uses target fds.
-    observed = os.stat(path)
-    canonical = os.path.realpath(path)
+    observed = os.stat(fs_path(path))
     try:
-        if not os.path.samestat(observed, os.stat(canonical)):
+        canonical = os.path.realpath(fs_path(path)).decode("utf-8")
+        if not os.path.samestat(observed, os.stat(fs_path(canonical))):
             canonical = path
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         canonical = path  # Kernel magic links can lack a usable canonical pathname.
     ancestors = {}
     parent = canonical
     while parent != "/":
-        info = os.stat(parent)
+        info = os.stat(fs_path(parent))
         ancestors[(info.st_dev, info.st_ino)] = os.path.relpath(canonical, parent)
         parent = os.path.dirname(parent)
     scopes = [key for key, root in policy["mounts"].items() if root and inside(key, anchor) and key != anchor]
     for scope in sorted(scopes, key=len, reverse=True) + [anchor]:
         try:
             name, _, _ = open_parent(scope, policy, True)
-            info = os.lstat(name)
+            info = os.lstat(fs_path(name))
         except (OSError, IOError, ValueError):
             if scope == anchor:
                 raise
@@ -406,7 +413,12 @@ def read_target_file(policy, request):
             actual = path
         else:
             actual = os.path.normpath(os.path.join(anchor, os.path.relpath(path, directory)))
-        name, resolved, links = open_parent(actual, policy, True)
+        # Without an explicit via, resolving the configured directory and its
+        # suffix is one pathname lookup. A separately supplied via is its own lookup.
+        chain = [] if request.get("via") else list(hops)
+        suffix_start = len(chain)
+        name, resolved, _ = open_parent(actual, policy, True, chain)
+        links = chain[suffix_start:]
         physical = collector_location(resolved, policy)
         if not inside(resolved, anchor):
             raise ValueError("outside_target_log_directory")
@@ -415,14 +427,14 @@ def read_target_file(policy, request):
             if inside(link_mount, anchor) and not inside(link["resolved_path"], link_mount):
                 raise ValueError("outside_target_log_directory")
         # The pinned log directory sees the same nested mounts as the target.
-        observed = os.lstat(name)
+        observed = os.lstat(fs_path(name))
         os.fchdir(root_fd)
         components = parts(os.path.relpath(resolved, anchor))
         if not components or components == ["."]:
             raise ValueError("source_not_regular")
         for component in components[:-1]:
             descend(component)
-        if not os.path.samestat(observed, os.lstat(components[-1])):
+        if not os.path.samestat(observed, os.lstat(fs_path(components[-1]))):
             raise ValueError("source_changed_before_read")
         return components[-1], path, resolved, hops + links, physical
     finally:
@@ -453,7 +465,7 @@ def list_directory(name, path, native):
     previous = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
     try:
         if native:
-            os.chdir(name)
+            os.chdir(fs_path(name))
         else:
             descend(name)
         info = os.stat(".")
@@ -505,9 +517,12 @@ def observe_path(policy, request):
     if operation == "list":
         info, listing = list_directory(name, path, native_metadata)
     elif native_metadata and operation == "stat":
-        info = os.stat(name)
+        info = os.stat(fs_path(name))
     else:
-        info = os.lstat(name)
+        info = os.lstat(fs_path(name))
+    if operation == "stat" and stat.S_ISLNK(info.st_mode):
+        # A target-space leaf changed between path resolution and this sample.
+        raise ValueError("source_changed_during_stat")
     result = {
         "path": path,
         "path_space": "collector" if native else "target",
@@ -520,11 +535,13 @@ def observe_path(policy, request):
         "mtime": timestamp(info.st_mtime),
         "mtime_epoch": info.st_mtime,
     }
+    if operation == "stat" and hasattr(info, "st_mtime_ns"):
+        result["mtime_epoch_ns"] = str(info.st_mtime_ns)
     if not native_metadata:
         result.update(resolved_path=resolved, links=links)
     if operation == "readlink":
         result["target"] = read_link(name)
-        if not os.path.samestat(info, os.lstat(name)):
+        if not os.path.samestat(info, os.lstat(fs_path(name))):
             raise ValueError("source_changed_during_readlink")
         result["follow_path"] = path
     elif operation == "list":
@@ -534,13 +551,13 @@ def observe_path(policy, request):
             raise ValueError("source_not_regular")
         # Pin the inode with O_PATH before opening it for I/O. A swapped link/device cannot
         # redirect the read. Linux exposes O_PATH even on older Python builds without the constant.
-        pinned = os.open(name, getattr(os, "O_PATH", 0o10000000) | os.O_NOFOLLOW)
+        pinned = os.open(fs_path(name), getattr(os, "O_PATH", 0o10000000) | os.O_NOFOLLOW)
         try:
             bound = os.fstat(pinned)
             if not stat.S_ISREG(bound.st_mode) or (bound.st_dev, bound.st_ino) != (info.st_dev, info.st_ino):
                 raise ValueError("source_changed_before_read")
             if native:
-                observed = os.stat(path)
+                observed = os.stat(fs_path(path))
                 if (observed.st_dev, observed.st_ino) != (bound.st_dev, bound.st_ino):
                     raise ValueError("collector_path_identity_mismatch")
             result.update(
@@ -587,7 +604,8 @@ def inspect_source(policy, request):
     elif growth < 0:
         result["activity"] = "truncated"
     elif not growth:
-        result["activity"] = "modified_same_size" if first["mtime"] != second["mtime"] else "no_growth_observed"
+        mtime_key = "mtime_epoch_ns" if "mtime_epoch_ns" in first else "mtime_epoch"
+        result["activity"] = "modified_same_size" if first[mtime_key] != second[mtime_key] else "no_growth_observed"
     else:
         result.update(activity="grew", growth_bytes=growth, read_progress="unknown")
         positions = second.get("collector_read_positions")

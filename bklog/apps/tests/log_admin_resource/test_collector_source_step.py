@@ -1,6 +1,8 @@
 """Filesystem regressions for the standalone program executed inside the collector."""
 
+import base64
 import io
+import json
 import os
 import subprocess
 import sys
@@ -65,6 +67,89 @@ class SourceStepTest(unittest.TestCase):
         if sys.platform.startswith("linux"):
             row = self.run_step("read", listing["entries"][0], **options)["observation"]
             self.assertEqual(bytes.fromhex("".join(row["raw_hex_chunks"])), self.file.read_bytes())
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "requires a Linux ASCII filesystem locale")
+    def test_utf8_file_in_ascii_collector_locale(self):
+        log = self.directory / "业务.log"
+        log.touch()
+        link = self.directory / "当前"
+        link.symlink_to(log.name)
+        for operation, path in (("list", self.directory), ("readlink", link), ("stat", link)):
+            step = {"operation": operation, "path": str(path), "path_space": "collector"}
+            argument = base64.b64encode(json.dumps([{"pid": 0, "interval": 0}, step]).encode()).decode()
+            result = subprocess.check_output(
+                [sys.executable, "-X", "utf8=0", "-S", probe.__file__, argument],
+                env={**os.environ, "LC_ALL": "C", "PYTHONCOERCECLOCALE": "0"},
+            )
+            evidence = json.loads(result)
+            if operation == "list":
+                self.assertIn(str(log), evidence["observation"]["entries"])
+            elif operation == "readlink":
+                self.assertEqual(evidence["observation"]["target"], log.name)
+            else:
+                self.assertEqual(evidence["second"]["inode"], log.stat().st_ino)
+
+    def test_symlink_budget_counts_the_whole_lookup(self):
+        destination = "app.log"
+        for depth in range(1, 42):
+            name = f"link-{depth}"
+            (self.directory / name).symlink_to(destination)
+            destination = name
+        for path in ("/data/service/link-40", "/logs/link-39"):
+            row = self.run_step("stat", path)["second"]
+            self.assertEqual(row["inode"], self.file.stat().st_ino)
+        for path in ("/data/service/link-41", "/logs/link-40"):
+            with self.assertRaisesRegex(ValueError, "too_many_symlinks"):
+                self.run_step("stat", path)
+        (self.root / "loop").symlink_to("loop")
+        with self.assertRaisesRegex(ValueError, "too_many_symlinks"):
+            self.run_step("stat", "/loop")
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "collector descriptor operations require Linux procfs")
+    def test_read_counts_directory_and_file_links_in_the_same_lookup(self):
+        directory = "/data/service"
+        for number in range(25):
+            alias = f"log-dir-{number}"
+            (self.root / alias).symlink_to(directory)
+            directory = "/" + alias
+        self.policy["directories"] = [directory]
+        leaf = "app.log"
+        for number in range(16):
+            alias = f"file-{number}"
+            (self.directory / alias).symlink_to(leaf)
+            leaf = alias
+        row = self.run_step("read", directory + "/file-14")["observation"]
+        self.assertEqual(row["inode"], self.file.stat().st_ino)
+        with self.assertRaisesRegex(ValueError, "too_many_symlinks"):
+            self.run_step("read", directory + "/file-15")
+        row = self.run_step("read", "/data/service/file-15", via=directory)["observation"]
+        self.assertEqual(row["inode"], self.file.stat().st_ino)
+
+    def test_stat_does_not_report_the_link_inode_after_leaf_rotation(self):
+        resolve = probe.target_source_path
+
+        def rotate_leaf(policy, request):
+            resolved = resolve(policy, request)
+            self.file.rename(self.directory / "rotated.log")
+            self.file.symlink_to("rotated.log")
+            return resolved
+
+        with patch.object(probe, "target_source_path", side_effect=rotate_leaf):
+            with self.assertRaisesRegex(ValueError, "source_changed_during_stat"):
+                self.run_step("stat", "/logs/app.log")
+
+    def test_same_size_change_within_one_microsecond(self):
+        first = 1700000000000000000
+        os.utime(self.file, ns=(first, first))
+
+        def modify(_):
+            self.file.write_bytes(b"new\n")
+            os.utime(self.file, ns=(first + 1, first + 1))
+
+        with patch.object(probe.time, "sleep", side_effect=modify):
+            result = self.run_step("stat", "/logs/app.log")
+        self.assertEqual(result["activity"], "modified_same_size")
+        self.assertEqual(result["second"]["mtime_epoch_ns"], str(self.file.stat().st_mtime_ns))
 
     def test_link_target_with_directory_suffix_agrees_with_kernel(self):
         alias = self.directory / "alias"

@@ -1038,6 +1038,80 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 observed = inspect_source({"pid": 0, "interval": 0}, {**step, "operation": "stat", "path": path})
                 self.assertEqual(observed["second"]["inode"], Path(path).stat().st_ino)
 
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_readlink_paths_through_storage_and_followup_stat(self, _identity):
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+        from apps.log_admin_resource.k8s_tasks import _finish, _timed_probe
+        from apps.log_admin_resource.scripts.collector_source_step import inspect_source
+
+        def observe(operation, path):
+            step = {"operation": operation, "path": str(path), "path_space": "collector"}
+            record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+                app_code="reader-a",
+                bk_tenant_id="tenant-a",
+                target={},
+                request_options={"source_step": step},
+                task_type=TASK_TYPE_K8S_INSPECTION,
+            )
+            task_id = record["task_id"]
+            payload = inspect_source({"interval": 0, "pid": 0}, step)
+            with patch(
+                "apps.log_admin_resource.k8s_source_step.run_collector_script",
+                return_value=(json.dumps(payload), "", 0),
+            ):
+                probe = inspect_source_step(
+                    None, SimpleNamespace(pod_uid="collector"), {"values": {}}, {}, [], 7, step, {}
+                )
+            _finish(task_id, record, {"source_path": _timed_probe(probe)}, "success", None)
+            ResourceInspectionTaskRecord.release_active(record)
+            detail = get_k8s_inspection_detail({"task_id": task_id})
+            self.assertEqual(detail["task_status"], "success")
+            return detail["evidence"]["probes"]["source_path"]["evidence"]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            for name in ("account=blue.log", "account=***", "plain.log"):
+                (root / name).touch()
+            aliases = root / "aliases"
+            aliases.mkdir()
+            for alias, name, hidden in (
+                ("by-target", "account=blue.log", {"target"}),
+                ("account=blue", "plain.log", {"path", "follow_path", "collector_path"}),
+                ("account=***", "account=***", set()),
+                ("normal", "plain.log", set()),
+            ):
+                with self.subTest(alias=alias):
+                    link, original = aliases / alias, root / name
+                    link.symlink_to(original)
+                    source = observe("readlink", link)
+                    row = source["observation"]
+                    self.assertEqual(source["request"]["path"], None if "path" in hidden else str(link))
+                    self.assertEqual(row.get("unavailable_paths", {}), dict.fromkeys(hidden, "redacted_path"))
+                    for key in hidden:
+                        self.assertIsNone(row[key])
+                    for path in {p for p in (row["target"], row["follow_path"], str(link)) if p is not None}:
+                        self.assertEqual(observe("stat", path)["second"]["inode"], str(original.stat().st_ino))
+
+    def test_cached_link_paths_without_redaction_provenance(self):
+        from apps.log_admin_resource.handlers.k8s_inspection import _publish_source_step
+
+        step = {"operation": "readlink", "path": "/current"}
+        row = {"follow_path": "/current", "target": "/account=***", "links": [{"target": "/account=***"}]}
+        probe = {
+            "status": "success",
+            "code": "source_step_completed",
+            "evidence": {"request": step, "observation": row},
+        }
+        self.assertTrue(_publish_source_step(step, probe))
+        self.assertEqual(row["follow_path"], "/current")
+        for item in (row, row["links"][0]):
+            self.assertIsNone(item["target"])
+            self.assertEqual(item["unavailable_paths"], {"target": "unverified_path"})
+
     def test_source_step_publishes_exact_inodes_for_each_available_sample(self):
         from apps.log_admin_resource.handlers.k8s_inspection import _publish_source_step
 
@@ -2761,6 +2835,8 @@ class K8sInspectionWorkerTest(SimpleTestCase):
 
     @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader-a"])
     def test_collector_read_only_keeps_samples_covered_by_the_original_rule(self):
+        from apps.log_admin_resource.handlers.inspection import sanitize_json
+
         target = {"type": "pod_container", "namespace": "production", "pod_name": "demo-abc", "container_name": "app"}
         for change in (
             "stable",
@@ -2783,6 +2859,8 @@ class K8sInspectionWorkerTest(SimpleTestCase):
                 pod = business_pod()
                 pod["status"]["containerStatuses"][0]["containerID"] = "containerd://" + "c" * 64
                 pod["metadata"]["labels"]["route"] = "a"
+                mount_path = "/logs/account=blue"
+                pod["spec"]["containers"][0]["volumeMounts"] = [{"name": "logs", "mountPath": mount_path}]
                 rules = []
                 for rule_id, selector, paths in [(44, "a", ["/logs/*/*.log"]), (45, "b", ["/other/*.log"])]:
                     spec = {
@@ -2818,6 +2896,7 @@ class K8sInspectionWorkerTest(SimpleTestCase):
                     return {"progress": probe(evidence={"marker": "progress"})}
 
                 def read_sample(*args):
+                    self.assertEqual(args[3]["container"]["volume_mounts"][0]["mountPath"], mount_path)
                     if change in ("during_labels", "same_directory_switch"):
                         pod["metadata"]["labels"]["route"] = "b"
                     if change == "alternating":
@@ -2837,7 +2916,13 @@ class K8sInspectionWorkerTest(SimpleTestCase):
                     K8sInspectionClient=MagicMock(
                         return_value=MagicMock(read_pod=MagicMock(side_effect=lambda *_: deepcopy(pod)))
                     ),
-                    _control_plane_probe=MagicMock(return_value=(probe(evidence={"target": snapshot}), "node-a", [])),
+                    _control_plane_probe=MagicMock(
+                        return_value=(
+                            probe(evidence={"target": sanitize_json(snapshot, redact_text=True)}),
+                            "node-a",
+                            [],
+                        )
+                    ),
                     _discover_candidates=MagicMock(return_value=([candidate()], [], [])),
                     _revalidate_candidate=MagicMock(return_value=(daemon_set(), collector_pod())),
                     _config_map_probe=MagicMock(return_value=(probe(), None)),
@@ -3075,9 +3160,13 @@ class K8sInspectionWorkerTest(SimpleTestCase):
             "error": None,
         }
 
-        compacted = _store_bounded_result(record["task_id"], result)
+        long_path = "/" + "/".join(["日志" * 60] * 14)
+        source = probe(evidence={"request": {"operation": "stat", "path": long_path}, "first": {"path": long_path}})
+        result["probes"]["source_path"] = source
+        compacted = _store_bounded_result(record["task_id"], result, source_operation="stat")
         stored = ResourceInspectionTaskRecord.load_result(record["task_id"])
 
         self.assertTrue(compacted)
+        self.assertEqual(stored["probes"]["source_path"], source)
         self.assertTrue(stored["partial"])
         self.assertEqual(stored["probes"]["response_limit"]["code"], "response_compacted")
