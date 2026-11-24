@@ -15,7 +15,7 @@ import string
 from types import SimpleNamespace
 
 import pytest
-from django.http import HttpResponse
+from django.http import HttpResponse, QueryDict
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory
 
@@ -677,6 +677,72 @@ def test_export_rejects_samples_over_limit(result_apis, mocker):
         ExportResultsResource().request(IMMEDIATE_EXPORT_REQUEST)
 
 
+@pytest.mark.parametrize(
+    ("resource_cls", "request_data"),
+    [
+        (QueryResultsResource, PLANNED_RESULT_REQUEST),
+        (QueryResultDataTypesResource, PLANNED_DATA_TYPES_REQUEST),
+        (ExportResultsResource, PLANNED_EXPORT_REQUEST),
+    ],
+)
+def test_results_filter_single_process_by_pid(result_apis, resource_cls, request_data):
+    result_apis["bkdata"].return_value = {"list": [export_profile_sample(700, "main", "work")]}
+
+    resource_cls().request({**request_data, "pid": 2341})
+
+    # 查看、采样类型与导出共用定位条件，只多一个 pid 标签，不按 comm 过滤
+    assert sent_profile_query(result_apis["bkdata"])["api_params"]["label_filter"] == {
+        "scheduled_at": "1788411800000",
+        "bk_host_id": "456",
+        "task_id": "123",
+        "pid": "2341",
+    }
+
+
+@pytest.mark.parametrize("pid", [None, ""])
+@pytest.mark.parametrize(
+    ("resource_cls", "request_data"),
+    [
+        (QueryResultsResource, PLANNED_RESULT_REQUEST),
+        (QueryResultDataTypesResource, PLANNED_DATA_TYPES_REQUEST),
+        (ExportResultsResource, PLANNED_EXPORT_REQUEST),
+    ],
+)
+def test_results_empty_pid_returns_all_processes(result_apis, resource_cls, request_data, pid):
+    result_apis["bkdata"].return_value = {"list": [export_profile_sample(700, "main", "work")]}
+
+    resource_cls().request({**request_data, "pid": pid})
+
+    # 前端“全部进程”传 null 或空串，与不传一样不带 pid
+    assert sent_profile_query(result_apis["bkdata"])["api_params"]["label_filter"] == {
+        "scheduled_at": "1788411800000",
+        "bk_host_id": "456",
+        "task_id": "123",
+    }
+
+
+def test_result_query_keeps_multi_values_of_form_data_with_empty_pid():
+    # 表单编码的同名多值字段，去掉空 pid 后仍要保留为列表
+    request_data = {**RESULT_QUERY_REQUEST, "pid": ""}
+    form_data = QueryDict(mutable=True)
+    for key, value in request_data.items():
+        form_data.setlist(key, value if isinstance(value, list) else [value])
+
+    serializer = ResultQueryRequestSerializer(data=form_data)
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["diagram_types"] == ["flamegraph", "table"]
+    assert "pid" not in serializer.validated_data
+    # 不改调用方传入的原对象
+    assert form_data["pid"] == ""
+
+
+@pytest.mark.parametrize("data", [["pid"], "pid", None])
+def test_result_query_rejects_non_object_body(data):
+    # 请求体不是对象时按格式错误校验失败，不因取 pid 抛异常
+    assert not ResultQueryRequestSerializer(data=data).is_valid()
+
+
 @pytest.fixture
 def beat_plugin_status(mocker):
     mocker.patch("apm_web.profile.active_collection.resources.PLUGIN_MIN_VERSION", {"bkmonitorbeat": "2.10.0"})
@@ -878,6 +944,9 @@ def test_active_collection_routes_are_registered():
         (ResultExportRequestSerializer, IMMEDIATE_EXPORT_REQUEST),
         (ResultDataTypesRequestSerializer, PLANNED_DATA_TYPES_REQUEST),
         (ResultDataTypesRequestSerializer, IMMEDIATE_DATA_TYPES_REQUEST),
+        (ResultQueryRequestSerializer, {**IMMEDIATE_RESULT_REQUEST, "pid": 2341}),
+        (ResultExportRequestSerializer, {**PLANNED_EXPORT_REQUEST, "pid": 2341}),
+        (ResultDataTypesRequestSerializer, {**PLANNED_DATA_TYPES_REQUEST, "pid": 2341}),
     ],
 )
 def test_request_serializers_accept_doc_payload(serializer_cls, params):
@@ -976,6 +1045,10 @@ def test_request_serializers_accept_doc_payload(serializer_cls, params):
         (ResultQueryRequestSerializer, {**PLANNED_DATA_TYPES_REQUEST, "diagram_types": ["table"]}),
         (ResultExportRequestSerializer, PLANNED_DATA_TYPES_REQUEST),
         (ResultDataTypesRequestSerializer, {**PLANNED_DATA_TYPES_REQUEST, "finished_at": RESULT_STARTED_AT - 1}),
+        # pid 只接受单个正整数
+        (ResultQueryRequestSerializer, {**PLANNED_RESULT_REQUEST, "pid": 0}),
+        (ResultQueryRequestSerializer, {**PLANNED_RESULT_REQUEST, "pid": [2341]}),
+        (ResultExportRequestSerializer, {**PLANNED_EXPORT_REQUEST, "pid": "abc"}),
         (
             ExecutionCancelRequestSerializer,
             {
@@ -1318,3 +1391,25 @@ def test_backend_operations_forward_request_and_return_nothing(mocker, resource_
     assert resource_cls().request(request_data) is None
 
     assert backend_api.call_args.kwargs["bk_biz_id"] == 2
+
+
+def test_task_submit_forwards_source_task_of_immediate(mocker):
+    backend_api = mocker.patch("core.drf_resource.api.apm_api.submit_active_profiling_task")
+
+    SubmitTaskResource().request({**IMMEDIATE_TASK_SUBMIT_REQUEST, "source_task_id": 123})
+
+    # 从计划点立即执行时带上该计划 ID，后台按计划筛选执行时一并命中
+    assert backend_api.call_args.kwargs["source_task_id"] == 123
+
+
+@pytest.mark.parametrize(
+    ("serializer_cls", "params"),
+    [
+        # 只能随立即执行提交
+        (TaskSubmitRequestSerializer, {**TASK_SUBMIT_REQUEST, "source_task_id": 123}),
+        (TaskEditRequestSerializer, {**TASK_SUBMIT_REQUEST, "task_id": 123, "source_task_id": 123}),
+        (TaskSubmitRequestSerializer, {**IMMEDIATE_TASK_SUBMIT_REQUEST, "source_task_id": 0}),
+    ],
+)
+def test_task_submit_rejects_invalid_source_task(serializer_cls, params):
+    assert not serializer_cls(data=params).is_valid()

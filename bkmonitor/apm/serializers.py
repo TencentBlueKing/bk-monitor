@@ -168,6 +168,13 @@ class ActiveProfilingTaskSubmitRequestSerializer(serializers.Serializer):
     schedule = serializers.DictField(label="调度配置")
     collector_config = serializers.DictField(label="采集参数")
     resource_guard_config = serializers.DictField(label="资源保护参数")
+    # 从计划点立即执行时传该计划 ID，按计划筛选执行时一并命中
+    source_task_id = serializers.IntegerField(label="触发计划 ID", min_value=1, required=False)
+
+    def validate(self, attrs):
+        if "source_task_id" in attrs and attrs["schedule"].get("type") != "immediate":
+            raise serializers.ValidationError("source_task_id 只能随立即执行提交")
+        return attrs
 
 
 class ActiveProfilingTaskEditRequestSerializer(ActiveProfilingTaskSubmitRequestSerializer):
