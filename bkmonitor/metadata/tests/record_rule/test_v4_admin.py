@@ -126,3 +126,25 @@ def test_rpc_metadata_exposes_machine_readable_config_schema():
         assert detail["params_schema"]["type"] == "object"
         assert "bk_tenant_id" in detail["params_schema"]["required"]
         assert detail["example_params"]["bk_tenant_id"] == "system"
+
+
+def test_user_query_keeps_versions_and_config_in_requested_space(declaration_context, monkeypatch):
+    from unittest.mock import Mock
+    from kernel_api.rpc.functions.admin import user_query
+
+    rule = rpc.create_record_rule_v4({"bk_tenant_id": TENANT, "space_uid": "bkcc__7722", "config": rpc.CONFIG_EXAMPLE})[
+        "data"
+    ]["rule"]
+    Space.objects.create(bk_tenant_id=TENANT, space_type_id="bkcc", space_id="7723", space_name="Other")
+    iam = Mock(bk_tenant_id=TENANT)
+    iam.is_allowed_by_biz.return_value = True
+    monkeypatch.setattr(user_query, "Permission", lambda **kw: iam)
+    for op in ["detail", "config", "version_list", "event_list"]:
+        params = {
+            "username": "alice",
+            "bk_tenant_id": TENANT,
+            "operation": "record_rule_v4." + op,
+            "query": {"id": rule["id"]},
+        }
+        assert user_query.user_query({**params, "bk_biz_id": 7723})["data"] == {"allowed": False, "result": None}
+        assert user_query.user_query({**params, "space_uid": "bkcc__7722"})["data"]["allowed"]

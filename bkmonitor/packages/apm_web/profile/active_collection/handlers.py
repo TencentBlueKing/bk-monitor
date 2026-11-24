@@ -21,7 +21,11 @@ class ActiveProfilingResultMixin:
     """查看与导出 Profiling 结果共用：定位键与起止时间由前端从主机执行行传入，取数复用现有 Profiling 检索"""
 
     def _locate_samples(self, validated_request_data):
-        """单次采集的样本按 scheduled_at + bk_host_id 定位，计划任务再匹配 task_id，返回 Profiling 检索的查询参数"""
+        """单次采集的样本按 scheduled_at + bk_host_id 定位，计划任务再匹配 task_id，返回 Profiling 检索的查询参数
+
+        传 pid 时只取该进程的样本：多进程用一次 perf 合并采集，每个样本带 pid 标签。不按 comm 过滤，
+        样本的 comm 是线程名，与执行行 processes 里的进程名不是一回事。
+        """
         bk_biz_id = validated_request_data["bk_biz_id"]
         filter_labels = {
             "scheduled_at": str(validated_request_data["scheduled_at"]),
@@ -29,6 +33,8 @@ class ActiveProfilingResultMixin:
         }
         if "task_id" in validated_request_data:
             filter_labels["task_id"] = str(validated_request_data["task_id"])
+        if "pid" in validated_request_data:
+            filter_labels["pid"] = str(validated_request_data["pid"])
         # 查询窗取该主机的实际起止，两端各放宽一个运行窗口容忍上报端时钟偏差
         return {
             "bk_biz_id": bk_biz_id,

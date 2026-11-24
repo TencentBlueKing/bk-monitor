@@ -21,7 +21,10 @@ CREDENTIAL_TEXT_PATTERN = re.compile(
 
 def redact_config(value: Any, path: str, redacted_paths: list[str], *, credential_value: bool = False) -> Any:
     if isinstance(value, dict):
-        named_secret = isinstance(value.get("name"), str) and SENSITIVE_KEY_PATTERN.search(value["name"])
+        named_secret = any(
+            isinstance(value.get(field), str) and SENSITIVE_KEY_PATTERN.search(value[field])
+            for field in ("name", "key")
+        )
         result = {}
         for key, item in value.items():
             item_path = f"{path}/{key.replace('~', '~0').replace('/', '~1')}"

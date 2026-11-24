@@ -5,7 +5,7 @@ from django.test import SimpleTestCase, TestCase
 from apps.feature_toggle.models import FeatureToggle
 from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
 from apps.log_clustering.constants import RegexRuleTypeEnum, StorageTypeEnum
-from apps.log_clustering.exceptions import RegexTemplateNotExistException
+from apps.log_clustering.exceptions import ClusteringConfigHasExistException, RegexTemplateNotExistException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_databus.models import CollectorConfig
@@ -163,6 +163,30 @@ class TestClusteringConfigHandler(SimpleTestCase):
 
 
 class TestCreateClusteringInGrayBusiness(TestCase):
+    def test_first_creation_persists_es_settings_and_duplicate_keeps_the_binding(self):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_es", space_uid=f"bkcc__{TEST_BK_BIZ_ID}", scenario_id=Scenario.BKDATA
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_source")
+        params = {"clustering_fields": "log", "new_cls_strategy_enable": False, "normal_strategy_enable": False}
+        with (
+            patch("apps.log_clustering.handlers.clustering_config.access_clustering.delay") as start,
+            patch("apps.log_clustering.handlers.clustering_config.get_online_clustering_config") as get_config,
+            patch(
+                "apps.log_clustering.handlers.clustering_config.RegexTemplateHandler.list_templates",
+                return_value=[{"id": 1, "predefined_varibles": "W10="}],
+            ),
+        ):
+            get_config.return_value = {"predict_es_storage": "first_es"}
+            ClusteringConfigHandler().create(index_set.index_set_id, params)
+            get_config.return_value = {"predict_es_storage": "different_es"}
+            with self.assertRaises(ClusteringConfigHasExistException):
+                ClusteringConfigHandler().create(index_set.index_set_id, params)
+
+        config = ClusteringConfig.get_by_index_set_id(index_set.index_set_id)
+        self.assertEqual(config.es_storage, "first_es")
+        start.assert_called_once_with(index_set_id=index_set.index_set_id)
+
     def test_only_v4_collector_uses_quix(self):
         FeatureToggle.objects.create(name=MINI_CLUSTERING_CONFIG, status="debug", biz_id_white_list=[TEST_BK_BIZ_ID])
         params = {"clustering_fields": "log", "new_cls_strategy_enable": False, "normal_strategy_enable": False}
@@ -190,7 +214,10 @@ class TestCreateClusteringInGrayBusiness(TestCase):
                     patch("apps.log_clustering.handlers.clustering_config.access_clustering.delay") as legacy_task,
                     patch(
                         "apps.log_clustering.handlers.clustering_config.get_online_clustering_config",
-                        return_value={"collector_clustering_es_storage": {"es_storage": "test_es"}},
+                        return_value={
+                            "collector_clustering_es_storage": {"es_storage": "test_es"},
+                            "predict_es_storage": "tenant_es",
+                        },
                     ),
                     patch.object(CollectorConfig, "get_etl_config", return_value={"fields": [{"field_name": "log"}]}),
                     patch(
@@ -207,6 +234,8 @@ class TestCreateClusteringInGrayBusiness(TestCase):
                 else:
                     quix.assert_not_called()
                     legacy_task.assert_called_once_with(index_set_id=index_set.index_set_id)
+                    config = ClusteringConfig.get_by_index_set_id(index_set.index_set_id)
+                    self.assertEqual(config.es_storage, "tenant_es")
 
 
 class TestSynchronousUpdateRegexTemplateSpace(TestCase):

@@ -28,6 +28,7 @@ from bk_monitor_base.uptime_check import (
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    ResourceNotFound,
     PAGE_LIST_TENANT_SCHEMA,
     build_response,
     filter_by_bk_tenant_id,
@@ -790,7 +791,7 @@ def _get_task_subscription_relation(
         task_queryset = task_queryset.filter(bk_biz_id=bk_biz_id)
     task = task_queryset.first()
     if not task:
-        raise CustomException(message=f"未找到拨测任务: task_id={task_id}")
+        raise ResourceNotFound(message=f"未找到拨测任务: task_id={task_id}")
 
     relation = (
         UptimeCheckTaskSubscription.objects.filter(
@@ -1069,7 +1070,7 @@ def get_uptime_check_node_detail(params: dict[str, Any]) -> dict[str, Any]:
         .first()
     )
     if not node_model or not _is_node_visible_for_biz(node_model, bk_biz_id):
-        raise CustomException(message=f"未找到拨测节点: node_id={node_id}")
+        raise ResourceNotFound(message=f"未找到拨测节点: node_id={node_id}")
 
     task_count_map = _count_tasks_by_node([node_id])
     hosts_by_id, node_status_map, beat_versions, runtime_warnings = _load_node_runtime(
@@ -1163,7 +1164,7 @@ def get_uptime_check_task_detail(params: dict[str, Any]) -> dict[str, Any]:
         task_queryset = task_queryset.filter(bk_biz_id=bk_biz_id)
     task = task_queryset.first()
     if not task:
-        raise CustomException(message=f"未找到拨测任务: task_id={task_id}")
+        raise ResourceNotFound(message=f"未找到拨测任务: task_id={task_id}")
 
     node_relation = task.nodes.order_by("id").values_list("id", flat=True)
     group_relation = task.groups.order_by("id").values_list("id", flat=True)

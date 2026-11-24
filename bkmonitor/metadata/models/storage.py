@@ -6690,7 +6690,8 @@ class DorisStorage(models.Model, StorageResultTable):
         readable = cls._normalize_doris_table_base(table_id.split(".__default__")[0])
         # 保留 ``bkm_`` 前缀与固定长度的随机串，只截断可读部分，避免削弱唯一性。
         readable_length = max(max_length - len(cls.LOG_PHYSICAL_TABLE_PREFIX) - len(token) - 1, 1)
-        base = f"{cls.LOG_PHYSICAL_TABLE_PREFIX}{readable[:readable_length]}_{token}"
+        readable_prefix = readable[:readable_length].rstrip("_")
+        base = f"{cls.LOG_PHYSICAL_TABLE_PREFIX}{readable_prefix}_{token}"
         return base[:max_length]
 
     @staticmethod
