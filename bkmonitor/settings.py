@@ -78,6 +78,9 @@ if RUN_MODE == "DEVELOP":  # noqa
 # 旧 Chart 缺省 ESB 开关时，保持 rc1 按最终 Django 租户配置选择登录路由的行为。
 if not os.getenv("BKPAAS_ESB_ENABLED", "").strip():
     os.environ["BKPAAS_MULTI_TENANT_MODE"] = "true" if globals().get("ENABLE_MULTI_TENANT_MODE") else "false"
+elif os.environ["BKPAAS_ESB_ENABLED"].strip().lower() == "false":
+    # Blueapps 在最终模板后拼接 /prod，需兼容带尾斜杠的 Chart 和角色配置。
+    BK_API_URL_TMPL = globals()["BK_API_URL_TMPL"].rstrip("/")
 
 # Assign envelope-owned aliases after environment and local settings overlays.
 if kms.enabled():

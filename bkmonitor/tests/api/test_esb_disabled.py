@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -8,6 +9,7 @@ from unittest.mock import patch
 import pytest
 from django.test import override_settings
 from rest_framework.test import APIRequestFactory
+from rest_framework.exceptions import ValidationError
 
 from bk_monitor_base.config.blueking import BlueKingConfig
 from bk_monitor_base.infras.third_party_api.cmdb.client import SearchBusiness as BaseSearchBusiness
@@ -22,7 +24,10 @@ from api.log_search.default import ESQuerySearchResource
 from api.node_man.default import StartDebugResource
 from api.sops.default import GetTaskStatusResource
 from bkmonitor.utils.cache import CacheType
+from bkmonitor.utils.local import local
 from monitor_web.commons.user.views import UserViewSet
+from monitor_web.notice_group.resources import front
+from monitor_web.user_group import resources as user_groups
 
 
 @override_settings(
@@ -78,6 +83,81 @@ def test_mixed_mail_recipients_get_one_delivery():
     send.assert_called_once_with(
         {"receiver__username": ["alice", "guest@tai"], "cc__username": ["bob", "carol"]}, ["alice", "guest@tai"]
     )
+
+
+@override_settings(ESB_DISABLED=True, ENABLE_MULTI_TENANT_MODE=True)
+def test_receiver_worker_uses_authenticated_tenant_for_every_batch():
+    accounts = [f"user-{i}" for i in range(52)]
+    main_thread = threading.get_ident()
+    calls = []
+
+    def lookup(resource, params):
+        calls.append((threading.get_ident(), resource.get_headers()["X-Bk-Tenant-Id"]))
+        return [{"bk_username": name, "display_name": f"Name {name}"} for name in params["lookups"].split(",")]
+
+    cc = SimpleNamespace(
+        get_app_by_id=lambda _: SimpleNamespace(maintainers=accounts),
+        get_notify_roles=lambda: {"maintainers": "Maintainers"},
+    )
+    with (
+        patch.object(
+            local, "current_request", SimpleNamespace(user=SimpleNamespace(tenant_id="tenant-a")), create=True
+        ),
+        patch.object(front, "resource", SimpleNamespace(cc=cc)),
+        patch("core.drf_resource.contrib.api.make_userinfo", return_value={"bk_username": "alice"}),
+        patch.object(BkUserApiResource, "perform_request", lookup),
+    ):
+        result = front.GetReceiverResource().perform_request({"bk_biz_id": 1})
+    assert len(calls) == 2
+    assert all(thread != main_thread and tenant == "tenant-a" for thread, tenant in calls)
+    assert {u["display_name"] for u in result[0]["children"][0]["members"]} == {f"Name {name}" for name in accounts}
+
+
+@override_settings(ESB_DISABLED=True, ENABLE_MULTI_TENANT_MODE=False)
+def test_bulk_edit_preserves_saved_collaborator_and_resolves_virtual_account():
+    saved = {"id": "collaborator", "type": "user", "display_name": "Collaborator"}
+    arrange = SimpleNamespace(
+        users=[saved],
+        user_group_id=1,
+        duty_rule_id=0,
+        duty_users=[],
+        duty_time=[],
+        group_type="specified",
+        group_number=1,
+    )
+    edit = user_groups.UserGroupBulkUpdateResource()
+    edit.ids, edit.bk_biz_id = [1], 1
+    edit.edit_data = {"users": ["collaborator", "virtual"]}
+
+    def lookup(resource, params):
+        assert params["lookups"] == "virtual"
+        if resource.action.endswith("/virtual-users/-/lookup/"):
+            return [{"bk_username": "virtual", "display_name": "Virtual"}]
+        return []
+
+    receivers = SimpleNamespace(notice_group=SimpleNamespace(get_receiver=lambda **kwargs: []))
+    with (
+        patch.object(user_groups, "resource", receivers),
+        patch.object(user_groups.DutyArrange.objects, "filter", return_value=[arrange]),
+        patch.object(user_groups.DutyArrange.objects, "bulk_update") as save,
+        patch.object(BkUserApiResource, "perform_request", lookup),
+    ):
+        edit.update_users(partial=False)
+        save.assert_called_once_with([arrange], ["users", "hash"])
+        assert {u["id"]: u["display_name"] for u in arrange.users} == {
+            "collaborator": "Collaborator",
+            "virtual": "Virtual",
+        }
+
+        edit.update_users(partial=True)
+        assert [u["id"] for u in arrange.users] == ["collaborator", "virtual"]
+        save.reset_mock()
+
+        # 另一个排班没有该协同账号，不能将其作为已保存成员跳过校验。
+        arrange.users = []
+        with patch.object(BkUserApiResource, "perform_request", return_value=[]), pytest.raises(ValidationError):
+            edit.update_users(partial=False)
+        save.assert_not_called()
 
 
 @pytest.mark.parametrize("value", [None, "", "true", "false"])
@@ -213,3 +293,30 @@ print(is_esb_enabled())
         [sys.executable, "-c", script], cwd=Path(__file__).resolve().parents[2], env=env, text=True
     )
     assert output.splitlines()[-1] == str(not multi)
+
+
+@pytest.mark.parametrize(("switch", "separator"), [(None, "//"), ("true", "//"), ("false", "/")])
+def test_monitor_login_urls_with_trailing_slash(switch, separator):
+    env = {
+        **os.environ,
+        "DJANGO_SETTINGS_MODULE": "settings",
+        "BK_API_URL_TMPL": "https://gw.example.test/{api_name}/",
+    }
+    if switch is None:
+        env.pop("BKPAAS_ESB_ENABLED", None)
+    else:
+        env["BKPAAS_ESB_ENABLED"] = switch
+    script = """
+from django.conf import settings
+template = settings.BK_API_URL_TMPL
+from blueapps.account.components.bk_token.verification_strategy import get_apigw_url
+for action in ("verify", "userinfo"):
+    print(get_apigw_url("bk-login", f"/login/api/v3/open/bk-tokens/{action}/"))
+"""
+    output = subprocess.check_output(
+        [sys.executable, "-c", script], cwd=Path(__file__).resolve().parents[2], env=env, text=True
+    )
+    assert output.splitlines()[-2:] == [
+        f"https://gw.example.test/bk-login{separator}prod/login/api/v3/open/bk-tokens/{action}/"
+        for action in ("verify", "userinfo")
+    ]

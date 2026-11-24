@@ -129,11 +129,19 @@ class GetAllUserResource(BkUserApiResource):
                 lookup = LookupTenantUsersResource()
                 lookup.bk_tenant_id = self.bk_tenant_id
                 for start in range(0, len(accounts), 100):
-                    users.extend(
-                        lookup.request(
-                            {"lookup_field": "bk_username", "lookups": ",".join(accounts[start : start + 100])}
+                    batch = accounts[start : start + 100]
+                    rows = lookup.request({"lookup_field": "bk_username", "lookups": ",".join(batch)})
+                    users.extend(rows)
+                    found = {user["bk_username"] for user in rows}
+                    missing = [account for account in batch if account not in found]
+                    if missing:
+                        users.extend(
+                            BatchLookupVirtualUserResource().request(
+                                bk_tenant_id=self._get_tenant_id(),
+                                lookup_field="bk_username",
+                                lookups=",".join(missing),
+                            )
                         )
-                    )
                 count = len(users)
             elif keyword := params.get("fuzzy_lookups"):
                 users, count = self._search_users(

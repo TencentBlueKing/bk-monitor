@@ -110,10 +110,9 @@ class EsbDisabledTest(SimpleTestCase):
 
     def test_collection_diagnostics_and_itsm(self):
         gse = _GseApi()
-        self.assertEqual(gse.query_route.url, "https://gateway.example.com/api/bk-gse/prod/api/v2/data/query_route")
-        self.assertEqual(
-            gse.query_stream_to.url, "https://gateway.example.com/api/bk-gse/prod/api/v2/data/query_streamto"
-        )
+        root = "https://bk-gse.example.test/custom/prod/api/v2/data/"
+        self.assertEqual(gse.query_route.url, root + "query_route")
+        self.assertEqual(gse.query_stream_to.url, root + "query_streamto")
         with patch("apps.log_databus.tasks.itsm.ItsmHandler") as handler:
             failed_ticket_clean()
             handler.assert_not_called()
@@ -135,6 +134,15 @@ class EsbDisabledTest(SimpleTestCase):
 
 
 class LoginSettingsCompatibilityTest(SimpleTestCase):
+    def test_gse_keeps_esb_routes_when_switch_is_unset(self):
+        from config.domains import GSE_APIGATEWAY_ROOT_V2
+
+        for multi in (False, True):
+            with self.subTest(multi=multi), override_settings(ENABLE_MULTI_TENANT_MODE=multi, ESB_DISABLED=False):
+                client = _GseApi()
+                self.assertEqual(client.query_route.url, GSE_APIGATEWAY_ROOT_V2 + "config_query_route")
+                self.assertEqual(client.query_stream_to.url, GSE_APIGATEWAY_ROOT_V2 + "config_query_streamto")
+
     @override_settings(
         PAAS_API_HOST="https://paas.example.test",
         BK_API_URL_TMPL="https://{api_name}.example.test/custom",

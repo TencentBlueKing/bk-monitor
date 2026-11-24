@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import BkUserSelectorOrigin, { type FormattedUser } from '@blueking/bk-user-selector/vue2';
 
-import { getUserComponentConfig, USER_GROUP_TYPE } from '../../common/user-display-name';
+import { getUserComponentConfig, USER_GROUP_TYPE, useUserWebApi } from '../../common/user-display-name';
 
 import type { IUserGroup, UserSelectorDragEvent } from './user-group';
 import type { ConfigOptions } from '@blueking/bk-user-display-name';
@@ -94,7 +94,7 @@ export default class UserSelector extends tsc<
   @Model('change', { type: [Array, String], default: () => [] }) userIds: string | string[];
   componentConfig: Partial<ConfigOptions> = {};
   get enableMultiTenantMode() {
-    return window.enable_multi_tenant_mode ?? false;
+    return useUserWebApi();
   }
   created() {
     this.componentConfig = getUserComponentConfig();
