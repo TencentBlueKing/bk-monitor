@@ -15,7 +15,7 @@ import string
 from types import SimpleNamespace
 
 import pytest
-from django.http import HttpResponse
+from django.http import HttpResponse, QueryDict
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory
 
@@ -719,6 +719,22 @@ def test_results_empty_pid_returns_all_processes(result_apis, resource_cls, requ
         "bk_host_id": "456",
         "task_id": "123",
     }
+
+
+def test_result_query_keeps_multi_values_of_form_data_with_empty_pid():
+    # 表单编码的同名多值字段，去掉空 pid 后仍要保留为列表
+    request_data = {**RESULT_QUERY_REQUEST, "pid": ""}
+    form_data = QueryDict(mutable=True)
+    for key, value in request_data.items():
+        form_data.setlist(key, value if isinstance(value, list) else [value])
+
+    serializer = ResultQueryRequestSerializer(data=form_data)
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["diagram_types"] == ["flamegraph", "table"]
+    assert "pid" not in serializer.validated_data
+    # 不改调用方传入的原对象
+    assert form_data["pid"] == ""
 
 
 @pytest.fixture

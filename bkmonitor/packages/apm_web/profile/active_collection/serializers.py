@@ -443,9 +443,11 @@ class ResultDataTypesRequestSerializer(serializers.Serializer):
     pid = serializers.IntegerField(label="进程 PID", required=False, min_value=1)
 
     def to_internal_value(self, data):
-        # 前端选“全部进程”时可能传 null 或空串，与不传一样查看全部进程
-        if hasattr(data, "items") and "pid" in data and data["pid"] in (None, ""):
-            data = {key: value for key, value in data.items() if key != "pid"}
+        # 前端选“全部进程”时可能传 null 或空串，与不传一样查看全部进程；
+        # 复制原容器再去掉 pid，表单编码的 QueryDict 保留同名多值（如 diagram_types），也不改调用方的对象
+        if hasattr(data, "copy") and "pid" in data and data["pid"] in (None, ""):
+            data = data.copy()
+            data.pop("pid")
         return super().to_internal_value(data)
 
     def validate(self, attrs):
