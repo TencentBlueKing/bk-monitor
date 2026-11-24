@@ -34,7 +34,14 @@ from rum_web.handlers.builder.span.base import (
     named,
 )
 from rum_web.handlers.builder.span.timing.view import ViewTimingLayout
-from rum_web.handlers.builder.utils import build_rating_config, get_safe_number, phase, safe_diff, waterfall
+from rum_web.handlers.builder.utils import (
+    build_rating_config,
+    get_safe_number,
+    phase,
+    safe_diff,
+    select_latest_vitals,
+    waterfall,
+)
 
 
 VITAL_METRICS = ("ttfb", "fcp", "lcp", "inp", "cls")
@@ -300,16 +307,8 @@ class ViewSpanBuilder(SpanBuilder):
 
     @staticmethod
     def _build_vital_map(flat_related: Sequence[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-        vital_map: dict[str, dict[str, Any]] = {}
-        for item in flat_related:
-            if item.get("attributes.span_type") != RumSpanType.VITAL.value:
-                continue
-            metric = str(item.get("attributes.vital.metric", "")).lower()
-            if metric not in VITAL_METRICS:
-                continue
-            previous = vital_map.get(metric)
-            if previous is None or (get_safe_number(item.get("end_time")) or 0) > (
-                get_safe_number(previous.get("end_time")) or 0
-            ):
-                vital_map[metric] = item
-        return vital_map
+        # 与 View 列表 Web Vitals 汇总共用选取规则，避免两处取到不同快照。
+        return select_latest_vitals(
+            (item for item in flat_related if item.get("attributes.span_type") == RumSpanType.VITAL.value),
+            VITAL_METRICS,
+        )
