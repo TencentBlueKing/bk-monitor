@@ -419,6 +419,17 @@ def _collect_bounded_pages(fetch_page) -> tuple[list[Any], bool]:
     return items, bool(continue_token)
 
 
+def _is_source_path(path: str) -> bool:
+    return (
+        path.startswith("/")
+        and len(path) <= 4096
+        and "//" not in path
+        and (path == "/" or not path.endswith("/"))
+        and not any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF for ch in path)
+        and not any(part in {".", ".."} for part in path.split("/"))
+    )
+
+
 def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     app_code, request_tenant_id = _request_identity()
     collector, identity = _inspection_context(params, request_tenant_id)
@@ -444,13 +455,7 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
             raise ValidationError("collector paths require via for read only")
         require_source_read_access(app_code, source_step)
         for path in [source_step["path"], source_step.get("via", "/")]:
-            if (
-                not path.startswith("/")
-                or "//" in path
-                or (path != "/" and path.endswith("/"))
-                or any(ord(ch) < 32 for ch in path)
-                or any(part in {".", ".."} for part in path.split("/"))
-            ):
+            if not _is_source_path(path):
                 raise ValidationError("source_step requires normalized absolute container paths")
         if source_step["operation"] != "read" and ("offset" in source_step or "length" in source_step):
             raise ValidationError("offset and length apply only to read")
@@ -524,6 +529,35 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     return _start_response(current, reused=reused)
 
 
+def _publish_source_listing(row):
+    entries = row.get("entries")
+    if not isinstance(entries, list) or not all(isinstance(path, str) for path in entries):
+        return False
+    redacted = row.pop("redacted_entry_positions", None)
+    if redacted is not None and (
+        not isinstance(redacted, list) or not all(type(pos) is int and 1 <= pos <= len(entries) for pos in redacted)
+    ):
+        return False
+    row.setdefault("directory_identity_verified", False)  # Older probes resolved the directory twice.
+    usable, unavailable = [], []
+    for position, path in enumerate(entries, 1):
+        if not _is_source_path(path):
+            reason = "invalid_path"
+        elif redacted is None and "***" in path:
+            # Older Workers stored only the display text.
+            reason = "unverified_path"
+        elif redacted is not None and position in redacted:
+            reason = "redacted_path"
+        else:
+            usable.append(path)
+            continue
+        unavailable.append({"position": position, "reason": reason})
+    row["entries"] = usable
+    if unavailable:
+        row["unavailable_entries"] = unavailable
+    return True
+
+
 def _publish_source_step(step, probe):
     """Return whether the Worker supplied evidence for the requested step."""
     source = probe.get("evidence")
@@ -546,7 +580,7 @@ def _publish_source_step(step, probe):
     if operation == "stat":
         return "inode" in row or all("inode" in (source.get(key) or {}) for key in ("first", "second"))
     if operation == "list":
-        return isinstance(row.get("entries"), list)
+        return _publish_source_listing(row)
     if operation == "readlink":
         return isinstance(row.get("target"), str)
     chunks = row.pop("raw_hex_chunks", None)
@@ -1061,6 +1095,8 @@ FUNCTIONS = {
                     "description": (
                         "List directories, inspect file activity or inspect links directly in the collector container. "
                         "Use returned entry paths in subsequent calls. For target listings with via, keep that via. "
+                        "unavailable_entries identifies non-reusable UTF-8 entries by original one-based position "
+                        "and reason. A client-side redaction placeholder is also display-only. "
                         "Non-UTF-8 names are reported separately as non_utf8_names_hex and cannot be used as paths. "
                         "To follow a link, list or stat its path. "
                         "Use target space for business-container paths. Management allowlisted apps can read original "

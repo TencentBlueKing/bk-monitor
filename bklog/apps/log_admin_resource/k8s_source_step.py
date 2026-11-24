@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 
 from apps.log_admin_resource.collector_probe_evidence import _expand_recursive_glob, parse_yaml_local_inputs
+from apps.log_admin_resource.handlers.inspection import sanitize_sensitive_text
 from apps.log_admin_resource.k8s_inspection_client import object_to_dict
 from apps.log_admin_resource.k8s_inspection import COLLECTOR_CONTAINER_NAME, collector_child_config_hints
 from apps.log_admin_resource.k8s_probe import FixedProbeError, run_collector_script
@@ -223,6 +224,13 @@ def inspect_source_step(client, candidate, parsed, target, expected, data_id, re
             "source_step_invalid_response", "collector file observation returned no valid JSON"
         ) from exc
     failed = bool(result.get("error"))
+    if request["operation"] == "list" and not failed:
+        row = result["observation"]
+        # Save only positions before the evidence store redacts text. The API
+        # can then distinguish a real literal "***" from a redacted filename.
+        row["redacted_entry_positions"] = [
+            pos for pos, path in enumerate(row["entries"], 1) if sanitize_sensitive_text(path, maximum=None) != path
+        ]
     return {
         "status": "failed" if failed else "success",
         "code": "source_step_incomplete" if failed else "source_step_completed",

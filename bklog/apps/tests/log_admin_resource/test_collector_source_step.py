@@ -189,6 +189,47 @@ class SourceStepTest(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             self.run_step("list", "/logs")
 
+    def test_list_uses_one_directory_when_the_entry_is_replaced(self):
+        for space in ("collector", "target"):
+            with self.subTest(space=space):
+                old = self.directory / ("old-" + space)
+                new = self.directory / ("new-" + space)
+                old.mkdir()
+                new.mkdir()
+                (old / "old.log").touch()
+                (new / "new.log").touch()
+                current = self.directory / ("current-" + space)
+                current.symlink_to(old.name)
+                replacement = self.directory / ("next-" + space)
+                replacement.symlink_to(new.name)
+                popen = subprocess.Popen
+
+                def switch_directory(*args, **kwargs):
+                    os.replace(replacement, current)
+                    return popen(*args, **kwargs)
+
+                path = str(current) if space == "collector" else "/logs/" + current.name
+                with patch.object(probe.subprocess, "Popen", side_effect=switch_directory):
+                    row = self.run_step("list", path, path_space=space)["observation"]
+                self.assertEqual(row["inode"], old.stat().st_ino)
+                self.assertEqual(row["entries"], [path + "/old.log"])
+                self.assertEqual(current.stat().st_ino, new.stat().st_ino)
+
+    def test_readlink_reports_rotation_during_observation(self):
+        current = self.directory / "current"
+        current.symlink_to("old")
+        replacement = self.directory / "next"
+        replacement.symlink_to("new")
+        read_link = probe.read_link
+
+        def rotate_and_read(name):
+            os.replace(replacement, current)
+            return read_link(name)
+
+        with patch.object(probe, "read_link", side_effect=rotate_and_read):
+            with self.assertRaisesRegex(ValueError, "source_changed_during_readlink"):
+                self.run_step("readlink", str(current), path_space="collector")
+
     def test_unauthorized_paths_and_nested_mounts(self):
         (self.volume / "secret").mkdir()
         (self.root / "logs").unlink()

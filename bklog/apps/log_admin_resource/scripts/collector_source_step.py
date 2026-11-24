@@ -447,6 +447,48 @@ def snapshot(policy, request):
         os.close(root_fd)
 
 
+def list_directory(name, path, native):
+    # The child inherits the pinned cwd. Both the metadata and the entries
+    # refer to that directory even after a rename or symlink rotation.
+    previous = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        if native:
+            os.chdir(name)
+        else:
+            descend(name)
+        info = os.stat(".")
+        # Include every observed name so a misconfigured pattern can be diagnosed.
+        find = "/usr/bin/find" if os.path.isfile("/usr/bin/find") else "/bin/find"
+        proc = subprocess.Popen(
+            [find, ".", "-mindepth", "1", "-maxdepth", "1", "-print0"],
+            stdout=subprocess.PIPE,
+        )
+    finally:
+        os.fchdir(previous)
+        os.close(previous)
+    try:
+        raw = proc.stdout.read(65537)
+    finally:
+        proc.stdout.close()
+        rc = proc.wait()
+    truncated = len(raw) > 65536
+    if rc and not truncated:
+        raise ValueError("directory_listing_failed")
+    names = sorted(line[2:] for line in raw[:65536].split(b"\0")[:-1])
+    children, non_utf8_names = [], []
+    for name in names[:50]:
+        try:
+            child = name.decode("utf-8")
+        except UnicodeDecodeError:
+            non_utf8_names.append(binascii.hexlify(name).decode("ascii"))
+        else:
+            children.append(os.path.join(path, child))
+    result = {"entries": children, "truncated": truncated or len(names) > 50, "directory_identity_verified": True}
+    if non_utf8_names:
+        result["non_utf8_names_hex"] = non_utf8_names
+    return info, result
+
+
 def observe_path(policy, request):
     path, operation = request["path"], request["operation"]
     native = request.get("path_space") == "collector"
@@ -457,10 +499,14 @@ def observe_path(policy, request):
         # Keep the original path for follow-ups. Kernel magic links may have no equivalent
         # canonical pathname (for instance a mounted process root or a deleted file).
         name = collector_path = path
-        info = os.lstat(path) if operation == "readlink" else os.stat(path)
     else:
         resolve = read_target_file if operation == "read" else target_source_path
         name, path, resolved, links, collector_path = resolve(policy, request)
+    if operation == "list":
+        info, listing = list_directory(name, path, native_metadata)
+    elif native_metadata and operation == "stat":
+        info = os.stat(name)
+    else:
         info = os.lstat(name)
     result = {
         "path": path,
@@ -478,37 +524,11 @@ def observe_path(policy, request):
         result.update(resolved_path=resolved, links=links)
     if operation == "readlink":
         result["target"] = read_link(name)
+        if not os.path.samestat(info, os.lstat(name)):
+            raise ValueError("source_changed_during_readlink")
         result["follow_path"] = path
     elif operation == "list":
-        if not native:
-            descend(name)
-        # Include every observed name so a misconfigured pattern can be diagnosed.
-        find = "/usr/bin/find" if os.path.isfile("/usr/bin/find") else "/bin/find"
-        proc = subprocess.Popen(
-            [find, ".", "-mindepth", "1", "-maxdepth", "1", "-print0"],
-            cwd=path if native else None,
-            stdout=subprocess.PIPE,
-        )
-        try:
-            raw = proc.stdout.read(65537)
-        finally:
-            proc.stdout.close()
-            rc = proc.wait()
-        truncated = len(raw) > 65536
-        if rc and not truncated:
-            raise ValueError("directory_listing_failed")
-        names = sorted(line[2:] for line in raw[:65536].split(b"\0")[:-1])
-        children, non_utf8_names = [], []
-        for name in names[:50]:
-            try:
-                child = name.decode("utf-8")
-            except UnicodeDecodeError:
-                non_utf8_names.append(binascii.hexlify(name).decode("ascii"))
-            else:
-                children.append(os.path.join(path, child))
-        result.update(entries=children, truncated=truncated or len(names) > 50)
-        if non_utf8_names:
-            result["non_utf8_names_hex"] = non_utf8_names
+        result.update(listing)
     elif operation == "read":
         if not stat.S_ISREG(info.st_mode):
             raise ValueError("source_not_regular")

@@ -989,6 +989,55 @@ class K8sInspectionHandlerTest(SimpleTestCase):
             with self.assertRaises(BklogPermissionError):
                 get_k8s_inspection_detail({"task_id": task_id})
 
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_listing_round_trip_returns_only_reusable_entries(self, _identity):
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+        from apps.log_admin_resource.k8s_tasks import _finish, _timed_probe
+        from apps.log_admin_resource.scripts.collector_source_step import inspect_source
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            for name in ("account=***", "account=blue.log", "account=green.log", "daily\tapp.log", "normal.log"):
+                (root / name).touch()
+            step = {"operation": "list", "path": str(root), "path_space": "collector"}
+            record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+                app_code="reader-a",
+                bk_tenant_id="tenant-a",
+                target={},
+                request_options={"source_step": step},
+                task_type=TASK_TYPE_K8S_INSPECTION,
+            )
+            task_id = record["task_id"]
+            payload = inspect_source({}, step)
+            with patch(
+                "apps.log_admin_resource.k8s_source_step.run_collector_script",
+                return_value=(json.dumps(payload), "", 0),
+            ):
+                source = inspect_source_step(
+                    None, SimpleNamespace(pod_uid="collector"), {"values": {}}, {}, [], 7, step, {}
+                )
+            source = _timed_probe(source)
+            _finish(task_id, record, {"source_path": source}, "success", None)
+            response = get_k8s_inspection_detail({"task_id": task_id})
+            row = response["evidence"]["probes"]["source_path"]["evidence"]["observation"]
+            self.assertTrue(row["directory_identity_verified"])
+            self.assertEqual(row["entries"], [str(root / "account=***"), str(root / "normal.log")])
+            self.assertEqual(
+                row["unavailable_entries"],
+                [
+                    {"position": 2, "reason": "redacted_path"},
+                    {"position": 3, "reason": "redacted_path"},
+                    {"position": 4, "reason": "invalid_path"},
+                ],
+            )
+            for path in row["entries"]:
+                observed = inspect_source({"pid": 0, "interval": 0}, {**step, "operation": "stat", "path": path})
+                self.assertEqual(observed["second"]["inode"], Path(path).stat().st_ino)
+
     def test_source_step_publishes_exact_inodes_for_each_available_sample(self):
         from apps.log_admin_resource.handlers.k8s_inspection import _publish_source_step
 
@@ -1013,6 +1062,24 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                     )
                 )
                 self.assertEqual({key: source[key]["inode"] for key in samples}, expected)
+
+    def test_cached_listing_marks_ambiguous_paths_and_unverified_directory_identity(self):
+        from apps.log_admin_resource.handlers.k8s_inspection import _publish_source_step
+
+        step = {"operation": "list", "path": "/logs"}
+        row = {"entries": ["/logs/app.log", "/logs/account=***", "/logs/" + "a" * 4096]}
+        source = {"request": step, "observation": row}
+        probe = {"status": "success", "code": "source_step_completed", "evidence": source}
+        self.assertTrue(_publish_source_step(step, probe))
+        self.assertFalse(row["directory_identity_verified"])
+        self.assertEqual(row["entries"], ["/logs/app.log"])
+        self.assertEqual(
+            row["unavailable_entries"],
+            [
+                {"position": 2, "reason": "unverified_path"},
+                {"position": 3, "reason": "invalid_path"},
+            ],
+        )
 
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_detail_checks_worker_evidence_for_each_requested_file_operation(self, _identity):
