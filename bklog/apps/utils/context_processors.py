@@ -90,7 +90,7 @@ def mysetting(request):
         "BK_CC_HOST": settings.BK_CC_HOST,
         # 数据平台跳转URL
         "BKDATA_URL": settings.BKDATA_URL,
-        "BKBASEV4_URL": settings.BKBASEV4_URL,
+        "BKBASE_V4_URL": settings.BKBASE_V4_URL,
         # 监控URL
         "MONITOR_URL": settings.MONITOR_URL,
         # 日志采集接入指引

@@ -1,10 +1,12 @@
 """日志接入与权限申请指引的配置与内外网契约。"""
 
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.test import RequestFactory, SimpleTestCase, override_settings
 
 from apps.utils.context_processors import mysetting
+from config.env import load_settings
 
 
 INTERNAL_GUIDE_URL = "https://iwiki.example.test/pages/viewpage.action?pageId=123"
@@ -46,9 +48,30 @@ class LogAccessGuideContextTest(SimpleTestCase):
         self.assertEqual(context["BK_LOG_ACCESS_GUIDE_URL"], access_url)
         self.assertEqual(context["BK_LOG_PERMISSION_GUIDE_URL"], permission_url)
 
-    @override_settings(BKBASEV4_URL="https://data.example.test")
+    @override_settings(BKBASE_V4_URL="https://data.example.test")
     def test_bkbase_v4_url(self):
-        self.assertEqual(self._context()["BKBASEV4_URL"], "https://data.example.test")
+        self.assertEqual(self._context()["BKBASE_V4_URL"], "https://data.example.test")
+
+    @patch("config.default.BKBASE_V4_URL", "https://override.example.test/site")
+    @patch("config.env.load_env", return_value={"settings": {"BK_DOMAIN": ".example.test"}})
+    def test_bkbase_v4_environment_override(self, _load_env):
+        self.assertEqual(load_settings()["BKBASE_V4_URL"], "https://override.example.test/site")
+
+    @patch("config.default.BKBASE_V4_URL", "")
+    @patch("config.default.BK_DOMAIN", "")
+    @patch.dict("os.environ", {"BK_BKLOG_HOST": ""})
+    def test_bkbase_v4_deployment_url(self):
+        for config, expected in (
+            ({"BKBASE_V4_URL": "https://custom.test/ui", "BK_DOMAIN": "example.test"}, "https://custom.test/ui"),
+            (
+                {"BK_DOMAIN": ".example.test", "BK_BKLOG_HOST": "https://logs.custom.test/"},
+                "https://bkbasev4.example.test",
+            ),
+            ({"BK_BKLOG_HOST": "http://bklog.dev.example.test:8080/"}, "http://bkbasev4.dev.example.test:8080"),
+            ({"BK_PAAS_HOST": "https://paas.example.test/"}, "https://bkbasev4.example.test"),
+        ):
+            with self.subTest(config=config), patch("config.env.load_env", return_value={"settings": config}):
+                self.assertEqual(load_settings()["BKBASE_V4_URL"], expected)
 
     def test_ordinary_requests_use_configured_guide_for_all_versions(self):
         for run_ver in ("tencent", "ee", "ce", "open"):

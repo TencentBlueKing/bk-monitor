@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 
 import importlib
 import os
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -99,6 +100,21 @@ def load_settings():
             result_settings[key] = original_value
             continue
         result_settings[key] = value
+    result_settings["BKBASE_V4_URL"] = module.BKBASE_V4_URL or result_settings.get("BKBASE_V4_URL", "")
+    if not result_settings["BKBASE_V4_URL"]:
+        # 使用最终部署域名和公开入口的协议推导 V4 页面地址。
+        public_url = urlsplit(
+            result_settings.get("BK_BKLOG_HOST")
+            or os.getenv("BK_BKLOG_HOST")
+            or result_settings.get("BK_PAAS_HOST")
+            or module.BK_PAAS_HOST
+        )
+        domain = (result_settings.get("BK_DOMAIN") or module.BK_DOMAIN).lstrip(".")
+        if not domain:
+            service, _, suffix = public_url.netloc.partition(".")
+            domain = suffix if service in ("bklog", "paas", "bk") else public_url.netloc
+        if domain:
+            result_settings["BKBASE_V4_URL"] = f"{public_url.scheme or 'https'}://bkbasev4.{domain}"
     return result_settings
 
 
