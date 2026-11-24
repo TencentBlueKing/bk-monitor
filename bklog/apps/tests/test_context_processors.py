@@ -52,30 +52,32 @@ class LogAccessGuideContextTest(SimpleTestCase):
     def test_bkbase_v4_url(self):
         self.assertEqual(self._context()["BKBASE_V4_URL"], "https://data.example.test")
 
-    @patch("config.default.BKBASE_V4_URL", "https://override.example.test/site")
+    @patch(
+        "config.default.BKBASE_V4_URL", "https://override.example.test:8443/v4/webserver/#/data-set?project_id=example"
+    )
     @patch("config.env.load_env", return_value={"settings": {"BK_DOMAIN": ".example.test"}})
     def test_bkbase_v4_environment_override(self, _load_env):
-        self.assertEqual(load_settings()["BKBASE_V4_URL"], "https://override.example.test/site")
+        self.assertEqual(load_settings()["BKBASE_V4_URL"], "https://override.example.test:8443")
 
     @patch("config.default.BKBASE_V4_URL", "")
     @patch("config.default.BK_DOMAIN", "")
     @patch.dict("os.environ", {"BK_BKLOG_HOST": ""})
     def test_bkbase_v4_deployment_url(self):
         for config, expected in (
-            ({"BKBASE_V4_URL": "https://custom.test/ui", "BK_DOMAIN": "example.test"}, "https://custom.test/ui"),
+            ({"BKBASE_V4_URL": "https://custom.test/ui", "BK_DOMAIN": "example.test"}, "https://custom.test"),
             (
                 {"BK_DOMAIN": ".example.test", "BK_BKLOG_HOST": "https://logs.custom.test/"},
-                "https://bkbase.example.test/v4/webserver",
+                "https://bkbase.example.test",
             ),
             (
                 {"BK_DOMAIN": "prod.example.test", "BK_BKLOG_HOST": "https://bklog.prod.example.test/"},
-                "https://bkbase.prod.example.test/v4/webserver",
+                "https://bkbase.prod.example.test",
             ),
             (
                 {"BK_BKLOG_HOST": "http://bklog.dev.example.test:8080/"},
-                "http://bkbase.dev.example.test:8080/v4/webserver",
+                "http://bkbase.dev.example.test:8080",
             ),
-            ({"BK_PAAS_HOST": "https://paas.example.test/"}, "https://bkbase.example.test/v4/webserver"),
+            ({"BK_PAAS_HOST": "https://paas.example.test/"}, "https://bkbase.example.test"),
         ):
             with self.subTest(config=config), patch("config.env.load_env", return_value={"settings": config}):
                 self.assertEqual(load_settings()["BKBASE_V4_URL"], expected)

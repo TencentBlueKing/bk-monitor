@@ -101,8 +101,11 @@ def load_settings():
             continue
         result_settings[key] = value
     result_settings["BKBASE_V4_URL"] = module.BKBASE_V4_URL or result_settings.get("BKBASE_V4_URL", "")
-    if not result_settings["BKBASE_V4_URL"]:
-        # 使用最终部署域名和公开入口的协议推导 V4 页面地址。
+    if result_settings["BKBASE_V4_URL"]:
+        site = urlsplit(result_settings["BKBASE_V4_URL"])
+        result_settings["BKBASE_V4_URL"] = site._replace(path="", query="", fragment="").geturl()
+    else:
+        # 页面路径和查询参数由前端拼接，context 仅提供站点地址。
         public_url = urlsplit(
             result_settings.get("BK_BKLOG_HOST")
             or os.getenv("BK_BKLOG_HOST")
@@ -114,7 +117,7 @@ def load_settings():
             service, _, suffix = public_url.netloc.partition(".")
             domain = suffix if service in ("bklog", "paas", "bk") else public_url.netloc
         if domain:
-            result_settings["BKBASE_V4_URL"] = f"{public_url.scheme or 'https'}://bkbase.{domain}/v4/webserver"
+            result_settings["BKBASE_V4_URL"] = f"{public_url.scheme or 'https'}://bkbase.{domain}"
     return result_settings
 
 
