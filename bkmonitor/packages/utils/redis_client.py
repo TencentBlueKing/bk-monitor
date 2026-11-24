@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -16,14 +15,14 @@ import random
 import redis
 from django.conf import settings
 from redis.sentinel import Sentinel
-from typing_extensions import Literal
+from typing import Literal
 
 from bkmonitor.utils.common_utils import ignored
 
 logger = logging.getLogger(__name__)
 
 
-class Singleton(object):
+class Singleton:
     _instance = None
 
     def __new__(cls, *args, **kwargs):
@@ -67,22 +66,19 @@ class RedisClient(Singleton):
             }
             # 随机打乱顺序，避免每次都是同一个节点
             random.shuffle(sentinel_params["sentinels"])
-            host, port = Sentinel(**sentinel_params).discover_master(os.environ[f"{prefix}_REDIS_SENTINEL_MASTER_NAME"])
-            redis_password = os.environ[f"{prefix}_REDIS_PASSWORD"]
-            configs = {
-                "host": host,
-                "port": port,
-                "password": redis_password,
-                "db": os.environ.get(f"{prefix}_REDIS_DB", 0),
-            }
-        else:
-            configs = {
-                "host": os.environ[f"{prefix}_REDIS_HOST"],
-                "port": os.environ[f"{prefix}_REDIS_PORT"],
-                "password": os.environ[f"{prefix}_REDIS_PASSWORD"],
-                "db": os.environ.get(f"{prefix}_REDIS_DB", 0),
-            }
+            # 由哨兵托管连接池，主从切换后新建连接会重新发现主节点，避免长期连接只读副本
+            return Sentinel(**sentinel_params).master_for(
+                os.environ[f"{prefix}_REDIS_SENTINEL_MASTER_NAME"],
+                password=os.environ[f"{prefix}_REDIS_PASSWORD"],
+                db=int(os.environ.get(f"{prefix}_REDIS_DB", 0)),
+            )
 
+        configs = {
+            "host": os.environ[f"{prefix}_REDIS_HOST"],
+            "port": os.environ[f"{prefix}_REDIS_PORT"],
+            "password": os.environ[f"{prefix}_REDIS_PASSWORD"],
+            "db": os.environ.get(f"{prefix}_REDIS_DB", 0),
+        }
         return redis.StrictRedis(**configs)
 
 

@@ -294,6 +294,8 @@ class BatchLookupVirtualUserResource(BkUserApiResource):
     批量查询虚拟用户
     """
 
+    USE_IMPLICIT_USER_AUTH = False
+
     def use_apigw(self):
         return True
 

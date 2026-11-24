@@ -70,23 +70,30 @@ def vm_short_link_context(mocker):
     ).delete()
 
 
-def test_apply_vm_short_links_supports_data_labels(vm_short_link_context):
+@pytest.mark.parametrize(
+    "labels",
+    [
+        ["1short_link", "dbm_system.net"],
+        ["a" * 63, "b" * 64],  # 两个标签含逗号分隔符共 128 个字符。
+    ],
+)
+def test_apply_vm_short_links_supports_data_labels(vm_short_link_context, labels):
     ctx = vm_short_link_context
 
     result = apply_vm_short_links(
         vmrts=[ctx["vmrt"]],
         bk_tenant_id=ctx["bk_tenant_id"],
         bk_biz_id=ctx["bk_biz_id"],
-        data_labels=["short_link_label", "short.link:label"],
+        data_labels=labels,
         refresh_router=False,
     )
 
     result_table = models.ResultTable.objects.get(table_id=ctx["table_id"], bk_tenant_id=ctx["bk_tenant_id"])
     short_link = models.VMShortLinkRecord.objects.get(table_id=ctx["table_id"], bk_tenant_id=ctx["bk_tenant_id"])
-    assert result_table.data_label == "short_link_label,short.link:label"
-    assert short_link.data_labels == ["short_link_label", "short.link:label"]
-    assert result[0]["data_labels"] == ["short_link_label", "short.link:label"]
-    assert result[0]["data_label"] == "short_link_label,short.link:label"
+    assert result_table.data_label == ",".join(labels)
+    assert short_link.data_labels == labels
+    assert result[0]["data_labels"] == labels
+    assert result[0]["data_label"] == ",".join(labels)
 
 
 def test_update_vm_short_links_supports_data_labels(vm_short_link_context):
@@ -103,17 +110,17 @@ def test_update_vm_short_links_supports_data_labels(vm_short_link_context):
         bk_tenant_id=ctx["bk_tenant_id"],
         bk_biz_id=ctx["bk_biz_id"],
         vmrts=[ctx["vmrt"]],
-        data_labels=["updated_short_link_label", "updated.short:label"],
+        data_labels=["updated_short_link_label", "updated.short_label"],
         refresh_bkbase=False,
         refresh_router=False,
     )
 
     result_table = models.ResultTable.objects.get(table_id=ctx["table_id"], bk_tenant_id=ctx["bk_tenant_id"])
     short_link = models.VMShortLinkRecord.objects.get(table_id=ctx["table_id"], bk_tenant_id=ctx["bk_tenant_id"])
-    assert result_table.data_label == "updated_short_link_label,updated.short:label"
-    assert short_link.data_labels == ["updated_short_link_label", "updated.short:label"]
-    assert result[0]["data_labels"] == ["updated_short_link_label", "updated.short:label"]
-    assert result[0]["data_label"] == "updated_short_link_label,updated.short:label"
+    assert result_table.data_label == "updated_short_link_label,updated.short_label"
+    assert short_link.data_labels == ["updated_short_link_label", "updated.short_label"]
+    assert result[0]["data_labels"] == ["updated_short_link_label", "updated.short_label"]
+    assert result[0]["data_label"] == "updated_short_link_label,updated.short_label"
 
 
 def test_update_vm_short_links_refreshes_old_and_new_data_labels(vm_short_link_context, mocker):
@@ -165,11 +172,11 @@ def test_apply_vm_short_links_overwrite_refreshes_old_and_new_data_labels(vm_sho
 @pytest.mark.parametrize(
     "data_labels",
     [
-        ["1bad"],
+        ["bad:label"],
         ["Bad"],
         ["bad-label"],
         ["bad,label"],
-        ["a" * 33],
+        ["a" * 64, "b" * 64],  # 分隔符使总长度达到 129。
         "bad_string",
     ],
 )

@@ -30,7 +30,8 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
 
 
-import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
+import { MessagePlugin as TDesignMessage, Button as TButton, TreeSelect as TTreeSelect } from 'tdesign-vue-next';
+import type { TreeNodeValue } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
@@ -75,6 +76,7 @@ export default defineComponent({
       { id: 'collector_config', name: t('采集项'), list: [] }, // 采集项列表
       { id: 'collector_plugin', name: t('采集插件'), list: [] }, // 采集插件列表
     ]);
+    const expandedCollectorGroups = ref<TreeNodeValue[]>(collectorList.value.map(item => item.id));
     const repositoryOriginList = ref<any[]>([]); // 仓库列表
     const retentionDaysList = ref<any[]>([]); // 过期天数列表
     const collectorType = ref('collector_config'); // 采集类型
@@ -82,7 +84,7 @@ export default defineComponent({
     // 表单数据
     const formData = reactive({
       snapshot_days: '',
-      instance_id: '',
+      instance_id: '' as string | number,
       target_snapshot_repository_name: '',
     });
 
@@ -90,7 +92,7 @@ export default defineComponent({
     const basicRules = reactive({});
     const requiredRules = {
       required: true,
-      trigger: 'blur',
+      trigger: 'all',
     };
 
     const bkBizId = computed(() => store.bkBizId); // 业务ID
@@ -199,8 +201,8 @@ export default defineComponent({
     };
 
     // 输入自定义过期天数
-    const enterCustomDay = (val: string) => {
-      const numberVal = Number.parseInt(val.trim(), 10);
+    const enterCustomDay = (val: string | number | undefined) => {
+      const numberVal = Number.parseInt(String(val ?? '').trim(), 10);
       const stringVal = numberVal.toString();
       if (numberVal) {
         if (!retentionDaysList.value.some(item => item.id === stringVal)) {
@@ -268,28 +270,18 @@ export default defineComponent({
       }
     };
 
-    // 渲染采集项选项
-    const renderCollectorOptions = () => {
-      return collectorList.value.map(item => (
-        <bk-option-group
-          id={item.id}
-          key={item.id}
-          name={item.name}
-          show-collapse
-        >
-          {item.list.map((option: any) => (
-            <bk-option
-              id={option.id}
-              key={option.id}
-              disabled={!option.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
-              name={option.name}
-            >
-              {option.name}
-            </bk-option>
-          ))}
-        </bk-option-group>
-      ));
-    };
+    const collectorTreeData = computed(() => collectorList.value
+      .filter(item => item.list.length)
+      .map(item => ({
+        value: item.id,
+        label: item.name,
+        activable: false,
+        children: item.list.map((option: any) => ({
+          value: option.id,
+          label: option.name,
+          disabled: !option.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
+        })),
+      })));
 
     // 渲染仓库选项
     const renderRepositoryOptions = () => {
@@ -321,6 +313,7 @@ export default defineComponent({
       () => props.showSlider,
       async val => {
         if (val) {
+          expandedCollectorGroups.value = collectorList.value.map(item => item.id);
           sliderLoading.value = isEdit.value;
           await getCollectorList();
           await getRepoList();
@@ -395,19 +388,38 @@ export default defineComponent({
                         property='instance_id'
                         required
                       >
-                        <bk-select
+                        <TTreeSelect
+                          class='archive-collector-select'
                           clearable={false}
+                          data={collectorTreeData.value}
                           data-test-id='formContainer_select_selectCollector'
                           disabled={isEdit.value}
+                          filterable
+                          placeholder={t('请选择')}
+                          popupProps={{
+                            overlayClassName: ['t-select__dropdown', 'archive-collector-dropdown'],
+                            overlayInnerStyle: triggerElement => ({ width: `${triggerElement.offsetWidth}px` }),
+                          }}
+                          treeProps={{
+                            icon: false,
+                            line: false,
+                            expandOnClickNode: true,
+                            expanded: expandedCollectorGroups.value,
+                            maxHeight: 250,
+                            label: (_, node) => Array.isArray(node.data.children) ? (
+                              <span class='archive-collector-group'>
+                                {node.expanded ? '-' : '+'}{node.label} ({node.data.children.length})
+                              </span>
+                            ) : node.label,
+                            onExpand: values => (expandedCollectorGroups.value = values),
+                          }}
                           value={formData.instance_id}
-                          searchable
-                          onChange={(val: string) => {
+                          onChange={val => {
+                            if (typeof val !== 'string' && typeof val !== 'number') return;
                             formData.instance_id = val;
                             handleCollectorChange(val);
                           }}
-                        >
-                          {renderCollectorOptions()}
-                        </bk-select>
+                        />
                       </bk-form-item>
 
                       {/* 归档仓库 */}
@@ -437,15 +449,15 @@ export default defineComponent({
                           v-slots={{
                             trigger: () => <div class='bk-select-name'>{getDaysStr.value}</div>,
                             extension: () => (
-                              <div style='padding: 8px 0'>
+                              <div class='archive-retention-extension'>
                                 <bk-input
                                   placeholder={t('输入自定义天数，按 Enter 确认')}
                                   show-controls={false}
-                                  size='small'
+                                  size='medium'
                                   type='number'
                                   value={customRetentionDay.value}
-                                  onChange={(val: string) => (customRetentionDay.value = val)}
-                                  onEnter={(val: string) => enterCustomDay(val)}
+                                  onChange={(val: string | number | undefined) => (customRetentionDay.value = String(val ?? ''))}
+                                  onEnter={enterCustomDay}
                                 />
                               </div>
                             ),

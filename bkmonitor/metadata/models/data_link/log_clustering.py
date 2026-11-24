@@ -242,6 +242,9 @@ def _prepare_store(sink, suffix, fields, target, *, es_config=None):
         if suffix == "pattern":
             # Pattern Binding 使用按日写别名，与原表的日期格式独立。
             storage_options["date_format"] = "%Y%m%d"
+            # 生命周期任务要求已登记 mapping；index_body 从 Pattern 自身的字段生成 properties。
+            if storage is None or not json.loads(storage.mapping_settings or "{}"):
+                storage_options["mapping_settings"] = {"properties": {}}
         else:
             storage_options["mapping_settings"] = json.loads(source.mapping_settings or "{}")
         if storage is None:

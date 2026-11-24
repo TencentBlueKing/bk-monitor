@@ -31,21 +31,21 @@ import { Alert as Alert, Tag as Tag } from 'tdesign-vue-next';
 import { MessagePlugin as TDesignMessage, Button as TButton, Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
-import { Component } from 'vue-property-decorator';
+import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import BizMenuSelect from '@/shared/global/bk-space-choice/index';
-import { Select, Option, Input, Table } from 'tdesign-vue-next';
+import { Checkbox, CheckboxGroup, Select, Option, Input, Popup, Table } from 'tdesign-vue-next';
+import { SearchIcon, SettingIcon } from 'tdesign-icons-vue-next';
+import { allocateOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
+import type { CheckboxGroupValue, FilterValue, PageInfo, PrimaryTableCol, SortInfo, TableSort } from 'tdesign-vue-next';
 import dayjs from 'dayjs';
 
 import * as authorityMap from '../../shared/lib/authority-map';
-import { Debounce } from '../../shared/lib/util';
 import EmptyStatus from '../../shared/ui/empty-status/index.vue';
 import AuthorizationDialog from './authorization-dialog';
 
 import './authorization-list.scss';
-
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 const { $i18n } = window.mainComponent;
 
@@ -107,6 +107,8 @@ export interface ResourceListItem extends AuthorizationFields {
   expire_time?: string;
 }
 
+type AuthorizationRow = (ResourceListItem | UserListItem) & { rowKey: string; isExpand?: boolean };
+
 export interface EditModel {
   action_id: string;
   authorized_users: string[];
@@ -144,11 +146,14 @@ export default class AuthorizationList extends tsc<object> {
   memberSelect = ''; // 展示的授权人
   memberValue = ''; // 编辑授权人输入框的值
   isEditMember = false; // 是否编辑授权人
-  searchValue = ''; // 搜索关键字
+  searchInputValue = ''; // 输入框即时值
+  searchValue = ''; // 防抖后的列表搜索关键字
+  searchTimer: ReturnType<typeof window.setTimeout> | null = null;
   columnFilters: Record<string, (number | string)[]> = {}; // 表头列筛选条件（key 为列 prop）
   angleType: AngleType = 'user'; // 视角类型
   statusActive: StatusType = 'all'; // 状态类型
-  totalListData: (ResourceListItem | UserListItem)[] = []; // 总列表数据
+  totalListData: AuthorizationRow[] = []; // 总列表数据
+  sortInfo: SortInfo | null = null; // 不能初始化为 undefined：类组件会丢弃 undefined 字段，导致排序状态失去响应式
   // 列表Columns管理
   tableColumns: { [key in AngleType]: ColumnItem[] } = {
     user: [
@@ -156,33 +161,33 @@ export default class AuthorizationList extends tsc<object> {
         prop: TableColumnEnum.authorized_user,
         name: $i18n.t('被授权人'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { width: 120, minWidth: 120, filters: [] },
       },
       {
         prop: TableColumnEnum.action_id,
         name: $i18n.t('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { width: 120, minWidth: 120, filters: [] },
       },
       {
         prop: TableColumnEnum.resources,
         name: $i18n.t('操作实例'),
         hidden: false,
-        props: { minWidth: 200, filters: [], 'filter-method': this.filterMethod },
+        props: { width: 200, minWidth: 200, filters: [] },
       },
       {
         prop: TableColumnEnum.authorizer,
         name: $i18n.t('授权人'),
         authHidden: true,
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { width: 120, minWidth: 120, filters: [] },
       },
       {
         prop: TableColumnEnum.space_name,
         name: $i18n.t('所属空间'),
         authHidden: true,
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { width: 120, minWidth: 120, filters: [] },
       },
       {
         prop: TableColumnEnum.expire_time,
@@ -202,33 +207,33 @@ export default class AuthorizationList extends tsc<object> {
         prop: TableColumnEnum.resource_id,
         name: $i18n.t('操作实例'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { width: 200, minWidth: 200, filters: [] },
       },
       {
         prop: TableColumnEnum.action_id,
         name: $i18n.t('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod, width: 200 },
+        props: { filters: [], width: 200, minWidth: 120 },
       },
       {
         prop: TableColumnEnum.authorized_users,
         name: $i18n.t('被授权人'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { width: 120, minWidth: 120, filters: [] },
       },
       {
         prop: TableColumnEnum.authorizer,
         name: $i18n.t('授权人'),
         authHidden: true,
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { width: 120, minWidth: 120, filters: [] },
       },
       {
         prop: TableColumnEnum.space_name,
         name: $i18n.t('所属空间'),
         authHidden: true,
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { width: 120, minWidth: 120, filters: [] },
       },
       {
         prop: TableColumnEnum.expire_time,
@@ -248,19 +253,19 @@ export default class AuthorizationList extends tsc<object> {
         prop: TableColumnEnum.authorized_users,
         name: $i18n.t('被授权人'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { width: 120, minWidth: 120, filters: [] },
       },
       {
         prop: TableColumnEnum.action_id,
         name: $i18n.t('操作权限'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod },
+        props: { width: 120, minWidth: 120, filters: [] },
       },
       {
         prop: TableColumnEnum.resources,
         name: $i18n.t('操作实例'),
         hidden: false,
-        props: { filters: [], 'filter-method': this.filterMethod, minWidth: 200 },
+        props: { filters: [], width: 200, minWidth: 200 },
       },
       {
         prop: TableColumnEnum.created_at,
@@ -285,8 +290,7 @@ export default class AuthorizationList extends tsc<object> {
   // 分页
   pagination = {
     current: 1,
-    count: 0,
-    limit: 10,
+    pageSize: 10,
   };
   loading = false;
   resourcesLoading = true; // 操作实例loading
@@ -295,6 +299,9 @@ export default class AuthorizationList extends tsc<object> {
   rowData: EditModel | null = null; // 编辑行数据
   emptyStatusType: EmptyStatusType = 'empty';
   visible = false;
+  columnSettingVisible = false;
+  columnSettingDraft: CheckboxGroupValue = [];
+  columnSettingZIndex: number | undefined = undefined;
   abortController: AbortController | undefined = undefined;
 
   // // 是否是admin用户
@@ -311,6 +318,43 @@ export default class AuthorizationList extends tsc<object> {
   // 实际展示列表列
   get currentColumns() {
     return this.tableColumns[this.angleType].filter(item => !(item.hidden || item.authHidden));
+  }
+
+  get settingColumns() {
+    return this.tableColumns[this.angleType].filter(column => !column.authHidden);
+  }
+
+  get isAllColumnsChecked() {
+    return this.settingColumns.every(column => this.columnSettingDraft.includes(column.prop));
+  }
+
+  get displayColumns() {
+    return ['serial', ...this.currentColumns.map(column => column.prop), 'operation', 'setting'];
+  }
+
+  get nativeColumns(): PrimaryTableCol[] {
+    return [
+      {
+        colKey: 'serial',
+        title: 'ID',
+        width: 105,
+        cell: (_h, { rowIndex }) => String((this.pagination.current - 1) * this.pagination.pageSize + rowIndex + 1),
+      },
+      ...this.tableColumns[this.angleType].filter(column => !column.authHidden).map(column => this.renderColumn(column)),
+      {
+        colKey: 'operation',
+        title: this.$t('操作'),
+        width: 140,
+        cell: (_h, { row }) => this.renderOperation(row as AuthorizationRow),
+      },
+      {
+        colKey: 'setting',
+        title: () => this.renderColumnSetting(),
+        width: 40,
+        align: 'center',
+        cell: () => '',
+      },
+    ];
   }
 
   // 实际展示的状态选项
@@ -363,17 +407,26 @@ export default class AuthorizationList extends tsc<object> {
     });
   }
 
-  // 经过筛选，分页后实际展示的列表数据
+  // 经过筛选、排序，分页后实际展示的列表数据
   get listData() {
-    const { current, limit } = this.pagination;
-    return this.filteredListData.slice((current - 1) * limit, current * limit);
+    const { current, pageSize } = this.pagination;
+    const data = [...this.filteredListData];
+    if (this.sortInfo) {
+      const { sortBy, descending } = this.sortInfo;
+      const key = sortBy as 'created_at' | 'expire_time';
+      data.sort((left, right) => {
+        const leftTime = left[key] ? dayjs(left[key]).valueOf() : 0;
+        const rightTime = right[key] ? dayjs(right[key]).valueOf() : 0;
+        return (leftTime - rightTime) * (descending ? -1 : 1);
+      });
+    }
+    return data.slice((current - 1) * pageSize, current * pageSize);
   }
 
-  // 表格分页配置（count 由筛选结果派生，保证列筛选/状态/关键字与分页联动正确）
   get tablePagination() {
     return {
       ...this.pagination,
-      count: this.filteredListData.length,
+      total: this.filteredListData.length,
     };
   }
 
@@ -387,6 +440,10 @@ export default class AuthorizationList extends tsc<object> {
       this.getListData();
       this.getAuthUser();
     }
+  }
+
+  beforeDestroy() {
+    this.clearSearchTimer();
   }
 
   async checkBizAllow() {
@@ -502,6 +559,7 @@ export default class AuthorizationList extends tsc<object> {
       this.statusActive = 'all';
     }
     this.angleType = type;
+    this.sortInfo = null;
     // 切换视角后表格重建，清空上一视角的列筛选条件
     this.columnFilters = {};
     this.$router.replace({
@@ -519,12 +577,23 @@ export default class AuthorizationList extends tsc<object> {
     this.changeEmptyStatusType();
   }
 
-  // 关键字搜索
-  @Debounce(300)
-  handleSearchBlur(val: string) {
-    this.searchValue = val;
-    this.pagination.current = 1;
-    this.changeEmptyStatusType();
+  clearSearchTimer() {
+    if (this.searchTimer !== null) {
+      window.clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
+  }
+
+  // 受控输入值立即回写，仅延迟列表筛选。
+  handleSearchChange(val: string) {
+    this.searchInputValue = val;
+    this.clearSearchTimer();
+    this.searchTimer = window.setTimeout(() => {
+      this.searchTimer = null;
+      this.searchValue = val;
+      this.pagination.current = 1;
+      this.changeEmptyStatusType();
+    }, 300);
   }
 
   async handleListDataAsync() {
@@ -540,7 +609,10 @@ export default class AuthorizationList extends tsc<object> {
     }
     const [isSuccess, data] = res;
     if (isSuccess) {
-      this.totalListData = data;
+      this.totalListData = data.map((row: ResourceListItem | UserListItem, index: number) => ({
+        ...row,
+        rowKey: `${this.angleType}-${index}`,
+      }));
       // 数据就绪后重建表头筛选项（created 阶段首次构建时列表为空，会导致筛选下拉无选项）
       this.columnFilter();
       this.emptyStatusType = 'empty';
@@ -635,13 +707,15 @@ export default class AuthorizationList extends tsc<object> {
     }
   }
 
-  //  分页
-  handlePageChange(page: number) {
-    this.pagination.current = page;
+  handlePageChange({ current, pageSize }: PageInfo) {
+    this.pagination.current = pageSize === this.pagination.pageSize ? current : 1;
+    this.pagination.pageSize = pageSize;
   }
-  handlePageLimitChange(limit: number) {
+
+  handleSortChange(sort: TableSort) {
+    // 取消排序时 TDesign 会回传 undefined，这里统一收敛为 null，避免响应式字段再次变回 undefined
+    this.sortInfo = (Array.isArray(sort) ? sort[0] : sort) ?? null;
     this.pagination.current = 1;
-    this.pagination.limit = limit;
   }
 
   getFilterConfig(prop: TableColumnEnum, set: Set<any>) {
@@ -662,7 +736,7 @@ export default class AuthorizationList extends tsc<object> {
       // 按「操作-实例」去重；resourceMaps 未就绪时用 id 兜底，避免对 undefined 取 find 报错
       const existKeys = new Set<string>();
       return valSet
-        .filter((obj: { id: number; action: string }) => {
+        .filter((obj: { id: ResourceId; action: string }) => {
           const key = `${obj.action}-${obj.id}`;
           if (existKeys.has(key)) {
             return false;
@@ -670,8 +744,8 @@ export default class AuthorizationList extends tsc<object> {
           existKeys.add(key);
           return true;
         })
-        .map((obj: { id: number; action: string }) => ({
-          text: this.resourceMaps[obj.action]?.find((rItem: { id: number; }) => rItem.id === obj.id)?.text ?? String(obj.id),
+        .map((obj: { id: ResourceId; action: string }) => ({
+          text: this.resourceMaps[obj.action]?.find(rItem => rItem.id === obj.id || rItem.uid === obj.id)?.text ?? String(obj.id),
           value: obj.id,
         }));
     }
@@ -694,171 +768,189 @@ export default class AuthorizationList extends tsc<object> {
         item.props.filters = this.updateFilter(prop, Array.from(set));
       }
     }
-    this.syncFilterPanelOptions();
   }
 
-  // 列表表头筛选
-  filterMethod(value: unknown, row: { [x: string]: any; }, column: { property: any; }) {
-    const { property } = column;
-    return Array.isArray(row[property]) ? row[property].includes(value) : row[property] === value;
-  }
-
-  // 表头列筛选变更（确定/重置时触发，key 为列的 column-key 即 prop）
-  handleFilterChange(filters: Record<string, (number | string)[]>) {
-    for (const [prop, values] of Object.entries(filters)) {
-      if (values?.length) {
-        this.$set(this.columnFilters, prop, values);
-      } else {
-        this.$delete(this.columnFilters, prop);
-      }
-    }
+  handleFilterChange(filters: FilterValue) {
+    this.columnFilters = Object.fromEntries(
+      Object.entries(filters).filter(([, values]) => Array.isArray(values) && values.length),
+    );
     this.pagination.current = 1;
-    // 列筛选可能把列表过滤为空，同步空状态类型（empty / search-empty）
     this.changeEmptyStatusType();
   }
 
-  // 清空表头列筛选（同步表格内部筛选面板状态）
   resetColumnFilters() {
-    (this.$refs.authTable as any)?.clearFilter?.();
     this.columnFilters = {};
   }
 
-  // 筛选面板创建时仅读取一次 filters 快照，这里同步已创建面板的最新选项。
-  // 注意：column.filters 由 TableColumn 的 prop watcher 在下一轮渲染才写入，
-  // 同步调用时读到的是旧引用（如切换业务后候选项过期），故直接从 tableColumns 数据源取最新值
-  syncFilterPanelOptions() {
-    const panels = (this.$refs.authTable as any)?.$refs?.tableHeader?.filterPanels ?? {};
-    const columnMap = new Map(this.tableColumns[this.angleType].map(item => [item.prop, item]));
-    for (const panel of Object.values(panels) as any[]) {
-      const prop = panel.column?.property as TableColumnEnum | undefined;
-      const filters = (prop && columnMap.get(prop)?.props?.filters) || [];
-      if (prop && panel.filters !== filters) {
-        panel.filters = filters;
-      }
-    }
+  @Watch('angleType')
+  closeColumnSetting() {
+    this.columnSettingVisible = false;
   }
 
-  handleSettingChange({ fields }: { fields: ColumnItem[] }) {
-    for (const item of this.tableColumns[this.angleType]) {
-      item.hidden = !fields.some((field: { prop: TableColumnEnum; }) => item.prop === field.prop);
+  handleColumnSettingVisibleChange(visible: boolean) {
+    if (visible) {
+      this.columnSettingDraft = this.currentColumns.map(column => column.prop);
+      this.columnSettingZIndex = allocateOverlayZIndex('DROPDOWN');
     }
+    this.columnSettingVisible = visible;
   }
 
-  // 自定义列渲染
-  renderColumn(column: ColumnItem) {
-    if (column.prop === TableColumnEnum.authorized_users) {
-      return (
-        <TableColumn
-          nativeCellSlot={true}
-          key={column.prop}
-          columnKey={column.prop}
-          label={column.name}
-          prop={column.prop}
-          {...{
-            ...column.props,
-          }}
-          v-slots={{
-            default: ({ row }) => (
-              <div v-log-overflow-tips={{ content: row.authorized_users?.join(',') }}>
-                {row.authorized_users?.map((item: string|number|symbol|undefined) => (
-                  <Tag
-                    key={item}
-                    class='user-tag' variant='light' data-v2-display='tag'
-                  >
-                    {item}
-                  </Tag>
-                ))}
-              </div>
-            ),
-          }}
-        />
-      );
-    }
-    if (column.prop === TableColumnEnum.resources || column.prop === TableColumnEnum.resource_id) {
-      return (
-        <TableColumn
-          nativeCellSlot={true}
-          key={column.prop}
-          columnKey={column.prop}
-          label={column.name}
-          prop={column.prop}
-          {...{
-            ...column.props,
-          }}
-          v-slots={{
-            default: ({ row }) => {
-              const resourceList = this.resourceMaps[row.action_id] || [];
+  handleColumnSettingSelectAll(checked: boolean) {
+    this.columnSettingDraft = checked ? this.settingColumns.map(column => column.prop) : [];
+  }
 
-              if (column.prop === 'resources') {
-                return (
-                  <div v-loading={{ loading: this.resourcesLoading }}>
-                    {row.resources?.map((id: string|number|symbol|undefined, ind: number) =>
-                      ind < 3 || row.isExpand ? (
-                        <div
-                          key={id}
-                          class='resource-item'
-                        >
-                          {resourceList.find((item: { uid: any; }) => item.uid === id)?.text}
-                        </div>
-                      ) : undefined,
-                    )}
-                    {row.resources?.length > 3 && (
-                      <p
-                        class='expand-btn'
-                        onClick={() => {
-                          this.$set(row, 'isExpand', !row.isExpand);
-                        }}
-                      >
-                        {row.isExpand ? this.$t('收起') : this.$t('展开')}
-                      </p>
-                    )}
-                  </div>
-                );
-              }
-              return (
-                <div v-loading={{ loading: this.resourcesLoading }}>
-                  <div>{resourceList.find((item: { uid: any; }) => item.uid === row.resource_id)?.text}</div>
-                </div>
-              );
-            },
-          }}
-        />
-      );
+  confirmColumnSetting() {
+    for (const column of this.settingColumns) {
+      column.hidden = !this.columnSettingDraft.includes(column.prop);
     }
-    if (column.prop === TableColumnEnum.action_id) {
-      return (
-        <TableColumn
-          nativeCellSlot={true}
-          key={column.prop}
-          columnKey={column.prop}
-          label={column.name}
-          prop={column.prop}
-          {...{
-            ...column.props,
-          }}
-          v-slots={{
-            default: ({ row }) => {
-              return (
-                <div>
-                  <div>{this.actionList.find(item => item.id === row.action_id)?.name}</div>
-                </div>
-              );
-            },
-          }}
-        />
-      );
-    }
+    this.closeColumnSetting();
+  }
 
+  renderColumnSetting() {
     return (
-      <TableColumn
-        key={column.prop}
-        columnKey={column.prop}
-        label={column.name}
-        prop={column.prop}
-        {...{
-          ...column.props,
-        }}
-      />
+      <Popup
+        key={this.angleType}
+        visible={this.columnSettingVisible}
+        trigger='click'
+        placement='bottom-right'
+        showArrow
+        zIndex={this.columnSettingZIndex}
+        overlayInnerClassName='authorization-column-setting-popup'
+        onVisibleChange={this.handleColumnSettingVisibleChange}
+        content={() => (
+          <div class='authorization-column-setting'>
+            <div class='authorization-column-setting__content'>
+              <div class='authorization-column-setting__title'>{this.$t('表格设置')}</div>
+              <div class='authorization-column-setting__heading'>
+                <span>{this.$t('字段显示设置')}</span>
+                <Checkbox
+                  checked={this.isAllColumnsChecked}
+                  indeterminate={this.columnSettingDraft.length > 0 && !this.isAllColumnsChecked}
+                  onChange={this.handleColumnSettingSelectAll}
+                >
+                  {this.$t('全选')}
+                </Checkbox>
+              </div>
+              <CheckboxGroup
+                class='authorization-column-setting__fields'
+                value={this.columnSettingDraft}
+                onChange={value => { this.columnSettingDraft = value; }}
+              >
+                {this.settingColumns.map(column => (
+                  <Checkbox key={column.prop} value={column.prop}>{column.name}</Checkbox>
+                ))}
+              </CheckboxGroup>
+            </div>
+            <div class='authorization-column-setting__actions'>
+              <TButton theme='primary' size='small' onClick={this.confirmColumnSetting}>
+                {this.$t('确认')}
+              </TButton>
+              <TButton variant='outline' size='small' onClick={this.closeColumnSetting}>
+                {this.$t('取消')}
+              </TButton>
+            </div>
+          </div>
+        )}
+      >
+        <button type='button' class='authorization-column-setting-trigger' aria-label={this.$t('表格设置')}>
+          <SettingIcon />
+        </button>
+      </Popup>
+    );
+  }
+
+  renderColumn(column: ColumnItem): PrimaryTableCol {
+    const { filters, sortable, width, minWidth } = column.props;
+    return {
+      colKey: column.prop,
+      title: column.name,
+      width,
+      minWidth,
+      sorter: sortable,
+      filter: filters ? {
+        type: 'multiple',
+        showConfirmAndReset: true,
+        style: {
+          maxHeight: '250px',
+          overflowY: 'auto',
+        },
+        list: filters.map(({ text, value }: { text: string; value: ResourceId }) => ({ label: text, value })),
+      } : undefined,
+      cell: (_h, { row }) => this.renderCell(row as AuthorizationRow, column.prop),
+    };
+  }
+
+  renderCell(row: AuthorizationRow, prop: TableColumnEnum) {
+    if (prop === TableColumnEnum.authorized_users) {
+      return (
+        <div v-log-overflow-tips={{ content: row.authorized_users?.join(',') }}>
+          {row.authorized_users?.map(item => (
+            <Tag key={item} class='user-tag' variant='light' data-v2-display='tag'>
+              {item}
+            </Tag>
+          ))}
+        </div>
+      );
+    }
+    if (prop === TableColumnEnum.resources || prop === TableColumnEnum.resource_id) {
+      const resourceList = this.resourceMaps[row.action_id] || [];
+      const resourceName = (id: ResourceId | undefined) => resourceList.find(item => item.id === id || item.uid === id)?.text;
+      if (prop === TableColumnEnum.resources) {
+        const resources = row.resources;
+        return (
+          <div v-loading={{ loading: this.resourcesLoading }}>
+            {resources?.map((id, index) => index < 3 || row.isExpand ? (
+              <div key={id} class='resource-item'>{resourceName(id)}</div>
+            ) : undefined)}
+            {resources && resources.length > 3 && (
+              <p class='expand-btn' onClick={() => { row.isExpand = !row.isExpand; }}>
+                {row.isExpand ? this.$t('收起') : this.$t('展开')}
+              </p>
+            )}
+          </div>
+        );
+      }
+      return (
+        <div v-loading={{ loading: this.resourcesLoading }}>
+          <div>{resourceName(row.resource_id)}</div>
+        </div>
+      );
+    }
+    if (prop === TableColumnEnum.action_id) {
+      return <div>{this.actionList.find(item => item.id === row.action_id)?.name}</div>;
+    }
+    if (prop === TableColumnEnum.status) {
+      return this.statusFormatter(row, undefined, row.status);
+    }
+    if (prop === TableColumnEnum.expire_time || prop === TableColumnEnum.created_at) {
+      return this.timeFormatter(row, undefined, row[prop]);
+    }
+    return row[prop];
+  }
+
+  renderOperation(row: AuthorizationRow) {
+    return (
+      <div class='authorization-row-actions'>
+        {this.angleType === 'approval' ? (
+          <TButton theme='primary' variant='text' onClick={() => window.open(row.approval_url)}>
+            {this.$t('查看详情')}
+          </TButton>
+        ) : (
+          <>
+            <TButton
+              theme='primary'
+              variant='text'
+              disabled={row.status === 'expired' || row.status === 'invalid'}
+              onClick={() => this.showDialog(row)}
+            >
+              {this.$t('编辑')}
+            </TButton>
+            <TButton theme='primary' variant='text' onClick={() => this.handleDelete(row)}>
+              {this.$t('删除')}
+            </TButton>
+          </>
+        )}
+      </div>
     );
   }
 
@@ -868,7 +960,7 @@ export default class AuthorizationList extends tsc<object> {
    * @param color2 状态文字颜色
    * @returns 状态点
    */
-  statusPoint(color1: string, color2: string|undefined) {
+  statusPoint(color1: string | undefined, color2: string | undefined) {
     return (
       <div
         style={{ background: color2 }}
@@ -884,7 +976,7 @@ export default class AuthorizationList extends tsc<object> {
 
   // 状态列格式化
   statusFormatter(_row: unknown, _column: unknown, cellValue: string) {
-    const item = STATUS_LIST.find(sItem => sItem.id === cellValue);
+    const item = STATUS_LIST.find(sItem => sItem.id === cellValue)!;
     return (
       <div class='status-wrap'>
         {this.statusPoint(item?.color1, item?.color2)}
@@ -935,6 +1027,8 @@ export default class AuthorizationList extends tsc<object> {
       return;
     }
     if (type === 'clear-filter') {
+      this.clearSearchTimer();
+      this.searchInputValue = '';
       this.searchValue = '';
       this.statusActive = 'all';
       this.pagination.current = 1;
@@ -1088,9 +1182,9 @@ export default class AuthorizationList extends tsc<object> {
 
                 <Input
                   class='search-input'
-                  rightIcon='bk-icon icon-search'
-                  value={this.searchValue}
-                  onInput={this.handleSearchBlur}
+                  suffixIcon={() => <SearchIcon />}
+                  value={this.searchInputValue}
+                  onChange={value => this.handleSearchChange(String(value))}
                 />
               </div>
             </div>
@@ -1105,77 +1199,23 @@ export default class AuthorizationList extends tsc<object> {
                     />
                   ),
                 }}
-                ref='authTable'
                 key={this.angleType}
-                v-loading={{ loading: this.loading }}
+                rowKey='rowKey'
+                columns={this.nativeColumns}
+                displayColumns={this.displayColumns}
+                loading={this.loading}
                 data={this.listData}
+                disableDataPage
+                filterValue={this.columnFilters}
+                filterRow={() => ''}
+                sort={this.sortInfo ?? undefined}
                 maxHeight={600}
                 pagination={this.tablePagination}
                 size='large'
-                rowAutoHeight
                 onFilterChange={this.handleFilterChange}
                 onPageChange={this.handlePageChange}
-                onPageLimitChange={this.handlePageLimitChange}
-              >
-                <TableColumn
-                  nativeCellSlot={true}
-                  width={105}
-                  v-slots={{
-                    default: ({ $index }) => (
-                      <div>{(this.pagination.current - 1) * this.pagination.limit + $index + 1}</div>
-                    ),
-                  }}
-                  label='ID'
-                />
-                {this.currentColumns.map(column => this.renderColumn(column))}
-                <TableColumn
-                  nativeCellSlot={true}
-                  width={140}
-                  v-slots={{
-                    default: ({ row }: import("@/shared/types/table-row-scope").TableRowScope<AuthorizationList["listData"]>) => (
-                      <div>
-                        {this.angleType === 'approval' ? (
-                          <TButton
-
-                            onClick={() => window.open(row.approval_url)} variant={(true) ? 'text' : ('base')}
-                          >
-                            {this.$t('查看详情')}
-                          </TButton>
-                        ) : (
-                          [
-                            <TButton
-                              key='edit'
-                              style='margin-right: 16px'
-
-                              disabled={row.status === 'expired' || row.status === 'invalid'}
-                              onClick={() => this.showDialog(row)} variant={(true) ? 'text' : ('base')}
-                            >
-                              {this.$t('编辑')}
-                            </TButton>,
-                            <TButton
-                              key='delete'
-
-                              onClick={() => this.handleDelete(row)} variant={(true) ? 'text' : ('base')}
-                            >
-                              {this.$t('删除')}
-                            </TButton>,
-                          ]
-                        )}
-                      </div>
-                    ),
-                  }}
-                  label={this.$t('操作')}
-                />
-                <TableColumn type='setting'>
-                  <bk-table-setting-content
-                    fields={this.tableColumns[this.angleType].filter(item => !item.authHidden)}
-                    label-key='name'
-                    selected={this.currentColumns}
-                    value-key='prop'
-                    onSettingChange={this.handleSettingChange}
-                  />
-                </TableColumn>
-              </Table>
+                onSortChange={this.handleSortChange}
+              />
             </div>
           </div>
         </div>

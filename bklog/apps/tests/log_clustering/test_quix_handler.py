@@ -170,6 +170,10 @@ class TestQuixClusteringHandler(TestCase):
         with (
             patch("apps.log_clustering.handlers.quix.operation.get_quix_config", return_value=QUIX_CONFIG),
             patch(
+                "apps.log_clustering.handlers.quix.operation.TransferApi.get_data_id",
+                return_value={"mq_config": {"cluster_config": {"cluster_id": 12}}},
+            ),
+            patch(
                 "apps.log_clustering.handlers.quix.operation.BkFaraApi.create_task",
                 return_value={"task_id": "test-task"},
             ) as create_task,

@@ -582,4 +582,6 @@ export default {
   复制完整地址: 'Copy Full Address',
   查看官方定义: 'Check the official definition',
   定位: 'Locate',
+  // 采集器版本校验
+  跳过校验: 'Skip verification',
 };

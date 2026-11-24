@@ -35,7 +35,6 @@ def get_quix_config() -> dict:
     读取 MINI_CLUSTERING_CONFIG 开关 feature_config 中的 bkbase_quix 配置，结构：
     {
         "profile": "...",               # BKFara 部署方登记的聚类任务 Profile 名称
-        "kafka_resource": {"kind": "Kafka", "namespace": "...", "name": "..."},           # BKBase 已登记资源
         "runtime_cluster": {"kind": "DatabusCluster", "namespace": "...", "name": "..."},
         "max_message_bytes": 1048576,     # 可选
         "result_modes": {"42": "append"}, # 可选，按索引集选择独立表；仅首次开启读取
@@ -48,9 +47,8 @@ def get_quix_config() -> dict:
 
     missing = [] if config.get("profile") else ["profile"]
 
-    for resource_key in ("kafka_resource", "runtime_cluster"):
-        resource = config.get(resource_key) or {}
-        missing.extend(f"{resource_key}.{key}" for key in REQUIRED_RESOURCE_KEYS if not resource.get(key))
+    resource = config.get("runtime_cluster") or {}
+    missing.extend(f"runtime_cluster.{key}" for key in REQUIRED_RESOURCE_KEYS if not resource.get(key))
 
     if missing:
         raise QuixClusteringConfigInvalidException(

@@ -44,6 +44,7 @@ import {
   InputNumber as TInputNumber,
   Select as TSelect,
   Option as TOption,
+  Tooltip as TTooltip,
   type FormInstanceFunctions,
 } from 'tdesign-vue-next';
 import { overlayRegistry } from '@/shared/global/overlay/overlay-registry';
@@ -930,6 +931,7 @@ export default defineComponent({
     const renderVisibleScope = () => (
       <TFormItem style='margin-top: 4px' label={t('可见范围')}>
         <TRadioGroup
+          class='scope-radio-group'
           value={formData.value.visible_config.visible_type}
           onChange={(value) => {
             if (typeof value === 'string') ((v: string) => (formData.value.visible_config.visible_type = v))(value);
@@ -1078,6 +1080,7 @@ export default defineComponent({
                       class='king-form bklog-form--drawer-cluster'
                       labelAlign='top'
                       labelWidth={170}
+                      requiredMark={false}
                       {...{
                         ...{
                           data: basicFormData.value,
@@ -1273,10 +1276,10 @@ export default defineComponent({
                               <div class='flex-space-item'>
                                 <div class='space-item-label'>{t('默认')}</div>
                                 <TInputNumber
+                                  theme='column'
                                   max={Number(formData.value.setup_config.number_of_replicas_max)}
                                   min={0}
                                   value={formData.value.setup_config.number_of_replicas_default}
-                                  style={{width: '100%'}}
                                   onChange={(val) =>
                                     (formData.value.setup_config.number_of_replicas_default = Number(val ?? ''))
                                   }
@@ -1285,9 +1288,9 @@ export default defineComponent({
                               <div class='flex-space-item'>
                                 <div class='space-item-label'>{t('最大')}</div>
                                 <TInputNumber
+                                  theme='column'
                                   min={Number(formData.value.setup_config.number_of_replicas_default)}
                                   value={formData.value.setup_config.number_of_replicas_max}
-                                  style={{width: '100%'}}
                                   onChange={(val) =>
                                     (formData.value.setup_config.number_of_replicas_max = Number(val ?? ''))
                                   }
@@ -1302,10 +1305,10 @@ export default defineComponent({
                               <div class='flex-space-item'>
                                 <div class='space-item-label'>{t('默认')}</div>
                                 <TInputNumber
+                                  theme='column'
                                   max={Number(formData.value.setup_config.es_shards_max)}
                                   min={1}
                                   value={formData.value.setup_config.es_shards_default}
-                                  style={{width: '100%'}}
                                   onChange={(val) =>
                                     (formData.value.setup_config.es_shards_default = Number(val ?? ''))
                                   }
@@ -1314,9 +1317,9 @@ export default defineComponent({
                               <div class='flex-space-item'>
                                 <div class='space-item-label'>{t('最大')}</div>
                                 <TInputNumber
+                                  theme='column'
                                   min={Number(formData.value.setup_config.es_shards_default)}
                                   value={formData.value.setup_config.es_shards_max}
-                                  style={{width: '100%'}}
                                   onChange={(val) =>
                                     (formData.value.setup_config.es_shards_max = Number(val ?? ''))
                                   }
@@ -1444,7 +1447,14 @@ export default defineComponent({
                           </div>
 
                           {/* 集群负责人 */}
-                          <TFormItem help={t('集群负责人可以用于容量审核等')} label={t('集群负责人')} requiredMark>
+                          <TFormItem
+                            label={() => (
+                              <TTooltip content={t('集群负责人可以用于容量审核等')} zIndex={selectZIndex.value + 1}>
+                                <span class='cluster-owner-label'>{t('集群负责人')}</span>
+                              </TTooltip>
+                            )}
+                            requiredMark
+                          >
                             <div class='principal'>
                               <ValidateUserSelector
                                 placeholder={t('请选择集群负责人')}
@@ -1455,7 +1465,7 @@ export default defineComponent({
                           </TFormItem>
 
                           {/* 集群说明 */}
-                          <TFormItem class='illustrate' label={t('说明')}>
+                          <TFormItem label={t('说明')}>
                             <TTextarea
                               maxlength={100}
                               class='cluster-description-textarea'
@@ -1468,29 +1478,29 @@ export default defineComponent({
                       )}
                     </TForm>
                   )}
-
-                  {/* 底部提交按钮 */}
-                  <div class='submit-container'>
-                    <TButton
-                      class='king-button mr10'
-                      data-test-id='esAccessFromBox_button_confirm'
-                      disabled={isDisableClickSubmit.value}
-                      loading={confirmLoading.value}
-                      theme='primary'
-                      onClick={handleConfirm}
-                    >
-                      {t('提交')}
-                    </TButton>
-                    <TButton
-                      theme='default'
-                      variant='outline'
-                      data-test-id='esAccessFromBox_button_cancel'
-                      onClick={handleCancel}
-                    >
-                      {t('取消')}
-                    </TButton>
-                  </div>
                 </BklogLoading>
+              </>
+            ),
+            footer: () => (
+              <>
+                <TButton
+                  class='king-button'
+                  data-test-id='esAccessFromBox_button_confirm'
+                  disabled={isDisableClickSubmit.value}
+                  loading={confirmLoading.value}
+                  theme='primary'
+                  onClick={handleConfirm}
+                >
+                  {t('提交')}
+                </TButton>
+                <TButton
+                  theme='default'
+                  variant='outline'
+                  data-test-id='esAccessFromBox_button_cancel'
+                  onClick={handleCancel}
+                >
+                  {t('取消')}
+                </TButton>
               </>
             ),
           }}
@@ -1498,7 +1508,6 @@ export default defineComponent({
           size='640px'
           visible={props.showSlider}
           header={isEdit.value ? t('编辑集群') : t('新建集群')}
-          footer={false}
           attach='body'
           closeOnEscKeydown
           closeOnOverlayClick

@@ -7,6 +7,7 @@ import {
   ref,
   watch,
   type App,
+  type PropType,
   type VNode,
   type VNodeArrayChildren,
 } from 'vue';
@@ -41,6 +42,8 @@ import {
   TagInput,
   Textarea,
   TimePicker,
+  type DatePickerProps,
+  type PopupProps,
 } from 'tdesign-vue-next';
 import BkSearchSelect from '@/shared/ui/bk-search-select';
 import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
@@ -373,6 +376,7 @@ const BkSelect = defineComponent({
   },
   emits: ['update:modelValue', 'change', 'input', 'toggle', 'clear', 'selected'],
   setup(props, { attrs, slots, emit }) {
+    const popupZIndex = ref<number>();
     const publish = (value: unknown) => {
       emit('update:modelValue', value);
       emit('input', value);
@@ -389,10 +393,16 @@ const BkSelect = defineComponent({
       loading: props.loading,
       placeholder: props.placeholder,
       options: optionNodes(flattenNodes(slots.default?.())),
-      popupProps: props.extPopoverCls ? { overlayClassName: props.extPopoverCls } : undefined,
+      popupProps: {
+        overlayClassName: props.extPopoverCls || undefined,
+        zIndex: popupZIndex.value,
+      },
       onChange: publish,
       onClear: () => emit('clear'),
-      onPopupVisibleChange: (visible: boolean) => emit('toggle', visible),
+      onPopupVisibleChange: (visible: boolean) => {
+        if (visible) popupZIndex.value = overlayRegistry.nextZIndex();
+        emit('toggle', visible);
+      },
     }, {
       panelBottomContent: slots.extension,
       empty: slots.empty,
@@ -1118,9 +1128,15 @@ const BkPagination = defineComponent({
   },
 });
 
+function normalizeBkDateFormat(format?: string) {
+  // 仅转换旧日期模板，保留原生格式中的星期 token 和转义文本。
+  return format?.replace(/^yyyy-MM-dd(?=$|[ T])/, 'YYYY-MM-DD');
+}
+
 const BkDatePicker = defineComponent({
   name: 'bk-date-picker',
   ...mode3,
+  inheritAttrs: false,
   props: {
     value: { type: [String, Number, Date, Array], default: undefined },
     modelValue: { type: [String, Number, Date, Array], default: undefined },
@@ -1128,12 +1144,41 @@ const BkDatePicker = defineComponent({
     placeholder: { type: String, default: '' },
     clearable: { type: Boolean, default: true },
     disabled: { type: Boolean, default: false },
+    format: { type: String, default: undefined },
+    valueType: { type: String, default: undefined },
+    options: {
+      type: Object as PropType<{ disabledDate?: (date: Date) => boolean }>,
+      default: undefined,
+    },
+    disableDate: {
+      type: [Array, Object, Function] as PropType<DatePickerProps['disableDate']>,
+      default: undefined,
+    },
   },
   emits: ['update:modelValue', 'change', 'input'],
   setup(props, { attrs, emit }) {
-    return () =>
-      h(DatePicker, {
+    const popupZIndex = ref<number>();
+    return () => {
+      const format = normalizeBkDateFormat(props.format);
+      const disabledDate = props.options?.disabledDate;
+      const popupProps = (attrs.popupProps ?? attrs['popup-props']) as PopupProps | undefined;
+      const onVisibleChange: NonNullable<PopupProps['onVisibleChange']> = (visible, context) => {
+        // 日期选择后内部会直接关闭面板，不能依赖关闭通知才能分配下一层。
+        if (visible) popupZIndex.value = overlayRegistry.nextZIndex();
+        popupProps?.onVisibleChange?.(visible, context);
+      };
+      return h(DatePicker, {
         ...attrs,
+        popupProps: {
+          ...popupProps,
+          zIndex: popupProps?.zIndex ?? popupZIndex.value,
+          onVisibleChange,
+        },
+        format,
+        valueType: normalizeBkDateFormat(props.valueType) ?? format,
+        disableDate: props.disableDate ?? (typeof disabledDate === 'function'
+          ? (date: string | number | Date) => disabledDate(date instanceof Date ? date : new Date(date))
+          : undefined),
         value: modelValue(props) as string,
         enableTimePicker: props.type === 'datetime',
         placeholder: props.placeholder,
@@ -1145,6 +1190,7 @@ const BkDatePicker = defineComponent({
           emit('change', value);
         },
       });
+    };
   },
 });
 

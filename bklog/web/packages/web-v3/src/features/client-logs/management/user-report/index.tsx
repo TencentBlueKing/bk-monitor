@@ -383,25 +383,29 @@ export default defineComponent({
     // const handleCleanConfig = () => {};
 
     // 搜索框回车事件
-    const handleSearchEnter = (keyword: string) => {
-      searchKeyword.value = keyword;
+    const handleSearchEnter = () => {
+      handleSearch();
     };
 
     // 搜索图标点击事件
-    const handleSearchIconClick = (keyword: string) => {
-      searchKeyword.value = keyword;
+    const handleSearchIconClick = () => {
+      handleSearch();
     };
 
     // 清空搜索
     const handleClearSearch = () => {
       searchKeyword.value = '';
+      handleSearch();
     };
 
     // 处理输入框内容改变事件
     const handleInputChange = (value: string) => {
-      if (value === '') {
-        searchKeyword.value = '';
-      }
+      searchKeyword.value = value;
+      setTimeout(() => {
+        if (searchKeyword.value === '' && !isLoading.value) {
+          handleSearch();
+        }
+      });
     };
 
     const handleViewSDKDoc = () => {
@@ -533,14 +537,6 @@ export default defineComponent({
     const handleBackList = () => {
       showUploadResult.value = false;
     };
-
-    // 监听搜索关键词变化，如果为空则自动搜索
-    watch(
-      () => searchKeyword.value,
-      () => {
-        handleSearch();
-      },
-    );
 
     // 监听 total 变化，通知父组件更新 tab 中的 count
     watch(

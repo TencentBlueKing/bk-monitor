@@ -1,0 +1,39 @@
+# bkmonitor/Dockerfile uses the repository root as its build context.
+# Include only its COPY and bind-mount inputs.
+**
+!bkmonitor/
+!bkmonitor/**
+!ai_agent/
+!ai_agent/**
+!iam_engine/
+!iam_engine/**
+!bk-monitor-base/
+!bk-monitor-base/**
+
+# Source development may use this symlink; the image copies ai_agent explicitly.
+bkmonitor/ai_agent
+
+# Developer environments and credentials are never image source inputs.
+**/.git
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/.cache
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+**/.env
+**/.env.*
+**/.gtm.yaml
+**/.netrc
+**/.pypirc
+**/.npmrc
+**/pip.conf
+**/local.settings.js
+**/local_settings.py
+bkmonitor/bkmonitor/utils/rsa/bk.key
+**/.hermes
+**/*.whl
+**/*.log

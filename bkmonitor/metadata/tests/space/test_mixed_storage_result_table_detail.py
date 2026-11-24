@@ -1498,19 +1498,12 @@ def test_es_route_omits_new_fields_even_when_snapshot_has_values():
         assert "physical_tables" not in value
         assert "bkbase_table_id" not in value
 
-    # 当前为 ES 时，混合历史中的 Doris 段仍按自身类型追加字段。
+    # 当前为 ES 且没有 DorisStorage 时，仍可使用历史 Doris 段的快照。
     _create_cluster(
         bk_tenant_id=TENANT_ID,
         cluster_id=DORIS_CLUSTER_ID,
         cluster_type=models.ClusterInfo.TYPE_DORIS,
         cluster_name="doris-history",
-    )
-    _create_doris_storage(
-        bk_tenant_id=TENANT_ID,
-        table_id=table_id,
-        cluster_id=DORIS_CLUSTER_ID,
-        bkbase_table_id="doris_rt",
-        index_set="",
     )
     models.StorageClusterRecord.objects.create(
         bk_tenant_id=TENANT_ID,
@@ -1523,6 +1516,7 @@ def test_es_route_omits_new_fields_even_when_snapshot_has_values():
     )
     detail = _push_and_get_detail(bk_tenant_id=TENANT_ID, table_id=table_id)
     doris_history, es_history = detail["storage_cluster_records"]
+    assert doris_history["db"] == "old_doris_rt"
     assert doris_history["bkbase_table_id"] == "old_doris_rt"
     assert doris_history["physical_tables"] == {"main": "db.old_doris_*"}
     for value in (detail, es_history):

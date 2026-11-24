@@ -14,6 +14,7 @@ from django.db import models
 
 from metadata.models.common import BaseModel
 from metadata.models.space.constants import SpaceTypes
+from metadata.models.space.query_router import normalize_query_router_config
 
 
 class VMShortLinkRecord(BaseModel):
@@ -46,24 +47,8 @@ class VMShortLinkRecord(BaseModel):
         verbose_name_plural = "VM 短链路接入记录"
         unique_together = (("bk_tenant_id", "table_id"), ("bk_tenant_id", "vm_result_table_id"))
 
-    @classmethod
-    def normalize_query_router_config(cls, config: dict[str, Any] | None, default_space_type: str) -> dict[str, Any]:
-        """标准化查询路由配置，确保只落库当前支持的 filter_value。"""
-        config = config or {}
-        space_type = config.get(cls.QUERY_ROUTER_SPACE_TYPE) or default_space_type
-        valid_space_types = {item.value for item in SpaceTypes}
-        if space_type not in valid_space_types:
-            raise ValueError(f"query_router_config.space_type: {space_type} is invalid")
-
-        filter_value = config.get(cls.QUERY_ROUTER_FILTER_VALUE) or cls.DEFAULT_FILTER_VALUE
-        if filter_value not in cls.FILTER_VALUE_CHOICES:
-            raise ValueError(f"query_router_config.filter_value: {filter_value} is invalid")
-
-        return {
-            cls.QUERY_ROUTER_SPACE_TYPE: space_type,
-            cls.QUERY_ROUTER_FILTER_KEY: config.get(cls.QUERY_ROUTER_FILTER_KEY) or cls.DEFAULT_FILTER_KEY,
-            cls.QUERY_ROUTER_FILTER_VALUE: filter_value,
-        }
+    # 保留短链路创建和更新入口使用的模型方法。
+    normalize_query_router_config = staticmethod(normalize_query_router_config)
 
     @property
     def normalized_query_router_config(self) -> dict[str, Any]:

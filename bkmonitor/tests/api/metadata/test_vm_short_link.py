@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 from typing import Any
 
@@ -574,9 +575,13 @@ def test_time_series_group_non_zero_data_id_keeps_original_exception():
         _ = group.data_source
 
 
-def test_compose_vm_short_link_table_ids_global_and_owner_filters():
-    create_space("315")
-    create_space("316")
+@pytest.mark.parametrize("exempt_owner", [None, True, False])
+def test_compose_vm_short_link_table_ids_global_and_owner_filters(exempt_owner):
+    owner = create_space("315")
+    other = create_space("316")
+    config = {"space_type": "bkcc", "filter_key": "appid", "filter_value": "space_id"}
+    if exempt_owner is not None:
+        config["exempt_owner"] = exempt_owner
     models.ResultTable.objects.create(
         table_id=TABLE_ID,
         bk_tenant_id=BK_TENANT_ID,
@@ -619,15 +624,25 @@ def test_compose_vm_short_link_table_ids_global_and_owner_filters():
         vm_result_table_id="315_global_metric",
         vm_result_table_name="global",
         vm_cluster_id=10001,
-        query_router_config={"space_type": SpaceTypes.BKCC.value, "filter_key": "appid", "filter_value": "space_id"},
+        query_router_config=config,
         is_global=True,
     )
 
-    owner_values = SpaceTableIDRedis()._compose_vm_short_link_table_ids(SpaceTypes.BKCC.value, "315", BK_TENANT_ID)
-    other_values = SpaceTableIDRedis()._compose_vm_short_link_table_ids(SpaceTypes.BKCC.value, "316", BK_TENANT_ID)
+    # 通用表选项与短链路冲突时，路由和共享范围均由短链路决定。
+    for table_id in (TABLE_ID, global_table_id):
+        models.ResultTableOption.objects.create(
+            bk_tenant_id=BK_TENANT_ID,
+            table_id=table_id,
+            name=models.ResultTableOption.OPTION_QUERY_ROUTER_CONFIG,
+            value_type=models.ResultTableOption.TYPE_DICT,
+            value=json.dumps({"filter_key": "other_key", "exempt_owner": False}),
+        )
+    client = SpaceTableIDRedis()
+    owner_values = client._compose_bkcc_space_table_ids(owner)
+    other_values = client._compose_bkcc_space_table_ids(other)
 
     assert owner_values[TABLE_ID] == {"filters": []}
-    assert owner_values[global_table_id] == {"filters": []}
+    assert owner_values[global_table_id] == {"filters": [{"appid": "315"}] if exempt_owner is False else []}
     assert TABLE_ID not in other_values
     assert other_values[global_table_id] == {"filters": [{"appid": "316"}]}
 
@@ -670,11 +685,9 @@ def test_compose_vm_short_link_table_ids_use_bk_biz_id_filter_value():
         is_global=True,
     )
 
-    values = SpaceTableIDRedis()._compose_vm_short_link_table_ids(
-        SpaceTypes.BKSAAS.value, bksaas_space.space_id, BK_TENANT_ID
-    )
+    values = SpaceTableIDRedis()._compose_vm_short_link_table_ids(bksaas_space)
 
-    assert values[global_table_id] == {"filters": [{"bk_biz_id": -bksaas_space.id}]}
+    assert values[global_table_id] == {"filters": [{"bk_biz_id": str(-bksaas_space.id)}]}
 
 
 def test_delete_global_vm_short_link_soft_delete_and_only_refresh_owner_space(monkeypatch):
@@ -856,6 +869,7 @@ def test_update_vm_short_link_refresh_bkbase_and_router_config(monkeypatch):
             "space_type": SpaceTypes.BKCC.value,
             "filter_key": "appid",
             "filter_value": "space_id",
+            "exempt_owner": False,
         },
         operator="tester",
     )[0]
@@ -869,6 +883,7 @@ def test_update_vm_short_link_refresh_bkbase_and_router_config(monkeypatch):
         "space_type": SpaceTypes.BKCC.value,
         "filter_key": "appid",
         "filter_value": "space_id",
+        "exempt_owner": False,
     }
     assert result["is_updated_metrics"] is True
 

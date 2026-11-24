@@ -1,28 +1,29 @@
-.king-date-picker {
-  width: 300px;
+.file-date-picker {
+  width: 360px;
   margin-right: 20px;
-  background-color: #fff;
 
-  .king-date-trigger {
-    .icon-wrapper {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
+  .file-date-shortcut-label {
+    display: none;
+  }
 
-      .icon-date-picker {
-        font-size: 18px;
-      }
+  &.has-shortcut {
+    .t-range-input__prefix {
+      position: absolute;
+      inset: 0 auto 0 8px;
+      pointer-events: none;
     }
 
-    .bk-date-picker-editor {
-      transition: border-color 0.3s;
+    .t-range-input-popup:not(.t-range-input-popup--visible) {
+      .file-date-shortcut-label {
+        display: inline;
+      }
 
-      &.is-focus {
-        border-color: #3a84ff;
-        transition: border-color 0.3s;
+      // Keep native focus/blur working while the shortcut label covers the values.
+      .t-range-input__inner-left,
+      .t-range-input__inner-right,
+      .t-range-input__inner-separator {
+        opacity: 0;
       }
     }
   }
-} 
+}
