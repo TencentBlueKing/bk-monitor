@@ -56,27 +56,54 @@
     }
 
     .icon-box {
+      flex: 0 0 22px;
       width: 22px;
       height: 40px;
       font-family: RobotoMono-Medium;
-      background: #fdeed8;
+      background: color-mix(in srgb, var(--bklog-status-warning, #f59500) 16%, var(--bklog-surface, #fff));
       font-weight: 500;
       border-radius: 2px;
       line-height: 40px;
       font-size: 12px;
       text-align: center;
       cursor: pointer;
-      color: #f59500;
+      color: var(--bklog-status-warning, #f59500);
       border: none;
       outline: none;
       margin-right: 4px;
       box-shadow: none;
 
-      .bk-select-name {
+      .t-select-input {
+        color: inherit;
+        font: inherit;
+      }
+
+      .t-input__wrap,
+      .t-input {
+        width: 100%;
         height: 40px;
         padding: 0;
-        margin: 0;
+        border: 0;
+        border-radius: inherit;
+        background: transparent;
+        box-shadow: none;
+        color: inherit;
+        font: inherit;
+      }
+
+      .t-input__inner {
+        color: inherit;
+        text-align: center;
+        cursor: pointer;
+      }
+
+      .t-input__suffix {
+        display: none;
       }
     }
   }
+}
+
+.filter-rule-operator-popup .t-popup__content {
+  width: 100px;
 }

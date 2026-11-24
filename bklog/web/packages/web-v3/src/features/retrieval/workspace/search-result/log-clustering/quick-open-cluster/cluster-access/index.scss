@@ -7,6 +7,23 @@
     margin-bottom: var(--bklog-space-12);
   }
 
+  .cluster-access-form {
+    > .t-form__item + .t-form__item {
+      margin-top: var(--bklog-space-20);
+    }
+
+    > .t-form__item {
+      margin-bottom: 0;
+    }
+
+    .t-form__label--top {
+      min-height: 22px;
+      margin-bottom: 6px;
+      padding: 0;
+      line-height: 22px;
+    }
+  }
+
   .setting-item {
     display: flex;
     align-items: center;

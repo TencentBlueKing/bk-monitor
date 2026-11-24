@@ -24,25 +24,21 @@
         padding-top: 4px;
         padding-bottom: 4px;
 
-        :deep(.left-icon) {
-          font-size: 18px;
-          color: #979ba5;
+        .t-input {
+          border: 0;
+          border-bottom: 1px solid var(--bklog-surface-component-hover, #eaebf0);
+          border-radius: 0;
+          box-shadow: none;
+
+          &:hover,
+          &.t-is-focused {
+            border-bottom-color: var(--bklog-brand-primary, #3a84ff);
+          }
         }
 
-        :deep(.t-input__wrap) {
-          padding: 0 8px;
-
-          .left-icon {
-            font-size: 18px;
-            color: var(--bklog-text-placeholder, #979ba5);
-          }
-
-          .bk-input-text {
-            .t-input__inner {
-              padding-left: 38px;
-              border-bottom-color: var(--bklog-surface-component-hover, #eaebf0);
-            }
-          }
+        .t-input__prefix-icon {
+          font-size: 18px;
+          color: var(--bklog-text-placeholder, #979ba5);
         }
       }
 
@@ -164,8 +160,24 @@
     .value-list {
       padding: 34px 24px 0 20px;
 
+      .t-form > .t-form__item {
+        margin-bottom: 0;
+      }
+
+      .t-form > .t-form__item + .t-form__item {
+        margin-top: 20px;
+      }
+
+      .t-form__label--top {
+        min-height: 22px;
+        margin-bottom: 6px;
+        padding: 0;
+        line-height: 22px;
+      }
+
       .content-input-wraper {
         position: relative;
+        width: 314px;
 
         .match-list-main {
           position: absolute;
@@ -179,17 +191,21 @@
           box-shadow: 0 2px 6px 0 #0000001a;
           overflow-y: auto;
 
+          .match-empty,
           .match-item {
             width: 100%;
             max-width: 312px;
             height: 32px;
+            line-height: 32px;
             color: #63656e;
-            cursor: pointer;
             padding: 0 8px;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
+          }
 
+          .match-item {
+            cursor: pointer;
             &:hover {
               background: #f5f7fa;
             }
