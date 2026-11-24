@@ -54,6 +54,7 @@ from metadata.models.data_link.data_link_configs import (
     VMStorageBindingConfig,
 )
 from metadata.models.data_link.relation import (
+    SimpleDatabusRelationError,
     _merge_graph_dual_write_sibling_databus,
     _resolve_rebuild_result_table_id,
     rebuild_bkbase_v4_datalink_relation,
@@ -4600,6 +4601,9 @@ def test_rebuild_simple_databus_relation_skips_unready_databus_status():
     )
 
     assert rebuild_simple_databus_relation(databus, dry_run=True) is None
+    for dry_run in (True, False):
+        with pytest.raises(SimpleDatabusRelationError, match=r"l_524509.*Failed.*Ok/Pending"):
+            rebuild_simple_databus_relation(databus, dry_run=dry_run, raise_on_skip=True)
 
 
 @pytest.mark.django_db(databases="__all__")

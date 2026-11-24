@@ -1113,3 +1113,166 @@ class TestIssueTopNResource:
         assert captured["request_data"]["end_time"] == self.END_TIME
         assert all(issue_resources.IssueQueryHandler(**params).bucket_count_suffix == "" for params in sliced_params)
         assert result == {"doc_count": 0, "fields": []}
+
+
+class TestIssueTrendResourceIndexScoping:
+    """Issue 归属校验：按 id 内嵌时间戳定位天索引，未命中时合并一次通配补查。
+
+    背景：原实现用 all_indices=True 查 bkfta_issue_*_read（全部历史天索引），
+    实测 454~2218ms；issue_id 内嵌 create_time，可直接定位到天索引。
+    漏查（文档落在别的日期索引、别名已被清理、边界差）由一次合并补查兜住。
+    """
+
+    ISSUE_IDS = ["1794285361616afe83", "17816902556b8cd53d"]
+    DAY_INDEXES = ["bkfta_issue_20260617_read", "bkfta_issue_20261110_read"]
+    BIZ_IDS = [5000140]
+
+    @staticmethod
+    def _hit(issue_id: str):
+        from unittest.mock import MagicMock
+
+        hit = MagicMock()
+        hit.meta.id = issue_id
+        return hit
+
+    @staticmethod
+    def _fake_search(monkeypatch, hits_for_call):
+        """伪装 IssueDocument.search；返回 (每次调用的 kwargs 列表, 每次调用的 filter 参数列表)。"""
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from fta_web.issue import resources
+
+        calls: list[dict] = []
+        filters: list[list[dict]] = []
+
+        def _search(**kwargs):
+            call_index = len(calls)
+            calls.append(kwargs)
+            recorded: list[dict] = []
+            filters.append(recorded)
+
+            search = MagicMock()
+
+            def _filter(*args, **kw):
+                recorded.append(kw)
+                return search
+
+            search.filter.side_effect = _filter
+            search.source.return_value = search
+            search.params.return_value = search
+            search.execute.return_value = SimpleNamespace(hits=hits_for_call(call_index))
+            return search
+
+        monkeypatch.setattr(resources.IssueDocument, "search", _search)
+        return calls, filters
+
+    @staticmethod
+    def _ids_spanning_days(days: int) -> list[str]:
+        base = 1794200000
+        return [f"{base - index * 86400}{'a' * 8}" for index in range(days)]
+
+    def test_all_hit_queries_only_day_indices(self, monkeypatch):
+        from fta_web.issue.resources import IssueTrendResource
+
+        calls, _ = self._fake_search(monkeypatch, lambda _: [self._hit(i) for i in self.ISSUE_IDS])
+
+        allowed = IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, self.BIZ_IDS)
+
+        assert allowed == set(self.ISSUE_IDS)
+        assert len(calls) == 1
+        assert calls[0]["index"] == self.DAY_INDEXES
+        assert "all_indices" not in calls[0]
+
+    def test_missing_id_triggers_single_wildcard_fallback(self, monkeypatch):
+        """未命中（迁移落错索引 / 别名已清理）合并成一次通配补查，把 id 找回来。"""
+        from fta_web.issue.resources import IssueTrendResource
+
+        def _hits(call_index):
+            if call_index == 0:  # 天索引只命中第一条
+                return [self._hit(self.ISSUE_IDS[0])]
+            return [self._hit(i) for i in self.ISSUE_IDS]
+
+        calls, filters = self._fake_search(monkeypatch, _hits)
+
+        allowed = IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, self.BIZ_IDS)
+
+        assert allowed == set(self.ISSUE_IDS)
+        assert len(calls) == 2
+        assert calls[1].get("all_indices") is True
+        # 补查只针对未命中的那条
+        assert [kw["_id"] for kw in filters[1] if "_id" in kw] == [[self.ISSUE_IDS[1]]]
+
+    def test_fallback_still_filters_by_biz(self, monkeypatch):
+        """补查仍带 bk_biz_id：跨业务 id 补查后照样被丢弃。"""
+        from fta_web.issue.resources import IssueTrendResource
+
+        calls, filters = self._fake_search(monkeypatch, lambda _: [])
+
+        allowed = IssueTrendResource._get_allowed_issue_ids(self.ISSUE_IDS, self.BIZ_IDS)
+
+        assert allowed == set()
+        assert len(calls) == 2  # 天索引 + 一次合并补查
+        for recorded in filters:
+            assert any(kw.get("bk_biz_id") == self.BIZ_IDS for kw in recorded)
+
+    def test_unparsable_id_goes_to_wildcard(self, monkeypatch):
+        from fta_web.issue import resources as res
+
+        def _raise(_):
+            raise ValueError("bad issue id")
+
+        monkeypatch.setattr(res.IssueDocument, "parse_timestamp_by_id", _raise)
+        calls, _ = self._fake_search(monkeypatch, lambda _: [self._hit("bad-issue-id")])
+
+        allowed = res.IssueTrendResource._get_allowed_issue_ids(["bad-issue-id"], self.BIZ_IDS)
+
+        assert allowed == {"bad-issue-id"}
+        assert len(calls) == 1
+        assert calls[0].get("all_indices") is True
+
+    def test_old_id_recovered_by_fallback(self, monkeypatch):
+        """400 天前创建、当天别名已被清理：天索引查不到，通配补查找回。
+
+        这条取代了原先"按保留期推算 stale"的实现 —— 不再依赖 FTA_ES_RETENTION，
+        也不会出现 retention=1 时余量失效的边界问题。
+        """
+        import time
+
+        from fta_web.issue.resources import IssueTrendResource
+
+        old_id = f"{int(time.time()) - 400 * 86400}{'c' * 8}"
+
+        def _hits(call_index):
+            return [] if call_index == 0 else [self._hit(old_id)]
+
+        calls, _ = self._fake_search(monkeypatch, _hits)
+
+        allowed = IssueTrendResource._get_allowed_issue_ids([old_id], self.BIZ_IDS)
+
+        assert allowed == {old_id}
+        assert len(calls) == 2
+        assert calls[1].get("all_indices") is True
+
+    def test_day_index_count_at_limit_uses_day_indices(self, monkeypatch):
+        from fta_web.issue.resources import MAX_DAY_INDEXES_PER_QUERY, IssueTrendResource
+
+        ids = self._ids_spanning_days(MAX_DAY_INDEXES_PER_QUERY)
+        calls, _ = self._fake_search(monkeypatch, lambda _: [self._hit(i) for i in ids])
+
+        IssueTrendResource._get_allowed_issue_ids(ids, self.BIZ_IDS)
+
+        assert len(calls) == 1
+        assert len(calls[0]["index"]) == MAX_DAY_INDEXES_PER_QUERY
+
+    def test_too_many_day_indices_falls_back_to_single_wildcard(self, monkeypatch):
+        """索引名过多会把 URL 撑超 ES 限制：直接走一次通配，不再叠加补查。"""
+        from fta_web.issue.resources import MAX_DAY_INDEXES_PER_QUERY, IssueTrendResource
+
+        ids = self._ids_spanning_days(MAX_DAY_INDEXES_PER_QUERY + 1)
+        calls, _ = self._fake_search(monkeypatch, lambda _: [])
+
+        IssueTrendResource._get_allowed_issue_ids(ids, self.BIZ_IDS)
+
+        assert len(calls) == 1
+        assert calls[0].get("all_indices") is True

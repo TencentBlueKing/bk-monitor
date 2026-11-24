@@ -82,9 +82,7 @@ class DesensitizeConfigWritePermission(IAMPermission):
 
         index_set_id = view.kwargs[view.lookup_url_kwarg or view.lookup_field]
         collector_config_id = (
-            LogIndexSet.objects.filter(index_set_id=index_set_id)
-            .values_list("collector_config_id", flat=True)
-            .first()
+            LogIndexSet.objects.filter(index_set_id=index_set_id).values_list("collector_config_id", flat=True).first()
         )
 
         # collector_config_id=0 在语义上等同于「无采集项」（合法值从 1 开始），

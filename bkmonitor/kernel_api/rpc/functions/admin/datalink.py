@@ -10,12 +10,15 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from django.db import transaction
 from django.db.models import Q
 
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
     PAGE_LIST_TENANT_SCHEMA,
+    REQUIRED_TENANT_SCHEMA,
+    SAFETY_LEVEL_WRITE,
     _mask_sensitive_fields,
     build_response,
     filter_by_bk_tenant_id,
@@ -27,11 +30,14 @@ from kernel_api.rpc.functions.admin.common import (
     normalize_pagination,
     normalize_string_list_filter,
     paginate_queryset,
+    require_bk_tenant_id,
     serialize_model,
     tenant_filter_kwargs,
 )
 from metadata import models
+from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.data_link.data_link_configs import ClusterConfig, COMPONENT_CLASS_MAP
+from metadata.models.data_link.relation import SimpleDatabusRelationError, rebuild_simple_databus_relation
 from metadata.models.data_link.vm_query_cluster import VmQueryClusterConfig
 
 FUNC_COMPONENT_LIST = "admin.datalink.component_list"
@@ -842,3 +848,75 @@ def get_datalink_detail(params: dict[str, Any]) -> dict[str, Any]:
 )
 def get_datalink_component_config(params: dict[str, Any]) -> dict[str, Any]:
     return _handle_component_config(params, "datalink.datalink_component_config", FUNC_DATALINK_COMPONENT_CONFIG)
+
+
+SIMPLE_RELATION_PARAMS = {
+    "bk_tenant_id": REQUIRED_TENANT_SCHEMA,
+    "namespace": "必填，目标 Databus 的命名空间",
+    "name": "必填，目标 Databus 的完整名称",
+}
+SIMPLE_RELATION_EXAMPLE = {"bk_tenant_id": "system", "namespace": "bkmonitor", "name": "databus_example"}
+
+
+def _simple_relation_target(params, *, lock=False):
+    tenant = require_bk_tenant_id(params)
+    namespace = str(params.get("namespace") or "").strip()
+    name = str(params.get("name") or "").strip()
+    if not namespace or not name:
+        raise CustomException(message="namespace 和 name 为必填项")
+    model = COMPONENT_CLASS_MAP["Databus"]
+    queryset = model.objects.select_for_update() if lock else model.objects
+    try:
+        target = queryset.get(bk_tenant_id=tenant, namespace=namespace, name=name)
+    except model.DoesNotExist as error:
+        raise CustomException(message=f"租户 {tenant} 下未找到 Databus {namespace}/{name}") from error
+    if target.data_link_name:
+        raise CustomException(message=f"Databus {namespace}/{name} 已归属链路 {target.data_link_name}")
+    return target
+
+
+@KernelRPCRegistry.register(
+    "admin.datalink.preview_simple_relation",
+    summary="预览 Databus 简单链路重建",
+    description="解析未配置 data_link_name 的单个 Databus，返回拟关联的链路、结果表与存储绑定。",
+    params_schema=SIMPLE_RELATION_PARAMS,
+    example_params=SIMPLE_RELATION_EXAMPLE,
+)
+def preview_simple_relation(params: dict[str, Any]) -> dict[str, Any]:
+    target = _simple_relation_target(params)
+    try:
+        plan = rebuild_simple_databus_relation(target, dry_run=True, raise_on_skip=True)
+    except SimpleDatabusRelationError as error:
+        raise CustomException(message=str(error)) from error
+    return build_response(
+        operation="datalink.preview_simple_relation",
+        func_name="admin.datalink.preview_simple_relation",
+        bk_tenant_id=target.bk_tenant_id,
+        data={
+            key: plan[key]
+            for key in ("data_link_name", "strategy", "bk_data_id", "table_ids", "sinks", "result_tables")
+        },
+    )
+
+
+@KernelRPCRegistry.register(
+    "admin.datalink.rebuild_simple_relation",
+    summary="重建 Databus 简单链路",
+    description="按现有元数据重建一个未归属链路的 Databus 及其存储绑定、结果表映射。",
+    params_schema=SIMPLE_RELATION_PARAMS,
+    example_params=SIMPLE_RELATION_EXAMPLE,
+)
+def rebuild_simple_relation(params: dict[str, Any]) -> dict[str, Any]:
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        target = _simple_relation_target(params, lock=True)
+        try:
+            link = rebuild_simple_databus_relation(target, dry_run=False, raise_on_skip=True)
+        except SimpleDatabusRelationError as error:
+            raise CustomException(message=str(error)) from error
+    return build_response(
+        operation="datalink.rebuild_simple_relation",
+        func_name="admin.datalink.rebuild_simple_relation",
+        bk_tenant_id=target.bk_tenant_id,
+        data={"data_link_name": link.data_link_name},
+        safety_level=SAFETY_LEVEL_WRITE,
+    )

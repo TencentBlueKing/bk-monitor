@@ -552,14 +552,20 @@ export default defineComponent({
       if (!props.enableStatistics) return;
       const fieldOptions = tableColumns.value?.fieldMap?.[activeStatisticsField.value];
       const selectFieldUnit = getTraceFieldUnit(fieldOptions?.name);
+      const statisticsField = fieldOptions
+        ? {
+            ...fieldOptions,
+            field_unit: selectFieldUnit,
+            isDuration: ['us', 'ms', 'μs'].includes(selectFieldUnit),
+            isInteger: ['double', 'long', 'integer'].includes(fieldOptions.type),
+          }
+        : null;
       return [
         <StatisticsList
           key='statisticsList'
           ref='statisticsListRef'
           commonParams={props.commonParams}
-          field={fieldOptions ? { ...fieldOptions, field_unit: selectFieldUnit } : null}
-          isDuration={['us', 'ms', 'μs'].includes(selectFieldUnit)}
-          isInteger={['double', 'long', 'integer'].includes(fieldOptions?.type)}
+          field={statisticsField}
           isShow={showStatisticsPopover.value}
           onConditionChange={handleConditionChange}
           onContentRendered={handleStatisticsPopoverUpdate}

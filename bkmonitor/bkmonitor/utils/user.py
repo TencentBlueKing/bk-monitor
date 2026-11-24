@@ -90,7 +90,7 @@ def _lookup_admin_username(bk_tenant_id: str, login_name: str) -> str | None:
 
     # 获取管理员用户
     result = api.bk_login.batch_lookup_virtual_user(
-        bk_tenant_id=bk_tenant_id, lookup_field="login_name", lookups=login_name, bk_username="admin"
+        bk_tenant_id=bk_tenant_id, lookup_field="login_name", lookups=login_name
     )
     if result:
         return result[0].get("bk_username")

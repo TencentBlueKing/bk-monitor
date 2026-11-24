@@ -21,6 +21,7 @@ from bkmonitor.utils.request import get_request, get_request_tenant_id
 from core.drf_resource import resource
 from kernel_api.resource import recording_rule_mcp
 from kernel_api.resource.apm import (
+    ExportProfilePprofResource,
     GetApmSearchFiltersResource,
     GetProfileApplicationServiceResource,
     GetProfileLabelResource,
@@ -246,6 +247,12 @@ def _apm_application_resource_executor(resource_class) -> ToolExecutor:
     return execute
 
 
+def _export_profile_pprof(tool_args):
+    if not tool_args.get("global_query"):
+        _ensure_apm_application_permission(tool_args)
+    return ExportProfilePprofResource().request(**tool_args)
+
+
 def _alert_detail(tool_args: dict[str, Any]):
     return resource.alert.alert_detail.request(**tool_args)
 
@@ -332,6 +339,7 @@ TOOL_EXECUTORS: dict[str, ToolExecutor] = {
     "get_profile_type": _resource_executor(GetProfileTypeResource),
     "get_profile_label": _resource_executor(GetProfileLabelResource),
     "query_graph_profile": _resource_executor(QueryGraphProfileResource),
+    "export_profile_pprof": _export_profile_pprof,
     "calculate_by_range": _apm_application_resource_executor(CalculateByRangeResource),
     "list_apm_services": _apm_application_resource_executor(ServiceListResource),
     "llm_mcp_search_traces": _apm_application_resource_executor(LLMListTracesResource),

@@ -27,6 +27,7 @@ from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.data_link import DataLinkResourceConfigBase
 from metadata.models.data_link import utils as data_link_utils
 from metadata.models.data_link.constants import DataLinkKind, DataLinkNameScene, DataLinkResourceStatus
+from metadata.models.data_link.data_link_configs import ClusterConfig
 from metadata.models.result_table import LogV4DataLinkOption
 from metadata.task.datalink import apply_log_datalink
 
@@ -82,6 +83,30 @@ def get_log_clustering_datalink(bk_tenant_id: str, table_id: str, check_storage:
     ):
         raise ValidationError(f"table_id({table_id}) has no elasticsearch storage")
     return datalink
+
+
+def get_log_kafka_channel(datalink: models.DataLink, cluster_id: int) -> dict[str, str]:
+    cluster_names = models.ClusterInfo.objects.filter(
+        bk_tenant_id=datalink.bk_tenant_id,
+        cluster_id=cluster_id,
+        cluster_type=models.ClusterInfo.TYPE_KAFKA,
+        registered_to_bkbase=True,
+    ).values("cluster_name")
+    channel = ClusterConfig.objects.filter(
+        bk_tenant_id=datalink.bk_tenant_id,
+        namespace=datalink.namespace,
+        kind=DataLinkKind.KAFKACHANNEL.value,
+        name__in=cluster_names,
+    ).first()
+    # 注册流程先建本地记录，BKBase 接受配置后才保存 origin_config。
+    if channel is None or not channel.origin_config:
+        raise ValidationError(
+            {"kafka_cluster_id": f"KafkaChannel for cluster {cluster_id} not registered in {datalink.namespace}"}
+        )
+    ref = {"kind": channel.kind, "name": channel.name, "namespace": channel.namespace}
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        ref["tenant"] = datalink.bk_tenant_id
+    return ref
 
 
 def get_log_clustering_databus(datalink: models.DataLink) -> models.DataBusConfig:
@@ -199,7 +224,7 @@ class SetLogClusteringConfigResource(Resource):
         table_id = serializers.CharField(label="监控结果表ID")
         # 由调用方按 BKBase LogClusteringSink 协议组装，metadata 原样保存和下发。
         binding = serializers.DictField(label="聚类绑定配置")
-        kafka_resource = LogClusteringResourceRefSerializer(label="聚类 Kafka 资源引用")
+        kafka_cluster_id = serializers.IntegerField(label="源日志 Kafka 集群 ID", min_value=1)
         runtime_cluster = LogClusteringResourceRefSerializer(label="专用 Databus 集群")
         recovery_resource = LogClusteringResourceRefSerializer(label="结果关联存储资源", required=False)
         result_mode = serializers.ChoiceField(choices=RESULT_MODES, required=False)
@@ -211,10 +236,7 @@ class SetLogClusteringConfigResource(Resource):
                 raise ValidationError({"binding": "index_id is required"})
             if attrs.get("result_mode") == "append" and not attrs.get("result_store"):
                 raise ValidationError({"result_store": "required when result_mode is append"})
-            references = [
-                ("kafka_resource", attrs["kafka_resource"], "Kafka"),
-                ("runtime_cluster", attrs["runtime_cluster"], "DatabusCluster"),
-            ]
+            references = [("runtime_cluster", attrs["runtime_cluster"], "DatabusCluster")]
             if "recovery_resource" in attrs:
                 references.append(("recovery_resource", attrs["recovery_resource"], "ElasticSearch"))
             for field, ref, kind in references:
@@ -229,14 +251,15 @@ class SetLogClusteringConfigResource(Resource):
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         table_id = validated_request_data["table_id"]
+        datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
+        kafka_resource = get_log_kafka_channel(datalink, validated_request_data["kafka_cluster_id"])
         config_fields = {
             "binding": validated_request_data["binding"],
-            "kafka_resource": validated_request_data["kafka_resource"],
+            "kafka_resource": kafka_resource,
             "runtime_cluster": validated_request_data["runtime_cluster"],
             "recovery_resource": validated_request_data.get("recovery_resource", {}),
         }
 
-        datalink = get_log_clustering_datalink(bk_tenant_id, table_id)
         databus = get_log_clustering_databus(datalink)
         dsrt = models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).last()
         if dsrt is None:

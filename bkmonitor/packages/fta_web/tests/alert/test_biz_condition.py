@@ -347,3 +347,253 @@ def test_filter_space_list_by_action_keeps_list_return_contract(monkeypatch):
     permission.skip_check = True
 
     assert permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS) == spaces
+
+
+# ---------------------------------------------------------------------------
+# 权限候选收窄：显式业务列表只针对请求的业务构造候选（避免全租户空间的 O(N) 计算）
+# ---------------------------------------------------------------------------
+
+
+def test_parse_biz_item_narrows_candidates_for_explicit_biz_list(monkeypatch):
+    request = _patch_request(monkeypatch)
+    captured = {}
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action, candidate_biz_ids=None):
+            assert action == ActionEnum.VIEW_BUSINESS
+            captured["candidates"] = candidate_biz_ids
+            # 故意多返回一个未请求的业务，验证结果仍按请求集合收敛
+            return [{"bk_biz_id": biz_id} for biz_id in (1, 2, 8, -12)], True
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+
+    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([1, 2, 3, -12])
+
+    # 只把请求的业务交给 IAM 构造候选（顺序不作保证，按集合比较）
+    assert sorted(captured["candidates"]) == [-12, 1, 2, 3]
+    # 结果仍为「请求的业务 ∩ 有权限的业务」，与旧实现一致
+    assert sorted(authorized_bizs) == [-12, 1, 2]
+    assert unauthorized_bizs == [3]
+    # 收窄后的 all_granted 不具备全租户语义，不得写入 tenant_wide 标记
+    assert getattr(request, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR) is False
+
+
+def test_parse_biz_item_all_biz_marker_keeps_full_candidates(monkeypatch):
+    request = _patch_request(monkeypatch)
+    captured = {}
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action, candidate_biz_ids=None):
+            captured["candidates"] = candidate_biz_ids
+            return [{"bk_biz_id": 1}, {"bk_biz_id": 2}], True
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+
+    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([-1])
+
+    # 全业务请求仍走全量候选，tenant_wide 语义不受影响
+    assert captured["candidates"] is None
+    assert authorized_bizs == [1, 2]
+    assert unauthorized_bizs == []
+    assert getattr(request, TENANT_WIDE_AUTHORIZED_REQUEST_ATTR) is True
+
+
+class _FakeCursor:
+    def __init__(self, rows):
+        self._rows = rows
+        self.description = [("id",), ("bk_tenant_id",), ("space_type_id",), ("space_id",)]
+        self.executed = None
+
+    def execute(self, sql, params):
+        self.executed = (sql, params)
+
+    def fetchall(self):
+        return self._rows
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+
+class _FakeConnections:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def __getitem__(self, alias):
+        return SimpleNamespace(cursor=lambda: self._cursor)
+
+
+def test_list_space_dicts_by_biz_ids_maps_negative_ids_and_filters_tenant(monkeypatch):
+    from bkmonitor.space import space_api
+
+    cursor = _FakeCursor(
+        [
+            (7, "tenant-a", "bkcc", "5000140"),  # 正数业务
+            (12, "tenant-a", "bklog", "9"),  # 非 CMDB 空间 → bk_biz_id = -12
+            (13, "tenant-b", "bklog", "9"),  # 其他租户，应被过滤
+        ]
+    )
+    monkeypatch.setattr(space_api, "connections", _FakeConnections(cursor))
+
+    result = space_api.InjectSpaceApi.list_space_dicts_by_biz_ids([5000140, -12, -13], bk_tenant_id="tenant-a")
+
+    assert result == [{"bk_biz_id": 5000140}, {"bk_biz_id": -12}]
+    sql, params = cursor.executed
+    # 正数按 bkcc + space_id 查，负数按 id 查
+    assert "s.space_type_id = %s AND s.space_id IN" in sql
+    assert "s.id IN" in sql
+    # 必须与 list_spaces_dict 一样 JOIN 类型表：类型为空/不在表里的空间，
+    # 旧路径查不出来，这里也不能多给（否则等于权限放宽）
+    assert "JOIN metadata_spacetype t ON s.space_type_id = t.type_id" in sql
+    assert "IS NULL" not in sql
+    assert "5000140" in params and 12 in params and 13 in params
+
+
+def test_list_space_dicts_by_biz_ids_empty_input_skips_query(monkeypatch):
+    from bkmonitor.space import space_api
+
+    class _Boom:
+        def __getitem__(self, alias):
+            raise AssertionError("空入参不应触发 SQL")
+
+    monkeypatch.setattr(space_api, "connections", _Boom())
+
+    assert space_api.InjectSpaceApi.list_space_dicts_by_biz_ids([]) == []
+
+
+def test_parse_biz_item_string_biz_ids_stay_unauthorized(monkeypatch):
+    """字符串 biz_id 不做类型归一化：旧实现中 "2" 与 2 不相等，会落入 unauthorized。
+
+    归一化会把原本"无权限"的畸形值变成"有权限"（且 "-1" 字符串会进全业务分支），
+    属于语义放宽；收窄查询侧只把 int 放进候选，因此结果与旧实现一致。
+    """
+    _patch_request(monkeypatch)
+    captured = {}
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action, candidate_biz_ids=None):
+            captured["candidates"] = candidate_biz_ids
+            return [{"bk_biz_id": 1}, {"bk_biz_id": 2}], False
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+
+    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item(["1", "2", "3"])
+
+    assert captured["candidates"] == []
+    assert authorized_bizs == []
+    assert sorted(unauthorized_bizs) == ["1", "2", "3"]
+
+
+@pytest.mark.parametrize("bad_biz_id", ["abc", None])
+def test_parse_biz_item_non_numeric_biz_id_is_unauthorized_not_error(monkeypatch, bad_biz_id):
+    """Incident 的 bk_biz_ids 不带 child 约束，可能传入非数字值：不能抛错变成 500。"""
+    _patch_request(monkeypatch)
+    captured = {}
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action, candidate_biz_ids=None):
+            captured["candidates"] = candidate_biz_ids
+            return [{"bk_biz_id": 2}], False
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+
+    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([2, bad_biz_id])
+
+    assert authorized_bizs == [2]
+    assert unauthorized_bizs == [bad_biz_id]
+    assert captured["candidates"] == [2]
+
+
+def test_parse_biz_item_float_biz_id_not_truncated(monkeypatch):
+    """float 不能被 int() 截断成整数业务（2.7 不应变成业务 2）。"""
+    _patch_request(monkeypatch)
+    captured = {}
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action, candidate_biz_ids=None):
+            captured["candidates"] = candidate_biz_ids
+            return [{"bk_biz_id": 2}], False
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+
+    authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([2, 2.7])
+
+    assert authorized_bizs == [2]
+    assert unauthorized_bizs == [2.7]
+    assert captured["candidates"] == [2]
+
+
+def test_parse_biz_item_falls_back_when_narrowed_query_fails(monkeypatch, caplog):
+    """收窄查询异常时退回全量路径，失败模式与改造前一致。"""
+    import logging
+
+    _patch_request(monkeypatch)
+    calls = []
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action, candidate_biz_ids=None):
+            calls.append(candidate_biz_ids)
+            if candidate_biz_ids is not None:
+                raise RuntimeError("monitor_api db unavailable")
+            return [{"bk_biz_id": biz_id} for biz_id in (1, 2, 3)], False
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+
+    with caplog.at_level(logging.WARNING):
+        authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([1, 2, 9])
+
+    assert len(calls) == 2
+    assert calls[0] is not None and sorted(calls[0]) == [1, 2, 9]
+    assert calls[1] is None  # 退回全量路径
+    assert sorted(authorized_bizs) == [1, 2]
+    assert unauthorized_bizs == [9]
+    assert any("fallback to full space list" in record.getMessage() for record in caplog.records)
+
+
+def test_parse_biz_item_skips_narrowing_when_space_api_lacks_method(monkeypatch, caplog):
+    """部署侧覆盖 BKM_SPACE_API_CLASS 且未实现收窄查询时，静默走全量路径。"""
+    import logging
+
+    _patch_request(monkeypatch)
+    calls = []
+
+    class FakePermission:
+        def __init__(self, username, bk_tenant_id):
+            pass
+
+        def filter_space_list_by_action_with_scope(self, action, candidate_biz_ids=None):
+            calls.append(candidate_biz_ids)
+            return [{"bk_biz_id": 1}, {"bk_biz_id": 2}], False
+
+    monkeypatch.setattr(base_handler_module, "Permission", FakePermission, raising=False)
+    # 模拟一个没有 list_space_dicts_by_biz_ids 的 SpaceApi 实现
+    monkeypatch.setattr(base_handler_module, "SpaceApi", object(), raising=False)
+
+    with caplog.at_level(logging.WARNING):
+        authorized_bizs, unauthorized_bizs = BaseBizQueryHandler.parse_biz_item([1, 2, 9])
+
+    assert calls == [None]  # 直接走全量，不传 candidate_biz_ids
+    assert sorted(authorized_bizs) == [1, 2]
+    assert unauthorized_bizs == [9]
+    # 静默降级，不应刷 warning
+    assert not [record for record in caplog.records if "narrowed" in record.getMessage()]

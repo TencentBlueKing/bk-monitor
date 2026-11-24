@@ -39,7 +39,7 @@ from bkmonitor.trace.django import request_hook as django_request_hook
 from bkmonitor.trace.django import response_hook as django_response_hook
 from bkmonitor.trace.elastic import BkElasticsearchInstrumentor
 from bkmonitor.trace.logging import BkResourceLoggingInstrument
-from bkmonitor.trace.requests import requests_span_callback
+from bkmonitor.trace.requests import requests_response_hook
 from bkmonitor.trace.threading import ThreadingInstrumentor
 from bkmonitor.utils.common_utils import get_local_ip
 
@@ -122,7 +122,7 @@ class BluekingInstrumentor(BaseInstrumentor):
         DjangoInstrumentor().instrument(request_hook=django_request_hook, response_hook=django_response_hook)
         RedisInstrumentor().instrument()
         BkElasticsearchInstrumentor().instrument()
-        RequestsInstrumentor().instrument(span_callback=requests_span_callback)
+        RequestsInstrumentor().instrument(response_hook=requests_response_hook)
         CeleryInstrumentor().instrument()
         BkResourceLoggingInstrument().instrument()
         ThreadingInstrumentor().instrument()

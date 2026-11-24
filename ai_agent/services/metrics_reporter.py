@@ -13,7 +13,7 @@ import logging
 from functools import wraps
 from typing import Any
 from collections.abc import Generator
-from ai_agent.utils import get_request_username
+from blueapps.utils.request_provider import get_request_username
 from django.conf import settings
 from django.http import StreamingHttpResponse
 
@@ -324,6 +324,14 @@ class EnhancedStreamingResponseWrapper:
         self.original_generator = generator
         self.metrics_tracker = metrics_tracker
 
+    def __iter__(self):
+        return self._monitored_generator()
+
+    def close(self):
+        close = getattr(self.original_generator, "close", None)
+        if callable(close):
+            close()
+
     def _monitored_generator(self):
         """带监控的生成器"""
         try:
@@ -336,16 +344,20 @@ class EnhancedStreamingResponseWrapper:
                 yield chunk
 
             # 流式响应正常完成
-            self.metrics_tracker.on_streaming_complete()
+            if not self.metrics_tracker.error_occurred:
+                self.metrics_tracker.on_streaming_complete()
 
         except Exception as error:
             # 流式响应出错
             self.metrics_tracker.on_streaming_error(error)
             raise
+        finally:
+            self.close()
 
     def as_streaming_response(self):
         """转换为 Django 流式响应"""
-        sr = StreamingHttpResponse(self._monitored_generator())
+        # Django 注册 value.close；即使尚未拉取首块，也能释放请求阶段已装配的 SDK。
+        sr = StreamingHttpResponse(self)
         sr.headers["Cache-Control"] = "no-cache"
         sr.headers["X-Accel-Buffering"] = "no"
         sr.headers["content-type"] = "text/event-stream"

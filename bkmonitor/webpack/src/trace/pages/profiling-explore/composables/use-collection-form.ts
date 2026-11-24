@@ -41,6 +41,7 @@ import {
   processKey,
   SWITCH_DRAFT_KEYS,
 } from '../utils/collection';
+import { useHostPluginCheck } from './use-host-plugin-check';
 
 import type {
   CollectionDraft,
@@ -79,9 +80,14 @@ export function useCollectionForm(
   const previewPageSize = shallowRef(10);
   const previewed = shallowRef(false);
   const hostSelectorOpen = shallowRef(false);
+  /** 版本校验未通过时暂存的选择结果，供「重新选择」时回填选择器 */
+  const pendingHosts = shallowRef<CollectionHost[]>([]);
+  /** 选择器回填的主机：有暂存值时用暂存，否则用表单值 */
+  const selectorHosts = computed(() => (pendingHosts.value.length ? pendingHosts.value : draft.value.hosts));
   const advancedOpen = shallowRef(false);
   const controller = new AbortController();
   const hostServices = createCollectionHostServices(bizId, controller.signal);
+  const hostPluginCheck = useHostPluginCheck(bizId, controller.signal);
   let previewController: AbortController;
   const selected = computed(() => draft.value.process.selected);
   const dynamic = computed(() => draft.value.processMode === 'command' && draft.value.process.dynamic);
@@ -138,7 +144,29 @@ export function useCollectionForm(
     else if (dynamic.value) patchProcess({ matchPattern: '', excludePattern: '' });
     else selectProcesses([]);
   }
-  function changeHosts(hosts: CollectionHost[]) {
+  /** 打开主机选择器，清空上一次校验未通过留下的暂存值 */
+  function openHostSelector() {
+    pendingHosts.value = [];
+    hostSelectorOpen.value = true;
+  }
+  /** 关闭主机选择器；不清暂存值，ip-selector 确定时会紧跟着 change 同步发 close-dialog */
+  function closeHostSelector() {
+    hostSelectorOpen.value = false;
+  }
+  async function changeHosts(hosts: CollectionHost[]) {
+    // 先关闭选择框再校验，避免校验弹窗与选择弹窗叠加
+    hostSelectorOpen.value = false;
+    // 校验通过（或用户选择继续 / 跳过校验 / 超时兜底）后才写入表单，未确认前草稿保持原值
+    pendingHosts.value = hosts;
+    const decision = await hostPluginCheck.verify(hosts);
+    // 结果已过期：由最新一轮校验接管，这里不改动任何状态，避免覆盖较新的选择
+    if (decision === 'stale') return;
+    if (decision === 'reselect') {
+      // 用户选择重新选择：回到选择框，用暂存值回填刚才的勾选
+      hostSelectorOpen.value = true;
+      return;
+    }
+    pendingHosts.value = [];
     const ids = new Set(hosts.map(host => host.host_id));
     const previous = draft.value.process.selected;
     // 主机变化会联动过滤已选进程，属联动写入，不因此给未操作过的进程字段报红
@@ -152,7 +180,6 @@ export function useCollectionForm(
       },
       true
     );
-    hostSelectorOpen.value = false;
   }
   function selectPreview(keys: Array<number | string>) {
     if (!manualSelection.value || previewLoading.value) return;
@@ -281,8 +308,10 @@ export function useCollectionForm(
     previewPageSize,
     previewed,
     hostSelectorOpen,
+    selectorHosts,
     advancedOpen,
     hostServices,
+    hostPluginCheck,
     selected,
     dynamic,
     manualSelection,
@@ -293,6 +322,8 @@ export function useCollectionForm(
     changeType,
     changeMethod,
     selectProcesses,
+    openHostSelector,
+    closeHostSelector,
     changeHosts,
     selectPreview,
     queryProcesses,

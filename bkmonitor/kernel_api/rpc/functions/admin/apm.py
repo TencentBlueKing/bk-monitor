@@ -290,10 +290,11 @@ def _filter_application_queryset_by_datasource_params(queryset: Any, params: dic
     return queryset.filter(key_filter)
 
 
-def _get_application(application_id: Any, bk_tenant_id: str) -> Any:
+def _get_application(application_id: Any, bk_tenant_id: str, bk_biz_id: int | None = None) -> Any:
     normalized_application_id = _normalize_int(application_id, "application_id", required=True)
     try:
-        return apm_models.ApmApplication.objects.get(id=normalized_application_id, bk_tenant_id=bk_tenant_id)
+        scope = {"bk_biz_id": bk_biz_id} if bk_biz_id is not None else {}
+        return apm_models.ApmApplication.objects.get(id=normalized_application_id, bk_tenant_id=bk_tenant_id, **scope)
     except apm_models.ApmApplication.DoesNotExist as error:
         raise CustomException(message=f"未找到 APM 应用: application_id={normalized_application_id}") from error
 
@@ -658,7 +659,7 @@ def get_apm_application_detail(params: dict[str, Any]) -> dict[str, Any]:
 )
 def list_apm_services(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
-    application = _get_application(params.get("application_id"), bk_tenant_id)
+    application = _get_application(params.get("application_id"), bk_tenant_id, params.get("bk_biz_id"))
     page, page_size = normalize_pagination(params)
 
     queryset = apm_models.TopoNode.objects.filter(bk_biz_id=application.bk_biz_id, app_name=application.app_name)
@@ -706,7 +707,7 @@ def list_apm_services(params: dict[str, Any]) -> dict[str, Any]:
 )
 def get_apm_topo(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
-    application = _get_application(params.get("application_id"), bk_tenant_id)
+    application = _get_application(params.get("application_id"), bk_tenant_id, params.get("bk_biz_id"))
     limit = _normalize_int(params.get("limit"), "limit") or 200
     limit = max(1, min(limit, 500))
 

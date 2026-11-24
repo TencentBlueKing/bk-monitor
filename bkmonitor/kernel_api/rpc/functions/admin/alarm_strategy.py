@@ -9,7 +9,7 @@ from bkmonitor.models import StrategyModel
 from bkmonitor.strategy.new_strategy import Strategy
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
-from kernel_api.rpc.functions.admin.common import build_response, serialize_model, paginate_queryset
+from kernel_api.rpc.functions.admin.common import ResourceNotFound, build_response, serialize_model, paginate_queryset
 
 FIELDS = [
     "id",
@@ -55,7 +55,7 @@ def validate(params, operation="list"):
         if operation == "list"
         else {"bk_tenant_id", "strategy_id", "page", "page_size"}
         if operation == "redis_keys"
-        else {"bk_tenant_id", "strategy_id"}
+        else {"bk_tenant_id", "strategy_id", "bk_biz_id"}
     )
     unexpected = set(params) - allowed
     if unexpected:
@@ -79,9 +79,12 @@ def strategy_queryset(params):
 
 
 def scoped_strategy(params, strategy_id):
-    record = strategy_queryset(params).filter(id=strategy_id).first()
+    query = strategy_queryset(params).filter(id=strategy_id)
+    if params.get("bk_biz_id") is not None:
+        query = query.filter(bk_biz_id=params["bk_biz_id"])
+    record = query.first()
     if record is None:
-        raise CustomException(message="当前租户下未找到告警策略", data={"code": "STRATEGY_NOT_FOUND"})
+        raise ResourceNotFound(message="当前租户下未找到告警策略", data={"code": "STRATEGY_NOT_FOUND"})
     return record
 
 

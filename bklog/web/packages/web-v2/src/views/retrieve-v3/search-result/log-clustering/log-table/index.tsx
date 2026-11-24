@@ -430,7 +430,7 @@ export default defineComponent({
         ...getClusterSearchAddition(),
         {
           // 小型化聚类以 signature 作为签名字段
-          field: quix?.status.value ? 'signature' : `__dist_${props.requestData?.pattern_level}`,
+          field: quix?.value ? 'signature' : `__dist_${props.requestData?.pattern_level}`,
           operator: 'is',
           value: signature,
         },

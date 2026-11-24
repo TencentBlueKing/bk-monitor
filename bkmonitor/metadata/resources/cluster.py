@@ -78,6 +78,19 @@ class GetStorageClusterDetail(Resource):
         )
 
 
+class ResolveClusteringKafkaResource(Resource):
+    """按 metadata 集群 ID 解析聚类连接和已登记的 KafkaChannel；仅供后端应用使用。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        cluster_id = serializers.IntegerField(min_value=1, label="Kafka 集群 ID")
+
+    def perform_request(self, validated_request_data):
+        from metadata.service.clustering_kafka import resolve_clustering_kafka
+
+        return resolve_clustering_kafka(**validated_request_data)
+
+
 class RegisterCluster(Resource):
     """注册集群资源"""
 

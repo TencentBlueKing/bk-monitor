@@ -19,6 +19,7 @@ from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Q, Sub
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    ResourceNotFound,
     PAGE_LIST_TENANT_SCHEMA,
     build_response,
     filter_by_bk_tenant_id,
@@ -433,11 +434,12 @@ def _paginate_items(items: list[dict[str, Any]], *, page: int, page_size: int) -
     return items[offset : offset + page_size], total
 
 
-def _get_plugin(bk_tenant_id: str, plugin_id: str) -> CollectorPluginMeta:
+def _get_plugin(bk_tenant_id: str, plugin_id: str, bk_biz_id: int | None = None) -> CollectorPluginMeta:
     try:
-        return CollectorPluginMeta.objects.get(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id)
+        scope = {"bk_biz_id": bk_biz_id} if bk_biz_id is not None else {}
+        return CollectorPluginMeta.objects.get(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id, **scope)
     except CollectorPluginMeta.DoesNotExist as error:
-        raise CustomException(message=f"未找到采集插件: plugin_id={plugin_id}") from error
+        raise ResourceNotFound(message=f"未找到采集插件: plugin_id={plugin_id}") from error
 
 
 def _resolve_version(plugin: CollectorPluginMeta, params: dict[str, Any]) -> PluginVersionHistory:
@@ -577,18 +579,18 @@ def get_collect_plugin_detail(params: dict[str, Any]) -> dict[str, Any]:
     plugin_id = _normalize_string(params.get("plugin_id"))
     if not plugin_id:
         raise CustomException(message="plugin_id 为必填项")
-    plugin = _get_plugin(bk_tenant_id, plugin_id)
+    plugin = _get_plugin(bk_tenant_id, plugin_id, params.get("bk_biz_id"))
     current_version = _resolve_version(plugin, params)
     versions = list(
         PluginVersionHistory.objects.select_related("config", "info")
         .filter(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id)
         .order_by("-config_version", "-info_version", "-id")
     )
+    related_configs = CollectConfigMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id)
+    if params.get("bk_biz_id") is not None:
+        related_configs = related_configs.filter(bk_biz_id=params["bk_biz_id"])
     related_collect_configs = [
-        _serialize_related_collect_config(config)
-        for config in CollectConfigMeta.objects.filter(bk_tenant_id=bk_tenant_id, plugin_id=plugin_id).order_by("-id")[
-            :100
-        ]
+        _serialize_related_collect_config(config) for config in related_configs.order_by("-id")[:100]
     ]
     plugin_summary = _serialize_plugin_summary(plugin, current_version, len(related_collect_configs))
     plugin_summary["release_version_count"] = len(
@@ -628,7 +630,7 @@ def list_collect_plugin_versions(params: dict[str, Any]) -> dict[str, Any]:
     plugin_id = _normalize_string(params.get("plugin_id"))
     if not plugin_id:
         raise CustomException(message="plugin_id 为必填项")
-    plugin = _get_plugin(bk_tenant_id, plugin_id)
+    plugin = _get_plugin(bk_tenant_id, plugin_id, params.get("bk_biz_id"))
     page, page_size = normalize_pagination(params)
     ordering = _normalize_ordering(params.get("ordering"), VERSION_ORDERING_FIELDS, default="-config_version")
     queryset = PluginVersionHistory.objects.select_related("config", "info").filter(
@@ -669,7 +671,7 @@ def get_collect_plugin_version_detail(params: dict[str, Any]) -> dict[str, Any]:
     plugin_id = _normalize_string(params.get("plugin_id"))
     if not plugin_id:
         raise CustomException(message="plugin_id 为必填项")
-    plugin = _get_plugin(bk_tenant_id, plugin_id)
+    plugin = _get_plugin(bk_tenant_id, plugin_id, params.get("bk_biz_id"))
     config_version = _normalize_int(params.get("config_version"), "config_version", required=True)
     info_version = _normalize_int(params.get("info_version"), "info_version", required=True)
     version = _resolve_version(plugin, {"config_version": config_version, "info_version": info_version})

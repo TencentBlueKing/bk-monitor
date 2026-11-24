@@ -25,7 +25,6 @@ TASK_ID = "task-uuid"
 KAFKA = {"cluster_ref": "quix-e2e", "input_topic": f"lc-{TASK_ID}-in", "partitions": 2}
 QUIX_CONFIG = {
     "profile": "test-clustering-es",
-    "kafka_resource": {"kind": "Kafka", "namespace": "bklog", "name": "kafka"},
     "recovery_resource": {"kind": "ElasticSearch", "namespace": "bklog", "name": "context_es"},
     "runtime_cluster": {"kind": "DatabusCluster", "namespace": "quix", "name": "quix-runtime"},
     "state_index": "log-clustering-42-state",
@@ -89,6 +88,7 @@ class TestQuixEnableRunner(TestCase):
             "current_generation": 1,
         }
         self.bkfara.get_clustering.return_value = {
+            "runtime_status": {"ready": True},
             "state": "RUNNING",
             "target_model_ref": {"uri": "model"},
             "all_ready_model_ref": {"uri": "model"},
@@ -96,6 +96,7 @@ class TestQuixEnableRunner(TestCase):
             "input_revision": 1,
         }
         self.transfer = MagicMock()
+        self.transfer.get_data_id.return_value = {"mq_config": {"cluster_config": {"cluster_id": 21}}}
         self.transfer.set_log_clustering_config.return_value = SET_RESULT
         self.transfer.get_log_clustering_status.return_value = ADOPTED_STATUS
         for target, value in (
@@ -116,6 +117,7 @@ class TestQuixEnableRunner(TestCase):
         runtime.pending_config["result_mode"] = "append"
         runtime.save()
         runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        runner._step_create_task()
         runner._step_metadata_set()
         params = self.transfer.set_log_clustering_config.call_args.args[0]
         self.assertEqual(params["result_mode"], "append")
@@ -128,6 +130,7 @@ class TestQuixEnableRunner(TestCase):
 
     def test_store_tables_follow_source_database_and_index_set_cluster(self):
         runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        runner._step_create_task()
         runner._step_metadata_set()
         params = self.transfer.set_log_clustering_config.call_args.args[0]
         self.assertEqual(
@@ -170,6 +173,35 @@ class TestQuixEnableRunner(TestCase):
         self.assertIsNone(self.run_operation())
         self.transfer.set_log_clustering_config.assert_called_once()
         self.assertEqual(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).phase, "running")
+
+    def test_source_kafka_is_pinned_across_create_retry_and_metadata_set(self):
+        self.bkfara.create_task.side_effect = [ApiRequestError("timeout"), {"task_id": TASK_ID}]
+        self.run_operation()
+        self.transfer.get_data_id.return_value = {"mq_config": {"cluster_config": {"cluster_id": 22}}}
+        self.bkfara.get_clustering.return_value["runtime_status"]["ready"] = False
+        self.run_operation()
+        self.transfer.set_log_clustering_config.assert_not_called()
+        self.bkfara.get_clustering.return_value["runtime_status"]["ready"] = True
+        self.run_operation()
+        self.transfer.get_data_id.assert_called_once_with(
+            {"bk_data_id": 1001, "no_request": True},
+            bk_tenant_id=LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).bk_tenant_id,
+        )
+        first, second = self.bkfara.create_task.call_args_list
+        self.assertEqual(first, second)
+        self.assertEqual(first.args[0]["kafka_cluster_id"], 21)
+        params = self.transfer.set_log_clustering_config.call_args.args[0]
+        self.assertEqual(params["kafka_cluster_id"], 21)
+        self.assertNotIn("kafka_resource", params)
+        self.assertEqual(params["binding"]["kafka"], KAFKA)
+
+    def test_missing_source_kafka_blocks_creation(self):
+        self.transfer.get_data_id.return_value = {"mq_config": {}}
+        self.run_operation()
+        self.operation.refresh_from_db()
+        self.assertEqual(self.operation.status, ClusteringOperationStatusEnum.FAILED.value)
+        self.bkfara.create_task.assert_not_called()
+        self.transfer.set_log_clustering_config.assert_not_called()
 
     def test_missing_input_revision_waits_without_submitting(self):
         self.bkfara.get_clustering.return_value["input_revision"] = None
