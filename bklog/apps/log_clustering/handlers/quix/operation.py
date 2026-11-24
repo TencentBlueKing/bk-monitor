@@ -136,7 +136,10 @@ class QuixClusteringOperationRunner:
 
     @cached_property
     def quix_config(self) -> dict:
-        return get_quix_config(require_profile=not self.runtime.pending_v3_adoption and not (self.runtime.active_config or {}).get("v3_source_scope"))
+        return get_quix_config(
+            require_profile=not self.runtime.pending_v3_adoption
+            and not (self.runtime.active_config or {}).get("v3_source_scope")
+        )
 
     def run(self) -> int | None:
         """执行到需要等待或结束为止，返回下次调度的延迟秒数，None 表示无需再调度"""
@@ -202,7 +205,9 @@ class QuixClusteringOperationRunner:
         elif (timezone.now() - started).total_seconds() > WAIT_TIMEOUT_SECONDS:
             detail = f" ({message})" if message else ""
             return self._fail(step, f"waiting for {step} timed out after {WAIT_TIMEOUT_SECONDS}s{detail}")
-        elif message and self.operation.steps[-1]["step"] == step and self.operation.steps[-1].get("message") != message:
+        elif (
+            message and self.operation.steps[-1]["step"] == step and self.operation.steps[-1].get("message") != message
+        ):
             self.operation.steps[-1]["message"] = message
             self.operation.save(update_fields=["steps", "updated_at", "updated_by"])
         return self._schedule(POLL_INTERVAL_SECONDS)
@@ -386,7 +391,9 @@ class QuixClusteringOperationRunner:
             original = self.operation.request_snapshot
             legacy = ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).first()
             if (
-                not legacy or not legacy.access_finished or legacy.model_output_rt != original["v3_source_scope"]
+                not legacy
+                or not legacy.access_finished
+                or legacy.model_output_rt != original["v3_source_scope"]
                 or legacy.collector_config_id not in (None, self.runtime.collector_config_id)
                 or legacy.clustering_fields != original["clustering_fields"]
                 or (legacy.filter_rules or []) != original["filter_rules"]
@@ -608,9 +615,13 @@ class QuixClusteringOperationRunner:
         self._save_runtime(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
 
     def _finish_enable(self):
-        sync_source_router = self.runtime.pending_v3_adoption and self.runtime.pending_config.get("result_mode") == "update_original"
+        sync_source_router = (
+            self.runtime.pending_v3_adoption and self.runtime.pending_config.get("result_mode") == "update_original"
+        )
         self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
         if sync_source_router:
-            BaseIndexSetHandler.sync_router(LogIndexSet.objects.get(index_set_id=self.runtime.index_set_id), raise_exception=True)
+            BaseIndexSetHandler.sync_router(
+                LogIndexSet.objects.get(index_set_id=self.runtime.index_set_id), raise_exception=True
+            )
         ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=True)
         LogIndexSet.set_tag(self.runtime.index_set_id, InnerTag.CLUSTERING.value)
