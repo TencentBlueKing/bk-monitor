@@ -43,7 +43,7 @@ from apps.utils.time_handler import generate_time_range
 
 
 def get_query_runtime(index_set_id):
-    return LogClusteringRuntime.query_binding(index_set_id, bk_tenant_id=get_request_tenant_id())
+    return LogClusteringRuntime.objects.filter(index_set_id=index_set_id, bk_tenant_id=get_request_tenant_id()).first()
 
 
 def apply_query_scope(index_set, params, request):

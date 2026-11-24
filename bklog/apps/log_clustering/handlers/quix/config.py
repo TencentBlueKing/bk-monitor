@@ -30,7 +30,7 @@ QUIX_FEATURE_CONFIG_KEY = "bkbase_quix"
 REQUIRED_RESOURCE_KEYS = ("kind", "namespace", "name")
 
 
-def get_quix_config(*, require_profile=True) -> dict:
+def get_quix_config() -> dict:
     """
     读取 MINI_CLUSTERING_CONFIG 开关 feature_config 中的 bkbase_quix 配置，结构：
     {
@@ -45,7 +45,7 @@ def get_quix_config(*, require_profile=True) -> dict:
     feature_config = (feature.feature_config if feature else None) or {}
     config = copy.deepcopy(feature_config.get(QUIX_FEATURE_CONFIG_KEY) or {})
 
-    missing = ["profile"] if require_profile and not config.get("profile") else []
+    missing = [] if config.get("profile") else ["profile"]
 
     resource = config.get("runtime_cluster") or {}
     missing.extend(f"runtime_cluster.{key}" for key in REQUIRED_RESOURCE_KEYS if not resource.get(key))

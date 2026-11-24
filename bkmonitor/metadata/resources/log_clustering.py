@@ -224,7 +224,7 @@ class SetLogClusteringConfigResource(Resource):
         table_id = serializers.CharField(label="监控结果表ID")
         # 由调用方按 BKBase LogClusteringSink 协议组装，metadata 原样保存和下发。
         binding = serializers.DictField(label="聚类绑定配置")
-        kafka_cluster_id = serializers.IntegerField(label="聚类任务 Kafka 集群 ID", min_value=1)
+        kafka_cluster_id = serializers.IntegerField(label="源日志 Kafka 集群 ID", min_value=1)
         runtime_cluster = LogClusteringResourceRefSerializer(label="专用 Databus 集群")
         recovery_resource = LogClusteringResourceRefSerializer(label="结果关联存储资源", required=False)
         result_mode = serializers.ChoiceField(choices=RESULT_MODES, required=False)
