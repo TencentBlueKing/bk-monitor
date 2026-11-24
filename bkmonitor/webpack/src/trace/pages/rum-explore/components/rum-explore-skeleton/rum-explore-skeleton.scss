@@ -35,6 +35,13 @@
   overflow: hidden;
 }
 
+.rum-skeleton-cell-composite {
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  height: auto;
+}
+
 .rum-skeleton {
   min-width: 0;
   overflow: hidden;
@@ -194,11 +201,11 @@
   }
 
   .rum-skeleton-table-header {
-    height: 34px;
+    height: 36px;
     background: #fafbfd;
   }
 
   .rum-skeleton-table-row {
-    height: 42px;
+    height: 52px;
   }
 }

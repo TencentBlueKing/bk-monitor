@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, onBeforeUnmount, toRef, useTemplateRef, watch } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  shallowRef,
+  Teleport,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
@@ -35,7 +45,7 @@ import { RUM_EXPLORE_VIEW_CLASS, RumModeEnum } from '../../constants';
 import { statisticsApi } from '../../services/rum-search';
 import { renderRumLoadingCell, RUM_TABLE_SKELETON_ROW_COUNT } from '../rum-explore-skeleton/rum-explore-skeleton';
 import { useCellConditionMenu } from './hooks/use-cell-condition-menu';
-import { useScenarioRenderer } from './hooks/use-scenario-renderer';
+import { useRumColumns } from './hooks/use-rum-columns';
 import { useTableScrollOptimize } from '@/hooks/use-table-scroll-optimize';
 import CommonTable from '@/pages/alarm-center/components/alarm-table/components/common-table/common-table';
 import { usePopover } from '@/pages/alarm-center/components/alarm-table/hooks/use-popover';
@@ -44,6 +54,7 @@ import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-ta
 import type { TimeRangeType } from '../../../../components/time-range/utils';
 import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
 import type { IRumCommonParams, IRumCountDrillDown, IRumField, IRumSpanRecord, RumModeType } from '../../typings';
+import type { FieldAnalysisSelection } from './components/column-header/column-header';
 import type { ConditionChangeEvent } from '@/pages/trace-explore/typing';
 import type { SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
@@ -52,7 +63,7 @@ import './rum-explore-table.scss';
 export default defineComponent({
   name: 'RumExploreTable',
   props: {
-    /** 检索视角，决定表格场景渲染器（span / view / session） */
+    /** 检索视角，决定行标识及字段动作。 */
     mode: {
       type: String as PropType<RumModeType>,
       default: RumModeEnum.SPAN,
@@ -179,7 +190,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    /** hover 场景使用的 popover 工具函数（span_name 列 hover 展示 span / trace 信息，主题由各场景在展示时指定） */
+    /** Span 名称的详情提示。 */
     const hoverPopoverTools = usePopover();
     /** CommonTable 组件实例 ref，用于滚动时禁用 pointerEvents、单元格事件委托 */
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
@@ -189,7 +200,7 @@ export default defineComponent({
     let scrollTopBeforeLoad: null | number = null;
     /** 本地请求锁：从发起加载到数据渲染完成期间，忽略滚动事件，避免 scrollLoading 切换间隙重复触发 */
     let isRequestingLock = false;
-    /** 可展示字段映射表：按字段名快速查找字段元数据 */
+    /** 复合列成员可以引用没有作为独立列展示的字段。 */
     const fieldMap = computed(() => {
       if (props.fieldMap?.size) {
         return props.fieldMap;
@@ -204,44 +215,63 @@ export default defineComponent({
       statisticsListRef,
       destroyPopover,
       openPopover,
+      selectPopoverField,
       updatePopoverPosition,
     } = useFieldStatisticsPopover();
 
-    /** 场景渲染器：按检索模式选择场景实例，负责产出声明式列配置与表头渲染 */
-    const { defaultGetCellValue, transformColumns, tableScenarioClassName, tableRowKey } = useScenarioRenderer(
-      toRef(props, 'mode'),
-      {
-        fieldMap,
-        hoverPopoverTools,
-        /** 传 toRef 引用而非裸值：场景实例按 mode 缓存，裸值会在构造时冻结；渲染时由场景内 get() 解包取最新值 */
-        activeRowKey: toRef(props, 'activeRowKey'),
-        activeColKey: toRef(props, 'activeColKey'),
-        onEventsCellClick: (row, colKey) => emit('eventsCellClick', { colKey, row }),
-        onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
-        onOpenDetail: row => emit('openDetail', row),
-        onCountClick: payload => emit('countClick', payload),
-        onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
-      }
-    );
+    /** 当前表头分析入口可切换的成员字段。 */
+    const analysisFields = shallowRef<IRumField[]>([]);
+    /** 复合列分析选项挂载到共享统计浮层的内容容器。 */
+    const analysisPopoverTarget = computed(() => statisticsListRef.value?.$refs?.dimensionPopover as HTMLElement);
+    /** 转成共享统计面板所需的字段形状。 */
+    const toStatisticsField = (field: IRumField) =>
+      ({ ...field, levelAlias: field.alias, levelName: field.name }) as unknown as IStatisticsFieldItem;
+    /** 更新分析候选并打开浮层，默认选中列布局决定的字段。 */
+    const openFieldAnalysis = (trigger: Element, selection: FieldAnalysisSelection) => {
+      analysisFields.value = selection.candidates;
+      openPopover(trigger, toStatisticsField(selection.field));
+    };
+    /** 切换统计数据对应的字段，重复点击当前字段时复用已有结果。 */
+    const selectAnalysisField = (field: IRumField) => {
+      if (activeFieldName.value !== field.name) selectPopoverField(toStatisticsField(field));
+    };
+    const {
+      rowKey: tableRowKey,
+      columns,
+      tableSort,
+      toQuerySort,
+    } = useRumColumns(props, () => fieldMap.value, {
+      hoverPopoverTools,
+      isActive: (rowId, colKey) =>
+        !!props.activeRowKey && props.activeRowKey === rowId && props.activeColKey === colKey,
+      onEventsCellClick: (row, colKey) => emit('eventsCellClick', { colKey, row }),
+      onOpenDetail: row => emit('openDetail', row),
+      onCountClick: payload => emit('countClick', payload),
+      onFieldAnalysis: openFieldAnalysis,
+    });
 
     /**
      * 单元格检索条件菜单：普通单元格左键点击弹出菜单；CLICK 类型列与数量统计列左键已用于详情 / 下钻，
      * 统一由右键弹出同一个菜单。菜单项行为与 trace 检索完全一致（复制 / 添加到本次检索 / 从本次检索中排除 / 新建检索）。
      */
-    const { activeConditionMenuTarget, cacheRows, clearCache, closeMenu, hideMenu } = useCellConditionMenu({
+    const { activeConditionMenuTarget, cacheRows, clearCache, closeMenu, hideMenu, menuAnchor } = useCellConditionMenu({
       delegationRoot: tableRef,
       menuRef: conditionMenuRef,
       rowKey: tableRowKey,
     });
 
-    /**
-     * 列展示逻辑：基础列（含列宽覆盖）-> 场景渲染注入 -> 拼接设置列。
-     * 时间列的格式化依赖 dayjs 的全局时区（由 updateTimezone 副作用设置，本身非响应式），
-     * 这里显式读取 timezone 把时区纳入依赖，时区切换后时间列才会按新时区重新格式化。
-     */
-    const columns = computed<BaseTableColumn[]>(() => {
-      void props.timezone;
-      return transformColumns(props.baseColumns);
+    const memberAnalysisMenu = computed(() => {
+      const field = fieldMap.value.get(activeConditionMenuTarget.colId);
+      const anchor = menuAnchor.value;
+      if (!field?.is_dimensions || !anchor) return [];
+      return [
+        {
+          id: 'field-analysis',
+          icon: 'icon-Chart',
+          name: t('字段分析'),
+          onClick: () => openFieldAnalysis(anchor, { field, candidates: [field] }),
+        },
+      ];
     });
 
     /** 当前展示列的字段 key 列表，供字段设置组件使用 */
@@ -348,16 +378,21 @@ export default defineComponent({
       activeConditionMenuTarget,
       activeFieldName,
       activeRowKeys,
+      analysisFields,
+      analysisPopoverTarget,
       closeMenu,
       columns,
-      defaultGetCellValue,
       displayFieldKeys,
+      memberAnalysisMenu,
+      selectAnalysisField,
       selectField,
       showPopover,
+      resolvedFieldMap: fieldMap,
       statisticsListRef,
       tableRef,
       tableRowKey,
-      tableScenarioClassName,
+      tableSort,
+      toQuerySort,
       destroyPopover,
       updatePopoverPosition,
     };
@@ -375,7 +410,7 @@ export default defineComponent({
         >
           <CommonTable
             ref='tableRef'
-            class={`rum-explore-table ${this.tableScenarioClassName}`}
+            class='rum-explore-table'
             columns={[
               ...this.columns,
               ...(this.showSettings
@@ -443,7 +478,11 @@ export default defineComponent({
                               style={{ flex: `${Number(column.width) || 120} 0 ${Number(column.width) || 120}px` }}
                               class='rum-table-append-cell'
                             >
-                              {renderRumLoadingCell(column.colKey, rowIndex)}
+                              {renderRumLoadingCell(
+                                column.colKey,
+                                rowIndex,
+                                !!this.resolvedFieldMap.get(column.colKey)?.composite
+                              )}
                             </div>
                           ))}
                           {this.showSettings && <div class='rum-table-append-settings' />}
@@ -454,22 +493,25 @@ export default defineComponent({
                 : null
             }
             loadingCell={(column, rowIndex) =>
-              renderRumLoadingCell(column.colKey, rowIndex) as unknown as SlotReturnValue
+              renderRumLoadingCell(
+                column.colKey,
+                rowIndex,
+                !!this.resolvedFieldMap.get(column.colKey)?.composite
+              ) as unknown as SlotReturnValue
             }
             activeRowKeys={this.activeRowKeys}
             activeRowType='single'
             autoFillSpace={!this.data.length && !this.loading}
-            customDefaultGetRenderValue={this.defaultGetCellValue}
             headerAffixedTop={this.headerAffixedTop}
             horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
             loading={showSkeleton}
             rowKey={this.tableRowKey}
-            sort={this.sort}
+            sort={this.tableSort}
             onActiveChange={(rowKeys: Array<number | string>) => this.$emit('activeChange', rowKeys)}
             onColumnResizeChange={(ctx: { columnsWidth: Record<string, number> }) =>
               this.$emit('columnResizeChange', ctx.columnsWidth)
             }
-            onSortChange={(sort: string | string[]) => this.$emit('sortChange', sort)}
+            onSortChange={(sort: string | string[]) => this.$emit('sortChange', this.toQuerySort(sort))}
           />
         </div>
 
@@ -484,12 +526,33 @@ export default defineComponent({
           onContentRendered={this.updatePopoverPosition}
           onShowMore={this.destroyPopover}
         />
+        {this.activeFieldName && this.analysisPopoverTarget && this.analysisFields.length > 1 && (
+          <Teleport to={this.analysisPopoverTarget}>
+            <div
+              class='rum-analysis-fields'
+              aria-label={this.t('字段分析')}
+              role='group'
+            >
+              {this.analysisFields.map(field => (
+                <button
+                  key={field.name}
+                  aria-pressed={field.name === this.activeFieldName}
+                  type='button'
+                  onClick={() => this.selectAnalysisField(field)}
+                >
+                  {field.alias}
+                </button>
+              ))}
+            </div>
+          </Teleport>
+        )}
 
         <div style='display: none'>
           <ExploreConditionMenu
             ref='conditionMenuRef'
             conditionKey={this.activeConditionMenuTarget.colId}
             conditionValue={this.activeConditionMenuTarget.conditionValue}
+            customMenuList={this.memberAnalysisMenu}
             onConditionChange={(condition: ConditionChangeEvent) => this.$emit('conditionChange', condition)}
             onMenuClick={this.closeMenu}
           />

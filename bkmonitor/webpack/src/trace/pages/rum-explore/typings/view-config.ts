@@ -25,9 +25,33 @@
  */
 
 import type { DimensionType } from '../../trace-explore/typing';
+import type { IRumHoverInfo } from '../detail/typings/detail';
 import type { RumFieldDisplayType, RumRatingType } from './enum';
 
 export type { DimensionType };
+
+/** 复合字段布局：primary 为默认排序与分析字段，sections 按展示顺序排列 */
+export interface IRumCompositeConfig {
+  primary: string;
+  sections: IRumCompositeSection[];
+}
+
+/** 复合字段的组成成员，取值来自 record[field_name] */
+export interface IRumCompositeItem {
+  field_name: string;
+  show_if?: IRumCompositeShowIf;
+}
+
+/** 复合字段的一行：正文成员按 separator 连接，徽标附在正文之后 */
+export interface IRumCompositeSection {
+  badges?: IRumCompositeItem[];
+  items: IRumCompositeItem[];
+  /** 仅用于连接正文成员 */
+  separator?: string;
+}
+
+/** 复合字段成员的展示条件：同字段命中任一候选值即满足，多字段需同时满足 */
+export type IRumCompositeShowIf = Record<string, Array<boolean | number | string>>;
 
 /**
  * 归一化后的字段结构。
@@ -40,9 +64,13 @@ export interface IRumField {
   alias: string;
   /** 是否可作为表格列展示，源自 is_list */
   can_displayed: boolean;
+  /** 复合字段布局（列表按 sections / items / badges 组装单元格），仅 extra_config.composite 存在时有值 */
+  composite?: IRumRawFieldExtraConfig['composite'];
   /** 字段展示类型（仅特殊渲染字段有值） */
   field_display_type?: RumFieldDisplayType;
   field_unit: string;
+  /** 表头悬浮时展示的接口说明。 */
+  hover?: IRumHoverInfo;
   /** 是否支持聚合统计，决定能否做统计分析，源自 is_agg */
   is_dimensions: boolean;
   /** 是否为数据中真实存在的字段，「原始字段」分组据此聚合 */
@@ -94,11 +122,14 @@ export interface IRumFieldRatingConfig {
 
 /** view_config 接口返回的原始字段结构 */
 export interface IRumRawField {
+  extra_config?: IRumRawFieldExtraConfig;
   field_alias: string;
   field_display_type?: RumFieldDisplayType;
   field_name: string;
   field_type: DimensionType;
   field_unit?: string;
+  /** 后端为字段提供的表头悬浮信息。 */
+  hover?: IRumHoverInfo;
   is_agg: boolean;
   is_list: boolean;
   is_real: boolean;
@@ -106,6 +137,11 @@ export interface IRumRawField {
   option_values?: IRumFieldOptionValue[];
   rating_config?: IRumFieldRatingConfig[];
   supported_operations?: IRumFieldOperation[];
+}
+
+/** 字段扩展配置，目前仅下发 composite */
+export interface IRumRawFieldExtraConfig {
+  composite?: IRumCompositeConfig;
 }
 
 /** view_config 接口返回的原始分组结构 */

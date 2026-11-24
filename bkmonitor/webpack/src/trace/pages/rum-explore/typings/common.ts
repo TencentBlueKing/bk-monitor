@@ -65,6 +65,8 @@ export interface IRumCommonParams {
 /** 数量列下钻事件：调用方构造目标视角与跳转后携带的检索条件 */
 export interface IRumCountDrillDown {
   condition: ConditionChangeEvent;
+  /** 目标为 span 视角时可指定 span 类型，缺省为「全部」 */
+  spanType?: string;
   targetMode: RumModeType;
 }
 

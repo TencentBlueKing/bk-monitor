@@ -184,6 +184,10 @@ export const RUM_TIME_FIELDS = new Set(['start_time', 'end_time', 'events.timest
 /** 支持排序的字段类型 */
 export const RUM_SORTABLE_FIELD_TYPES = new Set(['date', 'double', 'integer', 'long']);
 
+/** 数值、时间和接口提供的虚拟字段支持列表排序。 */
+export const isRumFieldSortable = (field: { name: string; type: string }) =>
+  RUM_SORTABLE_FIELD_TYPES.has(field.type) || field.name.startsWith('virtual.');
+
 /** 可打开详情抽屉的 span 类型：列表 span_name 的可点判定与详情「上一条 / 下一条」跳转共用（session 打开会话详情） */
 export const RUM_DETAIL_SPAN_TYPES = new Set([
   'view',
@@ -199,27 +203,92 @@ export const RUM_DETAIL_SPAN_TYPES = new Set([
 
 /** Span 视角列宽（视角私有），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
 export const SPAN_COLUMN_WIDTH_MAP: Record<string, number> = {
-  span_name: 180,
-  'attributes.span_type': 120,
-  // end_time: 220,
-  // start_time: 220,
-  // elapsed_time: 120,
+  span_name: 307,
+  'attributes.span_type': 181,
+  elapsed_time: 185,
+  'virtual.browser': 197,
+  end_time: 206,
   'status.code': 120,
-  'attributes.view.url_template': 220,
+  'attributes.view.url_template': 300,
+  'attributes.error.source': 200,
+  'attributes.resource.size': 113,
+  'events.attributes.long_task.script.source_url': 165,
   'resource.user_agent.name': 137,
-  'attributes.user.id': 133,
+  'attributes.user.id': 197,
+};
+
+/** 不同 Span 类型按真实字段键覆盖默认列宽。 */
+export const SPAN_TYPE_COLUMN_WIDTH_MAP: Record<string, Record<string, number>> = {
+  view: {
+    span_name: 320,
+    'attributes.view.loading_time': 246,
+    'virtual.browser': 246,
+    'attributes.user.id': 246,
+    end_time: 246,
+  },
+  resource: {
+    span_name: 320,
+    elapsed_time: 113,
+    'attributes.view.url_template': 301,
+    'virtual.browser': 150,
+    'attributes.user.id': 111,
+    end_time: 196,
+  },
+  error: {
+    span_name: 345,
+    'attributes.view.url_template': 295,
+    'virtual.browser': 160,
+    'attributes.user.id': 102,
+    end_time: 203,
+  },
+  vital: {
+    span_name: 199,
+    'attributes.vital.value': 199,
+    'attributes.view.url_template': 307,
+    'virtual.browser': 199,
+    'attributes.user.id': 199,
+    end_time: 199,
+  },
+  long_task: {
+    span_name: 151,
+    elapsed_time: 122,
+    'attributes.long_task.blocking_duration': 122,
+    'attributes.view.url_template': 302,
+    'virtual.browser': 151,
+    'attributes.user.id': 100,
+    end_time: 192,
+  },
+  action: {
+    span_name: 230,
+    elapsed_time: 198,
+    'attributes.view.url_template': 283,
+    'virtual.browser': 198,
+    'attributes.user.id': 198,
+    end_time: 197,
+  },
+  custom: {
+    span_name: 202,
+    elapsed_time: 202,
+    'attributes.view.url_template': 295,
+    'virtual.browser': 202,
+    'attributes.user.id': 202,
+    end_time: 201,
+  },
 };
 
 /** View 视角列宽（对齐设计稿），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
 export const VIEW_COLUMN_WIDTH_MAP: Record<string, number> = {
-  start_time: 133,
-  'attributes.view.url_template': 116,
+  start_time: 220,
+  duration: 78,
+  'attributes.view.url_template': 306,
   'attributes.view.loading_type': 140,
-  'web_vitals.fcp': 88,
-  'web_vitals.lcp': 88,
-  'web_vitals.cls': 88,
-  'web_vitals.inp': 88,
-  'web_vitals.ttfb': 88,
+  'web_vitals.fcp': 90,
+  'web_vitals.lcp': 90,
+  'web_vitals.cls': 90,
+  'web_vitals.inp': 90,
+  'web_vitals.ttfb': 90,
+  'virtual.browser': 160,
+  'attributes.user.id': 90,
   error_count: 88,
   request_count: 88,
   action_count: 88,
@@ -228,16 +297,17 @@ export const VIEW_COLUMN_WIDTH_MAP: Record<string, number> = {
 
 /** Session 视角列宽（按字段 key 对齐设计稿，不依赖后端默认列顺序） */
 export const SESSION_COLUMN_WIDTH_MAP: Record<string, number> = {
-  'attributes.session.id': 149,
-  'attributes.user.id': 100,
+  'attributes.session.id': 284,
+  'attributes.user.id': 131,
+  'virtual.browser': 150,
   'resource.user_agent.name': 176,
   'resource.user_agent.os.name': 124,
   enter_url_template: 156,
-  start_time: 140,
-  duration: 110,
-  view_count: 100,
-  action_count: 110,
-  error_count: 109,
+  start_time: 189,
+  duration: 129,
+  view_count: 131,
+  action_count: 131,
+  error_count: 129,
 };
 
 /** View 视角的页面 ID 字段：表格行唯一键，同时是跨视角检索该页面的条件字段 */
@@ -245,9 +315,6 @@ export const VIEW_ID_FIELD = 'attributes.view.id';
 
 /** View 视角的页面 URL 字段：链接列，点击打开 View 详情抽屉 */
 export const VIEW_URL_FIELD = 'attributes.view.url_template';
-
-/** View 视角的数量统计列：大于 0 时按红色链接展示，点击切到 Span 视角并按页面 ID 检索 */
-export const VIEW_COUNT_FIELDS = new Set(['error_count', 'request_count', 'action_count']);
 
 /** Session 视角的行唯一键，同时是跨视角检索该会话的条件字段 */
 export const SESSION_ID_FIELD = 'attributes.session.id';
@@ -257,13 +324,6 @@ export const RUM_RECORD_ID_FIELD_MAP: Record<RumModeType, string> = {
   [RumModeEnum.SESSION]: SESSION_ID_FIELD,
   [RumModeEnum.VIEW]: VIEW_ID_FIELD,
   [RumModeEnum.SPAN]: 'span_id',
-};
-
-/** Session 视角数量统计列 → 下钻目标视角；下钻条件统一带当前会话 ID */
-export const SESSION_COUNT_FIELDS: Record<string, RumModeType> = {
-  view_count: RumModeEnum.VIEW,
-  action_count: RumModeEnum.SPAN,
-  error_count: RumModeEnum.SPAN,
 };
 
 export const DEFAULT_COLUMN_WIDTH = 220;
@@ -302,8 +362,7 @@ export const RUM_COLUMN_LAYOUT_PRESET: Partial<Record<RumModeType, IRumColumnLay
   },
   [RumModeEnum.VIEW]: {
     widthMap: VIEW_COLUMN_WIDTH_MAP,
-    /** 设计稿中 Web Vitals 列为 88px，小于全局默认最小列宽，需按视角下调 */
-    minWidth: 88,
+    minWidth: 78,
   },
 };
 
@@ -332,7 +391,7 @@ export const RUM_STATUS_CODE_MAP = {
   },
 };
 
-/** attributes.outcome.type 列的展示配置（状态图标 + 状态文案，图标配色由 span-table-theme.scss 按状态类名渲染） */
+/** attributes.outcome.type 列的状态图标与文案 */
 export const RUM_OUTCOME_TYPE_MAP: Record<string, { icon: string; label: string }> = {
   success: { icon: 'icon-monitor icon-mc-check-fill outcome-type-icon-success', label: window.i18n.t('成功') },
   warning: { icon: 'icon-monitor icon-mind-fill outcome-type-icon-warning', label: window.i18n.t('异常') },

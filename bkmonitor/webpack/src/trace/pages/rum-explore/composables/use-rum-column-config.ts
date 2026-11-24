@@ -30,8 +30,8 @@ import { get, useDebounceFn } from '@vueuse/core';
 import {
   DEFAULT_COLUMN_WIDTH,
   DEFAULT_MIN_COLUMN_WIDTH,
+  isRumFieldSortable,
   RUM_FIELD_DEFAULT_COLUMN_WIDTH,
-  RUM_SORTABLE_FIELD_TYPES,
   RumFieldDisplayEnum,
 } from '../constants';
 import useUserConfig from '@/hooks/useUserConfig';
@@ -62,7 +62,7 @@ interface IRumColumnConfigCache {
  * @param {MaybeRef<string[]>} opts.overrideDisplayFields 受控展示列，非空数组即「受控态」，使用该列表作为展示列并锁定编辑（列宽仍可调整并持久化）
  * @param {Ref<IRumViewConfig>} opts.viewConfig 字段全集与接口默认列，用于校验与兜底
  */
-export function useRumColumnConfig(opts: {
+export const useRumColumnConfig = (opts: {
   /** 列缓存 key，空串表示未就绪、跳过读取 */
   cacheKey: MaybeRef<string>;
   /** 列布局预设（默认列宽 / 左侧固定列），由调用方按检索视角选择 */
@@ -71,7 +71,7 @@ export function useRumColumnConfig(opts: {
   overrideDisplayFields: MaybeRef<string[]>;
   /** 字段全集与接口默认列 */
   viewConfig: Ref<IRumViewConfig>;
-}) {
+}) => {
   const { cacheKey, layoutPreset, viewConfig, overrideDisplayFields } = opts;
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
@@ -84,16 +84,20 @@ export function useRumColumnConfig(opts: {
 
   /** 可作为列的字段全集，供字段设置使用 */
   const displayableFields = computed(() => get(viewConfig).fields.filter(field => field.can_displayed));
-  /** 字段名 -> 字段元数据；同时承担「有效字段集合」的校验职责 */
-  const fieldMap = computed(() => new Map(displayableFields.value.map(field => [field.name, field])));
+  /** 复合成员可以引用不可单独展示的字段。 */
+  const fieldMap = computed(() => new Map(get(viewConfig).fields.map(field => [field.name, field])));
+  /** 校验列设置和用户缓存所用的可展示字段集合。 */
+  const displayableFieldNames = computed(() => new Set(displayableFields.value.map(field => field.name)));
   /** 是否处于受控态；overrideDisplayFields 非空即受控，锁定展示列与持久化 */
   const isControlled = computed(() => get(overrideDisplayFields)?.length);
   /** 用户缓存的展示列；非受控态下可被接口默认列兜底 */
   const cachedDisplayFields = computed<string[]>({
     get: () => {
       const cached = columnConfigCache.value.displayFields;
-      const result = cached?.length ? cached : get(viewConfig).display_fields;
-      return result.filter(name => fieldMap.value.has(name));
+      const validCached = (cached ?? []).filter(name => displayableFieldNames.value.has(name));
+      return validCached.length
+        ? validCached
+        : get(viewConfig).display_fields.filter(name => displayableFieldNames.value.has(name));
     },
     /**
      * 写入时按有效字段裁剪并触发防抖保存。
@@ -103,7 +107,7 @@ export function useRumColumnConfig(opts: {
       if (isControlled.value) return;
       columnConfigCache.value = {
         ...columnConfigCache.value,
-        displayFields: val.filter(name => fieldMap.value.has(name)),
+        displayFields: val.filter(name => displayableFieldNames.value.has(name)),
       };
       saveColumnConfig();
     },
@@ -112,7 +116,7 @@ export function useRumColumnConfig(opts: {
   const fieldsWidthConfig = computed<Record<string, number>>({
     get: () => {
       const stored = columnConfigCache.value.columnResizeWidth ?? {};
-      return Object.fromEntries(Object.entries(stored).filter(([key]) => fieldMap.value.has(key)));
+      return Object.fromEntries(Object.entries(stored).filter(([key]) => displayableFieldNames.value.has(key)));
     },
     /**
      * 写入时合并到现有覆盖并触发防抖保存：
@@ -131,14 +135,14 @@ export function useRumColumnConfig(opts: {
   const displayFields = computed<string[]>(() => {
     if (isControlled.value) {
       // 受控态：直接展示外部指定的列（按有效字段校验裁剪），忽略用户缓存
-      return get(overrideDisplayFields).filter(name => fieldMap.value.has(name));
+      return get(overrideDisplayFields).filter(name => displayableFieldNames.value.has(name));
     }
     // 非受控态：用户缓存列 > 接口默认列
     return cachedDisplayFields.value;
   });
   /** 接口下发的默认展示列（按有效字段裁剪），列设置「恢复默认」的回填来源 */
   const defaultDisplayFields = computed<string[]>(() =>
-    (get(viewConfig).display_fields ?? []).filter(name => fieldMap.value.has(name))
+    (get(viewConfig).display_fields ?? []).filter(name => displayableFieldNames.value.has(name))
   );
 
   /**
@@ -156,7 +160,7 @@ export function useRumColumnConfig(opts: {
         fixed: leftFixedColumns?.has(field.name) ? 'left' : undefined,
         minWidth: minWidth ?? DEFAULT_MIN_COLUMN_WIDTH,
         resizable: true,
-        sorter: RUM_SORTABLE_FIELD_TYPES.has(field.type),
+        sorter: isRumFieldSortable(field),
       }));
     return columns;
   });
@@ -165,17 +169,17 @@ export function useRumColumnConfig(opts: {
    * @description 更新展示列
    * @param {string[]} fields 新的字段名顺序
    */
-  function updateDisplayFields(fields: string[]) {
+  const updateDisplayFields = (fields: string[]) => {
     cachedDisplayFields.value = fields;
-  }
+  };
 
   /**
    * @description 更新列宽覆盖
    * @param {Record<string, number>} width colKey -> 宽度映射
    */
-  function updateColumnResizeWidth(width: Record<string, number>) {
+  const updateColumnResizeWidth = (width: Record<string, number>) => {
     fieldsWidthConfig.value = width;
-  }
+  };
 
   /**
    * 防抖保存列配置。
@@ -189,7 +193,7 @@ export function useRumColumnConfig(opts: {
   /**
    * @description 从用户常驻配置加载列配置
    */
-  async function loadColumnConfig() {
+  const loadColumnConfig = async () => {
     // 空 key 由 hook 跳过请求并清空配置 ID，避免切换时写入上一个应用。
     const cached = await handleGetUserConfig<IRumColumnConfigCache>(get(cacheKey));
     // 版本不匹配或无有效缓存：丢弃并回退默认，待用户操作后再落盘
@@ -201,7 +205,7 @@ export function useRumColumnConfig(opts: {
         version: RUM_COLUMN_CONFIG_VERSION,
       };
     }
-  }
+  };
 
   /** 缓存 key 变化时重置并重新加载配置 */
   watch(
@@ -237,7 +241,7 @@ export function useRumColumnConfig(opts: {
     /** 手动重新加载列配置 */
     loadColumnConfig,
   };
-}
+};
 
 /**
  * @description 按字段元信息推导默认列宽：展示类型 > 单位 > 枚举取值 > 全局默认。
@@ -245,10 +249,10 @@ export function useRumColumnConfig(opts: {
  * @param {IRumField} field 字段元数据
  * @returns {number} 列宽
  */
-function getDefaultColumnWidth(field: IRumField): number {
+const getDefaultColumnWidth = (field: IRumField): number => {
   if (field.field_display_type === RumFieldDisplayEnum.DATETIME) return RUM_FIELD_DEFAULT_COLUMN_WIDTH.datetime;
   if (field.field_display_type === RumFieldDisplayEnum.DURATION) return RUM_FIELD_DEFAULT_COLUMN_WIDTH.duration;
   if (field.field_unit) return RUM_FIELD_DEFAULT_COLUMN_WIDTH.unit;
   if (field.option_values?.length) return RUM_FIELD_DEFAULT_COLUMN_WIDTH.option;
   return DEFAULT_COLUMN_WIDTH;
-}
+};

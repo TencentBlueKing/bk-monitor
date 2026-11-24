@@ -1,0 +1,74 @@
+.rum-explore-table {
+  .explore-col.rum-composite-col {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    height: auto;
+    overflow: hidden;
+
+    .rum-composite-line {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      width: 100%;
+      min-width: 0;
+      font-size: 12px;
+      line-height: 20px;
+
+      &.is-secondary {
+        line-height: 16px;
+        color: #8392ad;
+
+        .explore-col-text:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+
+    .rum-composite-main {
+      display: flex;
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .rum-composite-member {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .rum-composite-separator { white-space: pre; }
+
+    .rum-composite-badges,
+    .rum-composite-badge,
+    .rum-composite-actions {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .rum-composite-badges {
+      flex-shrink: 0;
+      max-width: 65%;
+      overflow: hidden;
+    }
+
+    .rum-composite-actions,
+    .rum-composite-action {
+      flex-shrink: 0;
+    }
+
+    .rum-composite-action {
+      display: inline-flex;
+      gap: 2px;
+      align-items: center;
+      padding: 0;
+      font-size: 12px;
+      color: #537fb0;
+      background: none;
+      border: 0;
+    }
+  }
+}

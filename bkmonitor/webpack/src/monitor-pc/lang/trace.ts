@@ -151,6 +151,9 @@ export default {
   已读: 'Read',
   'Trace 助手': 'Trace Helper',
   请输入应用名称: 'Please enter the application name',
+  /** RUM 检索表格 */
+  '页面 URL': 'Page URL',
+  字段分析: 'Field analysis',
   /** RUM 列表（设计稿文案） */
   '搜索 应用名称（域名）、应用别名、接入状态、应用状态、创建人、最近更新人':
     'Search application name (domain), alias, access status, application status, creator, last updater',
