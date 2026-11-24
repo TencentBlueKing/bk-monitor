@@ -26,6 +26,7 @@ from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
 from apps.log_clustering.exceptions import QuixClusteringConfigInvalidException
 
 QUIX_FEATURE_CONFIG_KEY = "bkbase_quix"
+DEFAULT_MAX_MESSAGE_BYTES = 20 * 1024 * 1024
 
 REQUIRED_RESOURCE_KEYS = ("kind", "namespace", "name")
 
@@ -36,7 +37,7 @@ def get_quix_config() -> dict:
     {
         "profile": "...",               # BKFara 部署方登记的聚类任务 Profile 名称
         "runtime_cluster": {"kind": "DatabusCluster", "namespace": "...", "name": "..."},
-        "max_message_bytes": 1048576,     # 可选
+        "max_message_bytes": 20971520,    # 可选，默认 20 MiB
         "result_modes": {"42": "append"}, # 可选，按索引集选择独立表；仅首次开启读取
     }
     任务模板、Worker Profile 和 Kafka 绑定由 BKFara 解析；这里保留 BKBase 所需的资源引用。
@@ -55,4 +56,5 @@ def get_quix_config() -> dict:
             QuixClusteringConfigInvalidException.MESSAGE.format(detail=f"missing {', '.join(missing)}")
         )
 
+    config.setdefault("max_message_bytes", DEFAULT_MAX_MESSAGE_BYTES)
     return config

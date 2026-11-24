@@ -222,7 +222,13 @@ class TestQuixConfig(SimpleTestCase):
     @patch("apps.log_clustering.handlers.quix.config.FeatureToggleObject.toggle")
     def test_profile_does_not_require_local_task_or_kafka_templates(self, mock_toggle):
         mock_toggle.return_value = Mock(feature_config={"bkbase_quix": QUIX_CONFIG})
-        self.assertEqual(get_quix_config(), QUIX_CONFIG)
+        self.assertEqual(get_quix_config(), {**QUIX_CONFIG, "max_message_bytes": 20 * 1024 * 1024})
+
+    @patch("apps.log_clustering.handlers.quix.config.FeatureToggleObject.toggle")
+    def test_explicit_message_limit_is_preserved(self, mock_toggle):
+        config = {**QUIX_CONFIG, "max_message_bytes": 1024 * 1024}
+        mock_toggle.return_value = Mock(feature_config={"bkbase_quix": config})
+        self.assertEqual(get_quix_config(), config)
 
     @patch("apps.log_clustering.handlers.quix.config.FeatureToggleObject.toggle")
     def test_missing_keys_are_reported(self, mock_toggle):
