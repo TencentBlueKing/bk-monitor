@@ -54,7 +54,7 @@ import './collection-task-form.scss';
  * 主机选择弹窗（ip-selector 内置 magic-vue 弹层，transfer 到 body）的 z-index 取自 magic-vue 的全局计数器，
  * 侧栏 z-index 用同一计数器保证弹窗必然更高；只能在实例创建时取一次，若在 render 中取值，
  * 弹窗打开后的任意表单重渲染都会让侧栏 z-index 反超并重新压住弹窗
- * @returns 侧栏使用的 z-index
+ * @returns 分配给弹层的 z-index
  */
 const getNextZIndex = () =>
   (window as unknown as { __bk_zIndex_manager?: { nextZIndex?: () => number } }).__bk_zIndex_manager?.nextZIndex?.() ||
@@ -95,6 +95,12 @@ export default defineComponent({
     const form = useCollectionForm(props.meta, props.bizId, props.timezone, props.task, props.prefill, immediate =>
       emit('saved', immediate)
     );
+    const pluginCheckDialogZIndex = shallowRef(sidesliderZIndex + 1);
+    watch(form.hostPluginCheck.dialogShow, show => {
+      if (show) {
+        pluginCheckDialogZIndex.value = Math.max(getNextZIndex(), sidesliderZIndex + 1);
+      }
+    });
     /** 执行周期组件实例，提交前用于校验 cron 表达式 */
     const crontab = shallowRef<InstanceType<typeof CollectionCrontab>>();
     /** 表单滚动容器，用于把首条错误滚动到可视区 */
@@ -183,6 +189,7 @@ export default defineComponent({
       timeShortcuts,
       scrollToFirstError,
       sidesliderZIndex,
+      pluginCheckDialogZIndex,
     };
   },
   /**
@@ -631,6 +638,7 @@ export default defineComponent({
               <HostPluginCheckDialog
                 groups={f.hostPluginCheck.groups.value}
                 show={f.hostPluginCheck.dialogShow.value}
+                zIndex={this.pluginCheckDialogZIndex}
                 onContinue={f.hostPluginCheck.handleContinue}
                 onReselect={f.hostPluginCheck.handleReselect}
               />
