@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import { type Ref, nextTick, onBeforeUnmount, onMounted, reactive } from 'vue';
+import { type Ref, nextTick, onBeforeUnmount, onMounted, reactive, shallowRef } from 'vue';
 import type { MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
@@ -71,6 +71,8 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
     colId: '',
     conditionValue: '',
   });
+  /** 当前菜单对应的原生节点，用于区分同字段的不同出现位置。 */
+  const menuAnchor = shallowRef<HTMLElement>();
   /** 行数据缓存：事件委托只能拿到 rowId/colId，需据此回源取单元格原始值（含 tag 的 index 取值） */
   const { cacheRows, getCellComplexValue, clearCache } = useExploreDataCache(rowKey);
   /** 右键监听所在的根 DOM，组件卸载时解绑 */
@@ -80,27 +82,30 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
    * @description 重置/设置条件菜单目标
    * @param {Partial<ActiveConditionMenuTarget>} item 目标信息，不传即重置
    */
-  function setActiveConditionMenu(item: Partial<ActiveConditionMenuTarget> = {}) {
+  const setActiveConditionMenu = (item: Partial<ActiveConditionMenuTarget> = {}) => {
     activeConditionMenuTarget.rowId = item.rowId || '';
     activeConditionMenuTarget.colId = item.colId || '';
     activeConditionMenuTarget.conditionValue = item.conditionValue || '';
-  }
+    if (!item.rowId) menuAnchor.value = undefined;
+  };
 
   /**
    * @description 解析菜单 popover 的内容与挂载目标
    * @param {HTMLElement} triggerDom 命中的单元格文本节点
    * @returns 再次点击同一单元格时返回空（表现为收起），否则返回菜单内容与挂载目标
    */
-  function getContentOptions(triggerDom: HTMLElement) {
-    const oldRowId = activeConditionMenuTarget.rowId;
-    const oldColId = activeConditionMenuTarget.colId;
+  const getContentOptions = (triggerDom: HTMLElement) => {
+    const isSameTarget =
+      triggerDom === menuAnchor.value &&
+      triggerDom.dataset.rowId === activeConditionMenuTarget.rowId &&
+      triggerDom.dataset.colId === activeConditionMenuTarget.colId;
     setActiveConditionMenu();
-    if (triggerDom.dataset.rowId === oldRowId && triggerDom.dataset.colId === oldColId) {
-      return;
-    }
+    if (isSameTarget) return;
     const sourceValue = getCellComplexValue(triggerDom.dataset.rowId, triggerDom.dataset.colId, {
       index: triggerDom.dataset.index ? Number(triggerDom.dataset.index) : null,
     });
+    if (sourceValue === undefined || sourceValue === null) return;
+    menuAnchor.value = triggerDom;
     setActiveConditionMenu({
       rowId: triggerDom.dataset.rowId,
       colId: triggerDom.dataset.colId,
@@ -111,7 +116,7 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
       content: menuRef.value?.$el,
       popoverTarget: isEllipsisActive ? triggerDom.parentElement : triggerDom,
     };
-  }
+  };
 
   const { handlePopoverHide, handlePopoverShow, initListeners } = useTablePopover(
     delegationRoot as Parameters<typeof useTablePopover>[0],
@@ -131,16 +136,16 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
   /**
    * @description 解析事件委托根 DOM（兼容组件实例与原生 DOM）
    */
-  function getRootDom(): HTMLElement {
+  const getRootDom = (): HTMLElement => {
     const root = get(delegationRoot) as HTMLElement | { $el?: HTMLElement };
     return (root as { $el?: HTMLElement })?.$el ?? (root as HTMLElement);
-  }
+  };
 
   /**
    * @description CLICK 类型列右键唤起条件菜单（左键保持「打开 Span 详情」）
    * @param {MouseEvent} event 右键事件
    */
-  function handleContextMenu(event: MouseEvent) {
+  const handleContextMenu = (event: MouseEvent) => {
     const triggerDom = (event.target as HTMLElement)?.closest?.<HTMLElement>(CLICK_CELL_TEXT_SELECTOR);
     if (!triggerDom) return;
     event.preventDefault();
@@ -150,38 +155,38 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
       return;
     }
     handlePopoverShow(options.popoverTarget || triggerDom, options.content);
-  }
+  };
 
   /**
    * @description 菜单项点击后收起菜单并重置目标
    */
-  function closeMenu() {
+  const closeMenu = () => {
     setActiveConditionMenu();
     handlePopoverHide();
-  }
+  };
 
   /**
    * @description CLICK 类型列左键点击时收起已打开的右键菜单。
    * 左键的 onClick 会 stopPropagation，tippy 的 click 触发器收不到事件，菜单无法自行收起，这里在捕获阶段主动收起。
    * @param {MouseEvent} event 左键事件
    */
-  function handleClickCellClick(event: MouseEvent) {
+  const handleClickCellClick = (event: MouseEvent) => {
     if (!(event.target as HTMLElement)?.closest?.(CLICK_CELL_TEXT_SELECTOR)) return;
     closeMenu();
-  }
+  };
 
   /**
    * @description 重新绑定全部事件委托：左键菜单委托、右键菜单、左键收起三类一起重建。
    * 委托根节点会随表格 / 抽屉显隐重建，重建后必须整体重绑，否则旧节点上的右键与左键收起监听不再触发。
    */
-  function rebindListeners() {
+  const rebindListeners = () => {
     initListeners();
     contextMenuRoot?.removeEventListener('contextmenu', handleContextMenu, true);
     contextMenuRoot?.removeEventListener('click', handleClickCellClick, true);
     contextMenuRoot = getRootDom();
     contextMenuRoot?.addEventListener('contextmenu', handleContextMenu, true);
     contextMenuRoot?.addEventListener('click', handleClickCellClick, true);
-  }
+  };
 
   onMounted(() => {
     nextTick(() => {
@@ -198,6 +203,8 @@ export const useCellConditionMenu = ({ delegationRoot, menuRef, rowKey }: UseCel
   return {
     /** 当前激活的条件菜单目标 */
     activeConditionMenuTarget,
+    /** 供成员分析浮层复用的锚点。 */
+    menuAnchor,
     /** 批量缓存行数据（数据追加时调用） */
     cacheRows,
     /** 清空行数据缓存（新查询时调用） */

@@ -1,0 +1,198 @@
+.rum-explore-table {
+  .t-table__header th:has(.rum-composite-header) {
+    padding-inline: 12px;
+  }
+
+  tbody > tr > td:has(.rum-composite-col) {
+    padding: 5px 12px;
+  }
+
+  .explore-col.rum-composite-col {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    height: auto;
+    overflow: hidden;
+    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+    .rum-composite-line {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      width: 100%;
+      min-width: 0;
+      min-height: 20px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #49576b;
+
+      &.is-secondary {
+        gap: 2px;
+        color: #7b8ba8;
+      }
+    }
+
+    .rum-composite-main {
+      display: flex;
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .rum-composite-member {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .rum-composite-separator {
+      flex-shrink: 0;
+      white-space: pre;
+    }
+
+    .rum-link-text {
+      font-weight: 700;
+      color: #3974ff;
+    }
+
+    .rum-link-text:is(:hover, :focus-visible) .rum-field-text,
+    .explore-table-condition-menu:not(.rum-cell-badge):is(:hover, :focus-visible) .rum-field-text {
+      text-decoration: underline;
+    }
+
+    .rum-composite-url {
+      font-family: Menlo, Monaco, Consolas, monospace;
+      font-weight: 400;
+      text-align: start;
+      direction: rtl;
+    }
+
+    .rum-composite-badges,
+    .rum-composite-badge,
+    .rum-composite-actions {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .rum-composite-badges {
+      min-width: 0;
+      max-width: 65%;
+      overflow: hidden;
+
+      .rum-cell-badge {
+        --rum-badge-opacity: 10%;
+
+        flex-shrink: 1;
+        gap: 2px;
+        height: 16px;
+        padding: 0 3px;
+        font: 500 10px / 16px 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+        color: var(--rum-badge-color, var(--rum-badge-tint, #7b8ba8));
+        background: color-mix(in srgb, var(--rum-badge-tint, #8f9fbd) var(--rum-badge-opacity), transparent);
+        border-radius: 4px;
+
+        &.rum-badge-mono {
+          font-family: 'Roboto Mono', 'Roboto-Mono', Menlo, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
+        }
+
+        &.rum-badge-resource {
+          --rum-badge-tint: #a07cde;
+        }
+
+        &.rum-badge-error {
+          --rum-badge-tint: #e54040;
+        }
+
+        &.rum-badge-long-task {
+          --rum-badge-tint: #eb9a1c;
+          --rum-badge-color: #e58d05;
+        }
+
+        &.rum-badge-action {
+          --rum-badge-tint: #d677c0;
+          --rum-badge-color: #de7cc7;
+        }
+
+        &.rum-badge-view {
+          --rum-badge-tint: #4f90d1;
+        }
+
+        &.explore-table-condition-menu:is(:hover, :focus-visible) {
+          --rum-badge-opacity: 20%;
+
+          text-decoration: none;
+        }
+      }
+    }
+
+    .rum-composite-badge,
+    .rum-field-badge-item {
+      min-width: 0;
+    }
+
+    .rum-field-badge-item {
+      display: inline-flex;
+    }
+
+    .rum-composite-badge-icon {
+      flex-shrink: 0;
+      width: 1em;
+      height: 1em;
+      font-size: 10px;
+      font-weight: 400;
+      line-height: 1;
+
+      &.is-viewport {
+        font-size: 12px;
+      }
+    }
+
+    .rum-composite-actions,
+    .rum-composite-action {
+      flex-shrink: 0;
+    }
+
+    .rum-composite-action {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      height: 18px;
+      padding: 0;
+      font: 500 9px / normal Roboto, 'Roboto-Medium', Arial, sans-serif;
+      font-variation-settings: 'wdth' 100;
+      letter-spacing: -0.36px;
+      color: #4681c5;
+      cursor: default;
+      background: #fff;
+      border: 0;
+      border-radius: 4px;
+
+      .rum-composite-action-icon {
+        flex-shrink: 0;
+        width: 1em;
+        height: 1em;
+        font-size: 8px;
+        font-weight: 400;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      &.is-icon-only {
+        width: 18px;
+        color: #49576b;
+        background: transparent;
+
+        &:hover {
+          background: #e5edff;
+        }
+
+        .rum-composite-action-icon {
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}

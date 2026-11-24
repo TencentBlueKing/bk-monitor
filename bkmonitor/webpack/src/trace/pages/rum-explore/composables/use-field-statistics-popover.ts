@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { shallowRef, useTemplateRef } from 'vue';
+import { nextTick, shallowRef, useTemplateRef } from 'vue';
 
 import tippy, { type Instance, type Props, type SingleTarget } from 'tippy.js';
 
@@ -46,14 +46,15 @@ export type IStatisticsFieldItem = {
  * 左侧维度面板和表格列头都需要点开同一套统计面板，这里统一管理 tippy 生命周期，
  * 调用方只要把 statisticsListRef 挂到 StatisticsList 上，再在点击时调用 openPopover。
  */
-export function useFieldStatisticsPopover(placement: Props['placement'] = 'right') {
+export const useFieldStatisticsPopover = (placement: Props['placement'] = 'right') => {
   const showPopover = shallowRef(false);
   const activeFieldName = shallowRef('');
   const selectField = shallowRef<IStatisticsFieldItem>(null);
   const popoverInstance = shallowRef<Instance | null>(null);
   const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
 
-  function destroyPopover() {
+  /** 清空激活字段并释放当前的浮层实例。 */
+  const destroyPopover = () => {
     showPopover.value = false;
     activeFieldName.value = '';
     const instance = popoverInstance.value;
@@ -61,12 +62,20 @@ export function useFieldStatisticsPopover(placement: Props['placement'] = 'right
       popoverInstance.value = null;
       instance.destroy();
     }
-  }
+  };
 
-  function openPopover(trigger: Element, field: IStatisticsFieldItem) {
-    destroyPopover();
-    activeFieldName.value = field.name;
+  /** 更新分析字段，需要时通过显隐周期重启统计请求。 */
+  const selectPopoverField = (field: IStatisticsFieldItem) => {
     if (!field.is_dimensions) return;
+    const instance = popoverInstance.value;
+    if (showPopover.value && instance) {
+      // 统计组件通过显隐周期取消旧字段请求并加载新字段。
+      showPopover.value = false;
+      nextTick(() => {
+        if (popoverInstance.value === instance) showPopover.value = true;
+      });
+    }
+    activeFieldName.value = field.name;
     // 聚合结果可能混合 CLS 与耗时指标，不能把 vital 作为固定时间单位。
     const normalizedField =
       field.field_unit === 'vital' ? { ...field, field_unit: '', field_display_type: undefined } : field;
@@ -75,8 +84,15 @@ export function useFieldStatisticsPopover(placement: Props['placement'] = 'right
       isDuration: normalizedField.field_display_type === 'duration' || normalizedField.field_unit === 'bytes',
       isInteger: ['double', 'long', 'integer', 'float'].includes(normalizedField.type),
     };
+  };
+
+  /** 创建分析浮层，以点击位置为锚点并加载初始字段。 */
+  const openPopover = (trigger: Element, field: IStatisticsFieldItem) => {
+    destroyPopover();
+    if (!field.is_dimensions) return;
     const contentEl = statisticsListRef.value?.$refs?.dimensionPopover as HTMLDivElement | undefined;
     if (!contentEl) return;
+    selectPopoverField(field);
 
     const instance = tippy(trigger as SingleTarget, {
       content: contentEl,
@@ -91,11 +107,12 @@ export function useFieldStatisticsPopover(placement: Props['placement'] = 'right
       popperOptions: {
         modifiers: [{ name: 'preventOverflow', options: { boundary: 'viewport' } }],
       },
-      onHidden(hiddenInstance) {
+      onHidden: hiddenInstance => {
         if (popoverInstance.value !== hiddenInstance) return;
         showPopover.value = false;
         activeFieldName.value = '';
         popoverInstance.value = null;
+        hiddenInstance.destroy();
       },
     });
     popoverInstance.value = instance;
@@ -105,16 +122,16 @@ export function useFieldStatisticsPopover(placement: Props['placement'] = 'right
       showPopover.value = true;
       instance.show();
     }, 100);
-  }
+  };
 
   /**
    * 弹层内容渲染完成后重新定向。
    * openPopover 时内容尚未加载数据，初始定位基于较低的高度；数据加载完成后内容撑高，
    * 需要重新计算定位，否则底部内容会被视口裁掉。
    */
-  function updatePopoverPosition() {
+  const updatePopoverPosition = () => {
     popoverInstance.value?.popperInstance?.forceUpdate();
-  }
+  };
 
   return {
     activeFieldName,
@@ -123,6 +140,7 @@ export function useFieldStatisticsPopover(placement: Props['placement'] = 'right
     statisticsListRef,
     destroyPopover,
     openPopover,
+    selectPopoverField,
     updatePopoverPosition,
   };
-}
+};

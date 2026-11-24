@@ -43,11 +43,49 @@ export type ArrayItemFormatter = (value: unknown) => string;
  * @param {ArrayItemFormatter} formatter 按字段语义推导出的格式化方法
  * @returns {string} 数组项展示文本
  */
-export function formatArrayItem(value: unknown, formatter: ArrayItemFormatter): string {
+export const formatArrayItem = (value: unknown, formatter: ArrayItemFormatter): string => {
   if (value === null || value === undefined || value === '') return ARRAY_ITEM_EMPTY_PLACEHOLDER;
   return formatter(value);
-}
+};
 
+/**
+ * @description 优先显示接口枚举别名，再按展示类型和单位格式化，最后回退到原值。
+ * @param value 原始字段值
+ * @param field 接口下发的字段元信息
+ * @param vitalMetric 当前行的指标名，用于区分 CLS 和耗时指标
+ * @param fallbackText 字段组件提供的特殊文案
+ * @returns 列表或数组抽屉使用的显示文本
+ */
+export const formatFieldValue = (
+  value: unknown,
+  field?: IRumField,
+  vitalMetric?: unknown,
+  fallbackText?: string
+): string => {
+  const alias = field?.option_values?.find(item => `${item.value}` === `${value}`)?.alias;
+  if (alias) return alias;
+
+  const unit = field?.field_unit;
+  if (unit === 'vital') {
+    const number = Number(value);
+    return String(vitalMetric).toLowerCase() === 'cls' || !Number.isFinite(number)
+      ? String(value)
+      : formatDuration(number, '', 2, 'ms');
+  }
+  switch (field?.field_display_type) {
+    case RumFieldDisplayEnum.DATETIME:
+      return formatTraceTableDate(value as number | string);
+    case RumFieldDisplayEnum.DURATION: {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return String(value);
+      if (!unit || unit === 'ms' || unit === 'us') return formatDuration(number, '', 2, unit || 'us');
+      return formatUnitValue(number, unit);
+    }
+    default:
+      if (unit) return formatUnitValue(value, unit);
+      return fallbackText ?? (typeof value === 'object' ? JSON.stringify(value) : String(value));
+  }
+};
 /**
  * @description 数组项格式化器：按字段语义推导逐项格式化方法，使 events.timestamp 的每一项都是
  *              格式化后的日期时间、带单位字段的每一项都带单位，避免数组样式下退化成原始数值。
@@ -55,34 +93,7 @@ export function formatArrayItem(value: unknown, formatter: ArrayItemFormatter): 
  * @param {IRumField | undefined} field 字段元数据
  * @returns {ArrayItemFormatter} 单项格式化方法
  */
-export function resolveArrayItemFormatter(field?: IRumField): ArrayItemFormatter {
-  const unit = field?.field_unit;
-  switch (field?.field_display_type) {
-    case RumFieldDisplayEnum.DATETIME:
-      /** formatTraceTableDate 按值的字符串长度自适应时间单位，转 Number 会丢精度，故透传原值 */
-      return value => formatTraceTableDate(value as number | string);
-    case RumFieldDisplayEnum.DURATION:
-      /** 非数值项原样展示，避免出现 NaN；单位缺省（含空串）按 us 处理 */
-      return value => {
-        const num = Number(value);
-        if (!Number.isFinite(num)) return String(value);
-        return formatDuration(num, '', 2, (unit || 'us') as 'ms' | 'us');
-      };
-    default:
-      if (unit) return value => formatUnitValue(value, unit);
-      /** 与默认取值逻辑保持一致：结构化值序列化为文本，标量值优先取后台声明的枚举别名 */
-      return value =>
-        typeof value === 'object' ? JSON.stringify(value) : (getFieldOptionAlias(field, value) ?? String(value));
-  }
-}
-
-/**
- * @description 取字段元数据声明的枚举别名（option_values），未声明枚举或无匹配项时返回 undefined。
- *              枚举 value 声明为 string，行数据实际可能是 number / boolean，统一字符串化比较。
- * @param {IRumField | undefined} field 字段元数据
- * @param {unknown} value 原始值
- * @returns {string | undefined} 后台映射别名
- */
-function getFieldOptionAlias(field: IRumField | undefined, value: unknown): string | undefined {
-  return field?.option_values?.find(item => `${item.value}` === `${value}`)?.alias;
-}
+export const resolveArrayItemFormatter =
+  (field?: IRumField): ArrayItemFormatter =>
+  value =>
+    formatFieldValue(value, field);

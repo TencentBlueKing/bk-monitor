@@ -1,7 +1,4 @@
 /* stylelint-disable selector-class-pattern, no-descending-specificity */
-@use './theme/span-table-theme';
-@use './theme/session-table-theme';
-@use './theme/view-table-theme';
 
 /* 布局容器：根类迁移到 CommonTable 后，wrapper 的布局职责独立保留 */
 .rum-explore-table-wrap {
@@ -15,7 +12,6 @@
   .rum-table-content {
     display: contents;
   }
-
 }
 
 /* 组件根（与场景类名复合于同一元素）：跨场景公共样式 */
@@ -29,57 +25,38 @@
   flex: 1;
   min-height: 0;
 
+  .rum-plain-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .explore-col.is-align-right {
+    justify-content: flex-end;
+  }
+
   /* 垂直滚动交由外层 .rum-explore-view 处理，表格内容区仅保留水平滚动 */
   .t-table__content {
     overflow: scroll hidden;
   }
 
   .t-table__header {
+    th {
+      height: 36px;
+    }
+
     .__table-custom-setting-col__ {
       padding: 0;
     }
+  }
 
-    .rum-table-header-cell {
-      display: flex;
-      align-items: center;
-      min-width: 0;
-      color: #000;
-      user-select: none;
-
-      .field-type-icon {
-        margin-right: 4px;
-      }
-
-      .header-title {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-
-        .th-label {
-          font-size: 12px;
-          font-weight: 500;
-          color: #313238;
-        }
-      }
-
-      .header-analysis-icon {
-        flex-shrink: 0;
-        margin-left: 6px;
-        font-size: 14px;
-        color: #4d4f56;
-        cursor: pointer;
-
-        &:hover {
-          color: #3a84ff;
-        }
-      }
-    }
+  tbody > tr > td {
+    height: 52px;
   }
 
   .rum-table-append-row {
     display: flex;
-    height: 42px;
+    height: 52px;
     border-bottom: 1px solid #f0f1f5;
   }
 
@@ -118,6 +95,35 @@
       .t-table__affixed-header-elm {
         opacity: inherit !important;
       }
+    }
+  }
+}
+
+.trace-explore-dimension-statistics-popover:has(> .rum-analysis-fields) {
+  display: flex;
+  flex-direction: column;
+}
+
+.rum-analysis-fields {
+  display: flex;
+  gap: 4px;
+  order: -1;
+  padding: 0 12px;
+  overflow-x: auto;
+  border-bottom: 1px solid #eaebf0;
+
+  button {
+    flex-shrink: 0;
+    padding: 8px;
+    color: #4d4f56;
+    cursor: pointer;
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+
+    &[aria-pressed='true'] {
+      color: #3a84ff;
+      border-bottom-color: currentcolor;
     }
   }
 }

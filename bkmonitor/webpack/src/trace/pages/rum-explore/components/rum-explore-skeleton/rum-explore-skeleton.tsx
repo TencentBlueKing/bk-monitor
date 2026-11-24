@@ -39,9 +39,20 @@ const line = (width: number | string, className = '') => (
 );
 
 /** 在真实表格单元格内占位，列宽、固定列及横向滚动由表格本身保持。 */
-export function renderRumLoadingCell(field: string, rowIndex: number) {
+export function renderRumLoadingCell(field: string, rowIndex: number, isComposite = false) {
   if (field === '__col_setting__') return null;
   const width = [72, 88, 60, 80, 66][rowIndex % 5];
+  if (isComposite) {
+    return (
+      <div
+        class='rum-skeleton-cell rum-skeleton-cell-composite'
+        aria-hidden='true'
+      >
+        {line(`${width}%`)}
+        {line(`${Math.max(width - 20, 36)}%`)}
+      </div>
+    );
+  }
   const isType = field === 'attributes.span_type' || field === 'kind';
   const isStatus = field === 'status.code' || field === 'attributes.outcome.type' || field.endsWith('status_code');
   const isDuration = field === 'elapsed_time' || field.endsWith('duration');

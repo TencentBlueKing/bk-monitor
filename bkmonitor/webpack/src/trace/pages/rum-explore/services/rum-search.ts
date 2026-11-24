@@ -54,14 +54,16 @@ const SILENT = { needMessage: false };
  * 把接口字段结构归一化成与 trace 检索一致的维度字段结构，
  * 这样 FieldTypeIcon、convertToTree、StatisticsList、ExploreFieldSetting 可以直接复用。
  */
-function normalizeField(raw: IRumRawField): IRumField {
+const normalizeField = (raw: IRumRawField): IRumField => {
   const alias = raw.field_alias || raw.field_name;
   return {
     name: raw.field_name,
     alias,
     type: raw.field_type,
+    composite: raw.extra_config?.composite,
     field_display_type: raw.field_display_type,
     field_unit: raw.field_unit || '',
+    hover: raw.hover,
     is_real: raw.is_real !== false,
     is_searched: !!raw.is_searchable,
     is_dimensions: !!raw.is_agg,
@@ -71,9 +73,10 @@ function normalizeField(raw: IRumRawField): IRumField {
     supported_operations: raw.supported_operations || [],
     pinyinStr: pinyin.convertToPinyin(`${alias}(${raw.field_name})`, '').toLocaleLowerCase(),
   };
-}
+};
 
-function normalizeViewConfig(raw: IRumRawViewConfig): IRumViewConfig {
+/** 整理接口列和字段分组引用。 */
+const normalizeViewConfig = (raw: IRumRawViewConfig): IRumViewConfig => {
   const fields = (raw?.fields || []).map(normalizeField);
   const fieldMap = new Map(fields.map(field => [field.name, field]));
   return {
@@ -90,7 +93,7 @@ function normalizeViewConfig(raw: IRumRawViewConfig): IRumViewConfig {
       fields: (group.field_names || []).map(name => fieldMap.get(name)).filter(Boolean),
     })),
   };
-}
+};
 
 const EMPTY_VIEW_CONFIG: IRumViewConfig = {
   fields: [],

@@ -71,6 +71,7 @@ import {
   RUM_RESIDENT_SETTING_KEY,
   RumModeEnum,
   SESSION_ID_FIELD,
+  SPAN_TYPE_COLUMN_WIDTH_MAP,
   SPAN_TYPE_FIELD,
 } from './constants';
 import RumSpanDetailSlider from './detail';
@@ -207,7 +208,11 @@ export default defineComponent({
     });
 
     /** 当前视角的列布局预设（默认列宽 / 固定列）：列配置与列设置面板共用同一份声明 */
-    const layoutPreset = computed<IRumColumnLayoutPreset>(() => RUM_COLUMN_LAYOUT_PRESET[store.mode] ?? {});
+    const layoutPreset = computed<IRumColumnLayoutPreset>(() => {
+      const preset = RUM_COLUMN_LAYOUT_PRESET[store.mode] ?? {};
+      const widths = isSpanSpecialPerspective.value ? SPAN_TYPE_COLUMN_WIDTH_MAP[store.spanType] : undefined;
+      return widths ? { ...preset, widthMap: { ...preset.widthMap, ...widths } } : preset;
+    });
 
     /** 列配置集中管理：显隐/顺序 + 列宽，并持久化到用户常驻配置 */
     const columnConfig = useRumColumnConfig({
@@ -495,15 +500,15 @@ export default defineComponent({
     }
 
     /**
-     * 数量列下钻：切到目标视角、类型回到全部，并带上点击的条件。
+     * 数量列下钻：切到目标视角和指定的 Span 类型，并带上点击的条件。
      * 常驻筛选仍按目标 tab 的字段从共用缓存回填。
      */
-    async function handleCountDrillDown(options: IRumCountDrillDown) {
-      store.spanType = ALL_SPAN_TYPE;
+    const handleCountDrillDown = async (options: IRumCountDrillDown) => {
+      store.spanType = options.spanType ?? ALL_SPAN_TYPE;
       const applied = await handleModeChange(options.targetMode, false);
       if (!applied || disposed) return;
       handleConditionChange(options.condition, false);
-    }
+    };
 
     /**
      * 切换 span 类型只改当前生效的常驻条件：具体类型裁掉没有的字段，回到「全部」清空。

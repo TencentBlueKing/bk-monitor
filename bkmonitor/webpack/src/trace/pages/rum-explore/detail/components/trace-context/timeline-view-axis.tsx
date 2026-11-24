@@ -26,7 +26,7 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import { RUM_VIEW_LOADING_TYPE_ICONS } from '../../constants';
+import { RUM_VIEW_LOADING_TYPE_ICONS } from '../../../constants';
 
 import type { RumViewLoadingType } from '../../typings';
 

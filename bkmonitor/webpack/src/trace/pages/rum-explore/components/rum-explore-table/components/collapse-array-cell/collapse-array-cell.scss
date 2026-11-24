@@ -11,7 +11,7 @@
   // 间距移交 item-tags 的右内边距，让 hover 下划线连成一条
   column-gap: 0;
 
-  // 单行显示；下划线用透明 border 占位（hover 时的下划线颜色由场景主题提供，见 span-table-theme.scss）
+  // 单行显示，透明下划线为 hover 态预留空间。
   .item-tags {
     flex-wrap: nowrap;
     border-bottom: 0.5px solid transparent;
