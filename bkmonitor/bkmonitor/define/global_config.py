@@ -238,14 +238,8 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.BooleanField(label="APM应用操作BkdataFlow的尾部采样 Flow 时是否需要创建临时中转节点", default=False),
         ),
         ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label="APM尾部采样项目id", default=0)),
-        # 以下两项用 getattr 取默认值：精简 settings（如离线单测）下导入本模块时不因缺少配置而失败。
-        (
-            "ENABLE_APM_TRACE_TAIL_SAMPLING_V4",
-            slz.BooleanField(
-                label="APM Trace 尾部采样使用 BKBase V4 链路",
-                default=getattr(settings, "ENABLE_APM_TRACE_TAIL_SAMPLING_V4", False),
-            ),
-        ),
+        # 用 getattr 取默认值：精简 settings（如离线单测）下导入本模块时不因缺少配置而失败。
+        # 尾部采样是否走 V4 的开关 ENABLE_APM_TRACE_TAIL_SAMPLING_V4 是环境变量，不在全局配置中。
         (
             "APM_TRACE_TAIL_SAMPLING_V4_RESOURCES",
             slz.DictField(
@@ -254,7 +248,10 @@ ADVANCED_OPTIONS = OrderedDict(
                 default=getattr(
                     settings,
                     "APM_TRACE_TAIL_SAMPLING_V4_RESOURCES",
-                    {"kafka_channel": "default/bkbase/bkbase-public-inner", "stream_cluster": ""},
+                    {
+                        "kafka_channel": "default/bkbase/bkmonitor-bkbase-inner",
+                        "stream_cluster": "StreamCluster/bkmonitor/stream-bkmonitor-cluster",
+                    },
                 ),
             ),
         ),

@@ -1,8 +1,10 @@
 import json
+import os
 from types import SimpleNamespace
 from unittest.mock import mock_open
 
 import pytest
+from django.conf import settings as django_settings
 
 from apm.core.handlers.bk_data.flow import ApmFlow
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
@@ -90,11 +92,16 @@ def test_tail_sampling_v3_flink_code_keeps_output_fields():
 
 
 def test_tail_sampling_v4_settings_are_global_configs():
-    assert isinstance(ADVANCED_OPTIONS["ENABLE_APM_TRACE_TAIL_SAMPLING_V4"].default, bool)
+    # V4 尾部采样开关与 ENABLE_NEW_APM_APP_BKDATA_TRACING 一样走环境变量，默认开启，不放全局配置
+    assert "ENABLE_APM_TRACE_TAIL_SAMPLING_V4" not in ADVANCED_OPTIONS
+    if "ENABLE_APM_TRACE_TAIL_SAMPLING_V4" not in os.environ:
+        assert django_settings.ENABLE_APM_TRACE_TAIL_SAMPLING_V4 is True
+    if "ENABLE_NEW_APM_APP_BKDATA_TRACING" not in os.environ:
+        assert django_settings.ENABLE_NEW_APM_APP_BKDATA_TRACING is True
     # Kafka 与计算集群合并为一个字典配置，便于一起维护
     assert ADVANCED_OPTIONS["APM_TRACE_TAIL_SAMPLING_V4_RESOURCES"].default == {
-        "kafka_channel": "default/bkbase/bkbase-public-inner",
-        "stream_cluster": "",
+        "kafka_channel": "default/bkbase/bkmonitor-bkbase-inner",
+        "stream_cluster": "StreamCluster/bkmonitor/stream-bkmonitor-cluster",
     }
     assert "APM_TRACE_TAIL_SAMPLING_V4_KAFKA_CHANNEL" not in ADVANCED_OPTIONS
     assert "APM_TRACE_TAIL_SAMPLING_V4_STREAM_CLUSTER" not in ADVANCED_OPTIONS
