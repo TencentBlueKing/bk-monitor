@@ -923,7 +923,7 @@ class K8sInspectionHandlerTest(SimpleTestCase):
             "collector_config_id": 123,
             "target": {"type": "pod_container", "namespace": "demo", "pod_name": "app", "container_name": "main"},
             "evidence_groups": ["collector"],
-            "source_step": {"operation": "read", "path": "/logs/other.log"},
+            "source_step": {"operation": "read", "path": "/logs/other.log", "length": 4096},
         }
         with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[]):
             with self.assertRaises(BklogPermissionError):
@@ -950,8 +950,18 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 )
             task_id = start_k8s_inspection(params)["task_id"]
             ResourceInspectionTaskRecord.update(task_id, task_status="success")
-            for payload in (b"token=fixture-only\n", b"\xff\x00", b""):
-                observation = {"raw_hex_chunks": [payload.hex()], "returned_bytes": len(payload)}
+            for payload in (
+                b"Authorization: Bearer fixture-only\n",
+                "日志".encode(),
+                bytes(range(256)) * 16,
+                b"\xff\x00",
+                b"",
+            ):
+                observation = {
+                    "inode": (1 << 63) + 1,
+                    "raw_hex_chunks": [payload[i : i + 2048].hex() for i in range(0, len(payload), 2048)],
+                    "returned_bytes": len(payload),
+                }
                 probes = {
                     "source_path": {
                         "status": "success",
@@ -971,11 +981,38 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                     base64.b64decode(row["content"]) if row["content_encoding"] == "base64" else row["content"].encode()
                 )
                 self.assertEqual(actual, payload)
+                self.assertEqual(bytes(row["content_bytes"]), payload)
+                self.assertEqual(row["inode"], str((1 << 63) + 1))
                 self.assertNotIn("raw_hex_chunks", row)
                 self.assertEqual(published["other"]["text"], "token=***")
         with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[]):
             with self.assertRaises(BklogPermissionError):
                 get_k8s_inspection_detail({"task_id": task_id})
+
+    def test_source_step_publishes_exact_inodes_for_each_available_sample(self):
+        from apps.log_admin_resource.handlers.k8s_inspection import _publish_source_step
+
+        for operation, status, samples in (
+            ("stat", "success", {"first": {"inode": 2**53}, "second": {"inode": 2**53 + 1}}),
+            ("stat", "failed", {"first": {"inode": 2**63 + 1}}),
+            ("list", "success", {"observation": {"inode": 42, "entries": []}}),
+            ("readlink", "success", {"observation": {"inode": 2**64 - 1, "target": "logs"}}),
+        ):
+            with self.subTest(operation=operation, status=status):
+                step = {"operation": operation, "path": "/logs"}
+                expected = {key: str(sample["inode"]) for key, sample in samples.items()}
+                source = {"request": step, **samples}
+                self.assertTrue(
+                    _publish_source_step(
+                        step,
+                        {
+                            "status": status,
+                            "code": "source_step_completed" if status == "success" else "source_step_incomplete",
+                            "evidence": source,
+                        },
+                    )
+                )
+                self.assertEqual({key: source[key]["inode"] for key in samples}, expected)
 
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_detail_checks_worker_evidence_for_each_requested_file_operation(self, _identity):

@@ -529,6 +529,12 @@ def _publish_source_step(step, probe):
     source = probe.get("evidence")
     if not isinstance(source, dict) or source.get("request") != sanitize_json(step, redact_text=True):
         return False
+    # JSON clients may round a 64-bit inode. Convert only at the public
+    # boundary so both new and cached Worker samples retain their identity.
+    for key in ("observation", "first", "second"):
+        sample = source.get(key)
+        if isinstance(sample, dict) and isinstance(sample.get("inode"), int):
+            sample["inode"] = str(sample["inode"])
     if probe.get("status") == "failed":
         return True
     if probe.get("code") != "source_step_completed" or probe.get("status") != "success":
@@ -552,6 +558,9 @@ def _publish_source_step(step, probe):
         return False
     if len(data) != row.get("returned_bytes") or len(data) > step.get("length", 1024):
         return False
+    # CLI evidence rendering can redact strings. A typed byte array remains
+    # lossless through rendering and persistence, including for binary logs.
+    row["content_bytes"] = list(data)
     try:
         row.update(content=data.decode("utf-8"), content_encoding="utf-8")
     except UnicodeDecodeError:
@@ -1053,7 +1062,8 @@ FUNCTIONS = {
                         "List directories, inspect file activity or inspect links directly in the collector container. "
                         "Use returned entry paths in subsequent calls. To follow a link, list or stat its path. "
                         "Use target space for business-container paths. Management allowlisted apps can read original "
-                        "bytes from target log directories. Content is UTF-8 when valid, otherwise base64."
+                        "bytes from target log directories. content_bytes is the exact byte array. content is a display "
+                        "value (UTF-8 or base64) that clients may redact. inode is an exact decimal string."
                     ),
                     "properties": {
                         "operation": {"type": "string", "enum": ["list", "readlink", "stat", "read"]},
