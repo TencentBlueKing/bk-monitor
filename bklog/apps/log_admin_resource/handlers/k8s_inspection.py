@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -32,6 +33,8 @@ from apps.log_admin_resource.k8s_inspection import (
     discover_inspection_targets,
     safe_spec_projection,
     expected_bklog_configs,
+    CLI_PATH_PLACEHOLDER,
+    cli_masks_source_path,
     protect_source_paths,
     require_source_read_access,
     target_identity,
@@ -442,7 +445,9 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     include_source_sample = bool(params.get("include_source_sample", False))
     source_step = params.get("source_step")
     if source_step is not None:
-        default_space = "target" if source_step["operation"] == "read" or "via" in source_step else "collector"
+        if source_step["operation"] == "read" and "path_space" not in source_step:
+            raise ValidationError("read requires an explicit path_space matching the observed file")
+        default_space = "target" if "via" in source_step else "collector"
         source_step = {"path_space": default_space, **source_step}
         if not target or "collector" not in groups:
             raise ValidationError("source_step requires a target and collector evidence")
@@ -455,7 +460,13 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
         if source_step["path_space"] == "collector" and (source_step["operation"] == "read") != ("via" in source_step):
             raise ValidationError("collector paths require via for read only")
         require_source_read_access(app_code, source_step)
+        if "expect" in source_step:
+            kind = "file" if source_step["operation"] == "read" else "parent"
+            if not re.fullmatch(kind + "-[0-9a-f]{64}", source_step["expect"]) or source_step["path"] == "/":
+                raise ValidationError("use a file expectation for read or a listed parent expectation for metadata")
         for path in [source_step["path"], source_step.get("via", "/")]:
+            if CLI_PATH_PLACEHOLDER in path:
+                raise ValidationError("client-redacted paths cannot be used for file observations")
             if not _is_source_path(path):
                 raise ValidationError("source_step requires normalized absolute container paths")
         if source_step["operation"] != "read" and ("offset" in source_step or "length" in source_step):
@@ -530,7 +541,7 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     return _start_response(current, reused=reused)
 
 
-def _publish_source_listing(row):
+def _publish_source_listing(row, step):
     entries = row.get("entries")
     if not isinstance(entries, list) or not all(isinstance(path, str) for path in entries):
         return False
@@ -540,10 +551,16 @@ def _publish_source_listing(row):
     ):
         return False
     row.setdefault("directory_identity_verified", False)  # Older probes resolved the directory twice.
+    guards = row.pop("entry_guards", None)
+    if guards is not None and (not isinstance(guards, list) or len(guards) != len(entries)):
+        return False
+    next_steps = []
     usable, unavailable = [], []
     for position, path in enumerate(entries, 1):
         if not _is_source_path(path):
             reason = "invalid_path"
+        elif cli_masks_source_path(path):
+            reason = "client_display_only"
         elif redacted is None and "***" in path:
             # Older Workers stored only the display text.
             reason = "unverified_path"
@@ -551,9 +568,24 @@ def _publish_source_listing(row):
             reason = "redacted_path"
         else:
             usable.append(path)
+            if (
+                guards is not None
+                and row["directory_identity_verified"]
+                and "via" not in step.get("unavailable_paths", {})
+            ):
+                follow = {
+                    "operation": "stat",
+                    "path": path,
+                    "path_space": step["path_space"],
+                    "expect": guards[position - 1],
+                }
+                if "via" in step:
+                    follow["via"] = step["via"]
+                next_steps.append(follow)
             continue
         unavailable.append({"position": position, "reason": reason})
     row["entries"] = usable
+    row["next_steps"] = next_steps
     if unavailable:
         row["unavailable_entries"] = unavailable
     return True
@@ -568,14 +600,17 @@ def _publish_source_step(step, probe):
     public_step = dict(step)
     protect_source_paths(public_step)
     source["request"] = sanitize_json(public_step, redact_text=True)
-    if source.pop("source_paths_checked", False) is not True:
-        protect_source_paths(source, legacy=True)
+    # Cached Workers may predate the client-side path checks.
+    protect_source_paths(source, legacy=source.pop("source_paths_checked", False) is not True)
     # JSON clients may round a 64-bit inode. Convert only at the public
     # boundary so both new and cached Worker samples retain their identity.
     for key in ("observation", "first", "second"):
         sample = source.get(key)
-        if isinstance(sample, dict) and isinstance(sample.get("inode"), int):
-            sample["inode"] = str(sample["inode"])
+        if isinstance(sample, dict):
+            if step.get("expect") and sample.get("verified_expectation") != step["expect"]:
+                return False  # A rolling-deployment Worker may have ignored the expectation.
+            if isinstance(sample.get("inode"), int):
+                sample["inode"] = str(sample["inode"])
     if probe.get("status") == "failed":
         return True
     if probe.get("code") != "source_step_completed" or probe.get("status") != "success":
@@ -585,9 +620,13 @@ def _publish_source_step(step, probe):
         return False
     operation = step["operation"]
     if operation == "stat":
+        if "second" in source and not source.get("first_identity_pinned") and source.get("activity") != "replaced":
+            source.update(activity="unverified", read_progress="unknown")
+            source.pop("unread_bytes", None)
+            source.pop("growth_bytes", None)
         return "inode" in row or all("inode" in (source.get(key) or {}) for key in ("first", "second"))
     if operation == "list":
-        return _publish_source_listing(row)
+        return _publish_source_listing(row, public_step)
     if operation == "readlink":
         return isinstance(row.get("target"), str) or "target" in row.get("unavailable_paths", {})
     chunks = row.pop("raw_hex_chunks", None)
@@ -601,6 +640,7 @@ def _publish_source_step(step, probe):
         return False
     # CLI evidence rendering can redact strings. A typed byte array remains
     # lossless through rendering and persistence, including for binary logs.
+    row.setdefault("read_consistency", "unknown")  # Cached Worker result without a second fstat.
     row["content_bytes"] = list(data)
     try:
         row.update(content=data.decode("utf-8"), content_encoding="utf-8")
@@ -1101,14 +1141,15 @@ FUNCTIONS = {
                     "type": "object",
                     "description": (
                         "List directories, inspect file activity or inspect links directly in the collector container. "
-                        "Use returned entry paths in subsequent calls. For target listings with via, keep that via. "
+                        "entries are live path names. Use next_steps to check the listed directory identity on follow-up. "
                         "unavailable_entries identifies non-reusable UTF-8 entries by original one-based position "
                         "and reason. A client-side redaction placeholder is also display-only. "
                         "Non-UTF-8 names are reported separately as non_utf8_names_hex and cannot be used as paths. "
                         "readlink.target is link text and may be relative. Follow it by using list or stat on the original path. "
                         "Unavailable path fields are null with the reason in unavailable_paths. "
                         "Use target space for business-container paths. Management allowlisted apps can read original "
-                        "bytes from target log directories. content_bytes is the exact byte array. content is a display "
+                        "bytes from target log directories. Read requires explicit path_space; pass the stat sample file_guard as expect. "
+                        "size_before_read and size_bytes bracket the read; read_consistency reports observed changes. content_bytes is the exact byte array. content is a display "
                         "value (UTF-8 or base64) that clients may redact. inode is an exact decimal string."
                     ),
                     "properties": {
@@ -1117,13 +1158,19 @@ FUNCTIONS = {
                         "path_space": {
                             "type": "string",
                             "enum": ["target", "collector"],
-                            "description": "Metadata defaults to collector paths. Read and via default to target paths.",
+                            "description": "Read requires explicit collector or target. Metadata defaults to collector, or target with via.",
                         },
                         "via": {
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 4096,
                             "description": "For collector reads, supply the target log directory (e.g. /app/logs) containing the file. For target paths, use the logical directory whose resolved target contains path.",
+                        },
+                        "expect": {
+                            "type": "string",
+                            "minLength": 69,
+                            "maxLength": 71,
+                            "description": "Copy from a listed next_step, or pass file_guard from stat when reading the same file.",
                         },
                         "offset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
                         "length": {"type": "integer", "minimum": 1, "maximum": 4096},

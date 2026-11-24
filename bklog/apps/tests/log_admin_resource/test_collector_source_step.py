@@ -628,6 +628,78 @@ class SourceStepTest(unittest.TestCase):
             stream.write("2 1 0:4 / /single rw - tmpfs tmpfs rw\n")
         self.assertEqual(self.run_step("stat", "/single")["first"]["inode"], self.file.stat().st_ino)
 
+    def test_unlinked_log_is_pinned_until_the_second_sample(self):
+        original = self.file.stat().st_ino
+
+        def recreate(_):
+            self.file.unlink()
+            self.file.write_bytes(b"new generation")
+            self.assertNotEqual(self.file.stat().st_ino, original)
+
+        with patch.object(probe.time, "sleep", side_effect=recreate):
+            result = self.run_step("stat", "/logs/app.log")
+        self.assertTrue(result["first_identity_pinned"])
+        self.assertEqual(result["activity"], "replaced")
+        self.assertNotIn("growth_bytes", result)
+
+    def test_list_continuation_checks_the_parent_in_each_namespace(self):
+        other = self.root / "new"
+        other.mkdir()
+        (other / "app.log").touch()
+        for space in ("collector", "target"):
+            alias = self.root / ("current-" + space)
+            alias.symlink_to("data/service")
+            path = str(alias) if space == "collector" else "/" + alias.name
+            row = self.run_step("list", path, path_space=space)["observation"]
+            index = row["entries"].index(path + "/app.log")
+            follow = {"path_space": space, "expect": row["entry_guards"][index]}
+            child = row["entries"][index]
+            self.assertEqual(self.run_step("stat", child, **follow)["second"]["inode"], self.file.stat().st_ino)
+            with patch.dict(self.policy, collector_container_id="restarted-collector"):
+                with self.assertRaisesRegex(ValueError, "parent_identity_changed"):
+                    self.run_step("stat", child, **follow)
+            alias.unlink()
+            alias.symlink_to("new")
+            with self.assertRaisesRegex(ValueError, "parent_identity_changed"):
+                self.run_step("stat", child, **follow)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "collector descriptor operations require Linux procfs")
+    def test_read_binds_the_stat_space_and_observed_version(self):
+        # The same absolute path exists in both namespaces, with different bytes.
+        native = str(self.file)
+        target_file = self.root / native.lstrip("/")
+        target_file.parent.mkdir(parents=True)
+        target_file.write_bytes(b"pod file")
+        self.policy["directories"].append(str(self.file.parent))
+        sample = self.run_step("stat", native, path_space="collector")["second"]
+        with self.assertRaisesRegex(ValueError, "file_identity_changed"):
+            self.run_step("read", native, path_space="target", expect=sample["file_guard"])
+        sample = self.run_step("stat", native, path_space="target")["second"]
+        options = {"path_space": "target", "expect": sample["file_guard"]}
+        row = self.run_step("read", native, **options)["observation"]
+        self.assertEqual(row["verified_expectation"], sample["file_guard"])
+        self.assertEqual(bytes.fromhex("".join(row["raw_hex_chunks"])), b"pod file")
+        target_file.write_bytes(b"updated")
+        with self.assertRaisesRegex(ValueError, "file_identity_changed"):
+            self.run_step("read", native, **options)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "collector descriptor operations require Linux procfs")
+    def test_append_while_reading_exposes_both_file_sizes(self):
+        old_size = self.file.stat().st_size
+        original_open = open
+
+        def append_before_io(path, *args, **kwargs):
+            if path.startswith("/proc/self/fd/"):
+                with self.file.open("ab") as stream:
+                    stream.write(b"new")
+            return original_open(path, *args, **kwargs)
+
+        with patch.object(probe, "open", side_effect=append_before_io, create=True):
+            row = self.run_step("read", "/logs/app.log", offset=old_size, length=3)["observation"]
+        self.assertEqual(row["read_consistency"], "changed_during_read")
+        self.assertEqual((row["size_before_read"], row["size_bytes"]), (old_size, old_size + 3))
+        self.assertEqual(bytes.fromhex("".join(row["raw_hex_chunks"])), b"new")
+
     def test_shared_readers_do_not_identify_one_position(self):
         with patch.object(probe, "reader_positions", return_value=[2, 7]):
             with patch.object(probe.time, "sleep", side_effect=lambda _: self.file.write_bytes(b"longer\n")):
@@ -650,8 +722,8 @@ class SourceStepTest(unittest.TestCase):
                 str(executable),
                 "-u",
                 "-c",
-                "import sys; f=open(sys.argv[1],'rb',0); f.read(); print('ready'); "
-                "sys.stdin.readline(); f.read(); print('caught up'); sys.stdin.readline()",
+                "import sys; f=open(sys.argv[1],'rb',0); f.read(); print('ready')\n"
+                "for line in sys.stdin:\n f.read(int(line)); print('caught up')",
                 str(self.file),
             ],
             stdin=subprocess.PIPE,
@@ -671,12 +743,34 @@ class SourceStepTest(unittest.TestCase):
 
                 def catch_up(_):
                     append(0)
-                    reader.stdin.write(b"read\n")
+                    reader.stdin.write(b"1000\n")
                     reader.stdin.flush()
                     self.assertEqual(reader.stdout.readline(), b"caught up\n")
 
                 with patch.object(probe.time, "sleep", side_effect=catch_up):
                     result = self.run_step("stat", "/logs/app.log")
                 self.assertEqual((result["read_progress"], result["unread_bytes"]), ("open_reader_at_eof", 0))
+
+                scan = probe.reader_positions
+                sampled = []
+
+                def append_during_second_scan(pid, info):
+                    if sampled:
+                        append(0)
+                        reader.stdin.write(b"4\n")
+                        reader.stdin.flush()
+                        self.assertEqual(reader.stdout.readline(), b"caught up\n")
+                    values = scan(pid, info)
+                    sampled.append((info.st_size, self.file.stat().st_size, values))
+                    return values
+
+                with patch.object(probe.time, "sleep", side_effect=append):
+                    with patch.object(probe, "reader_positions", side_effect=append_during_second_scan):
+                        result = self.run_step("stat", "/logs/app.log")
+                size, actual, cursors = sampled[-1]
+                self.assertEqual((actual - size, cursors), (4, [size]))
+                self.assertEqual(result["second"]["cursor_sample_status"], "file_changed_during_scan")
+                self.assertEqual(result["read_progress"], "unknown")
+                self.assertNotIn("unread_bytes", result)
             finally:
                 reader.terminate()

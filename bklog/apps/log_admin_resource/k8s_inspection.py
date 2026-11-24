@@ -382,6 +382,19 @@ def target_config_matches(
     return matches
 
 
+# BKLog CLI applies these display substitutions after receiving the API result.
+CLI_PATH_PLACEHOLDER = "[REDACTED_SECRET]"
+CLI_MASKED_PATH = re.compile(
+    r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b"
+    r"|(?i:bearer\s+[A-Za-z0-9._~+/=-]+)"
+    r"|(?i:(?:authorization|cookie|x-[a-z0-9-]*(?:token|jwt|secret|api-key))\s*[:=]\s*[^\s,;}])"
+)
+
+
+def cli_masks_source_path(path):
+    return CLI_PATH_PLACEHOLDER in path or CLI_MASKED_PATH.search(path) is not None
+
+
 def protect_source_paths(result, *, legacy=False):
     """Remove rewritten path values before they can be reused as filesystem identifiers."""
     rows = [result]
@@ -397,9 +410,10 @@ def protect_source_paths(result, *, legacy=False):
                 continue
             # Older Workers retained display text only. A literal "***" is ambiguous there.
             changed = "***" in path if legacy else sanitize_sensitive_text(path, maximum=None) != path
-            if changed:
+            if changed or cli_masks_source_path(path):
+                reason = "unverified_path" if legacy else "redacted_path"
                 row[field] = None
-                row.setdefault("unavailable_paths", {})[field] = "unverified_path" if legacy else "redacted_path"
+                row.setdefault("unavailable_paths", {})[field] = reason if changed else "client_display_only"
 
 
 def require_source_read_access(app_code, source_step):

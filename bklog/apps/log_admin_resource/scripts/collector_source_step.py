@@ -7,6 +7,8 @@ import binascii
 import datetime
 import errno
 import fnmatch
+import functools
+import hashlib
 import itertools
 import json
 import os
@@ -234,7 +236,7 @@ def bind_mount_paths(policy):
     )
 
 
-def open_parent(path, policy, follow_leaf, links=None):
+def open_parent(path, policy, follow_leaf, links=None, check_parent=None):
     # cwd is private to this short-lived helper. Pin each directory before inspecting its
     # children. Never ask the collector kernel to follow a business-container symlink.
     if links is None:
@@ -274,6 +276,9 @@ def open_parent(path, policy, follow_leaf, links=None):
             witness = policy.get("mount_identities", {}).get(logical)
             if witness is not None and not os.path.samestat(witness, os.lstat(fs_path(name))):
                 raise ValueError("target_volume_identity_unverified: " + logical)
+            if last and check_parent is not None:
+                check_parent(os.stat("."))
+                check_parent = None  # Subsequent hops follow this entry's link target.
             if last and not follow_leaf:
                 return name, logical, links
             target = read_link(name) if stat.S_ISLNK(os.lstat(fs_path(name)).st_mode) else None
@@ -346,6 +351,26 @@ def reader_positions(pid, info):
         return None
 
 
+def identity_guard(kind, policy, space, path, info):
+    # A comparison token only. Authorization is always evaluated independently.
+    scope = [policy.get("collector_pod_uid"), policy.get("collector_container_id")]
+    if space == "target":
+        scope.append(policy.get("runtime_id"))
+    values = [scope, space, path, info.st_dev, info.st_ino, file_version(info)]
+    digest = hashlib.sha256(json.dumps(values, separators=(",", ":")).encode("ascii")).hexdigest()
+    return kind + "-" + digest
+
+
+def check_identity(kind, policy, request, info):
+    actual = identity_guard(kind, policy, request["path_space"], request["path"], info)
+    if actual != request["expect"]:
+        raise ValueError("source_" + kind + "_identity_changed")
+
+
+def file_version(info):
+    return (info.st_size, getattr(info, "st_mtime_ns", info.st_mtime), getattr(info, "st_ctime_ns", info.st_ctime))
+
+
 def target_source_path(policy, request):
     path = request["path"]
     via = request.get("via")
@@ -355,7 +380,11 @@ def target_source_path(policy, request):
         descend(directory)
         if not inside(path, anchor):
             raise ValueError("path_outside_source_anchor")
-    name, resolved, links = open_parent(path, policy, request["operation"] != "readlink")
+    check_parent = None
+    if request.get("expect", "").startswith("parent-"):
+        check_parent = functools.partial(check_identity, "parent", policy, request)
+
+    name, resolved, links = open_parent(path, policy, request["operation"] != "readlink", check_parent=check_parent)
     return name, path, resolved, hops + links, collector_location(resolved, policy)
 
 
@@ -441,9 +470,9 @@ def read_target_file(policy, request):
         os.close(root_fd)
 
 
-def snapshot(policy, request):
+def snapshot(policy, request, handles):
     if request.get("path_space") == "collector" and request["operation"] != "read":
-        return observe_path(policy, request)
+        return observe_path(policy, request, handles)
     if request.get("path_space") == "collector" and not request.get("via"):
         raise ValueError("collector_read_requires_target_directory")
     policy["resolving_path"] = request["path"]
@@ -453,7 +482,7 @@ def snapshot(policy, request):
     try:
         observation_policy["root_fd"] = root_fd
         bind_mount_paths(observation_policy)
-        return observe_path(observation_policy, request)
+        return observe_path(observation_policy, request, handles)
     finally:
         policy["resolving_path"] = observation_policy.get("resolving_path", request["path"])
         os.close(root_fd)
@@ -501,7 +530,7 @@ def list_directory(name, path, native):
     return info, result
 
 
-def observe_path(policy, request):
+def observe_path(policy, request, handles):
     path, operation = request["path"], request["operation"]
     native = request.get("path_space") == "collector"
     native_metadata = native and operation != "read"
@@ -511,6 +540,10 @@ def observe_path(policy, request):
         # Keep the original path for follow-ups. Kernel magic links may have no equivalent
         # canonical pathname (for instance a mounted process root or a deleted file).
         name = collector_path = path
+        if request.get("expect", "").startswith("parent-"):
+            os.chdir(fs_path(os.path.dirname(path)))
+            check_identity("parent", policy, request, os.stat("."))
+            name = os.path.basename(path)
     else:
         resolve = read_target_file if operation == "read" else target_source_path
         name, path, resolved, links, collector_path = resolve(policy, request)
@@ -523,9 +556,20 @@ def observe_path(policy, request):
     if operation == "stat" and stat.S_ISLNK(info.st_mode):
         # A target-space leaf changed between path resolution and this sample.
         raise ValueError("source_changed_during_stat")
+    if operation == "stat" and stat.S_ISREG(info.st_mode):
+        # Linux O_PATH also works on files the collector can stat but cannot read.
+        # The Darwin metadata-only flag allows the same checks in the local test suite.
+        flags = getattr(os, "O_EVTONLY", 0x8000) if sys.platform == "darwin" else getattr(os, "O_PATH", 0o10000000)
+        handle = os.open(fs_path(name), flags if native_metadata else flags | os.O_NOFOLLOW)
+        handles.append(handle)
+        pinned_info = os.fstat(handle)
+        if not os.path.samestat(info, pinned_info):
+            raise ValueError("source_changed_during_stat")
+        info = pinned_info
+    space = "collector" if native else "target"
     result = {
         "path": path,
-        "path_space": "collector" if native else "target",
+        "path_space": space,
         "collector_path": collector_path,
         "sampled_at": timestamp(time.time()),
         "device": info.st_dev,
@@ -546,6 +590,7 @@ def observe_path(policy, request):
         result["follow_path"] = path
     elif operation == "list":
         result.update(listing)
+        result["entry_guards"] = [identity_guard("parent", policy, space, entry, info) for entry in listing["entries"]]
     elif operation == "read":
         if not stat.S_ISREG(info.st_mode):
             raise ValueError("source_not_regular")
@@ -560,18 +605,25 @@ def observe_path(policy, request):
                 observed = os.stat(fs_path(path))
                 if (observed.st_dev, observed.st_ino) != (bound.st_dev, bound.st_ino):
                     raise ValueError("collector_path_identity_mismatch")
-            result.update(
-                device=bound.st_dev,
-                inode=bound.st_ino,
-                mode=bound.st_mode,
-                size_bytes=bound.st_size,
-                mtime=timestamp(bound.st_mtime),
-                mtime_epoch=bound.st_mtime,
-            )
+            if "expect" in request:
+                check_identity("file", policy, request, bound)
             with open("/proc/self/fd/%d" % pinned, "rb") as stream:
                 offset = request.get("offset", 0)
                 stream.seek(offset)
                 data = stream.read(request.get("length", 1024))
+                after = os.fstat(stream.fileno())
+            result.update(
+                size_before_read=bound.st_size,
+                read_consistency="no_change_observed"
+                if file_version(bound) == file_version(after)
+                else "changed_during_read",
+                device=bound.st_dev,
+                inode=bound.st_ino,
+                mode=bound.st_mode,
+                size_bytes=after.st_size,
+                mtime=timestamp(after.st_mtime),
+                mtime_epoch=after.st_mtime,
+            )
             # Carry exact bytes through the generic evidence sanitization and compaction.
             # Each encoded chunk is within the evidence store's 4096-character string limit.
             chunks = [binascii.hexlify(data[i : i + 2048]).decode("ascii") for i in range(0, len(data), 2048)]
@@ -579,26 +631,44 @@ def observe_path(policy, request):
         finally:
             os.close(pinned)
     elif operation == "stat" and stat.S_ISREG(info.st_mode):
-        result["collector_read_positions"] = reader_positions(policy["pid"], info)
+        positions = reader_positions(policy["pid"], info)
+        if file_version(os.fstat(handle)) != file_version(info):
+            positions = None
+            result["cursor_sample_status"] = "file_changed_during_scan"
+        result["collector_read_positions"] = positions
+        result["file_guard"] = identity_guard("file", policy, space, path, info)
+    if "expect" in request:
+        result["verified_expectation"] = request["expect"]
     return result
 
 
 def inspect_source(policy, request):
-    first = snapshot(policy, request)
-    if request["operation"] != "stat" or "collector_read_positions" not in first:
-        return {"observation": first}
-    time.sleep(policy["interval"])
+    expect = request.get("expect")
+    if expect and (
+        request["path"] == "/" or not expect.startswith("file-" if request["operation"] == "read" else "parent-")
+    ):
+        raise ValueError("invalid_source_expectation")
+    handles = []
     try:
-        second = snapshot(policy, request)
-    except (OSError, IOError, ValueError) as error:
-        return {
-            "first": first,
-            "activity": "second_sample_unavailable",
-            "error": str(error),
-            "failed_path": policy.get("resolving_path", request["path"]),
-        }
+        first = snapshot(policy, request, handles)
+        if request["operation"] != "stat" or "collector_read_positions" not in first:
+            return {"observation": first}
+        time.sleep(policy["interval"])
+        try:
+            second = snapshot(policy, request, handles)
+        except (OSError, IOError, ValueError) as error:
+            return {
+                "first": first,
+                "activity": "second_sample_unavailable",
+                "error": str(error),
+                "failed_path": policy.get("resolving_path", request["path"]),
+            }
+    finally:
+        for handle in handles:
+            os.close(handle)
     growth = second["size_bytes"] - first["size_bytes"]
     result = {"first": first, "second": second, "reader_scope": "collector_process", "data_id_attribution": "unknown"}
+    result["first_identity_pinned"] = True
     if (first["device"], first["inode"]) != (second["device"], second["inode"]):
         result["activity"] = "replaced"
     elif growth < 0:

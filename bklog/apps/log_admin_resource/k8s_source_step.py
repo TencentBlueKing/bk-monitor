@@ -206,6 +206,7 @@ def inspect_source_step(client, candidate, parsed, target, expected, data_id, re
             parsed, target, expected, data_id, collector_pod, metadata_only=request["operation"] != "read"
         )
         identity = {"pod_uid": target["pod_uid"], "container_id": target["container"]["container_id"]}
+    policy.update(collector_pod_uid=candidate.pod_uid, collector_container_id=candidate.collector_container_id)
     policy["interval"] = min(10, max(1, int(parsed["values"].get("observation_seconds") or 5)))
     policy["pid"] = int(parsed["values"].get("process_pid") or 0)
     encoded = base64.b64encode(json.dumps([policy, request]).encode()).decode("ascii")
