@@ -479,12 +479,8 @@ export default defineComponent({
       }
     });
 
+    // 趋势图刷新不重置日志列表；真实检索由条件、时间事件及结果数据变化驱动重置。
     addEvent([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], resetPageState);
-    addEvent(RetrieveEvent.TREND_GRAPH_SEARCH, ({ source } = {}) => {
-      if (source !== 'grade-option') {
-        resetPageState();
-      }
-    });
 
     addEvent(RetrieveEvent.SORT_LIST_CHANGED, () => {
       /**

@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
 
-
 import { ServicesInstance } from '@/platform/services';
-import { computed, defineComponent, ref, nextTick, watch, onMounted, onBeforeUnmount } from 'vue';
+import { computed, defineComponent, provide, ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import axios from 'axios';
+import useLocale from '@/shared/composables/use-locale';
+import { quixPage } from './quix-page';
 import ClusteringLoader from '@/app/skeleton/clustering-loader.vue';
 
 import useFieldNameHook from '@/shared/composables/use-field-name';
@@ -57,7 +58,11 @@ export default defineComponent({
     LogTable,
   },
   setup() {
-    let statusTimer: NodeJS.Timeout | null;
+    const { t } = useLocale();
+    let statusTimer: ReturnType<typeof setTimeout> | null = null;
+    let statusRequest = 0;
+    const initializedIndex = ref('');
+    const statusError = ref('');
     const loadingWidthList = {
       global: [''],
       notCompared: [150, 90, 90, ''],
@@ -70,12 +75,9 @@ export default defineComponent({
 
     const topOperationRef = ref<any>(null);
     const logTableRef = ref<any>(null);
-    const stepRef = ref<any>(null);
-    const isFieldInit = ref(false);
     const isClusterActive = ref(true);
     const isShowClusterStep = ref(true);
     const clusterStepData = ref<ClusteringConfigStatus | null>(null);
-    const clusterStepDataLoading = ref(false);
     const isInitPage = ref(true); // 是否是第一次进入数据指纹
     const fingerOperateData = ref({
       patternSize: 0, // slider当前值
@@ -108,21 +110,32 @@ export default defineComponent({
     const indexFieldInfo = computed(() => store.indexFieldInfo);
     const indexSetFieldConfig = computed(() => store.indexSetFieldConfig);
     const totalFields = computed(() => store.rawFieldList as Array<any>);
-    const globalLoading = computed(() => indexFieldInfo.value.is_loading || isFieldInit.value);
+    const globalLoading = computed(() => indexFieldInfo.value.is_loading);
     const clusteringConfig = computed(() => indexSetFieldConfig.value.clustering_config);
-    const clusterSwitch = computed(() => clusteringConfig.value?.is_active || false);
+    const quix = computed(() => clusterStepData.value?.quix);
+    provide(quixPage, quix);
+    const clusterSwitch = computed(() =>
+      quix.value ? Boolean(quix.value.distance_threshold) : Boolean(clusteringConfig.value?.is_active),
+    );
     // 无字段提取或者聚类开关没开时直接不显示聚类nav和table，来源如果是数据平台并且日志聚类开关有打开则进入text判断，有text则提示去开启日志聚类, 无则显示跳转计算平台
     const exhibitAll = computed(() => totalFields.value.some(el => el.field_type === 'text'));
-    const isShowTopNav = computed(() => exhibitAll.value && clusterSwitch.value && !isShowClusterStep.value);
     const indexSetId = computed(() =>
-      window.__IS_MONITOR_COMPONENT__ ? (route.query.indexId as string) : route.params.indexId,
+      window.__IS_MONITOR_COMPONENT__ ? (route.query.indexId as string) : (route.params.indexId as string),
+    );
+    const isTableReady = computed(() => initializedIndex.value === indexSetId.value);
+    const isShowTopNav = computed(
+      () => exhibitAll.value && clusterSwitch.value && !isShowClusterStep.value && isTableReady.value,
     );
     const clusterParams = computed(() => store.clusterParams);
     const collectorConfigId = computed(() => indexSetFieldConfig.value.clean_config.extra?.collector_config_id);
 
     watch(indexSetId, () => {
+      initializedIndex.value = '';
+      isInitPage.value = true;
       isShowClusterStep.value = true;
-      confirmClusterStepStatus();
+      clusterStepData.value = null;
+      statusError.value = '';
+      void clusterPolling();
     });
 
     watch(isShowClusterStep, () => {
@@ -131,24 +144,8 @@ export default defineComponent({
     const stopPolling = () => {
       // 清除定时器
       if (statusTimer) {
-        clearInterval(statusTimer);
+        clearTimeout(statusTimer);
         statusTimer = null;
-      }
-    };
-
-    const startPolling = (pollingTime = 10000) => {
-      stopPolling();
-      statusTimer = setInterval(() => {
-        void clusterPolling();
-      }, pollingTime);
-    };
-
-    const fieldsChangeQuery = async () => {
-      if (totalFields.value.length && !isFieldInit.value) {
-        isFieldInit.value = true;
-        startPolling();
-        await clusterPolling();
-        isFieldInit.value = false;
       }
     };
 
@@ -161,8 +158,9 @@ export default defineComponent({
         },
         {
           catchIsShowMessage: false,
+          globalError: false,
         },
-      ) as Promise<IResponseData<ClusteringConfigStatus>>;
+      ) as Promise<IResponseData<ClusteringConfigStatus> & { message?: string }>;
     };
 
     // 获取分组状态
@@ -184,10 +182,12 @@ export default defineComponent({
       }
     };
 
-    const initTableOperator = async () => {
-      const { log_clustering_level_year_on_year: yearOnYearList, log_clustering_level: clusterLevel } =
+    const initTableOperator = async (id: string, seq: number) => {
+      const { log_clustering_level_year_on_year: yearOnYearList, log_clustering_level: levels } =
         useGlobalsStore().$state.globalsData;
-      let patternLevel;
+      const activeLevel = quix.value?.distance_threshold?.replace('.', '');
+      const clusterLevel: string[] = activeLevel ? [activeLevel] : [...((levels as string[]) || [])];
+      let patternLevel = 1;
       if (clusterLevel && clusterLevel.length > 0) {
         // 判断奇偶数来取pattern中间值
         if (clusterLevel.length % 2 === 1) {
@@ -199,7 +199,7 @@ export default defineComponent({
       const patternList = clusterLevel.sort((a: unknown, b: unknown) => Number(b) - Number(a));
       // clusterLevel[patternLevel - 1]
       const queryRequestData = {
-        pattern_level: '05',
+        pattern_level: activeLevel || '05',
         group_by: [],
         remark_config: 'all',
         owner_config: 'all',
@@ -215,12 +215,13 @@ export default defineComponent({
           pattern_level: paramData.pattern_level ? paramData.pattern_level : clusterLevel[patternLevel - 1],
         });
       }
+      if (activeLevel) queryRequestData.pattern_level = activeLevel;
       const { year_on_year_hour: yearOnYearHour } = queryRequestData;
       Object.assign(fingerOperateData.value, {
         patternSize: patternLevel - 1,
         sliderMaxVal: clusterLevel.length - 1,
         patternList,
-        comparedList: yearOnYearList.filter((item: { id: number; }) => item.id !== 0),
+        comparedList: yearOnYearList.filter((item: { id: number }) => item.id !== 0),
         yearOnYearHour: yearOnYearHour > 0 ? yearOnYearHour : 1,
         yearSwitch: yearOnYearHour > 0,
         dimensionList: [],
@@ -228,6 +229,7 @@ export default defineComponent({
       });
       // 这里判断是否有保存过所有人都显示一样的分组 如果有则直接显示相应的分组
       const groupFields = await getInitGroupFields();
+      if (seq !== statusRequest || !isClusterActive.value || indexSetId.value !== id) return;
       if (groupFields?.length) {
         const selectGroupList = fingerOperateData.value.selectGroupList.filter(item => !groupFields.includes(item));
         // 如果初始化时有默认维度的字段 将维度和分组分开来处理
@@ -246,12 +248,54 @@ export default defineComponent({
     };
 
     const clusterPolling = async () => {
-      const isActiveCluster = await confirmClusterStepStatus();
-      if (isActiveCluster) {
-        filterGroupList();
-        await initTableOperator(); // 初始化分组下拉列表
-        stopPolling();
+      stopPolling();
+      statusRequest += 1;
+      const seq = statusRequest;
+      const id = indexSetId.value;
+      if (!id || !isClusterActive.value) return;
+      try {
+        const res = await getClusterConfigStatus();
+        if (seq !== statusRequest) return;
+        statusError.value = '';
+        // 后端仅在不存在聚类配置时返回 36102005。
+        if (String(res.code) === '36102005') {
+          clusterStepData.value = null;
+          isShowClusterStep.value = false;
+          return;
+        }
+        if (res.code !== 0) throw new Error(res.message || t('获取聚类状态失败'));
+        clusterStepData.value = res.data;
+        const state = res.data.quix;
+        isShowClusterStep.value = state
+          ? state.phase === 'enabling' && !state.distance_threshold
+          : !res.data.access_finished;
+        if (
+          !isShowClusterStep.value &&
+          (!state || clusterSwitch.value) &&
+          initializedIndex.value !== id &&
+          totalFields.value.length
+        ) {
+          filterGroupList();
+          await initTableOperator(id, seq);
+          if (seq === statusRequest) initializedIndex.value = id;
+        }
+      } catch (error) {
+        if (seq !== statusRequest) return;
+        const transient =
+          axios.isAxiosError(error) && !axios.isCancel(error) && (!error.response || error.response.status >= 500);
+        if (!transient || !isShowClusterStep.value || !clusterStepData.value) {
+          statusError.value = error instanceof Error ? error.message : String(error);
+          return;
+        }
       }
+      // 按最后一次成功取得的接入进度继续；一次网络错误不能判定后台任务失败。
+      const progress = clusterStepData.value;
+      if (seq !== statusRequest || !isShowClusterStep.value || !progress) return;
+      const pending = progress.quix
+        ? progress.quix.operation?.operation_type === 'enable' &&
+          ['pending', 'running', 'awaiting_receipt'].includes(progress.quix.operation.status)
+        : ![progress.flow_create, progress.flow_run, progress.data_check].some(step => step.status === 'FAILED');
+      if (pending) statusTimer = setTimeout(clusterPolling, 10000);
     };
 
     // 数据指纹操作
@@ -294,36 +338,6 @@ export default defineComponent({
       router.replace({ query });
     };
 
-    const confirmClusterStepStatus = async () => {
-      if (!isShowClusterStep.value) {
-        return;
-      }
-      try {
-        clusterStepDataLoading.value = true;
-        const res = await getClusterConfigStatus();
-        if (res.code === 0) {
-          // 未完成，展示step步骤
-          if (!res.data.access_finished) clusterStepData.value = res.data;
-          isShowClusterStep.value = !res.data.access_finished;
-          return res.data.access_finished;
-        }
-      } catch {
-        // 报错就证明没开日志聚类
-        isShowClusterStep.value = false;
-        stopPolling();
-        return false;
-      } finally {
-        // 如果有报错信息，也直接停止轮询
-        nextTick(() => {
-          // 记得放开注释
-          if (stepRef.value?.errorMessage) {
-            stopPolling();
-          }
-        });
-        clusterStepDataLoading.value = false;
-      }
-    };
-
     const handleCloseGroupTag = () => {
       Object.assign(fingerOperateData.value, { selectGroupList: [] });
       handleFingerOperate('requestData', { group_by: fingerOperateData.value.dimensionList }, true);
@@ -334,9 +348,7 @@ export default defineComponent({
     };
 
     const handleClusterCreate = () => {
-      isShowClusterStep.value = true;
-      startPolling();
-      clusterPolling();
+      void clusterPolling();
     };
 
     const handleOpenClusterConfig = () => {
@@ -351,7 +363,7 @@ export default defineComponent({
           return;
         }
         // 无字段提取或者聚类开关没开时直接不显示聚类nav和table，来源如果是数据平台并且日志聚类大开关有打开则进入text判断，有text则提示去开启日志聚类 无则显示跳转计算平台
-        fieldsChangeQuery();
+        if (!initializedIndex.value && totalFields.value.length) void clusterPolling();
       },
       {
         immediate: true,
@@ -360,19 +372,12 @@ export default defineComponent({
     );
 
     onMounted(() => {
-      if (!isClusterActive.value) {
-        isClusterActive.value = true;
-        confirmClusterStepStatus().then(() => {
-          if (!isInitPage.value) {
-            store.updateState({ clusterParams: requestData.value });
-            setRouteParams();
-          }
-        });
-      }
+      if (!statusRequest) void clusterPolling();
     });
 
     onBeforeUnmount(() => {
       if (isClusterActive.value) {
+        statusRequest += 1;
         isClusterActive.value = false;
         store.updateState({ clusterParams: null });
         setRouteParams();
@@ -408,16 +413,17 @@ export default defineComponent({
             )}
             {exhibitAll.value ? (
               (() => {
-                if (isShowClusterStep.value) {
-                  // 聚类启动失败
+                if (statusError.value || isShowClusterStep.value) {
+                  if (!statusError.value && !clusterStepData.value) return null;
                   return (
                     <cluster-start-fail
-                      ref={stepRef}
                       cluster-step-data={clusterStepData.value}
+                      status-error={statusError.value}
                     />
                   );
                 }
-                if (!clusterSwitch.value) {
+                if (!clusterSwitch.value || !clusterStepData.value) {
+                  if (quix.value && (quix.value.phase !== 'stopped' || quix.value.can_reopen)) return null;
                   // 快速开启日志聚类
                   return (
                     <QuickOpenCluster
@@ -427,6 +433,13 @@ export default defineComponent({
                     />
                   );
                 }
+                if (!isTableReady.value)
+                  return (
+                    <clustering-loader
+                      width-list={loadingWidthList.global}
+                      is-loading
+                    />
+                  );
                 return (
                   <log-table
                     ref={logTableRef}
