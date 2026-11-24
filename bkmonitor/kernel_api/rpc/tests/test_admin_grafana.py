@@ -101,3 +101,15 @@ def test_user_query_filters_dashboard_before_history_and_count(target, monkeypat
     assert call("config", {"dashboard_id": 10, "version": 1})["result"]["version"] == 1
     assert not call("config", {"dashboard_id": 12})["allowed"]
     acl.assert_called_with("u", "2", force_check=True, bk_tenant_id=target["bk_tenant_id"])
+
+
+def test_tenant_list_returns_business_and_excludes_foreign_orgs(target):
+    p = {"bk_tenant_id": target["bk_tenant_id"], "page_size": 1}
+    rows = grafana.list_dashboards(p)["data"]
+    assert rows["total"] == 1 and rows["items"][0]["bk_biz_id"] == 2
+    Space.objects.bulk_create(
+        [Space(space_type_id="bkcc", space_id="3", bk_tenant_id=p["bk_tenant_id"], space_name="second")]
+    )
+    page = grafana.list_dashboards({**p, "page": 2})["data"]
+    assert page["total"] == 2 and len(page["items"]) == 1
+    assert grafana.list_dashboards({"bk_tenant_id": "other"})["data"]["total"] == 0

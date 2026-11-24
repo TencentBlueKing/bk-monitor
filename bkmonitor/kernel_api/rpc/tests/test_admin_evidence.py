@@ -82,6 +82,7 @@ def test_rotation_and_calendar_scope(evidence_db):
     )
     DutyRule.objects.bulk_create([DutyRule(id=4, bk_biz_id=-99, name="project")])
     assert {r["bk_biz_id"] for r in rotation.rules({**BIZ, "bk_biz_id": -99})["data"]["items"]} == {0, -99}
+    assert {r["bk_biz_id"] for r in rotation.rules({"bk_tenant_id": "system"})["data"]["items"]} == {0, 2, -99}
     with pytest.raises(CustomException):
         rotation.rules({**BIZ, "bk_tenant_id": "other"})
     for group, biz in [(10, 2), (11, 3)]:
@@ -109,6 +110,15 @@ def test_rum_data_config_and_record_scope(evidence_db, monkeypatch):
     RumApplication.objects.bulk_create(
         [RumApplication(id=4, **BIZ, app_name="checkout", app_alias="结算", token="private")]
     )
+    RumApplication.objects.bulk_create(
+        [
+            RumApplication(id=5, bk_tenant_id="system", bk_biz_id=3, app_name="second", app_alias="演示", token="t2"),
+            RumApplication(id=6, bk_tenant_id="other", bk_biz_id=4, app_name="third", app_alias="演示", token="t3"),
+        ]
+    )
+    page = rum.applications({"bk_tenant_id": "system", "page": 2, "page_size": 1})["data"]
+    assert page["total"] == 2 and [r["bk_biz_id"] for r in page["items"]] == [3]
+    assert rum.applications({**BIZ, "keyword": "second"})["data"]["total"] == 0
     assert "token" not in rum.applications(BIZ)["data"]["items"][0]
     p = {**BIZ, "app_name": "checkout"}
     with pytest.raises(CustomException):
@@ -234,6 +244,11 @@ def test_incident_and_issue_stored_evidence(evidence_db, monkeypatch):
         )
 
     monkeypatch.setattr(Search, "execute", execute)
+    for handler in (incidents.incidents, incidents.issues):
+        handler({"bk_tenant_id": "system"})
+        assert {"terms": {"bk_biz_id": ["2"]}} in requests[-1]["query"]["bool"]["filter"]
+        handler({"bk_tenant_id": "other"})
+        assert {"terms": {"bk_biz_id": []}} in requests[-1]["query"]["bool"]["filter"]
     p = {**BIZ, "page": 2, "page_size": 2}
     result = incidents.issues({**p, "status": "ONGOING", "issue_id": "42", "start_time": 1, "end_time": 100})["data"]
     assert result["total"] == 7 and result["items"][0]["id"] == "42"

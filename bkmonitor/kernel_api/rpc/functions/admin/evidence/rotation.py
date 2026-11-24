@@ -3,15 +3,16 @@ from rest_framework import serializers
 
 from bkmonitor.models import DutyArrange, DutyPlan, DutyRule, UserGroup
 from calendars.models import CalendarItemModel, CalendarModel
-from .common import BusinessPage, TenantPage, business_scope, db_page, query
+from kernel_api.rpc.functions.admin.space import tenant_business_ids
+from .common import BusinessListPage, BusinessPage, TenantPage, business_scope, db_page, query
 
 
-class Rules(BusinessPage):
+class Rules(BusinessListPage):
     name = serializers.CharField(required=False)
     rule_id = serializers.IntegerField(min_value=1, required=False)
 
 
-class Arranges(BusinessPage):
+class Arranges(BusinessListPage):
     rule_id = serializers.IntegerField(min_value=1)
 
 
@@ -31,8 +32,12 @@ class Items(TenantPage):
 
 
 def rule_scope(p):
-    business_scope(p)
-    return DutyRule.objects.filter(bk_biz_id__in=[0, p["bk_biz_id"]])
+    if "bk_biz_id" in p:
+        business_scope(p)
+        businesses = [p["bk_biz_id"]]
+    else:
+        businesses = tenant_business_ids(p["bk_tenant_id"])
+    return DutyRule.objects.filter(bk_biz_id__in=[0, *businesses])
 
 
 @query("rotation.rule_list", "业务及平台公共轮值规则", Rules)

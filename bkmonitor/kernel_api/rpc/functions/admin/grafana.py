@@ -2,7 +2,8 @@
 
 import json
 
-from django.db.models import Q
+from django.db.models import BigIntegerField, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Cast
 
 from bk_dataview.models import Dashboard, DashboardVersion, Org
 from bk_dataview.redaction import redact_config
@@ -15,7 +16,7 @@ from kernel_api.rpc.functions.admin.common import (
     paginate_queryset,
     require_bk_tenant_id,
 )
-from kernel_api.rpc.functions.admin.space import _apply_space_bk_biz_id_filter
+from kernel_api.rpc.functions.admin.space import _apply_space_bk_biz_id_filter, tenant_business_ids
 from metadata.models import Space
 
 SCOPE = {"bk_tenant_id": "必填，具体租户", "bk_biz_id": "必填，业务或负空间 ID"}
@@ -60,18 +61,35 @@ def _page(queryset, params):
     "admin.grafana.list",
     summary="查询业务 Grafana 仪表盘",
     description="在指定租户业务下按标题或 UID 分页查询，不返回配置正文。",
-    params_schema={**SCOPE, **PAGING, "keyword": "可选，按标题或 UID 包含匹配"},
+    params_schema={
+        **SCOPE,
+        "bk_biz_id": "可选，省略时查询当前租户",
+        **PAGING,
+        "keyword": "可选，按标题或 UID 包含匹配",
+    },
     example_params={**EXAMPLE, "keyword": "CPU", "page": 1, "page_size": 20},
 )
 def list_dashboards(params):
-    return _response("grafana.list", params, dashboard_page(_dashboards(params), params))
+    tenant = require_bk_tenant_id(params)
+    if tenant == "__all__":
+        raise CustomException(message="请选择具体租户")
+    if "bk_biz_id" in params:
+        rows = _dashboards(params)
+    else:
+        # Space 和 Grafana 分库；在 Grafana 库中完成组织过滤、计数与分页。
+        names = [str(biz) for biz in tenant_business_ids(tenant)]
+        orgs = Org.objects.filter(name__in=names)
+        rows = Dashboard.objects.filter(org_id__in=orgs.values("id"), is_folder=0)
+    return _response("grafana.list", params, dashboard_page(rows, params))
 
 
 def dashboard_page(dashboards, params):
     keyword = params.get("keyword")
     if keyword:
         dashboards = dashboards.filter(Q(title__icontains=keyword) | Q(uid__icontains=keyword))
-    return _page(dashboards.order_by("-updated", "id").values(*SUMMARY), params)
+    org_name = Org.objects.filter(id=OuterRef("org_id")).values("name")[:1]
+    biz_id = Value(params["bk_biz_id"]) if "bk_biz_id" in params else Cast(Subquery(org_name), BigIntegerField())
+    return _page(dashboards.order_by("-updated", "id").values(*SUMMARY, bk_biz_id=biz_id), params)
 
 
 @KernelRPCRegistry.register(

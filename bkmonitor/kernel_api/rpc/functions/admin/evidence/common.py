@@ -24,6 +24,10 @@ class BusinessPage(TenantPage):
     bk_biz_id = serializers.IntegerField()
 
 
+class BusinessListPage(TenantPage):
+    bk_biz_id = serializers.IntegerField(required=False, help_text="省略时查询当前租户")
+
+
 def business_scope(p):
     from metadata.models import Space
 
