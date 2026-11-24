@@ -42,6 +42,7 @@ from apps.log_admin_resource.k8s_inspection import (
 from apps.log_admin_resource.k8s_cluster_context import ClusterInspectionContext, load_cluster_context
 from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text, object_to_dict
 from apps.log_admin_resource.k8s_probe import FixedProbeError, run_fixed_collector_probe
+from apps.log_admin_resource.k8s_source_step import inspect_source_step
 from apps.log_bcs.handlers.bcs_handler import BcsHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import Space
@@ -271,6 +272,28 @@ def run_k8s_inspection(task_id: str) -> None:
                 config_map_main=config_map_main,
                 expected_specs=[item["spec"] for item in expected],
             )
+            if options.get("source_step"):
+                deep_probes["source_path"] = inspect_source_step(
+                    client,
+                    selected,
+                    parsed_probe,
+                    control_evidence["target"],
+                    expected,
+                    collector.bk_data_id,
+                    options["source_step"],
+                    _pod_after,
+                )
+                _revalidate_candidate(client, selected, required_bk_envs)
+                target = control_evidence["target"]
+                pod = object_to_dict(client.read_pod(target["namespace"], target["pod_name"]))
+                matched = target_config_matches(options["target"], pod, expected)
+                identity = safe_target_snapshot(options["target"], pod, matched)
+                if (
+                    not matched
+                    or identity["pod_uid"] != target["pod_uid"]
+                    or identity["container"]["container_id"] != target["container"]["container_id"]
+                ):
+                    raise FixedProbeError("source_target_changed", "source Pod/container changed during observation")
             if "reload_observation" in probes:
                 rendered_configs = ((deep_probes.get("main_config_mounted") or {}).get("evidence") or {}).get(
                     "child_configs"
@@ -287,7 +310,7 @@ def run_k8s_inspection(task_id: str) -> None:
                     continue
                 if name == "progress":
                     ResourceInspectionTaskRecord.update(task_id, phase="progress")
-                probe["probe_metadata"] = parsed_probe.get("metadata")
+                probe.setdefault("probe_metadata", parsed_probe.get("metadata"))
                 probe = _timed_probe(probe)
                 probes[name] = probe
                 _save_probe(task_id, name, probe)

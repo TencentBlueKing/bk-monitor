@@ -546,6 +546,37 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         self.assertEqual(record["request_options"]["evidence_groups"], ["control_plane"])
         apply_async.assert_called_once()
 
+    @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_source_step_is_bound_to_pod_and_task_fingerprint(self, _identity, _get, _validate, dispatch):
+        params = {
+            "collector_config_id": 123,
+            "evidence_groups": ["collector"],
+            "target": {"type": "pod_container", "namespace": "demo", "pod_name": "app", "container_name": "main"},
+        }
+        for step in [
+            {"operation": "readlink", "path": "/logs"},
+            {"operation": "list", "path": "/volume", "via": "/logs"},
+        ]:
+            response = start_k8s_inspection({**params, "source_step": step})
+            task = ResourceInspectionTaskRecord.get(response["task_id"])
+            self.assertEqual(task["request_options"]["source_step"], step)
+        self.assertEqual(dispatch.call_count, 2)
+        for change in [
+            {"evidence_groups": ["control_plane"]},
+            {"target": {"type": "node", "node_name": "node"}},
+            {"source": "/logs/a.log"},
+        ]:
+            with self.assertRaises(ValidationError):
+                start_k8s_inspection({**params, "source_step": step, **change})
+        for path in ["/logs/../etc", "//logs", "/logs//name", "relative"]:
+            with self.assertRaises(ValidationError):
+                start_k8s_inspection({**params, "source_step": {"operation": "stat", "path": path}})
+
     @patch(
         "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
     )
@@ -1385,6 +1416,93 @@ class K8sInspectionClientTest(SimpleTestCase):
         bcs.api_instance_core_v1.list_node.assert_has_calls(
             [call(_request_timeout=10), call(limit=50, _request_timeout=10)]
         )
+
+
+class SourcePolicyTest(SimpleTestCase):
+    def test_scope_requires_target_config_and_data_id_and_blocks_secret_volumes(self):
+        from apps.log_admin_resource.k8s_source_step import source_policy
+
+        target = {
+            "type": "pod_container",
+            "container": {
+                "container_id": "containerd://demo",
+                "volume_mounts": [
+                    {"mount_path": "/volume", "sub_path": "app", "volume": {"path": "/work"}},
+                    {"mount_path": "/private", "volume": {"type": "secret"}},
+                ],
+            },
+            "matched_container_config_ids": [7],
+        }
+        expected = [
+            {
+                "container_config_id": 7,
+                "collector_type": ContainerCollectorType.CONTAINER,
+                "name": "demo-config",
+                "spec": {"path": ["/logs/*.log"]},
+            }
+        ]
+        pod = {
+            "spec": {
+                "volumes": [{"name": "host", "hostPath": {"path": "/"}}],
+                "containers": [
+                    {"name": COLLECTOR_CONTAINER_NAME, "volumeMounts": [{"name": "host", "mountPath": "/var/host"}]}
+                ],
+            }
+        }
+        hint = collector_child_config_hints(target, expected)[0]
+        stream = {
+            "path": "/config/" + hint,
+            "content": "local: [{dataid: 7, root_fs: /var/host/root/demo, paths: ['/logs/*.log', '/other/*'], "
+            "mounts: [{container_path: /private, host_path: /var/host/private}]}]",
+        }
+        parsed = {"streams": {"child_config.0": stream}}
+        policy = source_policy(parsed, target, expected, 7, pod)
+        self.assertEqual(policy["patterns"], ["/logs/*.log"])
+        self.assertEqual(
+            policy["mounts"], {"/volume": "/var/host/work/app", "/": "/var/host/root/demo", "/private": None}
+        )
+        with self.assertRaises(FixedProbeError):
+            source_policy(parsed, target, expected, 8, pod)
+        stream["path"] = "/config/another-pod.conf"
+        with self.assertRaises(FixedProbeError):
+            source_policy(parsed, target, expected, 7, pod)
+
+    def test_source_step_executes_fixed_script_and_returns_path_metadata(self):
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+
+        def execute(_client, _candidate, command, script):
+            self.assertEqual(command, ["/bin/sh", "-s"])
+            result = subprocess.run(command, input=script, capture_output=True, text=True, timeout=15, check=True)
+            return result.stdout, result.stderr, result.returncode
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            (root / "logs").symlink_to("/volume/demo")
+            policy = {"mounts": {"/": str(root)}, "patterns": ["/logs/app.log"]}
+            with (
+                patch("apps.log_admin_resource.k8s_source_step.source_policy", return_value=policy),
+                patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=execute),
+            ):
+                result = inspect_source_step(
+                    None,
+                    SimpleNamespace(pod_uid="collector-uid"),
+                    {"values": {}},
+                    {"pod_uid": "app-uid", "container": {"container_id": "runtime-id"}},
+                    [],
+                    7,
+                    {"operation": "readlink", "path": "/logs"},
+                    {},
+                )
+            self.assertEqual(result["status"], "success")
+            observation = result["evidence"]["observation"]
+            self.assertEqual(observation["target"], "/volume/demo")
+            self.assertEqual(observation["inode"], (root / "logs").lstat().st_ino)
+            self.assertEqual(result["probe_metadata"]["container"], COLLECTOR_CONTAINER_NAME)
 
 
 class FixedK8sProbeTest(SimpleTestCase):

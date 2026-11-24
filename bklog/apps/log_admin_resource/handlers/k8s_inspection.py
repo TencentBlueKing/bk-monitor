@@ -426,6 +426,23 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     groups, skipped_groups = _select_runnable_evidence_groups(requested_groups, identity)
     source = (params.get("source") or "").strip() or None
     include_source_sample = bool(params.get("include_source_sample", False))
+    source_step = params.get("source_step")
+    if source_step is not None:
+        if not target or target.get("type") != "pod_container" or "collector" not in groups:
+            raise ValidationError("source_step requires a Pod/container target and collector evidence")
+        if source or include_source_sample:
+            raise ValidationError("source_step and legacy source sampling are mutually exclusive")
+        for path in [source_step["path"], source_step.get("via", "/")]:
+            if (
+                not path.startswith("/")
+                or "//" in path
+                or (path != "/" and path.endswith("/"))
+                or any(ord(ch) < 32 for ch in path)
+                or any(part in {".", ".."} for part in path.split("/"))
+            ):
+                raise ValidationError("source_step requires normalized absolute container paths")
+        if source_step["operation"] != "read" and ("offset" in source_step or "length" in source_step):
+            raise ValidationError("offset and length apply only to read")
     if include_source_sample and not source:
         raise ValidationError("include_source_sample requires an explicit source")
     if any(group != "control_plane" for group in groups) and not target:
@@ -459,6 +476,7 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
         "skipped_evidence_groups": skipped_groups,
         "collector_candidate_id": candidate_id,
         "source": source,
+        **({"source_step": source_step} if source_step is not None else {}),
         "include_source_sample": include_source_sample,
         "runtime_log_options": normalize_runtime_log_options(params.get("runtime_log_options")),
         "identity_warnings": identity.get("warnings") or [],
@@ -957,6 +975,28 @@ FUNCTIONS = {
                     "items": {"type": "string", "enum": ["all", *EVIDENCE_GROUPS]},
                 },
                 "source": {"type": "string", "minLength": 1, "maxLength": 4096},
+                "source_step": {
+                    "type": "object",
+                    "description": (
+                        "Inspect a path in the selected input's business-container namespace from the collector. "
+                        "Use list to discover matching children, readlink for the raw target, stat for two "
+                        "observations, or read for a bounded byte range. Follow up using the logical child path."
+                    ),
+                    "properties": {
+                        "operation": {"type": "string", "enum": ["list", "readlink", "stat", "read"]},
+                        "path": {"type": "string", "minLength": 1, "maxLength": 4096},
+                        "via": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 4096,
+                            "description": "Configured logical ancestor whose verified link target contains path.",
+                        },
+                        "offset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                        "length": {"type": "integer", "minimum": 1, "maximum": 4096},
+                    },
+                    "required": ["operation", "path"],
+                    "additionalProperties": False,
+                },
                 "include_source_sample": {"type": "boolean"},
                 "runtime_log_options": RUNTIME_LOG_OPTIONS_SCHEMA,
             },
@@ -965,6 +1005,19 @@ FUNCTIONS = {
         },
         "response_schema": START_RESPONSE_SCHEMA,
         "examples": [
+            {
+                "params": {
+                    "collector_config_id": 123,
+                    "target": {
+                        "type": "pod_container",
+                        "namespace": "demo",
+                        "pod_name": "app",
+                        "container_name": "app",
+                    },
+                    "evidence_groups": ["collector"],
+                    "source_step": {"operation": "readlink", "path": "/app/logs"},
+                }
+            },
             {
                 "params": {
                     "bcs_cluster_id": "BCS-K8S-1",
