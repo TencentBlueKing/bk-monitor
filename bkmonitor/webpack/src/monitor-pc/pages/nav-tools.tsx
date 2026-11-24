@@ -349,7 +349,7 @@ class NavTools extends DocumentLinkMixin {
           throw new Error(result.message || response.statusText);
         }
       } catch (error) {
-        this.$bkMessage({ theme: 'error', message: String(error) });
+        this.$bkMessage({ theme: 'error', message: error instanceof Error ? error.message : String(error) });
         return;
       }
     }

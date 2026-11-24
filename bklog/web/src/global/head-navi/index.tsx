@@ -275,7 +275,7 @@ export default defineComponent({
             throw new Error(result.message || response.statusText);
           }
         } catch (error) {
-          bkMessage({ message: String(error), theme: 'error' });
+          bkMessage({ message: error instanceof Error ? error.message : String(error), theme: 'error' });
           return;
         }
       }
