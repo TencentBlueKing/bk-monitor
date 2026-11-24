@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type ShallowRef, computed, onMounted, onScopeDispose, shallowRef, watch } from 'vue';
+import { type ShallowRef, computed, nextTick, onMounted, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { useRoute } from 'vue-router';
@@ -319,16 +319,28 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
       if (fallbackToRoot) spaceRoot = result.selectedNode;
     }
     totalRows.value = result.total;
-    if (preserve && result.anchorOffset >= 0 && viewportScrollTop === anchorScrollTop) {
+    const keepAnchor = preserve && result.anchorOffset >= 0 && viewportScrollTop === anchorScrollTop;
+    let scrollSynced = false;
+    if (keepAnchor) {
       viewportScrollTop = result.anchorOffset * TOPO_ROW_HEIGHT + (viewportScrollTop % TOPO_ROW_HEIGHT);
-      if (scrollEl) scrollEl.scrollTop = viewportScrollTop;
     } else if (!preserve && currentId) {
+      // 选择逻辑内部已同步 totalRows、等占位撑开、写入回读并刷新切片
       await handleSelectNodeOfNodeId();
+      if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
+      scrollSynced = true;
     }
-    if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
-    viewportScrollTop = Math.min(viewportScrollTop, Math.max(0, result.total * TOPO_ROW_HEIGHT - viewportHeight));
-    if (scrollEl) scrollEl.scrollTop = viewportScrollTop;
-    await refreshVisibleRange(true);
+    if (!scrollSynced) {
+      viewportScrollTop = Math.min(viewportScrollTop, Math.max(0, result.total * TOPO_ROW_HEIGHT - viewportHeight));
+      // 占位高度要等 nextTick 才按新行数提交，提前写入的 scrollTop 会被旧高度截断
+      await nextTick();
+      if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
+      if (scrollEl) {
+        scrollEl.scrollTop = viewportScrollTop;
+        // 浏览器仍可能收敛滚动位置，取真实值保证可视切片与渲染位置一致
+        viewportScrollTop = scrollEl.scrollTop;
+      }
+      await refreshVisibleRange(true);
+    }
     if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
     loading.value = false;
     loadError.value = false;
@@ -410,8 +422,16 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     }
     if (result.selectedNode) selectedNode.value = result.selectedNode;
     if (result.selectedNodeOffset >= 0) {
+      // 先同步可见行总数，让占位高度按展开后的列表撑开；否则写入的 scrollTop 会被旧高度截断
+      totalRows.value = result.total;
+      await nextTick();
+      if (disposed || version !== loadRequestVersion || nodeId.value !== requestNodeId) return;
       viewportScrollTop = result.selectedNodeOffset * TOPO_ROW_HEIGHT;
-      if (scrollEl) scrollEl.scrollTop = viewportScrollTop;
+      if (scrollEl) {
+        scrollEl.scrollTop = viewportScrollTop;
+        // 浏览器仍可能收敛滚动位置，取真实值保证可视切片与渲染位置一致
+        viewportScrollTop = scrollEl.scrollTop;
+      }
     }
     await refreshVisibleRange(true);
   };

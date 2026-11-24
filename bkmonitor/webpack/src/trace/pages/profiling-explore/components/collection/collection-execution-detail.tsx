@@ -31,15 +31,20 @@ import { useI18n } from 'vue-i18n';
 
 import { saveCollectionTask } from '../../services/collection';
 import { getCollectionExecution, renameCollectionExecution } from '../../services/collection-history';
-import { collectionTypeLabels, formatCollectionTime, processSelectorText } from '../../utils/collection';
+import {
+  CollectionMethodEnum,
+  collectionTypeLabels,
+  formatCollectionTime,
+  processSelectorText,
+} from '../../utils/collection';
 import {
   canRetryExecution,
   canViewExecution,
   executionConfiguration,
-  executionHostMessage,
   executionSelection,
   formatExecutionDuration,
   hostColumnMinWidths,
+  hostErrorTypeMessage,
 } from '../../utils/collection-history';
 import {
   buildHostCollectionPayload,
@@ -73,6 +78,13 @@ const fallbackHostColumns: CollectionExecutionColumn[] = [
   { field: 'finished_at', name: '结束时间', type: 'datetime' },
   { field: 'duration_ms', name: '耗时', type: 'duration' },
 ];
+
+// 详情处于采集中时静默刷新的间隔，静默刷新不展示骨架与 loading
+const SILENT_REFRESH_INTERVAL = 5000;
+// 视为过渡态、需要继续轮询的执行状态：采集中与解析中
+const pendingExecutionStatuses = ['running', 'parsing'];
+// 同一详情连续静默刷新的上限：采集加解析最长约 300s（60 轮），取 90 轮（450s）覆盖整段过渡态并留出状态落库延迟
+const SILENT_REFRESH_LIMIT = 90;
 
 export default defineComponent({
   name: 'CollectionExecutionDetail',
@@ -111,6 +123,62 @@ export default defineComponent({
       if (!selection?.bk_host_id || !detail) return undefined;
       return executionResultRows(detail).find(host => host.bk_host_id === selection.bk_host_id);
     });
+    // 详情处于采集中或解析中时静默轮询刷新，直到进入终态；关闭侧栏时组件卸载即停止
+    const hasPendingExecution = computed(() =>
+      pendingExecutionStatuses.includes(props.controller.detail.value?.execution_status ?? '')
+    );
+    let silentRefreshCount = 0;
+    let silentRefreshStopped = false;
+    let silentRefreshTimer: null | ReturnType<typeof setTimeout> = null;
+    function stopSilentRefresh() {
+      if (!silentRefreshTimer) return;
+      clearTimeout(silentRefreshTimer);
+      silentRefreshTimer = null;
+    }
+    function scheduleSilentRefresh() {
+      if (silentRefreshStopped) return;
+      stopSilentRefresh();
+      // 主动加载中、加载失败、提交操作中、不在采集中或解析中或已达刷新上限时不再轮询
+      if (
+        props.controller.loading.value ||
+        props.controller.error.value ||
+        props.controller.busy.value ||
+        rerunBusy.value ||
+        renameBusy.value ||
+        !hasPendingExecution.value
+      )
+        return;
+      if (silentRefreshCount >= SILENT_REFRESH_LIMIT) return;
+      silentRefreshTimer = setTimeout(async () => {
+        silentRefreshTimer = null;
+        if (silentRefreshStopped) return;
+        silentRefreshCount += 1;
+        await props.controller.silentRefresh();
+        if (silentRefreshStopped) return;
+        // 过渡态消失时 watch 会结束轮询，这里负责继续下一轮
+        scheduleSilentRefresh();
+      }, SILENT_REFRESH_INTERVAL);
+    }
+    watch(
+      [
+        hasPendingExecution,
+        () => props.controller.loading.value,
+        () => props.controller.error.value,
+        () => props.controller.busy.value,
+        rerunBusy,
+        renameBusy,
+      ],
+      () => {
+        // 切换到其他执行记录（详情清空）时重新计时
+        if (!hasPendingExecution.value) silentRefreshCount = 0;
+        scheduleSilentRefresh();
+      },
+      { immediate: true }
+    );
+    // 提交操作一开始就中止在途静默请求，避免旧响应把改名、终止后的详情覆盖回去
+    watch([() => props.controller.busy.value, rerunBusy, renameBusy], ([busy, rerun, rename]) => {
+      if (busy || rerun || rename) props.controller.cancelSilentRefresh();
+    });
     watch(
       () => props.controller.selected.value,
       () => {
@@ -130,6 +198,9 @@ export default defineComponent({
     onScopeDispose(() => {
       rerunController?.abort();
       renameController?.abort();
+      // 关闭侧栏后停止静默轮询
+      silentRefreshStopped = true;
+      stopSilentRefresh();
       // 提交中途被卸载时请求随之中止，finally 不再复位，这里兜底
       emit('busy', false);
     });
@@ -274,19 +345,19 @@ export default defineComponent({
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionExecutionHost) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
       if (column.type === 'process_list') return renderHostProcesses(row);
-      // 执行信息优先展示失败原因类型对应的文案，无 error_type 时沿用后端下发的 message
-      if (column.field === 'message') {
-        const message = executionHostMessage(row);
-        return message ? this.t(message) : '--';
-      }
-      if (column.type === 'status')
+      if (column.type === 'status') {
+        const errorMessage = hostErrorTypeMessage(row.error_type);
+        // 已取消时后端不下发 error_type，hover 提示取后端下发的原始 message
+        const message = row.status === 'cancelled' ? row.message : errorMessage ? this.t(errorMessage) : '';
         return (
           <CollectionExecutionStatus
-            class={{ 'has-failure-message': !!row.message && ['failed', 'timeout'].includes(row.status) }}
-            message={row.message}
+            class={{ 'has-failure-message': !!message && ['failed', 'timeout', 'cancelled'].includes(row.status) }}
+            message={message || ''}
             status={String(value ?? '')}
           />
         );
+      }
+
       if (column.type === 'datetime') return value ? formatCollectionTime(value as number, this.timezone) : '--';
       if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
       return value ? String(value) : '--';
@@ -488,10 +559,20 @@ export default defineComponent({
                             ` · ${detail.config.collector_config.stack_unwind}`}
                         </dd>
                       </div>
-                      <div>
-                        <dt>{this.t('目标进程')}：</dt>
-                        <dd>{processTag || '--'}</dd>
-                      </div>
+                      {/* Go 采集按 pprof 端点采集，没有目标进程；无配置快照时也不展示 */}
+                      {detail.collection_method !== CollectionMethodEnum.GOLANG && processSelector && (
+                        <div class='collection-execution-process-row'>
+                          <dt>{this.t('目标进程')}：</dt>
+                          <dd class='collection-execution-process-value'>
+                            <span
+                              class='collection-execution-process-tag'
+                              title={processTag}
+                            >
+                              {processTag}
+                            </span>
+                          </dd>
+                        </div>
+                      )}
                     </dl>
                     <div class='collection-execution-toolbar'>
                       <Button

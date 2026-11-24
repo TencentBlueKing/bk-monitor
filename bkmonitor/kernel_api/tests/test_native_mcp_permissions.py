@@ -322,8 +322,9 @@ def test_mcp_resource_without_serializer_still_passes_through(validated_log_reso
 def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     native = registry.get_tool_registry()
     tool = native.get("search_logs")
-    assert len(native) == 96
-    assert sum(bool(tool.native_permission) for tool in native.list()) == 88
+    assert len(native) == 101
+    assert sum(bool(tool.native_permission) for tool in native.list()) == 93
+    assert native.get("llm_mcp_search_spans").native_permission["resource_type"] == "apm_application"
     assert {
         tool.name for tool in native.list() if not tool.permission_exempt and tool.category != "recording_rule"
     } == set(registry.NATIVE_PERMISSIONS)
@@ -632,6 +633,7 @@ def test_field_analyze_publishes_both_conditional_prerequisite_chains(monkeypatc
         ("get_index_set_fields", ["bk_biz_id", "index_set_id"]),
         ("search_event_log", ["bk_biz_id"]),
         ("query_graph_profile", ["bk_biz_id", "app_name"]),
+        ("export_profile_pprof", ["bk_biz_id"]),
     ],
 )
 def test_tool_summaries_preserve_required_context(monkeypatch, native_enabled, tool_name, native_context):
@@ -640,6 +642,12 @@ def test_tool_summaries_preserve_required_context(monkeypatch, native_enabled, t
     tool = registry.get_tool_registry().get(tool_name)
 
     assert tool.summary()["required_context"] == (native_context if native_enabled else ["bk_biz_id"])
+
+
+def test_profile_pprof_export_native_permission_matches_query_scope():
+    tool = registry.get_tool_registry().get("export_profile_pprof")
+    assert tool.resolve_native_permission({"app_name": "demo"})["action_id"] == "view_apm_application_v2"
+    assert tool.resolve_native_permission({"global_query": True})["action_id"] == "view_business_v2"
 
 
 @pytest.mark.parametrize("tool_name", ["search_logs", "analyze_field"])
@@ -3369,6 +3377,8 @@ def direct_gateway(monkeypatch, request_factory, native_http, io):
         request = request_factory(
             path or tool.backend_path, args if args is not None else log_args(), method or tool.backend_method
         )
+        if not gateway:
+            del request.jwt
         if script_name:
             request.path = script_name.rstrip("/") + request.path
         if not marker:
@@ -3672,6 +3682,55 @@ def test_direct_readonly_route_uses_registered_aliases(suffix):
     assert registry.resolve_readonly_tool("POST", tool.backend_path.rstrip("/") + suffix) is tool
 
 
+@pytest.mark.parametrize("identity", [{"verified": False}, {"valid_jwt": False}, {"gateway": False}])
+def test_direct_profile_export_requires_verified_gateway_user(direct_gateway, io, identity):
+    response, _, _, ordinary = direct_gateway("export_profile_pprof", spoof_headers=True, **identity)
+    assert response.status_code == 403
+    io.dispatch.assert_not_called()
+    ordinary.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "native_enabled,mcp_allowed,native_allowed,status",
+    [
+        (False, True, False, 200),
+        (False, False, True, 403),
+        (True, True, False, 200),
+        (True, False, True, 200),
+        (True, False, False, 403),
+    ],
+)
+def test_profile_export_personal_token_uses_the_configured_permissions(
+    monkeypatch, direct_gateway, io, native_enabled, mcp_allowed, native_allowed, status
+):
+    monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", ["export_profile_pprof"] if native_enabled else [])
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: {
+        "using_apm_mcp": mcp_allowed,
+        "view_business_v2": native_allowed,
+    }[query.action.id]
+    args = {
+        "bk_biz_id": "2",
+        "global_query": True,
+        "profile_id": "synthetic-profile",
+        "start_time": 1710000000,
+        "end_time": 1710000060,
+        "confirm": True,
+    }
+
+    response, _, _, ordinary = direct_gateway("export_profile_pprof", args, marker=True, bearer=True)
+
+    assert response.status_code == status
+    expected_actions = ["using_apm_mcp"]
+    if native_enabled and not mcp_allowed:
+        expected_actions.append("view_business_v2")
+    assert [call.args[0].action.id for call in io.monitor.iam_client.is_allowed.call_args_list] == expected_actions
+    ordinary.assert_not_called()
+    if status == 200:
+        io.dispatch.assert_called_once_with("export_profile_pprof", args)
+    else:
+        io.dispatch.assert_not_called()
+
+
 def test_direct_legacy_checks_additional_actions(monkeypatch, direct_gateway, io):
     monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
     io.monitor.iam_client.is_allowed.side_effect = lambda query: query.action.id == "using_log_collection_mcp"
@@ -3863,6 +3922,31 @@ MIGRATED_READ_ARGS = {
         "app_name": "demo",
         "metric_group_name": "trpc",
         "metric_cal_type": "request_total",
+    },
+    "llm_mcp_search_traces": {
+        "bk_biz_id": "2",
+        "app_name": "demo",
+        "service_name": "agent",
+        "start_time": 1,
+        "end_time": 2,
+    },
+    "llm_mcp_search_flows": {
+        "bk_biz_id": "2",
+        "app_name": "demo",
+        "group_field": "trace_id",
+        "group_id": "0123456789abcdef0123456789abcdef",
+    },
+    "llm_mcp_search_spans": {
+        "bk_biz_id": "2",
+        "app_name": "demo",
+        "span_ids": ["0123456789abcdef"],
+    },
+    "llm_mcp_calculate_by_range": {
+        "bk_biz_id": "2",
+        "app_name": "demo",
+        "start_time": 1,
+        "end_time": 2,
+        "cal_type": "input_tokens",
     },
 }
 
@@ -4075,7 +4159,7 @@ def test_mcp_read_catalog_has_no_application_backend_overlap():
         assert not is_application_read_route("GET", backend)
 
 
-def test_mcp_read_viewset_registers_only_the_seven_original_resources():
+def test_mcp_read_viewset_registers_only_the_shared_read_resources():
     routes = source_method(
         "kernel_api/views/v4/mcp.py",
         "MCPViewSet",
@@ -4088,6 +4172,10 @@ def test_mcp_read_viewset_registers_only_the_seven_original_resources():
         GetDashboardDetail="dashboard-detail",
         ServiceListResource="apm-services",
         CalculateByRangeResource="apm-calculation",
+        LLMListTracesResource="llm-traces",
+        LLMListFlowsResource="llm-flows",
+        LLMListSpansResource="llm-spans",
+        LLMCalculateByRangeResource="llm-calculation",
     ).resource_routes
     assert {name: method for method, _, name in routes} == {
         name: method for name, (method, _) in APPLICATION_READ_BACKENDS.items()
@@ -4100,6 +4188,10 @@ def test_mcp_read_viewset_registers_only_the_seven_original_resources():
         "dashboard-detail",
         "apm-services",
         "apm-calculation",
+        "llm-traces",
+        "llm-flows",
+        "llm-spans",
+        "llm-calculation",
     }
     assert "from .mcp import *" in (BASE / "kernel_api/views/v4/__init__.py").read_text()
 

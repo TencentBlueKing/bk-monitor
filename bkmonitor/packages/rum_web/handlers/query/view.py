@@ -19,7 +19,7 @@ from semconv.rum.view import ViewSpec
 
 
 class ViewQuery(BaseFallbackRumQuery):
-    MODE = RumQueryMode.VIEW.value
+    MODE: str = RumQueryMode.VIEW.value
     RECORD_ID_FIELD = "attributes.view.id"
     SPEC = ViewSpec
     ANALYSIS_PHASE = ViewPhase.START.value

@@ -25,6 +25,7 @@
  */
 import { defineComponent, inject, shallowRef, watch } from 'vue';
 
+import { formatTokenCount } from '../utils/helpers';
 import { LLM_OBSERVATION_SEARCH_KEY } from '../utils/search';
 
 import './collapse-section.scss';
@@ -53,6 +54,11 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    /** 每次变化（递增）时把展开态复位回 defaultExpand，用于页签切换后的初始态复位 */
+    resetToken: {
+      type: Number,
+      default: 0,
+    },
     /** 搜索定位所属分区，命中时自动展开 */
     sectionId: {
       type: String,
@@ -62,6 +68,11 @@ export default defineComponent({
     showCount: {
       type: Boolean,
       default: true,
+    },
+    /** 分区 Token 消耗；未传入时不展示 */
+    tokens: {
+      type: Number,
+      default: null,
     },
   },
   setup(props, { slots }) {
@@ -85,6 +96,14 @@ export default defineComponent({
       { immediate: true }
     );
 
+    // 页签切换后可见内容整体变化，把展开态复位为初始值，避免沿用上一轮的手动折叠结果
+    watch(
+      () => props.resetToken,
+      () => {
+        expanded.value = props.defaultExpand;
+      }
+    );
+
     return () => (
       <div class='llm-collapse-section'>
         <div
@@ -99,7 +118,13 @@ export default defineComponent({
             {props.showCount ? <span class='llm-collapse-section-count'>{props.count}</span> : null}
             {slots.extra?.()}
           </div>
-          <i class='icon-monitor icon-arrow-down llm-collapse-section-arrow' />
+          <div class='llm-collapse-section-aside'>
+            {/* tokens 计数：未传入时不展示 */}
+            {props.tokens == null ? null : (
+              <span class='llm-collapse-section-tokens'>{`${formatTokenCount(props.tokens)} tokens`}</span>
+            )}
+            <i class='icon-monitor icon-arrow-down llm-collapse-section-arrow' />
+          </div>
         </div>
         {expanded.value ? <div class='llm-collapse-section-body'>{slots.default?.()}</div> : null}
       </div>

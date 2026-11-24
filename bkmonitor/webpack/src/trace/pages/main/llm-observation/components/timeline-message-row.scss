@@ -123,6 +123,13 @@
     white-space: nowrap;
   }
 
+  // 预览容器 overflow: hidden 不算 scroll container，min-width: auto 会让 nowrap 文本按全文宽度撑开、
+  // 真正裁切发生在父级。这里补上可收缩的省略盒，让文本按剩余宽度收窄并出省略号，截断判断才有意义。
+  &-text {
+    flex: 1;
+    min-width: 0;
+  }
+
   &-placeholder {
     color: #8f9fbd;
   }
@@ -186,7 +193,6 @@
   }
 
   &-pairs {
-    // flex-basis 取 0：左右都有内容时与右侧各占父容器剩余宽度的一半
     flex: 1 1 0;
     gap: 4px;
     min-width: 0;
@@ -203,9 +209,30 @@
   }
 
   &-result {
-    // 左侧为空时占满剩余宽度；左右都有内容时与左侧对半分
+    // 吸收输入侧按内容收缩后让出的剩余宽度
     flex: 1 1 0;
     min-width: 0;
+  }
+
+  // 双侧：输入按自然宽度排布、最多半宽，输出紧挨其后。
+  // 能否放下由 availableWidth（io 半宽）判断，不能按自身截断后的宽度回算。
+  &-io:not(.is-single-side) > &-pairs:not(.is-empty):not(&-result) {
+    flex: 0 1 auto;
+    width: max-content;
+    max-width: 50%;
+
+    .llm-span-io-kvs,
+    .llm-timeline-row-pairs-text {
+      flex: 0 1 auto;
+      width: max-content;
+      max-width: 100%;
+    }
+  }
+
+  // 只有输入或只有输出时，该侧可占满父容器剩余宽度。
+  // 返回侧同时带 -pairs 类，故此处一并覆盖。
+  &-io.is-single-side &-pairs:not(.is-empty) {
+    max-width: 100%;
   }
 
   &-pairs-text {
@@ -277,6 +304,7 @@
 
   &-arrow {
     font-size: 12px;
+    font-weight: 800;
   }
 
   &-toggle {
@@ -395,6 +423,12 @@
 
   &:hover {
     background: #f7f9fc;
+  }
+
+  // 矩阵工具行定位命中：与 Span 行高亮保持一致，背景落在可见行上
+  &.is-highlighted .llm-timeline-row-main {
+    background: #f0f5ff;
+    box-shadow: inset 2px 0 0 $primary-color;
   }
 
   &.is-tool:hover .llm-timeline-row-actions {

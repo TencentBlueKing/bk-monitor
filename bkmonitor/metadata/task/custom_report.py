@@ -20,13 +20,14 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
-from alarm_backends.core.lock.service_lock import share_lock
+from alarm_backends.core.lock.service_lock import renewing_share_lock, share_lock
 from bkmonitor.models import QueryConfigModel
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
 from bkmonitor.utils.version import compare_versions, get_max_version
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
+from core.errors.alarm_backends import CronLeaseLost
 from core.prometheus import metrics
 from metadata import models
 from metadata.models.constants import EVENT_GROUP_SLEEP_THRESHOLD, EventGroupStatus
@@ -139,24 +140,40 @@ def check_event_update():
     logger.info("check_event_update:finished, cost->[%s] seconds", cost_time)
 
 
-def refresh_custom_report_2_node_man(bk_biz_id=None):
-    # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
-    default_version = "0.0.0"
-    plugin_infos = api.node_man.plugin_info(name="bk-collector")
-    version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
-    max_version = get_max_version(default_version, version_str_list)
+def refresh_custom_report_2_node_man(bk_biz_id=None, *, check_lease=None):
+    if models.BkCollectorDeployPolicy.is_enabled():
+        # 节点管理 V3 下 bk-collector 为新打包的 V3 插件包，必然支持 v2 新配置模版；
+        # V2 的 plugin_info 只能查到 V2 插件包，不能再作为版本门禁
+        max_version, is_version_ready = "", True
+    else:
+        # 判定节点管理是否上传支持v2新配置模版的bk-collector版本0.16.1061
+        default_version = "0.0.0"
+        plugin_infos = api.node_man.plugin_info(name="bk-collector")
+        version_str_list = [p.get("version", default_version) for p in plugin_infos if p.get("is_ready", True)]
+        max_version = get_max_version(default_version, version_str_list)
+        is_version_ready = compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) > 0
 
-    if compare_versions(max_version, RECOMMENDED_VERSION["bk-collector"]) > 0:
+    if is_version_ready:
         if bk_biz_id is not None:
             bk_tenant_ids = [bk_biz_id_to_bk_tenant_id(bk_biz_id)]
         else:
             bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
 
         for bk_tenant_id in bk_tenant_ids:
+            if check_lease:
+                check_lease()
             try:
-                models.CustomReportSubscription.refresh_collector_custom_conf(
-                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id
+                report = models.CustomReportSubscription.refresh_collector_custom_conf(
+                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, check_lease=check_lease
                 )
+                if bk_biz_id is None:
+                    logger.info(
+                        "finished full custom report refresh, bk_tenant_id(%s), summary(%s)",
+                        bk_tenant_id,
+                        report["summary"],
+                    )
+            except CronLeaseLost:
+                raise
             except Exception as e:
                 logger.exception(
                     f"refresh custom report config to collector error, bk_tenant_id({bk_tenant_id}), bk_biz_id({bk_biz_id}), error({e})"
@@ -168,8 +185,11 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
         )
 
 
-# 用于定时任务的包装函数，加锁防止任务重叠
-refresh_all_custom_report_2_node_man = share_lock()(refresh_custom_report_2_node_man)
+def refresh_all_custom_report_2_node_man():
+    # Keep the key used by older workers during a rolling upgrade.
+    with renewing_share_lock("refresh_custom_report_2_node_man") as check_lease:
+        if check_lease is not None:
+            refresh_custom_report_2_node_man(check_lease=check_lease)
 
 
 @share_lock()

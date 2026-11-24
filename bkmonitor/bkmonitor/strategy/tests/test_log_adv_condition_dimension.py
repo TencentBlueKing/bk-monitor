@@ -1,13 +1,10 @@
 import copy
-from types import SimpleNamespace
-
 import pytest
 
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.data_source import LogSearchTimeSeriesDataSource
 from bkmonitor.strategy.new_strategy import QueryConfig
-from bkmonitor.strategy.partial_update import StrategyConfigUpdater
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 LOG_QUERY_CONFIG = {
@@ -122,47 +119,3 @@ def test_log_exclude_on_prefixed_collect_id_stays_in_dimension(mocker, settings)
     query_config.supplement_adv_condition_dimension()
 
     assert query_config.agg_dimension == ["dimensions.bk_collect_config_id"]
-
-
-def test_align_no_data_dimensions_drops_only_dimensions_removed_from_the_query():
-    item = SimpleNamespace(
-        no_data_config={"is_enabled": True, "continuous": 5, "agg_dimension": ["body", "severity_text"]},
-        query_configs=[SimpleNamespace(agg_dimension=["severity_text"])],
-    )
-
-    StrategyConfigUpdater._align_no_data_dimensions(item, [SimpleNamespace(agg_dimension=["body", "severity_text"])])
-
-    assert item.no_data_config["agg_dimension"] == ["severity_text"]
-    assert item.no_data_config["is_enabled"] is True
-
-
-def test_align_keeps_promql_nodata_labels_that_are_not_query_dimensions():
-    item = SimpleNamespace(
-        no_data_config={"is_enabled": True, "continuous": 5, "agg_dimension": ["service"]},
-        query_configs=[SimpleNamespace(agg_dimension=[])],
-    )
-
-    StrategyConfigUpdater._align_no_data_dimensions(item, [SimpleNamespace(agg_dimension=[])])
-
-    assert item.no_data_config["agg_dimension"] == ["service"]
-
-
-def test_align_keeps_nodata_dimensions_when_switching_to_promql():
-    promql = QueryConfig(
-        strategy_id=1,
-        item_id=1,
-        data_source_label=DataSourceLabel.PROMETHEUS,
-        data_type_label=DataTypeLabel.TIME_SERIES,
-        alias="a",
-        promql="sum by (bk_target_ip) (rate(cpu_usage[1m]))",
-        agg_interval=60,
-    )
-    assert not hasattr(promql, "agg_dimension")
-    item = SimpleNamespace(
-        no_data_config={"is_enabled": True, "continuous": 5, "agg_dimension": ["bk_target_ip"]},
-        query_configs=[promql],
-    )
-
-    StrategyConfigUpdater._align_no_data_dimensions(item, [SimpleNamespace(agg_dimension=["bk_target_ip"])])
-
-    assert item.no_data_config["agg_dimension"] == ["bk_target_ip"]

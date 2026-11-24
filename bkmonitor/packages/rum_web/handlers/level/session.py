@@ -20,15 +20,13 @@ class SessionLevelHandler(BaseRumLevelHandler):
 
     DISPLAY_FIELDS = [
         "attributes.session.id",
-        "start_time",
+        "duration",
+        "virtual.browser",
         "attributes.user.id",
-        "resource.user_agent.name",
-        "resource.user_agent.os.name",
-        "enter_url_template",
+        "start_time",
         "view_count",
         "action_count",
         "error_count",
-        "duration",
     ]
     RESIDENT_FIELDS = [
         "attributes.session.id",
@@ -37,7 +35,7 @@ class SessionLevelHandler(BaseRumLevelHandler):
         "resource.user_agent.os.name",
     ]
 
-    MODE = RumQueryMode.SESSION.value
+    MODE: str = RumQueryMode.SESSION.value
     SPEC = SessionSpec
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):

@@ -180,16 +180,22 @@ export default defineComponent({
       // 所有项的溢出状态缓存，Record<string, boolean>
       overflowMap: {},
     });
-    // 侧边栏的弹窗状态管理
+    // 独立查看侧边栏的弹窗状态管理
     const sliderPopoverState = reactive({
       currentPopover: null as null | { index: number; type: OverflowPopType },
       overflowMap: {},
     });
+    // 全部子事件侧边栏使用独立状态，避免与独立查看侧边栏的弹窗索引冲突
+    const allEventsPopoverState = reactive({
+      currentPopover: null as null | { index: number; type: OverflowPopType },
+      overflowMap: {},
+    });
 
-    // 打开其他侧滑或页面前，统一清理主内容区和独立查看侧滑中的弹窗
+    // 打开其他侧滑或页面前，统一清理各内容区域中的弹窗
     const closeAnalysisPopovers = () => {
       popoverState.currentPopover = null;
       sliderPopoverState.currentPopover = null;
+      allEventsPopoverState.currentPopover = null;
     };
 
     const subPanels = computed(() => props.panelConfig.sub_panels || {});
@@ -257,8 +263,10 @@ export default defineComponent({
 
     // 主内容区弹窗处理
     const mainPopoverHandlers = createPopoverHandlers(popoverState);
-    // 侧边栏弹窗处理
+    // 独立查看侧边栏弹窗处理
     const sliderPopoverHandlers = createPopoverHandlers(sliderPopoverState);
+    // 全部子事件侧边栏弹窗处理
+    const allEventsPopoverHandlers = createPopoverHandlers(allEventsPopoverState);
 
     // 响应窗口变化重新计算文本是否溢出（只主内容区需要）
     const handleResize = () => {
@@ -569,6 +577,7 @@ export default defineComponent({
       ...tableDrawer,
       popoverState,
       sliderPopoverState,
+      allEventsPopoverState,
       closeAnalysisPopovers,
       activeIndex,
       goAlertList,
@@ -576,6 +585,8 @@ export default defineComponent({
       handlePopoverClose: mainPopoverHandlers.handlePopoverClose,
       handleSliderMouseEnter: sliderPopoverHandlers.handleMouseEnter,
       handleSliderPopoverClose: sliderPopoverHandlers.handlePopoverClose,
+      handleAllEventsMouseEnter: allEventsPopoverHandlers.handleMouseEnter,
+      handleAllEventsPopoverClose: allEventsPopoverHandlers.handlePopoverClose,
       allEventsSliderShowMask,
       jsonSliderShowMask,
       logSliderShowMask,
@@ -586,30 +597,48 @@ export default defineComponent({
   },
   render() {
     // 公共的故障诊断模块配置
-    const getShootingModuleConfig = (type: 'main' | 'slider') => ({
-      bkzIds: this.bkzIds,
-      incidentDetailData: this.incidentDetailData,
-      contentList: this.contentList,
-      eventsData: this.eventsData,
-      displayInteractionList: this.displayInteractionList,
-      summaryList: this.summaryList,
-      extractedInfoList: this.extractedInfoList,
-      activeIndex: this.activeIndex,
-      popoverState: type === 'main' ? this.popoverState : this.sliderPopoverState,
-      handleMouseEnter: type === 'main' ? this.handleMouseEnter : this.handleSliderMouseEnter,
-      handlePopoverClose: type === 'main' ? this.handlePopoverClose : this.handleSliderPopoverClose,
-      goAlertList: this.goAlertList,
-      onViewAllEvents: this.onViewAllEvents,
-      onViewFullJson: this.onViewFullJson,
-      onOpenDrawer: this.onOpenDrawer,
-      checkInteractionAvailability: this.checkInteractionAvailability,
-      closeAnalysisPopovers: this.closeAnalysisPopovers,
-    });
+    const getShootingModuleConfig = (type: 'allEvents' | 'main' | 'slider') => {
+      const popoverConfig = {
+        main: {
+          popoverState: this.popoverState,
+          handleMouseEnter: this.handleMouseEnter,
+          handlePopoverClose: this.handlePopoverClose,
+        },
+        slider: {
+          popoverState: this.sliderPopoverState,
+          handleMouseEnter: this.handleSliderMouseEnter,
+          handlePopoverClose: this.handleSliderPopoverClose,
+        },
+        allEvents: {
+          popoverState: this.allEventsPopoverState,
+          handleMouseEnter: this.handleAllEventsMouseEnter,
+          handlePopoverClose: this.handleAllEventsPopoverClose,
+        },
+      }[type];
 
-    // 缓存主内容区和侧边栏的shooting modules
-    const [mainShootingModule, sliderShootingModule] = ['main', 'slider'].map(type =>
-      createShootingModule(getShootingModuleConfig(type as 'main' | 'slider'), this.t)
-    );
+      return {
+        bkzIds: this.bkzIds,
+        incidentDetailData: this.incidentDetailData,
+        contentList: this.contentList,
+        eventsData: this.eventsData,
+        displayInteractionList: this.displayInteractionList,
+        summaryList: this.summaryList,
+        extractedInfoList: this.extractedInfoList,
+        activeIndex: this.activeIndex,
+        ...popoverConfig,
+        goAlertList: this.goAlertList,
+        onViewAllEvents: this.onViewAllEvents,
+        onViewFullJson: this.onViewFullJson,
+        onOpenDrawer: this.onOpenDrawer,
+        checkInteractionAvailability: this.checkInteractionAvailability,
+        closeAnalysisPopovers: this.closeAnalysisPopovers,
+      };
+    };
+
+    // 缓存主内容区、独立查看侧边栏和全部子事件侧边栏的 shooting modules
+    const mainShootingModule = createShootingModule(getShootingModuleConfig('main'), this.t);
+    const sliderShootingModule = createShootingModule(getShootingModuleConfig('slider'), this.t);
+    const allEventsShootingModule = createShootingModule(getShootingModuleConfig('allEvents'), this.t);
 
     // 统一的title slot渲染
     const titleSlot = (item: IListItem, panelId: string) => (
@@ -804,6 +833,7 @@ export default defineComponent({
           zIndex={2600}
           onClosed={() => {
             this.showAllEventsSideslider = false;
+            this.allEventsPopoverState.currentPopover = null;
           }}
         >
           {{
@@ -832,8 +862,8 @@ export default defineComponent({
                     class='event-collapse inner-collapse'
                     v-model={this.activeIndex.eventChild[itemIndex]}
                     v-slots={{
-                      default: subContent => sliderShootingModule.eventTitle(item, subContent),
-                      content: subContent => sliderShootingModule.eventChildContent(item, subContent),
+                      default: subContent => allEventsShootingModule.eventTitle(item, subContent),
+                      content: subContent => allEventsShootingModule.eventChildContent(item, subContent),
                     }}
                     header-icon='right-shape'
                     list={item.allContents || []}

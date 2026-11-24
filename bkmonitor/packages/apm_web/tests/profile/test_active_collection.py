@@ -15,7 +15,7 @@ import string
 from types import SimpleNamespace
 
 import pytest
-from django.http import HttpResponse
+from django.http import HttpResponse, QueryDict
 from django.urls import reverse
 from rest_framework.test import APIRequestFactory
 
@@ -37,6 +37,7 @@ from apm_web.profile.active_collection.constants import (
 from apm_web.profile.active_collection.resources import (
     ActiveProfilingMetaConfigResource,
     CancelExecutionResource,
+    CheckPluginVersionResource,
     DeleteTaskResource,
     EditTaskResource,
     EnableActiveCollectionResource,
@@ -60,6 +61,7 @@ from apm_web.profile.active_collection.serializers import (
     ExecutionDetailRequestSerializer,
     ExecutionRenameRequestSerializer,
     PlannedTaskSubmitRequestSerializer,
+    PluginVersionCheckRequestSerializer,
     ProcessPreviewRequestSerializer,
     ResultDataTypesRequestSerializer,
     ResultExportRequestSerializer,
@@ -91,6 +93,11 @@ PROCESS_PREVIEW_REQUEST = {
     "bk_biz_id": 2,
     "target_config": {"node_type": "INSTANCE", "nodes": [{"bk_host_id": 456}]},
     "process_selector": {"type": "command", "config": {"match_pattern": "/data/order-api", "exclude_pattern": ""}},
+}
+
+PLUGIN_VERSION_CHECK_REQUEST = {
+    "bk_biz_id": 2,
+    "target_config": {"node_type": "INSTANCE", "nodes": [{"bk_host_id": 456}, {"bk_host_id": 457}]},
 }
 
 DYNAMIC_COMMAND_SELECTOR = {
@@ -158,7 +165,7 @@ EVENT_LIST_REQUEST = {
         "schedule_types": [],
         "collection_methods": [],
         "collection_types": [],
-        "status": "",
+        "status": [],
     },
     "offset": 0,
     "limit": 20,
@@ -671,6 +678,142 @@ def test_export_rejects_samples_over_limit(result_apis, mocker):
 
 
 @pytest.mark.parametrize(
+    ("resource_cls", "request_data"),
+    [
+        (QueryResultsResource, PLANNED_RESULT_REQUEST),
+        (QueryResultDataTypesResource, PLANNED_DATA_TYPES_REQUEST),
+        (ExportResultsResource, PLANNED_EXPORT_REQUEST),
+    ],
+)
+def test_results_filter_single_process_by_pid(result_apis, resource_cls, request_data):
+    result_apis["bkdata"].return_value = {"list": [export_profile_sample(700, "main", "work")]}
+
+    resource_cls().request({**request_data, "pid": 2341})
+
+    # 查看、采样类型与导出共用定位条件，只多一个 pid 标签，不按 comm 过滤
+    assert sent_profile_query(result_apis["bkdata"])["api_params"]["label_filter"] == {
+        "scheduled_at": "1788411800000",
+        "bk_host_id": "456",
+        "task_id": "123",
+        "pid": "2341",
+    }
+
+
+@pytest.mark.parametrize("pid", [None, ""])
+@pytest.mark.parametrize(
+    ("resource_cls", "request_data"),
+    [
+        (QueryResultsResource, PLANNED_RESULT_REQUEST),
+        (QueryResultDataTypesResource, PLANNED_DATA_TYPES_REQUEST),
+        (ExportResultsResource, PLANNED_EXPORT_REQUEST),
+    ],
+)
+def test_results_empty_pid_returns_all_processes(result_apis, resource_cls, request_data, pid):
+    result_apis["bkdata"].return_value = {"list": [export_profile_sample(700, "main", "work")]}
+
+    resource_cls().request({**request_data, "pid": pid})
+
+    # 前端“全部进程”传 null 或空串，与不传一样不带 pid
+    assert sent_profile_query(result_apis["bkdata"])["api_params"]["label_filter"] == {
+        "scheduled_at": "1788411800000",
+        "bk_host_id": "456",
+        "task_id": "123",
+    }
+
+
+def test_result_query_keeps_multi_values_of_form_data_with_empty_pid():
+    # 表单编码的同名多值字段，去掉空 pid 后仍要保留为列表
+    request_data = {**RESULT_QUERY_REQUEST, "pid": ""}
+    form_data = QueryDict(mutable=True)
+    for key, value in request_data.items():
+        form_data.setlist(key, value if isinstance(value, list) else [value])
+
+    serializer = ResultQueryRequestSerializer(data=form_data)
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["diagram_types"] == ["flamegraph", "table"]
+    assert "pid" not in serializer.validated_data
+    # 不改调用方传入的原对象
+    assert form_data["pid"] == ""
+
+
+@pytest.mark.parametrize("data", [["pid"], "pid", None])
+def test_result_query_rejects_non_object_body(data):
+    # 请求体不是对象时按格式错误校验失败，不因取 pid 抛异常
+    assert not ResultQueryRequestSerializer(data=data).is_valid()
+
+
+@pytest.fixture
+def beat_plugin_status(mocker):
+    mocker.patch("apm_web.profile.active_collection.resources.PLUGIN_MIN_VERSION", {"bkmonitorbeat": "2.10.0"})
+    mock = mocker.patch("apm_web.profile.active_collection.resources.host_queries.beat_plugin_status")
+    mock.return_value = [
+        {
+            "bk_host_id": 456,
+            "inner_ip": "127.0.0.1",
+            "inner_ipv6": "",
+            "bk_cloud_id": 0,
+            "plugin_status": [{"name": "bkmonitorbeat", "version": "2.10.0"}],
+        },
+        {
+            "bk_host_id": 457,
+            "inner_ip": "127.0.0.2",
+            "inner_ipv6": "",
+            "bk_cloud_id": 0,
+            "plugin_status": [{"name": "bkmonitorbeat", "version": "v3.1.2\n"}],
+        },
+    ]
+    return mock
+
+
+def test_check_plugin_version_passes_when_all_hosts_meet_min_version(beat_plugin_status):
+    assert CheckPluginVersionResource().request(PLUGIN_VERSION_CHECK_REQUEST) == {
+        "result": True,
+        "plugin_version": {"bkmonitorbeat": "2.10.0"},
+        "invalid_host": {},
+    }
+    beat_plugin_status.assert_called_once_with(bk_biz_ids=[2], bk_host_ids=[456, 457])
+
+
+@pytest.mark.parametrize(
+    "plugin_status",
+    [
+        [{"name": "bkmonitorbeat", "version": "2.9.9"}],
+        # 未安装 bkmonitorbeat
+        [{"name": "bkunifylogbeat", "version": "7.7.2"}],
+        [],
+        # 版本号为空或无法比较
+        [{"name": "bkmonitorbeat", "version": ""}],
+        [{"name": "bkmonitorbeat", "version": "unknown"}],
+    ],
+)
+def test_check_plugin_version_reports_hosts_below_min_version(beat_plugin_status, plugin_status):
+    beat_plugin_status.return_value[1]["plugin_status"] = plugin_status
+
+    result = CheckPluginVersionResource().request(PLUGIN_VERSION_CHECK_REQUEST)
+
+    assert result["result"] is False
+    assert result["plugin_version"] == {"bkmonitorbeat": "2.10.0"}
+    assert dict(result["invalid_host"]) == {"bkmonitorbeat": [("127.0.0.2", 0)]}
+
+
+def test_check_plugin_version_falls_back_to_ipv6_for_hosts_without_ipv4(beat_plugin_status):
+    beat_plugin_status.return_value[0].update(
+        {"inner_ip": "", "inner_ipv6": "fe80::1", "bk_cloud_id": 3, "plugin_status": []}
+    )
+
+    result = CheckPluginVersionResource().request(PLUGIN_VERSION_CHECK_REQUEST)
+
+    assert dict(result["invalid_host"]) == {"bkmonitorbeat": [("fe80::1", 3)]}
+
+
+def test_check_plugin_version_skips_hosts_unknown_to_nodeman(beat_plugin_status):
+    beat_plugin_status.return_value = []
+
+    assert CheckPluginVersionResource().request(PLUGIN_VERSION_CHECK_REQUEST)["result"] is True
+
+
+@pytest.mark.parametrize(
     "viewset_cls",
     [
         ActiveProfilingMetaConfigViewSet,
@@ -703,6 +846,9 @@ def test_active_collection_routes_are_registered():
     assert reverse("apm_web:tasks-switch") == "/apm/profile_api/active_collection/tasks/switch/"
     assert reverse("apm_web:processes-preview") == "/apm/profile_api/active_collection/processes/preview/"
     assert reverse("apm_web:hosts-query") == "/apm/profile_api/active_collection/hosts/query/"
+    assert reverse("apm_web:hosts-check-plugin-version") == (
+        "/apm/profile_api/active_collection/hosts/check_plugin_version/"
+    )
     assert reverse("apm_web:executions_list-list") == "/apm/profile_api/active_collection/executions/list/"
     assert reverse("apm_web:topk-list") == "/apm/profile_api/active_collection/topk/"
     assert reverse("apm_web:executions-detail") == "/apm/profile_api/active_collection/executions/detail/"
@@ -718,6 +864,7 @@ def test_active_collection_routes_are_registered():
     [
         (EnableRequestSerializer, {"bk_biz_id": 2}),
         (ProcessPreviewRequestSerializer, PROCESS_PREVIEW_REQUEST),
+        (PluginVersionCheckRequestSerializer, PLUGIN_VERSION_CHECK_REQUEST),
         (
             ProcessPreviewRequestSerializer,
             {
@@ -750,6 +897,18 @@ def test_active_collection_routes_are_registered():
             },
         ),
         (TaskSubmitRequestSerializer, GOLANG_TASK_SUBMIT_REQUEST),
+        # Golang 带空的 process_selector 按未传处理
+        (TaskSubmitRequestSerializer, {**GOLANG_TASK_SUBMIT_REQUEST, "process_selector": {}}),
+        (TaskSubmitRequestSerializer, {**GOLANG_TASK_SUBMIT_REQUEST, "process_selector": None}),
+        (
+            TaskEditRequestSerializer,
+            {
+                **GOLANG_TASK_SUBMIT_REQUEST,
+                "schedule": TASK_SUBMIT_REQUEST["schedule"],
+                "process_selector": {},
+                "task_id": 123,
+            },
+        ),
         (PlannedTaskSubmitRequestSerializer, TASK_SUBMIT_REQUEST),
         (TaskEditRequestSerializer, {**TASK_SUBMIT_REQUEST, "task_id": 123}),
         (EventListRequestSerializer, EVENT_LIST_REQUEST),
@@ -785,6 +944,9 @@ def test_active_collection_routes_are_registered():
         (ResultExportRequestSerializer, IMMEDIATE_EXPORT_REQUEST),
         (ResultDataTypesRequestSerializer, PLANNED_DATA_TYPES_REQUEST),
         (ResultDataTypesRequestSerializer, IMMEDIATE_DATA_TYPES_REQUEST),
+        (ResultQueryRequestSerializer, {**IMMEDIATE_RESULT_REQUEST, "pid": 2341}),
+        (ResultExportRequestSerializer, {**PLANNED_EXPORT_REQUEST, "pid": 2341}),
+        (ResultDataTypesRequestSerializer, {**PLANNED_DATA_TYPES_REQUEST, "pid": 2341}),
     ],
 )
 def test_request_serializers_accept_doc_payload(serializer_cls, params):
@@ -839,6 +1001,8 @@ def test_request_serializers_accept_doc_payload(serializer_cls, params):
             TaskSubmitRequestSerializer,
             {k: v for k, v in TASK_SUBMIT_REQUEST.items() if k != "process_selector"},
         ),
+        # Perf 传空对象仍视为缺少 process_selector
+        (TaskSubmitRequestSerializer, {**TASK_SUBMIT_REQUEST, "process_selector": {}}),
         (
             TaskSubmitRequestSerializer,
             {
@@ -881,6 +1045,10 @@ def test_request_serializers_accept_doc_payload(serializer_cls, params):
         (ResultQueryRequestSerializer, {**PLANNED_DATA_TYPES_REQUEST, "diagram_types": ["table"]}),
         (ResultExportRequestSerializer, PLANNED_DATA_TYPES_REQUEST),
         (ResultDataTypesRequestSerializer, {**PLANNED_DATA_TYPES_REQUEST, "finished_at": RESULT_STARTED_AT - 1}),
+        # pid 只接受单个正整数
+        (ResultQueryRequestSerializer, {**PLANNED_RESULT_REQUEST, "pid": 0}),
+        (ResultQueryRequestSerializer, {**PLANNED_RESULT_REQUEST, "pid": [2341]}),
+        (ResultExportRequestSerializer, {**PLANNED_EXPORT_REQUEST, "pid": "abc"}),
         (
             ExecutionCancelRequestSerializer,
             {
@@ -1127,16 +1295,32 @@ def test_task_submit_rejects_invalid_cron_expression(cron_expression):
         (
             QueryHostsResource,
             "query_active_profiling_hosts",
-            with_filters(status="unknown"),
-            [{"bk_host_id": 456}],
-            {"columns": HOST_QUERY_COLUMNS, "data": [{"bk_host_id": 456}]},
+            with_filters(status=["unknown"]),
+            {"data": [{"bk_host_id": 456}], "total": 21},
+            {"columns": HOST_QUERY_COLUMNS, "data": [{"bk_host_id": 456}], "total": 21},
         ),
         (
             ListExecutionsResource,
             "list_active_profiling_executions",
             EVENT_LIST_REQUEST,
-            [{"task_name": "native-cpu"}],
-            {"task_columns": EXECUTION_LIST_TASK_COLUMNS, "data": [{"task_name": "native-cpu"}]},
+            # 总行数未知（ES 读到查询上限）时原样透出 None
+            {"data": [{"task_name": "native-cpu"}], "total": None},
+            {"task_columns": EXECUTION_LIST_TASK_COLUMNS, "data": [{"task_name": "native-cpu"}], "total": None},
+        ),
+        # API 模块还没升级时两个列表返回的是行列表，按总行数未知处理
+        (
+            QueryHostsResource,
+            "query_active_profiling_hosts",
+            EVENT_LIST_REQUEST,
+            [{"bk_host_id": 456}],
+            {"columns": HOST_QUERY_COLUMNS, "data": [{"bk_host_id": 456}], "total": None},
+        ),
+        (
+            ListExecutionsResource,
+            "list_active_profiling_executions",
+            EVENT_LIST_REQUEST,
+            [],
+            {"task_columns": EXECUTION_LIST_TASK_COLUMNS, "data": [], "total": None},
         ),
         (
             QueryTopKResource,
@@ -1177,7 +1361,7 @@ def test_backend_queries_forward_request_and_add_columns(
 )
 @pytest.mark.parametrize(("source", "expected_source"), [(None, "mysql"), ("mysql", "mysql"), ("es", "es")])
 def test_backend_queries_forward_query_source(mocker, resource_cls, api_name, request_data, source, expected_source):
-    backend_api = mocker.patch(f"core.drf_resource.api.apm_api.{api_name}", return_value={})
+    backend_api = mocker.patch(f"core.drf_resource.api.apm_api.{api_name}", return_value={"data": [], "total": 0})
     if source:
         request_data = {**request_data, "source": source}
 
@@ -1207,3 +1391,25 @@ def test_backend_operations_forward_request_and_return_nothing(mocker, resource_
     assert resource_cls().request(request_data) is None
 
     assert backend_api.call_args.kwargs["bk_biz_id"] == 2
+
+
+def test_task_submit_forwards_source_task_of_immediate(mocker):
+    backend_api = mocker.patch("core.drf_resource.api.apm_api.submit_active_profiling_task")
+
+    SubmitTaskResource().request({**IMMEDIATE_TASK_SUBMIT_REQUEST, "source_task_id": 123})
+
+    # 从计划点立即执行时带上该计划 ID，后台按计划筛选执行时一并命中
+    assert backend_api.call_args.kwargs["source_task_id"] == 123
+
+
+@pytest.mark.parametrize(
+    ("serializer_cls", "params"),
+    [
+        # 只能随立即执行提交
+        (TaskSubmitRequestSerializer, {**TASK_SUBMIT_REQUEST, "source_task_id": 123}),
+        (TaskEditRequestSerializer, {**TASK_SUBMIT_REQUEST, "task_id": 123, "source_task_id": 123}),
+        (TaskSubmitRequestSerializer, {**IMMEDIATE_TASK_SUBMIT_REQUEST, "source_task_id": 0}),
+    ],
+)
+def test_task_submit_rejects_invalid_source_task(serializer_cls, params):
+    assert not serializer_cls(data=params).is_valid()

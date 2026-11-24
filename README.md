@@ -27,6 +27,7 @@ TODO
 ## Getting Started
 * [下载与编译](https://bk.tencent.com/download_version_list/)
 * [安装部署](https://bk.tencent.com/docs/markdown/ZH/DeploymentGuides/7.1/install-co-suite.md)
+* [告警通知类型升级说明](docs/alert-notice-way-upgrade.md)
 
 ## Support
 - [产品文档](https://bk.tencent.com/docs/document/6.0/134/6143)

@@ -21,7 +21,7 @@ class GetRequestApiHeadersTest(SimpleTestCase):
         headers = json.loads(get_request_api_headers({}))
 
         self.assertEqual(headers["bk_username"], "request-user")
-        mock_get_request_username.assert_called_once_with()
+        mock_get_request_username.assert_called_once_with(default="")
 
 
 class ApiLogHeaderSanitizationTest(SimpleTestCase):

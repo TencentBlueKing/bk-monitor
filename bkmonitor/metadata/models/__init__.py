@@ -39,6 +39,7 @@ from .data_link import (  # noqa
     LogDataBusConfig,
     LogResultTableConfig,
     GraphRelationBindingConfig,
+    LogClusteringSinkConfig,
     ResultTableConfig,
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
@@ -58,6 +59,7 @@ from .influxdb_cluster import (
     InfluxDBProxyStorage,
     InfluxDBTagInfo,
 )
+from .bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
 from .ping_server import PingServerSubscriptionConfig
 from .record_rule import RecordRule, RecordRuleV4, ResultTableFlow
 from .entity_relation import (
@@ -145,6 +147,8 @@ __all__ = [
     "LogSubscriptionConfig",
     # ping server
     "PingServerSubscriptionConfig",
+    "BkCollectorDeployPolicy",
+    "BkCollectorDeployScene",
     # common
     "Label",
     # bcs
@@ -176,6 +180,7 @@ __all__ = [
     "BkBaseResultTable",
     "GraphRelationBindingConfig",
     "SurrealDBBindingConfig",
+    "LogClusteringSinkConfig",
     "VmQueryClusterConfig",
     # resource relation
     "EntityMeta",

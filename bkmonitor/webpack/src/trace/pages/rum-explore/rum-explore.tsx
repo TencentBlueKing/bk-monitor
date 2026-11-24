@@ -29,12 +29,13 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { type IHandleGetUserConfig, EMethod, EMode } from '../../components/retrieval-filter/typing';
+import { type IHandleGetUserConfig, type IWhereItem, EMethod, EMode } from '../../components/retrieval-filter/typing';
 import {
   mergeWhereList,
   traceWhereChangeFormatter,
   traceWhereFormatter,
 } from '../../components/retrieval-filter/utils';
+import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
 import { useRumExploreStore } from '../../store/modules/rum-explore';
@@ -65,8 +66,10 @@ import {
   RUM_COLUMN_CONFIG_KEY,
   RUM_COLUMN_LAYOUT_PRESET,
   RUM_DETAIL_SPAN_TYPES,
+  RUM_RECORD_ID_FIELD_MAP,
   RUM_RESIDENT_SETTING_KEY,
   RumModeEnum,
+  SESSION_ID_FIELD,
   SPAN_TYPE_FIELD,
 } from './constants';
 import RumSpanDetailSlider from './detail';
@@ -77,13 +80,26 @@ import EmptyStatus from '@/components/empty-status/empty-status';
 import type { ConditionChangeEvent } from '../trace-explore/typing';
 import type { IRumEventsTarget } from './composables/use-rum-events-drawer';
 import type { IRumDetailContext } from './detail';
-import type { IRumApplication, IRumColumnLayoutPreset, IRumSpanRecord } from './typings';
+import type {
+  IRumApplication,
+  IRumColumnLayoutPreset,
+  IRumCountDrillDown,
+  IRumField,
+  IRumSpanRecord,
+  RumModeType,
+} from './typings';
 
 import './rum-explore.scss';
 
 /** 默认应用与置顶应用的用户配置 key */
 const RUM_EXPLORE_DEFAULT_APPLICATION = 'RUM_EXPLORE_DEFAULT_APPLICATION';
 const RUM_EXPLORE_APPLICATION_THUMBTACK = 'rum_explore_application_thumbtack';
+
+/** 行内微秒时间戳转秒；缺省 / null / 非法值返回 null，避免 NaN 或 0 流入详情上下文 */
+const microToUnixSeconds = (value: unknown): null | number => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? Math.floor(num / 1000000) : null;
+};
 
 export default defineComponent({
   name: 'RumExplore',
@@ -96,14 +112,36 @@ export default defineComponent({
     const { handleGetUserConfig: getDefaultAppConfig, handleSetUserConfig: setDefaultAppConfig } = useUserConfig();
     const { handleGetUserConfig: getThumbtackConfig, handleSetUserConfig: setThumbtackConfig } = useUserConfig();
     const { handleGetUserConfig: getResidentConfig, handleSetUserConfig: setResidentConfig } = useUserConfig();
+    /** 只读另一份用户配置，避免和常驻设置的保存 id 互相覆盖 */
+    const { handleGetUserConfig: getResidentFieldConfig } = useUserConfig();
 
     const isCollapsed = shallowRef(false);
     /** Span 详情抽屉的上下文，为 null 时抽屉关闭 */
     const detailContext = shallowRef<IRumDetailContext | null>(null);
     const detailShow = shallowRef(false);
+    /** 详情对应行的表格行 key：Span 视角的会话行详情记录 ID 是会话 ID，与行 key（span_id）不同，需单独记录 */
+    const detailRowKey = shallowRef('');
+    /** 详情抽屉层级：Session 视角与 Span 视角下的会话行都按会话层级展示 */
+    const detailMode = computed<RumModeType>(() =>
+      store.mode === RumModeEnum.SESSION || detailContext.value?.span_type === RumModeEnum.SESSION
+        ? RumModeEnum.SESSION
+        : store.mode
+    );
     const applicationLoading = shallowRef(true);
     const applicationError = shallowRef(false);
     let disposed = false;
+    /** 切 tab 的代数。连点时只让最后一次回填常驻条件 */
+    let modeChangeSeq = 0;
+    /** 视图配置未就绪时挂起的等待，卸载时统一取消 */
+    const viewConfigWaitStops = new Set<() => void>();
+    /** 当前视角「全部」常驻字段，用来区分用户清空和「这个 tab 本来就没有该字段」 */
+    const activeResidentKeys = shallowRef<string[]>([]);
+    /** 已解析过常驻字段的「视角 + 应用」，避免同一次切换重复请求 */
+    const residentKeysReadyId = shallowRef('');
+    /** 目标 tab 的常驻字段还没解析完时先挡住检索栏，避免空条件先挂上再回填 */
+    const residentProjecting = shallowRef(false);
+    /** 调整常驻字段列表时，组件会先抛出值变化；用这份快照把「移除字段」和「清空值」分开 */
+    let residentCacheBeforeFieldEdit: null | Record<string, IWhereItem> = null;
     const applicationList = shallowRef<IRumApplication[]>([]);
     const thumbtackList = shallowRef<string[]>([]);
     const defaultApplication = shallowRef('');
@@ -131,13 +169,27 @@ export default defineComponent({
     const eventsDrawerCtx = useRumEventsDrawer(resetSignal);
     /**
      * 主表高亮行 key（受控单一数据源）：行点击 / 键盘高亮与 events 抽屉共用，重置信号变化时清除；
-     * 兜底行为详情抽屉的记录 ID，URL 还原的详情因此不会在首屏结果集回填前被重置清空。
+     * 兜底行为详情所在行的表格行 key：页内打开由 detailRowKey 精确记录，刷新 / 分享链接还原时 URL 只带 detailContext，
+     * 需按其记录 ID 在结果集中反查同一记录所在行的行 key（Span 视角会话行的记录 ID 是会话 ID，与行 key 不同），
+     * 因此不会被重置信号清空。
      */
     const activeRowCtx = useRumActiveRow(resetSignal, {
       locked: eventsDrawerCtx.show,
-      fallbackRowKey: computed(() => detailContext.value?.record_id ?? ''),
+      fallbackRowKey: computed(() => {
+        if (detailRowKey.value) return detailRowKey.value;
+        const recordId = detailContext.value?.record_id ?? '';
+        if (!recordId) return '';
+        const row = tableCtx.tableData.value.find(item => getDetailRecordId(item) === recordId);
+        return String(row?.[RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? '');
+      }),
     });
-    const configLoading = computed(() => applicationLoading.value || viewConfigCtx.loading.value);
+    const configLoading = computed(
+      () =>
+        applicationLoading.value ||
+        viewConfigCtx.loading.value ||
+        residentProjecting.value ||
+        (!!store.appName && viewConfigCtx.ready.value && residentKeysReadyId.value !== residentKeysCacheId())
+    );
     // tagValueDisplayFormatter 用于让已选条件 tag 按字段单位与枚举别名展示
     const { getFieldValues, tagValueDisplayFormatter } = useRumFieldValues(
       computed(() => viewConfigCtx.viewConfig.value.fields)
@@ -186,6 +238,48 @@ export default defineComponent({
       return [...priorityFields, ...fields.filter(field => !priorityMap.has(field.name))];
     });
 
+    /**
+     * 视图配置字段缓存：接口下发的 fields 只属于当前视角，而详情侧栏需要尽量兼容所有视角的字段。
+     * 以「应用 + 视角」为 key 缓存各视角取到的 fields，切走再切回时仍可作为补齐来源。
+     */
+    const cachedModeFields = shallowRef<Record<string, IRumField[]>>({});
+    watch(
+      () => [viewConfigCtx.ready.value, viewConfigCtx.viewConfig.value, store.appName, store.mode],
+      () => {
+        if (!viewConfigCtx.ready.value || !viewConfigCtx.viewConfig.value.fields.length) return;
+        const key = `${store.appName}|${store.mode}`;
+        cachedModeFields.value = { ...cachedModeFields.value, [key]: viewConfigCtx.viewConfig.value.fields };
+      },
+      { immediate: true }
+    );
+
+    /**
+     * 详情侧栏使用的汇总字段：以当前视角的 fields 为基础，再用其它视角缓存的字段补齐缺失项；
+     * 同名时保留当前视角的字段，缓存里的重复项丢弃。
+     */
+    const detailFields = computed<IRumField[]>(() => {
+      const current = viewConfigCtx.viewConfig.value.fields;
+      const names = new Set(current.map(field => field.name));
+      const appPrefix = `${store.appName}|`;
+      const extraFields: IRumField[] = [];
+      for (const [key, fields] of Object.entries(cachedModeFields.value)) {
+        // 只汇总当前应用的各视角字段，换应用后不沿用旧应用的配置
+        if (!key.startsWith(appPrefix)) continue;
+        for (const field of fields) {
+          if (names.has(field.name)) continue;
+          names.add(field.name);
+          extraFields.push(field);
+        }
+      }
+      return extraFields.length ? [...current, ...extraFields] : current;
+    });
+
+    /**
+     * 详情头部可点击的字段：只有属于当前视角检索字段的项，点击后生成的条件才能被当前视角解析。
+     * 检索字段取自 view_config 中 is_searched 为 true 的字段（源自接口 is_searchable），与检索条件区的候选字段同源。
+     */
+    const retrievalFieldNames = computed(() => viewConfigCtx.retrievalFields.value.map(field => field.name));
+
     const favoriteBoxRef = useTemplateRef<InstanceType<typeof FavoriteBox>>('favoriteBoxRef');
     /** 检索视图容器 ref，其根节点即表格的滚动容器，也是吸顶表头锚定的容器 */
     const rumExploreViewRef = useTemplateRef<InstanceType<typeof RumExploreView>>('rumExploreViewRef');
@@ -233,6 +327,15 @@ export default defineComponent({
       timezone => updateTimezone(timezone)
     );
 
+    /** 首次进入或视角配置刷新后，补齐当前 tab 的常驻字段，用户清空值时才知道该删哪个 key */
+    watch(
+      () => [viewConfigCtx.ready.value, store.mode, store.appName] as const,
+      ([ready]) => {
+        if (!ready) return;
+        void resolveAllResidentKeys(modeChangeSeq);
+      }
+    );
+
     /** 自动刷新 */
     let autoRefreshTimer: number = null;
     watch(
@@ -270,24 +373,146 @@ export default defineComponent({
       ]);
     }
 
+    function residentKeysCacheId(mode: RumModeType = store.mode) {
+      return `${mode}\0${store.appName}`;
+    }
+
+    function filterSearchableResidentKeys(keys: string[]) {
+      const searchable = new Set(viewConfigCtx.retrievalFields.value.map(field => field.name));
+      const result: string[] = [];
+      const seen = new Set<string>();
+      for (const key of keys) {
+        if (!key || seen.has(key) || !searchable.has(key)) continue;
+        seen.add(key);
+        result.push(key);
+      }
+      return result;
+    }
+
+    /** 等到这一次切换对应的视图配置落地；失败或被更新的切换打断时返回 false */
+    function waitForViewConfig(seq: number): Promise<boolean> {
+      if (disposed || seq !== modeChangeSeq) return Promise.resolve(false);
+      if (viewConfigCtx.ready.value) return Promise.resolve(true);
+      if (viewConfigCtx.error.value && !viewConfigCtx.loading.value) return Promise.resolve(false);
+      return new Promise(resolve => {
+        let settled = false;
+        let stop = () => {};
+        const finish = (ready: boolean) => {
+          if (settled) return;
+          settled = true;
+          stop();
+          viewConfigWaitStops.delete(cancel);
+          resolve(ready);
+        };
+        const cancel = () => finish(false);
+        stop = watch(
+          () => [viewConfigCtx.ready.value, viewConfigCtx.error.value, viewConfigCtx.loading.value] as const,
+          ([ready, error, loading]) => {
+            if (disposed || seq !== modeChangeSeq) {
+              finish(false);
+              return;
+            }
+            if (ready) finish(true);
+            else if (error && !loading) finish(false);
+          }
+        );
+        viewConfigWaitStops.add(cancel);
+      });
+    }
+
+    /**
+     * 当前视角在「全部」下的常驻字段。
+     * 用户保存过就用用户配置，否则用视图配置的 resident_fields；具体 span 类型不走这里。
+     */
+    async function resolveAllResidentKeys(seq: number) {
+      if (disposed || seq !== modeChangeSeq) return [];
+      const cacheId = residentKeysCacheId();
+      if (viewConfigCtx.ready.value && residentKeysReadyId.value === cacheId) {
+        return activeResidentKeys.value;
+      }
+      const configKey = `${RUM_RESIDENT_SETTING_KEY}_${store.mode}_${store.appName}`;
+      const savedPromise = getResidentFieldConfig<string[]>(configKey);
+      const ready = await waitForViewConfig(seq);
+      const saved = await savedPromise;
+      if (!ready || disposed || seq !== modeChangeSeq || residentKeysCacheId() !== cacheId) return [];
+      const source =
+        Array.isArray(saved) && saved.length ? saved : viewConfigCtx.viewConfig.value.resident_fields || [];
+      const keys = filterSearchableResidentKeys(source);
+      activeResidentKeys.value = keys;
+      residentKeysReadyId.value = cacheId;
+      return keys;
+    }
+
+    function appliedResidentKeys(allKeys: string[]) {
+      if (store.mode === RumModeEnum.SPAN && spanTypeCtx.activeSpanType.value) {
+        return spanTypeResidentFields.value;
+      }
+      return allKeys;
+    }
+
+    function invalidateResidentProjection() {
+      modeChangeSeq += 1;
+      residentProjecting.value = false;
+    }
+
     function handleAppNameChange() {
+      invalidateResidentProjection();
       queryCtx.where.value = [];
       queryCtx.commonWhere.value = [];
+      queryCtx.clearResidentValueCache();
+      activeResidentKeys.value = [];
+      residentKeysReadyId.value = '';
       setDefaultAppConfig(JSON.stringify(store.appName));
       queryCtx.handleQuery();
     }
 
-    function handleModeChange() {
-      // 切换场景：排序重置为「未设置」，回落到新场景视图配置的 default_sort
+    /**
+     * 切换 Session / View / Span。
+     * 上方检索条件和语句清空；常驻筛选按三个 tab 共用缓存回填，目标 tab 没有的 key 不参与检索也不删除。
+     * @param mode 目标视角
+     * @param shouldQuery 是否立即检索；下钻要先写上点击条件时传 false
+     * @returns 是否仍是最后一次切换。连点时较早的一次返回 false，调用方不要再改条件
+     */
+    async function handleModeChange(mode: RumModeType, shouldQuery = true) {
+      const seq = ++modeChangeSeq;
+      // 常驻字段按视角异步取，先卸掉检索栏，等回填后再挂上，避免空值覆盖组件内部状态后填不回去
+      residentProjecting.value = true;
+      store.mode = mode;
       store.userSort = null;
-      queryCtx.handleQuery();
+      queryCtx.where.value = [];
+      queryCtx.queryString.value = '';
+      queryCtx.commonWhere.value = [];
+      try {
+        const allKeys = await resolveAllResidentKeys(seq);
+        if (disposed || seq !== modeChangeSeq) return false;
+        queryCtx.commonWhere.value = queryCtx.projectResidentWhere(appliedResidentKeys(allKeys));
+        if (shouldQuery) queryCtx.handleQuery();
+        return true;
+      } finally {
+        if (seq === modeChangeSeq) residentProjecting.value = false;
+      }
     }
 
-    function handleSpanTypeChange(type: string) {
+    /**
+     * 数量列下钻：切到目标视角、类型回到全部，并带上点击的条件。
+     * 常驻筛选仍按目标 tab 的字段从共用缓存回填。
+     */
+    async function handleCountDrillDown(options: IRumCountDrillDown) {
+      store.spanType = ALL_SPAN_TYPE;
+      const applied = await handleModeChange(options.targetMode, false);
+      if (!applied || disposed) return;
+      handleConditionChange(options.condition, false);
+    }
+
+    /**
+     * 切换 span 类型只改当前生效的常驻条件：具体类型裁掉没有的字段，回到「全部」清空。
+     * 这里不写共用缓存，切到其他 tab 时仍能按 key 填回来。
+     * @param type 点击的类型；setSpanType 为 toggle 语义，重复点击回到「全部」，判断须以 activeSpanType 为准
+     * @param shouldQuery 是否立即检索；需先改写条件时传 false，由调用方在条件就绪后触发
+     */
+    function handleSpanTypeChange(type: string, shouldQuery = true) {
       spanTypeCtx.setSpanType(type);
-      // setSpanType 是 toggle 语义（再次点击已选中的类型会切回「全部」），判断必须基于切换后的 activeSpanType，不能用入参 type
       const activeType = spanTypeCtx.activeSpanType.value;
-      // 切回「全部」清空常驻条件；具体类型只保留可见常驻字段的交集，空配置也必须清空。
       if (activeType === ALL_SPAN_TYPE) {
         queryCtx.commonWhere.value = [];
       } else {
@@ -295,7 +520,7 @@ export default defineComponent({
           spanTypeResidentFields.value.includes(w.key)
         );
       }
-      queryCtx.handleQuery();
+      if (shouldQuery) queryCtx.handleQuery();
     }
 
     async function handleThumbtackChange(list: string[]) {
@@ -303,13 +528,66 @@ export default defineComponent({
       await setThumbtackConfig(JSON.stringify(list));
     }
 
+    function handleCommonWhereChange(value: IWhereItem[]) {
+      residentCacheBeforeFieldEdit = queryCtx.snapshotResidentValueCache();
+      const residentKeys = appliedResidentKeys(activeResidentKeys.value);
+      queryCtx.syncResidentValueCache(value, residentKeys);
+      queryCtx.commonWhere.value = value;
+      queryCtx.handleQuery();
+      Promise.resolve().then(() => {
+        residentCacheBeforeFieldEdit = null;
+      });
+    }
+
+    /**
+     * 常驻字段列表保存。确认设置时组件会先抛值变化，再调用这里。
+     * 从列表里移除的字段不算用户清空，把刚被同步删掉的缓存写回去。
+     */
+    async function handleSetResidentConfig(value: string) {
+      const snapshot = residentCacheBeforeFieldEdit;
+      residentCacheBeforeFieldEdit = null;
+      if (!spanTypeCtx.activeSpanType.value) {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            const nextKeys = filterSearchableResidentKeys(parsed.map(key => String(key)));
+            activeResidentKeys.value = nextKeys;
+            residentKeysReadyId.value = residentKeysCacheId();
+            if (snapshot) {
+              const nextKeySet = new Set(nextKeys);
+              queryCtx.restoreResidentValueCache(
+                snapshot,
+                Object.keys(snapshot).filter(key => !nextKeySet.has(key))
+              );
+            }
+          }
+        } catch {
+          // 字段列表不是数组时保持当前 key，避免误把缓存当成已清空
+        }
+      }
+      return setResidentConfig(value);
+    }
+
+    function handleApplyFavorite(favorite: Parameters<typeof favoriteCtx.applyFavorite>[0]) {
+      invalidateResidentProjection();
+      queryCtx.clearResidentValueCache();
+      activeResidentKeys.value = [];
+      residentKeysReadyId.value = '';
+      residentCacheBeforeFieldEdit = null;
+      favoriteCtx.applyFavorite(favorite);
+      // 收藏没改视角时，视图配置不会重新 ready，需要主动补一次常驻字段
+      if (viewConfigCtx.ready.value && residentKeysReadyId.value !== residentKeysCacheId()) {
+        void resolveAllResidentKeys(modeChangeSeq);
+      }
+    }
+
     /** 维度面板与表格单元格触发的条件追加 */
     function handleConditionChange(condition: ConditionChangeEvent, isFromDimensionFilterPanel = true) {
       const { key, method: operator, value } = condition;
       const field = viewConfigCtx.viewConfig.value.fields.find(item => item.name === key);
-      /** 范围值 */
+      /** 范围值；切视角时 viewConfig 可能异步清空，字段缺失按普通等值条件处理 */
       const isRangeValue =
-        (field.field_display_type === 'duration' && field.field_unit !== 'vital') || field.field_unit === 'bytes';
+        (field?.field_display_type === 'duration' && field?.field_unit !== 'vital') || field?.field_unit === 'bytes';
       const matched = value.match(/^(-?\d+)-(-?\d+)$/);
       if (queryCtx.filterMode.value === EMode.ui) {
         queryCtx.addCondition(
@@ -353,6 +631,9 @@ export default defineComponent({
       const query = queryCtx.buildUrlQuery();
       // 不沿用收藏：新页应用收藏条件会覆盖掉本次追加的条件
       delete query.favorite_id;
+      // 新页只还原检索态，不携带当前页正在浏览的详情抽屉
+      delete query.detailShow;
+      delete query.detailContext;
       /** 会话 / 页面 ID 跳转：新页只按点击的 ID 检索，不携带当前页面的其他过滤条件(其他过滤条件具体指滴是 检索栏(ui | queryString) 的参数 及 常驻筛选 中的参数) */
       const isIsolatedJump = OVERVIEW_ISOLATED_LINK_FIELDS.has(key);
       if (queryCtx.filterMode.value === EMode.ui) {
@@ -392,22 +673,40 @@ export default defineComponent({
     }
 
     /**
-     * 打开 Span 详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
+     * 行的详情记录 ID：Span 视角下的会话行与 Session 视角同口径取会话 ID（会话详情的接口与时间轴都以会话 ID 定位），
+     * 其余视角与行唯一键一致。
+     */
+    function getDetailRecordId(row: IRumSpanRecord) {
+      const isSessionSpan = store.mode === RumModeEnum.SPAN && row?.[SPAN_TYPE_FIELD] === RumModeEnum.SESSION;
+      return String(row?.[isSessionSpan ? SESSION_ID_FIELD : RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? '');
+    }
+
+    /**
+     * 打开详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
      * 不额外请求列表接口。
+     * View / Session 视角的一行即一条 view / session 记录：记录 ID 分别取页面 ID 与会话 ID，
+     * 类型固定为 view / session；Span 视角取行内 span_id 与 span_type，其中 session 行按会话 ID 打开会话详情。
      */
     function handleOpenDetail(row: IRumSpanRecord) {
+      const isViewMode = store.mode === RumModeEnum.VIEW;
+      const isSessionMode = store.mode === RumModeEnum.SESSION;
+      /** View / Session 行常缺 end_time：end_time 回退 start_time，两者都缺再回退当前检索范围（秒），保证上下文时间始终为有限正数 */
+      const [queryStart, queryEnd] = handleTransformToTimestamp(store.timeRange);
+      const startSeconds = microToUnixSeconds(row?.start_time);
+      const endSeconds = microToUnixSeconds(row?.end_time) ?? startSeconds;
       detailContext.value = {
         app_name: store.appName,
-        record_id: String(row?.span_id ?? ''),
-        span_type: String(row?.[SPAN_TYPE_FIELD] ?? ''),
-        /** 微秒转化为秒 */
-        start_time: Math.floor(row.start_time / 1000000),
-        end_time: Math.floor(row.end_time / 1000000),
+        record_id: getDetailRecordId(row),
+        span_type: isSessionMode ? 'session' : isViewMode ? 'view' : String(row?.[SPAN_TYPE_FIELD] ?? ''),
+        start_time: startSeconds ?? queryStart,
+        end_time: endSeconds ?? queryEnd,
       };
       detailShow.value = true;
       /** 打开详情时收起 events 抽屉：两者都是行数据下钻视图，避免底部抽屉与详情侧弹叠放（上/下一条切换同样走这里，随切换收起） */
       eventsDrawerCtx.closeDrawer();
-      activeRowCtx.setActiveRowKey(detailContext.value.record_id);
+      /** 高亮行取表格行 key：Span 视角的会话行记录 ID 是会话 ID，不能直接当行 key */
+      detailRowKey.value = String(row?.[RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? '');
+      activeRowCtx.setActiveRowKey(detailRowKey.value);
       queryCtx.setUrlParams({
         detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
         detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
@@ -416,7 +715,10 @@ export default defineComponent({
 
     const handleSpanDetailShowChange = (show: boolean) => {
       detailShow.value = show;
-      if (!show) detailContext.value = null;
+      if (!show) {
+        detailContext.value = null;
+        detailRowKey.value = '';
+      }
       queryCtx.setUrlParams({
         detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
         detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
@@ -430,15 +732,18 @@ export default defineComponent({
     function handleStepDetail(step: -1 | 1) {
       const tableData = tableCtx.tableData.value;
       if (!tableData.length) return;
+      /** View / Session 视角每行都可打开详情；Span 视角按行内详情记录 ID 定位当前行，并按详情可用类型过滤跳转目标 */
+      const isViewMode = store.mode === RumModeEnum.VIEW;
+      const isSessionMode = store.mode === RumModeEnum.SESSION;
       const currentIndex = Math.max(
         0,
-        tableData.findIndex(item => item.span_id === detailContext.value?.record_id)
+        tableData.findIndex(item => getDetailRecordId(item) === detailContext.value?.record_id)
       );
       // 最多回绕一整圈，offset 走到与起点重合即说明没有其他可展示详情的记录
       for (let offset = 1; offset <= tableData.length; offset++) {
         const index = (currentIndex + step * offset + tableData.length) % tableData.length;
         if (index === currentIndex) return;
-        if (RUM_DETAIL_SPAN_TYPES.has(tableData[index][SPAN_TYPE_FIELD] ?? '')) {
+        if (isViewMode || isSessionMode || RUM_DETAIL_SPAN_TYPES.has(tableData[index][SPAN_TYPE_FIELD] ?? '')) {
           handleOpenDetail(tableData[index]);
           return;
         }
@@ -500,23 +805,34 @@ export default defineComponent({
       }
     }
 
+    /**
+     * URL 还原详情的入参快照：初始化里的 handleQuery 会 replace 一次 query，
+     * 等到 initialize 完成再读 route.query 会受该次导航是否完成影响，故在 setup 时先取一次。
+     */
+    const detailQueryFromUrl = {
+      detailShow: (route.query.detailShow as string) || '',
+      detailContext: (route.query.detailContext as string) || '',
+    };
+
     onMounted(() => {
       updateTimezone(store.timezone);
       initialize().then(() => {
         if (disposed || applicationError.value) return;
-        const query = route.query as Record<string, string>;
-        if (query.detailShow) {
-          detailShow.value = JSON.parse(decodeURIComponent(query.detailShow));
+        if (detailQueryFromUrl.detailShow) {
+          detailShow.value = JSON.parse(decodeURIComponent(detailQueryFromUrl.detailShow));
         }
-        if (query.detailContext) {
+        if (detailQueryFromUrl.detailContext) {
           // 高亮行由 detailContext 兜底派生，与页内打开详情的表现一致，无需在此写入
-          detailContext.value = JSON.parse(decodeURIComponent(query.detailContext));
+          detailContext.value = JSON.parse(decodeURIComponent(detailQueryFromUrl.detailContext));
         }
       });
     });
 
     onBeforeUnmount(() => {
       disposed = true;
+      invalidateResidentProjection();
+      for (const cancel of viewConfigWaitStops) cancel();
+      viewConfigWaitStops.clear();
       window.clearInterval(autoRefreshTimer);
     });
 
@@ -534,6 +850,9 @@ export default defineComponent({
       columnConfig,
       detailContext,
       detailShow,
+      detailMode,
+      detailFields,
+      retrievalFieldNames,
       emptyType,
       layoutPreset,
       isSpanSpecialPerspective,
@@ -553,8 +872,11 @@ export default defineComponent({
       getFieldValues,
       getResidentConfig,
       getResidentConfigCustom,
+      handleSetResidentConfig,
       setResidentConfig,
       handleAppNameChange,
+      handleApplyFavorite,
+      handleCommonWhereChange,
       handleConditionChange,
       handleEventsCellClick,
       handleModeChange,
@@ -562,6 +884,7 @@ export default defineComponent({
       handleSortChange,
       handleSpanTypeChange,
       handleThumbtackChange,
+      handleCountDrillDown,
       handleCreateApp,
       tagValueDisplayFormatter,
       handlePreviousDetail,
@@ -585,7 +908,7 @@ export default defineComponent({
             ref='favoriteBoxRef'
             defaultFavoriteId={queryCtx.urlFavoriteId.value}
             type='rum'
-            onChange={favoriteCtx.applyFavorite}
+            onChange={this.handleApplyFavorite}
             onClose={() => {
               favoriteCtx.favoriteShow.value = false;
             }}
@@ -632,7 +955,7 @@ export default defineComponent({
                 filterMode={queryCtx.filterMode.value}
                 getValueFn={this.getFieldValues}
                 handleGetUserConfig={this.getResidentConfigCustom as IHandleGetUserConfig}
-                handleSetUserConfig={this.setResidentConfig}
+                handleSetUserConfig={this.handleSetResidentConfig}
                 isShowClear={true}
                 isShowCopy={true}
                 isShowFavorite={true}
@@ -647,10 +970,7 @@ export default defineComponent({
                 tagValueDisplayFormatter={this.tagValueDisplayFormatter}
                 where={queryCtx.where.value}
                 whereFormatter={traceWhereFormatter}
-                onCommonWhereChange={value => {
-                  queryCtx.commonWhere.value = value;
-                  queryCtx.handleQuery();
-                }}
+                onCommonWhereChange={this.handleCommonWhereChange}
                 onCopyWhere={queryCtx.copyWhere}
                 onFavorite={isEdit => favoriteCtx.saveFavorite(isEdit, () => this.favoriteBoxRef?.refreshGroupList())}
                 onModeChange={queryCtx.modeChange}
@@ -750,6 +1070,7 @@ export default defineComponent({
                                   onClearFilter={queryCtx.clearQuery}
                                   onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
                                   onConditionChange={this.handleConditionChange}
+                                  onCountClick={this.handleCountDrillDown}
                                   onDisplayFieldChange={fields => this.columnConfig.updateDisplayFields(fields)}
                                   onEventsCellClick={this.handleEventsCellClick}
                                   onOpenDetail={this.handleOpenDetail}
@@ -771,9 +1092,10 @@ export default defineComponent({
 
         <RumSpanDetailSlider
           context={this.detailContext}
-          fields={viewConfigCtx.viewConfig.value.fields}
+          fields={this.detailFields}
           isShow={this.detailShow}
-          mode={this.store.mode}
+          mode={this.detailMode}
+          retrievalFieldNames={this.retrievalFieldNames}
           onConditionAdd={(key, value) =>
             this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
           }

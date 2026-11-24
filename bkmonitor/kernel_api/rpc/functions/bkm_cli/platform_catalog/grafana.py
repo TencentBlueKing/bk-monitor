@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from django.conf import settings
 
 from bk_dataview.models import Org
+from bk_dataview.redaction import redact_config
 from core.drf_resource import api
 
 from ._authorization import authorize_business
@@ -20,20 +21,6 @@ UID_PATTERN = r"^[A-Za-z0-9_-]{1,40}$"
 MAX_CONFIG_BYTES = 10 * 1024 * 1024
 ALLOWED_KEYS = frozenset({"bk_biz_id", "dashboard_uid"})
 SAFE_META_FIELDS = ("folderId", "folderUid", "folderTitle", "created", "updated")
-REDACTED_VALUE = "[REDACTED]"
-SENSITIVE_KEY_PATTERN = re.compile(
-    r"password|passwd|passphrase|secret|credential|token|authorization|cookie|bearer"
-    r"|api[_-]?key|access[_-]?key|private[_-]?key|app[_-]?key|basicAuthUser|username"
-    r"|secureJsonData|httpHeaderValue\d+",
-    re.IGNORECASE,
-)
-CREDENTIAL_TEXT_PATTERN = re.compile(
-    r"://[^/\s@]+@"
-    r"|\b(?:Bearer|Basic)\s+[A-Za-z0-9+/_=.-]+"
-    r"|(?:password|passwd|passphrase|secret|token|credential|cookie|authorization|"
-    r"api[_-]?key|access[_-]?key|private[_-]?key)[\"']?\s*[=:]\s*[\"']?[^\s,;\"'}\]\n]+",
-    re.IGNORECASE,
-)
 
 
 def guard_get_dashboard(params: Any) -> dict[str, Any]:
@@ -64,37 +51,6 @@ def guard_get_dashboard(params: Any) -> dict[str, Any]:
         raise ParamsGuardRejected("Grafana 组织身份无效", code="provider_unavailable")
     # Resource 的 RequestSerializer 仅传 uid / org_id；其余字段供结果投影回显已授权身份。
     return {"uid": uid, "org_id": org["id"], "bk_biz_id": bk_biz_id, "bk_tenant_id": tenant}
-
-
-def _redact_config(value: Any, path: str, redacted_paths: list[str], *, credential_value: bool = False) -> Any:
-    if isinstance(value, dict):
-        named_secret = isinstance(value.get("name"), str) and SENSITIVE_KEY_PATTERN.search(value["name"])
-        result = {}
-        for key, item in value.items():
-            item_path = f"{path}/{key.replace('~', '~0').replace('/', '~1')}"
-            if (SENSITIVE_KEY_PATTERN.search(key) or (key == "value" and named_secret)) and not isinstance(item, bool):
-                result[key] = REDACTED_VALUE
-                redacted_paths.append(item_path)
-            else:
-                result[key] = _redact_config(
-                    item,
-                    item_path,
-                    redacted_paths,
-                    credential_value=credential_value or bool(named_secret and key in {"query", "current", "options"}),
-                )
-        return result
-    if isinstance(value, list):
-        return [
-            _redact_config(item, f"{path}/{index}", redacted_paths, credential_value=credential_value)
-            for index, item in enumerate(value)
-        ]
-    if credential_value and value is not None and not isinstance(value, bool):
-        redacted_paths.append(path)
-        return REDACTED_VALUE
-    if isinstance(value, str) and CREDENTIAL_TEXT_PATTERN.search(value):
-        redacted_paths.append(path)
-        return REDACTED_VALUE
-    return value
 
 
 def _validate_panels(panels: Any) -> None:
@@ -154,7 +110,7 @@ def project_get_dashboard(raw: Any, _fields: list[str] | None, params: dict[str,
     _check_config_size(data)
     redacted_paths: list[str] = []
     try:
-        config = _redact_config({"dashboard": dashboard, "meta": safe_meta}, "", redacted_paths)
+        config = redact_config({"dashboard": dashboard, "meta": safe_meta}, "", redacted_paths)
     except (TypeError, AttributeError, RecursionError) as error:
         raise ProviderResponseRejected("Grafana 仪表盘配置不是有效 JSON") from error
     result = {

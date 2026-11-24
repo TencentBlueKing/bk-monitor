@@ -49,8 +49,9 @@ from apps.log_clustering.handlers.aiops.config import get_online_clustering_conf
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
+from apps.log_clustering.handlers.quix.handler import QuixClusteringHandler
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
-from apps.log_clustering.models import ClusteringConfig, RegexTemplate
+from apps.log_clustering.models import ClusteringConfig, LogClusteringRuntime, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
 from apps.log_databus.models import CollectorConfig
@@ -105,15 +106,19 @@ class ClusteringConfigHandler:
         pipeline_id = operator_aiops_service_online(self.index_set_id)
         return pipeline_id
 
-    def create(self, index_set_id, params):
-        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
-
-        if clustering_config:
-            # 已接入过聚类的，不允许再创建
-            raise ClusteringConfigHasExistException(
-                ClusteringConfigHasExistException.MESSAGE.format(index_set_id=index_set_id)
+    @staticmethod
+    def _use_quix_clustering(log_index_set: LogIndexSet) -> bool:
+        return (
+            log_index_set.scenario_id == Scenario.LOG
+            and FeatureToggleObject.switch(
+                MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)
             )
+            and CollectorConfig.objects.filter(
+                collector_config_id=log_index_set.collector_config_id, enable_v4=True
+            ).exists()
+        )
 
+    def create(self, index_set_id, params):
         log_index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
 
         if not log_index_set.scenario_id == Scenario.BKDATA and not (
@@ -122,21 +127,22 @@ class ClusteringConfigHandler:
             # 以下类型允许接入聚类: 1. 计算平台索引，2. 采集项索引
             raise ClusteringAccessNotSupportedException()
 
-        if log_index_set.scenario_id == Scenario.LOG:
-            use_mini_link = FeatureToggleObject.switch(
-                MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)
-            )
-            if use_mini_link:
-                from apps.log_clustering.handlers.mini_link import MiniLinkAccessHandler
+        if self._use_quix_clustering(log_index_set):
+            return QuixClusteringHandler(log_index_set).enable(params)
 
-                return MiniLinkAccessHandler(index_set_id=index_set_id).access(params)
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
+
+        if clustering_config:
+            # 已接入过聚类的，不允许再创建
+            raise ClusteringConfigHasExistException(
+                ClusteringConfigHasExistException.MESSAGE.format(index_set_id=index_set_id)
+            )
 
         collector_config_id = log_index_set.collector_config_id
         log_index_set_data, *_ = log_index_set.indexes
 
         clustering_fields = params.get("clustering_fields", DEFAULT_CLUSTERING_FIELDS)
 
-        es_storage = ""
         collector_config_name_en = ""
 
         # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
@@ -146,6 +152,9 @@ class ClusteringConfigHandler:
         default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT) or {}
         storage_type = conf.get("storage_type", StorageTypeEnum.ELASTICSEARCH.value)
         doris_storage = conf.get("doris_storage", "") if storage_type == StorageTypeEnum.DORIS.value else ""
+        es_storage = (
+            (conf.get("predict_es_storage") or "") if storage_type == StorageTypeEnum.ELASTICSEARCH.value else ""
+        )
 
         if collector_config_id:
             # 配置检查
@@ -157,7 +166,7 @@ class ClusteringConfigHandler:
                 raise CollectorStorageNotExistException(
                     CollectorStorageNotExistException.MESSAGE.format(collector_config_id=collector_config_id)
                 )
-            es_storage = collector_clustering_es_storage.get("es_storage", "")
+            es_storage = es_storage or collector_clustering_es_storage.get("es_storage", "")
             if not es_storage:
                 raise CollectorEsStorageNotExistException(
                     CollectorEsStorageNotExistException.MESSAGE.format(collector_config_id=collector_config_id)
@@ -228,17 +237,9 @@ class ClusteringConfigHandler:
             UpdateOnlineService,
         )
 
-        log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
-
-        if log_index_set.scenario_id == Scenario.LOG:
-            # 小型化链路
-            use_mini_link = FeatureToggleObject.switch(
-                MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)
-            )
-            if use_mini_link:
-                from apps.log_clustering.handlers.mini_link import MiniLinkAccessHandler
-
-                return MiniLinkAccessHandler(index_set_id=self.index_set_id).access(params)
+        if LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).exists():
+            log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+            return QuixClusteringHandler(log_index_set).update(params)
 
         params = {
             "index_set_id": self.index_set_id,
@@ -277,6 +278,22 @@ class ClusteringConfigHandler:
             countdown=10 * TimeEnum.ONE_MINUTE_SECOND.value,
         )
         return pipeline.id
+
+    def close(self) -> str:
+        """关闭轻量化聚类，仅支持通过 BKBase LogClusteringSink 链路接入的索引集"""
+        return self._get_quix_handler().disable()
+
+    def retry(self, operation_id: str) -> str:
+        return self._get_quix_handler().retry(operation_id)
+
+    def reopen(self) -> str:
+        """重开已关闭的轻量化聚类"""
+        return self._get_quix_handler().reopen()
+
+    def _get_quix_handler(self) -> QuixClusteringHandler:
+        if not LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).exists():
+            raise ClusteringAccessNotSupportedException()
+        return QuixClusteringHandler(LogIndexSet.objects.get(index_set_id=self.index_set_id))
 
     def synchronous_update(self, params):
         regex_template_id = params["regex_template_id"]
@@ -321,6 +338,10 @@ class ClusteringConfigHandler:
         """
         接入状态检测
         """
+        if LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).exists():
+            log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+            return QuixClusteringHandler(log_index_set).get_access_status()
+
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id)
 
         result = {

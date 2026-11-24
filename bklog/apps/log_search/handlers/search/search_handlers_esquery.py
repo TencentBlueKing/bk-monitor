@@ -46,15 +46,7 @@ from apps.log_databus.constants import EtlConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
-from apps.log_desensitize.utils import (
-    _extract_value_by_path,
-    _get_sensitive_top_fields,
-    _is_fail_closed,
-    _MASKED_VALUE,
-    _mask_sensitive_fields,
-    path_aware_expand,
-    restore_by_metadata,
-)
+from apps.log_desensitize.utils import expand_nested_data, merge_nested_data, sync_text_fields
 from apps.log_esquery import metrics
 from apps.log_esquery.esquery.esquery import EsQuery
 from apps.log_esquery.serializers import (
@@ -138,6 +130,7 @@ from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from apps.utils.db import array_group
 from apps.utils.drf import custom_params_valid
+from apps.utils.function import get_field_value
 from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
@@ -2328,19 +2321,7 @@ class SearchHandler:
             log = hit["_source"]
             # 脱敏处理
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
-                try:
-                    log = self._log_desensitize(log)
-                except Exception as e:
-                    # fail-closed：脱敏异常时遮罩配置涉及的敏感字段，保留元数据字段
-                    logger.error(
-                        "[desensitize] failed to desensitize log (index=%s): %s, masking sensitive fields",
-                        hit.get("_index", "unknown"),
-                        e,
-                    )
-                    sensitive_fields = _get_sensitive_top_fields(
-                        self.field_configs, self.text_fields_field_configs, self.text_fields
-                    )
-                    log = _mask_sensitive_fields(log, sensitive_fields)
+                log = self._log_desensitize(log)
             else:
                 log = self.convert_keys(log)
             # 联合检索补充索引集信息
@@ -2348,26 +2329,10 @@ class SearchHandler:
             log = self._add_cmdb_fields(log)
             log = self._add_bcs_cluster_fields(log)
             if self.export_fields:
-                new_origin_log = {}
-                for _export_field in self.export_fields:
-                    # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
-                    if _export_field in log:
-                        new_origin_log[_export_field] = log[_export_field]
-                    # 处理a.b.c的情况
-                    elif "." in _export_field:
-                        # 在log中找不到时,去log的子级查找
-                        key, *field_list = _export_field.split(".")
-                        _result = log.get(key, {})
-                        for _field in field_list:
-                            if isinstance(_result, dict) and _field in _result:
-                                _result = _result[_field]
-                            else:
-                                _result = ""
-                                break
-                        new_origin_log[_export_field] = _result
-                    else:
-                        new_origin_log[_export_field] = log.get(_export_field, "")
-                origin_log = new_origin_log
+                # 兼容虚拟字段[__set__, __module__, ipv6]与 a.b.c 形式的嵌套字段取值
+                origin_log = {
+                    _export_field: get_field_value(log, _export_field) for _export_field in self.export_fields
+                }
             else:
                 origin_log = log
             _index = hit["_index"]
@@ -2468,81 +2433,38 @@ class SearchHandler:
 
     def _log_desensitize(self, log: dict = None):
         """
-        字段脱敏
+        日志字段脱敏
+
+        展开 dotted key 后按配置脱敏并同步原文字段，返回前统一折叠为嵌套结构，
+        保证脱敏开关、是否配置原文字段时返回结构一致
         """
         if not log:
             return log
 
-        # 提取已配置字段的 dotted path 列表，用于路径感知展开
-        configured_paths = [c["field_name"] for c in self.field_configs if c.get("field_name")]
+        # 展开object对象
+        log = expand_nested_data(log)
 
-        # 先 deepcopy 原始 log，用于后续日志原文替换
-        # 必须在 path_aware_expand 之前执行，否则 log 已被展开为 dotted-key 形式
+        # 字段脱敏处理，同时记录实际发生的替换，用于原文字段同步
+        hits = []
+        log = self.desensitize_handler.transform_dict(log, hits=hits)
+
         if self.text_fields:
-            try:
-                log_content_tmp = copy.deepcopy(log)
-            except RecursionError:
-                logger.warning(
-                    "[desensitize] deepcopy failed due to deeply nested structure, falling back to shallow copy"
-                )
-                log_content_tmp = copy.copy(log)
-
-        # 路径感知展开（支持 flattened / JSON 字符串子路径）
-        log, restore_metadata = path_aware_expand(log, configured_paths)
-
-        # 在 transform_dict 之前检测 fail-closed 状态
-        # 必须在此处检测：transform_dict 可能修改 _MASKED_VALUE 值导致后续检测失效
-        has_fail_closed = _is_fail_closed(log, restore_metadata)
-
-        # 字段脱敏处理
-        log = self.desensitize_handler.transform_dict(log)
-
-        if self.text_fields and has_fail_closed:
-            # fail-closed 场景下原文字段整体遮罩
-            for text_field in self.text_fields:
-                text_tuple = (text_field,)
-                if text_tuple in log and isinstance(log[text_tuple], str) and log[text_tuple]:
-                    log[text_tuple] = _MASKED_VALUE
-                elif text_tuple not in log and text_tuple in restore_metadata:
-                    # text_field 被 path_aware_expand 展开为子路径，key 已消失
-                    keys_to_remove = [k for k in log if len(k) > 1 and k[0] == text_field]
-                    for k in keys_to_remove:
-                        del log[k]
-                    log[text_tuple] = _MASKED_VALUE
-                    restore_metadata[text_tuple] = {"type": "scalar"}
-        elif self.text_fields:
-            # 原文字段应用其他字段的脱敏结果（原有逻辑，仅在非 fail-closed 时生效）
-            # 对副本做空路径展开，获得 path-token 形式的原始值
-            log_content_tmp_expanded, _ = path_aware_expand(log_content_tmp, [])
-
-            for text_field in self.text_fields:  # ["log"]
-                text_tuple = (text_field,)
-                # 判断原文字段是否存在log中
-                if text_tuple not in log:
-                    continue
-
-                for _config in self.field_configs:
-                    field_name = _config["field_name"]
-                    field_tuple = tuple(field_name.split("."))
-                    if field_tuple not in log or field_tuple == text_tuple:
-                        continue
-
-                    # 优先从展开后的副本获取原始值
-                    original_value = log_content_tmp_expanded.get(field_tuple)
-                    if original_value is None:
-                        # 空路径展开时 JSON 字符串子路径不会被展开
-                        # 从原始 log 按 dotted path 导航提取
-                        original_value = _extract_value_by_path(log_content_tmp, field_name)
-                        if original_value is None:
-                            continue
-
-                    log[text_tuple] = log[text_tuple].replace(str(original_value), str(log[field_tuple]))
+            # 原文字段应用其他字段的脱敏结果
+            log = sync_text_fields(
+                log,
+                self.text_fields,
+                hits,
+                self.desensitize_handler,
+                index_set_id=self.index_set_id,
+            )
 
             # 处理原文字段自身绑定的脱敏逻辑
             log = self.text_fields_desensitize_handler.transform_dict(log)
 
-        # 按原始容器类型还原（dict 保持 dict，JSON 字符串保持字符串）
-        log = restore_by_metadata(log, restore_metadata)
+        # 折叠object对象：无论是否配置原文字段都需要还原嵌套结构，
+        # 否则未配置原文字段时会将 dotted key 形态直接返回给调用方
+        # 冲突字段（同层标量键与前缀子路径并存）保留扁平键，避免整次检索失败
+        log = merge_nested_data(log, on_conflict="keep")
         return log
 
     def _analyze_field_length(self, log_list: list[dict[str, Any]]):
@@ -2817,6 +2739,27 @@ class UnionSearchHandler:
 
         return new_sort_list
 
+    @staticmethod
+    def _get_time_value(row: dict, time_field: str, default: Any = None) -> Any:
+        """读取时间字段，兼容扁平 dotted key 与折叠后的嵌套结构。"""
+        return get_field_value(row, time_field, default=default)
+
+    @classmethod
+    def _normalize_time_field(cls, rows: list, index_set_obj_mapping: dict) -> None:
+        """按索引集时间字段单位把时间统一为毫秒，写入 unionSearchTimeStamp。"""
+        for row in rows:
+            index_set_obj = index_set_obj_mapping.get(row.get("__index_set_id__"))
+            if not index_set_obj:
+                # 索引集标识或索引集对象缺失时不参与标准化，排序阶段按空值处理
+                continue
+            num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
+            time_value = cls._get_time_value(row, index_set_obj.time_field)
+            try:
+                row["unionSearchTimeStamp"] = int(time_value) * num
+            except (TypeError, ValueError):
+                # 时间字段值缺失或非数值时保留原值，避免中断检索
+                row["unionSearchTimeStamp"] = "" if time_value is None else time_value
+
     def union_search(self, is_export=False):
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=self.index_set_ids)
         if not index_set_objs:
@@ -2922,34 +2865,31 @@ class UnionSearchHandler:
         if len(time_fields) != 1 or len(time_fields_type) != 1 or len(time_fields_unit) != 1:
             # 标准化时间字段
             is_use_custom_time_field = True
-            for info in result_log_list:
-                index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
-                num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
-                try:
-                    info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
-                except ValueError:
-                    info["unionSearchTimeStamp"] = info[index_set_obj.time_field]
-
-            for info in result_origin_log_list:
-                index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
-                num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
-                try:
-                    info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
-                except ValueError:
-                    info["unionSearchTimeStamp"] = info[index_set_obj.time_field]
+            self._normalize_time_field(result_log_list, index_set_obj_mapping)
+            self._normalize_time_field(result_origin_log_list, index_set_obj_mapping)
 
         if not self.sort_list:
             # 默认使用时间字段排序
             if not is_use_custom_time_field:
                 sort_field = list(time_fields)[0]
                 # 时间字段相同 直接以相同时间字段为key进行排序 默认为降序
-                result_log_list = sorted(result_log_list, key=lambda x: str(x[sort_field]), reverse=True)
-                result_origin_log_list = sorted(result_origin_log_list, key=lambda x: str(x[sort_field]), reverse=True)
+                result_log_list = sorted(
+                    result_log_list,
+                    key=lambda x: str(self._get_time_value(x, sort_field, default="")),
+                    reverse=True,
+                )
+                result_origin_log_list = sorted(
+                    result_origin_log_list,
+                    key=lambda x: str(self._get_time_value(x, sort_field, default="")),
+                    reverse=True,
+                )
             else:
                 # 时间字段/时间字段格式/时间字段单位不同  标准化时间字段作为key进行排序 标准字段单位为 millisecond
-                result_log_list = sorted(result_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True)
+                result_log_list = sorted(
+                    result_log_list, key=lambda x: str(x.get("unionSearchTimeStamp", "")), reverse=True
+                )
                 result_origin_log_list = sorted(
-                    result_origin_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True
+                    result_origin_log_list, key=lambda x: str(x.get("unionSearchTimeStamp", "")), reverse=True
                 )
         else:
             result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)
@@ -3094,34 +3034,31 @@ class UnionSearchHandler:
         if len(time_fields) != 1 or len(time_fields_type) != 1 or len(time_fields_unit) != 1:
             # 标准化时间字段
             is_use_custom_time_field = True
-            for info in result_log_list:
-                index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
-                num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
-                try:
-                    info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
-                except ValueError:
-                    info["unionSearchTimeStamp"] = info[index_set_obj.time_field]
-
-            for info in result_origin_log_list:
-                index_set_obj = index_set_obj_mapping.get(info["__index_set_id__"])
-                num = TIME_FIELD_MULTIPLE_MAPPING.get(index_set_obj.time_field_unit, 1)
-                try:
-                    info["unionSearchTimeStamp"] = int(info[index_set_obj.time_field]) * num
-                except ValueError:
-                    info["unionSearchTimeStamp"] = info[index_set_obj.time_field]
+            self._normalize_time_field(result_log_list, index_set_obj_mapping)
+            self._normalize_time_field(result_origin_log_list, index_set_obj_mapping)
 
         if not self.sort_list:
             # 默认使用时间字段排序
             if not is_use_custom_time_field:
                 sort_field = list(time_fields)[0]
                 # 时间字段相同 直接以相同时间字段为key进行排序 默认为降序
-                result_log_list = sorted(result_log_list, key=lambda x: str(x[sort_field]), reverse=True)
-                result_origin_log_list = sorted(result_origin_log_list, key=lambda x: str(x[sort_field]), reverse=True)
+                result_log_list = sorted(
+                    result_log_list,
+                    key=lambda x: str(self._get_time_value(x, sort_field, default="")),
+                    reverse=True,
+                )
+                result_origin_log_list = sorted(
+                    result_origin_log_list,
+                    key=lambda x: str(self._get_time_value(x, sort_field, default="")),
+                    reverse=True,
+                )
             else:
                 # 时间字段/时间字段格式/时间字段单位不同  标准化时间字段作为key进行排序 标准字段单位为 millisecond
-                result_log_list = sorted(result_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True)
+                result_log_list = sorted(
+                    result_log_list, key=lambda x: str(x.get("unionSearchTimeStamp", "")), reverse=True
+                )
                 result_origin_log_list = sorted(
-                    result_origin_log_list, key=lambda x: str(x["unionSearchTimeStamp"]), reverse=True
+                    result_origin_log_list, key=lambda x: str(x.get("unionSearchTimeStamp", "")), reverse=True
                 )
         else:
             result_log_list = sort_func(data=result_log_list, sort_list=self.sort_list)

@@ -1,3 +1,28 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { isRecord, parseJsonValue, pickList, stringifyContent, toTextItem } from './helpers';
 
 import type {
@@ -31,9 +56,9 @@ type LlmMessagePart = {
   response?: unknown;
   span_id?: unknown;
   spanId?: unknown;
+  text?: unknown;
   tool_call_id?: unknown;
   tool_span_id?: unknown;
-  text?: unknown;
   type?: unknown;
 };
 
@@ -69,6 +94,56 @@ export function parseModelTimeline(attributes: Record<string, unknown>): LlmMode
   };
 }
 
+/** 收集所有 tool_call Part 的调用 ID，用于判断返回 Part 是否已配对 */
+function collectToolCallIds(messages: unknown[]): Set<string> {
+  const result = new Set<string>();
+  for (const message of messages) {
+    if (!isRecord(message)) continue;
+    const raw = message as LlmMessage;
+    for (const part of toMessageParts(raw)) {
+      const type = resolvePartType(part);
+      // 返回 Part（显式 tool_call_response 或 role=tool 的隐式返回）不参与配对
+      if (!isToolCallType(type) || isResponsePart(part, raw)) continue;
+      const id = String(part.id || part.tool_call_id || '').trim();
+      if (id) result.add(id);
+    }
+  }
+  return result;
+}
+
+/**
+ * 收集所有消息里的工具返回 Part，按 id 供对应 tool_call 补全返回结果。
+ * 返回不一定落在 role=tool 消息里，也可能与普通文本混在同一条 role=user 消息中，因此按 Part 类型收集。
+ * 同一 id 出现多次时保留首个有效返回，避免重复 Part 互相覆盖。
+ */
+function collectToolResponses(messages: unknown[]): Map<string, ToolCallResponse> {
+  const result = new Map<string, ToolCallResponse>();
+  for (const message of messages) {
+    if (!isRecord(message)) continue;
+    const raw = message as LlmMessage;
+    const messageError = isErrorLike(raw);
+    for (const part of toMessageParts(raw)) {
+      if (!isResponsePart(part, raw)) continue;
+      const id = resolveResponseId(part, raw);
+      if (!id) continue;
+      const current = result.get(id);
+      if (current?.response !== undefined) continue;
+      result.set(id, {
+        response: part.response !== undefined ? parseJsonValue(part.response) : parseJsonValue(part.content),
+        isError: messageError || isErrorLike(part),
+      });
+    }
+  }
+  return result;
+}
+
+/** 优先取 part 上的描述，否则回落到 tool.definitions */
+function getToolDescription(definitions: Record<string, string>, name: string, part?: LlmMessagePart): string {
+  const fromPart = stringifyContent(part?.description).trim();
+  if (fromPart) return fromPart;
+  return definitions[name] || '';
+}
+
 function isErrorLike(value: unknown): boolean {
   if (!isRecord(value)) return false;
   if (value.is_error === true || value.error === true) return true;
@@ -76,6 +151,28 @@ function isErrorLike(value: unknown): boolean {
   if (['error', 'exception', 'fail', 'failed'].includes(status)) return true;
   if (value.error != null && value.error !== false && value.error !== '') return true;
   return false;
+}
+
+/** 返回 Part 若已存在同 id 的 tool_call，则并入调用行展示、不再单独成行；未配对时保留兜底展示 */
+function isPairedResponsePart(part: LlmMessagePart, message: LlmMessage, callIds: Set<string>): boolean {
+  if (!isResponsePart(part, message)) return false;
+  const id = resolveResponseId(part, message);
+  return Boolean(id) && callIds.has(id);
+}
+
+/** 是否为工具返回 Part：显式 tool_call_response，或 role=tool 消息里非显式工具调用的隐式返回 */
+function isResponsePart(part: LlmMessagePart, message: LlmMessage): boolean {
+  if (resolvePartType(part) === 'tool_call_response') return true;
+  // 显式工具调用即便落在 role=tool 消息里也只是调用，不能算作隐式返回
+  if (isExplicitToolCall(part)) return false;
+  return String(message.role || '').toLowerCase() === 'tool';
+}
+
+/** 是否为显式工具调用：显式标注调用类型，或缺省 type 但带调用参数 */
+function isExplicitToolCall(part: LlmMessagePart): boolean {
+  const type = String(part.type || '').toLowerCase();
+  if (type && type !== 'tool_call_response' && isToolCallType(type)) return true;
+  return part.arguments !== undefined;
 }
 
 function isToolCallType(type: string): boolean {
@@ -125,13 +222,15 @@ function parseTimelineMessages(
   descriptionMap: Record<string, string>
 ): LlmTimelineMessage[] {
   const result: LlmTimelineMessage[] = [];
-  // role=tool 的返回消息不单独成行，先按 id 收集再并入对应的 tool_call
+  // 返回结果可能混在任意 role 的消息里，先按 tool_call_response / role=tool 全局收集再并入对应 tool_call
   const toolResponses = collectToolResponses(messages);
+  // 已存在对应 tool_call 的返回 Part 会被并入调用行，渲染时跳过，避免重复成行
+  const pairedResponseIds = collectToolCallIds(messages);
   // 展示序号按实际渲染的消息依次递增，避免跳过 tool 消息后出现跳号
   let displayIndex = 0;
 
   for (const [index, message] of messages.entries()) {
-    // messageId 用原始下标，保证被跳过的 tool 消息不影响其它消息的身份稳定
+    // messageId 用原始下标，保证被跳过的返回 Part 不影响其它消息的身份稳定
     const messageId = `${tab}-${index + 1}`;
     if (typeof message === 'string') {
       const text = message.trim();
@@ -160,22 +259,24 @@ function parseTimelineMessages(
     if (!isRecord(message)) continue;
     const raw = message as LlmMessage;
     const role = String(raw.role || '').toLowerCase();
-    // role=tool 的返回消息已并入对应 tool_call，不再单独渲染
-    if (role === 'tool') continue;
     // 先按「下一条」预算序号，parts 为空时不提交该序号
     const messageIndex = displayIndex + 1;
     const parts: LlmTimelinePart[] = [];
     const messageError = isErrorLike(raw);
 
     for (const [partIndex, rawPart] of toMessageParts(raw).entries()) {
+      // 已并入 tool_call 的返回 Part 跳过，但同条消息内的文本 / 未配对返回继续展示
+      if (isPairedResponsePart(rawPart, raw, pairedResponseIds)) continue;
       const part = toTimelinePart(
         rawPart,
         {
           messageError,
           messageId,
           messageIndex,
+          messageToolCallId: String(raw.tool_call_id || '').trim(),
           partIndex,
           role,
+          isResponse: isResponsePart(rawPart, raw),
           tab,
         },
         descriptionMap,
@@ -220,32 +321,16 @@ function parseTimelineMessages(
   return result;
 }
 
-/**
- * 收集 role=tool 消息里的 tool_call_response，按 id 供对应 tool_call 补全返回结果。
- * 同一 id 出现多次时保留首个有效返回，避免重复消息互相覆盖。
- */
-function collectToolResponses(messages: unknown[]): Map<string, ToolCallResponse> {
-  const result = new Map<string, ToolCallResponse>();
-  for (const message of messages) {
-    if (!isRecord(message)) continue;
-    const raw = message as LlmMessage;
-    if (String(raw.role || '').toLowerCase() !== 'tool') continue;
-    const messageError = isErrorLike(raw);
-    const messageToolCallId = String(raw.tool_call_id || '').trim();
-    for (const part of toMessageParts(raw)) {
-      const type = String(part.type || '').toLowerCase();
-      if (type !== 'tool_call_response') continue;
-      const id = String(part.id || part.tool_call_id || messageToolCallId).trim();
-      if (!id) continue;
-      const current = result.get(id);
-      if (current && current.response !== undefined) continue;
-      result.set(id, {
-        response: part.response !== undefined ? parseJsonValue(part.response) : parseJsonValue(part.content),
-        isError: messageError || isErrorLike(part),
-      });
-    }
-  }
-  return result;
+/** 推断 part 类型：缺省时按 name / arguments / response 判定是否工具调用 */
+function resolvePartType(part: LlmMessagePart): string {
+  return String(
+    part.type || (part.name || part.arguments !== undefined || part.response !== undefined ? 'tool_call' : 'text')
+  ).toLowerCase();
+}
+
+/** 工具返回 Part 的调用 ID：Part 上优先，回落到消息的 tool_call_id */
+function resolveResponseId(part: LlmMessagePart, message: LlmMessage): string {
+  return String(part.id || part.tool_call_id || message.tool_call_id || '').trim();
 }
 
 function resolveRole(partType: string, messageRole: string): LlmTimelineRole | null {
@@ -261,16 +346,16 @@ function resolveRole(partType: string, messageRole: string): LlmTimelineRole | n
 function toMessageParts(message: LlmMessage): LlmMessagePart[] {
   const parts: LlmMessagePart[] = [];
   if (Array.isArray(message.parts)) {
-    parts.push(...message.parts.map(normalizePart).filter((item) => Boolean(item)));
+    parts.push(...message.parts.map(normalizePart).filter(item => Boolean(item)));
   } else if (Array.isArray(message.content)) {
-    parts.push(...message.content.map(normalizePart).filter((item) => Boolean(item)));
+    parts.push(...message.content.map(normalizePart).filter(item => Boolean(item)));
   } else if (message.content != null && message.content !== '') {
     parts.push({ type: 'text', content: message.content });
   }
 
   const hasToolCall = parts.some(part => isToolCallType(String(part.type || '').toLowerCase()));
   if (!hasToolCall && Array.isArray(message.tool_calls)) {
-    parts.push(...message.tool_calls.map(normalizePart).filter((item) => Boolean(item)));
+    parts.push(...message.tool_calls.map(normalizePart).filter(item => Boolean(item)));
   }
   return parts;
 }
@@ -278,9 +363,11 @@ function toMessageParts(message: LlmMessage): LlmMessagePart[] {
 function toTimelinePart(
   part: LlmMessagePart,
   meta: {
+    isResponse: boolean;
     messageError: boolean;
     messageId: string;
     messageIndex: number;
+    messageToolCallId: string;
     partIndex: number;
     role: string;
     tab: 'input' | 'output';
@@ -288,9 +375,7 @@ function toTimelinePart(
   descriptionMap: Record<string, string>,
   toolResponses: Map<string, ToolCallResponse>
 ): LlmTimelinePart | null {
-  const type = String(
-    part.type || (part.name || part.arguments !== undefined || part.response !== undefined ? 'tool_call' : 'text')
-  ).toLowerCase();
+  const type = resolvePartType(part);
   const role = resolveRole(type, meta.role);
   if (!role) return null;
 
@@ -298,15 +383,18 @@ function toTimelinePart(
   const searchBlockId = `${meta.tab}:timeline:${meta.messageId}:${id}`;
   if (role === 'tool') {
     const toolName = String(part.name || '').trim();
-    const toolCallId = String(part.id || part.tool_call_id || '').trim();
-    // 合并 role=tool 消息里按 id 匹配的 tool_call_response
+    const toolCallId = String(part.id || part.tool_call_id || meta.messageToolCallId).trim();
+    // 合并按 id 匹配的工具返回（含混在非 tool 消息里的 tool_call_response）
     const matched = toolCallId ? toolResponses.get(toolCallId) : undefined;
-    const response =
+    // 返回 Part（显式 tool_call_response 或 role=tool 隐式返回）本体即返回结果，未配对时用 content 兜底，
+    // 不因带 name / arguments 而丢弃
+    const ownResponse =
       part.response !== undefined
         ? parseJsonValue(part.response)
-        : type === 'tool_call_response'
+        : meta.isResponse
           ? parseJsonValue(part.content)
-          : matched?.response;
+          : undefined;
+    const response = ownResponse !== undefined ? ownResponse : matched?.response;
     return {
       id,
       role,
@@ -335,11 +423,4 @@ function toTimelinePart(
     searchBlockId,
     showIndex: false,
   };
-}
-
-/** 优先取 part 上的描述，否则回落到 tool.definitions */
-function getToolDescription(definitions: Record<string, string>, name: string, part?: LlmMessagePart): string {
-  const fromPart = stringifyContent(part?.description).trim();
-  if (fromPart) return fromPart;
-  return definitions[name] || '';
 }

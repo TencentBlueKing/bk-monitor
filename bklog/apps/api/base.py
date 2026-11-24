@@ -23,6 +23,7 @@ import hashlib
 import json
 import math
 import re
+import sys
 import time
 from copy import deepcopy
 from enum import Enum
@@ -54,6 +55,7 @@ from apps.utils.local import (
     get_request_id,
     get_request_tenant_id,
     get_request_username,
+    single_tenant_backend_username,
 )
 from apps.utils.log import logger
 from apps.utils.log_sanitization import sanitize_headers
@@ -62,15 +64,20 @@ from apps.utils.time_handler import timestamp_to_datetime
 API_AUTH_KEYS = ["bk_app_code", "bk_app_secret", "bk_username", "bk_token", "access_token", "bk_ticket"]
 
 
-def get_request_api_headers(params):
+def get_request_api_headers(params, *, use_implicit_user_auth=True):
     """
     获取api网关鉴权认证请求头
     """
     api_headers = {
         "bk_app_code": settings.APP_CODE,
         "bk_app_secret": settings.SECRET_KEY,
-        "bk_username": params.get("bk_username") or get_request_username(),
     }
+    if use_implicit_user_auth:
+        username = params.get("bk_username") or get_request_username(default="")
+        if not username and "celery" in sys.argv:
+            has_ticket = any(params.get(key) for key in ("bk_token", "access_token", "bk_ticket"))
+            username = "admin" if has_ticket else single_tenant_backend_username("admin")
+        api_headers["bk_username"] = username
     api_headers.update(params)
     return json.dumps(api_headers)
 
@@ -195,6 +202,10 @@ class DataAPI:
     """Single API for DATA"""
 
     HTTP_STATUS_OK = 200
+    HTTP_SUCCESS_STATUS_CODES = None
+    EXCLUDE_URL_KEYS = False
+    VERIFY_TLS = False
+    SEND_TENANT_HEADER = True
 
     class PaginationStyle(Enum):
         PAGE_NUMBER = "PageNumberPagination"
@@ -222,6 +233,7 @@ class DataAPI:
         no_query_params=False,
         pagination_style=PaginationStyle.LIMIT_OFFSET.value,
         bk_tenant_id: str | Callable[[dict], str] = "",
+        use_implicit_user_auth=True,
     ):
         """
         初始化一个请求句柄
@@ -274,6 +286,7 @@ class DataAPI:
         self.pagination_style = pagination_style
 
         self.bk_tenant_id = bk_tenant_id
+        self.use_implicit_user_auth = use_implicit_user_auth
         self.headers = None
         self.no_query_params = no_query_params
 
@@ -322,6 +335,7 @@ class DataAPI:
             return response.data
         except DataAPIException as e:
             error = ApiRequestError(e.error_message, request_id)
+            error.http_status = e.response.status_code if e.response is not None else None
             error.request_id = request_id
             raise error
 
@@ -392,7 +406,7 @@ class DataAPI:
                 raise DataAPIException(self, self.get_error_message(str(e)))
 
             # http层面的处理结果
-            if raw_response.status_code != self.HTTP_STATUS_OK:
+            if raw_response.status_code not in (self.HTTP_SUCCESS_STATUS_CODES or (self.HTTP_STATUS_OK,)):
                 request_response = {
                     "result": False,
                     "message": f"[{raw_response.status_code}]" + (raw_response.text or raw_response.reason),
@@ -537,7 +551,8 @@ class DataAPI:
             value = params.get(key)
             if value:
                 api_auth_params[key] = value
-        session.headers.update({"X-Bkapi-Authorization": get_request_api_headers(api_auth_params)})
+        authorization = get_request_api_headers(api_auth_params, use_implicit_user_auth=self.use_implicit_user_auth)
+        session.headers.update({"X-Bkapi-Authorization": authorization})
 
         if self.header_keys:
             headers = {key: params.get(key) for key in self.header_keys if key in params}
@@ -545,21 +560,24 @@ class DataAPI:
                 params.pop(key, None)
             session.headers.update(**headers)
 
-        # 多租户模式下添加租户ID
-        # 如果请求时没有指定租户ID，则看接口定义时是否有租户ID
-        # 如果请求时和接口定义时都没有给租户ID，则通过请求用户态获取租户ID
-        if not bk_tenant_id:
-            if self.bk_tenant_id:
-                if callable(self.bk_tenant_id):
-                    # 如果传递的 bk_tenant_id 是个函数，将调用该函数
-                    bk_tenant_id = self.bk_tenant_id(params)
+        if self.SEND_TENANT_HEADER:
+            # 多租户模式下添加租户ID
+            # 如果请求时没有指定租户ID，则看接口定义时是否有租户ID
+            # 如果请求时和接口定义时都没有给租户ID，则通过请求用户态获取租户ID
+            if not bk_tenant_id:
+                if self.bk_tenant_id:
+                    if callable(self.bk_tenant_id):
+                        # 如果传递的 bk_tenant_id 是个函数，将调用该函数
+                        bk_tenant_id = self.bk_tenant_id(params)
+                    else:
+                        bk_tenant_id = self.bk_tenant_id
                 else:
-                    bk_tenant_id = self.bk_tenant_id
-            else:
-                bk_tenant_id = get_request_tenant_id()
-        session.headers.update({"X-Bk-Tenant-Id": bk_tenant_id})
+                    bk_tenant_id = get_request_tenant_id()
+            session.headers.update({"X-Bk-Tenant-Id": bk_tenant_id})
         self.headers = session.headers
         url = self.build_actual_url(params)
+        if self.EXCLUDE_URL_KEYS:
+            params = {key: value for key, value in params.items() if key not in (self.url_keys or [])}
 
         # 发出请求并返回结果
         query_params = {"bklog_request_id": request_id}
@@ -568,7 +586,7 @@ class DataAPI:
         non_file_data, file_data = self._split_file_data(params)
         if self.method.upper() == "GET":
             params.update(query_params)
-            return session.request(method=self.method, url=url, params=params, verify=False, timeout=timeout)
+            return session.request(method=self.method, url=url, params=params, verify=self.VERIFY_TLS, timeout=timeout)
         if self.method.upper() == "DELETE":
             session.headers.update({"Content-Type": "application/json; charset=utf-8"})
             return session.request(
@@ -576,7 +594,7 @@ class DataAPI:
                 url=url,
                 data=json.dumps(non_file_data, cls=LazyEncoder),
                 params=query_params,
-                verify=False,
+                verify=self.VERIFY_TLS,
                 timeout=timeout,
             )
         if self.method.upper() in ["PUT", "PATCH", "POST"]:
@@ -601,7 +619,7 @@ class DataAPI:
                 data=params,
                 params=query_params,
                 files=file_data,
-                verify=False,
+                verify=self.VERIFY_TLS,
                 timeout=timeout,
             )
         raise ApiRequestError(f"request method error => [{self.method}]")

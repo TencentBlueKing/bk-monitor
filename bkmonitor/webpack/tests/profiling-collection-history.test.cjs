@@ -109,7 +109,11 @@ test('结果链接和历史筛选能恢复，立即执行不能混入任务 ID',
     ips: ['192.0.2.1'], task_id: 7, task_name: '', process_names: ['worker'], process_pids: ['22'], schedule_types: [], status: 'failed',
   };
   const restored = restoreCollectionQuery(JSON.parse(JSON.stringify({ tab: 'results', history, result })));
-  assert.deepEqual(restored.history, history);
+  // 历史存储里的单值字符串状态恢复后统一成数组
+  assert.deepEqual(restored.history, { ...history, status: ['failed'] });
+  // 非法状态值被丢弃，数组里的合法值保留
+  assert.deepEqual(restoreCollectionQuery({ history: { ...history, status: 'legacy' } }).history.status, []);
+  assert.deepEqual(restoreCollectionQuery({ history: { ...history, status: ['failed', 'legacy', 1] } }).history.status, ['failed']);
   // 任务 ID 与任务名互斥：按 ID 定位时丢弃名称关键词，非法 ID 退回按名称筛选
   assert.equal(restoreCollectionQuery({ history: { ...history, task_name: 'cpu' } }).history.task_name, '');
   assert.equal(restoreCollectionQuery({ history: { ...history, task_id: -1 } }).history.task_id, null);
@@ -298,21 +302,6 @@ test('历史接入全局时间与手动刷新，新页链接保留业务和执�
     global.window = originalWindow;
     global.location = originalLocation;
   }
-});
-
-test('进程条件提交后保留候选标识，同 PID 的不同进程别名仍能分别展示', () => {
-  const { restoreProcessSelection, parseProcessSelection, processCandidateOptions } = load('utils/collection-history.ts');
-  const selected = [JSON.stringify(['process_pids', '22', 'worker:22']), JSON.stringify(['process_pids', '22', 'nginx:22'])];
-  const filters = parseProcessSelection(selected);
-  assert.deepEqual(filters, { process_names: [], process_pids: ['22'] });
-  assert.deepEqual(restoreProcessSelection(filters, selected), selected);
-  assert.deepEqual(restoreProcessSelection({ process_names: [], process_pids: [] }, selected), []);
-  const restored = restoreProcessSelection(filters, []);
-  const options = processCandidateOptions({ process_pids: [{ value: '22', alias: 'worker:22' }, { value: '22', alias: 'nginx:22' }] }, restored);
-  assert.equal(options.length, 2);
-  assert.equal(options[0].id, restored[0]);
-  assert.equal(options[0].name, 'PID: worker:22');
-  assert.notEqual(options[1].id, options[0].id);
 });
 
 test('终止只提交本轮定位与主机集合，未知轮次不允许终止', async () => {

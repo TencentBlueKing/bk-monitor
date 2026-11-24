@@ -10,17 +10,21 @@ specific language governing permissions and limitations under the License.
 
 from collections import defaultdict
 
+from monitor_web.collecting.tencent_cloud import is_qcloud_plugin
 from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.plugin.constant import PluginType
 
 from .base import BaseInstaller, CollectionStatistics
 from .k8s import K8sInstaller
 from .node_man import NodeManInstaller
+from .qcloud_lifecycle import TencentCloudInstaller
 
 
 def get_collect_installer_class(collect_config: CollectConfigMeta) -> type[BaseInstaller]:
     """统一选择生命周期和结果查询实现；本期非 K8s 采集保持 V2。"""
     if collect_config.collect_type == PluginType.K8S:
+        if is_qcloud_plugin(collect_config.plugin_id, getattr(collect_config, "bk_biz_id", None)):
+            return TencentCloudInstaller
         return K8sInstaller
     return NodeManInstaller
 

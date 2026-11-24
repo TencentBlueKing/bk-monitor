@@ -33,6 +33,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { EMethod, EMode } from '../../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../../components/retrieval-filter/utils';
+import { intTimestampStr } from '../../../components/time-range/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
 import { tryURLDecode, tryURLDecodeParse } from '../../trace-explore/utils';
 import { RumModeEnum } from '../constants';
@@ -81,6 +82,11 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   const commonParams = shallowRef<IRumCommonParams>({ ...EMPTY_COMMON_PARAMS });
   /** 生成查询字符串中 */
   const generateQueryStringLoading = shallowRef(false);
+  /**
+   * Session / View / Span 共用的常驻筛选缓存。
+   * 只在用户改当前 tab 上已有字段时增删；目标 tab 没有的 key 不参与检索，但留在这里。
+   */
+  const residentValueCache = shallowRef<Record<string, IWhereItem>>({});
 
   function buildFilters(): IRumFilter[] {
     const merged = mergeWhereList(where.value || [], commonWhere.value || []) as IRumFilter[];
@@ -97,12 +103,24 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     setUrlParams();
   }
 
+  /**
+   * 取当前 URL 上的详情抽屉参数：详情打开期间原样带上，避免检索态同步把详情缓存冲掉；
+   * 详情关闭后不再携带，让 URL 自然清掉残留的 false / null（关闭当次由页面显式传入覆盖）。
+   */
+  function pickDetailQuery(): Record<string, string> {
+    const { detailShow, detailContext } = route.query;
+    if (detailShow !== 'true' || typeof detailContext !== 'string') return {};
+    return { detailShow, detailContext };
+  }
+
   /** 当前可复现的查询状态对应的 URL 参数，setUrlParams 与新开页共用，避免两边字段不同步 */
   function buildUrlQuery(params?: Record<string, string>): Record<string, string> {
     const query: Record<string, string> = {
       mode: store.mode,
       app_name: encodeURIComponent(store.appName || ''),
-      timeRange: encodeURIComponent(JSON.stringify(store.timeRange)),
+      // 时间范围按分享组件的通用约定拆成 from / to（裸值交给 router 编码），供临时分享等通用组件直接读取
+      from: `${store.timeRange[0] ?? ''}`,
+      to: `${store.timeRange[1] ?? ''}`,
       refreshInterval: `${store.refreshInterval}`,
       filterMode: filterMode.value,
       spanType: store.spanType,
@@ -113,6 +131,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
       showResidentBtn: `${showResidentBtn.value}`,
       // 记录用户意图而非当前生效值，避免把回落的 default_sort 固化成显式排序
       sortBy: encodeURIComponent(JSON.stringify(store.userSort)),
+      ...pickDetailQuery(),
       ...(params || {}),
     };
     if (urlFavoriteId.value) {
@@ -127,6 +146,22 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     });
   }
 
+  /**
+   * 从 URL 还原时间范围：优先早期把整个数组存在 timeRange 里的旧参数，没有时再用分享组件通用的 from / to
+   * （裸值，数字串按毫秒时间戳还原，其余按相对表达式 / 日期串原样透传）。
+   * 旧分享 token 会同时带上页面真实的 timeRange 与弹窗按缺省近 1 小时写入的 from / to，此时 timeRange 才是原页面范围。
+   */
+  function parseUrlTimeRange(query: Record<string, string>): TimeRangeType | undefined {
+    const legacy = tryURLDecodeParse<TimeRangeType>(query.timeRange, undefined);
+    if (Array.isArray(legacy) && legacy[0] && legacy[1]) return legacy;
+    // from / to 是通用约定，重复参数（?from=a&from=b）会解析成数组，非字符串一律忽略
+    const { from, to } = query as Record<string, unknown>;
+    if (typeof from === 'string' && typeof to === 'string' && from && to) {
+      return [intTimestampStr(from) ?? from, intTimestampStr(to) ?? to];
+    }
+    return undefined;
+  }
+
   /** 从 URL 恢复查询状态，在应用列表就绪前调用 */
   function initFromUrl() {
     const query = route.query as Record<string, string>;
@@ -134,7 +169,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     store.init({
       mode: (query.mode as RumModeType) || RumModeEnum.SPAN,
       appName: tryURLDecode(query.app_name),
-      timeRange: query.timeRange ? tryURLDecodeParse<TimeRangeType>(query.timeRange, undefined) : undefined,
+      timeRange: parseUrlTimeRange(query),
       timezone: tryURLDecode(query.timezone) || window.timezone,
       refreshInterval: query.refreshInterval ? Number(query.refreshInterval) : -1,
       spanType: query.spanType || '',
@@ -144,6 +179,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     filterMode.value = (query.filterMode as EMode) || EMode.ui;
     where.value = tryURLDecodeParse<IWhereItem[]>(query.where, []);
     commonWhere.value = tryURLDecodeParse<IWhereItem[]>(query.commonWhere, []);
+    residentValueCache.value = buildResidentValueCache(commonWhere.value);
     queryString.value = tryURLDecode(query.queryString);
     if (typeof query.showResidentBtn === 'undefined') {
       showResidentBtn.value = true;
@@ -157,7 +193,58 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     where.value = [];
     commonWhere.value = [];
     queryString.value = '';
+    residentValueCache.value = {};
     handleQuery();
+  }
+
+  /** 用当前 tab 的常驻字段解释这次编辑：填了的 key 覆盖缓存，从已生效条件里清掉的 key 才删除。 */
+  function syncResidentValueCache(next: IWhereItem[], residentKeys: string[]) {
+    const previousKeys = new Set((commonWhere.value || []).map(item => item.key));
+    const nextKeys = new Set(next.map(item => item.key));
+    const residentKeySet = new Set(residentKeys);
+    const cache: Record<string, IWhereItem> = { ...residentValueCache.value };
+    for (const item of next) {
+      if (!item?.key) continue;
+      cache[item.key] = cloneResidentWhereItem(item);
+    }
+    for (const key of previousKeys) {
+      if (residentKeySet.has(key) && !nextKeys.has(key)) delete cache[key];
+    }
+    residentValueCache.value = cache;
+  }
+
+  /** 按目标 tab 的常驻字段顺序取出缓存；没有的 key 不返回，缓存本身不动。 */
+  function projectResidentWhere(residentKeys: string[]) {
+    const cache = residentValueCache.value;
+    const projected: IWhereItem[] = [];
+    const seen = new Set<string>();
+    for (const key of residentKeys) {
+      const item = cache[key];
+      if (!item || seen.has(key)) continue;
+      seen.add(key);
+      projected.push(cloneResidentWhereItem(item));
+    }
+    return projected;
+  }
+
+  function clearResidentValueCache() {
+    residentValueCache.value = {};
+  }
+
+  function snapshotResidentValueCache() {
+    return { ...residentValueCache.value };
+  }
+
+  /** 把快照里指定 key 写回缓存，用于「字段从常驻列表移除」而不是用户清空值。 */
+  function restoreResidentValueCache(snapshot: Record<string, IWhereItem>, keys: string[]) {
+    if (!keys.length) return;
+    const cache: Record<string, IWhereItem> = { ...residentValueCache.value };
+    for (const key of keys) {
+      const item = snapshot[key];
+      if (!item) continue;
+      cache[key] = cloneResidentWhereItem(item);
+    }
+    residentValueCache.value = cache;
   }
 
   /**
@@ -269,5 +356,28 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     whereChange,
     showResidentChange,
     queryStringChange,
+    syncResidentValueCache,
+    projectResidentWhere,
+    clearResidentValueCache,
+    snapshotResidentValueCache,
+    restoreResidentValueCache,
+  };
+}
+
+function buildResidentValueCache(items: IWhereItem[]) {
+  const cache: Record<string, IWhereItem> = {};
+  if (!Array.isArray(items)) return cache;
+  for (const item of items) {
+    if (!item?.key) continue;
+    cache[item.key] = cloneResidentWhereItem(item);
+  }
+  return cache;
+}
+
+function cloneResidentWhereItem(item: IWhereItem): IWhereItem {
+  return {
+    ...item,
+    value: Array.isArray(item.value) ? [...item.value] : [],
+    ...(item.options ? { options: { ...item.options } } : {}),
   };
 }

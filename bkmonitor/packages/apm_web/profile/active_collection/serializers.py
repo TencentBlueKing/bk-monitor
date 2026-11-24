@@ -286,11 +286,10 @@ class EventListFiltersSerializer(serializers.Serializer):
         child=serializers.ChoiceField(choices=COLLECTION_TYPE_CHOICES),
         required=False,
     )
-    status = serializers.ChoiceField(
-        label="执行状态",
-        choices=EXECUTION_STATUS_CHOICES,
+    status = serializers.ListField(
+        label="执行状态筛选",
+        child=serializers.ChoiceField(choices=EXECUTION_STATUS_CHOICES),
         required=False,
-        allow_blank=True,
     )
 
 
@@ -307,6 +306,11 @@ class ProcessPreviewRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     target_config = TargetConfigSerializer(label="目标主机配置")
     process_selector = PreviewProcessSelectorSerializer(label="进程选择器")
+
+
+class PluginVersionCheckRequestSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    target_config = TargetConfigSerializer(label="目标主机配置")
 
 
 class TaskListRequestSerializer(serializers.Serializer):
@@ -331,12 +335,22 @@ class TaskSubmitRequestSerializer(serializers.Serializer):
     schedule = ScheduleSerializer(label="调度配置")
     collector_config = serializers.DictField(label="采集参数")
     resource_guard_config = ResourceGuardConfigSerializer(label="资源保护参数")
+    # 从计划点立即执行时传该计划 ID，按计划筛选执行时一并命中
+    source_task_id = serializers.IntegerField(label="触发计划 ID", min_value=1, required=False)
+
+    def to_internal_value(self, data):
+        # 前端 Golang 表单会带 "process_selector": {}，空值按未传处理，交给 validate 判断是否必填
+        if isinstance(data, dict) and "process_selector" in data and data["process_selector"] in ({}, None):
+            data = {key: value for key, value in data.items() if key != "process_selector"}
+        return super().to_internal_value(data)
 
     def validate(self, attrs):
         collection_method = attrs["collection_method"]
         collection_type = attrs["collection_type"]
         if collection_type not in COLLECTION_TYPES_BY_METHOD[collection_method]:
             raise serializers.ValidationError("采集类型与采集方式不匹配")
+        if "source_task_id" in attrs and attrs["schedule"]["type"] != "immediate":
+            raise serializers.ValidationError("source_task_id 只能随立即执行提交")
 
         collector_serializer = self.COLLECTOR_CONFIG_SERIALIZER_MAP[collection_type](data=attrs["collector_config"])
         collector_serializer.is_valid(raise_exception=True)
@@ -425,6 +439,16 @@ class ResultDataTypesRequestSerializer(serializers.Serializer):
     task_id = serializers.IntegerField(label="任务 ID", required=False)
     started_at = serializers.IntegerField(label="主机执行开始时间")
     finished_at = serializers.IntegerField(label="主机执行结束时间")
+    # 多进程采集合并成一份产物，样本带 pid 标签；不传查看全部进程
+    pid = serializers.IntegerField(label="进程 PID", required=False, min_value=1)
+
+    def to_internal_value(self, data):
+        # 前端选“全部进程”时可能传 null 或空串，与不传一样查看全部进程；
+        # 复制原容器再去掉 pid，表单编码的 QueryDict 保留同名多值（如 diagram_types），也不改调用方的对象
+        if hasattr(data, "items") and "pid" in data and data["pid"] in (None, ""):
+            data = data.copy()
+            data.pop("pid")
+        return super().to_internal_value(data)
 
     def validate(self, attrs):
         if attrs["finished_at"] < attrs["started_at"]:

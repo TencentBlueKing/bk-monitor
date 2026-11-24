@@ -71,7 +71,7 @@ import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import DetectionRulesDisplay from './components/detection-rules-display';
 import MetricListItem from './components/metric-list-item';
 import StrategyTargetTable from './strategy-config-detail-table.vue';
-import { transformLogMetricId } from './utils';
+import { matchStrategyMetric, transformLogMetricId } from './utils';
 
 import type { ISpaceItem } from '../../../types';
 import type { IValue as IAlarmItem } from '../strategy-config-set-new/alarm-handling/alarm-handling';
@@ -603,6 +603,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
         data_source_label,
         data_type_label,
         result_table_id,
+        data_label,
         unit,
         index_set_id,
         functions,
@@ -619,23 +620,21 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
         custom_event_name,
         bkmonitor_strategy_id,
       }) => {
-        // strategy 存的 metric_id 可能与 get_metric_list 返回不一致（如 data_label 别名），
-        // 按 metric_id 查询有结果但精确匹配失败时，使用返回的第一条指标补齐 dimensions 等元信息
-        const curMetric = metricList?.find(set => set.metric_id === metric_id) ||
-          metricList?.[0] || {
-            data_source_label,
-            data_type_label,
-            metric_field,
-            metric_field_name: metric_field,
-            metric_id,
-            result_table_id,
-            unit,
-            index_set_id,
-            query_string,
-            custom_event_name,
-            bkmonitor_strategy_id,
-            dimensions: [],
-          };
+        const curMetric = matchStrategyMetric(metricList, { metric_id, metric_field, data_label }) || {
+          data_source_label,
+          data_type_label,
+          metric_field,
+          metric_field_name: metric_field,
+          metric_id,
+          result_table_id,
+          data_label,
+          unit,
+          index_set_id,
+          query_string,
+          custom_event_name,
+          bkmonitor_strategy_id,
+          dimensions: [],
+        };
 
         this.dataMode =
           agg_method === 'REAL_TIME' || (data_type_label === 'event' && data_source_label === 'bk_monitor')

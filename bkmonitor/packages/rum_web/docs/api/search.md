@@ -20,6 +20,8 @@
 | is_wildcard    | Boolean | 否  | 是否使用通配符，默认 `false`            |
 | group_relation | String  | 否  | 分组关系，枚举值：`AND` / `OR`，默认 `OR` |
 
+`virtual.*` 字段只支持 `equal`、`not_equal`，取值直接传列表或分析接口返回的字符串；`--` 是缺失成员占位符，前端无需拆分。具体可用操作符以 `view_config.fields[].supported_operations` 为准。
+
 ### 1.2 Hover
 
 加载阶段、里程碑、Web Vitals 和评级使用统一的 Hover 结构：
@@ -79,18 +81,18 @@ POST /rum/search/list_records/
 
 #### 2.1.1 Request
 
-| 参数名称         | 类型            | 必填 | 描述                                                                  |
-|--------------|---------------|----|---------------------------------------------------------------------|
-| bk_biz_id    | Integer       | 是  | 业务 ID                                                               |
-| app_name     | String        | 是  | 应用名称                                                                |
-| mode         | String        | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
-| start_time   | Integer       | 是  | 开始时间（Unix 秒级时间戳）                                                    |
-| end_time     | Integer       | 是  | 结束时间（Unix 秒级时间戳）                                                    |
-| offset       | Integer       | 否  | 分页偏移量，默认 0，最小 0                                                     |
-| limit        | Integer       | 否  | 每页数量，默认 10，最小 1                                                     |
-| sort         | Array[String] | 否  | 排序条件，字段名前加 `-` 表示降序，默认 `[]`                                         |
-| filters      | Array[Filter] | 否  | 过滤条件，见 [1.1 Filter](#11-filter)，默认 `[]`                                |
-| query_string | String        | 否  | 查询字符串，默认 `""`                                                       |
+| 参数名称         | 类型            | 必填  | 描述                                                                  |
+| ------------ | ------------- | --- | ------------------------------------------------------------------- |
+| bk_biz_id    | Integer       | 是   | 业务 ID                                                               |
+| app_name     | String        | 是   | 应用名称                                                                |
+| mode         | String        | 否   | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
+| start_time   | Integer       | 是   | 开始时间（Unix 秒级时间戳）                                                    |
+| end_time     | Integer       | 是   | 结束时间（Unix 秒级时间戳）                                                    |
+| offset       | Integer       | 否   | 分页偏移量，默认 0，最小 0                                                     |
+| limit        | Integer       | 否   | 每页数量，默认 10，最小 1                                                     |
+| sort         | Array[String] | 否   | 排序条件，字段名前加 `-` 表示降序，默认 `[]`，为空时使用 `view_config.default_sort`        |
+| filters      | Array[Filter] | 否   | 过滤条件，见 [1.1 Filter](#11-filter)，默认 `[]`                             |
+| query_string | String        | 否   | 查询字符串，默认 `""`                                                       |
 
 ```json
 {
@@ -138,6 +140,21 @@ POST /rum/search/list_records/
 }
 ```
 
+列表始终返回扁平字段值，复合列不改变返回类型。例如：
+
+```json
+{
+  "span_name": "POST /api/orders",
+  "attributes.resource.size": 1024,
+  "attributes.resource.delivery_type": "cache",
+  "virtual.browser": "Chrome 131",
+  "resource.user_agent.os.name": "macOS",
+  "virtual.network": "-- / 4g"
+}
+```
+
+前端按 `view_config.fields[].extra_config.composite` 组装单元格。展示取值见 [2.2.3 复合字段展示取值](#223-复合字段展示取值)。虚拟字段由后端计算，过滤、分析和排序使用对应的 `virtual.*` 字段名。
+
 Session 请求与响应节选：
 
 ```json
@@ -155,7 +172,14 @@ View 请求与响应节选：
 ```
 
 ```json
-{"list": [{"attributes.view.id": "view-001", "attributes.view.url_template": "/order", "start_time": 1785999805000000, "error_count": 0}]}
+{
+  "list": [{
+    "attributes.view.id": "view-001",
+    "attributes.view.url_template": "/order",
+    "start_time": 1785999805000000,
+    "error_count": 0
+  }]
+}
 ```
 
 `frustration_count` 为挫败行为数：包含 `rage_click`、`dead_click`、`error_click` 任一类型的 Action 计一次，同一 Action 命中多个类型也只计一次，无匹配记录时为 `0`。
@@ -186,7 +210,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 #### 2.2.2 Response
 
-按 `is_list`、`is_searchable`、`is_agg` 和 `supported_operations` 决定展示、过滤与分析能力，使用 `default_sort` 作为默认排序。字段渲染使用 `field_display_type`、`field_unit` 和 `option_values`。
+`extra_config` 仅返回 `composite`，`virtual` 配置不返回前端。
 
 顶层结构：
 
@@ -202,21 +226,46 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 - Field
 
-| 参数名称                 | 类型                 | 描述                                                                           |
-|----------------------|--------------------|------------------------------------------------------------------------------|
-| field_name           | String             | 字段名                                                                          |
-| field_alias          | String             | 字段别名，无别名时与 `field_name` 相同                                                   |
-| field_type           | String             | 字段类型（如 `keyword`、`long`、`double` 等）                                          |
-| field_unit           | String             | 字段单位（可选，如 `us`、`ms`）                                                         |
-| field_display_type   | String             | 字段展示类型（可选），枚举值：<br/>- `datetime`（日期时间）<br/>- `duration`（持续时长）<br/>仅需特殊渲染的字段才返回此字段 |
-| origin_field         | String             | 原始顶层字段名，嵌套字段时为顶层字段（如 `attributes.http.url` 对应 `attributes`）                  |
-| is_real              | Boolean            | 是否为真实字段（`true` 表示数据中实际存在的字段，`false` 表示计算/虚拟字段）                               |
-| is_searchable        | Boolean            | 是否支持搜索                                                                       |
-| is_agg               | Boolean            | 是否支持聚合统计                                                                     |
-| is_list              | Boolean            | 是否支持在列表中展示                                                                   |
-| supported_operations | Array[Operation]   | 支持的操作符列表                                                                     |
-| option_values        | Array[OptionValue] | 预设枚举值列表（可选，分析/候选值显示 {alias}（{value}），列表只显示 {alias}）                          |
+| 参数名称                 | 类型                  | 描述                                                                                              |
+| -------------------- | ------------------- | ----------------------------------------------------------------------------------------------- |
+| field_name           | String              | 字段名                                                                                             |
+| field_alias          | String              | 字段别名，无别名时与 `field_name` 相同                                                                      |
+| field_type           | String              | 字段类型（如 `keyword`、`long`、`double` 等），虚拟字段为 `keyword`                                             |
+| field_unit           | String              | 字段单位（可选，如 `us`、`ms`、`bytes`）                                                                    |
+| field_display_type   | String              | 字段展示类型（可选），枚举值：<br/>- `datetime`（日期时间）<br/>- `duration`（持续时长）<br/>仅需特殊渲染的字段才返回此字段               |
+| origin_field         | String              | 顶层字段名（如 `attributes.url.full` 对应 `attributes`，`virtual.viewport` 对应 `virtual`）                  |
+| is_real              | Boolean             | 是否为真实字段（`true` 表示数据中实际存在的字段，`false` 表示计算/虚拟字段）                                                  |
+| is_searchable        | Boolean             | 是否支持搜索                                                                                          |
+| is_agg               | Boolean             | 是否支持字段分析，时间展示字段和记录 ID 不作为分析维度                                                                   |
+| is_list              | Boolean             | 是否支持在列表中展示                                                                                      |
+| supported_operations | Array[Operation]    | 支持的操作符列表                                                                                        |
+| option_values        | Array[OptionValue]  | 预设枚举值列表（可选，分析/候选值显示 {alias}（{value}），列表只显示 {alias}）                                             |
+| extra_config         | Object              | 可选扩展配置，`composite` 的结构见 CompositeConfig                                                         |
 | rating_config        | Array[RatingConfig] | 字段评级配置（可选，如 Web Vitals 指标的好坏评定阈值）；每个元素含 `rating`（评级标识）与 `value`（该评级的阈值上限，可选，最大/最差评级可不传 `value`） |
+
+- CompositeConfig
+
+| 参数名称 | 类型 | 描述 |
+| --- | --- | --- |
+| primary | String | 默认排序和分析字段 |
+| sections | Array[CompositeSection] | 按展示顺序排列的行 |
+
+- CompositeSection
+
+| 参数名称 | 类型 | 描述 |
+| --- | --- | --- |
+| items | Array[CompositeItem] | 正文成员 |
+| badges | Array[CompositeItem] | 正文后的标签 |
+| separator | String | 可选，仅连接正文成员 |
+
+- CompositeItem
+
+| 参数名称 | 类型 | 描述 |
+| --- | --- | --- |
+| field_name | String | 取 `record[field_name]`，复用该字段的元信息和查询能力 |
+| show_if | Object | 可选，`{字段名: [候选值]}`，同字段取 OR，不同字段取 AND |
+
+取值示例见 [2.2.3 复合字段展示取值](#223-复合字段展示取值)。
 
 - Operation
 
@@ -225,12 +274,13 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | operator    | String | 操作符 |
 | label       | String | 标签  |
 | placeholder | String | 占位符 |
+| options | Array | 可选，操作符支持的选项，如通配符和多值关系 |
 
 - OptionValue
 
 | 参数名称  | 类型     | 描述                                |
 |-------|--------|-----------------------------------|
-| value | String | 枚举值                               |
+| value | String / Number / Boolean | 枚举值                               |
 | alias | String | 枚举别名，列表只展示别名，候选项与分析展示 `alias(value)` |
 
 - RatingConfig
@@ -263,106 +313,47 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | ACTION         | 用户交互             |
 | WEB_VITALS     | 网页指标（Web Vitals） |
 
+响应节选（`fields`、`groups` 和各 Span 类型映射仅展示部分条目）：
+
 ```json
 {
-  "default_sort": [
-    "-end_time"
+  "default_sort": ["-end_time"],
+  "display_fields": ["span_name", "elapsed_time", "virtual.browser", "attributes.user.id", "end_time"],
+  "resident_fields": [
+    "attributes.session.id",
+    "trace_id",
+    "span_name",
+    "resource.deployment.environment.name",
+    "resource.user_agent.name",
+    "attributes.view.url_template",
+    "attributes.outcome.type",
+    "attributes.user.id",
+    "elapsed_time"
   ],
   "span_type_display_fields": {
-    "view": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id"
-    ],
     "resource": [
       "span_name",
-      "attributes.span_type",
-      "end_time",
       "elapsed_time",
-      "status.code",
+      "attributes.resource.size",
       "attributes.view.url_template",
+      "virtual.browser",
       "attributes.user.id",
-      "attributes.resource.type",
-      "attributes.http.request.method"
-    ],
-    "error": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
+      "end_time"
+    ]
+  },
+  "span_type_resident_fields": {
+    "resource": [
+      "attributes.session.id",
+      "attributes.url.template",
+      "resource.deployment.environment.name",
+      "resource.user_agent.name",
       "attributes.user.id",
-      "attributes.error.source"
-    ],
-    "vital": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id",
-      "attributes.vital.metric",
-      "attributes.vital.value"
-    ],
-    "long_task": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id",
-      "attributes.long_task.name",
-      "attributes.long_task.entry_type"
-    ],
-    "action": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id",
-      "attributes.action.id",
-      "attributes.action.type"
-    ],
-    "websocket": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id"
-    ],
-    "custom": [
-      "span_name",
-      "attributes.span_type",
-      "end_time",
-      "elapsed_time",
-      "status.code",
-      "attributes.view.url_template",
-      "attributes.user.id"
+      "attributes.http.request.method",
+      "attributes.http.response.status_code",
+      "elapsed_time"
     ]
   },
   "fields": [
-    {
-      "field_name": "span_name",
-      "field_alias": "Span 名称",
-      "field_type": "keyword",
-      "origin_field": "span_name",
-      "is_real": true,
-      "is_searchable": true,
-      "is_agg": true,
-      "is_list": true,
-      "supported_operations": []
-    },
     {
       "field_name": "end_time",
       "field_alias": "结束时间",
@@ -372,79 +363,31 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
       "origin_field": "end_time",
       "is_real": true,
       "is_searchable": true,
-      "is_agg": true,
+      "is_agg": false,
       "is_list": true,
-      "supported_operations": []
-    },
-    {
-      "field_name": "elapsed_time",
-      "field_alias": "耗时",
-      "field_type": "long",
-      "field_unit": "us",
-      "field_display_type": "duration",
-      "origin_field": "elapsed_time",
-      "is_real": true,
-      "is_searchable": true,
-      "is_agg": true,
-      "is_list": true,
-      "supported_operations": []
-    },
-    {
-      "field_name": "attributes.span_type",
-      "field_alias": "Span 类型",
-      "field_type": "keyword",
-      "origin_field": "attributes",
-      "is_real": true,
-      "is_searchable": true,
-      "is_agg": true,
-      "is_list": true,
-      "supported_operations": [],
-      "option_values": [
-        {
-          "value": "view",
-          "alias": "视图"
-        },
-        {
-          "value": "resource",
-          "alias": "资源加载"
-        }
+      "supported_operations": [
+        {"operator": "equal", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
+        {"operator": "not_equal", "label": "!=", "placeholder": "请选择或直接输入，Enter分隔"},
+        {"operator": "gt", "label": ">", "placeholder": "请选择或直接输入"},
+        {"operator": "gte", "label": ">=", "placeholder": "请选择或直接输入"},
+        {"operator": "lt", "label": "<", "placeholder": "请选择或直接输入"},
+        {"operator": "lte", "label": "<=", "placeholder": "请选择或直接输入"},
+        {"operator": "exists", "label": "存在", "placeholder": "确认字段已存在"},
+        {"operator": "not exists", "label": "不存在", "placeholder": "确认字段不存在"}
       ]
     },
     {
-      "field_name": "resource.user_agent.name",
-      "field_alias": "代理名称",
+      "field_name": "virtual.viewport",
+      "field_alias": "视口",
       "field_type": "keyword",
-      "origin_field": "resource",
-      "is_real": true,
-      "is_searchable": true,
-      "is_agg": true,
-      "is_list": true,
-      "supported_operations": []
-    },
-    {
-      "field_name": "LCP",
-      "field_alias": "最大内容绘制",
-      "field_type": "double",
-      "field_unit": "ms",
-      "field_display_type": "duration",
-      "origin_field": "LCP",
+      "origin_field": "virtual",
       "is_real": false,
       "is_searchable": true,
       "is_agg": true,
-      "is_list": false,
-      "supported_operations": [],
-      "rating_config": [
-        {
-          "rating": "good",
-          "value": 2500
-        },
-        {
-          "rating": "needs_improvement",
-          "value": 4000
-        },
-        {
-          "rating": "poor"
-        }
+      "is_list": true,
+      "supported_operations": [
+        {"operator": "equal", "label": "=", "placeholder": "请选择或直接输入，Enter分隔"},
+        {"operator": "not_equal", "label": "!=", "placeholder": "请选择或直接输入，Enter分隔"}
       ]
     }
   ],
@@ -452,43 +395,271 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
     {
       "name": "DEVICE_BROWSER",
       "alias": "终端 & 浏览器",
-      "supported_span_types": [
-        "resource",
-        "action"
-      ],
+      "supported_span_types": ["view", "resource", "error", "vital", "long_task", "action", "websocket", "custom", "session"],
       "field_names": [
-        "resource.user_agent.name"
-      ]
-    },
-    {
-      "name": "WEB_VITALS",
-      "alias": "网页指标（Web Vitals）",
-      "supported_span_types": [
-        "vital"
-      ],
-      "field_names": [
-        "LCP"
+        "resource.device.type",
+        "resource.user_agent.name",
+        "resource.user_agent.version",
+        "resource.user_agent.os.name",
+        "virtual.browser",
+        "virtual.viewport",
+        "attributes.browser.viewport.width",
+        "attributes.browser.viewport.height"
       ]
     }
-  ],
-  "display_fields": [
-    "span_name",
-    "attributes.span_type",
-    "end_time",
-    "elapsed_time",
-    "status.code",
-    "attributes.view.url_template",
-    "attributes.user.id"
-  ],
-  "resident_fields": [
-    "attributes.span_type",
-    "resource.service.name",
-    "kind",
-    "status.code",
-    "attributes.user.id"
   ]
 }
 ```
+
+Session 默认列（响应节选）：
+
+```json
+{
+  "display_fields": [
+    "attributes.session.id",
+    "duration",
+    "virtual.browser",
+    "attributes.user.id",
+    "start_time",
+    "view_count",
+    "action_count",
+    "error_count"
+  ]
+}
+```
+
+View 默认列（响应节选）：
+
+```json
+{
+  "display_fields": [
+    "attributes.view.url_template",
+    "duration",
+    "web_vitals.lcp",
+    "web_vitals.inp",
+    "web_vitals.cls",
+    "web_vitals.fcp",
+    "web_vitals.ttfb",
+    "virtual.browser",
+    "attributes.user.id",
+    "start_time"
+  ]
+}
+```
+
+#### 2.2.3 复合字段展示取值
+
+**【必须遵循】当字段的 `extra_config.composite` 存在时，列表页面必须读取该配置，动态渲染复合字段。**
+
+| Span 名称                                                                               | 页面                                                                            | 环境                                                                                  | 错误位置 / 来源                                                                         | ...                                                       |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| <img src="assets/composite-span-name.png" width="300" alt="Span 名称按记录类型展示标签和第二行内容" /> | <img src="assets/composite-page.png" width="300" alt="页面路径、视口、加载类型与完整 URL" /> | <img src="assets/composite-environment.png" width="160" alt="浏览器与操作系统、网络质量分两行展示" /> | <img src="assets/composite-error-location.png" width="240" alt="错误文件位置与来源分行展示" /> | 复合字段需按 `extra_config.composite` 配置动态渲染，<br />后续会定义更多复合字段。 |
+
+**1）环境（Span / View / Session）**
+
+`fields[]` 中的布局配置：
+
+```json
+{
+  "field_name": "virtual.browser",
+  "extra_config": {
+    "composite": {
+      "primary": "virtual.browser",
+      "sections": [
+        {"items": [{"field_name": "virtual.browser"}, {"field_name": "resource.user_agent.os.name"}], "separator": " · "},
+        {"items": [{"field_name": "virtual.network"}]}
+      ]
+    }
+  }
+}
+```
+
+`record`：
+
+```json
+{
+  "virtual.browser": "Chrome 130",
+  "resource.user_agent.os.name": "macOS",
+  "virtual.network": "wifi / 4g"
+}
+```
+
+```text
+第一行：Chrome 130 · macOS
+--------------------------
+第二行：wifi / 4g
+```
+
+**2）Span 名称**
+
+`fields[]` 中的布局配置：
+
+```json
+{
+  "field_name": "span_name",
+  "extra_config": {
+    "composite": {
+      "primary": "span_name",
+      "sections": [
+        {
+          "items": [{"field_name": "span_name"}],
+          "badges": [
+            {"field_name": "virtual.viewport", "show_if": {"attributes.span_type": ["view"]}},
+            {"field_name": "attributes.resource.type", "show_if": {"attributes.span_type": ["resource"]}},
+            {
+              "field_name": "attributes.http.request.method",
+              "show_if": {"attributes.span_type": ["resource"], "attributes.resource.type": ["xhr", "fetch"]}
+            },
+            {
+              "field_name": "attributes.http.response.status_code",
+              "show_if": {"attributes.span_type": ["resource"], "attributes.resource.type": ["xhr", "fetch"]}
+            },
+            {"field_name": "attributes.long_task.entry_type", "show_if": {"attributes.span_type": ["long_task"]}},
+            {"field_name": "attributes.action.type", "show_if": {"attributes.span_type": ["action"]}},
+            {"field_name": "attributes.action.frustration.type", "show_if": {"attributes.span_type": ["action"]}},
+            {"field_name": "events.attributes.exception.type", "show_if": {"attributes.span_type": ["error"]}}
+          ]
+        },
+        {
+          "items": [
+            {"field_name": "attributes.action.target.tag", "show_if": {"attributes.span_type": ["action"]}},
+            {"field_name": "attributes.view.url", "show_if": {"attributes.span_type": ["view"]}},
+            {"field_name": "attributes.url.full", "show_if": {"attributes.span_type": ["resource"]}}
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+第一行正文统一取 `span_name`，标签用方括号示意：
+
+| 类型        | 取值字段 → 示例                                                                                                                                                                                                      | 列表展示                                                                                                                                                                                                                                     |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 全部        | 按每条记录的 `attributes.span_type` 匹配下列规则                                                                                                                                                                           | 混排各类型记录，沿用对应的两行展示                                                                                                                                                                                                                        |
+| View      | `virtual.viewport` → `1440 x 900`<br />`attributes.view.url` → `https://example.com/trace/home`                                                                                                                | <pre>第一行：/trace/home [1440 x 900]<br />--------------------------<br />第二行：https://example.com/trace/home</pre>                                                                                                                          |
+| Resource  | `attributes.resource.type` → `xhr` / `script`<br />`attributes.http.request.method` → `POST`（仅 xhr、fetch）<br />`attributes.http.response.status_code` → `200`（仅 xhr、fetch）<br />`attributes.url.full` → 资源 URL | xhr、fetch：<pre>第一行：/api/orders [xhr] [POST] [200]<br />--------------------------<br />第二行：https://example.com/api/orders</pre>静态资源：<pre>第一行：main.js [script]<br />--------------------------<br />第二行：https://example.com/main.js</pre> |
+| Error     | `events.attributes.exception.type` → `TypeError`                                                                                                                                                               | <pre>第一行：Failed to fetch [TypeError]</pre>                                                                                                                                                                                               |
+| Vital     | 无标签                                                                                                                                                                                                            | <pre>第一行：INP</pre>                                                                                                                                                                                                                       |
+| Long task | `attributes.long_task.entry_type` → 长动画帧                                                                                                                                                                       | <pre>第一行：long-animation-frame [长动画帧]</pre>                                                                                                                                                                                               |
+| Action    | `attributes.action.type` → `click`<br />`attributes.action.frustration.type` → 无响应点击<br />`attributes.action.target.tag` → `button`                                                                            | <pre>第一行：提交 [click] [无响应点击]<br />--------------------------<br />第二行：button</pre>                                                                                                                                                        |
+
+**3）页面（Span / View）**
+
+`fields[]` 中的布局配置：
+
+```json
+{
+  "field_name": "attributes.view.url_template",
+  "extra_config": {
+    "composite": {
+      "primary": "attributes.view.url_template",
+      "sections": [
+        {
+          "items": [{"field_name": "attributes.view.url_template"}],
+          "badges": [{"field_name": "virtual.viewport"}, {"field_name": "attributes.view.loading_type"}]
+        },
+        {"items": [{"field_name": "attributes.view.url"}]}
+      ]
+    }
+  }
+}
+```
+
+| 取值字段 → 示例 | 列表展示 |
+| --- | --- |
+| `attributes.view.url_template` → `/trace/home`<br />`virtual.viewport` → `1440 x 900`<br />`attributes.view.loading_type` → 路由切换<br />`attributes.view.url` → `https://example.com/trace/home` | <pre>第一行：/trace/home [1440 x 900] [路由切换]<br />--------------------------<br />第二行：https://example.com/trace/home</pre> |
+
+**4）错误位置 / 来源**
+
+`fields[]` 中的布局配置：
+
+```json
+{
+  "field_name": "attributes.error.source",
+  "extra_config": {
+    "composite": {
+      "primary": "attributes.error.source",
+      "sections": [
+        {
+          "items": [
+            {"field_name": "attributes.code.filepath"},
+            {"field_name": "attributes.code.lineno"},
+            {"field_name": "attributes.code.column"}
+          ],
+          "separator": ":"
+        },
+        {"items": [{"field_name": "attributes.error.source"}]}
+      ]
+    }
+  }
+}
+```
+
+`record`：
+
+```json
+{
+  "attributes.code.filepath": "event-view.js",
+  "attributes.code.lineno": 90,
+  "attributes.code.column": 12,
+  "attributes.error.source": "window.error"
+}
+```
+
+```text
+第一行：event-view.js:90:12
+--------------------------
+第二行：脚本错误
+```
+
+来源按 `option_values` 展示别名，截图中的 `window.error` 对应“脚本错误”。
+
+| record | 列表展示 |
+| --- | --- |
+| `{"attributes.error.source":"unhandledrejection"}` | 未处理的 Promise 异常 |
+| `{}` | `--` |
+
+**5）会话（Session）**
+
+`fields[]` 中的布局配置：
+
+```json
+{
+  "field_name": "attributes.session.id",
+  "extra_config": {
+    "composite": {
+      "primary": "attributes.session.id",
+      "sections": [
+        {"items": [{"field_name": "attributes.session.id"}]},
+        {
+          "items": [{"field_name": "enter_url_template"}],
+          "badges": [{"field_name": "virtual.viewport"}]
+        }
+      ]
+    }
+  }
+}
+```
+
+`record`：
+
+```json
+{
+  "attributes.session.id": "session-001",
+  "enter_url_template": "/data-retrieval",
+  "virtual.viewport": "1440 x 900"
+}
+```
+
+```text
+第一行：session-001
+--------------------------
+第二行：/data-retrieval [1440 x 900]
+```
+
+空成员、空行不展示；整列无内容时显示 `--`。
 
 ### 2.3 get_fields_option_values - 批量查询字段可选枚举值
 
@@ -526,7 +697,7 @@ POST /rum/search/get_fields_option_values/
 
 #### 2.3.2 Response
 
-返回以字段名为 key、可选枚举值列表为 value 的字典。
+返回以字段名为 key、可选枚举值列表为 value 的字典。虚拟字段返回可直接用于过滤的字符串，例如 `"1440 x 900"`。
 
 ```json
 {
@@ -543,11 +714,7 @@ POST /rum/search/get_fields_option_values/
 
 POST /rum/search/generate_query_string/
 
-**使用场景**：
-
-- UI 模式切换到语句模式时，将当前已选的过滤条件（`filters`）转换为等价的查询字符串（`query_string`），方便用户在语句模式下继续编辑。
-
-- UI 模式复制按钮
+UI 模式切换到语句模式或复制查询语句时，将 `filters` 转成 `query_string`。虚拟字段条件由后端展开为原始成员字段的查询表达式。
 
 #### 2.4.1 Request
 
@@ -627,7 +794,7 @@ POST /rum/search/fields_topk/
 
 #### 2.5.2 Response
 
-返回字段 Top-K 统计列表，每个元素对应一个查询字段。
+返回字段 Top-K 统计列表，每个元素对应一个查询字段。虚拟字段按成员联合分组后合并计数，`value` 返回与列表一致的字符串。
 
 | 参数名称           | 类型              | 描述        |
 |----------------|-----------------|-----------|
@@ -728,6 +895,8 @@ POST /rum/search/field_statistics_info/
 | distinct_count | Integer | 该字段的去重值数量                                |
 | field_percent  | Float   | 字段覆盖率（`field_count / total_count × 100`） |
 | value_analysis | Object  | 数值类字段的统计分析，字符串类字段不返回此字段                  |
+
+虚拟字段按 `keyword` 请求，返回覆盖率和去重统计，不返回 `value_analysis`。
 
 - value_analysis（仅数值类字段返回）
 
@@ -1014,6 +1183,8 @@ POST /rum/search/statistics/
 | query_string | String        | 否   | 查询字符串，默认 `""`                                                                                                            |
 | group_by     | List[string]  | 否   | 分组字段；包含 `time` 时按 `interval` 分桶（`time` 为虚拟字段）                                                                                                       |
 | interval | Integer | 否 | 分桶间隔（秒），正整数，仅在 `group_by` 含 `time` 时生效，缺省时按查询窗口自动计算 |
+
+虚拟字段可作为 `group_by` 维度；作为计算字段 `field` 时仅支持 `count`、`distinct`。
 
 例如，查询某个错误影响用户数，并返回相对前一个窗口的环比：
 
@@ -1638,10 +1809,20 @@ POST /rum/search/timeline/
 
 | 参数名称       | 类型             | 描述                                                                                                                    |
 | ---------- | -------------- | --------------------------------------------------------------------------------------------------------------------- |
-| start_time | Integer / Null | 开始时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话开始时间，按 `view_id` 查询时为 View 开始时间，缺失时为 `null` |
-| end_time   | Integer / Null | 结束时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话结束时间，按 `view_id` 查询时为 View 结束时间，未结束时为 `null` |
+| start_time | Number | 会话或 View 的开始时间，Unix 毫秒级时间戳 |
+| end_time   | Number | 会话或 View 的结束或观测截止时间，Unix 毫秒级时间戳 |
+| duration | Number | 会话或 View 的持续时长，单位毫秒 |
+| status | String | 会话或 View 的状态，见下表 |
 | tree       | Array[Node]    | 节点树，顶层为 View 节点，按开始时间升序，按 `view_id` 查询时只有一个 View 节点，见 Node |
 | records    | Array[RecordDetail] | 节点详情，每项与同一 `span_id` 的 `record_detail` 返回一致 |
+
+| status | 含义 |
+| --- | --- |
+| `ended` | 已结束 |
+| `expired` | 已过期 |
+| `active` | 存活中（推定） |
+
+无匹配记录时返回“记录不存在”错误。
 
 - Node
 
@@ -1652,8 +1833,10 @@ POST /rum/search/timeline/
 
 ```json
 {
-  "start_time": 1788451565857000,
-  "end_time": 1788451625500000,
+  "start_time": 1788451565857,
+  "end_time": 1788451625500,
+  "duration": 59643,
+  "status": "ended",
   "tree": [
     {
       "span_id": "34e3b6ff1943346c",
@@ -1858,7 +2041,7 @@ POST /rum/search/timeline/
 
 #### 2.12.3 展示取值
 
-路径以 `$.` 开头时相对响应根，其余路径相对 `records.<span_id>`，`sections.<key>` 表示 `key` 为 `<key>` 的区块。
+路径以 `$.` 开头时相对响应根，其余路径相对 `records[]` 中 `span_id` 匹配的记录，`sections.<key>` 表示 `key` 为 `<key>` 的区块。`origin_data.attributes` 中的键可包含点号，例如读取 `origin_data.attributes["view.started_at"]`。
 
 - View 节点
 
@@ -1871,7 +2054,7 @@ POST /rum/search/timeline/
 | Vitals 值 | `sections.web_vitals.data.<metric>.attributes.vital.value` | `<metric>` 取 `ttfb`、`fcp`、`lcp`、`inp`、`cls` |
 | Vitals 评级 | `sections.web_vitals.data.<metric>.display.rating_config` | -- |
 | 加载时序 | `sections.loading_timing.data` | -- |
-| 视图退出 | `$.end_time` | 取值不为 `null` 时展示在最后一个 View 节点 |
+| 视图退出 | `$.end_time` | 毫秒，仅 `$.status = ended` 时展示在最后一个 View 节点 |
 | 请求数 | `origin_data.attributes.resource.type` | 统计子树中取值为 `xhr` 或 `fetch` 的节点数 |
 | 操作数 | `origin_data.attributes.span_type` | 统计子节点中取值为 `action` 的节点数 |
 | 异常数 | `origin_data.attributes.span_type` | 统计子树中取值为 `error` 的节点数 |
@@ -1889,6 +2072,93 @@ POST /rum/search/timeline/
 | 筛选：动作 | `origin_data.attributes.span_type` | 取值为 `action` |
 | 筛选：请求 | `origin_data.attributes.resource.type` | 取值为 `xhr` 或 `fetch` |
 | 筛选：错误 | `origin_data.attributes.span_type`<br />`origin_data.attributes.outcome.type` | 任一取值为 `error` |
+
+### 2.13 total - 检索结果总数
+
+POST /rum/search/total/
+
+**请求**
+
+```json
+{
+  "bk_biz_id": 2, "app_name": "rum-demo", "mode": "span",
+  "start_time": 1785999600, "end_time": 1785999720,
+  "filters": [], "query_string": ""
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `bk_biz_id` | Integer | 是 | 业务 ID |
+| `app_name` | String | 是 | 应用名称 |
+| `mode` | String | 否 | `span`、`view`、`session`，默认 `span` |
+| `start_time` | Integer | 是 | 开始时间，Unix 秒时间戳 |
+| `end_time` | Integer | 是 | 结束时间，Unix 秒时间戳 |
+| `filters` | Array[Filter] | 否 | 见 [Filter](#11-filter)，默认 `[]` |
+| `query_string` | String | 否 | 查询字符串，默认 `""` |
+
+- *[1] 与 `list_records` 使用相同的应用权限、时间范围和筛选条件，计数不受分页参数影响。*
+
+**响应**
+
+```json
+{"total": 12}
+```
+
+| `mode` | `total` 计数对象 | `time_series` 分组 |
+| --- | --- | --- |
+| `span` | 匹配的原始 Span 记录 | 按 `attributes.span_type` 分组 |
+| `view` | 匹配记录中的 `attributes.view.id` 去重数 | 单个 View 系列 |
+| `session` | 匹配记录中的 `attributes.session.id` 去重数 | 单个 Session 系列 |
+
+- *[1] `total` 为整数，无匹配结果时为 `0`。*
+- *[2] View、Session 在原始表上按非空 ID 去重，包含命中筛选的子 Span，不要求生命周期开始记录存在；配置预聚合表时查询对应层级表。*
+
+### 2.14 time_series - 检索结果趋势
+
+POST /rum/search/time_series/
+
+**请求**
+
+```json
+{
+  "bk_biz_id": 2, "app_name": "rum-demo", "mode": "span",
+  "start_time": 1785999600, "end_time": 1785999720,
+  "filters": [], "query_string": "", "interval": "auto"
+}
+```
+
+公共参数见 [total](#213-total---检索结果总数)。`interval` 默认为 `"auto"`，也可传正整数指定间隔（秒）。
+
+`"auto"` 与事件时序接口使用同一规则，按查询时间范围调用 `get_auto_interval(60, start_time, end_time, factor=10)`。
+
+**响应**
+
+```json
+{
+  "series": [
+    {
+      "dimensions": {"attributes.span_type": "resource"}, "target": "count(_index){attributes.span_type=resource}",
+      "datapoints": [[6, 1785999600000], [4, 1785999660000]],
+      "metric_field": "_result_", "alias": "_result_", "stat": {},
+      "type": "bar", "dimensions_translation": {}, "unit": ""
+    },
+    {
+      "dimensions": {"attributes.span_type": "error"}, "target": "count(_index){attributes.span_type=error}",
+      "datapoints": [[1, 1785999600000], [1, 1785999660000]],
+      "metric_field": "_result_", "alias": "_result_", "stat": {},
+      "type": "bar", "dimensions_translation": {}, "unit": ""
+    }
+  ],
+  "metrics": [],
+  "query_config": {"interval": 60}
+}
+```
+
+- *[1] `series` 沿用 [Series 协议](#272-response)，`datapoints` 为 `[数量, 毫秒时间戳]`，`query_config.interval` 返回实际分桶秒数。*
+- *[2] Span 按 `attributes.span_type` 分组；View、Session 不分组，`dimensions` 为 `{}`。*
+- *[3] View、Session 在每个时间桶内独立去重，同一 ID 可出现在多个桶中；整段时间的去重总数以 `total` 接口为准，不能将各桶相加。*
+- *[4] 原始表按 `end_time` 分桶，预聚合表按 `start_time` 分桶；序列内的空数据点补 `0`，无匹配序列时 `series` 为 `[]`。*
 
 ## 3 详情页关联数据获取
 

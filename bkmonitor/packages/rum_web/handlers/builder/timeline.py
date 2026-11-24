@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -18,6 +19,27 @@ from semconv.rum.constants import RumSpanType
 from rum_web.handlers.builder.span import build as build_span
 from rum_web.handlers.builder.span.session import session_time_range
 from rum_web.handlers.builder.utils import get_safe_number
+
+
+MAX_DURATION_US = 4 * 60 * 60 * 1_000_000
+
+
+def summary(
+    spans: Sequence[dict[str, Any]],
+    start_time: int | float | None,
+    end_time: int | float | None,
+) -> dict[str, Any]:
+    """规范会话或 View 的时间范围，再计算时长和状态。"""
+    start: int | float = start_time if start_time is not None else min(span["start_time"] for span in spans)
+    end: int | float = end_time if end_time is not None else max(span["end_time"] for span in spans)
+    status: str
+    if end_time is not None:
+        status = "ended"
+    elif time.time() * 1_000_000 - start >= MAX_DURATION_US:
+        status = "expired"
+    else:
+        status = "active"
+    return {"start_time": start / 1000, "end_time": end / 1000, "duration": (end - start) / 1000, "status": status}
 
 
 @dataclass

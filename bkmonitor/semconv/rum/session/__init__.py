@@ -8,14 +8,20 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from dataclasses import replace
+
 from django.utils.translation import gettext_lazy as _
-from semconv.rum import common
+from semconv.rum import common, composite, virtual
 from semconv.rum.field import FieldSpec
 from semconv.rum.registry import FieldRegistry
 
 
 class SessionSpec(FieldSpec):
     """Session 层级保留维度与派生字段目录。"""
+
+    VIRTUAL_BROWSER = virtual.BROWSER
+    VIRTUAL_NETWORK = virtual.NETWORK
+    VIRTUAL_VIEWPORT = virtual.VIEWPORT
 
     APP_NAME = common.raw_field("app_name")
     RESOURCE_SERVICE_NAME = common.raw_field("resource.service.name")
@@ -30,8 +36,12 @@ class SessionSpec(FieldSpec):
     RESOURCE_USER_AGENT_OS_NAME = common.raw_field("resource.user_agent.os.name")
     ATTRIBUTES_NETWORK_CONNECTION_TYPE = common.raw_field("attributes.network.connection.type")
     ATTRIBUTES_NETWORK_EFFECTIVE_TYPE = common.raw_field("attributes.network.effective_type")
+    ATTRIBUTES_BROWSER_VIEWPORT_WIDTH = common.raw_field("attributes.browser.viewport.width")
+    ATTRIBUTES_BROWSER_VIEWPORT_HEIGHT = common.raw_field("attributes.browser.viewport.height")
     ATTRIBUTES_USER_ID = common.raw_field("attributes.user.id")
-    ATTRIBUTES_SESSION_ID = common.raw_field("attributes.session.id")
+    ATTRIBUTES_SESSION_ID = replace(
+        common.raw_field("attributes.session.id"), extra_config={"composite": composite.SESSION}
+    )
     ATTRIBUTES_SESSION_HAS_REPLAY = common.raw_field("attributes.session.has_replay")
     TRACE_COUNT = common.TRACE_COUNT
     ERROR_COUNT = common.ERROR_COUNT

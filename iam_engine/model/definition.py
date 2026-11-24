@@ -89,6 +89,7 @@ def build_model_definition(
     callback_url: str,
     managers: Sequence[str] | None = None,
     extra_clients: Sequence[str] = (),
+    multi_tenant_mode: bool = True,
 ) -> ModelDefinition:
     """把基线文件内容与环境相关字段合成期望态，并做完整的契约校验。"""
     version = payload.get("version")
@@ -112,11 +113,13 @@ def build_model_definition(
         resource_types=resource_types,
         actions=actions,
         roles=roles,
-        role_delegations=_build_role_delegations(payload.get("role_delegations", []), roles),
+        role_delegations=_build_role_delegations(payload.get("role_delegations", []), roles, multi_tenant_mode),
     )
 
 
-def _build_role_delegations(raw: Any, roles: tuple[RoleDefinition, ...]) -> tuple[RoleDelegationDefinition, ...]:
+def _build_role_delegations(
+    raw: Any, roles: tuple[RoleDefinition, ...], multi_tenant_mode: bool
+) -> tuple[RoleDelegationDefinition, ...]:
     result = []
     role_ids = {role.id for role in roles}
     for item in _require_list(raw, scope="role_delegations"):
@@ -132,6 +135,8 @@ def _build_role_delegations(raw: Any, roles: tuple[RoleDefinition, ...]) -> tupl
             raise ModelDefinitionError("invalid role delegation grantee_type")
         if values["tenant_mode"] not in {"single", "global"}:
             raise ModelDefinitionError("invalid role delegation tenant_mode")
+        if not multi_tenant_mode:
+            values["tenant_mode"] = "single"
         delegation = RoleDelegationDefinition(**values)
         if delegation not in result:
             result.append(delegation)

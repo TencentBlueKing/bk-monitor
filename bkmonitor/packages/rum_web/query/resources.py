@@ -21,6 +21,7 @@ from rum_web.handlers.level.factory import RumLevelHandlerFactory
 from rum_web.handlers.level.span import SpanLevelHandler
 from rum_web.models.application import Application
 from rum_web.query.serializers import (
+    BaseRumSearchSerializer,
     RumFieldsOptionValuesRequestSerializer,
     RumGenerateQueryStringRequestSerializer,
     RumRecordsRequestSerializer,
@@ -31,6 +32,7 @@ from rum_web.query.serializers import (
     RumFieldStatisticsGraphRequestSerializer,
     RumRecordDetailRequestSerializer,
     RumTimelineRequestSerializer,
+    RumTimeSeriesRequestSerializer,
 )
 
 
@@ -60,23 +62,61 @@ class RumRecordsResource(Resource):
 
     RequestSerializer = RumRecordsRequestSerializer
 
-    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
-        application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
-        return {
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
+        result = {
             "list": [
                 flatten_dict_data(_data)
                 for _data in handler.list_records(
-                    start_time=data["start_time"],
-                    end_time=data["end_time"],
-                    offset=data["offset"],
-                    limit=data["limit"],
-                    filters=data["filters"],
-                    query_string=data["query_string"],
-                    sort=data["sort"],
+                    start_time=validated_request_data["start_time"],
+                    end_time=validated_request_data["end_time"],
+                    offset=validated_request_data["offset"],
+                    limit=validated_request_data["limit"],
+                    filters=validated_request_data["filters"],
+                    query_string=validated_request_data["query_string"],
+                    sort=validated_request_data["sort"],
                 )
             ]
         }
+        virtual_fields = handler.query.virtual_fields
+        for record in result["list"]:
+            record.update({name: virtual.format(record) for name, virtual in virtual_fields.items()})
+        return result
+
+
+class RumTotalResource(Resource):
+    """查询当前检索范围内的记录总数。"""
+
+    RequestSerializer = BaseRumSearchSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, int]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
+        return handler.total(
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
+            filters=validated_request_data["filters"],
+            query_string=validated_request_data["query_string"],
+        )
+
+
+class RumTimeSeriesResource(Resource):
+    """查询记录数量的时间趋势。"""
+
+    RequestSerializer = RumTimeSeriesRequestSerializer
+
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
+        return handler.time_series(
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
+            interval=validated_request_data["interval"],
+            group_by=validated_request_data["group_by"],
+            filters=validated_request_data["filters"],
+            query_string=validated_request_data["query_string"],
+        )
 
 
 class RumViewConfigResource(Resource):
@@ -88,12 +128,12 @@ class RumViewConfigResource(Resource):
 
     RequestSerializer = RumViewConfigRequestSerializer
 
-    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
-        application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
         return handler.view_config(
-            start_time=data.get("start_time"),
-            end_time=data.get("end_time"),
+            start_time=validated_request_data.get("start_time"),
+            end_time=validated_request_data.get("end_time"),
         )
 
 
@@ -102,16 +142,16 @@ class RumFieldsOptionValuesResource(Resource):
 
     RequestSerializer = RumFieldsOptionValuesRequestSerializer
 
-    def perform_request(self, data: dict[str, Any]) -> dict[str, list[str]]:
-        application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, list[str]]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
         return handler.get_fields_option_values(
-            start_time=data["start_time"],
-            end_time=data["end_time"],
-            fields=data["fields"],
-            limit=data["limit"],
-            filters=data["filters"],
-            query_string=data["query_string"],
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
+            fields=validated_request_data["fields"],
+            limit=validated_request_data["limit"],
+            filters=validated_request_data["filters"],
+            query_string=validated_request_data["query_string"],
         )
 
 
@@ -120,10 +160,10 @@ class RumGenerateQueryStringResource(Resource):
 
     RequestSerializer = RumGenerateQueryStringRequestSerializer
 
-    def perform_request(self, data: dict[str, Any]) -> str:
-        application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
-        return handler.generate_query_string(data["filters"])
+    def perform_request(self, validated_request_data: dict[str, Any]) -> str:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
+        return handler.generate_query_string(validated_request_data["filters"])
 
 
 class RumFieldsTopKResource(Resource):
@@ -131,19 +171,23 @@ class RumFieldsTopKResource(Resource):
 
     RequestSerializer = RumFieldsTopKRequestSerializer
 
-    def perform_request(self, data: dict[str, Any]) -> list[dict[str, Any]]:
-        application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
-        start_time, end_time = data["start_time"], data["end_time"]
-        limit = data["limit"]
-        filters, query_string = data["filters"], data["query_string"]
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
+        start_time, end_time = validated_request_data["start_time"], validated_request_data["end_time"]
+        limit = validated_request_data["limit"]
+        filters, query_string = validated_request_data["filters"], validated_request_data["query_string"]
 
-        if len(data["fields"]) == 1:
-            return [handler.field_topk(start_time, end_time, data["fields"][0], limit, filters, query_string)]
+        if len(validated_request_data["fields"]) == 1:
+            return [
+                handler.field_topk(
+                    start_time, end_time, validated_request_data["fields"][0], limit, filters, query_string
+                )
+            ]
 
         return ThreadPool().map_ignore_exception(
             lambda field: handler.field_topk(start_time, end_time, field, limit, filters, query_string),
-            data["fields"],
+            validated_request_data["fields"],
         )
 
 
@@ -152,15 +196,15 @@ class RumFieldStatisticsInfoResource(Resource):
 
     RequestSerializer = RumFieldStatisticsInfoRequestSerializer
 
-    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
-        application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
         return handler.field_statistics_info(
-            start_time=data["start_time"],
-            end_time=data["end_time"],
-            field=data["field"],
-            filters=data["filters"],
-            query_string=data["query_string"],
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
+            field=validated_request_data["field"],
+            filters=validated_request_data["filters"],
+            query_string=validated_request_data["query_string"],
         )
 
 
@@ -169,15 +213,15 @@ class RumFieldStatisticsGraphResource(Resource):
 
     RequestSerializer = RumFieldStatisticsGraphRequestSerializer
 
-    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
-        application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
         return handler.field_statistics_graph(
-            start_time=data["start_time"],
-            end_time=data["end_time"],
-            field=data["field"],
-            filters=data["filters"],
-            query_string=data["query_string"],
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
+            field=validated_request_data["field"],
+            filters=validated_request_data["filters"],
+            query_string=validated_request_data["query_string"],
         )
 
 
@@ -186,10 +230,10 @@ class RumRecordDetailResource(Resource):
 
     RequestSerializer = RumRecordDetailRequestSerializer
 
-    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
-        application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
-        return handler.record_detail(record_id=data["record_id"])
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
+        return handler.record_detail(record_id=validated_request_data["record_id"])
 
 
 class RumStatisticsResource(Resource):
@@ -197,20 +241,20 @@ class RumStatisticsResource(Resource):
 
     RequestSerializer = RumStatisticsRequestSerializer
 
-    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
-        application = _get_application(data["bk_biz_id"], data["app_name"])
-        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        handler = RumLevelHandlerFactory.create(validated_request_data["mode"], _build_data_sources([application]))
         return handler.statistics(
-            start_time=data.get("start_time"),
-            end_time=data.get("end_time"),
-            field=data["field"],
-            cal_type=data["cal_type"],
-            baseline=data["baseline"],
-            time_shifts=data["time_shifts"],
-            group_by=data["group_by"],
-            interval=data.get("interval"),
-            filters=data["filters"],
-            query_string=data["query_string"],
+            start_time=validated_request_data.get("start_time"),
+            end_time=validated_request_data.get("end_time"),
+            field=validated_request_data["field"],
+            cal_type=validated_request_data["cal_type"],
+            baseline=validated_request_data["baseline"],
+            time_shifts=validated_request_data["time_shifts"],
+            group_by=validated_request_data["group_by"],
+            interval=validated_request_data.get("interval"),
+            filters=validated_request_data["filters"],
+            query_string=validated_request_data["query_string"],
         )
 
 
@@ -219,7 +263,9 @@ class RumTimelineResource(Resource):
 
     RequestSerializer = RumTimelineRequestSerializer
 
-    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
-        application = _get_application(data["bk_biz_id"], data["app_name"])
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
         handler = SpanLevelHandler(_build_data_sources([application]))
-        return handler.timeline(session_id=data.get("session_id"), view_id=data.get("view_id"))
+        return handler.timeline(
+            session_id=validated_request_data.get("session_id"), view_id=validated_request_data.get("view_id")
+        )

@@ -16,10 +16,11 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.apm import FilterOperator, TraceDatasourceTarget
 from bkmonitor.data_source.format import flatten_dict_data
-from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS, ViewPhase
+from semconv.rum.constants import SPAN_TYPE_COMMON_DISPLAY_FIELDS, RumSpanType, ViewPhase
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.handlers.builder.timeline import build as build_timeline
+from rum_web.handlers.builder.timeline import summary as build_timeline_summary
 from rum_web.handlers.builder.utils import get_safe_number
 
 
@@ -31,13 +32,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
 
     query: SpanQuery
 
-    DISPLAY_FIELDS = [
-        *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
-        "attributes.view.url_template",
-        "elapsed_time",
-        "resource.user_agent.name",
-        "attributes.user.id",
-    ]
+    DISPLAY_FIELDS = SPAN_TYPE_COMMON_DISPLAY_FIELDS
 
     #: 常驻筛选字段，前端置顶展示并默认带出的筛选维度
     RESIDENT_FIELDS = [
@@ -96,9 +91,12 @@ class SpanLevelHandler(BaseRumLevelHandler):
             filters=filters,
             sort=["start_time", "span_id"],
         )
+        if not spans:
+            raise ValidationError(_("{} = {} 记录不存在").format(filters[0]["key"], record_id))
         timeline = build_timeline(spans)
         if view_id:
             timeline["start_time"], timeline["end_time"] = self._view_time_range(spans)
+        timeline.update(build_timeline_summary(spans, timeline["start_time"], timeline["end_time"]))
         return timeline
 
     @staticmethod

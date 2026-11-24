@@ -179,7 +179,11 @@ class AppWhiteListModelBackend(ModelBackend):
             # NOTE: apigw在应用态下不会校验用户名与租户ID是否对应，因此需要通过查询api确认用户属于当前租户
             # 如果确认用户属于当前租户下的虚拟管理用户或从当前租户下查询到了用户，则更新用户租户id为当前租户id
             if settings.ENABLE_MULTI_TENANT_MODE and user.tenant_id != bk_tenant_id:
-                if user.username == get_admin_username(bk_tenant_id) or api.bk_login.batch_query_user_display_info(
+                # 用批量的鉴权专用资源（保持 60s 默认超时）：这里抛异常即认证失败，
+                # 不能与告警文案共用 10s 短超时，否则响应在 10~60s 之间时会改变认证结果。
+                if user.username == get_admin_username(
+                    bk_tenant_id
+                ) or api.bk_login.batch_query_user_display_info_for_auth(
                     bk_usernames=[user.username], bk_tenant_id=bk_tenant_id
                 ):
                     user.tenant_id = bk_tenant_id

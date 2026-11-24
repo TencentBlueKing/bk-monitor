@@ -195,6 +195,10 @@
     margin-top: 12px;
     gap: 12px;
 
+    &.log-time-settings {
+      align-items: flex-start;
+    }
+
     .select-item {
       width: 33%;
       display: flex;
@@ -224,6 +228,47 @@
 
     .select-input {
       width: 170px;
+    }
+
+    .time-zone-item {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .time-zone-control {
+      display: flex;
+      align-items: center;
+
+      .select-title {
+        padding: 0 8px 0 0;
+        color: #63656e;
+        white-space: nowrap;
+        background: transparent;
+        border: none;
+      }
+
+      .time-zone-select {
+        flex: 1;
+        min-width: 240px;
+        border-radius: 2px;
+
+        &.is-disabled {
+          color: #c4c6cc;
+          background-color: #f0f1f5;
+          border-color: #e5e6eb;
+        }
+      }
+    }
+
+    .time-zone-tip {
+      margin-top: 4px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #979ba5;
+
+      &.is-success {
+        color: #14a568;
+      }
     }
   }
 

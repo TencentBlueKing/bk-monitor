@@ -464,12 +464,8 @@ export default defineComponent({
       }
     });
 
+    // 趋势图刷新不重置日志列表；真实检索由条件、时间事件及结果数据变化驱动重置。
     addEvent([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], resetPageState);
-    addEvent(RetrieveEvent.TREND_GRAPH_SEARCH, ({ source } = {}) => {
-      if (source !== 'grade-option') {
-        resetPageState();
-      }
-    });
 
     addEvent(RetrieveEvent.SORT_LIST_CHANGED, () => {
       /**
@@ -717,12 +713,17 @@ export default defineComponent({
      * 将索引字段描述转为表头/单元格列配置（含排序头、JSON 单元格渲染）。
      */
     const formatColumn = field => {
+      // 新增字段的样本列宽可能尚未计算，渲染和横向布局必须使用相同的有效宽度。
+      const parsedMinWidth = getNumericWidth(field.minWidth);
+      const minWidth = Number.isFinite(parsedMinWidth) && parsedMinWidth > 0 ? parsedMinWidth : 80;
+      const parsedWidth = getNumericWidth(field.width);
+      const width = Number.isFinite(parsedWidth) && parsedWidth > 0 ? parsedWidth : minWidth;
       return {
         field: field.field_name,
         key: field.field_name,
         title: getFieldNameByField(field, store),
-        width: field.width,
-        minWidth: field.minWidth,
+        width,
+        minWidth,
         field_type: field.field_type,
         align: 'top',
         resize: true,

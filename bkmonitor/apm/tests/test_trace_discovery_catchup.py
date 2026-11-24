@@ -227,25 +227,102 @@ def test_invalid_datasource_logs_skipped_without_discovering(mocker, caplog):
     assert "status=skipped" in caplog.text
 
 
-def test_dispatch_failure_releases_real_lock_and_identifies_application(mocker, settings, caplog):
+def test_dispatch_failure_releases_real_lock_and_continues_next_application(mocker, settings, caplog):
     now = real_datetime(2026, 10, 26, 17, 0, tzinfo=datetime.UTC)
     settings.APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
     settings.APM_APPLICATION_QUICK_REFRESH_DELTA = 30
     mocker.patch.object(tasks.timezone, "now", return_value=now)
     mocker.patch.object(tasks.EbpfApplicationConfig.objects, "all").return_value.values.return_value = []
     mocker.patch.object(tasks.ApmApplication.objects, "filter").return_value.values_list.return_value = [
-        (2, "app", 10, now - datetime.timedelta(hours=1))
+        (2, "app", 10, now - datetime.timedelta(hours=1)),
+        (2, "next-app", 20, now - datetime.timedelta(hours=1)),
     ]
     client = fakeredis.FakeRedis(decode_responses=True)
     mocker.patch.object(ApmCacheHandler, "get_redis_client", return_value=client)
 
-    def fail(**kwargs):
-        assert client.get("apm.tasks.topo.discover.10") is not None
-        raise RuntimeError("broker unavailable")
+    def dispatch(**kwargs):
+        if kwargs["args"] == (2, "app"):
+            assert client.get("apm.tasks.topo.discover.10") is not None
+            raise RuntimeError("broker unavailable")
+        return SimpleNamespace(id="next-task")
 
-    mocker.patch.object(tasks.handler, "apply_async", side_effect=fail)
-    with caplog.at_level(logging.INFO, logger="apm"), pytest.raises(RuntimeError):
+    apply_async = mocker.patch.object(tasks.handler, "apply_async", side_effect=dispatch)
+    with caplog.at_level(logging.INFO, logger="apm"):
         tasks.topo_discover_cron()
     assert client.get("apm.tasks.topo.discover.10") is None
+    assert client.get("apm.tasks.topo.discover.20") is None
+    assert [call.kwargs["args"] for call in apply_async.call_args_list] == [(2, "app"), (2, "next-app")]
     assert "event=dispatch_failed bk_biz_id=2 app_name=app" in caplog.text
-    assert "event=dispatched" not in caplog.text
+    assert "event=dispatched bk_biz_id=2 app_name=next-app task_id=next-task" in caplog.text
+
+
+@pytest.mark.parametrize("fail_scan, fail_flush", [(False, False), (True, False), (False, True), (True, True)])
+def test_regular_discovery_reuses_instances_and_flushes_before_fallback(discovery, mocker, fail_scan, fail_flush):
+    from apm.core.discover.cached_mixin import CachedDiscoverMixin
+
+    events = []
+
+    class CachedDiscoverer(CachedDiscoverMixin):
+        DISCOVERY_ALL_SPANS = True
+        DISCOVERY_REQUIRES_TRACE_CONTEXT = False
+
+        def __init__(self, *args):
+            self.pages = 0
+
+        @classmethod
+        def _get_cache_type(cls):
+            return "test"
+
+        @classmethod
+        def to_cache_key(cls, instance):
+            return "test"
+
+        @classmethod
+        def build_instance_data(cls, instance):
+            return instance
+
+        def get_remain_data(self):
+            events.append(("read", self))
+            return {}
+
+        def discover(self, spans, remain):
+            self.pages += 1
+            events.append(("discover", self))
+
+        def flush_cache_updates(self):
+            events.append(("flush", self))
+            if fail_flush:
+                raise RuntimeError("flush failed")
+
+    class OtherDiscoverer(CachedDiscoverer):
+        def flush_cache_updates(self):
+            events.append(("other_flush", self))
+
+    def pages(*args):
+        yield ["first"]
+        yield ["second"]
+        if fail_scan:
+            raise RuntimeError("scan failed")
+
+    mocker.patch(
+        "apm.core.discover.base.DiscoverContainer.list_discovers", return_value=[CachedDiscoverer, OtherDiscoverer]
+    )
+    mocker.patch.object(discovery.handler, "list_trace_ids", side_effect=pages)
+    mocker.patch.object(discovery.handler, "list_span_by_trace_ids", return_value=[make_span("service", 2, 9000)])
+    discovery.client.set(discovery.key, 7000)
+    if fail_scan:
+        with pytest.raises(RuntimeError, match="scan failed"):
+            discovery.handler.discover()
+    else:
+        assert discovery.handler.discover() is (not fail_flush)
+
+    regular = [obj for event, obj in events if event == "flush"]
+    assert len(regular) == 1
+    assert regular[0].pages == 2
+    assert len([event for event, _ in events if event == "other_flush"]) == 1
+    if fail_scan:
+        assert len([event for event, _ in events if event == "read"]) == 2
+    else:
+        fallback_reads = [i for i, (event, _) in enumerate(events) if event == "read"][2:]
+        assert all(i > next(j for j, (event, _) in enumerate(events) if event == "other_flush") for i in fallback_reads)
+    assert discovery.client.get(discovery.key) == ("7000" if fail_scan or fail_flush else "10000")

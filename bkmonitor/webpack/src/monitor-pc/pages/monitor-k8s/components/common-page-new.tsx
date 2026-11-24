@@ -24,21 +24,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  Component,
-  Emit,
-  InjectReactive,
-  Prop,
-  Provide,
-  ProvideReactive,
-  Ref,
-  Watch,
-} from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import _ from 'lodash';
 
 import { APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS } from 'apm/pages/alarm-template/constant';
 import { LLM_SESSION_TAB_QUERY_KEY } from 'apm/pages/service/contents/llm_session/constants';
+import _ from 'lodash';
 import { isEqual } from 'lodash';
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import bus from 'monitor-common/utils/event-bus';
@@ -844,7 +835,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           /** 目标对比、时间对比数据 */
           try {
             const value = JSON.parse(decodeURIComponent(val as string));
-            key === 'compares' ? (this.compares = value) : (this.timeOffset = value);
+            if (key === 'compares') this.compares = value;
+            else this.timeOffset = value;
             this.compareType = key === 'compares' ? 'target' : 'time';
           } catch (err) {
             console.log(err);
@@ -965,7 +957,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
    * @param isSelectItem 是否为选中侧栏操作
    */
   async handleTabChange(id: string, needLoading = true) {
-    needLoading && (this.loading = true);
+    if (needLoading) this.loading = true;
     // variables 内的变量是当前tab页的筛选变量所以在tab切换后应该清空
     if (this.dashboardId !== id) {
       this.variables = {};
@@ -975,7 +967,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   }
   // 页签改变时
   async handleGetPanelData(v: string, needLoading = true) {
-    needLoading && (this.loading = true);
+    if (needLoading) this.loading = true;
     this.dashboardId = v;
     this.headerTitleChange(this.localSceneType === 'overview' ? '' : this.currentTitle || 'loading...');
     if (!this.isEnableMethodSelect) {
@@ -997,7 +989,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         ...variablesService.transformVariables(this.currentTabData?.params || {}),
       };
     }
-    const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
+    const data: IBookMark = await getSceneView({
+      ...params,
+      ...(params.scene_id === 'kubernetes' && params.id === 'pod' ? { supports_pod_memory_promql: true } : {}),
+    }).catch(() => ({ id: '', panels: [], name: '' }));
     const oldSelectPanel = this.sceneData?.options?.selector_panel?.targets
       ? JSON.stringify(this.sceneData.options.selector_panel.targets)
       : '';
@@ -1056,7 +1051,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.filtersReady = !this.sceneData.variables?.length;
     this.searchValue = [];
     // if (this.selectorPanelPriority) this.refleshVariablesKey = random(8);
-    needLoading && (this.loading = false);
+    if (needLoading) this.loading = false;
     this.handleResizeCollapse();
     this.emitTabChange(v);
     this.emitLocalSceneTypeChange();
@@ -2004,7 +1999,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   title={this.$t('列表').toString()}
                   toggleSet={this.toggleSet}
                   onShowChange={show => {
-                    !show && (this.isSelectPanelActive = false);
+                    if (!show) this.isSelectPanelActive = false;
                   }}
                   onShrink={() => {
                     this.isSelectPanelActive = !this.isSelectPanelActive;

@@ -1,0 +1,85 @@
+import json
+from unittest.mock import patch
+
+import pytest
+
+from bk_monitor_base.config.blueking import BlueKingConfig
+from bk_monitor_base.infras.third_party_api.user import api
+
+
+def test_tenant_admin_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """验证运维环境变量用于各租户的登录名查询。"""
+    monkeypatch.setenv("BK_ADMIN_USERNAME", "custom-login")
+    monkeypatch.setattr(api.get_config(), "blueking", BlueKingConfig(enable_multi_tenancy=True))
+    with patch.object(api, "request_user_api") as lookup:
+        for tenant in ("tenant-a", "tenant-b"):
+            lookup.return_value = {"data": [{"bk_username": tenant}]}
+            assert api.get_tenant_admin_username.__wrapped__(tenant) == tenant
+            lookup.assert_called_with(
+                bk_tenant_id=tenant,
+                method="GET",
+                path="api/v3/open/tenant/virtual-users/-/lookup/",
+                use_implicit_user_auth=False,
+                params={"lookup_field": "login_name", "lookups": "custom-login"},
+            )
+
+
+def test_lookup_sends_only_app_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    """管理员尚待解析时，使用应用凭证按登录名查询目标租户。"""
+    blueking = BlueKingConfig(enable_multi_tenancy=True, bk_admin_username="service-login")
+    monkeypatch.setattr(api.get_config(), "blueking", blueking)
+    with patch.object(api.requests, "request") as send:
+        send.return_value.json.return_value = {"data": [{"bk_username": "virtual-id"}]}
+        assert api.get_tenant_admin_username.__wrapped__("tenant-a") == "virtual-id"
+        kwargs = send.call_args.kwargs
+        assert kwargs["headers"]["X-Bk-Tenant-Id"] == "tenant-a"
+        assert json.loads(kwargs["headers"]["X-Bkapi-Authorization"]) == {
+            "bk_app_code": blueking.app_code,
+            "bk_app_secret": blueking.app_secret,
+        }
+        assert kwargs["params"] == {"lookup_field": "login_name", "lookups": "service-login"}
+
+
+def test_default_admin_login(monkeypatch: pytest.MonkeyPatch) -> None:
+    """未注入配置时保持原有登录名及单租户返回值。"""
+    monkeypatch.delenv("BK_ADMIN_USERNAME", raising=False)
+    blueking = BlueKingConfig(enable_multi_tenancy=False)
+    assert blueking.bk_admin_username == "bk_admin"
+    monkeypatch.setattr(api.get_config(), "blueking", blueking)
+    assert api.get_tenant_admin_username.__wrapped__("system") == "admin"
+
+
+@pytest.mark.parametrize("login,expected", [("  ", "admin"), (" bk_admin ", "virtual-id")])
+def test_single_tenant_configured_login(monkeypatch, login, expected):
+    monkeypatch.setenv("BK_ADMIN_USERNAME", login)
+    monkeypatch.setattr(api.get_config(), "blueking", BlueKingConfig(enable_multi_tenancy=False))
+    with patch.object(api, "request_user_api", return_value={"data": [{"bk_username": "virtual-id"}]}) as lookup:
+        assert api.get_tenant_admin_username.__wrapped__("system") == expected
+        if login.strip():
+            assert lookup.call_args.kwargs["bk_tenant_id"] == "default"
+            assert lookup.call_args.kwargs["params"]["lookups"] == login.strip()
+        else:
+            lookup.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("multi", "login", "expected"),
+    [(False, None, "admin"), (False, "  ", "admin"), (False, "gse-login", "virtual-id"), (True, "gse-login", "admin")],
+)
+def test_register_to_gse_operator(monkeypatch, multi, login, expected):
+    from bk_monitor_base.metadata.models import data_source
+
+    if login is None:
+        monkeypatch.delenv("BK_ADMIN_USERNAME", raising=False)
+    else:
+        monkeypatch.setenv("BK_ADMIN_USERNAME", login)
+    monkeypatch.setattr(api.get_config(), "blueking", BlueKingConfig(enable_multi_tenancy=multi))
+    source = data_source.DataSource(bk_data_id=1, bk_tenant_id="resource-tenant")
+    with (
+        patch.object(api, "request_user_api", return_value={"data": [{"bk_username": "virtual-id"}]}) as lookup,
+        patch.object(data_source.api.gse, "query_route") as query,
+    ):
+        assert source.register_to_gse()
+        assert query.call_args.kwargs["operation"]["operator_name"] == expected
+        assert query.call_args.kwargs["bk_tenant_id"] == "resource-tenant"
+        assert lookup.call_count == int(expected == "virtual-id")

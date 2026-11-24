@@ -14,6 +14,7 @@ from .data_link_configs import (  # noqa
     LogDataBusConfig,
     GraphRelationBindingConfig,
     SurrealDBBindingConfig,
+    LogClusteringSinkConfig,
 )
 
 from .vm_query_cluster import VmQueryClusterConfig
@@ -35,4 +36,5 @@ __all__ = [
     "DorisStorageBindingConfig",
     "GraphRelationBindingConfig",
     "SurrealDBBindingConfig",
+    "LogClusteringSinkConfig",
 ]

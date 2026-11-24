@@ -459,7 +459,7 @@ host_set_template
 |---|---|---|---:|---|
 | detect_range | int | 是 | — | 检测窗口，单位为秒；必须大于 0，且不能小于查询的 `agg_interval` |
 | threshold | int | 否 | 0 | 仅当数据值严格大于该阈值时参与首次出现判断；允许负整数 |
-| max_series | int | 否 | 100000 | 单个监控项、维度签名和阈值分组保留的最大已见维度值数量，必须大于 0 |
+| max_series | int | 否 | 100000 | 单个监控项、维度签名和阈值分组保留的最大已见维度值数量，取值范围 1 ~ 500000 |
 | effective_delay | int | 否 | detect_range | 建议不传；后端会将其归一为 `detect_range` |
 | alert_mode | string | 否 | once | `once` 表示仅首次出现时告警；`continuous` 表示维度持续有效出现时保持告警 |
 

@@ -167,8 +167,10 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
 
 class QueryHelper:
     @classmethod
-    def _query_log(cls, unify_query: UnifyQuery, query_body: dict[str, Any]) -> list[dict[str, Any]]:
-        data, __ = unify_query.query_log(
+    def _query_log_with_total(
+        cls, unify_query: UnifyQuery, query_body: dict[str, Any], **kwargs
+    ) -> tuple[list[dict[str, Any]], int | None]:
+        return unify_query.query_log(
             start_time=query_body["start_time"],
             end_time=query_body["end_time"],
             limit=query_body["limit"],
@@ -177,7 +179,12 @@ class QueryHelper:
             search_after_key=query_body["search_after_key"],
             time_alignment=query_body["is_time_align"],
             is_es_batch=query_body["is_es_batch"],
+            **kwargs,
         )
+
+    @classmethod
+    def _query_log(cls, unify_query: UnifyQuery, query_body: dict[str, Any]) -> list[dict[str, Any]]:
+        data, __ = cls._query_log_with_total(unify_query, query_body)
         return data
 
     @classmethod
@@ -249,7 +256,7 @@ class QueryHelper:
         return cls._query_log
 
     @classmethod
-    def query(cls, table_id: str, query_body: dict[str, Any]) -> list[dict[str, Any]]:
+    def _build_unify_query(cls, query_body: dict[str, Any]) -> UnifyQuery:
         data_sources: list[DataSource] = []
         for query_config in query_body["query_configs"]:
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
@@ -258,14 +265,32 @@ class QueryHelper:
             )
             data_sources.append(data_source)
 
-        unify_query: UnifyQuery = UnifyQuery(
+        return UnifyQuery(
             bk_biz_id=query_body["bk_biz_id"],
             data_sources=data_sources,
             expression=query_body["expression"],
             functions=query_body["functions"],
         )
 
-        return cls._get_query_func(query_body)(unify_query, query_body)
+    @classmethod
+    def query(cls, table_id: str, query_body: dict[str, Any]) -> list[dict[str, Any]]:
+        return cls._get_query_func(query_body)(cls._build_unify_query(query_body), query_body)
+
+    @classmethod
+    def query_log_with_total(cls, query_body: dict[str, Any]) -> tuple[list[dict[str, Any]], int | None]:
+        configs = query_body["query_configs"]
+        if (
+            len(configs) != 1
+            or configs[0]["metrics"]
+            or configs[0]["group_by"]
+            or configs[0]["dimension_fields"]
+            or configs[0]["functions"]
+            or query_body["functions"]
+            or query_body["is_es_batch"]
+            or query_body["expression"] != configs[0]["reference_name"]
+        ):
+            raise ValueError("exact total requires one plain raw query")
+        return cls._query_log_with_total(cls._build_unify_query(query_body), query_body, exact_total=True)
 
 
 class UnifyQueryCompiler(SQLCompiler):
@@ -485,6 +510,12 @@ class CompilerMixin:
 
 
 class UnifyQuerySet(IterMixin, CompilerMixin):
+    def query_log_with_total(self) -> tuple[list[dict[str, Any]], int | None]:
+        """查询原始明细及可信总数；无精确总数回执时返回 None。"""
+        compiler = self.query.get_compiler(using=self.using)
+        _, params = compiler.as_sql()
+        return QueryHelper.query_log_with_total(params)
+
     def __init__(self, query: UnifyQueryConfig = None):
         self.using = None
         self._result_cache = None

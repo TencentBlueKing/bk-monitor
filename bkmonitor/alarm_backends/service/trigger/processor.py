@@ -32,6 +32,7 @@ from core.prometheus import metrics
 # 每个（策略, 数据时间戳）计数器的最大 event 数，超过则丢弃
 TRIGGER_EVENT_RATE_LIMIT_THRESHOLD = 5000
 ALARMD_REFERENCE_BATCHES_PER_FLUSH = 500
+CHECK_WINDOW_PIPELINE_SIZE = 128
 
 ANOMALY_LIST_PULL_SCRIPT = """
 local batch_size = tonumber(ARGV[1])
@@ -157,7 +158,7 @@ class TriggerProcessor:
         )
         self.progress_callback = progress_callback
         self.anomaly_points = []
-        self.anomaly_records = []
+        self.anomaly_record_count = 0
         self.event_records = []
         self.reference_candidates = []
         # 策略快照数据
@@ -643,7 +644,7 @@ class TriggerProcessor:
             self.push_event_to_kafka(self.event_records)
             logger.info(
                 f"[process result collect] strategy({self.strategy_id}), item({self.item_id}) finish."
-                f"push {len(self.anomaly_records)} AnomalyRecord, {len(self.event_records)} Event"
+                f"push {self.anomaly_record_count} AnomalyRecord, {len(self.event_records)} Event"
             )
             metrics.TRIGGER_PROCESS_PUSH_DATA_COUNT.labels(strategy_id=metrics.TOTAL_TAG).inc(len(self.event_records))
 
@@ -657,7 +658,7 @@ class TriggerProcessor:
             )
 
         self.anomaly_points = []
-        self.anomaly_records = []
+        self.anomaly_record_count = 0
         self.event_records = []
         self.reference_candidates = []
 
@@ -668,23 +669,41 @@ class TriggerProcessor:
         if not in_alarm_time:
             logger.info("[trigger] strategy(%s) not in alarm time: %s, skipped", self.strategy_id, message)
         else:
-            for point in self.anomaly_points:
-                try:
-                    self.process_point(point)
-                except Exception as e:
-                    error_message = f"[process error] strategy({self.strategy_id}), item({self.item_id}) reason: {e} \norigin data: {point}"
-                    logger.exception(error_message)
-                if self.progress_callback is not None:
-                    self.progress_callback()
+            for start in range(0, len(self.anomaly_points), CHECK_WINDOW_PIPELINE_SIZE):
+                self.process_points(self.anomaly_points[start : start + CHECK_WINDOW_PIPELINE_SIZE])
 
         self.push()
         return pulled_count
 
-    def process_point(self, point):
-        point = json.loads(point)
-        strategy = self.get_strategy_snapshot(point["strategy_snapshot_key"])
-        checker = AnomalyChecker(point, strategy, self.item_id)
-        anomaly_records, event_record = checker.check()
+    def process_points(self, raw_points):
+        checkers = []
+        for raw_point in raw_points:
+            try:
+                point = json.loads(raw_point)
+                strategy = self.get_strategy_snapshot(point["strategy_snapshot_key"])
+                checkers.append(AnomalyChecker(point, strategy, self.item_id))
+            except Exception:
+                logger.exception(
+                    "[process error] strategy(%s), item(%s) point: %s", self.strategy_id, self.item_id, raw_point
+                )
+                if self.progress_callback is not None:
+                    self.progress_callback()
+
+        AnomalyChecker.prefetch_first_windows(checkers)
+        for checker in checkers:
+            try:
+                self.process_point(checker)
+            except Exception:
+                logger.exception(
+                    "[process error] strategy(%s), item(%s) point: %s", self.strategy_id, self.item_id, checker.point
+                )
+            if self.progress_callback is not None:
+                self.progress_callback()
+
+    def process_point(self, checker):
+        point = checker.point
+        strategy = checker.strategy
+        event_record = checker.check()
 
         if (
             event_record is not None
@@ -701,6 +720,6 @@ class TriggerProcessor:
 
         # 暂存结果，最后批量保存
         if event_record:
-            self.event_records.append({"anomaly_records": anomaly_records, "event_record": event_record})
+            self.event_records.append({"event_record": event_record})
         else:
-            self.anomaly_records.extend(anomaly_records)
+            self.anomaly_record_count += len(point["anomaly"])

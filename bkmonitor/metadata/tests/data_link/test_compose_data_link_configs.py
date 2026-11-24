@@ -766,7 +766,12 @@ def test_compose_log_databus_config(create_or_delete_records):
     )
     expected_config = {
         "kind": "Databus",
-        "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
+        "metadata": {
+            "annotations": {"task_stopped": "false"},
+            "labels": {"bk_biz_id": "1"},
+            "name": "base_1_agent_event",
+            "namespace": "bkmonitor",
+        },
         "spec": {
             "maintainers": ["admin"],
             "sinks": [{"kind": "ElasticSearchBinding", "name": "base_1_agent_event", "namespace": "bkmonitor"}],
@@ -783,6 +788,7 @@ def test_compose_log_databus_config(create_or_delete_records):
     expected_config = {
         "kind": "Databus",
         "metadata": {
+            "annotations": {"task_stopped": "false"},
             "labels": {"bk_biz_id": "1"},
             "name": "base_1_agent_event",
             "tenant": "system",

@@ -19,8 +19,9 @@ from typing import Any
 from django.db.models import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 
+from bkmonitor.data_source import get_auto_interval
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
-from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
+from bkmonitor.utils.time_tools import parse_time_compare_abbreviation, time_interval_align
 from constants.apm import LLMProduct, OtlpKey
 from core.drf_resource import resource
 
@@ -66,6 +67,8 @@ class Aggregation:
 class LLMMetricGroup(base.BaseMetricGroup):
     # Span 是明细数据，没有采集周期，取平台趋势图的最小聚合周期
     COLLECT_INTERVAL: int = 60
+    # 放大期望聚合周期，避免时间范围拉长后数据点过密，与事件时序图保持一致
+    INTERVAL_FACTOR: int = 10
 
     # 层级谓词：各产品对「哪些 Span 算模型调用 / Agent 调用」的埋点方式不同。
     # default 就是标准 OT 语义，未单独登记的产品都落到它，因此声明表只需要记录特例。
@@ -170,11 +173,10 @@ class LLMMetricGroup(base.BaseMetricGroup):
         self.query: LLMQuery = query or get_query(
             Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name).build_data_sources()
         )
-        # 分组字段按产品换算成存储中的原始字段，聚合结果再回填成调用方传入的标准名
-        self.group_fields: list[str] = [
-            field if field == OtlpKey.TRACE_ID else resolve_query_field(self.product, OtlpKey.get_attributes_key(field))
-            for field in self.group_by
-        ]
+        # time 是输出桶维度，不作为存储业务分组字段；业务分组字段按产品换算为原始字段，聚合结果回填标准名
+        business_group_by: list[str] = [field for field in self.group_by if field != LLMQuery.TIME_BUCKET_FIELD]
+        self.group_fields: list[str] = [self._resolve_group_field(self.product, field) for field in business_group_by]
+        self.dimension_fields: list[tuple[str, str]] = list(zip(self.group_fields, business_group_by))
         # 该产品把一个 Agent 拆成多个上报服务，带 Token 的模型 Span 落在兄弟服务 {svc}-default 上，
         # 按服务过滤必然漏数，改为不加过滤，由应用维度兜住全部上报名。
         if service_name and self.product != LLMProduct.AIDEV.value:
@@ -183,14 +185,48 @@ class LLMMetricGroup(base.BaseMetricGroup):
     class Meta:
         name = define.GroupEnum.LLM.value
 
-    def handle(self, calculation_type: str, **kwargs) -> list[dict[str, Any]]:
-        return self.get_calculation_method(calculation_type)(**kwargs)
+    def handle(
+        self,
+        calculation_type: str,
+        *,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        interval: int | None = None,
+    ) -> list[dict[str, Any]]:
+        if interval is None and LLMQuery.TIME_BUCKET_FIELD in self.group_by:
+            interval = get_auto_interval(
+                self.COLLECT_INTERVAL,
+                start_time or 0,
+                end_time or 0,
+                factor=self.INTERVAL_FACTOR,
+            )
+        if interval is None:
+            return self.get_calculation_method(calculation_type)(start_time=start_time, end_time=end_time)
+
+        result: dict[str, Any] = self.time_series(
+            calculation_type,
+            interval,
+            start_time=start_time,
+            end_time=end_time,
+            enable_topk=False,
+            fill_empty=False,
+            local_time_field=OtlpKey.END_TIME,
+        )
+        return self._series_to_records(result.get("series") or [], start_time=start_time, interval=interval)
 
     def get_calculation_method(self, calculation_type: str) -> Callable[..., list[dict[str, Any]]]:
         return functools.partial(self._aggregate, self._get_aggregation(calculation_type))
 
     def time_series(
-        self, calculation_type: str, interval: int, start_time: int | None = None, end_time: int | None = None
+        self,
+        calculation_type: str,
+        interval: int,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        *,
+        enable_topk: bool = True,
+        fill_empty: bool = True,
+        local_time_field: str = OtlpKey.START_TIME,
     ) -> dict[str, Any]:
         """时序数据：默认下推到存储侧出图，存储侧聚合不了的产品本地聚合。"""
         aggregation: Aggregation = self._get_aggregation(calculation_type)
@@ -200,24 +236,149 @@ class LLMMetricGroup(base.BaseMetricGroup):
         if self._is_local_aggregation(aggregation):
             return {
                 "metrics": [],
-                "series": self._local_series(aggregation, start_time, end_time, interval),
+                "series": self._local_series(
+                    aggregation,
+                    start_time,
+                    end_time,
+                    interval,
+                    fill_empty=fill_empty,
+                    time_field=local_time_field,
+                ),
                 "query_config": query_config,
             }
 
-        response: dict[str, Any] = resource.grafana.graph_unify_query(
+        queries: list[QueryConfigBuilder] = self._queries(aggregation.layer)
+        fields: list[str] = self._fields(aggregation)
+        if enable_topk and fill_empty:
+            response: dict[str, Any] = resource.grafana.graph_unify_query(
+                self.query.query_field_graph_config(
+                    queries,
+                    start_time,
+                    end_time,
+                    fields,
+                    aggregation.method,
+                    interval,
+                    self.group_fields,
+                )
+            )
+            return {
+                **response,
+                "series": self._standardize_series_list(response.get("series") or []),
+                "query_config": query_config,
+            }
+
+        if aggregation.method == "AVG":
+            sum_response: dict[str, Any] = resource.grafana.graph_unify_query(
+                self.query.query_field_graph_config(
+                    queries,
+                    start_time,
+                    end_time,
+                    fields,
+                    "SUM",
+                    interval,
+                    self.group_fields,
+                    enable_topk=enable_topk,
+                    null_as_zero=fill_empty,
+                )
+            )
+            count_response: dict[str, Any] = resource.grafana.graph_unify_query(
+                self.query.query_field_graph_config(
+                    queries,
+                    start_time,
+                    end_time,
+                    fields,
+                    "COUNT",
+                    interval,
+                    self.group_fields,
+                    enable_topk=enable_topk,
+                    null_as_zero=fill_empty,
+                )
+            )
+            sum_by_dims: dict[tuple, dict[Any, float]] = {
+                self._series_dimensions_key(item): {ts: val for val, ts in item.get("datapoints") or []}
+                for item in self._standardize_series_list(sum_response.get("series") or [], drop_null=not fill_empty)
+            }
+            avg_series: list[dict[str, Any]] = []
+            for count_item in self._standardize_series_list(
+                count_response.get("series") or [], drop_null=not fill_empty
+            ):
+                sums: dict[Any, float] = sum_by_dims.get(self._series_dimensions_key(count_item), {})
+                datapoints: list[list[Any]] = [
+                    [sums.get(ts, 0.0) / count, ts]
+                    for count, ts in count_item.get("datapoints") or []
+                    if count and count > 0
+                ]
+                if datapoints:
+                    avg_series.append({**count_item, "datapoints": datapoints})
+            return {**sum_response, "series": avg_series, "query_config": query_config}
+
+        if aggregation.method == "SUM" and not fill_empty:
+            # ES date_histogram 会为无样本桶补 0；按同层样本数 COUNT(_index) > 0 区分真实零值桶与无样本空桶
+            sum_response = resource.grafana.graph_unify_query(
+                self.query.query_field_graph_config(
+                    queries,
+                    start_time,
+                    end_time,
+                    fields,
+                    "SUM",
+                    interval,
+                    self.group_fields,
+                    enable_topk=enable_topk,
+                    null_as_zero=False,
+                )
+            )
+            count_response = resource.grafana.graph_unify_query(
+                self.query.query_field_graph_config(
+                    queries,
+                    start_time,
+                    end_time,
+                    ["_index"],
+                    "COUNT",
+                    interval,
+                    self.group_fields,
+                    enable_topk=enable_topk,
+                    null_as_zero=False,
+                )
+            )
+            sum_by_dims = {
+                self._series_dimensions_key(item): {ts: val for val, ts in item.get("datapoints") or []}
+                for item in self._standardize_series_list(sum_response.get("series") or [], drop_null=True)
+            }
+            present_series: list[dict[str, Any]] = []
+            for count_item in self._standardize_series_list(count_response.get("series") or [], drop_null=True):
+                sums = sum_by_dims.get(self._series_dimensions_key(count_item), {})
+                datapoints = [
+                    [sums.get(ts, 0.0), ts] for count, ts in count_item.get("datapoints") or [] if count and count > 0
+                ]
+                if datapoints:
+                    present_series.append({**count_item, "datapoints": datapoints})
+            return {**sum_response, "series": present_series, "query_config": query_config}
+
+        response = resource.grafana.graph_unify_query(
             self.query.query_field_graph_config(
-                self._queries(aggregation.layer),
+                queries,
                 start_time,
                 end_time,
-                self._fields(aggregation),
+                fields,
                 aggregation.method,
                 interval,
                 self.group_fields,
+                enable_topk=enable_topk,
+                null_as_zero=fill_empty,
             )
         )
+        standardized_list: list[dict[str, Any]] = self._standardize_series_list(
+            response.get("series") or [], drop_null=not fill_empty
+        )
+        if not fill_empty:
+            standardized_list = [
+                {**item, "datapoints": [[val, ts] for val, ts in item.get("datapoints") or [] if val and val > 0]}
+                for item in standardized_list
+            ]
+            standardized_list = [item for item in standardized_list if item["datapoints"]]
         return {
             **response,
-            "series": self._standardize_series_list(response.get("series") or []),
+            "series": standardized_list,
             "query_config": query_config,
         }
 
@@ -249,21 +410,42 @@ class LLMMetricGroup(base.BaseMetricGroup):
         layer_q: Q = self._declared(self.LAYER_QUERIES, layer) if layer is not None else Q()
         return [query.filter(layer_q).filter(self._filter_dict_to_q()) for query in self.query.build_queries()]
 
+    @staticmethod
+    def _resolve_group_field(product: str, field: str) -> str:
+        if field == OtlpKey.TRACE_ID:
+            return field
+        if field in {"service_name", ResourceAttributes.SERVICE_NAME}:
+            return SERVICE_NAME_FIELD
+        if field.startswith(f"{OtlpKey.RESOURCE}."):
+            return field
+        attr_field: str = field if field.startswith(f"{OtlpKey.ATTRIBUTES}.") else OtlpKey.get_attributes_key(field)
+        return resolve_query_field(product, attr_field)
+
+    @staticmethod
+    def _is_operation_dimension(field: str) -> bool:
+        return field in {OPERATION_NAME_FIELD, OtlpKey.get_attributes_key(OPERATION_NAME_FIELD)}
+
     def _dimension_key(self, record: dict[str, Any]) -> tuple:
         values: list[Any] = []
-        for storage_field, standard_field in zip(self.group_fields, self.group_by):
+        for storage_field, standard_field in self.dimension_fields:
             value = record.get(storage_field) or ""
-            if standard_field == OPERATION_NAME_FIELD:
+            if self._is_operation_dimension(standard_field):
                 value = resolve_operation_name(self.product, value)
             values.append(value)
         return tuple(values)
 
     def _should_drop_operation_dimension(self, key: tuple) -> bool:
-        return any(field == OPERATION_NAME_FIELD and value == "" for field, value in zip(self.group_by, key))
+        return any(
+            self._is_operation_dimension(field) and value == "" for (_, field), value in zip(self.dimension_fields, key)
+        )
 
     def _dimensions(self, key: tuple) -> dict[str, Any]:
         """维度回填成调用方传入的标准字段名，不暴露各产品存储中的原始字段名。"""
-        return dict(zip(self.group_by, key))
+        return {field: value for (_, field), value in zip(self.dimension_fields, key)}
+
+    @staticmethod
+    def _series_dimensions_key(series: dict[str, Any]) -> tuple:
+        return tuple(sorted((series.get("dimensions") or {}).items()))
 
     def _standardize_series(self, series: dict[str, Any]) -> dict[str, Any]:
         """维度与图例都按标准字段名回填，与本地聚合出的 series 结构保持一致。
@@ -274,7 +456,9 @@ class LLMMetricGroup(base.BaseMetricGroup):
         key: tuple = self._dimension_key(series.get("dimensions") or {})
         return {**series, "dimensions": self._dimensions(key), "target": next(iter(key), "")}
 
-    def _standardize_series_list(self, series_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _standardize_series_list(
+        self, series_list: list[dict[str, Any]], *, drop_null: bool = False
+    ) -> list[dict[str, Any]]:
         """操作名映射后可能多条曲线落到同一标准名，按维度合并并丢掉空操作名。"""
         merged: dict[tuple, dict[str, Any]] = {}
         for item in series_list:
@@ -282,6 +466,10 @@ class LLMMetricGroup(base.BaseMetricGroup):
             if self._should_drop_operation_dimension(key):
                 continue
             standardized: dict[str, Any] = self._standardize_series(item)
+            if drop_null:
+                standardized["datapoints"] = [
+                    [val, ts] for val, ts in standardized.get("datapoints") or [] if val is not None
+                ]
             existing: dict[str, Any] | None = merged.get(key)
             if existing is None:
                 merged[key] = standardized
@@ -293,51 +481,98 @@ class LLMMetricGroup(base.BaseMetricGroup):
 
     @staticmethod
     def _merge_datapoints(left: list[list[Any]], right: list[list[Any]]) -> list[list[Any]]:
-        points: dict[Any, float] = {timestamp: value for value, timestamp in left}
+        points: dict[Any, float] = {timestamp: value for value, timestamp in left if value is not None}
         for value, timestamp in right:
+            if value is None:
+                continue
             points[timestamp] = (points.get(timestamp) or 0) + value
         return [[value, timestamp] for timestamp, value in sorted(points.items())]
 
-    def _aggregate(
-        self, aggregation: Aggregation, start_time: int | None = None, end_time: int | None = None
+    def _series_to_records(
+        self,
+        series_list: list[dict[str, Any]],
+        *,
+        start_time: int | None,
+        interval: int,
     ) -> list[dict[str, Any]]:
-        """聚合出区间标量，每个维度一条记录。"""
-        start_time, end_time = self._shift(start_time, end_time)
+        """将时序曲线拍平为聚合记录，并将偏移窗口的桶时间平移回基准窗口。"""
+        bucket_delta_ms: int = 0
+        if self.time_shift and start_time is not None:
+            shifted_start, _ = self._shift(start_time, start_time)
+            if shifted_start is not None:
+                bucket_delta_ms = (
+                    time_interval_align(shifted_start, interval) - time_interval_align(start_time, interval)
+                ) * MILLISECONDS_PER_SECOND
+        records: list[dict[str, Any]] = []
+        for item in series_list:
+            dimensions: dict[str, Any] = item.get("dimensions") or {}
+            for value, timestamp in item.get("datapoints") or []:
+                if value is None:
+                    continue
+                records.append({"_time_": timestamp - bucket_delta_ms, "_result_": value, **dimensions})
+        return records
+
+    def _merge_storage_records(self, records: list[dict[str, Any]]) -> dict[tuple, float]:
+        """按标准维度累加存储侧返回的区间聚合记录。"""
+        merged: dict[tuple, float] = defaultdict(float)
+        for record in records:
+            key: tuple = self._dimension_key(record)
+            if self._should_drop_operation_dimension(key):
+                continue
+            merged[key] += record.get("_result_") or 0
+        return merged
+
+    def _aggregate(
+        self,
+        aggregation: Aggregation,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """聚合出区间内每个维度一条记录，无分组时 key 为空元组 ()。"""
+        shifted_start, shifted_end = self._shift(start_time, end_time)
         if self._is_local_aggregation(aggregation):
             totals: dict[tuple, float] = defaultdict(float)
-            for record in self._usage_records(aggregation.layer, start_time, end_time):
+            for record in self._usage_records(aggregation.layer, shifted_start, shifted_end):
                 key: tuple = self._dimension_key(record)
                 if self._should_drop_operation_dimension(key):
                     continue
                 totals[key] += self._usage_value(record, aggregation)
-            return [self._record(key, value, end_time) for key, value in totals.items()]
+            return [self._record(key, value, shifted_end) for key, value in totals.items()]
 
-        records: list[dict[str, Any]] = self.query.query_field_aggregated_group(
-            self._queries(aggregation.layer),
-            start_time,
-            end_time,
-            self._fields(aggregation),
-            aggregation.method,
-            self.group_fields,
+        queries: list[QueryConfigBuilder] = self._queries(aggregation.layer)
+        fields: list[str] = self._fields(aggregation)
+        if aggregation.method == "AVG":
+            # 多个原始操作名归一或多结果表合并时需按有效耗时样本数加权求均值（SUM / COUNT），不能按组数等权平均
+            sum_merged = self._merge_storage_records(
+                self.query.query_field_aggregated_group(
+                    queries, shifted_start, shifted_end, fields, "SUM", self.group_fields
+                )
+            )
+            count_merged = self._merge_storage_records(
+                self.query.query_field_aggregated_group(
+                    queries, shifted_start, shifted_end, fields, "COUNT", self.group_fields
+                )
+            )
+            avg_records: list[dict[str, Any]] = [
+                self._record(key, sum_merged.get(key, 0.0) / count, shifted_end)
+                for key, count in count_merged.items()
+                if count > 0
+            ]
+            if not avg_records and not self.group_by:
+                return [self._record((), 0.0, shifted_end)]
+            return avg_records
+
+        merged = self._merge_storage_records(
+            self.query.query_field_aggregated_group(
+                queries, shifted_start, shifted_end, fields, aggregation.method, self.group_fields
+            )
         )
-        merged: dict[tuple, tuple[float, int | None]] = {}
-        for record in records:
-            key = self._dimension_key(record)
-            if self._should_drop_operation_dimension(key):
-                continue
-            value: float = record.get("_result_") or 0
-            time_: int | None = record.get("_time_")
-            if key in merged:
-                prev_value, prev_time = merged[key]
-                merged[key] = (prev_value + value, time_ or prev_time)
-            else:
-                merged[key] = (value, time_)
-        return [self._record(key, value, end_time, time_) for key, (value, time_) in merged.items()]
+        return [self._record(key, value, shifted_end) for key, value in merged.items()]
 
-    def _record(self, key: tuple, value: float, end_time: int | None, time_: int | None = None) -> dict[str, Any]:
+    def _record(self, key: tuple, value: float, end_time: int | None) -> dict[str, Any]:
         """区间聚合出的点统一戳在窗口右端，调用方按维度取值，不依赖该时间。"""
         return {
-            "_time_": time_ or (end_time or 0) * self.query.TIME_FIELD_ACCURACY,
+            "_time_": (end_time or 0) * self.query.TIME_FIELD_ACCURACY,
             "_result_": value,
             **self._dimensions(key),
         }
@@ -353,23 +588,36 @@ class LLMMetricGroup(base.BaseMetricGroup):
         ]
 
     def _local_series(
-        self, aggregation: Aggregation, start_time: int | None, end_time: int | None, interval: int
+        self,
+        aggregation: Aggregation,
+        start_time: int | None,
+        end_time: int | None,
+        interval: int,
+        *,
+        fill_empty: bool = True,
+        time_field: str = OtlpKey.START_TIME,
     ) -> list[dict[str, Any]]:
-        """本地按 interval 分桶，空桶补零，与存储侧出图的点位保持一致。
-
-        只保留有数据的桶会让曲线退化成零星几个点，存储侧出图时由 null_as_zero 补齐，这里同样补。
-        """
-        empty: dict[int, float] = {
-            bucket * MILLISECONDS_PER_SECOND: 0.0
-            for bucket in range((start_time or 0) // interval * interval, end_time or 0, interval)
-        }
+        """本地按 interval 分桶；图表展示默认空桶补零，区间分桶仅输出存在样本的桶。"""
+        empty: dict[int, float] = (
+            {
+                bucket * MILLISECONDS_PER_SECOND: 0.0
+                for bucket in range((start_time or 0) // interval * interval, end_time or 0, interval)
+            }
+            if fill_empty
+            else {}
+        )
         points: dict[tuple, dict[int, float]] = defaultdict(lambda: defaultdict(float, empty))
-        for record in self._usage_records(aggregation.layer, start_time, end_time, (OtlpKey.START_TIME,)):
+        for record in self._usage_records(aggregation.layer, start_time, end_time, (time_field,)):
             key: tuple = self._dimension_key(record)
             if self._should_drop_operation_dimension(key):
                 continue
-            seconds: int = (record.get(OtlpKey.START_TIME) or 0) // MICROSECONDS_PER_SECOND
-            bucket: int = seconds // interval * interval * MILLISECONDS_PER_SECOND
+            raw_us: int | None = record.get(time_field)
+            if raw_us is None and not fill_empty:
+                continue
+            seconds: int = (raw_us or 0) // MICROSECONDS_PER_SECOND
+            bucket: int = (
+                seconds // interval * interval if fill_empty else time_interval_align(seconds, interval)
+            ) * MILLISECONDS_PER_SECOND
             points[key][bucket] += self._usage_value(record, aggregation)
         return self._build_series(points)
 
@@ -380,7 +628,8 @@ class LLMMetricGroup(base.BaseMetricGroup):
     def _usage_records(
         self, layer: str | None, start_time: int | None, end_time: int | None, extra_fields: tuple[str, ...] = ()
     ) -> list[dict[str, Any]]:
-        fields: list[str] = [self.LANGFUSE_USAGE_FIELD, *self.group_fields, *extra_fields]
+        group_fields: list[str] = [field for field, _ in self.dimension_fields]
+        fields: list[str] = [self.LANGFUSE_USAGE_FIELD, *group_fields, *extra_fields]
         queries: list[QueryConfigBuilder] = self._queries(layer)
         trace_ids: list[str] = self.filter_dict.get("trace_id__eq") or []
         if not trace_ids:

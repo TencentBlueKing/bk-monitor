@@ -27,8 +27,6 @@ import { formatUnitValue } from '../../rum-explore/utils';
 
 import type { CollectionPayload } from '../types/collection';
 import type {
-  CollectionCandidate,
-  CollectionCandidateField,
   CollectionExecution,
   CollectionExecutionColumn,
   CollectionExecutionDetail,
@@ -108,7 +106,7 @@ export function compareExecutionHostStatus(left: CollectionExecutionHost, right:
 
 export function createHistoryFilters(): CollectionHistoryFilters {
   // 默认不限任务：task_id 为空时按 task_name 关键词筛选
-  return { ips: [], task_id: null, task_name: '', process_names: [], process_pids: [], schedule_types: [], status: '' };
+  return { ips: [], task_id: null, task_name: '', process_names: [], process_pids: [], schedule_types: [], status: [] };
 }
 
 export function executionHostMessage(host: CollectionExecutionHost): string {
@@ -129,6 +127,14 @@ export function historyFiltersPayload(filters: CollectionHistoryFilters): Collec
   return taskId ? { ...rest, task_id: taskId } : rest;
 }
 
+// 状态列 hover 提示：只按 error_type 命中枚举取文案，未命中或未下发时为空
+export function hostErrorTypeMessage(errorType?: string): string {
+  return (errorType ? hostErrorTypeLabels[errorType] : '') || '';
+}
+
+// 进程 PID 在 tag 选择器中的标识前缀，解析时剥掉
+export const PID_PREFIX = 'PID: ';
+
 export function parseProcessSelection(values: string[]): ProcessFilters {
   const result: ProcessFilters = { process_names: [], process_pids: [] };
   for (const id of values) {
@@ -138,35 +144,15 @@ export function parseProcessSelection(values: string[]): ProcessFilters {
   return result;
 }
 
-export function processCandidateOptions(
-  candidates: Partial<Record<CollectionCandidateField, CollectionCandidate[]>>,
-  selected: string[]
-) {
-  const options = new Map<string, { id: string; name: string }>();
-  for (const field of ['process_names', 'process_pids'] as const) {
-    for (const item of candidates[field] || []) {
-      const value = String(item.value);
-      const restoredId = JSON.stringify([field, value]);
-      const id =
-        selected.includes(restoredId) && !options.has(restoredId)
-          ? restoredId
-          : JSON.stringify([field, value, item.alias]);
-      options.set(id, { id, name: `${field === 'process_pids' ? 'PID: ' : ''}${item.alias || value}` });
-    }
-  }
-  for (const id of selected) {
-    if (!options.has(id)) {
-      const [field, value] = processOption(id);
-      options.set(id, { id, name: `${field === 'process_pids' ? 'PID: ' : ''}${value}` });
-    }
-  }
-  return [...options.values()];
-}
-
 export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>): CollectionHistoryFilters {
-  const strings = (items: unknown) => (Array.isArray(items) ? items.filter(item => typeof item === 'string') : []);
+  const strings = (items: unknown) =>
+    Array.isArray(items) ? items.filter((item): item is string => typeof item === 'string') : [];
   const taskId =
     typeof value?.task_id === 'number' && Number.isInteger(value.task_id) && value.task_id > 0 ? value.task_id : null;
+  // 状态为多选：兼容旧链接中的单值字符串，并过滤掉两套文案都不支持的取值
+  const statusLabels = { ...executionStatusLabels, ...resultStatusLabels };
+  const rawStatus = value?.status;
+  const statuses = [...strings(rawStatus), ...(typeof rawStatus === 'string' ? [rawStatus] : [])];
   return {
     ips: strings(value?.ips),
     task_id: taskId,
@@ -177,30 +163,13 @@ export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>)
     // 仅保留后端支持的执行方式，过滤掉历史数据或异常取值
     schedule_types: strings(value?.schedule_types).filter(type => ['immediate', 'once_at', 'cron'].includes(type)),
     // 任务历史与结果列表共用筛选结构，状态取值需同时兼容两套文案
-    status: Object.hasOwn({ ...executionStatusLabels, ...resultStatusLabels }, value?.status || '') ? value.status : '',
+    status: [...new Set(statuses.filter(status => Object.hasOwn(statusLabels, status)))],
   };
 }
 
-export function restoreProcessSelection(filters: ProcessFilters, selected: string[]): string[] {
-  const result = selected.filter(id => {
-    const [field, value] = processOption(id);
-    return filters[field].includes(value);
-  });
-  for (const field of ['process_names', 'process_pids'] as const) {
-    for (const value of filters[field]) {
-      if (
-        !result.some(id => {
-          const entry = processOption(id);
-          return entry[0] === field && entry[1] === value;
-        })
-      )
-        result.push(JSON.stringify([field, value]));
-    }
-  }
-  return result;
-}
-
 function processOption(value: string): [keyof ProcessFilters, string] {
+  // tag 选择器用 PID 前缀区分 PID 与进程名，这里剥掉前缀归入 process_pids
+  if (value.startsWith(PID_PREFIX)) return ['process_pids', value.slice(PID_PREFIX.length)];
   try {
     const entry = JSON.parse(value);
     if (Array.isArray(entry) && ['process_names', 'process_pids'].includes(entry[0]) && typeof entry[1] === 'string')
@@ -312,6 +281,8 @@ export function buildExecutionPayload(
         throw new Error('当前主机没有已选择的进程，请编辑采集配置后重试');
     }
   }
+  // 立即执行记录关联的计划 ID 在 source_task_id，周期/定时计划执行直接取自身 task_id
+  const planId = detail.schedule_type === 'immediate' ? detail.source_task_id : detail.task_id;
   return {
     ...config,
     bk_biz_id: bizId,
@@ -319,6 +290,7 @@ export function buildExecutionPayload(
     collection_method: detail.collection_method,
     collection_type: detail.collection_type,
     schedule: { type: 'immediate', execute_at: now, timezone: config.schedule.timezone },
+    ...(planId ? { source_task_id: planId } : {}),
   };
 }
 

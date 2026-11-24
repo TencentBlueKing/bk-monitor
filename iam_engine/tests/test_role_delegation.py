@@ -33,7 +33,8 @@ def log_model(payload=None, extra_clients=()):
 
 
 @pytest.mark.parametrize("factory", [log_model, model_sync.expected_v4_model])
-def test_products_delegate_only_operator_and_remove_only_paas(factory):
+def test_products_delegate_only_operator_and_remove_only_paas(factory, settings):
+    settings.ENABLE_MULTI_TENANT_MODE = True
     model = factory()
     assert [asdict(item) for item in model.role_delegations] == [DELEGATION]
     assert set(model.system.removed_clients) == {"bk_paas3", "paasv3cli"}
@@ -48,6 +49,15 @@ def test_products_delegate_only_operator_and_remove_only_paas(factory):
     plan = build_plan(model, actual)
     assert plan.update_system == {"clients": [*model.system.clients, "manual"]}
     assert plan.ensure_role_delegations == (DELEGATION,)
+
+
+@pytest.mark.parametrize("enabled,expected", [(False, "single"), (True, "global")])
+def test_monitor_migration_submits_deployment_scoped_delegation(settings, enabled, expected):
+    settings.ENABLE_MULTI_TENANT_MODE = enabled
+    client = Mock()
+    client.retrieve_system.return_value = None
+    V4ModelMigrator(client, model_sync.expected_v4_model()).migrate(dry_run=False)
+    client.batch_create_role_delegations.assert_called_once_with(({**DELEGATION, "tenant_mode": expected},))
 
 
 def test_extra_clients_cannot_reintroduce_retired_client():

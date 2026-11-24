@@ -15,6 +15,7 @@ from typing import Any
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
+    ResourceNotFound,
     PAGE_LIST_TENANT_SCHEMA,
     SAFETY_LEVEL_WRITE,
     build_response,
@@ -359,11 +360,15 @@ def _build_rule_queryset(params: dict[str, Any], bk_tenant_id: str | None):
 def _get_rule_or_raise(params: dict[str, Any], bk_tenant_id: str) -> RecordRuleV4:
     rule_id = _normalize_int(params.get("id") or params.get("rule_id"), "id", required=True)
     try:
-        return RecordRuleV4.objects.select_related("current_spec", "applied_resolved").get(
-            bk_tenant_id=bk_tenant_id, pk=rule_id
+        query = RecordRuleV4.objects.select_related("current_spec", "applied_resolved").filter(
+            bk_tenant_id=bk_tenant_id
         )
+        if params.get("space_uid"):
+            space_type, space_id = params["space_uid"].split("__", 1)
+            query = query.filter(space_type=space_type, space_id=space_id, deleted_at__isnull=True)
+        return query.get(pk=rule_id)
     except RecordRuleV4.DoesNotExist as error:
-        raise CustomException(message=f"RecordRuleV4 不存在: {rule_id}") from error
+        raise ResourceNotFound(message=f"RecordRuleV4 不存在: {rule_id}") from error
 
 
 def _latest_event(rule: RecordRuleV4) -> RecordRuleV4Event | None:

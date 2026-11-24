@@ -43,6 +43,7 @@ from constants.data_source import (
     UnifyQueryDataSources,
 )
 from core.drf_resource import api
+from core.errors.api import BKAPIError
 from core.prometheus import metrics
 
 tracer = trace.get_tracer(__name__)
@@ -699,10 +700,11 @@ class UnifyQuery:
         order_by: list[str] | None = None,
         time_alignment: bool = True,
         is_es_batch: bool = False,
-    ) -> list[dict]:
+        exact_total: bool = False,
+    ) -> tuple[list[dict], int | None]:
         params: dict[str, Any] = self.get_unify_query_params(start_time, end_time, time_alignment, order_by)
         if not params["query_list"]:
-            return []
+            return [], 0 if not exact_total else None
 
         for query in params["query_list"]:
             # 原始日志查询，无需聚合及函数。
@@ -714,16 +716,47 @@ class UnifyQuery:
         if is_es_batch:
             params["is_es_batch"] = True
 
+        metric_merge = params.get("metric_merge")
+        if exact_total:
+            # 精确总数协议仅支持单条非聚合原始查询，不接受 metric_merge（包括单别名）。
+            params["query_list"][0]["exact_total"] = True
+            params.pop("metric_merge", None)
+
         params_json: str = json.dumps(params)
         logger.info("UNIFY_QUERY: %s", params_json)
         with tracer.start_as_current_span("unify_query") as span:
             span.set_attribute("bk.system", "unify_query")
             span.set_attribute("bk.unify_query.api", "query_raw")
             span.set_attribute("bk.unify_query.statement", params_json)
-            data = api.unify_query.query_raw(**params)
+            try:
+                data = api.unify_query.query_raw(**params)
+            except BKAPIError as e:
+                if not exact_total:
+                    raise
+                try:
+                    error_response = json.loads(e.data.get("message"))
+                except (TypeError, ValueError):
+                    raise e
+                if not isinstance(error_response, dict) or error_response.get("error") != (
+                    "ES exact total request requires one non-aggregated ES raw branch"
+                ):
+                    raise
+                # 自定义事件可能已迁至非 ES 存储；仅协议明确不支持时退回原始查询及 COUNT。
+                params = {
+                    **params,
+                    "query_list": [
+                        {key: value for key, value in query.items() if key != "exact_total"}
+                        for query in params["query_list"]
+                    ],
+                    "metric_merge": metric_merge,
+                }
+                data = api.unify_query.query_raw(**params)
             records: list[dict[str, Any]] = self.process_unify_query_log(params, data)
             records = self.process_log_by_datasource(records)
-        return records
+        total = None
+        if data.get("total_exact") is True and type(data.get("total")) is int and data["total"] >= 0:
+            total = data["total"]
+        return records, total if exact_total else 0
 
     def _translate_promql_named_output_config(self) -> dict:
         """把 query_output_config 的 output_list expression 从 alias 翻译成完整 PromQL。
@@ -1035,8 +1068,9 @@ class UnifyQuery:
         order_by: list[str] | None = None,
         is_es_batch: bool = False,
         *args,
+        exact_total: bool = False,
         **kwargs,
-    ) -> tuple[list[dict[str, Any]], int]:
+    ) -> tuple[list[dict[str, Any]], int | None]:
         if not self.data_sources:
             return [], 0
 
@@ -1048,8 +1082,7 @@ class UnifyQuery:
             labels["api"] = "unify_query"
             try:
                 with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
-                    total = 0
-                    data = self._query_log_using_unify_query(
+                    data, total = self._query_log_using_unify_query(
                         start_time=start_time,
                         end_time=end_time,
                         limit=limit,
@@ -1057,6 +1090,7 @@ class UnifyQuery:
                         order_by=order_by,
                         time_alignment=kwargs.get("time_alignment", True),
                         is_es_batch=is_es_batch,
+                        exact_total=exact_total,
                     )
             except Exception as e:
                 exc = e
@@ -1067,6 +1101,9 @@ class UnifyQuery:
                     data, total = self._query_log_using_datasource(
                         start_time, end_time, limit, offset, kwargs.get("search_after_key")
                     )
+                    if exact_total:
+                        # 旧数据源接口没有精确性回执，保留调用方原有 COUNT 查询。
+                        total = None
             except Exception as e:
                 exc = e
 

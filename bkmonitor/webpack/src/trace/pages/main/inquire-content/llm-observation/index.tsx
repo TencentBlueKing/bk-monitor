@@ -24,17 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import StatisticCards from '../../llm-observation/components/statistic-cards';
 import ExecutionToolbar from './components/execution-toolbar';
 import LlmSkeleton from './components/llm-skeleton';
-import StatisticCards from './components/statistic-cards';
 import TraceBlock from './components/trace-block';
+import TrendChart from './components/trend-chart';
 
 import type { UseLlmObservationReturn } from './hooks/use-llm-observation';
+import type { LlmTrendSeriesKey, LlmTrendVisible } from './utils/trend-buckets';
 import type { LlmSpanRowView } from './utils/typings';
 
 import './index.scss';
@@ -54,13 +56,39 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    /** 趋势图序列可见性（图例「只看」） */
+    const trendVisible = shallowRef<LlmTrendVisible>({ duration: true, token: true });
+
+    /** 当前展开 Trace 的完整 Span 树；手风琴同时只展开一条，取命中项即可 */
+    const activeFlow = computed(
+      () =>
+        props.observation.traceBlocks.value.find(block =>
+          props.observation.expandedTraceIds.value.has(block.traceId)
+        ) ?? null
+    );
+
     const handleViewDetail = (span: LlmSpanRowView) => {
       emit('showSpanDetail', span);
+    };
+
+    /** 图例点击：仅自己可见时恢复全部，否则只看该项 */
+    const handleTrendLegendToggle = (key: LlmTrendSeriesKey) => {
+      const current = trendVisible.value;
+      const hasOtherVisible = (Object.keys(current) as LlmTrendSeriesKey[]).some(
+        item => item !== key && current[item]
+      );
+      trendVisible.value = hasOtherVisible
+        ? { duration: key === 'duration', token: key === 'token' }
+        : { duration: true, token: true };
     };
 
     return {
       t,
       ...props.observation,
+      activeFlow,
+      trendVisible,
+      handleTrendLegendToggle,
       handleViewDetail,
     };
   },
@@ -73,7 +101,12 @@ export default defineComponent({
         ) : this.traceBlocks.length ? (
           /* 有 Trace 块：统计卡 + 工具栏 + 可折叠 Trace 列表 */
           <div class='trace-llm-observation-main'>
-            <StatisticCards cards={this.stats} />
+            <StatisticCards
+              cards={this.stats}
+              matrixLoading={this.ioLoading}
+              nodes={this.tokenMatrixNodes}
+              onLocate-tool={this.locateToolByName}
+            />
             <div class='trace-llm-observation-timeline'>
               <ExecutionToolbar
                 conversationId={this.conversationId}
@@ -81,10 +114,24 @@ export default defineComponent({
                 filter={this.filter}
                 keyword={this.keyword}
                 showSession={this.showSession}
+                trendVisible={this.trendVisible}
                 onUpdate:filter={this.handleFilterChange}
                 onUpdate:keyword={this.handleKeywordChange}
                 onUpdate:showSession={this.handleSessionChange}
+                onToggle-trend={this.handleTrendLegendToggle}
               />
+              {/* 耗时、总 Token 趋势图：仅当前展开的 Trace，排除 Agent Span */}
+              {this.activeFlow ? (
+                <TrendChart
+                  flow={this.activeFlow.flow}
+                  flowLoading={this.activeFlow.flowLoading}
+                  range={this.trendRange}
+                  visible={this.trendVisible}
+                  onLocate={spanId => this.locateSpan(this.activeFlow.traceId, spanId)}
+                  onSelect={this.handleTrendSelect}
+                  onView-detail={this.handleViewDetail}
+                />
+              ) : null}
               <div class='trace-llm-observation-list'>
                 {this.traceBlocks.map(block => (
                   <TraceBlock

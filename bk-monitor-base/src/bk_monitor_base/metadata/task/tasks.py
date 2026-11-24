@@ -52,7 +52,7 @@ logger = logging.getLogger("metadata")
 
 
 @app.task(ignore_result=True, queue=settings.metadata.celery_queue or "celery_metadata_task_worker")
-def refresh_custom_report_config(bk_biz_id: int | None = None):
+def refresh_custom_report_config(bk_biz_id: int | str | None = None):
     from bk_monitor_base.metadata.task.custom_report import refresh_custom_report_2_node_man
 
     refresh_custom_report_2_node_man(bk_biz_id=bk_biz_id)

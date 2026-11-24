@@ -294,6 +294,11 @@ class BatchLookupVirtualUserResource(BkUserApiResource):
     批量查询虚拟用户
     """
 
+    USE_IMPLICIT_USER_AUTH = False
+
+    def use_apigw(self):
+        return True
+
     action = "/api/v3/open/tenant/virtual-users/-/lookup/"
     method = "GET"
 
@@ -315,8 +320,16 @@ class ListTenantVariablesResource(BkUserApiResource):
 class BatchQueryUserDisplayInfoResource(BkUserApiResource):
     """
     批量查询用户展示信息
+
+    超时取 10s：本类服务于告警通知文案的展示名转换（含分片预取）。
+
+    鉴权链路请使用 BatchQueryUserDisplayInfoForAuthResource：它继承接口定义但保持基类
+    默认 60s 超时。两者诉求相反——鉴权要快速失败（超时会直接导致认证失败），告警文案
+    要容忍抖动（超时只是退化为原始用户标识）。共用同一个短超时会缩小认证的成功窗口。
+    缓存键含类名，两个资源各自独立命名空间，不会互相污染。
     """
 
+    TIMEOUT = 10
     cache_type = CacheType.USER
     action = "/api/v3/open/tenant/users/-/display_info/"
     method = "GET"
@@ -331,3 +344,15 @@ class BatchQueryUserDisplayInfoResource(BkUserApiResource):
         # 参数格式转换
         params["bk_usernames"] = ",".join(params["bk_usernames"])
         return super().perform_request(params)
+
+
+class BatchQueryUserDisplayInfoForAuthResource(BatchQueryUserDisplayInfoResource):
+    """
+    批量查询用户展示信息（鉴权专用）
+
+    仅用于 AppWhiteListModelBackend 校验「用户名是否属于当前租户」。该调用位于认证
+    主链路，抛异常即认证失败，因此不能用告警侧的 10s 短超时，显式保持基类默认 60s，
+    与本次改动前行为一致。
+    """
+
+    TIMEOUT = 60

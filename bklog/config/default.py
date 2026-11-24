@@ -251,6 +251,7 @@ CELERY_IMPORTS = (
     "apps.log_measure.tasks.report",
     "apps.log_extract.tasks",
     "apps.log_clustering.tasks.msg",
+    "apps.log_clustering.tasks.quix",
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
@@ -982,6 +983,9 @@ BKLOG_CONFIG_KIND = os.getenv("BKAPP_BKLOG_CONFIG_KIND", "BkLogConfig")
 BKLOG_CONFIG_API_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_API_VERSION", "bk.tencent.com/v1alpha1")
 BKLOG_CONFIG_VERSION = os.getenv("BKAPP_BKLOG_CONFIG_VERSION", "v1alpha1")
 
+# 日志聚类轻量化：覆盖 BKFara 网关地址；为空时使用 domains 中的公共网关地址
+BKFARA_API_URL = os.getenv("BKAPP_BKFARA_API_URL", "")
+
 # 是否关闭权限中心校验
 IGNORE_IAM_PERMISSION = os.environ.get("BKAPP_IGNORE_IAM_PERMISSION", False)
 
@@ -1364,6 +1368,7 @@ LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")
 
 # 是否启用多租户模式
 ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower() == "true"
+BK_ADMIN_USERNAME = os.getenv("BK_ADMIN_USERNAME")
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
 # 为了统一多租户和非多租户场景的逻辑，默认使用system租户
@@ -1375,7 +1380,7 @@ INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
 USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
 
-# 与监控统一的 NodeMan V3 环境级总开关，默认关闭。
+# 与监控统一的 NodeMan V3 环境级总开关。为 true 时强制准入，其余取值为 false 并按 DB 灰度。
 ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
 
 # 节点管理 V3 网关地址。留空时按 APIGW 约定拼接，联调环境可直连指定地址；

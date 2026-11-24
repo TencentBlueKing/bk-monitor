@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -12,6 +11,8 @@ specific language governing permissions and limitations under the License.
 import json
 
 from django.conf import settings
+
+from bkmonitor.utils.user import single_tenant_backend_username
 from django.core.management.base import BaseCommand, CommandError
 
 from core.drf_resource import api
@@ -35,7 +36,10 @@ class Command(BaseCommand):
         # 处理路由名称
         params = {
             "condition": {"channel_id": bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.COMMON_USERNAME, "method": "specification"},
+            "operation": {
+                "operator_name": single_tenant_backend_username(settings.COMMON_USERNAME),
+                "method": "specification",
+            },
             "specification": {"route": router_name_list},
         }
         try:
@@ -46,7 +50,7 @@ class Command(BaseCommand):
         # 返回剩余的路由
         params = {
             "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": bk_data_id},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
         }
         try:
             remained_router = api.gse.query_route(params)

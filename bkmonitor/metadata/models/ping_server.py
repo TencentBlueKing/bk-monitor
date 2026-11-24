@@ -18,6 +18,7 @@ from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db import JsonField
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
 
 logger = logging.getLogger("metadata")
 
@@ -28,6 +29,7 @@ DEFAULT_MAX_BATCH_SIZE = (
 )
 DEFAULT_PING_SIZE = 16  # ping的大小  默认16个字节
 DEFAULT_PING_TIMEOUT = 3  # ping的rtt  默认3秒
+PING_SERVER_CONFIG_TEMPLATE_NAME = "bkmonitorproxy_ping.conf"
 
 
 class PingServerSubscriptionConfig(models.Model):
@@ -78,6 +80,16 @@ class PingServerSubscriptionConfig(models.Model):
             bk_biz_id,
             bk_data_id,
         )
+        if plugin_name == BkCollectorDeployPolicy.PLUGIN_NAME and BkCollectorDeployPolicy.is_enabled():
+            cls.create_deploy_policies(
+                bk_tenant_id=bk_tenant_id,
+                bk_cloud_id=bk_cloud_id,
+                items=items,
+                target_hosts=target_hosts,
+                bk_biz_id=bk_biz_id,
+                bk_data_id=bk_data_id,
+            )
+            return
         configs = PingServerSubscriptionConfig.objects.filter(
             bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id, plugin_name=plugin_name
         )
@@ -206,3 +218,78 @@ class PingServerSubscriptionConfig(models.Model):
             config.config["status"] = "STOP"
             config.save()
             logger.info(f"stop ping server({host_id}) subscription({config.subscription_id}) result:{result}")
+
+    @staticmethod
+    def build_context(bk_data_id: int, bk_cloud_id: int, bk_host_id: int, proxy_bk_biz_id: int, items) -> dict:
+        """V3 部署策略的 PingServer 渲染上下文，与 V2 订阅 params.context 保持一致"""
+        return {
+            "dataid": bk_data_id,
+            "period": DEFAULT_DATA_REPORT_INTERVAL,
+            "total_num": DEFAULT_EXEC_TOTAL_NUM,
+            "max_batch_size": DEFAULT_MAX_BATCH_SIZE,
+            "ping_size": DEFAULT_PING_SIZE,
+            "ping_timeout": DEFAULT_PING_TIMEOUT,
+            # 依赖节点管理对上下文中的主机变量做二次渲染，V3 需节点管理支持后才能生效
+            "server_ip": "{{ cmdb_instance.host.bk_host_innerip_v6 }}"
+            if is_ipv6_biz(proxy_bk_biz_id)
+            else "{{ cmdb_instance.host.bk_host_innerip }}",
+            "server_host_id": "{{ cmdb_instance.host.bk_host_id }}",
+            "server_cloud_id": bk_cloud_id,
+            "ip_to_items": {bk_host_id: items.get(bk_host_id, [])},
+        }
+
+    @staticmethod
+    def build_policy_resource_key(bk_cloud_id: int, bk_host_id: int, bk_biz_id: int | None = None) -> str:
+        # 多租户按目标业务拆分，同一台 Proxy 可能对应多份配置
+        if bk_biz_id is None:
+            return f"cloud{bk_cloud_id}-host{bk_host_id}"
+        return f"biz{bk_biz_id}-cloud{bk_cloud_id}-host{bk_host_id}"
+
+    @classmethod
+    def create_deploy_policies(
+        cls,
+        bk_tenant_id: str,
+        bk_cloud_id: int,
+        items,
+        target_hosts,
+        bk_biz_id: int | None,
+        bk_data_id: int,
+    ):
+        """
+        bk-collector 走节点管理 V3 部署策略下发 PingServer 配置
+
+        与 V2 一致每台 Proxy 一份配置；不再使用的 Proxy 清空策略范围，由节点管理删除该子配置，
+        不像 V2 那样停止插件（bk-collector 还承载其他子配置）。
+        """
+        policies = BkCollectorDeployPolicy.objects.filter(
+            bk_tenant_id=bk_tenant_id, scene=BkCollectorDeployScene.PING_SERVER, bk_cloud_id=bk_cloud_id
+        )
+        if bk_biz_id is not None:
+            policies = policies.filter(bk_biz_id=bk_biz_id)
+        unused_policies = {policy.resource_key: policy for policy in policies}
+
+        for host in target_hosts:
+            bk_host_id = host["bk_host_id"]
+            proxy_bk_biz_id = host["bk_biz_id"]
+            resource_key = cls.build_policy_resource_key(bk_cloud_id, bk_host_id, bk_biz_id)
+            unused_policies.pop(resource_key, None)
+            try:
+                BkCollectorDeployPolicy.deploy(
+                    bk_tenant_id=bk_tenant_id,
+                    scene=BkCollectorDeployScene.PING_SERVER,
+                    resource_key=resource_key,
+                    template_name=PING_SERVER_CONFIG_TEMPLATE_NAME,
+                    context=cls.build_context(bk_data_id, bk_cloud_id, bk_host_id, proxy_bk_biz_id, items),
+                    bk_host_ids=[bk_host_id],
+                    bk_biz_id=bk_biz_id if bk_biz_id is not None else proxy_bk_biz_id,
+                    bk_cloud_id=bk_cloud_id,
+                )
+            except Exception as e:  # noqa
+                logger.exception(f"deploy ping server config by nodeman v3 error: {e}, host_id: {bk_host_id}")
+
+        for resource_key, policy in unused_policies.items():
+            try:
+                policy.withdraw()
+                logger.info(f"withdraw ping server deploy policy({policy.deploy_policy_id}) of {resource_key}")
+            except Exception as e:  # noqa
+                logger.exception(f"withdraw ping server deploy policy of {resource_key} error: {e}")

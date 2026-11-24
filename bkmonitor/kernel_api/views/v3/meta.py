@@ -28,6 +28,14 @@ class SyncAsCodeRecordingRulesViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.SyncAsCodeRecordingRulesResource)]
 
 
+class ApplyDataSourceViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.ApplyDataSourceResource)]
+
+
+class ListDataSourceNamespacesViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ListDataSourceNamespacesResource)]
+
+
 class CreateDataIDViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateDataIDResource)]
 
@@ -125,6 +133,10 @@ class DeleteClusterInfoViewSet(MetaViewSet):
 
 class GetClusterInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryClusterInfoResource)]
+
+
+class ResolveClusteringKafkaViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ResolveClusteringKafkaResource)]
 
 
 class GetClusterStatusViewSet(MetaViewSet):
@@ -532,6 +544,18 @@ class BulkCreateOrUpdateLogRouterViewSet(MetaViewSet):
 
 class CleanLogRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CleanLogRouter)]
+
+
+class SetLogClusteringConfigViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.SetLogClusteringConfigResource)]
+
+
+class OperateLogClusteringViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.OperateLogClusteringResource)]
+
+
+class GetLogClusteringStatusViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetLogClusteringStatusResource)]
 
 
 class ModifyDataIdSourceViewSet(MetaViewSet):

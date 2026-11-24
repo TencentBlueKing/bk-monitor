@@ -1,4 +1,4 @@
-import { type PropType, computed, defineComponent, inject, provide, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, inject, nextTick, onBeforeUnmount, provide, shallowRef, watch } from 'vue';
 
 import { Radio } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -8,6 +8,7 @@ import { useProgressiveRender } from '../hooks/use-progressive-render';
 import { applyToolCallStatus, matchTimelineToolCalls } from '../utils/match-tool-call';
 import { parseModelTimeline } from '../utils/parse-model-timeline';
 import { isActiveHitOnBlock, LLM_OBSERVATION_SEARCH_KEY, LLM_SEARCH_SECTION } from '../utils/search';
+import { type LlmTokenMatrixNode, pickMatrixTokenValue } from '../utils/token-matrix';
 import CollapseSection from './collapse-section';
 import DetailSlider, { type LlmDetailSliderContent } from './detail-slider';
 import HighlightText from './highlight-text';
@@ -34,6 +35,16 @@ export default defineComponent({
       type: Object as PropType<Record<string, unknown>>,
       default: () => ({}),
     },
+    /** 分区 Token 统计来源：token_matrix 的 input / output 两棵树 */
+    tokenMatrixNodes: {
+      type: Array as PropType<LlmTokenMatrixNode[]>,
+      default: () => [],
+    },
+    /** 矩阵工具行点击请求：token 每次递增触发定位同名工具调用行 */
+    locateTool: {
+      type: Object as PropType<null | { name: string; token: number }>,
+      default: null,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -42,11 +53,23 @@ export default defineComponent({
     const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
 
     const filter = shallowRef<LlmTimelineFilter>('all');
+    // 切换页签时递增，驱动各折叠分区把展开态复位为各自的默认值
+    const sectionResetToken = shallowRef(0);
     const inputExpanded = shallowRef(false);
     const selectedToolName = shallowRef('');
     const detail = shallowRef<LlmDetailSliderContent | null>(null);
-  
+    /** 矩阵工具行定位：命中工具调用行的 part id，短暂高亮后清除 */
+    const locatedPartId = shallowRef('');
+    let locateTimer = 0;
+
     const parsedTimeline = computed(() => parseModelTimeline(props.attributes));
+    // 各折叠分区的 Token 消耗：取自 token_matrix，缺失时返回 undefined 不展示
+    const sectionTokens = computed(() => ({
+      system: pickMatrixTokenValue(props.tokenMatrixNodes, ['input', 'system']),
+      tools: pickMatrixTokenValue(props.tokenMatrixNodes, ['input', 'definitions']),
+      input: pickMatrixTokenValue(props.tokenMatrixNodes, ['input', 'context']),
+      output: pickMatrixTokenValue(props.tokenMatrixNodes, ['output']),
+    }));
     const toolCallMap = computed(() => {
       const parts = [...parsedTimeline.value.inputMessages, ...parsedTimeline.value.outputMessages].flatMap(item =>
         item.parts.filter(part => part.role === 'tool')
@@ -157,6 +180,72 @@ export default defineComponent({
       outputRender.start();
     };
 
+    /** 在消息集合里找首个同名工具调用 part */
+    const findToolPart = (messages: LlmTimelineMessage[], name: string) => {
+      for (const message of messages) {
+        const part = message.parts.find(item => item.role === 'tool' && (item.toolName || '').trim() === name);
+        if (part) return { message, part };
+      }
+      return null;
+    };
+
+    /** 矩阵工具行点击：切回「全部」、展开输入区 / 抬高分片条数后滚动并高亮同名工具调用行 */
+    const locateToolCall = async (name: string) => {
+      if (!name) return;
+      // 目标行可能被 last-input / output / error 筛掉，先切回「全部」再定位
+      if (filter.value !== 'all') {
+        filter.value = 'all';
+        inputRender.reset();
+        outputRender.reset();
+        inputRender.start();
+        outputRender.start();
+      }
+      // 分区被手动折叠时子节点不在 DOM 里，先复位到默认展开态再定位
+      sectionResetToken.value += 1;
+
+      const inputMatch = findToolPart(timeline.value.inputMessages, name);
+      const outputMatch = findToolPart(timeline.value.outputMessages, name);
+      const match = inputMatch || outputMatch;
+      if (!match) return;
+
+      if (inputMatch) {
+        // 中间消息默认被「只留首尾」折叠，展开后目标行才进入渲染集合
+        if (match.message.index !== 1 && match.message.index !== lastInputIndex.value) {
+          inputExpanded.value = true;
+        }
+        if (inputNeedsPaging.value) {
+          const index = filteredInputMessages.value.findIndex(item => item.id === match.message.id);
+          inputRender.start(index + 1);
+        }
+      } else {
+        const index = filteredOutputMessages.value.findIndex(item => item.id === match.message.id);
+        outputRender.start(index + 1);
+      }
+
+      const partId = match.part.id;
+      locatedPartId.value = partId;
+      window.clearTimeout(locateTimer);
+      locateTimer = window.setTimeout(() => {
+        if (locatedPartId.value === partId) locatedPartId.value = '';
+      }, 2400);
+
+      await nextTick();
+      requestAnimationFrame(() => {
+        document.getElementById(`llm-tool-part-${partId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    };
+
+    watch(
+      () => props.locateTool?.token,
+      () => {
+        if (props.locateTool?.name) locateToolCall(props.locateTool.name);
+      }
+    );
+
+    onBeforeUnmount(() => {
+      window.clearTimeout(locateTimer);
+    });
+
     watch(
       () => [search?.activeIndex.value, search?.activeHit.value] as const,
       ([, hit]) => {
@@ -193,7 +282,10 @@ export default defineComponent({
     );
 
     const handleFilterChange = (value: LlmTimelineFilter) => {
+      const changed = filter.value !== value;
       filter.value = value;
+      // 页签变化后各分区回到默认展开态：非「全部」筛选下的分区会强制定位展开，故此处仅复位
+      if (changed) sectionResetToken.value += 1;
       if (value === 'last-input') inputExpanded.value = false;
       // 筛选变化后可见集合改变，重置再按新集合分片；未进入分片态时 start 不会真正启动计时器
       inputRender.reset();
@@ -224,6 +316,7 @@ export default defineComponent({
             key={part.id}
             connectBottom={partIndex < message.parts.length - 1}
             connectTop={partIndex > 0}
+            highlighted={locatedPartId.value === part.id}
             part={part}
             onViewAlone={item => {
               detail.value = item;
@@ -303,6 +396,7 @@ export default defineComponent({
                 icon='icon-neizhi'
                 sectionId={LLM_SEARCH_SECTION.inputSystem}
                 title={t('系统 Prompts')}
+                tokens={sectionTokens.value.system}
               >
                 {timeline.value.systemPrompts.map((item, index) => (
                   <TimelineMessageRow
@@ -330,6 +424,7 @@ export default defineComponent({
                 icon='icon-Tool'
                 sectionId={LLM_SEARCH_SECTION.inputTools}
                 title={t('可用工具')}
+                tokens={sectionTokens.value.tools}
               >
                 {renderAvailableTools(timeline.value.availableTools)}
               </CollapseSection>
@@ -338,8 +433,10 @@ export default defineComponent({
               <CollapseSection
                 count={timeline.value.inputMessages.length}
                 icon='icon-mc-ai-input'
+                resetToken={sectionResetToken.value}
                 sectionId={LLM_SEARCH_SECTION.timelineInput}
                 title={t('输入')}
+                tokens={sectionTokens.value.input}
               >
                 {{
                   extra:
@@ -362,8 +459,10 @@ export default defineComponent({
               <CollapseSection
                 count={timeline.value.outputMessages.length}
                 icon='icon-mc-ai-output'
+                resetToken={sectionResetToken.value}
                 sectionId={LLM_SEARCH_SECTION.timelineOutput}
                 title={t('输出')}
+                tokens={sectionTokens.value.output}
               >
                 {renderOutput()}
               </CollapseSection>

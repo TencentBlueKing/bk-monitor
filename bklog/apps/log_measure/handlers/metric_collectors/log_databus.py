@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import time
 from collections import defaultdict
 
@@ -44,6 +44,7 @@ from apps.log_measure.utils.metric import MetricUtils
 from apps.log_search.constants import CollectorScenarioEnum, TimeEnum
 from apps.log_search.models import LogIndexSet
 from apps.utils.db import array_chunk, array_group
+from apps.utils.local import single_tenant_backend_username
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from bk_monitor.api.client import Client
@@ -52,9 +53,11 @@ from bk_monitor.utils.metric import Metric, register_metric
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
 
-class CollectMetricCollector(object):
+class CollectMetricCollector:
     @staticmethod
-    @register_metric("collector_config", description=_("采集配置"), data_name="metric", time_filter=TimeFilterEnum.MINUTE5)
+    @register_metric(
+        "collector_config", description=_("采集配置"), data_name="metric", time_filter=TimeFilterEnum.MINUTE5
+    )
     def collector_config():
         groups = (
             CollectorConfig.objects.filter()
@@ -88,7 +91,10 @@ class CollectMetricCollector(object):
 
     @staticmethod
     @register_metric(
-        "custom_collector_config", description=_("自定义采集配置"), data_name="metric", time_filter=TimeFilterEnum.MINUTE5
+        "custom_collector_config",
+        description=_("自定义采集配置"),
+        data_name="metric",
+        time_filter=TimeFilterEnum.MINUTE5,
     )
     def custom_collector_config():
         """
@@ -142,7 +148,11 @@ class CollectMetricCollector(object):
 
     @staticmethod
     @register_metric(
-        "row", prefix="bkunifylogbeat", description=_("采集行数"), data_name="metric", time_filter=TimeFilterEnum.MINUTE5
+        "row",
+        prefix="bkunifylogbeat",
+        description=_("采集行数"),
+        data_name="metric",
+        time_filter=TimeFilterEnum.MINUTE5,
     )
     def collector_line():
         """
@@ -179,7 +189,7 @@ class CollectMetricCollector(object):
             bk_app_secret=settings.SECRET_KEY,
             monitor_host=MONITOR_APIGATEWAY_ROOT,
             report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
-            bk_username="admin",
+            bk_username=single_tenant_backend_username("admin"),
         )
         start_time = MetricUtils.get_instance().report_ts - TimeEnum.FIVE_MINUTE_SECOND.value
         end_time = MetricUtils.get_instance().report_ts
@@ -222,7 +232,9 @@ class CollectMetricCollector(object):
         return data
 
     @staticmethod
-    @register_metric("business_host", description=_("业务主机"), data_name="metric", time_filter=TimeFilterEnum.MINUTE60)
+    @register_metric(
+        "business_host", description=_("业务主机"), data_name="metric", time_filter=TimeFilterEnum.MINUTE60
+    )
     def business_unique_host():
         metrics = []
         total_host = 0
@@ -264,7 +276,7 @@ class CollectMetricCollector(object):
             bk_app_secret=settings.SECRET_KEY,
             monitor_host=MONITOR_APIGATEWAY_ROOT,
             report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
-            bk_username="admin",
+            bk_username=single_tenant_backend_username("admin"),
         )
         start_time = MetricUtils.get_instance().report_ts - TimeEnum.ONE_HOUR_SECOND.value
         end_time = MetricUtils.get_instance().report_ts
@@ -306,11 +318,11 @@ class CollectMetricCollector(object):
                 aggregation_datas[target] = row_count
 
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("failed to unify_query, params: {}, err: {}".format(params, e))
+            logger.error(f"failed to unify_query, params: {params}, err: {e}")
         return aggregation_datas
 
 
-class CleanMetricCollector(object):
+class CleanMetricCollector:
     @staticmethod
     @register_metric("clean_config", description=_("清洗配置"), data_name="metric", time_filter=TimeFilterEnum.MINUTE60)
     def clean_config():
@@ -410,7 +422,7 @@ class CleanMetricCollector(object):
                 collector_config_id=bk_data_clean.collector_config_id
             ).first()
             if not collector_config:
-                logger.error("can not find this collector_config {}".format(bk_data_clean.collector_config_id))
+                logger.error(f"can not find this collector_config {bk_data_clean.collector_config_id}")
                 continue
 
             cleans[collector_config.bk_biz_id].append(
@@ -428,7 +440,11 @@ class CleanMetricCollector(object):
 
     @staticmethod
     @register_metric(
-        "host", prefix="bkunifylogbeat", description=_("采集主机"), data_name="metric", time_filter=TimeFilterEnum.MINUTE60
+        "host",
+        prefix="bkunifylogbeat",
+        description=_("采集主机"),
+        data_name="metric",
+        time_filter=TimeFilterEnum.MINUTE60,
     )
     def collect_host():
         """

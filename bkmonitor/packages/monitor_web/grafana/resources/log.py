@@ -212,13 +212,19 @@ class LogQueryResource(ApiAuthResource):
                 .time_align(False)
                 .instant()
             )
-            records: list[dict[str, Any]] = list(queryset.add_query(q).limit(limit).offset(params["offset"]))
-            try:
-                total: int = list(queryset.add_query(q.metric(field="_index", method="COUNT", alias="a")).limit(1))[0][
-                    "_result_"
-                ]
-            except Exception:  # pylint: disable=broad-except
-                total = len(records)
+            log_queryset = queryset.add_query(q).limit(limit).offset(params["offset"])
+            total = None
+            if data_source_key == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
+                records, total = log_queryset.query_log_with_total()
+            else:
+                records = list(log_queryset)
+            if total is None:
+                try:
+                    total = list(queryset.add_query(q.metric(field="_index", method="COUNT", alias="a")).limit(1))[0][
+                        "_result_"
+                    ]
+                except Exception:  # pylint: disable=broad-except
+                    total = len(records)
         else:
             data_source = data_source_class(**kwargs)
             records, total = data_source.query_log(

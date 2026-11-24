@@ -55,4 +55,5 @@ export interface K8sChartTargetsQueryConfig {
   filter_dict: Record<string, string[]>;
   interval: string;
   promql: string;
+  related_promql?: string;
 }

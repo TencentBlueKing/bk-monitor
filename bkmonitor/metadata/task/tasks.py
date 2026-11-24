@@ -13,11 +13,13 @@ import logging
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 from typing import Any
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -33,6 +35,7 @@ from core.drf_resource import api
 from core.errors.alarm_backends import LockError
 from core.prometheus import metrics
 from metadata import models
+from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models import BkBaseResultTable, ClusterInfo, DataSource
 from metadata.models.constants import (
     BASE_EVENT_RESULT_TABLE_FIELD_MAP,
@@ -1779,13 +1782,85 @@ def create_basereport_datalink_for_bkcc(
     )
 
 
+def _system_event_cluster(bk_tenant_id: str, storage_type: str, cluster_name: str | None):
+    if storage_type not in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
+        raise ValueError(f"系统事件不支持存储类型 {storage_type}")
+    filters = {"cluster_name": cluster_name} if cluster_name else {"is_default_cluster": True}
+    return ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_type=storage_type, **filters)
+
+
+@transaction.atomic(using=DATABASE_CONNECTION_NAME)
+def _apply_system_event_storage(
+    data_link: DataLink, data_source: DataSource, table_id: str, bk_biz_id: int, cluster: ClusterInfo
+) -> None:
+    """按选定集群下发链路，成功后切换当前存储和历史查询分段。"""
+    table_filter = {"bk_tenant_id": data_source.bk_tenant_id, "table_id": table_id}
+    rt = models.ResultTable.objects.select_for_update().get(**table_filter)
+    is_doris = cluster.cluster_type == ClusterInfo.TYPE_DORIS
+    if is_doris:
+        storage, _ = models.DorisStorage.objects.get_or_create(
+            **table_filter,
+            defaults={
+                "storage_cluster_id": cluster.cluster_id,
+                "source_type": "event",
+                "table_type": models.DorisStorage.DUPLICATE_TABLE_TYPE,
+                "doris_storage_config": {
+                    "storage_keys": ["time", "event_name", "target"],
+                    "json_fields": ["event", "dimensions"],
+                },
+            },
+        )
+    data_link.apply_data_link(
+        data_source=data_source,
+        table_id=table_id,
+        bk_biz_id=bk_biz_id,
+        storage_type=cluster.cluster_type,
+        storage_cluster_name=cluster.cluster_name,
+    )
+    if not is_doris and rt.default_storage == ClusterInfo.TYPE_ES:
+        return
+    data_link.sync_metadata(table_id=table_id, storage_cluster_id=cluster.cluster_id)
+    if is_doris:
+        storage.bkbase_table_id = BkBaseResultTable.objects.get(
+            bk_tenant_id=rt.bk_tenant_id, data_link_name=data_link.data_link_name
+        ).bkbase_table_id
+        storage.storage_cluster_id = cluster.cluster_id
+        storage.save(update_fields=["storage_cluster_id", "bkbase_table_id"])
+
+    segments = models.StorageClusterRecord.objects.filter(**table_filter, is_deleted=False)
+    if rt.default_storage == ClusterInfo.TYPE_ES and not segments.exists():
+        # 旧系统事件仅有 ESStorage，首段从时间起点生效。
+        old_es = models.ESStorage.objects.get(**table_filter)
+        models.StorageClusterRecord.objects.create(
+            **table_filter,
+            cluster_id=old_es.storage_cluster_id,
+            enable_time=datetime.fromtimestamp(0, UTC),
+            is_current=True,
+            creator="system",
+        )
+    segment, _ = models.StorageClusterRecord.switch_current_cluster(
+        **table_filter,
+        target_cluster_id=cluster.cluster_id,
+        target_storage_type=cluster.cluster_type,
+        switch_time=timezone.now(),
+        creator="system",
+    )
+    if is_doris:
+        segment.bkbase_table_id = storage.bkbase_table_id
+        segment.save(update_fields=["bkbase_table_id"])
+    rt.default_storage = cluster.cluster_type
+    rt.save(update_fields=["default_storage"])
+
+
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, storage_cluster_name: str | None = None):
+def create_base_event_datalink_for_bkcc(
+    bk_tenant_id: str, bk_biz_id: int, storage_cluster_name: str | None = None, storage_type: str = ClusterInfo.TYPE_ES
+):
     """
     创建Agent基础事件数据链路
     @param bk_tenant_id: 租户ID
     @param bk_biz_id: 业务ID
-    @param storage_cluster_name: 存储集群名称(ES)
+    @param storage_cluster_name: 存储集群名称，默认选择对应类型的默认集群
     """
 
     logger.info("create_base_event_datalink_for_bkcc: try to create base event datalink for bk_biz_id->[%s]", bk_biz_id)
@@ -1815,20 +1890,15 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
             return
         is_platform_data_id = True
 
-    if storage_cluster_name:
-        storage_cluster_id = models.ClusterInfo.objects.get(
-            bk_tenant_id=bk_tenant_id, cluster_name=storage_cluster_name
-        ).cluster_id
-    else:
-        # TODO 这里需要区分ES集群是否在计算平台有注册
-        default_es_cluster = models.ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_ES, is_default_cluster=True
+    if storage_type == ClusterInfo.TYPE_ES and not storage_cluster_name:
+        cluster = ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_ES, is_default_cluster=True
         ).last()
-        if not default_es_cluster:
+        if not cluster:
             logger.error("create_base_event_datalink_for_bkcc: get default es cluster failed,return!")
             return
-        storage_cluster_name = default_es_cluster.cluster_name
-        storage_cluster_id = default_es_cluster.cluster_id
+    else:
+        cluster = _system_event_cluster(bk_tenant_id, storage_type, storage_cluster_name)
 
     space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
 
@@ -1874,7 +1944,7 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
                 result_table = models.ResultTable.objects.create(
                     table_id=table_id,
                     bk_tenant_id=bk_tenant_id,
-                    default_storage=models.ClusterInfo.TYPE_ES,
+                    default_storage=storage_type,
                     table_name_zh=f"{bk_tenant_id}_{bk_biz_id}_基础事件",
                     is_custom_table=False,
                     schema_type="free",
@@ -1996,36 +2066,41 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
                     bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
                 )
 
-            # ESStorage
-            es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
-            if not es_storage:
-                es_storage = models.ESStorage.objects.create(
-                    table_id=table_id,
-                    bk_tenant_id=bk_tenant_id,
-                    date_format="%Y%m%d",
-                    slice_size=500,
-                    slice_gap=1440,
-                    retention=30,
-                    index_settings=json.dumps(
-                        {
-                            "number_of_shards": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS,
-                            "number_of_replicas": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS,
-                        }
-                    ),
-                    mapping_settings='{"dynamic_templates":[{"discover_dimension":{"path_match":"dimensions.*","mapping":{"type":"keyword"}}}]}',
-                    source_type="log",
-                    need_create_index=True,
-                    index_set=table_id,
-                    storage_cluster_id=storage_cluster_id,
-                )
+            if storage_type == ClusterInfo.TYPE_ES:
+                # ESStorage
+                es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+                if not es_storage:
+                    es_storage = models.ESStorage.objects.create(
+                        table_id=table_id,
+                        bk_tenant_id=bk_tenant_id,
+                        date_format="%Y%m%d",
+                        slice_size=500,
+                        slice_gap=1440,
+                        retention=30,
+                        index_settings=json.dumps(
+                            {
+                                "number_of_shards": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS,
+                                "number_of_replicas": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS,
+                            }
+                        ),
+                        mapping_settings='{"dynamic_templates":[{"discover_dimension":{"path_match":"dimensions.*","mapping":{"type":"keyword"}}}]}',
+                        source_type="log",
+                        need_create_index=True,
+                        index_set=table_id,
+                        storage_cluster_id=cluster.cluster_id,
+                    )
 
-            logger.info("create_base_event_datalink_for_bkcc: es storage created,table_id->[%s]", es_storage.table_id)
+                logger.info(
+                    "create_base_event_datalink_for_bkcc: es storage created,table_id->[%s]", es_storage.table_id
+                )
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(
             "create_base_event_datalink_for_bkcc: create base event datalink for bk_biz_id->[%s] failed,error->[%s]",
             bk_biz_id,
             e,
         )
+        if storage_type == ClusterInfo.TYPE_DORIS:
+            raise
         return
 
     # TASK2 -- 计算平台V4链路部分
@@ -2050,16 +2125,24 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
 
     # 2. 申请数据链路配置 ResultTableConfig,ESStorageBindingConfig,DataBusConfig
     try:
-        data_link_ins.apply_data_link(
-            data_source=data_source, table_id=table_id, storage_cluster_name=storage_cluster_name, bk_biz_id=bk_biz_id
-        )
-        # 这里应该无需再次sync_metadata
+        if storage_type == ClusterInfo.TYPE_ES and result_table.default_storage == ClusterInfo.TYPE_DORIS:
+            cluster = es_storage.storage_cluster
+        _apply_system_event_storage(data_link_ins, data_source, table_id, bk_biz_id, cluster)
+        if (
+            storage_type == ClusterInfo.TYPE_DORIS
+            or models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).exists()
+        ):
+            SpaceTableIDRedis().push_table_id_detail(
+                bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True
+            )
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(
             "create_base_event_datalink_for_bkcc: create base event datalink for bk_biz_id->[%s] failed,error->[%s]",
             bk_biz_id,
             e,
         )
+        if storage_type == ClusterInfo.TYPE_DORIS:
+            raise
         return
 
     logger.info(
@@ -2357,8 +2440,13 @@ def create_single_tenant_system_datalink(data_bk_biz_id: int | None = None, kafk
     SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_ids, is_publish=True)
 
 
-def create_single_tenant_system_event_datalink(data_bk_biz_id: int | None = None, kafka_cluster_name: str = ""):
-    """为单租户系统事件 Data ID 1000 创建 V4 清洗链路，复用已有结果表及 ES 存储。
+def create_single_tenant_system_event_datalink(
+    data_bk_biz_id: int | None = None,
+    kafka_cluster_name: str = "",
+    storage_type: str = ClusterInfo.TYPE_ES,
+    storage_cluster_name: str | None = None,
+):
+    """为单租户系统事件 Data ID 1000 创建 V4 清洗链路，复用已有结果表，默认沿用原 ES 存储。
 
     Args:
         data_bk_biz_id: 计算平台业务 ID，默认使用 DEFAULT_BKDATA_BIZ_ID。
@@ -2371,7 +2459,12 @@ def create_single_tenant_system_event_datalink(data_bk_biz_id: int | None = None
     bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID if data_bk_biz_id is None else data_bk_biz_id
     datasource = DataSource.objects.get(bk_data_id=settings.GSE_BASE_ALARM_DATAID)
     table_id = GSE_SYSTEM_EVENT_TABLE_ID
-    es_storage = models.ESStorage.objects.get(bk_tenant_id=datasource.bk_tenant_id, table_id=table_id)
+    if storage_type == ClusterInfo.TYPE_ES:
+        cluster = models.ESStorage.objects.get(bk_tenant_id=datasource.bk_tenant_id, table_id=table_id).storage_cluster
+        if storage_cluster_name and cluster.cluster_name != storage_cluster_name:
+            raise ValueError("单租户系统事件的 ES 链路使用已有 ESStorage 集群")
+    else:
+        cluster = _system_event_cluster(datasource.bk_tenant_id, storage_type, storage_cluster_name)
     data_name = f"base_{bk_biz_id}_agent_event"
 
     if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
@@ -2405,12 +2498,7 @@ def create_single_tenant_system_event_datalink(data_bk_biz_id: int | None = None
             "table_ids": [table_id],
         },
     )
-    data_link_ins.apply_data_link(
-        data_source=datasource,
-        table_id=table_id,
-        storage_cluster_name=es_storage.storage_cluster.cluster_name,
-        bk_biz_id=bk_biz_id,
-    )
+    _apply_system_event_storage(data_link_ins, datasource, table_id, bk_biz_id, cluster)
 
     # 完整链路下发成功后再停用旧 transfer；清理失败时，下次建链仍会重试清理。
     datasource.delete_consul_config()

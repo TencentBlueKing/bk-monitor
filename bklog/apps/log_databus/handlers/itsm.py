@@ -41,6 +41,7 @@ from apps.log_databus.exceptions import (
 from apps.log_databus.models import CollectorConfig, ItsmEtlConfig
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.utils.local import get_request, get_request_username
+from apps.utils.local import single_tenant_backend_username
 from apps.utils.log import logger
 
 
@@ -95,7 +96,7 @@ class ItsmHandler:
             "fields": [{"key": param_key, "value": param_value} for param_key, param_value in apply_params.items()],
             "meta": {"callback_url": self._generate_callback_url()},
             # 这里是因为需要使用admin创建单据，方能越过创建单据的权限限制
-            "bk_username": "admin",
+            "bk_username": single_tenant_backend_username("admin"),
             # operator和creator保持一致
             "operator": username,
         }

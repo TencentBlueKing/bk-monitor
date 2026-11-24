@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch } from 'vue';
+import { defineComponent, onBeforeUnmount, ref, watch } from 'vue';
 import dayjs from 'dayjs';
 import useLocale from '@/hooks/use-locale';
 import * as echarts from 'echarts';
@@ -57,22 +57,25 @@ export default defineComponent({
     dayjs.extend(isLeapYear);
     const { t } = useLocale();
 
-    const chartRef = ref(null);
-    const chartInstance = ref();
+    const chartRef = ref<HTMLDivElement | null>(null);
+    let chart: echarts.ECharts;
     const showPreViewContent = ref(false);
     const showWarnTip = ref(false);
-    const chartLoading = ref(false);
-    const logLoading = ref(false);
+    const previewLoading = ref(false);
+    let previewRevision = 0;
     const logDataList = ref<string[]>([]);
     // 都为空不允许提交
     const isRecordEmpty = ref(false);
     const localBuckets = ref<Histogram['aggs']['group_by_histogram']['buckets']>([]);
 
-    watch(showPreViewContent, () => {
-      if (showPreViewContent.value) {
-        initChart();
+    watch(chartRef, element => {
+      chart?.dispose();
+      if (element) {
+        chart = echarts.init(element);
+        updateChart(localBuckets.value);
       }
     });
+    onBeforeUnmount(() => chart?.dispose());
 
     // 获取最近一周的起始和结束时间戳 { start: 第一天00:00, end: 第七天23:59 }
     const getCurrentWeekRange = () => {
@@ -81,23 +84,8 @@ export default defineComponent({
       return { start, end };
     };
 
-    const initChart = () => {
-      setTimeout(() => {
-        if (!chartRef.value) {
-          return;
-        }
-        chartInstance.value?.dispose();
-        chartInstance.value = echarts.init(chartRef.value);
-        updateChart(localBuckets.value);
-      });
-    };
-
     const getLast7Days = (format = 'M-D') => {
-      return Array.from({ length: 7 }, (_, i) =>
-        dayjs()
-          .subtract(i + 1, 'day')
-          .format(format),
-      ).reverse();
+      return Array.from({ length: 7 }, (_, i) => dayjs().subtract(i, 'day').format(format)).reverse();
     };
 
     const updateChart = (buckets: Histogram['aggs']['group_by_histogram']['buckets']) => {
@@ -105,7 +93,7 @@ export default defineComponent({
       const xAxisData = isEmpty ? getLast7Days() : buckets.map(item => item.key_as_string.split(' ')[0]);
       const yAxisData = isEmpty ? Array(7).fill(0) : buckets.map(item => item.doc_count);
 
-      chartInstance.value.setOption({
+      chart?.setOption({
         animation: false, // 关闭所有动画
         grid: {
           top: 12,
@@ -181,70 +169,53 @@ export default defineComponent({
       };
     };
 
-    const fetchChartData = async () => {
-      try {
-        chartLoading.value = true;
-        // 用传聚类字段
-        const res = (await $http.request('retrieve/getLogChartList', {
-          params: { index_set_id: props.indexSetId },
-          data: generateQueryData(),
-        })) as IResponseData<Histogram>;
-        localBuckets.value = res.data.aggs?.group_by_histogram?.buckets || [];
-        updateChart(localBuckets.value);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        chartLoading.value = false;
-      }
-    };
-
-    const fetchLogList = async () => {
-      try {
-        logLoading.value = true;
-        const res = (await $http.request('retrieve/getLogTableList', {
-          params: { index_set_id: props.indexSetId },
-          data: generateQueryData(),
-        })) as IResponseData<LogSearchResult>;
-        logDataList.value = res.data.list.map(item => item[props.fieldName]);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        logLoading.value = false;
-      }
-    };
-
-    const handleClickPreview = () => {
-      emit('preview-success');
-      showWarnTip.value = false;
+    const handleClickPreview = async () => {
+      const revision = ++previewRevision;
+      previewLoading.value = true;
       showPreViewContent.value = true;
-      initChart();
-      Promise.all([fetchChartData(), fetchLogList()]).then(() => {
-        if (!localBuckets.value.length && !logDataList.value.length) {
-          isRecordEmpty.value = true;
-          emit('record-empty', true);
-        } else {
-          isRecordEmpty.value = false;
-          emit('record-empty', false);
-        }
-      });
+      showWarnTip.value = true;
+      emit('record-empty', true);
+      try {
+        const res = (await $http.request('retrieve/previewClusteringAccess', {
+          params: { index_set_id: props.indexSetId },
+          data: generateQueryData(),
+        })) as IResponseData<Histogram & LogSearchResult>;
+        if (revision !== previewRevision) return;
+        localBuckets.value = res.data.aggs?.group_by_histogram?.buckets || [];
+        logDataList.value = res.data.list.map(item => item[props.fieldName]);
+        updateChart(localBuckets.value);
+        isRecordEmpty.value = !localBuckets.value.some(bucket => bucket.doc_count > 0) && !logDataList.value.length;
+        emit('record-empty', isRecordEmpty.value);
+        emit('preview-success');
+        showWarnTip.value = false;
+      } finally {
+        if (revision === previewRevision) previewLoading.value = false;
+      }
     };
 
     const setWarn = (isWarn: boolean) => {
-      if (!chartInstance.value) {
+      ++previewRevision;
+      previewLoading.value = false;
+      if (!showPreViewContent.value) {
         return;
       }
       showWarnTip.value = isWarn;
-      initChart();
     };
 
     expose({ setWarn });
 
     return () => (
       <div class='preview-result-main'>
-        {showWarnTip.value && <div class='warn-mask'></div>}
+        {showWarnTip.value && (
+          <div
+            key='warn-mask'
+            class='warn-mask'
+          ></div>
+        )}
         <div class='operate-main'>
           <bk-button
             theme='primary'
+            loading={previewLoading.value}
             style='width: 88px'
             outline
             on-click={handleClickPreview}
@@ -280,9 +251,12 @@ export default defineComponent({
           )}
         </div>
         {showPreViewContent.value && (
-          <div class='preview-content'>
+          <div
+            key='preview-content'
+            class='preview-content'
+          >
             <div class='item-title'>{t('最近 1 周日志趋势')}</div>
-            <div v-bkloading={{ isLoading: chartLoading.value }}>
+            <div v-bkloading={{ isLoading: previewLoading.value }}>
               <div
                 class='chart-main'
                 ref={chartRef}
@@ -292,7 +266,7 @@ export default defineComponent({
             <div
               class='log-demo-main'
               style={{ borderBottom: logDataList.value.length > 0 ? 'solid 1px #dcdee5' : 'none' }}
-              v-bkloading={{ isLoading: logLoading.value }}
+              v-bkloading={{ isLoading: previewLoading.value }}
             >
               {logDataList.value.length > 0 ? (
                 logDataList.value.map((item, index) => (

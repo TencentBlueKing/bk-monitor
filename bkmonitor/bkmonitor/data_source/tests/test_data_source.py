@@ -603,6 +603,76 @@ class TestDataSource:
         assert data_source.switch_unify_query(100147) is True
         assert data_source._get_unify_query_table() == "bklog_index_set_1_clustered"
 
+    @pytest.mark.parametrize(
+        ("query_config_patch", "has_route", "expected_suffix"),
+        [
+            ({"agg_condition": [{"key": "signature", "method": "exists", "value": [""]}]}, True, "_clustered"),
+            ({"agg_dimension": ["signature", "service"]}, True, "_clustered"),
+            # 未开启聚类的索引集可能有同名业务字段，仍查普通表。
+            ({"agg_dimension": ["signature"]}, False, ""),
+        ],
+    )
+    def test_log_search_time_series_signature_uses_clustered_route(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        query_config_patch: dict,
+        has_route: bool,
+        expected_suffix: str,
+    ) -> None:
+        query_config = {
+            "result_table_id": "2_bklog.nginx_access_error_1",
+            "index_set_id": 1,
+            "agg_method": "COUNT",
+            "agg_dimension": [],
+            "agg_condition": [],
+            **query_config_patch,
+        }
+        has_log_clustered_route = MagicMock(return_value=has_route)
+        monkeypatch.setattr("bkmonitor.data_source.data_source.has_log_clustered_route", has_log_clustered_route)
+
+        data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=2)
+
+        assert data_source._get_unify_query_table() == f"bklog_index_set_1{expected_suffix}"
+        has_log_clustered_route.assert_called_with("1")
+
+    def test_log_search_time_series_without_signature_skips_route_lookup(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        query_config = {
+            "result_table_id": "2_bklog.nginx_access_error_1",
+            "index_set_id": 1,
+            "agg_method": "COUNT",
+            "agg_dimension": ["service"],
+            "agg_condition": [],
+        }
+        has_log_clustered_route = MagicMock(return_value=True)
+        monkeypatch.setattr("bkmonitor.data_source.data_source.has_log_clustered_route", has_log_clustered_route)
+
+        data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=2)
+
+        assert data_source._get_unify_query_table() == "bklog_index_set_1"
+        has_log_clustered_route.assert_not_called()
+
+    @pytest.mark.django_db(databases="__all__")
+    def test_has_log_clustered_route_matches_clustered_data_label(self) -> None:
+        from bkmonitor.data_source.data_source import has_log_clustered_route
+        from metadata.models import ResultTable
+
+        has_log_clustered_route.cache_clear()
+        common = {"default_storage": "elasticsearch", "is_custom_table": True}
+        ResultTable.objects.create(
+            table_id="bklog_index_set_1_clustered.__default__",
+            data_label="bklog_index_set_1_clustered",
+            bk_tenant_id="tenant-a",
+            **common,
+        )
+        ResultTable.objects.create(
+            table_id="bklog_index_set_2.__default__", data_label="bklog_index_set_2", bk_tenant_id="system", **common
+        )
+
+        # 索引集 ID 全局唯一，路由登记在哪个租户下都能命中。
+        assert has_log_clustered_route("1") is True
+        assert has_log_clustered_route("2") is False
+        has_log_clustered_route.cache_clear()
+
     def test_log_search_log_query_data(self, mock_es_query_search):
         query_config = {
             "extend_fields": {

@@ -120,6 +120,7 @@
   // #code const ExportLog = () => null;
   // #endif
   import MatchMode from '@/global/match-mode';
+  import { overlayRegistry } from '@/global/overlay';
   import { BK_LOG_STORAGE } from '@/store/store.type';
   import BkLogPopover from '../../../../components/bklog-popover/index';
   import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
@@ -177,7 +178,7 @@
           popperOptions: {
             strategy: 'fixed',
           },
-          zIndex: window.__bk_zIndex_manager?.nextZIndex?.() ?? 2500,
+          zIndex: overlayRegistry.nextZIndex(),
           onShow: () => {
             this.showFieldsSetting = true;
           },
@@ -386,6 +387,9 @@
     }
 
     .tools-more {
+      flex: 1;
+      min-width: 0;
+
       @include flex-center;
 
       .switch-label {
@@ -397,9 +401,15 @@
 
     .operation-icons {
       display: flex;
+      flex: 1;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
+      min-width: 0;
       margin-left: 16px;
+
+      > :not(.light-search) {
+        flex-shrink: 0;
+      }
 
       .operation-icon {
         display: flex;
@@ -433,13 +443,32 @@
 
       .light-search {
         display: flex;
+        flex: 0 1 auto;
         align-items: center;
+        min-width: 0;
         font-size: 12px;
         color: #4d4f56;
         background: #ffffff;
 
+        :deep(.bklog-v3-tag-highlight) {
+          flex: 0 1 auto;
+          width: 400px;
+          min-width: 0;
+        }
+
+        :deep(.bklog-v3-tag-highlight .bklog-tag-choice-input) {
+          width: 100%;
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .bklog-v3-match-mode {
+          flex-shrink: 0;
+        }
+
         label {
           display: flex;
+          flex-shrink: 0;
           align-items: center;
           justify-content: center;
           width: 40px;
@@ -471,6 +500,7 @@
     }
 
     .left-operate {
+      flex: 0 0 auto;
       flex-wrap: nowrap;
       align-items: center;
 
@@ -585,6 +615,6 @@
   }
 
   .bklog-v3-select-dropdown {
-    z-index: 2500;
+    z-index: 3000;
   }
 </style>

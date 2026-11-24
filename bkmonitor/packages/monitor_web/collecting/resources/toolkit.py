@@ -21,6 +21,7 @@ from rest_framework import serializers
 
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
 from bkmonitor.utils.cipher import RSACipher
+from bkmonitor.utils.nodeman import host_queries
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -540,9 +541,9 @@ class CheckPluginVersionResource(Resource):
             if validated_request_data["collect_type"] != collect_type:
                 continue
             # 动态进程采集依赖bkmonitorbeat-v2.10.0/v0.33.0
-            all_plugin = api.node_man.plugin_search(
-                {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
-            )["list"]
+            all_plugin = host_queries.beat_plugin_status(
+                bk_biz_ids=[validated_request_data["bk_biz_id"]], bk_host_ids=bk_host_ids
+            )
             for plugin in all_plugin:
                 for plugin_name, version in check_plugins.items():
                     beat_plugin = list(filter(lambda x: x["name"] == plugin_name, plugin["plugin_status"]))
