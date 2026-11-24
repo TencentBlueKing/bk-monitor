@@ -9,7 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import re
 
+from django.conf import settings
 from django.http import HttpResponse
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
@@ -32,9 +34,7 @@ class UserViewSet(viewsets.GenericViewSet):
 
     class RequestSerializer(serializers.Serializer):
         fuzzy_lookups = serializers.CharField(label="查询关键字", default="")
-        lookup_field = serializers.ChoiceField(
-            label="查询字段", choices=ALLOWED_USER_LOOKUP_FIELDS, required=False
-        )
+        lookup_field = serializers.ChoiceField(label="查询字段", choices=ALLOWED_USER_LOOKUP_FIELDS, required=False)
         page = serializers.IntegerField(label="限制数量", default=1)
         page_size = serializers.IntegerField(label="限制数量", default=20)
         fields = serializers.CharField(label="返回字段", default="id,display_name,username,logo")
@@ -45,7 +45,7 @@ class UserViewSet(viewsets.GenericViewSet):
 
     @action(methods=["GET"], detail=False)
     def list_users(self, request: Request):
-        params = dict(request.query_params)
+        params = request.query_params.dict() if settings.ESB_DISABLED else dict(request.query_params)
         params.pop("callback", None)
         params.pop("app_code", None)
 
@@ -54,6 +54,13 @@ class UserViewSet(viewsets.GenericViewSet):
         # 校验全部取值，避免重复传参（lookup_field=username&lookup_field=password）绕过
         if any(lf and lf not in ALLOWED_USER_LOOKUP_FIELDS for lf in request.query_params.getlist("lookup_field")):
             raise serializers.ValidationError({"lookup_field": "仅支持按 username、display_name 过滤"})
+
+        callback = request.query_params.get("callback")
+        if settings.ESB_DISABLED and callback:
+            if request.headers.get("Sec-Fetch-Site") in {"cross-site", "same-site"} or not re.fullmatch(
+                r"[A-Za-z_$][A-Za-z0-9_$]*", callback
+            ):
+                raise serializers.ValidationError({"callback": "无效的选人回调"})
 
         all_user_result = api.bk_login.get_all_user(**params)
         result = {
@@ -74,7 +81,10 @@ class UserViewSet(viewsets.GenericViewSet):
         }
         if "callback" in request.query_params:
             result_str = f"{request.query_params['callback']}({json.dumps(result)})"
-            return HttpResponse(content=result_str, content_type="application/x-javascript")
+            response = HttpResponse(content=result_str, content_type="application/x-javascript")
+            if settings.ESB_DISABLED:
+                response["Cross-Origin-Resource-Policy"] = "same-origin"
+            return response
         else:
             return Response(result)
 

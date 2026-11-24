@@ -39,7 +39,7 @@ import useStore from '@/hooks/use-store';
 import logoImg from '@/images/log-logo.png';
 import platformConfigStore from '@/store/modules/platform-config';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import { bkDropdownMenu } from 'bk-magic-vue';
+import { bkDropdownMenu, bkMessage } from 'bk-magic-vue';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
 
@@ -240,7 +240,26 @@ export default defineComponent({
     /**
      * 切换语言（兼容跨域：通过 JSONP 调前端网关 API）
      */
-    function changeLanguage(value: string) {
+    async function changeLanguage(value: string) {
+      if (window.ESB_DISABLED) {
+        const root = window.BK_PAAS_API_HOST.replace(/\/$/, '');
+        try {
+          const response = await fetch(`${root}/api/bk-user-web/prod/api/v3/open-web/tenant/current-user/language/`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-Bk-Tenant-Id': window.BK_USER_WEB_TENANT_ID },
+            body: JSON.stringify({ language: value }),
+          });
+          const result = await response.json();
+          if (!response.ok || result.result === false || (result.code != null && result.code !== 0)) {
+            throw new Error(result.message || response.statusText);
+          }
+        } catch (error) {
+          bkMessage({ message: String(error), theme: 'error' });
+          return;
+        }
+      }
+
       jsCookie.remove('blueking_language', { path: '' });
       jsCookie.set('blueking_language', value, {
         expires: 3600,
@@ -249,6 +268,10 @@ export default defineComponent({
             .join('.')
             .replace(`:${location.port}`, ''),
       });
+      if (window.ESB_DISABLED) {
+        location.reload();
+        return;
+      }
       if (envConfig.value.host) {
         try {
           useJSONP(

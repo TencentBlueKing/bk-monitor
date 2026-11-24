@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from abc import ABC, abstractmethod
 
 from django.conf import settings
@@ -91,6 +91,9 @@ class FeatureCollectorITSM(FeatureToggleBase):
     target = "collect_itsm"
 
     def set_status(self, param: dict) -> dict:
+        if settings.ESB_DISABLED:
+            param["status"] = "off"
+            return param
         if param["status"] != "off":
             # 如果status是打开的情况则需要前往itsm获取相关参数
             from apps.log_databus.handlers.itsm import ItsmHandler

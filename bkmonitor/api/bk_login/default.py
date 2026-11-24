@@ -24,7 +24,7 @@ class BkUserApiResource(APIResource):
         """
         是否使用apigw
         """
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.ESB_DISABLED or settings.ENABLE_MULTI_TENANT_MODE
 
     @property
     def base_url(self):
@@ -75,16 +75,63 @@ class ListTenantResource(BkUserApiResource):
         return result
 
 
+class LookupTenantUsersResource(BkUserApiResource):
+    """按账号批量查询用户。"""
+
+    action = "/api/v3/open/tenant/users/-/lookup/"
+    method = "GET"
+
+
+class SearchTenantUsersResource(BkUserApiResource):
+    """使用当前用户身份搜索可见用户。"""
+
+    base_url = settings.BK_USER_WEB_API_URL
+    action = "/api/v3/open-web/tenant/users/-/search/"
+    method = "GET"
+
+
 class GetAllUserResource(BkUserApiResource):
     """
     查询用户列表
     """
 
-    action = "/list_users/"
+    @property
+    def action(self):
+        return "/api/v3/open/tenant/users/" if settings.ESB_DISABLED else "/list_users/"
+
     method = "GET"
     cache_type = CacheType.USER
 
     def perform_request(self, params):
+        if settings.ESB_DISABLED:
+            account_field = "bk_username" if settings.ENABLE_MULTI_TENANT_MODE else "login_name"
+            if "exact_lookups" in params:
+                accounts = list(dict.fromkeys(filter(None, params["exact_lookups"].split(","))))
+                users = []
+                for start in range(0, len(accounts), 100):
+                    users.extend(
+                        LookupTenantUsersResource().request(
+                            {"lookup_field": account_field, "lookups": ",".join(accounts[start : start + 100])}
+                        )
+                    )
+                count = len(users)
+            elif keyword := params.get("fuzzy_lookups"):
+                users = SearchTenantUsersResource().request({"keyword": keyword})
+                count = len(users)
+                size = max(1, int(params.get("page_size", 20)))
+                offset = (max(1, int(params.get("page", 1))) - 1) * size
+                users = users[offset : offset + size]
+            else:
+                page = super().perform_request({key: params[key] for key in ("page", "page_size") if key in params})
+                users, count = page["results"], page["count"]
+            return {
+                "count": count,
+                "results": [
+                    {"username": user[account_field], "display_name": user["display_name"], "logo": ""}
+                    for user in users
+                ],
+            }
+
         # 如果使用apigw，则直接返回空列表，这种情况下要求前端直接请求bk-user的接口获取用户展示信息
         if self.use_apigw():
             return {"count": 0, "results": []}
@@ -226,8 +273,14 @@ class ListProfileDepartmentsResource(BkUserApiResource):
         if not self.use_apigw():
             return super().perform_request(params)
 
+        username = params["id"]
+        if settings.ESB_DISABLED and not settings.ENABLE_MULTI_TENANT_MODE:
+            users = LookupTenantUsersResource().request({"lookup_field": "login_name", "lookups": username})
+            if not users:
+                return []
+            username = users[0]["bk_username"]
         params = {
-            "bk_username": params["id"],
+            "bk_username": username,
             "with_ancestors": params["with_family"],
         }
         result = super().perform_request(params)
@@ -276,6 +329,13 @@ class GetUserInfo(BkUserApiResource):
         fields = serializers.CharField(required=False, label="返回字段")
 
     def perform_request(self, validated_request_data):
+        if settings.ESB_DISABLED and not settings.ENABLE_MULTI_TENANT_MODE:
+            users = LookupTenantUsersResource().request(
+                {"lookup_field": "login_name", "lookups": validated_request_data["id"]}
+            )
+            if not users:
+                raise ValueError(f"用户 {validated_request_data['id']} 不存在")
+            return {**users[0], "username": users[0]["login_name"]}
         if self.use_apigw():
             # API Gateway 模式：转换参数格式
             params = {"bk_username": validated_request_data["id"]}

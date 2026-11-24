@@ -33,6 +33,7 @@ from django.utils import translation  # noqa
 from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.iam.mode import get_effective_mode
+from apps.utils.local import get_request_tenant_id
 from iam_engine.core.config import AuthMode
 
 
@@ -61,6 +62,13 @@ def mysetting(request):
         bk_login_url_prefix = (
             urlparse(bk_login_url_prefix)._replace(scheme="https", netloc=bk_component_api_url_netloc).geturl()
         )
+    if settings.ESB_DISABLED and not settings.ENABLE_MULTI_TENANT_MODE:
+        user_selector_url = f"{settings.SITE_URL}api/v1/list_users/"
+    elif settings.USE_APIGW:
+        user_selector_url = f"{settings.PAAS_API_HOST}/api/bk-user-web/prod"
+    else:
+        user_selector_url = f"{bk_login_url_prefix}/api/c/compapi/v2/usermanage/fs_list_users/"
+
     return {
         "gettext": _,
         "_": _,
@@ -122,9 +130,9 @@ def mysetting(request):
         "DEMO_BIZ_ID": str(settings.DEMO_BIZ_ID),
         "ES_STORAGE_CAPACITY": str(settings.ES_STORAGE_CAPACITY),
         "TAM_AEGIS_KEY": settings.TAM_AEGIS_KEY,
-        "BK_LOGIN_URL": f"{settings.PAAS_API_HOST}/api/bk-user-web/prod"
-        if settings.USE_APIGW
-        else f"{bk_login_url_prefix}/api/c/compapi/v2/usermanage/fs_list_users/",
+        "ESB_DISABLED": settings.ESB_DISABLED,
+        "BK_USER_WEB_TENANT_ID": get_request_tenant_id() if settings.ESB_DISABLED else "",
+        "BK_LOGIN_URL": user_selector_url,
         "MENU_LOGO_URL": f"{settings.STATIC_URL}{settings.MENU_LOGO_URL}",
         "BK_DOC_DATA_URL": settings.BK_DOC_DATA_URL,
         "BK_ARCHIVE_DOC_URL": settings.BK_ARCHIVE_DOC_URL,

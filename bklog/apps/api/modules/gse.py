@@ -52,9 +52,10 @@ class _GseApi:
     MODULE = _("GSE管控平台")
 
     def __init__(self):
+        gateway = f"{settings.PAAS_API_HOST}/api/bk-gse/prod/api/v2/data"
         self.query_route = DataAPI(
             method="POST",
-            url=GSE_APIGATEWAY_ROOT_V2 + "config_query_route",
+            url=f"{gateway}/query_route" if settings.ESB_DISABLED else GSE_APIGATEWAY_ROOT_V2 + "config_query_route",
             module=self.MODULE,
             description=_("查询数据路由配置信息"),
             before_request=add_esb_info_before_request,
@@ -62,7 +63,9 @@ class _GseApi:
         )
         self.query_stream_to = DataAPI(
             method="POST",
-            url=GSE_APIGATEWAY_ROOT_V2 + "config_query_streamto",
+            url=f"{gateway}/query_streamto"
+            if settings.ESB_DISABLED
+            else GSE_APIGATEWAY_ROOT_V2 + "config_query_streamto",
             module=self.MODULE,
             description=_("查询数据入库消息队列或第三方平台的配置"),
             before_request=add_esb_info_before_request,

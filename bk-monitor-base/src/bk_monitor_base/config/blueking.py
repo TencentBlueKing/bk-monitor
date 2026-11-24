@@ -5,7 +5,7 @@
 from typing import ClassVar, Literal, Self
 
 from pydantic import AliasChoices, ConfigDict, Field, HttpUrl
-from pydantic.functional_validators import model_validator
+from pydantic.functional_validators import field_validator, model_validator
 from pydantic_settings import SettingsConfigDict
 
 from .base import BaseConfigModel, BaseConfigSettings
@@ -97,7 +97,14 @@ class BlueKingConfig(BaseConfigSettings):
 
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(validate_by_name=True, extra="ignore")
 
-    # 多租户模
+    esb_enabled: bool = Field(default=True, validation_alias="BKPAAS_ESB_ENABLED")
+
+    @field_validator("esb_enabled", mode="before")
+    @classmethod
+    def normalize_esb_switch(cls, value):
+        return value.strip().lower() != "false" if isinstance(value, str) else value
+
+    # 多租户模式
     enable_multi_tenancy: bool = Field(
         description="是否启用多租户模式",
         default=False,

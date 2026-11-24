@@ -33,6 +33,10 @@ declare global {
     timezone: string;
     MONITOR_URL: string;
     BK_LOGIN_URL: string;
+    ESB_DISABLED?: boolean;
+    BK_USER_WEB_TENANT_ID: string;
+    BK_PAAS_API_HOST: string;
+
     BK_SHARED_RES_URL: string;
     VERSION: string;
     AJAX_URL_PREFIX: string;

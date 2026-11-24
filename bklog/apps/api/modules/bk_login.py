@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from urllib.parse import quote
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
@@ -53,6 +55,10 @@ def get_user_after(response_result):
     return response_result
 
 
+class TenantUserAPI(DataAPI):
+    EXCLUDE_URL_KEYS = True
+
+
 class _BKLoginApi:
     MODULE = _("PaaS平台登录模块")
 
@@ -64,13 +70,43 @@ class _BKLoginApi:
         return f"{settings.PAAS_API_HOST}{new_path}" if self.use_apigw else f"{USER_MANAGE_APIGATEWAY_ROOT}{old_path}"
 
     def __init__(self):
-        self.get_user = DataAPI(
-            method="GET",
-            url=self._build_url("/api/bk-login/prod/login/api/v3/open/bk-tokens/userinfo/", "retrieve_user/"),
-            module=self.MODULE,
-            description="获取单个用户",
-            before_request=get_user_before,
-            after_request=get_user_after,
+        user_root = f"{settings.PAAS_API_HOST}/api/bk-user/prod/api/v3/open/tenant/users/"
+        if settings.ESB_DISABLED:
+            self.lookup_users = TenantUserAPI(
+                method="GET", url=user_root + "-/lookup/", module=self.MODULE, description="按账号查询用户"
+            )
+            self.list_users = TenantUserAPI(method="GET", url=user_root, module=self.MODULE, description="分页查询用户")
+            self.search_users = TenantUserAPI(
+                method="GET",
+                url=f"{settings.PAAS_API_HOST}/api/bk-user-web/prod/api/v3/open-web/tenant/users/-/search/",
+                module=self.MODULE,
+                description="搜索用户",
+            )
+            self.user_departments = TenantUserAPI(
+                method="GET",
+                url=user_root + "{bk_username}/departments/",
+                url_keys=["bk_username"],
+                module=self.MODULE,
+                description="查询用户所属部门",
+            )
+            self.user_detail = TenantUserAPI(
+                method="GET",
+                url=user_root + "{bk_username}/",
+                url_keys=["bk_username"],
+                module=self.MODULE,
+                description="查询用户详情",
+            )
+        self.get_user = (
+            self.get_gateway_user
+            if settings.ESB_DISABLED
+            else DataAPI(
+                method="GET",
+                url=self._build_url("/api/bk-login/prod/login/api/v3/open/bk-tokens/userinfo/", "retrieve_user/"),
+                module=self.MODULE,
+                description="获取单个用户",
+                before_request=get_user_before,
+                after_request=get_user_after,
+            )
         )
 
         if settings.ENABLE_MULTI_TENANT_MODE:
@@ -92,12 +128,41 @@ class _BKLoginApi:
             use_implicit_user_auth=False,
         )
 
-        self.list_department_profiles = DataAPI(
-            method="GET",
-            url=USER_MANAGE_APIGATEWAY_ROOT + "list_profile_departments/",
-            module=self.MODULE,
-            description="查询用户的部门信息 (v2)",
+        self.list_department_profiles = (
+            self.get_gateway_departments
+            if settings.ESB_DISABLED
+            else DataAPI(
+                method="GET",
+                url=USER_MANAGE_APIGATEWAY_ROOT + "list_profile_departments/",
+                module=self.MODULE,
+                description="查询用户的部门信息 (v2)",
+            )
         )
+
+    def gateway_username(self, username):
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return username
+        users = self.lookup_users({"lookup_field": "login_name", "lookups": username})
+        return users[0]["bk_username"] if users else None
+
+    def get_gateway_user(self, params):
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            user = self.user_detail({"bk_username": quote(params["username"], safe="")})
+        else:
+            users = self.lookup_users({"lookup_field": "login_name", "lookups": params["username"]})
+            if not users:
+                return {}
+            user = users[0]
+        return {**user, "username": params["username"], "chname": user["display_name"]}
+
+    def get_gateway_departments(self, params):
+        username = self.gateway_username(params["id"])
+        if not username:
+            return []
+        departments = self.user_departments(
+            {"bk_username": quote(username, safe=""), "with_ancestors": str(params.get("with_family", True)).lower()}
+        )
+        return [{**department, "family": department.get("ancestors", [])} for department in departments]
 
 
 BKLoginApi = _BKLoginApi()

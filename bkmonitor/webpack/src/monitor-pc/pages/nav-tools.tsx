@@ -332,6 +332,27 @@ class NavTools extends DocumentLinkMixin {
     if (item.id === docCookies.getItem(LANGUAGE_COOKIE_KEY)) {
       return;
     }
+    if (window.esb_disabled) {
+      try {
+        if (!window.bk_user_web_api_url || !window.bk_tenant_id) {
+          throw new Error(String(this.$t('用户管理配置缺失')));
+        }
+        const root = window.bk_user_web_api_url.replace(/\/$/, '');
+        const response = await fetch(`${root}/api/v3/open-web/tenant/current-user/language/`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', 'X-Bk-Tenant-Id': window.bk_tenant_id },
+          body: JSON.stringify({ language: item.id }),
+        });
+        const result = await response.json();
+        if (!response.ok || result.result === false || (result.code != null && result.code !== 0)) {
+          throw new Error(result.message || response.statusText);
+        }
+      } catch (error) {
+        this.$bkMessage({ theme: 'error', message: String(error) });
+        return;
+      }
+    }
     docCookies.removeItem(LANGUAGE_COOKIE_KEY);
     docCookies.setItem(
       LANGUAGE_COOKIE_KEY,
@@ -340,7 +361,7 @@ class NavTools extends DocumentLinkMixin {
       '/',
       `${window.bk_domain && location.hostname.includes(window.bk_domain) ? window.bk_domain : location.hostname}`
     );
-    if (window.bk_component_api_url) {
+    if (!window.esb_disabled && window.bk_component_api_url) {
       useJSONP(
         `${window.bk_component_api_url
           .replace(/\/$/, '')

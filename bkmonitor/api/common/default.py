@@ -12,6 +12,7 @@ import abc
 
 import six
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.template import Jinja2Renderer
 from bkmonitor.utils.user import get_global_user
@@ -45,6 +46,9 @@ class CommonBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
     def perform_request(self, params):
         self.plugin_key = params.pop("action_plugin_key", None) or self.plugin_key
+        # 升级前保存的 V3 套餐仍可能被调度，禁止通用执行器向已下线的 ESB 发起请求。
+        if settings.ESB_DISABLED and "/api/c/compapi/" in self.url_path.split("?")[0]:
+            raise BKAPIError(system_name=self.plugin_key, url=self.url_path, result=_("ESB 已关闭，请使用网关套餐"))
         params["_origin_user"] = get_global_user()
         try:
             return super().perform_request(params)

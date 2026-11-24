@@ -1308,6 +1308,7 @@ DOC_HOST = "https://bk.tencent.com/docs/"
 if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
+ESB_DISABLED = os.getenv("BKPAAS_ESB_ENABLED", "").strip().lower() == "false"
 CMDB_USE_APIGW = os.getenv("BKAPP_CMDB_USE_APIGW", "false").lower() == "true"
 CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
 CMSI_API_BASE_URL = os.getenv("BKAPP_CMSI_API_BASE_URL", "")
