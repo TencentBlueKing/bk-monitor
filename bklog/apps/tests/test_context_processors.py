@@ -46,6 +46,10 @@ class LogAccessGuideContextTest(SimpleTestCase):
         self.assertEqual(context["BK_LOG_ACCESS_GUIDE_URL"], access_url)
         self.assertEqual(context["BK_LOG_PERMISSION_GUIDE_URL"], permission_url)
 
+    @override_settings(BKBASEV4_URL="https://data.example.test")
+    def test_bkbase_v4_url(self):
+        self.assertEqual(self._context()["BKBASEV4_URL"], "https://data.example.test")
+
     def test_ordinary_requests_use_configured_guide_for_all_versions(self):
         for run_ver in ("tencent", "ee", "ce", "open"):
             for is_external in (None, "false"):
