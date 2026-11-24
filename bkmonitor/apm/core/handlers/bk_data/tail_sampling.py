@@ -21,11 +21,12 @@ from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.core.handlers.bk_data.flow import ApmFlow
 from apm.models import TraceDataSource
 from bkmonitor.dataflow.task.apm_tail_sampling import APMTailSamplingTask, TailSamplingFlinkNode
-from constants.apm import FlowType, normalize_app_name
+from constants.apm import TRACE_RESULT_TABLE_OPTION, FlowType, normalize_app_name
 from core.drf_resource import api
 from metadata.models import ClusterInfo, DataIdConfig, ResultTableOption
-from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, DataLinkResourceStatus
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
+from metadata.models.data_link.data_link_configs import ESStorageBindingConfig
 
 
 class TailSamplingFlow(ApmFlow):
@@ -47,6 +48,8 @@ class TailSamplingFlow(ApmFlow):
     # V4 尾部采样资源状态轮询参数。
     _V4_RESOURCE_WAIT_SECONDS = 500
     _V4_POLL_INTERVAL_SECONDS = 10
+    # V4 Flow 通过该 annotation 启停："true" 期望停止，"false" 期望运行。
+    _TASK_STOPPED_ANNOTATION = "task_stopped"
 
     def __init__(self, trace_datasource, config):
         super().__init__(trace_datasource.bk_biz_id, trace_datasource.app_name, trace_datasource.bk_data_id, config)
@@ -341,12 +344,28 @@ class TailSamplingFlow(ApmFlow):
 
     def _start_v4(self) -> None:
         """已有尾采只更新 Flow；首次开启才创建前置资源并切断直写链路。"""
+        trace_datasource, direct_link = None, None
+        if not self.flow.databus_clean_result_table_id:
+            trace_datasource = TraceDataSource.objects.get(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+            # 共享数据源多个应用共用 DataId，切断直写会影响共享池内所有应用。
+            if trace_datasource.is_shared:
+                self._raise_exc(
+                    "shared trace datasource does not support tail sampling", FlowStatus.CONFIG_FLOW_FAILED.value
+                )
+            try:
+                direct_link = self._get_direct_trace_datalink(trace_datasource)
+            except ValueError as error:
+                self._raise_exc(str(error), FlowStatus.CONFIG_FLOW_FAILED.value)
+            # 没有 V4 直写链路（transfer 入库）时，走 V4 无链路可停、会与 transfer 双写，首次创建沿用 V3。
+            if direct_link is None:
+                self.logger.info("trace datasource has no bkbase v4 direct datalink, fallback to V3 tail sampling")
+                return super().start()
+
         try:
-            if self.flow.databus_clean_result_table_id:
+            if trace_datasource is None:
                 self._update_existing_v4_flow()
             else:
-                trace_datasource = TraceDataSource.objects.get(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-                self._create_v4_flow(trace_datasource)
+                self._create_v4_flow(trace_datasource, direct_link)
         except Exception as error:
             self._raise_exc(f"apply tail sampling V4 resources failed: {error}", FlowStatus.CONFIG_FLOW_FAILED.value)
 
@@ -360,7 +379,7 @@ class TailSamplingFlow(ApmFlow):
         )
 
     def _update_existing_v4_flow(self) -> None:
-        """从 BKBase 读取既有 Flow，只更新采样参数并保留其资源引用。"""
+        """从 BKBase 读取既有 Flow，更新采样参数后停启一次，让 Flink 作业按新参数重新提交。"""
         flow_name = self._v4_flow_name()
         flow_namespace = self._FLOW_NAMESPACE_FORMAT.format(project_id=self.flow.project_id)
         remote = api.bkdata.get_data_link(
@@ -373,35 +392,51 @@ class TailSamplingFlow(ApmFlow):
         if phase != DataLinkResourceStatus.OK.value:
             raise ValueError(f"已有 Flow({flow_namespace}/{flow_name}) 状态为 {phase}，暂不更新")
 
-        metadata = remote["metadata"]
+        metadata = {
+            key: copy.deepcopy(remote["metadata"][key])
+            for key in ("tenant", "namespace", "name", "labels", "annotations")
+            if key in remote["metadata"]
+        }
+        is_stopped = (metadata.get("annotations") or {}).get(self._TASK_STOPPED_ANNOTATION) == "true"
         spec = copy.deepcopy(remote["spec"])
         flink_node = next(node for node in spec["nodes"] if node["kind"] == "FlinkCodeNode")
-        programming_args = json.loads(flink_node["programming_args"])
-        programming_args.update(self._v4_programming_args(programming_args["input_table_id"], flink_node["output"]))
-        flink_node["programming_args"] = json.dumps(programming_args, ensure_ascii=False, separators=(",", ":"))
-        spec["desired_status"] = "running"
+        old_args = json.loads(flink_node["programming_args"])
+        new_args = {**old_args, **self._v4_programming_args(old_args["input_table_id"], flink_node["output"])}
+        # 内容不变时不提交：重复 apply 只会白白重启作业。
+        if new_args == old_args and not is_stopped:
+            self.logger.info(f"Flow({flow_namespace}/{flow_name}) sampling args unchanged, skip apply")
+            return
 
-        flow_config = {
-            "kind": "Flow",
-            "metadata": {
-                key: metadata[key]
-                for key in ("tenant", "namespace", "name", "labels", "annotations")
-                if key in metadata
-            },
-            "spec": spec,
-            "status": None,
+        flink_node["programming_args"] = json.dumps(new_args, ensure_ascii=False, separators=(",", ":"))
+        # BKBase 不保存 desired_status，启停只认 annotations.task_stopped。
+        spec.pop("desired_status", None)
+        # BKBase 当前版本 Flow alias 为空时，更新不会下发，需显式补非空 alias。
+        if not spec.get("alias"):
+            spec["alias"] = flow_name
+
+        # Flink 只在作业提交时读取 programming_args：运行中的 Flow 先带新参数停止，再启动以重新提交作业。
+        if not is_stopped:
+            self._apply_v4_resources([self._compose_flow_with_task_stopped(metadata, spec, stopped=True)])
+        self._apply_v4_resources([self._compose_flow_with_task_stopped(metadata, spec, stopped=False)])
+
+    def _compose_flow_with_task_stopped(self, metadata: dict, spec: dict, stopped: bool) -> dict:
+        """组装带启停 annotation 的 Flow 声明，不修改入参。"""
+        flow_metadata = copy.deepcopy(metadata)
+        flow_metadata["annotations"] = {
+            **(flow_metadata.get("annotations") or {}),
+            self._TASK_STOPPED_ANNOTATION: "true" if stopped else "false",
         }
-        self._apply_v4_resources([flow_config])
+        return {"kind": "Flow", "metadata": flow_metadata, "spec": copy.deepcopy(spec), "status": None}
 
-    def _create_v4_flow(self, trace_datasource: TraceDataSource) -> None:
+    def _create_v4_flow(self, trace_datasource: TraceDataSource, direct_link: DataLink) -> None:
         """首次开启时声明五字段资源与 Flow，成功后停用原直写链路。"""
         source, source_configs = self._compose_v4_tail_source(trace_datasource)
-        storage = self._resolve_v4_es_storage(trace_datasource)
+        storage = self._resolve_v4_es_storage(trace_datasource, direct_link)
         flow_config = self.compose_v4_flow_config(source=source, storage=storage)
         self._apply_v4_resources([*source_configs, flow_config])
 
         # 切断直写成功后才记录新 Flow；若失败，下次仍重走可幂等的创建路径。
-        self._disable_direct_trace_datalink(trace_datasource)
+        self._disable_direct_trace_datalink(trace_datasource, direct_link)
         self._update_field(
             {
                 "project_id": str(self.bkbase_project_id),
@@ -607,20 +642,46 @@ class TailSamplingFlow(ApmFlow):
             },
         ]
 
-    def _resolve_v4_es_storage(self, trace_datasource: TraceDataSource) -> dict:
-        """从原生 V4 Trace 存储配置确定同一 ES 资源与索引别名。"""
+    def _resolve_v4_es_storage(self, trace_datasource: TraceDataSource, direct_link: DataLink) -> dict:
+        """以直写链路的 ES 绑定为准，确定 Flow 写入的 ES 资源、写别名与文档 ID 字段。
+
+        平台迁移的链路在 BKBase 中注册的 ES 资源名可能与监控 ClusterInfo.cluster_name 不同，
+        不能按监控侧配置推算，否则 Flow 会写到错误的 ES 资源。
+        """
         storage = trace_datasource.storage
         if storage is None:
             raise ValueError(f"trace datasource {self.bk_biz_id} {self.app_name} not found storage")
 
+        binding = ESStorageBindingConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=direct_link.namespace,
+            data_link_name=direct_link.data_link_name,
+        ).first()
+        if binding is None:
+            raise ValueError(f"直写链路({direct_link.data_link_name}) 未找到 ES 存储绑定")
+
+        remote_binding = api.bkdata.get_data_link(
+            bk_tenant_id=self.bk_tenant_id,
+            kind=DataLinkKind.get_choice_value(binding.kind),
+            namespace=binding.namespace,
+            name=binding.name,
+        )
+        binding_spec = remote_binding.get("spec") or {}
+        es_storage_ref = binding_spec.get("storage") or {}
+        write_alias = binding_spec.get("write_alias")
+        if not es_storage_ref.get("name") or not write_alias:
+            raise ValueError(f"直写 ES 绑定({binding.namespace}/{binding.name}) 缺少 storage 或 write_alias")
+
         return {
-            "tenant": self.bkbase_resource_tenant,
-            "namespace": BKBASE_NAMESPACE_BK_LOG,
-            "name": storage.storage_cluster.cluster_name,
+            "storage": {key: es_storage_ref[key] for key in ("kind", "tenant", "namespace", "name")},
+            "write_alias": write_alias,
+            # 文档 ID 字段与直写一致，切换重叠期两条链路写同一 span 时按同一 _id 覆盖而不是重复。
+            "unique_field_list": list(
+                binding_spec.get("unique_field_list")
+                or TRACE_RESULT_TABLE_OPTION[ResultTableOption.OPTION_ES_DOCUMENT_ID]
+            ),
             "retention": storage.retention,
             "replicas": self._V4_FLOW_ES_REPLICAS,
-            "timezone": storage.time_zone,
-            "table_name": trace_datasource.result_table_id.replace(".", "_"),
         }
 
     def _v4_programming_args(self, input_table_id: str, output_table_id: str) -> dict:
@@ -650,6 +711,7 @@ class TailSamplingFlow(ApmFlow):
             flink_code = flink_file.read().strip()
 
         programming_args = self._v4_programming_args(input_table_id, output_table_id)
+        flow_name = self._v4_flow_name()
         flink_instance = TailSamplingFlinkNode(
             source_rt_id=input_table_id,
             flink_code=flink_code,
@@ -671,9 +733,9 @@ class TailSamplingFlow(ApmFlow):
             "metadata": {
                 "tenant": source["tenant"],
                 "namespace": self.flow_namespace,
-                "name": self._v4_flow_name(),
+                "name": flow_name,
                 "labels": {},
-                "annotations": {},
+                "annotations": {self._TASK_STOPPED_ANNOTATION: "false"},
             },
             "spec": {
                 "nodes": [
@@ -702,21 +764,11 @@ class TailSamplingFlow(ApmFlow):
                         "kind": "EsStorageNode",
                         "name": f"elastic_storage_{self.data_id}_tail_v4",
                         "input": flink_node_name,
-                        "storage": {
-                            "kind": "ElasticSearch",
-                            "tenant": storage["tenant"],
-                            "namespace": storage["namespace"],
-                            "name": storage["name"],
-                        },
-                        "write_alias": {
-                            "TimeBased": {
-                                "format": f"write_%Y%m%d_{storage['table_name']}",
-                                "timezone": storage["timezone"],
-                            }
-                        },
+                        "storage": copy.deepcopy(storage["storage"]),
+                        "write_alias": copy.deepcopy(storage["write_alias"]),
                         "expires": f"{storage['retention']}d",
                         "replicas": storage["replicas"],
-                        "unique_field_list": ["trace_id", "span_id"],
+                        "unique_field_list": list(storage["unique_field_list"]),
                         "analyzed_fields": [],
                         "doc_value_fields": ["dtEventTimeStamp", "timestamp"],
                         "json_field_list": ["status", "events", "links", "attributes", "resource"],
@@ -735,7 +787,8 @@ class TailSamplingFlow(ApmFlow):
                     "batch_sql_deploy_config": None,
                 },
                 "maintainers": [self.application.create_user],
-                "desired_status": "running",
+                # BKBase 当前版本 alias 为空的 Flow 后续更新不会下发，创建时即指定非空 alias。
+                "alias": flow_name,
             },
             "status": None,
         }
@@ -785,8 +838,12 @@ class TailSamplingFlow(ApmFlow):
                 )
             time.sleep(self._V4_POLL_INTERVAL_SECONDS)
 
-    def _disable_direct_trace_datalink(self, trace_datasource: TraceDataSource) -> None:
-        """新资源全部 Ok 后删除原生 V4 Trace 的直写 ES DataLink。"""
+    def _get_direct_trace_datalink(self, trace_datasource: TraceDataSource) -> DataLink | None:
+        """以 metadata 为准，返回正在直写该 Trace RT 的 BK_LOG DataLink。
+
+        平台批量迁移到 V4 的应用，APM 侧 bkdata_datalink_config 与 RT option 可能未同步，
+        因此不依赖这些标记，只看 metadata 中实际存在的直写链路。
+        """
         direct_links = [
             data_link
             for data_link in DataLink.objects.filter(
@@ -801,7 +858,10 @@ class TailSamplingFlow(ApmFlow):
                 f"Trace DataId({trace_datasource.bk_data_id}) 匹配到多个直写 DataLink: "
                 f"{[data_link.data_link_name for data_link in direct_links]}"
             )
+        return direct_links[0] if direct_links else None
 
+    def _disable_direct_trace_datalink(self, trace_datasource: TraceDataSource, direct_link: DataLink) -> None:
+        """新资源全部 Ok 后停用直写 ES DataLink，并标记 RT 不再走日志 V4 直写。"""
         value, value_type = ResultTableOption._parse_value(False)
         ResultTableOption.objects.update_or_create(
             bk_tenant_id=self.bk_tenant_id,
@@ -813,5 +873,4 @@ class TailSamplingFlow(ApmFlow):
                 "creator": self.application.create_user if self.application else self.bkbase_operator,
             },
         )
-        if direct_links:
-            direct_links[0].delete_data_link()
+        direct_link.delete_data_link()
