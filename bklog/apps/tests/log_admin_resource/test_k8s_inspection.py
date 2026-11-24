@@ -1553,6 +1553,13 @@ class SourcePolicyTest(SimpleTestCase):
         legacy = source_policy(parsed, target, expected, 7, pod)
         self.assertEqual(legacy["runtime_pid"], "32")
         self.assertFalse(legacy["mounts"]["/private"])
+        for malformed in ("local: [", "date: 2025-99-99"):
+            parsed["streams"]["child_config.1"] = {**stream, "content": malformed}
+            with self.assertLogs("apps.log_admin_resource.collector_probe_evidence", level="WARNING"):
+                self.assertEqual(source_policy(parsed, target, expected, 7, pod)["runtime_pid"], "32")
+        del parsed["streams"]["child_config.1"]
+        stream["content"] = "local: [{dataid: 7, mount_infos: 1, remove_path_prefix: /var/host}]"
+        self.assertNotIn("runtime_pid", source_policy(parsed, target, expected, 7, pod))
         stream["path"] = "/config/another-pod.conf"
         self.assertNotIn("runtime_pid", source_policy(parsed, target, expected, 7, pod))
         self.assertTrue(source_policy({"streams": {}}, target, expected, 7, pod)["mounts"]["/data"])
@@ -2470,6 +2477,102 @@ class K8sInspectionWorkerTest(SimpleTestCase):
                     self.assertNotIn("raw_hex_chunks", json.dumps(result))
                     self.assertEqual(ResourceInspectionTaskRecord.get(task_id)["task_status"], "partial")
                 self.assertEqual(run_step.call_count, int(change != "before_spec"))
+
+    @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader-a"])
+    def test_collector_read_only_keeps_samples_covered_by_the_original_rule(self):
+        target = {"type": "pod_container", "namespace": "production", "pod_name": "demo-abc", "container_name": "app"}
+        for change in (
+            "stable",
+            "before_labels",
+            "during_labels",
+            "same_directory_switch",
+            "alternating",
+            "during_path",
+            "unrelated",
+        ):
+            with self.subTest(change=change):
+                step = {"operation": "read", "path": "/logs/team/app.log"}
+                if change in ("stable", "same_directory_switch"):
+                    step = {
+                        "operation": "read",
+                        "path_space": "collector",
+                        "path": "/node/log/app.log",
+                        "via": "/logs/team",
+                    }
+                pod = business_pod()
+                pod["status"]["containerStatuses"][0]["containerID"] = "containerd://" + "c" * 64
+                pod["metadata"]["labels"]["route"] = "a"
+                rules = []
+                for rule_id, selector, paths in [(44, "a", ["/logs/*/*.log"]), (45, "b", ["/other/*.log"])]:
+                    spec = {
+                        **business_target_expected()[0]["spec"],
+                        "labelSelector": {"matchLabels": {"route": selector}},
+                        "path": paths,
+                    }
+                    rules.append(
+                        {
+                            "name": f"rule-{rule_id}",
+                            "container_config_id": rule_id,
+                            "collector_type": ContainerCollectorType.CONTAINER,
+                            "spec": spec,
+                        }
+                    )
+                if change in ("same_directory_switch", "alternating"):
+                    rules[1]["spec"]["path"] = rules[0]["spec"]["path"]
+                if change == "alternating":
+                    rules[1]["spec"]["labelSelector"] = {"matchLabels": {"team": "blue"}}
+                    pod["metadata"]["labels"]["team"] = "blue"
+                if change == "unrelated":
+                    rules[1]["spec"]["labelSelector"] = rules[0]["spec"]["labelSelector"]
+                snapshot = safe_target_snapshot(target, pod, target_config_matches(target, pod, rules))
+                record = self._record(target=target, groups=["collector", "progress"])
+                task_id = record["task_id"]
+                ResourceInspectionTaskRecord.update(
+                    task_id, request_options={**record["request_options"], "source_step": step}
+                )
+
+                def fixed_evidence(*args, **kwargs):
+                    if change in ("before_labels", "alternating"):
+                        pod["metadata"]["labels"]["route"] = "b"
+                    return {"progress": probe(evidence={"marker": "progress"})}
+
+                def read_sample(*args):
+                    if change in ("during_labels", "same_directory_switch"):
+                        pod["metadata"]["labels"]["route"] = "b"
+                    if change == "alternating":
+                        pod["metadata"]["labels"].update(route="a", team="red")
+                    if change == "during_path":
+                        rules[0]["spec"]["path"] = ["/elsewhere/*.log"]
+                    if change == "unrelated":
+                        rules[1]["spec"]["path"] = ["/unrelated/*.log"]
+                    return probe(evidence={"observation": {"raw_hex_chunks": ["6162"]}})
+
+                run_step = MagicMock(side_effect=read_sample)
+                with patch.multiple(
+                    "apps.log_admin_resource.k8s_tasks",
+                    _load_bound_collector=MagicMock(return_value=collector()),
+                    ContainerCollectorConfig=MagicMock(),
+                    expected_bklog_configs=MagicMock(side_effect=lambda *_: deepcopy(rules)),
+                    K8sInspectionClient=MagicMock(
+                        return_value=MagicMock(read_pod=MagicMock(side_effect=lambda *_: deepcopy(pod)))
+                    ),
+                    _control_plane_probe=MagicMock(return_value=(probe(evidence={"target": snapshot}), "node-a", [])),
+                    _discover_candidates=MagicMock(return_value=([candidate()], [], [])),
+                    _revalidate_candidate=MagicMock(return_value=(daemon_set(), collector_pod())),
+                    _config_map_probe=MagicMock(return_value=(probe(), None)),
+                    _pod_logs_probe=MagicMock(return_value=probe()),
+                    run_fixed_collector_probe=MagicMock(return_value={"values": {}}),
+                    build_probe_evidence=MagicMock(side_effect=fixed_evidence),
+                    inspect_source_step=run_step,
+                ):
+                    run_k8s_inspection.run(task_id)
+                result = ResourceInspectionTaskRecord.load_result(task_id)
+                self.assertEqual(result["probes"]["progress"]["evidence"], {"marker": "progress"})
+                valid = change in ("stable", "unrelated")
+                self.assertEqual(result["probes"]["source_path"]["status"], "success" if valid else "failed")
+                self.assertEqual("raw_hex_chunks" in json.dumps(result), valid)
+                self.assertEqual(result["partial"], not valid)
+                self.assertEqual(run_step.call_count, int(change != "before_labels"))
 
     @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[])
     @patch("apps.log_admin_resource.k8s_tasks.K8sInspectionClient")

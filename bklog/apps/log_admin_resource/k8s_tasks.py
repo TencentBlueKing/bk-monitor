@@ -45,7 +45,7 @@ from apps.log_admin_resource.k8s_inspection import (
 from apps.log_admin_resource.k8s_cluster_context import ClusterInspectionContext, load_cluster_context
 from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text, object_to_dict
 from apps.log_admin_resource.k8s_probe import FixedProbeError, run_fixed_collector_probe
-from apps.log_admin_resource.k8s_source_step import inspect_source_step
+from apps.log_admin_resource.k8s_source_step import inspect_source_step, source_read_binding
 from apps.log_bcs.handlers.bcs_handler import BcsHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import Space
@@ -87,15 +87,7 @@ def run_k8s_inspection(task_id: str) -> None:
         except BklogPermissionError as error:
             raise FixedProbeError("source_read_access_denied", str(error), retryable=False) from error
         collector = _load_bound_collector(record)
-        if isinstance(collector, ClusterInspectionContext):
-            expected = collector.expected
-        else:
-            container_configs = list(
-                ContainerCollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).order_by(
-                    "id"
-                )
-            )
-            expected = expected_bklog_configs(collector, container_configs)
+        expected = _expected_configs(collector)
         client = K8sInspectionClient(cluster_id=collector.bcs_cluster_id)
 
         for skipped in options.get("skipped_evidence_groups") or []:
@@ -308,21 +300,17 @@ def run_k8s_inspection(task_id: str) -> None:
                 try:
                     if isinstance(collector, ClusterInspectionContext):
                         load_cluster_context(collector.bcs_cluster_id, record["target"]["bklog_config"])
+                    binding = None
+                    if step["operation"] == "read":
+                        if not isinstance(collector, ClusterInspectionContext):
+                            binding = source_read_binding(target, expected, step)
+                        binding = _revalidate_source_target(client, record, target, expected, binding)
                     source_probe = inspect_source_step(
                         client, selected, parsed_probe, target, expected, collector.bk_data_id, step, _pod_after
                     )
                     _revalidate_candidate(client, selected, required_bk_envs)
                     if step.get("path_space") != "collector" or step["operation"] == "read":
-                        pod = object_to_dict(client.read_pod(target["namespace"], target["pod_name"]))
-                        matched = target_config_matches(options["target"], pod, expected)
-                        identity = safe_target_snapshot(options["target"], pod, matched)
-                        if not matched or (identity["pod_uid"], identity["container"]["container_id"]) != (
-                            target["pod_uid"],
-                            target["container"]["container_id"],
-                        ):
-                            raise FixedProbeError(
-                                "source_target_changed", "source Pod/container changed during observation"
-                            )
+                        _revalidate_source_target(client, record, target, expected, binding)
                     if isinstance(collector, ClusterInspectionContext):
                         load_cluster_context(collector.bcs_cluster_id, record["target"]["bklog_config"])
                 except SoftTimeLimitExceeded:
@@ -370,6 +358,36 @@ def run_k8s_inspection(task_id: str) -> None:
         ResourceInspectionTaskRecord.release_execution(task_id)
         current = ResourceInspectionTaskRecord.get(task_id) or record
         ResourceInspectionTaskRecord.release_active(current)
+
+
+def _expected_configs(collector):
+    if isinstance(collector, ClusterInspectionContext):
+        return collector.expected
+    configs = ContainerCollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).order_by("id")
+    return expected_bklog_configs(collector, configs)
+
+
+def _revalidate_source_target(client, record, target, expected, binding):
+    if binding is not None:
+        # Rebuild the SaaS configuration as well as the current Pod selector match.
+        expected = _expected_configs(_load_bound_collector(record))
+    requested = record["request_options"]["target"]
+    pod = object_to_dict(client.read_pod(target["namespace"], target["pod_name"]))
+    matched = target_config_matches(requested, pod, expected)
+    identity = safe_target_snapshot(requested, pod, matched)
+    if not matched or (identity["pod_uid"], identity["container"]["container_id"]) != (
+        target["pod_uid"],
+        target["container"]["container_id"],
+    ):
+        raise FixedProbeError("source_target_changed", "source Pod/container changed during observation")
+    if binding is not None:
+        directory, config_ids = binding
+        _, current_ids = source_read_binding(identity, matched, record["request_options"]["source_step"], directory)
+        remaining = config_ids.intersection(current_ids)
+        if not remaining:
+            raise FixedProbeError("source_read_scope_changed", "source log directory lost its matching collection rule")
+        return directory, remaining
+    return None
 
 
 def _load_bound_collector(record: dict[str, Any]) -> CollectorConfig | ClusterInspectionContext:

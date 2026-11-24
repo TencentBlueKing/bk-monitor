@@ -62,6 +62,33 @@ class SourceStepTest(unittest.TestCase):
         self.assertTrue(observation["second"]["mtime"].endswith("Z"))
         self.assertTrue(observation["second"]["sampled_at"].endswith("Z"))
 
+    def test_mount_with_symlinked_parent_matches_the_kernel_path(self):
+        (self.root / "var").mkdir()
+        (self.root / "var" / "run").symlink_to("../run")
+        self.directory.rename(self.root / "run")
+        mounted = self.root / "run" / "service"
+        mounted.mkdir()
+        log = mounted / "app.log"
+        log.write_bytes(b"mounted")
+        logical = "/var/run/service"
+        self.policy.update(mounts={logical: True}, directories=[logical])
+        self.mountinfo.write_text("2 1 0:4 / /run/service rw - tmpfs tmpfs rw\n")
+        self.assertEqual(self.run_step("stat", logical + "/app.log")["second"]["inode"], log.stat().st_ino)
+        if sys.platform.startswith("linux"):
+            for path, options in [
+                (logical + "/app.log", {}),
+                (str(log), {"path_space": "collector", "via": logical}),
+            ]:
+                row = self.run_step("read", path, **options)["observation"]
+                self.assertEqual(bytes.fromhex("".join(row["raw_hex_chunks"])), log.read_bytes())
+        self.policy["mounts"]["/run/service"] = False
+        with self.assertRaisesRegex(ValueError, "outside_scope"):
+            self.run_step("stat", logical + "/app.log")
+        del self.policy["mounts"]["/run/service"]
+        self.mountinfo.write_text("")
+        with self.assertRaisesRegex(ValueError, "target_volume_mount_unavailable"):
+            self.run_step("stat", logical + "/app.log")
+
     def test_empty_directory_is_distinct_from_missing_target(self):
         self.file.unlink()
         self.assertEqual(self.run_step("list", "/logs")["observation"]["entries"], [])

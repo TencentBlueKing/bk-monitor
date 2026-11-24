@@ -36,6 +36,15 @@ def matches(path, patterns):
     return False
 
 
+def read_directory(request, patterns):
+    directory = request.get("via") or os.path.dirname(request["path"])
+    while directory != "/" and not matches(directory, patterns):
+        directory = os.path.dirname(directory)
+    if directory == "/" or (request.get("via") and request["via"] != directory):
+        raise ValueError("outside_target_log_directory")
+    return directory
+
+
 def inside(path, directory):
     return path == directory or path.startswith(directory.rstrip("/") + "/")
 
@@ -141,6 +150,32 @@ def link_destination(parent, target, policy, links):
     return os.path.join(current, *pending)
 
 
+def is_mountpoint(path, policy):
+    escaped = path.replace("\\", "\\134").replace(" ", "\\040").replace("\t", "\\011").replace("\n", "\\012")
+    return escaped.encode("utf-8") in policy["active_mounts"]
+
+
+def bind_mount_paths(policy):
+    # mountinfo uses the actual mount destination. A Pod may spell its parent
+    # through an image symlink. Resolve parents inside the pinned target root;
+    # the leaf must still be a mount in the kernel table on every observation.
+    declared = policy["mounts"]
+    resolved = dict(declared)
+    # Resolve declaration names independently. An alias for a nested mount may
+    # be shorter than its parent alias. Enforce the completed table for all I/O.
+    lookup = dict(policy, mounts={}, active_mounts=frozenset())
+    for path, allowed in declared.items():
+        if path == "/" or is_mountpoint(path, policy):
+            continue
+        try:
+            _, parent, _ = open_parent(os.path.dirname(path), lookup, True)
+        except (IOError, OSError, ValueError):
+            continue
+        destination = os.path.join(parent, os.path.basename(path))
+        resolved[destination] = allowed and resolved.get(destination, True)
+    policy["mounts"] = resolved
+
+
 def open_parent(path, policy, follow_leaf, links=None):
     # cwd is private to this short-lived helper. Pin each directory before inspecting its
     # children. Never ask the collector kernel to follow a business-container symlink.
@@ -158,8 +193,7 @@ def open_parent(path, policy, follow_leaf, links=None):
             logical = os.path.join(parent, name)
             policy["resolving_path"] = logical
             allowed = policy["mounts"].get(logical)
-            escaped = logical.replace("\\", "\\134").replace(" ", "\\040").replace("\t", "\\011").replace("\n", "\\012")
-            mounted = escaped.encode("utf-8") in policy["active_mounts"]
+            mounted = is_mountpoint(logical, policy)
             if allowed is False or (mounted and not allowed):
                 raise ValueError("mount_unavailable_or_outside_scope: " + logical)
             if allowed and not mounted:
@@ -270,11 +304,7 @@ def read_target_file(policy, request):
     # the caller-supplied parent, the host root, or a sibling of the resolved directory.
     path = request["path"]
     native = request.get("path_space") == "collector"
-    directory = request.get("via") or os.path.dirname(path)
-    while directory != "/" and not matches(directory, policy["directories"]):
-        directory = os.path.dirname(directory)
-    if directory == "/" or (request.get("via") and request["via"] != directory):
-        raise ValueError("outside_target_log_directory")
+    directory = read_directory(request, policy["directories"])
     name, anchor, hops = open_parent(directory, policy, True)
     base = mount_for(anchor, policy)
     if base == "/" and any(inside(anchor, fs) for fs in ("/proc", "/sys", "/dev")):
@@ -326,6 +356,7 @@ def snapshot(policy, request):
     root_fd = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
     try:
         observation_policy["root_fd"] = root_fd
+        bind_mount_paths(observation_policy)
         return observe_path(observation_policy, request)
     finally:
         policy["resolving_path"] = observation_policy.get("resolving_path", request["path"])

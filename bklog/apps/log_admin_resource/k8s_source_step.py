@@ -7,12 +7,11 @@ import posixpath
 import re
 from pathlib import Path
 
-import yaml
-
-from apps.log_admin_resource.collector_probe_evidence import _expand_recursive_glob
+from apps.log_admin_resource.collector_probe_evidence import _expand_recursive_glob, parse_yaml_local_inputs
 from apps.log_admin_resource.k8s_inspection_client import object_to_dict
 from apps.log_admin_resource.k8s_inspection import COLLECTOR_CONTAINER_NAME, collector_child_config_hints
 from apps.log_admin_resource.k8s_probe import FixedProbeError, run_collector_script
+from apps.log_admin_resource.scripts.collector_source_step import matches, read_directory
 from apps.log_databus.constants import ContainerCollectorType
 
 
@@ -51,26 +50,19 @@ def _rendered_inputs(parsed, hints, data_id):
         name = posixpath.basename(stream.get("path") or "")
         if not any(name == hint or name.endswith("_" + hint) for hint in hints):
             continue
-        for doc in yaml.safe_load_all(stream.get("content") or ""):
-            if not isinstance(doc, dict):
-                continue
-            inputs = doc.get("local") or []
-            for config in inputs if isinstance(inputs, list) else [inputs]:
-                if isinstance(config, dict) and str(config.get("dataid", config.get("data_id"))) == str(data_id):
-                    yield config
+        for config in parse_yaml_local_inputs(stream.get("content") or ""):
+            if str(config.get("dataid", config.get("data_id"))) == str(data_id):
+                yield config
 
 
-def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_only=False):
-    if not _collector_has_host_root(collector_pod):
-        raise FixedProbeError("host_proc_unavailable", "the collector has no verified host root mount")
-    directories = set()
-    pids = set()
+def source_directories(target, expected):
+    by_config = {}
     for item in expected:
-        if item.get("collector_type") != ContainerCollectorType.CONTAINER:
+        if item.get("collector_type") != ContainerCollectorType.CONTAINER or not collector_child_config_hints(
+            target, [item]
+        ):
             continue
-        hints = collector_child_config_hints(target, [item])
-        if not hints:
-            continue
+        patterns = set()
         for path in item["spec"].get("path") or []:
             if not isinstance(path, str) or not path.startswith("/") or posixpath.normpath(path) != path:
                 continue
@@ -79,15 +71,42 @@ def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_
                 # A filesystem root is not a target-specific log directory.
                 first = directory.lstrip("/").split("/", 1)[0]
                 if first and not any(ch in first for ch in "*?["):
-                    directories.add(directory)
+                    patterns.add(directory)
+        by_config[item["container_config_id"]] = patterns
+    return by_config
+
+
+def source_read_binding(target, expected, request, directory=None):
+    by_config = source_directories(target, expected)
+    if directory is None:
+        patterns = set().union(*by_config.values())
+        if not patterns:
+            raise FixedProbeError("source_directory_unknown", "no target-specific log directory was identified")
+        try:
+            directory = read_directory(request, patterns)
+        except ValueError as exc:
+            raise FixedProbeError("outside_target_log_directory", str(exc)) from exc
+    return directory, {key for key, patterns in by_config.items() if matches(directory, patterns)}
+
+
+def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_only=False):
+    if not _collector_has_host_root(collector_pod):
+        raise FixedProbeError("host_proc_unavailable", "the collector has no verified host root mount")
+    by_config = source_directories(target, expected)
+    pids = set()
+    for item in expected:
+        if item["container_config_id"] not in by_config:
+            continue
+        hints = collector_child_config_hints(target, [item])
         for config in _rendered_inputs(parsed, hints, data_id):
             # Only use a rendered process root as a PID hint. Host source paths
             # can be renamed or rebound independently of the live Pod mount.
             roots = [config.get("root_fs")]
-            if config.get("remove_path_prefix") == "/var/host":
+            mounts = config.get("mount_infos")
+            if config.get("remove_path_prefix") == "/var/host" and isinstance(mounts, list):
                 roots.extend(
                     "/var/host" + mount["source"]
-                    for mount in config.get("mount_infos") or []
+                    for mount in mounts
                     if isinstance(mount, dict) and mount.get("dest") == "/" and isinstance(mount.get("source"), str)
                 )
             for root in roots:
@@ -102,6 +121,7 @@ def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_
         policy["runtime_pid"] = pids.pop()
     if metadata_only:
         return policy
+    directories = set().union(*by_config.values())
     if not directories:
         raise FixedProbeError("source_directory_unknown", "no target-specific log directory was identified")
     return {**policy, "directories": sorted(directories)}
