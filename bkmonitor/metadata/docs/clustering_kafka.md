@@ -16,6 +16,10 @@
 
 只提交 PR，不发布，不迁移资源。
 
-单租户的 metadata 租户 system 与 BKBase 默认 tenant 不混用：返回引用省略 tenant，交给 BKBase 原生默认值。多租户返回实际 tenant。日志平台负责新链路的业务接入。创建任务时提交 ID，拿到公开的 KafkaChannel 引用后下发 Databus。下发失败时保留任务 ID，用同一创建幂等键恢复调用。
+单租户的 metadata 租户 system 与 BKBase 默认 tenant 不混用：返回引用省略 tenant，交给 BKBase 原生默认值。多租户返回实际 tenant。
+
+首次创建聚类任务时，日志平台从源 DataID 读取 Kafka 集群 ID。已有 V3 聚类的源索引开启 V4 预测时，日志平台用索引 ID 和原模型输出结果表关联已同步的任务，从回执读取该任务的 Kafka 集群 ID。metadata 按日志链路的租户和 namespace 将该 ID 解析为已注册的 KafkaChannel。
+
+存量接入会等到当前 Worker 采用同一代际的最新同步模型，再下发原 Topic、消费组和输入版本。等待期间沿用原查询，重试沿用同一个创建幂等键。V3 继续训练和同步模型。
 
 验证：11 项隔离单元测试通过；覆盖已同步认证快照，防止未同步的 ClusterInfo 修改分裂两端连接。Python 语法和网关后端路径／认证声明检查通过。ORM 与外部服务使用模拟对象，未运行完整 metadata 数据库测试、实际网关授权或业务 E2E。

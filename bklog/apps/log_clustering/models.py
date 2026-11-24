@@ -596,6 +596,15 @@ class LogClusteringRuntime(OperateRecordModel):
         verbose_name = _("日志聚类轻量化运行绑定")
         verbose_name_plural = _("日志聚类轻量化运行绑定")
 
+    @property
+    def pending_v3_adoption(self):
+        return bool((self.pending_config or {}).get("v3_source_scope") and not self.active_config)
+
+    @classmethod
+    def query_binding(cls, index_set_id, **scope):
+        runtime = cls.objects.filter(index_set_id=index_set_id, **scope).first()
+        return runtime if runtime and not runtime.pending_v3_adoption else None
+
     @classmethod
     @transaction.atomic
     def start_operation(
@@ -616,6 +625,16 @@ class LogClusteringRuntime(OperateRecordModel):
         runtime, _created = cls.objects.select_for_update().get_or_create(
             index_set_id=index_set_id, defaults=defaults or {}
         )
+        if not _created and request_snapshot.get("v3_source_scope") and runtime.active_config:
+            completed = LogClusteringOperation.objects.filter(
+                index_set_id=index_set_id,
+                operation_type=operation_type,
+                request_snapshot=request_snapshot,
+                status=ClusteringOperationStatusEnum.SUCCESS.value,
+            ).last()
+            if completed and runtime.phase == ClusteringRuntimePhaseEnum.RUNNING.value:
+                return runtime, completed
+            raise ClusteringOperationConflictException(_("已有聚类绑定，请刷新接入状态"))
         if allowed_phases and runtime.phase not in allowed_phases:
             raise QuixClusteringParamsInvalidException(
                 QuixClusteringParamsInvalidException.MESSAGE.format(
@@ -626,6 +645,12 @@ class LogClusteringRuntime(OperateRecordModel):
             index_set_id=index_set_id, status__in=ClusteringOperationStatusEnum.unfinished_statuses()
         ).first()
         if unfinished:
+            if (
+                request_snapshot.get("v3_source_scope")
+                and unfinished.operation_type == operation_type
+                and unfinished.request_snapshot == request_snapshot
+            ):
+                return runtime, unfinished
             raise ClusteringOperationConflictException(
                 ClusteringOperationConflictException.MESSAGE.format(
                     index_set_id=index_set_id, operation_id=unfinished.operation_id

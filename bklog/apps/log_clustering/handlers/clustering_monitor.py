@@ -98,7 +98,7 @@ class ClusteringMonitorHandler:
     @cached_property
     def is_quix(self):
         """小型化聚类的告警以 signature 为签名字段，旧聚类沿用 __dist_05。"""
-        return LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).exists()
+        return LogClusteringRuntime.query_binding(self.index_set_id) is not None
 
     def _build_log_search_query_config(self, agg_dimension, agg_condition):
         """构造日志聚类告警共用的日志检索数据源配置。"""

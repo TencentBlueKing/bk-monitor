@@ -2192,7 +2192,7 @@ class BaseIndexSetHandler:
     def _writes_signature_to_source(index_set_id) -> bool:
         from apps.log_clustering.models import LogClusteringRuntime
 
-        runtime = LogClusteringRuntime.objects.filter(index_set_id=index_set_id).first()
+        runtime = LogClusteringRuntime.query_binding(index_set_id)
         config = (runtime.active_config or runtime.pending_config or {}) if runtime else {}
         return bool(config) and config.get("result_mode", "update_original") == "update_original"
 

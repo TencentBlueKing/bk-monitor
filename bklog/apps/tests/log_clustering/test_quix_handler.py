@@ -206,6 +206,37 @@ class TestQuixClusteringHandler(TestCase):
         self.assertFalse(LogClusteringRuntime.objects.exists())
         mock_delay.assert_not_called()
 
+    def test_adoption_preserves_v3_configuration_until_ready(self, mock_delay):
+        filters = [{"fields_name": "level", "op": "=", "value": ["ERROR"]}]
+        existing = ClusteringConfig.objects.create(
+            index_set_id=INDEX_SET_ID,
+            collector_config_id=10,
+            bk_biz_id=2,
+            access_finished=True,
+            model_output_rt="2_log_model_out",
+            clustering_fields="log",
+            filter_rules=filters,
+            min_members=7,
+            max_dist_list="0.5",
+            predefined_varibles="W10=",
+            delimeter=",",
+            max_log_length=300,
+        )
+        original = ClusteringConfig.objects.filter(pk=existing.pk).values().get()
+        handler = QuixClusteringHandler(self.index_set)
+        op = handler.enable({"clustering_fields": "unused", "max_log_length": 999})["operation_id"]
+        self.assertEqual(handler.enable({})["operation_id"], op)
+        operation = LogClusteringOperation.objects.get(operation_id=op)
+        self.assertEqual(
+            operation.request_snapshot,
+            {"v3_source_scope": existing.model_output_rt, "clustering_fields": "log", "filter_rules": filters},
+        )
+        self.assertIsNone(LogClusteringRuntime.query_binding(INDEX_SET_ID, bk_tenant_id="system"))
+        with self.assertRaises(QuixClusteringParamsInvalidException):
+            handler.disable()
+        self.assertEqual(ClusteringConfig.objects.filter(pk=existing.pk).values().get(), original)
+        mock_delay.assert_called_once_with(op)
+
     def test_existing_online_clustering_cannot_switch(self, mock_delay):
         ClusteringConfig.objects.create(
             index_set_id=INDEX_SET_ID,

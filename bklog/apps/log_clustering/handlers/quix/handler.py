@@ -92,7 +92,26 @@ class QuixClusteringHandler:
             ClusteringConfigHasExistException.MESSAGE.format(index_set_id=self.index_set_id)
         )
         runtime = LogClusteringRuntime.objects.filter(index_set_id=self.index_set_id).first()
+        legacy = None
         if runtime:
+            if runtime.phase == ClusteringRuntimePhaseEnum.RUNNING.value and (runtime.active_config or {}).get(
+                "v3_source_scope"
+            ):
+                operation = LogClusteringOperation.objects.filter(
+                    index_set_id=self.index_set_id,
+                    operation_type=ClusteringOperationTypeEnum.ENABLE.value,
+                    status=ClusteringOperationStatusEnum.SUCCESS.value,
+                ).last()
+                if operation:
+                    return self._access_response(operation)
+            if runtime.pending_v3_adoption:
+                pending = LogClusteringOperation.objects.filter(
+                    index_set_id=self.index_set_id,
+                    operation_type=ClusteringOperationTypeEnum.ENABLE.value,
+                    status__in=ClusteringOperationStatusEnum.runnable_statuses(),
+                ).first()
+                if pending:
+                    return self._access_response(pending)
             # 开启失败后再次提交时续跑原操作，沿用已申请的任务和幂等键
             operation = self._resume_failed_operation(ClusteringOperationTypeEnum.ENABLE.value)
             if operation:
@@ -101,15 +120,23 @@ class QuixClusteringHandler:
             # 从未绑定到日志链路就被关闭的聚类可以重新开启，并申请新的 BKFara 任务
             if runtime.phase != ClusteringRuntimePhaseEnum.STOPPED.value or runtime.sink:
                 raise has_exist
-        elif ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False):
-            # 已通过其他链路接入聚类的索引集不能直接切换
-            raise has_exist
+        else:
+            legacy = ClusteringConfig.get_by_index_set_id(index_set_id=self.index_set_id, raise_exception=False)
+            if legacy and (
+                legacy.index_set_id != self.index_set_id
+                or not legacy.access_finished
+                or not legacy.model_output_rt
+                or legacy.collector_config_id not in (None, self.index_set.collector_config_id)
+            ):
+                raise has_exist
 
-        clustering_fields = params.get("clustering_fields") or DEFAULT_CLUSTERING_FIELDS
-        filter_rules = params.get("filter_rules", [])
+        clustering_fields = (
+            legacy.clustering_fields if legacy else params.get("clustering_fields") or DEFAULT_CLUSTERING_FIELDS
+        )
+        filter_rules = (legacy.filter_rules or []) if legacy else params.get("filter_rules", [])
         # 先完成参数与环境配置校验，再落库并申请外部资源
         clustering_config = build_clustering_config(clustering_fields, filter_rules)
-        quix_config = get_quix_config()
+        quix_config = get_quix_config(require_profile=not legacy)
         result_mode = (quix_config.get("result_modes") or {}).get(str(self.index_set_id), "update_original")
         if runtime:
             result_mode = (runtime.pending_config or runtime.active_config).get("result_mode", "update_original")
@@ -118,6 +145,10 @@ class QuixClusteringHandler:
                 QuixClusteringParamsInvalidException.MESSAGE.format(detail="无效的聚类结果写入模式")
             )
         clustering_config["result_mode"] = result_mode
+        snapshot = {"clustering_fields": clustering_fields, "filter_rules": filter_rules}
+        if legacy:
+            # model_output_rt 是 V3 预测实例的实际输出表；衍生索引和展示名称不可用作关联键。
+            snapshot["v3_source_scope"] = clustering_config["v3_source_scope"] = legacy.model_output_rt
 
         collector_config = CollectorConfig.objects.get(collector_config_id=self.index_set.collector_config_id)
         if collector_config.storage_cluster_type != STORAGE_CLUSTER_TYPE:
@@ -139,7 +170,7 @@ class QuixClusteringHandler:
             _runtime, operation = LogClusteringRuntime.start_operation(
                 self.index_set_id,
                 ClusteringOperationTypeEnum.ENABLE.value,
-                {"clustering_fields": clustering_fields, "filter_rules": filter_rules},
+                snapshot,
                 defaults={
                     "bk_biz_id": collector_config.bk_biz_id,
                     "bk_tenant_id": Space.get_tenant_id(space_uid=self.index_set.space_uid),
@@ -151,11 +182,12 @@ class QuixClusteringHandler:
                 allowed_phases=(ClusteringRuntimePhaseEnum.STOPPED.value,) if runtime else None,
                 updates={**enable_fields, **UNBOUND_RESET_FIELDS} if runtime else None,
             )
-            business_config = self._save_business_config(collector_config, params, clustering_fields, filter_rules)
-            operation.request_snapshot["model_parameters"] = DataFlowHandler.get_clustering_training_params(
-                business_config
-            )
-            operation.save(update_fields=["request_snapshot", "updated_at", "updated_by"])
+            if not legacy:
+                business_config = self._save_business_config(collector_config, params, clustering_fields, filter_rules)
+                operation.request_snapshot["model_parameters"] = DataFlowHandler.get_clustering_training_params(
+                    business_config
+                )
+                operation.save(update_fields=["request_snapshot", "updated_at", "updated_by"])
         run_quix_clustering_operation.delay(operation.operation_id)
         return self._access_response(operation)
 
@@ -175,7 +207,7 @@ class QuixClusteringHandler:
             filter_rules = params.get("filter_rules", business_config.filter_rules or [])
             clustering_fields = params.get("clustering_fields") or runtime.active_config["input_mapping"]["log"]
             clustering_config = build_clustering_config(clustering_fields, filter_rules)
-            for key in ("result_mode", "kafka_cluster_id"):
+            for key in ("result_mode", "kafka_cluster_id", "v3_source_scope"):
                 if key in runtime.active_config:
                     clustering_config[key] = runtime.active_config[key]
             if clustering_config["input_mapping"] != runtime.active_config["input_mapping"]:
@@ -253,6 +285,8 @@ class QuixClusteringHandler:
         from apps.log_clustering.tasks.quix import run_quix_clustering_operation
 
         runtime = LogClusteringRuntime.objects.get(index_set_id=self.index_set_id)
+        if runtime.pending_v3_adoption:
+            raise QuixClusteringParamsInvalidException(_("正在接入已有聚类任务，请在接入完成后关闭"))
         operation = None
         if runtime.phase == ClusteringRuntimePhaseEnum.DISABLING.value:
             # 续跑沿用已固定的候选边界
@@ -545,6 +579,10 @@ class QuixClusteringHandler:
                 return {"status": status_code.FAILED, "message": operation.last_error}
             if operation.status == ClusteringOperationStatusEnum.AWAITING_RECEIPT.value:
                 return {"status": status_code.RUNNING, "message": _("配置已下发，待采用确认")}
+            if operation.request_snapshot.get("v3_source_scope") and operation.steps:
+                last = operation.steps[-1]
+                if last["step"] == operation.step and last.get("message"):
+                    return {"status": status_code.RUNNING, "message": last["message"]}
             return {"status": status_code.RUNNING, "message": operation.step}
         return {"status": status_code.PENDING, "message": _("等待执行")}
 

@@ -24,6 +24,7 @@ import datetime
 from django.db import transaction
 from django.utils import timezone
 from django.utils.functional import cached_property
+from django.utils.translation import gettext as _
 
 from apps.api import BkFaraApi, TransferApi
 from apps.exceptions import ApiRequestError
@@ -69,6 +70,21 @@ def link_is_ready(status: dict) -> bool:
 
 class ModelParameterRejected(Exception):
     """本次 PATCH 已明确拒绝，可结束操作并接受下一次修改。"""
+
+
+def model_stamp(model, task_id, index, generation):
+    """只保留同步模型的版本和摘要；同一代际允许继续跟随更新。"""
+    if not isinstance(model, dict) or (
+        model.get("task_id") != task_id
+        or model.get("runtime_key") != {"domain": "log-clustering", "business_key": index}
+        or model.get("generation") != generation
+        or type(model.get("revision")) is not int
+        or model["revision"] < 1
+        or not isinstance(model.get("snapshot"), dict)
+        or not model["snapshot"].get("digest")
+    ):
+        raise QuixClusteringConfigInvalidException(_("同步回执中的模型与当前索引或任务不一致"))
+    return model["revision"], model["snapshot"]["digest"]
 
 
 class QuixClusteringOperationRunner:
@@ -120,7 +136,7 @@ class QuixClusteringOperationRunner:
 
     @cached_property
     def quix_config(self) -> dict:
-        return get_quix_config()
+        return get_quix_config(require_profile=not self.runtime.pending_v3_adoption and not (self.runtime.active_config or {}).get("v3_source_scope"))
 
     def run(self) -> int | None:
         """执行到需要等待或结束为止，返回下次调度的延迟秒数，None 表示无需再调度"""
@@ -180,10 +196,15 @@ class QuixClusteringOperationRunner:
 
     def _wait(self, step: str) -> int | None:
         started = self._wait_started_at(step)
+        message = getattr(self, "wait_message", "")
         if started is None:
-            self.operation.record_step(step, ClusteringOperationStatusEnum.RUNNING.value)
+            self.operation.record_step(step, ClusteringOperationStatusEnum.RUNNING.value, message)
         elif (timezone.now() - started).total_seconds() > WAIT_TIMEOUT_SECONDS:
-            return self._fail(step, f"waiting for {step} timed out after {WAIT_TIMEOUT_SECONDS}s")
+            detail = f" ({message})" if message else ""
+            return self._fail(step, f"waiting for {step} timed out after {WAIT_TIMEOUT_SECONDS}s{detail}")
+        elif message and self.operation.steps[-1]["step"] == step and self.operation.steps[-1].get("message") != message:
+            self.operation.steps[-1]["message"] = message
+            self.operation.save(update_fields=["steps", "updated_at", "updated_by"])
         return self._schedule(POLL_INTERVAL_SECONDS)
 
     def _wait_started_at(self, step: str) -> datetime.datetime | None:
@@ -242,6 +263,8 @@ class QuixClusteringOperationRunner:
             return True
 
         def create_payload():
+            if scope := self.operation.request_snapshot.get("v3_source_scope"):
+                return {"index_id": str(self.runtime.index_set_id), "v3_source_scope": scope}
             payload = build_create_task_payload(
                 self.runtime.index_set_id, self.quix_config, self.operation.request_snapshot.get("model_parameters")
             )
@@ -265,13 +288,44 @@ class QuixClusteringOperationRunner:
                 raise QuixClusteringParamsInvalidException(str(exc)) from exc
             raise
         config = dict(self.runtime.pending_config or {})
-        config["kafka_cluster_id"] = payload["kafka_cluster_id"]
+        if "v3_source_scope" in payload:
+            if result.get("status") == "WAITING_FOR_SYNC":
+                self.wait_message = {
+                    "SYNC_TASK_NOT_PREPARED": _("等待准备该索引的同步任务"),
+                    "FIRST_SYNCHRONIZED_MODEL_PENDING": _("等待该索引的首个模型同步完成"),
+                    "V3_PARAMETERS_NOT_IMPORTED": _("等待导入原任务的训练和预测参数"),
+                }.get(result.get("reason"), _("等待已有模型同步"))
+                return False
+            if (
+                result.get("status") != "ADOPTED"
+                or result.get("tenant_id") != self.runtime.bk_tenant_id
+                or result.get("index_id") != payload["index_id"]
+                or result.get("v3_source_scope") != payload["v3_source_scope"]
+                or not result.get("task_id")
+                or type(result.get("generation")) is not int
+                or result["generation"] <= 0
+                or type(result.get("kafka_cluster_id")) is not int
+                or result["kafka_cluster_id"] <= 0
+            ):
+                raise QuixClusteringConfigInvalidException(_("已有聚类任务的接入回执与原索引不一致"))
+            revision, digest = model_stamp(
+                result.get("model_ref"), result["task_id"], payload["index_id"], result["generation"]
+            )
+            config.update(
+                kafka_cluster_id=result["kafka_cluster_id"],
+                claimed_generation=result["generation"],
+                claimed_revision=revision,
+                claimed_digest=digest,
+            )
+        else:
+            config["kafka_cluster_id"] = payload["kafka_cluster_id"]
         self._save_runtime(bkfara_task_id=result["task_id"], pending_config=config)
         return True
 
-    def _step_read_binding(self) -> bool:
+    def _step_read_binding(self, *, verify_current=False) -> bool:
         if (
             self.runtime.kafka_binding
+            and not verify_current
             and self.runtime.input_revision is not None
             and self.runtime.generation is not None
         ):
@@ -280,10 +334,45 @@ class QuixClusteringOperationRunner:
         if task.get("current_generation") is None:
             return False
         clustering = BkFaraApi.get_clustering({"task_id": self.runtime.bkfara_task_id})
-        if not (clustering.get("runtime_status") or {}).get("ready"):
+        status = clustering.get("runtime_status") or {}
+        if not status.get("ready"):
             return False
+        if self.runtime.pending_v3_adoption:
+            if (
+                task.get("runtime_key") != {"domain": "log-clustering", "business_key": str(self.runtime.index_set_id)}
+                or task["current_generation"] != self.runtime.pending_config["claimed_generation"]
+                or task.get("tenant_id") != self.runtime.bk_tenant_id
+                or task.get("wait_reason") != "V3_SYNC_OWNS_MODEL"
+                or (task.get("feedback") or {}).get("enabled") is not False
+                or (task.get("training") or {}).get("enabled") is not False
+            ):
+                raise QuixClusteringConfigInvalidException(_("已有聚类任务的归属、代际或训练状态已变化"))
+            model = task.get("trained_model_ref")
+            if (
+                status.get("reason") != "READY"
+                or not model
+                or model != clustering.get("target_model_ref")
+                or model != clustering.get("all_ready_model_ref")
+            ):
+                self.wait_message = _("等待所有聚类 Worker 加载当前同步模型")
+                return False
+            claim = self.runtime.pending_config
+            revision, digest = model_stamp(
+                model, self.runtime.bkfara_task_id, str(self.runtime.index_set_id), task["current_generation"]
+            )
+            if revision < claim["claimed_revision"] or (
+                revision == claim["claimed_revision"] and digest != claim["claimed_digest"]
+            ):
+                raise QuixClusteringConfigInvalidException(_("已加载模型与同步记录不一致"))
         if not clustering.get("kafka") or clustering.get("input_revision") is None:
             return False
+        if verify_current and self.runtime.kafka_binding:
+            if (
+                self.runtime.kafka_binding != clustering["kafka"]
+                or self.runtime.input_revision != clustering["input_revision"]
+            ):
+                raise QuixClusteringConfigInvalidException(_("聚类任务的 Kafka 绑定或输入版本已变化"))
+            return True
         self._save_runtime(
             control_version=task["control_version"],
             generation=task["current_generation"],
@@ -293,6 +382,18 @@ class QuixClusteringOperationRunner:
         return True
 
     def _step_metadata_set(self) -> bool:
+        if self.runtime.pending_v3_adoption:
+            original = self.operation.request_snapshot
+            legacy = ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).first()
+            if (
+                not legacy or not legacy.access_finished or legacy.model_output_rt != original["v3_source_scope"]
+                or legacy.collector_config_id not in (None, self.runtime.collector_config_id)
+                or legacy.clustering_fields != original["clustering_fields"]
+                or (legacy.filter_rules or []) != original["filter_rules"]
+            ):
+                raise QuixClusteringConfigInvalidException(_("原索引的聚类来源或过滤配置已变化，请核对后再接入"))
+            if not self._step_read_binding(verify_current=True):
+                return False
         clustering_config = self.runtime.pending_config or self.runtime.active_config
         params = self.operation.get_request_payload(
             "metadata_set",
@@ -364,7 +465,7 @@ class QuixClusteringOperationRunner:
                     ],
                 }
             )
-        if clustered["table_id"] == self.runtime.table_id:
+        if clustered["table_id"] == self.runtime.table_id and not self.runtime.pending_v3_adoption:
             # 默认回写时普通检索路由同步补上 signature 别名。
             BaseIndexSetHandler.sync_router(index_set, raise_exception=True)
         return True
@@ -507,6 +608,9 @@ class QuixClusteringOperationRunner:
         self._save_runtime(phase=ClusteringRuntimePhaseEnum.STOPPED.value)
 
     def _finish_enable(self):
+        sync_source_router = self.runtime.pending_v3_adoption and self.runtime.pending_config.get("result_mode") == "update_original"
         self._promote_pending_config(phase=ClusteringRuntimePhaseEnum.RUNNING.value)
+        if sync_source_router:
+            BaseIndexSetHandler.sync_router(LogIndexSet.objects.get(index_set_id=self.runtime.index_set_id), raise_exception=True)
         ClusteringConfig.objects.filter(index_set_id=self.runtime.index_set_id).update(access_finished=True)
         LogIndexSet.set_tag(self.runtime.index_set_id, InnerTag.CLUSTERING.value)

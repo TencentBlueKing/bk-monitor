@@ -167,6 +167,102 @@ class TestQuixEnableRunner(TestCase):
             ClusteringOperationStatusEnum.CANCELED.value,
         )
 
+    def test_adoption_waits_for_latest_worker_model_and_uses_frozen_kafka(self):
+        scope = "2_log_model_out"
+        self.operation.request_snapshot = {"v3_source_scope": scope, "clustering_fields": "log", "filter_rules": []}
+        self.operation.save()
+        legacy = ClusteringConfig.objects.create(
+            index_set_id=INDEX_SET_ID,
+            collector_config_id=10,
+            bk_biz_id=2,
+            access_finished=True,
+            model_output_rt=scope,
+            clustering_fields="log",
+            min_members=1,
+            max_dist_list="0.5",
+            predefined_varibles="",
+            delimeter="",
+            max_log_length=300,
+        )
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        runtime.pending_config["v3_source_scope"] = scope
+        runtime.save()
+        key = {"domain": "log-clustering", "business_key": str(INDEX_SET_ID)}
+        old = {
+            "task_id": TASK_ID,
+            "runtime_key": key,
+            "generation": 1,
+            "revision": 3,
+            "snapshot": {"digest": "sha256:" + "3" * 64},
+        }
+        latest = {**old, "revision": 4, "snapshot": {"digest": "sha256:" + "4" * 64}}
+        self.bkfara.create_task.side_effect = [
+            {"status": "WAITING_FOR_SYNC", "reason": "FIRST_SYNCHRONIZED_MODEL_PENDING"},
+            {
+                "status": "ADOPTED",
+                "task_id": TASK_ID,
+                "tenant_id": runtime.bk_tenant_id,
+                "index_id": str(INDEX_SET_ID),
+                "v3_source_scope": scope,
+                "generation": 1,
+                "model_ref": old,
+                "kafka_cluster_id": 77,
+            },
+        ]
+        runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        self.assertFalse(runner._step_create_task())
+        self.transfer.set_log_clustering_config.assert_not_called()
+        self.assertTrue(runner._step_create_task())
+        first, second = self.bkfara.create_task.call_args_list
+        self.assertEqual(first, second)
+        self.assertEqual(set(first.args[0]), {"index_id", "v3_source_scope", "Idempotency-Key"})
+        self.transfer.get_data_id.assert_not_called()
+        self.bkfara.get_task.return_value.update(
+            runtime_key=key,
+            trained_model_ref=latest,
+            tenant_id=runtime.bk_tenant_id,
+            wait_reason="V3_SYNC_OWNS_MODEL",
+            training={"enabled": False},
+            feedback={"enabled": False},
+        )
+        self.bkfara.get_clustering.return_value.update(
+            runtime_status={"ready": True, "reason": "MODEL_UPDATE_PENDING"},
+            target_model_ref=latest,
+            all_ready_model_ref=old,
+        )
+        self.assertFalse(runner._step_read_binding())
+        self.bkfara.get_clustering.return_value["runtime_status"]["reason"] = "READY"
+        self.assertFalse(runner._step_read_binding())
+        self.bkfara.get_clustering.return_value["all_ready_model_ref"] = latest
+        self.assertTrue(runner._step_read_binding())
+        self.bkfara.get_clustering.return_value["input_revision"] = 2
+        with self.assertRaises(QuixClusteringConfigInvalidException):
+            runner._step_metadata_set()
+        self.transfer.set_log_clustering_config.assert_not_called()
+        self.bkfara.get_clustering.return_value["input_revision"] = 1
+        ClusteringConfig.objects.filter(pk=legacy.pk).update(model_output_rt="different-source")
+        with self.assertRaises(QuixClusteringConfigInvalidException):
+            runner._step_metadata_set()
+        self.transfer.set_log_clustering_config.assert_not_called()
+        ClusteringConfig.objects.filter(pk=legacy.pk).update(model_output_rt=scope)
+        runner._step_metadata_set()
+        self.assertEqual(self.transfer.set_log_clustering_config.call_args.args[0]["kafka_cluster_id"], 77)
+        self.assertTrue(runner._step_register_query_routes())
+        self.assertIsNone(LogClusteringRuntime.query_binding(INDEX_SET_ID))
+        runner._finish_enable()
+        self.assertEqual(LogClusteringRuntime.query_binding(INDEX_SET_ID).bkfara_task_id, TASK_ID)
+
+    def test_wrong_adoption_receipt_never_allocates_or_binds(self):
+        self.operation.request_snapshot = {"v3_source_scope": "original-output"}
+        self.operation.save()
+        runner = QuixClusteringOperationRunner(self.operation.operation_id)
+        self.bkfara.create_task.return_value = {"status": "ADOPTED", "index_id": "99"}
+        with self.assertRaises(QuixClusteringConfigInvalidException):
+            runner._step_create_task()
+        self.transfer.get_data_id.assert_not_called()
+        self.transfer.set_log_clustering_config.assert_not_called()
+        self.assertFalse(LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID).bkfara_task_id)
+
     def test_binding_available_before_workers_ready(self):
         self.bkfara.get_task.return_value.update(status="TRAINING", trained_model_ref=None)
         self.bkfara.get_clustering.return_value.update(state="STARTING", all_ready_model_ref=None)
