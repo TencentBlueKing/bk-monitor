@@ -76,14 +76,28 @@ def _rendered_inputs(parsed, hints, data_id):
                     yield config
 
 
-def source_policy(parsed, target, expected, data_id, collector_pod):
+def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_only=False):
     volumes, usable = _target_mounts(target, collector_pod)
     policies = []
+    observed_mounts = {}
     for item in expected:
         if item.get("collector_type") != ContainerCollectorType.CONTAINER:
             continue
         hints = collector_child_config_hints(target, [item])
         for config in _rendered_inputs(parsed, hints, data_id):
+            mounts = dict(volumes)
+            for mount in config.get("mounts") or []:
+                path = mount.get("container_path")
+                host = mount.get("host_path")
+                if path in usable and not mounts[path] and _under_host(host):
+                    mounts[path] = host
+            root = config.get("root_fs")
+            mounts.setdefault("/", root if _under_host(root) else None)
+            if metadata_only:
+                for path, host in mounts.items():
+                    if host:
+                        observed_mounts.setdefault(path, set()).add(host)
+                continue
             patterns = sorted(
                 {
                     pattern
@@ -94,25 +108,28 @@ def source_policy(parsed, target, expected, data_id, collector_pod):
             )
             if not patterns:
                 continue
-            mounts = dict(volumes)
-            for mount in config.get("mounts") or []:
-                path = mount.get("container_path")
-                host = mount.get("host_path")
-                if path in usable and not mounts[path] and _under_host(host):
-                    mounts[path] = host
-            root = config.get("root_fs")
-            mounts.setdefault("/", root if _under_host(root) else None)
             excluded = set(item["spec"].get("exclude_files") or []) | set(config.get("exclude_files") or [])
             policy = {"patterns": patterns, "mounts": mounts, "exclude": sorted(excluded)}
             if policy not in policies:
                 policies.append(policy)
+    if metadata_only:
+        # Pod-declared host paths remain usable even when no child input was rendered.
+        # Conflicting runtime mappings only disable the affected mount.
+        mounts = dict(volumes)
+        mounts.setdefault("/", None)
+        for path, hosts in observed_mounts.items():
+            if len(hosts) == 1:
+                mounts[path] = next(iter(hosts))
+        return {"mounts": mounts}
     if len(policies) != 1:
         raise FixedProbeError("source_input_not_unique", "a unique target-bound rendered file input is required")
     return policies[0]
 
 
 def inspect_source_step(client, candidate, parsed, target, expected, data_id, request, collector_pod):
-    policy = source_policy(parsed, target, expected, data_id, collector_pod)
+    policy = source_policy(
+        parsed, target, expected, data_id, collector_pod, metadata_only=request["operation"] != "read"
+    )
     policy["interval"] = min(10, max(1, int(parsed["values"].get("observation_seconds") or 5)))
     policy["pid"] = int(parsed["values"].get("process_pid") or 0)
     encoded = base64.b64encode(json.dumps([policy, request]).encode()).decode("ascii")

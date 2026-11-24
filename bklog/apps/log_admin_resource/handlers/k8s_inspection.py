@@ -432,6 +432,10 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
             raise ValidationError("source_step requires a Pod/container target and collector evidence")
         if source or include_source_sample:
             raise ValidationError("source_step and legacy source sampling are mutually exclusive")
+        if source_step.get("path_space") == "collector" and (
+            source_step["operation"] == "read" or "via" in source_step
+        ):
+            raise ValidationError("collector paths support list, readlink and stat directly")
         for path in [source_step["path"], source_step.get("via", "/")]:
             if (
                 not path.startswith("/")
@@ -978,18 +982,23 @@ FUNCTIONS = {
                 "source_step": {
                     "type": "object",
                     "description": (
-                        "Inspect a path in the selected input's business-container namespace from the collector. "
-                        "Use list to discover matching children, readlink for the raw target, stat for two "
-                        "observations, or read for a bounded byte range. Follow up using the logical child path."
+                        "Inspect a logical path in the selected Pod from the collector. List all observed directory "
+                        "entries, including files outside collection rules. Follow links with readlink and inspect "
+                        "file activity with stat. Only read requires a matching configured log file."
                     ),
                     "properties": {
                         "operation": {"type": "string", "enum": ["list", "readlink", "stat", "read"]},
                         "path": {"type": "string", "minLength": 1, "maxLength": 4096},
+                        "path_space": {
+                            "type": "string",
+                            "enum": ["target", "collector"],
+                            "description": "Defaults to target. Use collector with a returned collector_path for metadata.",
+                        },
                         "via": {
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 4096,
-                            "description": "Configured logical ancestor whose verified link target contains path.",
+                            "description": "Logical link whose verified target contains path. Optional for metadata operations.",
                         },
                         "offset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
                         "length": {"type": "integer", "minimum": 1, "maximum": 4096},

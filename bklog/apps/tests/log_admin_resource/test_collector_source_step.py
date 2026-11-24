@@ -61,8 +61,8 @@ class SourceStepTest(unittest.TestCase):
         (self.root / "logs").symlink_to("/data/secret")
         with self.assertRaisesRegex(ValueError, "allowed_volume|outside_scope"):
             self.run_step("list", "/logs")
-        with self.assertRaisesRegex(ValueError, "outside_configured"):
-            self.run_step("stat", "/data/service/app.log")
+        result = self.run_step("stat", "/data/service/app.log")
+        self.assertEqual(result["first"]["inode"], self.file.stat().st_ino)
 
     def test_alias_does_not_authorize_a_sibling_and_leaf_link_cannot_escape(self):
         with self.assertRaisesRegex(ValueError, "outside_source_anchor"):
@@ -85,9 +85,10 @@ class SourceStepTest(unittest.TestCase):
         with patch.object(probe.time, "sleep", side_effect=rotate):
             self.assertEqual(self.run_step("stat", "/logs/app.log")["activity"], "replaced")
 
-    def test_excluded_files_are_not_read_or_listed(self):
+    def test_excluded_files_can_be_listed_and_statted(self):
         self.policy["exclude"] = [r"app\.log$"]
-        self.assertEqual(self.run_step("list", "/logs")["observation"]["entries"], [])
+        self.assertEqual(self.run_step("list", "/logs")["observation"]["entries"], ["/logs/app.log"])
+        self.assertEqual(self.run_step("stat", "/logs/app.log")["activity"], "no_growth_observed")
         with self.assertRaisesRegex(ValueError, "excluded"):
             self.run_step("read", "/logs/app.log")
 
@@ -111,6 +112,36 @@ class SourceStepTest(unittest.TestCase):
         self.assertTrue(listing["truncated"])
         self.assertEqual(len(listing["entries"]), 50)
         self.assertEqual(self.run_step("stat", "/data/service/app.log")["activity"], "no_growth_observed")
+
+    def test_unmatched_file_and_link_to_sibling_directory(self):
+        archive = self.volume / "archive"
+        archive.mkdir()
+        missed = archive / "fd.log"
+        missed.write_text("hello")
+        (self.directory / "old").symlink_to("../archive")
+        listing = self.run_step("list", "/logs/old")["observation"]
+        self.assertEqual(listing["entries"], ["/logs/old/fd.log"])
+        self.assertEqual(self.run_step("readlink", "/logs/old")["observation"]["target"], "../archive")
+        with patch.object(probe.time, "sleep", side_effect=lambda _: missed.write_text("hello again")):
+            stat = self.run_step("stat", listing["entries"][0])
+        self.assertEqual(stat["growth_bytes"], 6)
+        native = self.run_step("stat", stat["second"]["collector_path"], path_space="collector")
+        self.assertEqual(native["second"]["inode"], missed.stat().st_ino)
+        with self.assertRaisesRegex(ValueError, "outside_configured"):
+            self.run_step("read", listing["entries"][0])
+
+    def test_collector_metadata_requires_a_mapped_path_and_respects_nested_mounts(self):
+        with self.assertRaisesRegex(ValueError, "outside_target_mounts"):
+            self.run_step("list", "/unmapped", path_space="collector")
+        with self.assertRaisesRegex(ValueError, "outside_scope"):
+            self.run_step("list", str(self.volume / "secret"), path_space="collector")
+        self.policy["mounts"]["/another"] = str(self.volume)
+        with self.assertRaisesRegex(ValueError, "ambiguous"):
+            self.run_step("stat", str(self.file), path_space="collector")
+
+    def test_single_file_mount_metadata(self):
+        self.policy["mounts"]["/single"] = str(self.file)
+        self.assertEqual(self.run_step("stat", "/single")["first"]["inode"], self.file.stat().st_ino)
 
     def test_shared_readers_do_not_identify_one_position(self):
         with patch.object(probe, "reader_positions", return_value=[2, 7]):

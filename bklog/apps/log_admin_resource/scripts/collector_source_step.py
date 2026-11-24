@@ -43,20 +43,23 @@ def descend(name):
         os.close(fd)
 
 
-def open_parent(path, policy, follow_leaf):
+def open_parent(path, policy, follow_leaf, reading_content):
     # cwd is private to this short-lived helper. Pin each directory before inspecting its
     # children. Never ask the collector kernel to follow a business-container symlink.
     links = []
     boundary = None
     original = path
-    source_leaf = matches(original, policy["patterns"])
+    source_leaf = reading_content and matches(original, policy["patterns"])
     while len(links) <= 32:
         base = max((key for key in policy["mounts"] if inside(path, key)), key=len)
         root = policy["mounts"][base]
         if not root:
             raise ValueError("mount_unavailable_or_outside_scope")
         os.chdir("/")
-        for name in parts(root):
+        root_parts = parts(root)
+        for index, name in enumerate(root_parts):
+            if path == base and index == len(root_parts) - 1 and stat.S_ISREG(os.lstat(name).st_mode):
+                return name, base, links
             descend(name)
         tail = parts(path[len(base) :])
         parent = base
@@ -76,7 +79,7 @@ def open_parent(path, policy, follow_leaf):
                     renamed = os.path.join(os.path.dirname(original), os.path.basename(path))
                     if not matches(renamed, policy["patterns"]):
                         raise ValueError("link_target_outside_configured_sources")
-                if not matches(path, policy["patterns"], ancestors=True):
+                if reading_content and not matches(path, policy["patterns"], ancestors=True):
                     volumes = [key for key in policy["mounts"] if key != "/" and inside(target_path, key)]
                     if not volumes or not policy["mounts"][max(volumes, key=len)]:
                         raise ValueError("link_target_outside_allowed_volume")
@@ -133,22 +136,33 @@ def reader_positions(pid, info):
 
 def snapshot(policy, request):
     path, operation = request["path"], request["operation"]
+    reading_content = operation == "read"
+    if request.get("path_space") == "collector":
+        # Reverse a collector-visible path only when it identifies one target mount.
+        mappings = [(host, key) for key, host in policy["mounts"].items() if host and inside(path, host)]
+        if not mappings:
+            raise ValueError("collector_path_outside_target_mounts")
+        longest = max(len(host) for host, _ in mappings)
+        logical = [os.path.join(key, os.path.relpath(path, host)) for host, key in mappings if len(host) == longest]
+        if len(logical) != 1:
+            raise ValueError("collector_path_ambiguous")
+        path = os.path.normpath(logical[0])
     if request.get("via"):
         via = request["via"]
-        if not matches(via, policy["patterns"], ancestors=True):
+        if reading_content and not matches(via, policy["patterns"], ancestors=True):
             raise ValueError("source_anchor_outside_configured_paths")
-        _, anchor, hops = open_parent(via, policy, True)
+        _, anchor, hops = open_parent(via, policy, True, reading_content)
         if not hops or not inside(path, anchor):
             raise ValueError("path_outside_source_anchor")
         path = os.path.normpath(os.path.join(via, os.path.relpath(path, anchor)))
-    if not matches(path, policy["patterns"], ancestors=operation != "read"):
+    if reading_content and not matches(path, policy["patterns"]):
         raise ValueError("source_outside_configured_paths")
-    name, resolved, links = open_parent(path, policy, operation != "readlink")
+    name, resolved, links = open_parent(path, policy, operation != "readlink", reading_content)
 
     def excluded(*paths):
         return any(re.search(rule, value) for rule in policy.get("exclude", []) for value in paths)
 
-    if excluded(path, resolved, os.path.join(os.getcwd(), name)):
+    if reading_content and excluded(path, resolved, os.path.join(os.getcwd(), name)):
         raise ValueError("source_excluded_by_input")
     info = os.lstat(name)
     result = {
@@ -167,7 +181,7 @@ def snapshot(policy, request):
         result["target"] = os.readlink(name)
     elif operation == "list":
         descend(name)
-        # Stream bounded NUL-delimited names; never expose neighbouring unconfigured entries.
+        # Include every observed name so a misconfigured pattern can be diagnosed.
         proc = subprocess.Popen(["find", ".", "-mindepth", "1", "-maxdepth", "1", "-print0"], stdout=subprocess.PIPE)
         try:
             raw = proc.stdout.read(65537)
@@ -178,12 +192,7 @@ def snapshot(policy, request):
         if rc and not truncated:
             raise ValueError("directory_listing_failed")
         names = [line[2:].decode("utf-8", "replace") for line in raw[:65536].split(b"\0")[:-1]]
-        children = sorted(
-            os.path.join(path, child)
-            for child in names
-            if not excluded(os.path.join(path, child), os.path.join(resolved, child), os.path.join(os.getcwd(), child))
-            and matches(os.path.join(path, child), policy["patterns"], ancestors=True)
-        )
+        children = sorted(os.path.join(path, child) for child in names)
         result.update(entries=children[:50], truncated=truncated or len(children) > 50)
     elif operation == "read":
         if not stat.S_ISREG(info.st_mode):
@@ -203,8 +212,7 @@ def snapshot(policy, request):
         finally:
             os.close(pinned)
     elif operation == "stat" and stat.S_ISREG(info.st_mode):
-        if matches(path, policy["patterns"]):
-            result["collector_read_positions"] = reader_positions(policy["pid"], info)
+        result["collector_read_positions"] = reader_positions(policy["pid"], info)
     return result
 
 

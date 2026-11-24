@@ -573,6 +573,12 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         ]:
             with self.assertRaises(ValidationError):
                 start_k8s_inspection({**params, "source_step": step, **change})
+        for native_step in (
+            {"operation": "read", "path": "/volume/app.log"},
+            {"operation": "stat", "path": "/volume/app.log", "via": "/logs"},
+        ):
+            with self.assertRaisesRegex(ValidationError, "collector paths"):
+                start_k8s_inspection({**params, "source_step": {**native_step, "path_space": "collector"}})
         for path in ["/logs/../etc", "//logs", "/logs//name", "relative"]:
             with self.assertRaises(ValidationError):
                 start_k8s_inspection({**params, "source_step": {"operation": "stat", "path": path}})
@@ -1463,6 +1469,11 @@ class SourcePolicyTest(SimpleTestCase):
         )
         with self.assertRaises(FixedProbeError):
             source_policy(parsed, target, expected, 8, pod)
+        metadata = source_policy(parsed, target, expected, 8, pod, metadata_only=True)
+        self.assertEqual(metadata["mounts"], {"/volume": "/var/host/work/app", "/private": None, "/": None})
+        stream["content"] = stream["content"].replace("/logs/*.log", "/var/host/root/demo/logs/*.log")
+        metadata = source_policy(parsed, target, expected, 7, pod, metadata_only=True)
+        self.assertEqual(metadata["mounts"]["/"], "/var/host/root/demo")
         stream["path"] = "/config/another-pod.conf"
         with self.assertRaises(FixedProbeError):
             source_policy(parsed, target, expected, 7, pod)
