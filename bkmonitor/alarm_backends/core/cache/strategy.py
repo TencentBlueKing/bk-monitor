@@ -1543,8 +1543,8 @@ class TargetShieldProcessor:
 
 def smart_refresh():
     # 先刷新近期变更套餐，再发布增量策略，避免新策略先读到尚未更新的套餐缓存。
-    ActionConfigCacheManager.refresh(minutes=5)
-    StrategyCacheManager.smart_refresh()
+    if ActionConfigCacheManager.refresh(minutes=5):
+        StrategyCacheManager.smart_refresh()
 
 
 def main():
