@@ -9,6 +9,7 @@ import errno
 import fnmatch
 import json
 import os
+import re
 import signal
 import stat
 import subprocess
@@ -43,33 +44,93 @@ def descend(name):
         os.close(fd)
 
 
-def open_parent(path, policy, follow_leaf):
+def mount_for(path, policy):
+    base = max((key for key in policy["mounts"] if inside(path, key)), key=len)
+    root = policy["mounts"][base]
+    if not root:
+        raise ValueError("mount_unavailable_or_outside_scope: " + base)
+    return base, root
+
+
+def collector_location(path, policy):
+    base, root = mount_for(path, policy)
+    return os.path.normpath(os.path.join(root, path[len(base) :].lstrip("/")))
+
+
+def enter_process_root(container_id):
+    # cwd is the pinned proc PID directory. Check membership and open root relative to
+    # that handle, so PID reuse cannot switch the container between those operations.
+    if not re.match(r"^[0-9a-f]{64}\Z", container_id):
+        raise ValueError("target_process_identity_unverified")
+    scope = re.compile(r"^(?:(?:cri-containerd|docker|crio)-)?%s(?:\.scope)?$" % container_id)
+    with open("cgroup") as stream:
+        for line in stream:
+            fields = line.rstrip("\n").split(":", 2)
+            if len(fields) == 3 and any(scope.match(part) for part in parts(fields[2])):
+                break
+        else:
+            raise ValueError("target_process_identity_unverified")
+    fd = os.open("root", os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fchdir(fd)
+    finally:
+        os.close(fd)
+
+
+def link_destination(parent, target, policy, links):
+    current = "/" if target.startswith("/") else parent
+    pending = []
+    for part in parts(target):
+        if part == "..":
+            if pending:
+                # In link/../file, the kernel follows link before taking its parent.
+                name, current, _ = open_parent(os.path.join(current, *pending), policy, True, links)
+                descend(name)
+                pending = []
+            current = os.path.dirname(current)
+        elif part != ".":
+            pending.append(part)
+    return os.path.join(current, *pending)
+
+
+def open_parent(path, policy, follow_leaf, links=None):
     # cwd is private to this short-lived helper. Pin each directory before inspecting its
     # children. Never ask the collector kernel to follow a business-container symlink.
-    links = []
+    if links is None:
+        links = []
     while len(links) <= 32:
-        base = max((key for key in policy["mounts"] if inside(path, key)), key=len)
-        root = policy["mounts"][base]
-        if not root:
-            raise ValueError("mount_unavailable_or_outside_scope")
+        policy["resolving_path"] = path
+        base, root = mount_for(path, policy)
         os.chdir("/")
         root_parts = parts(root)
         for index, name in enumerate(root_parts):
+            policy["resolving_path"] = "/" + "/".join(root_parts[: index + 1])
             if path == base and index == len(root_parts) - 1 and stat.S_ISREG(os.lstat(name).st_mode):
                 return name, base, links
-            descend(name)
+            if (
+                index == len(root_parts) - 1
+                and base == "/"
+                and root == policy.get("runtime_root")
+                and re.match(r"^/var/host/proc/[1-9][0-9]*/root\Z", root)
+            ):
+                enter_process_root(policy["runtime_id"])
+            else:
+                descend(name)
         tail = parts(path[len(base) :])
         parent = base
         for index, name in enumerate(tail):
             last = index == len(tail) - 1
             logical = os.path.join(parent, name)
+            policy["resolving_path"] = logical
             if last and not follow_leaf:
                 return name, logical, links
             if stat.S_ISLNK(os.lstat(name).st_mode):
                 target = os.readlink(name)
-                target_path = os.path.normpath(os.path.join(parent, target))
+                hop = {"path": logical, "target": target}
+                links.append(hop)
+                target_path = link_destination(parent, target, policy, links)
+                hop["resolved_path"] = target_path
                 path = os.path.join(target_path, *tail[index + 1 :])
-                links.append({"path": logical, "target": target})
                 break
             if last:
                 return name, logical, links
@@ -128,26 +189,40 @@ def target_source_path(policy, request):
             raise ValueError("path_outside_source_anchor")
         path = os.path.normpath(os.path.join(via, os.path.relpath(path, anchor)))
     name, resolved, links = open_parent(path, policy, request["operation"] != "readlink")
-    return name, path, resolved, links, os.path.normpath(os.path.join(os.getcwd(), name))
+    return name, path, resolved, links, collector_location(resolved, policy)
 
 
 def read_target_file(policy, request):
     # Identify a concrete directory from target-bound directory patterns. Never authorize
     # the caller-supplied parent, the host root, or a sibling of the resolved directory.
     path = request["path"]
+    native = request.get("path_space") == "collector"
+    if native and not request.get("via"):
+        raise ValueError("collector_read_requires_target_directory")
     directory = request.get("via") or os.path.dirname(path)
     while directory != "/" and not matches(directory, policy["directories"]):
         directory = os.path.dirname(directory)
     if directory == "/" or (request.get("via") and request["via"] != directory):
         raise ValueError("outside_target_log_directory")
     name, anchor, hops = open_parent(directory, policy, True)
-    if anchor == "/" or (hops and not any(k != "/" and v and inside(anchor, k) for k, v in policy["mounts"].items())):
+    base, root = mount_for(anchor, policy)
+    if base == "/" and any(inside(anchor, fs) for fs in ("/proc", "/sys", "/dev")):
+        raise ValueError("outside_target_log_directory")
+    if anchor == "/" or (hops and base == "/" and root != policy.get("runtime_root")):
         raise ValueError("unverified_log_directory_link")
     descend(name)
-    physical_root = os.getcwd()
+    physical_root = collector_location(anchor, policy)
     root_fd = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
     try:
-        if request.get("via"):
+        if native:
+            # Look up the collector pathname only for comparison. All content is opened
+            # below the independently resolved target directory using the pinned handle.
+            canonical = os.path.realpath(path)
+            canonical_root = os.path.realpath(physical_root)
+            if not inside(canonical, canonical_root):
+                raise ValueError("outside_target_log_directory")
+            relative = os.path.relpath(canonical, canonical_root)
+        elif request.get("via"):
             if not inside(path, anchor):
                 raise ValueError("path_outside_source_anchor")
             relative = os.path.relpath(path, anchor)
@@ -155,7 +230,7 @@ def read_target_file(policy, request):
             relative = os.path.relpath(path, directory)
         actual = os.path.normpath(os.path.join(anchor, relative))
         name, resolved, links = open_parent(actual, policy, True)
-        physical = os.path.normpath(os.path.join(os.getcwd(), name))
+        physical = collector_location(resolved, policy)
         if not inside(resolved, anchor) or not inside(physical, physical_root):
             raise ValueError("outside_target_log_directory")
         # Reopen beneath the pinned directory without following links between checks.
@@ -173,7 +248,8 @@ def read_target_file(policy, request):
 def snapshot(policy, request):
     path, operation = request["path"], request["operation"]
     native = request.get("path_space") == "collector"
-    if native:
+    native_metadata = native and operation != "read"
+    if native_metadata:
         if operation not in ("list", "readlink", "stat") or "via" in request:
             raise ValueError("collector_paths_support_metadata_only")
         # Keep the original path for follow-ups. Kernel magic links may have no equivalent
@@ -196,10 +272,11 @@ def snapshot(policy, request):
         "mtime": timestamp(info.st_mtime),
         "mtime_epoch": info.st_mtime,
     }
-    if not native:
+    if not native_metadata:
         result.update(resolved_path=resolved, links=links)
     if operation == "readlink":
         result["target"] = os.readlink(name)
+        result["follow_path"] = path
     elif operation == "list":
         if not native:
             descend(name)
@@ -231,6 +308,18 @@ def snapshot(policy, request):
             bound = os.fstat(pinned)
             if not stat.S_ISREG(bound.st_mode) or (bound.st_dev, bound.st_ino) != (info.st_dev, info.st_ino):
                 raise ValueError("source_changed_before_read")
+            if native:
+                observed = os.stat(path)
+                if (observed.st_dev, observed.st_ino) != (bound.st_dev, bound.st_ino):
+                    raise ValueError("collector_path_identity_mismatch")
+            result.update(
+                device=bound.st_dev,
+                inode=bound.st_ino,
+                mode=bound.st_mode,
+                size_bytes=bound.st_size,
+                mtime=timestamp(bound.st_mtime),
+                mtime_epoch=bound.st_mtime,
+            )
             with open("/proc/self/fd/%d" % pinned, "rb") as stream:
                 offset = request.get("offset", 0)
                 stream.seek(offset)
@@ -254,7 +343,12 @@ def inspect_source(policy, request):
     try:
         second = snapshot(policy, request)
     except (OSError, IOError, ValueError) as error:
-        return {"first": first, "activity": "second_sample_unavailable", "error": str(error)}
+        return {
+            "first": first,
+            "activity": "second_sample_unavailable",
+            "error": str(error),
+            "failed_path": policy.get("resolving_path", request["path"]),
+        }
     growth = second["size_bytes"] - first["size_bytes"]
     result = {"first": first, "second": second, "reader_scope": "collector_process", "data_id_attribution": "unknown"}
     if (first["device"], first["inode"]) != (second["device"], second["inode"]):
@@ -278,4 +372,12 @@ if __name__ == "__main__":
     try:
         print(json.dumps(inspect_source(policy, request)))
     except (OSError, IOError, ValueError) as error:
-        print(json.dumps({"error": str(error), "errno": getattr(error, "errno", None)}))
+        print(
+            json.dumps(
+                {
+                    "error": str(error),
+                    "errno": getattr(error, "errno", None),
+                    "failed_path": policy.get("resolving_path", request["path"]),
+                }
+            )
+        )

@@ -290,7 +290,10 @@ def run_k8s_inspection(task_id: str) -> None:
                     _pod_after,
                 )
                 _revalidate_candidate(client, selected, required_bk_envs)
-                if options["source_step"].get("path_space") != "collector":
+                if (
+                    options["source_step"].get("path_space") != "collector"
+                    or options["source_step"]["operation"] == "read"
+                ):
                     target = control_evidence["target"]
                     pod = object_to_dict(client.read_pod(target["namespace"], target["pod_name"]))
                     matched = target_config_matches(options["target"], pod, expected)

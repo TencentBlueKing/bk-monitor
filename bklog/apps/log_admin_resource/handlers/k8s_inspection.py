@@ -434,14 +434,14 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
         source_step = {"path_space": default_space, **source_step}
         if not target or "collector" not in groups:
             raise ValidationError("source_step requires a target and collector evidence")
-        if source_step["path_space"] == "target" and target["type"] != "pod_container":
+        if (source_step["path_space"] == "target" or source_step["operation"] == "read") and target[
+            "type"
+        ] != "pod_container":
             raise ValidationError("target paths require a Pod/container target")
         if source or include_source_sample:
             raise ValidationError("source_step and legacy source sampling are mutually exclusive")
-        if source_step.get("path_space") == "collector" and (
-            source_step["operation"] == "read" or "via" in source_step
-        ):
-            raise ValidationError("collector paths support list, readlink and stat directly")
+        if source_step["path_space"] == "collector" and (source_step["operation"] == "read") != ("via" in source_step):
+            raise ValidationError("collector paths require via for read only")
         require_source_read_access(app_code, source_step)
         for path in [source_step["path"], source_step.get("via", "/")]:
             if (
@@ -1019,7 +1019,7 @@ FUNCTIONS = {
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 4096,
-                            "description": "Logical link whose verified target contains path. Optional for metadata operations.",
+                            "description": "For collector reads, supply the target log directory (e.g. /app/logs) containing the file. For target paths, use the logical directory whose resolved target contains path.",
                         },
                         "offset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
                         "length": {"type": "integer", "minimum": 1, "maximum": 4096},

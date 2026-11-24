@@ -1,5 +1,6 @@
 """Filesystem regressions for the standalone program executed inside the collector."""
 
+import io
 import os
 import subprocess
 import sys
@@ -94,6 +95,72 @@ class SourceStepTest(unittest.TestCase):
             result = self.run_step("read", path, **options)["observation"]
             self.assertEqual(bytes.fromhex("".join(result["raw_hex_chunks"])), payload)
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "requires Linux tmpfs and O_PATH")
+    def test_logical_and_collector_reads_across_mounts(self):
+        with tempfile.TemporaryDirectory(dir="/dev/shm") as mounted:
+            self.assertNotEqual(os.stat(mounted).st_dev, self.root.stat().st_dev)
+            self.policy["mounts"]["/data"] = mounted
+            directory = Path(mounted) / "service"
+            directory.mkdir()
+            log = directory / "debug.txt"
+            log.write_bytes(b"before\x00\xffafter")
+            alias = directory / "rotated"
+            alias.symlink_to(log)
+            logical = self.run_step("stat", "/logs/debug.txt")["second"]
+            for path, options in [
+                ("/logs/debug.txt", {}),
+                (logical["collector_path"], {"path_space": "collector", "via": "/logs"}),
+                (str(alias), {"path_space": "collector", "via": "/logs"}),
+            ]:
+                result = self.run_step("read", path, offset=6, length=2, **options)["observation"]
+                self.assertEqual((result["device"], result["inode"]), (log.stat().st_dev, log.stat().st_ino))
+                self.assertEqual(result["raw_hex_chunks"], ["00ff"])
+            alias.unlink()
+            alias.symlink_to(self.file)
+            with self.assertRaisesRegex(ValueError, "outside_target_log_directory"):
+                self.run_step("read", str(alias), path_space="collector", via="/logs")
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "requires Linux procfs")
+    def test_runtime_root_directory_link_and_process_membership(self):
+        runtime_id = "a" * 64
+        os.chdir(f"/proc/{os.getpid()}")
+        with patch("builtins.open", return_value=io.StringIO("0::/cri-containerd-" + runtime_id + ".scope\n")):
+            probe.enter_process_root(runtime_id)
+        self.assertTrue(os.path.samefile(".", "/"))
+        os.chdir(f"/proc/{os.getpid()}")
+        with patch("builtins.open", return_value=io.StringIO("0::/another.scope\n")):
+            with self.assertRaisesRegex(ValueError, "target_process_identity_unverified"):
+                probe.enter_process_root(runtime_id)
+        (self.root / "logs").unlink()
+        (self.root / "logs").symlink_to("local")
+        local = self.root / "local"
+        local.mkdir()
+        (local / "test.log").write_bytes(b"log")
+        self.policy["runtime_root"] = str(self.root)
+        result = self.run_step("read", "/logs/test.log")["observation"]
+        self.assertEqual(result["raw_hex_chunks"], ["6c6f67"])
+
+    def test_special_files_and_unresolved_paths_have_no_content(self):
+        os.mkfifo(self.directory / "pipe")
+        with self.assertRaisesRegex(ValueError, "source_not_regular"):
+            self.run_step("read", "/logs/pipe")
+        (self.directory / "gone").symlink_to("missing")
+        with self.assertRaises(FileNotFoundError):
+            self.run_step("read", "/logs/gone")
+        self.assertEqual(self.policy["resolving_path"], "/data/service/missing")
+
+    def test_parent_of_intermediate_link_uses_resolved_directory(self):
+        (self.directory / "nested" / "child").mkdir(parents=True)
+        (self.directory / "nested" / "app.log").write_bytes(b"nested")
+        (self.directory / "alias").symlink_to("nested/child")
+        (self.directory / "latest").symlink_to("alias/../app.log")
+        result = self.run_step("stat", "/logs/latest")["second"]
+        self.assertEqual(result["inode"], (self.directory / "nested/app.log").stat().st_ino)
+        (self.directory / "alias").unlink()
+        (self.directory / "alias").symlink_to("latest")
+        with self.assertRaisesRegex(ValueError, "too_many_symlinks"):
+            self.run_step("stat", "/logs/latest")
+
     def test_file_link_cannot_leave_resolved_log_directory_within_same_volume(self):
         (self.volume / "other").mkdir()
         (self.volume / "other" / "elsewhere.log").touch()
@@ -150,7 +217,7 @@ class SourceStepTest(unittest.TestCase):
         self.assertEqual(result["entries"], [child])
         observed = self.run_step("stat", child, **native)["second"]
         self.assertEqual((observed["collector_path"], observed["inode"]), (child, self.file.stat().st_ino))
-        with self.assertRaisesRegex(ValueError, "metadata_only"):
+        with self.assertRaisesRegex(ValueError, "requires_target_directory"):
             self.run_step("read", child, **native)
         alias.unlink()
         alias.symlink_to("missing")

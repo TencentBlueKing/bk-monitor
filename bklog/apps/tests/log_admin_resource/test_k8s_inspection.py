@@ -926,8 +926,26 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[]):
             with self.assertRaises(BklogPermissionError):
                 start_k8s_inspection(params)
+            with self.assertRaises(BklogPermissionError):
+                start_k8s_inspection(
+                    {**params, "source_step": {**params["source_step"], "path_space": "collector", "via": "/logs"}}
+                )
         dispatch.assert_not_called()
         with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader-a"]):
+            physical_step = {
+                "operation": "read",
+                "path_space": "collector",
+                "path": "/var/host/example/a.log",
+                "via": "/logs",
+            }
+            physical_id = start_k8s_inspection({**params, "source_step": physical_step})["task_id"]
+            self.assertEqual(
+                ResourceInspectionTaskRecord.get(physical_id)["request_options"]["source_step"], physical_step
+            )
+            with self.assertRaisesRegex(ValidationError, "Pod/container"):
+                start_k8s_inspection(
+                    {**params, "source_step": physical_step, "target": {"type": "node", "node_name": "node"}}
+                )
             task_id = start_k8s_inspection(params)["task_id"]
             ResourceInspectionTaskRecord.update(task_id, task_status="success")
             for payload in (b"token=fixture-only\n", b"\xff\x00", b""):
@@ -1522,6 +1540,13 @@ class SourcePolicyTest(SimpleTestCase):
         stream["content"] = stream["content"].replace("/logs/*.log", "/var/host/root/demo/logs/*.log")
         metadata = source_policy(parsed, target, expected, 7, pod, metadata_only=True)
         self.assertEqual(metadata["mounts"]["/"], "/var/host/root/demo")
+        stream["content"] = (
+            "local: [{dataid: 7, remove_path_prefix: /var/host, mount_infos: [{source: /proc/32/root, dest: /}, "
+            "{source: /work/secret, dest: /private}]}]"
+        )
+        legacy = source_policy(parsed, target, expected, 7, pod)
+        self.assertEqual(legacy["runtime_root"], "/var/host/proc/32/root")
+        self.assertIsNone(legacy["mounts"]["/private"])
         stream["path"] = "/config/another-pod.conf"
         self.assertIsNone(source_policy(parsed, target, expected, 7, pod)["mounts"]["/"])
         expected[0]["spec"]["path"] = ["/*.log"]

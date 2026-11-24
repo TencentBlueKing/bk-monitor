@@ -56,7 +56,7 @@ def _target_mounts(target, collector_pod):
         if volume.get("path") not in (None, "", "/") or volume.get("type") in {"empty_dir", "persistent_volume_claim"}:
             usable.add(path)
 
-    return volumes, usable
+    return volumes, usable, host_root
 
 
 def _rendered_inputs(parsed, hints, data_id):
@@ -76,7 +76,7 @@ def _rendered_inputs(parsed, hints, data_id):
 
 
 def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_only=False):
-    volumes, usable = _target_mounts(target, collector_pod)
+    volumes, usable, host_root = _target_mounts(target, collector_pod)
     directories = set()
     observed_mounts = {}
     for item in expected:
@@ -95,6 +95,21 @@ def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_
                 if first and not any(ch in first for ch in "*?["):
                     directories.add(directory)
         for config in _rendered_inputs(parsed, hints, data_id):
+            if not host_root:
+                continue
+            # Older sidecars render host-relative source/dest pairs, including the container root.
+            legacy_mounts = config.get("mount_infos") if config.get("remove_path_prefix") == "/var/host" else None
+            for mount in legacy_mounts or []:
+                if not isinstance(mount, dict):
+                    continue
+                path, source = mount.get("dest"), mount.get("source")
+                if not isinstance(source, str) or not source.startswith("/") or source == "/":
+                    continue
+                host = "/var/host" + source
+                if _under_host(host) and (
+                    (path == "/" and "/" not in volumes) or (path in usable and not volumes[path])
+                ):
+                    observed_mounts.setdefault(path, set()).add(host)
             for mount in config.get("mounts") or []:
                 path = mount.get("container_path")
                 host = mount.get("host_path")
@@ -108,17 +123,21 @@ def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_
     for path, hosts in observed_mounts.items():
         if len(hosts) == 1:
             mounts[path] = next(iter(hosts))
+    policy = {"mounts": mounts}
+    if "/" in observed_mounts and mounts["/"]:
+        policy["runtime_root"] = mounts["/"]
+        policy["runtime_id"] = target["container"]["container_id"].split("://")[-1]
     if metadata_only:
-        return {"mounts": mounts}
+        return policy
     if not directories:
         raise FixedProbeError("source_directory_unknown", "no target-specific log directory was identified")
-    return {"mounts": mounts, "directories": sorted(directories)}
+    return {**policy, "directories": sorted(directories)}
 
 
 def inspect_source_step(client, candidate, parsed, target, expected, data_id, request, collector_pod):
     native = request.get("path_space") == "collector"
-    if native:
-        if request["operation"] not in {"list", "stat", "readlink"} or "via" in request:
+    if native and request["operation"] != "read":
+        if "via" in request:
             raise FixedProbeError("invalid_collector_step", "collector paths support metadata operations only")
         policy = {}
         identity = {}
