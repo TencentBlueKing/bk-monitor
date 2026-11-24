@@ -372,6 +372,8 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
   async function showMore() {
     sliderShow.value = true;
     sliderLoading.value = true;
+    /** 本次打开侧栏对应的请求序号，期间切 Tab 或重开侧栏后本次的 loading 不再有效 */
+    const count = sliderRequestCount.value;
     sliderShowChange();
     callbacks.onShowMore();
     if (mode.value !== 'duration') {
@@ -379,7 +381,8 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
     } else {
       setTopKData(sliderDimensionList, durationTopkList.value);
     }
-    sliderLoading.value = false;
+    // 序号已变化说明 loading 已归新一次打开管理，避免旧请求收尾把新一次的加载态清掉
+    if (count === sliderRequestCount.value) sliderLoading.value = false;
   }
 
   /** 加载更多（请求进行中时忽略重复触发） */
@@ -397,10 +400,11 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
     sliderListPage.value += 1;
   }
 
-  /** 复位侧栏：关闭并清空全量列表，页码回到第一页，同时作废在途的 loadMore */
+  /** 复位侧栏：关闭并清空全量列表，页码回到第一页，同时作废在途的 loadMore 并清掉侧栏加载态 */
   function resetSliderState() {
     sliderRequestCount.value += 1;
     sliderShow.value = false;
+    sliderLoading.value = false;
     sliderLoadMoreLoading.value = false;
     sliderListPage.value = 1;
     setTopKData(sliderDimensionList);
