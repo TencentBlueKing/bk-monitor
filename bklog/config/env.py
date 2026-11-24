@@ -114,7 +114,7 @@ def load_settings():
             service, _, suffix = public_url.netloc.partition(".")
             domain = suffix if service in ("bklog", "paas", "bk") else public_url.netloc
         if domain:
-            result_settings["BKBASE_V4_URL"] = f"{public_url.scheme or 'https'}://bkbasev4.{domain}"
+            result_settings["BKBASE_V4_URL"] = f"{public_url.scheme or 'https'}://bkbase.{domain}/v4/webserver"
     return result_settings
 
 

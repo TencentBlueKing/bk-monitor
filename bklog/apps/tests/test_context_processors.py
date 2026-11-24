@@ -65,10 +65,17 @@ class LogAccessGuideContextTest(SimpleTestCase):
             ({"BKBASE_V4_URL": "https://custom.test/ui", "BK_DOMAIN": "example.test"}, "https://custom.test/ui"),
             (
                 {"BK_DOMAIN": ".example.test", "BK_BKLOG_HOST": "https://logs.custom.test/"},
-                "https://bkbasev4.example.test",
+                "https://bkbase.example.test/v4/webserver",
             ),
-            ({"BK_BKLOG_HOST": "http://bklog.dev.example.test:8080/"}, "http://bkbasev4.dev.example.test:8080"),
-            ({"BK_PAAS_HOST": "https://paas.example.test/"}, "https://bkbasev4.example.test"),
+            (
+                {"BK_DOMAIN": "prod.example.test", "BK_BKLOG_HOST": "https://bklog.prod.example.test/"},
+                "https://bkbase.prod.example.test/v4/webserver",
+            ),
+            (
+                {"BK_BKLOG_HOST": "http://bklog.dev.example.test:8080/"},
+                "http://bkbase.dev.example.test:8080/v4/webserver",
+            ),
+            ({"BK_PAAS_HOST": "https://paas.example.test/"}, "https://bkbase.example.test/v4/webserver"),
         ):
             with self.subTest(config=config), patch("config.env.load_env", return_value={"settings": config}):
                 self.assertEqual(load_settings()["BKBASE_V4_URL"], expected)
