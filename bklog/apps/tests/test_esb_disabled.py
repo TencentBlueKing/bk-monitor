@@ -25,6 +25,10 @@ class EsbDisabledTest(SimpleTestCase):
         self.account = {"bk_username": "tenant-user-id", "login_name": "alice", "display_name": "Alice"}
         self.request = RequestFactory()
 
+    def test_gateway_business_error_is_reported(self):
+        response = self.users.user_departments.after_request({"code": 1, "result": True, "data": None})
+        self.assertFalse(response["result"])
+
     def test_old_selector_search_and_saved_account(self):
         for query, method, expected in [
             ({"fuzzy_lookups": "ali"}, "search_users", {"keyword": "ali"}),

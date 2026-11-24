@@ -58,6 +58,16 @@ def get_user_after(response_result):
 class TenantUserAPI(DataAPI):
     EXCLUDE_URL_KEYS = True
 
+    def __init__(self, **kwargs):
+        super().__init__(after_request=self.check_business_code, **kwargs)
+
+    @staticmethod
+    def check_business_code(response):
+        # 部分网关错误仅返回 code，DataAPI 默认把没有 result 的 HTTP 200 当作成功。
+        if response.get("code", 0) != 0:
+            response["result"] = False
+        return response
+
 
 class _BKLoginApi:
     MODULE = _("PaaS平台登录模块")
