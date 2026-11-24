@@ -23,7 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { EVENTS_FIELD_PREFIX, RumModeEnum, SESSION_ID_FIELD, SPAN_TYPE_FIELD, VIEW_URL_FIELD } from '../../../constants';
+import {
+  EVENTS_FIELD_PREFIX,
+  RUM_FULL_URL_FIELDS,
+  RumModeEnum,
+  SESSION_ID_FIELD,
+  SPAN_TYPE_FIELD,
+  VIEW_URL_FIELD,
+} from '../../../constants';
 import { ARRAY_ITEM_EMPTY_PLACEHOLDER } from '../../../utils/array-field-formatter';
 import ColumnHeader from '../components/column-header/column-header';
 import ActionPlaceholder from '../components/composite-cell/action-placeholder';
@@ -62,6 +69,7 @@ export const buildRumColumnRenderer = (
     title: () =>
       (
         <ColumnHeader
+          class={layout.sections && 'rum-composite-header'}
           analysis={layout.analysisField && { field: layout.analysisField, candidates: layout.analysisFields }}
           colKey={fieldName}
           field={field}
@@ -86,8 +94,9 @@ export const buildRumColumnRenderer = (
             v-slots={{
               item: (item: CompositeValue) => renderMember(item, 'item'),
               badge: (badge: CompositeValue) => renderMember(badge, 'badge'),
-              prefix: renderUrlPlaceholder,
-              suffix: (section: CompositeRow) => renderRelatedPlaceholders(section, fieldName, mode, row),
+              prefix: (section: CompositeRow) => renderUrlPlaceholder(section, actions.hoverPopoverTools),
+              suffix: (section: CompositeRow) =>
+                renderRelatedPlaceholders(section, fieldName, mode, row, actions.hoverPopoverTools),
             }}
             rows={rows}
           />
@@ -131,7 +140,8 @@ const renderRelatedPlaceholders = (
   section: CompositeRow,
   fieldName: string,
   mode: RumModeType,
-  row: IRumSpanRecord
+  row: IRumSpanRecord,
+  hoverPopoverTools: RumColumnActions['hoverPopoverTools']
 ) => {
   if (section.index !== 0 || (fieldName !== 'span_name' && fieldName !== VIEW_URL_FIELD)) return null;
   const showSession = mode !== RumModeEnum.SESSION && hasFieldValue(row[SESSION_ID_FIELD]);
@@ -142,14 +152,16 @@ const renderRelatedPlaceholders = (
     <span class='rum-composite-actions'>
       {showSession && (
         <ActionPlaceholder
-          icon='icon-mc-goto'
+          hoverPopoverTools={hoverPopoverTools}
           label='Session'
+          tooltip={window.i18n.t('查看 Session')}
         />
       )}
       {showTrace && (
         <ActionPlaceholder
-          icon='icon-mc-goto'
+          hoverPopoverTools={hoverPopoverTools}
           label='Trace'
+          tooltip={window.i18n.t('查看 Trace')}
         />
       )}
     </span>
@@ -157,17 +169,12 @@ const renderRelatedPlaceholders = (
 };
 
 /** 为包含完整 URL 的复合行保留外链图标。 */
-const renderUrlPlaceholder = (section: CompositeRow) => {
-  if (
-    !section.items.some(item => item.field.name === 'attributes.view.url' || item.field.name === 'attributes.url.full')
-  ) {
-    return null;
-  }
+const renderUrlPlaceholder = (section: CompositeRow, hoverPopoverTools: RumColumnActions['hoverPopoverTools']) => {
+  if (!section.items.some(item => RUM_FULL_URL_FIELDS.has(item.field.name))) return null;
   return (
     <ActionPlaceholder
-      icon='icon-fenxiang'
-      label={window.i18n.t('页面 URL')}
-      showLabel={false}
+      hoverPopoverTools={hoverPopoverTools}
+      tooltip={window.i18n.t('打开模拟页面')}
     />
   );
 };

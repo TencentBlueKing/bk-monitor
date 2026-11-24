@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { RumViewLoadingTypeEnum } from '../../constants';
 import type {
   RumCardToneEnum,
   RumDetailTabEnum,
   RumSectionTypeEnum,
   RumTimelineFilterCategoryEnum,
   RumTimelineSortEnum,
-  RumViewLoadingTypeEnum,
 } from '../constants';
 
 /** 统计卡片主值的语义配色取值 */

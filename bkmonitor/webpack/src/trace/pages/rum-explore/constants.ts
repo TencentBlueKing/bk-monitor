@@ -85,6 +85,26 @@ export const RumHttpStatusCodeGroupEnum = {
   SERVER_ERROR: 5,
 } as const;
 
+/** View 的页面加载类型，与接口的 loading_type 字段对齐。 */
+export const RumViewLoadingTypeEnum = {
+  /** 初始加载。 */
+  INITIAL_LOAD: 'initial_load',
+  /** 路由切换。 */
+  ROUTE_CHANGE: 'route_change',
+  /** 续期重建。 */
+  SESSION_RENEWAL: 'session_renewal',
+  /** 缓存恢复。 */
+  BF_CACHE: 'bf_cache',
+} as const;
+
+/** 检索复合标签与详情时间轴共用的加载类型图标。 */
+export const RUM_VIEW_LOADING_TYPE_ICONS = {
+  [RumViewLoadingTypeEnum.INITIAL_LOAD]: 'icon-a-Property1chucijiazai',
+  [RumViewLoadingTypeEnum.ROUTE_CHANGE]: 'icon-a-Property1luyouqiehuan',
+  [RumViewLoadingTypeEnum.SESSION_RENEWAL]: 'icon-shuaxin1',
+  [RumViewLoadingTypeEnum.BF_CACHE]: 'icon-a-3yuan-bohui',
+};
+
 /** 「类型选择」中代表不限类型的值，非后端枚举 */
 export const ALL_SPAN_TYPE = '';
 
@@ -315,6 +335,9 @@ export const VIEW_ID_FIELD = 'attributes.view.id';
 
 /** View 视角的页面 URL 字段：链接列，点击打开 View 详情抽屉 */
 export const VIEW_URL_FIELD = 'attributes.view.url_template';
+
+/** 复合列中可省略地址开头并显示 URL 入口的完整 URL 字段。 */
+export const RUM_FULL_URL_FIELDS: ReadonlySet<string> = new Set(['attributes.view.url', 'attributes.url.full']);
 
 /** Session 视角的行唯一键，同时是跨视角检索该会话的条件字段 */
 export const SESSION_ID_FIELD = 'attributes.session.id';

@@ -29,9 +29,12 @@ import type { VNodeChild } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  RUM_FULL_URL_FIELDS,
   RUM_HTTP_STATUS_CODE_MAP,
   RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
+  RUM_VIEW_LOADING_TYPE_ICONS,
+  RumHttpStatusCodeGroupEnum,
   SPAN_KIND_MAPS,
   SPAN_TYPE_FIELD,
   SPAN_TYPE_META,
@@ -43,23 +46,18 @@ import { canOpenRecordDetail, isSpanName, spanNameHover } from './detail-value';
 import FieldTarget from './field-target';
 
 import type { IRumCountDrillDown, IRumField, IRumSpanRecord, RumModeType } from '../../../../typings';
-import type { TippyContent } from 'vue-tippy';
+import type { IUsePopoverTools } from '@/pages/alarm-center/components/alarm-table/hooks/use-popover';
 
 import './field-value.scss';
 
 /** 表格传给字段值的详情、下钻和悬浮回调。 */
 export interface FieldActions {
+  /** 表格共用的悬浮层控制器。 */
+  hoverPopoverTools: Pick<IUsePopoverTools, 'clearPopoverTimer' | 'hidePopover' | 'showPopover'>;
   /** 从计数字段切换视角和筛选条件。 */
   onCountClick: (payload: IRumCountDrillDown) => void;
   /** 打开当前行的记录详情。 */
   onOpenDetail: (row: IRumSpanRecord) => void;
-  /** 表格共用的悬浮层控制器。 */
-  hoverPopoverTools: {
-    /** 清除尚未显示的悬浮提示。 */
-    clearPopoverTimer: () => void;
-    /** 在触发元素附近展示字段提示。 */
-    showPopover: (event: MouseEvent, content: TippyContent, options: unknown) => void;
-  };
 }
 
 /** 字段在表格中的展示位置，影响标签样式和可用的点击动作。 */
@@ -90,6 +88,22 @@ const TAG_STYLES: Record<string, string> = {
   'events.attributes.exception.type': 'rum-badge-error',
 };
 
+/** 字段独立成列时也需要渲染成标签的字段。 */
+const STANDALONE_TAG_FIELDS = new Set([
+  'status.code',
+  'attributes.http.request.method',
+  'attributes.http.response.status_code',
+]);
+
+/** 复合标签中按设计使用等宽字体的字段。 */
+const MONOSPACE_TAG_FIELDS = new Set([
+  'attributes.action.type',
+  'attributes.http.request.method',
+  'attributes.http.response.status_code',
+  'attributes.resource.type',
+  'events.attributes.exception.type',
+]);
+
 export default defineComponent({
   name: 'RumFieldValue',
   props: {
@@ -109,14 +123,50 @@ export default defineComponent({
       props.actions.onOpenDetail(props.context.row);
     };
 
-    return { t, handleOpenDetail };
+    /** 仅在当前复合成员被截断时展示完整内容。 */
+    const handleTextEnter = (event: MouseEvent) => {
+      const element = event.currentTarget as HTMLElement;
+      if (element.scrollWidth <= element.clientWidth) return;
+      props.actions.hoverPopoverTools.showPopover(event, element.textContent ?? '', {
+        theme: 'dark max-width-40vw text-wrap',
+        placement: 'bottom',
+        interactive: false,
+      });
+    };
+
+    return { t, handleOpenDetail, handleTextEnter };
   },
   render() {
     const { field, fieldName, placement, row, rowId, value } = this.context;
     if (!hasFieldValue(value)) return null;
 
     const badge = placement === 'badge';
+    const tag = badge || (placement === 'column' && STANDALONE_TAG_FIELDS.has(fieldName));
+    const tagClasses = tag
+      ? ['rum-cell-badge', TAG_STYLES[fieldName], badge && MONOSPACE_TAG_FIELDS.has(fieldName) && 'rum-badge-mono']
+      : undefined;
+    const spanName = !badge && isSpanName(this.mode, fieldName);
+    const fullUrl = placement === 'item' && RUM_FULL_URL_FIELDS.has(fieldName);
     const target = { fieldName, rowId, searchable: !!field?.is_searched };
+    const overflowEvents =
+      !spanName && placement !== 'column'
+        ? {
+            onClick: this.actions.hoverPopoverTools.hidePopover,
+            onMouseenter: this.handleTextEnter,
+            onMouseleave: this.actions.hoverPopoverTools.clearPopoverTimer,
+          }
+        : {};
+
+    /** 保留完整文本供条件菜单和悬浮提示使用，完整 URL 从开头省略。 */
+    const renderText = (text: string) => (
+      <span
+        {...overflowEvents}
+        class={['rum-field-text', { 'rum-composite-url': fullUrl }]}
+      >
+        {fullUrl ? <bdi dir='ltr'>{text}</bdi> : text}
+      </span>
+    );
+
     if (badge && Array.isArray(value)) {
       return value.map((item, index) =>
         hasFieldValue(item) ? (
@@ -125,17 +175,17 @@ export default defineComponent({
             class='rum-field-badge-item'
           >
             <FieldTarget
-              class={['rum-cell-badge', TAG_STYLES[fieldName]]}
+              class={tagClasses}
               target={{ ...target, index }}
             >
-              {formatFieldValue(item, field)}
+              {renderText(formatFieldValue(item, field))}
             </FieldTarget>
           </span>
         ) : null
       );
     }
 
-    const { icon, text: fallbackText, style } = resolveFieldAppearance(fieldName, value);
+    const { icon, text: fallbackText, style } = resolveFieldAppearance(fieldName, value, badge);
     const vitalMetric = row['attributes.vital.metric'];
     const text =
       Array.isArray(value) && placement === 'item'
@@ -152,43 +202,29 @@ export default defineComponent({
           drillDown={drillDown}
           row={row}
           target={target}
-          text={text}
           value={value}
           onDrillDown={this.actions.onCountClick}
-        />
+        >
+          {placement === 'column' ? text : renderText(text)}
+        </CountValue>
       );
     }
 
-    const spanName = !badge && isSpanName(this.mode, fieldName);
     const canOpenDetail = !badge && canOpenRecordDetail(this.mode, fieldName, row, rowId);
     const rating = getRatingClass(field, value);
-    const tag =
-      badge ||
-      ['status.code', 'attributes.http.request.method', 'attributes.http.response.status_code'].includes(fieldName);
     const hover = spanName
       ? spanNameHover(row, field?.alias ?? this.t('Span 名称'), text, this.actions.hoverPopoverTools)
       : {};
     return (
       <FieldTarget
         {...hover}
-        style={style}
-        class={[
-          tag && 'rum-cell-badge',
-          tag && TAG_STYLES[fieldName],
-          icon && 'rum-icon-text',
-          rating,
-          canOpenDetail && 'rum-link-text',
-        ]}
+        style={tag ? style : undefined}
+        class={[tagClasses, icon && 'rum-icon-text', rating, canOpenDetail && 'rum-link-text']}
         action={canOpenDetail ? this.handleOpenDetail : undefined}
         target={target}
       >
         {icon}
-        <span
-          class='rum-field-text'
-          title={!spanName && placement !== 'column' ? text : undefined}
-        >
-          {text}
-        </span>
+        {renderText(text)}
       </FieldTarget>
     );
   },
@@ -206,7 +242,7 @@ const getRatingClass = (field: IRumField | undefined, value: unknown) => {
 };
 
 /** 为需要特殊呈现的字段补充图标、配色和备用文案。 */
-const resolveFieldAppearance = (fieldName: string, value: unknown) => {
+const resolveFieldAppearance = (fieldName: string, value: unknown, badge: boolean) => {
   switch (fieldName) {
     case SPAN_TYPE_FIELD: {
       const meta = SPAN_TYPE_META[String(value)];
@@ -259,15 +295,51 @@ const resolveFieldAppearance = (fieldName: string, value: unknown) => {
             ),
           }
         : {};
-    case 'status.code': {
-      const config = RUM_STATUS_CODE_MAP[Number(value)];
-      return config
-        ? { text: config.alias, style: { color: config.tagColor, backgroundColor: config.tagBgColor } }
+    case 'virtual.viewport':
+      // 视口专用图标提供前复用应用版本图标。
+      return badge
+        ? {
+            icon: (
+              <i
+                class='icon-monitor icon-yingyongbanben rum-composite-badge-icon is-viewport'
+                aria-hidden='true'
+              />
+            ),
+          }
+        : {};
+    case 'attributes.view.loading_type': {
+      const loadingType = String(value) as keyof typeof RUM_VIEW_LOADING_TYPE_ICONS;
+      const icon =
+        badge && Object.hasOwn(RUM_VIEW_LOADING_TYPE_ICONS, loadingType) && RUM_VIEW_LOADING_TYPE_ICONS[loadingType];
+      return icon
+        ? {
+            icon: (
+              <i
+                class={`icon-monitor rum-composite-badge-icon ${icon}`}
+                aria-hidden='true'
+              />
+            ),
+          }
         : {};
     }
+    case 'status.code': {
+      const config = RUM_STATUS_CODE_MAP[Number(value)];
+      if (!config) return {};
+      return {
+        text: config.alias,
+        style: badge
+          ? { '--rum-badge-tint': config.tagColor }
+          : { color: config.tagColor, backgroundColor: config.tagBgColor },
+      };
+    }
     case 'attributes.http.response.status_code': {
-      const config = RUM_HTTP_STATUS_CODE_MAP[Math.floor(Number(value) / 100)];
-      return config ? { style: { color: config.tagColor, backgroundColor: config.tagBgColor } } : {};
+      const group = Math.floor(Number(value) / 100);
+      const config = RUM_HTTP_STATUS_CODE_MAP[group];
+      if (!config) return {};
+      const tint = group === RumHttpStatusCodeGroupEnum.SUCCESS ? '#23ad89' : config.tagBgColor;
+      return {
+        style: badge ? { '--rum-badge-tint': tint } : { color: config.tagColor, backgroundColor: config.tagBgColor },
+      };
     }
     default:
       return {};

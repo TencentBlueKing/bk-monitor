@@ -23,33 +23,53 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
+
+import type { FieldActions } from '../field-value/field-value';
 
 export default defineComponent({
   name: 'RumCompositeActionPlaceholder',
   props: {
-    /** 已有图标库中的图标类名。 */
-    icon: { type: String, required: true },
-    /** 入口名称，同时用作无障碍标签。 */
-    label: { type: String, required: true },
-    /** 是否在图标旁展示入口名称。 */
-    showLabel: { type: Boolean, default: true },
+    /** 关联记录入口的可见名称，完整 URL 入口只显示图标。 */
+    label: { type: String, default: '' },
+    /** 图标的悬浮提示和无障碍名称。 */
+    tooltip: { type: String, required: true },
+    /** 复用表格的悬浮层控制器。 */
+    hoverPopoverTools: { type: Object as PropType<FieldActions['hoverPopoverTools']>, required: true },
   },
   setup(props) {
-    const iconClass = computed(() => `icon-monitor ${props.icon}`);
-    return { iconClass };
+    /** Session 和 Trace 暂用前进图标，URL 使用外链图标。 */
+    const iconClass = computed(() => (props.label ? 'icon-qianjin' : 'icon-mc-goto'));
+
+    /** 展示入口用途，复用表格的单例提示。 */
+    const handleMouseEnter = (event: MouseEvent) => {
+      props.hoverPopoverTools.showPopover(event, props.tooltip, {
+        theme: 'dark',
+        placement: props.label ? 'top' : 'bottom',
+        interactive: false,
+      });
+    };
+
+    /** 占位入口只响应悬停，点击时阻止表格行响应。 */
+    const handleClick = (event: MouseEvent) => event.stopPropagation();
+
+    return { handleClick, handleMouseEnter, iconClass };
   },
   render() {
     return (
       <button
-        class='rum-composite-action'
-        aria-label={this.label}
-        disabled={true}
+        class={['rum-composite-action', { 'is-icon-only': !this.label }]}
+        aria-disabled='true'
+        aria-label={this.tooltip}
+        tabindex={-1}
         type='button'
+        onClick={this.handleClick}
+        onMouseenter={this.handleMouseEnter}
+        onMouseleave={this.hoverPopoverTools.clearPopoverTimer}
       >
-        {this.showLabel && this.label}
+        {this.label}
         <i
-          class={this.iconClass}
+          class={['icon-monitor', this.iconClass, 'rum-composite-action-icon']}
           aria-hidden='true'
         />
       </button>

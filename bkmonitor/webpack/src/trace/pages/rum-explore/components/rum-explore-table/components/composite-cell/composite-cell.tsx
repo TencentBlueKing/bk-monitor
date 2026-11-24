@@ -53,7 +53,9 @@ export default defineComponent({
     return { isEmpty };
   },
   render() {
-    if (this.isEmpty) return <div class='explore-col rum-empty-text'>{ARRAY_ITEM_EMPTY_PLACEHOLDER}</div>;
+    if (this.isEmpty) {
+      return <div class='explore-col rum-composite-col rum-empty-text'>{ARRAY_ITEM_EMPTY_PLACEHOLDER}</div>;
+    }
     return (
       <div class='explore-col rum-composite-col'>
         {this.rows.map(row => (

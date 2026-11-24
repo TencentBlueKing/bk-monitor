@@ -72,8 +72,6 @@ export default defineComponent({
     row: { type: Object as PropType<IRumSpanRecord>, required: true },
     /** 条件菜单回溯原始值时使用的定位信息。 */
     target: { type: Object as PropType<FieldTargetInfo>, required: true },
-    /** 已按字段格式化的计数文案。 */
-    text: { type: String, required: true },
     /** 用于判断是否允许下钻的原始计数。 */
     value: { type: null, required: true },
   },
@@ -114,7 +112,7 @@ export default defineComponent({
         action={this.canDrill ? this.handleDrillDown : undefined}
         target={this.target}
       >
-        {this.text}
+        {this.$slots.default?.()}
       </FieldTarget>
     );
   },
