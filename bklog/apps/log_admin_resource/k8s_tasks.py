@@ -13,6 +13,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.exceptions import PermissionError as BklogPermissionError
+from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.inspection import sanitize_json, sanitize_sensitive_text
 from apps.log_admin_resource.inspection_runtime import apply_runtime_log_filter
 from apps.log_admin_resource.collector_probe_evidence import build_collector_file_log_probe, build_probe_evidence
@@ -305,6 +306,8 @@ def run_k8s_inspection(task_id: str) -> None:
             if step:
                 target = control_evidence["target"]
                 try:
+                    if isinstance(collector, ClusterInspectionContext):
+                        load_cluster_context(collector.bcs_cluster_id, record["target"]["bklog_config"])
                     source_probe = inspect_source_step(
                         client, selected, parsed_probe, target, expected, collector.bk_data_id, step, _pod_after
                     )
@@ -320,8 +323,12 @@ def run_k8s_inspection(task_id: str) -> None:
                             raise FixedProbeError(
                                 "source_target_changed", "source Pod/container changed during observation"
                             )
+                    if isinstance(collector, ClusterInspectionContext):
+                        load_cluster_context(collector.bcs_cluster_id, record["target"]["bklog_config"])
                 except SoftTimeLimitExceeded:
                     raise
+                except ValidationError as exc:
+                    source_probe = _probe("failed", "source_step_validation_failed", str(exc), {"request": step})
                 except FixedProbeError as exc:
                     source_probe = _probe("failed", exc.code, str(exc), {"request": step})
                 except Exception:

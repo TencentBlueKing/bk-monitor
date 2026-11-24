@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import posixpath
+import re
 from pathlib import Path
 
 import yaml
@@ -13,15 +14,6 @@ from apps.log_admin_resource.k8s_inspection_client import object_to_dict
 from apps.log_admin_resource.k8s_inspection import COLLECTOR_CONTAINER_NAME, collector_child_config_hints
 from apps.log_admin_resource.k8s_probe import FixedProbeError, run_collector_script
 from apps.log_databus.constants import ContainerCollectorType
-
-
-def _under_host(path):
-    return (
-        isinstance(path, str)
-        and path.startswith("/var/host/")
-        and posixpath.normpath(path) == path
-        and not any(ord(char) < 32 for char in path)
-    )
 
 
 def _collector_has_host_root(pod):
@@ -36,27 +28,20 @@ def _collector_has_host_root(pod):
     )
 
 
-def _target_mounts(target, collector_pod):
-    host_root = _collector_has_host_root(collector_pod)
-    volumes = {}
-    usable = set()
+def _target_mounts(target):
+    mounts = {}
     for mount in target["container"]["volume_mounts"]:
         path = mount.get("mount_path") or mount.get("mountPath")
         if not path:
             continue
-        volumes[path] = None
         volume = mount["volume"]
-        if host_root and volume.get("path") and not (mount.get("sub_path_expr") or mount.get("subPathExpr")):
-            host = posixpath.join(
-                "/var/host", volume["path"].lstrip("/"), mount.get("sub_path") or mount.get("subPath") or ""
-            )
-            host = host.rstrip("/")
-            if _under_host(host):
-                volumes[path] = host
-        if volume.get("path") not in (None, "", "/") or volume.get("type") in {"empty_dir", "persistent_volume_claim"}:
-            usable.add(path)
-
-    return volumes, usable, host_root
+        host = volume.get("path")
+        sub_path = mount.get("sub_path") or mount.get("subPath") or ""
+        mounts[posixpath.normpath(path)] = bool(
+            volume.get("type") in {"empty_dir", "persistent_volume_claim"}
+            or (host and posixpath.normpath("/" + posixpath.join(host, sub_path).lstrip("/")) != "/")
+        )
+    return mounts
 
 
 def _rendered_inputs(parsed, hints, data_id):
@@ -76,9 +61,10 @@ def _rendered_inputs(parsed, hints, data_id):
 
 
 def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_only=False):
-    volumes, usable, host_root = _target_mounts(target, collector_pod)
+    if not _collector_has_host_root(collector_pod):
+        raise FixedProbeError("host_proc_unavailable", "the collector has no verified host root mount")
     directories = set()
-    observed_mounts = {}
+    pids = set()
     for item in expected:
         if item.get("collector_type") != ContainerCollectorType.CONTAINER:
             continue
@@ -95,37 +81,25 @@ def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_
                 if first and not any(ch in first for ch in "*?["):
                     directories.add(directory)
         for config in _rendered_inputs(parsed, hints, data_id):
-            if not host_root:
-                continue
-            # Older sidecars render host-relative source/dest pairs, including the container root.
-            legacy_mounts = config.get("mount_infos") if config.get("remove_path_prefix") == "/var/host" else None
-            for mount in legacy_mounts or []:
-                if not isinstance(mount, dict):
-                    continue
-                path, source = mount.get("dest"), mount.get("source")
-                if not isinstance(source, str) or not source.startswith("/") or source == "/":
-                    continue
-                host = "/var/host" + source
-                if _under_host(host) and (
-                    (path == "/" and "/" not in volumes) or (path in usable and not volumes[path])
-                ):
-                    observed_mounts.setdefault(path, set()).add(host)
-            for mount in config.get("mounts") or []:
-                path = mount.get("container_path")
-                host = mount.get("host_path")
-                if path in usable and not volumes[path] and _under_host(host):
-                    observed_mounts.setdefault(path, set()).add(host)
-            if "/" not in volumes and _under_host(config.get("root_fs")):
-                observed_mounts.setdefault("/", set()).add(config["root_fs"])
-
-    mounts = dict(volumes)
-    mounts.setdefault("/", None)
-    for path, hosts in observed_mounts.items():
-        if len(hosts) == 1:
-            mounts[path] = next(iter(hosts))
-    policy = {"mounts": mounts, "runtime_id": (target["container"].get("container_id") or "").split("://")[-1]}
-    if "/" in observed_mounts and mounts["/"]:
-        policy["runtime_root"] = mounts["/"]
+            # Only use a rendered process root as a PID hint. Host source paths
+            # can be renamed or rebound independently of the live Pod mount.
+            roots = [config.get("root_fs")]
+            if config.get("remove_path_prefix") == "/var/host":
+                roots.extend(
+                    "/var/host" + mount["source"]
+                    for mount in config.get("mount_infos") or []
+                    if isinstance(mount, dict) and mount.get("dest") == "/" and isinstance(mount.get("source"), str)
+                )
+            for root in roots:
+                match = re.fullmatch(r"/var/host/proc/([1-9][0-9]*)/root", root) if isinstance(root, str) else None
+                if match:
+                    pids.add(match[1])
+    policy = {
+        "mounts": _target_mounts(target),
+        "runtime_id": (target["container"].get("container_id") or "").split("://")[-1],
+    }
+    if len(pids) == 1:
+        policy["runtime_pid"] = pids.pop()
     if metadata_only:
         return policy
     if not directories:

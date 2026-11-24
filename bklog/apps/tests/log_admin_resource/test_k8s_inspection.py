@@ -1,5 +1,6 @@
 import base64
 import json
+from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, call, patch
@@ -33,6 +34,7 @@ from apps.log_admin_resource.inspection_tasks import (
     InspectionConcurrencyExceeded,
     ResourceInspectionTaskRecord,
 )
+from apps.log_admin_resource.k8s_cluster_context import ClusterInspectionContext
 from apps.log_admin_resource.k8s_inspection import (
     BKLOG_CONFIG_CRD_NAME,
     COLLECTOR_CONTAINER_NAME,
@@ -1264,12 +1266,14 @@ class K8sInspectionDomainTest(SimpleTestCase):
                         "volumeMounts": [
                             {"name": "logs", "mountPath": "/data", "readOnly": False},
                             {"name": "secret", "mountPath": "/var/run/secret", "readOnly": True},
+                            {"name": "cache", "mountPath": "/cache/"},
                         ],
                     }
                 ],
                 "volumes": [
                     {"name": "logs", "persistentVolumeClaim": {"claimName": "business-logs"}},
                     {"name": "secret", "secret": {"secretName": "never-return-secret-name"}},
+                    {"name": "cache", "emptyDir": {}},
                 ],
             },
             "status": {
@@ -1319,6 +1323,7 @@ class K8sInspectionDomainTest(SimpleTestCase):
         self.assertEqual(snapshot["start_time"], "2026-01-01T00:00:01Z")
         self.assertTrue(snapshot["path_mappings"][0]["within_visible_mount"])
         self.assertEqual(snapshot["container"]["volume_mounts"][1]["volume"], {"type": "secret"})
+        self.assertEqual(snapshot["container"]["volume_mounts"][2]["volume"], {"type": "empty_dir"})
         self.assertNotIn("never-return-secret-name", json.dumps(snapshot))
 
     def test_events_only_return_bounded_diagnostic_reasons(self):
@@ -1500,6 +1505,9 @@ class SourcePolicyTest(SimpleTestCase):
                 "container_id": "containerd://demo",
                 "volume_mounts": [
                     {"mount_path": "/volume", "sub_path": "app", "volume": {"path": "/work"}},
+                    {"mount_path": "/data", "volume": {"type": "persistent_volume_claim"}},
+                    {"mount_path": "/cache/", "volume": {"type": "empty_dir"}},
+                    {"mount_path": "/node", "volume": {"path": "/"}},
                     {"mount_path": "/private", "volume": {"type": "secret"}},
                 ],
             },
@@ -1532,26 +1540,29 @@ class SourcePolicyTest(SimpleTestCase):
         self.assertEqual(policy["directories"], ["/logs"])
         self.assertNotIn("exclude", policy)
         self.assertEqual(
-            policy["mounts"], {"/volume": "/var/host/work/app", "/": "/var/host/root/demo", "/private": None}
+            policy["mounts"], {"/volume": True, "/private": False, "/data": True, "/cache": True, "/node": False}
         )
-        self.assertIsNone(source_policy(parsed, target, expected, 8, pod)["mounts"]["/"])
-        metadata = source_policy(parsed, target, expected, 8, pod, metadata_only=True)
-        self.assertEqual(metadata["mounts"], {"/volume": "/var/host/work/app", "/private": None, "/": None})
-        stream["content"] = stream["content"].replace("/logs/*.log", "/var/host/root/demo/logs/*.log")
-        metadata = source_policy(parsed, target, expected, 7, pod, metadata_only=True)
-        self.assertEqual(metadata["mounts"]["/"], "/var/host/root/demo")
+        self.assertNotIn("runtime_pid", policy)
+        stream["content"] = stream["content"].replace("/var/host/root/demo", "/var/host/proc/91/root")
+        self.assertEqual(source_policy(parsed, target, expected, 7, pod, metadata_only=True)["runtime_pid"], "91")
+        self.assertNotIn("runtime_pid", source_policy(parsed, target, expected, 8, pod))
         stream["content"] = (
             "local: [{dataid: 7, remove_path_prefix: /var/host, mount_infos: [{source: /proc/32/root, dest: /}, "
             "{source: /work/secret, dest: /private}]}]"
         )
         legacy = source_policy(parsed, target, expected, 7, pod)
-        self.assertEqual(legacy["runtime_root"], "/var/host/proc/32/root")
-        self.assertIsNone(legacy["mounts"]["/private"])
+        self.assertEqual(legacy["runtime_pid"], "32")
+        self.assertFalse(legacy["mounts"]["/private"])
         stream["path"] = "/config/another-pod.conf"
-        self.assertIsNone(source_policy(parsed, target, expected, 7, pod)["mounts"]["/"])
+        self.assertNotIn("runtime_pid", source_policy(parsed, target, expected, 7, pod))
+        self.assertTrue(source_policy({"streams": {}}, target, expected, 7, pod)["mounts"]["/data"])
         expected[0]["spec"]["path"] = ["/*.log"]
         with self.assertRaises(FixedProbeError):
             source_policy(parsed, target, expected, 7, pod)
+
+        pod["spec"]["containers"][0]["volumeMounts"][0]["subPath"] = "subdirectory"
+        with self.assertRaisesRegex(FixedProbeError, "no verified host root"):
+            source_policy(parsed, target, expected, 7, pod, metadata_only=True)
 
     def test_source_step_executes_fixed_script_and_returns_path_metadata(self):
         import subprocess
@@ -2388,6 +2399,77 @@ class K8sInspectionWorkerTest(SimpleTestCase):
                 self.assertNotIn("observation", source["evidence"])
                 if code == "source_step_incomplete":
                     self.assertEqual(source["evidence"]["failed_path"], step["path"])
+
+    @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader-a"])
+    def test_cluster_source_read_stays_bound_to_dispatched_config(self):
+        target = {"type": "pod_container", "namespace": "production", "pod_name": "demo-abc", "container_name": "app"}
+        pod = business_pod()
+        pod["status"]["containerStatuses"][0]["containerID"] = "containerd://" + "c" * 64
+        step = {"operation": "read", "path": "/logs/app.log"}
+        sample = {"observation": {"raw_hex_chunks": ["626b6c6f67"]}}
+        for change in ("stable", "before_spec", "during_spec", "during_uid"):
+            with self.subTest(change=change):
+                config = {
+                    "metadata": {"namespace": "production", "name": "logs", "uid": "config-uid"},
+                    "spec": {**business_target_expected()[0]["spec"], "dataId": 1001, "path": ["/logs/*.log"]},
+                }
+                context = ClusterInspectionContext("BCS-K8S-1", deepcopy(config))
+                snapshot = safe_target_snapshot(target, pod, target_config_matches(target, pod, context.expected))
+                record = self._record(target=target, groups=["collector", "progress"])
+                task_id = record["task_id"]
+                ResourceInspectionTaskRecord.update(
+                    task_id,
+                    target={**record["target"], "collector_config_id": None, "bklog_config": context.binding},
+                    request_options={**record["request_options"], "source_step": step},
+                )
+
+                def fixed_evidence(*args, **kwargs):
+                    if change == "before_spec":
+                        config["spec"]["path"] = ["/other/*.log"]
+                    return {
+                        key: probe(evidence={"marker": key}) for key in ("registrar", "progress", "collector_process")
+                    }
+
+                def read_sample(*args):
+                    if change == "during_uid":
+                        config["metadata"]["uid"] = "replacement-uid"
+                    if change == "during_spec":
+                        config["spec"]["path"] = ["/other/*.log"]
+                    return probe(evidence=sample)
+
+                run_step = MagicMock(side_effect=read_sample)
+                with (
+                    patch("apps.log_admin_resource.k8s_cluster_context.K8sInspectionClient") as config_client,
+                    patch.multiple(
+                        "apps.log_admin_resource.k8s_tasks",
+                        K8sInspectionClient=MagicMock(return_value=MagicMock(read_pod=MagicMock(return_value=pod))),
+                        _control_plane_probe=MagicMock(
+                            return_value=(probe(evidence={"target": snapshot}), "node-a", [])
+                        ),
+                        _discover_candidates=MagicMock(return_value=([candidate()], [], [])),
+                        _revalidate_candidate=MagicMock(return_value=(daemon_set(), collector_pod())),
+                        _config_map_probe=MagicMock(return_value=(probe(), None)),
+                        _pod_logs_probe=MagicMock(return_value=probe()),
+                        run_fixed_collector_probe=MagicMock(return_value={"values": {}}),
+                        build_probe_evidence=MagicMock(side_effect=fixed_evidence),
+                        inspect_source_step=run_step,
+                    ),
+                ):
+                    config_client.return_value.read_bklog_config.side_effect = lambda *_: deepcopy(config)
+                    run_k8s_inspection.run(task_id)
+
+                result = ResourceInspectionTaskRecord.load_result(task_id)
+                source = result["probes"]["source_path"]
+                for key in ("registrar", "progress", "collector_process"):
+                    self.assertEqual(result["probes"][key]["evidence"], {"marker": key})
+                if change == "stable":
+                    self.assertEqual(source["evidence"], sample)
+                    self.assertEqual(ResourceInspectionTaskRecord.get(task_id)["task_status"], "success")
+                else:
+                    self.assertEqual(source["code"], "source_step_validation_failed")
+                    self.assertNotIn("raw_hex_chunks", json.dumps(result))
+                    self.assertEqual(ResourceInspectionTaskRecord.get(task_id)["task_status"], "partial")
+                self.assertEqual(run_step.call_count, int(change != "before_spec"))
 
     @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[])
     @patch("apps.log_admin_resource.k8s_tasks.K8sInspectionClient")

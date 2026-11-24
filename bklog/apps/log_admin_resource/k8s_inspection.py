@@ -728,7 +728,7 @@ def _safe_volume_reference(volume: dict[str, Any]) -> dict[str, Any]:
         ("projected", "projected", "projected"),
         ("csi", "csi", "csi"),
     ):
-        value = volume.get(camel) or volume.get(snake)
+        value = volume.get(camel) if volume.get(camel) is not None else volume.get(snake)
         if not isinstance(value, dict):
             continue
         if kind == "secret":

@@ -7,6 +7,7 @@ import binascii
 import datetime
 import errno
 import fnmatch
+import itertools
 import json
 import os
 import re
@@ -48,20 +49,14 @@ def descend(name):
 
 
 def mount_for(path, policy):
-    base = max((key for key in policy["mounts"] if inside(path, key)), key=len)
-    root = policy["mounts"][base]
-    if not root:
-        raise ValueError("mount_unavailable_or_outside_scope: " + base)
-    return base, root
+    return max(["/"] + [key for key in policy["mounts"] if inside(path, key)], key=len)
 
 
 def collector_location(path, policy):
-    base, root = mount_for(path, policy)
-    root = policy.get("mounted_paths", {}).get(base, root)
-    return os.path.normpath(os.path.join(root, path[len(base) :].lstrip("/")))
+    return os.path.join(policy["root_path"], path.lstrip("/"))
 
 
-def enter_process_root(container_id, namespace_init=False, mount_path="/"):
+def enter_process_root(container_id, namespace_init=False):
     # cwd is the pinned proc PID directory. Check membership and open root relative to
     # that handle, so PID reuse cannot switch the container between those operations.
     if not re.match(r"^[0-9a-f]{64}\Z", container_id):
@@ -82,49 +77,49 @@ def enter_process_root(container_id, namespace_init=False, mount_path="/"):
                 break
         else:
             raise ValueError("target_process_identity_unverified")
-    if mount_path != "/":
-        # Read relative to the same pinned PID directory as cgroup and root.
-        escaped = mount_path.replace("\\", "\\134").replace(" ", "\\040").replace("\t", "\\011").replace("\n", "\\012")
-        with open("mountinfo", "rb") as stream:
-            if not any(line.split()[4] == escaped.encode("utf-8") for line in stream):
-                raise ValueError("target_volume_mount_unavailable")
+    with open("mountinfo", "rb") as stream:
+        mounts = {line.split()[4] for line in stream}
     fd = os.open("root", os.O_RDONLY | os.O_DIRECTORY)
     try:
         os.fchdir(fd)
     finally:
         os.close(fd)
 
+    return mounts
 
-def enter_mounted_volume(base, policy):
+
+def enter_target_root(policy):
     # A node alias may have changed since kubelet mounted it. Use the mount pinned
     # by the target's mount namespace, never the current destination of the alias.
     container_id = policy.get("runtime_id", "")
     if not re.match(r"^[0-9a-f]{64}\Z", container_id):
         raise ValueError("target_process_identity_unverified")
+    os.chdir("/")
     for part in parts(HOST_PROC):
         descend(part)
     proc_fd = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
     try:
-        runtime = policy.get("runtime_root") or ""
-        rendered_pid = re.match(r"^" + re.escape(HOST_PROC) + r"/([1-9][0-9]*)/root\Z", runtime)
-        if rendered_pid:
-            pids = [rendered_pid.group(1)]
-        elif policy.get("namespace_init_pid"):
-            pids = [policy["namespace_init_pid"]]
-        else:
-            pids = [pid for pid in os.listdir(".") if pid.isdigit()]
-        for pid in pids:
+        # A rendered PID can expire between config rendering and inspection. Prefer a
+        # known PID, then look for a namespace init with this exact container cgroup.
+        rendered_pid = policy.get("runtime_pid")
+        known_pid = policy.get("namespace_init_pid") or rendered_pid
+
+        def other_pids():
+            os.fchdir(proc_fd)
+            for entry in os.listdir("."):
+                if entry.isdigit() and entry != known_pid:
+                    yield entry
+
+        for pid in itertools.chain([known_pid] if known_pid else [], other_pids()):
             os.fchdir(proc_fd)
             try:
                 descend(pid)
-                enter_process_root(container_id, namespace_init=not rendered_pid, mount_path=base)
+                mounts = enter_process_root(container_id, namespace_init=pid != rendered_pid)
             except (OSError, IOError, ValueError):
-                if rendered_pid:
-                    raise
                 continue
-            if not rendered_pid:
+            if pid != rendered_pid:
                 policy["namespace_init_pid"] = pid
-            return os.path.join(HOST_PROC, pid, "root")
+            return os.path.join(HOST_PROC, pid, "root"), mounts
         raise ValueError("target_process_identity_unverified")
     finally:
         os.close(proc_fd)
@@ -153,42 +148,22 @@ def open_parent(path, policy, follow_leaf, links=None):
         links = []
     while len(links) <= 32:
         policy["resolving_path"] = path
-        base, root = mount_for(path, policy)
-        os.chdir("/")
-        policy.get("mounted_paths", {}).pop(base, None)
-        root_parts = parts(root)
-        for index, name in enumerate(root_parts):
-            policy["resolving_path"] = "/" + "/".join(root_parts[: index + 1])
-            mode = os.lstat(name).st_mode
-            if stat.S_ISLNK(mode):
-                if (
-                    index == len(root_parts) - 1
-                    and base == "/"
-                    and root == policy.get("runtime_root")
-                    and re.match(r"^" + re.escape(HOST_PROC) + r"/[1-9][0-9]*/root\Z", root)
-                ):
-                    enter_process_root(policy["runtime_id"])
-                    continue
-                os.chdir("/")
-                process_root = enter_mounted_volume(base, policy)
-                policy.setdefault("mounted_paths", {})[base] = os.path.join(process_root, base.lstrip("/"))
-                components = parts(base)
-                for component in components[:-1]:
-                    descend(component)
-                if components:
-                    if path == base:
-                        return components[-1], base, links
-                    descend(components[-1])
-                break
-            if path == base and index == len(root_parts) - 1 and stat.S_ISREG(mode):
-                return name, base, links
-            descend(name)
-        tail = parts(path[len(base) :])
-        parent = base
+        os.fchdir(policy["root_fd"])
+        if policy["mounts"].get("/") is False:
+            raise ValueError("mount_unavailable_or_outside_scope: /")
+        tail = parts(path)
+        parent = "/"
         for index, name in enumerate(tail):
             last = index == len(tail) - 1
             logical = os.path.join(parent, name)
             policy["resolving_path"] = logical
+            allowed = policy["mounts"].get(logical)
+            escaped = logical.replace("\\", "\\134").replace(" ", "\\040").replace("\t", "\\011").replace("\n", "\\012")
+            mounted = escaped.encode("utf-8") in policy["active_mounts"]
+            if allowed is False or (mounted and not allowed):
+                raise ValueError("mount_unavailable_or_outside_scope: " + logical)
+            if allowed and not mounted:
+                raise ValueError("target_volume_mount_unavailable: " + logical)
             if last and not follow_leaf:
                 return name, logical, links
             if stat.S_ISLNK(os.lstat(name).st_mode):
@@ -204,7 +179,7 @@ def open_parent(path, policy, follow_leaf, links=None):
             descend(name)
             parent = logical
         else:
-            return ".", base, links
+            return ".", "/", links
     raise ValueError("too_many_symlinks")
 
 
@@ -295,18 +270,16 @@ def read_target_file(policy, request):
     # the caller-supplied parent, the host root, or a sibling of the resolved directory.
     path = request["path"]
     native = request.get("path_space") == "collector"
-    if native and not request.get("via"):
-        raise ValueError("collector_read_requires_target_directory")
     directory = request.get("via") or os.path.dirname(path)
     while directory != "/" and not matches(directory, policy["directories"]):
         directory = os.path.dirname(directory)
     if directory == "/" or (request.get("via") and request["via"] != directory):
         raise ValueError("outside_target_log_directory")
     name, anchor, hops = open_parent(directory, policy, True)
-    base, root = mount_for(anchor, policy)
+    base = mount_for(anchor, policy)
     if base == "/" and any(inside(anchor, fs) for fs in ("/proc", "/sys", "/dev")):
         raise ValueError("outside_target_log_directory")
-    if anchor == "/" or (hops and base == "/" and root != policy.get("runtime_root")):
+    if anchor == "/":
         raise ValueError("unverified_log_directory_link")
     descend(name)
     root_fd = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
@@ -324,27 +297,42 @@ def read_target_file(policy, request):
         if not inside(resolved, anchor):
             raise ValueError("outside_target_log_directory")
         for link in links:
-            link_mount, _ = mount_for(link["path"], policy)
+            link_mount = mount_for(link["path"], policy)
             if inside(link_mount, anchor) and not inside(link["resolved_path"], link_mount):
                 raise ValueError("outside_target_log_directory")
-        final_mount, _ = mount_for(resolved, policy)
-        if final_mount != base and inside(final_mount, anchor):
-            # open_parent has already pinned the parent below the verified child
-            # mount. Reopening below the outer volume would read its hidden file.
-            return name, path, resolved, hops + links, physical
-        # Reopen beneath the pinned directory without following links between checks.
+        # The pinned log directory sees the same nested mounts as the target.
+        observed = os.lstat(name)
         os.fchdir(root_fd)
         components = parts(os.path.relpath(resolved, anchor))
         if not components or components == ["."]:
             raise ValueError("source_not_regular")
         for component in components[:-1]:
             descend(component)
+        if not os.path.samestat(observed, os.lstat(components[-1])):
+            raise ValueError("source_changed_before_read")
         return components[-1], path, resolved, hops + links, physical
     finally:
         os.close(root_fd)
 
 
 def snapshot(policy, request):
+    if request.get("path_space") == "collector" and request["operation"] != "read":
+        return observe_path(policy, request)
+    if request.get("path_space") == "collector" and not request.get("via"):
+        raise ValueError("collector_read_requires_target_directory")
+    policy["resolving_path"] = request["path"]
+    root_path, mounts = enter_target_root(policy)
+    observation_policy = dict(policy, root_path=root_path, active_mounts=mounts)
+    root_fd = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        observation_policy["root_fd"] = root_fd
+        return observe_path(observation_policy, request)
+    finally:
+        policy["resolving_path"] = observation_policy.get("resolving_path", request["path"])
+        os.close(root_fd)
+
+
+def observe_path(policy, request):
     path, operation = request["path"], request["operation"]
     native = request.get("path_space") == "collector"
     native_metadata = native and operation != "read"
