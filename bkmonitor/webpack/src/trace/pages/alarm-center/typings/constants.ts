@@ -95,10 +95,6 @@ export const alarmTypeMap: { label: string; value: AlarmType }[] = [
     value: AlarmType.ALERT,
   },
   {
-    label: window.i18n.t('故障'),
-    value: AlarmType.INCIDENT,
-  },
-  {
     label: 'Issues',
     value: AlarmType.ISSUES,
   },

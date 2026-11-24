@@ -709,7 +709,9 @@ export default defineComponent({
       } = route.query;
 
       try {
-        alarmStore.alarmType = (alarmType as AlarmType) || (searchType as AlarmType) || AlarmType.ALERT;
+        const routeAlarmType = (alarmType as AlarmType) || (searchType as AlarmType) || AlarmType.ALERT;
+        // 旧链接 alarmType/searchType=incident 不再进入故障页，落到告警列表
+        alarmStore.alarmType = routeAlarmType === AlarmType.INCIDENT ? AlarmType.ALERT : routeAlarmType;
         if (from && to) {
           alarmStore.timeRange = [from as string, to as string];
         }

@@ -203,8 +203,13 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
    * 使用watch会在页面初始化时调用一次，导致URL参数的数据缓存错误
    */
   const handleAlarmTypeChange = (type: AlarmType) => {
+    // 告警中心不再展示故障 tab 及内容，传入 incident 时落到告警
+    const nextType = type === AlarmType.INCIDENT ? AlarmType.ALERT : type;
+    if (type === AlarmType.INCIDENT && alarmType.value === AlarmType.ALERT) {
+      return;
+    }
     const oldValue = alarmType.value;
-    alarmType.value = type;
+    alarmType.value = nextType;
     if (oldValue) {
       cacheMap.set(oldValue, {
         conditions: JSON.parse(JSON.stringify(conditions.value)),
