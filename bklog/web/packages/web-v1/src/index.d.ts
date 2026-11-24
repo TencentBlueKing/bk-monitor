@@ -34,6 +34,7 @@ declare global {
     MONITOR_URL: string;
     BK_LOGIN_URL: string;
     ESB_DISABLED?: boolean;
+    BK_USER_WEB_API_URL: string;
     BK_USER_WEB_TENANT_ID: string;
     BK_PAAS_API_HOST: string;
 

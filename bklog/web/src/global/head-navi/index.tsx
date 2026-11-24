@@ -262,9 +262,9 @@ export default defineComponent({
      */
     async function changeLanguage(value: string) {
       if (window.ESB_DISABLED) {
-        const root = window.BK_PAAS_API_HOST.replace(/\/$/, '');
         try {
-          const response = await fetch(`${root}/api/bk-user-web/prod/api/v3/open-web/tenant/current-user/language/`, {
+          const root = window.BK_USER_WEB_API_URL.replace(/\/$/, '').replace(/^http:/i, location.protocol);
+          const response = await fetch(`${root}/api/v3/open-web/tenant/current-user/language/`, {
             method: 'PUT',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json', 'X-Bk-Tenant-Id': window.BK_USER_WEB_TENANT_ID },

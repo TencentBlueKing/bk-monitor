@@ -462,6 +462,9 @@ BK_HOT_WARM_CONFIG_URL = (
     "https://www.elastic.co/guide/en/elasticsearch/reference/master/modules-cluster.html#shard-allocation-awareness"
 )
 BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
+BK_USER_WEB_API_URL_FRONTEND = (
+    os.getenv("BK_USER_WEB_API_URL") or f"{(BK_COMPONENT_API_URL or BK_PAAS_HOST).rstrip('/')}/api/bk-user-web/prod/"
+)
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 from iam_engine.settings import load_iam_settings, resolve_iam_gateway_url

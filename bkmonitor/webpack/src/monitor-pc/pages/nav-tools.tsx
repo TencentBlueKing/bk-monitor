@@ -337,7 +337,7 @@ class NavTools extends DocumentLinkMixin {
         if (!window.bk_user_web_api_url || !window.bk_tenant_id) {
           throw new Error(String(this.$t('用户管理配置缺失')));
         }
-        const root = window.bk_user_web_api_url.replace(/\/$/, '');
+        const root = window.bk_user_web_api_url.replace(/\/$/, '').replace(/^http:/i, location.protocol);
         const response = await fetch(`${root}/api/v3/open-web/tenant/current-user/language/`, {
           method: 'PUT',
           credentials: 'include',

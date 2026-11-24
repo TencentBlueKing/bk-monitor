@@ -236,7 +236,9 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             # 是否开启事件中心AIOps功能
             "ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST": settings.ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST,
             # 用户管理网关接口
-            "BK_USER_WEB_API_URL": settings.BK_USER_WEB_API_URL,
+            "BK_USER_WEB_API_URL": (
+                settings.BK_USER_WEB_API_URL_FRONTEND if settings.ESB_DISABLED else settings.BK_USER_WEB_API_URL
+            ),
             # RUM 是否开启
             "RUM_BIZ_LIST": settings.RUM_BIZ_LIST,
             # Profiling 主动采集是否开启

@@ -131,6 +131,7 @@ def mysetting(request):
         "ES_STORAGE_CAPACITY": str(settings.ES_STORAGE_CAPACITY),
         "TAM_AEGIS_KEY": settings.TAM_AEGIS_KEY,
         "ESB_DISABLED": settings.ESB_DISABLED,
+        "BK_USER_WEB_API_URL": settings.BK_USER_WEB_API_URL_FRONTEND,
         "BK_USER_WEB_TENANT_ID": get_request_tenant_id() if settings.ESB_DISABLED else "",
         "BK_LOGIN_URL": user_selector_url,
         "MENU_LOGO_URL": f"{settings.STATIC_URL}{settings.MENU_LOGO_URL}",
