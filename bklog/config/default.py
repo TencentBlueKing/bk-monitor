@@ -956,6 +956,8 @@ TABLE_SPACE_PREFIX = "space"
 
 DEFAULT_OPERATOR = os.environ.get("BKAPP_ES_OPERATOR", "admin")
 ES_DATE_FORMAT = os.environ.get("BKAPP_ES_DATE_FORMAT", "%Y%m%d")
+# 未指定时 ES8/9 默认使用 best_compression；配置 default 可回退到 ES 默认压缩。
+ES_INDEX_CODEC = os.environ.get("BKAPP_ES_INDEX_CODEC")
 ES_SHARDS_SIZE = int(os.environ.get("BKAPP_ES_SHARDS_SIZE", 30))
 ES_SLICE_GAP = int(os.environ.get("BKAPP_ES_SLICE_GAP", 1440))
 ES_SHARDS = int(os.environ.get("BKAPP_ES_SHARDS", 3))
