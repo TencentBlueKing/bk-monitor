@@ -32,6 +32,10 @@ class ApplyDataSourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ApplyDataSourceResource)]
 
 
+class ListDataSourceNamespacesViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ListDataSourceNamespacesResource)]
+
+
 class CreateDataIDViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateDataIDResource)]
 
