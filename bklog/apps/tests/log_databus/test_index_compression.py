@@ -2,9 +2,8 @@ from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase
 
-from apps.feature_toggle.plugins.base import get_feature_toggle
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector_plugin.bkbase import BKBaseCollectorPluginHandler
 from apps.log_databus.handlers.etl_storage.bk_log_text import BkLogTextEtlStorage
@@ -93,34 +92,22 @@ class TestIndexCompression(SimpleTestCase):
                 self.assertNotIn("index.codec", self.build_params(version)["default_storage_config"]["index_settings"])
 
     def test_explicit_index_settings_take_precedence_and_are_not_mutated(self):
-        self.es_config["ES_INDEX_CODEC"] = "best_compression"
-        for explicit_settings in (
-            {"index.codec": "default"},
-            {"codec": "default"},
-            {"index": {"codec": "default"}},
-        ):
-            with self.subTest(index_settings=explicit_settings):
-                original = deepcopy(explicit_settings)
-                index_settings = self.build_params(index_settings=explicit_settings)["default_storage_config"][
-                    "index_settings"
-                ]
-                self.assertEqual(explicit_settings, original)
-                for key, value in original.items():
-                    self.assertEqual(index_settings[key], value)
-                if "index.codec" not in original:
-                    self.assertNotIn("index.codec", index_settings)
-
-    def test_global_and_business_codec_overrides(self):
-        self.es_config["ES_INDEX_CODEC"] = "default"
-        self.assertEqual(self.build_params()["default_storage_config"]["index_settings"]["index.codec"], "default")
-        business_config = {**self.es_config, "ES_INDEX_CODEC": "best_compression"}
-        self.feature_config["bk_biz_es_config"] = [{"bk_biz_id": "2", "es_config": business_config}]
-        self.assertEqual(
-            self.build_params()["default_storage_config"]["index_settings"]["index.codec"], "best_compression"
-        )
-        self.assertEqual(
-            self.build_params("7.14.2")["default_storage_config"]["index_settings"]["index.codec"], "best_compression"
-        )
+        for version in ("8.19.0", "9.0.0"):
+            for explicit_settings in (
+                {"index.codec": "default"},
+                {"codec": "default"},
+                {"index": {"codec": "default"}},
+            ):
+                with self.subTest(version=version, index_settings=explicit_settings):
+                    original = deepcopy(explicit_settings)
+                    index_settings = self.build_params(version, index_settings=explicit_settings)[
+                        "default_storage_config"
+                    ]["index_settings"]
+                    self.assertEqual(explicit_settings, original)
+                    for key, value in original.items():
+                        self.assertEqual(index_settings[key], value)
+                    if "index.codec" not in original:
+                        self.assertNotIn("index.codec", index_settings)
 
     def test_v4_uses_the_same_result_table_index_settings(self):
         self.instance.enable_v4 = True
@@ -129,8 +116,7 @@ class TestIndexCompression(SimpleTestCase):
         self.assertIn("es_storage_config", params["option"]["log_v4_data_link"])
         self.assertEqual(params["default_storage_config"]["index_settings"]["index.codec"], "best_compression")
 
-    def test_doris_does_not_receive_codec_even_with_explicit_es_defaults(self):
-        self.es_config["ES_INDEX_CODEC"] = "best_compression"
+    def test_doris_does_not_receive_default_codec(self):
         params = self.build_params(storage_cluster_type=DORIS_CLUSTER_TYPE)
         self.assertNotIn("index.codec", params["default_storage_config"]["index_settings"])
         self.assertIn("doris_storage_config", params["option"]["log_v4_data_link"])
@@ -163,27 +149,3 @@ class TestIndexCompression(SimpleTestCase):
         index_settings = self.mocks["delay"].call_args.args[0]["default_storage_config"]["index_settings"]
         self.assertEqual(index_settings["index.codec"], "default")
         self.assertEqual(plugin.index_settings, {"index.codec": "default"})
-
-
-class TestEsCodecFeatureConfig(SimpleTestCase):
-    @override_settings(ES_INDEX_CODEC=None)
-    def test_unconfigured_codec_keeps_version_based_defaults(self):
-        result = get_feature_toggle("bklog_es_config")().set_status({"feature_config": {}})
-        self.assertIsNone(result["feature_config"]["global_es_config"]["ES_INDEX_CODEC"])
-
-    @override_settings(ES_INDEX_CODEC="default")
-    def test_environment_default_and_explicit_business_override(self):
-        result = get_feature_toggle("bklog_es_config")().set_status(
-            {
-                "feature_config": {
-                    "bk_biz_es_config": [
-                        {"bk_biz_id": 2, "es_config": {"ES_INDEX_CODEC": "best_compression"}},
-                        {"bk_biz_id": 3, "es_config": {}},
-                    ]
-                }
-            }
-        )
-        self.assertEqual(result["feature_config"]["global_es_config"]["ES_INDEX_CODEC"], "default")
-        businesses = result["feature_config"]["bk_biz_es_config"]
-        self.assertEqual(businesses[0]["es_config"]["ES_INDEX_CODEC"], "best_compression")
-        self.assertEqual(businesses[1]["es_config"]["ES_INDEX_CODEC"], "default")
