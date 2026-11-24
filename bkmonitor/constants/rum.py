@@ -32,7 +32,7 @@ class RumDataSourceConfig:
         "es_properties": {
             "attributes": {
                 "properties": {
-                    "exception": {"properties": {"message": {"type": "text"}, "stacktrace": {"type": "text"}}},
+                    "exception": {"properties": {"stacktrace": {"type": "text"}}},
                     "message": {"type": "object"},
                 }
             },

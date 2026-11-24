@@ -539,7 +539,7 @@ View 默认列（响应节选）：
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 全部        | 按每条记录的 `attributes.span_type` 匹配下列规则                                                                                                                                                                           | 混排各类型记录，沿用对应的两行展示                                                                                                                                                                                                                        |
 | View      | `virtual.viewport` → `1440 x 900`<br />`attributes.view.url` → `https://example.com/trace/home`                                                                                                                | <pre>第一行：/trace/home [1440 x 900]<br />--------------------------<br />第二行：https://example.com/trace/home</pre>                                                                                                                          |
-| Resource  | `attributes.resource.type` → `xhr` / `script`<br />`attributes.http.request.method` → `POST`（仅 xhr、fetch）<br />`attributes.http.response.status_code` → `200`（仅 xhr、fetch）<br />`attributes.url.full` → 资源 URL | xhr、fetch：<pre>第一行：/api/orders [xhr] [POST] [200]<br />--------------------------<br />第二行：https://example.com/api/orders</pre>静态资源：<pre>第一行：main.js [script]<br />--------------------------<br />第二行：https://example.com/main.js</pre> |
+| Resource  | `attributes.resource.type` → `xhr` 或 `js`<br />`attributes.http.request.method` → `POST`（仅 `xhr`、`fetch`）<br />`attributes.http.response.status_code` → `200`（仅 `xhr`、`fetch`）<br />`attributes.url.full` → 资源 URL | xhr、fetch：<pre>第一行：/api/orders [xhr] [POST] [200]<br />--------------------------<br />第二行：https://example.com/api/orders</pre>静态资源：<pre>第一行：main.js [js]<br />--------------------------<br />第二行：https://example.com/main.js</pre> |
 | Error     | `events.attributes.exception.type` → `TypeError`                                                                                                                                                               | <pre>第一行：Failed to fetch [TypeError]</pre>                                                                                                                                                                                               |
 | Vital     | 无标签                                                                                                                                                                                                            | <pre>第一行：INP</pre>                                                                                                                                                                                                                       |
 | Long task | `attributes.long_task.entry_type` → 长动画帧                                                                                                                                                                       | <pre>第一行：long-animation-frame [长动画帧]</pre>                                                                                                                                                                                               |
@@ -1408,7 +1408,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
     "title": "db.svg",
     "badges": [
       {"field_name": "elapsed_time", "value": 60300},
-      {"field_name": "attributes.resource.type", "value": "img"},
+      {"field_name": "attributes.resource.type", "value": "image"},
       {"field_name": "attributes.http.response.status_code", "value": 200}
     ]
   },
@@ -1433,10 +1433,8 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
       "key": "resource_info",
       "type": "summary_cards",
       "items": [
-        {"field_name": "attributes.resource.type", "value": "img"},
+        {"field_name": "attributes.resource.type", "value": "image"},
         {"field_name": "attributes.url.template", "value": "/static/img/db.svg"},
-        {"field_name": "attributes.server.address", "value": "bkmonitor.test.com"},
-        {"field_name": "attributes.http.request.method", "value": "GET"},
         {"field_name": "attributes.resource.protocol", "value": "h2"}
       ]
     },
@@ -1448,6 +1446,8 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 }
 ```
 
+静态资源详情从 Span 读取 `attributes.resource.cache.hit`。该字段已废弃，Span 缺少该字段时，详情对应值为 `null`，表示无法确认命中。
+
 ##### 3）Action
 
 ```json
@@ -1458,7 +1458,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
     "badges": [
       {"field_name": "elapsed_time", "value": 432000},
       {"field_name": "attributes.action.type", "value": "click"},
-      {"field_name": "attributes.outcome.type", "value": "warning"}
+      {"field_name": "attributes.outcome.type", "value": null}
     ]
   },
   "sections": [
@@ -1466,7 +1466,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
       "key": "key_info",
       "type": "summary_cards",
       "data": {
-        "interaction": {"attributes.action.type": "click", "attributes.action.id": "action-001"},
+        "interaction": {"attributes.action.type": "click"},
         "target": {"attributes.action.target.name": ".submit-btn", "attributes.action.target.tag": "button"}
       }
     }
@@ -1483,7 +1483,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
     "title": "longTask",
     "badges": [
       {"field_name": "elapsed_time", "value": 123500},
-      {"field_name": "attributes.outcome.type", "value": "warning"}
+      {"field_name": "attributes.outcome.type", "value": null}
     ]
   },
   "sections": [
@@ -1492,13 +1492,15 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
       "type": "summary_cards",
       "data": {
         "duration": {"elapsed_time": 123500, "attributes.long_task.blocking_duration": 42.5},
-        "action": {"attributes.action.id": "action-001"},
-        "attribution": {"attributes.long_task.entry_type": "long-animation-frame", "attributes.long_task.name": "long-animation-frame"}
+        "action": {"attributes.action.ids": ["action-001"]},
+        "attribution": {"attributes.long_task.entry_type": "long-animation-frame"}
       }
     }
   ]
 }
 ```
+
+列表和详情均以数组返回已上报的 `attributes.action.ids`。历史 Long Task 只携带 `attributes.action.id` 时，`key_info.action` 返回该原始字段。
 
 ##### 5）Error
 
@@ -1635,10 +1637,6 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
               "url": "https://web.dev/articles/ttfb"
             }
           },
-          "attributes.vital.ttfb.waiting_duration": 1.2,
-          "attributes.vital.ttfb.dns_duration": 3.8,
-          "attributes.vital.ttfb.connection_duration": 10,
-          "attributes.vital.ttfb.request_duration": 83.7,
           "display.rating_config": [
             {"rating": "good", "value": 800, "alias": "良好"},
             {"rating": "needs_improvement", "value": 1800, "alias": "需改进"},
@@ -1829,7 +1827,9 @@ POST /rum/search/timeline/
 | 参数名称 | 类型 | 描述 |
 |----------|------|------|
 | span_id | String | 对应 `records[].span_id` |
-| children | Array[Node] | [a] 可选，按开始时间升序<br />[b] 同一 View 内，非 Action 成员的 `attributes.action.id` 命中 Action 时挂到该 Action，否则挂到 View<br />[c] Action 只作为 View 的直接子节点 |
+| children | Array[Node] | [a] 可选，按开始时间升序<br />[b] Resource、Error 和 Long Task 节点按 `attributes.action.ids` 挂到命中的每个 Action *[1]*<br />[c] 缺少 `attributes.action.ids` 的历史成员按 `attributes.action.id` 匹配 Action *[1]*<br />[d] Action 和其余未匹配的成员直属 View |
+
+- *[1] `attributes.action.ids` 只匹配同一 Session 和 View 内 Action 的 `attributes.action.id`。空数组或缺少 Session ID 表示不建立关联。历史单值关联按时间线的 Session 和 View 分组匹配。*
 
 ```json
 {
@@ -1879,10 +1879,6 @@ POST /rum/search/timeline/
             "ttfb": {
               "attributes.vital.metric": "ttfb",
               "attributes.vital.value": 101.7,
-              "attributes.vital.ttfb.waiting_duration": 1.2,
-              "attributes.vital.ttfb.dns_duration": 3.8,
-              "attributes.vital.ttfb.connection_duration": 10,
-              "attributes.vital.ttfb.request_duration": 83.7,
               "display.rating_config": [
                 {"rating": "good", "value": 800, "alias": "良好"},
                 {"rating": "needs_improvement", "value": 1800, "alias": "需改进"},
@@ -1961,8 +1957,7 @@ POST /rum/search/timeline/
         "attributes": {
           "span_type": "action",
           "view.id": "view-001",
-          "action.id": "action-001",
-          "outcome.type": "warning"
+          "action.id": "action-001"
         }
       },
       "span_id": "e121536e5ae785a0"
@@ -1977,7 +1972,7 @@ POST /rum/search/timeline/
         "attributes": {
           "span_type": "resource",
           "view.id": "view-001",
-          "action.id": "action-001",
+          "action.ids": ["action-001"],
           "resource.type": "fetch",
           "http.response.status_code": 200,
           "outcome.type": "success"
@@ -1995,7 +1990,7 @@ POST /rum/search/timeline/
         "attributes": {
           "span_type": "resource",
           "view.id": "view-001",
-          "resource.type": "img",
+          "resource.type": "image",
           "http.response.status_code": 200,
           "outcome.type": "success"
         }
@@ -2012,8 +2007,7 @@ POST /rum/search/timeline/
         "attributes": {
           "span_type": "long_task",
           "view.id": "view-001",
-          "action.id": "action-001",
-          "outcome.type": "warning"
+          "action.ids": ["action-001"]
         }
       },
       "span_id": "c49ddfc2ac5214d7"
@@ -2071,7 +2065,7 @@ POST /rum/search/timeline/
 | 静态资源分组 | `origin_data.attributes.resource.type` | 相邻同级 Resource 中取值不为 `xhr` 或 `fetch` 的节点合并为一组 |
 | 筛选：动作 | `origin_data.attributes.span_type` | 取值为 `action` |
 | 筛选：请求 | `origin_data.attributes.resource.type` | 取值为 `xhr` 或 `fetch` |
-| 筛选：错误 | `origin_data.attributes.span_type`<br />`origin_data.attributes.outcome.type` | 任一取值为 `error` |
+| 筛选：错误 | `origin_data.attributes.span_type` | 取值为 `error` |
 
 ### 2.13 total - 检索结果总数
 
@@ -2179,7 +2173,9 @@ POST /rum/search/statistics/
   "baseline": "0s",
   "time_shifts": ["0s"],
   "filters": [
-    {"key": "attributes.action.id", "operator": "equal", "value": ["action-001"]},
+    {"key": "attributes.action.ids", "operator": "equal", "value": ["action-001"]},
+    {"key": "attributes.session.id", "operator": "equal", "value": ["session-001"]},
+    {"key": "attributes.view.id", "operator": "equal", "value": ["view-001"]},
     {"key": "attributes.span_type", "operator": "equal", "value": ["resource", "error", "long_task"]}
   ],
   "group_by": ["attributes.span_type"]
@@ -2230,7 +2226,9 @@ POST /rum/search/list_records/
   "end_time": 1788465966,
   "filters": [
     {"key": "attributes.span_type", "operator": "equal", "value": ["action"]},
-    {"key": "attributes.action.id", "operator": "equal", "value": ["action-001"]}
+    {"key": "attributes.session.id", "operator": "equal", "value": ["session-001"]},
+    {"key": "attributes.view.id", "operator": "equal", "value": ["view-001"]},
+    {"key": "attributes.action.id", "operator": "equal", "value": ["action-001", "action-002"]}
   ],
   "offset": 0,
   "limit": 1,
@@ -2238,8 +2236,10 @@ POST /rum/search/list_records/
 }
 ```
 
-- *[1] 查询时间范围：`[end_time - 4h, end_time + 4h]`，缺少 Action ID 时不请求。*
-- *[2] 关联 Action 的名称、类型和时间取 `list[0]` 的 `attributes.action.target.name`、`attributes.action.type`、`start_time`、`end_time`。*
+- *[1] 查询范围为 `[end_time - 4h, end_time + 4h]`。在当前 Long Task 的 Session 和 View 内，优先使用 `attributes.action.ids` 查询 Action。显式空数组表示无关联。数组字段缺失时可使用历史字段 `attributes.action.id`。*
+- *[2] 详情卡片取结束时间最新的匹配记录，使用 `list[0]` 的 `attributes.action.target.name` 和 `attributes.action.type`。*
+
+现有前端的 Long Task 关联卡片只读取 `attributes.action.id`。仅上报 `attributes.action.ids` 的记录会显示未关联，前端接入时按上述规则取值。
 
 ### 3.3 Error
 

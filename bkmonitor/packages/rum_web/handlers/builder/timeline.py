@@ -18,10 +18,11 @@ from semconv.rum.constants import RumSpanType
 
 from rum_web.handlers.builder.span import build as build_span
 from rum_web.handlers.builder.span.session import session_time_range
-from rum_web.handlers.builder.utils import get_safe_number
+from rum_web.handlers.builder.utils import get_action_ids, get_safe_number
 
 
 MAX_DURATION_US = 4 * 60 * 60 * 1_000_000
+ACTION_MEMBER_TYPES = (RumSpanType.RESOURCE.value, RumSpanType.ERROR.value, RumSpanType.LONG_TASK.value)
 
 
 def summary(
@@ -107,19 +108,14 @@ def _attach(members: Sequence[_Span], session_id: str | None) -> list[dict[str, 
     for item in sorted(members, key=lambda item: get_safe_number(item.flatten_data.get("start_time"))):
         node = nodes[item.origin_data["span_id"]]
         flat = item.flatten_data
-        if flat.get("attributes.span_type") == RumSpanType.ACTION.value or (
-            session_id is None and "attributes.action.ids" in flat
+        span_type = flat.get("attributes.span_type")
+        if span_type == RumSpanType.ACTION.value or (
+            "attributes.action.ids" in flat and (session_id is None or span_type not in ACTION_MEMBER_TYPES)
         ):
             children.append(node)
             continue
 
-        action_ids = flat.get("attributes.action.ids") or flat.get("attributes.action.id")
-        # 打平后的单元素数组也是字符串，与历史单值字段一起处理。
-        if isinstance(action_ids, str):
-            action_ids = [action_ids]
-        elif not isinstance(action_ids, list):
-            action_ids = []
-        matched_ids = {action_id for action_id in action_ids if isinstance(action_id, str) and action_id in actions}
+        matched_ids = actions.keys() & get_action_ids(flat)
         if not matched_ids:
             children.append(node)
         for action_id in matched_ids:

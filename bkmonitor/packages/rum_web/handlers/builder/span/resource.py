@@ -175,8 +175,6 @@ class ResourceOthersResourceInfoSection(BaseSection):
     ITEMS = named(
         "attributes.resource.type",
         "attributes.url.template",
-        "attributes.server.address",
-        "attributes.http.request.method",
         "attributes.resource.protocol",
     )
 

@@ -12,11 +12,31 @@ import math
 from collections.abc import Iterable
 from typing import Any, overload
 
+from bkmonitor.data_source.format import flatten_dict_data
 from semconv.constants import FieldUnit
 from semconv.rum.constants import RatingLevel
 from semconv.rum.field import RatingThreshold
 from semconv.rum.trace import SpanSpec
 from rum_web.handlers.builder.hover import Hover, get_rating_hover
+
+
+def flatten_rum_data(record: dict[str, Any]) -> dict[str, Any]:
+    """打平 RUM 记录，保留新增 Action 字段的数组类型。"""
+    flat = flatten_dict_data(record)
+    for key in ("attributes.action.ids", "attributes.action.target.path"):
+        if isinstance(value := flat.get(key), str):
+            flat[key] = [value]
+    return flat
+
+
+def get_action_ids(flatten_data: dict[str, Any]) -> list[str]:
+    """还原打平后的 action.ids，字段缺失时读取旧版 action.id。"""
+    value = flatten_data.get("attributes.action.ids", flatten_data.get("attributes.action.id"))
+    if isinstance(value, str):
+        return [value] if value else []
+    if "attributes.action.ids" in flatten_data and isinstance(value, list):
+        return [action_id for action_id in value if isinstance(action_id, str) and action_id]
+    return []
 
 
 @overload

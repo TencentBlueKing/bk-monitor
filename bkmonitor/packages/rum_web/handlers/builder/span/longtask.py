@@ -8,8 +8,27 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.builder.base import KeyInfoSection, group
+from typing import Any
+
+from rum_web.handlers.builder.base import KeyInfoSection, KeyValueItem, group
 from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
+from semconv.rum.constants import LongTaskEntryType
+
+
+class ActionIdsItem(KeyValueItem):
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        if self.key in flatten_data:
+            return super().render(flatten_data)
+        if "attributes.action.id" in flatten_data:
+            return {"attributes.action.id": flatten_data["attributes.action.id"]}
+        return {}
+
+
+class LongTaskNameItem(KeyValueItem):
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        if flatten_data.get("attributes.long_task.entry_type") == LongTaskEntryType.LONG_TASK.value:
+            return super().render(flatten_data)
+        return {}
 
 
 class LongTaskSpanOverview(SpanOverview):
@@ -19,8 +38,8 @@ class LongTaskSpanOverview(SpanOverview):
 class LongTaskKeyInfoSection(KeyInfoSection):
     DATA = (
         group("duration", "elapsed_time", "attributes.long_task.blocking_duration"),
-        group("action", "attributes.action.id"),
-        group("attribution", "attributes.long_task.entry_type", "attributes.long_task.name"),
+        group("action", ActionIdsItem("attributes.action.ids")),
+        group("attribution", "attributes.long_task.entry_type", LongTaskNameItem("attributes.long_task.name")),
     )
 
 

@@ -39,9 +39,6 @@ from rum_web.handlers.builder.utils import build_rating_config, get_safe_number,
 
 VITAL_METRICS = ("ttfb", "fcp", "lcp", "inp", "cls")
 MARKER_METRICS = VITAL_METRICS[:3]
-TTFB_SEGMENTS = tuple(
-    f"attributes.vital.ttfb.{segment}_duration" for segment in ("waiting", "dns", "connection", "request")
-)
 VIEW_SNAPSHOT_FIELDS = (
     "end_time",
     "elapsed_time",
@@ -109,8 +106,8 @@ class ViewNavigationKeyInfoSection(KeyInfoSection):
     )
 
 
-def vital_group(metric: str, extra: tuple[str, ...] = ()) -> DictItem:
-    fields = ("attributes.vital.metric", "attributes.vital.value", *extra)
+def vital_group(metric: str) -> DictItem:
+    fields = ("attributes.vital.metric", "attributes.vital.value")
     return DictItem(
         metric,
         (
@@ -124,7 +121,7 @@ def vital_group(metric: str, extra: tuple[str, ...] = ()) -> DictItem:
 class ViewWebVitalsSection(BaseSection):
     KEY = "web_vitals"
     TYPE = SectionType.SUMMARY_CARDS.value
-    DATA = (vital_group("ttfb", TTFB_SEGMENTS), *(vital_group(metric) for metric in VITAL_METRICS[1:]))
+    DATA = tuple(vital_group(metric) for metric in VITAL_METRICS)
 
 
 class ViewLoadingTimingSection(WaterfallSection):

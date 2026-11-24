@@ -249,7 +249,14 @@ class TestResourceSpanBuilder:
     def test_others_loading_timing_has_resource_info(self):
         span = _resource_span("img")
         result = build(span, [])
-        assert _section(result, "resource_info") is not None
+        resource_info = _section(result, "resource_info")
+        assert resource_info is not None
+        fields = {item["field_name"] for item in resource_info["items"]}
+        assert fields.isdisjoint({"attributes.server.address", "attributes.http.request.method"})
+        assert _section(result, "key_info")["data"]["delivery"] == {
+            "attributes.resource.delivery_type": None,
+            "attributes.resource.cache.hit": None,
+        }
         # 新旧时序字段均未上报时，整段加载时序省略。
         assert _section(result, "loading_timing") is None
 
@@ -613,23 +620,34 @@ class TestInteractionBuilders:
         }
         assert _items(result, "badges")["elapsed_time"] == 432000
 
-    def test_longtask_key_info(self):
+    @pytest.mark.parametrize(
+        "entry_type, action_fields, expected_action",
+        [
+            ("long-task", {"action.id": "act-1"}, {"attributes.action.id": "act-1"}),
+            ("long-animation-frame", {"action.ids": ["act-1"]}, {"attributes.action.ids": ["act-1"]}),
+            ("long-animation-frame", {"action.id": "act-1", "action.ids": []}, {"attributes.action.ids": []}),
+        ],
+    )
+    def test_longtask_key_info(self, entry_type, action_fields, expected_action):
         result = build(
             _span(
                 "long_task",
                 {
                     "long_task.blocking_duration": 42.5,
-                    "action.id": "act-1",
-                    "long_task.entry_type": "longtask",
+                    **action_fields,
+                    "long_task.entry_type": entry_type,
                     "long_task.name": "self",
                 },
                 elapsed_time=123500,
             )
         )
+        attribution = {"attributes.long_task.entry_type": entry_type}
+        if entry_type == "long-task":
+            attribution["attributes.long_task.name"] = "self"
         assert _section(result, "key_info")["data"] == {
             "duration": {"elapsed_time": 123500, "attributes.long_task.blocking_duration": 42.5},
-            "action": {"attributes.action.id": "act-1"},
-            "attribution": {"attributes.long_task.entry_type": "longtask", "attributes.long_task.name": "self"},
+            "action": expected_action,
+            "attribution": attribution,
         }
 
     @pytest.mark.parametrize(
@@ -782,7 +800,8 @@ class TestViewSpanBuilder:
         data = _section(build(_base_view_span(), related), "web_vitals")["data"]
         assert list(data) == ["ttfb", "fcp", "lcp", "inp", "cls"]
         assert data["lcp"]["attributes.vital.value"] == 2840
-        assert data["ttfb"]["attributes.vital.ttfb.waiting_duration"] == 1.2
+        assert data["ttfb"]["attributes.vital.value"] == 101.7
+        assert not any(field.startswith("attributes.vital.ttfb.") for field in data["ttfb"])
         assert data["cls"]["attributes.vital.value"] == 0.2
         assert data["ttfb"]["display.rating_config"][-1]["rating"] == "poor"
         for metric in ("ttfb", "fcp", "lcp", "inp", "cls"):
