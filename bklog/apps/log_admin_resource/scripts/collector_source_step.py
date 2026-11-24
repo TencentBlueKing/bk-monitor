@@ -3,12 +3,12 @@
 # ruff: noqa: UP024, UP031 -- the deployed helper also runs on Python 2.7
 
 import base64
+import binascii
 import datetime
 import errno
 import fnmatch
 import json
 import os
-import re
 import signal
 import stat
 import subprocess
@@ -20,12 +20,12 @@ def parts(path):
     return [part for part in path.split("/") if part]
 
 
-def matches(path, patterns, ancestors=False):
+def matches(path, patterns):
     # The server expands recursive globs up to the collector's configured depth.
     names = parts(path)
     for pattern in patterns:
         globs = parts(pattern)
-        if len(names) == len(globs) or (ancestors and len(names) < len(globs)):
+        if len(names) == len(globs):
             if all(fnmatch.fnmatchcase(name, glob) for name, glob in zip(names, globs)):
                 return True
     return False
@@ -43,13 +43,10 @@ def descend(name):
         os.close(fd)
 
 
-def open_parent(path, policy, follow_leaf, reading_content):
+def open_parent(path, policy, follow_leaf):
     # cwd is private to this short-lived helper. Pin each directory before inspecting its
     # children. Never ask the collector kernel to follow a business-container symlink.
     links = []
-    boundary = None
-    original = path
-    source_leaf = reading_content and matches(original, policy["patterns"])
     while len(links) <= 32:
         base = max((key for key in policy["mounts"] if inside(path, key)), key=len)
         root = policy["mounts"][base]
@@ -72,18 +69,6 @@ def open_parent(path, policy, follow_leaf, reading_content):
                 target = os.readlink(name)
                 target_path = os.path.normpath(os.path.join(parent, target))
                 path = os.path.join(target_path, *tail[index + 1 :])
-                if boundary is not None and not inside(path, boundary):
-                    raise ValueError("link_outside_source_directory")
-                if last and source_leaf and not matches(path, policy["patterns"]):
-                    # When moving into a data mount retain the configured filename constraint.
-                    renamed = os.path.join(os.path.dirname(original), os.path.basename(path))
-                    if not matches(renamed, policy["patterns"]):
-                        raise ValueError("link_target_outside_configured_sources")
-                if reading_content and not matches(path, policy["patterns"], ancestors=True):
-                    volumes = [key for key in policy["mounts"] if key != "/" and inside(target_path, key)]
-                    if not volumes or not policy["mounts"][max(volumes, key=len)]:
-                        raise ValueError("link_target_outside_allowed_volume")
-                    boundary = boundary or target_path
                 links.append({"path": logical, "target": target})
                 break
             if last:
@@ -135,26 +120,54 @@ def reader_positions(pid, info):
 
 
 def target_source_path(policy, request):
-    path, operation = request["path"], request["operation"]
-    reading_content = operation == "read"
-    if request.get("via"):
-        via = request["via"]
-        if reading_content and not matches(via, policy["patterns"], ancestors=True):
-            raise ValueError("source_anchor_outside_configured_paths")
-        _, anchor, hops = open_parent(via, policy, True, reading_content)
+    path = request["path"]
+    via = request.get("via")
+    if via:
+        _, anchor, hops = open_parent(via, policy, True)
         if not hops or not inside(path, anchor):
             raise ValueError("path_outside_source_anchor")
         path = os.path.normpath(os.path.join(via, os.path.relpath(path, anchor)))
-    if reading_content and not matches(path, policy["patterns"]):
-        raise ValueError("source_outside_configured_paths")
-    name, resolved, links = open_parent(path, policy, operation != "readlink", reading_content)
+    name, resolved, links = open_parent(path, policy, request["operation"] != "readlink")
+    return name, path, resolved, links, os.path.normpath(os.path.join(os.getcwd(), name))
 
-    collector_path = os.path.normpath(os.path.join(os.getcwd(), name))
-    if reading_content and any(
-        re.search(rule, value) for rule in policy.get("exclude", []) for value in (path, resolved, collector_path)
-    ):
-        raise ValueError("source_excluded_by_input")
-    return name, path, resolved, links, collector_path
+
+def read_target_file(policy, request):
+    # Identify a concrete directory from target-bound directory patterns. Never authorize
+    # the caller-supplied parent, the host root, or a sibling of the resolved directory.
+    path = request["path"]
+    directory = request.get("via") or os.path.dirname(path)
+    while directory != "/" and not matches(directory, policy["directories"]):
+        directory = os.path.dirname(directory)
+    if directory == "/" or (request.get("via") and request["via"] != directory):
+        raise ValueError("outside_target_log_directory")
+    name, anchor, hops = open_parent(directory, policy, True)
+    if anchor == "/" or (hops and not any(k != "/" and v and inside(anchor, k) for k, v in policy["mounts"].items())):
+        raise ValueError("unverified_log_directory_link")
+    descend(name)
+    physical_root = os.getcwd()
+    root_fd = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        if request.get("via"):
+            if not inside(path, anchor):
+                raise ValueError("path_outside_source_anchor")
+            relative = os.path.relpath(path, anchor)
+        else:
+            relative = os.path.relpath(path, directory)
+        actual = os.path.normpath(os.path.join(anchor, relative))
+        name, resolved, links = open_parent(actual, policy, True)
+        physical = os.path.normpath(os.path.join(os.getcwd(), name))
+        if not inside(resolved, anchor) or not inside(physical, physical_root):
+            raise ValueError("outside_target_log_directory")
+        # Reopen beneath the pinned directory without following links between checks.
+        os.fchdir(root_fd)
+        components = parts(os.path.relpath(physical, physical_root))
+        if not components or components == ["."]:
+            raise ValueError("source_not_regular")
+        for component in components[:-1]:
+            descend(component)
+        return components[-1], path, resolved, hops + links, physical
+    finally:
+        os.close(root_fd)
 
 
 def snapshot(policy, request):
@@ -168,7 +181,8 @@ def snapshot(policy, request):
         name = collector_path = path
         info = os.lstat(path) if operation == "readlink" else os.stat(path)
     else:
-        name, path, resolved, links, collector_path = target_source_path(policy, request)
+        resolve = read_target_file if operation == "read" else target_source_path
+        name, path, resolved, links, collector_path = resolve(policy, request)
         info = os.lstat(name)
     result = {
         "path": path,
@@ -221,7 +235,10 @@ def snapshot(policy, request):
                 offset = request.get("offset", 0)
                 stream.seek(offset)
                 data = stream.read(request.get("length", 1024))
-            result.update(offset=offset, returned_bytes=len(data), content=data.decode("utf-8", "replace"))
+            # Carry exact bytes through the generic evidence sanitization and compaction.
+            # Each encoded chunk is within the evidence store's 4096-character string limit.
+            chunks = [binascii.hexlify(data[i : i + 2048]).decode("ascii") for i in range(0, len(data), 2048)]
+            result.update(offset=offset, returned_bytes=len(data), raw_hex_chunks=chunks)
         finally:
             os.close(pinned)
     elif operation == "stat" and stat.S_ISREG(info.st_mode):

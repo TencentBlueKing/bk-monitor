@@ -27,7 +27,7 @@ class SourceStepTest(unittest.TestCase):
         self.file = self.directory / "app.log"
         self.file.write_bytes(b"old\n")
         self.policy = {
-            "patterns": ["/logs/*.log"],
+            "directories": ["/logs"],
             "mounts": {"/": str(self.root), "/data": str(self.volume), "/data/secret": None},
             "interval": 0,
             "pid": 0,
@@ -85,15 +85,24 @@ class SourceStepTest(unittest.TestCase):
         with patch.object(probe.time, "sleep", side_effect=rotate):
             self.assertEqual(self.run_step("stat", "/logs/app.log")["activity"], "replaced")
 
-    def test_excluded_files_can_be_listed_and_statted(self):
-        self.policy["exclude"] = [r"app\.log$"]
-        self.assertEqual(self.run_step("list", "/logs")["observation"]["entries"], ["/logs/app.log"])
-        self.assertEqual(self.run_step("stat", "/logs/app.log")["activity"], "no_growth_observed")
-        with self.assertRaisesRegex(ValueError, "excluded"):
-            self.run_step("read", "/logs/app.log")
+    @unittest.skipUnless(sys.platform.startswith("linux"), "collector descriptor operations require Linux procfs")
+    def test_log_directory_allows_unmatched_and_excluded_files_verbatim(self):
+        self.policy["exclude"] = [r"fd.*"]
+        payload = b"token=fixture-only\x00\xff\n"
+        (self.directory / "fd.log").write_bytes(payload)
+        for path, options in [("/logs/fd.log", {}), ("/data/service/fd.log", {"via": "/logs"})]:
+            result = self.run_step("read", path, **options)["observation"]
+            self.assertEqual(bytes.fromhex("".join(result["raw_hex_chunks"])), payload)
+
+    def test_file_link_cannot_leave_resolved_log_directory_within_same_volume(self):
+        (self.volume / "other").mkdir()
+        (self.volume / "other" / "elsewhere.log").touch()
+        (self.directory / "redirect.log").symlink_to("../other/elsewhere.log")
+        with self.assertRaisesRegex(ValueError, "outside_target_log_directory"):
+            self.run_step("read", "/logs/redirect.log")
 
     def test_leaf_link_can_point_to_a_matching_log_in_a_data_mount(self):
-        self.policy["patterns"] = ["/service.log"]
+        self.policy["directories"] = []
         source = self.root / "service.log"
         source.symlink_to("/data/service/service.log")
         self.file.rename(self.directory / "service.log")
@@ -101,11 +110,11 @@ class SourceStepTest(unittest.TestCase):
         self.assertEqual(result["first"]["resolved_path"], "/data/service/service.log")
         source.unlink()
         source.symlink_to("/data/service/private.key")
-        with self.assertRaisesRegex(ValueError, "outside_configured"):
+        with self.assertRaisesRegex(ValueError, "outside_target_log_directory"):
             self.run_step("read", "/service.log")
 
     def test_direct_mount_and_listing_limit(self):
-        self.policy["patterns"] = ["/data/service/*.log"]
+        self.policy["directories"] = ["/data/service"]
         for n in range(50):
             (self.directory / f"{n}.log").touch()
         listing = self.run_step("list", "/data/service")["observation"]
@@ -127,7 +136,7 @@ class SourceStepTest(unittest.TestCase):
         self.assertEqual(stat["growth_bytes"], 6)
         native = self.run_step("stat", stat["second"]["collector_path"], path_space="collector")
         self.assertEqual(native["second"]["inode"], missed.stat().st_ino)
-        with self.assertRaisesRegex(ValueError, "outside_configured"):
+        with self.assertRaisesRegex(ValueError, "outside_target_log_directory"):
             self.run_step("read", listing["entries"][0])
 
     def test_native_metadata_uses_the_collector_namespace_without_a_mount_map(self):
@@ -179,7 +188,7 @@ class SourceStepTest(unittest.TestCase):
     @unittest.skipUnless(sys.platform.startswith("linux"), "collector descriptor operations require Linux procfs")
     def test_reads_a_bounded_byte_range(self):
         result = self.run_step("read", "/logs/app.log", offset=1, length=2)["observation"]
-        self.assertEqual((result["content"], result["returned_bytes"]), ("ld", 2))
+        self.assertEqual((bytes.fromhex("".join(result["raw_hex_chunks"])), result["returned_bytes"]), (b"ld", 2))
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "collector descriptor operations require Linux procfs")
     def test_observed_cursor_before_and_after_append(self):

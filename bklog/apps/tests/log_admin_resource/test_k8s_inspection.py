@@ -1,3 +1,4 @@
+import base64
 import json
 from types import SimpleNamespace
 from typing import Any
@@ -909,6 +910,42 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         self.assertEqual(result["task_status"], "not_found")
         self.assertIsNone(result["target"])
 
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
+    @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
+    def test_original_log_bytes_require_current_management_access(self, dispatch, _get, _identity, _app):
+        params = {
+            "collector_config_id": 123,
+            "target": {"type": "pod_container", "namespace": "demo", "pod_name": "app", "container_name": "main"},
+            "evidence_groups": ["collector"],
+            "source_step": {"operation": "read", "path": "/logs/other.log"},
+        }
+        with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[]):
+            with self.assertRaises(BklogPermissionError):
+                start_k8s_inspection(params)
+        dispatch.assert_not_called()
+        with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader-a"]):
+            task_id = start_k8s_inspection(params)["task_id"]
+            ResourceInspectionTaskRecord.update(task_id, task_status="success")
+            for payload in (b"token=fixture-only\n", b"\xff\x00", b""):
+                observation = {"raw_hex_chunks": [payload.hex()], "returned_bytes": len(payload)}
+                probes = {"source_path": {"evidence": {"observation": observation}}, "other": {"text": "token=value"}}
+                ResourceInspectionTaskRecord.store_result(task_id, {"probes": probes})
+                published = get_k8s_inspection_detail({"task_id": task_id})["evidence"]["probes"]
+                row = published["source_path"]["evidence"]["observation"]
+                actual = (
+                    base64.b64decode(row["content"]) if row["content_encoding"] == "base64" else row["content"].encode()
+                )
+                self.assertEqual(actual, payload)
+                self.assertNotIn("raw_hex_chunks", row)
+                self.assertEqual(published["other"]["text"], "token=***")
+        with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[]):
+            with self.assertRaises(BklogPermissionError):
+                get_k8s_inspection_detail({"task_id": task_id})
+
     def test_registry_exposes_k8s_start_and_detail(self):
         metadata = AdminResourceRegistry.call("__meta__", {"action": "list"}, app_code="reader-a")
         self.assertIn(TARGET_LIST_FUNC_NAME, metadata["functions"])
@@ -1474,18 +1511,20 @@ class SourcePolicyTest(SimpleTestCase):
         }
         parsed = {"streams": {"child_config.0": stream}}
         policy = source_policy(parsed, target, expected, 7, pod)
-        self.assertEqual(policy["patterns"], ["/logs/*.log"])
+        self.assertEqual(policy["directories"], ["/logs"])
+        self.assertNotIn("exclude", policy)
         self.assertEqual(
             policy["mounts"], {"/volume": "/var/host/work/app", "/": "/var/host/root/demo", "/private": None}
         )
-        with self.assertRaises(FixedProbeError):
-            source_policy(parsed, target, expected, 8, pod)
+        self.assertIsNone(source_policy(parsed, target, expected, 8, pod)["mounts"]["/"])
         metadata = source_policy(parsed, target, expected, 8, pod, metadata_only=True)
         self.assertEqual(metadata["mounts"], {"/volume": "/var/host/work/app", "/private": None, "/": None})
         stream["content"] = stream["content"].replace("/logs/*.log", "/var/host/root/demo/logs/*.log")
         metadata = source_policy(parsed, target, expected, 7, pod, metadata_only=True)
         self.assertEqual(metadata["mounts"]["/"], "/var/host/root/demo")
         stream["path"] = "/config/another-pod.conf"
+        self.assertIsNone(source_policy(parsed, target, expected, 7, pod)["mounts"]["/"])
+        expected[0]["spec"]["path"] = ["/*.log"]
         with self.assertRaises(FixedProbeError):
             source_policy(parsed, target, expected, 7, pod)
 
@@ -2270,6 +2309,18 @@ class K8sInspectionWorkerTest(SimpleTestCase):
             },
             task_type=TASK_TYPE_K8S_INSPECTION,
         )[0]
+
+    @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[])
+    @patch("apps.log_admin_resource.k8s_tasks.K8sInspectionClient")
+    def test_queued_original_read_is_denied_before_cluster_access_after_revocation(self, client):
+        record = self._record()
+        options = {**record["request_options"], "source_step": {"operation": "read", "path": "/logs/other.log"}}
+        ResourceInspectionTaskRecord.update(record["task_id"], request_options=options)
+        run_k8s_inspection.run(record["task_id"])
+        finished = ResourceInspectionTaskRecord.get(record["task_id"])
+        self.assertEqual(finished["error"]["code"], "source_read_access_denied")
+        self.assertFalse(finished["error"]["retryable"])
+        client.assert_not_called()
 
     @patch("apps.log_admin_resource.k8s_tasks.K8sInspectionClient")
     @patch("apps.log_admin_resource.k8s_tasks.expected_bklog_configs", return_value=[])

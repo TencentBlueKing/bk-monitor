@@ -12,6 +12,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.utils import timezone
 
+from apps.exceptions import PermissionError as BklogPermissionError
 from apps.log_admin_resource.handlers.inspection import sanitize_json, sanitize_sensitive_text
 from apps.log_admin_resource.inspection_runtime import apply_runtime_log_filter
 from apps.log_admin_resource.collector_probe_evidence import build_collector_file_log_probe, build_probe_evidence
@@ -36,6 +37,7 @@ from apps.log_admin_resource.k8s_inspection import (
     main_config_map_reference,
     safe_events,
     safe_target_snapshot,
+    require_source_read_access,
     target_config_matches,
     target_identity,
 )
@@ -79,6 +81,10 @@ def run_k8s_inspection(task_id: str) -> None:
         if not record:
             raise RuntimeError("inspection task metadata disappeared before execution")
         options = record.get("request_options") or {}
+        try:
+            require_source_read_access(record.get("app_code"), options.get("source_step"))
+        except BklogPermissionError as error:
+            raise FixedProbeError("source_read_access_denied", str(error), retryable=False) from error
         collector = _load_bound_collector(record)
         if isinstance(collector, ClusterInspectionContext):
             expected = collector.expected

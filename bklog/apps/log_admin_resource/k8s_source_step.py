@@ -9,7 +9,6 @@ from pathlib import Path
 import yaml
 
 from apps.log_admin_resource.collector_probe_evidence import _expand_recursive_glob
-from apps.log_admin_resource.handlers.inspection import sanitize_sensitive_text
 from apps.log_admin_resource.k8s_inspection_client import object_to_dict
 from apps.log_admin_resource.k8s_inspection import COLLECTOR_CONTAINER_NAME, collector_child_config_hints
 from apps.log_admin_resource.k8s_probe import FixedProbeError, run_collector_script
@@ -78,52 +77,42 @@ def _rendered_inputs(parsed, hints, data_id):
 
 def source_policy(parsed, target, expected, data_id, collector_pod, *, metadata_only=False):
     volumes, usable = _target_mounts(target, collector_pod)
-    policies = []
+    directories = set()
     observed_mounts = {}
     for item in expected:
         if item.get("collector_type") != ContainerCollectorType.CONTAINER:
             continue
         hints = collector_child_config_hints(target, [item])
+        if not hints:
+            continue
+        for path in item["spec"].get("path") or []:
+            if not isinstance(path, str) or not path.startswith("/") or posixpath.normpath(path) != path:
+                continue
+            for pattern in _expand_recursive_glob(path):
+                directory = posixpath.dirname(pattern)
+                # A filesystem root is not a target-specific log directory.
+                first = directory.lstrip("/").split("/", 1)[0]
+                if first and not any(ch in first for ch in "*?["):
+                    directories.add(directory)
         for config in _rendered_inputs(parsed, hints, data_id):
-            mounts = dict(volumes)
             for mount in config.get("mounts") or []:
                 path = mount.get("container_path")
                 host = mount.get("host_path")
-                if path in usable and not mounts[path] and _under_host(host):
-                    mounts[path] = host
-            root = config.get("root_fs")
-            mounts.setdefault("/", root if _under_host(root) else None)
-            if metadata_only:
-                for path, host in mounts.items():
-                    if host:
-                        observed_mounts.setdefault(path, set()).add(host)
-                continue
-            patterns = sorted(
-                {
-                    pattern
-                    for path in config.get("paths") or []
-                    if path in (item["spec"].get("path") or [])
-                    for pattern in _expand_recursive_glob(path)
-                }
-            )
-            if not patterns:
-                continue
-            excluded = set(item["spec"].get("exclude_files") or []) | set(config.get("exclude_files") or [])
-            policy = {"patterns": patterns, "mounts": mounts, "exclude": sorted(excluded)}
-            if policy not in policies:
-                policies.append(policy)
+                if path in usable and not volumes[path] and _under_host(host):
+                    observed_mounts.setdefault(path, set()).add(host)
+            if "/" not in volumes and _under_host(config.get("root_fs")):
+                observed_mounts.setdefault("/", set()).add(config["root_fs"])
+
+    mounts = dict(volumes)
+    mounts.setdefault("/", None)
+    for path, hosts in observed_mounts.items():
+        if len(hosts) == 1:
+            mounts[path] = next(iter(hosts))
     if metadata_only:
-        # Pod-declared host paths remain usable even when no child input was rendered.
-        # Conflicting runtime mappings only disable the affected mount.
-        mounts = dict(volumes)
-        mounts.setdefault("/", None)
-        for path, hosts in observed_mounts.items():
-            if len(hosts) == 1:
-                mounts[path] = next(iter(hosts))
         return {"mounts": mounts}
-    if len(policies) != 1:
-        raise FixedProbeError("source_input_not_unique", "a unique target-bound rendered file input is required")
-    return policies[0]
+    if not directories:
+        raise FixedProbeError("source_directory_unknown", "no target-specific log directory was identified")
+    return {"mounts": mounts, "directories": sorted(directories)}
 
 
 def inspect_source_step(client, candidate, parsed, target, expected, data_id, request, collector_pod):
@@ -159,9 +148,6 @@ def inspect_source_step(client, candidate, parsed, target, expected, data_id, re
         raise FixedProbeError(
             "source_step_invalid_response", "collector file observation returned no valid JSON"
         ) from exc
-    observation = result.get("observation") or {}
-    if "content" in observation:
-        observation["content"] = sanitize_sensitive_text(observation["content"], maximum=None)
     failed = bool(result.get("error"))
     return {
         "status": "warning" if failed else "success",

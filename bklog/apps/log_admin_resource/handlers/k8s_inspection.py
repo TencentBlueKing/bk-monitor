@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import logging
 import uuid
 from typing import Any
@@ -31,6 +32,7 @@ from apps.log_admin_resource.k8s_inspection import (
     discover_inspection_targets,
     safe_spec_projection,
     expected_bklog_configs,
+    require_source_read_access,
     target_identity,
 )
 from apps.log_admin_resource.k8s_cluster_context import ClusterInspectionContext, load_cluster_context
@@ -440,6 +442,7 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
             source_step["operation"] == "read" or "via" in source_step
         ):
             raise ValidationError("collector paths support list, readlink and stat directly")
+        require_source_read_access(app_code, source_step)
         for path in [source_step["path"], source_step.get("via", "/")]:
             if (
                 not path.startswith("/")
@@ -533,6 +536,8 @@ def get_k8s_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
     ):
         return _not_found_response(task_id)
 
+    step = (record.get("request_options") or {}).get("source_step")
+    require_source_read_access(app_code, step)
     record = ResourceInspectionTaskRecord.normalize_timeout(record)
     task_status = record.get("task_status")
     evidence = None
@@ -541,7 +546,18 @@ def get_k8s_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
         task_status = "expired"
         error = {"code": "task_expired", "message": "inspection evidence has expired", "retryable": False}
     elif task_status not in ACTIVE_STATUSES:
-        evidence = ResourceInspectionTaskRecord.load_result(task_id)
+        evidence = sanitize_json(ResourceInspectionTaskRecord.load_result(task_id), redact_text=True)
+        if evidence and (step or {}).get("operation") == "read":
+            source = evidence.get("probes", {}).get("source_path", {}).get("evidence") or {}
+            observation = source.get("observation") or {}
+            if "raw_hex_chunks" in observation:
+                data = bytes.fromhex("".join(observation.pop("raw_hex_chunks")))
+                try:
+                    observation["content"] = data.decode("utf-8")
+                    observation["content_encoding"] = "utf-8"
+                except UnicodeDecodeError:
+                    observation["content"] = base64.b64encode(data).decode("ascii")
+                    observation["content_encoding"] = "base64"
 
     return {
         "task_id": task_id,
@@ -556,7 +572,7 @@ def get_k8s_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
         "heartbeat_at": record.get("heartbeat_at"),
         "result_expires_at": record.get("result_expires_at"),
         "probes": sanitize_json(record.get("probes") or {}, redact_text=True),
-        "evidence": sanitize_json(evidence, redact_text=True) if evidence is not None else None,
+        "evidence": evidence,
         "partial": task_status == "partial" or bool(isinstance(evidence, dict) and evidence.get("partial")),
         "error": error,
         "next_call": _next_call(task_id) if task_status in ACTIVE_STATUSES else None,
@@ -988,7 +1004,8 @@ FUNCTIONS = {
                     "description": (
                         "List directories, inspect file activity or inspect links directly in the collector container. "
                         "Use returned entry paths in subsequent calls. To follow a link, list or stat its path. "
-                        "Use target space for business-container logical paths or configured file contents."
+                        "Use target space for business-container paths. Management allowlisted apps can read original "
+                        "bytes from target log directories. Content is UTF-8 when valid, otherwise base64."
                     ),
                     "properties": {
                         "operation": {"type": "string", "enum": ["list", "readlink", "stat", "read"]},

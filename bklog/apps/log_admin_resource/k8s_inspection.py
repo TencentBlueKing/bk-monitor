@@ -11,6 +11,9 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from django.conf import settings
+
+from apps.exceptions import PermissionError as BklogPermissionError
 from apps.log_admin_resource.handlers.inspection import sanitize_sensitive_text
 from apps.log_admin_resource.k8s_inspection_client import object_to_dict
 from apps.log_databus.constants import ContainerCollectorType, LabelSelectorOperator
@@ -377,6 +380,13 @@ def target_config_matches(
         if _pod_target_matches(target, target_object, spec):
             matches.append(item)
     return matches
+
+
+def require_source_read_access(app_code, source_step):
+    if (source_step or {}).get("operation") == "read" and (
+        not app_code or app_code not in settings.RESOURCE_CALL_APP_CODE_WHITE_LIST
+    ):
+        raise BklogPermissionError("reading original log bytes requires a management allowlisted app")
 
 
 def collector_child_config_hints(
