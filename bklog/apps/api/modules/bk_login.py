@@ -86,23 +86,17 @@ class _BKLoginApi:
                 method="GET", url=user_root + "-/lookup/", module=self.MODULE, description="按账号查询用户"
             )
             self.list_users = TenantUserAPI(method="GET", url=user_root, module=self.MODULE, description="分页查询用户")
-            self.search_users = TenantUserAPI(
-                method="GET",
-                url=f"{settings.PAAS_API_HOST}/api/bk-user-web/prod/api/v3/open-web/tenant/users/-/search/",
-                module=self.MODULE,
-                description="搜索用户",
-            )
             self.user_departments = TenantUserAPI(
                 method="GET",
-                url=user_root + "{bk_username}/departments/",
-                url_keys=["bk_username"],
+                url=user_root + "{user_id}/departments/",
+                url_keys=["user_id"],
                 module=self.MODULE,
                 description="查询用户所属部门",
             )
             self.user_detail = TenantUserAPI(
                 method="GET",
-                url=user_root + "{bk_username}/",
-                url_keys=["bk_username"],
+                url=user_root + "{user_id}/",
+                url_keys=["user_id"],
                 module=self.MODULE,
                 description="查询用户详情",
             )
@@ -149,28 +143,34 @@ class _BKLoginApi:
             )
         )
 
-    def gateway_username(self, username):
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            return username
-        users = self.lookup_users({"lookup_field": "login_name", "lookups": username})
-        return users[0]["bk_username"] if users else None
+    def search_users(self, keyword, page, page_size):
+        """通过服务端租户列表查询，只保留旧选择器请求的结果页。"""
+        offset = (page - 1) * page_size
+        keyword = keyword.casefold()
+        results = []
+        count = 0
+        upstream_page = 1
+        while True:
+            data = self.list_users({"page": upstream_page, "page_size": 1000})
+            for user in data["results"]:
+                if any(
+                    keyword in (user.get(field) or "").casefold()
+                    for field in ("bk_username", "login_name", "full_name", "display_name")
+                ):
+                    if offset <= count < offset + page_size:
+                        results.append(user)
+                    count += 1
+            if not data["results"] or upstream_page * 1000 >= data["count"]:
+                return results, count
+            upstream_page += 1
 
     def get_gateway_user(self, params):
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            user = self.user_detail({"bk_username": quote(params["username"], safe="")})
-        else:
-            users = self.lookup_users({"lookup_field": "login_name", "lookups": params["username"]})
-            if not users:
-                return {}
-            user = users[0]
-        return {**user, "username": params["username"], "chname": user["display_name"]}
+        user = self.user_detail({"user_id": quote(params["username"], safe="")})
+        return {**user, "username": user["bk_username"], "chname": user["display_name"]}
 
     def get_gateway_departments(self, params):
-        username = self.gateway_username(params["id"])
-        if not username:
-            return []
         departments = self.user_departments(
-            {"bk_username": quote(username, safe=""), "with_ancestors": str(params.get("with_family", True)).lower()}
+            {"user_id": quote(params["id"], safe=""), "with_ancestors": str(params.get("with_family", True)).lower()}
         )
         return [{**department, "family": department.get("ancestors", [])} for department in departments]
 

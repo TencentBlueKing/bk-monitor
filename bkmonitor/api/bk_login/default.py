@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from urllib.parse import quote
+
 from django.conf import settings
 from rest_framework import serializers
 
@@ -82,14 +84,6 @@ class LookupTenantUsersResource(BkUserApiResource):
     method = "GET"
 
 
-class SearchTenantUsersResource(BkUserApiResource):
-    """使用当前用户身份搜索可见用户。"""
-
-    base_url = settings.BK_USER_WEB_API_URL
-    action = "/api/v3/open-web/tenant/users/-/search/"
-    method = "GET"
-
-
 class GetAllUserResource(BkUserApiResource):
     """
     查询用户列表
@@ -100,34 +94,58 @@ class GetAllUserResource(BkUserApiResource):
         return "/api/v3/open/tenant/users/" if settings.ESB_DISABLED else "/list_users/"
 
     method = "GET"
-    cache_type = CacheType.USER
+
+    @property
+    def cache_type(self):
+        # 网关结果与租户有关，旧 USER 缓存键没有租户维度。
+        return None if settings.ESB_DISABLED else CacheType.USER
+
+    def _search_users(self, keyword, page, page_size):
+        """租户 OpenAPI 仅支持分页，按旧选择器约定统计匹配总数并返回指定页。"""
+        offset = (page - 1) * page_size
+        keyword = keyword.casefold()
+        results = []
+        count = 0
+        upstream_page = 1
+        while True:
+            data = super().perform_request({"page": upstream_page, "page_size": 1000})
+            for user in data["results"]:
+                if any(
+                    keyword in (user.get(field) or "").casefold()
+                    for field in ("bk_username", "login_name", "full_name", "display_name")
+                ):
+                    if offset <= count < offset + page_size:
+                        results.append(user)
+                    count += 1
+            if not data["results"] or upstream_page * 1000 >= data["count"]:
+                return results, count
+            upstream_page += 1
 
     def perform_request(self, params):
         if settings.ESB_DISABLED:
-            account_field = "bk_username" if settings.ENABLE_MULTI_TENANT_MODE else "login_name"
             if "exact_lookups" in params:
                 accounts = list(dict.fromkeys(filter(None, params["exact_lookups"].split(","))))
                 users = []
+                lookup = LookupTenantUsersResource()
+                lookup.bk_tenant_id = self.bk_tenant_id
                 for start in range(0, len(accounts), 100):
                     users.extend(
-                        LookupTenantUsersResource().request(
-                            {"lookup_field": account_field, "lookups": ",".join(accounts[start : start + 100])}
+                        lookup.request(
+                            {"lookup_field": "bk_username", "lookups": ",".join(accounts[start : start + 100])}
                         )
                     )
                 count = len(users)
             elif keyword := params.get("fuzzy_lookups"):
-                users = SearchTenantUsersResource().request({"keyword": keyword})
-                count = len(users)
-                size = max(1, int(params.get("page_size", 20)))
-                offset = (max(1, int(params.get("page", 1))) - 1) * size
-                users = users[offset : offset + size]
+                users, count = self._search_users(
+                    keyword, max(1, int(params.get("page", 1))), max(1, int(params.get("page_size", 20)))
+                )
             else:
                 page = super().perform_request({key: params[key] for key in ("page", "page_size") if key in params})
                 users, count = page["results"], page["count"]
             return {
                 "count": count,
                 "results": [
-                    {"username": user[account_field], "display_name": user["display_name"], "logo": ""}
+                    {"username": user["bk_username"], "display_name": user["display_name"], "logo": ""}
                     for user in users
                 ],
             }
@@ -274,13 +292,8 @@ class ListProfileDepartmentsResource(BkUserApiResource):
             return super().perform_request(params)
 
         username = params["id"]
-        if settings.ESB_DISABLED and not settings.ENABLE_MULTI_TENANT_MODE:
-            users = LookupTenantUsersResource().request({"lookup_field": "login_name", "lookups": username})
-            if not users:
-                return []
-            username = users[0]["bk_username"]
         params = {
-            "bk_username": username,
+            "bk_username": quote(username, safe="") if settings.ESB_DISABLED else username,
             "with_ancestors": params["with_family"],
         }
         result = super().perform_request(params)
@@ -329,13 +342,10 @@ class GetUserInfo(BkUserApiResource):
         fields = serializers.CharField(required=False, label="返回字段")
 
     def perform_request(self, validated_request_data):
-        if settings.ESB_DISABLED and not settings.ENABLE_MULTI_TENANT_MODE:
-            users = LookupTenantUsersResource().request(
-                {"lookup_field": "login_name", "lookups": validated_request_data["id"]}
-            )
-            if not users:
-                raise ValueError(f"用户 {validated_request_data['id']} 不存在")
-            return {**users[0], "username": users[0]["login_name"]}
+        if settings.ESB_DISABLED:
+            username = validated_request_data["id"]
+            user = super().perform_request({"bk_username": quote(username, safe="")})
+            return {**user, "username": user["bk_username"]}
         if self.use_apigw():
             # API Gateway 模式：转换参数格式
             params = {"bk_username": validated_request_data["id"]}

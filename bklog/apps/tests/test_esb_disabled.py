@@ -1,4 +1,8 @@
 import json
+import os
+import subprocess
+import sys
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from django.test import RequestFactory, SimpleTestCase, override_settings
@@ -29,32 +33,47 @@ class EsbDisabledTest(SimpleTestCase):
         response = self.users.user_departments.after_request({"code": 1, "result": True, "data": None})
         self.assertFalse(response["result"])
 
-    def test_old_selector_search_and_saved_account(self):
-        for query, method, expected in [
-            ({"fuzzy_lookups": "ali"}, "search_users", {"keyword": "ali"}),
-            ({"exact_lookups": "alice"}, "lookup_users", {"lookup_field": "login_name", "lookups": "alice"}),
-        ]:
-            with self.subTest(query=query), patch.object(views, "BKLoginApi", self.users):
-                upstream = Mock(return_value=[self.account])
-                setattr(self.users, method, upstream)
-                response = views.list_users(self.request.get("/", {**query, "callback": "USER_LIST_CALLBACK_0"}))
-                upstream.assert_called_once_with(expected)
-                data = json.loads(response.content.decode().removeprefix("USER_LIST_CALLBACK_0(").removesuffix(")"))
-                self.assertEqual(
-                    data["data"], {"count": 1, "results": [{"username": "alice", "display_name": "Alice", "logo": ""}]}
-                )
-
-    def test_gateway_lookup_preserves_login_name(self):
-        self.users.lookup_users = Mock(return_value=[{**self.account, "time_zone": "UTC"}])
-        result = self.users.get_user({"username": "alice"})
-        self.assertEqual((result["username"], result["chname"], result["time_zone"]), ("alice", "Alice", "UTC"))
-        self.users.lookup_users.assert_called_once_with({"lookup_field": "login_name", "lookups": "alice"})
-
-    def test_department_uses_gateway_id_and_ancestors(self):
+    def test_old_selector_preserves_saved_tenant_user_id(self):
         self.users.lookup_users = Mock(return_value=[self.account])
+        with patch.object(views, "BKLoginApi", self.users):
+            response = views.list_users(self.request.get("/", {"exact_lookups": "tenant-user-id", "callback": "cb"}))
+        data = json.loads(response.content.decode().removeprefix("cb(").removesuffix(")"))["data"]
+        self.assertEqual(
+            data, {"count": 1, "results": [{"username": "tenant-user-id", "display_name": "Alice", "logo": ""}]}
+        )
+        self.users.lookup_users.assert_called_once_with({"lookup_field": "bk_username", "lookups": "tenant-user-id"})
+
+    def test_selector_search_pages_tenant_openapi_then_paginates_matches(self):
+        self.assertEqual(
+            self.users.list_users.url, "https://gateway.example.com/api/bk-user/prod/api/v3/open/tenant/users/"
+        )
+        other = {"bk_username": "other", "login_name": "other", "display_name": "Other"}
+        self.users.list_users = Mock(
+            side_effect=[
+                {"count": 1001, "results": [self.account] + [other] * 999},
+                {"count": 1001, "results": [{**self.account, "bk_username": "second-id"}]},
+            ]
+        )
+        with patch.object(views, "BKLoginApi", self.users):
+            response = views.list_users(self.request.get("/", {"fuzzy_lookups": "ALI", "page": 2, "page_size": 1}))
+        self.assertEqual(
+            json.loads(response.content)["data"],
+            {"count": 2, "results": [{"username": "second-id", "display_name": "Alice", "logo": ""}]},
+        )
+        self.assertEqual(
+            [c.args[0] for c in self.users.list_users.call_args_list], [{"page": n, "page_size": 1000} for n in (1, 2)]
+        )
+
+    def test_gateway_profile_and_department_use_saved_id(self):
+        self.users.user_detail = Mock(return_value={**self.account, "time_zone": "UTC"})
+        result = self.users.get_user({"username": "tenant-user-id"})
+        self.assertEqual(
+            (result["username"], result["chname"], result["time_zone"]), ("tenant-user-id", "Alice", "UTC")
+        )
+        self.users.user_detail.assert_called_once_with({"user_id": "tenant-user-id"})
         self.users.user_departments = Mock(return_value=[{"name": "Team", "ancestors": [{"name": "Org"}]}])
-        result = self.users.list_department_profiles({"id": "alice", "with_family": True})
-        self.users.user_departments.assert_called_once_with({"bk_username": "tenant-user-id", "with_ancestors": "true"})
+        result = self.users.list_department_profiles({"id": "tenant-user-id", "with_family": True})
+        self.users.user_departments.assert_called_once_with({"user_id": "tenant-user-id", "with_ancestors": "true"})
         self.assertEqual(result[0]["family"], [{"name": "Org"}])
 
     @override_settings(
@@ -111,3 +130,38 @@ class EsbDisabledTest(SimpleTestCase):
         ]:
             with self.subTest(client=client.description):
                 self.assertIn(f"/api/{name}/", client.url)
+
+
+class LoginSettingsCompatibilityTest(SimpleTestCase):
+    def test_login_strategy_and_final_gateway_template(self):
+        # 设置在 Django 启动时解析，子进程避免复用当前测试进程已加载的配置。
+        app_root = Path(__file__).resolve().parents[2]
+        env = {
+            **os.environ,
+            "DJANGO_SETTINGS_MODULE": "settings",
+            "BK_API_URL_TMPL": "https://chart.example.test/{api_name}/",
+        }
+        script = """
+import json
+from django.conf import settings
+template = settings.BK_API_URL_TMPL
+from blueapps.account.components.bk_token.verification_strategy import is_esb_enabled, get_apigw_url
+print(json.dumps([is_esb_enabled(), get_apigw_url("bk-login", "/verify/")]))
+"""
+        for switch, multi, custom, expected_esb, expected_url in [
+            (None, False, True, True, "https://custom.example.test/bk-login//prod/verify/"),
+            (None, True, True, False, "https://custom.example.test/bk-login//prod/verify/"),
+            ("false", False, True, False, "https://custom.example.test/bk-login/prod/verify/"),
+            ("false", False, False, False, "https://chart.example.test/bk-login/prod/verify/"),
+        ]:
+            with self.subTest(switch=switch, multi=multi, custom=custom):
+                env["ENABLE_MULTI_TENANT_MODE"] = str(multi).lower()
+                env["BKPAAS_MULTI_TENANT_MODE"] = str(not multi).lower()
+                env.pop("BKPAAS_ESB_ENABLED", None)
+                if switch is not None:
+                    env["BKPAAS_ESB_ENABLED"] = switch
+                env.pop("BKAPP_API_URL_TMPL", None)
+                if custom:
+                    env["BKAPP_API_URL_TMPL"] = "https://custom.example.test/{api_name}/"
+                output = subprocess.check_output([sys.executable, "-c", script], cwd=app_root, env=env, text=True)
+                self.assertEqual(json.loads(output.splitlines()[-1]), [expected_esb, expected_url])

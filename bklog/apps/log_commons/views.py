@@ -229,8 +229,6 @@ class ExternalPermissionViewSet(APIViewSet):
             "data": {"need_approval": True}
         }
         """
-        if settings.ESB_DISABLED:
-            raise Http404
         data = self.params_valid(CreateORUpdateExternalPermissionSLZ)
         return Response(ExternalPermission.create_or_update(validated_request_data=data))
 
@@ -326,19 +324,17 @@ def list_users(request):
         for start in range(0, len(accounts), 100):
             users.extend(
                 BKLoginApi.lookup_users(
-                    {"lookup_field": "login_name", "lookups": ",".join(accounts[start : start + 100])}
+                    {"lookup_field": "bk_username", "lookups": ",".join(accounts[start : start + 100])}
                 )
             )
         count = len(users)
     elif keyword := query.get("fuzzy_lookups"):
-        users = BKLoginApi.search_users({"keyword": keyword})
-        count = len(users)
         try:
             size = max(1, int(query.get("page_size", 20)))
-            offset = (max(1, int(query.get("page", 1))) - 1) * size
+            page = max(1, int(query.get("page", 1)))
         except ValueError:
             return JsonResponse({"result": False, "message": "Invalid pagination"}, status=400)
-        users = users[offset : offset + size]
+        users, count = BKLoginApi.search_users(keyword, page, size)
     else:
         result = BKLoginApi.list_users({key: query[key] for key in ("page", "page_size") if key in query})
         users, count = result["results"], result["count"]
@@ -346,7 +342,7 @@ def list_users(request):
     data = {
         "count": count,
         "results": [
-            {"username": user["login_name"], "display_name": user["display_name"], "logo": ""} for user in users
+            {"username": user["bk_username"], "display_name": user["display_name"], "logo": ""} for user in users
         ],
     }
     result = {"result": True, "code": 0, "message": "", "data": data}

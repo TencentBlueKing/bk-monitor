@@ -441,8 +441,10 @@ BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 # APIGW 接口地址模板
 ESB_DISABLED = os.getenv("BKPAAS_ESB_ENABLED", "").strip().lower() == "false"
 BK_API_URL_TMPL = os.getenv("BKAPP_API_URL_TMPL", f"{PAAS_API_HOST}/api/{{api_name}}/")
-if ESB_DISABLED and "BKAPP_API_URL_TMPL" not in os.environ:
-    BK_API_URL_TMPL = (os.getenv("BK_API_URL_TMPL") or BK_API_URL_TMPL).rstrip("/")
+if ESB_DISABLED:
+    BK_API_URL_TMPL = (
+        os.getenv("BKAPP_API_URL_TMPL") or os.getenv("BK_API_URL_TMPL") or f"{PAAS_API_HOST}/api/{{api_name}}"
+    ).rstrip("/")
 BK_APIGW_JWT_PROVIDER_CLS = "apps.middleware.apigw.ApiGatewayJWTProvider"
 # APIGW 同步配置
 SYNC_APIGATEWAY_ENABLED = os.getenv("BKAPP_SYNC_APIGATEWAY_ENABLED", "on")
