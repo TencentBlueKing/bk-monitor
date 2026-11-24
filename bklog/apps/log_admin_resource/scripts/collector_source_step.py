@@ -57,6 +57,16 @@ def descend(name):
         os.close(fd)
 
 
+def read_link(name):
+    # Request the bytes from the kernel on both Python 2 and 3. Surrogate-escaped
+    # targets cannot be stored in the UTF-8 JSON evidence sent by the Worker.
+    target = os.readlink(name if isinstance(name, bytes) else name.encode("utf-8"))
+    try:
+        return target.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ValueError("non_utf8_link_target_hex=" + binascii.hexlify(target).decode("ascii"))
+
+
 def mount_for(path, policy):
     return max(["/"] + [key for key in policy["mounts"] if inside(path, key)], key=len)
 
@@ -223,6 +233,7 @@ def open_parent(path, policy, follow_leaf, links=None):
     # children. Never ask the collector kernel to follow a business-container symlink.
     if links is None:
         links = []
+    require_directory = False
     while len(links) <= 32:
         policy["resolving_path"] = path
         os.fchdir(policy["root_fd"])
@@ -259,7 +270,7 @@ def open_parent(path, policy, follow_leaf, links=None):
                 raise ValueError("target_volume_identity_unverified: " + logical)
             if last and not follow_leaf:
                 return name, logical, links
-            target = os.readlink(name) if stat.S_ISLNK(os.lstat(name).st_mode) else None
+            target = read_link(name) if stat.S_ISLNK(os.lstat(name).st_mode) else None
             components = policy.get("record_components")
             if components is not None:
                 if components.setdefault(logical, target) != target:
@@ -271,11 +282,16 @@ def open_parent(path, policy, follow_leaf, links=None):
                     raise ValueError("mount_unavailable_or_outside_scope: " + logical)
                 hop = {"path": logical, "target": target}
                 links.append(hop)
+                if last and target.endswith(("/", "/.")):
+                    require_directory = True
                 target_path = link_destination(parent, target, policy, links)
                 hop["resolved_path"] = target_path
                 path = os.path.join(target_path, *tail[index + 1 :])
                 break
             if last:
+                if require_directory:
+                    descend(name)
+                    return ".", logical, links
                 return name, logical, links
             descend(name)
             parent = logical
@@ -326,13 +342,14 @@ def reader_positions(pid, info):
 def target_source_path(policy, request):
     path = request["path"]
     via = request.get("via")
+    hops = []
     if via:
-        _, anchor, hops = open_parent(via, policy, True)
-        if not hops or not inside(path, anchor):
+        directory, anchor, hops = open_parent(via, policy, True)
+        descend(directory)
+        if not inside(path, anchor):
             raise ValueError("path_outside_source_anchor")
-        path = os.path.normpath(os.path.join(via, os.path.relpath(path, anchor)))
     name, resolved, links = open_parent(path, policy, request["operation"] != "readlink")
-    return name, path, resolved, links, collector_location(resolved, policy)
+    return name, path, resolved, hops + links, collector_location(resolved, policy)
 
 
 def logical_collector_file(path, anchor, policy):
@@ -460,7 +477,7 @@ def observe_path(policy, request):
     if not native_metadata:
         result.update(resolved_path=resolved, links=links)
     if operation == "readlink":
-        result["target"] = os.readlink(name)
+        result["target"] = read_link(name)
         result["follow_path"] = path
     elif operation == "list":
         if not native:
@@ -480,9 +497,18 @@ def observe_path(policy, request):
         truncated = len(raw) > 65536
         if rc and not truncated:
             raise ValueError("directory_listing_failed")
-        names = [line[2:].decode("utf-8", "replace") for line in raw[:65536].split(b"\0")[:-1]]
-        children = sorted(os.path.join(path, child) for child in names)
-        result.update(entries=children[:50], truncated=truncated or len(children) > 50)
+        names = sorted(line[2:] for line in raw[:65536].split(b"\0")[:-1])
+        children, non_utf8_names = [], []
+        for name in names[:50]:
+            try:
+                child = name.decode("utf-8")
+            except UnicodeDecodeError:
+                non_utf8_names.append(binascii.hexlify(name).decode("ascii"))
+            else:
+                children.append(os.path.join(path, child))
+        result.update(entries=children, truncated=truncated or len(names) > 50)
+        if non_utf8_names:
+            result["non_utf8_names_hex"] = non_utf8_names
     elif operation == "read":
         if not stat.S_ISREG(info.st_mode):
             raise ValueError("source_not_regular")

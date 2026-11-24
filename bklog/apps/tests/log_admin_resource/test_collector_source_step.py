@@ -53,14 +53,79 @@ class SourceStepTest(unittest.TestCase):
     def test_follow_directory_link_and_continue_using_discovered_target(self):
         link = self.run_step("readlink", "/logs")["observation"]
         self.assertEqual(link["target"], "/data/service")
-        listing = self.run_step("list", link["target"], via="/logs")["observation"]
-        self.assertEqual(listing["entries"], ["/logs/app.log"])
-        observation = self.run_step("stat", listing["entries"][0])
+        options = {"path_space": "target", "via": "/logs"}
+        listing = self.run_step("list", link["target"], **options)["observation"]
+        self.assertEqual(listing["entries"], ["/data/service/app.log"])
+        observation = self.run_step("stat", listing["entries"][0], **options)
         self.assertEqual(observation["activity"], "no_growth_observed")
         self.assertEqual(observation["second"]["inode"], self.file.stat().st_ino)
         self.assertEqual(observation["second"]["device"], self.file.stat().st_dev)
         self.assertTrue(observation["second"]["mtime"].endswith("Z"))
         self.assertTrue(observation["second"]["sampled_at"].endswith("Z"))
+        if sys.platform.startswith("linux"):
+            row = self.run_step("read", listing["entries"][0], **options)["observation"]
+            self.assertEqual(bytes.fromhex("".join(row["raw_hex_chunks"])), self.file.read_bytes())
+
+    def test_link_target_with_directory_suffix_agrees_with_kernel(self):
+        alias = self.directory / "alias"
+        (self.directory / "subdir").mkdir()
+        nested = self.directory / "nested"
+        nested.symlink_to("alias")
+        for suffix in ("/", "/.", "/./"):
+            alias.symlink_to("app.log" + suffix)
+            for link in (alias, nested):
+                with self.assertRaises(NotADirectoryError):
+                    link.stat()
+                for operation in ("stat", "list", "read"):
+                    with self.subTest(suffix=suffix, link=link.name, operation=operation):
+                        with self.assertRaises(NotADirectoryError):
+                            self.run_step(operation, "/logs/" + link.name)
+            self.assertEqual(self.run_step("readlink", "/logs/alias")["observation"]["target"], "app.log" + suffix)
+            alias.unlink()
+            alias.symlink_to("subdir" + suffix)
+            for link in (alias, nested):
+                row = self.run_step("stat", "/logs/" + link.name)["observation"]
+                self.assertEqual(row["inode"], link.stat().st_ino)
+            alias.unlink()
+
+    def test_list_distinguishes_undecodable_names_from_literal_replacement_character(self):
+        invalid = [b"job-\xfe.log", b"job-\xff.log"]
+        valid = "job-\ufffd.log"
+        names = [valid.encode(), *invalid]
+        with patch.object(probe.subprocess, "Popen") as popen:
+            proc = popen.return_value
+            proc.wait.return_value = 0
+            for path, space in (("/logs", "target"), (str(self.directory), "collector")):
+                proc.stdout = io.BytesIO(b"".join(b"./" + name + b"\0" for name in names))
+                row = self.run_step("list", path, path_space=space)["observation"]
+                self.assertEqual(row["entries"], [path + "/" + valid])
+                self.assertEqual(row["non_utf8_names_hex"], [name.hex() for name in invalid])
+                self.assertFalse(row["truncated"])
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "byte filenames on Linux")
+    def test_byte_filenames_in_a_mounted_log_directory(self):
+        raw_names = [b"job-\xfe.log", b"job-\xff.log"]
+        for name in raw_names:
+            with open(os.path.join(os.fsencode(self.directory), name), "wb") as stream:
+                stream.write(name)
+        valid = self.directory / "job-\ufffd.log"
+        valid.write_bytes(b"valid")
+        options = {"via": "/logs", "path_space": "target"}
+        directory = self.run_step("readlink", "/logs")["observation"]["target"]
+        listing = self.run_step("list", directory, **options)["observation"]
+        self.assertEqual(listing["non_utf8_names_hex"], [name.hex() for name in raw_names])
+        self.assertEqual(listing["entries"], [directory + "/app.log", directory + "/" + valid.name])
+        row = self.run_step("read", listing["entries"][-1], **options)["observation"]
+        self.assertEqual(row["inode"], valid.stat().st_ino)
+        self.assertEqual(bytes.fromhex("".join(row["raw_hex_chunks"])), b"valid")
+        alias = self.directory / "alias"
+        os.symlink(raw_names[0], os.fsencode(alias))
+        for path, space in ((str(alias), "collector"), ("/logs/alias", "target")):
+            with self.assertRaisesRegex(ValueError, "non_utf8_link_target_hex=" + raw_names[0].hex()):
+                self.run_step("readlink", path, path_space=space)
+        self.assertEqual(
+            self.run_step("stat", str(alias), path_space="collector")["second"]["inode"], alias.stat().st_ino
+        )
 
     def test_mount_with_symlinked_parent_matches_the_kernel_path(self):
         (self.root / "var").mkdir()
@@ -375,6 +440,8 @@ class SourceStepTest(unittest.TestCase):
         self.assertTrue(listing["truncated"])
         self.assertEqual(len(listing["entries"]), 50)
         self.assertEqual(self.run_step("stat", "/data/service/app.log")["activity"], "no_growth_observed")
+        direct = self.run_step("list", "/data/service", via="/data/service")["observation"]
+        self.assertEqual(direct["entries"], listing["entries"])
 
     def test_unmatched_file_and_link_to_sibling_directory(self):
         archive = self.volume / "archive"

@@ -1060,7 +1060,9 @@ FUNCTIONS = {
                     "type": "object",
                     "description": (
                         "List directories, inspect file activity or inspect links directly in the collector container. "
-                        "Use returned entry paths in subsequent calls. To follow a link, list or stat its path. "
+                        "Use returned entry paths in subsequent calls. For target listings with via, keep that via. "
+                        "Non-UTF-8 names are reported separately as non_utf8_names_hex and cannot be used as paths. "
+                        "To follow a link, list or stat its path. "
                         "Use target space for business-container paths. Management allowlisted apps can read original "
                         "bytes from target log directories. content_bytes is the exact byte array. content is a display "
                         "value (UTF-8 or base64) that clients may redact. inode is an exact decimal string."
