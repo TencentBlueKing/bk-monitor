@@ -476,10 +476,7 @@ class TailSamplingFlow(ApmFlow):
             "namespace": data_id_config.namespace,
             "name": data_id_config.name,
         }
-        kafka_ref = self._parse_resource_setting(
-            settings.APM_TRACE_TAIL_SAMPLING_V4_KAFKA_CHANNEL,
-            kind="KafkaChannel",
-        )
+        kafka_ref = self._parse_resource_setting(self._v4_resource_setting("kafka_channel"), kind="KafkaChannel")
         result_table_ref = {
             "kind": "ResultTable",
             "tenant": data_id_ref["tenant"],
@@ -558,11 +555,19 @@ class TailSamplingFlow(ApmFlow):
         return source, [result_table_config, channel_binding_config, databus_config]
 
     @staticmethod
+    def _v4_resource_setting(key: str) -> str:
+        """读取全局配置 APM_TRACE_TAIL_SAMPLING_V4_RESOURCES 中的单项，缺失时返回空串。"""
+        resources = settings.APM_TRACE_TAIL_SAMPLING_V4_RESOURCES or {}
+        return str(resources.get(key) or "").strip()
+
+    @staticmethod
     def _parse_resource_setting(value: str, kind: str) -> dict[str, str]:
         """解析全局配置中的 tenant/namespace/name BKBase 资源引用。"""
         parts = [part.strip() for part in value.split("/")]
         if len(parts) != 3 or not all(parts):
-            raise ValueError(f"{kind} 必须配置为 tenant/namespace/name，实际为 {value!r}")
+            raise ValueError(
+                f"APM_TRACE_TAIL_SAMPLING_V4_RESOURCES 中 {kind} 必须配置为 tenant/namespace/name，实际为 {value!r}"
+            )
         return {"kind": kind, "tenant": parts[0], "namespace": parts[1], "name": parts[2]}
 
     @staticmethod
@@ -702,7 +707,8 @@ class TailSamplingFlow(ApmFlow):
 
     def compose_v4_flow_config(self, source: dict, storage: dict) -> dict:
         """组装尾部采样 V4 Flow 的声明配置。"""
-        stream_cluster = settings.APM_TRACE_TAIL_SAMPLING_V4_STREAM_CLUSTER
+        # 为空时传 None，由 BKBase 选择默认计算集群。
+        stream_cluster = self._v4_resource_setting("stream_cluster") or None
         input_table_id = source["result_table_id"]
         output_table_id = f"{input_table_id}_output"
         source_node_name = f"stream_source_{self.data_id}_tail_v4"

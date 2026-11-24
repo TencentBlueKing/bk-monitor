@@ -238,25 +238,24 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.BooleanField(label="APM应用操作BkdataFlow的尾部采样 Flow 时是否需要创建临时中转节点", default=False),
         ),
         ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label="APM尾部采样项目id", default=0)),
+        # 以下两项用 getattr 取默认值：精简 settings（如离线单测）下导入本模块时不因缺少配置而失败。
         (
             "ENABLE_APM_TRACE_TAIL_SAMPLING_V4",
             slz.BooleanField(
-                label="APM Trace 尾部采样使用 BKBase V4 链路", default=settings.ENABLE_APM_TRACE_TAIL_SAMPLING_V4
+                label="APM Trace 尾部采样使用 BKBase V4 链路",
+                default=getattr(settings, "ENABLE_APM_TRACE_TAIL_SAMPLING_V4", False),
             ),
         ),
         (
-            "APM_TRACE_TAIL_SAMPLING_V4_KAFKA_CHANNEL",
-            slz.CharField(
-                label="APM Trace V4 尾部采样前置 KafkaChannel",
-                default=settings.APM_TRACE_TAIL_SAMPLING_V4_KAFKA_CHANNEL,
-            ),
-        ),
-        (
-            "APM_TRACE_TAIL_SAMPLING_V4_STREAM_CLUSTER",
-            slz.CharField(
-                label="APM Trace V4 尾部采样 Flink 计算集群",
-                default=settings.APM_TRACE_TAIL_SAMPLING_V4_STREAM_CLUSTER or "",
-                allow_blank=True,
+            "APM_TRACE_TAIL_SAMPLING_V4_RESOURCES",
+            slz.DictField(
+                label="APM Trace V4 尾部采样 BKBase 资源"
+                "（kafka_channel：前置 KafkaChannel，tenant/namespace/name；stream_cluster：Flink 计算集群）",
+                default=getattr(
+                    settings,
+                    "APM_TRACE_TAIL_SAMPLING_V4_RESOURCES",
+                    {"kafka_channel": "default/bkbase/bkbase-public-inner", "stream_cluster": ""},
+                ),
             ),
         ),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label="APM虚拟指标项目id", default=0)),

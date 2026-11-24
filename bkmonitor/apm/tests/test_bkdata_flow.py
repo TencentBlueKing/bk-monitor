@@ -91,16 +91,23 @@ def test_tail_sampling_v3_flink_code_keeps_output_fields():
 
 def test_tail_sampling_v4_settings_are_global_configs():
     assert isinstance(ADVANCED_OPTIONS["ENABLE_APM_TRACE_TAIL_SAMPLING_V4"].default, bool)
-    assert isinstance(ADVANCED_OPTIONS["APM_TRACE_TAIL_SAMPLING_V4_KAFKA_CHANNEL"].default, str)
-    assert isinstance(ADVANCED_OPTIONS["APM_TRACE_TAIL_SAMPLING_V4_STREAM_CLUSTER"].default, str)
+    # Kafka 与计算集群合并为一个字典配置，便于一起维护
+    assert ADVANCED_OPTIONS["APM_TRACE_TAIL_SAMPLING_V4_RESOURCES"].default == {
+        "kafka_channel": "default/bkbase/bkbase-public-inner",
+        "stream_cluster": "",
+    }
+    assert "APM_TRACE_TAIL_SAMPLING_V4_KAFKA_CHANNEL" not in ADVANCED_OPTIONS
+    assert "APM_TRACE_TAIL_SAMPLING_V4_STREAM_CLUSTER" not in ADVANCED_OPTIONS
 
 
 def _build_tail_sampling_v4_flow(settings, mocker, *, flow_id="333"):
     settings.ENABLE_APM_TRACE_TAIL_SAMPLING_V4 = True
     settings.ENABLE_MULTI_TENANT_MODE = False
     settings.APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID = 2001
-    settings.APM_TRACE_TAIL_SAMPLING_V4_KAFKA_CHANNEL = "default/demo/kafka-demo"
-    settings.APM_TRACE_TAIL_SAMPLING_V4_STREAM_CLUSTER = "StreamCluster/demo/stream-demo"
+    settings.APM_TRACE_TAIL_SAMPLING_V4_RESOURCES = {
+        "kafka_channel": "default/demo/kafka-demo",
+        "stream_cluster": "StreamCluster/demo/stream-demo",
+    }
     mocker.patch("builtins.open", mock_open(read_data="flink code"))
 
     flow = object.__new__(TailSamplingFlow)
@@ -180,11 +187,32 @@ def test_tail_sampling_v4_flow_matches_verified_contract(settings, mocker):
     assert config["spec"]["maintainers"] == ["demo_user"]
     assert config["spec"]["alias"] == "bkapm_tail_sampling_10001_tail_v4"
 
-    settings.APM_TRACE_TAIL_SAMPLING_V4_STREAM_CLUSTER = "StreamCluster/demo/stream-other"
+    settings.APM_TRACE_TAIL_SAMPLING_V4_RESOURCES = {
+        **settings.APM_TRACE_TAIL_SAMPLING_V4_RESOURCES,
+        "stream_cluster": "StreamCluster/demo/stream-other",
+    }
     updated_config = flow.compose_v4_flow_config(source=source, storage=storage)
     assert updated_config["spec"]["operation_config"]["stream_sql_deploy_config"]["cluster"] == (
         "StreamCluster/demo/stream-other"
     )
+
+    # 计算集群留空时传 None，由 BKBase 选择默认集群
+    settings.APM_TRACE_TAIL_SAMPLING_V4_RESOURCES = {"kafka_channel": "default/demo/kafka-demo", "stream_cluster": ""}
+    default_cluster_config = flow.compose_v4_flow_config(source=source, storage=storage)
+    assert default_cluster_config["spec"]["operation_config"]["stream_sql_deploy_config"]["cluster"] is None
+
+
+@pytest.mark.parametrize("resources", [{}, {"kafka_channel": ""}, {"kafka_channel": "default/demo"}, None])
+def test_tail_sampling_v4_kafka_channel_setting_must_be_complete(settings, mocker, resources):
+    flow = _build_tail_sampling_v4_flow(settings, mocker, flow_id=None)
+    settings.APM_TRACE_TAIL_SAMPLING_V4_RESOURCES = resources
+    data_id_configs = mocker.patch("apm.core.handlers.bk_data.tail_sampling.DataIdConfig.objects.filter")
+    data_id_configs.return_value.exclude.return_value.order_by.return_value.first.return_value = SimpleNamespace(
+        namespace="bklog", name="bkm_2_bkapm_trace_demo"
+    )
+
+    with pytest.raises(ValueError, match="APM_TRACE_TAIL_SAMPLING_V4_RESOURCES 中 KafkaChannel"):
+        flow._compose_v4_tail_source(SimpleNamespace(bk_data_id=10001))
 
 
 def test_tail_sampling_native_source_matches_verified_contract(settings, mocker):

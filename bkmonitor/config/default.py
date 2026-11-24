@@ -1702,11 +1702,13 @@ ENABLE_UPTIMECHECK_BKDATA = os.getenv("ENABLE_UPTIMECHECK_BKDATA", "true").lower
 ENABLE_NEW_APM_APP_BKDATA_TRACING = os.getenv("ENABLE_NEW_APM_APP_BKDATA_TRACING", "false").lower() == "true"
 # APM Trace 尾部采样是否使用 BKBase V4 资源接入，默认关闭以保持现有 V3 行为。
 ENABLE_APM_TRACE_TAIL_SAMPLING_V4 = os.getenv("ENABLE_APM_TRACE_TAIL_SAMPLING_V4", "false").lower() == "true"
-# APM Trace V4 尾部采样前置 RT 绑定的 inner KafkaChannel，格式为 tenant/namespace/name。
-APM_TRACE_TAIL_SAMPLING_V4_KAFKA_CHANNEL = os.getenv(
-    "APM_TRACE_TAIL_SAMPLING_V4_KAFKA_CHANNEL", "default/bkbase/bkbase-public-inner"
-)
-APM_TRACE_TAIL_SAMPLING_V4_STREAM_CLUSTER = os.getenv("APM_TRACE_TAIL_SAMPLING_V4_STREAM_CLUSTER")
+# APM Trace V4 尾部采样依赖的 BKBase 资源，集中在一个全局配置里维护：
+# - kafka_channel：前置 RT 绑定的 inner KafkaChannel，格式为 tenant/namespace/name；
+# - stream_cluster：Flink 计算集群（如 StreamCluster/bkmonitor/stream-bkmonitor-cluster），为空时由 BKBase 选择默认集群。
+APM_TRACE_TAIL_SAMPLING_V4_RESOURCES = {
+    "kafka_channel": "default/bkbase/bkbase-public-inner",
+    "stream_cluster": "",
+}
 # 是否启用influxdb，默认关闭
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
