@@ -52,12 +52,31 @@ def run_fixed_collector_probe(
 
     hints = tuple(child_config_hints)
     script = fixed_probe_script().decode("utf-8")
+    stdout, stderr, return_code = run_collector_script(
+        client, candidate, fixed_probe_command(bk_data_id, include_source_sample, hints), script
+    )
+    parsed = parse_and_validate_probe_output(stdout)
+    parsed["stderr"] = stderr
+    parsed["return_code"] = return_code
+    parsed["metadata"] = fixed_probe_metadata(
+        candidate,
+        bk_data_id=bk_data_id,
+        include_source_sample=include_source_sample,
+        child_config_hints=hints,
+    )
+    return parsed
+
+
+def run_collector_script(
+    client: K8sInspectionClient, candidate: CollectorCandidate, command: list[str], script: str
+) -> tuple[str, str, int | None]:
+    """Run a repository-owned script with bounded time/output in the validated collector."""
     response = stream(
         client.bcs.api_instance_core_v1.connect_get_namespaced_pod_exec,
         name=candidate.pod_name,
         namespace=candidate.namespace,
         container=COLLECTOR_CONTAINER_NAME,
-        command=fixed_probe_command(bk_data_id, include_source_sample, hints),
+        command=command,
         stderr=True,
         stdin=True,
         stdout=True,
@@ -106,13 +125,4 @@ def run_fixed_collector_probe(
         )
     if return_code not in {None, 0}:
         raise FixedProbeError("probe_failed", f"fixed collector probe exited with status {return_code}")
-    parsed = parse_and_validate_probe_output("".join(stdout_parts))
-    parsed["stderr"] = stderr
-    parsed["return_code"] = return_code
-    parsed["metadata"] = fixed_probe_metadata(
-        candidate,
-        bk_data_id=bk_data_id,
-        include_source_sample=include_source_sample,
-        child_config_hints=hints,
-    )
-    return parsed
+    return "".join(stdout_parts), stderr, return_code
