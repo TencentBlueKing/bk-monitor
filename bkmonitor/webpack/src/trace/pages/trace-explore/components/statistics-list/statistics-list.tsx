@@ -24,9 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, nextTick, watch } from 'vue';
+import { type PropType, defineComponent, nextTick, watch } from 'vue';
 
-import { Tab } from 'bkui-vue';
 import {
   traceDownloadTopK,
   traceFieldStatisticsGraph,
@@ -57,8 +56,8 @@ const DEFAULT_STATISTICS_API: IStatisticsApi = {
 /**
  * 维度字段统计分析弹层 + TopK 全量侧栏。
  *
- * 字段名/单位/类型/枚举值/展示模式统一从 field prop（数组时为当前激活字段）取值；
- * 数据流收敛在 useStatisticsData，展示差异收敛在各子组件。
+ * 上层分发组件：通过 isDuration / isInteger 归一化为 mode（duration/integer/text），
+ * 字段名/单位/类型/枚举值统一从 field prop 取值；数据流收敛在 useStatisticsData，展示差异收敛在各子组件。
  */
 export default defineComponent({
   name: 'StatisticsList',
@@ -67,9 +66,9 @@ export default defineComponent({
       type: Object as PropType<ICommonParams>,
       default: () => ({}),
     },
-    /** 统计分析的字段对象；传数组时展示字段 Tab，字段名/单位/类型/枚举值等均从当前激活字段取值 */
+    /** 统计分析的字段对象，字段名/单位/类型/枚举值等均从这里取值 */
     field: {
-      type: [Object, Array] as PropType<IStatisticsFieldItem | IStatisticsFieldItem[] | null>,
+      type: Object as PropType<IStatisticsFieldItem | null>,
       default: null,
     },
     isShow: {
@@ -86,6 +85,14 @@ export default defineComponent({
       type: Array as PropType<TimeRangeType>,
       default: null,
     },
+    isDuration: {
+      type: Boolean,
+      default: false,
+    },
+    isInteger: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     conditionChange: (_condition: ConditionChangeEvent) => true,
@@ -99,9 +106,6 @@ export default defineComponent({
 
     const {
       mode,
-      fieldList,
-      activeField,
-      activeFieldIndex,
       localField,
       rangeText,
       infoLoading,
@@ -118,14 +122,10 @@ export default defineComponent({
       loadMore,
       handleSliderShowChange,
       handleDownload,
-      handleTabChange,
     } = useStatisticsData(props, {
       onShowMore: () => emit('showMore'),
       onSliderShowChange: show => emit('sliderShowChange', show),
     });
-
-    /** field 为数组时展示字段 Tab */
-    const hasFieldTab = computed(() => Array.isArray(props.field));
 
     function handleConditionChange(condition: ConditionChangeEvent) {
       emit('conditionChange', condition);
@@ -140,10 +140,6 @@ export default defineComponent({
     return {
       t,
       mode,
-      hasFieldTab,
-      fieldList,
-      activeField,
-      activeFieldIndex,
       localField,
       rangeText,
       infoLoading,
@@ -161,7 +157,6 @@ export default defineComponent({
       handleSliderShowChange,
       handleDownload,
       handleConditionChange,
-      handleTabChange,
     };
   },
 
@@ -174,24 +169,6 @@ export default defineComponent({
         >
           {this.isShow && (
             <div class='trace-explore-dimension-statistics-popover-content'>
-              {this.hasFieldTab && (
-                <Tab
-                  class='statistics-field-tab'
-                  active={this.activeFieldIndex}
-                  labelHeight={42}
-                  tabPosition='top'
-                  type='unborder-card'
-                  onChange={this.handleTabChange}
-                >
-                  {this.fieldList.map((item, index) => (
-                    <Tab.TabPanel
-                      key={item.name}
-                      label={item.levelAlias || item.name}
-                      name={index}
-                    />
-                  ))}
-                </Tab>
-              )}
               <StatisticsInfo
                 chartData={this.chartData}
                 loading={this.infoLoading}
@@ -201,7 +178,7 @@ export default defineComponent({
               />
               <div class='top-k-list-header'>
                 <TopKListHeader
-                  displayName={this.hasFieldTab ? '' : this.activeField?.levelAlias || this.activeField?.name || ''}
+                  displayName={this.field?.levelAlias || this.field?.name || ''}
                   distinctCount={this.statisticsList?.distinct_count}
                   downloadLoading={this.downloadLoading}
                   onDownload={this.handleDownload}

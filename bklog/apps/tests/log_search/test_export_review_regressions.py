@@ -7,6 +7,7 @@ import tempfile
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import enterModuleContext
 from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -31,6 +32,11 @@ from apps.log_search.views.export_views import ExportJobViewSet
 from apps.tests.log_search.test_export_notification import make_job
 from apps.tests.log_search.test_sharded_export import FakeHandler, build_policy, create_job
 from apps.utils.notify import EmailNotify
+
+
+def setUpModule():
+    enterModuleContext(patch("apps.log_search.export.scheduler.app.send_task"))
+    enterModuleContext(patch("django_redis.cache.RedisCache.lock"))
 
 
 class ScrollIsolationTests(TestCase):

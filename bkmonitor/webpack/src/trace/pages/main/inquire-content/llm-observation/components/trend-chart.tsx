@@ -24,10 +24,12 @@ import { findSpanRowView } from '../utils/duration-stats';
 import {
   BUCKET_GAP,
   buildTrendBuckets,
+  DEFAULT_TREND_AGGREGATE,
   filterSpansByTimeRange,
   MIN_BUCKET_WIDTH,
   pickBucketSpans,
   pickTrendSpans,
+  pickTrendSpansByFilter,
   resolveBucketCount,
   resolveBucketTimeRange,
   stripSpanChilds,
@@ -36,8 +38,8 @@ import { formatCompactToken } from '../utils/transform';
 import DurationStatsPanel from './duration-stats-panel';
 import TokenStatsPanel from './token-stats-panel';
 
-import type { LlmFlowSpan, LlmSpanRowView } from '../utils/typings';
-import type { LlmTrendSeriesKey, LlmTrendTimeRange, LlmTrendVisible } from '../utils/trend-buckets';
+import type { LlmExecutionFilter, LlmFlowSpan, LlmSpanRowView } from '../utils/typings';
+import type { LlmTrendAggregate, LlmTrendSeriesKey, LlmTrendTimeRange, LlmTrendVisible } from '../utils/trend-buckets';
 
 import './trend-chart.scss';
 
@@ -60,8 +62,14 @@ const AXIS_LABEL_HEIGHT = 20;
 const PLOT_GAP = 4;
 /** 图表高度：顶部留白 + 上下各 40px 绘图区 + 4px 间隔 + 20px 时间轴 */
 const CHART_HEIGHT = GRID_TOP_PADDING + PLOT_HEIGHT * 2 + PLOT_GAP + AXIS_LABEL_HEIGHT;
-/** Y 轴标签预留宽度，与设计稿 Y-耗时 / Y-Token 的 44px 对齐 */
+/** Y 轴标签预留最小宽度，与设计稿 Y-耗时 / Y-Token 的 44px 对齐 */
 const AXIS_WIDTH = 44;
+/** Y 轴标签文案字体，与 axisLabel 保持一致，用于测量文案宽度 */
+const AXIS_LABEL_FONT = '12px Arial, sans-serif';
+/** Y 轴标签文案与绘图区的间距（ECharts axisLabel 默认 margin） */
+const AXIS_LABEL_MARGIN = 8;
+/** Y 轴标签区额外留白，避免长文案贴边被裁切 */
+const AXIS_LABEL_PADDING = 4;
 /** 耗时柱颜色 */
 const DURATION_COLOR = '#3A84FF';
 /** 耗时柱 hover 颜色 */
@@ -74,23 +82,110 @@ const TOKEN_EMPHASIS_COLOR = '#3FA696';
 const GRID_LINE_COLOR = '#F0F1F5';
 /** 坐标轴文案颜色 */
 const AXIS_LABEL_COLOR = '#8F9FBD';
+/** 单根柱子的最大宽度（像素）：数据点较少时不再随容器拉伸，固定上限避免柱子过宽 */
+const MAX_BUCKET_WIDTH = 64;
+/**
+ * Y 轴基线相对数据极差的留白比例：轴底 = 有效最小值 - (最大值 - 有效最小值) * 该系数。
+ * 基线跟随极差而非数值大小，例如各桶都集中在 340K~360K 时也能拉开明显柱高差异
+ * （最小柱约占绘图区 1/(1+系数) 高度）；差距本就很大时基线自然回落，不会过度失真。
+ */
+const AXIS_BASELINE_PADDING = 0.1;
+/**
+ * 依据序列数值抬高 Y 轴基线。忽略 0 值（空桶 / 无 Token 的 Span），
+ * 否则存在空桶时最小值恒为 0，基线被拖回原点、放大失效。
+ * 全为 0 或无数据时返回 0，退回原始基线。
+ */
+const resolveAxisMin = (values: number[]) => {
+  const positives = values.filter(value => value > 0);
+  if (!positives.length) return 0;
+  const min = Math.min(...positives);
+  const max = Math.max(...positives);
+  // 数值完全相等时极差为 0，抬高基线会产生退化零值域，退回原始基线
+  if (max === min) return 0;
+  return Math.max(0, min - (max - min) * AXIS_BASELINE_PADDING);
+};
+
+/** 耗时 Y 轴刻度分段数 */
+const DURATION_SPLIT_NUMBER = 4;
+/** 总 Token Y 轴刻度分段数 */
+const TOKEN_SPLIT_NUMBER = 2;
+
+/** 离屏 canvas 上下文，按 axisLabel 字体测量文案宽度；非浏览器环境为 null */
+let measureContext: CanvasRenderingContext2D | null | undefined;
+
+/** 测量一组文案在图上的最大渲染宽度（像素），无法测量时返回 0 */
+const measureAxisLabelWidth = (texts: string[]): number => {
+  if (!texts.length) return 0;
+  if (measureContext === undefined) {
+    measureContext = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+  }
+  const context = measureContext;
+  if (!context) return 0;
+  context.font = AXIS_LABEL_FONT;
+  return texts.reduce((max, text) => Math.max(max, context.measureText(text).width), 0);
+};
+
+/** 将数值向上取整到 1 / 2 / 5 × 10^n 的友好刻度上界，覆盖 ECharts 对 dataMax 做 nice 后的最大值 */
+const resolveNiceCeil = (value: number): number => {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / magnitude;
+  const factor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return factor * magnitude;
+};
+
+/**
+ * 生成某侧 Y 轴可能出现的刻度文案，用于测量最长文案宽度。
+ * ECharts 会把 dataMax 向上取整到友好刻度作为轴顶，这里按相同口径采样刻度值。
+ */
+const sampleAxisLabelTexts = (
+  min: number,
+  max: number,
+  splitNumber: number,
+  format: (value: number) => string
+): string[] => {
+  const top = Math.max(resolveNiceCeil(max), min);
+  const step = splitNumber > 0 ? (top - min) / splitNumber : 0;
+  const texts: string[] = [];
+  for (let index = 0; index <= splitNumber; index += 1) {
+    texts.push(format(min + step * index));
+  }
+  return texts;
+};
+
+/** 依据两侧 Y 轴最长刻度文案动态计算标签区宽度，至少保留设计稿的 AXIS_WIDTH */
+const resolveAxisWidth = (durations: number[], tokens: number[]): number => {
+  const durationMin = resolveAxisMin(durations);
+  const tokenMin = resolveAxisMin(tokens);
+  const durationWidth = measureAxisLabelWidth(
+    sampleAxisLabelTexts(durationMin, Math.max(...durations, 0), DURATION_SPLIT_NUMBER, value =>
+      formatDuration(value || 0, '', 0)
+    )
+  );
+  const tokenWidth = measureAxisLabelWidth(
+    sampleAxisLabelTexts(tokenMin, Math.max(...tokens, 0), TOKEN_SPLIT_NUMBER, value => formatCompactToken(value || 0))
+  );
+  const measured = Math.max(durationWidth, tokenWidth);
+  return Math.max(AXIS_WIDTH, Math.ceil(measured) + AXIS_LABEL_MARGIN + AXIS_LABEL_PADDING);
+};
 
 type VueEchartsInstance = InstanceType<typeof VueEcharts>;
 
 /**
- * 单条 Trace 的「耗时、总 Token 趋势图」。
+ * 「耗时、总 Token 趋势图」。
+ * flow 为已点开 Trace 累加合并后的完整 Span 树，懒加载到达后逐渐并入，共用一条时间轴。
  * 排除 Agent Span（容器节点，耗时 / Token 由其子 Span 承担），按时间等分桶聚合，
  * 上半区耗时向上、下半区总 Token 向下，共享底部时间轴；图例「只看」由外部 legend 控制，框选后支持复位。
  */
 export default defineComponent({
   name: 'LlmTrendChart',
   props: {
-    /** 当前展开 Trace 的完整 Span 树 */
+    /** 已点开 Trace 累加合并后的完整 Span 树 */
     flow: {
       type: Array as PropType<LlmFlowSpan[]>,
       default: () => [],
     },
-    /** flow 懒加载中，此时不渲染空态避免闪烁 */
+    /** 合并的 Trace 中仍有 flow 懒加载中，此时不渲染空态避免闪烁 */
     flowLoading: {
       type: Boolean,
       default: false,
@@ -100,10 +195,20 @@ export default defineComponent({
       type: Object as PropType<LlmTrendVisible>,
       default: () => ({ duration: true, token: true }),
     },
+    /** 类型筛选，与工具栏 Tab 联动；仅作用于趋势图聚合，关键字不影响 */
+    filter: {
+      type: String as PropType<LlmExecutionFilter>,
+      default: 'all',
+    },
     /** 框选或复位后的时间范围（微秒），由外层持有并回传；null 表示未框选 */
     range: {
       type: Array as unknown as PropType<LlmTrendTimeRange | null>,
       default: null,
+    },
+    /** 桶内多 Span 的聚合方式：默认取最大值，可切换为 span 总和 */
+    aggregate: {
+      type: String as PropType<LlmTrendAggregate>,
+      default: DEFAULT_TREND_AGGREGATE,
     },
   },
   emits: {
@@ -145,11 +250,15 @@ export default defineComponent({
     const isPointerDown = shallowRef(false);
     /** 存在框选范围时展示复位按钮，与 Span 列表共用外层状态 */
     const showRestore = computed(() => Boolean(props.range));
-    const spans = computed(() => pickTrendSpans(props.flow));
+    const spans = computed(() => pickTrendSpansByFilter(pickTrendSpans(props.flow), props.filter));
     /** 框选后只保留范围内 Span，使趋势图随划选收敛到所选时间段 */
     const visibleSpans = computed(() => filterSpansByTimeRange(spans.value, props.range));
     const buckets = computed(() =>
-      buildTrendBuckets(visibleSpans.value, resolveBucketCount(plotWidth.value, visibleSpans.value.length))
+      buildTrendBuckets(
+        visibleSpans.value,
+        resolveBucketCount(plotWidth.value, visibleSpans.value.length),
+        props.aggregate
+      )
     );
     const hasData = computed(() => buckets.value.length > 0);
     const panelShow = computed(() => activeBucketIndex.value >= 0 && activeSeries.value !== null);
@@ -162,12 +271,15 @@ export default defineComponent({
       if (!panelShow.value || !list[index]) return [];
       return stripSpanChilds(pickBucketSpans(visibleSpans.value, list[index], index === list.length - 1));
     });
-
     const options = computed(() => {
       const list = buckets.value;
       const times = list.map(item => dayjs(item.time / 1000).format('HH:mm:ss'));
       const durations = props.visible.duration ? list.map(item => item.duration) : [];
       const tokens = props.visible.token ? list.map(item => item.tokens) : [];
+      const durationAxisMin = resolveAxisMin(durations);
+      const tokenAxisMin = resolveAxisMin(tokens);
+      /** Y 轴标签区宽度：按两侧可见序列的最长刻度文案动态计算，避免长文案被裁切 */
+      const axisWidth = resolveAxisWidth(durations, tokens);
 
       const axisLabel = {
         color: AXIS_LABEL_COLOR,
@@ -179,9 +291,9 @@ export default defineComponent({
       return {
         animation: false,
         grid: [
-          { left: AXIS_WIDTH, right: 0, top: GRID_TOP_PADDING, height: PLOT_HEIGHT, containLabel: false },
+          { left: axisWidth, right: 0, top: GRID_TOP_PADDING, height: PLOT_HEIGHT, containLabel: false },
           {
-            left: AXIS_WIDTH,
+            left: axisWidth,
             right: 0,
             top: GRID_TOP_PADDING + PLOT_HEIGHT + PLOT_GAP,
             height: PLOT_HEIGHT,
@@ -215,7 +327,7 @@ export default defineComponent({
           {
             type: 'value',
             gridIndex: 0,
-            min: 0,
+            min: durationAxisMin,
             max: 'dataMax',
             splitNumber: 4,
             axisLine: { show: false },
@@ -227,7 +339,7 @@ export default defineComponent({
             type: 'value',
             gridIndex: 1,
             inverse: true,
-            min: 0,
+            min: tokenAxisMin,
             max: 'dataMax',
             splitNumber: 2,
             axisLine: { show: false },
@@ -262,6 +374,7 @@ export default defineComponent({
             data: durations,
             barCategoryGap: `${BUCKET_GAP}px`,
             barMinWidth: MIN_BUCKET_WIDTH,
+            barMaxWidth: MAX_BUCKET_WIDTH,
             itemStyle: { color: DURATION_COLOR },
             emphasis: { itemStyle: { color: DURATION_EMPHASIS_COLOR } },
           },
@@ -273,6 +386,7 @@ export default defineComponent({
             data: tokens,
             barCategoryGap: `${BUCKET_GAP}px`,
             barMinWidth: MIN_BUCKET_WIDTH,
+            barMaxWidth: MAX_BUCKET_WIDTH,
             itemStyle: { color: TOKEN_COLOR },
             emphasis: { itemStyle: { color: TOKEN_EMPHASIS_COLOR } },
           },
@@ -547,6 +661,7 @@ export default defineComponent({
                         flow={this.bucketFlow}
                         maxHeight={this.panelMaxHeight}
                         flowLoaded
+                        hideEmptyTab
                         onLocate={this.handleStatsLocate}
                         onView-detail={this.handleStatsViewDetail}
                       />
@@ -555,6 +670,7 @@ export default defineComponent({
                         flow={this.bucketFlow}
                         maxHeight={this.panelMaxHeight}
                         flowLoaded
+                        hideEmptyTab
                         onLocate={this.handleStatsLocate}
                         onView-detail={this.handleStatsViewDetail}
                       />

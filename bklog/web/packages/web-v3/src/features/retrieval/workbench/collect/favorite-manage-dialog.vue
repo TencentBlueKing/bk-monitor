@@ -27,6 +27,7 @@
 <template>
   <TDialog
     :visible="modelValue"
+    :z-index="manageDialogZIndex"
     width="100%"
     :top="0"
     attach="body"
@@ -71,6 +72,7 @@
         <div class="search-input-container">
           <TPopup
             :visible="addGroupVisible"
+            :z-index="addGroupZIndex"
             trigger="click"
             overlay-class-name="new-add-group-popover"
             placement="bottom-left"
@@ -249,7 +251,7 @@ import type { FavoriteRecord, FavoriteGroup, FavoriteGroupId, FavoriteResponse }
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, ref, nextTick, watch, h, onBeforeUnmount } from 'vue';
-import { useDialogVisible } from '@/shared/global/overlay/index';
+import { useDialogVisible, useOverlayZIndex } from '@/shared/global/overlay/index';
 
 
 import useLocale from '@/shared/composables/use-locale';
@@ -267,6 +269,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close']);
+const manageDialogZIndex = useOverlayZIndex(() => props.modelValue);
 const store = useApplicationStore();
 const { $t } = useLocale();
 const spaceUid = computed(() => store.spaceUid);
@@ -323,6 +326,7 @@ const searchResultFavorites = ref<FavoriteRecord[]>([]);
 const favoriteType = ref('event');
 
 const addGroupVisible = ref(false);
+const addGroupZIndex = useOverlayZIndex(addGroupVisible, 'DROPDOWN');
 const editingGroupId = ref<number | null>(null);
 const columnFilters = ref<FilterValue>({});
 const tableSort = ref<TableSort>();

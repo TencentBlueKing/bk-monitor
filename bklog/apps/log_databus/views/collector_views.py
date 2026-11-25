@@ -63,6 +63,7 @@ from apps.log_databus.serializers import (
     CollectorEtlStorageSerializer,
     CollectorEtlTimeSerializer,
     CollectorListSerializer,
+    CollectorNamespaceSerializer,
     CollectorRegexDebugSerializer,
     CollectorUpdateSerializer,
     ContainerCollectorConfigToYamlSerializer,
@@ -116,8 +117,8 @@ class CollectorViewSet(ModelViewSet):
     ordering_fields = ("updated_at", "updated_by", "collector_config_id")
 
     def get_permissions(self):
-        # 清洗配置写接口不接受 ESQUERY 白名单豁免
-        if self.action == "update_or_create_clean_config":
+        # 清洗配置和命名空间授权需要采集项管理权限。
+        if self.action in ("update_or_create_clean_config", "authorized_namespaces"):
             return [InstanceActionPermission([ActionEnum.MANAGE_COLLECTION], ResourceEnum.COLLECTION)]
 
         with ignored(Exception, log_exception=True):
@@ -1201,6 +1202,15 @@ class CollectorViewSet(ModelViewSet):
         data = self.validated_data
         result = HostCollectorHandler(collector_config_id).run(action=data.get("action"), scope=data.get("scope"))
         return Response(result)
+
+    @detail_route(methods=["GET", "POST"], url_path="authorized_namespaces")
+    def authorized_namespaces(self, request, collector_config_id=None):
+        handler = CollectorHandler(collector_config_id)
+        if request.method == "POST":
+            params = self.params_valid(CollectorNamespaceSerializer)
+            return Response(handler.authorize_namespace(params["name"]))
+
+        return Response(handler.list_authorized_namespaces())
 
     @detail_route(methods=["POST"], url_path="start")
     def start(self, request, collector_config_id=None):

@@ -78,6 +78,10 @@ THIRD_PARTY_CHECK_API = {
     },
 }
 
+if settings.ESB_DISABLED:
+    THIRD_PARTY_CHECK_API.pop("itsm")
+    THIRD_PARTY_CHECK_API["bk_user"] = {"method": BKLoginApi.list_users, "kwargs": {"page_size": 1}}
+
 
 try:
     if settings.PAASV3_API_HOST:

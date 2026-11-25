@@ -16,7 +16,7 @@ from django.utils.translation import gettext as _
 
 from bkmonitor.iam import ActionEnum
 from bkmonitor.models import Action, ActionNoticeMapping, StrategyModel
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.views import serializers
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
@@ -78,6 +78,8 @@ class GetReceiverResource(Resource):
         if all_members:
             step_size = 50
             all_members_list = sorted(all_members)
+            # 工作线程没有当前请求，网关查询需显式带上调用方的租户。
+            tenant_params = {"bk_tenant_id": get_request_tenant_id()} if settings.ESB_DISABLED else {}
             with ThreadPoolExecutor(max_workers=10) as executor:
                 for num in range(0, len(all_members_list), step_size):
                     futures.append(
@@ -86,6 +88,7 @@ class GetReceiverResource(Resource):
                             page_size=500,
                             fields="username,display_name",
                             exact_lookups=",".join(all_members_list[num : num + step_size]),
+                            **tenant_params,
                         )
                     )
             for future in as_completed(futures):

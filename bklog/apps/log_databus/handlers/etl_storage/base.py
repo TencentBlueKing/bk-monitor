@@ -1329,7 +1329,14 @@ class EtlStorage:
         }
         if labels is not None:
             params["labels"] = labels
-        index_settings = index_settings or {}
+        index_settings = copy.deepcopy(index_settings or {})
+        if (
+            storage_cluster_type == STORAGE_CLUSTER_TYPE
+            and es_version.split(".", 1)[0] in {"8", "9"}
+            and "codec" not in index_settings
+            and "codec" not in index_settings.get("index", {})
+        ):
+            index_settings.setdefault("index.codec", "best_compression")
         if total_shards_per_node is not None and total_shards_per_node > 0:
             index_settings.update({"index.routing.allocation.total_shards_per_node": total_shards_per_node})
         params["default_storage_config"]["index_settings"].update(index_settings)

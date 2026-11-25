@@ -16,7 +16,7 @@ import JsonCodeBlock from './json-code-block';
 import TimelineMessageRow from './timeline-message-row';
 import ToolDescBar from './tool-desc-bar';
 
-import type { LlmSearchHit } from '../utils/search';
+import type { LlmSearchHit, LlmSearchSectionId } from '../utils/search';
 import type { LlmTimelineFilter, LlmTimelineMessage, LlmToolDefinition } from '../utils/typings';
 
 import './model-timeline.scss';
@@ -45,6 +45,11 @@ export default defineComponent({
       type: Object as PropType<null | { name: string; token: number }>,
       default: null,
     },
+    /** 矩阵色块点击请求：token 每次递增触发展开并滚动到对应折叠分区 */
+    locateSection: {
+      type: Object as PropType<null | { sectionId: LlmSearchSectionId; token: number }>,
+      default: null,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -61,6 +66,13 @@ export default defineComponent({
     /** 矩阵工具行定位：命中工具调用行的 part id，短暂高亮后清除 */
     const locatedPartId = shallowRef('');
     let locateTimer = 0;
+    /** 色块点击定位的分区 id 与令牌：透传给 CollapseSection 强制展开 */
+    const locatedSectionId = shallowRef<LlmSearchSectionId | ''>('');
+    const locatedSectionToken = shallowRef(0);
+    const rootRef = shallowRef<HTMLElement>();
+    const setRootRef = (el: unknown) => {
+      rootRef.value = el instanceof HTMLElement ? el : undefined;
+    };
 
     const parsedTimeline = computed(() => parseModelTimeline(props.attributes));
     // 各折叠分区的 Token 消耗：取自 token_matrix，缺失时返回 undefined 不展示
@@ -242,6 +254,37 @@ export default defineComponent({
       }
     );
 
+    /** 矩阵色块点击：切回「全部」后展开并滚动到对应折叠分区 */
+    const locateSectionCall = (sectionId: LlmSearchSectionId) => {
+      if (!sectionId) return;
+      // 系统 Prompts / 可用工具只在「全部」下渲染，其它分区也可能被筛掉，先切回「全部」
+      if (filter.value !== 'all') {
+        filter.value = 'all';
+        inputRender.reset();
+        outputRender.reset();
+        inputRender.start();
+        outputRender.start();
+      }
+      // 对该分区强制展开（含被手动折叠的情况），确保定位目标一定可见
+      locatedSectionId.value = sectionId;
+      locatedSectionToken.value += 1;
+
+      nextTick(() => {
+        requestAnimationFrame(() => {
+          rootRef.value
+            ?.querySelector(`[data-llm-section="${sectionId}"]`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    };
+
+    watch(
+      () => props.locateSection?.token,
+      () => {
+        if (props.locateSection?.sectionId) locateSectionCall(props.locateSection.sectionId);
+      }
+    );
+
     onBeforeUnmount(() => {
       window.clearTimeout(locateTimer);
     });
@@ -284,6 +327,8 @@ export default defineComponent({
     const handleFilterChange = (value: LlmTimelineFilter) => {
       const changed = filter.value !== value;
       filter.value = value;
+      // 手动切换页签后清除上一次色块定位，避免分区重挂载时被旧的定位令牌再次撑开
+      locatedSectionId.value = '';
       // 页签变化后各分区回到默认展开态：非「全部」筛选下的分区会强制定位展开，故此处仅复位
       if (changed) sectionResetToken.value += 1;
       if (value === 'last-input') inputExpanded.value = false;
@@ -360,7 +405,10 @@ export default defineComponent({
     );
 
     return () => (
-      <div class='llm-model-timeline'>
+      <div
+        ref={setRootRef}
+        class='llm-model-timeline'
+      >
         <div
           aria-hidden='true'
           class='llm-model-timeline-sticky-mask'
@@ -393,6 +441,8 @@ export default defineComponent({
               <CollapseSection
                 count={timeline.value.systemPrompts.length}
                 defaultExpand={false}
+                expandSectionId={locatedSectionId.value}
+                expandToken={locatedSectionToken.value}
                 icon='icon-neizhi'
                 sectionId={LLM_SEARCH_SECTION.inputSystem}
                 title={t('系统 Prompts')}
@@ -421,6 +471,8 @@ export default defineComponent({
               <CollapseSection
                 count={timeline.value.availableTools.length}
                 defaultExpand={false}
+                expandSectionId={locatedSectionId.value}
+                expandToken={locatedSectionToken.value}
                 icon='icon-Tool'
                 sectionId={LLM_SEARCH_SECTION.inputTools}
                 title={t('可用工具')}
@@ -432,6 +484,8 @@ export default defineComponent({
             {showInput.value ? (
               <CollapseSection
                 count={timeline.value.inputMessages.length}
+                expandSectionId={locatedSectionId.value}
+                expandToken={locatedSectionToken.value}
                 icon='icon-mc-ai-input'
                 resetToken={sectionResetToken.value}
                 sectionId={LLM_SEARCH_SECTION.timelineInput}
@@ -458,6 +512,8 @@ export default defineComponent({
             {showOutput.value ? (
               <CollapseSection
                 count={timeline.value.outputMessages.length}
+                expandSectionId={locatedSectionId.value}
+                expandToken={locatedSectionToken.value}
                 icon='icon-mc-ai-output'
                 resetToken={sectionResetToken.value}
                 sectionId={LLM_SEARCH_SECTION.timelineOutput}

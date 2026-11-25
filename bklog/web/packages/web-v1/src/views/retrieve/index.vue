@@ -1425,6 +1425,19 @@ export default {
         keyword: queryParamsStr?.keyword,
       };
 
+      // 平台级索引集不进入日志聚类，带 tab=clustering / activeTableTab=clustering 的链接落到原始日志
+      if (this.indexSetItem?.is_platform_index) {
+        if (queryObj.activeTableTab === 'clustering' || queryObj.tab === 'clustering') {
+          queryObj.activeTableTab = 'origin';
+          if (queryObj.tab === 'clustering') queryObj.tab = 'origin';
+          delete queryObj.clusterRouteParams;
+        }
+        if (clusteringParams.activeTableTab === 'clustering') {
+          clusteringParams.activeTableTab = 'origin';
+          delete clusteringParams.clusterRouteParams;
+        }
+      }
+
       // tags 参数用于匹配转换为 unionList 不保留
       if (queryObj.tags) delete queryObj.tags;
       // 非收藏的点击删除检索参数内的from_favorite_id
@@ -2109,6 +2122,9 @@ export default {
       const { query, params } = this.$route;
       const newQuery = { ...query };
       newQuery.activeTableTab = activeTableTab;
+      if (this.indexSetItem?.is_platform_index && newQuery.tab === 'clustering') {
+        newQuery.tab = 'origin';
+      }
       // 切换为日志聚类且数据指纹有操作时 url添加日志聚类的操作参数
       if (clusterParams && activeTableTab === 'clustering') {
         this.clusterRouteParams = clusterParams;

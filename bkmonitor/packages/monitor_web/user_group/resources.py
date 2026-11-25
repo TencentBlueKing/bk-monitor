@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import pytz
+from django.conf import settings
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -288,10 +289,11 @@ class UserGroupBulkUpdateResource(Resource):
         arranges = DutyArrange.objects.filter(user_group_id__in=self.ids)
         searched_user_group_ids = set()
         for arrange in arranges:
+            users = self.get_users_by_id(arrange.users, partial)
             if partial:
-                arrange.users.extend(self.get_users_by_id())
+                arrange.users.extend(users)
             else:
-                arrange.users = self.get_users_by_id()
+                arrange.users = users
             if not arrange.duty_rule_id:
                 searched_user_group_ids.add(arrange.user_group_id)
 
@@ -312,7 +314,7 @@ class UserGroupBulkUpdateResource(Resource):
 
         DutyArrange.objects.bulk_update(arranges, ["users", "hash"])
 
-    def get_users_by_id(self) -> list[dict]:
+    def get_users_by_id(self, existing_users: list[dict], append: bool) -> list[dict]:
         """
         :return  [ // 直接通知的用户，或者某个组
                {
@@ -368,6 +370,14 @@ class UserGroupBulkUpdateResource(Resource):
                         break
 
         build_user_info(receivers, True)
+
+        if settings.ESB_DISABLED:
+            # 服务端目录无法查询协同用户。保留该排班已存的直接成员，新增成员仍需目录确认。
+            for user in existing_users:
+                if user["type"] == "user" and user["id"] in user_ids:
+                    if not append:
+                        result.append({**user, "display_name": user.get("display_name") or user["id"]})
+                    user_ids.remove(user["id"])
 
         if not user_ids:
             return result

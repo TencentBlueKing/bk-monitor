@@ -33,7 +33,7 @@ from apps.generic import APIViewSet
 from apps.log_search.constants import FILTER_KEY_LIST, TimeEnum
 from apps.log_search.handlers.meta import MetaHandler
 from apps.log_search.models import GlobalConfig, Scenario
-from apps.log_search.serializers import ProjectSerializer, SpaceListSerializer
+from apps.log_search.serializers import ProjectListSerializer, ProjectSerializer, SpaceListSerializer
 from apps.utils.context_processors import mysetting
 from apps.utils.db import get_toggle_data
 from apps.utils.drf import list_route
@@ -176,13 +176,14 @@ class MetaViewSet(APIViewSet):
         @api {get} /meta/projects/mine/ 获取我的项目
         @apiName list_meta_projects_mine
         @apiGroup 01_Meta
+        @apiParam {Boolean} [has_permission=false] 仅返回当前用户有业务访问权限的项目
         @apiSuccess {Int} project_id 项目ID
         @apiSuccess {String} project_name 项目名称
-        @apiSuccess {Int} bk_biz_id 业务ID
-        @apiSuccess {String} bk_app_code 接入的来源APP_CODE
+        @apiSuccess {Int} bk_biz_id 业务ID，无关联业务时为 null
         @apiSuccess {String} time_zone 项目所在时区
-        @apiSuccess {String} description 描述
-        @apiSuccess {Bool} project_manage 是否有项目管理权限（有权限才显示：管理、监控两个模块）
+        @apiSuccess {Bool} project_manage 是否有业务访问权限，兼容旧字段
+        @apiSuccess {Object} permission 当前用户的权限标记
+        @apiSuccess {Bool} permission.view_business_v2 是否有业务访问权限
         @apiSuccessExample {json} 成功返回:
         {
             "message": "",
@@ -190,18 +191,18 @@ class MetaViewSet(APIViewSet):
             "data": [
                 {
                     "project_id": 1,
-                    "project_name": "业务名称",
+                    "project_name": "[1] 业务名称",
                     "bk_biz_id": 1,
-                    "bk_app_code": "bk_log",
                     "time_zone": "Asia/Shanghai",
-                    "description": "项目描述",
-                    "project_manage": true
+                    "project_manage": true,
+                    "permission": {"view_business_v2": true}
                 }
             ],
             "result": true
         }
         """
-        return Response(MetaHandler.get_user_projects(get_request_username()))
+        params = self.params_valid(ProjectListSerializer)
+        return Response(MetaHandler.get_user_projects(get_request_username(), has_permission=params["has_permission"]))
 
     @list_route(methods=["GET"], url_path="msg_type")
     def msg_type(self, requests):

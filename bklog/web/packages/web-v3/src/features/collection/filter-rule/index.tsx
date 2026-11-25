@@ -143,7 +143,7 @@ export default defineComponent({
               <bk-select
                 class='icon-box'
                 clearable={false}
-                popover-width={100}
+                ext-popover-cls='filter-rule-operator-popup'
                 value={item.logic_operator}
                 onChange={(value: string) => {
                   item.logic_operator = value;
