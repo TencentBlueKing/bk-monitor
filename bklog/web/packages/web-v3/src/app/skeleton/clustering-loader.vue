@@ -104,6 +104,8 @@
 </script>
 
 <style lang="scss">
+  @use '@/shared/ui/loading/shimmer' as *;
+
   .skeleton-table {
     width: 100%;
 
@@ -111,8 +113,8 @@
       display: flex;
       width: 100%;
       height: 43px;
-      background-color: #fff;
-      border-bottom: 1px solid #dcdee5;
+      background-color: var(--td-bg-color-container, #fff);
+      border-bottom: 1px solid var(--td-component-stroke, #dcdee5);
       box-sizing: border-box;
     }
 
@@ -136,9 +138,10 @@
     }
 
     .cell-bar {
+      @include loading-shimmer;
+
       position: relative;
       height: 12px;
-      background-color: #e9e9e9;
     }
 
   }

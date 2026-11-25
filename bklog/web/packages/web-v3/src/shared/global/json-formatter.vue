@@ -1411,7 +1411,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
 
       .valid-text {
         :hover {
-          color: var(--bklog-json-action-color);
+          color: var(--bklog-retrieve-hover-text, #3a84ff);
           cursor: pointer;
         }
       }
@@ -1486,7 +1486,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
         &:hover,
         &.focus-text *,
         &:hover * {
-          color: var(--bklog-json-action-color);
+          color: var(--bklog-retrieve-hover-text, #3a84ff);
         }
       }
 
@@ -1600,7 +1600,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
 
         &.focus-text,
         &:hover {
-          color: var(--bklog-json-action-color);
+          color: var(--bklog-retrieve-hover-text, #3a84ff);
         }
       }
     }

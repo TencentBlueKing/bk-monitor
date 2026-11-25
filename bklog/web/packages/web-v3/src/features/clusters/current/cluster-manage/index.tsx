@@ -714,6 +714,17 @@ export default defineComponent({
         Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value == null ? '' : String(value)])),
       );
     };
+    const singleColumnFilter = (list: Array<{ label: string; value: string | number }>) => ({
+      type: 'single' as const,
+      list,
+      showConfirmAndReset: false,
+      confirmEvents: ['onChange'],
+      popupProps: {
+        showArrow: false,
+        overlayInnerClassName: 't-table__list-filter-input--sticky custom-filter-popup',
+      },
+    });
+
     const tableColumns = computed<PrimaryTableCol[]>(() => [
       {
         colKey: 'id',
@@ -751,13 +762,10 @@ export default defineComponent({
               minWidth: '80',
               className: 'filter-column',
               cell: (_h, props) => props.row.source_name || '--',
-              filter: {
-                type: 'single',
-                list: [
-                  { label: t('全部'), value: '' },
-                  ...sourceFilters.value.map((item) => ({ label: item.text, value: item.value })),
-                ],
-              },
+              filter: singleColumnFilter([
+                { label: t('全部'), value: '' },
+                ...sourceFilters.value.map((item) => ({ label: item.text, value: item.value })),
+              ]),
             } satisfies PrimaryTableCol,
           ]
         : []),
@@ -775,13 +783,10 @@ export default defineComponent({
               minWidth: '110',
               className: 'filter-column',
               cell: (_h, { row }) => getStateText(row.cluster_config.cluster_id),
-              filter: {
-                type: 'single',
-                list: [
-                  { label: t('全部'), value: '' },
-                  ...sourceStateFilters.value.map((item) => ({ label: item.text, value: String(item.value) })),
-                ],
-              },
+              filter: singleColumnFilter([
+                { label: t('全部'), value: '' },
+                ...sourceStateFilters.value.map((item) => ({ label: item.text, value: String(item.value) })),
+              ]),
             } satisfies PrimaryTableCol,
           ]
         : []),

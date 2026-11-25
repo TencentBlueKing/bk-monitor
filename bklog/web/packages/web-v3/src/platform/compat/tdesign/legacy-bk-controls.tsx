@@ -204,11 +204,22 @@ const BkTable = defineComponent({
           className: attr(propsOf, 'className', 'class-name'),
           cell: cellRenderer(node),
           filter: filters
-            ? {
-                type: multiple ? 'multiple' : 'single',
-                list: filters.map(item => ({ label: item.text ?? item.label ?? String(item.value), value: item.value })),
-                showConfirmAndReset: true,
-              }
+            ? multiple
+              ? {
+                  type: 'multiple',
+                  list: filters.map(item => ({ label: item.text ?? item.label ?? String(item.value), value: item.value })),
+                  showConfirmAndReset: true,
+                }
+              : {
+                  type: 'single',
+                  list: filters.map(item => ({ label: item.text ?? item.label ?? String(item.value), value: item.value })),
+                  showConfirmAndReset: false,
+                  confirmEvents: ['onChange'],
+                  popupProps: {
+                    showArrow: false,
+                    overlayInnerClassName: 't-table__list-filter-input--sticky custom-filter-popup',
+                  },
+                }
             : undefined,
         }];
       });

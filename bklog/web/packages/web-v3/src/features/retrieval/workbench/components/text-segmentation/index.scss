@@ -65,6 +65,17 @@
           white-space: pre-wrap;
         }
 
+        .valid-text {
+          cursor: pointer;
+
+          &.focus-text,
+          &:hover,
+          &.focus-text *,
+          &:hover * {
+            color: var(--bklog-retrieve-hover-text, #3a84ff);
+          }
+        }
+
         .last-placeholder {
           &:last-child {
             display: inline-flex;

@@ -320,7 +320,8 @@
 }
 
 // Collection table index-set picker uses the V2 TagMore cell, not native tag-input chrome.
-.index-set-inline-select:has(.tag-more-native-trigger) {
+.index-set-inline-select:has(.tag-more-native-trigger),
+.tag-more-cell-select:has(.tag-more-native-trigger) {
   .t-input {
     height: auto;
     min-height: 58px;

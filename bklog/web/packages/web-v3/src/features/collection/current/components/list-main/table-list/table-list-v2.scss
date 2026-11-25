@@ -779,6 +779,23 @@
     background: #fff;
   }
 
+  // Row hover uses the same tag-editor chrome as hovering the editor itself.
+  .t-table__body > tr:hover .tag-more-select-trigger:not(.is-disabled, .is-open) {
+    .tag-more-trigger-frame {
+      background: var(--bklog-surface-component-hover, #eaebf0);
+    }
+
+    .tag-item,
+    .tag-more-indicator {
+      background: var(--bklog-surface, #fff);
+    }
+  }
+
+  .t-table__body > tr:hover .tag-more-select-trigger.is-disabled,
+  .tag-more-cell-select.is-disabled:hover {
+    background: transparent;
+  }
+
   // 标签列保留整格布局和 tooltip，仅允许实际标签框区域触发选择器；空标签仍整格可点击。
   .tag-more-cell-select {
     cursor: default;

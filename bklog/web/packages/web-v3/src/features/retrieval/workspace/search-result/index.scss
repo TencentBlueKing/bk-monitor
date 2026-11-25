@@ -8,8 +8,7 @@
 
 .v3-result-panel-skeleton {
   min-height: calc(100vh - var(--header-height) - var(--top-searchbar-height) - 100px);
-  padding: 8px 16px;
-  background: #fff;
+  background: var(--td-bg-color-container, #fff);
 }
 
 .v3-tab-pane-active {

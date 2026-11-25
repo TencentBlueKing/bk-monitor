@@ -47,8 +47,8 @@ const ResultPanelSkeleton = defineComponent({
     return () => (
       <div class='v3-result-panel-skeleton'>
         <ClusteringLoader
-          width-list={[160, 120, 120, '']}
-          loader-len={16}
+          width-list={[150, 90, 90, '']}
+          loader-len={24}
           is-loading
         />
       </div>
@@ -62,6 +62,7 @@ const GraphAnalysis = defineAsyncComponent({
     import(/* webpackChunkName: 'retrieve-graph-analysis' */ '../../workbench/search-result-panel/graph-analysis/index'),
   loadingComponent: ResultPanelSkeleton,
   delay: 0,
+  suspensible: false,
 });
 // #else
 // #code const GraphAnalysis = () => null
@@ -71,11 +72,13 @@ const Grep = defineAsyncComponent({
   loader: () => import(/* webpackChunkName: 'retrieve-grep' */ '../grep/index'),
   loadingComponent: ResultPanelSkeleton,
   delay: 0,
+  suspensible: false,
 });
 const LogClustering = defineAsyncComponent({
   loader: () => import(/* webpackChunkName: 'retrieve-log-clustering' */ './log-clustering/index'),
   loadingComponent: ResultPanelSkeleton,
   delay: 0,
+  suspensible: false,
 });
 
 export default defineComponent({
@@ -163,6 +166,7 @@ export default defineComponent({
           >
             <SearchResultPanel
               activeTab={activeTab.value}
+              originOnly
               onUpdate:active-tab={handleTabChange}
             ></SearchResultPanel>
           </div>
