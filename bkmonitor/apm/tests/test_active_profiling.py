@@ -561,9 +561,10 @@ def test_go_heap_has_no_duration(query_rows):
 def test_list_executions_selects_by_host_but_keeps_all_hosts(query_rows):
     rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"ips": ["127.0.0.3"]}})["data"]
 
-    # 立即执行不返回 task_id，与一期协议一致
+    # 立即执行不返回 task_id，与一期协议一致；id 是执行表行 id
     assert rows == [
         {
+            "id": query_rows.expired.id,
             "task_name": "order-api-cpu-adhoc",
             "schedule_type": "immediate",
             "scheduled_at": OLD_AT,
@@ -617,6 +618,38 @@ def test_list_executions_orders_same_millisecond_by_task_id_desc(query_rows):
     rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "limit": 2})["data"]
 
     assert [(row["scheduled_at"], row["task_id"]) for row in rows] == [(RECENT_AT, 99), (RECENT_AT, 12)]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_executions_return_row_id_to_tell_same_named_runs_apart(query_rows):
+    # 同一计划的下一次执行：task_id、任务名都与 RECENT_AT 那次相同，只能靠执行表行 id 区分
+    next_run = create_execution(
+        [{"bk_host_id": 456, "ip": "127.0.0.1", "status": "running"}],
+        schedule_type="cron",
+        task_id=12,
+        scheduled_at=RECENT_AT + 60 * 1000,
+        task_name="order-api-cpu",
+        collection_method="perf",
+        collection_type="native_cpu",
+        execution_status="running",
+        status_summary={"running": 1},
+    )
+
+    rows = ListActiveProfilingExecutionsResource().request(TIME_RANGE)["data"]
+
+    assert [(row["id"], row.get("task_id"), row["task_name"]) for row in rows] == [
+        (next_run.id, 12, "order-api-cpu"),
+        (query_rows.cron.id, 12, "order-api-cpu"),
+        (query_rows.legacy.id, None, "go-cpu-legacy"),
+        (query_rows.expired.id, None, "order-api-cpu-adhoc"),
+    ]
+    # 详情与列表同一个 id，计划执行与立即执行都有
+    for request, execution in (
+        ({"task_id": 12, "scheduled_at": RECENT_AT}, query_rows.cron),
+        ({"scheduled_at": OLD_AT}, query_rows.expired),
+    ):
+        detail = QueryActiveProfilingExecutionDetailResource().request({"bk_biz_id": 2, **request})
+        assert detail["id"] == execution.id
 
 
 @pytest.mark.parametrize(
@@ -2174,9 +2207,10 @@ def test_es_list_executions_aggregates_all_hosts_into_execution_rows(host_query_
 
     result = list_es_executions(EVENT_LIST_REQUEST)
 
-    # immediate 不返回 task_id；仍有主机运行时外层不结束
+    # immediate 不返回 task_id；仍有主机运行时外层不结束；只在 ES 里的执行没有执行行 id
     assert result[:2] == [
         {
+            "id": None,
             "task_name": "native-cpu",
             "schedule_type": "immediate",
             "scheduled_at": 1788411800000,
@@ -2192,6 +2226,7 @@ def test_es_list_executions_aggregates_all_hosts_into_execution_rows(host_query_
             "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}, {"bk_host_id": 457, "ip": "127.0.0.2"}],
         },
         {
+            "id": None,
             "task_id": 123,
             "task_name": "java-cpu-daily",
             "schedule_type": "cron",
@@ -2543,8 +2578,9 @@ def test_es_execution_detail_returns_all_hosts_of_execution(host_query_apis):
 
     result = query_es_detail(IMMEDIATE_DETAIL_REQUEST)
 
-    # immediate 不返回 task_id；仍有主机运行时外层不结束
+    # immediate 不返回 task_id；仍有主机运行时外层不结束；执行表查不到才回查 ES，没有执行行 id
     assert result == {
+        "id": None,
         "task_name": "native-cpu",
         "schedule_type": "immediate",
         "scheduled_at": 1788411800000,
@@ -3207,7 +3243,7 @@ def test_lists_merge_lagging_planned_executions_from_es(query_rows, event_es, fa
     lagging_event_es(event_es)
     # 停摆期间提交的立即执行：456 已受理还没有 Event，457 下发失败，都只有 SaaS 写入的行
     immediate_at = NOW_MS - 20 * 60 * 1000
-    create_execution(
+    immediate = create_execution(
         [
             {"bk_host_id": 456, "ip": "127.0.0.1", "status": "running", "unknown_at": NOW_MS + 60 * 1000},
             {
@@ -3247,12 +3283,15 @@ def test_lists_merge_lagging_planned_executions_from_es(query_rows, event_es, fa
         (OLD_AT, 456, "outdate"),
     ]
     assert hosts["data"][0]["error_type"] == "dispatch_failed"
-    assert [(row.get("task_id"), row["scheduled_at"], row["status_summary"]) for row in executions["data"]] == [
-        (None, immediate_at, {"running": 1, "failed": 1}),
-        (77, PLANNED_AT, {"succeed": 1, "failed": 1}),
-        (12, RECENT_AT, {"succeed": 1, "failed": 1}),
-        (None, MID_AT, {"unknown": 1}),
-        (None, OLD_AT, {"failed": 1, "outdate": 1}),
+    # 取自 ES 的行在执行表已建行时带上行 id（RECENT_AT），还没建行的为空（PLANNED_AT）
+    assert [
+        (row["id"], row.get("task_id"), row["scheduled_at"], row["status_summary"]) for row in executions["data"]
+    ] == [
+        (immediate.id, None, immediate_at, {"running": 1, "failed": 1}),
+        (None, 77, PLANNED_AT, {"succeed": 1, "failed": 1}),
+        (query_rows.cron.id, 12, RECENT_AT, {"succeed": 1, "failed": 1}),
+        (query_rows.legacy.id, None, MID_AT, {"unknown": 1}),
+        (query_rows.expired.id, None, OLD_AT, {"failed": 1, "outdate": 1}),
     ]
     # 总行数为两路之和，切换前后口径一致
     assert (hosts["total"], executions["total"]) == (9, 5)
