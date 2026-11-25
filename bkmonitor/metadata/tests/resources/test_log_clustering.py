@@ -17,6 +17,7 @@ from rest_framework.exceptions import ValidationError
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from metadata import models
+from metadata.models.data_link.data_link_configs import ClusterConfig
 from metadata.resources.log_clustering import (
     GetLogClusteringStatusResource,
     OperateLogClusteringResource,
@@ -81,6 +82,17 @@ def clustering_datalink(mocker):
     models.DataSourceResultTable.objects.create(
         bk_tenant_id="system", bk_data_id=data_source.bk_data_id, table_id=LOG_TABLE_ID
     )
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=7310,
+        cluster_name=KAFKA_RESOURCE["name"],
+        cluster_type="kafka",
+        domain_name="kafka.example",
+        port=9092,
+        registered_to_bkbase=True,
+        is_default_cluster=False,
+    )
+    ClusterConfig.objects.create(bk_tenant_id="system", origin_config={"kind": "KafkaChannel"}, **KAFKA_RESOURCE)
     return datalink
 
 
@@ -117,7 +129,7 @@ def build_params(**overrides) -> dict:
         "bk_tenant_id": "system",
         "table_id": LOG_TABLE_ID,
         "binding": copy.deepcopy(BINDING),
-        "kafka_resource": dict(KAFKA_RESOURCE),
+        "kafka_cluster_id": 7310,
         "runtime_cluster": dict(RUNTIME_CLUSTER),
         "recovery_resource": dict(RECOVERY_RESOURCE),
         "pattern_store": dict(PATTERN_TARGET),
@@ -196,6 +208,44 @@ def attach_remotely(state: dict) -> None:
         "kind": "Databus",
         "metadata": {},
         "spec": {"sinks": [get_sink().reference], "preferCluster": copy.deepcopy(RUNTIME_CLUSTER)},
+    }
+
+
+def test_old_resource_without_cluster_id_is_rejected():
+    params = build_params(kafka_resource={"kind": "Kafka", "name": "legacy", "namespace": "bklog"})
+    del params["kafka_cluster_id"]
+    serializer = SetLogClusteringConfigResource.RequestSerializer(data=params)
+    assert not serializer.is_valid()
+    assert "kafka_cluster_id" in serializer.errors
+
+
+def test_source_kafka_resolves_only_in_source_namespace(clustering_datalink, bkbase):
+    cluster = models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_name="source_kafka",
+        cluster_type="kafka",
+        domain_name="kafka.example",
+        port=9092,
+        is_default_cluster=False,
+        registered_to_bkbase=True,
+    )
+    channel = {"kind": "KafkaChannel", "name": cluster.cluster_name}
+    ClusterConfig.objects.create(
+        bk_tenant_id="system", namespace="bkmonitor", origin_config={"kind": "KafkaChannel"}, **channel
+    )
+    params = build_params(kafka_cluster_id=cluster.cluster_id)
+    with pytest.raises(ValidationError, match="not registered"):
+        SetLogClusteringConfigResource().request(params)
+    registration = ClusterConfig.objects.create(bk_tenant_id="system", namespace="bklog", **channel)
+    with pytest.raises(ValidationError, match="not registered"):
+        SetLogClusteringConfigResource().request(params)
+    registration.origin_config = {"kind": "KafkaChannel"}
+    registration.save()
+    SetLogClusteringConfigResource().request(params)
+    sink = get_sink()
+    assert sink.compose_config(raw_sink=ES_BINDING_REF)["spec"]["clustering"]["kafka_resource"] == {
+        **channel,
+        "namespace": "bklog",
     }
 
 
@@ -568,7 +618,7 @@ def test_status_keeps_databus_when_sink_query_fails(clustering_datalink, bkbase,
     assert "BKAPIError" in caplog.text
 
 
-@pytest.mark.parametrize("field", ["kafka_resource", "runtime_cluster", "recovery_resource"])
+@pytest.mark.parametrize("field", ["runtime_cluster", "recovery_resource"])
 def test_resource_refs_reject_other_tenant(clustering_datalink, bkbase, field):
     params = build_params()
     ref = params["pattern_store"][field] if field in PATTERN_STORE else params[field]

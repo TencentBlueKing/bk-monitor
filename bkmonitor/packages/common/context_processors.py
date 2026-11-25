@@ -32,6 +32,15 @@ from core.errors.api import BKAPIError
 from fta_web.issue.source_analysis import is_issue_ai_analysis_enabled_for_biz
 
 
+def _ai_runtime_available():
+    backend = getattr(settings, "AI_AGENT_BACKEND", "aidev")
+    if backend != "hermes":
+        return backend == "aidev"
+    from ai_agent.services.hermes_runtime import runtime_available
+
+    return runtime_available()
+
+
 class Platform:
     """
     平台信息
@@ -196,6 +205,7 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             "SPACE_LIST": space_list,
             "BK_BIZ_ID": bk_biz_id,
             "BK_TENANT_ID": get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID,
+            "ESB_DISABLED": settings.ESB_DISABLED,
             "ENABLE_MULTI_TENANT_MODE": settings.ENABLE_MULTI_TENANT_MODE,
             # 服务拨测设置最大 duration
             "MAX_AVAILABLE_DURATION_LIMIT": settings.MAX_AVAILABLE_DURATION_LIMIT,
@@ -216,7 +226,9 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             # 是否开启AI助手
             "ENABLE_AI_ASSISTANT": (
                 "true"
-                if settings.AIDEV_API_BASE_URL and os.getenv("ENABLE_AI_ASSISTANT", "enabled") == "enabled"
+                if settings.AIDEV_API_BASE_URL
+                and os.getenv("ENABLE_AI_ASSISTANT", "enabled") == "enabled"
+                and _ai_runtime_available()
                 else "false"
             ),
             # APM 日志转发接口 Url
@@ -224,7 +236,9 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             # 是否开启事件中心AIOps功能
             "ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST": settings.ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST,
             # 用户管理网关接口
-            "BK_USER_WEB_API_URL": settings.BK_USER_WEB_API_URL,
+            "BK_USER_WEB_API_URL": (
+                settings.BK_USER_WEB_API_URL_FRONTEND if settings.ESB_DISABLED else settings.BK_USER_WEB_API_URL
+            ),
             # RUM 是否开启
             "RUM_BIZ_LIST": settings.RUM_BIZ_LIST,
             # Profiling 主动采集是否开启

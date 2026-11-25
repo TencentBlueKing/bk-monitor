@@ -26,7 +26,7 @@ from metadata.models.data_link.data_link_configs import (
 )
 
 RAW_SINK = {"kind": "ElasticSearchBinding", "name": "bkm_raw_es_binding", "namespace": "bklog"}
-KAFKA_RESOURCE = {"kind": "Kafka", "name": "registered_clustering_kafka", "namespace": "bklog"}
+KAFKA_RESOURCE = {"kind": "KafkaChannel", "name": "registered_clustering_kafka", "namespace": "bklog"}
 PATTERN_RESOURCE = {"kind": "ElasticSearch", "name": "registered_pattern_es", "namespace": "bklog"}
 RUNTIME_CLUSTER = {"kind": "DatabusCluster", "name": "quix-runtime", "namespace": "quix"}
 RECOVERY_RESOURCE = {"kind": "ElasticSearch", "name": "context-es", "namespace": "bklog"}

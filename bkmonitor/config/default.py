@@ -497,6 +497,8 @@ SKIP_PLUGIN_DEBUG = False
 # 统一查询模块配置
 UNIFY_QUERY_URL = f"http://{os.getenv('BK_MONITOR_UNIFY_QUERY_HOST')}:{os.getenv('BK_MONITOR_UNIFY_QUERY_PORT')}/"
 UNIFY_QUERY_ROUTING_RULES = []
+# Named native-query endpoints scoped to this installation (for example, test).
+ADMIN_UNIFY_QUERY_TARGETS = {}
 
 # bk-monitor-worker api 地址
 BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")
@@ -1306,6 +1308,7 @@ DOC_HOST = "https://bk.tencent.com/docs/"
 if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
+ESB_DISABLED = os.getenv("BKPAAS_ESB_ENABLED", "").strip().lower() == "false"
 CMDB_USE_APIGW = os.getenv("BKAPP_CMDB_USE_APIGW", "false").lower() == "true"
 CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
 CMSI_API_BASE_URL = os.getenv("BKAPP_CMSI_API_BASE_URL", "")
@@ -1664,6 +1667,20 @@ AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
 AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE = os.getenv("BK_AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE", "bkm-mcp-client")
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
+# Hermes SDK 由获授权的运行镜像提供；公共构建不声明私有包依赖。
+AI_AGENT_BACKEND = os.getenv("AI_AGENT_BACKEND", "aidev")
+# Enable with the AG-UI frontend upgrade; legacy clients retain their protocol.
+AI_AGENT_STREAM_PROTOCOL = os.getenv("AI_AGENT_STREAM_PROTOCOL", "legacy")
+AI_AGENT_HERMES_HOME = os.getenv("AI_AGENT_HERMES_HOME", "/tmp/bkmonitor-hermes")
+AI_AGENT_HERMES_MAX_ITERATIONS = int(os.getenv("AI_AGENT_HERMES_MAX_ITERATIONS", "15"))
+AI_AGENT_HERMES_ACCESS_TOKEN = os.getenv("AI_AGENT_HERMES_ACCESS_TOKEN", "")
+AI_AGENT_HERMES_LLM_API_KEY = os.getenv("AI_AGENT_HERMES_LLM_API_KEY", "")
+AI_AGENT_HERMES_LLM_BASE_URL = os.getenv("AI_AGENT_HERMES_LLM_BASE_URL", "")
+AI_AGENT_HERMES_LLM_MODEL = os.getenv("AI_AGENT_HERMES_LLM_MODEL", "")
+AI_AGENT_HERMES_LLM_PROVIDER = os.getenv("AI_AGENT_HERMES_LLM_PROVIDER", "")
+AI_AGENT_OTEL_ENABLED = os.getenv("AI_AGENT_OTEL_ENABLED", "false").lower() == "true"
+AI_AGENT_OTEL_CAPTURE_CONTENT = os.getenv("AI_AGENT_OTEL_CAPTURE_CONTENT", "false").lower() == "true"
+AI_AGENT_STREAM_HEARTBEAT_INTERVAL_SECONDS = float(os.getenv("AI_AGENT_STREAM_HEARTBEAT_INTERVAL_SECONDS", "10"))
 # OpenClaw 自愈分析 MCP 配置
 OPENCLAW_RECOVERING_BK_BIZ_ID = 0
 OPENCLAW_RECOVERING_APM_APP_NAME = ""
@@ -2054,6 +2071,9 @@ ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
 
 # 用户管理web api地址
 BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"
+BK_USER_WEB_API_URL_FRONTEND = (
+    os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL_FRONTEND.rstrip('/')}/api/bk-user-web/prod/"
+)
 
 # GSE消息槽
 GSE_SLOT_ID = int(os.getenv("GSE_SLOT_ID", 0))

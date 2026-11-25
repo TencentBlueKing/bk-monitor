@@ -219,10 +219,8 @@ def _single_tenant_admin_username(login_name: str) -> str:
 def _lookup_admin_username(bk_tenant_id: str, login_name: str) -> str | None:
     result = BKLoginApi.batch_lookup_virtual_user(
         {
-            "bk_tenant_id": bk_tenant_id,
             "lookup_field": "login_name",
             "lookups": login_name,
-            "bk_username": "admin",
         },
         bk_tenant_id=bk_tenant_id,
     )

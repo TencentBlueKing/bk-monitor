@@ -68,8 +68,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
-    const page = inject(quixPage);
-    const quix = computed(() => Boolean(page?.status.value));
+    const quix = inject(quixPage);
 
     const ruleConfigOperateRef = ref<any>(null);
     const ruleOperateRef = ref<any>();
@@ -232,17 +231,16 @@ export default defineComponent({
               },
             })
             .then((res: IResponseData<(string | null)[]>) => {
-              if (quix.value && res.data?.[0] === null) {
+              if (quix?.value && res.data?.[0] === null) {
                 emit('close');
                 return;
               }
               bkNotify({
                 title: t('保存待生效'),
-                ...(quix.value ? {} : { message: t('该保存需要10分钟生效, 请耐心等待') }),
+                message: t('该保存需要10分钟生效, 请耐心等待'),
                 limitLine: 3,
                 offsetY: 80,
               });
-              if (quix.value) page?.refresh();
               emit('close');
             })
             .finally(() => {

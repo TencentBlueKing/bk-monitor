@@ -5,8 +5,10 @@ from unittest.mock import Mock, call, patch
 
 from django.test import SimpleTestCase
 
+from apps.log_clustering.constants import DEFAULT_SIGNATURE_FORMAT_UDF
 from apps.log_clustering.handlers.dataflow.constants import ActionEnum, FlowMode
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import restart_flow
 
 
@@ -159,6 +161,138 @@ class TestOnlineTenantFlow(SimpleTestCase):
         self.assertEqual(clustering_config.new_cls_pattern_rt, "")
         self.assertEqual(result["flow_id"], 91)
 
+    def test_predict_flow_uses_database_storage_on_create_retry_and_update(self):
+        config = ClusteringConfig(
+            bk_biz_id=2,
+            index_set_id=30,
+            bkdata_etl_result_table_id="2_bklog_clean",
+            model_id="model_id",
+            clustering_fields="log",
+            es_storage="old_es",
+            filter_rules=[],
+            min_members=1,
+            max_log_length=1000,
+        )
+        tenant_conf = {
+            "project_id": 1001,
+            "bk_username": "tenant_admin",
+            "signature_format_udf": "tenant_signature_udf",
+            "predict_es_storage": "tenant_es",
+        }
+        handler = DataFlowHandler()
+        with (
+            patch.object(ClusteringConfig, "get_by_index_set_id", return_value=config),
+            patch("apps.log_clustering.handlers.dataflow.dataflow_handler.get_online_clustering_config") as resolve,
+            patch.object(config, "save"),
+            patch.object(handler, "check_and_start_clean_task"),
+            patch.object(handler, "get_fields_dict", return_value={"log": "log"}),
+            patch.object(handler, "get_latest_released_id", return_value=1),
+            patch.object(handler, "get_es_storage_fields", return_value={"expires": 30}),
+            patch(
+                "apps.log_clustering.handlers.dataflow.dataflow_handler.DataAccessHandler.get_fields",
+                return_value=[{"field_name": "log"}],
+            ),
+            patch(
+                "apps.log_clustering.handlers.dataflow.dataflow_handler.BkDataDataFlowApi.create_flow",
+                return_value={"flow_id": 91},
+            ) as create_flow,
+            patch.object(handler, "sync_clustered_route"),
+            patch.object(handler, "get_serving_data_processing_id_config", return_value={"id": "test"}),
+            patch.object(handler, "update_model_instance"),
+            patch.object(handler, "create_online_task", return_value={"ci_id": 5}),
+            patch.object(handler, "get_flow_graph") as get_graph,
+            patch.object(handler, "deal_real_time_node") as patch_sql,
+        ):
+            resolve.return_value = {}
+            handler.conf = {}
+            baseline_config = asdict(handler._init_predict_flow("2_bklog_clean", "model_id", 1, 2, 30, config))
+            baseline_nodes = json.loads(
+                handler._render_template(FlowMode.PREDICT_FLOW.value, {"predict": baseline_config})
+            )
+            self.assertIn(f"{DEFAULT_SIGNATURE_FORMAT_UDF}(log_signature)", baseline_nodes[-2]["sql"])
+            self.assertEqual(baseline_nodes[-1]["cluster"], "old_es")
+
+            resolve.return_value = tenant_conf
+            create_flow.side_effect = RuntimeError("create failed")
+            with self.assertRaisesRegex(RuntimeError, "create failed"):
+                handler.create_predict_flow(30)
+            self.assertEqual(config.es_storage, "old_es")
+            self.assertIsNone(config.predict_flow_id)
+
+            create_flow.side_effect = None
+            handler.create_predict_flow(30)
+            nodes = create_flow.call_args.args[0]["nodes"]
+            self.assertIn("tenant_signature_udf(log_signature)", nodes[-2]["sql"])
+            self.assertEqual(nodes[-1]["cluster"], "old_es")
+            self.assertEqual(config.es_storage, "old_es")
+            self.assertEqual(config.predict_flow["es_cluster"], "old_es")
+
+            get_graph.return_value = {
+                "nodes": [
+                    {
+                        "node_type": "realtime",
+                        "node_config": {"table_name": "bklog_30_clustered"},
+                        "flow_id": 91,
+                        "node_id": 71,
+                    }
+                ]
+            }
+            resolve.return_value = {
+                **tenant_conf,
+                "predict_es_storage": "other_es",
+            }
+            config.es_storage = "corrected_es"
+            handler.update_predict_flow(30)
+            self.assertIn("tenant_signature_udf(log_signature)", patch_sql.call_args.kwargs["sql"])
+            self.assertEqual(config.predict_flow["es_cluster"], "corrected_es")
+            self.assertEqual(config.es_storage, "corrected_es")
+
+    def test_aggregation_creation_and_update_render_all_signature_udf_calls(self):
+        config = Mock(
+            bk_biz_id=2,
+            index_set_id=30,
+            predict_flow={"clustering_predict": {"result_table_id": "2_bklog_30_clustering_output"}},
+            group_fields=[],
+            new_cls_strategy_output="",
+            new_cls_pattern_rt="2_bklog_30_agg",
+            log_count_aggregation_flow={},
+        )
+        handler = DataFlowHandler()
+        with (
+            patch.object(ClusteringConfig, "get_by_index_set_id", return_value=config),
+            patch("apps.log_clustering.handlers.dataflow.dataflow_handler.get_online_clustering_config") as resolve,
+            patch(
+                "apps.log_clustering.handlers.dataflow.dataflow_handler.BkDataDataFlowApi.create_flow",
+                return_value={"flow_id": 91},
+            ) as create_flow,
+            patch.object(handler, "get_flow_graph") as get_graph,
+            patch.object(handler, "deal_real_time_node") as patch_sql,
+            patch.object(handler, "operator_flow"),
+        ):
+            resolve.return_value = {"signature_format_udf": "tenant_signature_udf"}
+            handler.create_log_count_aggregation_flow(30)
+            nodes = create_flow.call_args.args[0]["nodes"]
+            sql_nodes = [node for node in nodes if node["node_type"] == "realtime"]
+            self.assertEqual(len(sql_nodes), 3)
+            for node in sql_nodes:
+                self.assertRegex(node["sql"], r"tenant_signature_udf\s*\(")
+
+            get_graph.return_value = {
+                "nodes": [
+                    {
+                        "node_type": "realtime",
+                        "node_config": {"table_name": node["table_name"]},
+                        "flow_id": 91,
+                        "node_id": node["id"],
+                    }
+                    for node in sql_nodes
+                ]
+            }
+            handler.update_log_count_aggregation_flow(30)
+            self.assertEqual(patch_sql.call_count, 3)
+            for node_call in patch_sql.call_args_list:
+                self.assertRegex(node_call.kwargs["sql"], r"tenant_signature_udf\s*\(")
+
     def test_log_count_aggregation_flow_keeps_agg_for_legacy_config(self):
         clustering_config = Mock(
             new_cls_strategy_output="",
@@ -188,7 +322,11 @@ class TestOnlineTenantFlow(SimpleTestCase):
             render_obj={"log_count_aggregation": flow_config},
         )
 
-        node_ids = {node["id"] for node in json.loads(rendered)}
+        nodes = json.loads(rendered)
+        for node in nodes:
+            if node["node_type"] == "realtime":
+                self.assertRegex(node["sql"], rf"{DEFAULT_SIGNATURE_FORMAT_UDF}\s*\(")
+        node_ids = {node["id"] for node in nodes}
         self.assertEqual(node_ids, {447364, 587866, 587868, 589424})
         self.assertNotIn(447374, node_ids)
         self.assertNotIn(447376, node_ids)

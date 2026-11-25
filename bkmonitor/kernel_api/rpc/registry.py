@@ -58,6 +58,9 @@ class KernelRPCRegistry:
         from kernel_api.rpc.functions import load_builtin_functions
 
         load_builtin_functions()
+        from kernel_api.rpc.functions.admin.shared_operations import register_shared_operations
+
+        register_shared_operations(cls._functions)
         cls._loaded = True
 
     @classmethod

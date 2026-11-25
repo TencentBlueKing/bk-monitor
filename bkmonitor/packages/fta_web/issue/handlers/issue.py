@@ -1177,6 +1177,12 @@ class IssueQueryHandler(BaseBizQueryHandler):
             batch_issue_ids = alert_query_issue_ids[index : index + TREND_QUERY_BATCH_SIZE]
             result = IssueAlertDateHistogramResultResource().request(
                 bk_biz_ids=self.bk_biz_ids,
+                # 复用本 handler 已算好的鉴权结果：内层 AlertQueryHandler 若自行调用
+                # parse_biz_item，会再走一次"全租户空间列表 → 构造 N 个候选 → IAM 过滤"
+                # 的 O(N) 计算（实测 1.6~2.1s/次）。该 Resource 没有 RequestSerializer，
+                # 入参原样透传，parse_biz_item 命中 kwargs 分支后不再触发鉴权。
+                authorized_bizs=self.authorized_bizs,
+                unauthorized_bizs=self.unauthorized_bizs,
                 start_time=trend_start,
                 end_time=trend_end,
                 interval=interval,

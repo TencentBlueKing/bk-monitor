@@ -461,7 +461,7 @@ def test_free_text_credentials_are_redacted(text):
     raw["data"]["dashboard"]["description"] = text
     handler(raw)
     result = invoke()["result"]
-    assert result["dashboard"]["description"] == grafana.REDACTED_VALUE
+    assert result["dashboard"]["description"] == "[REDACTED]"
     assert result["redacted_paths"] == ["/dashboard/description"]
 
 
@@ -484,9 +484,9 @@ def test_sensitive_named_template_variable_masks_actual_values_and_keeps_structu
     assert redacted == {
         "name": "api_key",
         "type": "constant",
-        "query": grafana.REDACTED_VALUE,
-        "current": {"text": grafana.REDACTED_VALUE, "value": grafana.REDACTED_VALUE, "selected": True},
-        "options": [{"text": grafana.REDACTED_VALUE, "value": grafana.REDACTED_VALUE, "selected": True}],
+        "query": "[REDACTED]",
+        "current": {"text": "[REDACTED]", "value": "[REDACTED]", "selected": True},
+        "options": [{"text": "[REDACTED]", "value": "[REDACTED]", "selected": True}],
         "hide": 2,
     }
     assert set(result["redacted_paths"]) == {

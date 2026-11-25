@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type CSSProperties, type ObjectDirective, type PropType, computed, defineComponent, shallowRef } from 'vue';
+import { type CSSProperties, type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Exception } from 'bkui-vue';
-import tippy, { type Instance } from 'tippy.js';
 import { useI18n } from 'vue-i18n';
 
-import { formatTokenCount } from '../utils/helpers';
+import { formatCompactToken } from '../utils/helpers';
+import { LLM_SEARCH_SECTION } from '../utils/search';
 import {
   type LlmMatrixViewNode,
   decodeToolNameFromId,
@@ -40,13 +40,15 @@ import {
   toMatrixViewNode,
 } from '../utils/token-matrix';
 
+import type { LlmSearchSectionId } from '../utils/search';
 import type { LlmTokenMatrixNode } from '../utils/token-matrix';
 
 import './statistic-cards.scss';
 
 const CHART_HEIGHT = 334;
-/** 比例极小的 >0 块仍保留的最小宽度，保证可见并显示省略号 */
-const MIN_BLOCK_WIDTH = 32;
+/** 展开区域相对设计高度的缩放比：整体高度收敛为原高度的 2/3 */
+const EXPANDED_SCALE = 2 / 3;
+const EXPANDED_HEIGHT = CHART_HEIGHT * EXPANDED_SCALE;
 
 /** 顶部概览统计项，value / unit 已格式化 */
 export type LlmStatisticCard = {
@@ -57,12 +59,13 @@ export type LlmStatisticCard = {
   value: string;
 };
 
+/** 色块所属分栏：输入 / 输出，用于就近归位到时间流分区 */
+type MatrixPane = 'input' | 'output';
+
 function rowStyle(node: LlmMatrixViewNode): CSSProperties {
   // 同行内各块（含 tools / container）均按自身 token 值占比分配宽度
   return {
     flex: `${flexWeight(node)} 1 0`,
-    // 比例极小的 >0 块仍保留最小宽度，超出部分由省略号承接
-    minWidth: MIN_BLOCK_WIDTH,
   };
 }
 
@@ -70,217 +73,12 @@ function fillStyle(): CSSProperties {
   return {
     flex: '1 1 0',
     minHeight: 0,
-    // 父元素（容器 / tools）默认也至少保留 32px，过窄时内部子元素由 overflow 裁切不展示
-    minWidth: MIN_BLOCK_WIDTH,
   };
 }
-
-/** 块宽度接近最小宽度时视为过窄，折叠为省略号 */
-const COLLAPSED_WIDTH = MIN_BLOCK_WIDTH + 2;
-
-const BLOCK_SELECTOR = [
-  '.llm-token-matrix-block',
-  '.llm-token-matrix-tools',
-  '.llm-token-matrix-container',
-  '.llm-token-matrix-tool',
-  '.llm-token-matrix-title',
-].join(',');
-
-/** 可能出现省略号的文本节点：各块名称、标题的名称 / 数值 / 百分比 */
-const ELLIPSIS_TARGET_SELECTOR = [
-  '.llm-token-matrix-block-name',
-  '.llm-token-matrix-title-name',
-  '.llm-token-matrix-title-value',
-  '.llm-token-matrix-title-pct',
-  '.llm-token-matrix-tool-name',
-].join(',');
-
-/** 仅当块自身（不含嵌套子块）的文本被省略号截断时才需要面板 */
-function hasOwnEllipsis(el: HTMLElement): boolean {
-  return Array.from(el.querySelectorAll<HTMLElement>(ELLIPSIS_TARGET_SELECTOR)).some(
-    item => item.closest(BLOCK_SELECTOR) === el && item.scrollWidth > item.clientWidth
-  );
-}
-
-/** 可承载子块的块级元素，用于定位容器 / tools 的直接子块 */
-const NESTED_BLOCK_SELECTOR = [
-  '.llm-token-matrix-block',
-  '.llm-token-matrix-tools',
-  '.llm-token-matrix-container',
-  '.llm-token-matrix-tool',
-].join(',');
-
-/** 向上寻找最近的块级祖先（不含自身） */
-function closestBlockAncestor(el: HTMLElement): HTMLElement | null {
-  let parent = el.parentElement;
-  while (parent) {
-    if (parent.matches(NESTED_BLOCK_SELECTOR)) return parent;
-    parent = parent.parentElement;
-  }
-  return null;
-}
-
-/** 直接子块：容器内为模型 / 用户消息等一行子块，tools 内为工具项 */
-function directChildBlocks(el: HTMLElement): HTMLElement[] {
-  return Array.from(el.querySelectorAll<HTMLElement>(NESTED_BLOCK_SELECTOR)).filter(
-    item => closestBlockAncestor(item) === el
-  );
-}
-
-/**
- * 块是否已折叠为省略号：
- * - 自身被压到最小宽度附近；
- * - 或容器内直接子块（模型 / 用户消息等）全部已折叠，此时整体折叠，不再并排展示多个残块。
- */
-function isBlockCollapsed(el: HTMLElement): boolean {
-  const width = el.getBoundingClientRect().width;
-  // 尚未参与布局（宽度为 0）时不做判定，避免初始挂载误折叠
-  if (!width) return false;
-  if (width <= COLLAPSED_WIDTH) return true;
-  if (!el.classList.contains('llm-token-matrix-container')) return false;
-  const children = directChildBlocks(el);
-  if (!children.length) return false;
-  return children.every(isBlockCollapsed);
-}
-
-/** hover 放大面板：克隆块的真实 DOM（含内部子元素）并解除折叠 / 裁切，完整展示 */
-function panelContent(el: HTMLElement): HTMLElement {
-  const panel = document.createElement('div');
-  panel.className = 'llm-token-matrix-panel';
-  const background = el.style.background;
-  const clone = el.cloneNode(true) as HTMLElement;
-  clone.removeAttribute('style');
-  clone.classList.remove('is-collapsed');
-  // 子元素可能也处于折叠态，一并解除，保证面板内父子元素完整展示
-  clone.querySelectorAll('.is-collapsed').forEach(item => item.classList.remove('is-collapsed'));
-  if (background) clone.style.background = background;
-  panel.appendChild(clone);
-  return panel;
-}
-
-/** 全局共享同一个面板：同一时间最多只展示一个 */
-type TipsState = {
-  instance: Instance | null;
-  destroy: () => void;
-};
-const tipsStates = new WeakMap<HTMLElement, TipsState>();
-let activeState: TipsState | null = null;
-
-function closeActivePanel() {
-  if (!activeState) return;
-  const state = activeState;
-  const instance = state.instance;
-  activeState = null;
-  state.instance = null;
-  instance?.destroy();
-}
-
-/**
- * 块级 hover 面板：
- * 1. 块被压到最小宽度附近时折叠为省略号（...），内部子元素不展示；
- *    容器（会话内容块）在模型 / 用户消息等直接子块全部折叠时整体折叠为省略号；
- * 2. 仅块自身文本确实省略时才 hover 弹出；
- * 3. 全局单例面板，hover 新块时先关闭旧面板，避免同时出现多个。
- */
-const blockTips: ObjectDirective<HTMLElement> = {
-  mounted(el) {
-    const state: TipsState = { instance: null, destroy: () => undefined };
-    tipsStates.set(el, state);
-    const isCollapsed = () => isBlockCollapsed(el);
-    const shouldShow = () => isCollapsed() || hasOwnEllipsis(el);
-
-    // 子块变窄时父容器自身宽度不变，无法触发其 ResizeObserver；
-    // 因此由发生变化的块向上回溯，逐层刷新祖先容器的折叠态。
-    const syncCollapsed = () => {
-      let node: HTMLElement | null = el;
-      while (node) {
-        node.classList.toggle('is-collapsed', isBlockCollapsed(node));
-        node = closestBlockAncestor(node);
-      }
-    };
-    syncCollapsed();
-
-    const observer = new ResizeObserver(() => {
-      syncCollapsed();
-      if (state.instance && !shouldShow()) state.instance.hide();
-    });
-    observer.observe(el);
-
-    const onEnter = (event: MouseEvent) => {
-      event.stopPropagation();
-      if (!shouldShow()) return;
-      // 弹出当前块前先关闭其它块的面板，保证同一时间只有一个
-      if (activeState !== state) closeActivePanel();
-      if (state.instance) return;
-
-      state.instance = tippy(el, {
-        allowHTML: true,
-        content: () => panelContent(el),
-        delay: [300, 0],
-        maxWidth: 'none',
-        onMount: instance => {
-          instance.popper.classList.add('llm-token-matrix-tippy');
-          // 原生箭头由 popper 精确对准触发块，以其为真值把面板中心对齐到箭头，
-          // 再用负 margin 抵消箭头随面板的位移，保证三者中心一致
-          const box = instance.popper.querySelector<HTMLElement>('.tippy-box');
-          const arrow = instance.popper.querySelector<HTMLElement>('.tippy-arrow');
-          if (!box || !arrow) return;
-          const alignPanelToArrow = () => {
-            if (!box.isConnected) return;
-            const boxRect = box.getBoundingClientRect();
-            const arrowRect = arrow.getBoundingClientRect();
-            const delta = arrowRect.left + arrowRect.width / 2 - (boxRect.left + boxRect.width / 2);
-            // 已对齐（δ≈0）时无需重复，保证可重复调用
-            if (Math.abs(delta) < 0.5) return;
-            box.style.transform = `translateX(${delta}px)`;
-            arrow.style.marginLeft = `${-delta}px`;
-          };
-          // 内容由克隆 DOM 注入，待布局稳定后再测量；两帧后校一次，内容尺寸变化时再补一次
-          requestAnimationFrame(() => requestAnimationFrame(alignPanelToArrow));
-          setTimeout(alignPanelToArrow, 120);
-        },
-        onHidden: () => {
-          if (activeState === state) activeState = null;
-          const instance = state.instance;
-          state.instance = null;
-          instance?.destroy();
-        },
-        onShow: () => {
-          if (!shouldShow()) return false;
-        },
-        placement: 'top',
-        theme: 'light',
-        trigger: 'mouseenter',
-      });
-      activeState = state;
-      setTimeout(() => {
-        if (state.instance && shouldShow() && !state.instance.state.isShown) {
-          state.instance.clearDelayTimeouts();
-          state.instance.show();
-        }
-      }, 300);
-    };
-    el.addEventListener('mouseenter', onEnter);
-
-    state.destroy = () => {
-      observer.disconnect();
-      el.removeEventListener('mouseenter', onEnter);
-      if (activeState === state) activeState = null;
-      const instance = state.instance;
-      state.instance = null;
-      instance?.destroy();
-    };
-  },
-  beforeUnmount(el) {
-    tipsStates.get(el)?.destroy();
-    tipsStates.delete(el);
-  },
-};
 
 /** 模型 Span 顶部概览：收起条展示统计，展开后按输入 / 输出层级画矩形树 */
 export default defineComponent({
   name: 'LlmStatisticCards',
-  directives: { blockTips },
   props: {
     /** 已格式化的统计项，顺序由调用方给定 */
     cards: {
@@ -296,8 +94,14 @@ export default defineComponent({
       type: Array as PropType<LlmTokenMatrixNode[]>,
       default: () => [],
     },
+    /** 开启色块 hover / 点击交互：点击后就近定位到时间流对应折叠分区 */
+    interactive: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
+    'locate-section': (_sectionId: LlmSearchSectionId) => true,
     'locate-tool': (_toolName: string) => true,
   },
   setup(props, { emit }) {
@@ -315,6 +119,11 @@ export default defineComponent({
     });
     const hasMatrix = computed(() => Boolean(inputNode.value || outputNode.value));
 
+    /** 输入 / 输出分栏宽度：按两侧 token 占比分配，缺失数据的一侧回退为 1 */
+    const sideStyle = (node: LlmMatrixViewNode | null): CSSProperties => ({
+      flex: `${node ? flexWeight(node) : 1} 1 0`,
+    });
+
     const handleToggle = () => {
       expanded.value = !expanded.value;
     };
@@ -325,13 +134,23 @@ export default defineComponent({
       if (toolName) emit('locate-tool', toolName);
     };
 
+    /** 色块归属的时间流折叠分区：output 整棵子树归输出；input 侧 system / definitions 单独归位，其余归输入 */
+    const resolveSectionId = (pane: MatrixPane, node: LlmMatrixViewNode): LlmSearchSectionId => {
+      if (pane === 'output') return LLM_SEARCH_SECTION.timelineOutput;
+      if (node.id === 'system') return LLM_SEARCH_SECTION.inputSystem;
+      if (node.id === 'definitions') return LLM_SEARCH_SECTION.inputTools;
+      return LLM_SEARCH_SECTION.timelineInput;
+    };
+
+    const handleBlockClick = (pane: MatrixPane, node: LlmMatrixViewNode) => {
+      if (!props.interactive) return;
+      emit('locate-section', resolveSectionId(pane, node));
+    };
+
     const renderTitle = (node: LlmMatrixViewNode) => (
-      <div
-        v-block-tips
-        class='llm-token-matrix-title'
-      >
+      <div class='llm-token-matrix-title'>
         <span class='llm-token-matrix-title-name'>{node.name}</span>
-        <span class='llm-token-matrix-title-value'>{formatTokenCount(node.value)}</span>
+        <span class='llm-token-matrix-title-value'>{formatCompactToken(node.value)}</span>
         <span class='llm-token-matrix-title-pct'>{formatMatrixPercent(node.percent)}</span>
       </div>
     );
@@ -340,18 +159,18 @@ export default defineComponent({
       <div class='llm-token-matrix-block-head'>
         <div class='llm-token-matrix-block-name'>{node.name}</div>
         <div class='llm-token-matrix-block-meta'>
-          <span class='llm-token-matrix-block-value'>{formatTokenCount(node.value)}</span>
+          <span class='llm-token-matrix-block-value'>{formatCompactToken(node.value)}</span>
           <span class='llm-token-matrix-block-pct'>{formatMatrixPercent(node.percent)}</span>
         </div>
       </div>
     );
 
-    const renderLeaf = (node: LlmMatrixViewNode, style: CSSProperties) => (
+    const renderLeaf = (node: LlmMatrixViewNode, style: CSSProperties, pane: MatrixPane) => (
       <div
         key={node.id}
-        v-block-tips
         class='llm-token-matrix-block'
         style={{ ...style, background: node.color }}
+        onClick={() => handleBlockClick(pane, node)}
       >
         {renderBlockHead(node)}
       </div>
@@ -363,67 +182,70 @@ export default defineComponent({
       return (
         <div
           key={node.id}
-          v-block-tips
           class={['llm-token-matrix-tool', { 'is-clickable': clickable }]}
-          onClick={() => handleToolClick(node)}
+          onClick={(event: Event) => {
+            // 工具叶子优先定位同名工具调用行，避免冒泡到工具块再次定位分区
+            if (!clickable) return;
+            event.stopPropagation();
+            handleToolClick(node);
+          }}
         >
           <span class='llm-token-matrix-tool-name'>{title}</span>
           <span class='llm-token-matrix-tool-meta'>
-            {formatTokenCount(node.value)} · {formatMatrixPercent(node.percent)}
+            {formatCompactToken(node.value)} · {formatMatrixPercent(node.percent)}
           </span>
         </div>
       );
     };
 
-    const renderTools = (node: LlmMatrixViewNode, style: CSSProperties) => (
+    const renderTools = (node: LlmMatrixViewNode, style: CSSProperties, pane: MatrixPane) => (
       <div
         key={node.id}
-        v-block-tips
         class='llm-token-matrix-tools'
         style={{ ...style, background: node.color }}
+        onClick={() => handleBlockClick(pane, node)}
       >
         {renderBlockHead(node)}
         <div class='llm-token-matrix-tool-list'>{node.children.map(renderTool)}</div>
       </div>
     );
 
-    function renderChild(node: LlmMatrixViewNode, inRow = true) {
+    function renderChild(node: LlmMatrixViewNode, pane: MatrixPane, inRow = true) {
       const style = inRow ? rowStyle(node) : fillStyle();
-      if (node.kind === 'tools') return renderTools(node, style);
-      if (node.kind === 'container') return renderContainer(node, style);
-      return renderLeaf(node, style);
+      if (node.kind === 'tools') return renderTools(node, style, pane);
+      if (node.kind === 'container') return renderContainer(node, style, pane);
+      return renderLeaf(node, style, pane);
     }
 
-    function renderRow(nodes: LlmMatrixViewNode[], fill = false) {
+    function renderRow(nodes: LlmMatrixViewNode[], pane: MatrixPane, fill = false) {
       return (
         <div class={['llm-token-matrix-row', { 'is-fill': fill, 'is-top': !fill }]}>
-          {nodes.map(child => renderChild(child, true))}
+          {nodes.map(child => renderChild(child, pane, true))}
         </div>
       );
     }
 
-    function renderContainer(node: LlmMatrixViewNode, style: CSSProperties) {
+    function renderContainer(node: LlmMatrixViewNode, style: CSSProperties, pane: MatrixPane) {
       return (
         <div
           key={node.id}
-          v-block-tips
           class='llm-token-matrix-container'
           style={style}
         >
           {renderTitle(node)}
-          {node.children.length ? renderRow(node.children, true) : null}
+          {node.children.length ? renderRow(node.children, pane, true) : null}
         </div>
       );
     }
 
-    const renderPaneBody = (node: LlmMatrixViewNode) => {
+    const renderPaneBody = (node: LlmMatrixViewNode, pane: MatrixPane) => {
       const leaves = node.children.filter(child => child.kind === 'leaf');
       const rest = node.children.filter(child => child.kind !== 'leaf');
-      if (!rest.length) return leaves.length ? renderRow(leaves, true) : null;
+      if (!rest.length) return leaves.length ? renderRow(leaves, pane, true) : null;
       return (
         <>
-          {leaves.length ? renderRow(leaves, false) : null}
-          <div class='llm-token-matrix-pane-rest'>{rest.map(child => renderChild(child, false))}</div>
+          {leaves.length ? renderRow(leaves, pane, false) : null}
+          <div class='llm-token-matrix-pane-rest'>{rest.map(child => renderChild(child, pane, false))}</div>
         </>
       );
     };
@@ -439,10 +261,11 @@ export default defineComponent({
           />
         );
       }
+      const pane: MatrixPane = node.id === 'output' ? 'output' : 'input';
       return (
         <div class='llm-token-matrix-pane'>
           {renderTitle(node)}
-          <div class='llm-token-matrix-pane-body'>{renderPaneBody(node)}</div>
+          <div class='llm-token-matrix-pane-body'>{renderPaneBody(node, pane)}</div>
         </div>
       );
     };
@@ -477,7 +300,6 @@ export default defineComponent({
             ].map(item =>
               renderBlockSkeleton(item.id, {
                 flex: `${item.weight} 1 0`,
-                minWidth: MIN_BLOCK_WIDTH,
               })
             )}
           </div>
@@ -492,6 +314,7 @@ export default defineComponent({
       hasMatrix,
       inputNode,
       outputNode,
+      sideStyle,
       handleToggle,
       renderPane,
       renderPaneSkeleton,
@@ -530,12 +353,27 @@ export default defineComponent({
         {this.expanded ? (
           <div
             class='llm-statistic-cards-body'
-            style={{ height: `${CHART_HEIGHT}px` }}
+            style={
+              {
+                height: `${EXPANDED_HEIGHT}px`,
+                '--llm-matrix-scale': EXPANDED_SCALE,
+              } as CSSProperties
+            }
           >
             {this.hasMatrix ? (
-              <div class='llm-token-matrix'>
-                <div class='llm-token-matrix-side'>{this.renderPane(this.inputNode)}</div>
-                <div class='llm-token-matrix-side'>{this.renderPane(this.outputNode)}</div>
+              <div class={['llm-token-matrix', { 'is-interactive': this.interactive }]}>
+                <div
+                  class='llm-token-matrix-side'
+                  style={this.sideStyle(this.inputNode)}
+                >
+                  {this.renderPane(this.inputNode)}
+                </div>
+                <div
+                  class='llm-token-matrix-side'
+                  style={this.sideStyle(this.outputNode)}
+                >
+                  {this.renderPane(this.outputNode)}
+                </div>
               </div>
             ) : this.matrixLoading ? (
               <div class='llm-token-matrix'>

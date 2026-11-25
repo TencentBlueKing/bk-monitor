@@ -7,7 +7,6 @@ learn Celery/JOB identifiers.
 
 from __future__ import annotations
 
-import copy
 import hashlib
 import json
 import uuid
@@ -39,22 +38,28 @@ def store_bounded_inspection_result(
     *,
     compaction_probe: dict[str, Any],
     compaction_error: dict[str, Any],
+    source_read: bool = False,
+    preserve_probe: str | None = None,
 ) -> bool:
     """Persist a final result, compacting it deterministically above 10 MiB."""
 
     try:
-        ResourceInspectionTaskRecord.store_result(task_id, result)
+        ResourceInspectionTaskRecord.store_result(task_id, result, source_read=source_read)
         return False
     except RuntimeError as error:
         if "10 MiB response limit" not in str(error):
             raise
 
-    compacted = _compact_inspection_value(copy.deepcopy(result))
+    probes = dict(result["probes"])
+    exact = probes.pop(preserve_probe, None)
+    compacted = _compact_inspection_value({**result, "probes": probes})
+    if exact is not None:
+        compacted["probes"][preserve_probe] = exact
     compacted["probes"]["response_limit"] = compaction_probe
     compacted["partial"] = True
     compacted["error"] = compaction_error
     try:
-        ResourceInspectionTaskRecord.store_result(task_id, compacted)
+        ResourceInspectionTaskRecord.store_result(task_id, compacted, source_read=source_read)
     except RuntimeError as error:
         if "10 MiB response limit" not in str(error):
             raise
@@ -69,7 +74,7 @@ def store_bounded_inspection_result(
                 "error": compaction_error,
             }
         )
-        ResourceInspectionTaskRecord.store_result(task_id, compacted)
+        ResourceInspectionTaskRecord.store_result(task_id, compacted, source_read=source_read)
     return True
 
 
@@ -273,7 +278,7 @@ class ResourceInspectionTaskRecord:
         return cls.save(record)
 
     @classmethod
-    def store_result(cls, task_id: str, result: dict[str, Any]) -> None:
+    def store_result(cls, task_id: str, result: dict[str, Any], *, source_read: bool = False) -> None:
         encoded = json.dumps(result, cls=DjangoJSONEncoder, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         if len(encoded) > cls.MAX_RESULT_BYTES:
             raise RuntimeError("inspection task result exceeds the 10 MiB response limit")
@@ -283,13 +288,17 @@ class ResourceInspectionTaskRecord:
         timeout = cls.RESULT_TTL_SECONDS
         if expires_at:
             timeout = max(1, int((expires_at - timezone.now()).total_seconds()))
-        cls.cache().set(cls._result_key(task_id), compressed, timeout=timeout)
-        if cls.cache().get(cls._result_key(task_id)) is None:
+        key = cls._result_key(task_id, source_read=source_read)
+        cls.cache().set(key, compressed, timeout=timeout)
+        if cls.cache().get(key) is None:
             raise RuntimeError("inspection task result was not persisted")
 
     @classmethod
-    def load_result(cls, task_id: str) -> dict[str, Any] | None:
-        raw = cls.cache().get(cls._result_key(task_id))
+    def load_result(cls, task_id: str, *, source_read: bool = False) -> dict[str, Any] | None:
+        raw = cls.cache().get(cls._result_key(task_id, source_read=source_read))
+        if source_read and raw is None:
+            # An older Worker may have completed the task with legacy evidence.
+            raw = cls.cache().get(cls._result_key(task_id))
         if raw is None:
             return None
         try:
@@ -321,6 +330,8 @@ class ResourceInspectionTaskRecord:
     def delete_pending(cls, record: dict[str, Any]) -> None:
         cls.cache().delete(cls._meta_key(record["task_id"]))
         cls.cache().delete(cls._result_key(record["task_id"]))
+        if ((record.get("request_options") or {}).get("source_step") or {}).get("operation") == "read":
+            cls.cache().delete(cls._result_key(record["task_id"], source_read=True))
         cls.release_active(record)
 
     @classmethod
@@ -419,7 +430,10 @@ class ResourceInspectionTaskRecord:
         return f"{cls.META_KEY_PREFIX}{task_id}"
 
     @classmethod
-    def _result_key(cls, task_id: str) -> str:
+    def _result_key(cls, task_id: str, *, source_read: bool = False) -> str:
+        # Old API instances read only the legacy key and cannot enforce raw-read access.
+        if source_read:
+            return f"bklog:resource_inspection:source_read:{task_id}"
         return f"{cls.RESULT_KEY_PREFIX}{task_id}"
 
     @classmethod

@@ -25,7 +25,7 @@
  */
 import { defineComponent, inject, shallowRef, watch } from 'vue';
 
-import { formatTokenCount } from '../utils/helpers';
+import { formatCompactToken } from '../utils/helpers';
 import { LLM_OBSERVATION_SEARCH_KEY } from '../utils/search';
 
 import './collapse-section.scss';
@@ -64,6 +64,16 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 外部定位请求命中的分区 id：与 sectionId 相等时强制展开 */
+    expandSectionId: {
+      type: String,
+      default: '',
+    },
+    /** 外部定位请求令牌，递增即触发一次强制展开 */
+    expandToken: {
+      type: Number,
+      default: 0,
+    },
     /** 标题旁数量徽标，时间流输入 / 输出标题已自带计数时可关掉 */
     showCount: {
       type: Boolean,
@@ -76,7 +86,11 @@ export default defineComponent({
     },
   },
   setup(props, { slots }) {
-    const expanded = shallowRef(props.defaultExpand);
+    // 挂载时可能已带上定位令牌（如筛选切回「全部」与写入令牌发生在同一次更新），
+    // 此时 props 已是目标值，非 immediate 的 watch 不会再触发，故初始化即按令牌决定展开
+    const expanded = shallowRef(
+      props.defaultExpand || (props.expandToken > 0 && props.expandSectionId === props.sectionId)
+    );
     const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
 
     // 分区折叠后子节点不在 DOM 里，定位前必须先展开
@@ -104,8 +118,21 @@ export default defineComponent({
       }
     );
 
+    // 色块点击等外部定位请求：命中本分区时强制展开（不切回折叠，便于定位）
+    watch(
+      () => [props.expandSectionId, props.expandToken] as const,
+      ([sectionId]) => {
+        if (sectionId && sectionId === props.sectionId) {
+          expanded.value = true;
+        }
+      }
+    );
+
     return () => (
-      <div class='llm-collapse-section'>
+      <div
+        class='llm-collapse-section'
+        data-llm-section={props.sectionId || undefined}
+      >
         <div
           class={['llm-collapse-section-header', { 'is-collapsed': !expanded.value }]}
           onClick={() => {
@@ -121,7 +148,7 @@ export default defineComponent({
           <div class='llm-collapse-section-aside'>
             {/* tokens 计数：未传入时不展示 */}
             {props.tokens == null ? null : (
-              <span class='llm-collapse-section-tokens'>{`${formatTokenCount(props.tokens)} tokens`}</span>
+              <span class='llm-collapse-section-tokens'>{`${formatCompactToken(props.tokens)} tokens`}</span>
             )}
             <i class='icon-monitor icon-arrow-down llm-collapse-section-arrow' />
           </div>

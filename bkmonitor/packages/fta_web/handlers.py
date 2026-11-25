@@ -44,7 +44,7 @@ def register_builtin_plugins(sender, **kwargs):
         plugins = json.loads(f.read())
         for plugin in plugins:
             # 多租户情况下禁用itsmv3插件
-            if plugin["plugin_key"] == "itsm" and settings.ENABLE_MULTI_TENANT_MODE:
+            if plugin["plugin_key"] == "itsm" and (settings.ESB_DISABLED or settings.ENABLE_MULTI_TENANT_MODE):
                 continue
 
             # 开启标准排障的情况下,才可注册标准排障插件

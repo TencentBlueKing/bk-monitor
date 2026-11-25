@@ -143,7 +143,6 @@ class ClusteringConfigHandler:
 
         clustering_fields = params.get("clustering_fields", DEFAULT_CLUSTERING_FIELDS)
 
-        es_storage = ""
         collector_config_name_en = ""
 
         # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
@@ -153,6 +152,9 @@ class ClusteringConfigHandler:
         default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT) or {}
         storage_type = conf.get("storage_type", StorageTypeEnum.ELASTICSEARCH.value)
         doris_storage = conf.get("doris_storage", "") if storage_type == StorageTypeEnum.DORIS.value else ""
+        es_storage = (
+            (conf.get("predict_es_storage") or "") if storage_type == StorageTypeEnum.ELASTICSEARCH.value else ""
+        )
 
         if collector_config_id:
             # 配置检查
@@ -164,7 +166,7 @@ class ClusteringConfigHandler:
                 raise CollectorStorageNotExistException(
                     CollectorStorageNotExistException.MESSAGE.format(collector_config_id=collector_config_id)
                 )
-            es_storage = collector_clustering_es_storage.get("es_storage", "")
+            es_storage = es_storage or collector_clustering_es_storage.get("es_storage", "")
             if not es_storage:
                 raise CollectorEsStorageNotExistException(
                     CollectorEsStorageNotExistException.MESSAGE.format(collector_config_id=collector_config_id)
