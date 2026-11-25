@@ -14,6 +14,9 @@ from typing import Any
 from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 
+from semconv.rum import hover as vital_hover
+from semconv.rum.field import HoverConfig
+
 
 Hover = dict[str, Any]
 Text = str | Promise
@@ -32,12 +35,15 @@ LOADING_TIME_SOURCE: Source = (
     _("Datadog · Loading Time"),
     "https://docs.datadoghq.com/real_user_monitoring/browser/monitoring_page_performance/",
 )
+VITAL_HOVERS: dict[str, HoverConfig] = {
+    "ttfb": vital_hover.TTFB,
+    "fcp": vital_hover.FCP,
+    "lcp": vital_hover.LCP,
+    "inp": vital_hover.INP,
+    "cls": vital_hover.CLS,
+}
 VITAL_SOURCES: dict[str, Source] = {
-    "ttfb": (_("web.dev · Time to First Byte"), "https://web.dev/articles/ttfb"),
-    "fcp": (_("web.dev · First Contentful Paint"), "https://web.dev/articles/fcp"),
-    "lcp": (_("web.dev · Largest Contentful Paint"), "https://web.dev/articles/lcp"),
-    "inp": (_("web.dev · Interaction to Next Paint"), "https://web.dev/articles/inp"),
-    "cls": (_("web.dev · Cumulative Layout Shift"), "https://web.dev/articles/cls"),
+    metric: (hover["source"]["label"], hover["source"]["url"]) for metric, hover in VITAL_HOVERS.items()
 }
 
 
@@ -230,39 +236,6 @@ MILESTONE_HOVERS: dict[str, Hover] = {
         _("RUM 观察到页面在一段时间内没有新的网络请求、资源加载或 DOM 变化。"),
         user_experience=_("页面不再继续跳动或补充内容，用户感觉页面已经安定。"),
         source=LOADING_TIME_SOURCE,
-    ),
-}
-
-VITAL_HOVERS: dict[str, Hover] = {
-    "ttfb": _hover(
-        _("TTFB（首字节响应）"),
-        _("从用户开始打开页面，到浏览器收到服务器返回的第一小段数据。"),
-        user_experience=_("页面多久开始得到服务器回应；过慢时会感觉页面一直没有反应。"),
-        source=VITAL_SOURCES["ttfb"],
-    ),
-    "fcp": _hover(
-        _("FCP（首次内容绘制）"),
-        _("从打开页面到第一次显示文字、图片等内容的时间。"),
-        user_experience=_("页面不再是纯白，用户第一次看到有意义的内容。"),
-        source=VITAL_SOURCES["fcp"],
-    ),
-    "lcp": _hover(
-        _("LCP（最大内容绘制）"),
-        _("从打开页面到视窗内最大的图片、文本块或视频画面渲染完成的时间。"),
-        user_experience=_("页面主要内容已经出现，用户能够判断页面内容。"),
-        source=VITAL_SOURCES["lcp"],
-    ),
-    "inp": _hover(
-        _("INP（交互到下一次绘制）"),
-        _("记录用户点击、触摸或键盘操作后，到浏览器完成下一帧画面的整体延迟。"),
-        user_experience=_("用户操作后，页面多久给出视觉反馈；数值越低，操作越跟手。"),
-        source=VITAL_SOURCES["inp"],
-    ),
-    "cls": _hover(
-        _("CLS（累积布局偏移）"),
-        _("记录页面元素在没有用户操作时发生的意外位移；CLS 没有时间单位，数值越小越稳定。"),
-        user_experience=_("文字、按钮和图片是否突然跳动；数值过高容易导致看错内容或点错按钮。"),
-        source=VITAL_SOURCES["cls"],
     ),
 }
 

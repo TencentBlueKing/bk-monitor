@@ -32,6 +32,7 @@ from semconv.rum.field import FieldSpec, RatingThreshold
 from semconv.rum.registry import FieldRegistry
 from semconv.rum.trace import SpanSpec
 from semconv.rum.trace.status import Status
+from semconv.rum.view import ViewSpec
 
 
 class TestRatingThreshold:
@@ -327,6 +328,16 @@ class TestSpanSpec:
         assert cls_spec.rating_config[0] == RatingThreshold(rating="good", value=0.1)
         assert cls_spec.rating_config[1] == RatingThreshold(rating="needs_improvement", value=0.25)
         assert cls_spec.rating_config[2] == RatingThreshold(rating="poor")
+
+    @pytest.mark.parametrize("metric", ["LCP", "INP", "CLS", "FCP", "TTFB"])
+    def test_web_vitals_short_alias_and_hover(self, metric):
+        """Web Vitals 别名为简称，Span 与 View 层级共用 extra_config.hover。"""
+        span_spec = SpanSpec.from_field(metric)
+        view_spec = ViewSpec.from_field(f"web_vitals.{metric.lower()}")
+        assert span_spec.field_alias == view_spec.field_alias == metric
+        assert span_spec.extra_config["hover"] is view_spec.extra_config["hover"]
+        assert str(span_spec.extra_config["hover"]["title"]).startswith(f"{metric}（")
+        assert span_spec.extra_config["hover"]["source"]["url"] == f"https://web.dev/articles/{metric.lower()}"
 
     # ------------------------------------------------------------------
     # 未注册字段
