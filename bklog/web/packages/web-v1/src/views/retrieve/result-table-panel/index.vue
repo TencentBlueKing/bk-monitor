@@ -44,6 +44,7 @@
           v-if="active === 'origin'"
           v-bind="$attrs"
           v-on="$listeners"
+          :index-set-item="indexSetItem"
         />
         <log-clustering
           v-if="active === 'clustering'"
@@ -52,6 +53,7 @@
           v-on="$listeners"
           :active-table-tab="active"
           :config-data="configData"
+          :index-set-item="indexSetItem"
           @show-origin-log="showOriginLog"
         />
       </keep-alive>
@@ -77,6 +79,10 @@
       activeTableTab: {
         type: String,
         require: true,
+      },
+      indexSetItem: {
+        type: Object,
+        default: () => ({}),
       },
       isInitPage: {
         type: Boolean,
@@ -112,9 +118,15 @@
             return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
         }
       },
+      isPlatformIndex() {
+        return Boolean(this.indexSetItem?.is_platform_index);
+      },
+      isClusteringEnabled() {
+        return this.isAiopsToggle && !this.isPlatformIndex;
+      },
       panelList() {
         const list = [{ name: 'origin', label: this.$t('原始日志') }];
-        if (this.isAiopsToggle) {
+        if (this.isClusteringEnabled) {
           list.push({ name: 'clustering', label: this.$t('日志聚类') });
         }
 
@@ -123,7 +135,13 @@
     },
     watch: {
       isInitPage() {
-        if (this.activeTableTab === 'clustering' && this.isAiopsToggle) this.active = 'clustering';
+        this.syncClusteringTab();
+      },
+      activeTableTab() {
+        this.syncClusteringTab();
+      },
+      'indexSetItem.is_platform_index'() {
+        this.syncClusteringTab();
       },
       active(val) {
         if (val === 'clustering' && !this.isReported) {
@@ -138,7 +156,26 @@
         }
       },
     },
+    mounted() {
+      this.syncClusteringTab();
+    },
     methods: {
+      syncClusteringTab() {
+        const wantsClustering =
+          this.active === 'clustering' ||
+          this.activeTableTab === 'clustering' ||
+          this.$route.query.tab === 'clustering';
+        if (this.isPlatformIndex) {
+          if (wantsClustering) {
+            this.showOriginLog();
+          }
+          return;
+        }
+
+        if (this.activeTableTab === 'clustering' && this.isAiopsToggle && this.active !== 'clustering') {
+          this.active = 'clustering';
+        }
+      },
       showOriginLog() {
         this.active = 'origin';
         this.handleChangeTab('origin');

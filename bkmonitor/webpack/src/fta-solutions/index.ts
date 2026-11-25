@@ -36,7 +36,7 @@ import 'monitor-ui/directive/index';
 import Api from 'monitor-api/api';
 import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
-import { getUrlParam, mergeSpaceList, parseBizId, setGlobalBizId } from 'monitor-common/utils';
+import { getUrlParam, mergeSpaceList, parseBizId, resolveEntryBizId, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
 import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 
@@ -82,7 +82,7 @@ if (window.__BK_WEWEB_APP_KEY__) {
   Api.model
     .enhancedContext({
       space_uid: spaceUid || undefined,
-      bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
+      bk_biz_id: !spaceUid ? resolveEntryBizId(bizId) || process.env.defaultBizId : undefined,
       context_type: 'basic',
     })
     .then(data => {

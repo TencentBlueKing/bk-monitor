@@ -29,7 +29,11 @@ from apm.constants import (
     ACTIVE_PROFILING_SUCCEED_STATUSES,
     ACTIVE_PROFILING_UNKNOWN_GRACE_SEC,
 )
-from apm.core.handlers.profile.active_profiling import PROCESS_CANDIDATE_PATTERN, STARTED_HOST_STATUSES
+from apm.core.handlers.profile.active_profiling import (
+    PROCESS_CANDIDATE_PATTERN,
+    STARTED_HOST_STATUSES,
+    build_cancelled_message,
+)
 from apm.models import ProfileDataSource
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.request import get_request_tenant_id
@@ -43,8 +47,10 @@ class ActiveProfilingEventQueryHandler:
     已采数据、任务历史、执行详情按同一口径把 started/finished 配成主机执行，outdate、unknown 等都在查询时派生。
     MySQL 查询在预计算落后时用两个列表取落后区间内的计划执行，params 带上 overrides，
     把 SaaS 只写进 MySQL 的信息覆盖到 Event 配出的行上：
-    - hosts：{主机执行键: {"status": "cancelled", "finished_at": ...}}，SaaS 受理取消后采集端的 finished 还没上报
+    - hosts：{主机执行键: {"finished_at": ..., "cancelled_by": ...}}，SaaS 受理的取消：采集端的 finished 还没上报时覆盖为 cancelled，
+      取消人只有 SaaS 记录，finished 已上报为 cancelled 时也带上
     - task_names：{执行键: 任务名}，改名只改执行表
+    - ids：{执行键: 执行行 id}，执行表已建行的执行带上行 id，没建行的为 None
     覆盖后状态与任务名会变，这两项不下推 ES，在内存中按覆盖后的值筛选"""
 
     def __init__(self, bk_biz_id):
@@ -98,7 +104,11 @@ class ActiveProfilingEventQueryHandler:
     @staticmethod
     def _get_overrides(params):
         overrides = params.get("overrides") or {}
-        return {"hosts": overrides.get("hosts") or {}, "task_names": overrides.get("task_names") or {}}
+        return {
+            "hosts": overrides.get("hosts") or {},
+            "task_names": overrides.get("task_names") or {},
+            "ids": overrides.get("ids") or {},
+        }
 
     def _build_row_filter(self, params, statuses, get_status, get_task_name):
         """配对后在内存中筛选的条件：状态都在内存中筛；任务名有覆盖时不下推，也在内存中按覆盖后的名称包含匹配"""
@@ -111,17 +121,18 @@ class ActiveProfilingEventQueryHandler:
 
     def _override_host(self, host, key, overrides):
         """SaaS 已受理取消、采集端的 finished 还没上报时，Event 配出的还是 running/unknown，以 MySQL 的取消为准；
-        已有 finished 时以 Event 为准，与预计算的覆盖顺序一致"""
+        已有 finished 时以 Event 为准，与预计算的覆盖顺序一致。最终为 cancelled 时执行信息带上 SaaS 记录的取消人"""
         override = overrides["hosts"].get(self._normalize_host_execution_key(key))
-        if override and host["status"] in STARTED_HOST_STATUSES:
-            host.update(override)
+        if not override:
+            return
+        if host["status"] in STARTED_HOST_STATUSES:
+            host.update(status="cancelled", finished_at=override["finished_at"])
+        if host["status"] == "cancelled":
+            host["message"] = build_cancelled_message(override["cancelled_by"])
 
-    @staticmethod
-    def _override_task_name(key, dimensions, overrides):
-        schedule_type, scheduled_at, task_id = key[:3]
-        return overrides["task_names"].get(
-            (schedule_type, int(scheduled_at), int(task_id or 0)), dimensions["task_name"]
-        )
+    @classmethod
+    def _override_task_name(cls, key, dimensions, overrides):
+        return overrides["task_names"].get(cls._normalize_execution_key(key), dimensions["task_name"])
 
     def query_topk(self, params):
         """搜索框候选值，与两个列表一样按 scheduled_at 选取，按主机执行数倒序取前 limit 个，与 MySQL 查询同一口径"""
@@ -146,7 +157,10 @@ class ActiveProfilingEventQueryHandler:
         if not hosts:
             raise ValueError(_("执行记录不存在"))
 
-        detail = {"task_id": params["task_id"]} if "task_id" in params else {}
+        # 执行表查不到才回查 ES，没有执行行 id
+        detail = {"id": None}
+        if "task_id" in params:
+            detail["task_id"] = params["task_id"]
         detail.update(
             task_name=dimensions["task_name"],
             schedule_type=dimensions["schedule_type"],
@@ -180,8 +194,9 @@ class ActiveProfilingEventQueryHandler:
         task = {"name": self._override_task_name(key, dimensions, overrides), "schedule_type": schedule_type}
         if task_id:
             task = {"task_id": int(task_id), **task}
-        # 列表不展示执行信息，只有失败的行带失败类型，与 MySQL 查询的口径一致
-        del row["message"]
+        # 只有取消的行带执行信息，只有失败的行带失败类型，与 MySQL 查询的口径一致
+        if row["status"] != "cancelled":
+            del row["message"]
         if row["status"] != "failed":
             del row["error_type"]
         row.update(
@@ -341,7 +356,9 @@ class ActiveProfilingEventQueryHandler:
             # 先覆盖再汇总，执行状态与状态计数按覆盖后的主机计
             self._override_host(host, host_key, overrides)
             hosts.append(host)
-        row = {"task_id": int(task_id)} if task_id else {}
+        row = {"id": overrides["ids"].get(self._normalize_execution_key(key))}
+        if task_id:
+            row["task_id"] = int(task_id)
         row.update(
             task_name=self._override_task_name(key, dimensions, overrides),
             schedule_type=schedule_type,
@@ -416,7 +433,16 @@ class ActiveProfilingEventQueryHandler:
         }
         filter_dict = {key: value for key, value in optional_filters.items() if value}
         if filters.get("task_id"):
-            filter_dict["task_id"] = str(filters["task_id"])
+            # 任务 ID 是计划 ID，只匹配计划执行：立即执行 Event 的 task_id 是执行行自己的 id，与计划 ID 不在同一取值空间；
+            # 从计划点立即执行的关联只记在执行表，Event 里没有
+            schedule_types = [
+                schedule_type
+                for schedule_type in ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES
+                if schedule_type in (filters.get("schedule_types") or ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES)
+            ]
+            if not schedule_types:
+                raise ValueError(_("暂不支持按计划筛选立即执行"))
+            filter_dict.update(task_id=str(filters["task_id"]), schedule_type=schedule_types)
 
         lower, upper = self._build_scheduled_at_range(params, filters.get("status") or [])
         filter_dict.update(scheduled_at__gte=lower, scheduled_at__lte=upper)
@@ -558,6 +584,12 @@ class ActiveProfilingEventQueryHandler:
         return schedule_type, int(scheduled_at), int(task_id or 0)
 
     @staticmethod
+    def _normalize_execution_key(key):
+        """Event 维度都是字符串，转为与执行表一致的执行键；主机执行键取前三项"""
+        schedule_type, scheduled_at, task_id = key[:3]
+        return schedule_type, int(scheduled_at), int(task_id or 0)
+
+    @staticmethod
     def _normalize_host_execution_key(key):
         """Event 维度都是字符串，转为与执行表一致的类型"""
         schedule_type, scheduled_at, task_id, bk_host_id = key
@@ -604,7 +636,7 @@ class ActiveProfilingEventQueryHandler:
             if status == "succeed":
                 message = _("采集成功")
             elif status == "cancelled":
-                message = _("采集已被用户取消")
+                message = build_cancelled_message()
             host.update(
                 # 旧版采集端没拿到进程时会省略 processes 字段，这类事件在 Event 保留期内仍会查到
                 processes=content.get("processes", []),

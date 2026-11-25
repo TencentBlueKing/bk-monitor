@@ -1,6 +1,8 @@
 import { request } from '../base';
 
 export const rumRecords = request('POST', 'rum/search/list_records/');
+export const rumTotal = request('POST', 'rum/search/total/');
+export const rumTimeSeries = request('POST', 'rum/search/time_series/');
 export const rumViewConfig = request('GET', 'rum/search/view_config/');
 export const rumFieldsOptionValues = request('POST', 'rum/search/get_fields_option_values/');
 export const rumGenerateQueryString = request('POST', 'rum/search/generate_query_string/');
@@ -14,6 +16,8 @@ export const rumTimeline = request('POST', 'rum/search/timeline/');
 
 export default {
   rumRecords,
+  rumTotal,
+  rumTimeSeries,
   rumViewConfig,
   rumFieldsOptionValues,
   rumGenerateQueryString,

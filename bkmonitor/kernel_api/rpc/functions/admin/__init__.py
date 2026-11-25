@@ -56,6 +56,7 @@ from . import (
     unify_query,
     vm_short_link,
     vm_query,
+    user_query,
 )
 
 __all__ = [
@@ -106,4 +107,5 @@ __all__ = [
     "unify_query",
     "vm_short_link",
     "vm_query",
+    "user_query",
 ]

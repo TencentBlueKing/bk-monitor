@@ -568,6 +568,13 @@ def _apply_space_exact_search_values(queryset, params: dict[str, Any]):
     return queryset.filter(query)
 
 
+def tenant_business_ids(bk_tenant_id: str) -> list[int]:
+    from metadata.models import Space
+
+    spaces = Space.objects.filter(bk_tenant_id=bk_tenant_id).only("id", "space_type_id", "space_id")
+    return [space.get_bk_biz_id() for space in spaces]
+
+
 def _apply_space_bk_biz_id_filter(queryset, params: Any):
     if not isinstance(params, dict):
         try:

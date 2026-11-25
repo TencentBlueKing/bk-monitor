@@ -390,7 +390,8 @@ class CustomEventSerializer(QueryConfigSerializer):
     agg_interval = serializers.IntegerField(label="聚合周期", min_value=0)
     agg_dimension = serializers.ListField(allow_empty=True)
     agg_condition = serializers.ListField(label="查询条件", allow_empty=True, child=serializers.DictField())
-    custom_event_name = serializers.CharField(label="事件名", required=False, allow_blank=True)
+    # 缺省为空串而非不落库：下游（策略列表、告警后台缓存、AsCode 导出）均按 key 直接取值，缺失会抛 KeyError
+    custom_event_name = serializers.CharField(label="事件名", allow_blank=True, default="")
     query_string = serializers.CharField(label="查询语句", required=False)
 
 

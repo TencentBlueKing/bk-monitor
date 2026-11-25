@@ -457,6 +457,57 @@ def test_query_hosts_filters(query_rows, filters, expected):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_filter_by_task_id_includes_immediates_triggered_by_plan(query_rows):
+    # 从计划 12 点立即执行：task_id 是执行行自己的 id，触发计划另记
+    triggered = create_execution(
+        [{"bk_host_id": 460, "ip": "127.0.0.12", "status": "running"}],
+        schedule_type="immediate",
+        task_id=30600,
+        source_task_id=12,
+        scheduled_at=MID_AT + 2000,
+        task_name="order-api-cpu",
+        collection_method="perf",
+        collection_type="native_cpu",
+        execution_status="running",
+        status_summary={"running": 1},
+    )
+    # 普通立即执行的行 id 恰好等于计划 ID，不属于该计划
+    create_execution(
+        [{"bk_host_id": 461, "ip": "127.0.0.13", "status": "running"}],
+        schedule_type="immediate",
+        task_id=12,
+        scheduled_at=MID_AT + 1000,
+        task_name="adhoc",
+        collection_method="perf",
+        collection_type="native_cpu",
+        execution_status="running",
+        status_summary={"running": 1},
+    )
+
+    def executions(**filters):
+        rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": filters})["data"]
+        return [(row["scheduled_at"], row["schedule_type"], row.get("task_id")) for row in rows]
+
+    # 计划执行与该计划触发的立即执行都命中，执行方式仍为立即执行，立即执行照旧不返回 task_id
+    assert host_keys(query_hosts(task_id=12)) == [(RECENT_AT, 457), (RECENT_AT, 456), (MID_AT + 2000, 460)]
+    assert executions(task_id=12) == [(RECENT_AT, "cron", 12), (MID_AT + 2000, "immediate", None)]
+    # 与执行方式筛选同时满足
+    assert executions(task_id=12, schedule_types=["immediate"]) == [(MID_AT + 2000, "immediate", None)]
+    assert executions(task_id=12, schedule_types=["cron"]) == [(RECENT_AT, "cron", 12)]
+    # 按立即执行自己的 task_id 不再命中
+    assert executions(task_id=triggered.task_id) == []
+    # 详情带上触发计划，供重新采集继续关联；计划执行与普通立即执行不带
+    detail = QueryActiveProfilingExecutionDetailResource().request({"bk_biz_id": 2, "scheduled_at": MID_AT + 2000})
+    assert detail["source_task_id"] == 12
+    for request in ({"task_id": 12, "scheduled_at": RECENT_AT}, {"scheduled_at": MID_AT + 1000}):
+        assert "source_task_id" not in QueryActiveProfilingExecutionDetailResource().request(
+            {"bk_biz_id": 2, **request}
+        )
+    # MySQL 没有匹配行时回查 ES，ES 不支持按计划筛选立即执行，返回空
+    assert query_hosts(task_id=77, schedule_types=["immediate"]) == []
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_hosts_display_parsing_until_result_stored(query_rows):
     # 刚结束 1 秒的成功主机还在解析入库，结束 30 秒的已可查看
     scheduled_at = NOW_MS - 60 * 1000
@@ -510,9 +561,10 @@ def test_go_heap_has_no_duration(query_rows):
 def test_list_executions_selects_by_host_but_keeps_all_hosts(query_rows):
     rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "filters": {"ips": ["127.0.0.3"]}})["data"]
 
-    # 立即执行不返回 task_id，与一期协议一致
+    # 立即执行不返回 task_id，与一期协议一致；id 是执行表行 id
     assert rows == [
         {
+            "id": query_rows.expired.id,
             "task_name": "order-api-cpu-adhoc",
             "schedule_type": "immediate",
             "scheduled_at": OLD_AT,
@@ -566,6 +618,38 @@ def test_list_executions_orders_same_millisecond_by_task_id_desc(query_rows):
     rows = ListActiveProfilingExecutionsResource().request({**TIME_RANGE, "limit": 2})["data"]
 
     assert [(row["scheduled_at"], row["task_id"]) for row in rows] == [(RECENT_AT, 99), (RECENT_AT, 12)]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_executions_return_row_id_to_tell_same_named_runs_apart(query_rows):
+    # 同一计划的下一次执行：task_id、任务名都与 RECENT_AT 那次相同，只能靠执行表行 id 区分
+    next_run = create_execution(
+        [{"bk_host_id": 456, "ip": "127.0.0.1", "status": "running"}],
+        schedule_type="cron",
+        task_id=12,
+        scheduled_at=RECENT_AT + 60 * 1000,
+        task_name="order-api-cpu",
+        collection_method="perf",
+        collection_type="native_cpu",
+        execution_status="running",
+        status_summary={"running": 1},
+    )
+
+    rows = ListActiveProfilingExecutionsResource().request(TIME_RANGE)["data"]
+
+    assert [(row["id"], row.get("task_id"), row["task_name"]) for row in rows] == [
+        (next_run.id, 12, "order-api-cpu"),
+        (query_rows.cron.id, 12, "order-api-cpu"),
+        (query_rows.legacy.id, None, "go-cpu-legacy"),
+        (query_rows.expired.id, None, "order-api-cpu-adhoc"),
+    ]
+    # 详情与列表同一个 id，计划执行与立即执行都有
+    for request, execution in (
+        ({"task_id": 12, "scheduled_at": RECENT_AT}, query_rows.cron),
+        ({"scheduled_at": OLD_AT}, query_rows.expired),
+    ):
+        detail = QueryActiveProfilingExecutionDetailResource().request({"bk_biz_id": 2, **request})
+        assert detail["id"] == execution.id
 
 
 @pytest.mark.parametrize(
@@ -799,6 +883,14 @@ def test_execution_detail_displays_cancelled_hosts(query_rows):
         ("cancelled", "", "采集已被用户 admin 取消"),
     ]
 
+    # 已采数据只有取消的行带执行信息，与执行详情一致；其余行不带
+    rows = QueryActiveProfilingHostsResource().request(TIME_RANGE)["data"]
+    assert {row["bk_host_id"]: row["message"] for row in rows if row["status"] == "cancelled"} == {
+        460: "采集已被用户取消",
+        461: "采集已被用户 admin 取消",
+    }
+    assert all("message" not in row for row in rows if row["status"] != "cancelled")
+
 
 @pytest.mark.django_db(databases="__all__")
 def test_queries_require_enabled_biz():
@@ -1024,6 +1116,70 @@ def test_immediate_requires_enabled_biz_before_creating_rows(deploy_apis):
 
     assert not ActiveProfilingExecution.objects.exists()
     deploy_apis["job"].assert_not_called()
+
+
+def create_plan(bk_biz_id=2, **fields):
+    return ActiveProfilingTask.objects.create(
+        bk_biz_id=bk_biz_id, name="java-cpu-daily", collection_method="java", collection_type="java_cpu", **fields
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_immediate_from_plan_records_source_task_and_keeps_own_task_id(deploy_apis):
+    # 停用的计划也可以立即执行
+    plan = create_plan(is_enabled=False)
+
+    assert SubmitActiveProfilingTaskResource().request({**IMMEDIATE_REQUEST, "source_task_id": plan.id}) is None
+
+    execution = ActiveProfilingExecution.objects.get(bk_biz_id=2, schedule_type="immediate")
+    # 触发计划另记一列；task_id 仍是执行行自己的 id，下发给采集端的执行键不变
+    assert (execution.source_task_id, execution.task_id) == (plan.id, execution.id)
+    assert decode_cli_config(deploy_apis["job"].call_args_list[0]) == beat_task(
+        execution.id, schedule=IMMEDIATE_SCHEDULE
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_immediate_without_plan_leaves_source_task_empty(deploy_apis):
+    SubmitActiveProfilingTaskResource().request(IMMEDIATE_REQUEST)
+
+    assert ActiveProfilingExecution.objects.get(bk_biz_id=2).source_task_id is None
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_immediate_keeps_source_task_of_deleted_plan(deploy_apis):
+    plan = create_plan()
+    ActiveProfilingTask.origin_objects.filter(id=plan.id).update(is_deleted=True)
+
+    # 重新采集已删除计划的历史执行：删除计划不阻止采集，仍关联原计划
+    SubmitActiveProfilingTaskResource().request({**IMMEDIATE_REQUEST, "source_task_id": plan.id})
+
+    assert ActiveProfilingExecution.objects.get(bk_biz_id=2).source_task_id == plan.id
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_immediate_rejects_unknown_source_task_before_creating_rows(deploy_apis):
+    other_biz_plan = create_plan(bk_biz_id=3)
+
+    # 其他业务的、不存在的计划不能关联
+    for source_task_id in (other_biz_plan.id, other_biz_plan.id + 1000):
+        with pytest.raises(ValueError):
+            SubmitActiveProfilingTaskResource().request({**IMMEDIATE_REQUEST, "source_task_id": source_task_id})
+
+    assert not ActiveProfilingExecution.objects.exists()
+    deploy_apis["job"].assert_not_called()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_source_task_only_accepted_with_immediate(deploy_apis):
+    plan = create_plan()
+
+    with pytest.raises(CustomException):
+        SubmitActiveProfilingTaskResource().request({**TASK_SUBMIT_REQUEST, "source_task_id": plan.id})
+    with pytest.raises(CustomException):
+        EditActiveProfilingTaskResource().request(
+            {**TASK_SUBMIT_REQUEST, "task_id": plan.id, "source_task_id": plan.id}
+        )
 
 
 def create_running_execution(hosts, schedule_type="cron", task_id=123, scheduled_at=DISPATCH_NOW_MS - 60 * 1000):
@@ -1680,6 +1836,27 @@ def test_es_query_hosts_pushes_filters_down_to_es(host_query_apis):
     )
 
 
+@pytest.mark.parametrize(
+    ("schedule_types", "expected"),
+    [([], ["once_at", "cron"]), (["immediate", "cron"], ["cron"])],
+)
+def test_es_task_id_filter_only_matches_planned_executions(host_query_apis, schedule_types, expected):
+    # 立即执行 Event 的 task_id 是执行行自己的 id，按计划筛选时不能命中
+    query_es_hosts(with_filters(task_id=123, schedule_types=schedule_types))
+
+    (query_body,) = sent_query_bodies(host_query_apis["query"])
+    filter_dict = query_body["query_configs"][0]["filter_dict"]
+    assert (filter_dict["task_id"], filter_dict["schedule_type"]) == ("123", expected)
+
+
+def test_es_rejects_task_id_filter_for_immediate_only(host_query_apis):
+    # 从计划点立即执行的关联只记在执行表，Event 里没有
+    for query in (query_es_hosts, list_es_executions):
+        with pytest.raises(ValueError):
+            query(with_filters(task_id=123, schedule_types=["immediate"]))
+    host_query_apis["query"].assert_not_called()
+
+
 def test_es_query_hosts_skips_empty_filters(host_query_apis):
     query_es_hosts(EVENT_LIST_REQUEST)
 
@@ -2030,9 +2207,10 @@ def test_es_list_executions_aggregates_all_hosts_into_execution_rows(host_query_
 
     result = list_es_executions(EVENT_LIST_REQUEST)
 
-    # immediate 不返回 task_id；仍有主机运行时外层不结束
+    # immediate 不返回 task_id；仍有主机运行时外层不结束；只在 ES 里的执行没有执行行 id
     assert result[:2] == [
         {
+            "id": None,
             "task_name": "native-cpu",
             "schedule_type": "immediate",
             "scheduled_at": 1788411800000,
@@ -2048,6 +2226,7 @@ def test_es_list_executions_aggregates_all_hosts_into_execution_rows(host_query_
             "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}, {"bk_host_id": 457, "ip": "127.0.0.2"}],
         },
         {
+            "id": None,
             "task_id": 123,
             "task_name": "java-cpu-daily",
             "schedule_type": "cron",
@@ -2399,8 +2578,9 @@ def test_es_execution_detail_returns_all_hosts_of_execution(host_query_apis):
 
     result = query_es_detail(IMMEDIATE_DETAIL_REQUEST)
 
-    # immediate 不返回 task_id；仍有主机运行时外层不结束
+    # immediate 不返回 task_id；仍有主机运行时外层不结束；执行表查不到才回查 ES，没有执行行 id
     assert result == {
+        "id": None,
         "task_name": "native-cpu",
         "schedule_type": "immediate",
         "scheduled_at": 1788411800000,
@@ -2566,6 +2746,10 @@ def test_es_execution_detail_displays_cancelled_host(host_query_apis):
     (host,) = query_es_detail(IMMEDIATE_DETAIL_REQUEST)["hosts"]
 
     assert (host["status"], host["error_type"], host["message"]) == ("cancelled", "", "采集已被用户取消")
+    # 已采数据的取消行同样带执行信息，Event 里没有取消人
+    (row,) = query_es_hosts(EVENT_LIST_REQUEST)
+    assert (row["status"], row["message"]) == ("cancelled", "采集已被用户取消")
+    assert "error_type" not in row
 
 
 def test_es_execution_detail_explains_unknown_host(host_query_apis):
@@ -3059,7 +3243,7 @@ def test_lists_merge_lagging_planned_executions_from_es(query_rows, event_es, fa
     lagging_event_es(event_es)
     # 停摆期间提交的立即执行：456 已受理还没有 Event，457 下发失败，都只有 SaaS 写入的行
     immediate_at = NOW_MS - 20 * 60 * 1000
-    create_execution(
+    immediate = create_execution(
         [
             {"bk_host_id": 456, "ip": "127.0.0.1", "status": "running", "unknown_at": NOW_MS + 60 * 1000},
             {
@@ -3099,12 +3283,15 @@ def test_lists_merge_lagging_planned_executions_from_es(query_rows, event_es, fa
         (OLD_AT, 456, "outdate"),
     ]
     assert hosts["data"][0]["error_type"] == "dispatch_failed"
-    assert [(row.get("task_id"), row["scheduled_at"], row["status_summary"]) for row in executions["data"]] == [
-        (None, immediate_at, {"running": 1, "failed": 1}),
-        (77, PLANNED_AT, {"succeed": 1, "failed": 1}),
-        (12, RECENT_AT, {"succeed": 1, "failed": 1}),
-        (None, MID_AT, {"unknown": 1}),
-        (None, OLD_AT, {"failed": 1, "outdate": 1}),
+    # 取自 ES 的行在执行表已建行时带上行 id（RECENT_AT），还没建行的为空（PLANNED_AT）
+    assert [
+        (row["id"], row.get("task_id"), row["scheduled_at"], row["status_summary"]) for row in executions["data"]
+    ] == [
+        (immediate.id, None, immediate_at, {"running": 1, "failed": 1}),
+        (None, 77, PLANNED_AT, {"succeed": 1, "failed": 1}),
+        (query_rows.cron.id, 12, RECENT_AT, {"succeed": 1, "failed": 1}),
+        (query_rows.legacy.id, None, MID_AT, {"unknown": 1}),
+        (query_rows.expired.id, None, OLD_AT, {"failed": 1, "outdate": 1}),
     ]
     # 总行数为两路之和，切换前后口径一致
     assert (hosts["total"], executions["total"]) == (9, 5)
@@ -3189,6 +3376,8 @@ def test_lagging_merge_keeps_mysql_cancel_and_rename(query_rows, event_es):
         (456, "succeed", RECENT_AT + 31100),
         (457, "cancelled", RECENT_AT + 5000),
     ]
+    # 取消人只有 MySQL 有，覆盖后的取消行同样显示
+    assert [row.get("message") for row in recent_hosts] == [None, "采集已被用户 admin 取消"]
     assert {row["task"]["name"] for row in recent_hosts} == {"order-api-renamed"}
     recent_execution = next(row for row in executions if row["scheduled_at"] == RECENT_AT)
     # 执行汇总按覆盖后的主机重算
@@ -3200,6 +3389,31 @@ def test_lagging_merge_keeps_mysql_cancel_and_rename(query_rows, event_es):
     # 执行表里没有的执行不受影响
     planned = next(row for row in executions if row["scheduled_at"] == PLANNED_AT)
     assert (planned["task_name"], planned["status_summary"]) == ("java-cpu-daily", {"succeed": 1, "failed": 1})
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lagging_merge_shows_canceller_after_cancelled_finished_reported(query_rows, event_es):
+    cancel_and_rename_lagging_cron(query_rows, event_es)
+    # 采集端的 finished 已上报为 cancelled、预计算还没处理：状态与结束时间以 Event 为准，取消人仍取自 MySQL
+    event_es.events[-1] = finished_event(
+        "cancelled",
+        RECENT_AT + 100,
+        RECENT_AT + 4000,
+        bk_host_id=457,
+        target="127.0.0.2",
+        task_id=12,
+        scheduled_at=RECENT_AT,
+        message="execution cancelled by user",
+    )
+
+    hosts = QueryActiveProfilingHostsResource().request(TIME_RANGE)["data"]
+
+    row = next(row for row in hosts if (row["scheduled_at"], row["bk_host_id"]) == (RECENT_AT, 457))
+    assert (row["status"], row["finished_at"], row["message"]) == (
+        "cancelled",
+        RECENT_AT + 4000,
+        "采集已被用户 admin 取消",
+    )
 
 
 @pytest.mark.django_db(databases="__all__")

@@ -2,10 +2,10 @@ from django.db.models import Q
 from rest_framework import serializers
 
 from core.drf_resource.exceptions import CustomException
-from .common import BusinessPage, db_page, list_page, query
+from .common import BusinessListPage, BusinessPage, db_page, list_page, query
 
 
-class Applications(BusinessPage):
+class Applications(BusinessListPage):
     keyword = serializers.CharField(required=False)
 
 
@@ -28,7 +28,8 @@ class Records(AppPage):
 def apps(p):
     from rum.models import RumApplication
 
-    return RumApplication.objects.filter(bk_tenant_id=p["bk_tenant_id"], bk_biz_id=p["bk_biz_id"])
+    rows = RumApplication.objects.filter(bk_tenant_id=p["bk_tenant_id"])
+    return rows.filter(bk_biz_id=p["bk_biz_id"]) if "bk_biz_id" in p else rows
 
 
 def app(p):

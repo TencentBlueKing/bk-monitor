@@ -45,6 +45,15 @@ export function mergeSpaceList(spaceList: ISpaceItem[]) {
   return list;
 }
 
+// 临时分享页。无业务权限时只放行这条路由，不连同首页和事件中心一起放行。
+export const isShareRouteHash = (hash?: null | string) => {
+  const hashPath = `${hash || ''}`
+    .replace(/^#?\/?/, '')
+    .replace(/\?.*/, '')
+    .replace(/\/$/, '');
+  return hashPath === 'share' || /^share\/.+/.test(hashPath);
+};
+
 // 通过告警通知等外链进入时，旧版事件中心和新版告警中心都允许无业务权限访问页面。
 export const isAlarmCenterRouteHash = (hash?: null | string) => {
   const hashPath = `${hash || ''}`
@@ -74,6 +83,25 @@ export const parseBizId = (bizId: null | number | string | undefined): number =>
 
 export const isValidBizId = (bizId: null | number | string | undefined): boolean => Number.isFinite(parseBizId(bizId));
 
+// 切换业务时记下业务。demo 不覆盖上一次真实业务。
+export const rememberRecentBizId = (bizId: null | number | string | undefined, isDemo = false) => {
+  const parsed = parseBizId(bizId);
+  if (!Number.isFinite(parsed) || parsed === 0 || parsed === -1 || isDemo) return;
+  localStorage.setItem(LOCAL_BIZ_STORE_KEY, String(parsed));
+};
+
+// 启动上下文用的业务：地址栏 bizId 优先；没有时用切换业务记下的缓存。
+export const resolveEntryBizId = (
+  urlBizId: null | number | string | undefined,
+  cachedBizId: null | number | string | undefined = localStorage.getItem(LOCAL_BIZ_STORE_KEY)
+): number | undefined => {
+  const explicitBizId = parseBizId(urlBizId);
+  if (Number.isFinite(explicitBizId) && explicitBizId !== 0) return explicitBizId;
+  const recentBizId = parseBizId(cachedBizId);
+  if (Number.isFinite(recentBizId) && recentBizId !== 0 && recentBizId !== -1) return recentBizId;
+  return undefined;
+};
+
 export const getBizRouteHref = (hashPath: string, bizId: null | number | string | undefined): string => {
   const baseHref = `${location.origin}${location.pathname}`;
   const normalizedHashPath = hashPath.startsWith('#') ? hashPath.slice(1) : hashPath;
@@ -93,6 +121,8 @@ export const setGlobalBizId = () => {
   const isEmailSubscriptions = location.hash.indexOf('email-subscriptions') > -1;
   const isNoBusiness = location.hash.indexOf('no-business') > -1;
   const isSpecialAlarmCenterEntry = isAlarmCenterRouteHash(location.hash);
+  const isShareEntry = isShareRouteHash(location.hash);
+  const isTokenEntry = !!window.__BK_WEWEB_DATA__?.token;
 
   const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
   const defaultBizId = Number(window.default_biz_id) || '';
@@ -117,7 +147,8 @@ export const setGlobalBizId = () => {
     const parsed = parseBizId(id);
     window.cc_biz_id = parsed;
     window.bk_biz_id = parsed;
-    !isDemo(id) && Number.isFinite(parsed) && localStorage.setItem(LOCAL_BIZ_STORE_KEY, parsed.toString());
+    const matchedSpace = bizList.find(item => +item.bk_biz_id === parsed);
+    rememberRecentBizId(parsed, !matchedSpace || Boolean(matchedSpace.is_demo));
   };
   const setLocationSearch = (bizId: number | string) => {
     if (location.search.match(/(space_uid|bizId)=([^#&/]+)/gim)) {
@@ -127,10 +158,11 @@ export const setGlobalBizId = () => {
     }
     return false;
   };
-  // 如果bizId不在空间列表中 几没有权限或者是不存在的 bizId，则返回到无权限页面进行申请
-  // 白名单路由（分享/事件中心等）允许无业务权限进入，不强制跳转 no-business
-  if (bizId && !isInSpaceList(bizId) && !isSpecialAlarmCenterEntry && !isCanAllIn) {
-    location.href = `${location.origin}${location.pathname}?${`bizId=${bizId}`}#/no-business`;
+  // 业务不在空间列表中时进入无权限页。首页不放行；分享页、分享 token 和告警外链继续放行。
+  if (bizId && !isInSpaceList(bizId) && !isSpecialAlarmCenterEntry && !isShareEntry && !isTokenEntry) {
+    if (!isNoBusiness) {
+      location.href = `${location.origin}${location.pathname}?bizId=${bizId}#/no-business`;
+    }
     return true;
   }
 
@@ -157,8 +189,15 @@ export const setGlobalBizId = () => {
     if (isNoBusiness && !bizList.length) {
       return true;
     }
-    // 默认业务优先，其次恢复仍有权限的最近业务。
-    const newBizId = defaultBizId || spaceItem?.bk_biz_id || (hasAuth(localBizId) ? +localBizId : window.cc_biz_id);
+    // 地址栏没有 bizId、也没有 space_uid 时，用切换业务记下的缓存，优先于默认业务和后端回退。
+    const cachedBizId = parseBizId(localBizId);
+    const cachedSpace = bizList.find(item => +item.bk_biz_id === cachedBizId);
+    const recentBizId = !spaceUid && cachedSpace && !cachedSpace.is_demo ? cachedBizId : '';
+    const backendBizId = window.cc_biz_id;
+    const backendEchoesDemoCache = Boolean(cachedSpace?.is_demo) && +backendBizId === cachedBizId;
+    const nonDemoBizId = bizList.find(item => !item.is_demo)?.bk_biz_id;
+    const newBizId =
+      recentBizId || defaultBizId || spaceItem?.bk_biz_id || (backendEchoesDemoCache ? nonDemoBizId : backendBizId);
     if ((isSpecialAlarmCenterEntry || isCanAllIn) && !bizList.length) {
       bizId = newBizId && newBizId !== -1 ? newBizId : 0;
     } else if (spaceUid) {

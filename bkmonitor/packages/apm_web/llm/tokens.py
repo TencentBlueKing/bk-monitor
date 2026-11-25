@@ -11,10 +11,13 @@ specific language governing permissions and limitations under the License.
 from __future__ import annotations
 
 import json
+import logging
+import math
+import os
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache, lru_cache
 from typing import Any
 from urllib.parse import quote
 
@@ -24,12 +27,28 @@ from django.utils.translation import gettext as _
 from apm_web.llm.adapter.utils import nonnegative_int
 from apm_web.llm.constants import SpanType
 
+logger = logging.getLogger(__name__)
+
 CONTENT_CATEGORIES = {
     "system": ("gen_ai.system_instructions", "系统提示词"),
     "definitions": ("gen_ai.tool.definitions", "可用工具"),
     "input": ("gen_ai.input.messages", "输入"),
     "output": ("gen_ai.output.messages", "输出"),
 }
+
+
+@cache
+def load_encoding(name: str) -> tiktoken.Encoding | None:
+    """仅在镜像预置词表（设置 TIKTOKEN_CACHE_DIR）时加载，否则粗估，避免在请求内同步下载。"""
+    if not os.environ.get("TIKTOKEN_CACHE_DIR"):
+        logger.warning("[LLM] TIKTOKEN_CACHE_DIR is not set, estimating %s tokens by UTF-8 bytes", name)
+        return None
+    return tiktoken.get_encoding(name)
+
+
+def estimate_token_count(text: str) -> int:
+    """词表缺失时按 UTF-8 字节数粗估；分项会再按上报用量校准，只需保持相对比例。"""
+    return math.ceil(len(text.encode("utf-8")) / 4)
 
 
 class TokenCounter:
@@ -40,11 +59,14 @@ class TokenCounter:
             name = tiktoken.encoding_name_for_model(model)
         except KeyError:
             name = "cl100k_base"
-        self.encoding = tiktoken.get_encoding(name if name == "o200k_base" else "cl100k_base")
-        encode = self.encoding.encode_ordinary
+        encoding: tiktoken.Encoding | None = load_encoding(name if name == "o200k_base" else "cl100k_base")
+        self.encoding = encoding
+        count_chunk: Callable[[str], int] = (
+            (lambda chunk: len(encoding.encode_ordinary(chunk))) if encoding else estimate_token_count
+        )
         # 超长无空白片段的 BPE 编码可能呈二次耗时，分段限制延迟。
         self._count = lru_cache(maxsize=512)(
-            lambda text: sum(len(encode(text[start : start + 8192])) for start in range(0, len(text), 8192))
+            lambda text: sum(count_chunk(text[start : start + 8192]) for start in range(0, len(text), 8192))
         )
 
     def count(self, value: Any) -> int:

@@ -391,7 +391,8 @@ class StrategyCacheManager(CacheManager):
                 params["data_source_label"] == DataSourceLabel.CUSTOM
                 and params["data_type_label"] == DataTypeLabel.EVENT
             ):
-                if query_config["custom_event_name"]:
+                # 存量配置可能缺失 custom_event_name（历史版本该字段允许缺省），为空时不过滤事件名
+                if query_config.get("custom_event_name"):
                     params["custom_event_name"] = query_config["custom_event_name"]
             elif params["data_source_label"] == DataSourceLabel.BK_FTA:
                 params["alert_name"] = query_config["alert_name"]

@@ -4,10 +4,11 @@ from bkmonitor.documents.incident import IncidentDocument, IncidentSnapshotDocum
 from bkmonitor.documents.issue import IssueDocument, IssueActivityDocument
 from bkmonitor.models.source_analysis import IssueSourceAnalysisExecution
 from core.drf_resource.exceptions import CustomException
-from .common import BusinessPage, business_scope, db_page, query
+from kernel_api.rpc.functions.admin.space import tenant_business_ids
+from .common import BusinessListPage, BusinessPage, business_scope, db_page, query
 
 
-class SearchWindow(BusinessPage):
+class SearchWindow(BusinessListPage):
     start_time = serializers.IntegerField(min_value=0, required=False)
     end_time = serializers.IntegerField(min_value=0, required=False)
 
@@ -49,8 +50,11 @@ def doc_page(search, p, fields, order):
 
 
 def scoped_docs(model, p):
-    business_scope(p)
-    return model.search(all_indices=True).filter("term", bk_biz_id=str(p["bk_biz_id"]))
+    search = model.search(all_indices=True)
+    if "bk_biz_id" in p:
+        business_scope(p)
+        return search.filter("term", bk_biz_id=str(p["bk_biz_id"]))
+    return search.filter("terms", bk_biz_id=[str(biz) for biz in tenant_business_ids(p["bk_tenant_id"])])
 
 
 def in_window(search, field, p):

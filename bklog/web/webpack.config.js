@@ -87,6 +87,12 @@ const logPluginConfig = {
       window.VERSION = '\${VERSION}'
       window.BK_SHARED_RES_URL = '\${BK_SHARED_RES_URL}'
       window.BK_PAAS_API_HOST = '\${BK_PAAS_API_HOST}'
+      % if context.get("ESB_DISABLED"):
+      <% from django.utils.html import escapejs %>
+      window.ESB_DISABLED = true
+      window.BK_USER_WEB_API_URL = "\${BK_USER_WEB_API_URL | n,escapejs}"
+      window.BK_USER_WEB_TENANT_ID = "\${BK_USER_WEB_TENANT_ID | n,escapejs}"
+      % endif
       window.BK_USER_URL = '\${BK_USER_URL}'
       window.BK_IAM_URL = '\${BK_IAM_URL}'
       window.BK_IAM_APPLY_URL = '\${BK_IAM_APPLY_URL}'

@@ -137,6 +137,7 @@ declare global {
     enable_issue_ai_analysis: boolean;
     enable_message_queue: boolean;
     // 多租户用户中心是否开启
+    esb_disabled?: boolean;
     enable_multi_tenant_mode?: boolean;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
     footer_version: string;
