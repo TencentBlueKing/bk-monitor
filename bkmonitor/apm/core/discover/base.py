@@ -435,26 +435,38 @@ class TopoHandler:
             hits = response["hits"]["hits"]
             return [i["_source"] for i in hits]
         else:
-            # 使用scroll获取
-            res = []
             query = {
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
                 "size": max_result_count,
             }
             query = TraceQueryGuard.build_dsl(query, self._trace_target)
-            response = self.datasource.es_client.search(index=index_name, body=query, scroll="5m")
+            response = self.datasource.es_client.search(index=index_name, body=query)
             hits = response["hits"]["hits"]
-            res += [i["_source"] for i in hits]
+            if len(hits) < max_result_count:
+                return [i["_source"] for i in hits]
 
-            scroll_id = response["_scroll_id"]
-
-            while len(hits):
-                response = self.datasource.es_client.scroll(scroll_id=scroll_id, scroll="5m")
+            # 满页无法确认是否读全，从独立的 scroll 快照重新读取，避免拼接重复结果。
+            res = []
+            scroll_id = None
+            query_succeeded = False
+            try:
+                response = self.datasource.es_client.search(index=index_name, body=query, scroll="5m")
+                scroll_id = response["_scroll_id"]
                 hits = response["hits"]["hits"]
-                res += [i["_source"] for i in hits]
-
-            self.datasource.es_client.clear_scroll(scroll_id=scroll_id)
-            return res
+                while hits:
+                    res += [i["_source"] for i in hits]
+                    response = self.datasource.es_client.scroll(scroll_id=scroll_id, scroll="5m")
+                    scroll_id = response.get("_scroll_id") or scroll_id
+                    hits = response["hits"]["hits"]
+                query_succeeded = True
+                return res
+            finally:
+                if scroll_id:
+                    try:
+                        self.datasource.es_client.clear_scroll(scroll_id=scroll_id)
+                    except Exception:
+                        if query_succeeded:
+                            raise
 
     def _discover_handle(self, discover, spans, handle_type, remain_data) -> bool:
         def _topo_handle():
