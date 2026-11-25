@@ -1,11 +1,17 @@
-import { type PropType, computed, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { Button, Exception, Radio } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
 import { findSpanRowView } from '../utils/duration-stats';
-import { type TokenMetric, type TokenRankMode, type TokenSpanStat, buildTokenSpanStats } from '../utils/token-stats';
+import {
+  type TokenMetric,
+  type TokenRankMode,
+  type TokenSpanStat,
+  buildTokenSpanStats,
+  hasTokenMetricData,
+} from '../utils/token-stats';
 import { formatCompactToken } from '../utils/transform';
 
 import type { LlmFlowSpan } from '../utils/typings';
@@ -46,6 +52,11 @@ export default defineComponent({
       type: Number,
       default: undefined,
     },
+    /** 隐藏无数据的 Tab（hover 桶柱面板开启，行内面板保持全量展示） */
+    hideEmptyTab: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     locate: (_spanId: string) => true,
@@ -60,10 +71,32 @@ export default defineComponent({
     const panelStyle = computed(() => (props.maxHeight ? { maxHeight: `${props.maxHeight}px` } : {}));
     /** 当前 Tab 是否存在数据，用于决定是否展示工具栏 */
     const hasData = computed(() => props.flowLoaded && spanItems.value.length > 0);
+    /** 数据是否已就绪（已加载且非加载中），未就绪不过滤 Tab，避免误隐藏 */
+    const metricDataLoaded = computed(() => props.flowLoaded && !props.flowLoading);
+    /**
+     * 参与渲染的 Tab 列表：hideEmptyTab 且数据已就绪时剔除无数据的指标；
+     * 若全部为空则回退展示全量 Tab，保留现有空态，避免头部无 Tab 可切换。
+     */
+    const visibleTabs = computed(() => {
+      if (!props.hideEmptyTab || !metricDataLoaded.value) return METRIC_TABS;
+      const tabs = METRIC_TABS.filter(tab => hasTokenMetricData(props.flow, tab.id));
+      return tabs.length ? tabs : METRIC_TABS;
+    });
 
     const handleViewDetail = (spanId: string) => {
       if (findSpanRowView(props.flow, spanId)) emit('view-detail', spanId);
     };
+
+    // 当前指标无数据时（含挂载即命中、flow 变化后失效）自动切到首个可见 Tab
+    watch(
+      visibleTabs,
+      tabs => {
+        if (tabs.length && !tabs.some(tab => tab.id === metric.value)) {
+          metric.value = tabs[0].id;
+        }
+      },
+      { immediate: true }
+    );
 
     const renderSpanItem = (item: TokenSpanStat) => (
       <div
@@ -147,7 +180,7 @@ export default defineComponent({
         <div class='llm-token-stats-header'>
           <div class='llm-token-stats-title'>{t('Token 统计分析')}</div>
           <div class='llm-token-stats-tabs'>
-            {METRIC_TABS.map(tab => (
+            {visibleTabs.value.map(tab => (
               <button
                 key={tab.id}
                 class={['llm-token-stats-tab', { 'is-active': metric.value === tab.id }]}

@@ -5,7 +5,8 @@ from urllib.parse import urljoin
 
 import pytz
 from django.conf import settings
-from django.db import models
+from django.db import models, router, transaction
+from django.http import Http404
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.utils.translation import gettext_lazy as _
@@ -359,6 +360,13 @@ class ExternalPermission(OperateRecordModel):
         2. 基于实例资源视角
            2.1 编辑：删除存量权限，如有新增则创建审批单据
         """
+        if settings.ESB_DISABLED:
+            with transaction.atomic(using=router.db_for_write(cls)):
+                return cls._edit_permissions(validated_request_data.copy(), allow_approval=False)
+        return cls._edit_permissions(validated_request_data.copy(), allow_approval=True)
+
+    @classmethod
+    def _edit_permissions(cls, validated_request_data, *, allow_approval):
         authorized_users = validated_request_data.pop("authorized_users")
         if "__all__" in authorized_users:
             authorized_users = list(
@@ -371,6 +379,13 @@ class ExternalPermission(OperateRecordModel):
 
         view_type = validated_request_data.pop("view_type", ViewTypeEnum.USER.value)
         operate_type = validated_request_data.pop("operate_type", OperateEnum.CREATE.value)
+        if not allow_approval and operate_type != OperateEnum.UPDATE.value:
+            raise Http404
+        permissions = cls.objects.filter(
+            action_id=validated_request_data["action_id"], space_uid=validated_request_data["space_uid"]
+        )
+        if not allow_approval:
+            permissions = permissions.select_for_update()
         resources = validated_request_data["resources"]
         expire_time = validated_request_data["expire_time"]
         need_approval = False
@@ -381,30 +396,22 @@ class ExternalPermission(OperateRecordModel):
             need_approval = True
         elif view_type == ViewTypeEnum.RESOURCE.value:
             # 基于实例视角的编辑操作
-            exist_authorized_users = set()
             del_permission_ids = set()
             origin_authorized_users = set(authorized_users)
             # 遍历与该实例相关的授权信息
-            for permission in cls.objects.filter(
-                action_id=validated_request_data["action_id"],
-                space_uid=validated_request_data["space_uid"],
-            ):
-                resource_id = resources[0]
-                if resource_id not in permission.resources:
-                    continue
+            existing = [permission for permission in permissions if resources[0] in permission.resources]
+            add_authorized_users = list(origin_authorized_users.difference(p.authorized_user for p in existing))
+            if add_authorized_users and not allow_approval:
+                raise Http404
+            for permission in existing:
                 if permission.authorized_user in origin_authorized_users:
-                    exist_authorized_users.add(permission.authorized_user)
+                    continue
+                permission.resources = list(set(permission.resources) - set(resources))
+                if permission.resources:
+                    permission.save()
                 else:
-                    # 若该被授权人不在编辑提交的被授权人列表中，则删除这条授权中的当前实例
-                    permission.resources = list(set(permission.resources) - set(validated_request_data["resources"]))
-                    if permission.resources:
-                        permission.save()
-                    else:
-                        # 若删除这条授权中的当前实例则无实例存在，将该授权删除
-                        del_permission_ids.add(permission.id)
+                    del_permission_ids.add(permission.id)
             cls.objects.filter(id__in=del_permission_ids).delete()
-            # 判定当前实例是否有新增的被授权人，有则创建审批单据
-            add_authorized_users = list(origin_authorized_users - exist_authorized_users)
             if add_authorized_users:
                 if not expire_time:
                     expire_time = get_default_external_permission_expire_time()
@@ -414,15 +421,20 @@ class ExternalPermission(OperateRecordModel):
             # 基于被授权人视角的编辑操作
             authorized_user = authorized_users[0]
             try:
-                permission = cls.objects.get(
-                    authorized_user=authorized_user,
-                    action_id=validated_request_data["action_id"],
-                    space_uid=validated_request_data["space_uid"],
-                )
+                permission = permissions.get(authorized_user=authorized_user)
             except cls.DoesNotExist:
+                if not allow_approval:
+                    raise Http404
                 raise Exception("该授权人权限不存在，请联系管理员")
             # 新增实例则需要审批，否则直接覆盖截止时间和实例列表
             add_resources = list(set(resources) - set(permission.resources))
+            if not allow_approval:
+                if add_resources or (
+                    expire_time and (not permission.expire_time or expire_time > permission.expire_time)
+                ):
+                    raise Http404
+                if expire_time is None:
+                    expire_time = validated_request_data["expire_time"] = permission.expire_time
             if add_resources:
                 need_approval = True
             else:

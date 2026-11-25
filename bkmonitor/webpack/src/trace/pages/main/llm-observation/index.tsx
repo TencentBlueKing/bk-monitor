@@ -34,12 +34,13 @@ import OutputTab from './components/output-tab';
 import LlmStatisticCards from './components/statistic-cards';
 import ToolDescBar from './components/tool-desc-bar';
 import ToolPanel from './components/tool-panel';
-import { formatSecondCount, formatTokenCount, pickNumber, pickOptionalNumber, pickString } from './utils/helpers';
+import { formatCompactToken, formatSecondCount, pickNumber, pickOptionalNumber, pickString } from './utils/helpers';
 import { formatAgentLabel, parseAgentObservation } from './utils/parse-agent';
 import { countInputObservation, parseInputObservation } from './utils/parse-input';
 import { countOutputObservation, parseOutputObservation } from './utils/parse-output';
 import { collectObservationHits, LLM_OBSERVATION_SEARCH_KEY } from './utils/search';
 
+import type { LlmSearchSectionId } from './utils/search';
 import type { SpanLlmDetail } from '../../../components/trace-view/typings';
 import type { LlmStatisticCard } from './components/statistic-cards';
 
@@ -263,17 +264,17 @@ export default defineComponent({
           label: t('模型 & 厂商'),
           value: [model, provider].filter(Boolean).join(' / ') || '--',
         },
-        { key: 'input', label: t('输入 Tokens'), value: formatTokenCount(inputTokens) },
-        { key: 'output', label: t('输出 Tokens'), value: formatTokenCount(outputTokens) },
-        { key: 'total', label: t('总 Tokens'), value: formatTokenCount(totalTokens) },
+        { key: 'input', label: t('输入 Tokens'), value: formatCompactToken(inputTokens) },
+        { key: 'output', label: t('输出 Tokens'), value: formatCompactToken(outputTokens) },
+        { key: 'total', label: t('总 Tokens'), value: formatCompactToken(totalTokens) },
         {
           key: 'firstToken',
           label: t('首 Token 耗时'),
           unit: firstChunk === undefined ? undefined : 's',
           value: firstChunk === undefined ? '--' : formatSecondCount(firstChunk),
         },
-        { key: 'cacheRead', label: t('缓存读数'), value: formatTokenCount(cacheReadTokens) },
-        { key: 'cacheWrite', label: t('缓存写入'), value: formatTokenCount(cacheWriteTokens) },
+        { key: 'cacheRead', label: t('缓存读数'), value: formatCompactToken(cacheReadTokens) },
+        { key: 'cacheWrite', label: t('缓存写入'), value: formatCompactToken(cacheWriteTokens) },
         {
           key: 'cacheHitRate',
           label: t('缓存命中率'),
@@ -293,6 +294,15 @@ export default defineComponent({
     const handleLocateTool = (name: string) => {
       if (!name) return;
       locateTool.value = { name, token: ++locateToolToken };
+    };
+
+    /** 矩阵色块定位请求：token 递增以支持重复点击同一分区 */
+    const locateSection = shallowRef<null | { sectionId: LlmSearchSectionId; token: number }>(null);
+    let locateSectionToken = 0;
+
+    const handleLocateSection = (sectionId: LlmSearchSectionId) => {
+      if (!sectionId) return;
+      locateSection.value = { sectionId, token: ++locateSectionToken };
     };
 
     const inputCount = computed(() => countInputObservation(inputObservation.value));
@@ -340,7 +350,9 @@ export default defineComponent({
             <div class='llm-observation-model-stats'>
               <LlmStatisticCards
                 cards={modelCards.value}
+                interactive={true}
                 nodes={tokenMatrixNodes.value}
+                onLocate-section={handleLocateSection}
                 onLocate-tool={handleLocateTool}
               />
             </div>
@@ -352,7 +364,7 @@ export default defineComponent({
                     ? item.value
                     : item.unit
                       ? formatSecondCount(item.value)
-                      : formatTokenCount(item.value);
+                      : formatCompactToken(item.value);
 
                 return (
                   <div
@@ -391,6 +403,7 @@ export default defineComponent({
           ) : isModelSpan.value ? (
             <ModelTimeline
               attributes={attributes.value}
+              locateSection={locateSection.value}
               locateTool={locateTool.value}
               tokenMatrixNodes={tokenMatrixNodes.value}
             />

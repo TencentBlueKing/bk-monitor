@@ -614,7 +614,7 @@ requires-dist = [
     { name = "bk-monitor-base", editable = "../bk-monitor-base" },
     { name = "bk-notice-sdk", specifier = "==1.4.2" },
     { name = "bkstorages", specifier = "==2.0.3" },
-    { name = "blueapps", specifier = "==4.16rc1" },
+    { name = "blueapps", specifier = "==4.16rc9" },
     { name = "celery", specifier = "==5.4.0" },
     { name = "celery-redbeat", specifier = "==2.2.0" },
     { name = "confluent-kafka", specifier = "==2.4.0" },
@@ -789,10 +789,12 @@ wheels = [
 
 [[package]]
 name = "blueapps"
-version = "4.16rc1"
+version = "4.16rc9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "bk-crypto-python-sdk", extra = ["gm"] },
     { name = "bkoauth" },
+    { name = "blue-krill" },
     { name = "cryptography" },
     { name = "django" },
     { name = "mako" },
@@ -804,7 +806,7 @@ dependencies = [
     { name = "werkzeug" },
     { name = "whitenoise" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f5/ff/ae9be7dd6f03c349cb90e070a45080ce56c5da5169cb43474e3ce701ae10/blueapps-4.16rc1.tar.gz", hash = "sha256:e16b35b15583bf2ba9d0dc6515e84bf19d995784f4572f48d3d0913d0238f79b", size = 241811, upload-time = "2025-02-27T03:19:17.286Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/6b/c1c8b43ea53118be223451ec770c534d20b61edc85d30546d138e2a64f11/blueapps-4.16rc9.tar.gz", hash = "sha256:9bb5249d5de3794101b8257e1cd313f7ac1c885d620d7c38661b565746aa1b41", size = 244389, upload-time = "2026-11-23T12:32:37.886Z" }
 
 [[package]]
 name = "boto3"

@@ -28,11 +28,14 @@ import UserDisplayName, { type ConfigOptions } from '@blueking/bk-user-display-n
 /** 判断 item 是否为用户组 */
 export const USER_GROUP_TYPE = new Set(['userGroup', 'group']);
 
+export const useUserWebApi = () => !!(window.enable_multi_tenant_mode || window.esb_disabled);
+
 export const getUserComponentConfig = (): ConfigOptions => {
-  if (window.enable_multi_tenant_mode) {
+  if (useUserWebApi()) {
+    const apiBaseUrl = process.env.NODE_ENV === 'development' ? '/api/bk-user-web/prod' : window.bk_user_web_api_url;
     return {
       tenantId: window.bk_tenant_id,
-      apiBaseUrl: process.env.NODE_ENV === 'development' ? '/api/bk-user-web/prod' : window.bk_user_web_api_url,
+      apiBaseUrl: window.esb_disabled ? apiBaseUrl?.replace(/\/+$/, '').replace(/^http:/i, location.protocol) : apiBaseUrl,
       cacheDuration: 1000 * 60 * 60 * 24, // 缓存24小时
       emptyText: '--',
     };

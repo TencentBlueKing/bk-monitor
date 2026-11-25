@@ -42,7 +42,7 @@ class NodeManAPIGWResource(APIResource, metaclass=abc.ABCMeta):
 
     @property
     def use_apigw(self):
-        return settings.BKNODEMAN_API_BASE_URL or settings.ENABLE_MULTI_TENANT_MODE
+        return settings.ESB_DISABLED or settings.BKNODEMAN_API_BASE_URL or settings.ENABLE_MULTI_TENANT_MODE
 
     # 模块名
     module_name = "node_man"

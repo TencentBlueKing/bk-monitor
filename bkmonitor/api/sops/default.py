@@ -39,7 +39,7 @@ class SopsBaseResource(APIResource, metaclass=abc.ABCMeta):
 
     @property
     def use_apigw(self):
-        return settings.BKSOPS_API_BASE_URL or settings.ENABLE_MULTI_TENANT_MODE
+        return settings.ESB_DISABLED or settings.BKSOPS_API_BASE_URL or settings.ENABLE_MULTI_TENANT_MODE
 
     def get_request_url(self, validated_request_data: dict[str, Any]) -> str:
         request_url: str = super().get_request_url(validated_request_data)

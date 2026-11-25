@@ -5,6 +5,7 @@ from __future__ import annotations
 import fnmatch
 import hashlib
 import json
+import logging
 import os
 from collections.abc import Iterable
 from typing import Any
@@ -19,6 +20,8 @@ from apps.log_admin_resource.collector_probe_parsers import (
 )
 from apps.log_databus.constants import ContainerCollectorType
 
+
+logger = logging.getLogger(__name__)
 
 MAX_SOURCE_SAMPLE_BYTES = 64 * 1024
 MAX_SOURCE_SAMPLE_LINES = 50
@@ -199,7 +202,7 @@ def _rendered_configs(
         if not name.startswith("child_config."):
             continue
         content = str(stream.get("content") or "")
-        inputs = _yaml_local_inputs(content, bk_data_id)
+        inputs = parse_yaml_local_inputs(content) or fallback_matching_inputs(content, bk_data_id)
         matches = [
             item
             for item in inputs
@@ -353,11 +356,13 @@ def _rendered_config_comparison(
     }
 
 
-def _yaml_local_inputs(content: str, bk_data_id: int) -> list[dict[str, Any]]:
+def parse_yaml_local_inputs(content: str) -> list[dict[str, Any]]:
     try:
         documents = list(yaml.safe_load_all(content))
-    except yaml.YAMLError:
-        documents = []
+    except (yaml.YAMLError, ValueError, OverflowError, RecursionError):
+        # Parser diagnostics can include credentials from the original YAML.
+        logger.warning("Ignoring unreadable rendered collector YAML")
+        return []
     results = []
     for document in documents:
         if not isinstance(document, dict):
@@ -365,10 +370,9 @@ def _yaml_local_inputs(content: str, bk_data_id: int) -> list[dict[str, Any]]:
         local = document.get("local") or []
         if isinstance(local, dict):
             local = [local]
-        results.extend(item for item in local if isinstance(item, dict))
-    if results:
-        return results
-    return fallback_matching_inputs(content, bk_data_id)
+        if isinstance(local, list):
+            results.extend(item for item in local if isinstance(item, dict))
+    return results
 
 
 def _safe_input(value: dict[str, Any]) -> dict[str, Any]:

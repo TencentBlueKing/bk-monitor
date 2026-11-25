@@ -987,6 +987,10 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
     )
 
 
+class CollectorNamespaceSerializer(serializers.Serializer):
+    name = serializers.CharField(label=_("命名空间英文名"), max_length=64)
+
+
 class CollectorStopSerializer(serializers.Serializer):
     is_stop_index_set = serializers.BooleanField(label=_("是否停止索引集"), required=False, default=True)
 

@@ -11,6 +11,9 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from django.conf import settings
+
+from apps.exceptions import PermissionError as BklogPermissionError
 from apps.log_admin_resource.handlers.inspection import sanitize_sensitive_text
 from apps.log_admin_resource.k8s_inspection_client import object_to_dict
 from apps.log_databus.constants import ContainerCollectorType, LabelSelectorOperator
@@ -379,6 +382,47 @@ def target_config_matches(
     return matches
 
 
+# BKLog CLI applies these display substitutions after receiving the API result.
+CLI_PATH_PLACEHOLDER = "[REDACTED_SECRET]"
+CLI_MASKED_PATH = re.compile(
+    r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b"
+    r"|(?i:bearer\s+[A-Za-z0-9._~+/=-]+)"
+    r"|(?i:(?:authorization|cookie|x-[a-z0-9-]*(?:token|jwt|secret|api-key))\s*[:=]\s*[^\s,;}])"
+)
+
+
+def cli_masks_source_path(path):
+    return CLI_PATH_PLACEHOLDER in path or CLI_MASKED_PATH.search(path) is not None
+
+
+def protect_source_paths(result, *, legacy=False):
+    """Remove rewritten path values before they can be reused as filesystem identifiers."""
+    rows = [result]
+    for key in ("observation", "first", "second"):
+        sample = result.get(key)
+        if isinstance(sample, dict):
+            rows.append(sample)
+            rows.extend(hop for hop in sample.get("links") or [] if isinstance(hop, dict))
+    for row in rows:
+        for field in ("path", "via", "collector_path", "resolved_path", "target", "follow_path", "failed_path"):
+            path = row.get(field)
+            if not isinstance(path, str):
+                continue
+            # Older Workers retained display text only. A literal "***" is ambiguous there.
+            changed = "***" in path if legacy else sanitize_sensitive_text(path, maximum=None) != path
+            if changed or cli_masks_source_path(path):
+                reason = "unverified_path" if legacy else "redacted_path"
+                row[field] = None
+                row.setdefault("unavailable_paths", {})[field] = reason if changed else "client_display_only"
+
+
+def require_source_read_access(app_code, source_step):
+    if (source_step or {}).get("operation") == "read" and (
+        not app_code or app_code not in settings.RESOURCE_CALL_APP_CODE_WHITE_LIST
+    ):
+        raise BklogPermissionError("reading original log bytes requires a management allowlisted app")
+
+
 def collector_child_config_hints(
     target_snapshot: dict[str, Any] | None,
     expected: Iterable[dict[str, Any]],
@@ -718,7 +762,7 @@ def _safe_volume_reference(volume: dict[str, Any]) -> dict[str, Any]:
         ("projected", "projected", "projected"),
         ("csi", "csi", "csi"),
     ):
-        value = volume.get(camel) or volume.get(snake)
+        value = volume.get(camel) if volume.get(camel) is not None else volume.get(snake)
         if not isinstance(value, dict):
             continue
         if kind == "secret":

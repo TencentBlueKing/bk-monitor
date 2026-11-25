@@ -453,6 +453,9 @@ class GetPluginsResource(Resource):
             plugin_key__in=[ActionPluginType.NOTICE, ActionPluginType.AUTHORIZE]
         )
 
+        if settings.ESB_DISABLED:
+            queryset = queryset.exclude(plugin_key=ActionPluginType.ITSM)
+
         internal_data = self.ActionPluginListSlz(
             queryset.filter(plugin_source="builtin"),
             many=True,

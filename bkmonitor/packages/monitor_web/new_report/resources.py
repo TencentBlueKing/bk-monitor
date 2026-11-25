@@ -447,6 +447,7 @@ class CreateOrUpdateReportResource(Resource):
             "meta": {"callback_url": urljoin(settings.BK_ITSM_CALLBACK_HOST, "/report_callback/")},
         }
         try:
+            # TODO: 邮件订阅审批接入 ITSM V4 后迁移建单、状态查询和回调验签。
             return api.itsm.create_fast_approval_ticket(ticket_data)
         except Exception as e:
             logger.error(f"审批创建异常: {e}")
