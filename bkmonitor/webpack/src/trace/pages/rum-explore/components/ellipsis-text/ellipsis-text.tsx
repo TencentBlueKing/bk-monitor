@@ -93,22 +93,34 @@ const createMeasurer = (source: HTMLElement) => {
 };
 
 /** 共享 ResizeObserver：所有单元格共用一个观察器，按元素分发回调 */
-const resizeCallbacks = new WeakMap<Element, (width: number) => void>();
+const resizeCallbacks = new WeakMap<Element, Set<(width: number) => void>>();
 let sharedResizeObserver: ResizeObserver = null;
 
 const observeResize = (element: Element, callback: (width: number) => void) => {
   if (!sharedResizeObserver) {
     sharedResizeObserver = new ResizeObserver(entries => {
       entries.forEach(entry => {
-        resizeCallbacks.get(entry.target)?.(entry.contentRect.width);
+        resizeCallbacks.get(entry.target)?.forEach(handler => {
+          handler(entry.contentRect.width);
+        });
       });
     });
   }
-  resizeCallbacks.set(element, callback);
-  sharedResizeObserver.observe(element);
+  let callbacks = resizeCallbacks.get(element);
+  if (!callbacks) {
+    callbacks = new Set();
+    resizeCallbacks.set(element, callbacks);
+    sharedResizeObserver.observe(element);
+  }
+  callbacks.add(callback);
 };
 
-const unobserveResize = (element: Element) => {
+/** 复合单元格一个 td 内有多段省略文本，只移除实例自己的回调，其余实例仍在观察时保持订阅 */
+const unobserveResize = (element: Element, callback: (width: number) => void) => {
+  const callbacks = resizeCallbacks.get(element);
+  if (!callbacks) return;
+  callbacks.delete(callback);
+  if (callbacks.size > 0) return;
   resizeCallbacks.delete(element);
   sharedResizeObserver?.unobserve(element);
 };
@@ -230,14 +242,14 @@ export default defineComponent({
     const syncResizeObserver = () => {
       const element = rootRef.value;
       if (props.mode !== RumEllipsisModeEnum.MIDDLE || !element) {
-        if (observedElement) unobserveResize(observedElement);
+        if (observedElement) unobserveResize(observedElement, handleResize);
         observedElement = null;
         observedWidth = 0;
         return;
       }
       const target = element.closest('td') ?? element.parentElement ?? element;
       if (target === observedElement) return;
-      if (observedElement) unobserveResize(observedElement);
+      if (observedElement) unobserveResize(observedElement, handleResize);
       observedElement = target;
       // 置 0 让首次回调通过过滤，列重建后也能重新计算一次
       observedWidth = 0;
@@ -261,7 +273,7 @@ export default defineComponent({
       syncResizeObserver();
     });
     onBeforeUnmount(() => {
-      if (observedElement) unobserveResize(observedElement);
+      if (observedElement) unobserveResize(observedElement, handleResize);
       observedElement = null;
     });
 
