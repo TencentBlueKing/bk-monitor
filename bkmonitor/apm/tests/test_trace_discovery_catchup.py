@@ -68,6 +68,31 @@ def test_delayed_round_continues_from_previous_query_end(discovery):
     assert discovery.client.get(discovery.key) == "11800"
 
 
+def test_summary_separates_regular_span_fetch_discovery_and_fallback(discovery, mocker, caplog):
+    elapsed = 0
+    clock = mocker.patch("apm.core.discover.base.time")
+    clock.monotonic.side_effect = lambda: elapsed
+    discovery.handler.list_trace_ids.return_value = [["first"], ["second"]]
+
+    def fetch(*args):
+        nonlocal elapsed
+        elapsed += 3
+        return []
+
+    def process(*args, is_fallback=False):
+        nonlocal elapsed
+        elapsed += 7 if is_fallback else 2
+        return True
+
+    mocker.patch.object(discovery.handler, "list_span_by_trace_ids", side_effect=fetch)
+    mocker.patch.object(discovery.handler, "_discover_spans", side_effect=process)
+    with caplog.at_level(logging.INFO, logger="apm"):
+        assert discovery.handler.discover() is True
+    (summary,) = [r.getMessage() for r in caplog.records if "event=summary" in r.getMessage()]
+    assert "fallback_duration_s=7.000" in summary
+    assert "span_fetch_duration_s=6.000 regular_discovery_duration_s=4.000" in summary
+
+
 def test_trace_checkpoint_isolated_by_application_and_environment(settings):
     settings.PLATFORM, settings.ENVIRONMENT = "test", "test"
     key = ApmCacheHandler.get_cache_key(ApmCacheType.TRACE_DISCOVERY_CHECK, 2, "app")

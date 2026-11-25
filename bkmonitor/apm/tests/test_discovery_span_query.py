@@ -3,7 +3,7 @@ from unittest.mock import call
 
 import pytest
 
-from apm.core.discover.base import TopoHandler
+from apm.core.discover.base import TopoHandler, TracePageStats
 
 
 def response(sources, scroll_id=None):
@@ -25,6 +25,42 @@ def handler(mocker):
 
 def query(handler):
     return handler.list_span_by_trace_ids(["trace-a", "trace-b"], 3, "trace-index")
+
+
+@pytest.mark.parametrize("processing_s,budget_exhausted", [(60, False), (596, True)])
+def test_trace_pages_keep_original_window_and_separate_processing_time(handler, mocker, processing_s, budget_exhausted):
+    elapsed = 0
+    end_ms = 1_000_123
+    clock = mocker.patch("apm.core.discover.base.time")
+    clock.time_ns.side_effect = lambda: (end_ms + elapsed * 1000) * 1_000_000
+    clock.monotonic.side_effect = lambda: elapsed
+    # B is on the inclusive lower bound and C on the exclusive upper bound.
+    records = {"A": end_ms - 1, "B": end_ms - 600_000, "C": end_ms}
+    handler.datasource.result_table_id = "apm_global.shared_trace"
+
+    def search(index, body, request_timeout):
+        nonlocal elapsed
+        assert index == "trace-index" and request_timeout == 60
+        query = body["query"]["bool"]
+        assert query["filter"] == [{"term": {"bk_biz_id": 2}}, {"term": {"app_name": "test-app"}}]
+        bounds = query["must"][0]["range"]["time"]
+        assert bounds == {"gte": end_ms - 600_000, "lt": end_ms, "format": "epoch_millis"}
+        cursor = body["aggs"]["unique_trace_id"]["composite"].get("after", {}).get("trace_id_source", "")
+        ids = [key for key, ts in records.items() if bounds["gte"] <= ts < bounds["lt"] and key > cursor]
+        key = {"trace_id_source": ids[0]}
+        agg = {"buckets": [{"key": key}]}
+        if len(ids) > 1:
+            agg["after_key"] = key
+        elapsed += 2
+        return {"aggregations": {"unique_trace_id": agg}}
+
+    handler.datasource.es_client.search.side_effect = search
+    stats = TracePageStats()
+    pages = handler.list_trace_ids("trace-index", stats)
+    assert next(pages) == ["A"]
+    elapsed += processing_s
+    assert list(pages) == ([] if budget_exhausted else [["B"]])
+    assert stats == TracePageStats(requests=2, query_duration_s=4, budget_exhausted=budget_exhausted)
 
 
 @pytest.mark.parametrize("count", [0, 1, 2])

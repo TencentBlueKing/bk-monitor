@@ -183,7 +183,7 @@ def measured_run(handler, redis, pages):
     sql = Counter()
     created = Counter()
 
-    def list_pages(_index):
+    def list_pages(_index, _stats=None):
         for page in range(pages):
             consumed["pages"] += 1
             consumed["traces"] += 100
