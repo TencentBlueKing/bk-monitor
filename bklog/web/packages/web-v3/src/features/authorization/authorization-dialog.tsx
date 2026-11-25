@@ -639,19 +639,19 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           }}
         >
           {!this.rowData && (
-            <div class='select-group bk-button-group'>
+            <div class='select-group bk-button-group' data-bklog-button-group='connected'>
               <TButton
-                class={{ 'is-selected': this.isAloneAddForm }}
+                aria-pressed={this.isAloneAddForm}
                 theme='default'
-                variant='outline'
+                variant='base'
                 onClick={() => this.handleSelectAloneType('alone')}
               >
                 {$i18n.t('单独授权')}
               </TButton>
               <TButton
-                class={{ 'is-selected': !this.isAloneAddForm }}
+                aria-pressed={!this.isAloneAddForm}
                 theme='default'
-                variant='outline'
+                variant='base'
                 onClick={() => this.handleSelectAloneType('batch')}
               >
                 {$i18n.t('批量授权')}

@@ -904,7 +904,7 @@ export default defineComponent({
             panelTopContent: () => (
               <TInput
                 ref={labelSearchRef}
-                class='collection-label-search'
+                class='collection-label-search bklog-select-panel-search'
                 value={labelSearch.value}
                 placeholder={t('输入关键字搜索')}
                 prefixIcon={() => <SearchIcon />}
@@ -923,7 +923,7 @@ export default defineComponent({
               />
             ),
             panelBottomContent: () => (
-              <div class='new-label-container'>
+              <div class='new-label-container bklog-select-panel-footer'>
                 {isShowNewGroupInput.value ? (
                   <div key='new-label-draft' class='new-label-input'>
                     <TForm
@@ -973,7 +973,7 @@ export default defineComponent({
                 ) : (
                   <div
                     key='new-label-add'
-                    class='add-new-label'
+                    class='add-new-label bklog-select-panel-action'
                     onClick={() => {
                       isShowNewGroupInput.value = true;
                       nextTick(() => {

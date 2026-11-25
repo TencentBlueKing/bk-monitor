@@ -37,6 +37,40 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   let echartsLoader: Promise<typeof import('echarts')> | null = null;
   const loadEcharts = () => (echartsLoader ??= import('echarts'));
 
+  const getThemeOptions = () => {
+    const element = target.value?.$el;
+    if (!element || typeof getComputedStyle === 'undefined') return;
+    const style = getComputedStyle(element);
+    const color = (token: string) => style.getPropertyValue(token).trim() || undefined;
+    const text = color('--td-text-color-secondary');
+    const stroke = color('--td-component-stroke');
+    const axis = {
+      axisLabel: { color: text },
+      axisLine: { lineStyle: { color: stroke } },
+      splitLine: { lineStyle: { color: stroke } },
+    };
+
+    return {
+      textStyle: { color: text },
+      legend: { textStyle: { color: text } },
+      tooltip: {
+        backgroundColor: color('--td-bg-color-container'),
+        borderColor: stroke,
+        borderWidth: 1,
+        textStyle: { color: color('--td-text-color-primary') },
+        axisPointer: { label: { backgroundColor: color('--td-bg-color-component'), color: text } },
+      },
+      ...(options.xAxis && { xAxis: axis, yAxis: axis }),
+      ...(options.series?.type === 'pie' && { series: { label: { color: text } } }),
+    };
+  };
+
+  const applyTheme = () => {
+    if (!chartInstance || !options.series) return;
+    const themeOptions = getThemeOptions();
+    if (themeOptions) chartInstance.setOption(themeOptions);
+  };
+
   type DataItem = Record<string, any>;
 
   const aggregateDataByDimensions = (data: DataItem[], dimensionFields: string[], metricFields: string[]) => {
@@ -333,12 +367,14 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     Object.assign(options.yAxis.axisLabel, getYAxisLabel());
     options.series = seriesData;
     chartInstance?.setOption(options);
+    applyTheme();
   };
 
   const updatePieOption = (dimensions?: string[], yFields?: string[], _?: string[], data?: any) => {
     const pieChartData = aggregatePieData(data.list, dimensions!, yFields![0]);
     options.series.data = pieChartData;
     chartInstance?.setOption(options);
+    applyTheme();
   };
 
   const updateChartOptions = (
@@ -383,7 +419,14 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     updateChartOptions(xFields, yFields, dimensions, data, newType);
   };
 
-  onMounted(initChartInstance);
+  let themeObserver: MutationObserver | undefined;
+  onMounted(() => {
+    if (typeof MutationObserver !== 'undefined') {
+      themeObserver = new MutationObserver(applyTheme);
+      themeObserver.observe(document.documentElement, { attributeFilter: ['theme-mode'] });
+    }
+    return initChartInstance();
+  });
 
   const destroyInstance = () => {
     generation++;
@@ -393,6 +436,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
 
   onBeforeUnmount(() => {
     unmounted = true;
+    themeObserver?.disconnect();
     destroyInstance();
   });
 

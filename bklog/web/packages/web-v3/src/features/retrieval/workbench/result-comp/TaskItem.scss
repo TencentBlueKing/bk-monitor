@@ -1,3 +1,5 @@
+@use '@/shared/styles/theme/components/contracts' as bklogControls;
+
 .task-item-wrapper {
   width: 240px;
   padding: 0 16px;
@@ -26,37 +28,39 @@
         align-items: center;
 
         .status-dot {
+          @include bklogControls.execution-status-dot;
           display: inline-block;
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
+          flex: none;
           margin-right: 6px;
         }
 
         &.failed {
           .status-dot.failed-dot {
-            background: #FFEBEB;
-            border: 1px solid #EA3636;
+            background-color: var(--bklog-message-error-surface);
+            border-color: var(--bklog-status-error);
           }
 
           .detail-link {
             margin-left: 8px;
-            color: #3a84ff;
-            font-size: 12px;
+            color: var(--bklog-brand-primary);
+            font-size: var(--bklog-font-body);
             cursor: pointer;
+
+            &:hover { color: var(--bklog-brand-hover); }
+            &:active { color: var(--bklog-brand-active); }
           }
         }
 
         &.not-started {
           .status-dot.pending-dot {
-            background: #F5F7FA;
-            border: 1px solid #C4C6CC;
+            background-color: var(--bklog-option-surface-hover);
+            border-color: var(--bklog-standard-control-border);
           }
         }
 
         &.downloading {
           .progress-text {
-            color: #3a84ff;
+            color: var(--bklog-brand-primary);
             font-weight: 500;
           }
         }

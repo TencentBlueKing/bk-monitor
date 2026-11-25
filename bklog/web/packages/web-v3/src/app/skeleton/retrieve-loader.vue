@@ -152,15 +152,17 @@
 </script>
 
 <style lang="scss">
+  @use '@/shared/ui/loading/shimmer' as *;
+
   .skeleton-table {
     width: 100%;
-    background: #fff;
+    background: var(--td-bg-color-container);
 
     .skeleton-row {
       display: flex;
       align-items: center;
       height: 42px;
-      border-bottom: 1px solid #f0f1f5;
+      border-bottom: var(--bklog-border-width) solid var(--td-component-stroke);
     }
 
     .skeleton-gutter {
@@ -175,9 +177,9 @@
     }
 
     .cell-bar {
-      height: 12px;
-      background-color: #e9e9e9;
-      border-radius: 2px;
+      @include loading-shimmer;
+
+      height: var(--bklog-space-12);
     }
   }
 </style>

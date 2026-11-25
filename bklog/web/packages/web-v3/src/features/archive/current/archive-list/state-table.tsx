@@ -34,6 +34,8 @@ import useLocale from '@/shared/composables/use-locale';
 
 
 
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { renderListRefreshSkeleton } from '@/shared/ui/loading/list-skeleton';
 import './state-table.scss';
 
 export default defineComponent({
@@ -50,6 +52,8 @@ export default defineComponent({
     const scrollContainer = ref<any>(null); // 滚动容器引用
 
     const isTableLoading = ref(false); // 表格加载状态
+    const isLoadingMore = ref(false);
+    const requestFailed = ref(false);
     const throttle = ref(false); // 滚动节流
     const isPageOver = ref(false); // 是否加载完毕
     const dataList = ref<any[]>([]); // 数据列表
@@ -70,11 +74,12 @@ export default defineComponent({
     };
 
     // 请求数据
-    const requestData = async () => {
+    const requestData = async (page: number) => {
+      requestFailed.value = false;
       try {
         const res = await ServicesInstance.archive.archiveConfig({
           query: {
-            page: curPage.value,
+            page,
             pagesize: pageSize,
           },
           params: {
@@ -83,6 +88,7 @@ export default defineComponent({
         });
 
         const { data } = res;
+        curPage.value = page;
         isPageOver.value = data.indices.length < pageSize;
 
         if (data.indices.length) {
@@ -90,27 +96,30 @@ export default defineComponent({
           dataList.value.splice(dataList.value.length, 0, ...list);
         }
       } catch (err) {
+        requestFailed.value = true;
         console.warn(err);
       } finally {
         isTableLoading.value = false;
+        isLoadingMore.value = false;
       }
     };
 
     // 初始化
     const init = async () => {
       isTableLoading.value = true;
-      await requestData();
+      await requestData(0);
     };
 
     // 加载更多数据
     const loadMore = async () => {
-      curPage.value += 1;
-      await requestData();
+      if (isTableLoading.value || isLoadingMore.value || isPageOver.value) return;
+      isLoadingMore.value = true;
+      await requestData(curPage.value + 1);
     };
 
     // 滚动处理
     const handleScroll = () => {
-      if (throttle.value || isPageOver.value) {
+      if (throttle.value || requestFailed.value || isPageOver.value) {
         return;
       }
       throttle.value = true;
@@ -143,6 +152,15 @@ export default defineComponent({
             loading={isTableLoading.value}
             data={dataList.value}
             outer-border={false}
+            v-slots={{
+              empty: () => (
+                <div class='bklog-table-empty-region'>
+                  {!isTableLoading.value && (
+                    <EmptyStatus emptyType={requestFailed.value ? '500' : 'empty'} onOperation={init} />
+                  )}
+                </div>
+              ),
+            }}
           >
             <bk-table-column
               nativeCellSlot={true}
@@ -191,12 +209,11 @@ export default defineComponent({
               v-slots={{ default: (newProps: any) => (newProps.row.is_stored ? t('是') : t('否')) }}
             />
           </bk-table>
-          {dataList.value.length > 0 && (
-            <div
-              style='height: 40px'
-              v-loading={{ loading: true }}
-              v-show={!isPageOver.value}
-            />
+          {isLoadingMore.value && (
+            <div style='height: 40px' v-loading={{ loading: true, indicator: renderListRefreshSkeleton }} />
+          )}
+          {dataList.value.length > 0 && requestFailed.value && (
+            <t-button variant='text' theme='primary' onClick={loadMore}>{t('重试')}</t-button>
           )}
         </section>
       </section>

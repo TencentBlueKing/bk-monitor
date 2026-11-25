@@ -73,20 +73,21 @@
             >
             </Option>
           </Select>
-          <span
-            style="font-size: 14px; color: #c4c6cc"
-            class="bklog-icon bklog-circle-minus-filled bklog-v3-popover-tag"
+          <button
+            type="button"
+            class="sort-field-remove bklog-v3-popover-tag"
+            :aria-label="$t('删除')"
             @click="deleteTableItem(element.key)"
-          ></span>
+          >
+            <span class="bklog-icon bklog-circle-minus-filled" aria-hidden="true"></span>
+          </button>
         </li>
       </template>
     </vue-draggable>
-    <span
-      style="margin-left: 20px; font-size: 14px; color: #3a84ff"
-      class="bklog-icon bklog-log-plus-circle-shape"
-      @click="addTableItem()"
-      ><span style="margin-left: 4px; font-size: 12px" class="add-sort-field">{{ $t('添加排序字段') }}</span></span
-    >
+    <button type="button" class="sort-field-add" @click="addTableItem()">
+      <span class="bklog-icon bklog-log-plus-circle-shape" aria-hidden="true"></span>
+      {{ $t('添加排序字段') }}
+    </button>
   </div>
 </template>
 <script setup lang="ts">
@@ -157,7 +158,7 @@ const addTableItem = () => {
   sortList.value.push({ key: random(8), sorts: ['', ''] });
 };
 const getFieldIconColor = (type: string | number) => {
-  return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
+  return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : 'var(--td-bg-color-component)';
 };
 const getFieldIconTextColor = (type: string | number) => {
   return fieldTypeMap.value?.[type]?.textColor;
@@ -193,7 +194,7 @@ defineExpose({ shadowSort });
     .bklog-ketuodong {
       width: 18px;
       font-size: 18px;
-      color: hsl(223, 7%, 62%);
+      color: var(--td-text-color-placeholder);
       text-align: left;
       cursor: move;
     }
@@ -206,34 +207,60 @@ defineExpose({ shadowSort });
   padding: 0 36px 0 10px;
   font-size: 12px;
   line-height: 30px;
-  color: #63656e;
+  color: var(--td-text-color-secondary);
   cursor: not-allowed;
-  background-color: #fafbfc;
-  border: 1px solid #c4c6cc;
-  border-radius: 2px;
+  background-color: var(--td-bg-color-component-disabled);
+  border: var(--bklog-border-width) solid var(--td-component-border);
+  border-radius: var(--bklog-standard-control-radius);
 
   .badge {
     padding: 0px 7px;
-    color: #979bb4;
-    background-color: #eaebee;
+    color: var(--td-text-color-placeholder);
+    background-color: var(--td-bg-color-component);
     border-radius: 8px;
   }
 }
 
-.bklog-circle-minus-filled {
+.sort-field-add,
+.sort-field-remove {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  font: inherit;
   cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--bklog-standard-control-radius);
+
+  .bklog-icon {
+    font-size: var(--bklog-font-action);
+  }
+
+  &:focus-visible {
+    outline: var(--bklog-border-width) solid var(--td-brand-color);
+  }
 }
 
-.add-sort-field {
-  cursor: pointer;
+.sort-field-add {
+  gap: var(--bklog-space-4);
+  margin-inline-start: var(--bklog-space-20);
+  color: var(--td-text-color-link);
+}
+
+.sort-field-remove {
+  color: var(--td-text-color-secondary);
+
+  &:hover {
+    color: var(--td-error-color);
+  }
 }
 </style>
 <style lang="scss">
 .table-sort-option-container {
   .t-select-option {
-    height: 32px;
-    padding: 0 8px;
-    line-height: 32px;
+    height: var(--bklog-control-size-medium);
+    padding-inline: var(--bklog-space-8);
+    line-height: var(--bklog-control-size-medium);
 
     > span {
       display: flex;
@@ -252,16 +279,16 @@ defineExpose({ shadowSort });
 
     .field-type-icon {
       flex: none;
-      width: 16px;
-      height: 16px;
-      margin-right: 4px;
+      width: var(--bklog-space-16);
+      height: var(--bklog-space-16);
+      margin-inline-end: var(--bklog-space-4);
     }
 
     .display-container {
       flex: 1;
       width: auto;
       min-width: 0;
-      padding: 0 4px;
+      padding-inline-end: var(--bklog-space-4);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;

@@ -314,13 +314,13 @@
                                 :label="$t('分词符')"
                                 :property="'participle'"
                               >
-                                <div class="bk-button-group">
+                                <div class="bk-button-group" data-bklog-button-group="connected">
                                   <t-button
                                     v-for="option in participleList"
                                     :key="option.id"
                                     class="participle-btn"
                                     theme="default"
-                                    :class="currentParticipleState === option.id ? 'is-selected' : ''"
+                                    :aria-pressed="currentParticipleState === option.id"
                                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                                     :disabled="getCustomizeDisabled(props.row)"
                                     @click="handleChangeParticipleState(option.id, props.$index)"
@@ -1417,27 +1417,6 @@ import {cloneReactiveData} from '@/shared/lib/clone-reactive-data';
     .participle-btn {
       padding: 0 8px;
       font-size: var(--bklog-font-body, 12px);
-      border-radius: 0;
-
-      + .participle-btn {
-        margin-left: -1px;
-      }
-
-      &:first-child {
-        border-radius: 2px 0 0 2px;
-      }
-
-      &:last-child {
-        border-radius: 0 2px 2px 0;
-      }
-
-      &.is-selected {
-        position: relative;
-        z-index: var(--bklog-z-base);
-        color: var(--bklog-brand-primary, #3a84ff);
-        background-color: var(--bklog-brand-tint, #e1ecff);
-        border-color: var(--bklog-brand-primary, #3a84ff);
-      }
     }
   }
 

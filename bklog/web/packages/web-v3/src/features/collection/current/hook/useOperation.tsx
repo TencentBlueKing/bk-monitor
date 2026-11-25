@@ -83,8 +83,8 @@ export const useOperation = () => {
    * @param cardConfig - 卡片配置数组
    * @returns JSX 元素
    */
-  const cardRender = (cardConfig: ICardItem[]) => (
-    <div class='classify-main-box'>
+  const cardRender = (cardConfig: ICardItem[], inert = false) => (
+    <div class='classify-main-box' inert={inert}>
       {cardConfig.map(item => (
         <div
           key={item.key}

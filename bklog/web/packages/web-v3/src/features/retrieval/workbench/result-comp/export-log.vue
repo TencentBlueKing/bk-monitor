@@ -44,20 +44,24 @@
         :max-count="Infinity"
         :show-zero="failedTaskCount > 0"
         :count="failedTaskCount > 0 ? failedTaskCount : 0"
-        :color="'#ea3636'"
+        color="var(--td-error-color)"
       >
-        <div
+        <button
+          type="button"
+          :aria-label="$t('导出')"
+          :disabled="!queueStatus"
           :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
           data-test-id="fieldForm_div_exportData"
           @click="exportLog"
         >
-          <span class="icon bklog-icon bklog-download" style="font-size: 16px"></span>
-          <div
+          <span class="icon bklog-icon bklog-download" aria-hidden="true"></span>
+          <span
             v-if="totalProgressPercent > 0"
             class="progress-mask"
+            aria-hidden="true"
             :style="{ '--progress': totalProgressPercent + '%' }"
-          ></div>
-        </div>
+          ></span>
+        </button>
       </t-badge>
       <template #content>
         <div class="download-progress-content" @click="handleShowHistoryExport">
@@ -99,7 +103,7 @@
       attach="body"
       :close-on-overlay-click="false"
       :confirm-btn="$t('下载')"
-      :width="640"
+      width="min(640px, calc(100vw - 32px))"
       @closed="closeExportDialog"
       @close="isShowExportDialog = false"
       @confirm="handleClickSubmit"
@@ -107,10 +111,13 @@
       <template #header>
         <div class="dialog-header-custom">
           <span>{{ $t('下载日志') }}</span>
-          <span class="view-history-btn" @click="handleViewDownloadHistory">{{ $t('查看下载历史') }}</span>
+          <button type="button" class="view-history-btn" @click="handleViewDownloadHistory">{{ $t('查看下载历史') }}</button>
           <div
             v-if="totalProgressPercent > 0"
             class="circular-progress"
+            role="progressbar"
+            :aria-label="$t('下载日志')"
+            :aria-valuenow="totalProgressPercent"
             :style="{ '--progress': totalProgressPercent + '%' }"
           ></div>
           <div v-if="failedTaskCount > 0" class="failed-task-tip">
@@ -119,7 +126,7 @@
           </div>
         </div>
       </template>
-      <BklogLoading :loading="exportLoading" class="export-container">
+      <div :inert="exportLoading" class="export-container">
         <div class="log-num-container">
           <div class="num-box">
             <span class="log-num">{{ $t('{n}条', { n: totalCount }) }}</span>
@@ -196,9 +203,9 @@
             </t-radio>
           </t-radio-group>
         </div>
-      </BklogLoading>
+      </div>
       <template #footer>
-        <t-button theme="primary" @click="handleClickSubmit">{{ $t('下载') }}</t-button>
+        <t-button theme="primary" :loading="exportLoading" @click="handleClickSubmit">{{ $t('下载') }}</t-button>
         <t-button theme="default" @click="isShowExportDialog = false">{{ $t('取消') }}</t-button>
       </template>
     </TDialog>
@@ -219,7 +226,6 @@ import {
   Select as TSelect,
   Option as TOption,
 } from 'tdesign-vue-next';
-import BklogLoading from '@/shared/ui/loading';
 import { ServicesInstance } from '@/platform/services';
 
 import axios from 'axios';
@@ -267,7 +273,6 @@ export default {
     TDialog,
     TSelect,
     TOption,
-    BklogLoading,
     exportHistory,
     BklogPopover,
     TaskItem,
@@ -988,29 +993,40 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin-left: 10px;
+  width: var(--bklog-control-size-medium);
+  height: var(--bklog-control-size-medium);
+  margin-inline-start: calc(var(--bklog-space-8) + var(--bklog-space-2));
+  padding: 0;
+  border: 0;
   cursor: pointer;
-  background-color: #f0f1f5;
-  border-radius: 2px;
-  outline: none;
-  transition: boder-color 0.2s;
+  background-color: var(--td-bg-color-component);
+  border-radius: var(--bklog-standard-control-radius);
 
-  &:hover {
-    border-color: #4d4f56;
-    transition: boder-color 0.2s;
+  &:enabled:hover {
+    background-color: var(--td-bg-color-component-hover);
   }
 
-  &:active {
-    border-color: #3a84ff;
-    transition: boder-color 0.2s;
+  &:enabled:active {
+    background-color: var(--td-bg-color-component-active);
+  }
+
+  &:focus-visible {
+    outline: var(--bklog-border-width) solid var(--td-brand-color);
+    outline-offset: var(--bklog-space-2);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+
+    .bklog-icon {
+      color: var(--td-text-color-disabled);
+    }
   }
 
   .bklog-icon {
     width: 16px;
     font-size: 16px;
-    color: #4d4f56;
+    color: var(--td-text-color-secondary);
   }
 
   .progress-mask {
@@ -1019,8 +1035,8 @@ export default {
     right: 0;
     bottom: 0;
     left: 0;
-    background: conic-gradient(from 0deg, rgba(0, 0, 0, 0) var(--progress, 0%), rgba(0, 0, 0, 0.3) 0);
-    transition: background 0.25s ease;
+    pointer-events: none;
+    background: conic-gradient(transparent var(--progress, 0%), color-mix(in srgb, var(--td-brand-color) 24%, transparent) 0);
   }
 }
 
@@ -1033,13 +1049,13 @@ export default {
 
 .disabled-icon {
   cursor: not-allowed;
-  background-color: #fff;
-  border-color: #dcdee5;
+  background-color: var(--td-bg-color-container);
+  border-color: var(--td-component-stroke);
 
   &:hover,
   .bklog-icon {
-    color: #c4c6cc;
-    border-color: #dcdee5;
+    color: var(--td-text-color-disabled);
+    border-color: var(--td-component-stroke);
   }
 }
 
@@ -1087,7 +1103,7 @@ export default {
 
   &::after {
     display: inline-block;
-    color: #ea3636;
+    color: var(--td-error-color);
     content: '*';
     transform: translateX(2px) translateY(2px);
   }
@@ -1095,7 +1111,7 @@ export default {
 
 %num-box-extend {
   width: 48%;
-  background: #f5f7fa;
+  background: var(--td-bg-color-container-hover);
   border-radius: 2px;
 
   @include flex-center();
@@ -1118,7 +1134,7 @@ export default {
       font-size: 24px;
       font-weight: 700;
       line-height: 32px;
-      color: #313238;
+      color: var(--td-text-color-primary);
     }
   }
 
@@ -1130,8 +1146,8 @@ export default {
 .mode-hint {
   :deep(.t-alert.t-alert--info) {
     padding: 8px 10px;
-    color: var(--bklog-text-secondary, #63656e);
-    background: var(--bklog-surface-component, #f0f1f5);
+    color: var(--td-text-color-secondary);
+    background: var(--td-bg-color-component);
     border: none;
     border-radius: 0;
   }
@@ -1140,13 +1156,13 @@ export default {
     margin-right: 8px;
     font-size: var(--bklog-font-action, 14px);
     line-height: var(--bklog-line-height-small, 16px);
-    color: var(--bklog-text-secondary, #63656e);
+    color: var(--td-text-color-secondary);
   }
 }
 
 :deep(.t-radio__label) {
   margin-left: 2px;
-  color: var(--bklog-text-secondary, #63656e);
+  color: var(--td-text-color-secondary);
   /* stylelint-disable-next-line declaration-no-important */
   font-size: var(--bklog-font-body, 12px) !important;
 }
@@ -1169,8 +1185,8 @@ export default {
     margin: 0 auto;
     font-size: 30px;
     line-height: 58px;
-    color: #ff9c01;
-    background-color: #ffe8c3;
+    color: var(--td-warning-color);
+    background-color: var(--td-warning-color-light);
     border-radius: 50%;
   }
 
@@ -1183,7 +1199,7 @@ export default {
     overflow: hidden;
     font-size: 24px;
     line-height: 1.5;
-    color: #313238;
+    color: var(--td-text-color-primary);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1199,7 +1215,7 @@ export default {
       margin-left: 8px;
       font-size: 12px;
       line-height: 18px;
-      color: #63656e;
+      color: var(--td-text-color-secondary);
       text-align: left;
     }
 
@@ -1220,19 +1236,27 @@ export default {
     font-size: 20px;
     font-weight: 400;
     line-height: 28px;
-    color: #000;
+    color: var(--td-text-color-primary);
 
     .view-history-btn {
       z-index: var(--bklog-z-page);
-      padding-left: 12px;
-      margin-left: 16px;
-      font-size: 14px;
-      color: #3a84ff;
+      padding: 0 0 0 var(--bklog-space-12);
+      margin-inline-start: var(--bklog-space-16);
+      font: inherit;
+      font-size: var(--bklog-font-action);
+      color: var(--td-text-color-link);
       cursor: pointer;
-      border-left: 1px solid #dcdee5;
+      background: transparent;
+      border: 0;
+      border-inline-start: var(--bklog-border-width) solid var(--td-component-stroke);
 
       &:hover {
-        color: #699df4;
+        text-decoration: underline;
+      }
+
+      &:focus-visible {
+        outline: var(--bklog-border-width) solid var(--td-brand-color);
+        outline-offset: var(--bklog-space-2);
       }
     }
 
@@ -1248,15 +1272,15 @@ export default {
         margin-right: 4px;
         font-size: 12px;
         line-height: 20px;
-        color: #fff;
+        color: var(--td-text-color-anti);
         text-align: center;
-        background-color: #ea3636;
+        background-color: var(--td-error-color);
         border-radius: 50%;
       }
 
       .failed-task-text {
         font-weight: 400;
-        color: #ea3636;
+        color: var(--td-error-color);
       }
     }
 
@@ -1264,7 +1288,7 @@ export default {
       width: 16px;
       height: 16px;
       margin-left: 8px;
-      background: conic-gradient(from 0deg, rgba(233, 237, 245, 1) var(--progress, 0%), rgba(0, 0, 0, 0.3) 0);
+      background: conic-gradient(var(--td-brand-color) var(--progress, 0%), var(--td-bg-color-component) 0);
       border-radius: 50%;
     }
   }
@@ -1284,7 +1308,7 @@ export default {
 //     cursor: pointer;
 
 //     &:hover {
-//       color: #3a84ff;
+//       color: var(--td-text-color-link);
 //     }
 //   }
 // }
@@ -1309,10 +1333,28 @@ export default {
 <style lang="scss">
 // The dialog is teleported to body; keep its TDesign layout overrides local to this dialog.
 .async-export-dialog.t-dialog {
-  padding: 16px 24px 0;
+  --bklog-export-dialog-gutter: clamp(var(--bklog-space-12), 4vw, var(--bklog-space-24));
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 2 * var(--bklog-space-16));
+  padding: var(--bklog-space-16) var(--bklog-export-dialog-gutter) 0;
+
+  .t-dialog__header {
+    flex-shrink: 0;
+    padding-inline-end: var(--bklog-space-24);
+  }
+
+  .dialog-header-custom {
+    flex-wrap: wrap;
+    row-gap: var(--bklog-space-4);
+  }
 
   .t-dialog__body {
-    padding: 8px 0 36px;
+    min-height: 0;
+    padding: var(--bklog-space-8) 0 36px;
+    overflow-y: auto;
   }
 
   .t-dialog__close {
@@ -1323,9 +1365,10 @@ export default {
 
   .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
     box-sizing: border-box;
-    width: calc(100% + 48px);
-    padding: 7px 20px;
-    margin: 0 -24px;
+    flex-shrink: 0;
+    width: calc(100% + 2 * var(--bklog-export-dialog-gutter));
+    padding: 7px var(--bklog-export-dialog-gutter);
+    margin-inline: calc(-1 * var(--bklog-export-dialog-gutter));
   }
 }
 </style>

@@ -82,7 +82,7 @@
             {{ $t('成功匹配 {x} 条索引', { x: matchedTableIds.length }) }}
           </div>
           <bk-table
-            v-loading="{ loading: tableLoading }"
+            :loading="tableLoading"
             :data="matchedTableIds"
             max-height="400"
           >
@@ -93,8 +93,9 @@
             >
             </bk-table-column>
             <template #empty>
-              <div>
+              <div class="bklog-table-empty-region">
                 <empty-status
+                  v-if="!tableLoading"
                   :empty-type="emptyType"
                   @operation="handleOperation"
                 />

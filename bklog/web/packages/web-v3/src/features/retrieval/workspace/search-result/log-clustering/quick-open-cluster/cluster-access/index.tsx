@@ -191,9 +191,10 @@ export default defineComponent({
       <bk-sideslider
         v-slots={{
           content: () => (
-            <div>
+            <div class='cluster-access-content'>
               <div class='cluster-access-main'>
                 <TAlert
+                  class='cluster-access-alert'
                   theme={'info'}
                   message={t('大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志')} data-v2-display='alert'
                 />
@@ -214,7 +215,7 @@ export default defineComponent({
                   >
                     <div class='setting-item'>
                       <bk-select
-                        style='width: 482px'
+                        style='width: min(482px, 100%)'
                         value={formData.value.clustering_fields}
                         clearable={false}
                         onChange={(value: string) => (formData.value.clustering_fields = value)}
@@ -229,7 +230,7 @@ export default defineComponent({
                       <span class='field-tip-main'>
                         <log-icon
                           common
-                          style='color: #979BA5'
+                          style='color: var(--td-text-color-secondary)'
                           type='info'
                         />
                         <span class='tip'>

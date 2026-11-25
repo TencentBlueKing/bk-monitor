@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { Alert as Alert } from 'tdesign-vue-next';
 
 import { Button as Button } from 'tdesign-vue-next';
@@ -318,7 +319,7 @@ class MaskingFieldInput extends Vue {
             <div>
               <div
                 class='json-editor'
-                v-loading={{ loading: this.inputLoading }}
+                v-loading={{ loading: this.inputLoading, indicator: renderCodeSampleSkeleton }}
               >
                 <MonacoEditor
                   height={this.collectHeight}

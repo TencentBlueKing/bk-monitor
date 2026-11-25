@@ -11,12 +11,13 @@ type Host = HTMLElement & {
   _logPopupBinding?: DirectiveBinding;
   _logPopupId?: string;
   _logPopupRoot?: HTMLElement;
-  _logPopupVisible?: boolean;
+  _logPopupTimer?: ReturnType<typeof setTimeout>;
   _logPopupEnter?: () => void;
   _logPopupLeave?: () => void;
 };
 
 let sequence = 0;
+let activeHost: Host | undefined;
 
 const placementMap: Record<string, string> = {
   top: 'top',
@@ -60,29 +61,42 @@ function delayOf(value: unknown, fallback: number | [number, number] = 0) {
   return fallback;
 }
 
-export function paintPopup(
-  el: Host,
-  binding: DirectiveBinding,
-  visible: boolean,
-  content: string,
-  defaultDelay: number | [number, number] = 0,
-) {
+function closeActivePopup() {
+  if (activeHost) closePopup(activeHost);
+}
+
+function closePopup(el: Host) {
+  clearTimeout(el._logPopupTimer);
+  delete el._logPopupTimer;
+  if (el._logPopupRoot) {
+    render(null, el._logPopupRoot);
+    el._logPopupRoot.remove();
+    delete el._logPopupRoot;
+  }
+  if (activeHost === el) {
+    activeHost = undefined;
+    el.ownerDocument.removeEventListener('scroll', closeActivePopup, true);
+    el.ownerDocument.defaultView?.removeEventListener('blur', closeActivePopup);
+  }
+}
+
+function paintPopup(el: Host, binding: DirectiveBinding, content: string) {
   if (!el._logPopupId) {
     el._logPopupId = `log-popup-${++sequence}`;
     el.setAttribute('data-log-popup', el._logPopupId);
   }
   if (!el._logPopupRoot) {
-    el._logPopupRoot = document.createElement('div');
-    document.body.appendChild(el._logPopupRoot);
+    el._logPopupRoot = el.ownerDocument.createElement('div');
+    el.ownerDocument.body.appendChild(el._logPopupRoot);
   }
-  el._logPopupVisible = visible && !!content;
   const vnode = h(Popup, {
-    visible: el._logPopupVisible,
+    visible: true,
     content,
     placement: popupPlacement(binding) as 'top',
     triggerElement: `[data-log-popup="${el._logPopupId}"]`,
     showArrow: true,
-    delay: delayOf(binding.value, defaultDelay),
+    overlayClassName: 'bklog-text-tooltip',
+    delay: 0,
     zIndex: window.__bk_zIndex_manager?.nextZIndex?.(),
   });
   vnode.appContext = binding.instance?.$?.appContext ?? null;
@@ -92,37 +106,60 @@ export function paintPopup(
 export function bindHoverPopup(el: Host, binding: DirectiveBinding, overflowOnly = false) {
   el._logPopupBinding = binding;
   const enter = () => {
-    const currentBinding = el._logPopupBinding;
-    if (!currentBinding) return;
-    if (overflowOnly && el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight) return;
-    const content = popupContent(currentBinding.value) || (overflowOnly ? el.textContent || '' : '');
-    paintPopup(el, currentBinding, true, content, overflowOnly ? [400, 0] : 0);
+    if (activeHost) closePopup(activeHost);
+    const binding = el._logPopupBinding;
+    if (!binding || !hoverContent(el, binding, overflowOnly)) return;
+    activeHost = el;
+    el.ownerDocument.addEventListener('scroll', closeActivePopup, { capture: true, passive: true });
+    el.ownerDocument.defaultView?.addEventListener('blur', closeActivePopup);
+    const delay = delayOf(binding.value, overflowOnly ? 400 : 0);
+    const show = () => {
+      delete el._logPopupTimer;
+      const current = el._logPopupBinding;
+      if (!current || !el.isConnected) {
+        closePopup(el);
+        return;
+      }
+      const content = hoverContent(el, current, overflowOnly);
+      if (content) paintPopup(el, current, content);
+      else closePopup(el);
+    };
+    const wait = Array.isArray(delay) ? delay[0] : delay;
+    if (wait > 0) el._logPopupTimer = setTimeout(show, wait);
+    else show();
   };
-  const leave = () => {
-    const currentBinding = el._logPopupBinding;
-    if (currentBinding) paintPopup(el, currentBinding, false, '');
-  };
+  const leave = () => closePopup(el);
   el._logPopupEnter = enter;
   el._logPopupLeave = leave;
   el.addEventListener('mouseenter', enter);
   el.addEventListener('mouseleave', leave);
 }
 
+function hoverContent(el: Host, binding: DirectiveBinding, overflowOnly: boolean) {
+  const options = binding.value as { disabled?: boolean; checkChildOverflow?: boolean } | null;
+  if (options?.disabled) return '';
+  if (overflowOnly && el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight) {
+    const childOverflows = options?.checkChildOverflow && Array.from(el.children).some(
+      child => child.scrollWidth > child.clientWidth || child.scrollHeight > child.clientHeight,
+    );
+    if (!childOverflows) return '';
+  }
+  return popupContent(binding.value) || (overflowOnly ? el.textContent || '' : '');
+}
+
 export function refreshHoverPopup(el: Host, binding: DirectiveBinding, overflowOnly = false) {
-  // 即使弹层尚未显示，也要让下次鼠标事件读取最新配置。
   el._logPopupBinding = binding;
-  if (!el._logPopupVisible) return;
-  const content = popupContent(binding.value) || (overflowOnly ? el.textContent || '' : '');
-  paintPopup(el, binding, !!content, content, overflowOnly ? [400, 0] : 0);
+  if (activeHost !== el) return;
+  const content = hoverContent(el, binding, overflowOnly);
+  if (!content) closePopup(el);
+  else if (el._logPopupRoot) paintPopup(el, binding, content);
 }
 
 export function unbindHoverPopup(el: Host) {
   delete el._logPopupBinding;
   if (el._logPopupEnter) el.removeEventListener('mouseenter', el._logPopupEnter);
   if (el._logPopupLeave) el.removeEventListener('mouseleave', el._logPopupLeave);
-  if (el._logPopupRoot) {
-    render(null, el._logPopupRoot);
-    el._logPopupRoot.remove();
-  }
+  closePopup(el);
   el.removeAttribute('data-log-popup');
+  delete el._logPopupId;
 }

@@ -6,15 +6,11 @@
   box-sizing: border-box;
   padding: 24px 36px;
   overflow: hidden;
-  background: var(--bklog-surface, #fff);
+  background: var(--bklog-surface, var(--td-bg-color-container, #fff));
 
   span {
     @include loading-shimmer;
     display: block;
-
-    @media (prefers-reduced-motion: reduce) {
-      animation: none;
-    }
   }
 
   &__field {

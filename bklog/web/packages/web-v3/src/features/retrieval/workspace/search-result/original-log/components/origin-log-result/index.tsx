@@ -865,33 +865,14 @@ export default defineComponent({
                     </td>
                   </tr>
                 ))}
-              {!listLoading.value && !logList.value.length && exceptionMsg.value && (
+              {!listLoading.value && !logList.value.length && (
                 <tr>
-                  <td
-                    colspan={3}
-                    style='padding: 24px 16px; border-bottom: none;'
-                  >
-                    <bk-exception
-                      scene='part'
-                      type='500'
-                    >
-                      <span>{exceptionMsg.value}</span>
-                    </bk-exception>
-                  </td>
-                </tr>
-              )}
-              {!listLoading.value && !logList.value.length && !exceptionMsg.value && (
-                <tr>
-                  <td
-                    colspan={3}
-                    style='padding: 24px 16px; border-bottom: none;'
-                  >
-                    <bk-exception
-                      scene='part'
-                      type='empty'
-                    >
-                      <span>{t('检索结果为空')}</span>
-                    </bk-exception>
+                  <td colspan={3} style='padding: 0; border-bottom: none;'>
+                    <div class='bklog-table-empty-region'>
+                      <bk-exception scene='part' type={exceptionMsg.value ? '500' : 'empty'}>
+                        <span>{exceptionMsg.value || t('检索结果为空')}</span>
+                      </bk-exception>
+                    </div>
                   </td>
                 </tr>
               )}

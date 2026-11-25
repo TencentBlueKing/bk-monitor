@@ -28,51 +28,47 @@
   <div class="container-status-container">
     <div class="nav-section">
       <div class="nav-btn-box">
-        <div
+        <button
           v-for="item in navBtnList"
           :key="item.id"
-          :class="`nav-btn ${item.id === navActive ? 'active' : ''}`"
+          type="button"
+          class="nav-btn"
+          :aria-pressed="item.id === navActive"
           @click="handleClickNav(item.id)"
         >
           <span
             v-if="item.id !== 'all'"
-            v-loading="{
-              loading: isHaveRunning(item),
-              zIndex: 10,
-              theme: 'primary',
-              mode: 'spin',
-              size: 'small' }"
-            :class="[
-              item.id !== 'running' && 'circle nav-icon',
-              isHaveRunning(item) && 'rotate-icon',
-              colorClass[item.id],
-            ]"
-          ></span>
-          <span
-            v-if="isHaveRunning(item)"
-            class="running-circle"
-          ></span>
+            aria-hidden="true"
+            class="container-status-icon"
+          >
+            <span :class="[isHaveRunning(item) ? 'container-status-spinner' : 'nav-icon', colorClass[item.id]]" />
+          </span>
           <span>{{ statusNameList[item.id] }} {{ item.listNum }}</span>
-        </div>
+        </button>
       </div>
       <t-button @click.stop="issuedRetry()">
         {{ $t('失败批量重试') }}
       </t-button>
     </div>
-    <div class="table-section">
+    <div v-if="!isLoading && !renderTitleList.length" class="bklog-table-empty-region">
+      <EmptyStatus :empty-type="listFailed ? '500' : 'empty'" @operation="getContainerList()" />
+    </div>
+    <div v-else class="table-section">
       <div
         v-for="(renderItem, renderIndex) in renderTitleList"
-        :key="renderIndex"
+        :key="renderItem.collector_config_id"
         class="table-item"
       >
-        <div
+        <button
+          type="button"
+          :aria-expanded="renderItem.isShowTable"
           :class="`table-title ${renderItem.isShowTable ? '' : 'close-table'}`"
           @click="handleClickTitle(renderIndex, renderItem.isShowTable)"
         >
-          <span class="bk-icon icon-down-shape"></span>
+          <span class="bk-icon icon-down-shape" aria-hidden="true"></span>
           <span>{{ renderItem.collector_config_name }}</span>
-        </div>
-        <div :class="['table-main', renderItem.isShowTable ? 'show' : 'hidden']">
+        </button>
+        <div v-show="renderItem.isShowTable" class="table-main">
           <bk-table
             :data="renderItem[navActive]"
             size="small"
@@ -91,16 +87,13 @@
               :label="$t('状态')"
             >
               <template #default="{ row }">
-                <div :class="row.status === 'running' ? 'rotate-div' : ''">
+                <div class="container-row-status">
                   <span
-                    v-loading="{
-                      loading: row.status === 'running',
-                      zIndex: 10,
-                      theme: 'primary',
-                      mode: 'spin',
-                      size: 'small' }"
-                    :class="['circle', row.status === 'running' ? 'rotate-icon' : 'nav-icon', colorClass[row.status]]"
-                  ></span>
+                    aria-hidden="true"
+                    class="container-status-icon"
+                  >
+                    <span :class="[row.status === 'running' ? 'container-status-spinner' : 'nav-icon', colorClass[row.status]]" />
+                  </span>
                   <span>{{ statusNameList[row.status] }}</span>
                 </div>
               </template>
@@ -124,6 +117,11 @@
                 </a>
               </template>
             </bk-table-column>
+            <template #empty>
+              <div class="bklog-table-empty-region">
+                <EmptyStatus v-if="!isLoading" />
+              </div>
+            </template>
           </bk-table>
         </div>
       </div>
@@ -134,10 +132,12 @@
 import { mapState as mapPiniaState } from 'pinia';
 import { useCollectionStore } from '@/app/state/domains/collection-store';
 import { ServicesInstance } from '@/platform/services';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 
 
 
   export default {
+    components: { EmptyStatus },
   emits: ["update:is-loading","update:isLoading"],
 
     props: {
@@ -148,6 +148,7 @@ import { ServicesInstance } from '@/platform/services';
     },
     data() {
       return {
+        listFailed: false,
         navActive: 'all', // 当前活跃按钮
         navBtnList: [
           // 按钮列表
@@ -224,18 +225,26 @@ import { ServicesInstance } from '@/platform/services';
        * @param { String } isPolling 是否是轮询状态
        */
       getContainerList(isPolling = '') {
-        if (isPolling !== 'polling') this.$emit('update:is-loading', true);
+        const isRefresh = isPolling !== 'polling';
+        if (isRefresh) {
+          this.listFailed = false;
+          this.$emit('update:is-loading', true);
+        }
         const params = { collector_config_id: this.curCollect.collector_config_id };
-        ServicesInstance.collect.getIssuedClusterList({
+        return ServicesInstance.collect.getIssuedClusterList({
             params,
             query: { task_id_list: this.curTaskIdStr },
           })
           .then(res => {
             const data = structuredClone(res.data.contents) || [];
+            this.listFailed = false;
             this.allFailedIDList = [];
             this.navBtnList.forEach(item => (item.listNum = 0));
+            const expandedByCollector = new Map(
+              this.renderTitleList.map(item => [item.collector_config_id, item.isShowTable]),
+            );
             this.renderTitleList = data.reduce((pre, cur) => {
-              cur.isShowTable = true;
+              cur.isShowTable = expandedByCollector.get(cur.collector_config_id) ?? true;
               this.navBtnList.forEach(item => (cur[item.id] = []));
               if (cur.child.length) {
                 cur.all = cur.child;
@@ -252,10 +261,11 @@ import { ServicesInstance } from '@/platform/services';
             }, []);
           })
           .catch(err => {
+            if (isRefresh) this.listFailed = true;
             console.warn(err);
           })
           .finally(() => {
-            this.$emit('update:is-loading', false);
+            if (isRefresh) this.$emit('update:is-loading', false);
             if (isPolling === 'polling' && !this.hasRunning) clearInterval(this.timer);
           });
       },
@@ -309,32 +319,49 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 <style lang="scss">
 @use '@/shared/styles/mixins/flex.scss' as *;
+@use '@/shared/ui/loading/status-spinner' as *;
   .container-status-container {
     .nav-section {
+      flex-wrap: wrap;
+      gap: var(--bklog-space-8);
+      margin-block-end: var(--bklog-space-12);
+
       @include flex-justify(space-between);
 
       .nav-btn-box {
+        box-sizing: border-box;
         align-items: center;
-        min-width: 327px;
-        height: 36px;
+        min-width: min(327px, 100%);
+        max-width: 100%;
+        min-height: var(--bklog-tab-height);
+        overflow-x: auto;
         padding: 5px 4px;
         font-size: 14px;
-        background: #f0f1f5;
-        border-radius: 4px;
+        background: var(--bklog-surface-component, var(--td-bg-color-component));
+        border-radius: var(--bklog-standard-control-radius);
 
         @include flex-justify(space-between);
 
         .nav-btn {
           position: relative;
-          padding: 4px 15px;
-          color: #63656e;
-          border-radius: 4px;
+          display: flex;
+          flex: none;
+          white-space: nowrap;
+          gap: var(--bklog-space-4);
+          align-items: center;
+          padding: var(--bklog-space-4) var(--bklog-space-16);
+          font: inherit;
+          color: var(--bklog-standard-control-text, var(--td-text-color-secondary));
+          cursor: pointer;
+          background: transparent;
+          border: 0;
+          border-radius: var(--bklog-standard-control-radius);
 
           &:not(:last-child)::after {
             position: absolute;
             top: 3px;
             right: -8px;
-            color: #dcdee5;
+            color: var(--bklog-panel-divider, var(--td-component-stroke));
             content: '|';
           }
 
@@ -343,83 +370,83 @@ import { ServicesInstance } from '@/platform/services';
           }
 
           &:hover {
-            cursor: pointer;
-            background: #fff;
+            background: var(--bklog-surface, var(--td-bg-color-container));
           }
 
-          &.active {
-            color: #3a84ff;
-            background: #fff;
+          &:focus-visible {
+            outline: var(--bklog-border-width) solid var(--td-brand-color);
+            outline-offset: calc(-1 * var(--bklog-border-width));
+          }
+
+          &[aria-pressed="true"] {
+            color: var(--bklog-brand-primary, var(--td-brand-color));
+            background: var(--bklog-surface, var(--td-bg-color-container));
           }
         }
       }
+    }
+
+    .container-status-icon {
+      @include collection-status-icon-slot();
     }
 
     .nav-icon {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-
-      &.circle {
-        &::after {
-          position: absolute;
-          top: -3px;
-          left: -3px;
-          display: inline-block;
-          width: 16px;
-          height: 16px;
-          content: ' ';
-          border-radius: 50%;
-        }
-      }
+      @include collection-status-dot();
 
       &.circle-green {
-        background: #3fc06d;
-
-        &::after {
-          background: rgba(63, 192, 109, 0.16);
-        }
+        @include collection-status-dot-color(var(--bklog-status-success, var(--td-success-color)), var(--bklog-status-success-ring, var(--td-success-color-light)));
       }
 
       &.circle-red {
-        background: #ea3636;
-
-        &::after {
-          background: rgba(234, 54, 54, 0.16);
-        }
+        @include collection-status-dot-color(var(--bklog-status-error, var(--td-error-color)), var(--bklog-status-error-ring, var(--td-error-color-light)));
       }
     }
 
-    .rotate-div {
-      transform: translateX(12px);
+    .container-row-status {
+      display: flex;
+      gap: var(--bklog-space-4);
+      align-items: center;
     }
 
-    .rotate-icon {
-      position: absolute;
-      top: -4px;
-      left: 8px;
+    .container-status-spinner {
       display: inline-block;
-      transform: scale(0.6);
-    }
+      flex: none;
+      width: 14px;
+      height: 14px;
+      vertical-align: middle;
 
-    .running-circle {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
+      @include status-spinner();
+      @include status-spinner-segments();
     }
 
     .table-section {
+      .table-item + .table-item {
+        margin-block-start: var(--bklog-space-12);
+      }
+
       .table-item {
-        margin-top: 20px;
 
         .table-title {
-          padding: 10px 23px;
-          font-size: 12px;
+          box-sizing: border-box;
+          display: flex;
+          align-items: center;
+          gap: var(--bklog-space-4);
+          width: 100%;
+          min-height: var(--bklog-table-header-medium);
+          padding: 0 var(--bklog-space-24);
+          font: inherit;
+          font-size: var(--bklog-font-body);
+          color: var(--bklog-standard-control-text, var(--td-text-color-secondary));
+          text-align: start;
           cursor: pointer;
-          background: #f0f1f5;
-          border: 1px solid #dcdee5;
+          background: var(--bklog-surface-component, var(--td-bg-color-component));
+          border: var(--bklog-border-width) solid var(--bklog-panel-divider, var(--td-component-stroke));
           border-bottom: none;
+
+          &:focus-visible {
+            outline: var(--bklog-border-width) solid var(--td-brand-color);
+            outline-offset: calc(-2 * var(--bklog-border-width));
+          }
 
           > span {
             &:first-child {
@@ -427,8 +454,8 @@ import { ServicesInstance } from '@/platform/services';
             }
 
             &:nth-child(2) {
-              font-weight: 700;
-              color: #63656e;
+              font-weight: var(--bklog-table-header-font-weight);
+              color: var(--bklog-standard-control-text, var(--td-text-color-secondary));
             }
           }
 
@@ -438,7 +465,7 @@ import { ServicesInstance } from '@/platform/services';
           }
 
           &.close-table {
-            border-bottom: 1px solid #dcdee5;
+            border-bottom: var(--bklog-border-width) solid var(--bklog-panel-divider, var(--td-component-stroke));
 
             .icon-down-shape {
               transform: rotateZ(-90deg) translateX(1px);
@@ -447,16 +474,8 @@ import { ServicesInstance } from '@/platform/services';
         }
 
         .retry {
-          color: #3a84ff;
+          color: var(--bklog-brand-primary, var(--td-brand-color));
         }
-      }
-
-      .hidden {
-        height: 0px;
-      }
-
-      .show {
-        height: auto;
       }
     }
   }

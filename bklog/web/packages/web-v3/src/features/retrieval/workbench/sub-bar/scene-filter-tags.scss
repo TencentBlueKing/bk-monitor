@@ -13,10 +13,10 @@
     height: 22px;
     line-height: 22px;
     padding: 0 8px;
-    background-color: #eaebf0;
+    background-color: var(--td-bg-color-component);
     border-radius: 4px;
     font-size: 12px;
-    color: #313238;
+    color: var(--td-text-color-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -24,11 +24,11 @@
     flex-shrink: 0;
 
     .tag-key {
-      color: #757880;
+      color: var(--td-text-color-secondary);
     }
 
     .tag-separator {
-      color: #3a84ff;
+      color: var(--td-text-color-link);
       margin: 0 2px;
     }
   }
@@ -39,16 +39,24 @@
     justify-content: center;
     padding: 0 8px;
     height: 22px;
-    background-color: #E9EDF5;
+    border: 0;
+    font-family: inherit;
+    line-height: inherit;
+    background-color: var(--td-bg-color-secondarycontainer);
     border-radius: 2px;
     font-size: 12px;
-    color: #3a84ff;
+    color: var(--td-text-color-link);
     cursor: pointer;
     flex-shrink: 0;
     margin-left: 4px;
 
     &:hover {
-      background-color: #E1ECFF;
+      background-color: var(--td-brand-color-light);
+    }
+
+    &:focus-visible {
+      outline: var(--bklog-border-width) solid var(--td-brand-color);
+      outline-offset: calc(-1 * var(--bklog-border-width));
     }
   }
 
@@ -68,7 +76,7 @@
   gap: 6px;
   min-width: 100px;
   padding: 8px;
-  background-color: #fff;
+  background-color: var(--td-bg-color-container);
   border-radius: 4px;
   font-size: 12px;
 
@@ -78,23 +86,30 @@
     height: 22px;
     line-height: 22px;
     padding: 0 8px;
-    background-color: #eaebf0;
+    background-color: var(--td-bg-color-component);
     border-radius: 4px;
     font-size: 12px;
-    color: #313238;
+    color: var(--td-text-color-primary);
     white-space: nowrap;
 
     .tag-key {
-      color: #757880;
+      color: var(--td-text-color-secondary);
     }
 
     .tag-separator {
-      color: #3a84ff;
+      color: var(--td-text-color-link);
       margin: 0 2px;
     }
   }
 }
 
-.tippy-box .scene-filter-tags-tips-panel {
-  display: flex;
+.tippy-box[data-theme='scene-filter-summary'] {
+  color: var(--td-text-color-primary);
+  background: var(--td-bg-color-container);
+  border: var(--bklog-border-width) solid var(--td-component-stroke);
+  border-radius: var(--bklog-standard-control-radius);
+  box-shadow: var(--td-shadow-2);
+
+  .tippy-content { padding: 0; }
+  .scene-filter-tags-tips-panel { display: flex; }
 }

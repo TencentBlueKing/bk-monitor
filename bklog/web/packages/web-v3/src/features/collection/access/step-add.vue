@@ -255,16 +255,13 @@
           :label="$t('日志类型')"
           required
         >
-          <div class="bk-button-group log-type">
+          <div class="bk-button-group log-type" data-bklog-button-group="connected">
             <t-button
               v-for="(item, index) in getCollectorScenario"
               :key="index"
-              :class="{
-                disable: !item.is_active,
-                'is-selected': item.id === formData.collector_scenario_id,
-              }"
+              :aria-pressed="item.id === formData.collector_scenario_id"
               :data-test-id="`sourceLogBox_button_checkoutType${item.id}`"
-              :disabled="isUpdate && isUpdateAndSelectedWinEvent && isWinEventLog"
+              :disabled="!item.is_active || (isUpdate && isUpdateAndSelectedWinEvent && isWinEventLog)"
               @click="chooseLogType(item)"
               >{{ item.name }}
             </t-button>
@@ -276,14 +273,13 @@
           :label="$t('日志类型')"
           required
         >
-          <div class="bk-button-group log-type">
+          <div class="bk-button-group log-type" data-bklog-button-group="connected">
             <t-button
               v-for="(item, index) in getCollectorScenario"
               :key="index"
-              :class="{
-                'is-selected': item.id === formData.collector_scenario_id,
-              }"
+              :aria-pressed="item.id === formData.collector_scenario_id"
               :data-test-id="`sourceLogBox_buttom_checkoutType${item.id}`"
+              :disabled="!item.is_active"
               @click="chooseLogType(item)"
               >{{ item.name }}
             </t-button>
@@ -2085,9 +2081,6 @@ import { ServicesInstance } from '@/platform/services';
     }
 
     .log-type {
-      height: 32px;
-      border-radius: 2px;
-
       .t-button {
         min-width: 106px;
         font-size: var(--bklog-font-body, 12px);
@@ -2095,12 +2088,6 @@ import { ServicesInstance } from '@/platform/services';
         span {
           padding: 0 1px;
         }
-      }
-
-      .disable {
-        color: #dcdee5;
-        cursor: not-allowed;
-        border-color: #dcdee5;
       }
     }
 
@@ -2142,11 +2129,6 @@ import { ServicesInstance } from '@/platform/services';
 
     .mt8 {
       margin-top: 8px;
-    }
-
-    .is-selected {
-      /* stylelint-disable-next-line declaration-no-important */
-      z-index: var(--bklog-z-raised) !important;
     }
 
     .rulesColor {

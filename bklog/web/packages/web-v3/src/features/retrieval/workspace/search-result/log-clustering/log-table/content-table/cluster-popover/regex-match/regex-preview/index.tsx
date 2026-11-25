@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, ref } from 'vue';
@@ -134,7 +135,7 @@ export default defineComponent({
           </div>
           <div
             class='preview-main'
-            v-loading={{ loading: previewLoading.value }}
+            v-loading={{ loading: previewLoading.value, indicator: renderCodeSampleSkeleton }}
           >
             <text-highlight
               style='word-break: break-all'

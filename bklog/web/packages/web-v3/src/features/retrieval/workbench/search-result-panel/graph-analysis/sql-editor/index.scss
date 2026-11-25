@@ -11,12 +11,13 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0px 20px;
-      font-family: MicrosoftYaHei;
-      font-size: 14px;
-      color: #c4c6cc;
-      background: #2e2e2e;
-      //   border-bottom: 1px solid #3f51b594;
+      min-height: calc(var(--bklog-space-24) + var(--bklog-space-16));
+      padding-inline: var(--bklog-space-24) var(--bklog-space-16);
+      font-size: var(--bklog-font-action);
+      line-height: var(--bklog-line-height-action);
+      color: var(--bklog-editor-header-text);
+      background: var(--bklog-editor-header-surface);
+      box-shadow: var(--bklog-editor-header-shadow);
 
       > div {
         display: flex;
@@ -28,15 +29,39 @@
         align-items: center;
 
         .header-tool-right-icon {
-          padding: 10px;
+          display: grid;
+          place-items: center;
+          width: calc(2 * var(--bklog-space-16));
+          height: calc(2 * var(--bklog-space-16));
+          padding: 0;
+          font-size: var(--bklog-space-16);
+          color: inherit;
           cursor: pointer;
+          background: transparent;
+          border: 0;
+          border-radius: var(--bklog-radius-control);
+
+          &:enabled:hover,
+          &:focus-visible {
+            background: color-mix(in srgb, currentColor 14%, transparent);
+          }
+
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+
+          &:focus-visible {
+            outline: 1px solid currentColor;
+            outline-offset: -1px;
+          }
         }
       }
     }
   }
 
   .sql-preview-root {
-    background: #2e2e2e;
+    background: var(--bklog-editor-header-surface);
     position: absolute;
     bottom: 40px;
     left: 8px;
@@ -48,19 +73,19 @@
     .sql-preview-title {
       height: 22px;
       font-size: 12px;
-      color: #dcdee5;
+      color: var(--bklog-editor-header-text);
       line-height: 22px;
       padding-top: 4px;
 
       .bklog-icon {
-        color: #e38b02;
+        color: var(--td-warning-color);
         font-size: 14px;
         margin-right: 8px;
       }
     }
 
     .sql-preview-text {
-      color: #c4c6cc;
+      color: var(--bklog-editor-header-text);
       font-size: 12px;
       line-height: 24px;
 
@@ -76,7 +101,7 @@
       top: 0;
       bottom: 0;
       width: 4px;
-      background: #e38b02;
+      background: var(--td-warning-color);
     }
 
     &.is-show {
@@ -92,7 +117,7 @@
     padding-left: 36px;
     display: flex;
     align-items: center;
-    background: #2e2e2e;
+    background: var(--bklog-editor-header-surface);
     height: 38px;
 
     button,
@@ -104,20 +129,24 @@
       margin-right: 8px;
       cursor: pointer;
 
-      &:not(.sql-editor-query-button) {
+      &:not(.sql-editor-query-button, :disabled) {
         height: 28px;
         line-height: 26px;
-        color: #c4c6cc;
+        color: var(--bklog-editor-header-text);
         background-color: #313238;
         border: 1px solid #63656e;
-        border-radius: 2px;
+        border-radius: var(--bklog-radius-control);
         transition: border-color 0.3s ease-in-out;
 
         &:hover {
-          color: #c4c6cc;
+          color: var(--bklog-editor-header-text);
           border-color: #979ba5;
         }
       }
+    }
+
+    button:disabled {
+      cursor: not-allowed;
     }
 
     .bklog-sqleditor-bookmark {

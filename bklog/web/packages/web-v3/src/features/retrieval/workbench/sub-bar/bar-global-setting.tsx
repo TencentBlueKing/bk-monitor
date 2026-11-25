@@ -165,11 +165,12 @@ export default defineComponent({
      */
     function checkboxRender(activeValue: boolean | number | string, options: IOption[], clickCallback: { (value: boolean): void; (value: string): void; (value: number): void; (arg0: string|number|boolean): any; }) {
       return (
-        <div class='bk-button-group'>
+        <div class='bk-button-group' data-bklog-button-group='connected'>
           {options.map(item => (
             <TButton
               key={String(item.value)}
-              class={`setting-checkbox ${item.value === activeValue ? 'is-selected' : ''}`}
+              class='setting-checkbox'
+              aria-pressed={item.value === activeValue}
               size='small'
               theme='default'
               onClick={() => clickCallback(item.value)}

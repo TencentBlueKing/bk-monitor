@@ -30,6 +30,7 @@ import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { defineComponent, onMounted, ref, computed } from 'vue';
 import TextHighlight from '@/shared/ui/text-highlight';
+import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 
 import { base64Encode } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
@@ -166,7 +167,7 @@ export default defineComponent({
     return () => (
       <div class='debug-input-box'>
         <div class='debug-title'>{t('原始日志')}</div>
-        <div v-loading={{ loading: logOriginalRequest.value }}>
+        <div v-loading={{ loading: logOriginalRequest.value, indicator: renderCodeSampleSkeleton }}>
           <bk-input
             class='log-original-main'
             disabled={logOriginalRequest.value}
@@ -194,7 +195,7 @@ export default defineComponent({
         <div class='debug-title'>{t('效果预览')}</div>
         <div
           class='effect-container'
-          v-loading={{ loading: debugRequest.value, size: 'small' }}
+          v-loading={{ loading: debugRequest.value, indicator: renderCodeSampleSkeleton }}
         >
           <text-highlight
             style='word-break: break-all'

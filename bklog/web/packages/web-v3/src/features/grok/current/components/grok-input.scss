@@ -12,9 +12,9 @@
   .grok-input-editor {
     position: relative;
     width: 100%;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
-    background-color: #fff;
+    border: var(--bklog-border-width) solid var(--bklog-standard-control-border, var(--td-border-level-2-color));
+    border-radius: var(--bklog-standard-control-radius);
+    background-color: var(--bklog-surface, var(--td-bg-color-container));
     transition: border-color 0.2s, box-shadow 0.2s;
     overflow: hidden;
 
@@ -26,16 +26,16 @@
     }
 
     &:hover {
-      border-color: #979ba5;
+      border-color: var(--bklog-standard-control-border-hover, var(--td-text-color-secondary));
     }
 
     &:focus-within {
-      border-color: #3a84ff;
+      border-color: var(--bklog-brand-primary, var(--td-brand-color));
     }
 
     // 单行输入框样式 - 与 bk-input type="text" 一致
     &--text {
-      height: 32px;
+      height: var(--bklog-control-size-medium);
 
       .cm-editor {
         height: 100%;
@@ -72,8 +72,8 @@
 
     // 禁用状态
     &.is-disabled {
-      background-color: #fafbfd;
-      border-color: #dcdee5;
+      background-color: var(--bklog-standard-control-surface-disabled, var(--td-bg-color-secondarycontainer));
+      border-color: var(--bklog-standard-control-border-disabled, var(--td-component-stroke));
       cursor: not-allowed;
 
       .cm-editor {
@@ -81,14 +81,14 @@
       }
 
       .cm-content {
-        color: #c4c6cc;
+        color: var(--bklog-text-disabled, var(--td-text-color-disabled));
         cursor: not-allowed;
       }
     }
 
     // 只读状态
     &.is-readonly {
-      background-color: #fafbfd;
+      background-color: var(--bklog-standard-control-surface-disabled, var(--td-bg-color-secondarycontainer));
 
       .cm-content {
         cursor: default;

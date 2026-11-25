@@ -1,4 +1,5 @@
 <script setup>
+  import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
@@ -365,7 +366,7 @@ import { ServicesInstance } from '@/platform/services';
   >
     <Form
       ref="formRef"
-      v-loading="{ loading: basicLoading, zIndex: 10 }"
+      v-loading="{ loading: basicLoading, zIndex: 10, indicator: renderDrawerFormSkeleton }"
       :data="formData"
       :label-width="100"
       label-align="top"
@@ -497,6 +498,7 @@ import { ServicesInstance } from '@/platform/services';
       <Button
         theme="primary"
         data-testid="retrieve-dashboard-submit"
+        :disabled="basicLoading"
         @click="handleSubmit"
       >
         {{ t('确定') }}

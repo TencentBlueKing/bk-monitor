@@ -25,7 +25,9 @@
  */
 import { computed, defineComponent, PropType, ref } from 'vue';
 
-import ClusteringLoader from '@/app/skeleton/clustering-loader.vue';
+import { Button as TButton } from 'tdesign-vue-next';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { ListLoadingSkeleton } from '@/shared/ui/loading/list-skeleton';
 import useIntersectionObserver from '@/shared/composables/use-intersection-observer';
 import useLocale from '@/shared/composables/use-locale';
 
@@ -33,7 +35,7 @@ import RetrieveHelper from '../../retrieve-helper';
 import ScrollTop from '../../workbench/components/scroll-top/index';
 import TextSegmentation from '../../workbench/components/text-segmentation/index';
 import useTextAction from '../../workbench/hooks/use-text-action';
-import { GrepRequestResult } from './types';
+import type { GrepRequestResult } from './types';
 
 import './grep-cli-result.scss';
 
@@ -42,14 +44,21 @@ export default defineComponent({
   props: {
     grepRequestResult: {
       type: Object as PropType<GrepRequestResult>,
-      default: () => ({}),
+      default: (): GrepRequestResult => ({
+        offset: 0,
+        is_loading: false,
+        list: [],
+        has_more: false,
+        is_error: false,
+        exception_msg: '',
+      }),
     },
     fieldName: {
       type: String,
       default: '',
     },
   },
-  emits: ['load-more', 'params-change', "loadMore", "paramsChange"],
+  emits: ['load-more', 'params-change', 'retry', "loadMore", "paramsChange"],
   setup(props, { emit }) {
     const refRootElement = ref<HTMLDivElement>();
     const refLoadMoreElement = ref<HTMLDivElement>();
@@ -61,7 +70,8 @@ export default defineComponent({
     useIntersectionObserver(
       () => refLoadMoreElement.value,
       (entry: IntersectionObserverEntry) => {
-        if (entry.isIntersecting && props.grepRequestResult?.list?.length && props.grepRequestResult?.has_more) {
+        if (entry.isIntersecting && props.grepRequestResult?.list?.length && props.grepRequestResult?.has_more
+          && !props.grepRequestResult.is_error && !props.grepRequestResult.is_loading) {
           emit('load-more');
         }
       },
@@ -84,37 +94,26 @@ export default defineComponent({
       emit('params-change', { isParamsChange, option });
     };
 
-    const getExceptionMessage = () => {
-      if (props.grepRequestResult.is_loading) {
-        return 'loading...'; // Loading message
-      }
-
-      return props.fieldName ? props.grepRequestResult.exception_msg || t('检索结果为空') : '请选择字段';
-    };
-
     const getResultRender = () => {
-      if (props.grepRequestResult.is_loading && props.grepRequestResult.list.length === 0) {
+      const { is_loading: isLoading, is_error: isError, list, exception_msg: errorMessage } = props.grepRequestResult;
+      if (isLoading && list.length === 0) {
         return (
           <div class='grep-cli-result-skeleton'>
-            <ClusteringLoader
-              width-list={[60, '']}
-              loader-len={14}
-              is-loading
-            />
+            <ListLoadingSkeleton variant='log-table' />
           </div>
         );
       }
 
-      if (props.grepRequestResult.list.length === 0 || !props.fieldName) {
+      if (list.length === 0 || !props.fieldName) {
         return (
-          <bk-exception
-            style={{ minHeight: '300px', paddingTop: '100px' }}
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='search-empty'
-          >
-            <span style='font-size: 12px;'>{getExceptionMessage()}</span>
-          </bk-exception>
+          <div class='bklog-table-empty-region grep-cli-result-empty'>
+            <EmptyStatus
+              emptyType={props.fieldName && isError ? '500' : 'search-empty'}
+              description={!props.fieldName ? t('请选择字段') : isError ? errorMessage || undefined : t('检索结果为空')}
+              showOperation={Boolean(props.fieldName && isError)}
+              onOperation={() => emit('retry')}
+            />
+          </div>
         );
       }
 
@@ -151,6 +150,11 @@ export default defineComponent({
         >
           {isLoadingValue.value && props.grepRequestResult.list.length > 0 && (
             <div style={{ minHeight: '64px', fontSize: '12px', padding: '20px' }}><span class='bklog-loading-mark' role='status' aria-label='Loading' /></div>
+          )}
+          {!isLoadingValue.value && props.grepRequestResult.is_error && props.grepRequestResult.list.length > 0 && (
+            <TButton variant='text' theme='primary' onClick={() => emit('retry')}>
+              {t('重试')}
+            </TButton>
           )}
         </div>
         <ScrollTop></ScrollTop>

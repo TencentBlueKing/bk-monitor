@@ -35,7 +35,7 @@
     margin-bottom: 10px;
     font-size: var(--bklog-font-body, 12px);
     line-height: var(--bklog-line-height-body, 20px);
-    color: var(--bklog-text-secondary, #63656e);
+    color: var(--bklog-standard-control-text, #63656e);
 
     .t-select__wrap {
       display: inline-block;
@@ -46,7 +46,7 @@
 
     .t-input {
       background-color: transparent;
-      border-color: var(--bklog-border-control, #c4c6cc);
+      border-color: var(--bklog-standard-control-border, #c4c6cc);
       border-width: 0 0 1px;
       border-radius: 0;
       box-shadow: none;
@@ -62,7 +62,7 @@
     margin-bottom: 6px;
     font-size: var(--bklog-font-body, 12px);
     line-height: var(--bklog-line-height-body, 20px);
-    color: var(--bklog-text-secondary, #63656e);
+    color: var(--bklog-standard-control-text, #63656e);
 
     .label {
       &.required::after {
@@ -80,47 +80,13 @@
     }
   }
 
-  // 对齐 V2 的 bk-button-group：相邻按钮边框重叠，首尾圆角，选中态浅蓝底蓝框
   .select-group {
     display: flex;
     width: 100%;
-    margin: 16px 0 12px;
+    margin: var(--bklog-space-16) 0 var(--bklog-space-12);
 
-    .t-button {
+    > .t-button {
       flex: 1;
-      height: 32px;
-      margin: 0 0 0 -1px;
-      font-size: var(--bklog-font-action, 14px);
-      color: var(--bklog-text-secondary, #63656e);
-      background-color: var(--bklog-surface, #fff);
-      border: 1px solid var(--bklog-border-control, #c4c6cc);
-      border-radius: 0;
-      box-shadow: none;
-
-      &:first-child {
-        margin-left: 0;
-        border-radius: var(--bklog-radius-control, 2px) 0 0 var(--bklog-radius-control, 2px);
-      }
-
-      &:last-child {
-        border-radius: 0 var(--bklog-radius-control, 2px) var(--bklog-radius-control, 2px) 0;
-      }
-
-      &:hover {
-        position: relative;
-        z-index: var(--bklog-z-base);
-        color: var(--bklog-brand-primary, #3a84ff);
-        background-color: var(--bklog-surface, #fff);
-        border-color: var(--bklog-brand-primary, #3a84ff);
-      }
-
-      &.is-selected {
-        position: relative;
-        z-index: var(--bklog-z-base);
-        color: var(--bklog-brand-primary, #3a84ff);
-        background-color: var(--bklog-brand-tint, #e1ecff);
-        border-color: var(--bklog-brand-primary, #3a84ff);
-      }
     }
   }
 }

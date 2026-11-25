@@ -139,7 +139,6 @@ export default defineComponent({
                   <path
                     d={generateLinePath(props.length, props.height)}
                     fill='none'
-                    stroke='#3a84ff'
                   />
                 </svg>
                 <div class='line-point-box'>

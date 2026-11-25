@@ -285,13 +285,18 @@ export default defineComponent({
 
     const debounceSyncAdditionToSQL = debounce(handleSyncAdditionToSQL, 500);
 
-    const handleFullscreenClick = () => {
-      if (!screenfull.isEnabled) {
-        return;
+    const syncFullscreen = () => {
+      isFullscreen.value = screenfull.isEnabled && screenfull.element === refSqlBox.value;
+    };
+
+    const handleFullscreenClick = async () => {
+      if (!screenfull.isEnabled || !refSqlBox.value) return;
+      try {
+        if (isFullscreen.value) await screenfull.exit();
+        else await screenfull.request(refSqlBox.value);
+      } catch {
+        syncFullscreen();
       }
-      isFullscreen.value ? screenfull.exit() : screenfull.request(refSqlBox.value);
-      isFullscreen.value = !isFullscreen.value;
-      editorInstance.value.focus();
     };
 
     const formatMonacoSqlCode = (value?: string) => {
@@ -340,30 +345,28 @@ export default defineComponent({
           <span>{$t('SQL查询')}</span>
           <div>
             <div class='fr header-tool-right'>
-              <div
+              <button
+                type='button'
                 class='sqlFormat header-tool-right-icon'
+                aria-label={$t('格式化')}
                 v-log-tooltip={{ content: $t('格式化') }}
                 onClick={() => formatMonacoSqlCode()}
               >
-                <span class='bk-icon icon-script-file' />
-              </div>
-              {isFullscreen.value ? (
-                <div
-                  class='header-tool-right-icon'
-                  v-log-tooltip={{ content: $t('取消全屏') }}
-                  onClick={handleFullscreenClick}
-                >
-                  <span class='bk-icon icon-un-full-screen' />
-                </div>
-              ) : (
-                <div
-                  class='header-tool-right-icon'
-                  v-log-tooltip={{ content: $t('全屏') }}
-                  onClick={handleFullscreenClick}
-                >
-                  <span class='bk-icon icon-full-screen' />
-                </div>
-              )}
+                <span class='bk-icon icon-script-file' aria-hidden='true' />
+              </button>
+              <button
+                type='button'
+                class='header-tool-right-icon'
+                disabled={!screenfull.isEnabled}
+                aria-label={$t(isFullscreen.value ? '取消全屏' : '全屏')}
+                v-log-tooltip={{ content: $t(isFullscreen.value ? '取消全屏' : '全屏') }}
+                onClick={handleFullscreenClick}
+              >
+                <span
+                  class={['bk-icon', isFullscreen.value ? 'icon-un-full-screen' : 'icon-full-screen']}
+                  aria-hidden='true'
+                />
+              </button>
             </div>
           </div>
         </div>
@@ -426,12 +429,14 @@ export default defineComponent({
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);
 
     onMounted(() => {
+      if (screenfull.isEnabled) screenfull.on('change', syncFullscreen);
       if (!RetrieveHelper.isSearching) {
         debounceSyncAdditionToSQL(debounceQuery);
       }
     });
 
     onBeforeUnmount(() => {
+      if (screenfull.isEnabled) screenfull.off('change', syncFullscreen);
       disposed = true;
       debounceQuery.cancel();
       debounceSyncAdditionToSQL.cancel();

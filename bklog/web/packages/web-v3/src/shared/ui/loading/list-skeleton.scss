@@ -8,24 +8,24 @@
   height: 100%;
   min-width: 0;
   overflow: hidden;
-  background: #fff;
+  background: var(--td-bg-color-container, #fff);
   text-align: left;
   &__row {
     box-sizing: border-box;
     display: grid;
     grid-template-columns: 32px minmax(0, 1fr);
     align-items: center;
-    gap: 12px;
+    gap: var(--bklog-space-12);
     height: var(--bklog-list-row-height);
-    padding: 8px 16px;
-    border-bottom: 1px solid #eaebf0;
+    padding: var(--bklog-space-8) var(--bklog-space-16);
+    border-bottom: var(--bklog-border-width) solid var(--td-component-stroke, #eaebf0);
   }
-  &__lines { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  &__lines { display: flex; flex-direction: column; gap: var(--bklog-space-8); min-width: 0; }
   &__bar { @include loading-shimmer; display: block; height: 12px; max-width: 100%; }
-  &__icon { height: 14px; border-radius: 2px; }
-  &--log-table &__row { grid-template-columns: 62px 188px minmax(0, 1fr); }
+  &__icon { height: 14px; border-radius: var(--bklog-space-2); }
+  &--log-table &__row { grid-template-columns: min(62px, 18%) min(188px, 42%) minmax(0, 1fr); }
   &--log-table &__row > &__bar:first-child { justify-self: center; }
-  &--fields &__row { grid-template-columns: 14px minmax(0, 1fr); gap: 8px; border: 0; padding: 0 12px; }
+  &--fields &__row { grid-template-columns: 14px minmax(0, 1fr); gap: var(--bklog-space-8); border: 0; padding: 0 var(--bklog-space-12); }
 }
 
 // These indicators belong to the full overlay, not the centred icon footprint.
@@ -46,12 +46,9 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: calc(var(--bklog-space-4) + var(--bklog-space-2));
+  padding: var(--bklog-space-8) var(--bklog-space-12);
   overflow: hidden;
-  background: var(--bklog-sample-background, #fff);
+  background: var(--bklog-sample-background, var(--td-bg-color-container, #fff));
   .bklog-list-skeleton__bar { flex: 1; min-height: 4px; max-height: 12px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .bklog-list-skeleton__bar { animation: none; }
 }

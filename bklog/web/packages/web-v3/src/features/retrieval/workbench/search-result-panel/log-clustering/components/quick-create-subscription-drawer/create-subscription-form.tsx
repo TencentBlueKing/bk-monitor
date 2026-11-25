@@ -1070,13 +1070,12 @@ class QuickCreateSubscription extends tsc<IProps> {
               )}
 
               {this.formData.subscriber_type === 'others' && (
-                <div>
+                <div class='bklog-subscription-channels'>
                   <TCheckbox v-model={this.formData.channels[0].is_enabled}>{this.$t('内部邮件')}</TCheckbox>
-                  <br />
                   <div data-is-show-error-msg={String(this.errorTips.user.isShow)}>
                     <bk-user-selector
                       ref='user-input'
-                      style='width: 465px; display: block;'
+                      class='bklog-subscription-channel-field'
                       v-model={this.subscriberInput.user}
                       api={window.BK_LOGIN_URL}
                       empty-text={this.$t('无匹配人员')}
@@ -1101,9 +1100,8 @@ class QuickCreateSubscription extends tsc<IProps> {
                     {this.errorTips.user.isShow && <div class='form-error-tip'>{this.errorTips.user.message}</div>}
                   </div>
 
-                  <div style='margin-top: 10px;'>
+                  <div class='bklog-subscription-channel-heading'>
                     <TCheckbox
-                      style='margin-top: 10px;'
                       v-model={this.formData.channels[1].is_enabled}
                     >
                       {this.$t('外部邮件')}
@@ -1126,7 +1124,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                             ),
                           }}
                           ref='email-input'
-                          style='width: 465px;'
+                          class='bklog-subscription-channel-field'
                           v-model={this.subscriberInput.email}
                           disabled={!this.formData.channels[1].is_enabled}
                         ></bk-input>
@@ -1142,7 +1140,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                             </>
                           ),
                         }}
-                        style='width: 465px; margin-top: 10px;'
+                        class='bklog-subscription-channel-field bklog-subscription-channel-note'
                         v-model={this.formData.channels[1].send_text}
                         disabled={!this.formData.channels[1].is_enabled}
                         placeholder={this.$t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}

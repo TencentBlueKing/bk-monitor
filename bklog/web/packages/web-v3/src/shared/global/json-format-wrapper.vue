@@ -56,7 +56,9 @@
         </template>
       </VueJsonPretty>
       <!-- 加载更多按钮 -->
-      <div
+      <button
+        type="button"
+        :disabled="isLoadingMore"
         v-if="hasMoreData"
         class="load-more-btn"
         @click="loadMore"
@@ -70,7 +72,7 @@
           class="bklog-icon bklog-more"
         />
         <span>{{ isLoadingMore ? $t('加载中...') : $t('点击加载更多') }}</span>
-      </div>
+      </button>
       <!-- 全部加载完成提示 -->
       <div
         v-else-if="totalKeys > pageSize"
@@ -265,6 +267,7 @@
   };
 </script>
 <style lang="scss" scoped>
+  @use '@/shared/ui/loading/shimmer' as *;
   .json-skeleton-wrapper {
     padding: 10px 0;
 
@@ -274,11 +277,15 @@
       margin-bottom: 8px;
       padding-left: 20px;
 
+      .skeleton {
+        @include loading-shimmer;
+        border-radius: var(--bklog-space-2);
+      }
+
       .skeleton-key {
         width: 120px;
         height: 14px;
         margin-right: 12px;
-        border-radius: 2px;
       }
 
       .skeleton-value {
@@ -286,13 +293,6 @@
         height: 14px;
         min-width: 100px;
         max-width: 400px;
-        border-radius: 2px;
-      }
-
-      .skeleton {
-        background: linear-gradient(90deg, #f0f2f5 25%, #e6e9ed 50%, #f0f2f5 70%);
-        background-size: 400% 100%;
-        animation: shimmer 1.8s infinite linear;
       }
     }
   }
@@ -300,23 +300,65 @@
   .json-pagination-wrapper {
     max-height: 50vh;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     padding: 10px 0;
     position: relative;
 
     // JSON 样式
     :deep(.vjs-tree) {
       font-size: var(--table-fount-size, 12px);
+      color: var(--td-text-color-primary);
+    }
+
+    :deep(.vjs-tree-node:is(:hover, .is-highlight)) {
+      background-color: var(--td-bg-color-component-hover);
+    }
+
+    :deep(:is(.vjs-key, .vjs-value)) {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    :deep(.vjs-indent-unit.has-line) {
+      border-color: var(--bklog-panel-divider, var(--td-component-stroke));
+    }
+
+    :deep(.vjs-value-string) {
+      color: var(--bklog-json-key-color);
+    }
+
+    :deep(:is(.vjs-value-number, .vjs-value-boolean)) {
+      color: var(--bklog-json-value-color);
+    }
+
+    :deep(:is(.vjs-tree-brackets:hover, .vjs-carets:hover)) {
+      color: var(--bklog-json-action-color);
+    }
+
+    :deep(:is(.vjs-value-null, .vjs-value-undefined, .vjs-comment)) {
+      color: var(--td-text-color-secondary);
     }
 
     .load-more-btn {
       display: flex;
       align-items: center;
-      color: #3a84ff;
+      color: var(--bklog-json-action-color);
       margin-top: 8px;
       margin-left: 4px;
       cursor: pointer;
-      font-size: 12px;
+      padding: 0;
+      font: inherit;
+      font-size: var(--bklog-font-body);
+      background: transparent;
+      border: 0;
+
+      &:disabled {
+        cursor: default;
+      }
+
+      &:focus-visible {
+        outline: var(--bklog-border-width) solid var(--td-brand-color);
+      }
 
       span {
         font-size: 12px;
@@ -326,7 +368,7 @@
       .bklog-log-loading {
         margin-right: 4px;
         font-size: 12px;
-        color: #3a84ff;
+        color: var(--bklog-json-action-color);
       }
 
       .bklog-more {
@@ -340,17 +382,8 @@
       justify-content: center;
       align-items: center;
       padding: 16px 0;
-      color: #979ba5;
+      color: var(--td-text-color-secondary);
       font-size: 12px;
-    }
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
     }
   }
 

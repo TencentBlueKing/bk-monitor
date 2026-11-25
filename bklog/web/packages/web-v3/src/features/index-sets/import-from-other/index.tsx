@@ -26,13 +26,14 @@
 
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
+import { Button as TButton, RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, watch, computed } from 'vue';
 
 import * as authorityMap from '@/shared/lib/authority-map';
 import { base64Decode } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
+import { renderDropdownListSkeleton } from '@/shared/ui/loading/list-skeleton';
 
 
 
@@ -63,6 +64,8 @@ export default defineComponent({
     const isShow = ref(false);
     const confirmLoading = ref(false);
     const indexSetLoading = ref(false);
+    const indexSetFailed = ref(false);
+    let indexSetRequestId = 0;
     const indexSetData = ref({
       index_set_id: '',
       export_type: 'replace',
@@ -114,16 +117,18 @@ export default defineComponent({
     };
 
     const requestIndexSetList = () => {
+      const requestId = ++indexSetRequestId;
       indexSetLoading.value = true;
+      indexSetFailed.value = false;
       ServicesInstance.retrieve.getIndexSetList({
           query: {
             space_uid: store.spaceUid,
           },
         })
         .then(res => {
-          if (res.data.length) {
+          if (requestId === indexSetRequestId) {
             const list: IndexSet[] = [];
-            for (const item of res.data) {
+            for (const item of res.data ?? []) {
               if (
                 item.permission?.[authorityMap.SEARCH_LOG_AUTH] &&
                 item.tags.map((newItem: { tag_id: any; }) => newItem.tag_id).includes(8)
@@ -137,23 +142,28 @@ export default defineComponent({
             indexSetList.value = list;
           }
         })
-        .catch(e => {
-          console.error(e);
+        .catch(() => {
+          if (requestId === indexSetRequestId) indexSetFailed.value = true;
         })
         .finally(() => {
-          indexSetLoading.value = false;
+          if (requestId === indexSetRequestId) indexSetLoading.value = false;
         });
     };
 
-    const handleOpenToggle = (newIsShow: boolean) => {
-      emit('show-change', newIsShow);
-      if (newIsShow) {
+    watch(isShow, (visible, _previous, onCleanup) => {
+      if (visible) {
+        onCleanup(() => { indexSetRequestId += 1; });
         requestIndexSetList();
       } else {
         indexSetData.value.index_set_id = '';
         indexSetData.value.export_type = 'replace';
         indexSetList.value = [];
       }
+    }, { immediate: true });
+
+    const handleOpenToggle = (visible: boolean) => {
+      isShow.value = visible;
+      emit('show-change', visible);
     };
 
     const getClusterConfig = (indexSetID: string) => {
@@ -238,20 +248,31 @@ export default defineComponent({
           >
             <bk-select
               style='width: 100%'
-              v-loading={{ loading: indexSetLoading.value, size: 'small' }}
+              v-slots={{
+                default: () => indexSetList.value.map(option => (
+                  <bk-option
+                    id={option.id}
+                    key={option.id}
+                    name={option.name}
+                  />
+                )),
+                empty: () => {
+                  if (indexSetLoading.value) return renderDropdownListSkeleton();
+                  if (indexSetFailed.value) {
+                    return (
+                      <TButton variant='text' theme='primary' onClick={requestIndexSetList}>
+                        {t('刷新')}
+                      </TButton>
+                    );
+                  }
+                  return t('暂无数据');
+                },
+              }}
               clearable={false}
               value={indexSetData.value.index_set_id}
               searchable
               onChange={(value: string) => (indexSetData.value.index_set_id = value)}
-            >
-              {indexSetList.value.map(option => (
-                <bk-option
-                  id={option.id}
-                  key={option.id}
-                  name={option.name}
-                />
-              ))}
-            </bk-select>
+            />
           </bk-form-item>
           <bk-form-item
             class='bk-form-control'

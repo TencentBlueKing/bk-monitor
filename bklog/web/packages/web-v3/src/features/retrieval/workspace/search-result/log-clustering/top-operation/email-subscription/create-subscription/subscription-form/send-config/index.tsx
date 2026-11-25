@@ -535,18 +535,17 @@ export default defineComponent({
             )}
 
             {formData.value.subscriber_type === 'others' && (
-              <div>
+              <div class='bklog-subscription-channels'>
                 <TCheckbox
                   checked={formData.value.channels[0].is_enabled}
                   onChange={(value: unknown) => (formData.value.channels[0].is_enabled = value)}
                 >
                   {t('内部邮件')}
                 </TCheckbox>
-                <br />
                 <div data-is-show-error-msg={String(errorTips.value.user.isShow)}>
                   <bk-user-selector
                     ref='user-input'
-                    style='width: 465px; display: block;'
+                    class='bklog-subscription-channel-field'
                     value={subscriberInput.value.user}
                     api={window.BK_LOGIN_URL}
                     empty-text={t('无匹配人员')}
@@ -572,9 +571,8 @@ export default defineComponent({
                   {errorTips.value.user.isShow && <div class='form-error-tip'>{errorTips.value.user.message}</div>}
                 </div>
 
-                <div style='margin-top: 10px;'>
+                <div class='bklog-subscription-channel-heading'>
                   <TCheckbox
-                    style='margin-top: 10px;'
                     checked={formData.value.channels[1].is_enabled}
                     onChange={(value: unknown) => (formData.value.channels[1].is_enabled = value)}
                   >
@@ -598,7 +596,7 @@ export default defineComponent({
                           ),
                         }}
                         ref='email-input'
-                        style='width: 465px;'
+                        class='bklog-subscription-channel-field'
                         value={subscriberInput.value.email}
                         disabled={!formData.value.channels[1].is_enabled}
                         onChange={(value: string) => (subscriberInput.value.email = value)}
@@ -615,7 +613,7 @@ export default defineComponent({
                           </>
                         ),
                       }}
-                      style='width: 465px; margin-top: 10px;'
+                      class='bklog-subscription-channel-field bklog-subscription-channel-note'
                       value={formData.value.channels[1].send_text}
                       disabled={!formData.value.channels[1].is_enabled}
                       placeholder={t('请遵守公司规范，切勿泄露敏感信息，后果自负！')}

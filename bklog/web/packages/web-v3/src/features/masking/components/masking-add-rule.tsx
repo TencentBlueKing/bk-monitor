@@ -33,6 +33,8 @@ import { ServicesInstance } from '@/platform/services';
 import { toRaw } from 'vue';
 import { asDictionary } from '@/shared/utils/typed-record';
 
+import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
+import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 import TextHighlight from '@/shared/ui/text-highlight';
 import SourceTranslation from '@/platform/i18n/translation';
 
@@ -495,7 +497,7 @@ export default class MaskingAddRule extends tsc<IProps> {
           default: () => (
             <div
               class='masking-rule-slider'
-              v-loading={{ loading: this.formLoading }}
+              v-loading={{ loading: this.formLoading, indicator: renderDrawerFormSkeleton }}
             >
               <Form
                 ref='submitForm'
@@ -671,7 +673,7 @@ export default class MaskingAddRule extends tsc<IProps> {
                           <span class='debug-title'>{this.$t('脱敏结果')}</span>
                           <div
                             class='effect-log'
-                            v-loading={{ loading: this.debugRequesting, size: 'small' }}
+                            v-loading={{ loading: this.debugRequesting, indicator: renderCodeSampleSkeleton }}
                           >
                             <TextHighlight
                               style='word-break: break-all; white-space:pre-line;'

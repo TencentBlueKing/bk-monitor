@@ -57,6 +57,9 @@ export default defineComponent({
     const { t } = useLocale();
 
     const isTableLoading = ref(false); // 表格加载状态
+    const isPermissionLoading = ref(false);
+    const listFailed = ref(false);
+    let listRequest = 0;
     const showSlider = ref(false); // 侧滑弹窗显示状态
     const editClusterId = ref<null | number>(null); // 当前编辑的集群ID
     const tableDataOrigin = ref<any[]>([]); // 原始表格数据
@@ -97,23 +100,22 @@ export default defineComponent({
     });
 
     // 加载表格数据
-    const getTableData = () => {
+    const getTableData = async (resetPage = true) => {
+      const request = ++listRequest;
       isTableLoading.value = true;
-      ServicesInstance.archive.getRepositoryList({
+      try {
+        const { data } = await ServicesInstance.archive.getRepositoryList({
           query: { bk_biz_id: bkBizId.value },
-        })
-        .then((res: any) => {
-          const data: any[] = Array.isArray(res.data) ? res.data : [];
-          tableDataOrigin.value = data;
-          applyTableFilters();
-        })
-        .catch((err: any) => {
-          console.warn(err);
-          emptyType.value = '500';
-        })
-        .finally(() => {
-          isTableLoading.value = false;
         });
+        if (request !== listRequest) return;
+        tableDataOrigin.value = Array.isArray(data) ? data : [];
+        applyTableFilters(resetPage);
+        listFailed.value = false;
+      } catch {
+        if (request === listRequest) listFailed.value = true;
+      } finally {
+        if (request === listRequest) isTableLoading.value = false;
+      }
     };
 
     // 计算当前分页数据
@@ -143,11 +145,7 @@ export default defineComponent({
 
     // 搜索处理
     const handleSearch = () => {
-      isTableLoading.value = true;
       applyTableFilters();
-      setTimeout(() => {
-        isTableLoading.value = false;
-      }, 300);
     };
 
     const handleSearchChange = (value: string) => {
@@ -236,13 +234,13 @@ export default defineComponent({
     // 权限申请弹窗
     const getOptionApplyData = async (paramData: any) => {
       try {
-        isTableLoading.value = true;
+        isPermissionLoading.value = true;
         const res = await store.getApplyData(paramData);
         store.updateState({ authDialogData: res.data });
       } catch (err) {
         console.warn(err);
       } finally {
-        isTableLoading.value = false;
+        isPermissionLoading.value = false;
       }
     };
 
@@ -262,9 +260,7 @@ export default defineComponent({
         return;
       }
       if (type === 'refresh') {
-        emptyType.value = 'empty';
-        pagination.current = 1;
-        handleSearch();
+        void getTableData(false);
         return;
       }
     };
@@ -315,18 +311,20 @@ export default defineComponent({
             filterRow={() => null}
             filterValue={filterConditions.value}
             class='repository-table'
-            loading={isTableLoading.value}
+            loading={isTableLoading.value || isPermissionLoading.value}
             v-slots={{
               empty: () => (
-                <div>
-                  <EmptyStatus
-                    emptyType={emptyType.value}
-                    onOperation={handleOperation}
-                  />
+                <div class='bklog-table-empty-region'>
+                  {!isTableLoading.value && !isPermissionLoading.value && (
+                    <EmptyStatus
+                      emptyType={listFailed.value ? '500' : emptyType.value}
+                      onOperation={handleOperation}
+                    />
+                  )}
                 </div>
               ),
             }}
-            data={tableDataPaged.value}
+            data={listFailed.value ? [] : tableDataPaged.value}
             limit-list={pagination.limitList}
             pagination={pagination}
             onFilter-change={handleFilterChange}

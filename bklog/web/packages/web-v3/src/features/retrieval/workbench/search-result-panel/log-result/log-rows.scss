@@ -10,7 +10,7 @@
   margin-top: 6px;
   overflow: hidden;
   overscroll-behavior-x: contain;
-  border-top: solid 1px #dfe0e5;
+  border-top: var(--bklog-border-width) solid var(--td-component-stroke);
 
   .bklog-requsting-loading {
     text-align: center;
@@ -18,11 +18,9 @@
 
     > div {
       height: 40px;
-      font-size: 12px;
-      font-size: 12px;
+      font-size: var(--bklog-font-body);
       line-height: 40px;
-      color: #979ba5;
-      color: #979ba5;
+      color: var(--td-text-color-secondary);
     }
   }
 
@@ -44,8 +42,8 @@
     width: fit-content;
     min-width: 100%;
     min-height: 32px;
-    background-color: #fff;
-    border-bottom: 1px solid #dfe0e5;
+    background-color: var(--td-bg-color-container);
+    border-bottom: var(--bklog-border-width) solid var(--td-component-stroke);
     // 跳过视口外日志行的布局和绘制；浏览器会保留已测量高度，避免滚动条跳动。
     content-visibility: auto;
     contain-intrinsic-size: auto 32px;
@@ -108,7 +106,7 @@
           justify-content: center;
           height: 20px;
           font-size: 12px;
-          color: #c4c6cc;
+          color: var(--td-text-color-placeholder);
           cursor: pointer;
 
           > i {
@@ -137,7 +135,7 @@
           text-overflow: ellipsis;
           vertical-align: middle;
           cursor: pointer;
-          background-color: #fafbfd;
+          background-color: var(--td-bg-color-secondarycontainer);
 
           .bklog-header-cell {
             display: flex;
@@ -146,7 +144,7 @@
             font-family: Roboto-Regular;
             font-weight: bold;
             line-height: 1;
-            color: #313238;
+            color: var(--td-text-color-primary);
 
             .bk-table-caret-wrapper {
               position: relative;
@@ -164,19 +162,19 @@
 
                 &.ascending {
                   top: -1px;
-                  border-bottom-color: #c0c4cc;
+                  border-bottom-color: var(--td-text-color-placeholder);
 
                   &.active {
-                    border-bottom-color: #3a84ff;
+                    border-bottom-color: var(--td-brand-color);
                   }
                 }
 
                 &.descending {
                   bottom: -1px;
-                  border-top-color: #c0c4cc;
+                  border-top-color: var(--td-text-color-placeholder);
 
                   &.active {
-                    border-top-color: #3a84ff;
+                    border-top-color: var(--td-brand-color);
                   }
                 }
               }
@@ -191,8 +189,8 @@
             height: 16px;
             margin: 0 5px 0 0;
             font-size: 14px;
-            color: #63656e;
-            background: #dcdee5;
+            color: var(--td-text-color-secondary);
+            background: var(--td-bg-color-component);
             border-radius: 2px;
           }
 
@@ -208,11 +206,11 @@
             right: 12px;
             display: inline-block;
             visibility: hidden;
-            color: #c4c6cc;
+            color: var(--td-text-color-placeholder);
             cursor: pointer;
 
             &:hover {
-              color: #ea3636;
+              color: var(--td-error-color);
             }
 
             &.is-hidden {
@@ -222,7 +220,7 @@
 
           .lack-index-filed {
             line-height: 20px;
-            border-bottom: 1px dashed #63656e;
+            border-bottom: var(--bklog-border-width) dashed var(--td-text-color-secondary);
           }
 
           &.is-hidden {
@@ -230,7 +228,7 @@
           }
 
           &:hover {
-            background-color: #f0f1f5;
+            background-color: var(--td-bg-color-component-hover);
 
             .toggle-display {
               visibility: visible;
@@ -252,7 +250,7 @@
       position: sticky;
       left: 0;
       width: calc(100vw - var(--left-collection-width) - var(--left-field-setting-width) - 38px);
-      border-top: 1px solid #dfe0e5;
+      border-top: var(--bklog-border-width) solid var(--td-component-stroke);
 
       .view-content {
         &.kv-view-content {
@@ -295,7 +293,7 @@
       overflow: visible;
       line-height: 32px;
       visibility: visible;
-      background-color: #fafbfd;
+      background-color: var(--td-bg-color-secondarycontainer);
 
       .bklog-list-row {
         z-index: var(--bklog-z-base);
@@ -310,7 +308,7 @@
         min-width: 3.09px;
         height: 100%;
         content: '';
-        background-color: #fafbfd;
+        background-color: var(--td-bg-color-secondarycontainer);
       }
     }
 
@@ -320,7 +318,9 @@
       &:hover,
       &.ai-active,
       &.is-hover-operator-active {
-        background-color: #F5F7FA;
+        --bklog-log-row-action-surface: var(--td-bg-color-container-hover);
+
+        background-color: var(--bklog-log-row-action-surface);
 
         .bklog-row-ai {
           img {
@@ -407,86 +407,83 @@
     display: none; /* Initially hidden */
     width: 1px;
     height: 100%;
-    background-color: #3a84ff;
+    background-color: var(--td-brand-color);
   }
 
   .bklog-empty-data {
     display: flex;
+    box-sizing: border-box;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     width: 100%;
     min-height: 360px;
-    padding: 24px 0 40px;
+    padding: var(--bklog-space-24) var(--bklog-space-16) calc(var(--bklog-space-24) + var(--bklog-space-16));
 
     h1 {
-      height: 28px;
-      font-family: MicrosoftYaHei-Bold;
-      font-size: 20px;
+      margin: 0;
+      color: var(--td-text-color-primary);
+      font-size: var(--td-font-size-title-large);
       font-weight: 700;
-      line-height: 28px;
-      color: #313238;
-      letter-spacing: 0;
+      line-height: var(--td-line-height-title-large);
+      text-align: center;
     }
 
     .sub-title {
-      height: 22px;
-      margin: 8px 0 24px 0;
-      font-family: MicrosoftYaHei;
-      font-size: 14px;
-      line-height: 22px;
-      color: #313238;
-      letter-spacing: 0;
+      margin: var(--bklog-space-8) 0 var(--bklog-space-24);
+      color: var(--td-text-color-secondary);
+      font-size: var(--bklog-font-action);
+      line-height: var(--bklog-line-height-action);
+      text-align: center;
     }
 
     .empty-validate-steps {
-      display: flex;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+      gap: var(--bklog-space-16);
       width: 100%;
 
       > div {
-        width: 30%;
-        height: 240px;
-        padding: 12px 16px;
-        font-size: 12px;
-        color: #4d4f56;
-        background: #f5f7fa;
+        min-width: 0;
+        padding: var(--bklog-space-12) var(--bklog-space-16);
+        color: var(--td-text-color-secondary);
+        background: var(--td-bg-color-secondarycontainer);
+        border-radius: var(--bklog-panel-radius);
+        font-size: var(--bklog-font-body);
+        line-height: var(--bklog-line-height-body);
+        overflow-wrap: anywhere;
 
         h3 {
-          height: 22px;
-          margin: 0;
-          margin-bottom: 8px;
-          font-family: MicrosoftYaHei-Bold;
-          font-size: 14px;
+          margin: 0 0 var(--bklog-space-8);
+          color: var(--td-text-color-primary);
+          font-size: var(--bklog-font-action);
           font-weight: 700;
-          line-height: 22px;
-          color: #313238;
-          letter-spacing: 0;
+          line-height: var(--bklog-line-height-action);
         }
 
-        &.validate-step1 {
-          .step1-content {
-            display: flex;
-            width: 100%;
-            padding: 6px 24px 32px 6px;
-
-            font-family: MicrosoftYaHei;
-            line-height: 20px;
-
-            letter-spacing: 0;
-          }
-        }
-
-        &.validate-step2 {
-          margin: 0 16px;
-          font-size: 12px;
-          line-height: 20px;
-          color: #4d4f56;
+        .step1-content {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--bklog-space-4);
+          padding-block: var(--bklog-space-8);
         }
 
         .segment-span-tag {
-          color: #3a84ff;
+          padding: 0;
+          color: var(--td-text-color-link);
+          font: inherit;
           cursor: pointer;
+          background: transparent;
+          border: 0;
+
+          &:hover {
+            color: var(--td-brand-color-hover);
+          }
+
+          &:focus-visible {
+            outline: var(--bklog-border-width) solid currentColor;
+            outline-offset: var(--bklog-space-2);
+          }
         }
       }
     }

@@ -1,0 +1,46 @@
+@keyframes bklog-status-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@mixin status-spinner {
+  box-sizing: border-box;
+  border: 2px solid var(--bklog-brand-primary, var(--td-brand-color));
+  border-left-color: transparent;
+  border-radius: 50%;
+  animation: bklog-status-spin 0.8s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@mixin status-spinner-segments {
+  border: 0;
+  background: conic-gradient(from -11.25deg, var(--bklog-brand-primary, var(--td-brand-color)), transparent);
+  mask:
+    radial-gradient(circle, transparent 4px, #000 4.1px 7px, transparent 7.1px),
+    repeating-conic-gradient(from -9deg, #000 0deg 18deg, transparent 18deg 45deg);
+  mask-composite: intersect;
+  animation-timing-function: steps(8);
+}
+
+@mixin collection-status-icon-slot {
+  display: grid;
+  flex: none;
+  width: var(--bklog-space-16);
+  height: var(--bklog-space-16);
+  place-items: center;
+}
+
+@mixin collection-status-dot {
+  width: var(--bklog-space-8);
+  height: var(--bklog-space-8);
+  border-radius: 50%;
+}
+
+@mixin collection-status-dot-color($fill, $ring) {
+  background: $fill;
+  box-shadow: inset 0 0 0 var(--bklog-border-width) $ring;
+}

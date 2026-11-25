@@ -10,13 +10,24 @@
     justify-content: center;
     width: 44px;
     height: 20px;
-    margin: 0 2px;
-    line-height: 20px;
+    margin: 0 var(--bklog-space-2);
+    padding: 0;
+    color: var(--td-text-color-secondary);
+    font: inherit;
+    line-height: var(--bklog-line-height-body);
+    cursor: pointer;
+    background: transparent;
+    border: 0;
     border-radius: 2px;
 
     &:hover {
-      color: #3A84FF;
-      background: #E1ECFF;
+      color: var(--td-text-color-link);
+      background: var(--td-brand-color-light);
+    }
+
+    &:focus-visible {
+      outline: var(--bklog-border-width) solid var(--td-brand-color);
+      outline-offset: var(--bklog-space-2);
     }
 
     i {
@@ -39,34 +50,17 @@
   }
 }
 
-// 针对 bklog-popover 的下拉列表样式
-.auto-refresh-popover-content {
+.bklog-dropdown-popup.auto-refresh-popover-content {
   height: 100%;
 
   .bk-dropdown-list {
     width: 80px;
-    height: 174px;
-    padding: 4px 0;
-    margin: 0;
+    max-height: 174px;
     overflow-y: auto;
-    list-style: none;
 
-    li {
-      a {
-        display: block;
-        height: 32px;
-        padding: 0 12px;
-        font-size: 12px;
-        line-height: 32px;
-        color: #63656e;
-        text-decoration: none;
-        cursor: pointer;
-
-        &:hover {
-          color: #3A84FF;
-          background: #E1ECFF;
-        }
-      }
+    > li > a.is-current {
+      color: var(--td-text-color-link);
+      background-color: var(--td-brand-color-light);
     }
   }
 }

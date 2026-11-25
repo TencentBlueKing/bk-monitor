@@ -1,7 +1,7 @@
 <template>
   <TPopup
     v-model:visible="visible"
-    overlay-class-name="bklog-v3-popover-tag save-as-template-popup"
+    overlay-class-name="bklog-v3-popover-tag save-as-template-popup bklog-popover"
     placement="bottom-right"
     trigger="click"
   >

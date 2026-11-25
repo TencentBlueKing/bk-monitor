@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import ItemSkeleton from '@/app/skeleton/item-skeleton';
+import EmptyStatus from '@/shared/ui/empty-status/index';
 import { Loading as TLoading } from '@/shared/ui/loading/native';
 
 import { Checkbox as TCheckbox } from 'tdesign-vue-next';
@@ -321,16 +323,24 @@ export default defineComponent({
                 </div>
               </div>
             ))}
-            {props.taskList.length === 0 && !props.isLoading && (
-              <bk-exception
-                style='margin-top: 80px'
-                scene='part'
-                type='empty'
-              >
-                <span>{t('暂无数据')}</span>
-              </bk-exception>
+            {props.taskList.length === 0 && (props.isLoading ? (
+              <div class='task-list-skeleton' role='status' aria-label={t('加载中')}>
+                {[0, 1, 2].map(index => (
+                  <div key={index} class='task-item task-item-skeleton' aria-hidden='true'>
+                    <ItemSkeleton rows={2} columns={1} type='list' gap='8px' rowHeight='14px' widths={['48%', '80%']} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div class='task-list-empty'>
+                <EmptyStatus emptyType='empty' />
+              </div>
+            ))}
+            {props.taskList.length > 0 && props.isLoading && props.hasMore && (
+              <div class='task-list-loading'>
+                <span class='bklog-loading-mark' role='status' aria-label={t('加载中')} />
+              </div>
             )}
-            {props.isLoading && props.hasMore && <div class='task-list-loading'><span class='bklog-loading-mark' role='status' aria-label='Loading' /></div>}
           </div>
         </div>
       );

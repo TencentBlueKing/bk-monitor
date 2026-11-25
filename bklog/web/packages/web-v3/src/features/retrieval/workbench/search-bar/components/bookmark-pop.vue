@@ -511,6 +511,7 @@ import { ServicesInstance } from '@/platform/services';
       placement="bottom"
       trigger="hover"
       overlay-class-name="bookmark-save-menu"
+      overlay-inner-class-name="bklog-dropdown-popup"
     >
       <template #default>
         <div

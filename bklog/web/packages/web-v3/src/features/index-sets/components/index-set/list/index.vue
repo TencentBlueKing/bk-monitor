@@ -227,8 +227,9 @@
         </template>
       </bk-table-column>
       <template #empty>
-        <div>
+        <div class="bklog-table-empty-region">
           <empty-status
+            v-if="!isTableLoading"
             :empty-type="emptyType"
             @operation="handleOperation"
           />
@@ -388,9 +389,6 @@ import { ServicesInstance } from '@/platform/services';
         requestStorageUsage(this.bkBizId, this.indexSetList, false, callbackFn)
           .catch(error => {
             console.error('Error loading data:', error);
-          })
-          .finally(() => {
-            this.isTableLoading = false;
           });
       },
       /**

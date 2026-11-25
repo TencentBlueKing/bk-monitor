@@ -9,12 +9,13 @@ export default defineComponent({
   props: {
     loading: { type: Boolean, default: false },
     rows: { type: Number, default: 6 },
-    rowHeight: { type: Number, default: 42 },
+    rowHeight: Number,
   },
   setup(props, { slots }) {
     const root = ref<HTMLElement | null>(null);
-    const geometry = ref({ top: 40, left: 0, width: '100%', columns: ['1fr', '1fr', '1fr', '1fr', '1fr'], rowHeight: props.rowHeight, rows: props.rows,
-      maxHeight: undefined as number | undefined, tableMinHeight: 40 + props.rows * props.rowHeight });
+    const initialRowHeight = props.rowHeight ?? 42;
+    const geometry = ref({ top: 40, left: 0, width: '100%', columns: ['1fr', '1fr', '1fr', '1fr', '1fr'], rowHeight: initialRowHeight, rows: props.rows,
+      maxHeight: undefined as number | undefined, tableMinHeight: 40 + props.rows * initialRowHeight });
     let observer: ResizeObserver | undefined;
     let mutation: MutationObserver | undefined;
     let header: Element | null = null;
@@ -31,13 +32,17 @@ export default defineComponent({
       const tableBox = table.getBoundingClientRect();
       const headBox = head.getBoundingClientRect();
       const cells = [...head.querySelectorAll('tr:last-child > th')].filter(cell => cell.getBoundingClientRect().width > 0);
-      const row = table.querySelector('tbody tr:not(.t-table__empty-row)');
+      const row = table.querySelector('tbody > tr:not(.t-table__empty-row, .t-table__expanded-row, .t-table__row--full)');
       const height = row?.getBoundingClientRect().height;
-      const rowHeight = height && height >= 32 && height <= 96 ? height : props.rowHeight;
+      const themedRowHeight = Number.parseFloat(
+        table.ownerDocument?.defaultView?.getComputedStyle(table).getPropertyValue('--bklog-table-header-height') ?? '',
+      );
+      const fallbackRowHeight = props.rowHeight ?? (themedRowHeight > 0 ? themedRowHeight : initialRowHeight);
+      const rowHeight = height && height >= 32 && height <= 96 ? height : fallbackRowHeight;
       const content = table.querySelector<HTMLElement>('.t-table__content');
       const constrained = Boolean(content?.style.height || content?.style.maxHeight);
       const maxHeight = constrained ? Math.max(0, content!.getBoundingClientRect().bottom - headBox.bottom) : undefined;
-      const bodyHeight = table.querySelector('tbody')?.getBoundingClientRect().height ?? 0;
+      const bodyHeight = row ? table.querySelector('tbody')?.getBoundingClientRect().height ?? 0 : 0;
       const rows = Math.max(props.rows, Math.ceil(Math.min(bodyHeight, maxHeight ?? Infinity) / rowHeight));
       geometry.value = {
         top: Math.max(0, headBox.bottom - box.top + element.scrollTop),

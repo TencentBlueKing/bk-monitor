@@ -32,7 +32,7 @@
     >
       <t-button
         v-cursor="{ active: !editAuth }"
-        style="min-width: 88px; color: var(--bklog-brand-primary, #3a84ff)"
+        style="min-width: 88px; color: var(--bklog-brand-primary, var(--td-brand-color))"
         class="mr10"
         :theme="'default'"
         @click="handleClickEdit"
@@ -69,9 +69,13 @@
     >
       <div class="main-title">
         {{ $t('物理索引') }}
+        <TButton theme="primary" variant="text" :loading="tableLoading1" @click="fetchIndexes">
+          <template #icon><span class="bk-icon icon-refresh" aria-hidden="true"></span></template>
+          {{ $t('刷新') }}
+        </TButton>
       </div>
       <bk-table
-        v-loading="{ loading: tableLoading1 }"
+        :loading="tableLoading1"
         :data="indexesData"
       >
         <bk-table-column
@@ -115,8 +119,12 @@
           </template>
         </bk-table-column>
         <template #empty>
-          <div>
-            <empty-status empty-type="empty" />
+          <div class="bklog-table-empty-region">
+            <empty-status
+              v-if="!tableLoading1"
+              :empty-type="indexesFailed ? '500' : 'empty'"
+              @operation="fetchIndexes"
+            />
           </div>
         </template>
       </bk-table>
@@ -125,6 +133,7 @@
 </template>
 
 <script>
+import { Button as TButton } from 'tdesign-vue-next';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
@@ -133,6 +142,7 @@ import { ServicesInstance } from '@/platform/services';
   export default {
     components: {
       EmptyStatus,
+      TButton,
     },
     props: {
       collectorData: {
@@ -159,6 +169,8 @@ import { ServicesInstance } from '@/platform/services';
     data() {
       return {
         tableLoading1: true,
+        indexesFailed: false,
+        indexesRequest: 0,
         indexesData: [],
         // 健康状态，文案待定，先不国际化
         healthMap: {
@@ -179,17 +191,23 @@ import { ServicesInstance } from '@/platform/services';
         return formatFileSize(size);
       },
       async fetchIndexes() {
+        const request = ++this.indexesRequest;
+        this.tableLoading1 = true;
+        this.indexesFailed = false;
         try {
           const res = await ServicesInstance.source.getIndexes({
             params: {
               collector_config_id: this.collectorData.collector_config_id,
             },
           });
-          this.indexesData = res.data;
+          if (request === this.indexesRequest) this.indexesData = res.data;
         } catch (e) {
+          if (request !== this.indexesRequest) return;
           console.warn(e);
+          this.indexesData = [];
+          this.indexesFailed = true;
         } finally {
-          this.tableLoading1 = false;
+          if (request === this.indexesRequest) this.tableLoading1 = false;
         }
       },
       handleClickEdit() {
@@ -230,40 +248,40 @@ import { ServicesInstance } from '@/platform/services';
   .description-list {
     display: flex;
     flex-flow: wrap;
-    font-size: 12px;
-    line-height: 16px;
+    font-size: var(--bklog-font-body, 12px);
+    line-height: var(--bklog-space-16);
 
     .description-term {
       width: 120px;
       height: 40px;
-      padding-right: 20px;
-      color: #979ba5;
+      padding-right: var(--bklog-space-20);
+      color: var(--td-text-color-secondary);
       text-align: right;
     }
 
     .description-definition {
       width: calc(100% - 200px);
       height: 40px;
-      color: #63656e;
+      color: var(--td-text-color-primary);
     }
   }
 
   .status-text {
     &.green {
-      color: #2dcb56;
+      color: var(--td-success-color);
     }
 
     &.yellow {
-      color: #ff9c01;
+      color: var(--td-warning-color);
     }
 
     &.red {
-      color: #ea3636;
+      color: var(--td-error-color);
     }
   }
 
   .icon-date-picker {
     font-size: 16px;
-    color: #979ba5;
+    color: var(--td-text-color-secondary);
   }
 </style>

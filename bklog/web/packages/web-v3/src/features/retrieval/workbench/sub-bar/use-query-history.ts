@@ -42,6 +42,7 @@ export function useQueryHistory(
 ) {
   const visible = ref(false);
   const historyLoading = ref(false);
+  const historyFailed = ref(false);
   const historyRecords = ref<QueryHistoryRecord[]>([]);
   const searchInput = ref('');
   const bookmarkPopRefsShow = ref(false);
@@ -54,6 +55,7 @@ export function useQueryHistory(
   function reset() {
     generation++;
     historyLoading.value = false;
+    historyFailed.value = false;
     historyRecords.value = [];
     visible.value = false;
     bookmarkPopRefsShow.value = false;
@@ -61,6 +63,7 @@ export function useQueryHistory(
   async function requestSearchHistory() {
     const request = ++generation;
     historyLoading.value = true;
+    historyFailed.value = false;
     const current = context();
     try {
       let response: { data: ApiHistoryRecord[] };
@@ -87,7 +90,7 @@ export function useQueryHistory(
           },
         }));
     } catch {
-      // The shared HTTP client retains V2's request error feedback.
+      if (request === generation) historyFailed.value = true;
     } finally {
       if (request === generation) historyLoading.value = false;
     }
@@ -117,6 +120,7 @@ export function useQueryHistory(
   return {
     visible,
     historyLoading,
+    historyFailed,
     historyRecords,
     searchInput,
     filterHistoryRecords,

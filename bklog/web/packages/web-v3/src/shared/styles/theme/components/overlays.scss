@@ -1,9 +1,123 @@
 @use './actions' as actions;
 
+@media (prefers-reduced-motion: reduce) {
+  :root .t-drawer :is(.t-drawer__content-wrapper, .t-drawer__mask) {
+    transition-duration: 0.01ms;
+  }
+
+  :root :is(.t-dialog-zoom__vue-enter-active, .t-dialog-zoom__vue-leave-active) :is(.t-dialog, .t-dialog__mask) {
+    animation-duration: 0.01ms;
+  }
+
+  :root :is(.t-popup--animation-enter-active, .t-popup--animation-leave-active) {
+    transition-duration: 0.01ms;
+  }
+
+  :root :is(.t-popup--animation-expand-enter-active, .t-popup--animation-expand-leave-active)[data-popper-placement] {
+    animation-duration: 0.01ms;
+  }
+}
+
+:root :where(.t-dialog) {
+  --td-radius-large: var(--bklog-panel-radius);
+}
+
+:root .t-dialog__header:not(.t-dialog__header--fullscreen) {
+  font-size: var(--bklog-space-20);
+  font-weight: 400;
+  line-height: calc(var(--bklog-space-24) + var(--bklog-space-4));
+}
+
+:root .bklog-info-box {
+  max-inline-size: calc(100vw - 2 * var(--bklog-space-16));
+
+  :is(.t-dialog__body, .t-dialog__body__icon) {
+    font-size: var(--bklog-font-body);
+    line-height: var(--bklog-line-height-body);
+    overflow-wrap: anywhere;
+  }
+}
+
+:root .bklog-info-box .bklog-info-box-details {
+  row-gap: var(--bklog-space-8);
+  padding: var(--bklog-space-12);
+  color: var(--td-text-color-secondary);
+  border-radius: var(--bklog-standard-control-radius);
+  background-color: var(--td-bg-color-secondarycontainer);
+  font-size: var(--bklog-font-body);
+  line-height: var(--bklog-line-height-body);
+  overflow-wrap: anywhere;
+
+}
+
+:root .bklog-info-box * + .bklog-info-box-details {
+  margin-block-start: var(--bklog-space-12);
+}
+
+:root .bklog-info-box .bklog-info-box-references {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--bklog-space-4);
+  justify-content: center;
+}
+
+:root .bklog-info-box .bklog-info-box-reference {
+  min-width: 0;
+  max-width: 100%;
+  padding-inline: var(--bklog-space-8);
+  border-radius: var(--bklog-standard-control-radius);
+  background-color: var(--td-bg-color-component);
+}
+
+:root:not([theme-mode='dark']) .bklog-info-box .bklog-info-box-details {
+  background-color: var(--bklog-standard-control-surface-disabled);
+}
+
+:root .bklog-dialog-agreement:not(.t-dialog__fullscreen) {
+  .t-dialog__header-content {
+    justify-content: center;
+    padding-inline: var(--bklog-space-24);
+    text-align: center;
+  }
+}
+
+:root :where(.t-dialog--default) .t-dialog__header > .t-dialog__close {
+  position: absolute;
+  inset-block-start: var(--bklog-space-8);
+  inset-inline-end: var(--bklog-space-8);
+  box-sizing: border-box;
+  width: var(--bklog-space-24);
+  height: var(--bklog-space-24);
+  padding: 0;
+  justify-content: center;
+  font-size: var(--bklog-space-16);
+}
+
+:root .bklog-dialog-preview:not(.t-dialog__fullscreen) {
+  max-inline-size: calc(100vw - 2 * var(--bklog-space-16));
+
+  .t-dialog__body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--bklog-space-24);
+    align-items: start;
+
+    @media (max-width: 640px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}
+
 :root:not([theme-mode='dark']) {
-  // V2 bk-dialog-footer：灰底顶栏，确定在左、取消在右。
+  .t-dialog__header:not(.t-dialog__header--fullscreen) {
+    color: var(--bklog-standard-control-text-hover);
+  }
+
+  // Keep confirm before cancel without changing the native callback bindings.
   .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
+    box-sizing: border-box;
     width: auto;
+    min-height: calc(2 * var(--bklog-space-24));
     margin: 0 -32px -32px;
     padding: 7px var(--bklog-space-24);
     text-align: right;
@@ -12,10 +126,14 @@
 
     @include actions.bklog-dialog-footer-buttons;
 
+    .t-button {
+      min-width: 60px;
+    }
+
     > div:has(.t-dialog__cancel) {
       display: inline-flex;
       flex-direction: row-reverse;
-      gap: 10px;
+      gap: var(--bklog-space-8);
 
       .t-button + .t-button {
         margin-left: 0;
@@ -34,12 +152,293 @@
 
   // V2 bk-sideslider 页脚同样右对齐，确定在前、取消在后。
   .t-drawer__footer {
+    min-height: var(--bklog-drawer-footer-height);
+    box-sizing: border-box;
     padding: 7px var(--bklog-space-24);
     text-align: right;
-    background: var(--bklog-surface-disabled);
-    border-top: var(--bklog-border-width) solid var(--bklog-border-muted);
+    background: var(--bklog-standard-control-surface-disabled);
+    border-top: var(--bklog-border-width) solid var(--bklog-panel-divider);
 
     @include actions.bklog-dialog-footer-buttons;
   }
 
+}
+
+:root .t-message {
+  --td-radius-medium: var(--bklog-standard-control-radius);
+  inline-size: min(560px, calc(100vw - 2 * var(--bklog-space-16)));
+  min-height: var(--bklog-message-height);
+  padding: calc((var(--bklog-message-height) - var(--bklog-line-height-action)) / 2) var(--bklog-space-12);
+  font-size: var(--bklog-font-action);
+  line-height: var(--bklog-line-height-action);
+  overflow-wrap: anywhere;
+
+  > .t-icon,
+  > [data-t-icon] > .t-icon {
+    margin-inline: 0 var(--bklog-space-8);
+    font-size: calc(var(--bklog-space-16) + var(--bklog-space-2));
+  }
+
+  &.t-is-closable .t-message__close {
+    flex: none;
+    margin-inline: auto 0;
+    padding-inline-start: var(--bklog-space-8);
+
+    .t-icon-close {
+      font-size: calc(var(--bklog-space-16) + var(--bklog-space-2));
+    }
+  }
+}
+
+:root:not([theme-mode='dark']) .t-message {
+  --td-bg-color-container: var(--bklog-brand-tint);
+  --td-text-color-primary: var(--bklog-standard-control-text-hover);
+
+  box-shadow: none;
+
+  &.t-is-closable .t-message__close:not(:has(.t-icon-close)) {
+    color: var(--bklog-brand-primary);
+    white-space: nowrap;
+  }
+
+  &.t-is-error { --td-bg-color-container: var(--bklog-message-error-surface); }
+  &.t-is-success { --td-bg-color-container: var(--bklog-message-success-surface); }
+  &.t-is-warning { --td-bg-color-container: var(--bklog-message-warning-surface); }
+}
+
+:root :where(.t-tooltip, .bklog-text-tooltip) {
+  --td-radius-medium: var(--bklog-standard-control-radius);
+}
+
+:root:not([theme-mode='dark']) :where(.t-tooltip--default) {
+  --td-gray-color-13: var(--bklog-tooltip-surface);
+}
+
+:root:not([theme-mode='dark']) [data-tippy-root] :is([data-theme='bklog-basic-light'], [data-theme='bklog-light']) {
+  border-radius: var(--bklog-panel-radius);
+}
+
+
+// Native Tooltip and the directive Popup share the same text layout.
+:root :is(.t-tooltip, .bklog-text-tooltip) .t-popup__content {
+  box-sizing: border-box;
+  max-inline-size: min(480px, calc(100vw - 2 * var(--bklog-space-16)));
+  padding: calc(var(--bklog-space-4) + var(--bklog-space-2)) var(--bklog-space-8);
+  font-size: var(--bklog-font-body);
+  line-height: var(--bklog-line-height-body);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  word-break: normal;
+}
+
+:root :is(.t-tooltip, .bklog-text-tooltip)[data-popper-placement] .t-popup__arrow::before {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  clip-path: var(--bklog-tooltip-arrow-clip);
+  transform: none;
+}
+
+:root :is(.t-tooltip, .bklog-text-tooltip) {
+  &[data-popper-placement^='top'] .t-popup__arrow {
+    --bklog-tooltip-arrow-clip: polygon(0 0, 100% 0, 50% 100%);
+
+    bottom: calc(-1 * var(--bklog-space-4));
+    height: var(--bklog-space-4);
+  }
+
+  &[data-popper-placement^='bottom'] .t-popup__arrow {
+    --bklog-tooltip-arrow-clip: polygon(50% 0, 100% 100%, 0 100%);
+
+    height: var(--bklog-space-4);
+  }
+
+  &[data-popper-placement^='left'] .t-popup__arrow {
+    --bklog-tooltip-arrow-clip: polygon(0 0, 100% 50%, 0 100%);
+
+    width: var(--bklog-space-4);
+  }
+
+  &[data-popper-placement^='right'] .t-popup__arrow {
+    --bklog-tooltip-arrow-clip: polygon(100% 0, 100% 100%, 0 50%);
+
+    width: var(--bklog-space-4);
+  }
+}
+
+:root:not([theme-mode='dark']) .t-tooltip--default {
+  .t-popup__content,
+  &[data-popper-placement] .t-popup__arrow::before {
+    box-shadow: none;
+  }
+}
+
+:root .bklog-text-tooltip {
+  --td-bg-color-container: var(--bklog-tooltip-surface, var(--td-gray-color-13));
+
+  .t-popup__content {
+    color: var(--bklog-text-inverse, var(--td-text-color-anti));
+    box-shadow: none;
+  }
+
+  .t-popup__arrow::before {
+    box-shadow: none;
+  }
+}
+
+:root .bklog-popover {
+  --td-radius-medium: var(--bklog-panel-radius);
+  --td-shadow-2: var(--bklog-shadow-popup);
+
+  &[data-popper-placement^='top'] .t-popup__arrow {
+    bottom: calc(-1 * var(--bklog-space-4));
+  }
+
+  .t-popup__content {
+    padding: var(--bklog-space-12) var(--bklog-space-16);
+    font-size: var(--bklog-font-body);
+    line-height: var(--bklog-line-height-body);
+  }
+
+  .bklog-popover__title {
+    margin: 0;
+    font-size: var(--bklog-font-action);
+    font-weight: 500;
+    line-height: var(--bklog-line-height-action);
+    color: var(--td-text-color-primary);
+  }
+
+  .bklog-popover__title + .bklog-popover__description {
+    margin-block-start: var(--bklog-space-4);
+  }
+
+  .bklog-popover__description {
+    color: var(--td-text-color-secondary);
+  }
+
+  &.bklog-popover--actions .t-popup__content {
+    padding-block: var(--bklog-space-8);
+
+    > :has(> .t-link + .t-divider--vertical + .t-link) {
+      display: flex;
+      align-items: center;
+      gap: var(--bklog-space-8);
+
+      > .t-link {
+        font-size: var(--bklog-font-body);
+        line-height: var(--bklog-line-height-body);
+      }
+
+      > .t-divider--vertical {
+        height: var(--bklog-space-16);
+        margin-inline: 0;
+      }
+    }
+  }
+}
+
+:root:not([theme-mode='dark']) .bklog-popover {
+  --td-text-color-primary: var(--bklog-standard-control-text-hover);
+  --td-text-color-secondary: var(--bklog-standard-control-text);
+}
+
+:root .t-notification {
+  position: relative;
+  width: 352px;
+  max-width: calc(100vw - 2 * var(--bklog-space-16));
+  padding: calc(var(--bklog-space-16) - var(--bklog-border-width))
+    calc(var(--bklog-space-24) - var(--bklog-border-width));
+  border: var(--bklog-border-width) solid var(--td-component-border);
+  border-radius: var(--bklog-panel-radius);
+
+  &:has(> .t-notification__icon) {
+    padding-inline-start: calc(var(--bklog-space-16) - var(--bklog-border-width));
+  }
+
+  .t-notification__icon {
+    flex: 0 0 var(--bklog-space-24);
+    margin-inline: 0 var(--bklog-space-8);
+
+    .t-icon {
+      font-size: var(--bklog-space-24);
+    }
+  }
+
+  .t-notification__main {
+    min-width: 0;
+  }
+
+  .t-notification__title {
+    font-size: var(--bklog-font-large);
+    font-weight: 500;
+    line-height: var(--bklog-space-24);
+    overflow-wrap: anywhere;
+  }
+
+  .t-notification__title__wrap:has(> .t-message__close > *) {
+    padding-inline-end: var(--bklog-space-8);
+  }
+
+  .t-notification__title__wrap > .t-message__close {
+    position: absolute;
+    inset-block-start: calc(var(--bklog-space-8) - var(--bklog-border-width));
+    inset-inline-end: calc(var(--bklog-space-8) - var(--bklog-border-width));
+
+    .t-icon-close {
+      font-size: var(--bklog-space-16);
+    }
+  }
+
+  .t-notification__content {
+    margin-top: var(--bklog-space-8);
+    font-size: var(--bklog-font-action);
+    line-height: var(--bklog-line-height-action);
+  }
+
+  .t-notification__main > .t-notification__content + :last-child {
+    display: block;
+    margin-block-start: var(--bklog-space-16);
+    margin-inline-start: auto;
+    text-align: end;
+  }
+}
+
+:root:not([theme-mode='dark']) .t-notification {
+  --td-component-border: var(--bklog-surface-subtle);
+  --td-text-color-primary: var(--bklog-standard-control-text-hover);
+  --td-text-color-secondary: var(--bklog-standard-control-text);
+  box-shadow: var(--bklog-notification-shadow);
+}
+
+.collection-report-detail .check-info {
+  padding: var(--bklog-space-20);
+  font-size: var(--bklog-font-action);
+  line-height: var(--bklog-space-24);
+  color: var(--td-text-color-primary);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.quick-create-subscription-slider .footer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bklog-space-8);
+  padding: var(--bklog-space-12) var(--bklog-space-24);
+  background-color: var(--td-bg-color-container);
+}
+
+.test-sending-result-dialog {
+  .test-send-success-dialog-header {
+    font-size: var(--bklog-space-20);
+    font-weight: bold;
+    color: var(--td-text-color-primary);
+    text-align: left;
+  }
+
+  .test-send-success-dialog-content {
+    padding-top: var(--bklog-space-12);
+    margin-inline-start: var(--bklog-space-24);
+  }
 }

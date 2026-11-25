@@ -33,10 +33,7 @@
     :width="680"
     @value-change="handleValueChange"
   >
-    <div
-      v-loading="{ loading: isLoading }"
-      class="module-select-container"
-    >
+    <div class="module-select-container">
       <t-radio-group
         v-model="selectedTypeData"
         style="margin-bottom: 20px"
@@ -50,6 +47,7 @@
       </t-radio-group>
       <div
         v-show="selectedTypeData === 'topo'"
+        v-loading="{ loading: isLoading && selectedTypeData === 'topo', indicator: renderFieldListSkeleton }"
         class="tree-container"
       >
         <bk-big-tree
@@ -65,6 +63,7 @@
       </div>
       <div
         v-show="selectedTypeData === 'module'"
+        v-loading="{ loading: isLoading && selectedTypeData === 'module', indicator: renderFieldListSkeleton }"
         class="tree-container"
       >
         <div class="checkbox-container">
@@ -92,6 +91,7 @@
 <script>
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
+import { renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
 
   export default {
   emits: ["update:show-select-dialog","update:showSelectDialog","confirm"],
@@ -133,6 +133,7 @@ import { ServicesInstance } from '@/platform/services';
       this.initTopoList();
     },
     methods: {
+      renderFieldListSkeleton,
       async initTopoList() {
         try {
           this.isLoading = true;

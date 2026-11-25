@@ -42,12 +42,6 @@
     display: flex;
     align-items: center;
 
-    /* 与 V2 基准对齐：工具栏下拉/检索输入在 V2 TDesign 默认字号下为 14px */
-    .t-input,
-    .t-select-input {
-      font-size: var(--bklog-font-action, 14px);
-    }
-
     .tool-btns {
       display: flex;
       flex: 1;
@@ -142,29 +136,6 @@
     }
 
     .log-collection-table {
-      /* 与 V2 基准对齐：TDesign 表头/分页在 V2 下为 14px/22px，V3 全局 body 字号为 12px，需在此收敛 */
-      .t-table__header th {
-        font-size: var(--bklog-font-action, 14px);
-        line-height: 22px;
-      }
-
-      .t-table__body tr {
-        line-height: 22px;
-      }
-
-      .t-pagination,
-      .t-pagination__total,
-      .t-pagination__number,
-      .t-pagination__btn-prev,
-      .t-pagination__btn-next {
-        font-size: var(--bklog-font-action, 14px);
-        line-height: 22px;
-      }
-
-      .t-table__pagination .t-pagination__select .t-input__inner {
-        font-size: var(--bklog-font-action, 14px);
-      }
-
       .table-status {
         display: inline-block;
         padding-left: 18px;
@@ -269,31 +240,6 @@
 
       &:hover {
         background: #f5f7fa;
-      }
-    }
-  }
-}
-
-.collection-report-detail {
-  .detail-content {
-    min-height: calc(100vh - 60px);
-    white-space: pre-wrap;
-
-  }
-
-  .bk-sideslider-wrapper {
-    padding-bottom: 0;
-
-    .bk-sideslider-content {
-      height: 100%;
-      color: #c4c6cc;
-      background-color: #313238;
-
-      .check-info {
-        padding: 20px;
-        font-size: 14px;
-        line-height: 24px;
-        white-space: pre-wrap;
       }
     }
   }

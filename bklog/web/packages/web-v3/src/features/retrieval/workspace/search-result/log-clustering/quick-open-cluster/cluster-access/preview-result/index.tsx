@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import ChartSkeleton from '@/app/skeleton/chart-skeleton';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
@@ -271,7 +274,13 @@ export default defineComponent({
             class='preview-content'
           >
             <div class='item-title'>{t('最近 1 周日志趋势')}</div>
-            <div v-loading={{ loading: previewLoading.value }}>
+            <div
+              aria-busy={previewLoading.value}
+              v-loading={{
+                loading: previewLoading.value,
+                indicator: () => <ChartSkeleton height={120} type='bar' />,
+              }}
+            >
               <div
                 class='chart-main'
                 ref={chartRef}
@@ -279,9 +288,9 @@ export default defineComponent({
             </div>
             <div class='item-title'>{t('最近 10 条日志样例')}</div>
             <div
-              class='log-demo-main'
-              style={{ borderBottom: logDataList.value.length > 0 ? 'solid 1px #dcdee5' : 'none' }}
-              v-loading={{ loading: previewLoading.value }}
+              class={['log-demo-main', { 'has-rows': logDataList.value.length > 0 }]}
+              aria-busy={previewLoading.value}
+              v-loading={{ loading: previewLoading.value, indicator: renderCodeSampleSkeleton }}
             >
               {logDataList.value.length > 0 ? (
                 logDataList.value.map((item, index) => (
@@ -290,14 +299,10 @@ export default defineComponent({
                     <div class='log-content'>{item}</div>
                   </div>
                 ))
-              ) : (
-                <bk-exception
-                  type='empty'
-                  scene='part'
-                  class='empty-status'
-                >
-                  <span>{t('暂无数据')}</span>
-                </bk-exception>
+              ) : !previewLoading.value && (
+                <div class='bklog-table-empty-region'>
+                  <EmptyStatus />
+                </div>
               )}
             </div>
           </div>

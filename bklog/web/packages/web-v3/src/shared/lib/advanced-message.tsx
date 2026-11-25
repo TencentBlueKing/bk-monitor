@@ -385,7 +385,7 @@ const AdvancedMessageToast = defineComponent({
       return (
         <div
           class={['bk-message', `bk-message-${props.theme === 'info' ? 'primary' : props.theme}`]}
-          style={{ width, maxWidth: '100%', minWidth: '300px', display: visible.value ? undefined : 'none' }}
+          style={{ width, maxWidth: '100%', minWidth: 'min(300px, 100%)', display: visible.value ? undefined : 'none' }}
           onMouseenter={clearTimer}
           onMouseleave={startTimer}
         >

@@ -243,6 +243,10 @@
     .masking-preview-box {
       @extend %preview-box;
 
+      .masking-preview-placeholder {
+        width: 70%;
+      }
+
       > :not(:nth-last-child(2)) {
         border-bottom: 1px solid #dcdee5;
       }

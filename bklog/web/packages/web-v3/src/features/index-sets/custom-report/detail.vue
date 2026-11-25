@@ -27,15 +27,15 @@
 <template>
   <div
     ref="detailRef"
-    v-loading="{ loading: basicLoading }"
-    :style="`padding-right: ${introWidth + 20}px;`"
+    v-loading="{ loading: basicLoading, indicator: renderDrawerDetailSkeleton }"
+    :style="{ paddingInlineEnd: `${(showReportDetail ? introWidth : 0) + 20}px` }"
     class="custom-report-detail-container access-manage-container"
   >
     <auth-container-page
       v-if="authPageInfo"
       :info="authPageInfo"
     ></auth-container-page>
-    <template v-if="!authPageInfo && !basicLoading && reportDetail">
+    <template v-else-if="showReportDetail">
       <basic-tab
         :active.sync="activePanel"
         type="border-card"
@@ -48,13 +48,11 @@
         <template #setting>
           <div class="go-search">
             <div class="search-text">
-              <span class="bk-icon icon-info"></span>
+              <span class="bk-icon icon-info" aria-hidden="true"></span>
               <i18n path="数据采集好了，去 {0}">
-                <span
-                  class="search-button"
-                  @click="handleGoSearch"
-                  >{{ $t('查看数据') }}</span
-                >
+                <button type="button" class="search-button" @click="handleGoSearch">
+                  {{ $t('查看数据') }}
+                </button>
               </i18n>
             </div>
           </div>
@@ -72,8 +70,12 @@
         ></component>
       </keep-alive>
     </template>
+    <div v-else-if="!basicLoading" class="bklog-table-empty-region">
+      <EmptyStatus empty-type="500" @operation="initPage" />
+    </div>
 
     <div
+      v-if="showReportDetail"
       :style="`width: ${introWidth}px`"
       :class="['intro-container', isDraging && 'draging-move']"
     >
@@ -96,6 +98,8 @@
 </template>
 
 <script>
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { renderDrawerDetailSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useCollectionStore } from '@/app/state/domains/collection-store';
 import { ServicesInstance } from '@/platform/services';
@@ -116,6 +120,7 @@ import { ServicesInstance } from '@/platform/services';
     setup() { return useIntroResize(400); },
     name: 'CollectionItem',
     components: {
+      EmptyStatus,
       AuthContainerPage,
       BasicInfo,
       DataStorage,
@@ -128,8 +133,9 @@ import { ServicesInstance } from '@/platform/services';
     data() {
       return {
         basicLoading: true,
+        detailFailed: false,
         authPageInfo: null,
-        reportDetail: {},
+        reportDetail: null,
         activePanel: this.$route.query.type || 'basicInfo',
         isOpenWindow: true,
         editAuth: false,
@@ -144,6 +150,9 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
+      showReportDetail() {
+        return !this.basicLoading && !this.detailFailed && !this.authPageInfo && Boolean(this.reportDetail);
+      },
       dynamicComponent() {
         const componentMaP = {
           basicInfo: 'BasicInfo',
@@ -165,7 +174,10 @@ import { ServicesInstance } from '@/platform/services';
       });
     },
     methods: {
+      renderDrawerDetailSkeleton,
       async initPage() {
+        this.basicLoading = true;
+        this.detailFailed = false;
         // 进入路由需要先判断权限
         try {
           const paramData = {
@@ -192,6 +204,7 @@ import { ServicesInstance } from '@/platform/services';
             useCollectionStore().setCurCollect(reportDetail);
           }
         } catch (err) {
+          this.detailFailed = true;
           console.warn(err);
         } finally {
           this.basicLoading = false;

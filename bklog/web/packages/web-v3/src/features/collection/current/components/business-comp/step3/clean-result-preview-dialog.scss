@@ -406,31 +406,6 @@
       }
     }
 
-    .t-button.participle-btn {
-      height: 26px;
-      border-radius: 0;
-
-      + .participle-btn {
-        margin-left: -1px;
-      }
-
-      &:first-child {
-        border-radius: 2px 0 0 2px;
-      }
-
-      &:last-child {
-        border-radius: 0 2px 2px 0;
-      }
-
-      &.is-selected {
-        position: relative;
-        z-index: var(--bklog-z-base);
-        color: var(--bklog-brand-primary, #3a84ff);
-        background: var(--bklog-brand-tint, #e1ecff);
-        border-color: var(--bklog-brand-primary, #3a84ff);
-      }
-    }
-
     .menu-footer {
       text-align: right;
       margin-top: 10px;

@@ -719,14 +719,11 @@ export default defineComponent({
       }
 
       return (
-        <bk-exception
-          type={option.type}
-          scene='part'
-          style='margin-top: 80px'
-          data-testid='cluster-result-exception'
-        >
-          <span>{option.text}</span>
-        </bk-exception>
+        <div class='bklog-table-empty-region'>
+          <bk-exception type={option.type} scene='part' data-testid='cluster-result-exception'>
+            <span>{option.text}</span>
+          </bk-exception>
+        </div>
       );
     };
 

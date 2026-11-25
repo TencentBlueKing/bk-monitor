@@ -2,9 +2,9 @@
 @use '../../styles/conf' as *;
 @use '../../styles/mixins/flex' as *;
 .log-search-nav {
-  height: 52px;
+  height: var(--bklog-navigation-header-height);
   color: #fff;
-  background: #182132;
+  background: var(--bklog-navigation-header-surface);
 
   @include clearfix;
 
@@ -47,22 +47,39 @@
 
     .head-navi-left {
       &.biz-menu-select {
-        flex: 1 1 auto;
+        box-sizing: border-box;
+        flex: 0 1 calc(240px + var(--bklog-space-8));
         min-width: 0;
-        max-width: 280px;
 
         .menu-select {
+          box-sizing: border-box;
           min-width: 0;
           max-width: 100%;
-          background-color: #182132;
+          height: var(--bklog-control-size-medium);
+          padding-inline: var(--bklog-space-8);
+          background-color: var(--bklog-navigation-selector-surface);
+          border-radius: var(--bklog-space-2);
         }
 
         .menu-select-name {
           min-width: 0;
+          line-height: var(--bklog-control-size-medium);
+          color: var(--bklog-navigation-selector-text);
+
+          .select-icon {
+            inset-block-start: 50%;
+            inset-inline-end: 0;
+            width: var(--bklog-space-16);
+            height: var(--bklog-space-16);
+            font-size: var(--bklog-font-large);
+            line-height: var(--bklog-space-16);
+            color: inherit;
+            translate: 0 -50%;
+          }
         }
 
         .menu-select-list {
-          top: 52px;
+          top: var(--bklog-navigation-header-height);
           left: 138px;
         }
       }
@@ -71,7 +88,7 @@
 
   .nav-center {
     position: relative;
-    min-height: 52px;
+    min-height: var(--bklog-navigation-header-height);
     font-size: 14px;
 
     ul {
@@ -81,22 +98,20 @@
     .menu-item {
       position: relative;
       float: left;
-      height: 50px;
-      padding: 0 20px;
-      line-height: 50px;
-      color: #979ba5;
+      height: var(--bklog-navigation-header-height);
+      padding: 0 var(--bklog-space-16);
+      line-height: var(--bklog-navigation-header-height);
+      color: var(--bklog-navigation-header-text);
       cursor: pointer;
       transition: color 0.3s linear;
 
-      &.active {
-        color: #fff;
-        background: #0c1423;
-        transition: all 0.3s linear;
+      & + .menu-item {
+        margin-inline-start: var(--bklog-space-12);
       }
 
+      &.active,
       &:hover {
-        color: #fff;
-        transition: color 0.3s linear;
+        color: var(--bklog-text-inverse);
       }
 
       &.guide-highlight {
@@ -211,8 +226,23 @@
     }
 
     .username {
-      margin: 0 28px 0 6px;
       z-index: var(--bklog-z-dropdown);
+      height: calc(var(--bklog-space-24) + var(--bklog-space-4));
+      margin: 0 28px 0 6px;
+      font-size: var(--bklog-font-body);
+      line-height: var(--bklog-line-height-body);
+      color: var(--bklog-navigation-user-text);
+
+      &.is-active {
+        color: var(--bklog-navigation-selector-text);
+      }
+
+      .bk-login-userinfo-icon {
+        width: var(--bklog-space-12);
+        height: var(--bklog-space-12);
+        margin-left: 0;
+        margin-inline-start: var(--bklog-space-8);
+      }
     }
 
     .icon-icon-help-document-fill {
@@ -231,35 +261,34 @@
 }
 
 .t-popup__content.head-navi-dropdown {
-  padding: 4px 0;
-  border: 1px solid var(--bklog-border-muted, #dcdee5);
+  padding: var(--bklog-space-4) 0;
+  border: var(--bklog-border-width) solid var(--bklog-standard-control-border-disabled);
+  border-radius: var(--bklog-standard-control-radius);
+  box-shadow: var(--bklog-dropdown-shadow);
 
   .bk-dropdown-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+
     > li > a {
-      display: block;
-      height: 32px;
-      padding: 0 16px;
-      line-height: 33px;
-      color: var(--bklog-text-secondary, #63656e);
+      display: flex;
+      gap: var(--bklog-space-8);
+      align-items: center;
+      min-height: var(--bklog-control-size-medium);
+      padding-inline: var(--bklog-space-12);
+      font-size: var(--bklog-font-body);
+      line-height: var(--bklog-line-height-body);
+      color: var(--bklog-standard-control-text);
       white-space: nowrap;
 
-      &:hover {
-        color: var(--bklog-brand-primary, #3a84ff);
-        background-color: var(--bklog-surface-component, #f0f1f5);
+      &:is(:hover, :focus-visible) {
+        background-color: var(--bklog-option-surface-hover);
       }
 
       &.active {
-        color: #3c96ff;
+        color: var(--bklog-brand-primary);
       }
-    }
-
-    .language-btn a {
-      display: flex;
-      align-items: center;
-    }
-
-    .bk-icon {
-      margin-right: 5px;
     }
   }
 }

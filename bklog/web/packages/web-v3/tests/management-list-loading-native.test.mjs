@@ -4,7 +4,7 @@ import * as Vue from 'vue';
 import ts from 'typescript';
 import { loadTypeScript } from './helpers/load-typescript.mjs';
 
-function fixture(loading = true, constrained = false) {
+function fixture(loading = true, constrained = false, emptyDensity) {
   let mounted, unmounted, watched;
   const cleanup = [];
   const previous = globalThis.ResizeObserver;
@@ -16,15 +16,16 @@ function fixture(loading = true, constrained = false) {
     '@/shared/composables/use-locale': { t: x => x },
     './management-list-loading.scss': {},
   }, { jsx: ts.JsxEmit.ReactJSX, jsxImportSource: 'vue' });
-  const props = { loading, rows: 6, rowHeight: 42 };
+  const props = { loading, rows: 6, rowHeight: emptyDensity ? undefined : 42 };
   const sentinel = Vue.h('table', { 'data-source': 'synthetic-table' });
   const render = component.setup(props, { slots: { default: () => sentinel } });
   const cells = [120, 240, 160].map(width => ({ getBoundingClientRect: () => ({ width }) }));
   const head = { getBoundingClientRect: () => ({ bottom: 180, width: 520, height: 40 }), querySelectorAll: () => cells };
-  const row = { getBoundingClientRect: () => ({ height: 58 }) };
+  const row = emptyDensity ? null : { getBoundingClientRect: () => ({ height: 58 }) };
   const body = { getBoundingClientRect: () => ({ height: 580 }) };
   const content = { style: constrained ? { maxHeight: '240px' } : {}, getBoundingClientRect: () => ({ bottom: 380 }) };
   const table = { getBoundingClientRect: () => ({ left: 20, width: 520 }), querySelector: selector => selector === 'thead' ? head : selector === 'tbody' ? body : selector === '.t-table__content' ? content : row };
+  table.ownerDocument = { defaultView: { getComputedStyle: () => ({ getPropertyValue: () => emptyDensity ?? '' }) } };
   render().ref.r.value = { getBoundingClientRect: () => ({ top: 100, left: 20 }), scrollTop: 0, scrollLeft: 0, querySelector: () => table, addEventListener() {}, removeEventListener: () => cleanup.push('remove-scroll') };
   return { props, render, mounted: () => mounted(), changed: () => watched(), head, cells, ItemSkeleton, sentinel, cleanup, close: () => { unmounted(); globalThis.ResizeObserver = previous; } };
 }
@@ -70,5 +71,15 @@ test('fixed-height scrolling tables clip skeleton rows at the body viewport with
     assert.equal(node.props.style.minHeight, '280px');
     assert.equal(node.props.style['--bklog-table-skeleton-min-height'], '0px');
     assert.equal(node.children[1].props.style.maxHeight, '200px');
+  } finally { f.close(); }
+});
+
+test('first load uses the theme density and ignores empty-state height', () => {
+  const f = fixture(true, false, '36px');
+  try {
+    f.mounted();
+    const skeleton = f.render().children[1];
+    assert.equal(skeleton.children[0].props.style.height, '36px');
+    assert.equal(skeleton.children.length, 6);
   } finally { f.close(); }
 });

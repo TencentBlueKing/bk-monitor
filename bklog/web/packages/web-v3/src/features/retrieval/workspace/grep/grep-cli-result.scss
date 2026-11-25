@@ -3,26 +3,26 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border-radius: 4px;
+  background: var(--td-bg-color-container);
+  border-radius: var(--bklog-standard-control-radius);
   overflow: hidden;
   font-size: 12px;
   padding-right: 10px;
   min-height: 500px;
 
+  .grep-cli-result-skeleton,
+  .grep-cli-result-empty {
+    position: relative;
+    flex: 1;
+  }
+
   .cli-result-line-number {
     flex: 0 0 40px;
     padding: 0 10px;
-    color: #c78500;
+    color: var(--td-text-color-secondary);
     font-size: 12px;
     text-align: right;
     user-select: none;
     line-height: 20px;
-  }
-
-  [data-filter-item] {
-    &.current {
-      background: orange;
-    }
   }
 }

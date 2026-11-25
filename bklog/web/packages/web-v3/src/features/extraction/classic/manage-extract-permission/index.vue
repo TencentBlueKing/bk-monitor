@@ -26,7 +26,6 @@
 
 <template>
   <div
-    v-loading="{ loading: isLoading }"
     class="extract-auth-manage"
     data-test-id="extractAuthManage_div_extractAuthManageBox"
   >
@@ -44,120 +43,122 @@
         {{ $t('新增') }}
       </t-button>
     </div>
-    <bk-table
-      class="king-table"
-      :data="strategyList"
-      row-key="strategy_id"
-    >
-      <bk-table-column
-        native-cell-slot
-        :label="$t('名称')"
-        :render-header="$renderHeader"
-        min-width="100"
+    <management-list-loading :loading="isLoading">
+      <bk-table
+        class="king-table"
+        :data="strategyList"
+        row-key="strategy_id"
       >
-        <template #default="{ row }">
-          <div class="table-ceil-container">
-            <span v-log-overflow-tips>{{ row.strategy_name }}</span>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('名称')"
+          :render-header="$renderHeader"
+          min-width="100"
+        >
+          <template #default="{ row }">
+            <div class="table-ceil-container">
+              <span v-log-overflow-tips>{{ row.strategy_name }}</span>
+            </div>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('授权目标')"
+          :render-header="$renderHeader"
+          min-width="100"
+        >
+          <template #default="{ row }">
+            <div class="table-ceil-container">
+              <span v-log-overflow-tips>{{ row.modules.map(item => item.bk_inst_name).join('; ') }}</span>
+            </div>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('文件目录')"
+          :render-header="$renderHeader"
+          min-width="100"
+        >
+          <template #default="{ row }">
+            <div class="table-ceil-container">
+              <span v-log-overflow-tips>{{ row.visible_dir.join('; ') }}</span>
+            </div>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('文件后缀')"
+          :render-header="$renderHeader"
+          min-width="100"
+        >
+          <template #default="{ row }">
+            <div class="table-ceil-container">
+              <span v-log-overflow-tips>{{ row.file_type.join('; ') }}</span>
+            </div>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('执行人')"
+          :render-header="$renderHeader"
+          min-width="100"
+        >
+          <template #default="{ row }">
+            <div class="table-ceil-container">
+              <!-- <span v-log-overflow-tips>{{ row.operator || '--' }}</span> -->
+              <bk-user-display-name :user-id="row.operator"></bk-user-display-name>
+            </div>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          :label="$t('创建时间')"
+          :render-header="$renderHeader"
+          min-width="100"
+          prop="created_at"
+        >
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('创建人')"
+          :render-header="$renderHeader"
+          min-width="80"
+          prop="created_by"
+        >
+          <template #default="{ row }">
+            <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('操作')"
+          :render-header="$renderHeader"
+          min-width="80"
+        >
+          <template #default="{ row }">
+            <div class="task-operation-container">
+              <span
+                class="task-operation"
+                @click="handleEditStrategy(row)"
+                >{{ $t('编辑') }}</span
+              >
+              <span
+                class="task-operation"
+                @click="handleDeleteStrategy(row)"
+                >{{ $t('删除') }}</span
+              >
+            </div>
+          </template>
+        </bk-table-column>
+        <template #empty>
+          <div v-if="!isLoading" class="bklog-table-empty-region">
+            <empty-status
+              :empty-type="emptyType"
+              @operation="handleOperation"
+            />
           </div>
         </template>
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        :label="$t('授权目标')"
-        :render-header="$renderHeader"
-        min-width="100"
-      >
-        <template #default="{ row }">
-          <div class="table-ceil-container">
-            <span v-log-overflow-tips>{{ row.modules.map(item => item.bk_inst_name).join('; ') }}</span>
-          </div>
-        </template>
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        :label="$t('文件目录')"
-        :render-header="$renderHeader"
-        min-width="100"
-      >
-        <template #default="{ row }">
-          <div class="table-ceil-container">
-            <span v-log-overflow-tips>{{ row.visible_dir.join('; ') }}</span>
-          </div>
-        </template>
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        :label="$t('文件后缀')"
-        :render-header="$renderHeader"
-        min-width="100"
-      >
-        <template #default="{ row }">
-          <div class="table-ceil-container">
-            <span v-log-overflow-tips>{{ row.file_type.join('; ') }}</span>
-          </div>
-        </template>
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        :label="$t('执行人')"
-        :render-header="$renderHeader"
-        min-width="100"
-      >
-        <template #default="{ row }">
-          <div class="table-ceil-container">
-            <!-- <span v-log-overflow-tips>{{ row.operator || '--' }}</span> -->
-            <bk-user-display-name :user-id="row.operator"></bk-user-display-name>
-          </div>
-        </template>
-      </bk-table-column>
-      <bk-table-column
-        :label="$t('创建时间')"
-        :render-header="$renderHeader"
-        min-width="100"
-        prop="created_at"
-      >
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        :label="$t('创建人')"
-        :render-header="$renderHeader"
-        min-width="80"
-        prop="created_by"
-      >
-        <template #default="{ row }">
-          <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
-        </template>
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        :label="$t('操作')"
-        :render-header="$renderHeader"
-        min-width="80"
-      >
-        <template #default="{ row }">
-          <div class="task-operation-container">
-            <span
-              class="task-operation"
-              @click="handleEditStrategy(row)"
-              >{{ $t('编辑') }}</span
-            >
-            <span
-              class="task-operation"
-              @click="handleDeleteStrategy(row)"
-              >{{ $t('删除') }}</span
-            >
-          </div>
-        </template>
-      </bk-table-column>
-      <template #empty>
-        <div>
-          <empty-status
-            :empty-type="emptyType"
-            @operation="handleOperation"
-          />
-        </div>
-      </template>
-    </bk-table>
+      </bk-table>
+    </management-list-loading>
 
     <bk-sideslider
       :before-close="handleCloseSidebar"
@@ -189,6 +190,7 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
+  import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 
   import useUtils from '@/shared/composables/use-utils';
 
@@ -200,6 +202,7 @@ import { ServicesInstance } from '@/platform/services';
     components: {
       DirectoryManage,
       EmptyStatus,
+      ManagementListLoading,
     },
     data() {
       return {
@@ -258,6 +261,7 @@ import { ServicesInstance } from '@/platform/services';
           });
           const { formatResponseListTimeZoneString } = useUtils();
           this.strategyList = formatResponseListTimeZoneString(res.data || []);
+          this.emptyType = 'empty';
         } catch (e) {
           console.warn(e);
           this.emptyType = '500';

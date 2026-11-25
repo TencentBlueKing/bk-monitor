@@ -1,5 +1,9 @@
 @use 'index.scss' as *;
 .bk-log-chart-skeleton {
+  --bklog-chart-placeholder: var(--bklog-standard-control-surface-disabled, var(--td-bg-color-secondarycontainer));
+  --bklog-chart-placeholder-accent: var(--bklog-standard-control-border-disabled, var(--td-bg-color-component-hover));
+  --bklog-chart-placeholder-surface: var(--bklog-surface-disabled, var(--td-bg-color-container));
+
   width: 100%;
   height: 100%;
   margin-top: 8px;
@@ -8,14 +12,14 @@
   .loading-text {
     text-align: center;
     margin-top: 12px;
-    color: #7f8c8d;
+    color: var(--bklog-text-secondary, var(--td-text-color-secondary));
     font-weight: 500;
     font-size: 12px;
     letter-spacing: 0.5px;
   }
   .chart-area {
     position: relative;
-    background: #fafbfc;
+    background: var(--bklog-chart-placeholder-surface);
     border-radius: 2px;
     overflow: hidden;
     padding: 20px;
@@ -33,7 +37,7 @@
     margin-bottom: 4px;
     .grid-line {
       height: 1px;
-      background: #f0f2f5;
+      background: var(--bklog-chart-placeholder);
     }
   }
   .y-axis-labels {
@@ -88,10 +92,14 @@
     left: 0;
     width: 100%;
     height: 4px;
-    background: linear-gradient(90deg, #e7eaee, #d5d9df, #e6e9ed);
+    background: linear-gradient(90deg, var(--bklog-chart-placeholder), var(--bklog-chart-placeholder-accent), var(--bklog-chart-placeholder));
     border-radius: 2px;
     transform: translateY(-50%);
     animation: shimmer 1.8s infinite linear;
+
+    path {
+      stroke: var(--bklog-brand-primary, var(--td-brand-color));
+    }
   }
   .line-path-shadow {
     position: absolute;
@@ -101,9 +109,9 @@
     height: 2px;
     background: linear-gradient(
       90deg,
-      rgba(230, 233, 237, 0.2) 0%,
-      rgba(230, 233, 237, 0.5) 50%,
-      rgba(230, 233, 237, 0.2) 100%
+      color-mix(in srgb, var(--bklog-chart-placeholder-accent) 20%, transparent) 0%,
+      color-mix(in srgb, var(--bklog-chart-placeholder-accent) 50%, transparent) 50%,
+      color-mix(in srgb, var(--bklog-chart-placeholder-accent) 20%, transparent) 100%
     );
     border-radius: 50%;
     transform: translateY(-50%);
@@ -124,7 +132,7 @@
   .line-point {
     width: 8px;
     height: 8px;
-    background: #f0f2f5;
+    background: var(--bklog-chart-placeholder);
     border-radius: 50%;
     position: relative;
     z-index: var(--bklog-z-raised);
@@ -135,7 +143,7 @@
     left: 50%;
     width: 14px;
     height: 14px;
-    background: rgba(240, 242, 245, 0.4);
+    background: color-mix(in srgb, var(--bklog-chart-placeholder) 40%, transparent);
     border-radius: 50%;
     transform: translate(-50%, -50%);
   }
@@ -154,7 +162,7 @@
   }
   .bar-item {
     width: 30px;
-    background: linear-gradient(to top, #efeff0, #e1e5eb);
+    background: linear-gradient(to top, var(--bklog-chart-placeholder), var(--bklog-chart-placeholder-accent));
     border-radius: 4px 4px 0 0;
     position: relative;
   }
@@ -164,7 +172,11 @@
     left: 0;
     width: 100%;
     height: 15px;
-    background: rgba(255, 255, 255, 0.33);
+    background: color-mix(in srgb, var(--bklog-chart-placeholder-surface) 33%, transparent);
     border-radius: 4px 4px 0 0;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bk-log-chart-skeleton .line-path { animation: none; }
 }

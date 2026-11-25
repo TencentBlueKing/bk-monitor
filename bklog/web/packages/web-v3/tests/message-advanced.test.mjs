@@ -92,14 +92,23 @@ test('message entry routes advanced objects away from plain TDesign content', ()
   );
 });
 
-test('collection table keeps V2 header, pagination and toolbar density', () => {
-  for (const file of ['table-list-v1.scss', 'table-list-v2.scss']) {
-    const scss = readFileSync(
-      new URL(`../src/features/collection/current/components/list-main/table-list/${file}`, import.meta.url),
-      'utf8',
-    );
-    assert.match(scss, /\.t-table__header th \{\s+font-size: var\(--bklog-font-action, 14px\);\s+line-height: 22px;/);
-    assert.match(scss, /\.t-table__body tr \{\s+line-height: 22px;/);
-    assert.match(scss, /\.t-input,\s+\.t-select-input \{\s+font-size: var\(--bklog-font-action, 14px\);/);
+test('both collection tables use the shared header, pagination and toolbar density', () => {
+  const themePath = '../src/shared/styles/theme/';
+  const readTheme = file => readFileSync(new URL(themePath + file, import.meta.url), 'utf8');
+  const density = readTheme('management-lists.scss');
+  assert.match(readTheme('tdesign-bklog.scss'), /@use '\.\/management-lists';/);
+  assert.match(density, /\.v2-log-collection-table \.log-collection-table \{/);
+  assert.match(density, /\.t-table__header th,\s+\.t-pagination,[^{]+\{\s+font-size: var\(--bklog-font-action\);\s+line-height: var\(--bklog-line-height-action\);/);
+  assert.match(density, /\.t-table__body tr \{\s+line-height: var\(--bklog-line-height-action\);/);
+  assert.match(density, /\.v2-log-collection-table-tool \{\s+\.t-input,\s+\.t-select-input \{\s+font-size: var\(--bklog-font-action\);/);
+  assert.match(readTheme('theme.scss'), /\$font-size-medium:\s*14px;/);
+  assert.match(readTheme('tokens.scss'), /--bklog-line-height-action:\s*22px;/);
+
+  for (const variant of ['v1', 'v2']) {
+    const file = `../src/features/collection/current/components/list-main/table-list/table-list-${variant}.tsx`;
+    const source = readFileSync(new URL(file, import.meta.url), 'utf8');
+    for (const className of ['v2-log-collection-table', 'v2-log-collection-table-tool', 'log-collection-table']) {
+      assert.ok(source.includes(`class='${className}'`), `${variant} uses ${className}`);
+    }
   }
 });

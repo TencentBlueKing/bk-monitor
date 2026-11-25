@@ -26,7 +26,6 @@
 
 <template>
   <div
-    v-loading="{ loading: loading, zIndex: 0 }"
     class="chart-container"
   >
     <div class="chart-header">
@@ -40,30 +39,35 @@
         {{ $t('耗时优化指引 >') }}
       </t-button>
     </div>
-    <div class="chart-canvas-container">
+    <div class="chart-canvas-container collection-detail-chart-body">
       <div
         ref="chartRef"
         class="chart-canvas"
+        :style="{ visibility: loading || failed || isEmpty ? 'hidden' : 'visible' }"
       ></div>
+      <div v-if="loading" class="collection-detail-chart-state is-skeleton" role="status" :aria-label="$t('加载中')">
+        <div v-if="skeletonType === 'pie'" class="usage-chart-pie-skeleton" aria-hidden="true" />
+        <chart-skeleton v-else :type="skeletonType" :height="168" />
+      </div>
       <div
-        v-if="isEmpty"
-        class="chart-empty"
+        v-else-if="failed || isEmpty"
+        class="collection-detail-chart-state"
       >
-        <empty-status empty-type="empty" />
+        <empty-status :empty-type="failed ? '500' : 'empty'" @operation="$emit('retry')" />
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import ChartSkeleton from '@/app/skeleton/chart-skeleton';
+import '@/features/index-sets/log-collection/collection-item/manage-collection/detail-states.scss';
+import { observeChartColors, readChartColors } from '@/features/index-sets/log-collection/collection-item/manage-collection/data-status/chart-colors';
   import EmptyStatus from '@/shared/ui/empty-status/index';
   import i18n from '@/platform/i18n/i18n';
   import * as echarts from 'echarts';
 
   const defaultOption = {
-    textStyle: {
-      color: '#63656E',
-    },
     grid: {
       x: 20,
       y: 10,
@@ -76,9 +80,17 @@
 
   export default {
     components: {
+      ChartSkeleton,
       EmptyStatus,
     },
+    emits: ['retry'],
     props: {
+      failed: Boolean,
+      skeletonType: {
+        type: String,
+        default: 'line',
+        validator: value => ['line', 'bar', 'pie'].includes(value),
+      },
       type: {
         type: String,
         required: true,
@@ -104,33 +116,42 @@
     watch: {
       chartData: {
         handler(val) {
-          if (val) {
-            this.updateChart(val);
-          }
+          this.updateChart(val);
         },
         immediate: true,
       },
     },
     mounted() {
-      let timer = 0;
+      const canvas = this.$refs.chartRef;
+      let frame;
       this.resizeChart = () => {
-        if (!timer) {
-          timer = setTimeout(() => {
-            timer = 0;
-            if (this.instance && !this.instance.isDisposed()) {
-              this.instance.resize();
-            }
-          }, 400);
-        }
+        if (frame !== undefined) return;
+        frame = requestAnimationFrame(() => {
+          frame = undefined;
+          if (canvas.clientWidth && canvas.clientHeight && this.instance && !this.instance.isDisposed()) {
+            this.instance.resize();
+          }
+        });
       };
-      window.addEventListener('resize', this.resizeChart);
+
+      const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(this.resizeChart);
+      if (observer) observer.observe(canvas);
+      else window.addEventListener('resize', this.resizeChart);
+      const stopChartColors = observeChartColors(canvas, () => this.instance, this.skeletonType !== 'pie');
+      this.stopChartResize = () => {
+        stopChartColors();
+        observer?.disconnect();
+        window.removeEventListener('resize', this.resizeChart);
+        if (frame !== undefined) cancelAnimationFrame(frame);
+      };
     },
     beforeUnmount() {
-      window.removeEventListener('resize', this.resizeChart);
+      this.instance?.dispose();
+      this.stopChartResize?.();
     },
     methods: {
       updateChart(chartData) {
-        if (!chartData.values.length || chartData.values.every(item => item === 0)) {
+        if (!chartData?.values?.length || chartData.values.every(item => item === 0)) {
           if (this.instance && !this.instance.isDisposed()) {
             this.instance.dispose();
           }
@@ -163,8 +184,10 @@
       },
       // 折线图 使用次数趋势
       setLineChart(chartData) {
+        const themeColors = readChartColors(this.$refs.chartRef);
         this.instance.setOption(
           Object.assign({}, defaultOption, {
+            textStyle: { color: themeColors.text },
             xAxis: {
               data: chartData.labels,
               axisTick: {
@@ -175,7 +198,7 @@
               },
               axisLine: {
                 lineStyle: {
-                  color: '#DCDEE5',
+                  color: themeColors.axis,
                 },
               },
             },
@@ -189,7 +212,7 @@
               },
               splitLine: {
                 lineStyle: {
-                  color: '#DCDEE5',
+                  color: themeColors.axis,
                   type: 'dashed',
                 },
               },
@@ -200,11 +223,12 @@
                 type: 'line',
                 symbol: 'none',
                 itemStyle: {
-                  color: '#339DFF',
+                  color: themeColors.series,
                 },
               },
             ],
             tooltip: {
+              ...themeColors.tooltip,
               trigger: 'axis',
               axisPointer: {
                 type: 'line',
@@ -216,8 +240,10 @@
       },
       // 柱状图 用户使用频次
       setBarChart(chartData) {
+        const themeColors = readChartColors(this.$refs.chartRef);
         this.instance.setOption(
           Object.assign({}, defaultOption, {
+            textStyle: { color: themeColors.text },
             xAxis: {
               type: 'category',
               data: chartData.labels,
@@ -229,7 +255,7 @@
               },
               axisLine: {
                 lineStyle: {
-                  color: '#DCDEE5',
+                  color: themeColors.axis,
                 },
               },
             },
@@ -243,7 +269,7 @@
               },
               splitLine: {
                 lineStyle: {
-                  color: '#DCDEE5',
+                  color: themeColors.axis,
                   type: 'dashed',
                 },
               },
@@ -254,11 +280,12 @@
                 type: 'bar',
                 barMaxWidth: 24,
                 itemStyle: {
-                  color: '#339DFF',
+                  color: themeColors.series,
                 },
               },
             ],
             tooltip: {
+              ...themeColors.tooltip,
               trigger: 'item',
             },
           }),
@@ -266,6 +293,7 @@
       },
       // 饼图，检索耗时统计
       setPieChart(chartData) {
+        const themeColors = readChartColors(this.$refs.chartRef);
         const colors = ['#B568FF', '#3BCE95', '#339DFF'];
         const newChartData = chartData.values
           .map((value, index) => ({
@@ -278,11 +306,14 @@
           .filter(item => Boolean(item.value));
         this.instance.setOption(
           Object.assign({}, defaultOption, {
+            textStyle: { color: themeColors.text },
             tooltip: {
+              ...themeColors.tooltip,
               trigger: 'item',
               formatter: '{b} <br/>{a} {d}%',
             },
             legend: {
+              textStyle: { color: themeColors.text },
               orient: 'vertical',
               left: 'left',
               top: 'middle',
@@ -321,12 +352,6 @@
       height: 100%;
     }
 
-    .chart-empty {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+
   }
 </style>

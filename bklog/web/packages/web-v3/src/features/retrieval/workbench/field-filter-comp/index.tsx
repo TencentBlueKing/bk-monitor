@@ -122,9 +122,11 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
     // Keep render failures observable with normal Vue error propagation.
   }
   get errInfo() {
-    const isScene = useApplicationStore().isSceneMode;
-    const key = isScene ? 'retrieve/getSceneFields' : 'retrieve/getLogTableHead';
-    return useApplicationStore().apiErrorInfo[key] || '';
+    const store = useApplicationStore();
+    const key = store.isSceneMode
+      ? 'retrieve/getSceneFields'
+      : store.isUnionSearch ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+    return store.apiErrorInfo[key] || '';
   }
   get isFieldLoading() {
     return useApplicationStore().indexFieldInfo.is_loading;
@@ -506,11 +508,12 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
     return sortList;
   }
   handleSearchException(type: string) {
+    this.isShowErrInfo = false;
     if (type === 'clear-filter') {
       this.searchKeyword = '';
       this.filterListByCondition();
+      return;
     }
-    this.isShowErrInfo = false;
     useApplicationStore().requestIndexSetFieldInfo();
   }
   // 记录bigTree展开节点
@@ -641,30 +644,38 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
         </div>
         <div ref='fieldFilter' class='field-filter-container-new' v-loading={{ loading: this.isFieldLoading, indicator: renderFieldListSkeleton }}>
           {!this.isFieldLoading && !this.hasFilterVisibleFields && (
-            <EmptyStatus
-              style={{ marginTop: '20%' }}
-              emptyType={this.searchKeyword ? 'search-empty' : '500'}
-              showText={!!this.searchKeyword}
-              onOperation={this.handleSearchException}
-            >
-              {!this.searchKeyword && (
+            !this.errInfo ? (
+              <EmptyStatus
+                class='field-filter-empty'
+                emptyType={this.searchKeyword ? 'search-empty' : 'empty'}
+                onOperation={this.handleSearchException}
+              />
+            ) : (
+              <EmptyStatus class='field-filter-empty' emptyType='500' showText={false}>
                 <div class='error-empty'>
                   <p>
                     {this.$t('获取字段列表失败')}
                     <TTooltip content={this.$t('刷新')}>
-                      <i class='bklog-icon bklog-log-refresh' onClick={() => this.handleSearchException('refresh')} />
+                      <button type='button' class='field-error-action' aria-label={this.$t('刷新')} onClick={() => this.handleSearchException('refresh')}>
+                        <i class='bklog-icon bklog-log-refresh' aria-hidden='true' />
+                      </button>
                     </TTooltip>
                     <TTooltip content={this.$t('详情')}>
-                      <i
-                        class={`bklog-icon bklog-${this.isShowErrInfo ? 'collapse-small' : 'expand-small'}`}
+                      <button
+                        type='button'
+                        class='field-error-action'
+                        aria-label={this.$t('详情')}
+                        aria-expanded={this.isShowErrInfo}
                         onClick={() => (this.isShowErrInfo = !this.isShowErrInfo)}
-                      />
+                      >
+                        <i class={`bklog-icon bklog-${this.isShowErrInfo ? 'collapse-small' : 'expand-small'}`} aria-hidden='true' />
+                      </button>
                     </TTooltip>
                   </p>
                   {this.isShowErrInfo && <div class='error-info'>{this.errInfo}</div>}
                 </div>
-              )}
-            </EmptyStatus>
+              </EmptyStatus>
+            )
           )}
           {this.hasFilterVisibleFields && (
             <div class='fields-container is-selected'>
@@ -740,9 +751,15 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
                     ),
                   )}
                   {this.getIsShowIndexSetExpand() && (
-                    <div class='expand-all' onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}>
-                      {this.isShowAllIndexSet ? this.$t('收起') : this.$t('展开全部')}
-                    </div>
+                    <li class='expand-all'>
+                      <button
+                        type='button'
+                        aria-expanded={this.isShowAllIndexSet}
+                        onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}
+                      >
+                        {this.isShowAllIndexSet ? this.$t('收起') : this.$t('展开全部')}
+                      </button>
+                    </li>
                   )}
                 </ul>
               </div>
@@ -750,10 +767,19 @@ export default class FieldFilterComp extends tsc<FieldFilterCompProps> {
             {/* 内置字段 */}
             {!!this.builtInFields().filter((item) => item.filterVisible).length && (
               <div class='fields-container not-selected inside-fields'>
-                <div class='title' onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}>
-                  <span class={['bklog-icon bklog-arrow-down-filled-2', { 'is-expand-all': this.isShowAllBuiltIn }]} />
+                <button
+                  type='button'
+                  class='title'
+                  aria-expanded={this.isShowAllBuiltIn || Boolean(this.searchKeyword)}
+                  disabled={Boolean(this.searchKeyword)}
+                  onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
+                >
+                  <span
+                    class={['bklog-icon bklog-arrow-down-filled-2', { 'is-expand-all': this.isShowAllBuiltIn || Boolean(this.searchKeyword) }]}
+                    aria-hidden='true'
+                  />
                   {(this.$t('label-内置字段') as string).replace('label-', '')}
-                </div>
+                </button>
                 <ul class='filed-list'>
                   {this.builtInLazyShowFields.map((item: FieldTreeNode, index: number) =>
                     item.children?.length ? (

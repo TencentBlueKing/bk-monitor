@@ -27,7 +27,7 @@
 
 <template>
   <div
-    v-loading="{ loading: basicLoading }"
+    v-loading="{ loading: basicLoading, indicator: renderFieldListSkeleton }"
     class="collection-status-container"
   >
     <!-- 容器日志状态页 -->
@@ -40,17 +40,18 @@
         v-if="dataFir"
         class="collect"
       >
-        <div class="mb15 nav-section">
-          <div class="button-group">
-            <span
+        <div class="nav-section">
+          <div class="button-group bk-button-group" data-bklog-button-group="connected">
+            <button
+              type="button"
               v-for="(val, x) in dataButton"
               :key="x"
-              :class="clickSec.selected === val.key ? 'button-bul' : 'button-wit'"
+              :aria-pressed="clickSec.selected === val.key"
               @click="handleChangeGroup(val)"
-              >{{ val.content }}({{ val.dataList.totalLenght }})</span
+              >{{ val.content }}({{ val.dataList.totalLenght }})</button
             >
           </div>
-          <div>
+          <div class="status-toolbar-actions">
             <span>{{ $t('每15分钟按照CMDB最新拓扑自动部署或取消采集') }}</span>
             <!-- <span class="bk-icon icon-question-circle" v-log-tooltip="$t('每15分钟按照CMDB最新拓扑自动部署或取消采集')"></span> -->
             <t-button
@@ -76,30 +77,28 @@
         </div>
         <div
           v-for="(value, i) in renderTableList"
-          ref="unfold"
           :key="i"
-          style="margin-bottom: 10px; overflow: hidden"
+          class="collection-status-group"
         >
-          <div
-            class="table-detail"
-            @click="closeTable(i)"
-          >
-            <div>
+          <div class="table-detail">
+            <button type="button" :aria-expanded="!collapsedGroups.has(i)" @click="closeTable(i)">
               <i
-                ref="icon"
+                aria-hidden="true"
                 :style="{ color: collapseColor }"
-                class="bk-icon title-icon icon-down-shape"
+                class="bk-icon title-icon"
+                :class="collapsedGroups.has(i) ? 'icon-right-shape' : 'icon-down-shape'"
               ></i>
-              <span>{{ value.node_path }}</span>
-              <span>{{ dataSec[i] ? dataSec[i].length : '' }}</span>
-              <span>{{ $t('个成功') }},</span>
-              <span>{{ dataFal[i] ? dataFal[i].length : '' }}</span>
-              <span>{{ $t('个失败') }}</span>
-            </div>
+              <span class="group-title">{{ value.node_path }}</span>
+              <span class="group-summary">
+                <span class="SUCCESS">{{ dataSec[i] ? dataSec[i].length : '' }}</span><span>{{ $t('个成功') }},</span>
+                <span class="FAILED">{{ dataFal[i] ? dataFal[i].length : '' }}</span><span>{{ $t('个失败') }}</span>
+              </span>
+            </button>
           </div>
-          <div class="table-calc">
+          <div v-show="!collapsedGroups.has(i)" class="table-calc">
             <bk-table
-              v-loading="{ loading: reloadTable }"
+              :class="{ 'status-table-with-rows': clickSec.data[i]?.length }"
+              :loading="reloadTable"
               :data="clickSec.data[i]"
               :empty-text="$t('暂无内容')"
               size="small"
@@ -117,12 +116,12 @@
                 :label="$t('状态')"
               >
                 <template #default="props">
-                  <span @click="reset(props.row)">
-                    <i
-                      v-if="props.row.status !== 'SUCCESS' && props.row.status !== 'FAILED'"
-                      style="display: inline-block; "
-                      class="bk-icon icon-refresh bklog-loading-mark"
-                    ></i>
+                  <span class="collection-status-cell" @click="reset(props.row)">
+                    <span class="collection-status-icon" aria-hidden="true">
+                      <span v-if="props.row.status === 'SUCCESS'" class="collection-status-dot is-success" />
+                      <span v-else-if="props.row.status === 'FAILED'" class="collection-status-dot is-failed" />
+                      <span v-else class="collection-status-spinner" />
+                    </span>
                     <span
                       v-if="props.row.status === 'SUCCESS'"
                       class="SUCCESS"
@@ -185,8 +184,9 @@
                 </template>
               </bk-table-column>
               <template #empty>
-                <div>
+                <div class="bklog-table-empty-region">
                   <empty-status
+                    v-if="!(basicLoading || reloadTable)"
                     :show-text="false"
                     empty-type="empty"
                   >
@@ -197,10 +197,13 @@
             </bk-table>
           </div>
         </div>
+        <div v-if="!basicLoading && !reloadTable && !renderTableList.length" class="bklog-table-empty-region">
+          <empty-status :empty-type="statusFailed ? '500' : 'empty'" @operation="getCollectList()" />
+        </div>
         <template v-if="renderTableList.length">
           <div
             v-show="!isPageOver && !reloadTable"
-            v-loading="{ loading: true }"
+            v-loading="{ loading: true, indicator: renderListRefreshSkeleton }"
             style="height: 40px"
           ></div>
         </template>
@@ -235,6 +238,7 @@
 </template>
 
 <script>
+import { renderFieldListSkeleton, renderListRefreshSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
@@ -271,18 +275,9 @@ import { ServicesInstance } from '@/platform/services';
         pageSize: 30, // 每页展示多少数据
         totalPage: 1,
         size: 'small',
-        renderTableList: [
-          {
-            is_label: false,
-            bk_obj_name: '-',
-            node_path: '-',
-            bk_obj_id: '-',
-            label_name: '',
-            child: [],
-            bk_inst_id: 6,
-            bk_inst_name: '-',
-          },
-        ],
+        collapsedGroups: new Set(),
+        statusFailed: false,
+        renderTableList: [],
         detail: {
           isShow: false,
           title: this.$t('详情'),
@@ -367,13 +362,11 @@ import { ServicesInstance } from '@/platform/services';
       this.adadScrollEvent();
     },
     methods: {
+      renderFieldListSkeleton,
+      renderListRefreshSkeleton,
       renderCodeSampleSkeleton,
-      closeTable(val) {
-        this.$refs.unfold[val].style.height = this.$refs.unfold[val].style.height === '' ? '43px' : '';
-        this.$refs.icon[val].classList.value =
-          this.$refs.unfold[val].style.height === ''
-            ? 'bk-icon title-icon icon-down-shape'
-            : 'bk-icon title-icon icon-right-shape';
+      closeTable(index) {
+        if (!this.collapsedGroups.delete(index)) this.collapsedGroups.add(index);
       },
       adadScrollEvent() {
         this.scrollontentEl = document.querySelector('.allocation');
@@ -395,14 +388,23 @@ import { ServicesInstance } from '@/platform/services';
         // 组件已销毁则不再查询状态
         if (this.isDestroyed) return;
 
-        ServicesInstance.source.collectList({
+        return ServicesInstance.source.collectList({
             params: {
               collector_config_id: this.$route.params.collectorId,
             },
             manualSchema: true,
           })
           .then(res => {
+            this.statusFailed = false;
             this.dataFir = res.data;
+            if (!this.dataFir.contents.length) {
+              clearInterval(this.timer);
+              this.timer = null;
+              this.renderTableList = [];
+              this.collapsedGroups.clear();
+              this.initPageConf([]);
+              this.loadPage();
+            }
             if (this.dataFir.contents.length !== 0) {
               // 过滤child为空的节点
               this.dataFir.contents = this.dataFir.contents.filter(data => data.child.length);
@@ -430,7 +432,6 @@ import { ServicesInstance } from '@/platform/services';
                 this.dataSec.totalLenght += secSet.length;
                 this.dataFal.totalLenght += failSet.length;
                 this.dataPen.totalLenght += penSet.length;
-                this.reloadTable = false;
               }
               this.dataButton.forEach(item => {
                 item.dataList =
@@ -455,6 +456,7 @@ import { ServicesInstance } from '@/platform/services';
               if (!this.timer) {
                 this.dataListPaged = [];
                 this.dataListShadow = [];
+                this.collapsedGroups.clear();
                 this.renderTableList = [];
                 this.initPageConf(this.dataFir.contents);
                 this.loadPage();
@@ -479,9 +481,10 @@ import { ServicesInstance } from '@/platform/services';
           })
           .catch(e => {
             console.warn(e);
-            this.reloadTable = false;
+            this.statusFailed = true;
           })
           .finally(() => {
+            this.reloadTable = false;
             this.basicLoading = false;
           });
       },
@@ -491,6 +494,7 @@ import { ServicesInstance } from '@/platform/services';
         this.clickSec.data = val.dataList;
         this.dataListPaged = [];
         this.dataListShadow = [];
+        this.collapsedGroups.clear();
         this.renderTableList = [];
         this.initPageConf(this.dataFir.contents || []);
         this.loadPage();
@@ -646,28 +650,41 @@ import { ServicesInstance } from '@/platform/services';
 
 <style lang="scss" scoped>
 @use '../../../../../shared/styles/mixins/clearfix' as *;
-  @use '../../../../../shared/styles/conf' as *;
+@use '@/shared/ui/loading/status-spinner' as *;
   /* stylelint-disable no-descending-specificity */
   .collection-status-container {
-    .collect {
+    .table-calc {
+      overflow-x: auto;
+    }
+
+    .status-table-with-rows {
       min-width: 1040px;
     }
 
     .nav-section {
       display: flex;
+      flex-wrap: wrap;
+      align-items: center;
       justify-content: space-between;
+      gap: var(--bklog-space-8);
+      margin-block-end: var(--bklog-space-12);
 
-      span {
-        display: inline-block;
-        margin-right: 10px;
-        font-size: 12px;
-        color: #bfc0c6;
+      .status-toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--bklog-space-8);
+
+        > span {
+          font-size: var(--bklog-font-body);
+          color: var(--td-text-color-secondary);
+        }
       }
 
       .icon-question-circle {
         margin-right: 10px;
-        font-size: 16px;
-        color: #979ba5;
+        font-size: var(--bklog-font-action);
+        color: var(--td-text-color-secondary);
       }
 
       :deep(.t-button) {
@@ -681,98 +698,147 @@ import { ServicesInstance } from '@/platform/services';
       }
     }
 
+    .collection-status-group {
+      overflow: hidden;
+    }
+
+    .collection-status-group + .collection-status-group {
+      margin-block-start: var(--bklog-space-12);
+    }
+
     .table-detail {
       width: 100%;
 
-      div {
+      > button {
         width: 100%;
-        height: 42px;
-        line-height: 42px;
+        text-align: start;
+        font-family: inherit;
+        box-sizing: border-box;
+        display: flex;
+        gap: var(--bklog-space-4);
+        align-items: center;
+        height: var(--bklog-table-header-medium);
+        padding-inline: var(--bklog-space-24);
+        font-size: var(--bklog-font-body);
+        line-height: var(--bklog-line-height-body);
+        color: var(--bklog-standard-control-text, var(--td-text-color-primary));
+        cursor: pointer;
         user-select: none;
-        background-color: #f0f1f5;
-        border: 1px solid #dcdee5;
-        border-bottom: none;
-        border-radius: 2px 2px 0 0;
+        background-color: var(--bklog-surface-subtle, var(--td-bg-color-secondarycontainer));
+        border: var(--bklog-border-width) solid var(--bklog-standard-control-border-disabled, var(--td-component-stroke));
+        border-bottom: 0;
+        border-radius: var(--bklog-standard-control-radius) var(--bklog-standard-control-radius) 0 0;
+        &:focus-visible {
+          outline: var(--bklog-border-width) solid var(--bklog-brand-primary, var(--td-brand-color));
+          outline-offset: calc(-2 * var(--bklog-border-width));
+        }
+      }
 
-        :nth-child(2) {
-          font-size: 12px;
-          font-weight: Bold;
-          color: #63656e;
+      .group-title {
+        font-weight: var(--bklog-table-header-font-weight);
+      }
+
+      .group-summary {
+        margin-inline-start: var(--bklog-space-16);
+        color: var(--bklog-standard-control-border-hover, var(--td-text-color-secondary));
+      }
+    }
+
+    .collection-status-cell {
+      display: inline-flex;
+      gap: var(--bklog-space-4);
+      align-items: center;
+
+      .collection-status-icon {
+        @include collection-status-icon-slot();
+      }
+
+      .collection-status-dot {
+        @include collection-status-dot();
+
+        &.is-success {
+          @include collection-status-dot-color(var(--bklog-status-success, var(--td-success-color)), var(--bklog-status-success-ring, var(--td-success-color-light)));
         }
 
-        span {
-          font-size: 12px;
-          color: #979ba5;
+        &.is-failed {
+          @include collection-status-dot-color(var(--bklog-status-error, var(--td-error-color)), var(--bklog-status-error-ring, var(--td-error-color-light)));
         }
+      }
 
-        :nth-child(3) {
-          margin-left: 20px;
-          color: #2dcb56;
-        }
+      .collection-status-spinner {
+        width: 14px;
+        height: 14px;
 
-        :nth-child(5) {
-          color: #ea3636;
-        }
+        @include status-spinner();
+        @include status-spinner-segments();
       }
     }
 
     .text-style {
       display: flex;
+      gap: var(--bklog-space-12);
 
       span {
-        margin-right: 12px;
-        color: #3a84ff;
+        color: var(--bklog-brand-primary);
         cursor: pointer;
+
+        &:hover {
+          color: var(--bklog-brand-hover);
+        }
       }
     }
 
     .SUCCESS {
-      color: #2dcb56;
+      color: var(--bklog-status-success, var(--td-success-color));
     }
 
     .FAILED {
-      color: #ea3636;
+      color: var(--bklog-status-error, var(--td-error-color));
     }
 
     .PENDING {
-      color: $primaryColor;
+      color: var(--bklog-brand-primary);
     }
 
     .button-group {
-      font-size: 0;
-      border-radius: 3px;
+      max-width: 100%;
+      overflow-x: auto;
 
-      span {
-        display: inline-block;
-        height: 32px;
-        padding: 0 15px;
-        margin: 0;
-        font-size: 12px;
-        line-height: 30px;
+      > button {
+        flex: none;
+        white-space: nowrap;
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: var(--bklog-control-size-medium);
+        padding-inline: var(--bklog-space-12);
+        font-size: var(--bklog-font-body);
+        line-height: var(--bklog-line-height-body);
+        color: var(--bklog-standard-control-text, var(--td-text-color-primary));
+        font-family: inherit;
         cursor: pointer;
-        border: 1px #c4c6cc solid;
-        border-right: none;
-      }
+        background-color: var(--bklog-surface, var(--td-bg-color-container));
+        border: var(--bklog-border-width) solid var(--bklog-standard-control-border, var(--td-border-level-2-color));
 
-      :nth-child(1) {
-        border-top-left-radius: 3px;
-        border-bottom-left-radius: 3px;
-      }
+        &:hover {
+          border-color: var(--bklog-brand-primary, var(--td-brand-color));
+        }
 
-      :nth-child(4) {
-        border-right: 1px #c4c6cc solid;
-      }
+        &:focus-visible {
+          outline: var(--bklog-border-width) solid currentColor;
+          outline-offset: calc(-2 * var(--bklog-border-width));
+        }
 
-      .button-wit {
-        /* stylelint-disable-next-line declaration-no-important */
-        color: #63656e !important;
-        background-color: white;
-      }
+        &[aria-pressed="true"] {
+          color: var(--bklog-brand-primary, var(--td-brand-color));
+          background-color: var(--bklog-brand-tint, var(--td-brand-color-light));
+          border-color: var(--bklog-brand-primary, var(--td-brand-color));
 
-      .button-bul {
-        /* stylelint-disable-next-line declaration-no-important */
-        color: whitesmoke !important;
-        background-color: #3a84ff;
+          &:hover {
+            border-color: var(--bklog-brand-active, var(--td-brand-color-active));
+          }
+        }
       }
     }
 
@@ -789,17 +855,16 @@ import { ServicesInstance } from '@/platform/services';
           padding: 0 5px;
           margin-right: 2px;
           line-height: 20px;
-          color: #63656e;
+          color: var(--td-text-color-secondary);
           text-align: center;
-          background-color: #f0f1f5;
-          border-radius: 2px;
+          background-color: var(--bklog-surface-subtle, var(--td-bg-color-secondarycontainer));
+          border-radius: var(--bklog-standard-control-radius);
         }
       }
     }
 
     .title-icon {
-      margin-left: 23px;
-      font-size: 14px;
+      font-size: var(--bklog-font-action);
 
       &:hover {
         cursor: pointer;
@@ -807,23 +872,15 @@ import { ServicesInstance } from '@/platform/services';
     }
   }
 
-  .issued-detail {
-    .detail-content {
-      min-height: calc(100vh - 60px);
-      white-space: pre-wrap;
-    }
+  .detail-content {
+    min-height: calc(100vh - 60px);
+    color: var(--td-text-color-primary);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    background-color: var(--td-bg-color-container);
 
-    :deep(.bk-sideslider-wrapper) {
-      padding-bottom: 0;
-
-      .bk-sideslider-content {
-        color: #c4c6cc;
-        background-color: #313238;
-
-        a {
-          color: #3a84ff;
-        }
-      }
+    :deep(a) {
+      color: var(--td-text-color-link);
     }
   }
 </style>

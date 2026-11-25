@@ -46,6 +46,7 @@
           class="config-tab"
           :value="activeConfigTab"
           placement="left"
+          data-bklog-tab-variant="vertical-line"
           theme="normal"
           @change="activeConfigTab = $event"
         >
@@ -638,9 +639,9 @@ export default {
     .fields-config-container {
       .add-fields-config {
         height: 40px;
-        color: #3a84ff;
+        color: var(--td-brand-color);
         cursor: pointer;
-        border-right: 1px solid #dcdee5;
+        border-right: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
 
         .config-btn {
           width: 100%;
@@ -675,7 +676,7 @@ export default {
 
         .input-error {
           :deep(.t-input__inner) {
-            border: 1px solid var(--bklog-status-error-active, #d7473f);
+            border: 1px solid var(--bklog-status-error-active, var(--td-error-color));
           }
         }
 
@@ -689,19 +690,19 @@ export default {
         .panel-operate {
           margin-left: 10px;
           font-size: 14px;
-          color: #979ba5;
+          color: var(--td-text-color-placeholder);
           cursor: pointer;
 
           .edit-icon:hover {
-            color: #3a84ff;
+            color: var(--td-brand-color);
           }
 
           .icon-check-line {
-            color: #3a84ff;
+            color: var(--td-brand-color);
           }
 
           .icon-close-line-2 {
-            color: #d7473f;
+            color: var(--td-error-color);
           }
         }
       }
@@ -715,11 +716,11 @@ export default {
 
         /* stylelint-disable-next-line declaration-no-important */
         line-height: 40px !important;
-        color: #63656e;
+        color: var(--td-text-color-secondary);
         text-align: left;
 
         &:hover {
-          background: #f0f1f5;
+          background: var(--td-bg-color-component-hover);
         }
       }
 
@@ -736,10 +737,10 @@ export default {
       }
 
       :deep(.active) {
-        color: #3a84ff;
+        color: var(--td-brand-color);
 
         /* stylelint-disable-next-line declaration-no-important */
-        background: #e1ecff !important;
+        background: var(--td-brand-color-light) !important;
       }
 
       :deep(.bk-tab-section) {
@@ -770,11 +771,11 @@ export default {
     .sort-fields-list {
       width: 330px;
       height: 268px;
-      border: 1px solid #dcdee5;
+      border: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
 
       .text-action {
         font-size: 12px;
-        color: #3a84ff;
+        color: var(--td-brand-color);
         cursor: pointer;
       }
 
@@ -785,13 +786,13 @@ export default {
         height: 41px;
         padding: 0 16px;
         line-height: 40px;
-        color: #313238;
-        border-bottom: 1px solid #dcdee5;
+        color: var(--td-text-color-primary);
+        border-bottom: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
 
         .bklog-info-fill {
           margin-left: 8px;
           font-size: 14px;
-          color: #979ba5;
+          color: var(--td-text-color-placeholder);
           outline: none;
         }
 
@@ -820,7 +821,7 @@ export default {
           .bklog-drag-dots {
             width: 16px;
             font-size: 14px;
-            color: #979ba5;
+            color: var(--td-text-color-placeholder);
             text-align: left;
             cursor: move;
             opacity: 0;
@@ -828,12 +829,12 @@ export default {
           }
 
           &.sortable-ghost-class {
-            background: #eaf3ff;
+            background: var(--td-brand-color-light);
             transition: background 0.2s linear;
           }
 
           &:hover {
-            background: #eaf3ff;
+            background: var(--td-brand-color-light);
             transition: background 0.2s linear;
 
             .bklog-drag-dots {
@@ -857,7 +858,7 @@ export default {
       .bklog-filled-right-arrow {
         width: 24px;
         font-size: 16px;
-        color: #3a84ff;
+        color: var(--td-brand-color);
         text-align: right;
         cursor: pointer;
         opacity: 0;
@@ -884,7 +885,7 @@ export default {
 
       .delete {
         font-size: 16px;
-        color: #c4c6cc;
+        color: var(--td-text-color-disabled);
         text-align: right;
         cursor: pointer;
       }
@@ -899,8 +900,8 @@ export default {
         height: 31px;
         font-size: 12px;
         line-height: 30px;
-        background: rgba(250, 251, 253, 1);
-        border-bottom: 1px solid rgba(221, 228, 235, 1);
+        background: var(--td-bg-color-secondarycontainer);
+        border-bottom: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
       }
 
       /* stylelint-disable-next-line no-descending-specificity */
@@ -917,23 +918,23 @@ export default {
           font-weight: 700;
 
           &.icon-arrows-down-line {
-            color: #ea3636;
+            color: var(--td-error-color);
           }
 
           &.icon-arrows-up-line {
-            color: #2dcb56;
+            color: var(--td-success-color);
           }
         }
 
         .option {
           width: 50px;
           margin: 0 8px;
-          color: #3a84ff;
+          color: var(--td-brand-color);
         }
 
         .delete {
           font-size: 16px;
-          color: #c4c6cc;
+          color: var(--td-text-color-disabled);
           text-align: right;
           cursor: pointer;
         }
@@ -949,7 +950,7 @@ export default {
 
       .bklog-double-arrow {
         font-size: 12px;
-        color: #989ca5;
+        color: var(--td-text-color-placeholder);
       }
     }
   }
@@ -961,8 +962,8 @@ export default {
     width: 100%;
     height: 51px;
     padding: 0 24px;
-    background-color: #fafbfd;
-    border-top: 1px solid #dcdee5;
+    background-color: var(--td-bg-color-secondarycontainer);
+    border-top: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
     border-radius: 0 0 2px 2px;
   }
 

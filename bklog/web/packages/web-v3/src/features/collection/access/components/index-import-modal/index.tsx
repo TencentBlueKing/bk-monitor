@@ -30,7 +30,7 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
 import { useCollectionStore } from '@/app/state/domains/collection-store';
 
 
-import { Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup } from 'tdesign-vue-next';
+import { Button as TButton, Checkbox as TCheckbox, CheckboxGroup as TCheckboxGroup } from 'tdesign-vue-next';
 
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -39,6 +39,8 @@ import { Component, ModelSync, Watch, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Dialog, Table } from 'tdesign-vue-next';
+
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 
 import './index.scss';
 
@@ -67,7 +69,7 @@ export default class IndexImportModal extends tsc<IProps> {
   isTableLoading = false;
   submitLoading = false;
   collectList = [];
-  emptyType = 'empty';
+  tableFailed = false;
   keyword = '';
   searchKeyword = '';
   currentCheckImportID = null;
@@ -89,7 +91,6 @@ export default class IndexImportModal extends tsc<IProps> {
         item.collector_config_name.toString().toLowerCase().includes(this.keyword.toLowerCase()),
       );
     }
-    this.emptyType = this.keyword ? 'search-empty' : 'empty';
     this.changePagination({ count: collect.length });
     const { current, limit } = this.pagination;
 
@@ -107,7 +108,7 @@ export default class IndexImportModal extends tsc<IProps> {
 
   @Emit('sync-export')
   handleExport() {
-    this.localIsShowValue = false;
+    this.closeDialog();
     return;
   }
 
@@ -128,20 +129,25 @@ export default class IndexImportModal extends tsc<IProps> {
     }
   }
   search() {
+    this.changePagination({ current: 1 });
     this.keyword = this.searchKeyword;
-    this.emptyType = this.keyword ? 'search-empty' : 'empty';
+  }
+  closeDialog() {
+    this.localIsShowValue = false;
+    this.dialogValueChange(false);
   }
   dialogValueChange(v: unknown) {
     if (!v) {
       this.syncType = ['source_log_info'];
       this.currentCheckImportID = null;
-      this.emptyType = 'empty';
       this.keyword = '';
       this.searchKeyword = '';
     }
   }
   requestData() {
+    if (this.isTableLoading) return;
     this.isTableLoading = true;
+    this.tableFailed = false;
     const ids = this.$route.query.ids as string; // 根据id来检索
     const collectorIdList = ids ? decodeURIComponent(ids) : [];
     this.collectList.length = 0;
@@ -187,7 +193,7 @@ export default class IndexImportModal extends tsc<IProps> {
         }
       })
       .catch(() => {
-        this.emptyType = '500';
+        this.tableFailed = true;
       })
       .finally(() => {
         this.isTableLoading = false;
@@ -211,11 +217,15 @@ export default class IndexImportModal extends tsc<IProps> {
     this.currentCheckImportID = row.collector_config_id;
   }
   handleConfirmDialog() {
-    if (!(this.currentCheckImportID && this.syncType.length)) {
-      if (!this.currentCheckImportID) {
+    if (this.submitLoading || this.isTableLoading) return;
+
+    const collectID = this.currentCheckImportID;
+    const syncType = [...this.syncType];
+    if (!(collectID && syncType.length)) {
+      if (!collectID) {
         TDesignMessage("error", { content: $i18n.t('请选择目标索引集') });
       }
-      if (!this.syncType.length) {
+      if (!syncType.length) {
         setTimeout(() => {
           TDesignMessage("error", { content: $i18n.t('请选择需要同步的配置') });
         }, 100);
@@ -225,7 +235,7 @@ export default class IndexImportModal extends tsc<IProps> {
     this.submitLoading = true;
     ServicesInstance.collect.details({
         params: {
-          collector_config_id: this.currentCheckImportID,
+          collector_config_id: collectID,
         },
       })
       .then((res: { data: any; }) => {
@@ -236,8 +246,8 @@ export default class IndexImportModal extends tsc<IProps> {
             collect.params.paths = collect.params.paths.map((item: unknown) => ({ value: item }));
           }
           useCollectionStore().updateExportCollectObj({
-            collectID: this.currentCheckImportID,
-            syncType: this.syncType,
+            collectID,
+            syncType,
             collect,
           });
           this.handleExport();
@@ -280,7 +290,21 @@ export default class IndexImportModal extends tsc<IProps> {
         position={{
           top: 100,
         }}
-        confirm-fn={this.handleConfirmDialog}
+        closeBtn={!this.submitLoading}
+        esc-close={!this.submitLoading}
+        v-slots={{
+          footer: () => (
+            <>
+              <TButton theme='primary' loading={this.submitLoading}
+                disabled={this.submitLoading || this.isTableLoading} onClick={this.handleConfirmDialog}>
+                {this.$t('确定')}
+              </TButton>
+              <TButton theme='default' variant='outline' disabled={this.submitLoading} onClick={this.closeDialog}>
+                {this.$t('取消')}
+              </TButton>
+            </>
+          ),
+        }}
         header-position='left'
         mask-close={false}
         render-directive='if'
@@ -290,7 +314,8 @@ export default class IndexImportModal extends tsc<IProps> {
       >
         <div
           class='content'
-          v-loading={{ loading: this.submitLoading }}
+          aria-busy={this.submitLoading}
+          inert={this.submitLoading}
         >
           <bk-form
             form-type='vertical'
@@ -320,7 +345,20 @@ export default class IndexImportModal extends tsc<IProps> {
             </bk-form-item>
             <bk-form-item label={this.$t('请选择目标索引集')}>
               <bk-table
-                v-loading={{ loading: this.isTableLoading }}
+                loading={this.isTableLoading}
+                v-slots={{
+                  empty: () => !this.isTableLoading && (
+                    <div class='bklog-table-empty-region'>
+                      <EmptyStatus
+                        emptyType={this.tableFailed ? '500' : this.keyword ? 'search-empty' : 'empty'}
+                        onOperation={operation => {
+                          if (operation === 'refresh') this.requestData();
+                          if (operation === 'clear-filter') this.handleSearchChange('');
+                        }}
+                      />
+                    </div>
+                  ),
+                }}
                 data={this.collectShowList}
                 limit-list={this.pagination.limitList}
                 pagination={this.pagination}

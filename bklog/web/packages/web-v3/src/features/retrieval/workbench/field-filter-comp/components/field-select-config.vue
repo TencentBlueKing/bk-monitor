@@ -106,6 +106,7 @@ import { ServicesInstance } from '@/platform/services';
     <bk-dropdown-menu
       ref="dropdown"
       align="left"
+      overlay-inner-class-name="bklog-dropdown-popup"
       trigger="click"
       @hide="dropdownHide"
       @show="dropdownShow"
@@ -119,7 +120,7 @@ import { ServicesInstance } from '@/platform/services';
       <template #dropdown-content>
         <ul
           v-loading="{ loading: isLoading, size: 'small', indicator: renderDropdownListSkeleton }"
-          class="bk-dropdown-list"
+          class="bk-dropdown-list field-config-menu"
         >
           <li
             v-for="(item, index) in configList"
@@ -132,9 +133,8 @@ import { ServicesInstance } from '@/platform/services';
               {{ item.name }}
             </a>
           </li>
-          <li>
+          <li class="field-config-menu-footer">
             <a
-              style="color: #3a84ff; background-color: #fafbfd"
               href="javascript:;"
               @click="handleClickManagementConfig"
             >

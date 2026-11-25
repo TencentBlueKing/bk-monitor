@@ -10,12 +10,13 @@
   }
 
   .bklog-v3-ellipsis-num {
-    background: #f0f1f5;
-    border-radius: 2px;
-    padding: 2px 4px;
+    color: var(--td-text-color-secondary);
+    background: var(--td-bg-color-component);
+    border-radius: var(--bklog-radius-control);
+    padding: var(--bklog-space-2) var(--bklog-space-4);
   }
 }
 
 .bklog-v3-ellipsis-more-tip {
-  padding: 8px;
+  padding: var(--bklog-space-8);
 }

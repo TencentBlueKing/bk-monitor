@@ -49,6 +49,7 @@ test('selected space retains permission checks, public/private request modes and
     const calls = [];
     const run = method('features/masking/components/masking-setting.tsx', 'initTableList', {
       TDesignMessage: { warning: () => assert.fail('unexpected warning') },
+      toRaw: value => value,
       useApplicationStore: () => ({ checkAndGetData: async value => { calls.push(['authority', value]); return { isAllowed: true }; } }),
       ServicesInstance: { masking: { getMaskingRuleList: async value => { calls.push(['rules', value]); return { data: [] }; } } },
       useUtils: () => ({ formatResponseListTimeZoneString: value => value }),

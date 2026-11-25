@@ -1244,7 +1244,8 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
     }
 
     mark.result-highlight {
-      background-color: #faeeb1;
+      color: var(--td-text-color-primary);
+      background-color: var(--td-warning-color-light);
     }
 
     mark.page-highlight {
@@ -1252,16 +1253,16 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
     }
 
     mark.result-highlight.page-highlight {
-      box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
+      box-shadow: inset 0 calc(-1 * var(--bklog-space-2)) 0 currentColor;
     }
 
     .btn-more-action {
       position: absolute;
       right: 4px;
       bottom: 0px;
-      color: #3a84ff;
+      color: var(--bklog-json-action-color);
       cursor: pointer;
-      background-color: #fff;
+      background-color: var(--td-bg-color-container);
     }
 
     &.is-original-mode {
@@ -1327,7 +1328,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
         margin: 0 4px 0 2px;
         font: inherit;
         line-height: inherit;
-        color: #3a84ff;
+        color: var(--bklog-json-action-color);
         vertical-align: baseline;
         appearance: none;
         cursor: pointer;
@@ -1343,7 +1344,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
       margin: 0 4px 0 2px;
       font: inherit;
       line-height: inherit;
-      color: #3a84ff;
+      color: var(--bklog-json-action-color);
       vertical-align: baseline;
       appearance: none;
       cursor: pointer;
@@ -1380,8 +1381,8 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
           padding: 1px 2px;
           font-family: var(--bklog-v3-row-tag-font);
           font-weight: 500;
-          color: #16171a;
-          background-color: #ebeef5;
+          color: var(--td-text-color-primary);
+          background-color: var(--td-bg-color-component);
           border-radius: 2px;
 
           mark.page-highlight {
@@ -1401,7 +1402,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
       }
 
       mark {
-        background-color: rgb(250, 238, 177);
+        background-color: var(--td-warning-color-light);
 
         &.valid-text {
           white-space: pre-wrap;
@@ -1410,7 +1411,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
 
       .valid-text {
         :hover {
-          color: #3a84ff;
+          color: var(--bklog-json-action-color);
           cursor: pointer;
         }
       }
@@ -1439,7 +1440,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
             }
 
             &::-webkit-scrollbar-thumb {
-              background: #dcdee5;
+              background: var(--td-component-stroke);
               border-radius: 2px;
             }
           }
@@ -1485,7 +1486,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
         &:hover,
         &.focus-text *,
         &:hover * {
-          color: #3a84ff;
+          color: var(--bklog-json-action-color);
         }
       }
 
@@ -1599,7 +1600,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
 
         &.focus-text,
         &:hover {
-          color: #3a84ff;
+          color: var(--bklog-json-action-color);
         }
       }
     }

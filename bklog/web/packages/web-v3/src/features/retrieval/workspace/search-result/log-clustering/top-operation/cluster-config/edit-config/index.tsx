@@ -25,6 +25,7 @@
  */
 
 
+import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { cloneReactiveData } from '@/shared/lib/clone-reactive-data';
 import { ServicesInstance } from '@/platform/services';
@@ -283,7 +284,7 @@ export default defineComponent({
     });
 
     return () => (
-      <div class='setting-log-cluster' v-loading={{ loading: globalLoading.value }}>
+      <div class='setting-log-cluster' v-loading={{ loading: globalLoading.value, indicator: renderDrawerFormSkeleton }}>
         <div class='setting-form-main'>
           <TForm
             ref={formRef}

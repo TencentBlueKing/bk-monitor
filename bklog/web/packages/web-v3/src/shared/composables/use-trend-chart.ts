@@ -36,7 +36,7 @@ import { formatNumberWithRegex } from '@/shared/lib/util';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 import type * as Echarts from 'echarts';
 import { init as initTrendChart } from './trend-echarts';
-import { cloneDeep, debounce } from 'lodash-es';
+import { cloneDeep, debounce, merge } from 'lodash-es';
 import { addListener, removeListener } from 'resize-detector';
 import { useRoute, useRouter } from "vue-router";
 
@@ -82,7 +82,7 @@ export type EchartData = {
 };
 export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption) => {
   let chartInstance: ReturnType<typeof initTrendChart> | null = null;
-  const options: any = { ...chartOption };
+  const options: any = cloneDeep(chartOption);
   const store = useApplicationStore();
   const router = useRouter();
   const route = useRoute();
@@ -524,6 +524,29 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   // 格式化数字（三位分隔）
   const getShowTotalNum = (num: number) => formatNumberWithRegex(num);
 
+  const getThemeOptions = () => {
+    const element = target.value;
+    if (!element) return {};
+
+    const style = getComputedStyle(element);
+    const color = (token: string) => style.getPropertyValue(token).trim();
+    const axisLabel = { color: color('--td-text-color-secondary') };
+    const axisLine = { lineStyle: { color: color('--td-component-stroke') } };
+    return {
+      xAxis: [{ axisLabel, axisLine }],
+      yAxis: [{ axisLabel, axisLine, splitLine: { lineStyle: { color: color('--td-component-stroke') } } }],
+      legend: { textStyle: { color: color('--td-text-color-primary') } },
+      tooltip: {
+        backgroundColor: color('--td-bg-color-container'),
+        borderColor: color('--td-component-stroke'),
+        borderWidth: 1,
+        textStyle: { color: color('--td-text-color-primary') },
+      },
+    };
+  };
+
+  let themeObserver: MutationObserver | undefined;
+
   const updateChart = (notMerge = true) => {
     if (!chartInstance) {
       return;
@@ -578,7 +601,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       `;
     };
 
-    chartInstance.setOption(options, { notMerge });
+    chartInstance.setOption(merge(options, getThemeOptions()), { notMerge });
     nextTick(() => {
       dispatchAction({
         type: 'takeGlobalCursor',
@@ -691,7 +714,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         return;
       }
       Object.assign(options, cachedOptions);
-      chartInstance.setOption(options, { notMerge: true });
+      chartInstance.setOption(merge(options, getThemeOptions()), { notMerge: true });
       nextTick(() => {
         dispatchAction({
           type: 'takeGlobalCursor',
@@ -745,11 +768,16 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   onMounted(() => {
     initChart();
+    themeObserver = new MutationObserver(() => {
+      if (chartInstance?.getOption()) chartInstance.setOption(getThemeOptions());
+    });
+    themeObserver.observe(document.documentElement, { attributeFilter: ['theme-mode'] });
     // 初始化 Worker
     initWorker();
   });
 
   onBeforeUnmount(() => {
+    themeObserver?.disconnect();
     destroyChart();
 
     // 销毁 Worker

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
 import {
   Checkbox as TCheckbox,
   Input as TInput,
@@ -35,7 +36,7 @@ import {
 import { Button as TButton } from 'tdesign-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 
-import { computed, defineComponent, nextTick, onBeforeUnmount, type PropType, ref } from 'vue';
+import { computed, defineComponent, nextTick, onScopeDispose, type PropType, ref } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 import { debounce } from 'lodash-es';
@@ -53,6 +54,7 @@ const NO_DATA_TAG_ID = 4;
 
 export default defineComponent({
   props: {
+    loading: Boolean,
     list: {
       type: Array,
       default: () => [],
@@ -521,6 +523,10 @@ export default defineComponent({
     };
 
     const getMainRender = () => {
+      if (props.loading && !props.list.length) {
+        return <div class='bklog-v3-index-set-list' aria-busy='true'>{renderFieldListSkeleton()}</div>;
+      }
+
       if (filterList.value.length === 0) {
         const type = props.list.length ? 'search-empty' : 'empty';
         return (
@@ -724,7 +730,7 @@ export default defineComponent({
       debouncedApplySearchKeyword(val);
     };
 
-    onBeforeUnmount(() => {
+    onScopeDispose(() => {
       debouncedApplySearchKeyword.cancel();
     });
 

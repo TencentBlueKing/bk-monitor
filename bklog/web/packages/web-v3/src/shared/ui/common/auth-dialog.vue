@@ -189,21 +189,28 @@ import { Dialog as TDialog } from 'tdesign-vue-next';
     align-items: center;
 
     .lock-icon {
-      margin-bottom: 10px;
+      margin-bottom: var(--bklog-space-8);
     }
 
     .title {
-      margin-bottom: 30px;
-      font-size: 20px;
-      color: #63656e;
+      margin-bottom: var(--bklog-space-24);
+      font-size: var(--bklog-font-action);
+      line-height: var(--bklog-line-height-action);
+      color: var(--td-text-color-primary);
+      text-align: center;
     }
 
     :deep(.king-table) {
-      margin-bottom: 12px;
+      margin-bottom: var(--bklog-space-12);
 
-      .bk-table-body-wrapper {
-        height: 128px;
-        overflow-y: auto;
+      .t-table__content {
+        max-block-size: 128px;
+        overflow: auto;
+      }
+
+      td {
+        white-space: normal;
+        overflow-wrap: anywhere;
       }
 
       .related-resources-container {
@@ -215,13 +222,12 @@ import { Dialog as TDialog } from 'tdesign-vue-next';
 </style>
 
 <style lang="scss">
-  .bklog-authority-dialog {
-    .t-dialog__header {
-      font-weight: 400;
-    }
+  .bklog-authority-dialog:has(.apply-authority-dialog-container) {
+    max-inline-size: min(660px, calc(100vw - 2 * var(--bklog-space-16)));
 
-    .t-dialog__footer {
-      width: auto;
+    .king-table {
+      align-self: stretch;
+      min-width: 0;
     }
   }
 </style>

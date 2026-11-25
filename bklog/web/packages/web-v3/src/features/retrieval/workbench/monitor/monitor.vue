@@ -25,6 +25,7 @@
 -->
 
 <script setup>
+  import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
@@ -353,10 +354,10 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 </script>
 <template>
   <div
-    v-loading="{ loading: initLoading }"
     :style="stickyStyle"
     :class="['retrieve-v2-index', { 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
   >
+    <RetrievePageSkeleton v-if="initLoading" embedded />
     <div
       v-show="!initLoading"
       class="sub-head"

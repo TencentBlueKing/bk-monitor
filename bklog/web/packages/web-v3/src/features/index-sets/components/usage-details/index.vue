@@ -36,20 +36,28 @@
           @change="handleDateValueChange"
         />
       </div>
-      <div class="charts-container">
+      <div class="charts-container collection-detail-chart-grid">
         <chart-component
           :chart-data="timesChartData"
           :loading="timesChartLoading"
+          :failed="timesChartFailed"
+          @retry="fetchUsageChart('times', 'getIndexTimes')"
           :type="$t('使用次数趋势')"
         />
         <chart-component
           :chart-data="frequencyChartData"
+          skeleton-type="bar"
           :loading="frequencyChartLoading"
+          :failed="frequencyChartFailed"
+          @retry="fetchUsageChart('frequency', 'getIndexFrequency')"
           :type="$t('用户使用频次')"
         />
         <chart-component
           :chart-data="spentChartData"
+          skeleton-type="pie"
           :loading="spentChartLoading"
+          :failed="spentChartFailed"
+          @retry="fetchUsageChart('spent', 'getIndexSpent')"
           :type="$t('检索耗时统计')"
         />
       </div>
@@ -58,16 +66,21 @@
     <section class="partial-content">
       <div class="main-title">
         {{ $t('检索记录') }}
-        <!-- :disabled="tableLoading" -->
-        <time-range
-          :timezone="timezone"
-          :value="tableDateValue"
-          @change="handleTableDateValueChange"
-          @timezone-change="handleTimezoneChange"
-        />
+        <div class="usage-record-actions">
+          <time-range
+            :timezone="timezone"
+            :value="tableDateValue"
+            @change="handleTableDateValueChange"
+            @timezone-change="handleTimezoneChange"
+          />
+          <TButton theme="primary" variant="text" :loading="tableLoading" @click="fetchTableData">
+            <template #icon><span class="bk-icon icon-refresh" aria-hidden="true"></span></template>
+            {{ $t('刷新') }}
+          </TButton>
+        </div>
       </div>
       <bk-table
-        v-loading="{ loading: tableLoading }"
+        :loading="tableLoading"
         :data="tableData"
         :max-height="526"
         :pagination="pagination"
@@ -119,8 +132,12 @@
           </template>
         </bk-table-column>
         <template #empty>
-          <div>
-            <empty-status empty-type="empty" />
+          <div class="bklog-table-empty-region">
+            <empty-status
+              v-if="!tableLoading"
+              :empty-type="tableFailed ? '500' : 'empty'"
+              @operation="fetchTableData"
+            />
           </div>
         </template>
       </bk-table>
@@ -129,6 +146,7 @@
 </template>
 
 <script>
+import { Button as TButton } from 'tdesign-vue-next';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
@@ -144,6 +162,7 @@ import { ServicesInstance } from '@/platform/services';
 
   export default {
     components: {
+      TButton,
       ChartComponent,
       TimeRange,
       EmptyStatus,
@@ -158,13 +177,21 @@ import { ServicesInstance } from '@/platform/services';
       return {
         utcFormatDate,
         timesChartLoading: true,
+        timesChartFailed: false,
+        timesChartRequest: 0,
         timesChartData: null,
         frequencyChartLoading: true,
+        frequencyChartFailed: false,
+        frequencyChartRequest: 0,
         frequencyChartData: null,
         spentChartLoading: true,
+        spentChartFailed: false,
+        spentChartRequest: 0,
         spentChartData: null,
         chartDateValue: ['now-7d', 'now'],
         tableLoading: true,
+        tableFailed: false,
+        tableRequest: 0,
         tableData: [],
         pagination: {
           current: 1,
@@ -187,19 +214,39 @@ import { ServicesInstance } from '@/platform/services';
         this.fetchTableData();
       },
       fetchChartData() {
-        const tempList = handleTransformToTimestamp(this.chartDateValue, useApplicationStore().retrieveParams.format);
-        const payload = {
-          params: {
-            index_set_id: this.indexSetId,
-          },
-          query: {
-            start_time: tempList[0],
-            end_time: tempList[1],
-          },
-        };
-        this.fetchTimesChart(payload);
-        this.fetchFrequencyChart(payload);
-        this.fetchSpentChart(payload);
+        this.fetchUsageChart('times', 'getIndexTimes');
+        this.fetchUsageChart('frequency', 'getIndexFrequency');
+        this.fetchUsageChart('spent', 'getIndexSpent');
+      },
+      async fetchUsageChart(kind, endpoint) {
+        const requestKey = `${kind}ChartRequest`;
+        const loadingKey = `${kind}ChartLoading`;
+        const failedKey = `${kind}ChartFailed`;
+        const dataKey = `${kind}ChartData`;
+        const request = ++this[requestKey];
+        this[loadingKey] = true;
+        this[failedKey] = false;
+        try {
+          const tempList = handleTransformToTimestamp(this.chartDateValue, useApplicationStore().retrieveParams.format);
+          const payload = {
+            params: {
+              index_set_id: this.indexSetId,
+            },
+            query: {
+              start_time: tempList[0],
+              end_time: tempList[1],
+            },
+          };
+          const response = await ServicesInstance.indexSet[endpoint](payload);
+          if (request === this[requestKey]) this[dataKey] = response.data;
+        } catch (error) {
+          if (request !== this[requestKey]) return;
+          console.warn(error);
+          this[dataKey] = null;
+          this[failedKey] = true;
+        } finally {
+          if (request === this[requestKey]) this[loadingKey] = false;
+        }
       },
       /**
        * @desc 使用统计时间筛选
@@ -222,45 +269,11 @@ import { ServicesInstance } from '@/platform/services';
         updateTimezone(timezone);
         this.fetchTableData();
       },
-      async fetchTimesChart(payload) {
-        try {
-          this.timesChartLoading = true;
-          const res = await ServicesInstance.indexSet.getIndexTimes(payload);
-          this.timesChartData = res.data;
-        } catch (e) {
-          console.warn(e);
-          this.timesChartData = [];
-        } finally {
-          this.timesChartLoading = false;
-        }
-      },
-      async fetchFrequencyChart(payload) {
-        try {
-          this.frequencyChartLoading = true;
-          const res = await ServicesInstance.indexSet.getIndexFrequency(payload);
-          this.frequencyChartData = res.data;
-        } catch (e) {
-          console.warn(e);
-          this.frequencyChartData = [];
-        } finally {
-          this.frequencyChartLoading = false;
-        }
-      },
-      async fetchSpentChart(payload) {
-        try {
-          this.spentChartLoading = true;
-          const res = await ServicesInstance.indexSet.getIndexSpent(payload);
-          this.spentChartData = res.data;
-        } catch (e) {
-          console.warn(e);
-          this.spentChartData = [];
-        } finally {
-          this.spentChartLoading = false;
-        }
-      },
       async fetchTableData() {
+        const request = ++this.tableRequest;
+        this.tableLoading = true;
+        this.tableFailed = false;
         try {
-          this.tableLoading = true;
           const tempList = handleTransformToTimestamp(this.tableDateValue, useApplicationStore().retrieveParams.format);
           const res = await ServicesInstance.indexSet.getIndexHistory({
             params: {
@@ -273,16 +286,18 @@ import { ServicesInstance } from '@/platform/services';
               pagesize: this.pagination.limit,
             },
           });
+          if (request !== this.tableRequest) return;
           const { formatResponseListTimeZoneString } = useUtils();
           this.pagination.count = res.data.total;
           this.tableData = formatResponseListTimeZoneString(res.data.list || [], {}, ['created_at', 'updated_at']);
         } catch (e) {
+          if (request !== this.tableRequest) return;
           console.warn(e);
-          this.pagination.current = 1;
+          this.tableFailed = true;
           this.pagination.count = 0;
           this.tableData.splice(0);
         } finally {
-          this.tableLoading = false;
+          if (request === this.tableRequest) this.tableLoading = false;
         }
       },
       handlePageChange(page) {
@@ -301,12 +316,15 @@ import { ServicesInstance } from '@/platform/services';
 </script>
 
 <style lang="scss" scoped>
-  .chart-container {
-    /* stylelint-disable-next-line declaration-no-important */
-    width: calc((100% - 32px) / 3) !important;
-  }
-
   .usage-details-container {
+    .usage-record-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      min-width: 0;
+      gap: var(--bklog-space-8);
+    }
+
     .time-range-wrap {
       font-size: 12px;
       font-weight: normal;

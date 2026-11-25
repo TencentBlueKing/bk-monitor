@@ -1,6 +1,10 @@
 .repository-slider-content {
   min-height: 394px;
 
+  > .bklog-table-empty-region {
+    min-height: inherit;
+  }
+
   .t-form {
     padding: 0 0 26px 36px;
 
@@ -21,7 +25,7 @@
 
     .t-select__wrap,
     .t-date-picker {
-      width: 300px;
+      width: min(300px, 100%);
     }
 
     .es-cluster-item {
@@ -35,16 +39,17 @@
 
       .t-form__controls {
         display: flex;
+        flex-wrap: wrap;
       }
 
       .t-select__wrap {
-        width: 240px;
+        width: min(240px, 100%);
       }
 
       .es-source {
         margin-left: 10px;
         font-size: var(--bklog-font-action, 14px);
-        color: var(--bklog-text-secondary, #63656e);
+        color: var(--td-text-color-secondary);
       }
     }
 
@@ -58,22 +63,23 @@
       width: 158px;
       height: 76px;
       padding: 12px;
+      max-width: 100%;
       margin-right: 12px;
       font-size: var(--bklog-font-action, 14px);
-      color: var(--bklog-text-secondary, #63656e);
+      color: var(--td-text-color-secondary);
       cursor: pointer;
-      background: var(--bklog-surface-hover, #f5f7fa);
-      border: 1px solid var(--bklog-surface-hover, #f5f7fa);
-      border-radius: var(--bklog-radius-control, 2px);
+      background: var(--td-bg-color-component);
+      border: var(--bklog-border-width) solid var(--td-bg-color-component);
+      border-radius: var(--bklog-standard-control-radius);
 
       &:last-child {
         margin-right: 0;
       }
 
       &.is-active {
-        color: var(--bklog-brand-primary, #3a84ff);
-        background: var(--bklog-brand-tint, #e1ecff);
-        border: 1px solid #a3c5fd;
+        color: var(--td-text-color-primary);
+        background: var(--td-brand-color-light);
+        border: var(--bklog-border-width) solid var(--td-brand-color);
       }
     }
 
@@ -90,8 +96,8 @@
     font-size: 14px;
     font-weight: 600;
     line-height: 20px;
-    color: #63656e;
-    border-bottom: 1px solid #dcdee5;
+    color: var(--td-text-color-secondary);
+    border-bottom: var(--bklog-border-width) solid var(--td-component-stroke);
   }
 
   .repository-alert {
@@ -121,7 +127,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    color: #c4c6cc;
+    color: var(--td-text-color-disabled);
     cursor: not-allowed;
 
     .text {
@@ -131,7 +137,7 @@
     .apply-text {
       display: none;
       flex-shrink: 0;
-      color: #3a84ff;
+      color: var(--td-brand-color);
       cursor: pointer;
     }
 

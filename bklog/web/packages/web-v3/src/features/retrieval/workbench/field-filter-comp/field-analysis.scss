@@ -6,13 +6,13 @@
   padding: 6px 12px 10px;
   overflow: auto;
   font-size: 12px;
-  color: #63656e;
+  color: var(--td-text-color-secondary);
   &.is-no-data {
     min-height: 200px;
   }
   %num-box-extend {
     width: 48%;
-    background: #f5f7fa;
+    background: var(--td-bg-color-container-hover);
     border-radius: 2px;
 
     @include flex-center();
@@ -41,7 +41,7 @@
 
       .log-num,
       log-unit {
-        color: #313238;
+        color: var(--td-text-color-primary);
       }
 
       .log-num {
@@ -69,7 +69,7 @@
         margin-right: 4px;
         font-size: 14px;
         font-weight: bold;
-        color: #313238;
+        color: var(--td-text-color-primary);
       }
 
       .distinct-count-num {
@@ -79,8 +79,8 @@
         padding: 0 4px;
         font-weight: 700;
         line-height: 14px;
-        color: #979ba5;
-        background: #f0f1f5;
+        color: var(--td-text-color-placeholder);
+        background: var(--td-bg-color-component);
         border-radius: 8px;
       }
     }
@@ -88,7 +88,7 @@
 
   .more-distinct {
     display: inline-block;
-    color: #3a84ff;
+    color: var(--td-text-color-link);
     cursor: pointer;
     margin-right: 4px;
     font-size: 12px;
@@ -99,7 +99,7 @@
     align-items: center;
     .fn-btn {
       margin-left: 8px;
-      color: #4d4f56;
+      color: var(--td-text-color-secondary);
       cursor: pointer;
     }
   }
@@ -123,7 +123,7 @@
       inset: 0;
       height: 100%;
       margin: 0;
-      background: #fff;
+      background: var(--td-bg-color-container);
     }
 
     .chart-area {
@@ -149,7 +149,7 @@
 
       .num-val {
         min-width: 30px;
-        color: #4d4f56;
+        color: var(--td-text-color-secondary);
         font-weight: bold;
 
         @include flex-center();
@@ -161,12 +161,12 @@
     margin: 12px 0;
     font-size: 14px;
     font-weight: bold;
-    color: #313238;
+    color: var(--td-text-color-primary);
 
     @include flex-justify(space-between);
     .chart-title-time {
       line-height: 22px;
-      color: #4d4f56;
+      color: var(--td-text-color-secondary);
       font-weight: normal;
       font-size: 12px;
     }
@@ -227,16 +227,16 @@
 
       .bk-icon {
         font-size: 16px;
-        color: #63656e;
+        color: var(--td-text-color-secondary);
         cursor: pointer;
       }
 
       .disabled {
-        color: #c5c7cd;
+        color: var(--td-text-color-disabled);
 
         &:hover {
           /* stylelint-disable-next-line declaration-no-important */
-          color: #c5c7cd !important;
+          color: var(--td-text-color-disabled) !important;
         }
       }
 
@@ -249,14 +249,14 @@
 
   .not-data-empty {
     height: 100%;
-    color: #313238;
+    color: var(--td-text-color-primary);
 
     @include flex-center();
 
     .bk-icon {
       margin-left: 4px;
       font-size: 14px;
-      color: #eb3941;
+      color: var(--td-error-color);
     }
   }
 }

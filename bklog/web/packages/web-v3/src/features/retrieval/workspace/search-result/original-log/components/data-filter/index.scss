@@ -56,10 +56,9 @@
       .prefix-text {
         width: 40px;
         height: 32px;
-        background: #fafbfd;
-        border: 1px solid #c4c6cc;
+        background: var(--td-bg-color-secondarycontainer);
+        border: 1px solid var(--td-border-level-2-color);
         border-right: none;
-        border-radius: 2px 0 0 2px;
         border-radius: 2px 0 0 2px;
         display: flex;
         justify-content: center;
@@ -84,8 +83,11 @@
       .control-item {
         width: 32px;
         height: 32px;
-        background: #f0f1f5;
-        border-radius: 2px;
+        padding: 0;
+        color: var(--td-text-color-secondary);
+        background: var(--td-bg-color-component);
+        border: 0;
+        border-radius: var(--bklog-standard-control-radius);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -93,16 +95,21 @@
         cursor: pointer;
 
         &:hover {
-          background: #e1ecff;
+          background: var(--td-brand-color-light);
+        }
+
+        &:focus-visible {
+          outline: var(--bklog-border-width) solid var(--td-brand-color);
+          outline-offset: var(--bklog-space-2);
         }
 
         &.play-pause {
-          background: #e1ecff;
-          color: #3a84ff;
+          background: var(--td-brand-color-light);
+          color: var(--td-text-color-link);
           font-size: 18px;
 
           &:hover {
-            background: #cddffe;
+            background: var(--td-brand-color-focus);
           }
         }
       }
@@ -115,8 +122,8 @@
     padding: 0 5px;
     margin: 4px 5px 4px 0;
     line-height: 20px;
-    color: #63656e;
-    border: 1px solid #f0f1f5;
+    color: var(--td-text-color-secondary);
+    border: var(--bklog-border-width) solid var(--td-component-stroke);
     border-radius: 2px;
 
     .t-tag__icon-close {
@@ -179,7 +186,7 @@
       gap: 8px;
 
       .context-locate-button {
-        color: #63656e;
+        color: var(--td-text-color-secondary);
       }
 
       .color-tip-main {
@@ -191,7 +198,7 @@
           align-items: center;
           gap: 4px;
           font-size: 12px;
-          color: #4d4f56;
+          color: var(--td-text-color-secondary);
           margin-right: 24px;
 
           .rect {
@@ -203,40 +210,40 @@
       }
 
       .log-display-type-main {
+        @include bklogControls.log-segmented-container;
         width: 104px;
-        height: 32px;
-        background: #f0f1f5;
-        border-radius: 2px;
-        display: flex;
-        align-items: center;
-        padding: 4px;
-        font-size: 12px;
-        cursor: pointer;
 
         .type-item {
-          width: 48px;
-          height: 24px;
-          border-radius: 2px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          @include bklogControls.log-segmented-option;
 
-          &.is-selected {
-            background: #ffffff;
-            color: #3a84ff;
+          &[aria-pressed="true"] {
+            @include bklogControls.log-segmented-selected;
           }
         }
       }
 
       .setting-main {
-        width: 32px;
-        height: 32px;
-        background: #f0f1f5;
-        border-radius: 2px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        display: inline-grid;
+        flex-shrink: 0;
+        place-items: center;
+        width: var(--bklog-control-size-medium);
+        height: var(--bklog-control-size-medium);
+        padding: 0;
+        font-size: var(--bklog-space-16);
+        color: var(--bklog-text-strong, var(--td-text-color-primary));
         cursor: pointer;
+        background-color: var(--bklog-surface-component, var(--td-bg-color-component));
+        border: 0;
+        border-radius: var(--bklog-radius-control);
+
+        &:hover {
+          background-color: var(--td-bg-color-component-hover);
+        }
+
+        &:focus-visible {
+          outline: var(--bklog-border-width) solid var(--td-brand-color);
+          outline-offset: calc(-1 * var(--bklog-border-width));
+        }
       }
     }
   }

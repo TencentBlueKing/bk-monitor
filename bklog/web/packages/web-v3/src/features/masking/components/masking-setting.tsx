@@ -42,6 +42,7 @@ import { Input, Table, Dialog, Popup, Checkbox, type PrimaryTableCol } from 'tde
 
 import * as authorityMap from '../../../shared/lib/authority-map';
 import i18n from '../../../platform/i18n/i18n';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import EmptyStatus from '../../../shared/ui/empty-status/index.vue';
 import MaskingAddRule from './masking-add-rule';
 
@@ -820,6 +821,7 @@ export default class MaskingSetting extends tsc<IProps> {
       <div class='masking-table-container'>
         <Alert
           class='top-alert'
+          data-v2-display='alert'
           message={this.$t(
             '脱敏规则会应用到本业务全部索引集。为保证脱敏规则效力，配置规则后，需针对计算平台索引集、第三方ES索引集进行手动校准指定，校准后索引集恢复可用状态。',
           )}
@@ -844,46 +846,49 @@ export default class MaskingSetting extends tsc<IProps> {
           />
         </div>
 
-        <Table
-          rowKey='id'
-          v-slots={{
-            empty: () => (
-              <div>
-                <EmptyStatus
-                  emptyType={this.emptyType}
-                  onOperation={this.handleOperation}
-                />
-              </div>
-            ),
-          }}
-          v-loading={{ loading: this.tableLoading }}
-          data={this.tableShowList}
-          columns={visibleColumns}
-          tableLayout='fixed'
-          filterRow={() => null}
-          sort={this.sortConfig}
-          onSortChange={sort => {
-            this.sortConfig = Array.isArray(sort) ? sort[0] : sort;
-            this.searchRule();
-          }}
-          filterValue={this.tableFilters}
-          onFilterChange={filters => {
-            this.tableFilters = filters;
-            this.searchRule();
-          }}
-          pagination={{
-            current: this.pagination.current,
-            total: this.pagination.count,
-            pageSize: this.pagination.limit,
-            pageSizeOptions: this.pagination.limitList,
-          }}
-          disableDataPage={true}
-          size='small'
-          onPageChange={({ current, pageSize }) => {
-            if (pageSize !== this.pagination.limit) this.pageLimitChange(pageSize);
-            else this.pageChange(current);
-          }}
-        />
+        <ManagementListLoading loading={this.tableLoading}>
+          <Table
+            rowKey='id'
+            v-slots={{
+              empty: () => (
+                <div class='bklog-table-empty-region'>
+                  {!this.tableLoading && (
+                    <EmptyStatus
+                      emptyType={this.emptyType}
+                      onOperation={this.handleOperation}
+                    />
+                  )}
+                </div>
+              ),
+            }}
+            data={this.tableShowList}
+            columns={visibleColumns}
+            tableLayout='fixed'
+            filterRow={() => null}
+            sort={this.sortConfig}
+            onSortChange={sort => {
+              this.sortConfig = Array.isArray(sort) ? sort[0] : sort;
+              this.searchRule();
+            }}
+            filterValue={this.tableFilters}
+            onFilterChange={filters => {
+              this.tableFilters = filters;
+              this.searchRule();
+            }}
+            pagination={{
+              current: this.pagination.current,
+              total: this.pagination.count,
+              pageSize: this.pagination.limit,
+              pageSizeOptions: this.pagination.limitList,
+            }}
+            disableDataPage={true}
+            size='small'
+            onPageChange={({ current, pageSize }) => {
+              if (pageSize !== this.pagination.limit) this.pageLimitChange(pageSize);
+              else this.pageChange(current);
+            }}
+          />
+        </ManagementListLoading>
 
         <Dialog
           width={480}

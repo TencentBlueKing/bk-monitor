@@ -131,7 +131,7 @@ async function setup() {
     remove,
     add,
     exposed,
-    resolve: () => resolveWrite(),
+    resolve: () => resolveWrite({ code: 0 }),
     close: () => scope.stop(),
   };
 }

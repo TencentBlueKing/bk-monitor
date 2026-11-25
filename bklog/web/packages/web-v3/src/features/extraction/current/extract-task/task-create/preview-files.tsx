@@ -524,27 +524,29 @@ export default defineComponent({
               </TButton>
             </div>
           </div>
-          <div
-            class='preview-table-container'
-            v-loading={{ loading: isLoading.value, zIndex: 0 }}
-          >
+          <div class='preview-table-container'>
             <bk-table
               ref={previewTableRef}
               class='preview-scroll-table'
               data={pageRows.value}
+              loading={isLoading.value}
               pagination={pagination.value}
               row-key='path'
               size='small'
               v-slots={{
                 empty: () => (
-                  <EmptyStatus
-                    emptyType={emptyType.value}
-                    onOperation={handleOperation}
-                  >
-                    {emptyType.value === 'search-empty' && (
-                      <div>{t('可以尝试{0}或{1}', { 0: t('调整预览地址'), 1: t('调整文件日期') })}</div>
+                  <div class='bklog-table-empty-region'>
+                    {!isLoading.value && (
+                      <EmptyStatus
+                        emptyType={emptyType.value}
+                        onOperation={handleOperation}
+                      >
+                        {emptyType.value === 'search-empty' && (
+                          <div>{t('可以尝试{0}或{1}', { 0: t('调整预览地址'), 1: t('调整文件日期') })}</div>
+                        )}
+                      </EmptyStatus>
                     )}
-                  </EmptyStatus>
+                  </div>
                 ),
               }}
               onPage-change={handlePageChange}

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { renderDropdownListSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { Button as TButton, Checkbox as TCheckbox, Input as TInput, Popup as TPopup } from 'tdesign-vue-next';
 
 import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
@@ -164,12 +165,7 @@ export default class ClusterFilter extends tsc<IProps> {
               </div>
             ))
           ) : (
-            <span
-              class='group-loading'
-              v-loading={{ loading: this.loading, zIndex: 10 }}
-            >
-              {this.loading ? '' : this.$t('暂无数据')}
-            </span>
+            this.loading ? renderDropdownListSkeleton() : <span class='group-loading'>{this.$t('暂无数据')}</span>
           )}
         </div>
       );

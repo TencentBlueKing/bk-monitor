@@ -280,10 +280,11 @@ export default defineComponent({
         // 主题样式
         EditorView.theme({
           '&': {
-            fontSize: '12px',
+            fontSize: 'var(--bklog-font-body)',
           },
           '.cm-content': {
-            color: '#63656e',
+            color: 'var(--bklog-text-secondary, var(--td-text-color-primary))',
+            caretColor: 'var(--bklog-text-primary, var(--td-text-color-primary))',
             padding: isTextarea ? '5px 10px' : '0 10px 0 8px',
             lineHeight: isTextarea ? '1.5' : '30px',
             fontFamily: 'inherit',
@@ -292,7 +293,7 @@ export default defineComponent({
             outline: 'none',
           },
           '.cm-editor': {
-            borderRadius: '2px',
+            borderRadius: 'var(--bklog-standard-control-radius)',
             border: 'none',
             backgroundColor: 'transparent',
             height: '100%',
@@ -301,9 +302,9 @@ export default defineComponent({
             overflow: isTextarea ? (props.showScrollbar ? 'auto' : 'hidden') : 'hidden',
           },
           '.cm-placeholder': {
-            color: '#c4c6cc',
+            color: 'var(--bklog-text-placeholder, var(--td-text-color-placeholder))',
             fontFamily: 'inherit',
-            fontSize: '12px',
+            fontSize: 'var(--bklog-font-body)',
           },
           '.cm-line': {
             padding: '0',

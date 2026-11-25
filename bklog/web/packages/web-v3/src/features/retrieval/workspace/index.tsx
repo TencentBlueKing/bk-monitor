@@ -33,6 +33,8 @@ import { computed, defineComponent, markRaw, shallowRef, nextTick, onBeforeUnmou
 
 import useLocale from '@/shared/composables/use-locale';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import LogResultException from '@/features/retrieval/workbench/search-result-panel/log-result/log-result-exception';
+import { renderLogTableSkeleton } from '@/shared/ui/loading/list-skeleton';
 
 
 import { BK_LOG_STORAGE } from '../../../app/state/store.type.ts';
@@ -139,6 +141,7 @@ export default defineComponent({
         isSceneFilterEmpty: isSceneFilterEmpty.value,
         isFieldListFetched: isFieldListFetched.value,
         isFieldListEmpty: isFieldListEmpty.value,
+        hasFieldRequestError: Boolean(store.apiErrorInfo['retrieve/getSceneFields']),
         isSceneLoading: isSceneLoading.value,
       }),
     );
@@ -204,10 +207,7 @@ export default defineComponent({
      * 渲染场景化检索空状态提示
      */
     const renderSceneEmptyTip = () => (
-      <div
-        class='scene-empty-tip'
-        v-loading={{ loading: sceneEmptyView.value.sceneEmptyTipLoading }}
-      >
+      <div class='scene-empty-tip'>
         <EmptyStatus
           class='exception-wrap-item'
           emptyType='search-empty'
@@ -229,10 +229,7 @@ export default defineComponent({
      * 渲染字段列表为空时的提示（未匹配到索引集）
      */
     const renderFieldEmptyTip = () => (
-      <div
-        class='scene-empty-tip'
-        v-loading={{ loading: isSceneLoading.value }}
-      >
+      <div class='scene-empty-tip'>
         <EmptyStatus
           class='exception-wrap-item'
           emptyType='search-empty'
@@ -265,20 +262,25 @@ export default defineComponent({
 
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
-        // 场景化模式下渲染逻辑：
-        // 1. 未选过滤条件 → 显示「当前日志未过滤」，不转圈
-        // 2. 已过滤但字段列表未获取 → 显示空态并 loading
-        // 3. 已过滤且字段为空 → 显示「未匹配到索引集」
-        // 4. 字段已获取且有数据 → 显示检索结果
-        const { showSceneEmptyTip, showFieldEmptyTip } = sceneEmptyView.value;
+        const { showSceneEmptyTip, showFieldEmptyTip, showFieldErrorTip, showResultSkeleton } = sceneEmptyView.value;
 
         return [
           <V3Toolbar></V3Toolbar>,
           <V3Container>
             {renderSearchBar()}
             <V3SearchResult v-show={!hideSearchResult.value}></V3SearchResult>
+            {showResultSkeleton && (
+              <div class='scene-result-skeleton' aria-busy='true'>
+                {renderLogTableSkeleton()}
+              </div>
+            )}
             {showSceneEmptyTip && renderSceneEmptyTip()}
             {showFieldEmptyTip && renderFieldEmptyTip()}
+            {showFieldErrorTip && (
+              <div class='scene-empty-tip'>
+                <LogResultException type='index-set-field-not-found' />
+              </div>
+            )}
           </V3Container>,
         ];
       }

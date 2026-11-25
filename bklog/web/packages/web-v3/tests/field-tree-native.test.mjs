@@ -137,3 +137,15 @@ test('field drag keeps V2 string-key ordering and event payload', () => {
   );
   assert.deepEqual(DragFixture.compatConfig, { MODE: 3, COMPONENT_V_MODEL: false });
 });
+
+test('optional field expansion is offered only when collapsed roots would be hidden', () => {
+  const value = vm();
+  const roots = Array.from({ length: 10 }, () => ({}));
+  Object.defineProperty(value, 'indexSetFieldTree', { value: roots });
+
+  assert.equal(value.getIsShowIndexSetExpand(), false);
+  roots.push({});
+  assert.equal(value.getIsShowIndexSetExpand(), true);
+  value.searchKeyword = 'synthetic';
+  assert.equal(value.getIsShowIndexSetExpand(), false);
+});

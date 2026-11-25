@@ -28,28 +28,31 @@
 .bklog-advanced-message-container {
   position: fixed;
   left: 50%;
+  max-inline-size: calc(100vw - 2 * var(--bklog-space-16));
   transform: translateX(-50%);
 }
 
 .bklog-advanced-message-container .bk-message {
+  box-sizing: border-box;
   display: flex;
   justify-content: space-between;
-  padding: 10px 15px;
-  font-size: 14px;
-  line-height: 22px;
+  padding: calc((var(--bklog-message-height) - var(--bklog-line-height-action)) / 2 - var(--bklog-border-width))
+    calc(var(--bklog-space-12) - var(--bklog-border-width));
+  font-size: var(--bklog-font-action, 14px);
+  line-height: var(--bklog-line-height-action, 22px);
   color: var(--bklog-text-primary, #313238);
   background: var(--bklog-surface, #fff);
   border: 1px solid var(--bklog-border-control, #c4c6cc);
-  border-radius: var(--bklog-radius-control, 2px);
+  border-radius: var(--bklog-standard-control-radius, 4px);
   box-shadow: var(--bklog-shadow-small, 0 2px 4px 0 rgb(0 0 0 / 10%));
   animation: bklog-advanced-message-in 0.2s linear;
 
   .bk-message-icon {
     display: inline-flex;
     flex: none;
-    align-items: flex-start;
-    height: 18px;
-    margin-right: 10px;
+    align-items: center;
+    height: var(--bklog-line-height-action);
+    margin-inline-end: var(--bklog-space-8);
     font-size: 18px;
     color: var(--bklog-brand-primary, #3a84ff);
 
@@ -93,9 +96,11 @@
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
+        gap: var(--bklog-space-12);
 
         .left-content {
           display: flex;
+          min-inline-size: 0;
 
           .describe {
             display: -webkit-box;
@@ -113,12 +118,12 @@
           display: flex;
           flex: none;
           align-items: center;
+          gap: var(--bklog-space-12);
 
           .tool {
             display: flex;
             align-items: center;
-            padding: 0 5px;
-            font-size: 14px;
+            font-size: var(--bklog-font-action);
             color: var(--bklog-brand-primary, #3a84ff);
             cursor: pointer;
 
@@ -247,6 +252,17 @@
   }
 }
 
+@media (max-width: 480px) {
+  .bklog-advanced-message-container .bk-message-content.multi .overview {
+    flex-direction: column;
+
+    .tools {
+      flex-wrap: wrap;
+      align-self: flex-end;
+    }
+  }
+}
+
 @keyframes bklog-advanced-message-in {
   from {
     margin-top: -50px;
@@ -263,4 +279,15 @@
   .bklog-advanced-message-container .bk-message {
     animation: none;
   }
+}
+
+:root:not([theme-mode='dark']) .bklog-advanced-message-container .bk-message {
+  color: var(--bklog-standard-control-text-hover);
+  border-color: transparent;
+  box-shadow: none;
+  background: var(--bklog-brand-tint, #e5edff);
+
+  &.bk-message-error { background: var(--bklog-message-error-surface, #ffebeb); }
+  &.bk-message-success { background: var(--bklog-message-success-surface, #e1f5f0); }
+  &.bk-message-warning { background: var(--bklog-message-warning-surface, #ffefd6); }
 }

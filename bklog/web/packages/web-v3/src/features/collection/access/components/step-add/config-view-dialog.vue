@@ -37,7 +37,7 @@
     @cancel="handelCancelDialog"
   >
     <div
-      v-loading="{ loading: loading }"
+      v-loading="{ loading: loading, indicator: renderFieldListSkeleton }"
       class="view-main"
     >
       <template v-if="viewList.length">
@@ -78,17 +78,20 @@
           </div>
         </div>
       </template>
-      <empty-status
-        v-else
-        :show-text="false"
-        empty-type="empty"
-      >
-        <p>{{ $t('暂无命中内容') }}</p>
-      </empty-status>
+      <div v-else-if="!loading" class="bklog-table-empty-region">
+        <empty-status
+          :show-text="false"
+          empty-type="empty"
+        >
+          <p>{{ $t('暂无命中内容') }}</p>
+        </empty-status>
+      </div>
     </div>
   </bk-dialog>
 </template>
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+  import { ServicesInstance } from '@/platform/services';
+  import { renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
 
   import EmptyStatus from '@/shared/ui/empty-status/index';
 
@@ -141,6 +144,7 @@
       },
     },
     methods: {
+      renderFieldListSkeleton,
       handelCancelDialog() {
         this.$emit('update:is-show-dialog', false);
       },

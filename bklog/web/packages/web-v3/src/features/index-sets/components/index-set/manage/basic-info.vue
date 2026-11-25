@@ -120,9 +120,13 @@
     >
       <div class="main-title">
         {{ $t('采集项') }}
+        <TButton theme="primary" variant="text" :loading="tableLoading1" @click="fetchIndexes">
+          <template #icon><span class="bk-icon icon-refresh" aria-hidden="true"></span></template>
+          {{ $t('刷新') }}
+        </TButton>
       </div>
       <bk-table
-        v-loading="{ loading: tableLoading1 }"
+        :loading="tableLoading1"
         :data="pagedIndexesList"
         :max-height="526"
         :pagination="indexesPagination"
@@ -192,14 +196,27 @@
             </t-button>
           </template>
         </bk-table-column>
+        <template #empty>
+          <div class="bklog-table-empty-region">
+            <empty-status
+              v-if="!tableLoading1"
+              :empty-type="indexesFailed ? '500' : 'empty'"
+              @operation="fetchIndexes"
+            />
+          </div>
+        </template>
       </bk-table>
     </section>
     <section class="partial-content">
       <div class="main-title">
         {{ $t('操作记录') }}
+        <TButton theme="primary" variant="text" :loading="tableLoading2" @click="fetchRecords">
+          <template #icon><span class="bk-icon icon-refresh" aria-hidden="true"></span></template>
+          {{ $t('刷新') }}
+        </TButton>
       </div>
       <bk-table
-        v-loading="{ loading: tableLoading2 }"
+        :loading="tableLoading2"
         class="king-table"
         :data="recordsData"
         :max-height="526"
@@ -242,12 +259,23 @@
             </div>
           </template>
         </bk-table-column>
+        <template #empty>
+          <div class="bklog-table-empty-region">
+            <empty-status
+              v-if="!tableLoading2"
+              :empty-type="recordsFailed ? '500' : 'empty'"
+              @operation="fetchRecords"
+            />
+          </div>
+        </template>
       </bk-table>
     </section>
   </div>
 </template>
 
 <script>
+import { Button as TButton } from 'tdesign-vue-next';
+import EmptyStatus from '@/shared/ui/empty-status/index';
 import { mapState as mapPiniaState } from 'pinia';
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
@@ -262,6 +290,7 @@ import { ServicesInstance } from '@/platform/services';
   import { isFeatureToggleOn } from '@/shared/composables/use-feature-toggle';
 
   export default {
+    components: { EmptyStatus, TButton },
     props: {
       indexSetData: {
         type: Object,
@@ -278,6 +307,8 @@ import { ServicesInstance } from '@/platform/services';
     },
     data() {
       return {
+        indexesFailed: false,
+        indexesRequest: 0,
         tableLoading1: true, // 采集项
         indexesData: [],
         // 健康状态，文案待定，先不国际化
@@ -291,6 +322,8 @@ import { ServicesInstance } from '@/platform/services';
           limit: 10,
           count: 0,
         },
+        recordsFailed: false,
+        recordsRequest: 0,
         tableLoading2: true, // 操作记录
         recordsData: [],
         recordsPagination: {
@@ -408,6 +441,9 @@ import { ServicesInstance } from '@/platform/services';
         });
       },
       async fetchIndexes() {
+        const request = ++this.indexesRequest;
+        this.tableLoading1 = true;
+        this.indexesFailed = false;
         try {
           // 获取索引列表
           const res = await ServicesInstance.indexSet.indexes({
@@ -415,12 +451,17 @@ import { ServicesInstance } from '@/platform/services';
               index_set_id: this.indexSetData.index_set_id,
             },
           });
+          if (request !== this.indexesRequest) return;
           this.indexesData = res.data.list;
           this.indexesPagination.count = res.data.total;
         } catch (e) {
+          if (request !== this.indexesRequest) return;
           console.warn(e);
+          this.indexesFailed = true;
+          this.indexesData = [];
+          this.indexesPagination.count = 0;
         } finally {
-          this.tableLoading1 = false;
+          if (request === this.indexesRequest) this.tableLoading1 = false;
         }
       },
       handleIndexesPageChange(page) {
@@ -480,9 +521,11 @@ import { ServicesInstance } from '@/platform/services';
         });
       },
       async fetchRecords() {
+        const request = ++this.recordsRequest;
+        this.tableLoading2 = true;
+        this.recordsFailed = false;
         try {
           // 获取操作记录数据
-          this.tableLoading2 = true;
           const res = await ServicesInstance.indexSet.getOperationRecord({
             query: {
               bk_biz_id: this.bkBizId,
@@ -492,13 +535,18 @@ import { ServicesInstance } from '@/platform/services';
               pagesize: this.recordsPagination.limit,
             },
           });
+          if (request !== this.recordsRequest) return;
           const { formatResponseListTimeZoneString } = useUtils();
           this.recordsData = formatResponseListTimeZoneString(res.data.list || [], {}, ['created_at', 'updated_at']);
           this.recordsPagination.count = res.data.total;
         } catch (e) {
+          if (request !== this.recordsRequest) return;
           console.warn(e);
+          this.recordsFailed = true;
+          this.recordsData = [];
+          this.recordsPagination.count = 0;
         } finally {
-          this.tableLoading2 = false;
+          if (request === this.recordsRequest) this.tableLoading2 = false;
         }
       },
       handleRecordsPageChange(page) {

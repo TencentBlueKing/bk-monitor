@@ -26,14 +26,14 @@
 
 <template>
   <div
-    v-loading="{ loading: basicLoading }"
+    v-loading="{ loading: basicLoading, indicator: renderDrawerDetailSkeleton }"
     class="access-manage-container"
   >
     <auth-container-page
       v-if="authPageInfo"
       :info="authPageInfo"
     ></auth-container-page>
-    <template v-if="!authPageInfo && !basicLoading && collectorData">
+    <template v-else-if="!basicLoading && collectorData">
       <basic-tab
         :active.sync="activePanel"
         type="border-card"
@@ -46,13 +46,11 @@
         <template #setting>
           <div class="go-search">
             <div class="search-text">
-              <span class="bk-icon icon-info"></span>
+              <span class="bk-icon icon-info" aria-hidden="true"></span>
               <i18n path="数据采集好了，去 {0}">
-                <span
-                  class="search-button"
-                  @click="handleGoSearch"
-                  >{{ $t('查看数据') }}</span
-                >
+                <button type="button" class="search-button" @click="handleGoSearch">
+                  {{ $t('查看数据') }}
+                </button>
               </i18n>
             </div>
           </div>
@@ -72,15 +70,23 @@
         ></component>
       </keep-alive>
     </template>
+    <div v-else-if="!basicLoading" class="bklog-table-empty-region">
+      <EmptyStatus empty-type="500" @operation="initPage" />
+    </div>
   </div>
 </template>
 
 <script>
+import { renderDrawerDetailSkeleton } from '@/shared/ui/loading/drawer-skeleton';
+import { renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
+import ChartSkeleton from '@/app/skeleton/chart-skeleton';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import './detail-states.scss';
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useCollectionStore } from '@/app/state/domains/collection-store';
 
-  import { defineAsyncComponent } from 'vue';
+  import { defineAsyncComponent, h } from 'vue';
 
   import { ServicesInstance } from '@/platform/services';
 
@@ -88,24 +94,71 @@ import { useCollectionStore } from '@/app/state/domains/collection-store';
   import AuthContainerPage from '@/shared/ui/common/auth-container-page';
   import * as authorityMap from '../../../../../shared/lib/authority-map';
 
-  const BasicInfo = defineAsyncComponent(() => import(/* webpackChunkName: 'manage-collection-basic-info' */ './basic-info'));
-  const CollectionStatus = defineAsyncComponent(() => import(/* webpackChunkName: 'manage-collection-status' */ './collection-status'));
-  const DataStorage = defineAsyncComponent(() => import(/* webpackChunkName: 'manage-collection-data-storage' */ './data-storage'));
-  const DataStatus = defineAsyncComponent(() => import(/* webpackChunkName: 'manage-collection-data-status' */ './data-status/index'));
-  const FieldInfo = defineAsyncComponent(() => import(/* webpackChunkName: 'manage-collection-field-info' */ './field-info.tsx'));
-  const UsageDetails = defineAsyncComponent(() =>
-    import(
-      /* webpackChunkName: 'manage-collection-usage-details' */ '@/features/index-sets/components/usage-details/index'
-    ));
-  const IndexSetBasicInfo = defineAsyncComponent(() =>
-    import(
-      /* webpackChunkName: 'manage-index-set-basic-info' */ '@/features/index-sets/components/index-set/manage/basic-info'
-    ));
+  const renderTrendPanelSkeleton = () =>
+    h('section', { class: 'partial-content', 'aria-hidden': 'true' }, [
+      h('div', { class: 'main-title' }, [
+        h('span', { class: 'collection-detail-section-heading-placeholder' }, [
+          h('span', { class: 'bklog-list-skeleton__bar collection-detail-chart-heading-placeholder' }),
+        ]),
+      ]),
+      h('div', { class: 'charts-container collection-detail-chart-grid' },
+        ['line', 'bar'].map(type => h('div', { class: 'chart-container', key: type }, [
+          h('div', { class: 'chart-header' }, [
+            h('span', { class: 'bklog-list-skeleton__bar collection-detail-chart-heading-placeholder' }),
+          ]),
+          h('div', { class: 'collection-detail-chart-body' }, [
+            h('div', { class: 'chart-canvas-container big-chart' }),
+            h('div', { class: 'collection-detail-chart-state is-skeleton' }, [
+              h(ChartSkeleton, { type, height: 216 }),
+            ]),
+          ]),
+        ])),
+      ),
+    ]);
+
+  const renderUsagePanelSkeleton = () =>
+    h('div', { class: 'collection-detail-trend-placeholder' }, [
+      h(ChartSkeleton, { type: 'line', height: 168 }),
+      h(ChartSkeleton, { type: 'bar', height: 168 }),
+      h('div', { class: 'collection-detail-usage-pie-placeholder', 'aria-hidden': 'true' }, [
+        h('div', { class: 'usage-chart-pie-skeleton' }),
+      ]),
+    ]);
+
+  function defineDetailPanel(loader, indicator) {
+    return defineAsyncComponent({
+      loader,
+      delay: 0,
+      errorComponent: () => h('div', { class: 'bklog-table-empty-region' }, [
+        h(EmptyStatus, { emptyType: '500', onOperation: () => window.location.reload() }),
+      ]),
+      loadingComponent: () => h('div', {
+        class: 'collection-detail-loading-panel',
+        role: 'status',
+        'aria-busy': 'true',
+      }, [indicator()]),
+    });
+  }
+
+  const BasicInfo = defineDetailPanel(() => import('./basic-info'), renderDrawerDetailSkeleton);
+  const CollectionStatus = defineDetailPanel(() => import('./collection-status'), renderFieldListSkeleton);
+  const DataStorage = defineDetailPanel(() => import('./data-storage'), renderFieldListSkeleton);
+  const DataStatus = defineDetailPanel(() => import('./data-status/index'), renderTrendPanelSkeleton);
+  const FieldInfo = defineDetailPanel(() => import('./field-info.tsx'), renderFieldListSkeleton);
+  const UsageDetails = defineDetailPanel(
+    () => import('@/features/index-sets/components/usage-details/index'),
+    renderUsagePanelSkeleton,
+  );
+  const IndexSetBasicInfo = defineDetailPanel(
+    () => import('@/features/index-sets/components/index-set/manage/basic-info'),
+    renderDrawerDetailSkeleton,
+  );
 
   export default {
     name: 'CollectionItem',
     components: {
       AuthContainerPage,
+      EmptyStatus,
       BasicInfo,
       IndexSetBasicInfo,
       CollectionStatus,
@@ -176,7 +229,9 @@ import { useCollectionStore } from '@/app/state/domains/collection-store';
       this.initPage();
     },
     methods: {
+      renderDrawerDetailSkeleton,
       async initPage() {
+        this.basicLoading = true;
         // 进入路由需要先判断权限（查看 + 编辑权限合并为一次 check_allowed 请求）
         try {
           const typeKey = this.$route.query.typeKey;

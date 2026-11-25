@@ -1038,35 +1038,40 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     gap: 8px;
     align-items: center;
     font-size: 12px;
-    color: #4d4f56;
+    color: var(--td-text-color-secondary);
   }
 
   .mode-btn {
     height: 28px;
     padding: 0;
-    color: #979ba5;
+    color: var(--td-text-color-secondary);
     cursor: pointer;
     background: transparent;
     border: 0;
 
+    &:focus-visible {
+      outline: var(--bklog-border-width) solid var(--td-brand-color);
+      outline-offset: var(--bklog-space-2);
+    }
+
     &.active {
       font-weight: 600;
-      color: #3a84ff;
+      color: var(--bklog-json-action-color);
     }
   }
 
   .mode-divider {
-    color: #dcdee5;
+    color: var(--td-component-stroke);
     user-select: none;
   }
 
   .meta-size,
   .meta-status {
-    color: #979ba5;
+    color: var(--td-text-color-secondary);
   }
 
   .meta-status.load-error {
-    color: #ea3636;
+    color: var(--td-error-color);
   }
 
   .full-row-content {
@@ -1077,9 +1082,9 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
     font-size: 12px;
     line-height: 20px;
-    color: #16171a;
-    background: #fff;
-    border: 1px solid #dcdee5;
+    color: var(--td-text-color-primary);
+    background: var(--td-bg-color-container);
+    border: 1px solid var(--td-component-stroke);
     border-radius: 2px;
   }
 
@@ -1102,27 +1107,27 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   }
 
   .json-key {
-    color: #1f6feb;
+    color: var(--bklog-json-key-color);
   }
 
   .json-colon,
   .json-comma,
   .json-struct-line {
-    color: #16171a;
+    color: var(--td-text-color-primary);
   }
 
   .json-value {
-    color: #16171a;
+    color: var(--td-text-color-primary);
   }
 
   .full-row-line-numbers {
     flex: 0 0 48px;
     padding: 8px 0;
-    color: #979ba5;
+    color: var(--td-text-color-secondary);
     text-align: right;
     user-select: none;
-    background: #f5f7fa;
-    border-right: 1px solid #dcdee5;
+    background: var(--td-bg-color-secondarycontainer);
+    border-right: 1px solid var(--td-component-stroke);
 
     .line-number {
       display: block;
@@ -1152,14 +1157,14 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     position: absolute;
     top: 50%;
     left: 50%;
-    color: #979ba5;
+    color: var(--td-text-color-secondary);
     transform: translate(-50%, -50%);
   }
 
   :deep(.full-row-origin-mark) {
     padding: 0 1px;
     color: inherit;
-    background: #fff3b8;
+    background: var(--td-warning-color-light);
     border-radius: 2px;
   }
 
@@ -1172,17 +1177,18 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   :deep(.full-row-search-mark) {
     padding: 0 1px;
     color: inherit;
-    background: #ffe8cc;
+    background: var(--td-warning-color-light);
     border-radius: 2px;
 
     &.active {
-      color: #000;
-      background: #ff9c01;
+      color: var(--td-text-color-primary);
+      background: var(--td-warning-color-2);
+      box-shadow: inset 0 0 0 var(--bklog-border-width) var(--bklog-json-value-color);
     }
   }
 
   :deep(.result-highlight.page-highlight),
   :deep(.full-row-origin-mark.page-highlight) {
-    box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
+    box-shadow: inset 0 calc(-1 * var(--bklog-space-2)) 0 currentColor;
   }
 </style>

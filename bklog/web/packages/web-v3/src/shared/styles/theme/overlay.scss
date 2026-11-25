@@ -46,16 +46,53 @@ body .t-notification {
 // bk-exception 的 scene 只决定尺寸。文案放在标题里，避免再渲染 scene 字符串。
 .bk-exception {
   .t-empty__title {
-    margin-top: 8px;
+    margin-block-start: var(--bklog-space-8);
     font-size: var(--bklog-font-action, 14px);
     font-weight: 400;
-    line-height: 22px;
-    color: var(--bklog-text-secondary, #63656e);
+    line-height: var(--bklog-line-height-action, 22px);
+    color: var(--bklog-standard-control-text-hover, #63656e);
   }
 
+  .t-empty__description,
   .bk-exception-text {
-    font-size: 12px;
-    line-height: 20px;
-    color: #63656e;
+    font-size: var(--bklog-font-body, 12px);
+    line-height: var(--bklog-line-height-body, 20px);
+    color: var(--bklog-standard-control-text, #63656e);
   }
+}
+
+.bk-exception .t-empty__description,
+.bk-exception .t-empty__action {
+  margin-block-start: var(--bklog-space-8);
+}
+
+.bk-exception-page {
+  .t-empty__title {
+    margin-block-start: var(--bklog-space-16);
+    font-size: var(--bklog-space-20);
+    line-height: calc(var(--bklog-space-24) + var(--bklog-space-4));
+  }
+
+  .t-empty__description,
+  .t-empty__action {
+    margin-block-start: var(--bklog-space-16);
+  }
+
+  .t-empty__description,
+  .page-text {
+    font-size: var(--bklog-font-action);
+    line-height: var(--bklog-line-height-action);
+  }
+}
+
+:is(.bk-exception-page, .bk-exception-part[data-bklog-exception-layout='illustrated']) .t-empty__image {
+  inline-size: min(100%, var(--bklog-exception-image-width, 220px));
+  min-block-size: var(--bklog-exception-image-height, 100px);
+  margin-inline: auto;
+  align-items: center;
+}
+
+.bk-exception-page {
+  --bklog-exception-image-width: 440px;
+  --bklog-exception-image-height: 200px;
 }

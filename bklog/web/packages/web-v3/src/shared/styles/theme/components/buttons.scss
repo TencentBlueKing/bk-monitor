@@ -1,26 +1,73 @@
 :root {
-  // V2 normal buttons use the action font; inputs, table cells and small buttons use the body font.
+  // Figma Button specifies 12 / 14 / 16px text for the three sizes.
   :where(.t-button:not(.t-size-s):not(.t-size-l)) {
     font-size: var(--bklog-font-action);
   }
 
-  // Button uses xs/xl, unlike Input and Select. Keep overrides on the control.
+  .t-button.t-size-l {
+    font-size: var(--bklog-font-large);
+  }
+
+  // Button sizes are independent of the shared input and select scale.
   :where(.t-button) {
     --td-comp-size-xs: var(--bklog-control-size-small);
-    --td-comp-size-xl: var(--bklog-control-size-large);
+    --td-comp-size-xl: var(--bklog-standard-control-size-large);
+    --td-radius-default: var(--bklog-standard-control-radius);
   }
 }
 
 :root:not([theme-mode='dark']) {
-  .t-button--theme-default.t-button--variant-base {
-    color: var(--bklog-text-secondary);
+  .t-button--theme-primary.t-button--variant-base:not(.t-button--ghost) {
+    &.t-is-loading:not(.t-is-disabled) {
+      background-color: var(--bklog-brand-primary);
+      border-color: var(--bklog-brand-primary);
+
+      &:hover {
+        background-color: var(--bklog-brand-hover);
+        border-color: var(--bklog-brand-hover);
+      }
+    }
+
+    &.t-is-disabled {
+      color: var(--bklog-text-inverse);
+      background-color: var(--bklog-standard-control-border);
+      border-color: var(--bklog-standard-control-border);
+    }
+
+    &.t-is-disabled:is(.t-is-loading, .t-button--shape-square, .t-button--shape-circle) {
+      background-color: var(--bklog-standard-control-border-disabled);
+      border-color: var(--bklog-standard-control-border-disabled);
+    }
+  }
+
+  .t-button--theme-primary.t-button--variant-outline:not(.t-button--ghost) {
     background-color: var(--bklog-surface);
-    border-color: var(--bklog-border-control);
+
+    &:is(:hover, :focus-visible):not(.t-is-disabled, .t-is-loading) {
+      color: var(--bklog-brand-hover);
+      background-color: var(--bklog-brand-tint);
+      border-color: var(--bklog-brand-active);
+    }
+
+    &.t-is-disabled {
+      color: var(--bklog-standard-control-border);
+      border-color: var(--bklog-standard-control-border-disabled);
+    }
+  }
+
+  .t-button--theme-danger.t-button--variant-outline:not(.t-button--ghost, .t-is-disabled, .t-is-loading, :hover, :focus-visible) {
+    background-color: var(--bklog-surface);
+  }
+
+  .t-button--theme-default.t-button--variant-base {
+    color: var(--bklog-standard-control-text);
+    background-color: var(--bklog-surface);
+    border-color: var(--bklog-standard-control-border);
 
     &:hover {
-      color: var(--bklog-text-secondary);
+      color: var(--bklog-standard-control-text-hover);
       background-color: var(--bklog-surface);
-      border-color: var(--bklog-border-hover);
+      border-color: var(--bklog-standard-control-border-hover);
     }
 
     &:active {
@@ -29,10 +76,90 @@
     }
 
     &.t-is-disabled {
-      color: var(--bklog-text-disabled);
-      background-color: var(--bklog-surface-disabled);
-      border-color: var(--bklog-border-muted);
+      color: var(--bklog-standard-control-border);
+      background-color: var(--bklog-surface);
+      border-color: var(--bklog-standard-control-border-disabled);
     }
+  }
+
+  .bk-button-group > .t-button.t-button--theme-default.t-button--variant-base {
+    &:is(:hover, :focus-visible):not(.t-is-disabled, :is(.is-selected, :where([data-bklog-button-group="connected"]) > [aria-pressed="true"])) {
+      border-color: var(--bklog-brand-primary);
+    }
+
+    &:is(.is-selected, :where([data-bklog-button-group="connected"]) > [aria-pressed="true"]):not(.t-is-disabled) {
+      color: var(--bklog-brand-primary);
+      background-color: var(--bklog-brand-tint);
+      border-color: var(--bklog-brand-primary);
+
+      &:is(:hover, :focus-visible) {
+        border-color: var(--bklog-brand-active);
+      }
+    }
+
+    &:is(.is-selected, :where([data-bklog-button-group="connected"]) > [aria-pressed="true"]).t-is-disabled {
+      background-color: var(--bklog-surface-subtle);
+    }
+  }
+
+}
+
+// Adjacent buttons share a single border in the connected variant.
+.bk-button-group[data-bklog-button-group='connected'] {
+  display: inline-flex;
+  isolation: isolate;
+
+  > :is(.t-button, button) {
+    position: relative;
+    border-radius: 0;
+
+    &:first-child {
+      border-start-start-radius: var(--bklog-standard-control-radius);
+      border-end-start-radius: var(--bklog-standard-control-radius);
+    }
+
+    &:last-child {
+      border-start-end-radius: var(--bklog-standard-control-radius);
+      border-end-end-radius: var(--bklog-standard-control-radius);
+    }
+
+    + :is(.t-button, button) {
+      margin-inline-start: calc(-1 * var(--bklog-border-width));
+    }
+
+    &:is(.is-selected, [aria-pressed="true"]) {
+      z-index: 1;
+    }
+
+    &:is(:hover, :focus-visible):not(.t-is-disabled, :disabled) {
+      z-index: 2;
+    }
+
+    &:focus-visible:not(.t-is-disabled, :disabled) {
+      outline: var(--bklog-border-width) solid currentColor;
+      outline-offset: calc(-2 * var(--bklog-border-width));
+    }
+  }
+}
+
+:root[theme-mode='dark'] .bk-button-group[data-bklog-button-group='connected']
+  > .t-button.t-button--theme-default.t-button--variant-base {
+  &:is(:hover, :focus-visible):not(.t-is-disabled, .is-selected, [aria-pressed="true"]) {
+    border-color: var(--td-brand-color);
+  }
+
+  &:is(.is-selected, [aria-pressed="true"]):not(.t-is-disabled) {
+    color: var(--td-brand-color);
+    background-color: var(--td-brand-color-light);
+    border-color: var(--td-brand-color);
+
+    &:is(:hover, :focus-visible) {
+      border-color: var(--td-brand-color-active);
+    }
+  }
+
+  &:is(.is-selected, [aria-pressed="true"]).t-is-disabled {
+    background-color: var(--td-bg-color-component-disabled);
   }
 }
 

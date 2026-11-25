@@ -30,6 +30,7 @@ import { defineComponent, ref, watch, type PropType } from 'vue';
 
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import useLocale from '@/shared/composables/use-locale';
+import { renderDropdownListSkeleton } from '@/shared/ui/loading/list-skeleton';
 
 
 
@@ -76,38 +77,34 @@ export default defineComponent({
      */
     const loading = ref(false);
 
+    const failed = ref(false);
+    let requestId = 0;
+
+    const loadPreview = async () => {
+      const currentRequest = ++requestId;
+      loading.value = true;
+      failed.value = false;
+      try {
+        const { data } = await ServicesInstance.container.getLabelHitView({ data: props.viewQueryParams });
+        if (currentRequest === requestId) {
+          viewList.value = data.map((item: IViewItem) => ({ ...item, isShowTarget: true }));
+        }
+      } catch {
+        if (currentRequest === requestId) failed.value = true;
+      } finally {
+        if (currentRequest === requestId) loading.value = false;
+      }
+    };
+
     watch(
       () => props.isShowDialog,
-      (val: boolean) => {
-        if (val) {
-          /**
-           * 对话框显示时，获取视图数据
-           */
-          loading.value = true;
-          ServicesInstance.container.getLabelHitView({
-              data: props.viewQueryParams,
-            })
-            .then(res => {
-              /**
-               * 处理返回的数据，添加 isShowTarget 属性
-               */
-              viewList.value = res.data.map((item: unknown) => ({
-                ...item,
-                isShowTarget: true,
-              }));
-            })
-            .finally(() => {
-              loading.value = false;
-            });
-        } else {
-          /**
-           * 对话框隐藏时，延迟清空视图列表
-           */
-          setTimeout(() => {
-            viewList.value = [];
-          }, 1000);
-        }
+      (visible, _previous, onCleanup) => {
+        if (!visible) return;
+        viewList.value = [];
+        onCleanup(() => { requestId += 1; });
+        void loadPreview();
       },
+      { immediate: true },
     );
 
     /**
@@ -141,10 +138,9 @@ export default defineComponent({
         {/* 主内容区域，带加载状态 */}
         <div
           class='config-view-dialog-main'
-          v-loading={{ loading: loading.value }}
         >
           {/* 有视图数据时渲染视图列表 */}
-          {viewList.value.length > 0 ? (
+          {loading.value ? renderDropdownListSkeleton() : viewList.value.length > 0 ? (
             viewList.value.map((item, index) => (
               <div
                 key={index}
@@ -179,12 +175,14 @@ export default defineComponent({
                 )}
               </div>
             ))
+          ) : failed.value ? (
+            <EmptyStatus emptyType='500' onOperation={loadPreview} />
           ) : (
             <EmptyStatus
               emptyType='empty'
               showText={false}
             >
-              <p>{t('暂无命中内容')}</p>
+              {t('暂无命中内容')}
             </EmptyStatus>
           )}
         </div>

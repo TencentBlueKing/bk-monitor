@@ -64,6 +64,7 @@
       <bk-dropdown-menu
         ref="refOfSubscriptionDropdown"
         align="right"
+        overlay-inner-class-name="bklog-dropdown-popup"
         trigger="click"
       >
         <template #dropdown-trigger>

@@ -46,10 +46,12 @@
       </div>
 
       <div
-        v-if="rulesList.length > 0"
-        v-loading="{ loading: tableLoading }"
+        v-if="tableLoading || rulesList.length > 0"
+        v-loading="{ loading: tableLoading, indicator: renderFieldListSkeleton }"
+        :class="{ 'is-initial-loading': tableLoading && !rulesList.length }"
       >
         <vue-draggable
+          v-if="rulesList.length > 0"
           v-bind="dragOptions"
           v-model="rulesList"
         >
@@ -212,7 +214,7 @@
         <div class="mt18">
           <p style="height: 32px">{{ $t('效果预览') }}</p>
           <div
-            v-loading="{ loading: debugRequest, size: 'small' }"
+            v-loading="{ loading: debugRequest, size: 'small', indicator: renderCodeSampleSkeleton }"
             class="effect-container"
           >
             <text-highlight
@@ -248,7 +250,9 @@
     </div>
   </div>
 </template>
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+  import { renderFieldListSkeleton, renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
+  import { ServicesInstance } from '@/platform/services';
 
   import { copyMessage, base64Encode } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
@@ -332,6 +336,8 @@
       this.$emit('debug-request-change', false);
     },
     methods: {
+      renderFieldListSkeleton,
+      renderCodeSampleSkeleton,
       clusterEdit(index) {
         this.$refs.ruleTopToolsRef.clusterEdit(index);
       },
@@ -445,6 +451,10 @@
   @use '@/shared/styles/mixins/flex.scss' as *;
 
   .cluster-table {
+    .is-initial-loading {
+      min-height: var(--bklog-table-skeleton-min-height);
+    }
+
     .debug-container {
       position: fixed;
       bottom: 0;

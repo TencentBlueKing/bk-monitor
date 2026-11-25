@@ -1,6 +1,6 @@
 .email-config-container {
   padding: 16px 24px;
-  background: #fff;
+  background: var(--td-bg-color-container);
   border-radius: 2px;
   box-shadow: 0 2px 4px 0 #1919290d;
 
@@ -28,7 +28,7 @@
     margin-bottom: 22px;
     font-size: 12px;
     font-weight: bold;
-    color: #63656e;
+    color: var(--td-text-color-secondary);
   }
 
   .t-radio {
@@ -39,7 +39,7 @@
 
 .text-content {
   font-size: 12px;
-  color: #63656e;
+  color: var(--td-text-color-secondary);
 }
 
 .t-radio {

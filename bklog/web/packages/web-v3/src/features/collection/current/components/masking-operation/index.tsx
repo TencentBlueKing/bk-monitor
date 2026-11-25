@@ -35,6 +35,8 @@ import { ServicesInstance } from '@/platform/services';
 import { computed, defineComponent, onMounted, ref } from 'vue';
 
 
+import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 import MaskingField from '@/features/masking/components/masking-field';
 import useLocale from '@/shared/composables/use-locale';
 
@@ -142,6 +144,8 @@ export default defineComponent({
     };
 
     const submitSelectRule = async (stepChange = false) => {
+      if (loading.value || submitLoading.value || !isCollectDataReady.value) return;
+
       const data = maskingFieldRef.value?.getQueryConfigParams?.();
       const isUpdate = maskingFieldRef.value?.isUpdate;
       if (!(data?.field_configs?.length || isUpdate)) {
@@ -176,9 +180,13 @@ export default defineComponent({
     return () => (
       <div
         class='v2-masking-operation'
-        v-loading={{ loading: loading.value }}
+        v-loading={{
+          loading: loading.value,
+          indicator: renderDrawerFormSkeleton,
+          zIndex: Z_INDEX_LAYERS.PAGE_TOP,
+        }}
       >
-        <div class='masking-field-box'>
+        <div class='masking-field-box' inert={submitLoading.value}>
           {isCollectDataReady.value && (
             <MaskingField
               ref={maskingFieldRef}
@@ -191,14 +199,16 @@ export default defineComponent({
         </div>
         <div class='submit-content'>
           <TButton
-            loading={submitLoading.value}
             theme='primary'
+            disabled={loading.value || submitLoading.value || !isCollectDataReady.value}
+            loading={submitLoading.value}
             onClick={() => submitSelectRule(true)}
           >
             {t('应用')}
           </TButton>
           <TButton
             theme='default'
+            disabled={submitLoading.value}
             onClick={goBack}
           >
             {t('取消')}

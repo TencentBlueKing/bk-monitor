@@ -27,7 +27,7 @@
 
 <template>
   <div
-    v-loading="{ loading: isExtracting }"
+    :aria-busy="isExtracting"
     class="field-table-container"
   >
     <div
@@ -79,466 +79,485 @@
         :label-width="0"
         :model="formData"
       >
-        <bk-table
-          class="field-table"
-          :class="!isPreviewMode ? 'add-field-table' : ''"
-          :data="changeTableList"
-          :empty-text="$t('暂无内容')"
-          row-key="field_index"
-          size="small"
-          col-border
-        >
-          <template>
-            <!-- <bk-table-column
-              v-if="!isPreviewMode && extractMethod === 'bk_log_delimiter'"
-              width="40"
-              :resizable="false"
-              align="center"
-              label=""
-            >
-              <template #default="props">
-                <span>{{ props.row.field_index }}</span>
-              </template>
-            </bk-table-column> -->
-            <!-- 来源 -->
-            <bk-table-column
-              native-cell-slot
-              :label="$t('来源')"
-              align="center"
-              :resizable="false"
-              width="60"
-            >
-              <template #default="props">
-                <div class="source-box">
-                  <span
-                    v-if="props.row.is_built_in"
-                    class="source-built"
-                    >{{ $t('内置') }}</span
-                  >
-                  <span
-                    v-else-if="props.row.is_add_in"
-                    class="source-add"
-                    >{{ $t('添加') }}</span
-                  >
-                  <span
-                    v-else
-                    class="source-debug"
-                    >{{ $t('调试') }}</span
-                  >
-                </div>
-              </template>
-            </bk-table-column>
-            <!-- 字段名 -->
-            <bk-table-column
-              native-cell-slot
-              :label="$t('字段名')"
-              :render-header="$renderHeader"
-              :resizable="false"
-              min-width="140"
-            >
-              <template #default="props">
-                <div
-                  v-if="isPreviewMode || props.row.is_objectKey"
-                  v-log-tooltip.top="props.row.field_name"
-                  class="overflow-tips-field-name"
-                >
-                  <span
-                    v-if="props.row.is_objectKey"
-                    class="ext-btn bklog-icon bklog-subnode"
-                  ></span>
-                  <span>{{ props.row.field_name }}</span>
-                </div>
-                <bk-form-item
-                  v-else
-                  :class="{ 'is-required is-error': props.row.fieldErr, 'disable-background': props.row.is_built_in }"
-                  class="participle-form-item"
-                >
-                  <span
-                    v-if="canExpandObjectField(props.row) && !props.row.expand"
-                    class="ext-btn rotate bklog-icon bklog-arrow-down-filled"
-                    @click="expandObject(props.row, true)"
-                  ></span>
-                  <span
-                    v-if="canExpandObjectField(props.row) && props.row.expand"
-                    class="ext-btn bklog-icon bklog-arrow-down-filled"
-                    @click="expandObject(props.row, false)"
-                  ></span>
-                  <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
-                  <t-input
-                    v-if="props.row.is_built_in && props.row.alias_name"
-                    v-model.trim="props.row.alias_name"
-                    class="participle-field-name-input-pl5"
-                    :disabled="getFieldEditDisabled(props.row)"
-                    @blur="checkFieldNameItem(props.row)"
-                  ></t-input>
-                  <t-input
-                    v-else
-                    v-model.trim="props.row.field_name"
-                    :class="props.row.alias_name || props.row.alias_name_show ? 'participle-field-name-input' : ''"
-                    class="participle-field-name-input-pl5"
-                    :disabled="getFieldEditDisabled(props.row)"
-                    @blur="checkFieldNameItem(props.row)"
-                  ></t-input>
-                  <template v-if="(props.row.alias_name || props.row.alias_name_show) && !props.row.is_built_in">
-                    <div
-                      class="participle-icon"
-                      :class="getFieldEditDisabled(props.row) ? 'participle-icon-color' : ''"
+        <management-list-loading :loading="isExtracting" :row-height="isPreviewMode ? 43 : 51">
+          <bk-table
+            class="field-table"
+            :class="!isPreviewMode ? 'add-field-table' : ''"
+            :data="changeTableList"
+            :empty-text="$t('暂无内容')"
+            row-key="field_index"
+            size="small"
+            col-border
+          >
+            <template>
+              <!-- <bk-table-column
+                v-if="!isPreviewMode && extractMethod === 'bk_log_delimiter'"
+                width="40"
+                :resizable="false"
+                align="center"
+                label=""
+              >
+                <template #default="props">
+                  <span>{{ props.row.field_index }}</span>
+                </template>
+              </bk-table-column> -->
+              <!-- 来源 -->
+              <bk-table-column
+                native-cell-slot
+                :label="$t('来源')"
+                align="center"
+                :resizable="false"
+                width="60"
+              >
+                <template #default="props">
+                  <div class="source-box">
+                    <span
+                      v-if="props.row.is_built_in"
+                      class="source-built"
+                      >{{ $t('内置') }}</span
                     >
+                    <span
+                      v-else-if="props.row.is_add_in"
+                      class="source-add"
+                      >{{ $t('添加') }}</span
+                    >
+                    <span
+                      v-else
+                      class="source-debug"
+                      >{{ $t('调试') }}</span
+                    >
+                  </div>
+                </template>
+              </bk-table-column>
+              <!-- 字段名 -->
+              <bk-table-column
+                native-cell-slot
+                :label="$t('字段名')"
+                :render-header="$renderHeader"
+                :resizable="false"
+                min-width="140"
+              >
+                <template #default="props">
+                  <div
+                    v-if="isPreviewMode || props.row.is_objectKey"
+                    v-log-tooltip.top="props.row.field_name"
+                    class="overflow-tips-field-name"
+                  >
+                    <span
+                      v-if="props.row.is_objectKey"
+                      class="ext-btn bklog-icon bklog-subnode"
+                    ></span>
+                    <span>{{ props.row.field_name }}</span>
+                  </div>
+                  <bk-form-item
+                    v-else
+                    :class="{ 'is-required is-error': props.row.fieldErr, 'disable-background': props.row.is_built_in }"
+                    class="participle-form-item"
+                  >
+                    <span
+                      v-if="canExpandObjectField(props.row) && !props.row.expand"
+                      class="ext-btn rotate bklog-icon bklog-arrow-down-filled"
+                      @click="expandObject(props.row, true)"
+                    ></span>
+                    <span
+                      v-if="canExpandObjectField(props.row) && props.row.expand"
+                      class="ext-btn bklog-icon bklog-arrow-down-filled"
+                      @click="expandObject(props.row, false)"
+                    ></span>
+                    <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
+                    <t-input
+                      v-if="props.row.is_built_in && props.row.alias_name"
+                      v-model.trim="props.row.alias_name"
+                      class="participle-field-name-input-pl5"
+                      :disabled="getFieldEditDisabled(props.row)"
+                      :status="props.row.fieldErr && !props.row.btnShow ? 'error' : 'default'"
+                      @blur="checkFieldNameItem(props.row)"
+                    >
+                      <template v-if="props.row.fieldErr && !props.row.btnShow" #suffixIcon>
+                        <i
+                          v-log-tooltip.top="props.row.fieldErr"
+                          :aria-label="props.row.fieldErr"
+                          class="bk-icon icon-exclamation-circle-shape field-name-error-icon"
+                        ></i>
+                      </template>
+                    </t-input>
+                    <t-input
+                      v-else
+                      v-model.trim="props.row.field_name"
+                      :class="props.row.alias_name || props.row.alias_name_show ? 'participle-field-name-input' : ''"
+                      class="participle-field-name-input-pl5"
+                      :disabled="getFieldEditDisabled(props.row)"
+                      :status="props.row.fieldErr && !props.row.btnShow ? 'error' : 'default'"
+                      @blur="checkFieldNameItem(props.row)"
+                    >
+                      <template v-if="props.row.fieldErr && !props.row.btnShow" #suffixIcon>
+                        <i
+                          v-log-tooltip.top="props.row.fieldErr"
+                          :aria-label="props.row.fieldErr"
+                          class="bk-icon icon-exclamation-circle-shape field-name-error-icon"
+                        ></i>
+                      </template>
+                    </t-input>
+                    <template v-if="(props.row.alias_name || props.row.alias_name_show) && !props.row.is_built_in">
+                      <div
+                        class="participle-icon"
+                        :class="getFieldEditDisabled(props.row) ? 'participle-icon-color' : ''"
+                      >
+                        <i
+                          style="color: #3a84ff; margin: 0 10px"
+                          class="bk-icon bklog-icon bklog-yingshe"
+                        ></i>
+                      </div>
+                      <t-input
+                        v-model.trim="props.row.alias_name"
+                        class="participle-alias-name-input"
+                        :disabled="getFieldEditDisabled(props.row)"
+                        @blur="checkAliasNameItem(props.row)"
+                      ></t-input>
+                    </template>
+                    <!-- 重命名按钮，在json格式下重复内置字段或非法字符触发 -->
+                    <!-- <template v-if="selectEtlConfig === 'bk_log_json' && props.row.btnShow && !props.row.alias_name"> -->
+                    <template
+                      v-if="
+                        selectEtlConfig === 'bk_log_json' &&
+                        props.row.fieldAliasErr &&
+                        !props.row.alias_name &&
+                        !props.row.alias_name_show
+                      "
+                    >
+                      <t-button
+                        v-log-tooltip.top="
+                          {
+                            width: props.row.width,
+                            content: props.row.fieldAliasErr,
+                          } || '点击定义字段名映射'
+                        "
+                        :theme="'danger'"
+                        class="tooltips-btn"
+                        @click="handlePopoverRename(props.row)"
+                      >
+                        {{ $t('字段映射') }}
+                      </t-button>
+                    </template>
+                  </bk-form-item>
+                </template>
+              </bk-table-column>
+
+              <!-- 字段说明 -->
+              <!-- <bk-table-column
+                :render-header="renderHeaderDescription"
+                :resizable="false"
+                min-width="100"
+              >
+                <template #default="props">
+                  <div
+                    v-if="isPreviewMode"
+                    class="overflow-tips"
+                    v-log-overflow-tips
+                  >
+                    <span>{{ props.row.description }}</span>
+                  </div>
+                  <bk-input
+                    v-else
+                    v-model.trim="props.row.description"
+                    :disabled="props.row.is_delete || isSetDisabled"
+                  ></bk-input>
+                </template>
+              </bk-table-column> -->
+              <!-- 类型 -->
+              <bk-table-column
+                native-cell-slot
+                :label="$t('类型')"
+                :render-header="$renderHeader"
+                :resizable="false"
+                min-width="100"
+              >
+                <template #default="props">
+                  <div
+                    v-if="isPreviewMode"
+                    v-log-overflow-tips
+                    class="overflow-tips"
+                  >
+                    <span>{{ props.row.field_type }}</span>
+                  </div>
+                  <!-- <bk-form-item v-else
+                    :required="true"
+                    :rules="props.row.is_delete ? notCheck : rules.field_type"
+                    :property="'tableList.' + props.$index + '.field_type'">
+                    <bk-select
+                      :clearable="false"
+                      :disabled="props.row.is_delete"
+                      v-model="props.row.field_type"
+                      @selected="(value) => {
+                        fieldTypeSelect(value, props.row, props.$index)
+                      }">
+                      <bk-option v-for="option in globalsData.field_data_type"
+                        :key="option.id"
+                        :id="option.id"
+                        :name="option.name">
+                      </bk-option>
+                    </bk-select>
+                  </bk-form-item> -->
+                  <!-- 替代方案 -->
+                  <!-- <bk-form-item v-else
+                  :class="{ 'is-required is-error': props.row.typeErr }"
+                   :rules="props.row.is_delete ? notCheck : rules.field_type"
+                   :property="'tableList.' + props.$index + '.field_type'"> -->
+                  <bk-form-item
+                    v-else
+                    :class="{ 'is-required is-error': props.row.typeErr }"
+                  >
+                    <div class="field-type-control">
+                      <bk-select
+                        v-model="props.row.field_type"
+                        class="field-type-select"
+                        :clearable="false"
+                        :disabled="props.row.is_delete || isSetDisabled || props.row.is_built_in"
+                        :status="props.row.typeErr ? 'error' : 'default'"
+                        @selected="
+                          value => {
+                            fieldTypeSelect(value, props.row, props.$index);
+                          }
+                        "
+                      >
+                        <bk-option
+                          v-for="option in globalsData.field_data_type"
+                          :id="option.id"
+                          :key="option.id"
+                          :disabled="isTypeDisabled(props.row, option)"
+                          :name="option.name"
+                        >
+                        </bk-option>
+                      </bk-select>
                       <i
-                        style="color: #3a84ff; margin: 0 10px"
-                        class="bk-icon bklog-icon bklog-yingshe"
+                        v-if="props.row.typeErr"
+                        v-log-tooltip.top="$t('必填项')"
+                        :aria-label="$t('必填项')"
+                        class="bk-icon icon-exclamation-circle-shape field-name-error-icon"
                       ></i>
                     </div>
-                    <t-input
-                      v-model.trim="props.row.alias_name"
-                      class="participle-alias-name-input"
-                      :disabled="getFieldEditDisabled(props.row)"
-                      @blur="checkAliasNameItem(props.row)"
-                    ></t-input>
-                  </template>
-                  <template v-if="props.row.fieldErr && !props.row.btnShow">
-                    <i
-                      v-log-tooltip.top="props.row.fieldErr"
-                      style="right: 8px"
-                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                    >
-                    </i>
-                  </template>
-                  <!-- 重命名按钮，在json格式下重复内置字段或非法字符触发 -->
-                  <!-- <template v-if="selectEtlConfig === 'bk_log_json' && props.row.btnShow && !props.row.alias_name"> -->
-                  <template
-                    v-if="
-                      selectEtlConfig === 'bk_log_json' &&
-                      props.row.fieldAliasErr &&
-                      !props.row.alias_name &&
-                      !props.row.alias_name_show
-                    "
-                  >
-                    <t-button
-                      v-log-tooltip.top="
-                        {
-                          width: props.row.width,
-                          content: props.row.fieldAliasErr,
-                        } || '点击定义字段名映射'
-                      "
-                      :theme="'danger'"
-                      class="tooltips-btn"
-                      @click="handlePopoverRename(props.row)"
-                    >
-                      {{ $t('字段映射') }}
-                    </t-button>
-                  </template>
-                </bk-form-item>
-              </template>
-            </bk-table-column>
-
-            <!-- 字段说明 -->
-            <!-- <bk-table-column
-              :render-header="renderHeaderDescription"
-              :resizable="false"
-              min-width="100"
-            >
-              <template #default="props">
-                <div
-                  v-if="isPreviewMode"
-                  class="overflow-tips"
-                  v-log-overflow-tips
-                >
-                  <span>{{ props.row.description }}</span>
-                </div>
-                <bk-input
-                  v-else
-                  v-model.trim="props.row.description"
-                  :disabled="props.row.is_delete || isSetDisabled"
-                ></bk-input>
-              </template>
-            </bk-table-column> -->
-            <!-- 类型 -->
-            <bk-table-column
-              native-cell-slot
-              :label="$t('类型')"
-              :render-header="$renderHeader"
-              :resizable="false"
-              min-width="100"
-            >
-              <template #default="props">
-                <div
-                  v-if="isPreviewMode"
-                  v-log-overflow-tips
-                  class="overflow-tips"
-                >
-                  <span>{{ props.row.field_type }}</span>
-                </div>
-                <!-- <bk-form-item v-else
-                  :required="true"
-                  :rules="props.row.is_delete ? notCheck : rules.field_type"
-                  :property="'tableList.' + props.$index + '.field_type'">
-                  <bk-select
-                    :clearable="false"
-                    :disabled="props.row.is_delete"
-                    v-model="props.row.field_type"
-                    @selected="(value) => {
-                      fieldTypeSelect(value, props.row, props.$index)
-                    }">
-                    <bk-option v-for="option in globalsData.field_data_type"
-                      :key="option.id"
-                      :id="option.id"
-                      :name="option.name">
-                    </bk-option>
-                  </bk-select>
-                </bk-form-item> -->
-                <!-- 替代方案 -->
-                <!-- <bk-form-item v-else
-                :class="{ 'is-required is-error': props.row.typeErr }"
-                 :rules="props.row.is_delete ? notCheck : rules.field_type"
-                 :property="'tableList.' + props.$index + '.field_type'"> -->
-                <bk-form-item
-                  v-else
-                  :class="{ 'is-required is-error': props.row.typeErr }"
-                >
-                  <bk-select
-                    v-model="props.row.field_type"
-                    :clearable="false"
-                    :disabled="props.row.is_delete || isSetDisabled || props.row.is_built_in"
-                    @selected="
-                      value => {
-                        fieldTypeSelect(value, props.row, props.$index);
-                      }
-                    "
-                  >
-                    <bk-option
-                      v-for="option in globalsData.field_data_type"
-                      :id="option.id"
-                      :key="option.id"
-                      :disabled="isTypeDisabled(props.row, option)"
-                      :name="option.name"
-                    >
-                    </bk-option>
-                  </bk-select>
-                  <template v-if="props.row.typeErr">
-                    <i
-                      v-log-tooltip.top="$t('必填项')"
-                      style="right: 8px"
-                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                    ></i>
-                  </template>
-                </bk-form-item>
-              </template>
-            </bk-table-column>
-            <!--<bk-table-column :label="聚合" align="center" :resizable="false" width="50">
-              <template slot-scope="props">
-                <bk-popover v-if="props.row.is_time" :content="$t('时间字段默认设置可以聚合')">
-                  <bk-checkbox
-                    disabled
+                  </bk-form-item>
+                </template>
+              </bk-table-column>
+              <!--<bk-table-column :label="聚合" align="center" :resizable="false" width="50">
+                <template slot-scope="props">
+                  <bk-popover v-if="props.row.is_time" :content="$t('时间字段默认设置可以聚合')">
+                    <bk-checkbox
+                      disabled
+                      v-model="props.row.is_dimension">
+                    </bk-checkbox>
+                  </bk-popover>
+                  <bk-checkbox v-else
+                    :disabled="isPreviewMode || props.row.is_delete || props.row.is_analyzed"
                     v-model="props.row.is_dimension">
                   </bk-checkbox>
-                </bk-popover>
-                <bk-checkbox v-else
-                  :disabled="isPreviewMode || props.row.is_delete || props.row.is_analyzed"
-                  v-model="props.row.is_dimension">
-                </bk-checkbox>
-              </template>
-            </bk-table-column>-->
-            <!-- 字符串类型下才能设置分词， 分词和维度只能选其中一个，且分词和时间不能同时存在, 选定时间后就同时勾选维度-->
-            <!-- 分词 -->
-            <!-- <bk-table-column
-              :render-header="renderHeaderParticipleName"
-              :resizable="false"
-              :width="getParticipleWidth"
-              align="center"
-            >
-              <template #default="props">
-                <bk-checkbox
-                  v-model="props.row.is_analyzed"
-                  :disabled="getCustomizeDisabled(props.row, 'analyzed')"
-                  @change="() => handelChangeAnalyzed(props.row.is_analyzed, props.$index)"
-                >
-                </bk-checkbox>
-              </template>
-            </bk-table-column> -->
-            <!-- 分词符 -->
-            <bk-table-column
-              native-cell-slot
-              :render-header="renderHeaderParticipleName"
-              :resizable="false"
-              align="left"
-              min-width="200"
-            >
-              <template #default="props">
-                <!-- 预览模式-->
-                <template v-if="isPreviewMode">
-                  <template v-if="props.row.is_analyzed">
-                    <div>
-                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}；
-                      {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
-                    </div>
-                  </template>
-                  <div v-else>{{ $t('不分词') }}</div>
                 </template>
-                <template v-else>
-                  <div v-if="props.row.field_type === 'string' && !props.row.is_built_in">
-                    <bk-popconfirm
-                      class="participle-popconfirm"
-                      :is-show="isShowParticiple"
-                      trigger="click"
-                      @confirm="handleConfirmParticiple(props.row, props.$index)"
-                    >
-                      <div slot="content">
-                        <div>
-                          <bk-form
-                            class="participle-form"
-                            :label-width="95"
-                            :model="formData"
-                          >
-                            <bk-form-item
-                              :label="$t('分词')"
-                              :property="'source_name'"
-                            >
-                              <t-switch
-                                v-model="currentIsAnalyzed"
-                                :disabled="getCustomizeDisabled(props.row, 'analyzed')"
-
-                                @change="() => handelChangeAnalyzed()"
-                              ></t-switch>
-                            </bk-form-item>
-                            <bk-form-item
-                              :label="$t('分词符')"
-                              :property="'participle'"
-                            >
-                              <div class="bk-button-group">
-                                <t-button
-                                  v-for="option in participleList"
-                                  :key="option.id"
-                                  class="participle-btn"
-                                  :class="currentParticipleState === option.id ? 'is-selected' : ''"
-                                  :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
-                                  :disabled="getCustomizeDisabled(props.row)"
-                                  @click="handleChangeParticipleState(option.id, props.$index)"
-                                >
-                                  {{ option.name }}
-                                </t-button>
-                              </div>
-                              <t-input
-                                v-if="currentParticipleState === 'custom'"
-                                v-model="currentTokenizeOnChars"
-                                style="margin-top: 10px"
-                                :disabled="getCustomizeDisabled(props.row)"
-                              >
-                              </t-input>
-                            </bk-form-item>
-                            <bk-form-item
-                              :label="$t('大小写敏感')"
-                              :property="'is_case_sensitive'"
-                            >
-                              <t-switch
-                                v-model="currentIsCaseSensitive"
-                                :disabled="getCustomizeDisabled(props.row)"
-
-                              ></t-switch>
-                            </bk-form-item>
-                          </bk-form>
-                        </div>
+              </bk-table-column>-->
+              <!-- 字符串类型下才能设置分词， 分词和维度只能选其中一个，且分词和时间不能同时存在, 选定时间后就同时勾选维度-->
+              <!-- 分词 -->
+              <!-- <bk-table-column
+                :render-header="renderHeaderParticipleName"
+                :resizable="false"
+                :width="getParticipleWidth"
+                align="center"
+              >
+                <template #default="props">
+                  <bk-checkbox
+                    v-model="props.row.is_analyzed"
+                    :disabled="getCustomizeDisabled(props.row, 'analyzed')"
+                    @change="() => handelChangeAnalyzed(props.row.is_analyzed, props.$index)"
+                  >
+                  </bk-checkbox>
+                </template>
+              </bk-table-column> -->
+              <!-- 分词符 -->
+              <bk-table-column
+                native-cell-slot
+                :render-header="renderHeaderParticipleName"
+                :resizable="false"
+                align="left"
+                min-width="200"
+              >
+                <template #default="props">
+                  <!-- 预览模式-->
+                  <template v-if="isPreviewMode">
+                    <template v-if="props.row.is_analyzed">
+                      <div>
+                        {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}；
+                        {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
                       </div>
-                      <div
-                        class="participle-cell-wrap"
-                        @click="handlePopover(props.row, props.$index)"
+                    </template>
+                    <div v-else>{{ $t('不分词') }}</div>
+                  </template>
+                  <template v-else>
+                    <div v-if="props.row.field_type === 'string' && !props.row.is_built_in">
+                      <bk-popconfirm
+                        class="participle-popconfirm"
+                        :is-show="isShowParticiple"
+                        trigger="click"
+                        @confirm="handleConfirmParticiple(props.row, props.$index)"
                       >
+                        <div slot="content">
+                          <div>
+                            <bk-form
+                              class="participle-form"
+                              :label-width="95"
+                              :model="formData"
+                            >
+                              <bk-form-item
+                                :label="$t('分词')"
+                                :property="'source_name'"
+                              >
+                                <t-switch
+                                  v-model="currentIsAnalyzed"
+                                  :disabled="getCustomizeDisabled(props.row, 'analyzed')"
+
+                                  @change="() => handelChangeAnalyzed()"
+                                ></t-switch>
+                              </bk-form-item>
+                              <bk-form-item
+                                :label="$t('分词符')"
+                                :property="'participle'"
+                              >
+                                <div class="bk-button-group" data-bklog-button-group="connected">
+                                  <t-button
+                                    v-for="option in participleList"
+                                    :key="option.id"
+                                    class="participle-btn"
+                                    :aria-pressed="currentParticipleState === option.id"
+                                    :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
+                                    :disabled="getCustomizeDisabled(props.row)"
+                                    @click="handleChangeParticipleState(option.id, props.$index)"
+                                  >
+                                    {{ option.name }}
+                                  </t-button>
+                                </div>
+                                <t-input
+                                  v-if="currentParticipleState === 'custom'"
+                                  v-model="currentTokenizeOnChars"
+                                  style="margin-top: 10px"
+                                  :disabled="getCustomizeDisabled(props.row)"
+                                >
+                                </t-input>
+                              </bk-form-item>
+                              <bk-form-item
+                                :label="$t('大小写敏感')"
+                                :property="'is_case_sensitive'"
+                              >
+                                <t-switch
+                                  v-model="currentIsCaseSensitive"
+                                  :disabled="getCustomizeDisabled(props.row)"
+
+                                ></t-switch>
+                              </bk-form-item>
+                            </bk-form>
+                          </div>
+                        </div>
                         <div
-                          v-if="props.row.is_analyzed"
-                          style="width: 85%"
+                          class="participle-cell-wrap"
+                          @click="handlePopover(props.row, props.$index)"
                         >
                           <div
-                            v-log-tooltip="
-                              props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词'
-                            "
-                            class="participle_content"
+                            v-if="props.row.is_analyzed"
+                            style="width: 85%"
                           >
-                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
+                            <div
+                              v-log-tooltip="
+                                props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词'
+                              "
+                              class="participle_content"
+                            >
+                              {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
+                            </div>
+                            <div style="margin-top: -10px">
+                              {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
+                            </div>
                           </div>
-                          <div style="margin-top: -10px">
-                            {{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}
+                          <div
+                            v-else
+                            style="width: 85%"
+                          >
+                            {{ $t('不分词') }}
                           </div>
+                          <div class="participle-select-icon bk-icon icon-angle-down"></div>
                         </div>
-                        <div
-                          v-else
-                          style="width: 85%"
-                        >
-                          {{ $t('不分词') }}
-                        </div>
-                        <div class="participle-select-icon bk-icon icon-angle-down"></div>
-                      </div>
-                    </bk-popconfirm>
-                  </div>
-                  <div v-else>
-                    <t-input
-                      class="participle-disabled-input"
-                      :placeholder="$t('无需设置')"
-                      disabled
-                    >
-                    </t-input>
-                  </div>
+                      </bk-popconfirm>
+                    </div>
+                    <div v-else>
+                      <t-input
+                        class="participle-disabled-input"
+                        :placeholder="$t('无需设置')"
+                        disabled
+                      >
+                      </t-input>
+                    </div>
+                  </template>
                 </template>
-              </template>
-            </bk-table-column>
-            <!-- 操作 -->
-            <bk-table-column
-              native-cell-slot
-              v-if="getOperatorDisabled && !isPreviewMode"
-              width="60"
-              :label="$t('操作')"
-              :render-header="$renderHeader"
-              :resizable="false"
-              align="center"
-              prop="plugin_version"
-            >
-              <template #default="props">
-                <span
-                  :style="`color:${isSetDisabled ? '#dcdee5' : '#3a84ff'};`"
-                  class="table-link"
-                  @click="isDisableOperate(props.row)"
-                >
-                  <!-- {{ props.row.is_delete ? $t('复原') : $t('隐藏') }} -->
-                  <i
-                    v-if="props.row.is_delete"
-                    v-log-tooltip.top="$t('复原')"
-                    class="bk-icon bklog-icon bklog-eye"
-                  ></i>
-                  <i
-                    v-else
-                    v-log-tooltip.top="$t('隐藏')"
-                    class="bk-icon bklog-icon bklog-eye-slash"
-                  ></i>
-                </span>
+              </bk-table-column>
+              <!-- 操作 -->
+              <bk-table-column
+                native-cell-slot
+                v-if="getOperatorDisabled && !isPreviewMode"
+                width="60"
+                :label="$t('操作')"
+                :render-header="$renderHeader"
+                :resizable="false"
+                align="center"
+                prop="plugin_version"
+              >
+                <template #default="props">
+                  <span
+                    :style="`color:${isSetDisabled ? '#dcdee5' : '#3a84ff'};`"
+                    class="table-link"
+                    @click="isDisableOperate(props.row)"
+                  >
+                    <!-- {{ props.row.is_delete ? $t('复原') : $t('隐藏') }} -->
+                    <i
+                      v-if="props.row.is_delete"
+                      v-log-tooltip.top="$t('复原')"
+                      class="bk-icon bklog-icon bklog-eye"
+                    ></i>
+                    <i
+                      v-else
+                      v-log-tooltip.top="$t('隐藏')"
+                      class="bk-icon bklog-icon bklog-eye-slash"
+                    ></i>
+                  </span>
 
-                <i
-                  v-if="props.row.is_add_in"
-                  v-log-tooltip.top="$t('删除')"
-                  class="bk-icon bklog-icon bklog-log-delete"
-                  @click="deleteField(props.row)"
-                ></i>
-              </template>
-            </bk-table-column>
-            <div
-              slot="empty"
-              class="empty-text"
-            >
-              {{ $t('请先选择字段提取模式') }}
-            </div>
-          </template>
-        </bk-table>
+                  <i
+                    v-if="props.row.is_add_in"
+                    v-log-tooltip.top="$t('删除')"
+                    class="bk-icon bklog-icon bklog-log-delete"
+                    @click="deleteField(props.row)"
+                  ></i>
+                </template>
+              </bk-table-column>
+              <div
+                slot="empty"
+                class="empty-text"
+              >
+                {{ $t('请先选择字段提取模式') }}
+              </div>
+            </template>
+          </bk-table>
+        </management-list-loading>
       </bk-form>
     </div>
 
-    <div class="preview-panel-right">
+    <div class="preview-panel-right" :class="{ 'is-editable': !isPreviewMode }">
       <div class="preview-title preview-item">
         {{ $t('预览（值）') }}
       </div>
-      <template v-if="deletedVisible">
+      <template v-if="isExtracting">
+        <div v-for="row in 6" :key="row" class="preview-item preview-skeleton-row" aria-hidden="true">
+          <item-skeleton :rows="1" :columns="1" type="list" gap="0px" row-height="14px" />
+        </div>
+      </template>
+      <template v-else-if="deletedVisible">
         <div
           v-for="(row, index) in hideDeletedTable"
           :key="index"
           v-log-tooltip.top="{ content: row.value || $t('暂无数据'), allowHTML: false }"
-          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           class="preview-item"
         >
           {{ row.value }}
@@ -549,7 +568,6 @@
           v-for="(row, index) in tableList"
           :key="index"
           v-log-tooltip.top="{ content: row.value || $t('暂无数据'), allowHTML: false }"
-          :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           class="preview-item"
         >
           {{ row.value }}
@@ -577,10 +595,13 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 
   import { isFieldTypeDisabled, judgeNumber } from '@/shared/lib/util';
+  import ItemSkeleton from '@/app/skeleton/item-skeleton';
+  import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
   export default {
   emits: ["handle-table-data","handleTableData","reset","delete-visible","deleteVisible","handle-keep-log","handleKeepLog","handle-built-field","handleBuiltField","delete-field","deleteField"],
 
     name: 'FieldTable',
+    components: { ItemSkeleton, ManagementListLoading },
     props: {
       isEditJson: {
         type: Boolean,
@@ -1261,6 +1282,51 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
       right: 0;
     }
 
+    :deep(.add-field-table .overflow-tips-field-name) {
+      display: flex;
+      gap: var(--bklog-space-4);
+      align-items: center;
+      min-width: 0;
+      min-height: var(--bklog-table-header-medium);
+      padding-inline: var(--bklog-space-16);
+      background-color: var(--bklog-standard-control-surface-disabled, var(--td-bg-color-secondarycontainer));
+
+      > span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .ext-btn {
+        flex: none;
+        font-size: var(--bklog-space-16);
+      }
+    }
+
+    :deep(.field-type-control) {
+      display: flex;
+      gap: var(--bklog-space-4);
+      align-items: center;
+
+      .field-type-select {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .field-name-error-icon {
+        flex: none;
+      }
+    }
+
+    :deep(.field-name-error-icon) {
+      color: var(--td-error-color);
+      font-size: var(--bklog-space-16);
+    }
+
+    :deep(.add-field-table .participle-form-item.disable-background) {
+      background-color: var(--bklog-standard-control-surface-disabled, var(--td-bg-color-component-disabled));
+    }
+
     :deep(.field-table.add-field-table) {
       .bk-table-body {
         .cell {
@@ -1269,21 +1335,6 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 
           /* stylelint-disable-next-line declaration-no-important */
           padding: 0 !important;
-          .overflow-tips-field-name {
-            display: flex;
-            height: 100%;
-            align-items: center;
-            padding: 0 15px;
-            background-color: rgb(250, 251, 253);
-            span {
-              white-space: nowrap;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            }
-            .ext-btn {
-              font-size: 16px;
-            }
-          }
           .participle-form-item {
             .ext-btn {
               cursor: pointer;
@@ -1302,9 +1353,6 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
               display: flex;
               align-items: center;
             }
-          }
-          .disable-background {
-            background-color: #fafbfd;
           }
           .participle-field-name-input {
             width: 50%;
@@ -1331,9 +1379,6 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
             input {
               padding-left: 15px;
             }
-          }
-          .tooltips-icon {
-            top: 18px;
           }
           .red-icon {
             color: #ea3636;
@@ -1499,6 +1544,21 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
           height: 43px;
           border-top: 1px solid transparent;
         }
+      }
+
+      &.is-editable .preview-title {
+        height: var(--bklog-table-header-medium);
+        line-height: var(--bklog-table-header-medium);
+      }
+
+      &.is-editable .preview-item:not(.preview-title) {
+        height: 51px;
+        line-height: 51px;
+      }
+
+      .preview-skeleton-row {
+        display: grid;
+        align-items: center;
       }
 
       .preview-title {

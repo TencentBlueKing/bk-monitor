@@ -31,6 +31,8 @@ import { defineComponent, ref, onUnmounted, watch, computed, type PropType } fro
 
 import { random } from '@/shared/lib/util';
 import useLocale from '@/shared/composables/use-locale';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
 
 import TreeComponent from '../../../common-comp/tree-component';
 import type { IClusterItem, IValueItem, ILabelSelector } from '../../../../type';
@@ -85,6 +87,9 @@ export default defineComponent({
     const matchSelectItemList = ref<IValueItem[]>([]);
     const treeLoading = ref(false);
     const labelLoading = ref(false);
+    const treeFailed = ref(false);
+    const labelFailed = ref(false);
+    let retryLabels: (() => void) | undefined;
     /**
      * 容器宽度状态
      */
@@ -209,16 +214,17 @@ export default defineComponent({
         type === 'node' ? baseQuery : { ...baseQuery, [namespaceKey]: namespaceStr === '*' ? undefined : namespaceStr };
 
       treeLoading.value = true;
+      treeFailed.value = false;
       treeRequestId += 1;
       const requestId = treeRequestId;
       ServicesInstance.container.getPodTree({ query })
         .then(res => {
-          if (requestId === treeRequestId && res.code === 0) {
-            processTreeData(res.data);
-          }
+          if (requestId !== treeRequestId) return;
+          treeFailed.value = res.code !== 0;
+          if (!treeFailed.value) processTreeData(res.data);
         })
-        .catch(err => {
-          console.warn(err);
+        .catch(() => {
+          if (requestId === treeRequestId) treeFailed.value = true;
         })
         .finally(() => {
           if (requestId === treeRequestId) {
@@ -289,6 +295,9 @@ export default defineComponent({
       labelRequestId += 1;
       treeLoading.value = false;
       labelLoading.value = false;
+      treeFailed.value = false;
+      labelFailed.value = false;
+      retryLabels = undefined;
       currentNodeId.value = '';
       matchSelectList.value = [];
       matchSelectItemList.value = [];
@@ -405,6 +414,8 @@ export default defineComponent({
       matchSelectItemList.value = [];
       matchSelectList.value = [];
       labelLoading.value = false;
+      labelFailed.value = false;
+      retryLabels = undefined;
 
       /**
        * 非 pod/node 节点时，清空未选择区域
@@ -426,12 +437,13 @@ export default defineComponent({
        * 请求该节点的可选标签
        */
       labelLoading.value = true;
+      retryLabels = () => handleSelectTreeItem(treeItem, parent);
 
       ServicesInstance.container.getNodeLabelList({ query })
         .then(res => {
-          if (requestId !== labelRequestId || res.code !== 0) {
-            return;
-          }
+          if (requestId !== labelRequestId) return;
+          labelFailed.value = res.code !== 0;
+          if (labelFailed.value) return;
 
           /**
            * 过滤掉与已选择列表重复的项，确保不重复
@@ -452,8 +464,8 @@ export default defineComponent({
             // 统一为可选择项补齐 operator 与临时 id
             .map((item: IValueItem) => ({ ...item, operator: 'In', id: random(10) }));
         })
-        .catch(err => {
-          console.warn(err);
+        .catch(() => {
+          if (requestId === labelRequestId) labelFailed.value = true;
         })
         .finally(() => {
           if (requestId === labelRequestId) {
@@ -556,14 +568,16 @@ export default defineComponent({
      * 渲染无数据提示
      * @returns
      */
+    const renderRequestError = (retry: () => void) => (
+      <div class='label-choose-empty'>
+        <EmptyStatus emptyType='500' onOperation={retry} />
+      </div>
+    );
+
     const renderEmpty = () => (
-      <bk-exception
-        class='no-selected-item'
-        scene='part'
-        type='empty'
-      >
-        {t('暂无标签')}
-      </bk-exception>
+      <div class='label-choose-empty'>
+        <EmptyStatus showText={false}>{t('暂无标签')}</EmptyStatus>
+      </div>
     );
     return () => (
       <bk-dialog
@@ -593,9 +607,9 @@ export default defineComponent({
             />
             <div
               class='tree-list'
-              v-loading={{ loading: treeLoading.value }}
+              aria-busy={treeLoading.value}
             >
-              {filteredTreeList.value.length > 0 ? (
+              {treeLoading.value ? renderFieldListSkeleton() : treeFailed.value ? renderRequestError(getTreeList) : filteredTreeList.value.length > 0 ? (
                 <TreeComponent
                   activeNodeId={currentNodeId.value}
                   data={filteredTreeList.value}
@@ -603,20 +617,12 @@ export default defineComponent({
                   onToggle={handleToggleTreeNode}
                 />
               ) : (
-                <bk-exception
-                  class='tree-list-empty'
-                  type={filterStr.value ? 'search-empty' : 'empty'}
-                >
-                  {filterStr.value && <span>{t('搜索结果为空')}</span>}
-                  <span
-                    class='list-main-empty-text'
-                    onClick={() => {
-                      filterStr.value = '';
-                    }}
-                  >
-                    {t('清空筛选条件')}
-                  </span>
-                </bk-exception>
+                <div class='label-choose-empty'>
+                  <EmptyStatus
+                    emptyType={filterStr.value ? 'search-empty' : 'empty'}
+                    onOperation={() => { filterStr.value = ''; }}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -644,12 +650,16 @@ export default defineComponent({
             </div>
             <div
               class='main-right-bot'
-              v-loading={{ loading: labelLoading.value }}
+              aria-busy={labelLoading.value}
             >
               {t('未选择')}
-              {matchSelectItemList.value.length > 0
-                ? renderMatchSelectItem(matchSelectItemList.value, false)
-                : renderEmpty()}
+              {labelLoading.value
+                ? renderFieldListSkeleton()
+                : labelFailed.value
+                  ? renderRequestError(() => retryLabels?.())
+                  : matchSelectItemList.value.length > 0
+                    ? renderMatchSelectItem(matchSelectItemList.value, false)
+                    : renderEmpty()}
             </div>
           </div>
         </div>

@@ -77,27 +77,3 @@
     },
   };
 </script>
-
-<style lang="scss">
-  .collection-report-detail {
-    .detail-content {
-      min-height: calc(100vh - 60px);
-      white-space: pre-wrap;
-    }
-
-    .bk-sideslider-wrapper {
-      padding-bottom: 0;
-
-      .bk-sideslider-content {
-        height: 100%;
-        color: #c4c6cc;
-        background-color: #313238;
-
-        .check-info {
-          padding: 20px;
-          white-space: pre-wrap;
-        }
-      }
-    }
-  }
-</style>

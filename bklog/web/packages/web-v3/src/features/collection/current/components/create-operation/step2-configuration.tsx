@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { renderCollectionFormSkeleton } from './form-skeleton';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 
 
@@ -212,7 +213,8 @@ export default defineComponent({
     const linkConfigurationList = ref<{ data_link_id: string; data_link_name: string; }[]>([]);
     const linkListLoading = ref(false);
     const otherSpeciesList = ref<((string))[]>([]);
-    const loadingSave = ref(false);
+    const savingAction = ref<ISubmitOptions['action']>(undefined);
+    const loadingSave = computed(() => savingAction.value !== undefined);
 
     /**
      * 相关校验
@@ -890,13 +892,13 @@ export default defineComponent({
           <div class='label-form-box'>
             <span class='label-title'>{t('日志类型')}</span>
             <div class='form-box'>
-              <div class='bk-button-group'>
+              <div class='bk-button-group' data-bklog-button-group='connected'>
                 {LOG_TYPE_LIST.map(item => (
                   <TButton
                     key={item.value}
-                    class={{ 'is-selected': logType.value === item.value }}
+                    aria-pressed={logType.value === item.value}
                     theme='default'
-                    variant='outline'
+                    variant='base'
                     onClick={() => handleLogType(item)}
                   >
                     {item.text}
@@ -1402,7 +1404,6 @@ export default defineComponent({
      * @param options.callback 保存完成后的回调函数
      */
     const setCollection = ({ action = 'next', callback }: ISubmitOptions = {}) => {
-      loadingSave.value = true;
       const {
         params,
         extra_labels,
@@ -1471,7 +1472,7 @@ export default defineComponent({
           bcs_cluster_id,
         );
       }
-      requestUrl({
+      return requestUrl({
           params: urlParams,
           data: requestData,
         })
@@ -1501,9 +1502,6 @@ export default defineComponent({
           console.log('保存采集配置出错:', err);
           showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
-        })
-        .finally(() => {
-          loadingSave.value = false;
         });
     };
     /**
@@ -1513,6 +1511,10 @@ export default defineComponent({
      * @param options.callback 保存完成后的回调函数
      */
     const handleSubmitSave = ({ action = 'next', callback }: ISubmitOptions = {}) => {
+      if (loading.value || loadingSave.value) {
+        callback?.(false);
+        return;
+      }
       if (!showClusterListKeys.includes(props.scenarioId)) {
         isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
       }
@@ -1552,8 +1554,9 @@ export default defineComponent({
        * 是否为容器采集并且配置项校验通过
        */
       // console.log('formData.value', formData.value);
-      baseInfoRef.value
-        .validate()
+      savingAction.value = action;
+      return Promise.resolve()
+        .then(() => baseInfoRef.value.validate())
         .then(() => {
           if (props.scenarioId !== 'winevent' && !isLineRuleValid) {
             showMessage(t('请完善段日志规则'), 'error');
@@ -1582,11 +1585,10 @@ export default defineComponent({
             return;
           }
           if (props.scenarioId === 'winevent') {
-            setCollection({ action, callback });
-            return;
+            return setCollection({ action, callback });
           }
           if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && isConfigError && isMetadataValid) {
-            setCollection({ action, callback });
+            return setCollection({ action, callback });
           } else {
             if (isTargetNodesEmpty.value) {
               showMessage(t('请选择采集目标'), 'error');
@@ -1605,9 +1607,11 @@ export default defineComponent({
           }
         })
         .catch(() => {
-          loadingSave.value = false;
           showMessage(t('请完善基础信息'), 'error');
           callback?.(false);
+        })
+        .finally(() => {
+          savingAction.value = undefined;
         });
     };
 
@@ -1619,9 +1623,13 @@ export default defineComponent({
     return () => (
       <div
         class='operation-step2-configuration'
-        v-loading={{ loading: loading.value, indicator: renderCollectionFormSkeleton }}
+        v-loading={{
+          loading: loading.value,
+          indicator: renderCollectionFormSkeleton,
+          zIndex: Z_INDEX_LAYERS.PAGE_TOP,
+        }}
       >
-        {cardRender(cardConfig)}
+        {cardRender(cardConfig, loadingSave.value)}
         <LogIpSelector
           key={bkBizId.value}
           height={670}
@@ -1645,6 +1653,7 @@ export default defineComponent({
               class='mr-8'
               theme='default'
               variant='outline'
+              disabled={loadingSave.value}
               onClick={() => {
                 emit('prev');
               }}
@@ -1654,8 +1663,9 @@ export default defineComponent({
           )}
           <TButton
             class='width-88 mr-8'
-            loading={loadingSave.value}
             theme='primary'
+            loading={savingAction.value === 'next'}
+            disabled={loading.value || loadingSave.value}
             onClick={() => handleSubmitSave()}
           >
             {t('下一步')}
@@ -1663,8 +1673,9 @@ export default defineComponent({
           {isUpdate.value && (
             <TButton
               class='width-88 mr-8'
-              loading={loadingSave.value}
               theme='primary'
+              loading={savingAction.value === 'back'}
+              disabled={loading.value || loadingSave.value}
               onClick={() => handleSubmitSave({ action: 'back' })}
             >
               {t('提交')}
@@ -1673,6 +1684,7 @@ export default defineComponent({
           <TButton
             theme='default'
             variant='outline'
+            disabled={loadingSave.value}
             onClick={() => {
               emit('cancel');
             }}

@@ -54,6 +54,7 @@ test('cluster loading, empty and populated states are exclusive and preserve sel
 
 test('report drawer preserves nested data, copy and close; empty state does not invent a log', async () => {
   const Drawer = { name: 'Drawer' }, Button = { name: 'Button' }, Json = { name: 'Json' };
+  const EmptyStatus = { name: 'EmptyStatus' };
   const copies = [], messages = [], events = [];
   const { default: component } = loadTypeScript(new URL('../src/features/collection/current/components/business-comp/step3/report-log-slider.tsx', import.meta.url), {
     vue: Vue,
@@ -61,6 +62,7 @@ test('report drawer preserves nested data, copy and close; empty state does not 
     '@/shared/global/overlay/overlay-registry.js': { overlayRegistry: { nextZIndex: () => 3000 } },
     '@/shared/global/overlay/z-index-manager.js': { Z_INDEX_LAYERS: { DRAWER: 2000 } },
     '@/shared/global/json-format-wrapper.vue': Json,
+    '@/shared/ui/empty-status/index.vue': EmptyStatus,
     '@/shared/composables/use-locale': () => ({ t: text => text }),
     '../../../utils': { showMessage: value => messages.push(value) },
   }, { jsx: ts.JsxEmit.ReactJSX, jsxImportSource: 'vue' });
@@ -68,7 +70,7 @@ test('report drawer preserves nested data, copy and close; empty state does not 
   const render = component.setup(props, { emit: (...args) => events.push(args) });
   let drawer = render();
   assert.equal(drawer.type, Drawer);
-  assert.equal(drawer.props.size, '596px');
+  assert.equal(drawer.props.size, 'min(596px, 100vw)');
   assert.equal(drawer.props.closeBtn, true);
   const json = descendants(drawer.props['v-slots'].body()).find(n => n.type === Json);
   assert.equal(json.props.data, props.jsonText);
@@ -97,6 +99,7 @@ test('report drawer preserves nested data, copy and close; empty state does not 
   props.jsonText = {};
   drawer = render();
   assert.equal(descendants(drawer.props['v-slots'].body()).some(n => n.type === Json), false);
+  assert.equal(descendants(drawer.props['v-slots'].body()).some(n => n.type === EmptyStatus), true);
   assert.equal(descendants(drawer.props['v-slots'].header()).find(n => n.type === Button).props.disabled, true);
   props.isShow = false;
   assert.equal(render().props['v-slots'].body(), false);

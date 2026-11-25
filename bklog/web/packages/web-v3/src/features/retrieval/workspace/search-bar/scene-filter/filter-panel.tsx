@@ -1172,10 +1172,10 @@ export default defineComponent({
     return () => (
       <div
         class='scene-filter-panel'
-        v-loading={{ loading: sceneLoading.value }}
+        aria-busy={sceneLoading.value}
         style={{ opacity: props.isSticky ? 0 : 1 }}
       >
-        <div class='scene-filter-top'>
+        <div class='scene-filter-top' inert={sceneLoading.value}>
           <div class='top-left'>
             {renderSceneTabBar()}
             <span class='filter-tip'>
@@ -1196,7 +1196,16 @@ export default defineComponent({
           </div>
         </div>
 
-        <div class='scene-filter-grid'>{visibleFields.value.map(field => renderFilterField(field))}</div>
+        <div class='scene-filter-grid'>
+          {sceneLoading.value
+            ? Array.from({ length: visibleFields.value.length || 5 }, (_, index) => (
+                <div key={index} class='scene-filter-placeholder' aria-hidden='true'>
+                  <span />
+                  <span />
+                </div>
+              ))
+            : visibleFields.value.map(field => renderFilterField(field))}
+        </div>
       </div>
     );
   },

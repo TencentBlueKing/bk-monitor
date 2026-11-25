@@ -29,9 +29,9 @@
     v-model:visible="isShowDialog"
     attach="body"
     dialog-class-name="export-history-dialog"
-    top="120px"
+    top="clamp(16px, 12vh, 120px)"
     :header="false"
-    width="80%"
+    width="min(max(80%, 640px), calc(100vw - 32px))"
     :close-on-overlay-click="false"
     :footer="false"
     destroy-on-close
@@ -74,6 +74,15 @@
         :pagination="nativePagination"
         @page-change="handleNativePageChange"
       >
+        <template #empty>
+          <div class="bklog-table-empty-region">
+            <EmptyStatus
+              v-if="!tableLoading"
+              :empty-type="historyFailed ? '500' : 'empty'"
+              @operation="fetchHistoryList()"
+            />
+          </div>
+        </template>
         <template #indexSetId="{ row }">
           <span>
             {{ getIndexSetIDs(row) }}
@@ -187,6 +196,7 @@ import {
   DateRangePicker as TDateRangePicker,
   Tooltip as TTooltip,
 } from 'tdesign-vue-next';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import { ServicesInstance } from '@/platform/services';
 
@@ -215,7 +225,8 @@ import {
 const HISTORY_PAGE_SIZE = 10;
 
 export default {
-  components: { TDialog, TTable, TPopup, TDateRangePicker, TTooltip, ManagementListLoading },
+  components: {
+    EmptyStatus, TDialog, TTable, TPopup, TDateRangePicker, TTooltip, ManagementListLoading },
   emits: ['refresh-current-tasks', 'refreshCurrentTasks', 'handle-close-dialog', 'handleCloseDialog', 'sync-tracked-tasks', 'syncTrackedTasks'],
 
   props: {
@@ -237,6 +248,7 @@ export default {
       exportList: [],
       isShowDialog: false,
       tableLoading: false,
+      historyFailed: false,
       isSearchAll: false, // 是否查看所有索引集下载历史
       dateRange: [], // 日期范围
       historyDateFocused: false,
@@ -689,6 +701,7 @@ export default {
       this.cancelHistoryRequest();
       if (!isPolling) {
         this.tableLoading = true;
+        this.historyFailed = false;
       }
 
       if (this.isUnionSearch && !this.unionIndexList.length) {
@@ -737,6 +750,7 @@ export default {
         if (this.historyCancelExecutor !== cancelExecutor) {
           return;
         }
+        if (!isPolling) this.historyFailed = !res.result;
         if (res.result) {
           this.pagination.count = res.data.total || 0;
           this.setExportListData(res.data.list);
@@ -746,8 +760,8 @@ export default {
           }
         }
       } catch (error) {
-        if (axios.isCancel(error)) {
-          return;
+        if (!axios.isCancel(error) && !isPolling && this.historyCancelExecutor === cancelExecutor) {
+          this.historyFailed = true;
         }
       } finally {
         if (this.historyCancelExecutor === cancelExecutor) {
@@ -784,7 +798,6 @@ export default {
 <style lang="scss" scoped>
 @use '@/shared/ui/loading/shimmer' as *;
 @use '@/shared/styles/mixins/flex.scss' as *;
-@use '@/shared/styles/conf' as *;
 
 .table-title {
   font-size: 16px;
@@ -795,19 +808,21 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--bklog-space-8);
   width: 100%;
-  margin: 10px 0 20px 0;
+  margin: 10px 0 var(--bklog-space-20);
 }
 
 .export-table {
-  height: calc(100vh - 380px);
+  height: max(calc(6 * var(--bklog-space-24)), calc(100dvh - 380px));
   overflow-y: auto;
 
   .t-table__content {
-    min-height: calc(100vh - 520px);
+    min-height: max(0px, calc(100dvh - 520px));
 
     .t-table__empty {
-      min-height: calc(100vh - 440px);
+      min-height: max(0px, calc(100dvh - 440px));
 
       @include flex-center;
     }
@@ -842,25 +857,26 @@ export default {
   }
 
   &.status-success i {
-    color: $iconSuccessColor;
+    color: var(--td-success-color);
   }
 
   &.status-failed i {
-    color: $iconFailColor;
+    color: var(--td-error-color);
   }
 }
 
 .progress-text {
   font-size: 12px;
   font-weight: 700;
-  color: #3a84ff;
+  color: var(--td-text-color-link);
   white-space: nowrap;
 }
 </style>
 
 <style lang="scss">
 .export-history-dialog.t-dialog {
-  padding: 24px;
+  box-sizing: border-box;
+  padding: clamp(var(--bklog-space-12), 4vw, var(--bklog-space-24));
   .t-dialog__header {
     height: 0;
     min-height: 0;
@@ -875,7 +891,7 @@ export default {
     }
   }
   .search-history .t-date-range-picker {
-    width: 342px;
+    width: min(342px, 100%);
   }
   .t-dialog__close {
     top: 12px;
@@ -885,7 +901,7 @@ export default {
     .t-table__header th {
       height: 43px;
       padding: 0 12px;
-      background: var(--bklog-surface-component, #f0f1f5);
+      background: var(--td-bg-color-component);
     }
     .t-table__body td {
       height: 42px;

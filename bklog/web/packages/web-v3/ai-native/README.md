@@ -24,3 +24,7 @@ pnpm --ignore-workspace build
 `source-map.json` 记录迁移清单、目标位置和原始输出摘要；后续有记录的重构可以改变目标内容。5 个 `.DS_Store` 在 excluded 清单说明，业务代码和资源不因此减少。历史快照已退役，AI-Native 只校验当前源码。
 
 任务记录遵循 `task.schema.json`；状态必须经过分析、实施、验证，必要证据缺失保持 NEEDS_REVIEW 或 BLOCKED。失败写入 `failure-memory.json`，包含复现、根因、修复、验证与预防；同一问题重复失败时先做根因分析。不能把目录迁移成功或一次构建成功视为全量功能通过。
+
+## 组件主题规范
+
+维护设计变量、主题样式或 V3 业务布局时，参照 [V3 组件主题规范](theme-design-spec.md)。其中的 Figma 页面索引可定位组件变体，主题维护章节记录变量入口、台账更新命令和浏览器验收范围。

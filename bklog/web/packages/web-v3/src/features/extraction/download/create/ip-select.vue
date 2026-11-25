@@ -35,7 +35,7 @@
     @value-change="handleValueChange"
   >
     <div
-      v-loading="{ loading: isLoading }"
+      v-loading="{ loading: isLoading, indicator: renderListRefreshSkeleton }"
       class="ip-select-container"
     >
       <div class="select-title">
@@ -58,15 +58,20 @@
             type="text"
             @keyup.enter="search"
           />
-          <bk-big-tree
-            ref="treeRef"
-            :data="topoTemplate"
-            :default-expanded-nodes="[topoTemplate[0] && topoTemplate[0].id]"
-            display-matched-node-descendants
-            show-checkbox
-            @check-change="handleNodeCheck"
+          <div
+            v-loading="{ loading: topologyLoading, indicator: renderFieldListSkeleton }"
+            :class="{ 'is-topology-loading': topologyLoading }"
           >
-          </bk-big-tree>
+            <bk-big-tree
+              ref="treeRef"
+              :data="topoTemplate"
+              :default-expanded-nodes="[topoTemplate[0] && topoTemplate[0].id]"
+              display-matched-node-descendants
+              show-checkbox
+              @check-change="handleNodeCheck"
+            >
+            </bk-big-tree>
+          </div>
         </div>
         <div class="selected-ip-list">
           <bk-table
@@ -99,7 +104,7 @@
               </template>
             </bk-table-column>
             <template #empty>
-              <div>
+              <div class="bklog-table-empty-region">
                 <empty-status empty-type="empty" />
               </div>
             </template>
@@ -116,6 +121,7 @@ import { ServicesInstance } from '@/platform/services';
 
   import { copyMessage } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
+  import { renderFieldListSkeleton, renderListRefreshSkeleton } from '@/shared/ui/loading/list-skeleton';
 
   export default {
   emits: ["update:show-select-dialog","update:showSelectDialog","confirm"],
@@ -131,7 +137,8 @@ import { ServicesInstance } from '@/platform/services';
     },
     data() {
       return {
-        isLoading: true,
+        isLoading: false,
+        topologyLoading: true,
         searchWord: '',
         topoTemplate: [],
         selectedIpNodes: [],
@@ -150,9 +157,11 @@ import { ServicesInstance } from '@/platform/services';
       this.initTopoTemplate();
     },
     methods: {
+      renderFieldListSkeleton,
+      renderListRefreshSkeleton,
       async initTopoTemplate() {
         try {
-          this.isLoading = true;
+          this.topologyLoading = true;
           const res = await ServicesInstance.extract.getTopoIpList({
             query: {
               bk_biz_id: useApplicationStore().bkBizId,
@@ -162,7 +171,7 @@ import { ServicesInstance } from '@/platform/services';
         } catch (e) {
           console.warn(e);
         } finally {
-          this.isLoading = false;
+          this.topologyLoading = false;
         }
       },
       handleNodeCheck(checkedId, checkedNode) {
@@ -292,6 +301,10 @@ import { ServicesInstance } from '@/platform/services';
         overflow: auto;
         border: 1px solid #dfe0e5;
         border-right: none;
+      }
+
+      .is-topology-loading {
+        min-height: var(--bklog-table-skeleton-min-height);
       }
 
       .selected-ip-list {

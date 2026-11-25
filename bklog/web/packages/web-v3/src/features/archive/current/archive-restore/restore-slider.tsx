@@ -25,6 +25,7 @@
  */
 
 
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
@@ -82,7 +83,9 @@ export default defineComponent({
     const validateForm = ref<any>(null); // 表单验证引用
 
     const confirmLoading = ref(false); // 确认按钮加载状态
-    const sliderLoading = ref(false); // 侧滑内容加载状态
+    const sliderLoading = ref(false);
+    const initializationFailed = ref(false);
+    let initializationRequest = 0;
     const archiveList = ref<any[]>([]); // 归档列表
     const retentionDaysList = ref<any[]>([]); // 过期天数列表
 
@@ -118,31 +121,27 @@ export default defineComponent({
 
     // 是否为编辑模式
     const isEdit = computed(() => props.editRestore !== null);
+    const hasNoArchives = computed(() => !isEdit.value && archiveList.value.length === 0);
 
     // 获取归档列表
-    const getArchiveList = async () => {
+    const getArchiveList = async (request: number) => {
       const query = {
         bk_biz_id: bkBizId.value,
       };
 
-      try {
-        const res = await ServicesInstance.archive.getAllArchives({ query });
-        archiveList.value = res.data || [];
+      const res = await ServicesInstance.archive.getAllArchives({ query });
+      if (request !== initializationRequest) return;
+      archiveList.value = res.data || [];
 
-        if (!isEdit.value && archiveList.value.length) {
-          formData.archive_config_id = archiveList.value[0].archive_config_id || '';
-          handleArchiveChange(archiveList.value[0].archive_config_id);
-        }
-      } catch (error) {
-        console.warn('获取归档列表失败:', error);
-      } finally {
-        sliderLoading.value = false;
+      if (!isEdit.value && archiveList.value.length) {
+        formData.archive_config_id = archiveList.value[0].archive_config_id || '';
+        handleArchiveChange(archiveList.value[0].archive_config_id);
       }
     };
 
     // 更新天数列表
     const updateDaysList = () => {
-      const retentionDaysListData = [...globalsData.value.storage_duration_time].filter(item => {
+      const retentionDaysListData = [...(globalsData.value.storage_duration_time ?? [])].filter(item => {
         return item.id;
       });
       retentionDaysList.value = retentionDaysListData;
@@ -186,6 +185,8 @@ export default defineComponent({
 
     // 确认提交表单逻辑
     const handleConfirm = async () => {
+      if (sliderLoading.value || confirmLoading.value || !validateForm.value) return;
+      confirmLoading.value = true;
       try {
         // 验证表单
         await validateForm.value?.validate();
@@ -213,9 +214,6 @@ export default defineComponent({
           };
           params.restore_config_id = restoreConfigId;
         }
-
-        // 设置提交按钮为加载状态
-        confirmLoading.value = true;
 
         // 调用接口提交数据
         await url({
@@ -251,47 +249,61 @@ export default defineComponent({
       ));
     };
 
-    // 监听 showSlider 变化
+    const initializeSlider = async () => {
+      const request = ++initializationRequest;
+      sliderLoading.value = true;
+      initializationFailed.value = false;
+      try {
+        await getArchiveList(request);
+        if (request !== initializationRequest) return;
+        updateDaysList();
+
+        if (isEdit.value) {
+          const {
+            index_set_name,
+            archive_config_id,
+            expired_time: expiredTime,
+            notice_user,
+            start_time: startTime,
+            end_time: endTime,
+          } = props.editRestore;
+
+          Object.assign(formData, {
+            index_set_name,
+            archive_config_id,
+            expired_time: expiredTime,
+            notice_user,
+            start_time: startTime,
+            end_time: endTime,
+            datePickerValue: [startTime, endTime].map(time => time ? dayjs(time).format('YYYY-MM-DD HH:mm') : ''),
+            datePickerExpired: expiredTime,
+          });
+        } else {
+          const { userMeta } = store;
+          if (userMeta?.username) {
+            formData.notice_user.push(userMeta.username);
+          }
+        }
+
+        if (props.archiveId) {
+          // 从归档列表新建回溯
+          formData.archive_config_id = props.archiveId.toString();
+        }
+      } catch {
+        if (request === initializationRequest) initializationFailed.value = true;
+      } finally {
+        if (request === initializationRequest) sliderLoading.value = false;
+      }
+    };
+
     watch(
       () => props.showSlider,
-      async val => {
+      val => {
         if (val) {
-          sliderLoading.value = isEdit.value;
-          await getArchiveList();
-          updateDaysList();
-
-          if (isEdit.value) {
-            const {
-              index_set_name,
-              archive_config_id,
-              expired_time: expiredTime,
-              notice_user,
-              start_time: startTime,
-              end_time: endTime,
-            } = props.editRestore;
-
-            Object.assign(formData, {
-              index_set_name,
-              archive_config_id,
-              expired_time: expiredTime,
-              notice_user,
-              start_time: startTime,
-              end_time: endTime,
-              datePickerValue: [startTime, endTime].map(time => time ? dayjs(time).format('YYYY-MM-DD HH:mm') : ''),
-              datePickerExpired: expiredTime,
-            });
-          } else {
-            const { userMeta } = store;
-            if (userMeta?.username) {
-              formData.notice_user.push(userMeta.username);
-            }
-          }
-
-          if (props.archiveId) {
-            // 从归档列表新建回溯
-            formData.archive_config_id = props.archiveId.toString();
-          }
+          void initializeSlider();
         } else {
+          initializationRequest += 1;
+          sliderLoading.value = false;
           // 清空表单数据
           Object.assign(formData, {
             index_set_name: '',
@@ -305,6 +317,7 @@ export default defineComponent({
           });
         }
       },
+      { immediate: true },
     );
 
     // 组件挂载时初始化验证规则
@@ -343,10 +356,18 @@ export default defineComponent({
               <>
                 <div
                   class='restore-slider-content'
+                  aria-busy={sliderLoading.value}
                   v-loading={{ loading: sliderLoading.value, indicator: renderDrawerFormSkeleton }}
                 >
-                  {/* 加载完成后渲染表单 */}
-                  {!sliderLoading.value && (
+                  {!sliderLoading.value && (initializationFailed.value || hasNoArchives.value) && (
+                    <div class='bklog-table-empty-region'>
+                      <EmptyStatus
+                        emptyType={initializationFailed.value ? '500' : 'empty'}
+                        onOperation={initializeSlider}
+                      />
+                    </div>
+                  )}
+                  {!sliderLoading.value && !initializationFailed.value && !hasNoArchives.value && (
                     <bk-form
                       ref={validateForm}
                       class='king-form'
@@ -437,7 +458,7 @@ export default defineComponent({
                         required
                       >
                         <ValidateUserSelector
-                          customStyle='width: 500px'
+                          customStyle='width: min(500px, 100%)'
                           value={formData.notice_user}
                           onChange={(val: string[]) => (formData.notice_user = val)}
                           disabled={isEdit.value}
@@ -451,6 +472,7 @@ export default defineComponent({
                           class='king-button mr10'
                           data-test-id='addNewRestore_button_submit'
                           loading={confirmLoading.value}
+                          disabled={confirmLoading.value}
                           theme='primary'
                           onClick={handleConfirm}
                         >
@@ -469,7 +491,7 @@ export default defineComponent({
               </>
             ),
           }}
-          width={676}
+          width='min(676px, 100vw)'
           is-show={props.showSlider}
           quick-close={true}
           show-mask={true}

@@ -3,14 +3,15 @@
   flex-direction: column;
   width: 376px;
   max-width: calc(100vw - 24px);
-  max-height: calc(100dvh - 32px);
+  max-height: calc(100dvh - 2 * var(--bklog-space-16));
+
   .config-title {
     flex-shrink: 0;
     padding: 20px 24px 0;
     font-size: 20px;
     font-weight: normal;
     line-height: 28px;
-    color: #313238;
+    color: var(--bklog-text-primary, var(--td-text-color-primary));
   }
 
   .field-list-container {
@@ -18,28 +19,34 @@
     max-height: 400px;
     padding: 10px 24px;
     overflow: auto;
-    color: #63656e;
+    color: var(--bklog-text-secondary, var(--td-text-color-secondary));
 
     .field-list {
-      .list-title,
-      .list-item,
-      .operate-button {
-        line-height: 32px;
+      .list-title {
+        line-height: var(--bklog-control-size-medium);
       }
 
       .list-item {
-        position: relative;
         display: flex;
+        min-height: var(--bklog-control-size-medium);
         align-items: center;
-        padding-left: 12px;
+        gap: var(--bklog-space-4);
+        padding-inline: var(--bklog-space-12) var(--bklog-space-4);
         margin-bottom: 2px;
-        background-color: #f5f6fa;
+        background-color: var(--bklog-surface-subtle, var(--td-bg-color-secondarycontainer));
+
+        .field_name {
+          flex: 1;
+          min-width: 0;
+          line-height: var(--bklog-line-height-body);
+          overflow-wrap: anywhere;
+        }
 
         &.display-item {
           .bklog-drag-dots {
-            width: 16px;
+            flex: 0 0 var(--bklog-space-16);
             font-size: 14px;
-            color: #979ba5;
+            color: var(--td-text-color-placeholder);
             text-align: left;
             cursor: move;
             transition: opacity 0.2s linear;
@@ -47,19 +54,26 @@
         }
 
         .operate-button {
-          position: absolute;
-          top: 0;
-          right: 0;
-          width: 40px;
-          text-align: center;
+          flex: 0 0 auto;
+          min-height: var(--bklog-control-size-medium);
+          padding-inline: var(--bklog-space-4);
+          font: inherit;
+          color: inherit;
           cursor: pointer;
+          background: transparent;
+          border: 0;
 
-          &:hover {
-            color: #3a84ff;
+          &:hover:not(:disabled) {
+            color: var(--td-brand-color-hover);
           }
 
-          &.disabled {
-            color: #dcdee5;
+          &:focus-visible {
+            outline: var(--bklog-border-width) solid var(--td-brand-color);
+            outline-offset: calc(-1 * var(--bklog-border-width));
+          }
+
+          &:disabled {
+            color: var(--td-text-color-disabled);
             cursor: not-allowed;
           }
         }
@@ -73,19 +87,19 @@
     align-items: center;
     justify-content: flex-end;
     height: 50px;
-    background: #fafbfd;
-    border-top: 1px solid #dcdee5;
+    background: var(--td-bg-color-secondarycontainer);
+    border-top: var(--bklog-border-width) solid var(--bklog-panel-divider, var(--td-component-stroke));
   }
 }
 
 .tippy-box[data-theme~='field-config-popover'] {
-  color: var(--bklog-text-primary);
-  background-color: var(--bklog-surface);
-  border: 1px solid var(--bklog-border-muted);
-  box-shadow: var(--bklog-shadow-popup);
+  color: var(--bklog-text-primary, var(--td-text-color-primary));
+  background-color: var(--bklog-surface, var(--td-bg-color-container));
+  border: var(--bklog-border-width) solid var(--bklog-border-muted, var(--td-component-stroke));
+  box-shadow: var(--bklog-shadow-popup, var(--td-shadow-2));
 
   .tippy-arrow {
-    color: var(--bklog-surface);
+    color: var(--bklog-surface, var(--td-bg-color-container));
   }
 
   .tippy-content {

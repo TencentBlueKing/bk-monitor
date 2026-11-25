@@ -3,17 +3,15 @@
     display: inline-block;
     padding: 0 2px;
     line-height: 20px;
-    color: #3a84ff;
+    color: var(--bklog-json-action-color);
     cursor: pointer;
   }
 
   .bklog-json-view-child {
-    // margin-top: 2px;
-    margin-left: 12px;
+    margin-inline-start: var(--bklog-space-12);
 
     &.is-collapse {
       display: none;
-      transition: 150ms;
     }
 
     .bklog-json-view-row {
@@ -26,13 +24,12 @@
 
       .bklog-json-view-field,
       .bklog-json-view-symbol {
-        color: #048a8c;
+        color: var(--bklog-json-key-color);
 
         .bklog-json-view-text {
           width: max-content;
           padding: 0 2px;
-          background: #e6e6e6;
-          background-color: transparent;
+          background: transparent;
           border-radius: 2px;
 
           mark.page-highlight {
@@ -44,23 +41,23 @@
 
       .bklog-json-view-node {
         .bklog-json-view-object {
-          color: #048a8c;
+          color: var(--bklog-json-key-color);
 
           .bklog-json-view-icon-expand {
-            color: #048a8c;
+            color: var(--bklog-json-key-color);
           }
         }
 
         &.bklog-json-field-value {
           .segment-content {
             span {
-              color: #934c04;
+              color: var(--bklog-json-value-color);
               white-space: pre-wrap;
             }
 
             .valid-text,
             .valid-text * {
-              color: #934c04;
+              color: var(--bklog-json-value-color);
             }
 
             .valid-text {
@@ -70,7 +67,7 @@
               &:hover,
               &.focus-text *,
               &:hover * {
-                color: #3a84ff;
+                color: var(--bklog-json-action-color);
               }
             }
           }
@@ -101,7 +98,9 @@
       line-height: 1.1em;
 
       &.is-expand {
-        transition: 150ms;
+        @media (prefers-reduced-motion: no-preference) {
+          transition: transform 150ms;
+        }
         transform: rotateZ(90deg);
         transform-origin: 45% 50%;
       }

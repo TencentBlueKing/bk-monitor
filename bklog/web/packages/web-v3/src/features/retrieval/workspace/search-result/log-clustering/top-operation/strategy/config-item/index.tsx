@@ -99,6 +99,7 @@ export default defineComponent({
         subHeader: h(
           'div',
           {
+            class: 'bklog-info-box-details',
             style: {
               display: 'flex',
               justifyContent: 'center',

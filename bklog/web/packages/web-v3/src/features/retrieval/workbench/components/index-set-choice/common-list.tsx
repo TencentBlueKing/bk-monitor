@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Loading as TLoading } from '@/shared/ui/loading/native';
+import { renderDropdownListSkeleton } from '@/shared/ui/loading/list-skeleton';
 
 import { computed, defineComponent, ref, type PropType } from 'vue';
 import { Empty as TEmpty } from 'tdesign-vue-next';
@@ -177,7 +177,8 @@ export default defineComponent({
     };
 
     const getBodyRender = () => {
-      if (props.list.length === 0 && !props.isLoading) {
+      if (props.isLoading) return renderDropdownListSkeleton();
+      if (props.list.length === 0) {
         return <TEmpty type='empty' title={$t('暂无数据')} />;
       }
 
@@ -185,7 +186,7 @@ export default defineComponent({
     };
 
     return () => (
-      <TLoading class='bklog-v3-index-set-common-list' loading={props.isLoading} size='small'>
+      <div class='bklog-v3-index-set-common-list' aria-busy={props.isLoading}>
         <div class='common-header'>
           <span>
             {activeMap.value.title}（{props.list.length}/20）
@@ -199,7 +200,7 @@ export default defineComponent({
           </span>
         </div>
         <div class='common-list'>{getBodyRender()}</div>
-      </TLoading>
+      </div>
     );
   },
 });

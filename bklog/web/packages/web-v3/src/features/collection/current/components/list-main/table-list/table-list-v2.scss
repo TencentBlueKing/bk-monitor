@@ -1,3 +1,6 @@
+@use '@/shared/ui/loading/status-spinner' as *;
+@use '@/shared/ui/loading/status-spinner' as *;
+
 @use '../../business-comp/step2/index-set-option' as *;
 .v2-log-collection-table {
   width: 100%;
@@ -43,12 +46,6 @@
     width: 100%;
     padding: 0 16px;
     margin-bottom: 12px;
-
-    /* 与 V2 基准对齐：工具栏下拉/检索输入在 V2 TDesign 默认字号下为 14px */
-    .t-input,
-    .t-select-input {
-      font-size: var(--bklog-font-action, 14px);
-    }
 
     .tool-btns {
       display: flex;
@@ -305,33 +302,6 @@
     }
 
     .log-collection-table {
-      /* 与 V2 基准对齐：TDesign 表头/分页在 V2 下为 14px/22px，V3 全局 body 字号为 12px，需在此收敛 */
-      .t-table__header th {
-        font-size: var(--bklog-font-action, 14px);
-        line-height: 22px;
-      }
-
-      .t-table__body tr {
-        line-height: 22px;
-      }
-
-      .t-pagination,
-      .t-pagination__total,
-      .t-pagination__number,
-      .t-pagination__btn-prev,
-      .t-pagination__btn-next {
-        font-size: var(--bklog-font-action, 14px);
-        line-height: 22px;
-      }
-
-      .t-pagination__total {
-        font-size: var(--bklog-font-action, 14px);
-      }
-
-      .t-table__pagination .t-pagination__select .t-input__inner {
-        font-size: var(--bklog-font-action, 14px);
-      }
-
       .collection-name-cell {
         display: flex;
         gap: 8px;
@@ -536,9 +506,7 @@
             display: inline-block;
             width: 15px;
             height: 15px;
-            background: var(--bklog-brand-primary, #3a84ff);
-            mask: url('@/shared/assets/images/loading.svg') center / contain no-repeat;
-            animation: spin 2s linear infinite;
+            @include status-spinner();
             margin-right: 4px;
             margin-top: -7.5px;
             vertical-align: middle;
@@ -550,16 +518,6 @@
   }
 }
 
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 .tippy-box[data-theme~='table-menu-popover'] {
   .tippy-content {
@@ -584,31 +542,6 @@
 
       &:hover {
         background: #f5f7fa;
-      }
-    }
-  }
-}
-
-.collection-report-detail {
-  .detail-content {
-    min-height: calc(100vh - 60px);
-    white-space: pre-wrap;
-
-  }
-
-  .bk-sideslider-wrapper {
-    padding-bottom: 0;
-
-    .bk-sideslider-content {
-      height: 100%;
-      color: #c4c6cc;
-      background-color: #313238;
-
-      .check-info {
-        padding: 20px;
-        font-size: 14px;
-        line-height: 24px;
-        white-space: pre-wrap;
       }
     }
   }
@@ -765,6 +698,21 @@
     cursor: pointer;
     background: transparent;
     border: 1px solid transparent;
+
+    &.is-updating {
+      padding-inline-end: var(--bklog-space-24);
+      cursor: default;
+    }
+
+    .index-set-update-spinner {
+      @include status-spinner;
+
+      position: absolute;
+      inset-block-start: calc(50% - var(--bklog-space-8));
+      inset-inline-end: var(--bklog-space-4);
+      width: var(--bklog-space-16);
+      height: var(--bklog-space-16);
+    }
 
     .tag-more-trigger-frame {
       position: absolute;

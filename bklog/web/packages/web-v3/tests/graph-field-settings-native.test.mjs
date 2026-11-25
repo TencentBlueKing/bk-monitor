@@ -28,12 +28,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as Vue from 'vue';
 import { loadScriptSetup } from './helpers/load-script-setup.mjs';
-import { baselineUrl } from '../tools/source-baseline.mjs';
 const file = new URL(
   '../src/features/retrieval/workbench/search-result-panel/graph-analysis/common/field-settings.vue',
   import.meta.url,
 );
-const source = baselineUrl('views/retrieve-v2/search-result-panel/graph-analysis/common/field-settings.vue');
+const source = new URL(
+  '../../web-v2/src/views/retrieve-v2/search-result-panel/graph-analysis/common/field-settings.vue',
+  import.meta.url,
+);
 function fixture(file, options) {
   const events = [];
   const component = loadScriptSetup(file, {

@@ -35,7 +35,6 @@ import CreateSubscriptionForm from './create-subscription-form';
 
 import type { TestSendingTarget } from './types/index';
 
-import './quick-create-subscription.scss';
 
 interface IProps {
   value: boolean;
@@ -128,7 +127,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                 </div>
                 <div class='footer-bar'>
                   <TButton
-                    style='width: 88px; margin-right: 8px;'
+                    style='width: 88px;'
                     loading={this.isSaving}
                     theme='primary'
                     onClick={this.handleSave}
@@ -136,7 +135,7 @@ class QuickCreateSubscription extends tsc<IProps> {
                     {this.$t('保存')}
                   </TButton>
                   <TButton
-                    style='width: 88px; margin-right: 8px;'
+                    style='width: 88px;'
                     loading={this.isSending}
                     theme='primary'
 

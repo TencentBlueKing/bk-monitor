@@ -35,7 +35,7 @@
     ></auth-container-page>
     <div
       v-else
-      v-loading="{ loading: basicLoading }"
+      v-loading="{ loading: basicLoading, indicator: renderDrawerInlineFormSkeleton }"
       class="step-field"
     >
       <t-alert data-v2-display="alert"
@@ -209,11 +209,11 @@
 
               <!-- 选择字段过滤方法 -->
               <div class="field-button-group">
-                <div class="bk-button-group">
+                <div class="bk-button-group" data-bklog-button-group="connected">
                   <t-button
                     v-for="option in globalsData.etl_config"
                     :key="option.id"
-                    :class="params.etl_config === option.id ? 'is-selected' : ''"
+                    :aria-pressed="params.etl_config === option.id"
                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                     :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
                     class="bklog-button"
@@ -271,7 +271,7 @@
             </div>
           </bk-form-item>
           <bk-form-item
-            v-loading="{ loading: logOriginalLoding }"
+            v-loading="{ loading: logOriginalLoding, indicator: renderCodeSampleSkeleton }"
             ext-cls="en-bk-form"
             :label="$t('日志样例')"
             :property="'log_original'"
@@ -605,7 +605,7 @@
           </bk-form-item>
           <bk-form-item
             v-if="enableMetaData"
-            v-loading="{ loading: pathExampleLoading }"
+            v-loading="{ loading: pathExampleLoading, indicator: renderListRefreshSkeleton }"
             ext-cls="en-bk-form"
             :label="$t('路径样例')"
           >
@@ -994,6 +994,8 @@
   </section>
 </template>
 <script>
+  import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
+  import { renderCodeSampleSkeleton, renderListRefreshSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { mapState as mapPiniaState } from 'pinia';
 
 
@@ -1582,6 +1584,9 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
       this.getDataLog('init');
     },
     methods: {
+      renderDrawerInlineFormSkeleton,
+      renderCodeSampleSkeleton,
+      renderListRefreshSkeleton,
       handlerSearchTemplate() {
         const query = this.templateKeyWord.toLowerCase();
         this.currentTemplateList = this.templateList.filter(item => item.name.toLowerCase().includes(query));

@@ -60,6 +60,7 @@ export default defineComponent({
     const archiveTable = ref<any>(null); // 表格引用
 
     const isTableLoading = ref(false); // 表格加载状态
+    const isPermissionLoading = ref(false);
     // const isRenderSlider = ref(true); // 是否渲染侧滑组件
     const showRestoreSlider = ref(false); // 是否显示回溯侧滑
     const showSlider = ref(false); // 是否显示归档侧滑
@@ -68,6 +69,7 @@ export default defineComponent({
     const editArchive = ref<any>(null); // 编辑的归档数据
     const dataList = ref<any[]>([]); // 表格数据列表
     const emptyType = ref('empty'); // 空状态类型
+    let listRequest = 0;
     const pagination = reactive({
       // 分页配置
       current: 1,
@@ -90,29 +92,28 @@ export default defineComponent({
     };
 
     // 请求数据
-    const requestData = () => {
+    const requestData = async () => {
+      const request = ++listRequest;
       isTableLoading.value = true;
       emptyType.value = keyword.value ? 'search-empty' : 'empty';
 
-      ServicesInstance.archive.getArchiveList({
+      try {
+        const { data } = await ServicesInstance.archive.getArchiveList({
           query: {
             keyword: keyword.value,
             bk_biz_id: bkBizId.value,
             page: pagination.current,
             pagesize: pagination.limit,
           },
-        })
-        .then((res: any) => {
-          const { data } = res;
-          pagination.count = data.total;
-          dataList.value = data.list;
-        })
-        .catch((err: any) => {
-          console.warn(err);
-        })
-        .finally(() => {
-          isTableLoading.value = false;
         });
+        if (request !== listRequest) return;
+        pagination.count = data.total;
+        dataList.value = data.list;
+      } catch {
+        if (request === listRequest) emptyType.value = '500';
+      } finally {
+        if (request === listRequest) isTableLoading.value = false;
+      }
     };
 
     // 搜索
@@ -229,13 +230,13 @@ export default defineComponent({
     // 权限申请
     const getOptionApplyData = async (paramData: any) => {
       try {
-        isTableLoading.value = true;
+        isPermissionLoading.value = true;
         const res = await store.getApplyData(paramData);
         store.updateState({ authDialogData: res.data });
       } catch (err) {
         console.warn(err);
       } finally {
-        isTableLoading.value = false;
+        isPermissionLoading.value = false;
       }
     };
 
@@ -249,8 +250,7 @@ export default defineComponent({
       }
 
       if (type === 'refresh') {
-        emptyType.value = 'empty';
-        search();
+        void requestData();
         return;
       }
     };
@@ -304,18 +304,20 @@ export default defineComponent({
                 <StateTable archiveConfigId={row.archive_config_id} />
               </div>
             )}
-            loading={isTableLoading.value}
+            loading={isTableLoading.value || isPermissionLoading.value}
             v-slots={{
               empty: () => (
-                <div>
-                  <EmptyStatus
-                    emptyType={emptyType.value}
-                    onOperation={handleOperation}
-                  />
+                <div class='bklog-table-empty-region'>
+                  {!isTableLoading.value && !isPermissionLoading.value && (
+                    <EmptyStatus
+                      emptyType={emptyType.value}
+                      onOperation={handleOperation}
+                    />
+                  )}
                 </div>
               ),
             }}
-            data={dataList.value}
+            data={emptyType.value === '500' ? [] : dataList.value}
             data-test-id='archiveList_section_tableList'
             limit-list={pagination.limitList}
             pagination={pagination}

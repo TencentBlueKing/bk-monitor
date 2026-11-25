@@ -39,46 +39,9 @@
         }
 
         .item-main {
-          .bk-button-group {
-            display: inline-flex;
-            font-size: 0;
-
-            .t-button.setting-checkbox {
-              display: inline-flex;
-              justify-content: center;
-              width: 48px;
-              min-width: 48px;
-              height: 26px;
-              margin: 0 0 0 -1px;
-              padding: 0;
-              font-size: var(--bklog-font-body, 12px);
-              line-height: 24px;
-              color: var(--bklog-text-secondary, #63656e);
-              background-color: var(--bklog-surface, #fff);
-              border: 1px solid var(--bklog-border-control, #c4c6cc);
-              border-radius: 0;
-              box-shadow: none;
-
-              &:first-child {
-                border-radius: 2px 0 0 2px;
-              }
-
-              &:last-child {
-                border-radius: 0 2px 2px 0;
-              }
-
-              &:hover,
-              &.is-selected {
-                position: relative;
-                z-index: var(--bklog-z-base);
-                color: var(--bklog-brand-primary, #3a84ff);
-                border-color: var(--bklog-brand-primary, #3a84ff);
-              }
-
-              &.is-selected {
-                background-color: var(--bklog-brand-tint, #e1ecff);
-              }
-            }
+          .setting-checkbox {
+            min-width: 48px;
+            padding-inline: var(--bklog-space-4);
           }
 
           .link {

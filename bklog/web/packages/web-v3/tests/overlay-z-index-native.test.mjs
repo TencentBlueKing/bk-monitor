@@ -105,3 +105,47 @@ test('business overlays no longer bypass the manager with fixed large numeric pr
     'features/retrieval/workbench/components/batch-input/index.tsx',
   ]) assert.doesNotMatch(readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8'), /zIndex=\{\d{3,}\}/);
 });
+
+test('Trace observer leaves host overlay layers intact and assigns embedded messages', () => {
+  class Element {
+    style = {};
+    constructor(selector, owned) {
+      this.selector = selector;
+      this.owned = owned;
+    }
+    matches(selector) {
+      return selector.split(', ').includes(this.selector);
+    }
+    closest() {
+      return this.owned ? this : null;
+    }
+  }
+  const host = new Element('.t-message__list', false);
+  host.style.zIndex = '4321';
+  const log = new Element('.t-message__list', true);
+  const hostPopup = new Element('.t-popup', false);
+  let notify;
+  const layerWrites = [];
+  const win = {
+    __IS_MONITOR_TRACE__: true,
+    Element,
+    MutationObserver: class {
+      constructor(callback) { notify = callback; }
+      observe() {}
+    },
+    document: {
+      body: {},
+      documentElement: { style: { setProperty: key => layerWrites.push(key) } },
+      querySelectorAll: () => [host, hostPopup],
+    },
+  };
+  installZIndexManager(win);
+  assert.equal(layerWrites.filter(key => key === '--bklog-z-popup').length, 1);
+  layerWrites.length = 0;
+  notify([{ addedNodes: [host, hostPopup] }]);
+  assert.deepEqual(layerWrites, []);
+  notify([{ addedNodes: [log] }]);
+  assert.equal(host.style.zIndex, '4321');
+  assert.equal(hostPopup.style.zIndex, undefined);
+  assert.ok(Number(log.style.zIndex) >= Z_INDEX_LAYERS.MESSAGE);
+});

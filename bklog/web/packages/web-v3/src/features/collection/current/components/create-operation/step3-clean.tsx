@@ -1,5 +1,8 @@
+import { cloneDeep } from 'lodash-es';
 import { renderCleaningFormSkeleton } from './form-skeleton';
 import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
+import { DropdownLoadingSkeleton } from '@/shared/ui/loading/skeleton';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -209,6 +212,10 @@ export default defineComponent({
     const cleaningMode = ref('bk_log_text');
     const enableMetaData = ref(false);
     const loading = ref(false);
+    const pendingAction = ref<ISubmitOptions['action'] | 'template' | 'saveAsTemplate'>();
+    const showFooterProgress = computed(() =>
+      loading.value && !templateDialogVisible.value && !templateSaveConfirmVisible.value,
+    );
     const logOriginalLoading = ref(false);
     const pathExampleLoading = ref(false);
     /**
@@ -913,6 +920,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
      * 清洗模式 - 清洗/调试按钮
      */
     const debugHandler = (type = 'default') => {
+      if (isDebugLoading.value || isValueRefresh.value) return;
+
       const isRefresh = type === 'refresh';
       const { etl_params: etlParams } = formData.value;
       const data = {
@@ -933,7 +942,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       isDebugLoading.value = !isRefresh;
       isValueRefresh.value = isRefresh;
       // 缓存当前已有字段，用于再次清洗时合并保留旧配置
-      const existingFields = structuredClone(formData.value.etl_fields || []);
+      const existingFields = cloneDeep(formData.value.etl_fields || []);
       /**
        * 非刷新场景下才清空表格数据
        */
@@ -963,7 +972,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
            * 创建新字段对象，应用 detectFieldType 推断类型
            */
           const createNewField = (item: { value: unknown; field_index: any; }, index: number) => ({
-            ...structuredClone(rowTemplate.value),
+            ...cloneDeep(rowTemplate.value),
             ...item,
             field_type: detectFieldType(item.value),
             field_index: item.field_index ?? index + 1,
@@ -1090,7 +1099,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         return (
           <TButton theme='default' variant='outline'
             class='clean-btn'
-            disabled={!logOriginal.value}
+            disabled={isDebugLoading.value || isValueRefresh.value || !logOriginal.value}
             onClick={() => debugHandler()}
           >
             {t('清洗')}
@@ -1125,7 +1134,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             </div>
             <TButton theme='default' variant='outline'
               class='clean-btn'
-              disabled={!logOriginal.value || !delimiter.value}
+              disabled={isDebugLoading.value || isValueRefresh.value || !logOriginal.value || !delimiter.value}
               onClick={() => debugHandler()}
             >
               {t('调试')}
@@ -1174,7 +1183,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             />
             <TButton theme='default' variant='outline'
               class='clean-btn'
-              disabled={!(logOriginal.value && separatorRegexp.value)}
+              disabled={isDebugLoading.value || isValueRefresh.value || !(logOriginal.value && separatorRegexp.value)}
               onClick={() => debugHandler()}
             >
               {t('调试')}
@@ -1188,7 +1197,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
      * 获取清洗的相关信息，如日志样例、上报日志（origin字段）
      * @param type
      */
+    let sampleRequestId = 0;
     const getDataLog = (type: string, collectorConfigId?: number) => {
+      const requestId = ++sampleRequestId;
       logOriginalLoading.value = type === 'refresh';
       pathExampleLoading.value = type === 'pathRefresh';
       ServicesInstance.source.dataList({
@@ -1197,7 +1208,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           },
         })
         .then(res => {
-          if (res.data?.length) {
+          if (requestId === sampleRequestId && res.data?.length) {
             copyText.value = Object.assign(res.data[0].etl, res.data[0].etl.items[0]) || {};
             const data = res.data[0];
             jsonText.value = data.origin || {};
@@ -1215,6 +1226,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           console.log(err);
         })
         .finally(() => {
+          if (requestId !== sampleRequestId) return;
           logOriginalLoading.value = false;
           pathExampleLoading.value = false;
         });
@@ -1293,10 +1305,12 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     };
 
     const handleTemplateSubmit = () => {
+      if (basicLoading.value || loading.value) return;
       if (templateName.value.trim() === '') {
         showMessage(t('请输入模板名称'), 'error');
         return;
       }
+      pendingAction.value = 'template';
       handleSubmitValidate(() => {
         if (isEditTemp.value) {
           loading.value = false;
@@ -1597,17 +1611,17 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 })(value); }}
               />
               {isClean.value && (
-                <div class='bk-button-group clean-button-group clean-rule-mode-group'>
-                  <TButton theme='default' variant='outline'
-                    class={{ 'is-selected': cleanRuleMode.value === 'manual' }}
+                <div class='bk-button-group clean-button-group clean-rule-mode-group' data-bklog-button-group='connected'>
+                  <TButton theme='default' variant='base'
+                    aria-pressed={cleanRuleMode.value === 'manual'}
                     onClick={() => {
                       cleanRuleMode.value = 'manual';
                     }}
                   >
                     {t('手动配置清洗规则')}
                   </TButton>
-                  <TButton theme='default' variant='outline'
-                    class={{ 'is-selected': cleanRuleMode.value === 'template' }}
+                  <TButton theme='default' variant='base'
+                    aria-pressed={cleanRuleMode.value === 'template'}
                     onClick={() => {
                       cleanRuleMode.value = 'template';
                     }}
@@ -1623,13 +1637,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           <div class='label-form-box'>
             <span class='label-title no-require'>{t('清洗模式')}</span>
             <div class='form-box'>
-              <div class='bk-button-group clean-button-group'>
+              <div class='bk-button-group clean-button-group' data-bklog-button-group='connected'>
                 {cleaningModeList.map(mode => (
                   <TButton
                     key={mode.value}
                     theme='default'
-                    variant='outline'
-                    class={{ 'is-selected': mode.value === cleaningMode.value }}
+                    variant='base'
+                    aria-pressed={mode.value === cleaningMode.value}
                     onClick={() => handleChangeCleaningMode(mode)}
                   >
                     {mode.label}
@@ -2055,13 +2069,11 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         {enableMetaData.value && (
           <div class='label-form-box'>
             <span class='label-title no-require'>{t('路径样例')}</span>
-            <div
-              class='form-box'
-              v-loading={{ loading: pathExampleLoading.value }}
-            >
+            <div class='form-box'>
               <div class='url-demo-box'>
                 <bk-input
                   class='input-box'
+                  v-loading={{ loading: pathExampleLoading.value, indicator: () => <DropdownLoadingSkeleton rows={1} /> }}
                   disabled={isTemplateBound.value}
                   value={pathExample.value}
                   onChange={(val: unknown) => {
@@ -2070,7 +2082,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 />
                 <i
                   class='bklog-icon bklog-refresh-icon icons'
-                  onClick={() => getDataLog('pathRefresh')}
+                  onClick={() => { if (!pathExampleLoading.value) getDataLog('pathRefresh'); }}
                 />
               </div>
             </div>
@@ -2373,6 +2385,11 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
      * @param options.callback 保存完成后的回调函数
      */
     const handleSubmitSave = async ({ action = 'next', callback }: ISubmitOptions = {}) => {
+      if (basicLoading.value || loading.value) {
+        callback?.(false);
+        return;
+      }
+      pendingAction.value = action;
       handleSubmitValidate(
         async () => {
           isChangingExpandDepth.value =
@@ -2569,9 +2586,13 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     return () => (
       <div
         class='operation-step3-clean'
-        v-loading={{ loading: basicLoading.value, indicator: renderCleaningFormSkeleton }}
+        v-loading={{
+          loading: basicLoading.value,
+          indicator: renderCleaningFormSkeleton,
+          zIndex: Z_INDEX_LAYERS.PAGE_TOP,
+        }}
       >
-        {cardRender(showCardConfig.value)}
+        {cardRender(showCardConfig.value, loading.value)}
         <CleanTemplateDialog
           visible={cleanTemplateDialogVisible.value}
           bkBizId={bkBizId.value}
@@ -2657,6 +2678,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           {!props.isTempField && !props.isCleanField && (
             <TButton theme='default' variant='outline'
               class='mr-8'
+              disabled={loading.value}
               onClick={() => {
                 emit('prev', props.configData);
               }}
@@ -2668,7 +2690,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <TButton
               class='width-88 mr-8'
               theme='primary'
-              loading={loading.value}
+              loading={showFooterProgress.value && pendingAction.value === 'next'}
+              disabled={basicLoading.value || loading.value}
               onClick={() => handleSubmitSave()}
             >
               {props.isCleanField ? t('保存') : t('下一步')}
@@ -2679,7 +2702,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <TButton
               class='width-88 mr-8'
               theme='primary'
-              loading={loading.value}
+              loading={showFooterProgress.value && pendingAction.value === 'back'}
+              disabled={basicLoading.value || loading.value}
               onClick={() => handleSubmitSave({ action: 'back' })}
             >
               {t('提交')}
@@ -2690,7 +2714,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             <TButton
               class='width-88 mr-8'
               theme='primary'
-              loading={loading.value}
+              loading={showFooterProgress.value && pendingAction.value === 'template'}
+              disabled={basicLoading.value || loading.value}
               onClick={handleTemplateSubmit}
             >
               {isEditTemp.value ? t('保存') : t('提交')}
@@ -2698,8 +2723,10 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           ) : (
             <TButton theme='default' variant='outline'
               class='template-btn'
-              disabled={formData.value.etl_fields.length === 0}
+              loading={showFooterProgress.value && pendingAction.value === 'saveAsTemplate'}
+              disabled={basicLoading.value || loading.value || formData.value.etl_fields.length === 0}
               onClick={() => {
+                pendingAction.value = 'saveAsTemplate';
                 handleSubmitValidate(() => {
                   loading.value = false;
                   templateDialogVisible.value = true;
@@ -2712,6 +2739,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           {!props.isTempField && !props.isCleanField && (
             <TButton theme='default' variant='outline'
               class='mr-8'
+              disabled={loading.value}
               onClick={async () => {
                 formData.value = deepClone(cacheTemplateData.value);
                 pendingSelectedTemplate.value = null;
@@ -2725,6 +2753,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             </TButton>
           )}
           <TButton theme="default"
+            disabled={loading.value}
             onClick={() => {
               emit('cancel');
             }}

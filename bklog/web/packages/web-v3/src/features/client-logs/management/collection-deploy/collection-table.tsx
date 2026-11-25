@@ -30,6 +30,7 @@ import { computed, defineComponent, ref, type PropType } from 'vue';
 
 import { clearTableFilter } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 
 import { t } from '@/shared/composables/use-locale';
 import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../constant';
@@ -48,6 +49,7 @@ export default defineComponent({
     EmptyStatus,
   },
   props: {
+    hasListError: Boolean,
     loading: { type: Boolean, default: false },
     keyword: {
       type: String,
@@ -84,6 +86,7 @@ export default defineComponent({
     },
   },
   emits: [
+    'retry',
     'clear-keyword',
     'clone-task',
     'view-task',
@@ -182,6 +185,7 @@ export default defineComponent({
 
     // 空状态类型计算属性
     const emptyType = computed(() => {
+      if (props.hasListError) return '500';
       return props.hasFilter ? 'search-empty' : 'empty';
     });
 
@@ -418,9 +422,8 @@ export default defineComponent({
     };
 
     return () => (
-      <div class='log-table'>
+      <ManagementListLoading class='log-table' loading={props.loading}>
         <bk-table
-          loading={props.loading}
           data={props.data}
           pagination={props.pagination}
           outer-border={false}
@@ -432,11 +435,8 @@ export default defineComponent({
           onSort-change={handleSortChange}
           v-slots={{
             empty: () => (
-              <div>
-                <EmptyStatus
-                  emptyType={emptyType.value}
-                  onOperation={clearFilters}
-                />
+              <div class='bklog-table-empty-region'>
+                {!props.loading && <EmptyStatus emptyType={emptyType.value} onOperation={operation => operation === 'refresh' ? emit('retry') : clearFilters()} />}
               </div>
             ),
           }}
@@ -584,7 +584,7 @@ export default defineComponent({
             )}
           />
         </bk-table>
-      </div>
+      </ManagementListLoading>
     );
   },
 });

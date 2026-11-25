@@ -63,6 +63,8 @@ export default defineComponent({
     const searchKeyword = ref('');
     const appliedKeyword = ref('');
     const isLoading = ref(false);
+    const listFailed = ref(false);
+    let listRequest = 0;
     const tableData = ref<{
       list: IGrokItem[];
       total: number;
@@ -155,14 +157,16 @@ export default defineComponent({
 
     // 获取 Grok 列表数据
     const fetchGrokData = async () => {
+      const request = ++listRequest;
       isLoading.value = true;
+      listFailed.value = false;
       try {
         const params = {
           query: {
             bk_biz_id: store.storage[BK_LOG_STORAGE.BK_BIZ_ID],
             page: pagination.value.current,
             pagesize: pagination.value.limit,
-            ...(searchKeyword.value && { keyword: searchKeyword.value }),
+            ...(appliedKeyword.value && { keyword: appliedKeyword.value }),
             ...(sortParams.value.ordering && {
               ordering: sortParams.value.ordering,
             }),
@@ -175,6 +179,7 @@ export default defineComponent({
           },
         };
         const response = await ServicesInstance.grok.getGrokList(params);
+        if (request !== listRequest) return;
         const formattedList = formatResponseListTimeZoneString(response.data.list || [], {}, [
           'updated_at',
           'created_at',
@@ -187,9 +192,13 @@ export default defineComponent({
         // 同步更新分页总数
         pagination.value.count = total;
       } catch (error) {
+        if (request !== listRequest) return;
         console.warn('获取 Grok 数据失败:', error);
+        tableData.value = { list: [], total: 0 };
+        pagination.value.count = 0;
+        listFailed.value = true;
       } finally {
-        isLoading.value = false;
+        if (request === listRequest) isLoading.value = false;
       }
     };
 
@@ -361,6 +370,7 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      listRequest++;
       // 清理防抖函数
       fetchAllDataDebounced.cancel();
 
@@ -399,6 +409,8 @@ export default defineComponent({
         <GrokTable
           data={tableData.value.list}
           loading={isLoading.value}
+          failed={listFailed.value}
+          onRetry={fetchGrokData}
           updatedBys={updatedBys.value}
           hasFilter={hasFilter.value}
           pagination={pagination.value}

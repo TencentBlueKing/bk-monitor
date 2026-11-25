@@ -56,7 +56,7 @@
     <section class="collect-list">
       <bk-table
         ref="collectTable"
-        v-loading="{ loading: isTableLoading }"
+        :loading="isTableLoading"
         class="collect-table"
         :data="collectShowList"
         :empty-text="$t('暂无内容')"
@@ -591,8 +591,9 @@
           </bk-table-setting-content>
         </bk-table-column>
         <template #empty>
-          <div>
+          <div class="bklog-table-empty-region">
             <empty-status
+              v-if="!isTableLoading"
               :empty-type="emptyType"
               @operation="handleOperation"
             />

@@ -42,6 +42,7 @@ import './content.scss';
 
 export default defineComponent({
   props: {
+    loading: Boolean,
     list: {
       type: Array,
       default: () => [],
@@ -150,6 +151,7 @@ export default defineComponent({
       return (
         <IndexSetList
           list={props.list}
+          loading={props.loading}
           spaceUid={props.spaceUid}
           textDir={props.textDir}
           type={indexSetActiveId.value}

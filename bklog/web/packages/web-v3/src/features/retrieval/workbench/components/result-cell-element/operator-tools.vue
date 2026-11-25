@@ -399,10 +399,10 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     justify-content: flex-start;
     width: max-content;
     overflow: visible;
-    background: #fff;
-    border: 1px solid #c4cee3;
-    border-radius: 4px;
-    box-shadow: 0 2px 6px 0 #0000001f;
+    background: var(--td-bg-color-container);
+    border: var(--bklog-border-width) solid var(--td-component-stroke);
+    border-radius: var(--bklog-standard-control-radius);
+    box-shadow: var(--td-shadow-1);
 
     .handle-item {
       display: inline-flex;
@@ -412,7 +412,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       padding: 0 10px;
       font-size: 12px;
       line-height: 20px;
-      color: #4d4f56;
+      color: var(--td-text-color-secondary);
       cursor: pointer;
       background: transparent;
       border: 0;
@@ -430,9 +430,13 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 
       &:hover,
       &:focus-visible {
-        color: #3a84ff;
-        background: #edf4ff;
-        outline: none;
+        color: var(--td-text-color-link);
+        background: var(--td-brand-color-light);
+      }
+
+      &:focus-visible {
+        outline: var(--bklog-border-width) solid currentColor;
+        outline-offset: calc(-1 * var(--bklog-border-width));
       }
 
       &.ai-assistant {
@@ -445,7 +449,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
           width: 14px;
           height: 14px;
           cursor: pointer;
-          background-color: #fff;
+          background-color: var(--td-bg-color-container);
           opacity: 0;
           transform: translateY(-50%);
         }
@@ -464,22 +468,22 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       flex: 0 0 1px;
       width: 1px;
       height: 16px;
-      background: #dcdee5;
+      background: var(--td-component-stroke);
     }
   }
 
   .fix-content {
     width: max-content;
-    background-color: #f5f7fa;
+    background-color: var(--td-bg-color-secondarycontainer);
   }
 
   .icon-exclamation-circle-shape {
-    color: #d7473f;
+    color: var(--td-error-color);
   }
 
   .is-disable {
     /* stylelint-disable-next-line declaration-no-important */
-    color: #c4c6cc !important;
+    color: var(--td-text-color-disabled) !important;
 
     /* stylelint-disable-next-line declaration-no-important */
     cursor: no-drop !important;
@@ -487,7 +491,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
     &:hover,
     &:focus-visible {
       /* stylelint-disable-next-line declaration-no-important */
-      color: #c4c6cc !important;
+      color: var(--td-text-color-disabled) !important;
 
       /* stylelint-disable-next-line declaration-no-important */
       background: transparent !important;

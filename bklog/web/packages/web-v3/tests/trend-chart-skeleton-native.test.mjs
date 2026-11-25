@@ -20,6 +20,7 @@ function fixture() {
     isFold: Vue.ref(false), chartContainer: Vue.ref(null), trendChartCanvas: Vue.ref(null),
     chartTitleContent: () => Vue.h('header', 'Toolbar'), t: value => value,
     ChartSkeleton: { name: 'ChartSkeleton' },
+    noSearchResults: new URL('../src/features/retrieval/workbench/search-result-chart/no-search-results.svg', import.meta.url).href,
   };
   const output = ts.transpileModule(source.slice(stateStart, stateEnd) + renderSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, jsxImportSource: 'vue' } }).outputText;
   const render = new Function('exports', 'require', ...Object.keys(context), output + '\nreturn renderTrend;')({}, createRequire(import.meta.url), ...Object.values(context));
@@ -68,6 +69,7 @@ test('trend ready, empty and folding retain their existing branches', () => {
   assert.ok(find(f.render(), node => node.ref?.r === f.trendChartCanvas));
   f.trendStatus.value = 'empty';
   assert.ok(byClass(f.render(), 'trend-chart-empty'));
+  assert.equal(byClass(f.render(), 'trend-chart-empty-icon').props.src, f.noSearchResults);
   assert.equal(byClass(f.render(), 'trend-chart-loading-overlay'), undefined);
   f.isFold.value = true;
   assert.equal(byClass(f.render(), 'echart-wrapper').props['v-show'], false);

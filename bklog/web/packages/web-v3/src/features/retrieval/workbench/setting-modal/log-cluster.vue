@@ -27,7 +27,7 @@
 <template>
   <!-- 设置-日志聚类 -->
   <div
-    v-loading="{ loading: globalLoading }"
+    v-loading="{ loading: globalLoading, indicator: renderDrawerFormSkeleton }"
     class="setting-log-cluster"
   >
     <bk-form
@@ -194,8 +194,10 @@
 </template>
 
 <script>
+  import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
+
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { ServicesInstance } from '@/platform/services';
+  import { ServicesInstance } from '@/platform/services';
 
   import FilterRule from '../search-result-panel/log-clustering/components/quick-open-cluster-step/filter-rule.tsx';
   import RuleTable from './rule-table';
@@ -281,6 +283,7 @@ import { ServicesInstance } from '@/platform/services';
       this.initList();
     },
     methods: {
+      renderDrawerFormSkeleton,
       /**
        * @desc: 数据指纹请求
        * @param { Boolean } isDefault 是否请求默认值

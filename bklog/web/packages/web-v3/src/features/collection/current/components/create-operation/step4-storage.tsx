@@ -667,7 +667,6 @@ export default defineComponent({
      * @param options.callback 保存完成后的回调函数
      */
     const handleCustomSubmit = ({ action = 'next', callback }: ISubmitOptions = {}) => {
-      submitLoading.value = true;
       const {
         collector_config_name: collectorConfigName,
         collector_config_name_en,
@@ -708,7 +707,7 @@ export default defineComponent({
         delete (submitData as Partial<typeof submitData>).allocation_min_days;
       }
 
-      ServicesInstance.custom[isUpdate.value ? 'setCustom' : 'createCustom']({
+      return ServicesInstance.custom[isUpdate.value ? 'setCustom' : 'createCustom']({
           params: {
             collector_config_id: props.configData.collector_config_id,
           },
@@ -731,9 +730,6 @@ export default defineComponent({
         .catch(err => {
           showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
-        })
-        .finally(() => {
-          submitLoading.value = false;
         });
     };
     /**
@@ -743,7 +739,6 @@ export default defineComponent({
      * @param options.callback 保存完成后的回调函数
      */
     const handleNormalSubmit = ({ action = 'next', callback }: ISubmitOptions = {}) => {
-      submitLoading.value = true;
       // 从 formData 读取清洗相关数据，与旧版保持一致
       const {
         etl_config,
@@ -785,7 +780,7 @@ export default defineComponent({
         table_id: tableId,
         storage_cluster_id: clusterSelect.value,
       };
-      ServicesInstance.collect.fieldCollection({
+      return ServicesInstance.collect.fieldCollection({
           params: {
             collector_config_id: collectorConfigId,
           },
@@ -808,9 +803,6 @@ export default defineComponent({
         .catch(err => {
           showUnshownRequestError(err, t('保存失败'));
           callback?.(false);
-        })
-        .finally(() => {
-          submitLoading.value = false;
         });
     };
     /**
@@ -820,29 +812,28 @@ export default defineComponent({
      * @param options.callback 保存完成后的回调函数
      */
     const handleSubmitSave = async ({ action = 'next', callback }: ISubmitOptions = {}) => {
+      if (loading.value || submitLoading.value) {
+        callback?.(false);
+        return;
+      }
       if (!clusterSelect.value) {
         showMessage(t('请选择集群'), 'error');
         callback?.(false);
         return;
       }
-      // 表单校验
+      submitLoading.value = true;
       try {
-        await storageFormRef.value?.validate();
-      } catch (err) {
-        showMessage(getFormValidateMessage(err, t('请完善存储配置')), 'error');
-        callback?.(false);
-        return;
-      }
-      if (isCustomReport.value) {
-        /**
-         * 自定义上报存储保存
-         */
-        handleCustomSubmit({ action, callback });
-      } else {
-        /**
-         * 采集场景提交
-         */
-        handleNormalSubmit({ action, callback });
+        try {
+          await storageFormRef.value?.validate();
+        } catch (err) {
+          showMessage(getFormValidateMessage(err, t('请完善存储配置')), 'error');
+          callback?.(false);
+          return;
+        }
+        const submit = isCustomReport.value ? handleCustomSubmit : handleNormalSubmit;
+        await submit({ action, callback });
+      } finally {
+        submitLoading.value = false;
       }
     };
     /**
@@ -874,10 +865,11 @@ export default defineComponent({
 
     return () => (
       <div class='operation-step4-storage'>
-        {cardRender(cardConfig)}
+        {cardRender(cardConfig, submitLoading.value)}
         <div class='classify-btns-fixed'>
           <TButton theme='default' variant='outline'
             class='mr-8'
+            disabled={submitLoading.value}
             onClick={() => {
               emit('prev');
             }}
@@ -886,13 +878,15 @@ export default defineComponent({
           </TButton>
           <TButton
             class='width-88 mr-8'
-            loading={submitLoading.value}
             theme='primary'
+            loading={submitLoading.value}
+            disabled={loading.value || submitLoading.value}
             onClick={() => handleSubmitSave()}
           >
             {t('提交')}
           </TButton>
           <TButton theme="default"
+            disabled={submitLoading.value}
             onClick={() => {
               emit('cancel');
             }}

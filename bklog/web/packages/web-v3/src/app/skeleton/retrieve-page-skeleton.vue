@@ -50,7 +50,8 @@
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
+  @use '@/shared/ui/loading/shimmer' as *;
   .retrieve-page-skeleton {
     display: flex;
     box-sizing: border-box;
@@ -58,13 +59,13 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    background: #f5f7fa;
+    background: var(--td-bg-color-page, #f5f7fa);
   }
 
   .retrieve-page-skeleton__rail {
     flex: none;
     width: var(--skeleton-rail);
-    background: #ebeef5;
+    background: var(--td-bg-color-secondarycontainer, #ebeef5);
   }
 
   .retrieve-page-skeleton__content {
@@ -82,10 +83,7 @@
   .retrieve-page-skeleton__side,
   .retrieve-page-skeleton__trend,
   .retrieve-page-skeleton__row {
-    border-radius: 2px;
-    background: linear-gradient(90deg, #eef1f6 25%, #e4e8ef 37%, #eef1f6 63%);
-    background-size: 400% 100%;
-    animation: retrieve-page-skeleton-shimmer 1.4s ease infinite;
+    @include loading-shimmer;
   }
 
   .retrieve-page-skeleton__toolbar {
@@ -135,16 +133,6 @@
   .retrieve-page-skeleton__row {
     flex: none;
     height: 28px;
-  }
-
-  @keyframes retrieve-page-skeleton-shimmer {
-    0% {
-      background-position: 100% 50%;
-    }
-
-    100% {
-      background-position: 0 50%;
-    }
   }
 </style>
 

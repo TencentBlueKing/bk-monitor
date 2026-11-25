@@ -30,7 +30,7 @@
       <div class="main-title">
         {{ $t('数据趋势') }}
       </div>
-      <div class="charts-container">
+      <div class="charts-container collection-detail-chart-grid">
         <minute-chart />
         <daily-chart />
       </div>
@@ -41,23 +41,29 @@
     >
       <div class="main-title">
         {{ $t('数据采样') }}
-        <div
-          class="refresh-button"
+        <TButton
+          theme="primary"
+          variant="text"
+          :loading="dataSamplingLoading"
           @click="fetchDataSampling"
         >
-          <span class="bk-icon icon-refresh"></span>
-          <span>{{ $t('刷新') }}</span>
-        </div>
+          <template #icon><span class="bk-icon icon-refresh" aria-hidden="true"></span></template>
+          {{ dataSamplingFailed && dataSamplingList.length ? $t('重试') : $t('刷新') }}
+        </TButton>
       </div>
       <data-sampling
         :data="dataSamplingList"
         :loading="dataSamplingLoading"
+        :failed="dataSamplingFailed"
+        @retry="fetchDataSampling"
       />
     </section>
   </div>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+  import { Button as TButton } from 'tdesign-vue-next';
+  import { ServicesInstance } from '@/platform/services';
 
   import DailyChart from './daily-chart';
   import DataSampling from './data-sampling';
@@ -65,6 +71,7 @@
 
   export default {
     components: {
+      TButton,
       DataSampling,
       MinuteChart,
       DailyChart,
@@ -78,7 +85,10 @@
     data() {
       return {
         dataSamplingLoading: true,
+        dataSamplingFailed: false,
+        dataSamplingRequest: 0,
         dataSamplingList: [],
+        dataSamplingCollectorId: null,
         isMasking: false,
       };
     },
@@ -111,19 +121,28 @@
       },
       // 数据采样
       async fetchDataSampling() {
+        const request = ++this.dataSamplingRequest;
+        const collectorId = this.$route.params.collectorId;
+        if (collectorId !== this.dataSamplingCollectorId) {
+          this.dataSamplingList = [];
+          this.dataSamplingCollectorId = collectorId;
+        }
+        this.dataSamplingLoading = true;
+        this.dataSamplingFailed = false;
         try {
-          this.dataSamplingLoading = true;
           const dataSamplingRes = await ServicesInstance.source.dataList({
             params: {
-              collector_config_id: this.$route.params.collectorId,
+              collector_config_id: collectorId,
             },
           });
-          this.dataSamplingList = dataSamplingRes.data;
+          if (request === this.dataSamplingRequest) this.dataSamplingList = dataSamplingRes.data;
         } catch (e) {
-          console.warn(e);
-          this.dataSamplingList = [];
+          if (request === this.dataSamplingRequest) {
+            console.warn(e);
+            this.dataSamplingFailed = true;
+          }
         } finally {
-          this.dataSamplingLoading = false;
+          if (request === this.dataSamplingRequest) this.dataSamplingLoading = false;
         }
       },
     },

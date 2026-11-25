@@ -39,6 +39,8 @@ import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 import { overlayRegistry } from '@/shared/global/overlay/overlay-registry';
 
+import { renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
+
 import './module-select.scss';
 
 // 使用 type 别名而非 interface，便于直接作为 TDesign Tree 的节点数据
@@ -343,17 +345,14 @@ export default defineComponent({
         closeBtn={false}
         closeOnOverlayClick={false}
         zIndex={dialogZIndex.value}
-        confirmBtn={t('确定')}
+        confirmBtn={{ content: t('确定'), disabled: isLoading.value }}
         cancelBtn={t('取消')}
         onConfirm={handleConfirm}
         onCancel={handleClose}
         onClose={handleClose}
         v-slots={{
           default: () => (
-            <div
-              class='module-select-container'
-              v-loading={{ loading: isLoading.value }}
-            >
+            <div class='module-select-container'>
               <TRadioGroup
                 style='margin-bottom: 20px'
                 value={selectedTypeData.value}
@@ -373,6 +372,7 @@ export default defineComponent({
               {/* 按大区选择 */}
               <div
                 class='tree-container'
+                v-loading={{ loading: isLoading.value, indicator: renderFieldListSkeleton }}
                 v-show={selectedTypeData.value === 'topo'}
               >
                 <TTree
@@ -393,6 +393,7 @@ export default defineComponent({
               {/* 按模块选择 */}
               <div
                 class='tree-container'
+                v-loading={{ loading: isLoading.value, indicator: renderFieldListSkeleton }}
                 v-show={selectedTypeData.value === 'module'}
               >
                 <div class='checkbox-container'>

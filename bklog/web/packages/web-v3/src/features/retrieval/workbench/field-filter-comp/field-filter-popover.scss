@@ -50,7 +50,7 @@
 
   :deep(.bk-select-prefix-icon) {
     font-size: 12px;
-    color: #979ba5;
+    color: var(--td-text-color-placeholder);
   }
 
   :deep(.bk-option) {
@@ -58,11 +58,11 @@
       width: 12px;
       margin-right: 8px;
       font-size: 12px;
-      color: #979ba5;
+      color: var(--td-text-color-placeholder);
     }
 
     &.is-selected .field-filter-option-icon {
-      color: #3a84ff;
+      color: var(--td-text-color-link);
     }
   }
 

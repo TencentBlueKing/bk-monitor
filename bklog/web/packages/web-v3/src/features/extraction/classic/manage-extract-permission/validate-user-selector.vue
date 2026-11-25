@@ -27,7 +27,7 @@
 <template>
   <div class="validate-user-selector">
     <bk-user-selector
-      style="width: 400px"
+      style="width: 400px; max-width: 100%"
       :api="api"
       :class="isError && 'is-error'"
       :disabled="disabled"
@@ -111,9 +111,3 @@
     },
   };
 </script>
-
-<style lang="scss" scoped>
-  .validate-user-selector :deep(.is-error .user-selector-container) {
-    border-color: #ff5656;
-  }
-</style>

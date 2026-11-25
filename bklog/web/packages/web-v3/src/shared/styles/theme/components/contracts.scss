@@ -39,3 +39,49 @@
     margin: 0;
   }
 }
+
+// Compact segmented controls in the log result and context toolbars.
+@mixin log-segmented-container {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: var(--bklog-control-size-medium);
+  padding: var(--bklog-space-4);
+  font-size: var(--bklog-font-body);
+  background-color: var(--bklog-surface-component, var(--td-bg-color-component));
+  border-radius: var(--bklog-standard-control-radius);
+}
+
+@mixin log-segmented-option {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0;
+  font: inherit;
+  color: var(--bklog-text-strong, var(--td-text-color-primary));
+  background: transparent;
+  border: 0;
+  border-radius: var(--bklog-radius-control);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: var(--bklog-border-width) solid var(--td-brand-color);
+    outline-offset: calc(-1 * var(--bklog-border-width));
+  }
+}
+
+@mixin log-segmented-selected {
+  color: var(--bklog-brand-primary, var(--td-brand-color));
+  background-color: var(--bklog-surface, var(--td-bg-color-container));
+}
+
+@mixin execution-status-dot {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: var(--bklog-space-8);
+  height: var(--bklog-space-8);
+  border: var(--bklog-border-width) solid currentcolor;
+  border-radius: 50%;
+}

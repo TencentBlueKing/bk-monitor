@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { renderCodeSampleSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 
 
@@ -207,6 +208,7 @@ export default defineComponent({
     const initialEditableFieldsSnapshot = ref('[]');
     /** 调试加载中 */
     const isDebugLoading = ref(false);
+    let debugRequestId = 0;
     /** 解析成功率（保留 1 位小数） */
     const successRate = ref(0);
     /** 冲突字段数（用于 UI 显示） */
@@ -249,36 +251,6 @@ export default defineComponent({
       },
     );
 
-    // 同步 prop.visible：打开时初始化一次调试
-    watch(
-      () => props.visible,
-      (val: boolean) => {
-        if (val) {
-          // 打开时以 prop.logExample 为初始值
-          logExampleText.value = props.logExample || '';
-          // 自动触发一次调试（如果模板存在 + 样例非空）
-          if (props.template && logExampleText.value) {
-            handleDebug();
-          } else if (props.template) {
-            // 没有调试样例时，使用模板字段数据回填表格（不显示解析状态列与统计卡片）
-            previewMode.value = 'template';
-            buildTableFromTemplate(false);
-          } else {
-            // 无模板时不初始化表格，显示暂无数据
-            tableData.value = [];
-            initialEditableFieldsSnapshot.value = '[]';
-          }
-        } else {
-          // 关闭时清空数据
-          hasLoaded.value = false;
-          previewMode.value = 'debug';
-          tableData.value = [];
-          initialEditableFieldsSnapshot.value = '[]';
-        }
-      },
-      { immediate: true },
-    );
-
     // 表格数据或展示模式变化时，重新初始化 tippy 弹窗。
     watch(
       () => [tableData.value, previewMode.value],
@@ -296,6 +268,7 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      debugRequestId += 1;
       isDestroyed = true;
       if (menuInitTimer) {
         clearTimeout(menuInitTimer);
@@ -328,7 +301,8 @@ export default defineComponent({
      * 使用已保存模板预览接口，解析配置和字段匹配结果均来自后端。
      */
     const handleDebug = () => {
-      if (!props.template) return;
+      if (!props.template || isDebugLoading.value) return;
+      const requestId = ++debugRequestId;
       const data = {
         data: logExampleText.value,
       };
@@ -342,18 +316,20 @@ export default defineComponent({
           data,
         })
         .then((res: any) => {
+          if (requestId !== debugRequestId) return;
           previewMode.value = 'debug';
           buildTableFromDebug(res?.data);
           hasLoaded.value = true;
         })
         .catch((err: unknown) => {
+          if (requestId !== debugRequestId) return;
           console.warn('清洗结果预览调试失败', err);
           // 调试接口报错时，使用模板字段数据回填表格，解析状态全部标记为空值异常
           previewMode.value = 'template-error';
           buildTableFromTemplate(true);
         })
         .finally(() => {
-          isDebugLoading.value = false;
+          if (requestId === debugRequestId) isDebugLoading.value = false;
         });
     };
 
@@ -485,14 +461,12 @@ export default defineComponent({
               </div>
               <div class='menu-item'>
                 <span class='menu-item-label'>{t('分词符')}</span>
-                <div class='bk-button-group'>
+                <div class='bk-button-group' data-bklog-button-group='connected'>
                   {participleList.map(option => (
                     <TButton
                       key={option.id}
-                      class={{
-                        'participle-btn': true,
-                        'is-selected': currentParticipleState.value === option.id,
-                      }}
+                      class='participle-btn'
+                      aria-pressed={currentParticipleState.value === option.id}
                       disabled={!cacheData.value.is_analyzed}
                       size='small'
                       theme='default'
@@ -655,6 +629,7 @@ export default defineComponent({
 
     /** 忽略冲突并返回包含预览字段修改的完整模板 */
     const handleConfirm = () => {
+      if (isDebugLoading.value) return;
       if (!props.template || tableData.value.length === 0) return;
 
       // 预览表格中已出现的字段名集合，用于合并模板隐藏字段时去重
@@ -838,6 +813,38 @@ export default defineComponent({
       },
     ]);
 
+    // 同步 prop.visible：打开时初始化一次调试
+    watch(
+      () => props.visible,
+      (val: boolean) => {
+        if (val) {
+          // 打开时以 prop.logExample 为初始值
+          logExampleText.value = props.logExample || '';
+          // 自动触发一次调试（如果模板存在 + 样例非空）
+          if (props.template && logExampleText.value) {
+            handleDebug();
+          } else if (props.template) {
+            // 没有调试样例时，使用模板字段数据回填表格（不显示解析状态列与统计卡片）
+            previewMode.value = 'template';
+            buildTableFromTemplate(false);
+          } else {
+            // 无模板时不初始化表格，显示暂无数据
+            tableData.value = [];
+            initialEditableFieldsSnapshot.value = '[]';
+          }
+        } else {
+          debugRequestId += 1;
+          isDebugLoading.value = false;
+          // 关闭时清空数据
+          hasLoaded.value = false;
+          previewMode.value = 'debug';
+          tableData.value = [];
+          initialEditableFieldsSnapshot.value = '[]';
+        }
+      },
+      { immediate: true },
+    );
+
     return () => (
       <bk-dialog
         value={props.visible}
@@ -863,7 +870,7 @@ export default defineComponent({
                   <TButton
                     class='mr-8'
                     theme='primary'
-                    disabled={tableData.value.length === 0}
+                    disabled={isDebugLoading.value || tableData.value.length === 0}
                   >
                     {hasException.value ? t('忽略冲突并继续填入') : t('确认并填入')}
                   </TButton>
@@ -872,7 +879,7 @@ export default defineComponent({
                 <TButton
                   class='mr-8'
                   theme='primary'
-                  disabled={tableData.value.length === 0}
+                  disabled={isDebugLoading.value || tableData.value.length === 0}
                   onClick={handleConfirm}
                 >
                   {hasException.value ? t('忽略冲突并继续填入') : t('确认并填入')}
@@ -883,15 +890,9 @@ export default defineComponent({
           ),
         }}
       >
-        <div
-          class='clean-result-preview-dialog'
-          v-loading={{ loading: isDebugLoading.value, size: 'small' }}
-        >
+        <div class='clean-result-preview-dialog'>
           {/* 调试样例 */}
-          <div
-            class='log-example-section'
-            v-loading={{ loading: props.logExampleLoading, size: 'small' }}
-          >
+          <div class='log-example-section'>
             <div class='section-label'>
               <span class='section-label-text'>
                 {t('调试样例')}
@@ -920,6 +921,7 @@ export default defineComponent({
             </div>
             <bk-input
               class='log-example-textarea'
+              v-loading={{ loading: props.logExampleLoading, indicator: renderCodeSampleSkeleton }}
               type='textarea'
               rows={4}
               value={logExampleText.value}
@@ -929,7 +931,8 @@ export default defineComponent({
             />
             <TButton theme='default' variant='outline'
               class='re-debug-btn'
-              disabled={!logExampleText.value || isDebugLoading.value}
+              loading={isDebugLoading.value}
+              disabled={!logExampleText.value || props.logExampleLoading || isDebugLoading.value}
               onClick={handleDebug}
             >
               {t('重新调试')}

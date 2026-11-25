@@ -83,6 +83,7 @@ export default defineComponent({
       list: [],
     });
     const isLoading = ref(false); // 加载状态
+    const hasListError = ref(false);
     const createdBys = ref<CreatorFilterOption[]>([]); // 创建人列表
 
     // 分页状态
@@ -276,6 +277,7 @@ export default defineComponent({
         const params = buildQueryParams();
 
         isLoading.value = true;
+        hasListError.value = false;
 
         const response = await ServicesInstance.collect.getTaskLogList<{ data: CollectionTaskList }>(params);
         const formattedList = formatResponseListTimeZoneString(response.data.list);
@@ -296,6 +298,7 @@ export default defineComponent({
         // 获取用户名列表
         fetchUsernameList();
       } catch (error) {
+        hasListError.value = true;
         console.warn('获取采集下发列表失败:', error);
       } finally {
         isLoading.value = false;
@@ -461,6 +464,8 @@ export default defineComponent({
               data={tableData.value.list}
               indexSetId={props.indexSetId}
               loading={isLoading.value}
+              hasListError={hasListError.value}
+              onRetry={requestData}
               keyword={queryParams.value.keyword}
               hasFilter={hasFilter.value}
               createdBys={createdBys.value}

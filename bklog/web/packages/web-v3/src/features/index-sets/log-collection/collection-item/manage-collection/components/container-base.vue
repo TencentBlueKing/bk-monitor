@@ -627,27 +627,27 @@ import { ServicesInstance } from '@/platform/services';
     .deploy-sub > div {
       display: flex;
       margin-bottom: 33px;
-      color: #63656e;
+      color: var(--td-text-color-secondary);
 
       > span:nth-child(1) {
         display: block;
         width: 98px;
         font-size: 14px;
-        color: #979ba5;
+        color: var(--td-text-color-secondary);
         text-align: right;
       }
 
       > span:nth-child(2) {
-        margin-left: 24px;
+        margin-left: var(--bklog-space-24);
         font-size: 14px;
-        color: #63656e;
+        color: var(--td-text-color-primary);
       }
 
       .deploy-path {
-        margin-left: 24px;
+        margin-left: var(--bklog-space-24);
         font-size: 14px;
         line-height: 22px;
-        color: #63656e;
+        color: var(--td-text-color-primary);
       }
     }
 
@@ -673,7 +673,7 @@ import { ServicesInstance } from '@/platform/services';
       }
 
       > div {
-        margin-left: 24px;
+        margin-left: var(--bklog-space-24);
         font-size: 14px;
 
         p {
@@ -682,10 +682,10 @@ import { ServicesInstance } from '@/platform/services';
           padding: 0 5px;
           margin-right: 2px;
           line-height: 20px;
-          color: #63656e;
+          color: var(--td-text-color-secondary);
           text-align: center;
-          background-color: #f0f1f5;
-          border-radius: 2px;
+          background-color: var(--bklog-surface-subtle, var(--td-bg-color-secondarycontainer));
+          border-radius: var(--bklog-standard-control-radius);
         }
       }
 
@@ -695,18 +695,18 @@ import { ServicesInstance } from '@/platform/services';
         .container-item {
           padding: 4px 10px;
           margin-right: 8px;
-          color: #63656e;
-          background: #f0f1f5;
-          border-radius: 2px;
+          color: var(--td-text-color-secondary);
+          background: var(--bklog-surface-subtle, var(--td-bg-color-secondarycontainer));
+          border-radius: var(--bklog-standard-control-radius);
         }
       }
     }
 
     .config-box {
       margin-bottom: 20px;
-      margin-left: 24px;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
+      margin-left: var(--bklog-space-24);
+      border: 1px solid var(--td-component-stroke);
+      border-radius: var(--bklog-standard-control-radius);
 
       .deploy-sub {
         padding: 12px 43px 0 0;
@@ -721,9 +721,9 @@ import { ServicesInstance } from '@/platform/services';
         height: 30px;
         padding-left: 11px;
         line-height: 30px;
-        color: #63656e;
-        background: #f0f1f5;
-        border-bottom: 1px solid #dcdee5;
+        color: var(--td-text-color-secondary);
+        background: var(--bklog-surface-subtle, var(--td-bg-color-secondarycontainer));
+        border-bottom: 1px solid var(--td-component-stroke);
       }
     }
 
@@ -734,10 +734,10 @@ import { ServicesInstance } from '@/platform/services';
       font-size: 14px;
       font-weight: 700;
       line-height: 24px;
-      color: #ff9c01;
+      color: var(--td-warning-color);
       text-align: center;
-      background: #fff;
-      border-radius: 2px;
+      background: var(--td-bg-color-container);
+      border-radius: var(--bklog-standard-control-radius);
     }
 
     .specify-box {
@@ -746,9 +746,9 @@ import { ServicesInstance } from '@/platform/services';
       min-width: 700px;
       padding: 2px 16px;
       margin-bottom: 8px;
-      margin-left: 24px;
-      background: #f5f7fa;
-      border-radius: 2px;
+      margin-left: var(--bklog-space-24);
+      background: var(--td-bg-color-secondarycontainer);
+      border-radius: var(--bklog-standard-control-radius);
 
       .specify-container {
         width: 50%;
@@ -760,7 +760,7 @@ import { ServicesInstance } from '@/platform/services';
 
         span {
           font-size: 14px;
-          color: #63656e;
+          color: var(--td-text-color-secondary);
         }
 
         .operator {

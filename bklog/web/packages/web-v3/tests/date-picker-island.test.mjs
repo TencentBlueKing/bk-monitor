@@ -112,6 +112,10 @@ const sdk = loadTypeScript(new URL('../src/platform/compat/tdesign/bkui-vue.ts',
   vue: Vue,
   'tdesign-vue-next': controls,
   'tippy.js': () => {},
+  '@/shared/lib/advanced-message': {
+    isAdvancedMessage: () => false,
+    showAdvancedMessage: () => assert.fail('Date picker should not render an advanced message'),
+  },
 });
 test('SDK Tab descriptors become real TDesign panels and active events propagate', () => {
   const events = [];

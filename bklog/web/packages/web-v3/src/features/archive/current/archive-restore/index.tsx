@@ -56,6 +56,9 @@ export default defineComponent({
     const { t } = useLocale();
 
     const isTableLoading = ref(false); // 表格加载状态
+    const isPermissionLoading = ref(false);
+    const listFailed = ref(false);
+    let listRequest = 0;
     const showSlider = ref(false); // 是否显示侧滑
     const editRestore = ref<any>(null); // 编辑的回溯数据
     const timer = ref<any>(null); // 定时器引用
@@ -138,8 +141,14 @@ export default defineComponent({
       }
     };
 
-    // 获取回溯列表
-    const requestRestoreList = async () => {
+    // 请求数据
+    const requestData = async () => {
+      const request = ++listRequest;
+      timerNum.value += 1;
+      stopStatusPolling();
+      isTableLoading.value = true;
+      emptyType.value = keyword.value ? 'search-empty' : 'empty';
+
       try {
         const res = await ServicesInstance.archive.restoreList({
           query: {
@@ -149,6 +158,7 @@ export default defineComponent({
             pagesize: pagination.limit,
           },
         });
+        if (request !== listRequest) return;
         const { data } = res;
         const { formatResponseListTimeZoneString } = useUtils();
         restoreIds.value = [];
@@ -164,29 +174,14 @@ export default defineComponent({
           restoreIds.value.push(row.restore_config_id);
         }
         dataList.value.splice(0, dataList.value.length, ...formattedList);
-        return res;
-      } catch (error) {
-        console.warn('获取回溯列表失败:', error);
-        throw error;
-      } finally {
-        isTableLoading.value = false;
-      }
-    };
-
-    // 请求数据
-    const requestData = async () => {
-      isTableLoading.value = true;
-      emptyType.value = keyword.value ? 'search-empty' : 'empty';
-
-      try {
-        await requestRestoreList();
+        listFailed.value = false;
         if (restoreIds.value.length) {
           requestRestoreStatus();
         }
       } catch {
-        emptyType.value = '500';
+        if (request === listRequest) listFailed.value = true;
       } finally {
-        isTableLoading.value = false;
+        if (request === listRequest) isTableLoading.value = false;
       }
     };
 
@@ -206,7 +201,7 @@ export default defineComponent({
           startStatusPolling();
         }
       } catch (error) {
-        if (isPrivate) {
+        if (isPrivate && currentTimerNum === timerNum.value) {
           stopStatusPolling();
         }
         console.warn('获取回溯状态失败:', error);
@@ -321,13 +316,13 @@ export default defineComponent({
     // 权限申请
     const getOptionApplyData = async (paramData: any) => {
       try {
-        isTableLoading.value = true;
+        isPermissionLoading.value = true;
         const res = await store.getApplyData(paramData);
         store.updateState({ authDialogData: res.data });
       } catch (err) {
         console.warn('权限申请失败:', err);
       } finally {
-        isTableLoading.value = false;
+        isPermissionLoading.value = false;
       }
     };
 
@@ -340,8 +335,7 @@ export default defineComponent({
       }
 
       if (type === 'refresh') {
-        emptyType.value = 'empty';
-        search();
+        void requestData();
         return;
       }
     };
@@ -356,6 +350,7 @@ export default defineComponent({
 
     // 组件卸载前清理定时器
     onBeforeUnmount(() => {
+      listRequest += 1;
       timerNum.value = -1;
       stopStatusPolling();
     });
@@ -393,18 +388,20 @@ export default defineComponent({
         <section class='log-restore-table'>
           <bk-table
             class='restore-table'
-            loading={isTableLoading.value}
+            loading={isTableLoading.value || isPermissionLoading.value}
             v-slots={{
               empty: () => (
-                <div>
-                  <EmptyStatus
-                    emptyType={emptyType.value}
-                    onOperation={handleOperation}
-                  />
+                <div class='bklog-table-empty-region'>
+                  {!isTableLoading.value && !isPermissionLoading.value && (
+                    <EmptyStatus
+                      emptyType={listFailed.value ? '500' : emptyType.value}
+                      onOperation={handleOperation}
+                    />
+                  )}
                 </div>
               ),
             }}
-            data={dataList.value}
+            data={listFailed.value ? [] : dataList.value}
             limit-list={pagination.limitList}
             pagination={pagination}
             onPage-change={handlePageChange}

@@ -74,6 +74,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   const indexSetParams = computed(() => store.indexItem);
 
   // 树形索引集列表（选择面板渲染用，避免子节点被摊平到根级导致重复）
+  const indexSetLoading = computed(() => useRetrieveStore().$state.isIndexSetLoading);
   const indexSetList = computed(() => useRetrieveStore().$state.indexSetList);
   // 扁平索引集列表（按 unique_id / index_set_id 查找用）
   const flatIndexSetList = computed(() => useRetrieveStore().$state.flatIndexSetList);
@@ -445,6 +446,7 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         :active-tab="indexSetTab"
         :active-type="indexSetType"
         :index-set-list="indexSetList"
+        :index-set-loading="indexSetLoading"
         :index-set-value="indexSetUid"
         :space-uid="spaceUid"
         :text-dir="textDir"

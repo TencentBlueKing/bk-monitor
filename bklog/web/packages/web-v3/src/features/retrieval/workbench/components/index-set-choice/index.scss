@@ -5,15 +5,15 @@
   min-width: var(--indexset-root-min-w);
   display: flex;
   justify-content: space-between;
-  background: #f0f1f5;
-  border: solid 1px #f0f1f5;
+  background: var(--td-bg-color-component);
+  border: solid 1px var(--td-bg-color-component);
   position: relative;
   padding: 0 4px 0 8px;
   cursor: pointer;
 
   .indexset-value-list {
     font-size: 14px;
-    color: #313238;
+    color: var(--td-text-color-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -32,7 +32,7 @@
       font-family: Roboto-Regular;
       font-weight: 400;
       font-size: 12px;
-      color: #757880;
+      color: var(--td-text-color-secondary);
     }
   }
 
@@ -49,8 +49,8 @@
   }
 
   &.is-opened {
-    border: 1px solid #3a84ff;
-    background: #ffffff;
+    border: 1px solid var(--td-brand-color);
+    background: var(--td-bg-color-container);
 
     .bklog-icon {
       transform: rotate(180deg);
@@ -66,7 +66,7 @@
     position: absolute;
     padding: 0 4px;
     height: 16px;
-    background: #ffffff;
+    background: var(--td-bg-color-container);
     border-radius: 2px;
     display: flex;
     align-items: center;
@@ -74,7 +74,7 @@
     font-family: roboto-Mono, Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
     font-weight: 700;
     font-size: 11px;
-    color: #a3b1cc;
+    color: var(--td-text-color-placeholder);
     pointer-events: none;
   }
 

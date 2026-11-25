@@ -39,6 +39,7 @@ import { Table, Input } from 'tdesign-vue-next';
 
 import * as authorityMap from '../../../shared/lib/authority-map';
 import fingerSelectColumn from '../../retrieval/classic/result-table-panel/log-clustering/components/finger-select-column.vue';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import EmptyStatus from '../../../shared/ui/empty-status/index.vue';
 import MaskingAddRule from './masking-add-rule';
 
@@ -518,64 +519,67 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
           </div>
         </div>
 
-        <Table
-          v-slots={{
-            empty: () => (
-              <div>
-                <EmptyStatus
-                  emptyType={this.emptyType}
-                  onOperation={this.handleOperation}
-                />
-              </div>
-            ),
-          }}
-          rowStyle={this.getShowRowStyle}
-          v-loading={{ loading: this.tableLoading }}
-          data={this.tableShowList}
-          headerBorder={false}
-          maxHeight={this.tableMaxHeight}
-          outerBorder={false}
-          pagination={this.pagination}
-          renderDirective='if'
-          size='small'
-          onPageChange={this.pageChange}
-          onPageLimitChange={this.pageLimitChange}
-        >
-          <TableColumn
-            nativeCellSlot={true}
-            width='50'
-            renderHeader={this.renderHeaderCheckBox}
-            v-slots={checkBoxSlot}
-          />
+        <ManagementListLoading loading={this.tableLoading}>
+          <Table
+            v-slots={{
+              empty: () => (
+                <div class='bklog-table-empty-region'>
+                  {!this.tableLoading && (
+                    <EmptyStatus
+                      emptyType={this.emptyType}
+                      onOperation={this.handleOperation}
+                    />
+                  )}
+                </div>
+              ),
+            }}
+            rowStyle={this.getShowRowStyle}
+            data={this.tableShowList}
+            headerBorder={false}
+            maxHeight={this.tableMaxHeight}
+            outerBorder={false}
+            pagination={this.pagination}
+            renderDirective='if'
+            size='small'
+            onPageChange={this.pageChange}
+            onPageLimitChange={this.pageLimitChange}
+          >
+            <TableColumn
+              nativeCellSlot={true}
+              width='50'
+              renderHeader={this.renderHeaderCheckBox}
+              v-slots={checkBoxSlot}
+            />
 
-          <TableColumn
-            nativeCellSlot={true}
-            key={'rule_name'}
-            label={this.$t('规则名称')}
-            v-slots={ruleNameSlot}
-          />
+            <TableColumn
+              nativeCellSlot={true}
+              key={'rule_name'}
+              label={this.$t('规则名称')}
+              v-slots={ruleNameSlot}
+            />
 
-          <TableColumn
-            nativeCellSlot={true}
-            key={'match_method'}
-            label={this.$t('匹配方式')}
-            v-slots={matchingMethodSlot}
-          />
+            <TableColumn
+              nativeCellSlot={true}
+              key={'match_method'}
+              label={this.$t('匹配方式')}
+              v-slots={matchingMethodSlot}
+            />
 
-          <TableColumn
-            nativeCellSlot={true}
-            key={'match_content'}
-            label={this.$t('匹配内容')}
-            v-slots={matchingContentSlot}
-          />
+            <TableColumn
+              nativeCellSlot={true}
+              key={'match_content'}
+              label={this.$t('匹配内容')}
+              v-slots={matchingContentSlot}
+            />
 
-          <TableColumn
-            nativeCellSlot={true}
-            key={'masking_result'}
-            label={this.$t('脱敏算子')}
-            v-slots={maskingRulesSlot}
-          />
-        </Table>
+            <TableColumn
+              nativeCellSlot={true}
+              key={'masking_result'}
+              label={this.$t('脱敏算子')}
+              v-slots={maskingRulesSlot}
+            />
+          </Table>
+        </ManagementListLoading>
 
         {this.isShowSubmitContent && (
           <div

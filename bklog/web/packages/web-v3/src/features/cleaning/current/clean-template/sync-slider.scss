@@ -17,8 +17,8 @@
   .sync-slider-title-divider {
     flex: 0 0 1px;
     width: 1px;
-    height: 12px;
-    background: #dcdee5;
+    height: var(--bklog-space-12);
+    background: var(--bklog-standard-control-border-disabled);
   }
 
   .sync-slider-title-subtitle {

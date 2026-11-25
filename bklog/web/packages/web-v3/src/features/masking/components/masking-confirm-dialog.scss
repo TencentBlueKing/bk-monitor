@@ -2,16 +2,17 @@
 
 .masking-access-table.t-table.t-size-s {
   width: 100%;
+  --bklog-table-header-height: var(--bklog-table-header-mini);
 
   th,
   td {
-    height: 32px;
-    padding: 0 16px;
+    height: var(--bklog-table-header-mini);
+    padding: 0 var(--bklog-space-16);
     line-height: var(--bklog-line-height-body, 20px);
   }
 
   th {
-    background: var(--bklog-surface-hover, #f5f7fa);
+    background: var(--bklog-standard-control-surface-disabled, #f7f9fc);
   }
 
   td {

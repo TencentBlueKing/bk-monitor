@@ -337,6 +337,15 @@
 <style lang="scss">
   @use '../../../shared/styles/mixins/clearfix' as *;
 
+  :root {
+    --bklog-log-view-located: var(--td-brand-color-light);
+    --bklog-log-view-hit: var(--td-warning-color-light);
+    --bklog-log-view-new: var(--td-success-color-light);
+    --bklog-code-view-located: #3d4d69;
+    --bklog-code-view-hit: #4c3b20;
+    --bklog-code-view-new: #1e3023;
+  }
+
   .log-view {
     min-height: 100%;
     color: #f0f1f5;
@@ -359,11 +368,11 @@
         border-top: 1px solid transparent;
 
         &.log-init {
-          background: #3d4d69;
+          background: var(--bklog-code-view-located);
         }
 
         &.new-log-line {
-          background: #1e3023;
+          background: var(--bklog-code-view-new);
         }
 
         &:hover {
@@ -371,7 +380,7 @@
         }
 
         &.filter-line {
-          background: #131313;
+          background: var(--bklog-code-view-hit);
         }
       }
 
@@ -396,32 +405,32 @@
     }
 
     &.light-view {
-      color: #16171a;
-      background: #fff;
+      color: var(--td-text-color-primary);
+      background: var(--td-bg-color-container);
 
       #log-content {
         .line {
-          border-top: 1px solid #dcdee5;
+          border-top: var(--bklog-border-width) solid var(--td-component-stroke);
 
           &.log-init {
-            background: #f0f5ff;
+            background: var(--bklog-log-view-located);
           }
 
           &.new-log-line {
-            background: #f2fff4;
+            background: var(--bklog-log-view-new);
           }
 
           &:hover {
-            background: #f5f7fa;
+            background: var(--td-bg-color-container-hover);
           }
 
           &.filter-line {
-            background: #fff3e1;
+            background: var(--bklog-log-view-hit);
           }
         }
 
         .line-num {
-          color: #313238;
+          color: var(--td-text-color-secondary);
         }
       }
     }

@@ -66,6 +66,9 @@ function patchVueRuntime(code) {
 
 function patchDraggable(code) {
   return code
+    // The UMD auto-registration is optional when the host exposes Vue 3.
+    .replace('"Vue"in window&&window.Vue.component("draggable",', '"function"==typeof window.Vue?.component&&window.Vue.component("draggable",')
+    .replace('"Vue" in window) {\n  window.Vue.component("draggable",', 'typeof window.Vue?.component === "function") {\n  window.Vue.component("draggable",')
     .replace(
       'var addContext = function addContext(domElement, context) {\n  return domElement.__draggable_context = context;\n};',
       'var addContext = function addContext(domElement, context) {\n  if (!domElement) return;\n  return domElement.__draggable_context = context;\n};',

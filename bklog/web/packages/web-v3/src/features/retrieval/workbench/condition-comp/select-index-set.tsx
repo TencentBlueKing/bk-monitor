@@ -45,6 +45,8 @@ import { xssFilter } from '@/shared/lib/util';
 
 
 import * as authorityMap from '../../../../shared/lib/authority-map';
+import { renderDropdownListSkeleton } from '@/shared/ui/loading/list-skeleton';
+import { DropdownLoadingSkeleton } from '@/shared/ui/loading/skeleton';
 import EmptyStatus from '../../../../shared/ui/empty-status/index.vue';
 import SelectIndexSetInput from './select-index-set-input';
 
@@ -1010,9 +1012,10 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
             <ul
               style={{ color: '#4D4F56' }}
               class='history-alone-list'
-              v-loading={{ loading: this.historyLoading }}
             >
-              {this.aloneHistory.length ? (
+              {this.historyLoading ? (
+                <li>{renderDropdownListSkeleton()}</li>
+              ) : this.aloneHistory.length ? (
                 this.aloneHistory.map(item => (
                   <li
                     key={item.id ?? item.index_set_id}
@@ -1038,9 +1041,10 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
           ) : (
             <ul
               class='history-multiple-list'
-              v-loading={{ loading: this.historyLoading }}
             >
-              {this.multipleHistory.length ? (
+              {this.historyLoading ? (
+                <li>{renderDropdownListSkeleton()}</li>
+              ) : this.multipleHistory.length ? (
                 this.multipleHistory.map(item => (
                   <li
                     key={item.id}
@@ -1237,6 +1241,7 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
           style={this.groupListStyle}
           class='group-list custom-group'
         >
+          {this.basicLoading && !this.indexSetList.length && renderDropdownListSkeleton()}
           {this.renderOptionList.map(group => (
             <bk-option-group
               id={(group as any).id}
@@ -1338,7 +1343,12 @@ export default class SelectIndexSet extends tsc<{ popoverOptions?: object }> {
           { 'is-default-trigger': !(this.selectedItemList.length || this.selectedItem.index_set_name) },
         ]}
         v-model={this.selectTagCatchIDList}
-        v-loading={{ loading: this.basicLoading, size: 'small', zIndex: 10 }}
+        v-loading={{
+          loading: this.basicLoading && !(this.selectedItemList.length || this.selectedItem.index_set_name),
+          indicator: () => <DropdownLoadingSkeleton rows={1} />,
+          size: 'small',
+          zIndex: 10,
+        }}
         v-slots={{
           trigger: () => triggerSlot(),
         }}

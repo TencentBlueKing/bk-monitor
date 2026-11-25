@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { Button as TButton } from 'tdesign-vue-next';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { renderLogListSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, ref, watch } from 'vue';
@@ -100,6 +103,7 @@ export default defineComponent({
     const { t } = useLocale();
 
     const loading = ref(false);
+    const listFailed = ref(false);
     const templateList = ref<CleanTemplate[]>([]);
     const searchText = ref('');
     const appliedSearchText = ref('');
@@ -138,8 +142,11 @@ export default defineComponent({
       emit('select', template);
     };
 
+    let templateRequestId = 0;
     const fetchTemplateList = async (isLoadMore = false) => {
+      const requestId = ++templateRequestId;
       loading.value = true;
+      listFailed.value = false;
       const query: Record<string, unknown> = {
         bk_biz_id: props.bkBizId,
         page: currentPage.value,
@@ -154,6 +161,7 @@ export default defineComponent({
 
       try {
         const res = await ServicesInstance.clean.cleanTemplate({ query });
+        if (requestId !== templateRequestId) return;
         const sourceList: CleanTemplate[] = Array.isArray(res.data) ? res.data : (res.data?.list ?? []);
         const list = props.useDraftConfig ? sourceList.map(resolveCleanTemplateDraft) : sourceList;
         if (isLoadMore) {
@@ -165,13 +173,14 @@ export default defineComponent({
         const total = Array.isArray(res.data) ? list.length : (res.data?.total ?? 0);
         hasMore.value = templateList.value.length < total;
       } catch {
+        if (requestId !== templateRequestId) return;
         if (!isLoadMore) {
           templateList.value = [];
           updateSelection(null);
         }
-        hasMore.value = false;
+        listFailed.value = true;
       } finally {
-        loading.value = false;
+        if (requestId === templateRequestId) loading.value = false;
       }
     };
 
@@ -190,7 +199,7 @@ export default defineComponent({
     const handleScroll = (event: Event) => {
       const element = event.target as HTMLElement;
       if (element.scrollTop + element.clientHeight + 50 >= element.scrollHeight) {
-        if (!loading.value && hasMore.value) {
+        if (!loading.value && !listFailed.value && hasMore.value) {
           currentPage.value += 1;
           fetchTemplateList(true);
         }
@@ -210,6 +219,8 @@ export default defineComponent({
       () => props.visible,
       visible => {
         if (!visible) {
+          templateRequestId += 1;
+          loading.value = false;
           return;
         }
         searchText.value = '';
@@ -225,10 +236,7 @@ export default defineComponent({
     );
 
     return () => (
-      <div
-        class='clean-template-picker'
-        v-loading={{ loading: loading.value && currentPage.value === 1, size: 'small' }}
-      >
+      <div class='clean-template-picker'>
         {props.showCleanTypeTabs && (
           <div class='clean-type-tabs'>
             <div
@@ -263,16 +271,16 @@ export default defineComponent({
         <div
           ref={scrollContainerRef}
           class='template-list'
+          v-loading={{ loading: loading.value && currentPage.value === 1, indicator: renderLogListSkeleton }}
           onScroll={handleScroll}
         >
           {templateList.value.length === 0 && !loading.value && (
-            <bk-exception
-              class='empty-exception'
-              scene='part'
-              type='empty'
-            >
-              <span>{t('暂无数据')}</span>
-            </bk-exception>
+            <div class='bklog-table-empty-region'>
+              <EmptyStatus
+                emptyType={listFailed.value ? '500' : 'empty'}
+                onOperation={resetAndFetch}
+              />
+            </div>
           )}
           {templateList.value.map(item => (
             <div
@@ -310,6 +318,13 @@ export default defineComponent({
               </div>
             </div>
           ))}
+          {listFailed.value && templateList.value.length > 0 && (
+            <div class='template-list-loading'>
+              <TButton theme='primary' variant='text' onClick={() => fetchTemplateList(true)}>
+                {t('刷新')}
+              </TButton>
+            </div>
+          )}
           {loading.value && currentPage.value > 1 && <div class='template-list-loading'><span class='bklog-loading-mark' role='status' aria-label='Loading' /></div>}
         </div>
       </div>

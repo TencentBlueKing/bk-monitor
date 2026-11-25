@@ -41,7 +41,7 @@ export default defineComponent({
   setup(props) {
     return () => (
       <span
-        class='client-log-loading-icon'
+        class={['client-log-loading-icon', { 'is-compact': props.size === 14 }]}
         role='status'
         aria-label={t('加载中')}
         style={{ width: `${props.size}px`, height: `${props.size}px` }}

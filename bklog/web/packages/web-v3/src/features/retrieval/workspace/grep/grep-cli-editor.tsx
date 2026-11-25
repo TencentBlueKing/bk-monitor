@@ -174,7 +174,7 @@ export default defineComponent({
           },
           // 自定义 placeholder 样式
           '.cm-placeholder': {
-            color: '#999',
+            color: 'var(--td-text-color-placeholder)',
             fontStyle: 'italic',
             fontFamily: 'Monaco, Menlo, Ubuntu Mono, Consolas, source-code-pro, monospace',
             fontSize: '12px',
@@ -185,15 +185,15 @@ export default defineComponent({
             height: '6px',
           },
           '.cm-scroller::-webkit-scrollbar-track': {
-            backgroundColor: '#f1f1f1',
+            backgroundColor: 'var(--td-bg-color-component)',
             borderRadius: '3px',
           },
           '.cm-scroller::-webkit-scrollbar-thumb': {
-            backgroundColor: '#c1c1c1',
+            backgroundColor: 'var(--td-component-stroke)',
             borderRadius: '3px',
           },
           '.cm-scroller::-webkit-scrollbar-thumb:hover': {
-            backgroundColor: '#a8a8a8',
+            backgroundColor: 'var(--td-text-color-placeholder)',
           },
         }),
       ];

@@ -164,8 +164,10 @@ test('failure releases loading and supports retry without a stuck popup', async 
   });
   await f.history.requestSearchHistory();
   assert.equal(f.history.historyLoading.value, false);
+  assert.equal(f.history.historyFailed.value, true);
   fail = false;
   await f.history.requestSearchHistory();
+  assert.equal(f.history.historyFailed.value, false);
   assert.equal(f.history.historyRecords.value.length, 1);
   f.scope.stop();
 });
