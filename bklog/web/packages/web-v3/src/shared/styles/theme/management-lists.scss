@@ -67,44 +67,38 @@
       margin-right: auto;
     }
 
-    .t-pagination__number,
-    .t-pagination__btn-prev,
-    .t-pagination__btn-next {
-      box-sizing: border-box;
-      min-width: 32px;
-      height: 32px;
-      border: 1px solid var(--bklog-border-control, #c4c6cc);
-      border-radius: var(--bklog-radius-control, 2px);
-      color: var(--bklog-text-secondary, #63656e);
-      background: var(--bklog-surface, #fff);
+    // Management tables use the standard controls within TDesign's compact table pager.
+    .t-pagination {
+      --td-comp-size-xs: var(--bklog-control-size-medium);
+      --bklog-pagination-arrow-size: var(--bklog-space-16);
     }
+  }
+}
 
-    // 页码为 inline-block，文字垂直居中完全依赖行高；小尺寸分页（t-size-s）行高被 TDesign 降为
-    // --td-comp-size-xs（24px），与这里提升后的盒高不一致会导致文字偏上，需按盒高（扣除上下 1px 边框）对齐。
-    .t-pagination__number {
-      line-height: calc(var(--bklog-control-size-medium, 32px) - 2px);
-    }
+// Both collection list variants use the same table and pager typography.
+.v2-log-collection-table .log-collection-table {
+  .t-table__header th,
+  .t-pagination,
+  .t-pagination__total,
+  .t-pagination__number,
+  .t-pagination__btn-prev,
+  .t-pagination__btn-next {
+    font-size: var(--bklog-font-action);
+    line-height: var(--bklog-line-height-action);
+  }
 
-    .t-pagination__number.t-is-current {
-      border-color: var(--bklog-brand-primary, #3a84ff);
-      color: var(--bklog-brand-primary, #3a84ff);
-      background: var(--bklog-surface, #fff);
-    }
+  .t-table__body tr {
+    line-height: var(--bklog-line-height-action);
+  }
 
-    .t-pagination__btn-prev.t-is-disabled,
-    .t-pagination__btn-next.t-is-disabled {
-      border-color: var(--bklog-border-muted, #dcdee5);
-      color: var(--bklog-text-disabled, #c4c6cc);
-      background: var(--bklog-surface-disabled, #fafbfd);
-    }
+  .t-table__pagination .t-pagination__select .t-input__inner {
+    font-size: var(--bklog-font-action);
+  }
+}
 
-    .t-pagination__pager li:not(:last-child),
-    .t-pagination__btn-prev {
-      margin-right: 4px;
-    }
-
-    .t-pagination__btn-next {
-      margin-left: 4px;
-    }
+.v2-log-collection-table-tool {
+  .t-input,
+  .t-select-input {
+    font-size: var(--bklog-font-action);
   }
 }

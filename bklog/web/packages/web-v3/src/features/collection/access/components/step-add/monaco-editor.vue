@@ -152,7 +152,7 @@
       },
       fontFamily: {
         type: String,
-        default: 'Microsoft YaHei',
+        default: 'Menlo, Monaco, Consolas, monospace',
       },
       warningList: {
         type: Array,
@@ -164,7 +164,7 @@
       },
       fontSize: {
         type: Number,
-        default: 16,
+        default: 13,
       },
       isShowProblemDrag: {
         type: Boolean,
@@ -281,6 +281,8 @@
             language: this.language,
             fontFamily: this.fontFamily,
             fontSize: this.fontSize,
+            lineHeight: 22,
+            scrollbar: { verticalScrollbarSize: 14 },
             cursorBlinking: 'solid',
             automaticLayout: true,
             ...this.monacoConfig,
@@ -555,14 +557,26 @@
 
   .editor-title {
     display: flex;
+    align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 14px 18px;
-    color: #979ba5;
-    background: #2e2e2e;
+    min-height: calc(var(--bklog-space-24) + var(--bklog-space-16));
+    padding-inline: var(--bklog-space-24) var(--bklog-space-16);
+    color: var(--bklog-editor-header-text);
+    background: var(--bklog-editor-header-surface);
+    border-radius: var(--bklog-space-2) var(--bklog-space-2) 0 0;
+    box-shadow: var(--bklog-editor-header-shadow);
+    font-size: var(--bklog-font-action);
+    line-height: var(--bklog-line-height-action);
 
     .right-container {
       @include flex-center();
+      gap: var(--bklog-space-16);
+    }
+
+    .icon-full-screen {
+      margin: 0;
+      font-size: var(--bklog-space-16);
     }
   }
 

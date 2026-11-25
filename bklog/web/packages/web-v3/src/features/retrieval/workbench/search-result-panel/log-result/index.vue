@@ -29,15 +29,16 @@
     <div ref="resultTools" :class="['original-log-panel-tools', { 'trace-log-panel': isMonitorTrace }]">
       <div class="left-operate">
         <div class="bk-button-group">
-          <span
+          <button
+            type="button"
             v-for="type in ['original', 'table']"
             :key="type"
             class="option"
-            :class="contentType === type ? 'option-selected' : ''"
+            :aria-pressed="contentType === type"
             @click="handleClickTableBtn(type)"
           >
             {{ type === 'table' ? $t('表格') : $t('原始') }}
-          </span>
+          </button>
         </div>
         <ResultStorage />
       </div>
@@ -49,10 +50,10 @@
               :foucs-fixed="true"
               :on-tag-render="handleTagRender"
               class="bklog-v3-tag-highlight"
-              focus-border-color="#c4c6cc"
+              focus-border-color="var(--td-border-level-2-color)"
               min-height="32px"
-              :max-width="highlightStyle.width"
-              :min-width="highlightStyle.width"
+              max-width="400px"
+              min-width="0px"
               :value="highlightValue"
               :placeholder="$t('输入后按 Enter...')"
               template="tag-input"
@@ -82,12 +83,9 @@
             :options="tippyOptions"
             :before-hide="handleBeforeHide"
           >
-            <div class="operation-icon">
-              <span
-                style="font-size: 16px"
-                class="icon bklog-icon bklog-shezhi"
-              />
-            </div>
+            <button type="button" class="operation-icon" :aria-label="$t('字段设置')" :aria-expanded="showFieldsSetting">
+              <span class="icon bklog-icon bklog-shezhi" aria-hidden="true" />
+            </button>
             <template #content>
               <div class="fields-setting-container">
                 <fields-setting
@@ -120,7 +118,6 @@ import useResizeObserve from '@/shared/composables/use-resize-observe';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 
-  import { debounce } from 'lodash-es';
 
   // MONITOR_APP !== 'trace'
   import ExportLog from '../../result-comp/export-log.vue';
@@ -128,7 +125,6 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
   // #code const ExportLog = () => null;
   // #endif
   import MatchMode from '@/shared/global/match-mode/index';
-  import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
   import BkLogPopover from '../../../../../shared/ui/bklog-popover/index';
   import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
   import ResultStorage from '../../components/result-storage/index';
@@ -181,7 +177,6 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
         isInitActiveTab: false,
         isMonitorTrace: window.__IS_MONITOR_TRACE__,
         isMonitorApm: window.__IS_MONITOR_APM__,
-        highlightWidth: 200,
         matchMode: {
           caseSensitive: false,
           regexMode: false,
@@ -199,8 +194,6 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
             this.showFieldsSetting = true;
           },
         },
-        logResultResizeObserver: null,
-        logResultResizeObserverFn: null,
         highlightTriggerHandler: null,
       };
     },
@@ -238,21 +231,10 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
       showFieldsConfigPopoverNum() {
         return useApplicationStore().showFieldsConfigPopoverNum;
       },
-      jsonFormat() {
-        return useApplicationStore().storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT];
-      },
-      highlightStyle() {
-        return {
-          width: `${this.highlightWidth}px`,
-        };
-      },
     },
     watch: {
       showFieldsConfigPopoverNum() {
         this.handleAddNewConfig();
-      },
-      jsonFormat() {
-        this.$nextTick(this.calcHighlightWidth);
       },
     },
     mounted() {
@@ -284,38 +266,16 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
         });
       }
 
-      this.logResultResizeObserverFn = debounce(() => {
-        this.calcHighlightWidth();
-      }, 100);
-      this.logResultResizeObserver = new ResizeObserver(this.logResultResizeObserverFn);
-      this.logResultResizeObserver.observe(this.$el);
     },
     unmounted() {
       if (this.highlightTriggerHandler) {
         RetrieveHelper.off(RetrieveEvent.HILIGHT_TRIGGER, this.highlightTriggerHandler);
         this.highlightTriggerHandler = null;
       }
-      this.logResultResizeObserverFn?.cancel?.();
-      this.logResultResizeObserver?.unobserve(this.$el);
-      this.logResultResizeObserver?.disconnect();
-      this.logResultResizeObserver = null;
-      this.logResultResizeObserverFn = null;
       this.$refs.refFieldsSettingPopper?.hide?.();
       RetrieveHelper.destroyMarkInstance();
     },
     methods: {
-      calcHighlightWidth() {
-        const { offsetWidth } = this.$el;
-        const leftWidth = this.$el.querySelector('.left-operate')?.offsetWidth ?? 0;
-        const rightWidth = 200;
-        const calcWidth = offsetWidth - leftWidth - rightWidth;
-        if (calcWidth > 400) {
-          this.highlightWidth = 400;
-          return;
-        }
-
-        this.highlightWidth = offsetWidth - leftWidth - rightWidth;
-      },
       handleMatchModeChange(args) {
         Object.assign(this.matchMode, args);
         RetrieveHelper.setHighlightCaseSensitive(args.caseSensitive);
@@ -385,15 +345,18 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 
 <style lang="scss" scoped>
 @use '@/shared/styles/mixins/flex.scss' as *;
+@use '@/shared/styles/theme/components/contracts' as bklogControls;
   .original-log-panel {
     .original-log-panel-tools {
       position: sticky;
       top: var(--bklog-result-tools-sticky-top, var(--offset-search-bar, var(--top-searchbar-height, 0)));
       z-index: var(--bklog-z-sticky, 6);
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
+      row-gap: var(--bklog-space-4);
       padding: 0 6px 0 0;
-      background: #fff;
+      background: var(--td-bg-color-container);
       // border-bottom: 1px solid #dfe0e5;
 
       &.trace-log-panel {
@@ -402,7 +365,7 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
     }
 
     .tools-more {
-      flex: 1;
+      flex: 1 1 260px;
       min-width: 0;
 
       @include flex-center;
@@ -430,29 +393,33 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
-        margin-left: 10px;
+        width: var(--bklog-control-size-medium);
+        height: var(--bklog-control-size-medium);
+        margin-inline-start: calc(var(--bklog-space-8) + var(--bklog-space-2));
+        padding: 0;
+        border: 0;
         cursor: pointer;
-        background-color: #f0f1f5;
-        border-radius: 2px;
-        outline: none;
-        transition: boder-color 0.2s;
+        background-color: var(--td-bg-color-component);
+        border-radius: var(--bklog-standard-control-radius);
+        transition: background-color 0.2s;
 
-        &:hover {
-          border-color: #4d4f56;
-          transition: boder-color 0.2s;
+        &:not(.disabled-icon):hover {
+          background-color: var(--td-bg-color-component-hover);
         }
 
-        &:active {
-          border-color: #3a84ff;
-          transition: boder-color 0.2s;
+        &:not(.disabled-icon):active {
+          background-color: var(--td-bg-color-component-active);
+        }
+
+        &:focus-visible {
+          outline: var(--bklog-border-width) solid var(--td-brand-color);
+          outline-offset: var(--bklog-space-2);
         }
 
         .bklog-icon {
           width: 16px;
           font-size: 16px;
-          color: #4d4f56;
+          color: var(--td-text-color-secondary);
         }
       }
 
@@ -462,8 +429,8 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
         align-items: center;
         min-width: 0;
         font-size: 12px;
-        color: #4d4f56;
-        background: #ffffff;
+        color: var(--td-text-color-secondary);
+        background: var(--td-bg-color-container);
 
         :deep(.bklog-v3-tag-highlight) {
           flex: 0 1 auto;
@@ -489,13 +456,13 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
           width: 40px;
           height: 32px;
           padding: 0px 0px;
-          color: #4d4f56;
+          color: var(--td-text-color-secondary);
           text-align: center;
-          background: #fafbfd;
-          border-top: 1px solid #c4c6cc;
+          background: var(--td-bg-color-secondarycontainer);
+          border-top: 1px solid var(--td-border-level-2-color);
           border-right: none;
-          border-bottom: 1px solid #c4c6cc;
-          border-left: 1px solid #c4c6cc;
+          border-bottom: 1px solid var(--td-border-level-2-color);
+          border-left: 1px solid var(--td-border-level-2-color);
           border-top-left-radius: 2px;
           border-bottom-left-radius: 2px;
         }
@@ -503,13 +470,13 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 
       .disabled-icon {
         cursor: not-allowed;
-        background-color: #fff;
-        border-color: #dcdee5;
+        background-color: var(--td-bg-color-container);
+        border-color: var(--td-component-stroke);
 
         &:hover,
         .bklog-icon {
-          color: #c4c6cc;
-          border-color: #dcdee5;
+          color: var(--td-text-color-disabled);
+          border-color: var(--td-component-stroke);
         }
       }
     }
@@ -526,40 +493,17 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
       }
 
       .bk-button-group {
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        @include bklogControls.log-segmented-container;
         width: 104px;
-        height: 32px;
-        padding: 4px 4px;
-        font-size: 12px;
-        background-color: #f0f1f5;
-        border-radius: 2px;
       }
 
       .option {
-        display: flex;
-
-        /* 使用 flex 布局 */
-        flex: 1;
-        align-items: center;
-
-        /* 垂直居中 */
-        justify-content: center;
-
-        /* 水平居中 */
-        width: 100%;
-        height: 100%;
-        color: #4d4f56;
-        cursor: pointer;
+        @include bklogControls.log-segmented-option;
         transition: background-color 0.3s;
       }
 
-      .option.option-selected {
-        color: #3a84ff;
-
-        /* 蓝色 */
-        background-color: #ffffff;
+      .option[aria-pressed="true"] {
+        @include bklogControls.log-segmented-selected;
       }
 
       .bklog-option-item {
@@ -625,8 +569,9 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
   }
 
   .bklog-v3-match-mode {
-    height: 32px;
-    padding-left: 6px;
+    box-sizing: border-box;
+    height: var(--bklog-control-size-medium);
+    padding-inline-start: calc(var(--bklog-space-4) + var(--bklog-space-2));
   }
 
   .bklog-v3-select-dropdown {

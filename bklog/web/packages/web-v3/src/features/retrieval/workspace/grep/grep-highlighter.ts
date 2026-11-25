@@ -189,25 +189,25 @@ const grepHighlighter = ViewPlugin.fromClass(
 // CSS 样式
 export const grepHighlightTheme = EditorView.theme({
   '.grep-command': {
-    color: '#0066cc',
+    color: 'var(--td-text-color-link)',
     fontWeight: 'bold',
   },
   '.grep-argument': {
-    color: '#cc6600',
+    color: 'var(--bklog-json-value-color)',
     fontWeight: 'bold',
   },
   '.grep-string': {
-    color: '#009900',
+    color: 'var(--bklog-json-key-color)',
   },
   '.grep-pattern': {
-    color: '#cc0066',
+    color: 'var(--td-error-color)',
   },
   '.grep-pipe': {
-    color: '#666666',
+    color: 'var(--td-text-color-secondary)',
     fontWeight: 'bold',
   },
   '.grep-escape': {
-    color: '#ff6600',
+    color: 'var(--bklog-json-value-color)',
     fontWeight: 'bold',
   },
 });

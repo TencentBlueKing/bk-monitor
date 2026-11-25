@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-loading="{ loading: basicLoading }"
+    v-loading="{ loading: basicLoading, indicator: renderDrawerInlineFormSkeleton }"
     class="step-storage"
   >
     <bk-form
@@ -356,6 +356,7 @@
 </template>
 
 <script>
+  import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { mapState as mapPiniaState } from 'pinia';
 
 
@@ -591,6 +592,7 @@ import { ServicesInstance } from '@/platform/services';
       this.curCollect.environment !== 'container' && this.getHostNumber();
     },
     methods: {
+      renderDrawerInlineFormSkeleton,
       checkDorisAccess() {
         const hasAccess = isFeatureToggleOn('doris_storage_cluster', [String(this.bkBizId), String(this.spaceUid)]);
         this.isDorisEnabled = hasAccess;

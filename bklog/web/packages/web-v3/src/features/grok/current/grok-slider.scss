@@ -9,7 +9,7 @@
   .grok-pattern-label {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--bklog-space-12);
   }
 
   // 调试区域
@@ -28,17 +28,17 @@
     }
 
     .debug-section-title {
-      font-size: 14px;
+      font-size: var(--bklog-font-action);
       font-weight: bold;
-      color: #313238;
-      margin-bottom: 16px;
+      color: var(--bklog-text-primary, var(--td-text-color-primary));
+      margin-bottom: var(--bklog-space-16);
     }
 
     .debug-action {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: var(--bklog-space-8);
+      margin-bottom: var(--bklog-space-16);
     }
 
     // 调试状态
@@ -46,35 +46,35 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 12px;
+      font-size: var(--bklog-font-body);
 
       &.debug-status-success {
-        color: #2CAF5E;
+        color: var(--bklog-status-success, var(--td-success-color));
       }
 
       &.debug-status-warning {
-        color: #F59500;
+        color: var(--bklog-status-warning, var(--td-warning-color));
       }
 
       &.debug-status-error {
-        color: #ea3636;
+        color: var(--bklog-status-error, var(--td-error-color));
       }
 
       .bk-icon {
-        font-size: 14px;
+        font-size: var(--bklog-font-action);
       }
     }
 
     // 调试结果
     .debug-result {
-      background-color: #f5f7fa;
-      border-radius: 2px;
+      background-color: var(--bklog-surface-hover, var(--td-bg-color-secondarycontainer));
+      border-radius: var(--bklog-space-2);
       padding: 9px;
 
       .debug-result-label {
-        font-size: 12px;
-        color: #979ba5;
-        margin-bottom: 8px;
+        font-size: var(--bklog-font-body);
+        color: var(--bklog-text-placeholder, var(--td-text-color-placeholder));
+        margin-bottom: var(--bklog-space-8);
       }
 
       // 调试结果表格
@@ -84,22 +84,22 @@
         border: none;
 
         th, td {
-          padding: 8px 12px;
-          font-size: 12px;
+          padding: var(--bklog-space-8) var(--bklog-space-12);
+          font-size: var(--bklog-font-body);
           text-align: left;
           border: none;
         }
 
         th {
           font-weight: 400;
-          color: #8E9BB3;
+          color: var(--bklog-text-secondary, var(--td-text-color-secondary));
           background: transparent;
-          border-bottom: 1px solid #DCDEE5;
+          border-bottom: 1px solid var(--bklog-border-muted, var(--td-component-stroke));
         }
 
         td {
-          color: #4D4F56;
-          border-bottom: 1px solid #F0F1F5;
+          color: var(--bklog-text-strong, var(--td-text-color-primary));
+          border-bottom: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
         }
 
         tr:last-child td {
@@ -110,7 +110,7 @@
       .debug-result-field {
         flex-shrink: 0;
         width: 120px;
-        color: #4D4F56;
+        color: var(--bklog-text-strong, var(--td-text-color-primary));
       }
 
       .debug-result-value {
@@ -121,11 +121,11 @@
 
   // 底部按钮
   .slider-footer {
-    margin-top: 24px;
+    margin-top: var(--bklog-space-24);
 
     .t-form__controls-content {
       display: flex;
-      gap: 8px;
+      gap: var(--bklog-space-8);
     }
 
     .t-button {

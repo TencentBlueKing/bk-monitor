@@ -27,9 +27,15 @@
               <template #prefix-icon><span class="bklog-icon bklog-shoudongchaxun"></span></template>
             </TInput>
           </div>
-          <BklogLoading :loading="historyLoading" size="small">
+          <div :aria-busy="historyLoading">
             <ul class="retrieve-history-list">
-              <template v-if="historyRecords.length">
+              <li v-if="historyLoading">
+                <DropdownLoadingSkeleton :rows="3" :item-height="32" />
+              </li>
+              <li v-else-if="historyFailed" class="list-item not-history">
+                <TButton theme="primary" variant="text" @click="requestSearchHistory">{{ $t('刷新') }}</TButton>
+              </li>
+              <template v-else-if="filterHistoryRecords.length">
                 <li
                   v-for="item in filterHistoryRecords"
                   :key="item.id"
@@ -57,9 +63,9 @@
                   </TTooltip>
                 </li>
               </template>
-              <li v-else-if="!historyLoading" class="list-item not-history">{{ $t('暂无历史记录') }}</li>
+              <li v-else class="list-item not-history">{{ $t('暂无历史记录') }}</li>
             </ul>
-          </BklogLoading>
+          </div>
         </div>
       </template>
     </TPopup>
@@ -70,8 +76,8 @@
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed } from 'vue';
 import dayjs from 'dayjs';
-import { Popup as TPopup, Input as TInput, Tooltip as TTooltip } from 'tdesign-vue-next';
-import BklogLoading from '@/shared/ui/loading';
+import { Button as TButton, Popup as TPopup, Input as TInput, Tooltip as TTooltip } from 'tdesign-vue-next';
+import { DropdownLoadingSkeleton } from '@/shared/ui/loading/skeleton';
 
 import useLocale from '@/shared/composables/use-locale';
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
@@ -87,7 +93,8 @@ const isMonitorComponent = computed(() => !!window.__IS_MONITOR_COMPONENT__);
 const {
   visible,
   historyLoading,
-  historyRecords,
+  historyFailed,
+  requestSearchHistory,
   searchInput,
   filterHistoryRecords,
   bookmarkPopRefsShow,

@@ -45,15 +45,15 @@
       border-radius: 50%;
 
       &.is-finish {
-        background: #6dd400;
+        background: var(--td-success-color);
       }
 
       &.is-unStart {
-        background: #e02020;
+        background: var(--td-error-color);
       }
 
       &.is-restoring {
-        background: #fe9c00;
+        background: var(--td-warning-color);
       }
     }
   }

@@ -30,6 +30,7 @@ import { computed, defineComponent, ref, watch } from 'vue';
 
 import { formatFileSize } from '@/shared/lib/util';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 
 import { t } from '@/shared/composables/use-locale';
 import { useTableSetting } from '@/features/management/manage-v2/hooks/use-table-setting';
@@ -63,6 +64,7 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    hasListError: Boolean,
     loading: {
       type: Boolean,
       default: false,
@@ -83,7 +85,7 @@ export default defineComponent({
       }),
     },
   },
-  emits: ['page-change', 'page-limit-change', 'search', 'sort-change', 'upload', 'selection-change', "pageChange", "pageLimitChange", "sortChange", "selectionChange"],
+  emits: ['retry','page-change', 'page-limit-change', 'search', 'sort-change', 'upload', 'selection-change', "pageChange", "pageLimitChange", "sortChange", "selectionChange"],
   setup(props, { emit }) {
     const reportTableRef = ref(null);
 
@@ -149,6 +151,7 @@ export default defineComponent({
 
     // 空状态类型
     const emptyType = computed(() => {
+      if (props.hasListError) return '500';
       return props.keyword ? 'search-empty' : 'empty';
     });
 
@@ -456,7 +459,7 @@ export default defineComponent({
     );
 
     return () => (
-      <div class='report-table'>
+      <ManagementListLoading class='report-table' loading={props.loading}>
         <bk-table
           data={props.data}
           row-key='file_name'
@@ -464,18 +467,14 @@ export default defineComponent({
           pagination={pagination.value}
           outer-border={false}
           ref={reportTableRef}
-          loading={props.loading}
           onPage-change={handlePageChange}
           onPage-limit-change={handlePageLimitChange}
           onSort-change={handleSortChange}
           onSelection-change={handleSelectionChange}
           v-slots={{
             empty: () => (
-              <div>
-                <EmptyStatus
-                  emptyType={emptyType.value}
-                  onOperation={clearSearch}
-                />
+              <div class='bklog-table-empty-region'>
+                {!props.loading && <EmptyStatus emptyType={emptyType.value} onOperation={operation => operation === 'refresh' ? emit('retry') : clearSearch()} />}
               </div>
             ),
           }}
@@ -656,7 +655,7 @@ export default defineComponent({
             )}
           />
         </bk-table>
-      </div>
+      </ManagementListLoading>
     );
   },
 });

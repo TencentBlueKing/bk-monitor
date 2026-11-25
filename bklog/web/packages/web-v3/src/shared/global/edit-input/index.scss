@@ -4,11 +4,11 @@
 
   .edit-input-item {
     height: 22px;
-    background: #FFFFFF;
-    border: 1px solid #D7E3F0;
-    border-radius: 4px;
+    background: var(--td-bg-color-container);
+    border: 1px solid var(--bklog-standard-control-border, var(--td-border-level-2-color));
+    border-radius: var(--bklog-standard-control-radius);
     font-size: 12px;
-    color: #4d4f56;
+    color: var(--td-text-color-secondary);
     line-height: 14px;
     display: inline-flex;
     align-items: center;
@@ -19,7 +19,7 @@
     resize: var(--resize);
 
     &:hover {
-      border-color: #C4C6CC;
+      border-color: var(--bklog-standard-control-border-hover, var(--td-border-level-2-color));
     }
 
     &.is-edit-mode {
@@ -27,7 +27,7 @@
     }
 
     .edit-input-text {
-      color: #4d4f56;
+      color: var(--td-text-color-secondary);
       white-space: nowrap;
       line-height: 14px;
       flex: 1;
@@ -40,7 +40,7 @@
     .bklog-icon {
       cursor: pointer;
       font-size: 12px;
-      color: #979ba5;
+      color: var(--td-text-color-placeholder);
       flex-shrink: 0;
       display: flex;
       align-items: center;
@@ -49,7 +49,7 @@
       height: 12px;
 
       &:hover {
-        color: #313238;
+        color: var(--td-text-color-primary);
       }
     }
   }
@@ -57,10 +57,10 @@
   .edit-input-edit-container {
     position: fixed;
     z-index: var(--bklog-z-message);
-    background: #FFFFFF;
-    border: 1px solid #3A84FF;
-    border-radius: 4px;
-    box-shadow: 0 4px 12px rgba(58, 132, 255, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: var(--td-bg-color-container);
+    border: 1px solid var(--td-brand-color);
+    border-radius: var(--bklog-standard-control-radius);
+    box-shadow: var(--bklog-shadow-popup, var(--td-shadow-2));
     padding: 4px 6px;
     box-sizing: border-box;
     min-width: 120px;
@@ -69,8 +69,8 @@
     overflow: hidden;
 
     &:focus-within {
-      box-shadow: 0 4px 16px rgba(58, 132, 255, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
-      border-color: #2D73FF;
+      box-shadow: var(--td-shadow-2);
+      border-color: var(--td-brand-color);
     }
 
     .edit-input-textarea {
@@ -81,7 +81,7 @@
       border: none;
       outline: none;
       font-size: 12px;
-      color: #4d4f56;
+      color: var(--td-text-color-secondary);
       line-height: 18px;
       resize: none;
       background: transparent;
@@ -93,7 +93,7 @@
       white-space: pre-wrap;
 
       &::placeholder {
-        color: #C4C6CC;
+        color: var(--td-text-color-placeholder);
       }
 
       &:focus {

@@ -132,7 +132,13 @@ export default defineComponent({
       grepRequestResult.value.cached_count = 0;
     };
 
+    let listRequestId = 0;
+    let totalRequestId = 0;
+
     const resetGrepRequestResult = (loading = true) => {
+      listRequestId += 1;
+      totalRequestId += 1;
+      requestGrepList.cancel();
       clearGrepCache();
       grepRequestResult.value.is_loading = loading;
       grepRequestResult.value.is_error = false;
@@ -143,10 +149,11 @@ export default defineComponent({
     };
 
     const requestGrepList = debounce(() => {
-      if (!grepRequestResult.value.has_more) {
+      if (!field.value || !grepRequestResult.value.has_more) {
         return;
       }
 
+      const requestId = ++listRequestId;
       grepRequestResult.value.is_loading = true;
       grepRequestResult.value.is_error = false;
       grepRequestResult.value.exception_msg = '';
@@ -198,8 +205,10 @@ export default defineComponent({
 
       return axiosInstance(params)
         .then((resp: any) => {
+          if (requestId !== listRequestId) return;
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(({ data, result, message }) => {
+              if (requestId !== listRequestId) return;
               if (result) {
                 const list = Array.isArray(data.list) ? data.list : [];
                 grepRequestResult.value.has_more = list.length === 100;
@@ -221,7 +230,7 @@ export default defineComponent({
                 grepRequestResult.value.list = mergedList;
                 data.list = undefined;
                 setTimeout(() => {
-                  RetrieveHelper.highLightKeywords([searchValue.value], true);
+                  if (requestId === listRequestId) RetrieveHelper.highLightKeywords([searchValue.value], true);
                 });
 
                 return;
@@ -239,14 +248,14 @@ export default defineComponent({
           grepRequestResult.value.exception_msg = resp.message;
         })
         .catch((err: any) => {
-          if (err.message === 'canceled') {
+          if (requestId !== listRequestId || err?.message === 'canceled') {
             return;
           }
           grepRequestResult.value.is_error = true;
-          grepRequestResult.value.exception_msg = err.message || err;
+          grepRequestResult.value.exception_msg = err?.message || (typeof err === 'string' ? err : '');
         })
         .finally(() => {
-          grepRequestResult.value.is_loading = false;
+          if (requestId === listRequestId) grepRequestResult.value.is_loading = false;
         });
     }, 120);
 
@@ -300,9 +309,7 @@ export default defineComponent({
     };
 
     const handleLoadMore = () => {
-      if (field.value === '') {
-        return;
-      }
+      if (!field.value || grepRequestResult.value.is_loading || grepRequestResult.value.is_error) return;
 
       grepRequestResult.value.offset += 100;
       requestGrepList();
@@ -351,6 +358,7 @@ export default defineComponent({
      * 初始化获取 grep 检索总条数
      */
     const initGetGrepResultTotal = () => {
+      const requestId = ++totalRequestId;
       searchListTotal.value = 0;
       if (!field.value) {
         return;
@@ -374,9 +382,10 @@ export default defineComponent({
           data,
         })
         .then(res => {
-          searchListTotal.value = res?.data?.total || 0;
+          if (requestId === totalRequestId) searchListTotal.value = res?.data?.total || 0;
         })
         .catch(err => {
+          if (requestId !== totalRequestId) return;
           searchListTotal.value = 0;
           TDesignMessage("error", { content: err?.message });
         });
@@ -419,7 +428,6 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       store.requestPool.execCanceToken('requestIndexSetGrepQueryToken');
-      requestGrepList.cancel?.();
       resetGrepRequestResult(false);
       moduleLargeDataCacheService.clearMemory(grepRequestResult.value.cache_scope);
       RetrieveHelper.destroyMarkInstance();
@@ -445,6 +453,9 @@ export default defineComponent({
           fieldName={field.value}
           grepRequestResult={grepRequestResult.value}
           onLoadMore={handleLoadMore}
+          onRetry={() => {
+            if (field.value && !grepRequestResult.value.is_loading) requestGrepList();
+          }}
           onParamsChange={handleParamsChange}
         />
       </div>

@@ -30,7 +30,7 @@ import { Loading as TLoading } from '@/shared/ui/loading/native';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { RadioGroup as TRadioGroup, Radio as TRadio } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
-import { computed, defineComponent, ref, watch, onMounted, onBeforeUnmount, shallowRef, markRaw } from 'vue';
+import { computed, defineComponent, inject, ref, watch, onMounted, onBeforeUnmount, shallowRef, markRaw } from 'vue';
 
 import { moduleLargeDataCacheService, clusterTableWorkerService } from '@/platform/persistence/index';
 import useLocale from '@/shared/composables/use-locale';
@@ -38,6 +38,7 @@ import MainHeader from './main-header/index';
 import $http from '@/platform/http/index';
 import ClusteringLoader from '@/app/skeleton/clustering-loader.vue';
 import ContentTable, { IPagination, GroupListState } from './content-table/index';
+import { quixPage } from '../quix-page';
 import { type LogPattern } from '@/features/retrieval/services/log-clustering';
 import { type IResponseData } from '@/platform/services/type';
 
@@ -98,6 +99,7 @@ export default defineComponent({
   setup(props, { expose, emit }) {
     const store = useApplicationStore();
     const { t } = useLocale();
+    const quix = inject(quixPage, undefined);
 
     const initFilterSortMap = () => ({
       filter: {
@@ -425,7 +427,8 @@ export default defineComponent({
       const addition = [
         ...getClusterSearchAddition(),
         {
-          field: `__dist_${props.requestData?.pattern_level}`,
+          // 小型化聚类以 signature 作为签名字段
+          field: quix?.value ? 'signature' : `__dist_${props.requestData?.pattern_level}`,
           operator: 'is',
           value: signature,
         },
@@ -716,14 +719,11 @@ export default defineComponent({
       }
 
       return (
-        <bk-exception
-          type={option.type}
-          scene='part'
-          style='margin-top: 80px'
-          data-testid='cluster-result-exception'
-        >
-          <span>{option.text}</span>
-        </bk-exception>
+        <div class='bklog-table-empty-region'>
+          <bk-exception type={option.type} scene='part' data-testid='cluster-result-exception'>
+            <span>{option.text}</span>
+          </bk-exception>
+        </div>
       );
     };
 

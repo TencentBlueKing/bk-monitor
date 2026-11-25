@@ -452,11 +452,11 @@ export default defineComponent({
                 <span class='required'>*</span>
               </div>
               <div class='content'>
-                <div class='bk-button-group target-type-group'>
+                <div class='bk-button-group target-type-group' data-bklog-button-group='connected'>
                   <TButton
-                    class='is-selected'
-                    theme='primary'
-                     variant={(true) ? 'outline' : 'base'}
+                    aria-pressed={true}
+                    theme='default'
+                    variant='base'
                   >
                     {t('主机')}
                   </TButton>

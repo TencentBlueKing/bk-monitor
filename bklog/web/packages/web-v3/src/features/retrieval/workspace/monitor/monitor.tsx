@@ -25,6 +25,8 @@
  */
 
 
+import RetrievePageSkeleton from '@/app/skeleton/retrieve-page-skeleton.vue';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { computed, defineComponent, provide, watch, onBeforeUnmount } from 'vue';
 
@@ -89,6 +91,7 @@ export default defineComponent({
       isSearchResultStickyTop,
       stickyStyle,
       isPreApiLoaded,
+      initializationFailed,
       getIndexSetList,
       setDefaultRouteUrl,
     } = useMonitorAppInit(props.indexSetApi);
@@ -165,7 +168,22 @@ export default defineComponent({
         );
       }
 
-      return <div style={{ minHeight: '50vh', width: '100%' }}></div>;
+      if (initializationFailed.value) {
+        return (
+          <div class='v3-bklog-content monitor-retrieve-initialization'>
+            <EmptyStatus emptyType='500' showOperation={Boolean(props.indexSetApi)} onOperation={getIndexSetList} />
+          </div>
+        );
+      }
+
+      const fieldSetting = store.storage[BK_LOG_STORAGE.FIELD_SETTING];
+      const fieldWidth = fieldSetting?.show === false ? 0 : Number(fieldSetting?.width) || 200;
+      const trendHeight = store.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] ? 40 : 170;
+      return (
+        <div class='v3-bklog-content monitor-retrieve-initialization'>
+          <RetrievePageSkeleton embedded fieldWidth={fieldWidth} trendHeight={trendHeight} />
+        </div>
+      );
     };
 
     onBeforeUnmount(() => {
@@ -185,7 +203,6 @@ export default defineComponent({
             'is-trace': isMonitorTraceComponent,
           },
         ]}
-        v-loading={{ loading: !isPreApiLoaded.value }}
       >
         <V3Collection></V3Collection>
         {renderResultContent()}

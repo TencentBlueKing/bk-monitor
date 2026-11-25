@@ -38,12 +38,13 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Dialog, Input, Table, Popup as Popover, Drawer as Sideslider } from 'tdesign-vue-next';
+import { Dialog, Input, Skeleton, Table, Popup as Popover, Drawer as Sideslider } from 'tdesign-vue-next';
 import VueDraggable from 'vuedraggable';
 
 
 import { getFlatObjValues, xssFilter } from '../../../shared/lib/util';
 import { fieldTypeMap } from '../../../app/state/constant';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import EmptyStatus from '../../../shared/ui/empty-status/index.vue';
 import MaskingFieldInput from './masking-field-input';
 import MaskingSelectRuleTable from './masking-select-rule-table';
@@ -1603,21 +1604,27 @@ export default class MaskingField extends tsc<IProps> {
 
     const maskingPreviewSlot = {
       default: ({ row }: { row: FieldGroup }) => (
-        <div
-          class='masking-preview-box'
-          v-loading={{ loading: this.isPreviewLoading && !this.previewLoadingField }}
-        >
+        <div class='masking-preview-box'>
           {row.fieldList.map((item: IFieldItem) => (
             <div
               key={`${item.field_type}-${item.field_name}`}
               style={this.getFieldItemStyle(item)}
               class='preview'
-              v-loading={{ loading: this.isPreviewLoading && this.previewLoadingField === (row as FieldGroup & { field_name?: string }).field_name }}
               onMouseenter={() => this.handleHoverRow(item.field_name)}
               onMouseleave={() => this.handleLeaveRow()}
             >
               {getSyncNumDom(item)}
-              {getPreviewDom(item)}
+              {this.isPreviewLoading && (!this.previewLoadingField || this.previewLoadingField === item.field_name)
+                ? (
+                  <div class='result-box' aria-busy='true'>
+                    {Array.from({ length: item.rules.length || 1 }, (_, index) => (
+                      <div class='preview-result' key={index}>
+                        <Skeleton class='masking-preview-placeholder' animation='gradient' rowCol={[{ type: 'text' }]} />
+                      </div>
+                    ))}
+                  </div>
+                )
+                : getPreviewDom(item)}
             </div>
           ))}
         </div>
@@ -1657,50 +1664,53 @@ export default class MaskingField extends tsc<IProps> {
               <span>{this.$t('结果预览')}</span>
             </div>
           </div>
-          <Table
-            v-slots={{
-              empty: () => (
-                <div>
-                  <EmptyStatus
-                    emptyType={this.emptyType}
-                    showText={!this.isShowConfigFiledEmptyTips}
-                    onOperation={this.handleOperation}
-                  >
-                    {this.isShowConfigFiledEmptyTips && (
-                      <span>{this.$t('未检测到字段信息，请确认采集项是否已配置索引')}</span>
+          <ManagementListLoading loading={this.tableLoading}>
+            <Table
+              v-slots={{
+                empty: () => (
+                  <div class='bklog-table-empty-region'>
+                    {!this.tableLoading && (
+                      <EmptyStatus
+                        emptyType={this.emptyType}
+                        showText={!this.isShowConfigFiledEmptyTips}
+                        onOperation={this.handleOperation}
+                      >
+                        {this.isShowConfigFiledEmptyTips && (
+                          <span>{this.$t('未检测到字段信息，请确认采集项是否已配置索引')}</span>
+                        )}
+                      </EmptyStatus>
                     )}
-                  </EmptyStatus>
-                </div>
-              ),
-            }}
-            extCls={`masking-field-table ${this.isShowFieldClass ? 'is-show-field-class' : ''}`}
-            v-loading={{ loading: this.tableLoading }}
-            data={this.tableShowList}
-            size='small'
-          >
-            <TableColumn
-              nativeCellSlot={true}
-              key={'column_name'}
-              label={this.$t('字段信息')}
-              v-slots={fieldSlot}
-            />
-
-            <TableColumn
-              nativeCellSlot={true}
-              key={'match_method'}
-              renderHeader={this.renderHeaderRule}
-              v-slots={maskingRuleSlot}
-            />
-
-            {this.previewSwitch && (
+                  </div>
+                ),
+              }}
+              extCls={`masking-field-table ${this.isShowFieldClass ? 'is-show-field-class' : ''}`}
+              data={this.tableShowList}
+              size='small'
+            >
               <TableColumn
                 nativeCellSlot={true}
-                key={'match_content'}
-                renderHeader={this.renderHeaderPreview}
-                v-slots={maskingPreviewSlot}
+                key={'column_name'}
+                label={this.$t('字段信息')}
+                v-slots={fieldSlot}
               />
-            )}
-          </Table>
+
+              <TableColumn
+                nativeCellSlot={true}
+                key={'match_method'}
+                renderHeader={this.renderHeaderRule}
+                v-slots={maskingRuleSlot}
+              />
+
+              {this.previewSwitch && (
+                <TableColumn
+                  nativeCellSlot={true}
+                  key={'match_content'}
+                  renderHeader={this.renderHeaderPreview}
+                  v-slots={maskingPreviewSlot}
+                />
+              )}
+            </Table>
+          </ManagementListLoading>
         </div>
 
         <Sideslider

@@ -190,6 +190,7 @@ test('native table retains conditional columns, status filters, data cells and p
   assert.equal(cols.find((c) => c.colKey === 'cluster_config.display_name').cell(null, { row }), 'Cluster');
   assert.equal(cols.find((c) => c.title === '连接状态').cell(null, { row }), 'state:7');
   assert.deepEqual(cols.find((c) => c.title === '连接状态').filter.list, [
+    { label: '全部', value: '' },
     { label: '正常', value: 'true' },
     { label: '失败', value: 'false' },
   ]);

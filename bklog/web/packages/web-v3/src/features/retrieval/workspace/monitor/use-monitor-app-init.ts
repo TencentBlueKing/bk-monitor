@@ -50,6 +50,7 @@ export default (indexSetApi: () => Promise<any>) => {
   const leftFieldSettingWidth = ref(0);
   const leftFieldSettingShown = ref(true);
   const isPreApiLoaded = ref(false);
+  const initializationFailed = ref(false);
 
   const trendGraphHeight = ref(0);
 
@@ -151,12 +152,13 @@ export default (indexSetApi: () => Promise<any>) => {
    */
   const getIndexSetList = () => {
     if (!indexSetApi) {
+      initializationFailed.value = true;
       return;
     }
-    return getApmIndexSetList().then(resp => {
-      isPreApiLoaded.value = true;
-
+    initializationFailed.value = false;
+    return Promise.resolve().then(getApmIndexSetList).then(resp => {
       if (!resp?.length) {
+        isPreApiLoaded.value = true;
         return;
       }
 
@@ -281,6 +283,10 @@ export default (indexSetApi: () => Promise<any>) => {
         });
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
       });
+      isPreApiLoaded.value = true;
+    }).catch(error => {
+      initializationFailed.value = !isPreApiLoaded.value;
+      console.warn(error);
     });
   };
 
@@ -366,6 +372,7 @@ export default (indexSetApi: () => Promise<any>) => {
     isSearchResultStickyTop,
     stickyStyle,
     isPreApiLoaded,
+    initializationFailed,
     getIndexSetList,
     setDefaultRouteUrl,
   };

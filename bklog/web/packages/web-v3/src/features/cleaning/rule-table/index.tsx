@@ -60,7 +60,6 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
 
-    const tableLoading = ref(false);
     const isShowAddRule = ref(false);
     const isEditRow = ref(false);
     const ruleList = ref<any[]>([]);
@@ -173,7 +172,7 @@ export default defineComponent({
         </div>
 
         {ruleList.value.length > 0 ? (
-          <div v-loading={{ loading: tableLoading.value }}>
+          <div>
             <vue-draggable
               disabled={props.readonly}
               {...{

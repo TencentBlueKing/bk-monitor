@@ -45,6 +45,9 @@ export default defineComponent({
   name: 'AutoRefreshNew',
   setup() {
     const popoverRef = ref(null);
+    const triggerRef = ref<HTMLButtonElement | null>(null);
+    let focusOnOpen = false;
+    let restoreOnClose = false;
     const selectedValue = ref<string>('off');
     const store = useApplicationStore();
     const { t } = useLocale();
@@ -118,19 +121,31 @@ export default defineComponent({
       timerId && clearTimeout(timerId);
     });
 
-    const triggerHandler = (item: TimeOption) => {
+    const triggerHandler = (item: TimeOption, event: MouseEvent) => {
       selectedValue.value = item.value;
       popoverRef.value?.hide();
+      if (event.detail === 0) triggerRef.value?.focus();
       createRefreshTimerTask();
     };
 
     const renderContent = () => (
-      <ul class='bk-dropdown-list'>
+      <ul
+        class='bk-dropdown-list'
+        onKeydown={(event: KeyboardEvent) => {
+          if (event.key !== 'Escape') return;
+          event.preventDefault();
+          event.stopPropagation();
+          popoverRef.value?.hide();
+          triggerRef.value?.focus();
+        }}
+      >
         {datasource.value.map(item => (
           <li key={item.value}>
             <a
+              class={{ 'is-current': item.value === selectedValue.value }}
+              aria-current={item.value === selectedValue.value ? 'true' : undefined}
               href='javascript:;'
-              onClick={() => triggerHandler(item)}
+              onClick={(event: MouseEvent) => triggerHandler(item, event)}
             >
               {item.label}
             </a>
@@ -143,24 +158,41 @@ export default defineComponent({
       <BklogPopover
         ref={popoverRef}
         trigger='click'
-        contentClass='auto-refresh-popover-content'
+        contentClass='bklog-dropdown-popup auto-refresh-popover-content'
         options={
           {
             appendTo: document.body,
             arrow: false,
             offset: [0, 0],
+            onShown: ({ popper }: { popper: HTMLElement }) => {
+              if (focusOnOpen && document.activeElement === triggerRef.value) {
+                popper.querySelector<HTMLElement>('[aria-current="true"]')?.focus();
+              }
+              focusOnOpen = false;
+            },
+            onHide: ({ popper }: { popper: HTMLElement }) => {
+              restoreOnClose = popper.contains(document.activeElement);
+            },
+            onHidden: () => {
+              if (restoreOnClose && document.activeElement === document.body) triggerRef.value?.focus();
+              restoreOnClose = false;
+            },
           } as any
         }
         content={renderContent}
       >
         <div class='auto-refresh-sub-bar'>
-          <div
+          <button
+            ref={triggerRef}
+            type='button'
             class='dropdown-trigger-text'
+            onClick={(event: MouseEvent) => { focusOnOpen = event.detail === 0; }}
+            aria-label={`${t('自动刷新设置')} (${selectedValue.value || 'off'})`}
             v-log-tooltip={{ content: t('自动刷新设置'), placement: 'bottom' }}
           >
-            <i class='bklog-icon bklog-auto-refresh' />
+            <i class='bklog-icon bklog-auto-refresh' aria-hidden='true' />
             <span>{datasource.value.find(item => item.value === selectedValue.value)?.value || 'off'}</span>
-          </div>
+          </button>
         </div>
       </BklogPopover>
     );

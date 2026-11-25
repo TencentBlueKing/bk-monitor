@@ -27,13 +27,14 @@
 <template>
   <div
     ref="addNewCustomBoxRef"
-    v-loading="{ loading: containerLoading }"
+    v-loading="{ loading: containerLoading, indicator: renderPageFormSkeleton, zIndex: pageSkeletonZIndex }"
     :style="`padding-right: ${introWidth + 20}px;`"
     class="custom-create-container"
     data-test-id="custom_div_addNewCustomBox"
   >
     <bk-form
       ref="validateForm"
+      :inert="submitLoading"
       :label-width="getLabelWidth"
       :model="formData"
     >
@@ -79,11 +80,11 @@
           required
         >
           <div style="min-width: 500px; margin-top: -4px">
-            <div class="bk-button-group">
+            <div class="bk-button-group" data-bklog-button-group="connected">
               <t-button
                 v-for="(item, index) of globalsData.databus_custom"
                 :key="index"
-                :class="`${formData.custom_type === item.id ? 'is-selected' : ''}`"
+                :aria-pressed="formData.custom_type === item.id"
                 :data-test-id="`addNewCustomBox_button_typeTo${item.id}`"
                 :disabled="isEdit"
                 size="small"
@@ -410,14 +411,16 @@
     <div class="submit-btn">
       <t-button
         style="margin-right: 20px"
-        :loading="submitLoading"
         theme="primary"
+        :loading="submitLoading"
+        :disabled="containerLoading || submitLoading"
         @click="handleSubmitChange"
       >
         {{ $t('提交') }}
       </t-button>
       <t-button
         theme="default"
+        :disabled="submitLoading"
         @click="cancel"
       >
         {{ $t('取消') }}
@@ -433,6 +436,8 @@ import { mapState as mapPiniaState } from 'pinia';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
+import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 
   import clusterTable from '@/features/collection/access/components/cluster-table';
   import ClusterTypeTabs from '@/features/clusters/current/cluster-manage/cluster-type-tabs';
@@ -473,6 +478,7 @@ import { ServicesInstance } from '@/platform/services';
         isOpenWindow: true, // 是否展开使用列表
         isSubmit: false, // 是否提交
         containerLoading: false, // 全局loading
+        pageSkeletonZIndex: Z_INDEX_LAYERS.PAGE_TOP,
         isEdit: false, // 是否是编辑
         submitLoading: false,
         collectorId: null,
@@ -650,6 +656,7 @@ import { ServicesInstance } from '@/platform/services';
       });
     },
     methods: {
+      renderPageFormSkeleton: renderDrawerFormSkeleton,
       checkDorisAccess() {
         const hasAccess = isFeatureToggleOn('doris_storage_cluster', [String(this.bkBizId), String(this.spaceUid)]);
         this.isDorisEnabled = hasAccess;
@@ -694,13 +701,15 @@ import { ServicesInstance } from '@/platform/services';
         this.formData.custom_type = id;
       },
       handleSubmitChange() {
+        if (this.containerLoading || this.submitLoading) return;
+
         if (this.formData.storage_cluster_id === '') {
           TDesignMessage("error", { content: this.$t('请选择集群') });
           return;
         }
-        this.$refs.validateForm.validate().then(
+        this.submitLoading = true;
+        return this.$refs.validateForm.validate().then(
           () => {
-            this.submitLoading = true;
             if (this.isCloseDataLink) delete this.formData.data_link_id;
             const submitData = {
               ...this.formData,
@@ -718,23 +727,23 @@ import { ServicesInstance } from '@/platform/services';
               delete submitData.allocation_min_days;
             }
 
-            ServicesInstance.custom[this.isEdit ? 'setCustom' : 'createCustom']({
+            return ServicesInstance.custom[this.isEdit ? 'setCustom' : 'createCustom']({
                 params: {
                   collector_config_id: this.collectorId,
                 },
                 data: submitData,
               })
               .then(res => {
-                res.result && this.messageSuccess(this.$t('保存成功'));
+                if (!res.result) return;
+                this.messageSuccess(this.$t('保存成功'));
                 this.isSubmit = true;
                 this.cancel();
-              })
-              .finally(() => {
-                this.submitLoading = false;
               });
           },
           () => {},
-        );
+        ).finally(() => {
+          this.submitLoading = false;
+        });
       },
       // 数据链路
       async getLinkData() {

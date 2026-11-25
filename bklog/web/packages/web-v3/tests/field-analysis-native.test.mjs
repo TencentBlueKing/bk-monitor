@@ -125,7 +125,13 @@ test('native analysis popup retains V2 availability rules and explicit title/ico
 
 test('native popup owns positioning and safely closes after its reference is released', () => {
   const vm = field();vm.$t = value => value;
-  const popup = () => vm.render().children[0];
+  const findPopup = node => {
+    if (node?.type?.name === 'NativePopupFixture' && node.props?.overlayClassName?.includes('analysis-chart-popup')) {
+      return node;
+    }
+    return Array.isArray(node?.children) ? node.children.map(findPopup).find(Boolean) : undefined;
+  };
+  const popup = () => findPopup(vm.render());
   assert.equal(popup().type.name, 'NativePopupFixture');
   assert.equal(popup().props.attach, 'body');assert.equal(popup().props.placement,'right');
   assert.equal(popup().props.visible,false);assert.equal(popup().props['v-slots'].content(),null);

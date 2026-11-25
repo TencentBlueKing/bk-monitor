@@ -245,53 +245,56 @@ import { useCollectionStore } from '@/app/state/domains/collection-store';
     display: flex;
     align-items: center;
     width: 100%;
-    height: 48px;
-    padding: 0 20px;
-    line-height: 24px;
-    background-color: #fff;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    height: var(--bklog-navigation-header-height);
+    padding-inline: var(--bklog-space-16);
+    line-height: var(--bklog-space-24);
+    background-color: var(--bklog-surface);
+    box-shadow: var(--bklog-card-shadow);
 
     .main-title {
-      font-size: 16px;
-      color: #313238;
+      padding-inline: calc(var(--bklog-space-8) + var(--bklog-space-2));
+      font-size: var(--bklog-font-large);
+      color: var(--bklog-standard-control-text-hover);
     }
 
     .back-container {
       .icon-arrows-left {
         font-size: 30px;
-        color: #3a84ff;
+        color: var(--bklog-brand-primary);
         cursor: pointer;
 
         &:hover {
-          color: #699df4;
+          color: var(--bklog-brand-hover);
         }
       }
     }
 
     .sub-nav-list {
       display: flex;
-      margin-left: 35px;
-      font-size: 14px;
-      color: #63656e;
+      gap: calc(2 * var(--bklog-space-16));
+      padding: 0;
+      margin: 0;
+      margin-inline-start: var(--bklog-space-24);
+      font-size: var(--bklog-font-action);
+      color: var(--bklog-standard-control-text);
+      list-style: none;
 
       .sub-nav-item {
-        height: 52px;
-        padding: 0 10px;
-        margin: 0 25px;
-        line-height: 52px;
+        display: flex;
+        align-items: center;
+        height: var(--bklog-tab-height);
+        line-height: var(--bklog-line-height-action);
         cursor: pointer;
-        border-bottom: 3px solid transparent;
-        transition:
-          color,
-          border-color 0.3s;
+        transition: color 0.3s;
 
         &:hover,
         &.active {
-          color: #3a84ff;
-          border-bottom: 3px solid #3a84ff;
-          transition:
-            color,
-            border-color 0.3s;
+          color: var(--bklog-brand-primary);
+        }
+
+        &.active {
+          box-shadow: inset 0 calc(-1 * var(--bklog-space-2)) var(--bklog-brand-primary);
         }
       }
     }

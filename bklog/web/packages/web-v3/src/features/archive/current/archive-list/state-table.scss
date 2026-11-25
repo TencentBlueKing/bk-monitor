@@ -30,16 +30,16 @@
       border-radius: 50%;
 
       &.is-SUCCESS {
-        background: #6dd400;
+        background: var(--td-success-color);
       }
 
       &.is-FAIL,
       &.is-PARTIAL {
-        background: #e02020;
+        background: var(--td-error-color);
       }
 
       &.is-IN_PROGRESS {
-        background: #fe9c00;
+        background: var(--td-warning-color);
       }
     }
   }

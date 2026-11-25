@@ -79,8 +79,8 @@ const grokHighlighter = ViewPlugin.fromClass(
 
 export const grokHighlightTheme = EditorView.theme({
   '.grok-pattern': {
-    color: '#FA50E9',
-    borderRadius: '2px',
+    color: 'var(--bklog-brand-active, var(--td-brand-color))',
+    borderRadius: 'var(--bklog-space-2)',
   },
 });
 

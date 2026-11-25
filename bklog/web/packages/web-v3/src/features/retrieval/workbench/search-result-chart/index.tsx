@@ -719,7 +719,7 @@ export default defineComponent({
               class='trend-chart-empty'
             >
               <img class='trend-chart-empty-icon' src={noSearchResults} alt='' />
-              <span>检索无数据</span>
+              <span>{t('检索无数据')}</span>
             </div>
           ) : (
             <div

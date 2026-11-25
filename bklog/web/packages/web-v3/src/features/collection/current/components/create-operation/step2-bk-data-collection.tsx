@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { renderCollectionFormSkeleton } from './form-skeleton';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 
 
@@ -658,6 +659,8 @@ export default defineComponent({
      * 4. 调用创建或更新接口
      */
     const handleSave = async (): Promise<void> => {
+      if (loading.value || submitLoading.value) return;
+      submitLoading.value = true;
       try {
         // 检查索引列表是否为空
         isIndexesEmpty.value = configData.value.indexes.length === 0;
@@ -671,8 +674,6 @@ export default defineComponent({
         if (isIndexesEmpty.value) {
           return;
         }
-
-        submitLoading.value = true;
 
         // 构建请求参数
         const params: Record<string, unknown> = {
@@ -935,10 +936,14 @@ export default defineComponent({
     return () => (
       <div
         class='operation-step2-bk-data-collection'
-        v-loading={{ loading: loading.value, indicator: renderCollectionFormSkeleton }}
+        v-loading={{
+          loading: loading.value,
+          indicator: renderCollectionFormSkeleton,
+          zIndex: Z_INDEX_LAYERS.PAGE_TOP,
+        }}
       >
         {/* 卡片内容区域 */}
-        {cardRender(cardConfig)}
+        {cardRender(cardConfig, submitLoading.value)}
 
         {/* 操作按钮区域 */}
         <div class='classify-btns-fixed'>
@@ -946,6 +951,7 @@ export default defineComponent({
           {!props.isEdit && (
             <TButton theme='default' variant='outline'
               class='mr-8'
+              disabled={submitLoading.value}
               onClick={() => {
                 emit('prev');
               }}
@@ -956,14 +962,15 @@ export default defineComponent({
           {/* 提交按钮 */}
           <TButton
             class='width-88 mr-8'
-            loading={submitLoading.value}
             theme='primary'
+            loading={submitLoading.value}
+            disabled={loading.value || submitLoading.value}
             onClick={handleSave}
           >
             {t('提交')}
           </TButton>
           {/* 取消按钮 */}
-          <TButton theme="default" onClick={handleClose}>{t('取消')}</TButton>
+          <TButton theme="default" disabled={submitLoading.value} onClick={handleClose}>{t('取消')}</TButton>
         </div>
 
         {/* 索引选择对话框 */}

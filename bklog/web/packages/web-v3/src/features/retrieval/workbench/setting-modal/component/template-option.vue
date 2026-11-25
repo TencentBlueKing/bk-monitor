@@ -140,36 +140,14 @@
         }
         const h = this.$createElement;
         const relatedList = this.configItem.related_index_set_list.map(item => item.index_set_name);
-        const vNodes = relatedList.map(text =>
-          h(
-            'div',
-            {
-              style: {
-                backgroundColor: 'rgba(151, 155, 165, .1)',
-                borderColor: 'rgba(220, 222, 229, .6)',
-                color: '#63656e',
-                display: 'inline-block',
-                fontSize: '12px',
-                padding: '0 10px',
-                marginBottom: '4px',
-                borderRadius: '2px',
-              },
-            },
-            text,
-          ),
-        );
+        const vNodes = relatedList.map(text => h('span', { class: 'bklog-info-box-reference' }, text));
         this.$bkInfo({
           title: this.$t(`当前模板在下列索引集中占用，取消占用后才能删除模板：{n}`, { n: this.configItem.name }),
           type: 'warning',
           subHeader: h(
             'div',
             {
-              style: {
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-              },
+              class: 'bklog-info-box-details bklog-info-box-references',
             },
             vNodes,
           ),

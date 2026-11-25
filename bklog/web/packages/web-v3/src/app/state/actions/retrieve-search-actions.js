@@ -216,7 +216,7 @@ function requestIndexSetFieldInfoActionImpl(application, isCurrent) {
     : isUnionIndex
     ? ServicesInstance.unionSearch.unionMapping
     : ServicesInstance.retrieve.getLogTableHead;
-  !isUnionIndex && application.deleteApiError(urlStr.id);
+  application.deleteApiError(urlStr.id);
   const queryData = {
     start_time,
     end_time,
@@ -312,7 +312,7 @@ function requestIndexSetFieldInfoActionImpl(application, isCurrent) {
     .catch((err) => {
       if (!isCurrent()) return { result: false, ignored: true, reason: 'stale-fields' };
       if (axios.isCancel(err)) return { result: false, ignored: true, reason: 'request-canceled' };
-      !isUnionIndex && application.updateApiError({ apiName: urlStr.id, errorMessage: err });
+      application.updateApiError({ apiName: urlStr.id, errorMessage: err });
       application.updateIndexFieldInfo({ is_loading: false });
     })
     .finally(() => {

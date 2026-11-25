@@ -81,6 +81,8 @@ export default defineComponent({
     });
 
     const showSortSetting = ref(false);
+    const sortSettingTrigger = ref<HTMLButtonElement>();
+    const sortSettingPanel = ref<HTMLDivElement>();
     const displaySortFields = ref([]);
     const tableSortRef = ref(null);
     const fieldsSettingPopperRef = ref(null);
@@ -100,9 +102,23 @@ export default defineComponent({
         displaySortFields.value = sortList;
         showSortSetting.value = true;
       },
+      onShown: () => {
+        if (sortSettingTrigger.value?.matches(':focus-visible')) sortSettingPanel.value?.focus();
+      },
       onHide: () => {
         showSortSetting.value = false;
       },
+    };
+
+    const closeSortSetting = () => {
+      fieldsSettingPopperRef.value?.hide();
+      sortSettingTrigger.value?.focus();
+    };
+
+    const handleSortSettingEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !showSortSetting.value) return;
+      event.stopPropagation();
+      closeSortSetting();
     };
 
     const handleConfirm = async () => {
@@ -114,7 +130,7 @@ export default defineComponent({
       const oldSortList = userSortFields.value;
       const isSortListChanged = !isEqual(oldSortList, updateSortList);
 
-      fieldsSettingPopperRef.value?.hide();
+      closeSortSetting();
 
       store.updateState({ localSort: false });
 
@@ -127,10 +143,6 @@ export default defineComponent({
         await store.requestIndexSetQuery();
         RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
       }
-    };
-
-    const handleCancel = () => {
-      fieldsSettingPopperRef.value?.hide();
     };
 
     const handleBeforeHide = (e: { target: { closest: (arg0: string) => any; }; }) => {
@@ -179,25 +191,28 @@ export default defineComponent({
       RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED, sortList);
     };
 
+    const sortActionLabel = computed(() => {
+      if (sortStatus.value === 'desc') return $t('当前降序(点击切换)');
+      if (sortStatus.value === 'asc') return $t('当前升序(点击切换)');
+      return $t('点击切换排序');
+    });
+
     return () => (
       <div class='bklog-v3-storage'>
         {IS_SORT_TIME_SHOW && (
           <div class='switch-label log-sort'>
-            <div
+            <button
+              type='button'
+              aria-label={sortActionLabel.value}
               class='sort-time'
               onClick={() => handleShowLogTimeChange()}
               v-log-tooltip={{
-                content:
-                  sortStatus.value === 'desc'
-                    ? $t('当前降序(点击切换)')
-                    : sortStatus.value === 'asc'
-                      ? $t('当前升序(点击切换)')
-                      : $t('点击切换排序'),
+                content: sortActionLabel.value,
                 placement: 'top',
               }}
             >
               <span class='bklog-option-item'>{$t('日志排序')}</span>
-              <span class='bk-table-caret-wrapper'>
+              <span class='bk-table-caret-wrapper' aria-hidden='true'>
                 <i
                   class={['bk-table-sort-caret', 'ascending', { active: sortStatus.value === 'asc' }]}
                   onClick={event => {
@@ -213,7 +228,7 @@ export default defineComponent({
                   }}
                 />
               </span>
-            </div>
+            </button>
             <span class='sort-separator' />
             <BkLogPopover
               ref={fieldsSettingPopperRef}
@@ -222,7 +237,14 @@ export default defineComponent({
               beforeHide={handleBeforeHide}
               contentClass='bklog-sort-setting-popover-content'
               content={() => (
-                <div class='sort-setting-content'>
+                <div
+                  ref={sortSettingPanel}
+                  class='sort-setting-content'
+                  role='group'
+                  aria-label={$t('排序字段设置')}
+                  tabindex={-1}
+                  onKeydown={handleSortSettingEscape}
+                >
                   <div class='sort-setting-title'>{$t('排序字段设置')}</div>
                   <TableSort
                     ref={tableSortRef}
@@ -241,7 +263,7 @@ export default defineComponent({
                     </Button>
                     <Button theme="default"
                       size='small'
-                      onClick={handleCancel}
+                      onClick={closeSortSetting}
                     >
                       {$t('取消')}
                     </Button>
@@ -249,12 +271,17 @@ export default defineComponent({
                 </div>
               )}
             >
-              <div
+              <button
+                type='button'
+                ref={sortSettingTrigger}
                 class='sort-setting'
-                v-log-tooltip={{ content: `${$t('设置排序字段')}`, placement: 'top' }}
+                onKeydown={handleSortSettingEscape}
+                aria-label={$t('设置排序字段')}
+                aria-expanded={showSortSetting.value}
+                v-log-tooltip={{ content: $t('设置排序字段'), placement: 'top' }}
               >
-                <span class='icon bklog-icon bklog-shezhi sort-setting-icon' />
-              </div>
+                <span class='icon bklog-icon bklog-shezhi sort-setting-icon' aria-hidden='true' />
+              </button>
             </BkLogPopover>
           </div>
         )}

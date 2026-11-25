@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-loading="{ loading: basicLoading }"
+    v-loading="{ loading: basicLoading, indicator: renderPageFormSkeleton, zIndex: pageSkeletonZIndex }"
     class="create-index-container"
     data-test-id="logIndexSetBox_div_newlogIndexSetBox"
   >
@@ -35,7 +35,7 @@
       :info="authPageInfo"
     ></auth-container-page>
     <template v-else>
-      <article class="article">
+      <article class="article" :inert="submitLoading">
         <h3 class="title">{{ $t('基础信息') }}</h3>
         <bk-form
           ref="formRef"
@@ -86,7 +86,7 @@
           </bk-form-item>
         </bk-form>
       </article>
-      <article class="article">
+      <article class="article" :inert="submitLoading">
         <h3 class="title">{{ subTitle }}</h3>
         <template>
           <div
@@ -174,7 +174,7 @@
               class="selected-collection"
             >
               <bk-table
-                v-loading="{ loading: tableLoading }"
+                :loading="tableLoading"
                 :data="collectionTableData"
                 max-height="400"
               >
@@ -207,8 +207,8 @@
                   </template>
                 </bk-table-column>
                 <template #empty>
-                  <div>
-                    <span>{{ $t('暂无数据') }}</span>
+                  <div class="bklog-table-empty-region">
+                    <span v-if="!tableLoading">{{ $t('暂无数据') }}</span>
                   </div>
                 </template>
               </bk-table>
@@ -224,7 +224,7 @@
               class="selected-collection"
             >
               <bk-table
-                v-loading="{ loading: tableLoading }"
+                :loading="tableLoading"
                 :data="currentMatchedTableIds"
                 max-height="400"
               >
@@ -235,8 +235,8 @@
                 >
                 </bk-table-column>
                 <template #empty>
-                  <div>
-                    <span>{{ $t('暂无数据') }}</span>
+                  <div class="bklog-table-empty-region">
+                    <span v-if="!tableLoading">{{ $t('暂无数据') }}</span>
                   </div>
                 </template>
               </bk-table>
@@ -255,6 +255,7 @@
       </article>
       <article
         v-if="scenarioId !== 'log'"
+        :inert="submitLoading"
         class="article"
       >
         <div class="title">
@@ -346,9 +347,10 @@
       </article>
       <t-button
         style="width: 86px"
-        :loading="submitLoading"
         data-test-id="newlogIndexSetBox_button_submit"
         theme="primary"
+        :loading="submitLoading"
+        :disabled="basicLoading || submitLoading"
         @click="submitForm"
       >
         {{ $t('提交') }}
@@ -371,6 +373,8 @@ import { useGlobalsStore } from '@/app/state/domains/globals-store';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useCollectionStore } from '@/app/state/domains/collection-store';
 import { ServicesInstance } from '@/platform/services';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
+import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 
   import { projectManages } from '@/shared/lib/util';
   import AuthContainerPage from '@/shared/ui/common/auth-container-page';
@@ -398,6 +402,7 @@ import { ServicesInstance } from '@/platform/services';
         submitLoading: false,
         authPageInfo: null,
         isSubmit: false,
+        pageSkeletonZIndex: Z_INDEX_LAYERS.PAGE_TOP,
         clusterList: [], // 集群列表
         timeIndex: null,
         formData: {
@@ -477,6 +482,7 @@ import { ServicesInstance } from '@/platform/services';
       next();
     },
     methods: {
+      renderPageFormSkeleton: renderDrawerFormSkeleton,
       // 检查权限、确认基本信息
       async checkAuth() {
         try {
@@ -648,12 +654,14 @@ import { ServicesInstance } from '@/platform/services';
       },
       // 新建索引集提交
       async submitForm() {
+        if (this.basicLoading || this.submitLoading) return;
+
+        this.submitLoading = true;
         try {
           await this.$refs.formRef.validate();
           if (!this.formData.indexes.length) {
             return this.messageError(this.$t('请选择索引'));
           }
-          this.submitLoading = true;
           this.formData.indexes.forEach(item => {
             item.scenarioId = this.scenarioId;
           });

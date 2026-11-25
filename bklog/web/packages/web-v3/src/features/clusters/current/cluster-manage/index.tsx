@@ -242,13 +242,15 @@ export default defineComponent({
         });
         tableLoading.value = false;
         const list = tableRes.data;
-        if (!list.length) {
-          return;
-        }
         tableDataOrigin.value = list;
         tableDataSearched.value = list;
         pagination.value.count = list.length;
         computePageData();
+        emptyType.value = 'empty';
+        if (!list.length) {
+          stateMap.value = {};
+          return;
+        }
 
         // 连接状态
         try {
@@ -270,7 +272,10 @@ export default defineComponent({
         tableLoading.value = false;
         tableDataOrigin.value.splice(0);
         tableDataSearched.value.splice(0);
+        tableDataPaged.value = [];
+        stateMap.value = {};
         pagination.value.count = 0;
+        emptyType.value = '500';
       }
     };
 
@@ -962,8 +967,8 @@ export default defineComponent({
               class='king-table'
               v-slots={{
                 empty: () => (
-                  <div>
-                    <EmptyStatus emptyType={emptyType.value} onOperation={handleOperation} />
+                  <div class='bklog-table-empty-region'>
+                    {!tableLoading.value && <EmptyStatus emptyType={emptyType.value} onOperation={handleOperation} />}
                   </div>
                 ),
               }}

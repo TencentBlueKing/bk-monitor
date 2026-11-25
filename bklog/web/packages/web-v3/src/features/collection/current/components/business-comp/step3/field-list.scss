@@ -67,15 +67,7 @@
       align-items: center;
 
       .header-text-link {
-        cursor: pointer;
-        color: #3a84ff;
-        margin-left: 8px;
-        font-size: 12px;
-
-        .link-icon {
-          font-size: 13px;
-          margin-right: 5px;
-        }
+        margin-inline-start: var(--bklog-space-8);
       }
     }
 

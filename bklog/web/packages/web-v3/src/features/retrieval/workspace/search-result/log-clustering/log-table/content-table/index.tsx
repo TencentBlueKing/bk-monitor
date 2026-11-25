@@ -31,7 +31,17 @@ import { Switch as TSwitch } from 'tdesign-vue-next';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 
-import { computed, defineComponent, isRef, nextTick, onBeforeUnmount, onMounted, ref, type PropType } from 'vue';
+import {
+  computed,
+  defineComponent,
+  inject,
+  isRef,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  type PropType,
+} from 'vue';
 import TextHighlight from '@/shared/ui/text-highlight';
 
 import useLocale from '@/shared/composables/use-locale';
@@ -46,6 +56,7 @@ import ClusterEventPopover from './cluster-popover/index';
 import RemarkEditTip from './remark-edit-tip/index';
 import PatternAnalysisSlider from './pattern-analysis-slider/index';
 import { getConditionRouterParams } from './utils';
+import { quixPage } from '../../quix-page';
 
 
 import type { ITableItem } from '../index';
@@ -148,6 +159,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
+    const quix = inject(quixPage, undefined);
     const getOwners = (row?: LogPattern | null) => {
       const owners = row?.owners as any;
       if (Array.isArray(owners)) return owners as string[];
@@ -274,7 +286,8 @@ export default defineComponent({
         });
       }
       additionList.push({
-        field: `__dist_${props.requestData?.pattern_level}`,
+        // 小型化聚类以 signature 作为签名字段
+        field: quix?.value ? 'signature' : `__dist_${props.requestData?.pattern_level}`,
         operator: 'is',
         value: [row.signature?.toString() ?? ''],
         isLink,

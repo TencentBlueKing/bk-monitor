@@ -21,7 +21,7 @@
     margin-top: 14px;
 
     .t-button {
-      width: 70px !important;
+      width: var(--bklog-button-group-item-width) !important;
     }
   }
   .table-box {
@@ -178,16 +178,5 @@
         }
       }
     }
-  }
-}
-
-.log-filter-main .bk-button-group .t-button.t-button--theme-default {
-  background: var(--bklog-surface, #fff);
-  border-color: var(--bklog-border-control, #c4c6cc);
-  color: var(--bklog-text-strong, #4d4f56);
-  &.is-selected {
-    background: var(--bklog-brand-tint, #e1ecff);
-    border-color: var(--bklog-brand-primary, #3a84ff);
-    color: var(--bklog-brand-primary, #3a84ff);
   }
 }

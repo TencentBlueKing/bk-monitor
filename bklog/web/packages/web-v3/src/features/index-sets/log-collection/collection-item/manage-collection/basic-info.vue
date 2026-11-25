@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-loading="{ loading: basicLoading }"
+    v-loading="{ loading: basicLoading, indicator: renderDrawerDetailSkeleton }"
     class="basic-info-container"
   >
     <div>
@@ -292,7 +292,7 @@
     <div>
       <t-button
         v-cursor="{ active: !editAuth }"
-        style="min-width: 88px; color: var(--bklog-brand-primary, #3a84ff)"
+        style="min-width: 88px; color: var(--bklog-brand-primary, var(--td-brand-color))"
         class="mr10"
         :theme="'default'"
         @click="handleClickEdit"
@@ -325,6 +325,7 @@
 </template>
 
 <script>
+import { renderDrawerDetailSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { mapState as mapPiniaState } from 'pinia';
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
@@ -433,6 +434,7 @@ import { ServicesInstance } from '@/platform/services';
       this.getCollectDetail();
     },
     methods: {
+      renderDrawerDetailSkeleton,
       getCollectDetail() {
         try {
           const { collectorData } = this;
@@ -586,21 +588,21 @@ import { ServicesInstance } from '@/platform/services';
         display: block;
         width: 98px;
         font-size: 14px;
-        color: #979ba5;
+        color: var(--td-text-color-secondary);
         text-align: right;
       }
 
       > span:nth-child(2) {
         margin-left: 24px;
         font-size: 14px;
-        color: #63656e;
+        color: var(--td-text-color-primary);
       }
 
       .deploy-path {
         margin-left: 24px;
         font-size: 14px;
         line-height: 22px;
-        color: #63656e;
+        color: var(--td-text-color-primary);
       }
 
       .num-color {
@@ -609,7 +611,7 @@ import { ServicesInstance } from '@/platform/services';
         font-weight: bold;
 
         /* stylelint-disable-next-line declaration-no-important */
-        color: #4e99ff !important;
+        color: var(--td-text-color-link) !important;
         cursor: pointer;
       }
     }
@@ -646,60 +648,60 @@ import { ServicesInstance } from '@/platform/services';
           padding: 0 5px;
           margin-right: 2px;
           line-height: 20px;
-          color: #63656e;
+          color: var(--td-text-color-primary);
           text-align: center;
-          background-color: #f0f1f5;
-          border-radius: 2px;
+          background-color: var(--bklog-surface-subtle, var(--td-bg-color-secondarycontainer));
+          border-radius: var(--bklog-standard-control-radius);
         }
       }
     }
 
     .create-name-and-time {
-      border-top: 1px solid #dcdee5;
-      border-radius: 2px;
+      border-top: 1px solid var(--td-component-stroke);
+      border-radius: var(--bklog-standard-control-radius);
 
       div {
         width: 260px;
         height: 40px;
         line-height: 40px;
-        border-right: 1px solid #dcdee5;
-        border-bottom: 1px solid #dcdee5;
-        border-left: 1px solid #dcdee5;
+        border-right: 1px solid var(--td-component-stroke);
+        border-bottom: 1px solid var(--td-component-stroke);
+        border-left: 1px solid var(--td-component-stroke);
 
         span:nth-child(1) {
           display: inline-block;
           width: 48px;
           margin-left: 14px;
           font-size: 12px;
-          color: #313238;
+          color: var(--td-text-color-secondary);
         }
 
         span:nth-child(2) {
           margin-left: 22px;
           font-size: 12px;
-          color: #63656e;
+          color: var(--td-text-color-primary);
         }
       }
     }
 
     .token-view {
       margin: -2px 0 0 24px;
-      color: #63656e;
+      color: var(--td-text-color-primary);
 
       .mask-content {
         .view-btn {
           margin-left: 8px;
           font-size: 12px;
-          color: #3a84ff;
+          color: var(--td-text-color-link);
           cursor: pointer;
         }
 
         &.btn-loading {
-          color: #c4c6cc;
+          color: var(--td-text-color-disabled);
           cursor: not-allowed;
 
           .view-btn {
-            color: #c4c6cc;
+            color: var(--td-text-color-disabled);
           }
         }
       }
@@ -726,7 +728,7 @@ import { ServicesInstance } from '@/platform/services';
             cursor: pointer;
 
             &:hover {
-              color: #3a84ff;
+              color: var(--td-text-color-link);
             }
           }
         }

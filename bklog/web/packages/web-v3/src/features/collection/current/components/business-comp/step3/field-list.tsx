@@ -345,14 +345,12 @@ export default defineComponent({
                 </div>
                 <div class='menu-item'>
                   <span class='menu-item-label'>{t('分词符')}</span>
-                  <div class='bk-button-group'>
+                  <div class='bk-button-group' data-bklog-button-group='connected'>
                     {participleList.map(option => (
                       <TButton
                         key={option.id}
-                        class={{
-                          'participle-btn': true,
-                          'is-selected': currentParticipleState.value === option.id,
-                        }}
+                        class='participle-btn'
+                        aria-pressed={currentParticipleState.value === option.id}
                         data-test-id={`fieldExtractionBox_button_filterMethod${option.id}`}
                         data-testid={`collection-clean-tokenize-${option.id}`}
                         disabled={!cacheData.value.is_analyzed}
@@ -443,7 +441,6 @@ export default defineComponent({
           <div
             class='word-breaker bg-gray'
             title={displayValue}
-            v-loading={{ loading: props.refresh, size: 'small' }}
           >
             {displayValue}
           </div>
@@ -594,8 +591,9 @@ export default defineComponent({
     );
     /**
      * 刷新值
-     */ const handleFreshValue = () => {
-      emit('refresh');
+     */
+    const handleFreshValue = () => {
+      if (!props.refresh && !props.loading) emit('refresh');
     };
 
     /**
@@ -1341,13 +1339,18 @@ export default defineComponent({
             'title-slot-name': () => (
               <span class='header-text'>
                 {t('值')}
-                <span
+                <TButton
                   class='header-text-link'
+                  theme='primary'
+                  variant='text'
+                  size='small'
+                  disabled={props.loading || props.refresh}
+                  loading={props.refresh}
+                  icon={() => <i class='bklog-icon bklog-refresh2' aria-hidden='true' />}
                   onClick={handleFreshValue}
                 >
-                  <i class='bklog-icon bklog-refresh2 link-icon' />
                   {t('刷新')}
-                </span>
+                </TButton>
               </span>
             ),
           }}

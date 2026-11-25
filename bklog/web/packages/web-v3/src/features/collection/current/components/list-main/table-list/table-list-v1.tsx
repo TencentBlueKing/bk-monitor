@@ -786,7 +786,7 @@ export default defineComponent({
         return (
           <div
             class='index-set-inline-select-wrap'
-            v-loading={{ loading: isUpdating, size: 'small' }}
+            aria-busy={isUpdating}
           >
             <bk-select
               ref={indexSetSelectRef}

@@ -18,9 +18,9 @@
     min-width: 1238px;
     padding: 16px 24px 24px;
     margin-bottom: 16px;
-    background: #fff;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px 0 #1919290d;
+    background: var(--bklog-surface);
+    border-radius: var(--bklog-panel-radius);
+    box-shadow: var(--bklog-card-shadow);
 
     &:last-child {
       margin-bottom: 0;
@@ -73,10 +73,6 @@
     .t-button {
       flex: 1;
       font-size: var(--bklog-font-body, 12px);
-    }
-
-    .is-selected {
-      background: #e1ecff;
     }
   }
 

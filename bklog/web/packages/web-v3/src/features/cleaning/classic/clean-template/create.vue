@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-loading="{ loading: loading }"
+    v-loading="{ loading: loading, indicator: renderDrawerInlineFormSkeleton }"
     class="clean-template-container"
   >
     <article class="article">
@@ -39,6 +39,7 @@
 </template>
 
 <script>
+  import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { mapState as mapPiniaState } from 'pinia';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 
@@ -73,6 +74,7 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
       next();
     },
     methods: {
+      renderDrawerInlineFormSkeleton,
       changeSubmit(isSubmit) {
         this.isSubmit = isSubmit;
       },

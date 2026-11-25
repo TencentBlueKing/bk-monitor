@@ -35,7 +35,7 @@
     header-position="left"
   >
     <div
-      v-loading="{ loading: basicLoading }"
+      v-loading="{ loading: basicLoading, indicator: renderDrawerInlineFormSkeleton }"
       class="slot-container"
     >
       <bk-form
@@ -116,7 +116,7 @@
         </bk-form-item>
         <bk-form-item label="">
           <bk-table
-            v-loading="{ loading: tableLoading }"
+            :loading="tableLoading"
             :data="tableData"
             max-height="400"
             ext-cls="table-container-collection"
@@ -150,8 +150,8 @@
               </template>
             </bk-table-column>
             <template #empty>
-              <div>
-                <empty-status empty-type="empty" />
+              <div class="bklog-table-empty-region">
+                <empty-status v-if="!tableLoading" empty-type="empty" />
               </div>
             </template>
           </bk-table>
@@ -189,6 +189,8 @@ import { ServicesInstance } from '@/platform/services';
   import EmptyStatus from '@/shared/ui/empty-status/index';
 
   import * as authorityMap from '../../../../../shared/lib/authority-map';
+
+  import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 
   export default {
   emits: ["selected"],
@@ -249,6 +251,7 @@ import { ServicesInstance } from '@/platform/services';
       this.fetchCollectionList();
     },
     methods: {
+      renderDrawerInlineFormSkeleton,
       openDialog() {
         this.showDialog = true;
         this.emptyType = 'empty';

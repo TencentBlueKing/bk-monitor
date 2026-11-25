@@ -239,8 +239,8 @@
   .extraction-direction-tips {
     padding: 6px 8px;
     color: #4d4f56;
-    background: #f0f5ff;
-    border-color: #a3c5fd;
+    background: var(--bklog-brand-tint-subtle, #f0f5ff);
+    border-color: var(--bklog-alert-info-border, #a3c5fd);
 
     .t-alert__description {
       display: flex;

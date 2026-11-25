@@ -1,7 +1,7 @@
 @use '../../styles/theme/mixin.scss' as *;
 .biz-list-wrap {
-  $bg-dark: #192133;
-  $color-dark: #c3d0e7;
+  $bg-dark: var(--bklog-navigation-header-surface, #192133);
+  $color-dark: var(--bklog-navigation-selector-text, #c3d0e7);
   $border-dark: #2c354d;
 
   cursor: initial;
@@ -48,7 +48,7 @@
   .list-skeleton-item {
     display: flex;
     align-items: center;
-    height: 32px;
+    height: var(--bklog-control-size-medium);
     padding: 0 12px;
 
     &:nth-child(3n) .list-skeleton-bar {
@@ -74,14 +74,21 @@
     background-size: 400% 100%;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .list-skeleton-bar,
+    &.dark .list-skeleton-bar {
+      animation: none;
+    }
+  }
+
   .list-group {
     position: relative;
 
     .list-group-title {
-      height: 32px;
+      height: var(--bklog-control-size-medium);
       padding: 0 12px;
       font-size: 12px;
-      line-height: 32px;
+      line-height: var(--bklog-control-size-medium);
       color: #66768e;
       // 设置不可点击
       pointer-events: none;
@@ -108,16 +115,16 @@
     position: relative;
     display: flex;
     align-items: center;
-    height: 32px;
+    height: var(--bklog-control-size-medium);
     padding: 0 9px 0 12px;
     overflow: hidden;
-    line-height: 32px;
-    color: #63656e;
+    line-height: var(--bklog-control-size-medium);
+    color: var(--td-text-color-secondary);
     cursor: pointer;
     transition: background-color 0.1s ease-in-out;
 
     &:hover {
-      background-color: #e1ecff;
+      background-color: var(--td-brand-color-light);
 
       .set-default-button {
         display: block;
@@ -125,14 +132,14 @@
     }
 
     &.checked {
-      color: #3a84ff;
-      background-color: #f5f7fa;
+      color: var(--td-text-color-link);
+      background-color: var(--td-bg-color-component-hover);
     }
 
     &.keyboard-selected {
-      color: #3a84ff;
-      background-color: #e1ecff;
-      outline: 1px solid #3a84ff;
+      color: var(--td-text-color-link);
+      background-color: var(--td-brand-color-light);
+      outline: var(--bklog-border-width) solid var(--td-brand-color);
       outline-offset: -1px;
     }
 
@@ -151,14 +158,14 @@
       &.keyboard-selected {
         color: #fff;
         background: #2c354d;
-        outline: 1px solid #3a84ff;
+        outline: var(--bklog-border-width) solid var(--td-brand-color);
         outline-offset: -1px;
       }
     }
 
     &.light {
       &:hover {
-        color: #3a84ff;
+        color: var(--td-text-color-link);
       }
     }
   }
@@ -208,7 +215,7 @@
       width: 28px;
       height: 16px;
       margin-left: 4px;
-      background-color: #4d4f56;
+      background-color: var(--td-text-color-secondary);
       border-radius: 2px;
     }
 
@@ -248,7 +255,7 @@
       padding: 0 12px;
       font-size: 12px;
       color: #fff;
-      background-color: #3a84ff;
+      background-color: var(--td-text-color-link);
       border: none;
       border-radius: 0;
     }
@@ -272,13 +279,13 @@
 
 // 设置默认弹窗
 .confirm-dialog__set-default {
-  .bk-dialog-body {
+  .t-dialog__body {
     padding: 18px 32px 0;
   }
 
-  .bk-dialog-footer {
-    padding: 24px 32px;
-    background-color: #fff;
+  .t-dialog__footer {
+    padding: var(--bklog-space-24) calc(2 * var(--bklog-space-16));
+    background-color: var(--td-bg-color-container);
     border: none;
 
     .btn-confirm + .btn-cancel {
@@ -293,8 +300,8 @@
 
   .confirm-dialog__hd {
     font-size: 20px;
-    line-height: 32px;
-    color: #313238;
+    line-height: var(--bklog-control-size-medium);
+    color: var(--td-text-color-primary);
     text-align: center;
     letter-spacing: 0;
   }
@@ -303,12 +310,12 @@
     margin-top: 16px;
     font-size: 14px;
     line-height: 22px;
-    color: #4d4f56;
+    color: var(--td-text-color-secondary);
     letter-spacing: 0;
   }
 
   .confirm-dialog__bd-name {
-    color: #313238;
+    color: var(--td-text-color-primary);
   }
 
   .confirm-dialog__ft {
@@ -316,10 +323,10 @@
     margin-top: 16px;
     font-size: 14px;
     line-height: 22px;
-    color: #4d4f56;
+    color: var(--td-text-color-secondary);
     word-break: break-all;
     word-wrap: break-word;
-    background: #f5f6fa;
+    background: var(--td-bg-color-secondarycontainer);
     border-radius: 2px;
   }
 }
@@ -336,7 +343,7 @@
   }
 
   &.light {
-    background: #ffffff;
+    background: var(--td-bg-color-container);
   }
 
   .list-group {

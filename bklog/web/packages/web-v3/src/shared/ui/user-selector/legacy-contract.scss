@@ -1,14 +1,115 @@
 .username-selector {
-  min-width: 0;
-  &.is-fixed-height .multiple-selector:has(.tags-container.collapsed) { max-height: 32px; }
-  &.is-locked-tags .user-tag .t-tag__icon-close { display: none; }
-  .username-selector-label { display: inline-flex; align-items: center; gap: 4px; }
+  min-inline-size: 0;
+
+  &.is-fixed-height .multiple-selector:has(.tags-container.collapsed) {
+    max-block-size: var(--bklog-control-size-medium);
+  }
+
+  &.is-locked-tags .user-tag .t-tag__icon-close {
+    display: none;
+  }
+
+  :is(.multiple-selector .tags-container, .single-selector .input-container) {
+    box-sizing: border-box;
+    min-block-size: var(--bklog-control-size-medium);
+    padding-inline: var(--bklog-space-8);
+    background-color: var(--td-bg-color-specialcomponent);
+    border-color: var(--bklog-standard-control-border, var(--td-border-level-2-color));
+    border-radius: var(--bklog-standard-control-radius);
+
+    &:hover {
+      border-color: var(--bklog-standard-control-border-hover, var(--td-border-level-2-color));
+    }
+
+    &:is(.focused, :focus-within) {
+      border-color: var(--td-brand-color);
+      box-shadow: 0 0 0 var(--bklog-space-2) var(--td-brand-color-focus);
+    }
+  }
+
+  &[aria-disabled='true'] :is(.multiple-selector .tags-container, .single-selector .input-container) {
+    background-color: var(--bklog-standard-control-surface-disabled, var(--td-bg-color-component-disabled));
+    border-color: var(--bklog-standard-control-border-disabled, var(--td-border-level-2-color));
+    box-shadow: none;
+  }
+
+  &.is-error :is(.multiple-selector .tags-container, .single-selector .input-container) {
+    border-color: var(--td-error-color);
+  }
+
+  .bk-user-selector .me-tag {
+    box-sizing: border-box;
+    width: var(--bklog-space-24);
+    height: var(--bklog-space-24);
+    padding: 0;
+    color: var(--bklog-standard-control-text, var(--td-text-color-secondary));
+    background: var(--bklog-brand-tint, var(--td-brand-color-light));
+    font-size: var(--bklog-font-body);
+    line-height: var(--bklog-line-height-body);
+
+    &:not(.disabled):hover {
+      color: var(--td-brand-color);
+      background: var(--bklog-brand-tint-hover, var(--td-brand-color-light-hover));
+    }
+
+    &.disabled {
+      color: var(--bklog-standard-control-border, var(--td-text-color-disabled));
+      background: var(--bklog-surface-subtle, var(--td-bg-color-component-disabled));
+    }
+  }
+
+  .user-tag:has(.username-selector-avatar) {
+    height: var(--bklog-space-24);
+    padding-inline: var(--bklog-space-4);
+
+    &:not(.is-custom, .active) {
+      color: var(--bklog-standard-control-text, var(--td-text-color-secondary));
+      background-color: var(--bklog-surface-subtle, var(--td-bg-color-component));
+
+      &:hover {
+        background-color: var(--bklog-standard-control-border-disabled, var(--td-bg-color-component-hover));
+      }
+    }
+  }
+
+  &[aria-disabled='true'] .user-tag:has(.username-selector-avatar):not(.is-custom, .active):hover {
+    background-color: var(--bklog-surface-subtle, var(--td-bg-color-component-disabled));
+  }
+
+  .username-selector-label {
+    display: inline-flex;
+    gap: var(--bklog-space-8);
+    align-items: center;
+    font-size: var(--bklog-font-body);
+    line-height: var(--bklog-line-height-body);
+  }
+
   .username-selector-avatar {
     display: inline-block;
-    width: 20px;
-    height: 20px;
     flex: none;
+    width: var(--bklog-space-20);
+    height: var(--bklog-space-20);
     border-radius: 50%;
-    background: #c4c6cc center / cover;
+    background: var(--td-bg-color-component) center / cover;
+  }
+}
+
+// The SDK can place its menu outside the selector root.
+.dropdown-content:has(.user-option .username-selector-label) {
+  .user-option,
+  .user-group .group-header {
+    box-sizing: border-box;
+    min-height: var(--bklog-control-size-medium);
+    padding: 0 var(--bklog-space-8);
+    font-size: var(--bklog-font-body);
+    line-height: var(--bklog-line-height-body);
+  }
+
+  .user-option {
+    color: var(--bklog-standard-control-text);
+
+    &:hover {
+      background-color: var(--td-bg-color-container-hover);
+    }
   }
 }

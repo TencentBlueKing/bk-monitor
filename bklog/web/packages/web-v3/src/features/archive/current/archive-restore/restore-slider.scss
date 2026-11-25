@@ -1,6 +1,10 @@
 .restore-slider-content {
   min-height: 394px;
 
+  > .bklog-table-empty-region {
+    min-height: inherit;
+  }
+
   .t-form {
     padding: 10px 0 36px 36px;
 
@@ -20,12 +24,12 @@
 
     .t-select__wrap,
     .t-date-picker {
-      width: 300px;
+      width: min(300px, 100%);
     }
 
     .user-selector {
       /* stylelint-disable-next-line declaration-no-important */
-      width: 500px !important;
+      width: min(500px, 100%) !important;
     }
   }
 }

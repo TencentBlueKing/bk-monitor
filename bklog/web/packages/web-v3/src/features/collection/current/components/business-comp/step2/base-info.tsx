@@ -359,7 +359,7 @@ export default defineComponent({
             key={item.id}
             disabled={disabled.value}
             theme='default'
-            class={isSelected ? 'is-selected' : ''}
+            aria-pressed={isSelected}
             onClick={() => handleChangeType(item.id)}
           >
             {item.name}
@@ -404,7 +404,7 @@ export default defineComponent({
           {/* 数据分类（仅自定义类型显示） */}
           {shouldShowCategory && (
             <TFormItem class='category-form-item' label={t('数据分类')} name='name' requiredMark={true}>
-              <div class='bk-button-group'>{renderCategoryButtons()}</div>
+              <div class='bk-button-group' data-bklog-button-group='connected'>{renderCategoryButtons()}</div>
               <InfoTips
                 class='block'
                 tips={t(

@@ -1,12 +1,12 @@
 .bklog-v3-index-set-common-list {
   padding: 12px 0;
-  background: #ffffff;
+  background: var(--td-bg-color-container);
   min-height: 200px;
   width: var(--index-set-ctx-width);
 
   .common-header {
     font-size: 12px;
-    color: #4d4f56;
+    color: var(--td-text-color-primary);
     height: 20px;
     line-height: 20px;
     display: flex;
@@ -16,7 +16,7 @@
     margin-bottom: 8px;
 
     .bklog-icon {
-      color: #3a84ff;
+      color: var(--td-text-color-link);
       cursor: pointer;
       height: 20px;
       line-height: 20px;
@@ -33,7 +33,7 @@
       justify-content: space-between;
       cursor: pointer;
       font-size: 12px;
-      color: #4d4f56;
+      color: var(--td-text-color-primary);
       padding: 0 12px;
 
       .row-left {
@@ -43,7 +43,7 @@
 
         .bklog-icon {
           visibility: visible;
-          color: #a3b1cc;
+          color: var(--td-text-color-placeholder);
           margin-right: 4px;
         }
 
@@ -60,7 +60,7 @@
       }
 
       &:hover {
-        background: #f5f7fa;
+        background: var(--td-bg-color-container-hover);
         .bklog-icon {
           visibility: visible;
         }
@@ -73,7 +73,7 @@
           width: calc(var(--index-set-ctx-width) - 50px);
 
           .row-item {
-            background: #f0f1f5;
+            background: var(--td-bg-color-component);
             border-radius: 2px;
             padding: 0 8px;
             margin-right: 4px;
@@ -86,7 +86,7 @@
       }
 
       &.active {
-        background: #f5f7fa;
+        background: var(--td-bg-color-container-hover);
       }
     }
   }

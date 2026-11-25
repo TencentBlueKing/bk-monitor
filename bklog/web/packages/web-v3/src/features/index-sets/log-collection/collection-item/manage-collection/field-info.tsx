@@ -25,6 +25,9 @@
  */
 
 
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
+import EmptyStatus from '@/shared/ui/empty-status/index';
+
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
 
@@ -109,6 +112,8 @@ export default class FieldInfo extends tsc<IProps> {
 
   tableLoading = false;
 
+  tableFailed = false;
+
   segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t-';
 
   get spaceUid() {
@@ -135,16 +140,25 @@ export default class FieldInfo extends tsc<IProps> {
 
   jsonParseList: Record<string, unknown>[] = [];
 
-  async created() {
+  created() {
+    void this.loadFieldInfo();
+  }
+
+  async loadFieldInfo() {
+    if (this.tableLoading) return;
+    this.tableLoading = true;
+    this.tableFailed = false;
     try {
-      this.tableLoading = true;
-      const maskingConfigs = await this.getMaskingConfig(); // 获取脱敏配置信息
-      await this.handleRefreshConfigStr(); // 初始化日志查询输入框字符串
+      const maskingConfigs = await this.getMaskingConfig();
+      await this.handleRefreshConfigStr();
       const fieldConfigs = await this.matchMaskingRule(maskingConfigs);
       const previewConfigs = await this.getConfigPreview(fieldConfigs);
-      this.questFieldsList(previewConfigs);
-    } catch {
-      this.tableLoading = false;
+      await this.questFieldsList(previewConfigs);
+    } catch (error) {
+      console.warn(error);
+      this.tableList = [];
+      this.pagination.total = 0;
+      this.tableFailed = true;
     } finally {
       this.tableLoading = false;
     }
@@ -167,31 +181,25 @@ export default class FieldInfo extends tsc<IProps> {
   }
 
   async questFieldsList(maskingRule: FieldMaskingConfig[]) {
-    try {
-      const res = await ServicesInstance.retrieve.getLogTableHead<{ data: { time_field: string; fields: FieldRow[] } }>({
-        params: {
-          index_set_id: (this.collectorData as any).index_set_id,
-        },
-        query: { is_realtime: 'True' },
-      });
-      this.timeField = res.data.time_field;
-      this.tableList = res.data.fields.map(item => {
-        const findRules = maskingRule?.find(mItem => mItem.field_name === item.field_name);
-        return {
-          ...item,
-          desensitize_config: findRules?.rules ?? [],
-          preview: findRules?.preview ?? [],
-        };
-      });
-      Object.assign(this.pagination, {
-        current: 1,
-        total: this.tableList.length,
-      });
-    } catch (e) {
-      console.warn(e);
-    } finally {
-      this.tableLoading = false;
-    }
+    const res = await ServicesInstance.retrieve.getLogTableHead<{ data: { time_field: string; fields: FieldRow[] } }>({
+      params: {
+        index_set_id: (this.collectorData as any).index_set_id,
+      },
+      query: { is_realtime: 'True' },
+    });
+    this.timeField = res.data.time_field;
+    this.tableList = res.data.fields.map(item => {
+      const findRules = maskingRule?.find(mItem => mItem.field_name === item.field_name);
+      return {
+        ...item,
+        desensitize_config: findRules?.rules ?? [],
+        preview: findRules?.preview ?? [],
+      };
+    });
+    Object.assign(this.pagination, {
+      current: 1,
+      total: this.tableList.length,
+    });
   }
 
   /**
@@ -536,15 +544,28 @@ export default class FieldInfo extends tsc<IProps> {
           </div>
         )}
 
-        <Table
-          v-loading={{ loading: this.tableLoading }}
-          rowKey='field_name'
-          columns={columns}
-          data={this.tableList}
-          pagination={this.pagination}
-          size='small'
-          onPageChange={this.pageChange}
-        />
+        <ManagementListLoading loading={this.tableLoading}>
+          <Table
+            v-slots={{
+              empty: () => (
+                <div class='bklog-table-empty-region'>
+                  {!this.tableLoading && (
+                    <EmptyStatus
+                      emptyType={this.tableFailed ? '500' : 'empty'}
+                      onOperation={() => this.loadFieldInfo()}
+                    />
+                  )}
+                </div>
+              ),
+            }}
+            rowKey='field_name'
+            columns={columns}
+            data={this.tableList}
+            pagination={this.pagination}
+            size='small'
+            onPageChange={this.pageChange}
+          />
+        </ManagementListLoading>
       </div>
     );
   }

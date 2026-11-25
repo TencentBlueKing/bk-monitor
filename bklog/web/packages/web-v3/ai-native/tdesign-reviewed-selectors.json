@@ -1,6 +1,41 @@
 {
+  "features/archive/current/archive-list/list-slider.scss": {
+    ".t-is-active": "采集项下拉铺满整行的选中背景，和普通悬停区分。",
+    ".t-is-disabled": "禁用采集项保持白底，悬停不显示选中反馈。",
+    ".t-select__dropdown-inner": "采集项树挂在弹层内部，移除内侧缩进以对齐选项边缘。",
+    ".t-tree": "仅清除采集项下拉内的树容器边距。",
+    ".t-tree__icon": "列表分组顶部用于显示标题，采集项下拉隐藏默认树图标。",
+    ".t-tree__item": "采集项下拉将树缩进交给标签，实现整行背景和分组标题布局。",
+    ".t-tree__label": "区分分组标题与可选采集项，保留整行形状和文字缩进。"
+  },
+  "features/authorization/authorization-dialog.scss": {
+    ".t-date-picker": "授权截止时间在独占一行的字段容器内铺满宽度。",
+    ".t-form": "批量授权的嵌套表单在出现操作项时增加上间距。",
+    ".t-form__controls": "仅定位授权表单的直属校验提示。",
+    ".t-form__controls-content": "授权表单采用独占一行的块级字段布局。",
+    ".t-form__item": "授权内的单项和批量操作使用紧凑字段间距。",
+    ".t-form__item--last": "避免最后一个批量授权字段追加间距。",
+    ".t-input": "导入用户来源选择嵌在文字中，使用下划线外观。",
+    ".t-input--focused": "内嵌的导入来源输入在聚焦时保留下划线反馈。",
+    ".t-input__extra": "校验说明占据文档流，避免盖住下一字段标签。",
+    ".t-select__wrap": "将导入来源的选择器限制在行内并垂直对齐说明文字。"
+  },
+  "features/authorization/authorization-list.scss": {
+    ".t-button--variant-text": "授权行内操作采用紧凑文字按钮，与表格行内容对齐。",
+    ".t-checkbox": "列设置使用三列网格，单元间距由网格统一承担。",
+    ".t-table": "授权列表列标题保持单行显示。"
+  },
   "features/client-logs/management/collection-deploy/collection-table.scss": {
     ".t-button__text": "采集名称是表格内的可点击文本，内部文字容器铺满单元格以实现长名称省略。"
+  },
+  "features/clusters/current/cluster-manage/es-slider.scss": {
+    ".t-button": "页脚使用 flex gap 时移除相邻按钮的默认外边距，避免间距叠加。",
+    ".t-drawer__footer": "集群侧栏页脚保留专属 20px 横向内边距和按钮布局。",
+    ".t-input-number": "主机端口字段铺满可用空间，资源范围数字输入与下拉并排等分。",
+    ".t-input-number--column": "集群资源范围列式步进器持续显示，以便读取边界。",
+    ".t-input-number__decrease": "让范围字段的减少箭头持续可见。",
+    ".t-input-number__increase": "让范围字段的增加箭头持续可见。",
+    ".t-select__wrap": "资源范围下拉与数字输入在同一行等分，允许收缩。"
   },
   "features/collection/current/components/business-comp/step2/base-info.scss": {
     ".t-button": "数据分类按钮作为分段控件，选中项边框需要覆盖相邻按钮边框。",
@@ -31,8 +66,40 @@
     ".t-collapse-panel__header": "主机详情组标题沿用左栏的 42px 行高和分隔线。",
     ".t-collapse-panel__icon": "折叠箭头与主机详情组标题采用一致的文本对比度。"
   },
+  "features/collection/current/components/common-comp/tag-more.scss": {
+    ".t-icon": "采集标签弹层的搜索前缀图标沿用辅助文字颜色。",
+    ".t-select-input": "多选触发器使用自定义标签区代替原生输入主体。",
+    ".t-select-input--popup-visible": "展开时抑制原生输入恢复，防止多出一行空白。",
+    ".t-select__dropdown-inner": "采集标签和索引集弹层由内层列表滚动，页脚不随列表滚动。"
+  },
+  "features/collection/current/components/create-operation/index.scss": {
+    ".t-steps-item--error": "采集创建向导自定义步骤徽标保留 24px 尺寸，错误状态填充语义错误背景。"
+  },
   "features/collection/current/components/create-operation/step4-storage.scss": {
     ".t-collapse-panel__body": "集群分组卡片提供背景和边框，内部折叠面板需透明。"
+  },
+  "features/extraction/current/extract-config/module-select.scss": {
+    ".t-is-checked": "模块选择用复选框表达选中，避免勾选状态覆盖行背景。",
+    ".t-tree__label": "仅在提取配置的模块选择树内去掉勾选后标签底色。"
+  },
+  "features/extraction/current/extract-task/task-create/file-date-picker.scss": {
+    ".t-range-input__prefix": "文件提取快捷时间文案覆盖范围值时，用前缀容器定位且透传指针事件。",
+    ".t-range-input-popup": "文件提取只在浮层关闭时显示快捷时间文案。",
+    ".t-range-input-popup--visible": "文件提取展开浮层后恢复显示原生日期输入。",
+    ".t-range-input__inner-left": "文件提取快捷时间关闭态视觉隐藏起始值，同时保留原生焦点。",
+    ".t-range-input__inner-right": "文件提取快捷时间关闭态视觉隐藏结束值，同时保留原生焦点。",
+    ".t-range-input__inner-separator": "文件提取快捷时间关闭态随两侧日期隐藏分隔符。"
+  },
+  "features/extraction/current/extract-task/task-create/files-input.scss": {
+    ".t-input": "文件下拉内的搜索输入去掉自身边框，分隔线由搜索容器承担。",
+    ".t-popup__content": "文件选择弹层需要文件路径可读宽度，并随视口收缩。"
+  },
+  "features/extraction/current/extract-task/task-create/preview-files.scss": {
+    ".t-alert__description": "提取方向说明中的图标与多行文案并排对齐。"
+  },
+  "features/index-sets/log-collection/collection-item/manage-collection/data-status/select-date.vue": {
+    ".t-range-input__inner-right": "索引集数据状态的快捷模式只展示一个日期，隐藏结束输入。",
+    ".t-range-input__inner-separator": "索引集数据状态隐藏结束输入时同步收起分隔符。"
   },
   "features/index-sets/log-collection/collection-item/manage-collection/field-info.scss": {
     ".t-table": "只压缩字段信息表格的分词设置列，使控件在单元格内对齐。"
@@ -80,7 +147,6 @@
   },
   "features/retrieval/workbench/result-comp/update/fields-setting.vue": {
     ".t-is-active": "选中模板采用整行底色反馈。",
-    ".t-tabs__bar": "模板侧栏通过行底色表示选中状态，隐藏指示条。",
     ".t-tabs__content": "此处仅用标签页作为导航，字段配置在独立区域渲染。",
     ".t-tabs__header": "左侧模板导航占满列宽并取消浮动。",
     ".t-tabs__nav": "导航轨道与模板侧栏等宽。",

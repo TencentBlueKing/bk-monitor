@@ -36,7 +36,6 @@
     @cancel="handelCancelDialog"
   >
     <div
-      v-loading="{ loading: treeLoading, zIndex: 10 }"
       class="log-target-container"
     >
       <div
@@ -50,42 +49,44 @@
           clearable
           @change="search"
         ></bk-input>
-        <bk-big-tree
-          ref="labelTreeRef"
-          :style="{ height: treeIsEmpty ? '0' : '506px' }"
-          class="big-tree"
-          :data="treeList"
-          :default-expanded-nodes="defaultExpandList"
-          :filter-method="filterMethod"
-          size="small"
-          has-border
-          selectable
-          show-link-line
-          @select-change="handleSelectTreeItem"
-        >
-          <template #default="{ data }">
-            <div>
-              <div class="item-slot">
-                <span
-                  v-log-overflow-tips
-                  class="item-name"
-                  >{{ data.name }}</span
-                >
-                <span
-                  v-if="data.children"
-                  class="item-number"
-                  >{{ data.children.length }}</span
-                >
+        <div v-loading="{ loading: treeLoading, zIndex: 10, indicator: renderFieldListSkeleton }">
+          <bk-big-tree
+            ref="labelTreeRef"
+            :style="{ height: treeLoading || !treeIsEmpty ? '506px' : '0' }"
+            class="big-tree"
+            :data="treeList"
+            :default-expanded-nodes="defaultExpandList"
+            :filter-method="filterMethod"
+            size="small"
+            has-border
+            selectable
+            show-link-line
+            @select-change="handleSelectTreeItem"
+          >
+            <template #default="{ data }">
+              <div>
+                <div class="item-slot">
+                  <span
+                    v-log-overflow-tips
+                    class="item-name"
+                    >{{ data.name }}</span
+                  >
+                  <span
+                    v-if="data.children"
+                    class="item-number"
+                    >{{ data.children.length }}</span
+                  >
+                </div>
               </div>
-            </div>
-          </template>
-        </bk-big-tree>
-        <div class="empty-box">
-          <empty-status
-            v-if="treeIsEmpty"
-            empty-type="search-empty"
-            @operation="handleOperation"
-          />
+            </template>
+          </bk-big-tree>
+          <div class="empty-box">
+            <empty-status
+              v-if="!treeLoading && treeIsEmpty"
+              empty-type="search-empty"
+              @operation="handleOperation"
+            />
+          </div>
         </div>
         <div
           class="left-drag bk-log-drag-simple"
@@ -93,7 +94,7 @@
         ></div>
       </div>
       <div
-        v-loading="{ loading: labelLoading, zIndex: 10 }"
+        v-loading="{ loading: labelLoading, zIndex: 10, indicator: renderFieldListSkeleton }"
         class="label-operate"
       >
         <div
@@ -176,12 +177,15 @@
     </template>
   </bk-dialog>
 </template>
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+  import { ServicesInstance } from '@/platform/services';
 
   import { random } from '@/shared/lib/util';
   import EmptyStatus from '@/shared/ui/empty-status/index';
 
   import matchLabelItem from './match-label-item';
+
+  import { renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
 
   export default {
   emits: ["config-label-change","configLabelChange","update:is-show-dialog","update:isShowDialog"],
@@ -281,6 +285,7 @@
       this.labelRequestId += 1;
     },
     methods: {
+      renderFieldListSkeleton,
       handleSelectTreeItem(treeItem) {
         this.labelRequestId += 1;
         const requestId = this.labelRequestId;

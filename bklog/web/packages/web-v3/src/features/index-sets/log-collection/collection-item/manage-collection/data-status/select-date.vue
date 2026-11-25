@@ -272,6 +272,8 @@
 <style lang="scss" scoped>
   .king-date-picker {
     width: 320px;
+    max-width: 100%;
+    min-width: 0;
 
     &.daily {
       width: 240px;

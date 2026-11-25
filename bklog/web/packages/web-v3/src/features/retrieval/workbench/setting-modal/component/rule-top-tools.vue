@@ -30,16 +30,16 @@
     <div class="container-item table-container flbc">
       <div class="flbc">
         <p>{{ $t('聚类规则') }}</p>
-        <div class="bk-button-group template-check-content">
+        <div class="bk-button-group template-check-content" data-bklog-button-group="connected">
           <t-button
-            :class="{ 'is-selected': ruleType === 'template' }"
+            :aria-pressed="ruleType === 'template'"
             size="small"
             @click="handleClickTemplateBtn('template')"
           >
             {{ $t('模板') }}
           </t-button>
           <t-button
-            :class="{ 'is-selected': ruleType === 'customize' }"
+            :aria-pressed="ruleType === 'customize'"
             size="small"
             @click="handleClickTemplateBtn('customize')"
           >
@@ -80,7 +80,7 @@
         </bk-select>
       </div>
       <div class="table-operate">
-        <bk-dropdown-menu>
+        <bk-dropdown-menu overlay-inner-class-name="bklog-dropdown-popup">
           <template #dropdown-trigger>
             <t-button
               style="min-width: 48px"
@@ -91,27 +91,26 @@
               {{ $t('导入') }}
             </t-button>
           </template>
-          <ul
-            slot="dropdown-content"
-            class="bk-dropdown-list"
-          >
-            <li>
-              <a
-                href="javascript:;"
-                @click="handleFastAddRule"
-              >
-                {{ $t('本地导入') }}
-              </a>
-            </li>
-            <li>
-              <a
-                href="javascript:;"
-                @click="handleAddRuleToIndex"
-              >
-                {{ $t('其他索引集导入') }}
-              </a>
-            </li>
-          </ul>
+          <template #dropdown-content>
+            <ul class="bk-dropdown-list">
+              <li>
+                <a
+                  href="javascript:;"
+                  @click="handleFastAddRule"
+                >
+                  {{ $t('本地导入') }}
+                </a>
+              </li>
+              <li>
+                <a
+                  href="javascript:;"
+                  @click="handleAddRuleToIndex"
+                >
+                  {{ $t('其他索引集导入') }}
+                </a>
+              </li>
+            </ul>
+          </template>
         </bk-dropdown-menu>
         <t-button
           style="min-width: 48px"
@@ -236,7 +235,7 @@
         >
           <bk-select
             v-model="indexSetData.index_set_id"
-            v-loading="{ loading: indexSetLoading, size: 'small' }"
+            v-loading="{ loading: indexSetLoading, size: 'small', indicator: renderListRefreshSkeleton }"
             :clearable="false"
             searchable
           >
@@ -266,10 +265,12 @@
 </template>
 
 <script>
+  import { renderListRefreshSkeleton } from '@/shared/ui/loading/list-skeleton';
+
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
-import { ServicesInstance } from '@/platform/services';
+  import { ServicesInstance } from '@/platform/services';
 
   import { base64Decode } from '@/shared/lib/util';
   import * as authorityMap from '@/shared/lib/authority-map';
@@ -388,6 +389,7 @@ import { ServicesInstance } from '@/platform/services';
       this.inputDocument = null;
     },
     methods: {
+      renderListRefreshSkeleton,
       /**
        * @desc: 关闭添加规则弹窗重置参数
        */

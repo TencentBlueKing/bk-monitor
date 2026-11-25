@@ -118,17 +118,21 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
   >
     <!-- 字段过滤 -->
     <div class="tab-item-title field-filter-title">
-      <div
+      <button
+        type="button"
         class="close-total"
+        v-log-tooltip="{ content: value ? $t('收起') : $t('打开') }"
+        :aria-expanded="value"
+        :aria-label="value ? $t('收起') : $t('打开')"
         @click="handleCloseFilterTitle(false)"
       >
         <span
-          v-log-tooltip="{ content: value ? $t('收起') : $t('打开') }"
           :style="{ transform: value ? '' : 'rotate(180deg)' }"
           style="font-size: 14px"
           class="bklog-icon bklog-collapse"
+          aria-hidden="true"
         ></span>
-      </div>
+      </button>
     </div>
     <FieldFilterComp
       v-show="value"

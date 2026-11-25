@@ -581,7 +581,7 @@ function ensureResizeLayoutStyle() {
 .bk-resize-layout{display:flex;width:100%;height:100%;min-height:0;overflow:hidden}
 .bk-resize-layout.is-vertical{flex-direction:column}
 .bk-resize-layout-main{flex:1 1 auto;min-width:0;min-height:0;overflow:hidden}
-.bk-resize-layout-aside{position:relative;flex:none;min-width:0;min-height:0;overflow:hidden;background:#fff}
+.bk-resize-layout-aside{position:relative;flex:none;min-width:0;min-height:0;overflow:hidden;background:var(--bklog-surface,#fff)}
 .bk-resize-layout-aside-content{width:100%;height:100%;min-height:0;overflow:auto}
 .bk-resize-trigger{position:absolute;z-index:var(--bklog-z-local);background:transparent}
 .bk-resize-layout.is-bottom .bk-resize-trigger,.bk-resize-layout.is-top .bk-resize-trigger{left:0;right:0;height:5px;cursor:row-resize}
@@ -590,8 +590,8 @@ function ensureResizeLayoutStyle() {
 .bk-resize-layout.is-left .bk-resize-trigger,.bk-resize-layout.is-right .bk-resize-trigger{top:0;bottom:0;width:5px;cursor:col-resize}
 .bk-resize-layout.is-left .bk-resize-trigger{right:0}
 .bk-resize-layout.is-right .bk-resize-trigger{left:0}
-.bk-resize-layout.is-vertical .bk-resize-trigger:hover,.bk-resize-layout.is-vertical .bk-resize-trigger.is-dragging{background-image:linear-gradient(to bottom,transparent 2px,#3a84ff 2px,#3a84ff 4px,transparent 4px)}
-.bk-resize-layout.is-horizontal .bk-resize-trigger:hover,.bk-resize-layout.is-horizontal .bk-resize-trigger.is-dragging{background-image:linear-gradient(to right,transparent 2px,#3a84ff 2px,#3a84ff 4px,transparent 4px)}
+.bk-resize-layout.is-vertical .bk-resize-trigger:hover,.bk-resize-layout.is-vertical .bk-resize-trigger.is-dragging{background-image:linear-gradient(to bottom,transparent 2px,var(--bklog-brand-primary,#3a84ff) 2px,var(--bklog-brand-primary,#3a84ff) 4px,transparent 4px)}
+.bk-resize-layout.is-horizontal .bk-resize-trigger:hover,.bk-resize-layout.is-horizontal .bk-resize-trigger.is-dragging{background-image:linear-gradient(to right,transparent 2px,var(--bklog-brand-primary,#3a84ff) 2px,var(--bklog-brand-primary,#3a84ff) 4px,transparent 4px)}
 `;
   document.head.appendChild(style);
 }

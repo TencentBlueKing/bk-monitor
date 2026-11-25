@@ -26,7 +26,6 @@
 
 <template>
   <div
-    v-loading="{ loading: basicLoading, zIndex: 0 }"
     class="chart-container"
   >
     <div class="chart-header">
@@ -38,30 +37,39 @@
           @change="handleDateChange"
           @timezone-change="handleTimezoneChange"
         />
-        <div
-          class="refresh-button"
+        <TButton
+          theme="primary"
+          variant="text"
+          :loading="basicLoading"
           @click="handleRefreshChange"
         >
-          <span class="bk-icon icon-refresh"></span>
-          <span>{{ $t('刷新') }}</span>
-        </div>
+          <template #icon><span class="bk-icon icon-refresh" aria-hidden="true"></span></template>
+          {{ $t('刷新') }}
+        </TButton>
       </div>
     </div>
-    <div
-      ref="chartRef"
-      class="chart-canvas-container big-chart"
-    ></div>
-    <bk-exception
-      v-if="isEmpty"
-      class="king-exception"
-      scene="part"
-      type="empty"
-    >
-    </bk-exception>
+    <div class="collection-detail-chart-body">
+      <div
+        ref="chartRef"
+        class="chart-canvas-container big-chart"
+        :style="{ visibility: basicLoading || isEmpty ? 'hidden' : 'visible' }"
+      ></div>
+      <div v-if="basicLoading" class="collection-detail-chart-state is-skeleton" role="status" :aria-label="$t('加载中')">
+        <chart-skeleton type="line" :height="216" />
+      </div>
+      <div v-else-if="isEmpty" class="collection-detail-chart-state">
+        <empty-status :empty-type="chartFailed ? '500' : 'empty'" :show-operation="chartFailed" @operation="fetchChartData" />
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import { Button as TButton } from 'tdesign-vue-next';
+import ChartSkeleton from '@/app/skeleton/chart-skeleton';
+import EmptyStatus from '@/shared/ui/empty-status/index';
+import '../detail-states.scss';
+import { observeChartColors, readChartColors } from './chart-colors';
 import { mapState as mapPiniaState } from 'pinia';
 import { useCollectionStore } from '@/app/state/domains/collection-store';
 
@@ -77,6 +85,9 @@ import { ServicesInstance } from '@/platform/services';
 
   export default {
     components: {
+      TButton,
+      ChartSkeleton,
+      EmptyStatus,
       TimeRange,
     },
     data() {
@@ -85,6 +96,8 @@ import { ServicesInstance } from '@/platform/services';
       const endTime = currentTime;
       return {
         isEmpty: false,
+        chartFailed: false,
+        chartRequest: 0,
         basicLoading: true,
         datePickerValue: ['now-15m', 'now'], // 日期选择器
         retrieveParams: {
@@ -120,41 +133,58 @@ import { ServicesInstance } from '@/platform/services';
       this.fetchChartData();
     },
     mounted() {
-      let timer = 0;
+      const canvas = this.$refs.chartRef;
+      let frame;
       this.resizeChart = () => {
-        if (!timer) {
-          timer = setTimeout(() => {
-            timer = 0;
-            if (this.instance && !this.instance.isDisposed()) {
-              this.instance.resize();
-            }
-          }, 400);
-        }
+        if (frame !== undefined) return;
+        frame = requestAnimationFrame(() => {
+          frame = undefined;
+          if (canvas.clientWidth && canvas.clientHeight && this.instance && !this.instance.isDisposed()) {
+            this.instance.resize();
+          }
+        });
       };
-      window.addEventListener('resize', this.resizeChart);
+
+      const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(this.resizeChart);
+      if (observer) observer.observe(canvas);
+      else window.addEventListener('resize', this.resizeChart);
+      const stopChartColors = observeChartColors(canvas, () => this.instance);
+      this.stopChartResize = () => {
+        stopChartColors();
+        observer?.disconnect();
+        window.removeEventListener('resize', this.resizeChart);
+        if (frame !== undefined) cancelAnimationFrame(frame);
+      };
     },
     beforeUnmount() {
+      this.chartRequest++;
+      this.instance?.dispose();
       updateTimezone();
-      window.removeEventListener('resize', this.resizeChart);
+      this.stopChartResize?.();
     },
     methods: {
       // 获取数据
       async fetchChartData() {
+        const request = ++this.chartRequest;
+        this.basicLoading = true;
+        this.chartFailed = false;
         try {
-          this.basicLoading = true;
           const res = await ServicesInstance.retrieve.getLogChartList({
             params: { index_set_id: this.curCollect.index_set_id },
             data: Object.assign({}, this.retrieveParams, {
               addition: this.retrieveParams.addition,
             }),
           });
+          if (request !== this.chartRequest) return;
           const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
           this.updateChart(originChartData.map(item => [item.key, item.doc_count]));
         } catch (e) {
+          if (request !== this.chartRequest) return;
+          this.chartFailed = true;
           console.warn(e);
           this.updateChart([]);
         } finally {
-          this.basicLoading = false;
+          if (request === this.chartRequest) this.basicLoading = false;
         }
       },
       updateChart(chartData) {
@@ -171,12 +201,13 @@ import { ServicesInstance } from '@/platform/services';
           this.instance = echarts.init(this.$refs.chartRef);
         }
 
+        const colors = readChartColors(this.$refs.chartRef);
         this.instance.setOption({
           xAxis: {
             type: 'time',
             axisLine: {
               lineStyle: {
-                color: '#DCDEE5',
+                color: colors.axis,
               },
             },
             splitLine: {
@@ -198,7 +229,7 @@ import { ServicesInstance } from '@/platform/services';
             },
             splitLine: {
               lineStyle: {
-                color: '#DCDEE5',
+                color: colors.axis,
                 type: 'dashed',
               },
             },
@@ -209,11 +240,12 @@ import { ServicesInstance } from '@/platform/services';
               type: 'line',
               symbol: 'none',
               itemStyle: {
-                color: '#339DFF',
+                color: colors.series,
               },
             },
           ],
           tooltip: {
+            ...colors.tooltip,
             trigger: 'axis',
             show: true,
             formatter: params => {
@@ -230,7 +262,7 @@ import { ServicesInstance } from '@/platform/services';
             },
           },
           textStyle: {
-            color: '#63656E',
+            color: colors.text,
           },
           grid: {
             x: 40,

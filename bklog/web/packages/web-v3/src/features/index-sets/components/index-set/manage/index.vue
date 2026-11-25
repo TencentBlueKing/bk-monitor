@@ -26,14 +26,14 @@
 
 <template>
   <div
-    v-loading="{ loading: basicLoading }"
+    v-loading="{ loading: basicLoading, indicator: renderDrawerDetailSkeleton }"
     class="access-manage-container"
   >
     <auth-container-page
       v-if="authPageInfo"
       :info="authPageInfo"
     ></auth-container-page>
-    <template v-if="!authPageInfo && !basicLoading && curIndexSet">
+    <template v-else-if="!basicLoading && !detailFailed && curIndexSet">
       <basic-tab
         :active.sync="activePanel"
         type="border-card"
@@ -46,13 +46,11 @@
         <template #setting>
           <div class="go-search">
             <div class="search-text">
-              <span class="bk-icon icon-info"></span>
+              <span class="bk-icon icon-info" aria-hidden="true"></span>
               <i18n path="数据采集好了，去 {0}">
-                <span
-                  class="search-button"
-                  @click="handleGoSearch"
-                  >{{ $t('查看数据') }}</span
-                >
+                <button type="button" class="search-button" @click="handleGoSearch">
+                  {{ $t('查看数据') }}
+                </button>
               </i18n>
             </div>
           </div>
@@ -69,10 +67,15 @@
         />
       </keep-alive>
     </template>
+    <div v-else-if="!basicLoading" class="bklog-table-empty-region">
+      <EmptyStatus empty-type="500" @operation="initPage" />
+    </div>
   </div>
 </template>
 
 <script>
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { renderDrawerDetailSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { mapState as mapPiniaState } from 'pinia';
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
@@ -91,6 +94,7 @@ import { ServicesInstance } from '@/platform/services';
   export default {
     name: 'IndexSetManage',
     components: {
+      EmptyStatus,
       AuthContainerPage,
       BasicInfo,
       FieldInfo,
@@ -102,6 +106,7 @@ import { ServicesInstance } from '@/platform/services';
       return {
         scenarioId,
         basicLoading: true,
+        detailFailed: false,
         authPageInfo: null,
         activePanel: this.$route.query.type || 'basicInfo',
         panels: [
@@ -126,10 +131,13 @@ import { ServicesInstance } from '@/platform/services';
       this.initPage();
     },
     methods: {
+      renderDrawerDetailSkeleton,
       async initPage() {
+        this.basicLoading = true;
+        this.detailFailed = false;
         // 进入路由需要先判断权限
-        const indexSetId = this.$route.params.indexSetId.toString();
         try {
+          const indexSetId = this.$route.params.indexSetId.toString();
           const paramData = {
             action_ids: [authorityMap.MANAGE_INDICES_AUTH],
             resources: [
@@ -148,6 +156,7 @@ import { ServicesInstance } from '@/platform/services';
             await Promise.all([this.fetchIndexSetData(indexSetId), this.fetchScenarioMap()]);
           }
         } catch (err) {
+          this.detailFailed = true;
           console.warn(err);
         } finally {
           this.basicLoading = false;

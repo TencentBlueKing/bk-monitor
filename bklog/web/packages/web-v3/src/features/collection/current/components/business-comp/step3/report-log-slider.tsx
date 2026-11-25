@@ -32,6 +32,7 @@ import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 import { Drawer, Button } from 'tdesign-vue-next';
 
 import useLocale from '@/shared/composables/use-locale';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 
 import './report-log-slider.scss';
 import { showMessage } from '../../../utils';
@@ -84,7 +85,7 @@ export default defineComponent({
     };
     return () => (
       <Drawer
-        size='596px'
+        size='min(596px, 100vw)'
         zIndex={zIndex.value}
         drawerClassName='report-log-slider-main'
         visible={props.isShow}
@@ -110,10 +111,10 @@ export default defineComponent({
             </div>
           ),
           body: () => props.isShow && (
-            <div class='p20 json-text-style'>
+            <div class='json-text-style'>
               {Object.keys(props.jsonText).length ? (
                 <JsonFormatWrapper data={props.jsonText} deep={5} />
-              ) : <div class='report-log-empty'>{t('暂无数据')}</div>}
+              ) : <div class='bklog-table-empty-region'><EmptyStatus /></div>}
             </div>
           ),
         }}

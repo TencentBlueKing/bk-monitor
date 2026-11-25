@@ -924,9 +924,9 @@ export default defineComponent({
                 ref={triggerRef}
                 class={[
                   'tag-more-container tag-more-multi-line index-set-select-trigger tag-more-select-trigger',
-                  { 'is-empty': isEmpty, 'is-open': isOpen },
+                  { 'is-empty': isEmpty, 'is-open': isOpen, 'is-updating': isUpdating },
                 ]}
-                v-loading={{ loading: isUpdating, size: 'small' }}
+                aria-busy={isUpdating}
                 v-cursor={{ active: requestAuth }}
                 onClick={(event: MouseEvent) => {
                   if (requestAuth) {
@@ -948,6 +948,7 @@ export default defineComponent({
                   />
                 )}
                 {content}
+                {isUpdating && <span class='index-set-update-spinner' aria-hidden='true' />}
               </div>
             ),
           }}
@@ -1012,7 +1013,7 @@ export default defineComponent({
           v-slots={{
             panelTopContent: () => (
               <TInput
-                class='collection-index-set-search'
+                class='collection-index-set-search bklog-select-panel-search'
                 value={indexSetSearch.value}
                 placeholder={t('输入关键字搜索')}
                 prefixIcon={() => <SearchIcon />}
@@ -1021,7 +1022,7 @@ export default defineComponent({
               />
             ),
             panelBottomContent: () => (
-              <div class='index-set-inline-extension'>
+              <div class='index-set-inline-extension bklog-select-panel-footer'>
                 {isAddIndexSet.value ? (
                   <AddIndexSet
                     ref={addIndexSetRef}
@@ -1032,7 +1033,7 @@ export default defineComponent({
                   />
                 ) : (
                   <span
-                    class='add-index-set-btn'
+                    class='add-index-set-btn bklog-select-panel-action'
                     onClick={handleAddIndexSet}
                   >
                     <i class='bk-icon icon-plus-circle' />
@@ -2611,7 +2612,7 @@ export default defineComponent({
 
           {isShowDetection.value ? (
             <TDrawer
-              class='collection-report-detail'
+              drawerClassName='collection-report-detail'
               visible={isShowDetection.value}
               size='800px'
               placement='right'

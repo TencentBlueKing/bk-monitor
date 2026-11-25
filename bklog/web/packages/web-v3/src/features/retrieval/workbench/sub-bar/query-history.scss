@@ -3,7 +3,7 @@
 .retrieve-tab-item-title {
   font-size: 12px;
   line-height: 20px;
-  color: #63656e;
+  color: var(--td-text-color-secondary);
 
   @include flex-justify(space-between);
 
@@ -14,13 +14,13 @@
     width: 88px;
     height: 32px;
     font-size: 12px;
-    color: #313238;
+    color: var(--td-text-color-primary);
     cursor: pointer;
-    background-color: #f0f1f5;
+    background-color: var(--td-bg-color-component);
     border-radius: 2px;
 
     &:hover {
-      background-color: #eaebf0;
+      background-color: var(--td-bg-color-component-hover);
     }
 
     .bklog-icon {
@@ -31,7 +31,7 @@
   .search-type-switch {
     height: 22px;
     margin-left: 10px;
-    border: 1px solid #dcdee5;
+    border: 1px solid var(--td-component-stroke);
     border-radius: 12px;
 
     span {
@@ -42,8 +42,8 @@
     }
 
     .active {
-      color: #3a84ff;
-      background: #e1ecff;
+      color: var(--td-text-color-link);
+      background: var(--td-brand-color-light);
     }
   }
 }
@@ -63,7 +63,7 @@
 
   .search-input{
     .t-input__inner{
-      border-color:transparent transparent var(--bklog-brand-primary, #3A84FF)
+      border-color:transparent transparent var(--td-brand-color)
     }
   }
 }
@@ -76,7 +76,7 @@
   .list-item {
     font-size: 12px;
     line-height: 32px;
-    background-color: #fff;
+    background-color: var(--td-bg-color-container);
 
     @include flex-align;
 
@@ -87,7 +87,7 @@
       margin-right: 4px;
       font-size: 12px;
       line-height: 14px;
-      color: #fff;
+      color: var(--td-text-color-anti);
       text-align: center;
       white-space: nowrap;
       border-radius: 2px;
@@ -95,7 +95,7 @@
 
     .text {
       overflow: hidden;
-      color: #313238;
+      color: var(--td-text-color-primary);
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -116,7 +116,7 @@
       min-width: 150px;
       padding: 0 32px 0 16px;
       font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
-      color: #63656e;
+      color: var(--td-text-color-secondary);
 
       .bk-tooltip{
         position: absolute;
@@ -126,7 +126,7 @@
 
       .bklog-lc-star-shape{
        display: none;
-       color: #C4C6CC;
+       color: var(--td-text-color-placeholder);
       }
 
       &:hover .bklog-lc-star-shape {
@@ -136,20 +136,20 @@
 
     &:hover,
     &.active {
-      background-color: #f4f6fa;
+      background-color: var(--td-bg-color-container-hover);
 
       .item-text {
-        color: #313238;
+        color: var(--td-text-color-primary);
       }
 
       .item-callout {
-        background-color: #fff;
+        background-color: var(--td-bg-color-container);
       }
     }
 
     &:hover {
       cursor: pointer;
-      background-color: #eaf3ff;
+      background-color: var(--td-brand-color-light);
     }
   }
 
@@ -161,7 +161,7 @@
 .retrieve-tab-item-title {
   font-size: 12px;
   line-height: 20px;
-  color: #63656e;
+  color: var(--td-text-color-secondary);
 
   @include flex-justify(space-between);
 
@@ -171,13 +171,13 @@
     justify-content: center;
     height: 32px;
     font-size: 12px;
-    color: #313238;
+    color: var(--td-text-color-primary);
     cursor: pointer;
-    background-color: #f0f1f5;
+    background-color: var(--td-bg-color-component);
     border-radius: 2px;
 
     &:hover {
-      background-color: #eaebf0;
+      background-color: var(--td-bg-color-component-hover);
     }
 
     .bklog-icon {
@@ -189,7 +189,7 @@
   .search-type-switch {
     height: 22px;
     margin-left: 10px;
-    border: 1px solid #dcdee5;
+    border: 1px solid var(--td-component-stroke);
     border-radius: 12px;
 
     span {
@@ -200,8 +200,8 @@
     }
 
     .active {
-      color: #3a84ff;
-      background: #e1ecff;
+      color: var(--td-text-color-link);
+      background: var(--td-brand-color-light);
     }
   }
 }
@@ -221,7 +221,7 @@
 
   .search-input{
     .t-input__inner{
-      border-color:transparent transparent var(--bklog-brand-primary, #3A84FF)
+      border-color:transparent transparent var(--td-brand-color)
     }
   }
 }
@@ -234,7 +234,7 @@
   .list-item {
     font-size: 12px;
     line-height: 32px;
-    background-color: #fff;
+    background-color: var(--td-bg-color-container);
 
     @include flex-align;
 
@@ -245,7 +245,7 @@
       margin-right: 4px;
       font-size: 12px;
       line-height: 14px;
-      color: #fff;
+      color: var(--td-text-color-anti);
       text-align: center;
       white-space: nowrap;
       border-radius: 2px;
@@ -253,7 +253,7 @@
 
     .text {
       overflow: hidden;
-      color: #313238;
+      color: var(--td-text-color-primary);
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -274,7 +274,7 @@
       min-width: 150px;
       padding: 0 32px 0 16px;
       font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
-      color: #63656e;
+      color: var(--td-text-color-secondary);
 
       .bk-tooltip{
         position: absolute;
@@ -284,7 +284,7 @@
 
       .bklog-lc-star-shape{
        display: none;
-       color: #C4C6CC;
+       color: var(--td-text-color-placeholder);
       }
 
       &:hover .bklog-lc-star-shape {
@@ -294,20 +294,20 @@
 
     &:hover,
     &.active {
-      background-color: #f4f6fa;
+      background-color: var(--td-bg-color-container-hover);
 
       .item-text {
-        color: #313238;
+        color: var(--td-text-color-primary);
       }
 
       .item-callout {
-        background-color: #fff;
+        background-color: var(--td-bg-color-container);
       }
     }
 
     &:hover {
       cursor: pointer;
-      background-color: #eaf3ff;
+      background-color: var(--td-brand-color-light);
     }
   }
 
@@ -317,12 +317,12 @@
 }
 #retrieve-help-tips-content {
   max-width: 264px;
-  color: #63656e;
+  color: var(--td-text-color-secondary);
   word-break: normal;
 
   .tips-link {
     margin-left: 5px;
-    color: #3a84ff;
+    color: var(--td-text-color-link);
     cursor: pointer;
 
     .icon-lianjie {
@@ -343,12 +343,12 @@
 
 #retrieve-help-tips-content {
   max-width: 264px;
-  color: #63656e;
+  color: var(--td-text-color-secondary);
   word-break: normal;
 
   .tips-link {
     margin-left: 5px;
-    color: #3a84ff;
+    color: var(--td-text-color-link);
     cursor: pointer;
 
     .icon-lianjie {

@@ -1,33 +1,31 @@
 .cluster-access-slider-main {
-  .bk-sideslider-content {
-    padding: 20px 40px 30px 40px;
-
-    .cluster-access-main {
-      max-height: calc(100vh - 160px);
-      overflow-y: auto;
-    }
+  .cluster-access-content {
+    padding: var(--bklog-space-20) clamp(var(--bklog-space-16), 4vw, calc(2 * var(--bklog-space-20)));
   }
 
-  .bk-alert-info {
-    margin-bottom: 10px;
+  .cluster-access-alert {
+    margin-bottom: var(--bklog-space-12);
   }
 
   .setting-item {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+    gap: var(--bklog-space-8);
 
     .field-tip-main {
-      margin-left: 10px;
+      display: inline-flex;
+      align-items: baseline;
+      gap: var(--bklog-space-4);
 
       .icon-info {
         font-size: 14px;
-        color: #c4c6cc;
-        margin-right: 5px;
+        color: var(--td-text-color-secondary);
       }
 
       .tip {
         font-size: 12px;
-        color: #979ba5;
+        color: var(--td-text-color-secondary);
       }
     }
   }
@@ -42,7 +40,7 @@
     .icon-help {
       margin-left: 6px;
       font-size: 14px;
-      color: #999da6;
+      color: var(--td-text-color-secondary);
     }
   }
 
@@ -52,7 +50,7 @@
     .icon-info {
       margin-right: 8px;
       font-size: 16px;
-      color: #979ba5;
+      color: var(--td-text-color-secondary);
     }
   }
 
@@ -61,9 +59,10 @@
   }
 
   .bottom-operate {
-    padding-top: 24px;
     display: flex;
-    gap: 8px;
+    flex-wrap: wrap;
+    padding-top: var(--bklog-space-24);
+    gap: var(--bklog-space-8);
 
     .t-button {
       width: 88px;

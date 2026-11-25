@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { resolveSceneEmptyView } from '../src/features/retrieval/workspace/scene-empty-view.ts';
 
 const source = readFileSync(
   new URL('../src/features/retrieval/workspace/search-result/log-clustering/log-table/index.tsx', import.meta.url),
@@ -33,4 +34,49 @@ test('cluster table uses native TDesign loading without changing request ownersh
   assert.doesNotMatch(skeleton, /<bk-table/);
   assert.match(skeleton, /class="skeleton-table__row"/);
   assert.match(skeleton, /height: 43px/);
+});
+
+test('scene results show the matching empty state only after the field request settles', () => {
+  const initial = {
+    isSceneMode: true,
+    isSceneFilterEmpty: false,
+    isFieldListFetched: false,
+    isFieldListEmpty: false,
+    hasFieldRequestError: false,
+    isSceneLoading: true,
+  };
+  const loading = {
+    showSceneEmptyTip: false,
+    showFieldEmptyTip: false,
+    showFieldErrorTip: false,
+    hideSearchResult: true,
+    showResultSkeleton: true,
+  };
+  assert.deepEqual(resolveSceneEmptyView(initial), loading);
+  const refreshingEmpty = { ...initial, isFieldListFetched: true, isFieldListEmpty: true };
+  assert.deepEqual(resolveSceneEmptyView(refreshingEmpty), loading);
+  assert.deepEqual(resolveSceneEmptyView({ ...refreshingEmpty, isSceneLoading: false }), {
+    ...loading,
+    showFieldEmptyTip: true,
+    showResultSkeleton: false,
+  });
+  const failed = { ...refreshingEmpty, hasFieldRequestError: true };
+  assert.deepEqual(resolveSceneEmptyView(failed), loading);
+  assert.deepEqual(resolveSceneEmptyView({ ...failed, isSceneLoading: false }), {
+    ...loading,
+    showFieldErrorTip: true,
+    showResultSkeleton: false,
+  });
+  assert.deepEqual(resolveSceneEmptyView({ ...initial, isSceneFilterEmpty: true }), {
+    ...loading,
+    showSceneEmptyTip: true,
+    showResultSkeleton: false,
+  });
+  for (const input of [{ ...initial, isSceneMode: false }, { ...initial, isFieldListFetched: true }]) {
+    assert.deepEqual(resolveSceneEmptyView(input), {
+      ...loading,
+      hideSearchResult: false,
+      showResultSkeleton: false,
+    });
+  }
 });

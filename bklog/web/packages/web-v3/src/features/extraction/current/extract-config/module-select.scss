@@ -1,5 +1,7 @@
 .module-select-container {
   .tree-container {
+    --bklog-tree-row-height: var(--bklog-tree-row-height-large);
+    --bklog-tree-row-font-size: var(--bklog-font-action);
     height: 440px;
     overflow: auto;
 

@@ -1,3 +1,5 @@
+@use '@/shared/ui/loading/status-spinner' as *;
+
 @use '@/shared/ui/loading/shimmer' as *;
 @use "./global.scss" as *;
 .create-operation-main {
@@ -50,10 +52,10 @@
       .t-steps-item__title {
         margin-bottom: 0;
         padding-right: 16px;
-        color: var(--bklog-text-secondary, #63656e);
+        color: var(--bklog-standard-control-text, #63656e);
         font-size: var(--bklog-font-action, 14px);
         font-weight: 400;
-        line-height: 24px;
+        line-height: var(--bklog-space-24);
       }
 
       .t-steps-item:last-child .t-steps-item__title {
@@ -63,7 +65,7 @@
       .t-steps-item__icon {
         display: flex;
         align-items: center;
-        height: 24px;
+        height: var(--bklog-space-24);
         margin-right: 8px;
         background: transparent;
         border: none;
@@ -74,15 +76,15 @@
         align-items: center;
         justify-content: center;
         box-sizing: border-box;
-        width: 24px;
-        height: 24px;
+        width: var(--bklog-space-24);
+        height: var(--bklog-space-24);
         border: none;
         border-radius: 50%;
-        background: var(--bklog-surface-component-hover, #eaebf0);
-        color: var(--bklog-text-placeholder, #979ba5);
+        background: var(--bklog-panel-divider, #eaebf0);
+        color: var(--bklog-standard-control-text, #979ba5);
         font-size: var(--bklog-font-action, 14px);
         font-weight: 400;
-        line-height: 24px;
+        line-height: var(--bklog-space-24);
       }
 
       .t-steps-item--finish .t-steps-item__icon--number {
@@ -98,6 +100,11 @@
       .t-steps-item--process .t-steps-item__icon--number {
         background: var(--bklog-brand-primary, #3a84ff);
         color: var(--bklog-text-inverse, #fff);
+      }
+
+      .t-steps-item--error .t-steps-item__icon--number {
+        background: var(--bklog-status-error);
+        color: var(--bklog-text-inverse);
       }
 
       &.t-steps--horizontal.t-steps--default-anchor
@@ -180,10 +187,7 @@
 
     &.running {
       .status-icon-box {
-        background: url('@/shared/assets/images/log-collection/loading.svg') no-repeat center;
-        background-size: 32px 32px;
-        /* 固定像素，避免 contain 的细微重采样 */
-        animation: spin 2s linear infinite;
+        @include status-spinner();
       }
 
       .status-icon {
@@ -222,15 +226,6 @@
       }
     }
 
-    @keyframes spin {
-      from {
-        transform: rotate(0deg);
-      }
-
-      to {
-        transform: rotate(360deg);
-      }
-    }
   }
 
   .create-operation {

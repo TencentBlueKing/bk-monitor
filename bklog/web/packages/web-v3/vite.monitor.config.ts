@@ -15,6 +15,7 @@ if (kind !== 'apm' && kind !== 'trace') throw new Error('Monitor build requires 
 export default {
   ...application,
   publicDir: false,
+  define: { ...application.define, __BKLOG_TRACE_EMBEDDED__: JSON.stringify(kind === 'trace') },
   base: './',
   plugins: [...application.plugins, {
     name: 'monitor-build-source-stability',

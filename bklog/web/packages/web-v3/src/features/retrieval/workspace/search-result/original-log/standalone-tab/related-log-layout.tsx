@@ -1,3 +1,4 @@
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import { renderLogListSkeleton, renderListRefreshSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { defineComponent, nextTick, onMounted, ref, type PropType } from 'vue';
 
@@ -109,22 +110,14 @@ export default defineComponent({
                     }}
                   >
                     {vm.error.value ? (
-                      <bk-exception
-                        style='margin-top: 80px'
-                        scene='part'
-                        type='500'
-                      >
-                        <span>{vm.error.value}</span>
-                      </bk-exception>
+                      <div class='standalone-related-log-empty'>
+                        <EmptyStatus emptyType='500' description={vm.error.value} showOperation={false} />
+                      </div>
                     ) : vm.logList.value.length > 0 ? (
                       vm.isFilterEmpty.value ? (
-                        <bk-exception
-                          style='margin-top: 80px'
-                          scene='part'
-                          type='search-empty'
-                        >
-                          <span>{vm.t('搜索结果为空')}</span>
-                        </bk-exception>
+                        <div class='standalone-related-log-empty'>
+                          <EmptyStatus emptyType='search-empty' showOperation={false} />
+                        </div>
                       ) : (
                         <LogView
                           ref={vm.logViewRef}
@@ -142,13 +135,9 @@ export default defineComponent({
                         />
                       )
                     ) : !vm.loading.value ? (
-                      <bk-exception
-                        style='margin-top: 80px'
-                        scene='part'
-                        type='empty'
-                      >
-                        <span>{vm.t('暂无数据')}</span>
-                      </bk-exception>
+                      <div class='standalone-related-log-empty'>
+                        <EmptyStatus />
+                      </div>
                     ) : null}
                   </div>
                 </div>

@@ -439,11 +439,11 @@ export default class LogFilter extends tsc<LogFilterProps> {
         </div>
         {this.filterSwitcher && (
           <div class='filter-table-container'>
-            <div class='bk-button-group'>
+            <div class='bk-button-group' data-bklog-button-group='connected'>
               {btnGroupList.map(item => (
                 <TButton
                   key={item.id}
-                  class={{ 'is-selected': this.activeType === item.id }}
+                  aria-pressed={this.activeType === item.id}
                   size='small'
                   onClick={() => this.handleClickFilterType(item.id as btnType)}
                 >
@@ -468,6 +468,7 @@ export default class LogFilter extends tsc<LogFilterProps> {
                   </bk-select>
                   <TButton
                     disabled={!(this.logOriginal && this.separator) || this.logOriginalLoading}
+                    loading={this.logOriginalLoading}
                     theme='primary'
                     onClick={() => this.logOriginDebug()}
                   >
@@ -478,7 +479,6 @@ export default class LogFilter extends tsc<LogFilterProps> {
                   <bk-input
                     input-style={inputLogStyle}
                     v-model={this.logOriginal}
-                    v-loading={{ loading: this.logOriginalLoading }}
                     placeholder={this.$t('请输入日志样例')}
                     rows={3}
                     type='textarea'

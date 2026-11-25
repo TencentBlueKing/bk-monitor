@@ -51,6 +51,7 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    failed: Boolean,
     updatedBys: {
       type: Array as () => { text: string; value: string }[],
       default: () => [],
@@ -64,7 +65,7 @@ export default defineComponent({
       default: () => ({ current: 1, count: 0, limit: 10, limitList: [10, 20, 50, 100] }),
     },
   },
-  emits: ['page-change', 'page-limit-change', 'sort-change', 'filter-change', 'edit', 'delete', 'clear-keyword', "pageChange", "pageLimitChange", "clearKeyword", "sortChange", "filterChange"],
+  emits: ['retry', 'page-change', 'page-limit-change', 'sort-change', 'filter-change', 'edit', 'delete', 'clear-keyword', "pageChange", "pageLimitChange", "clearKeyword", "sortChange", "filterChange"],
   setup(props, { emit }) {
     const tableFilters = ref<Record<string, boolean | string>>({ is_builtin: '', updated_by: '' });
 
@@ -114,6 +115,7 @@ export default defineComponent({
 
     // 空状态类型
     const emptyType = computed(() => {
+      if (props.failed) return '500';
       return props.hasFilter ? 'search-empty' : 'empty';
     });
 
@@ -269,11 +271,16 @@ export default defineComponent({
             onFilter-change={handleFilterChange}
             v-slots={{
               empty: () => (
-                <div>
-                  <EmptyStatus
-                    emptyType={emptyType.value}
-                    onOperation={clearFilters}
-                  />
+                <div class='bklog-table-empty-region'>
+                  {!props.loading && (
+                    <EmptyStatus
+                      emptyType={emptyType.value}
+                      onOperation={operation => {
+                        if (operation === 'refresh') emit('retry');
+                        else clearFilters();
+                      }}
+                    />
+                  )}
                 </div>
               ),
             }}

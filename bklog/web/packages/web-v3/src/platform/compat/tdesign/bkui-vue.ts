@@ -33,6 +33,11 @@ export { default as bkTooltips } from '@/shared/directives/log-tooltip';
  */
 import tippy from 'tippy.js';
 import { defineComponent, h, ref, Fragment, isVNode, type VNode, type Directive } from 'vue';
+import {
+  isAdvancedMessage,
+  showAdvancedMessage,
+  type AdvancedMessageOptions,
+} from '@/shared/lib/advanced-message';
 import { Button, Checkbox, Dialog, DialogPlugin, Empty, Form, FormItem, Input as TInput, MessagePlugin, Popconfirm, Popup, Select as TSelect, Option as TOption, OptionGroup as TOptionGroup, Tag as TTag, Tabs, TabPanel } from 'tdesign-vue-next';
 
 export { Button, Checkbox, Dialog, Form, Loading };
@@ -273,7 +278,17 @@ export const OverflowTitle = defineComponent({
 type FeedbackTheme = 'info' | 'success' | 'warning' | 'error';
 type FeedbackOptions =
   | string
-  | { theme?: string; message?: unknown; content?: unknown; delay?: number; title?: string; subTitle?: string };
+  | {
+      theme?: string;
+      message?: unknown;
+      content?: unknown;
+      delay?: number;
+      title?: string;
+      subTitle?: string;
+      dismissable?: boolean;
+      width?: number | string;
+      actions?: AdvancedMessageOptions['actions'];
+    };
 
 function themeOf(theme: unknown): FeedbackTheme {
   if (theme === 'success' || theme === 'warning' || theme === 'error') return theme;
@@ -287,6 +302,16 @@ function contentOf(options: FeedbackOptions) {
 
 function notify(theme: FeedbackTheme, options: FeedbackOptions = {}) {
   const duration = typeof options === 'object' && typeof options.delay === 'number' ? options.delay : 3000;
+  if (typeof options === 'object' && (isAdvancedMessage(options.message) || options.actions)) {
+    return showAdvancedMessage({
+      message: options.message as AdvancedMessageOptions['message'],
+      theme,
+      delay: duration,
+      dismissable: options.dismissable,
+      width: options.width,
+      actions: options.actions,
+    });
+  }
   return MessagePlugin[theme]({ content: contentOf(options), duration });
 }
 

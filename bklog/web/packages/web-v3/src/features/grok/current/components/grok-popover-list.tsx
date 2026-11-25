@@ -26,9 +26,10 @@
 
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
-import { computed, defineComponent, nextTick, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onScopeDispose, ref, watch } from 'vue';
 
 
 import { getOsCommandLabel } from '@/shared/lib/util';
@@ -65,12 +66,11 @@ export default defineComponent({
     const list = ref<IGrokItem[]>([]);
     const isLoading = ref(false);
     const isLoadingMore = ref(false);
-    const debugLoading = ref(false);
+    const listFailed = ref(false);
     const page = ref(1);
     const pagesize = 20;
     const total = ref(0);
     const activeIndex = ref(-1);
-    const debugResult = ref<DebugResultRow[]>([]);
     let searchTimer: ReturnType<typeof setTimeout> | null = null;
     let scrollThrottleTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -87,34 +87,33 @@ export default defineComponent({
         }));
     };
 
+    const debugResult = computed(() => formatDebugResult(activeItem.value?.sample_result ?? null));
+
     const selectIndex = (index: number) => {
       activeIndex.value = index;
       scrollToActiveItem();
-      nextTick(() => {
-        debugResult.value = formatDebugResult(activeItem.value.sample_result);
-      });
     };
 
     const updateActiveByList = () => {
       activeIndex.value = list.value.length ? 0 : -1;
-      nextTick(() => {
-        debugResult.value = formatDebugResult(activeItem.value?.sample_result || null);
-      });
     };
 
     // 获取 Grok 列表数据
+    let listRequestId = 0;
     const fetchGrokList = async (append = false) => {
-      if (isLoading.value || isLoadingMore.value) return;
+      if (append && (isLoading.value || isLoadingMore.value || !hasMore.value)) return;
+      const requestId = ++listRequestId;
 
       if (!append) {
         page.value = 1;
       }
 
-      if (append && !hasMore.value) return;
+      listFailed.value = false;
 
       if (append) {
         isLoadingMore.value = true;
       } else {
+        isLoadingMore.value = false;
         isLoading.value = true;
       }
       try {
@@ -127,6 +126,7 @@ export default defineComponent({
           },
         };
         const response = await ServicesInstance.grok.searchGrok(params);
+        if (requestId !== listRequestId) return;
         const newList = response.data?.list || [];
         total.value = response.data?.total || 0;
 
@@ -137,10 +137,19 @@ export default defineComponent({
           updateActiveByList();
         }
       } catch (error) {
+        if (requestId !== listRequestId) return;
         console.warn('获取 Grok 列表失败:', error);
+        listFailed.value = true;
+        if (!append) {
+          list.value = [];
+          total.value = 0;
+          activeIndex.value = -1;
+        }
       } finally {
-        isLoading.value = false;
-        isLoadingMore.value = false;
+        if (requestId === listRequestId) {
+          isLoading.value = false;
+          isLoadingMore.value = false;
+        }
       }
     };
 
@@ -153,7 +162,7 @@ export default defineComponent({
         const target = e.target as HTMLDivElement;
         const { scrollTop, scrollHeight, clientHeight } = target;
 
-        if (scrollHeight - scrollTop - clientHeight < 50 && hasMore.value && !isLoading.value && !isLoadingMore.value) {
+        if (scrollHeight - scrollTop - clientHeight < 50 && hasMore.value && !listFailed.value && !isLoading.value && !isLoadingMore.value) {
           page.value += 1;
           fetchGrokList(true);
         }
@@ -230,6 +239,17 @@ export default defineComponent({
       });
     };
 
+    const cancelListWork = () => {
+      listRequestId += 1;
+      if (searchTimer) clearTimeout(searchTimer);
+      if (scrollThrottleTimer) clearTimeout(scrollThrottleTimer);
+      searchTimer = null;
+      scrollThrottleTimer = null;
+      isLoading.value = false;
+      isLoadingMore.value = false;
+    };
+    onScopeDispose(cancelListWork);
+
     // 监听 visible 变化，打开时加载数据
     watch(
       () => props.visible,
@@ -237,6 +257,8 @@ export default defineComponent({
         if (val) {
           searchKeyword.value = props.keyword;
           fetchGrokList();
+        } else {
+          cancelListWork();
         }
       },
       { immediate: true },
@@ -255,14 +277,13 @@ export default defineComponent({
 
     // 重置状态
     const reset = () => {
+      cancelListWork();
+      listFailed.value = false;
       searchKeyword.value = '';
       list.value = [];
-      debugResult.value = [];
       page.value = 1;
       total.value = 0;
       activeIndex.value = -1;
-      isLoading.value = false;
-      isLoadingMore.value = false;
     };
 
     expose({
@@ -276,15 +297,19 @@ export default defineComponent({
     });
 
     const renderListSkeleton = (count = 6) => (
-      <div class='grok-popover-list-skeleton'>
-        <ItemSkeleton
-          rows={count}
-          columns={1}
-          rowHeight='40px'
-          gap='8px'
-          widths={['100%']}
-          type='text'
-        />
+      <div role='status' aria-label={t('加载中')}>
+        {Array.from({ length: count }, (_, index) => (
+          <div class='grok-popover-list-skeleton' key={index} aria-hidden='true'>
+            <ItemSkeleton
+              rows={1}
+              columns={2}
+              rowHeight='var(--bklog-space-12)'
+              gap='var(--bklog-space-8)'
+              widths={['52%', '82%']}
+              type='text'
+            />
+          </div>
+        ))}
       </div>
     );
 
@@ -337,7 +362,16 @@ export default defineComponent({
             {isLoadingMore.value && <div class='grok-popover-list-more-skeleton'>{renderListSkeleton(2)}</div>}
 
             {/* 空状态 */}
-            {!isLoading.value && list.value.length === 0 && <div class='grok-popover-list-empty'>{t('暂无数据')}</div>}
+            {!isLoading.value && list.value.length === 0 && (
+              <div class='bklog-table-empty-region'>
+                <EmptyStatus emptyType={listFailed.value ? '500' : 'empty'} onOperation={() => fetchGrokList()} />
+              </div>
+            )}
+            {listFailed.value && list.value.length > 0 && (
+              <div class='grok-popover-list-more-skeleton'>
+                <TButton theme='primary' variant='text' onClick={() => fetchGrokList(true)}>{t('刷新')}</TButton>
+              </div>
+            )}
           </div>
         </div>
 
@@ -388,7 +422,7 @@ export default defineComponent({
                       </tbody>
                     </table>
                   ) : (
-                    !debugLoading.value && <div class='grok-popover-debug-empty'>{t('暂无调试结果')}</div>
+                    <div class='grok-popover-debug-empty'>{t('暂无调试结果')}</div>
                   )}
                 </div>
               </div>

@@ -77,6 +77,7 @@ function setup(props) {
       '../../../../../shared/ui/bklog-popover/index': Popover,
       './use-index-set-list': selection,
       './tag-search-sync': tagSync,
+      '@/shared/ui/loading/list-skeleton': { renderFieldListSkeleton: () => Vue.h('div', { role: 'status' }) },
       './index-set-list.scss': {},
     },
     compiler,
@@ -220,6 +221,7 @@ test('history list keeps loading, source row events and item/all delete semantic
       'tdesign-vue-next': native,
       '@/shared/composables/use-locale': () => ({ $t: (x) => (x === 'bk.exception.searchEmpty' ? '搜索为空' : x) }),
       '../../../../../shared/ui/ellipsis-tag-list/index': Tags,
+      '@/shared/ui/loading/list-skeleton': { renderDropdownListSkeleton: () => Vue.h('div', { role: 'status' }) },
       './common-list.scss': {},
     },
     compiler,
@@ -236,8 +238,9 @@ test('history list keeps loading, source row events and item/all delete semantic
   });
   try {
     const render = scope.run(() => component.setup(props, { emit: (...args) => events.push(args) }));
-    assert.equal(render().type.name, 'SkeletonLoading');
-    assert.equal(render().props.loading, true);
+    assert.equal(render().props['aria-busy'], true);
+    assert.ok(all(byClass(render(), 'common-list')[0]).some(node => node.props?.role === 'status'));
+    assert.equal(byClass(render(), 'common-header').length, 1);
     assert.equal(find(render(), native.Empty), undefined);
     props.isLoading = false;
     assert.equal(find(render(), native.Empty).props.title, '暂无数据');
@@ -269,4 +272,17 @@ test('native search empty title preserves both frozen V2 locale strings', () => 
     readFileSync(new URL('index-set-list.tsx', root), 'utf8'),
     /title=\{type === 'search-empty' \? \$t\('bk.exception.searchEmpty'\)/,
   );
+});
+
+test('index options show row skeletons without hiding filters while the first request is pending', () => {
+  const c = setup({ loading: true });
+  try {
+    assert.equal(byClass(c.render(), 'bklog-v3-content-filter').length, 1);
+    assert.equal(byClass(c.render(), 'bklog-v3-index-set-list')[0].props['aria-busy'], 'true');
+    assert.equal(find(c.render(), native.Empty), undefined);
+    c.state.loading = false;
+    assert.equal(find(c.render(), native.Empty).props.title, '暂无数据');
+  } finally {
+    c.stop();
+  }
 });

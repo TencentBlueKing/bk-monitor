@@ -31,6 +31,8 @@ import { ServicesInstance } from '@/platform/services';
 
 import { defineComponent, ref, computed, onBeforeUnmount } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { renderFieldListSkeleton, renderLogListSkeleton } from '@/shared/ui/loading/list-skeleton';
 
 import BklogPopover from '@/shared/ui/bklog-popover/index';
 import { LOG_TYPE_ICON_MAP } from '../../utils';
@@ -86,7 +88,10 @@ export default defineComponent({
     const existingItems = ref<IAvailableItem[]>([]); // 默认已有采集项
     const removedItems = ref<IAvailableItem[]>([]); // 删除的采集项
     const addListLoading = ref(false);
+    const availableListFailed = ref(false);
     const selectedListLoading = ref(false);
+    const selectedListFailed = ref(false);
+    const selectedListUnavailable = computed(() => selectedListLoading.value || selectedListFailed.value);
     const submitting = ref(false);
     const currentPage = ref(1);
     const hasMore = ref(true);
@@ -113,6 +118,7 @@ export default defineComponent({
       if (!isLoadMore || hasMore.value) {
         addListInterfaceCancel.value?.();
         addListLoading.value = true;
+        availableListFailed.value = false;
         try {
           const params: Record<string, unknown> = {
             space_uid: props.spaceUid,
@@ -150,7 +156,7 @@ export default defineComponent({
             return;
           }
           addListLoading.value = false;
-          console.error(err);
+          availableListFailed.value = true;
           if (!isLoadMore) {
             availableList.value = [];
           }
@@ -170,6 +176,7 @@ export default defineComponent({
     const fetchSelectedList = async () => {
       if (!props.indexSetId) return;
       selectedListLoading.value = true;
+      selectedListFailed.value = false;
       try {
         const params: Record<string, unknown> = {
           space_uid: props.spaceUid,
@@ -194,7 +201,7 @@ export default defineComponent({
           return;
         }
         selectedListLoading.value = false;
-        console.error('获取已选列表失败:', err);
+        selectedListFailed.value = true;
       }
     };
 
@@ -236,7 +243,7 @@ export default defineComponent({
 
     /** 触底加载更多 */
     const handleScrollLoadMore = () => {
-      if (!addListLoading.value && hasMore.value) {
+      if (!addListLoading.value && !availableListFailed.value && hasMore.value) {
         fetchAvailableList(true);
       }
     };
@@ -266,6 +273,7 @@ export default defineComponent({
 
     /** 切换采集项选中状态 - 从左侧添加到新增列表 */
     const toggleSelect = (item: IAvailableItem) => {
+      if (selectedListUnavailable.value) return;
       const inAddedList = isInAddedList(item.index_set_id);
       const inExistingList = isInExistingList(item.index_set_id);
       const inRemovedList = isInRemovedList(item.index_set_id);
@@ -315,6 +323,7 @@ export default defineComponent({
 
     /** 确定：提交已选采集项到当前索引集 */
     const handleConfirm = async () => {
+      if (selectedListUnavailable.value) return;
       if (addedItems.value.length === 0 && removedItems.value.length === 0) {
         popoverRef.value?.hide();
         return;
@@ -398,7 +407,7 @@ export default defineComponent({
             </div>
             <div
               class='popover-field-list-wrapper'
-              v-loading={{ loading: addListLoading.value && currentPage.value === 1 }}
+              v-loading={{ loading: addListLoading.value && currentPage.value === 1, indicator: renderLogListSkeleton }}
             >
               <div
                 ref={availableListRef}
@@ -424,7 +433,7 @@ export default defineComponent({
                     >
                       {/* 左侧：多选框、日志类型图标和详细信息 */}
                       <div class='field-left-content'>
-                        <TCheckbox checked={isSelected} />
+                        <TCheckbox checked={isSelected} disabled={selectedListUnavailable.value} />
                         {logTypeIcon && (
                           <div class='log-type-icon'>
                             <i class={logTypeIcon} />
@@ -463,10 +472,19 @@ export default defineComponent({
                   );
                 })}
                 {!addListLoading.value && availableList.value.length === 0 && (
-                  <bk-exception
-                    type='empty'
-                    scene='part'
-                  />
+                  <div class='bklog-table-empty-region'>
+                    <EmptyStatus
+                      emptyType={availableListFailed.value ? '500' : 'empty'}
+                      onOperation={() => fetchAvailableList()}
+                    />
+                  </div>
+                )}
+                {availableListFailed.value && availableList.value.length > 0 && (
+                  <div class='list-loading'>
+                    <TButton variant='text' theme='primary' onClick={() => fetchAvailableList(true)}>
+                      {t('刷新')}
+                    </TButton>
+                  </div>
                 )}
                 {addListLoading.value && currentPage.value > 1 && <div class='list-loading'><span class='bklog-loading-mark' role='status' aria-label='Loading' /></div>}
               </div>
@@ -491,6 +509,7 @@ export default defineComponent({
 
                 theme='primary'
                 class='header-clear-btn'
+                disabled={selectedListUnavailable.value}
                 onClick={() => {
                   addedItems.value = [];
                   existingItems.value = [...existingItems.value, ...removedItems.value];
@@ -500,7 +519,10 @@ export default defineComponent({
                 {t('重置')}
               </TButton>
             </div>
-            <div class='selected-field-list'>
+            <div
+              class='selected-field-list'
+              v-loading={{ loading: selectedListLoading.value, indicator: renderFieldListSkeleton }}
+            >
               {/* 新增采集项 */}
               {addedItems.value.map(item => (
                 <div
@@ -545,15 +567,14 @@ export default defineComponent({
                   <i class='bk-icon bklog-icon bklog-return' />
                 </div>
               ))}
-              {/* 未选择采集项 */}
-              {!hasSelectedItems.value && (
-                <bk-exception
-                  class='exception-wrap-item exception-part'
-                  type='empty'
-                  scene='part'
-                >
-                  <span>{t('请先在左侧选择')}</span>
-                </bk-exception>
+              {!selectedListLoading.value && !hasSelectedItems.value && (
+                <div class='bklog-table-empty-region'>
+                  {selectedListFailed.value ? (
+                    <EmptyStatus emptyType='500' onOperation={fetchSelectedList} />
+                  ) : (
+                    <EmptyStatus showText={false}>{t('请先在左侧选择')}</EmptyStatus>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -564,7 +585,8 @@ export default defineComponent({
           <TButton
             theme='primary'
             onClick={handleConfirm}
-            loading={submitting.value || selectedListLoading.value}
+            disabled={selectedListUnavailable.value}
+            loading={submitting.value}
           >
             {t('确定')}
           </TButton>

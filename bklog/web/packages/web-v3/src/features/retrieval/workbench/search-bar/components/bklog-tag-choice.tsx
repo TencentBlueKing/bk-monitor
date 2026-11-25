@@ -109,11 +109,11 @@ export default defineComponent({
     },
     borderColor: {
       type: String,
-      default: '#c4c6cc',
+      default: 'var(--td-border-level-2-color)',
     },
     focusBorderColor: {
       type: String,
-      default: '#3a84ff',
+      default: 'var(--td-brand-color)',
     },
     zIndex: {
       type: Number,
@@ -462,9 +462,19 @@ export default defineComponent({
       }
     };
 
-    const handleDeleteAllClick = (e: MouseEvent|KeyboardEvent) => {
+    const handleDeleteAllClick = (e: MouseEvent) => {
+      const clearButton = e.currentTarget as HTMLElement;
+      const restoreInputFocus = e.detail === 0 && document.activeElement === clearButton;
       stopDefaultPrevented(e);
       emit('change', []);
+
+      if (restoreInputFocus) {
+        nextTick(() => {
+          if (!clearButton.isConnected && document.activeElement === document.body) {
+            refTagInputElement.value?.focus();
+          }
+        });
+      }
     };
 
     const setFixedOverflowY = () => {
@@ -825,11 +835,14 @@ export default defineComponent({
       return item.getBoundingClientRect().width + parseFloat(style.marginLeft) + parseFloat(style.marginRight);
     };
 
+    let ellipsisRevision = 0;
     const calcItemEllipsis = async () => {
+      const revision = ++ellipsisRevision;
       if (isInputFocused.value) return;
 
       hiddenItemIndex.value = [];
       await nextTick();
+      if (revision !== ellipsisRevision) return;
 
       const list = refTagInputContainer.value;
       const badge = list?.lastElementChild as HTMLElement | null;
@@ -845,7 +858,10 @@ export default defineComponent({
       if (used + (input ? outerWidth(input) : 0) <= available || !tags.length) return;
 
       // Measure the actual +N with its tag styles, including changes in digit count.
-      const probe = badge.cloneNode(false) as HTMLElement;
+      const probe = badge.cloneNode(true) as HTMLElement;
+      const probeButton = probe.querySelector('button');
+      if (!probeButton) return;
+      probe.inert = true;
       probe.classList.remove('is-hidden');
       probe.style.position = 'absolute';
       probe.style.visibility = 'hidden';
@@ -853,7 +869,7 @@ export default defineComponent({
       let visible = tags.length;
       do {
         used -= widths[--visible];
-        probe.textContent = `+${tags.length - visible}`;
+        probeButton.textContent = `+${tags.length - visible}`;
       } while (visible > 0 && used + outerWidth(probe) > available);
       probe.remove();
       hiddenItemIndex.value = tags.slice(visible).map(tag => Number(tag.dataset.itemIndex));
@@ -990,6 +1006,7 @@ export default defineComponent({
         }
 
         emit('blur', isInputFocused.value);
+        calcItemEllipsis();
       },
     );
 
@@ -999,6 +1016,7 @@ export default defineComponent({
     });
 
     onUnmounted(() => {
+      ellipsisRevision += 1;
       popInstance?.uninstallInstance();
       fixedInstance?.uninstallInstance();
       fixedInstance = null;
@@ -1220,14 +1238,25 @@ export default defineComponent({
             class={['bklog-choice-value-item', { 'is-hidden': hiddenItemCount.value === 0 || isInputFocused.value }]}
             data-ignore-element
           >
-            +{hiddenItemCount.value}
+            <button
+              type='button'
+              class='bklog-choice-expand'
+              aria-label={`${t('展开全部')} (+${hiddenItemCount.value})`}
+              onClick={handleContainerClick}
+            >
+              +{hiddenItemCount.value}
+            </button>
           </li>
         </ul>
         {getDropdownRender()}
-        <span
-          class='bk-icon icon-close-circle-shape delete-all-tags'
-          onClick={handleDeleteAllClick}
-        />
+        {valueList.value.some(value => value !== '' && value != null) && (
+          <button
+            type='button'
+            class='bk-icon icon-close-circle-shape delete-all-tags'
+            aria-label={t('清空')}
+            onClick={handleDeleteAllClick}
+          />
+        )}
         <div v-show={false}>
           <div
             ref={refChoiceList}

@@ -3,7 +3,7 @@
     v-if="localVisible"
     v-model:visible="localVisible"
     :footer="false"
-    :size="1000"
+    size="min(100vw, 1000px)"
     attach="body"
     class="bklog-full-row-viewer-sideslider"
     placement="right"
@@ -16,29 +16,32 @@
         <input
           v-model.trim="searchValue"
           class="search-input"
+          :aria-label="$t('搜索')"
           :placeholder="$t('搜索')"
           type="text"
           @input="handleSearchInput"
           @keydown.enter.prevent="handleSearchEnter"
         />
         <div class="search-suffix">
-          <span class="search-count">{{ matchText }}</span>
-          <span class="search-nav-divider" />
+          <span class="search-count" role="status" aria-atomic="true">{{ matchText }}</span>
+          <span class="search-nav-divider" aria-hidden="true" />
           <button
             class="nav-icon-btn"
             type="button"
             :disabled="!hasMatches"
+            :aria-label="$t('上一个')"
             @click="goPrevMatch"
           >
-            <span class="bk-icon icon-angle-up" />
+            <span class="bk-icon icon-angle-up" aria-hidden="true" />
           </button>
           <button
             class="nav-icon-btn"
             type="button"
             :disabled="!hasMatches"
+            :aria-label="$t('下一个')"
             @click="goNextMatch"
           >
-            <span class="bk-icon icon-angle-down" />
+            <span class="bk-icon icon-angle-down" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -192,7 +195,7 @@
       flex-shrink: 0;
       font-size: 16px;
       font-weight: 700;
-      color: #313238;
+      color: var(--td-text-color-primary);
     }
 
     .full-row-sideslider-search-bar {
@@ -200,13 +203,13 @@
       flex: 1;
       align-items: center;
       min-width: 0;
-      height: 32px;
+      height: var(--bklog-control-size-medium);
       overflow: hidden;
-      border: 1px solid #c4c6cc;
-      border-radius: 2px;
+      border: 1px solid var(--td-border-level-2-color);
+      border-radius: var(--bklog-standard-control-radius);
 
       &:focus-within {
-        border-color: #3a84ff;
+        border-color: var(--td-brand-color);
       }
 
       .search-input {
@@ -214,9 +217,13 @@
         min-width: 0;
         height: 100%;
         padding: 0 12px;
-        font-size: 12px;
+        font-size: var(--bklog-font-body);
+        color: var(--td-text-color-primary);
+        background: var(--td-bg-color-container);
         border: 0;
         outline: none;
+
+        &::placeholder { color: var(--td-text-color-placeholder); }
       }
 
       .search-suffix {
@@ -231,7 +238,7 @@
         min-width: 36px;
         padding: 0 8px;
         font-size: 12px;
-        color: #979ba5;
+        color: var(--td-text-color-secondary);
         text-align: center;
         white-space: nowrap;
       }
@@ -240,7 +247,7 @@
         width: 1px;
         height: 16px;
         margin: 0 2px;
-        background: #dcdee5;
+        background: var(--td-component-stroke);
       }
 
       .nav-icon-btn {
@@ -250,11 +257,11 @@
         width: 24px;
         height: 24px;
         padding: 0;
-        color: #63656e;
+        color: var(--td-text-color-secondary);
         cursor: pointer;
         background: transparent;
         border: 0;
-        border-radius: 2px;
+        border-radius: var(--bklog-standard-control-radius);
 
         .bk-icon {
           font-size: 18px;
@@ -262,34 +269,65 @@
         }
 
         &:hover:not(:disabled) {
-          color: #3a84ff;
-          background: #edf4ff;
+          color: var(--td-brand-color);
+          background: var(--td-brand-color-light);
         }
 
         &:disabled {
-          color: #c4c6cc;
+          color: var(--td-text-color-disabled);
           cursor: not-allowed;
         }
       }
     }
 
+    :is(.nav-icon-btn, .copy-btn):focus-visible {
+      outline: var(--bklog-border-width) solid var(--td-brand-color);
+      outline-offset: -2px;
+    }
+
+    @media (max-width: 640px) {
+      .full-row-sideslider-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding-inline-end: var(--bklog-space-24);
+      }
+
+      .full-row-sideslider-title {
+        grid-column: 1 / -1;
+      }
+
+      .full-row-sideslider-search-bar {
+        .search-input {
+          padding-inline: var(--bklog-space-8);
+        }
+
+        .search-count {
+          padding-inline: var(--bklog-space-4);
+        }
+      }
+
+      .full-row-sideslider-header .copy-btn {
+        padding-inline: var(--bklog-space-8);
+      }
+    }
+
     .copy-btn {
       flex-shrink: 0;
-      height: 32px;
+      height: var(--bklog-control-size-medium);
       padding: 0 16px;
       font-size: 12px;
-      color: #4d4f56;
+      color: var(--td-text-color-secondary);
       cursor: pointer;
-      background: #fff;
-      border: 1px solid #c4c6cc;
-      border-radius: 2px;
+      background: var(--td-bg-color-container);
+      border: 1px solid var(--td-border-level-2-color);
+      border-radius: var(--bklog-standard-control-radius);
       align-items: center;
       justify-content: center;
       display: inline-flex;
 
       &:hover {
-        color: #3a84ff;
-        border-color: #3a84ff;
+        color: var(--td-brand-color);
+        border-color: var(--td-brand-color);
       }
     }
   }

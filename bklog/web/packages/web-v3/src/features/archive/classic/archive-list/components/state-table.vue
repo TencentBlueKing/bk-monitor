@@ -31,83 +31,84 @@
     @scroll.passive="handleScroll"
   >
     <section>
-      <bk-table
-        v-loading="{ loading: isTableLoading }"
-        class="state-table"
-        :data="dataList"
-        :outer-border="false"
-      >
-        <bk-table-column
-          native-cell-slot
-          :label="$t('索引名')"
-          min-width="300"
+      <management-list-loading :loading="isTableLoading">
+        <bk-table
+          class="state-table"
+          :data="dataList"
+          :outer-border="false"
         >
-          <template #default="props">
-            {{ props.row.index_name }}
-          </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          :label="$t('数据起止时间')"
-          min-width="200"
-        >
-          <template #default="props">
-            {{ `${props.row.start_time} - ${props.row.end_time}` }}
-          </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          :label="$t('剩余')"
-        >
-          <template #default="props">
-            {{ props.row.expired_time }}
-          </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          :label="$t('大小')"
-        >
-          <template #default="props">
-            {{ getFileSize(props.row.store_size) }}
-          </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          :label="$t('归档状态')"
-        >
-          <template #default="props">
-            <div class="restore-status">
-              <span :class="`status-icon is-${props.row.state}`"></span>
-              <span class="status-text">{{ stateMap[props.row.state] }}</span>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('索引名')"
+            min-width="300"
+          >
+            <template #default="props">
+              {{ props.row.index_name }}
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('数据起止时间')"
+            min-width="200"
+          >
+            <template #default="props">
+              {{ `${props.row.start_time} - ${props.row.end_time}` }}
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('剩余')"
+          >
+            <template #default="props">
+              {{ props.row.expired_time }}
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('大小')"
+          >
+            <template #default="props">
+              {{ getFileSize(props.row.store_size) }}
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('归档状态')"
+          >
+            <template #default="props">
+              <div class="restore-status">
+                <span :class="`status-icon is-${props.row.state}`"></span>
+                <span class="status-text">{{ stateMap[props.row.state] }}</span>
+              </div>
+            </template>
+          </bk-table-column>
+          <!-- 添加操作列后可去掉此列宽度 -->
+          <bk-table-column
+            native-cell-slot
+            width="200"
+            :label="$t('是否已回溯')"
+          >
+            <template #default="props">
+              {{ props.row.is_stored ? $t('是') : $t('否') }}
+            </template>
+          </bk-table-column>
+          <!-- <bk-table-column :label="$t('操作')" width="130">
+            <div class="state-table-operate" slot-scope="props">
+              <bk-button
+                theme="primary"
+                text
+                class="mr10 king-button"
+                @click.stop="operateHandler(props.row, 'restore')">
+                {{ $t('重试') }}
+              </bk-button>
             </div>
-          </template>
-        </bk-table-column>
-        <!-- 添加操作列后可去掉此列宽度 -->
-        <bk-table-column
-          native-cell-slot
-          width="200"
-          :label="$t('是否已回溯')"
-        >
-          <template #default="props">
-            {{ props.row.is_stored ? $t('是') : $t('否') }}
-          </template>
-        </bk-table-column>
-        <!-- <bk-table-column :label="$t('操作')" width="130">
-          <div class="state-table-operate" slot-scope="props">
-            <bk-button
-              theme="primary"
-              text
-              class="mr10 king-button"
-              @click.stop="operateHandler(props.row, 'restore')">
-              {{ $t('重试') }}
-            </bk-button>
-          </div>
-        </bk-table-column> -->
-      </bk-table>
+          </bk-table-column> -->
+        </bk-table>
+      </management-list-loading>
       <template v-if="dataList.length">
         <div
           v-show="!isPageOver"
-          v-loading="{ loading: true }"
+          v-loading="{ loading: true, indicator: renderListRefreshSkeleton }"
           style="height: 40px"
         ></div>
       </template>
@@ -115,12 +116,16 @@
   </section>
 </template>
 
-<script>import { ServicesInstance } from '@/platform/services';
+<script>
+  import { renderListRefreshSkeleton } from '@/shared/ui/loading/list-skeleton';
+  import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
+  import { ServicesInstance } from '@/platform/services';
 
   import { formatFileSize } from '@/shared/lib/util';
 
   export default {
     name: 'ArchiveState',
+    components: { ManagementListLoading },
     props: {
       archiveConfigId: {
         type: Number,
@@ -146,6 +151,7 @@
       this.init();
     },
     methods: {
+      renderListRefreshSkeleton,
       handleScroll() {
         if (this.throttle || this.isPageOver) {
           return;

@@ -25,72 +25,75 @@
 -->
 
 <template>
-  <BklogLoading :loading="isLoading" class="update-fields-setting">
+  <div class="update-fields-setting">
     <!-- 设置列表字段 -->
-    <div class="fields-container">
-      <div v-if="isTemplateConfig" class="fields-config-container">
-        <div class="config-container-header">
-          <div v-show="!isShowAddInput" class="header-config-operation">
-            <t-button variant="text" theme="primary" class="config-btn bklog-icon-label-button" @click="handleClickAddNew">
-              <i class="bk-icon icon-plus-circle-shape" />
-              <span>{{ $t('新建') }}</span>
-            </t-button>
-            <log-export class="config-btn" @change="handleFieldConfigImport">
-              <i class="bk-icon bklog-icon bklog-import" />
-              <span>{{ $t('导入') }}</span>
-            </log-export>
+    <BklogLoading skeleton="fields" :loading="isLoading" :aria-busy="isLoading">
+      <div class="fields-container" :inert="isLoading">
+        <div v-if="isTemplateConfig" class="fields-config-container">
+          <div class="config-container-header">
+            <div v-show="!isShowAddInput" class="header-config-operation">
+              <t-button variant="text" theme="primary" class="config-btn bklog-icon-label-button" @click="handleClickAddNew">
+                <i class="bk-icon icon-plus-circle-shape" />
+                <span>{{ $t('新建') }}</span>
+              </t-button>
+              <log-export class="config-btn" @change="handleFieldConfigImport">
+                <i class="bk-icon bklog-icon bklog-import" />
+                <span>{{ $t('导入') }}</span>
+              </log-export>
+            </div>
+            <div v-show="isShowAddInput" class="header-config-new-input">
+              <t-input
+                v-model:value="newConfigStr"
+                class="config-new-input"
+                :status="isInputError ? 'error' : 'default'"
+                size="small"
+              />
+              <div class="new-input-operation">
+                <i class="bk-icon icon-check-line" @click="handleAddNewConfig"></i>
+                <i class="bk-icon icon-close-line-2" @click="handleCancelNewConfig"></i>
+              </div>
+            </div>
           </div>
-          <div v-show="isShowAddInput" class="header-config-new-input">
-            <t-input
-              v-model:value="newConfigStr"
-              class="config-new-input"
-              :status="isInputError ? 'error' : 'default'"
-              size="small"
+          <TTabs
+            class="config-tab"
+            :value="activeConfigTab"
+            placement="left"
+            data-bklog-tab-variant="vertical-line"
+            theme="normal"
+            @change="activeConfigTab = $event"
+          >
+            <TTabPanel
+              v-for="(panel, index) in configTabPanels"
+              :key="panel.name"
+              :value="panel.name"
+              :label="(h) => renderHeader(h, panel, index)"
             />
-            <div class="new-input-operation">
-              <i class="bk-icon icon-check-line" @click="handleAddNewConfig"></i>
-              <i class="bk-icon icon-close-line-2" @click="handleCancelNewConfig"></i>
+          </TTabs>
+        </div>
+        <div>
+          <div class="fields-tab-container">
+            <div class="show-field">
+              <div class="text-type">{{ $t('字段显示') }}:</div>
+              <fieldSetting ref="fieldSettingRef" :init-data="shadowVisible" />
+            </div>
+            <div v-if="isTemplateConfig" style="padding-left: 12px" class="table-sort">
+              <div class="text-type">{{ $t('表格排序') }}：</div>
+              <tableSort
+                ref="tableSortRef"
+                style="max-height: 340px; overflow: scroll"
+                :init-data="cachedSortFields"
+                :should-refresh="isShow"
+              />
             </div>
           </div>
         </div>
-        <TTabs
-          class="config-tab"
-          :value="activeConfigTab"
-          placement="left"
-          theme="normal"
-          @change="activeConfigTab = $event"
-        >
-          <TTabPanel
-            v-for="(panel, index) in configTabPanels"
-            :key="panel.name"
-            :value="panel.name"
-            :label="(h) => renderHeader(h, panel, index)"
-          />
-        </TTabs>
       </div>
-      <div>
-        <div class="fields-tab-container">
-          <div class="show-field">
-            <div class="text-type">{{ $t('字段显示') }}:</div>
-            <fieldSetting ref="fieldSettingRef" :init-data="shadowVisible" />
-          </div>
-          <div v-if="isTemplateConfig" style="padding-left: 12px" class="table-sort">
-            <div class="text-type">{{ $t('表格排序') }}：</div>
-            <tableSort
-              ref="tableSortRef"
-              style="max-height: 340px; overflow: scroll"
-              :init-data="cachedSortFields"
-              :should-refresh="isShow"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    </BklogLoading>
     <div
       :style="{ 'justify-content': !isTemplateConfig ? 'space-between' : 'flex-end' }"
       class="fields-button-container"
     >
-      <div v-if="!isTemplateConfig" style="color: #4d4f56">
+      <div v-if="!isTemplateConfig" :inert="isLoading" style="color: var(--td-text-color-secondary)">
         <span style="font-size: 14px" class="bklog-icon bklog-help"></span>
         {{ $t('当前设置仅对个人生效，可以') }}
         <save-as-popover
@@ -100,7 +103,7 @@
         />
       </div>
       <div>
-        <t-button class="mr10" :theme="'primary'" type="submit" @click="confirmModifyFields">
+        <t-button class="mr10" :theme="'primary'" :disabled="isLoading" type="submit" @click="confirmModifyFields">
           {{ $t('保存') }}
         </t-button>
         <t-button :theme="'default'" type="submit" @click="cancelModifyFields">
@@ -108,7 +111,7 @@
         </t-button>
       </div>
     </div>
-  </BklogLoading>
+  </div>
 </template>
 
 <script>
@@ -676,18 +679,18 @@ export default {
 
 .update-fields-setting {
   position: relative;
-  background: #ffffff;
-  border: 1px solid #dcdee5;
-  border-radius: 2px;
-  box-shadow: 0 2px 6px 0 #0000001a;
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
+  border-radius: var(--td-radius-small);
+  box-shadow: var(--td-shadow-1);
 
   .fields-container {
     display: flex;
 
     .fields-config-container {
       width: 150px;
-      background-color: #f5f7fa;
-      border-right: 1px solid #dcdee5;
+      background-color: var(--bklog-surface-subtle, var(--td-bg-color-secondarycontainer));
+      border-right: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
       %config-input-common {
         width: 100%;
       }
@@ -703,7 +706,7 @@ export default {
           align-items: center;
           column-gap: 12px;
           margin-top: 3px;
-          color: #3a84ff;
+          color: var(--td-brand-color);
           cursor: pointer;
 
           .config-btn {
@@ -745,13 +748,13 @@ export default {
               font-size: 18px;
               line-height: 28px;
               cursor: pointer;
-              background: #fafbfd;
-              border: 1px solid #dcdee5;
+              background: var(--td-bg-color-secondarycontainer);
+              border: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
               border-radius: 2px;
-              box-shadow: 0 1px 3px 1px #0000001f;
+              box-shadow: var(--td-shadow-1);
 
               &:hover {
-                background: #f0f1f5;
+                background: var(--td-bg-color-component-hover);
               }
             }
 
@@ -783,7 +786,6 @@ export default {
           float: none;
         }
 
-        :deep(.t-tabs__bar),
         :deep(.t-tabs__content),
         :deep(.t-tabs__nav-container::after) {
           display: none;
@@ -793,20 +795,7 @@ export default {
           width: 100%;
           height: 36px;
           padding: 0;
-          font-size: var(--bklog-font-body, 12px);
-          line-height: 36px;
-          color: var(--bklog-text-strong, #4d4f56);
           text-align: left;
-
-          &:hover {
-            background: var(--bklog-surface-component-hover, #eaebf0);
-          }
-
-          &.t-is-active {
-            color: var(--bklog-brand-primary, #3a84ff);
-            text-shadow: none;
-            background: var(--bklog-brand-tint, #e1ecff);
-          }
         }
 
         :deep(.t-tabs__nav-item-wrapper),
@@ -844,7 +833,7 @@ export default {
       margin-bottom: 8px;
       font-size: 14px;
       line-height: 22px;
-      color: #313238;
+      color: var(--td-text-color-primary);
     }
   }
 
@@ -855,8 +844,8 @@ export default {
     width: 100%;
     height: 51px;
     padding: 0 24px;
-    background-color: #fafbfd;
-    border-top: 1px solid #dcdee5;
+    background-color: var(--td-bg-color-secondarycontainer);
+    border-top: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
     border-radius: 0 0 2px 2px;
   }
 }

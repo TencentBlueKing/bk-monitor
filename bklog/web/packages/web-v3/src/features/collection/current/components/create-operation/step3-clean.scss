@@ -297,42 +297,7 @@
     }
 
     .clean-button-group {
-      display: inline-flex;
       vertical-align: middle;
-
-      .t-button {
-        height: 32px;
-        color: var(--bklog-text-secondary, #63656e);
-        background-color: var(--bklog-surface, #fff);
-        border: 1px solid var(--bklog-border-control, #c4c6cc);
-        border-radius: 0;
-        box-shadow: none;
-
-        + .t-button {
-          margin-left: -1px;
-        }
-
-        &:first-child {
-          border-radius: 2px 0 0 2px;
-        }
-
-        &:last-child {
-          border-radius: 0 2px 2px 0;
-        }
-
-        &:hover,
-        &:focus-visible,
-        &.is-selected {
-          position: relative;
-          z-index: var(--bklog-z-base);
-          color: var(--bklog-brand-primary, #3a84ff);
-          border-color: var(--bklog-brand-primary, #3a84ff);
-        }
-
-        &.is-selected {
-          background-color: var(--bklog-brand-tint, #e1ecff);
-        }
-      }
     }
 
     .clean-enable-row {

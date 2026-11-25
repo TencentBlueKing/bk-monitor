@@ -67,6 +67,7 @@
     <bk-exception
       v-if="applyData"
       type="building"
+      data-bklog-exception-layout="illustrated"
     >
       <div class="approval-text">
         <span>{{ $t('容量评估进行中') }}</span>

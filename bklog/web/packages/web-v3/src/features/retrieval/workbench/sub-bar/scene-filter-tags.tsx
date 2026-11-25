@@ -34,6 +34,7 @@ import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, w
 
 import { isEmptyFilterValue } from '@/app/state/helper';
 import { getOperatorDisplay, getDefaultOp } from '@/features/retrieval/workspace/search-bar/scene-filter/scene-config';
+import useLocale from '@/shared/composables/use-locale';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 import './scene-filter-tags.scss';
@@ -58,11 +59,12 @@ export default defineComponent({
   },
   setup(props) {
     const store = useApplicationStore();
+    const { t } = useLocale();
 
     const containerRef = ref<HTMLDivElement>();
     const measureRef = ref<HTMLDivElement>();
     const tipsPanelRef = ref<HTMLDivElement>();
-    const indicatorRef = ref<HTMLSpanElement>();
+    const indicatorRef = ref<HTMLButtonElement>();
 
     const visibleTags = ref<TagItem[]>([]);
     const hiddenCount = ref(0);
@@ -244,7 +246,7 @@ export default defineComponent({
       tippyInstance = tippy(indicatorRef.value as SingleTarget, {
         content: tipsPanelRef.value as HTMLElement,
         arrow: false,
-        theme: 'light',
+        theme: 'scene-filter-summary',
         placement: 'bottom-end',
         interactive: true,
         maxWidth: 'none',
@@ -369,15 +371,21 @@ export default defineComponent({
           ))}
 
           {hiddenCount.value > 0 && (
-            <span
+            <button
               ref={indicatorRef}
+              type='button'
+              aria-label={`${t('展开全部')} (+${hiddenCount.value})`}
+              onClick={() => tippyInstance?.show()}
+              onKeydown={(event: KeyboardEvent) => {
+                if (event.key === 'Escape') tippyInstance?.hide();
+              }}
               style={{
                 marginLeft: visibleTags.value.length > 0 ? `${TAG_GAP}px` : '0',
               }}
               class='tag-more-indicator'
             >
               +{hiddenCount.value}
-            </span>
+            </button>
           )}
         </div>
       );

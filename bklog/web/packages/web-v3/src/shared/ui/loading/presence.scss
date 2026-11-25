@@ -11,20 +11,32 @@
   pointer-events: none;
 }
 .bklog-navigation-skeleton {
+  --bklog-navigation-placeholder: var(--bklog-navigation-selector-surface, #303d55);
+  --bklog-navigation-placeholder-highlight: color-mix(
+    in srgb,
+    var(--bklog-navigation-placeholder),
+    var(--bklog-navigation-header-text, #a1aec7) 20%
+  );
+
   position: absolute;
   inset: 0;
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 24px;
-  background: #182132;
+  gap: var(--bklog-space-24);
+  background: var(--bklog-navigation-header-surface, #182132);
   pointer-events: auto;
   span {
     display: block;
     width: 72px;
     height: 18px;
-    border-radius: 2px;
-    background: linear-gradient(90deg, #2c3548 25%, #414c61 50%, #2c3548 75%);
+    border-radius: var(--bklog-radius-control);
+    background: linear-gradient(
+      90deg,
+      var(--bklog-navigation-placeholder) 25%,
+      var(--bklog-navigation-placeholder-highlight) 50%,
+      var(--bklog-navigation-placeholder) 75%
+    );
     background-size: 200% 100%;
     animation: bklog-nav-shimmer 1.4s ease infinite;
   }
@@ -36,5 +48,8 @@
   .bklog-skeleton-presence,
   .bklog-module-loading > .t-loading,
   .bklog-module-loading.t-loading { transition: none; }
-  .bklog-navigation-skeleton span { animation: none; }
+  .bklog-navigation-skeleton span {
+    background: var(--bklog-navigation-placeholder);
+    animation: none;
+  }
 }

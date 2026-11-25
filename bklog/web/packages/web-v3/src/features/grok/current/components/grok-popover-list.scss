@@ -9,15 +9,17 @@
 
 .grok-popover-list {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) 48px;
-  grid-template-columns: 400px 440px;
+  box-sizing: border-box;
+  grid-template-rows: minmax(0, 1fr) minmax(48px, auto);
+  grid-template-columns: minmax(0, 10fr) minmax(0, 11fr);
   width: 840px;
+  max-width: 100%;
   height: 520px;
   max-height: var(--grok-popover-max-height, 520px);
   overflow: hidden;
   font-size: 12px;
-  background: #fff;
-  border: 1px solid #DCDEE5;
+  background: var(--bklog-surface, var(--td-bg-color-container));
+  border: 1px solid var(--bklog-border-muted, var(--td-component-stroke));
   border-radius: 4px;
   box-shadow: 0 4px 12px 0 rgb(0 0 0 / 12%);
 
@@ -25,16 +27,16 @@
   .grok-popover-list-left {
     display: flex;
     flex-direction: column;
-    width: 400px;
+    min-width: 0;
     height: 100%;
-    border-right: 1px solid #DCDEE5;
+    border-right: 1px solid var(--bklog-border-muted, var(--td-component-stroke));
   }
 
   // 搜索框区域
   .grok-popover-search {
     flex-shrink: 0;
-    padding: 8px 12px;
-    border-bottom: 1px solid #DCDEE5;
+    padding: var(--bklog-space-8) var(--bklog-space-12);
+    border-bottom: 1px solid var(--bklog-border-muted, var(--td-component-stroke));
   }
 
   // 列表区域
@@ -61,35 +63,32 @@
   }
 
   .grok-popover-list-row {
-    // display: flex;
-    // align-items: center;
-    // height: 32px;
-    padding: 8px 16px;
-    color: #63656E;
+    padding: var(--bklog-space-8) var(--bklog-space-16);
+    color: var(--bklog-text-secondary, var(--td-text-color-secondary));
     cursor: pointer;
 
     &:hover {
-      background: #F5F7FA;
+      background: var(--bklog-surface-hover, var(--td-bg-color-component-hover));
     }
 
     &.active {
-      color: #3A84FF;
-      background: #EAF3FF;
+      color: var(--bklog-brand-primary, var(--td-brand-color));
+      background: var(--bklog-brand-tint, var(--td-brand-color-light));
     }
 
     .grok-popover-list-name {
       overflow: hidden;
       font-weight: 700;
-      line-height: 20px;
-      color: #313238;
+      line-height: var(--bklog-line-height-body);
+      color: var(--bklog-text-primary, var(--td-text-color-primary));
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     .grok-popover-list-description {
       overflow: hidden;
-      line-height: 20px;
-      color: #8e9bb3;
+      line-height: var(--bklog-line-height-body);
+      color: var(--bklog-text-secondary, var(--td-text-color-secondary));
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -102,15 +101,7 @@
     align-items: center;
     justify-content: center;
     padding: 12px 0;
-    color: #979BA5;
-  }
-
-  .grok-popover-list-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 0;
-    color: #979BA5;
+    color: var(--bklog-text-placeholder, var(--td-text-color-placeholder));
   }
 
   .grok-popover-list-no-more {
@@ -119,11 +110,11 @@
     justify-content: center;
     padding: 8px 0;
     font-size: 12px;
-    color: #C4C6CC;
+    color: var(--bklog-text-disabled, var(--td-text-color-disabled));
   }
 
   .grok-popover-list-skeleton {
-    padding: 8px 16px;
+    padding: var(--bklog-space-8) var(--bklog-space-16);
   }
 
   .grok-popover-list-more-skeleton {
@@ -132,10 +123,10 @@
 
   // ====== 右侧面板 440px ======
   .grok-popover-list-right {
-    width: 440px;
+    min-width: 0;
     height: 100%;
     overflow-y: auto;
-    background: #F5F7FA;
+    background: var(--bklog-surface-hover, var(--td-bg-color-component-hover));
   }
 
   .grok-popover-debug {
@@ -156,8 +147,8 @@
       font-size: 12px;
       font-style: normal;
       font-weight: 700;
-      line-height: 20px;
-      color: #313238;
+      line-height: var(--bklog-line-height-body);
+      color: var(--bklog-text-primary, var(--td-text-color-primary));
     }
 
     // 每个区块（定义/样例/输出结果）
@@ -173,30 +164,30 @@
     &-label {
       margin-bottom: 4px;
       font-size: 12px;
-      line-height: 20px;
-      color: #8E9BB3;
+      line-height: var(--bklog-line-height-body);
+      color: var(--bklog-text-secondary, var(--td-text-color-secondary));
     }
 
     // value 值
     &-value {
       font-size: 12px;
-      line-height: 20px;
-      color: #4D4F56;
+      line-height: var(--bklog-line-height-body);
+      color: var(--bklog-text-strong, var(--td-text-color-primary));
     }
 
     // 定义区域的 pattern 值
     &-pattern {
-      padding: 8px 12px;
+      padding: var(--bklog-space-8) var(--bklog-space-12);
       word-break: break-all;
-      // background: #F5F7FA;
+      // background: var(--bklog-surface-hover, var(--td-bg-color-component-hover));
       border-radius: 2px;
     }
 
     // 样例区域的值
     &-sample {
-      padding: 8px 12px;
+      padding: var(--bklog-space-8) var(--bklog-space-12);
       word-break: break-all;
-      // background: #F5F7FA;
+      // background: var(--bklog-surface-hover, var(--td-bg-color-component-hover));
       border-radius: 2px;
     }
 
@@ -208,7 +199,7 @@
       border: none;
 
       th, td {
-        padding: 8px 12px;
+        padding: var(--bklog-space-8) var(--bklog-space-12);
         font-size: 12px;
         text-align: left;
         border: none;
@@ -216,14 +207,14 @@
 
       th {
         font-weight: 400;
-        color: #8E9BB3;
+        color: var(--bklog-text-secondary, var(--td-text-color-secondary));
         background: transparent;
-        border-bottom: 1px solid #DCDEE5;
+        border-bottom: 1px solid var(--bklog-border-muted, var(--td-component-stroke));
       }
 
       td {
-        color: #4D4F56;
-        border-bottom: 1px solid #F0F1F5;
+        color: var(--bklog-text-strong, var(--td-text-color-primary));
+        border-bottom: 1px solid var(--bklog-panel-divider, var(--td-component-stroke));
       }
 
       tr:last-child td {
@@ -234,7 +225,7 @@
     &-field {
       flex-shrink: 0;
       width: 120px;
-      color: #4D4F56;
+      color: var(--bklog-text-strong, var(--td-text-color-primary));
     }
 
     &-skeleton {
@@ -252,7 +243,7 @@
       height: 100%;
       min-height: 100px;
       font-size: 12px;
-      color: #C4C6CC;
+      color: var(--bklog-text-disabled, var(--td-text-color-disabled));
     }
   }
 
@@ -262,11 +253,14 @@
     grid-column: 1 / -1;
     align-items: center;
     justify-content: space-between;
-    width: 100%;
-    height: 48px;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+    gap: var(--bklog-space-4) var(--bklog-space-8);
+    min-width: 0;
+    min-height: 48px;
     padding: 8px 24px 8px 16px;
-    background: var(--Neutral-10, #FAFBFD);
-    border-top: 1px solid var(--Neutral-6--, #DCDEE5);
+    background: var(--Neutral-10, var(--bklog-surface-disabled, var(--td-bg-color-secondarycontainer)));
+    border-top: 1px solid var(--Neutral-6--, var(--bklog-border-muted, var(--td-component-stroke)));
   }
 
   .grok-popover-list-shortcut {

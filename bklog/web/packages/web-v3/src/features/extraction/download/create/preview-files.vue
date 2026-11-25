@@ -75,87 +75,90 @@
       />
     </div>
     <div
-      v-loading="{ loading: isLoading, zIndex: 0 }"
       class="flex-box"
     >
-      <bk-table
-        ref="previewTable"
-        style="background-color: var(--bklog-surface, #fff)"
-        class="preview-scroll-table"
-        :data="filteredExplorerList"
-        :height="360"
-        reserve-selection
-        row-key="path"
-        @selection-change="handleSelect"
-      >
-        <bk-table-column
-          width="60"
-          :selectable="row => row.size !== '0'"
-          type="selection"
-        ></bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          :label="$t('文件名')"
-          :render-header="$renderHeader"
-          :sort-by="['path', 'mtime', 'size']"
-          min-width="400"
-          prop="path"
-          sortable
+      <management-list-loading :loading="isLoading">
+        <bk-table
+          ref="previewTable"
+          style="background-color: var(--bklog-surface, #fff)"
+          class="preview-scroll-table"
+          :data="filteredExplorerList"
+          :height="360"
+          reserve-selection
+          row-key="path"
+          @selection-change="handleSelect"
         >
-          <template #default="{ row }">
-            <div class="table-ceil-container">
-              <span
-                v-if="row.size === '0'"
-                v-log-overflow-tips
-                class="download-url-text"
-                @click="getExplorerList(row)"
+          <bk-table-column
+            width="60"
+            :selectable="row => row.size !== '0'"
+            type="selection"
+          ></bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('文件名')"
+            :render-header="$renderHeader"
+            :sort-by="['path', 'mtime', 'size']"
+            min-width="400"
+            prop="path"
+            sortable
+          >
+            <template #default="{ row }">
+              <div class="table-ceil-container">
+                <span
+                  v-if="row.size === '0'"
+                  v-log-overflow-tips
+                  class="download-url-text"
+                  @click="getExplorerList(row)"
+                >
+                  {{ row.path }}
+                </span>
+                <span
+                  v-else
+                  v-log-overflow-tips
+                  >{{ row.path }}</span
+                >
+              </div>
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            :label="$t('最后修改时间')"
+            :render-header="$renderHeader"
+            :sort-by="['mtime', 'path', 'size']"
+            min-width="40"
+            prop="mtime"
+            sortable
+          >
+          </bk-table-column>
+          <bk-table-column
+            :label="$t('文件大小')"
+            :render-header="$renderHeader"
+            :sort-by="['size', 'mtime', 'path']"
+            min-width="30"
+            prop="size"
+            sortable
+          >
+          </bk-table-column>
+          <template #empty>
+            <div class="bklog-table-empty-region">
+              <empty-status
+                :empty-type="emptyType"
+                @operation="handleOperation"
               >
-                {{ row.path }}
-              </span>
-              <span
-                v-else
-                v-log-overflow-tips
-                >{{ row.path }}</span
-              >
+                <div v-if="emptyType === 'search-empty'">
+                  {{ $t('可以尝试{0}或{1}', { 0: $t('调整预览地址'), 1: $t('调整文件日期') }) }}
+                </div>
+              </empty-status>
             </div>
           </template>
-        </bk-table-column>
-        <bk-table-column
-          :label="$t('最后修改时间')"
-          :render-header="$renderHeader"
-          :sort-by="['mtime', 'path', 'size']"
-          min-width="40"
-          prop="mtime"
-          sortable
-        >
-        </bk-table-column>
-        <bk-table-column
-          :label="$t('文件大小')"
-          :render-header="$renderHeader"
-          :sort-by="['size', 'mtime', 'path']"
-          min-width="30"
-          prop="size"
-          sortable
-        >
-        </bk-table-column>
-        <template #empty>
-          <div>
-            <empty-status
-              :empty-type="emptyType"
-              @operation="handleOperation"
-            >
-              <div v-if="emptyType === 'search-empty'">
-                {{ $t('可以尝试{0}或{1}', { 0: $t('调整预览地址'), 1: $t('调整文件日期') }) }}
-              </div>
-            </empty-status>
-          </div>
-        </template>
-      </bk-table>
+        </bk-table>
+      </management-list-loading>
     </div>
   </div>
 </template>
 
 <script>
+  import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
+
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
@@ -168,6 +171,7 @@ import { ServicesInstance } from '@/platform/services';
   emits: ["update:file-or-path","update:fileOrPath","checked"],
 
     components: {
+      ManagementListLoading,
       FileDatePicker,
       EmptyStatus,
     },

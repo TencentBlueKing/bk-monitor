@@ -11,10 +11,9 @@
   width: 100%;
   // margin-bottom: 8px;
   min-height: 40px;
-  background: #ffffff;
+  background: var(--td-bg-color-container);
   border-radius: 2px;
-  box-shadow: 0 2px 4px 0 #19192914;
-  box-shadow: 0 2px 4px 0 #19192914;
+  box-shadow: var(--td-shadow-1);
 }
 
 .grep-cli-left {
@@ -25,7 +24,7 @@
   width: calc(100% - 370px);
   height: 100%;
   min-height: 40px;
-  background-color: rgba(255, 232, 195, 0.4);
+  background-color: var(--td-warning-color-light);
   border-radius: 2px;
 
   &::after {
@@ -35,7 +34,7 @@
     bottom: 0;
     width: 4px;
     content: '';
-    background: #f5f7fa;
+    background: var(--td-bg-color-container-hover);
     transform: translateX(100%);
   }
 
@@ -45,7 +44,7 @@
     padding-left: 6px;
     // margin-right: 8px;
     font-size: 12px;
-    color: #979ba5;
+    color: var(--td-text-color-placeholder);
   }
 
   .grep-cli-editor {
@@ -54,8 +53,8 @@
     height: 100%;
     min-height: 40px;
     padding-top: 6px;
-    background-color: #fff;
-    border-left: solid 1px #eaebf0;
+    background-color: var(--td-bg-color-container);
+    border-left: solid 1px var(--td-component-stroke);
   }
 }
 
@@ -106,7 +105,7 @@
   align-items: center;
   width: 100%;
   height: 28px;
-  background: #f0f1f5;
+  background: var(--td-bg-color-component);
   border-radius: 2px;
 
   .grep-cli-search-input {
@@ -118,7 +117,7 @@
         font-size: 12px;
         line-height: 26px;
         background-color: transparent;
-        border-color: #f0f1f5;
+        border-color: var(--td-bg-color-component);
         border-radius: 2px;
       }
     }
@@ -138,15 +137,15 @@
 
     &.success {
       font-weight: 500;
-      color: #313238;
+      color: var(--td-text-color-primary);
     }
 
     &.no-result {
-      color: #c4c6cc;
+      color: var(--td-text-color-disabled);
     }
 
     &.placeholder {
-      color: #c4c6cc;
+      color: var(--td-text-color-disabled);
     }
   }
 
@@ -163,31 +162,31 @@
     width: 20px;
     height: 20px;
     font-size: 12px;
-    color: #4d4f56;
+    color: var(--td-text-color-secondary);
     cursor: pointer;
     user-select: none;
-    background: #ffffff;
-    border: 1px solid #dcdee5;
+    background: var(--td-bg-color-container);
+    border: 1px solid var(--td-component-stroke);
     border-radius: 2px;
     transition: all 0.2s ease;
 
     &:hover:not(.disabled) {
-      color: #3a84ff;
-      border-color: #3a84ff;
+      color: var(--td-brand-color);
+      border-color: var(--td-brand-color);
     }
 
     &:active:not(.disabled) {
-      background: #f0f5ff;
+      background: var(--td-brand-color-light);
     }
 
     &.disabled {
-      color: #c4c6cc;
+      color: var(--td-text-color-disabled);
       cursor: not-allowed;
-      border-color: #dcdee5;
+      border-color: var(--td-component-stroke);
 
       &:hover {
-        color: #c4c6cc;
-        border-color: #dcdee5;
+        color: var(--td-text-color-disabled);
+        border-color: var(--td-component-stroke);
       }
     }
   }
@@ -199,7 +198,7 @@
   gap: 8px;
   align-items: center;
   padding: 6px;
-  background: #f5f7fa;
+  background: var(--td-bg-color-container-hover);
   border-radius: 4px;
 
   .grep-cli-search-input {
@@ -212,8 +211,8 @@
         border-color: transparent;
 
         &:focus {
-          background-color: #ffffff;
-          border-color: #3a84ff;
+          background-color: var(--td-bg-color-container);
+          border-color: var(--td-brand-color);
         }
       }
     }
@@ -230,15 +229,15 @@
     font-size: 12px;
 
     &.success {
-      color: #2dcb56;
+      color: var(--td-success-color);
     }
 
     &.no-result {
-      color: #ea3636;
+      color: var(--td-error-color);
     }
 
     &.placeholder {
-      color: #c4c6cc;
+      color: var(--td-text-color-disabled);
     }
   }
 }
@@ -247,7 +246,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  background: #f0f1f5;
+  background: var(--td-bg-color-component);
 
   .bk-input-text {
     input {
@@ -259,7 +258,7 @@
   .grep-cli-tool-btn {
     padding: 4px 8px;
     cursor: pointer;
-    background: #f0f0f0;
+    background: var(--td-bg-color-component-hover);
     border: none;
     border-radius: 2px;
   }
@@ -267,21 +266,7 @@
 
 .grep-cli-no-result {
   margin-left: 16px;
-  color: #999;
-}
-
-// 添加 mark.js 高亮样式
-:deep(.mark) {
-  padding: 0 2px;
-  font-weight: 500;
-  color: #000;
-  background-color: #ffe58f;
-  border-radius: 2px;
-}
-
-:deep(.mark.current) {
-  background-color: #ffd666;
-  box-shadow: 0 0 0 2px #ffd666;
+  color: var(--td-text-color-secondary);
 }
 
 .grep-view {
@@ -291,7 +276,7 @@
   width: 100%;
   height: 100%;
   border-radius: 2px;
-  box-shadow: 0 2px 4px 0 #19192914;
+  box-shadow: var(--td-shadow-1);
 }
 
 .cli-result-line {
@@ -302,13 +287,13 @@
   font-family: monospace;
   font-size: 12px;
   line-height: 1.5;
-  color: #313238;
+  color: var(--td-text-color-primary);
 }
 
 .cli-result-line-number {
   flex-shrink: 0;
   width: 42px;
-  color: #979ba5;
+  color: var(--td-text-color-placeholder);
   text-align: right;
   user-select: none;
 }
@@ -327,7 +312,7 @@
   overflow-y: auto;
   word-break: break-word;
   white-space: pre-wrap;
-  background: #fafbfd;
+  background: var(--td-bg-color-container-hover);
   border-radius: 2px;
   scroll-behavior: smooth;
 }
@@ -345,8 +330,8 @@
   padding: 4px 8px;
   margin-left: 8px;
   font-size: 12px;
-  color: #979ba5;
-  background: #f0f1f5;
+  color: var(--td-text-color-placeholder);
+  background: var(--td-bg-color-component);
   border-radius: 2px;
 }
 

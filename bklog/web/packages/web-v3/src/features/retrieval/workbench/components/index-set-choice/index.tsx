@@ -42,6 +42,7 @@ import './index.scss';
 
 export default defineComponent({
   props: {
+    indexSetLoading: Boolean,
     height: {
       type: Number,
       default: 32,
@@ -268,6 +269,7 @@ export default defineComponent({
                   style={contentStyleVar.value}
                   activeId={props.activeTab}
                   list={props.indexSetList}
+                  loading={props.indexSetLoading}
                   spaceUid={props.spaceUid}
                   type={props.activeType}
                   value={selectedValues.value}

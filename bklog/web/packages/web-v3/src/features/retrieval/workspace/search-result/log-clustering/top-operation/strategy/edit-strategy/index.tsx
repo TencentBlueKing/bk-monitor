@@ -25,6 +25,7 @@
  */
 
 
+import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -248,7 +249,7 @@ export default defineComponent({
       >
         <bk-form
           ref={strategyFromRef}
-          v-loading={{ loading: formLoading.value }}
+          v-loading={{ loading: formLoading.value, indicator: renderDrawerFormSkeleton }}
           form-type='vertical'
           {...{
             ...{

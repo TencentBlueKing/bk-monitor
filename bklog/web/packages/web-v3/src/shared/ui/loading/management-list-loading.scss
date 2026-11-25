@@ -1,7 +1,12 @@
 .management-list-loading {
+  --bklog-skeleton-cell-inset: var(--bklog-space-16);
   position: relative;
   width: 100%;
   min-width: 0;
+
+  &:has(.t-table:is(.t-size-s, [data-bklog-density='mini'])) {
+    --bklog-skeleton-cell-inset: var(--bklog-space-12);
+  }
 
   &.is-loading {
     // The row skeleton replaces a table's default central indicator only here.
@@ -19,12 +24,12 @@
   z-index: var(--bklog-z-local, 1);
   max-width: 100%;
   overflow: hidden;
-  background: #fff;
+  background: var(--bklog-surface, var(--td-bg-color-container));
   cursor: progress;
 
   &__row {
     display: grid;
-    border-bottom: 1px solid #dcdee5;
+    border-bottom: var(--bklog-border-width) solid var(--bklog-standard-control-border-disabled, var(--td-component-stroke));
     box-sizing: border-box;
   }
 
@@ -32,7 +37,7 @@
     display: flex;
     align-items: center;
     min-width: 0;
-    padding: 0 16px;
+    padding-inline: var(--bklog-skeleton-cell-inset);
     overflow: hidden;
     box-sizing: border-box;
   }

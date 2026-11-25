@@ -46,9 +46,7 @@
   }
   .t-dialog__header {
     height: 53px;
-    padding: 16px 24px 8px;
-    font-size: 20px;
-    line-height: 29px;
+    padding: var(--bklog-space-16) var(--bklog-space-24) var(--bklog-space-8);
   }
   .t-dialog__body {
     padding: 3px 24px 24px;
@@ -60,12 +58,6 @@
   }
   .t-dialog__footer .t-button {
     min-width: 86px;
-  }
-  .t-dialog__close {
-    top: 5px;
-    right: 5px;
-    width: 26px;
-    height: 26px;
   }
   .t-textarea__inner {
     padding: 5px 10px;

@@ -98,23 +98,9 @@
           margin: 0 2px;
         }
       }
-      .bk-button-group {
-        display: inline-flex;
-        .t-button {
-          width: 120px;
-          font-size: var(--bklog-font-body, 12px);
-          background: var(--bklog-surface, #fff);
-          border-color: var(--bklog-border-control, #c4c6cc);
-          color: var(--bklog-text-strong, #4d4f56);
-          cursor: pointer;
-          &.is-selected {
-            position: relative;
-            z-index: var(--bklog-z-base);
-            background: var(--bklog-surface, #fff);
-            border-color: var(--bklog-brand-primary, #3a84ff);
-            color: var(--bklog-brand-primary, #3a84ff);
-          }
-        }
+      .bk-button-group > .t-button {
+        width: 120px;
+        font-size: var(--bklog-font-body);
       }
       .line-rule {
         width: 100%;

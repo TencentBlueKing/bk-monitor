@@ -1,3 +1,5 @@
+@use '@/shared/styles/theme/components/contracts' as bklogControls;
+
 .log-table {
   .name-button {
     justify-content: flex-start;
@@ -37,29 +39,27 @@
       margin-right: 7px;
 
       .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
+        @include bklogControls.execution-status-dot;
       }
 
       .status-failed {
-        background: #FFDDDD;
-        border: 1px solid #EA3636;
+        background: var(--bklog-message-error-surface);
+        border-color: var(--bklog-status-error);
       }
 
       .status-success {
-        background: #CBF0DA;
-        border: 1px solid #2CAF5E;
+        background: var(--bklog-message-success-surface);
+        border-color: var(--bklog-status-success);
       }
 
       .status-pending {
-        background: #FCE5C0;
-        border: 1px solid #F59500;
+        background: var(--bklog-alert-warning-surface);
+        border-color: var(--bklog-status-warning-accent);
       }
 
       .status-stopped {
-        background: #F0F1F5;
-        border: 1px solid #C4C6CC;
+        background: var(--bklog-option-surface-hover);
+        border-color: var(--bklog-standard-control-border);
       }
     }
   }

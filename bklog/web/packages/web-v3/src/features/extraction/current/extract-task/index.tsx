@@ -30,6 +30,7 @@ import { defineComponent, ref, computed, watch, onMounted } from 'vue';
 
 import useRoute from '@/shared/composables/use-route';
 import useRouter from '@/shared/composables/use-router';
+import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 
 
 import './index.scss';
@@ -41,18 +42,16 @@ export default defineComponent({
     const router = useRouter();
     const route = useRoute();
 
-    const isRender = ref(true);
     const isLoading = ref(false);
 
     const bkBizId = computed(() => store.bkBizId);
 
-    watch(bkBizId, () => {
+    watch(bkBizId, (_, __, onCleanup) => {
       isLoading.value = true;
-      isRender.value = false;
-      setTimeout(() => {
-        isRender.value = true;
+      const timer = setTimeout(() => {
         isLoading.value = false;
       }, 400);
+      onCleanup(() => clearTimeout(timer));
     });
 
     onMounted(() => {
@@ -68,16 +67,21 @@ export default defineComponent({
       });
     });
 
+    const isFormPage = computed(() => ['extract-create', 'extract-clone'].includes(String(route.name)));
+
     return () => (
       <div
         class={[
           'log-extract-container',
           {
-            'log-extract-create-page': ['extract-create', 'extract-clone'].includes(String(route.name)),
+            'log-extract-create-page': isFormPage.value,
             'log-extract-list-page': route.name === 'extract-home',
           },
         ]}
-        v-loading={{ loading: isLoading.value }}
+        v-loading={{
+          loading: isLoading.value && isFormPage.value,
+          indicator: renderDrawerInlineFormSkeleton,
+        }}
       >
         <router-view />
       </div>

@@ -20,21 +20,21 @@
 
     .origin-tag {
       display: inline-block;
-      padding: 0 8px;
-      font-size: 12px;
-      line-height: 22px;
+      padding-inline: var(--bklog-space-8);
+      font-size: var(--bklog-font-body);
+      line-height: var(--bklog-line-height-action);
       cursor: default;
-      border-radius: 2px;
+      border-radius: var(--bklog-standard-control-radius);
     }
 
     .origin-builtin {
-      color: #717C8F;
-      background: #F0F2F7;
+      color: var(--bklog-standard-control-text, var(--td-text-color-secondary));
+      background: var(--bklog-surface-subtle, var(--td-bg-color-secondarycontainer));
     }
 
     .origin-custom {
-      color: #3A84FF;
-      background: #F0F5FF;
+      color: var(--bklog-brand-active, var(--td-brand-color));
+      background: var(--bklog-brand-tint, var(--td-brand-color-light));
     }
   }
 
@@ -42,12 +42,6 @@
     display: flex;
     align-items: center;
 
-    .king-button {
-      margin-right: 16px;
-
-      &:last-child {
-        margin-right: 0;
-      }
-    }
+    gap: var(--bklog-space-16);
   }
 }

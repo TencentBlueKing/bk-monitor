@@ -478,15 +478,15 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
 <style lang="scss" scoped>
   .expand-view-wrapper {
     width: 100%;
-    color: #313238;
-    background-color: #f5f7fa;
+    color: var(--td-text-color-primary);
+    background-color: var(--td-bg-color-secondarycontainer);
 
     .view-tab {
       display: flex;
       justify-content: space-between;
       padding-right: 15px;
       font-size: 0;
-      background-color: #f5f7fa;
+      background-color: var(--td-bg-color-secondarycontainer);
 
       .tab-left {
         span {
@@ -495,7 +495,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
           height: 23px;
           font-size: 12px;
           line-height: 23px;
-          color: #313238;
+          color: var(--td-text-color-primary);
           text-align: center;
           cursor: pointer;
 
@@ -519,7 +519,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
             width: 17px;
             height: 2px;
             content: ''; /* 必须有content属性，即使为空 */
-            background-color: #313238; /* 红色横线 */
+            background-color: var(--td-text-color-primary); /* 红色横线 */
           }
 
           &.activeJson::after {
@@ -529,7 +529,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
             width: 30px;
             height: 2px;
             content: ''; /* 必须有content属性，即使为空 */
-            background-color: #313238; /* 红色横线 */
+            background-color: var(--td-text-color-primary); /* 红色横线 */
           }
         }
       }
@@ -549,10 +549,10 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
             height: 22px;
             min-height: 0;
             padding: 0;
-            background: var(--bklog-surface-hover, #f5f7fa);
+            background: var(--td-bg-color-secondarycontainer);
             border: 0;
             border-radius: 0;
-            box-shadow: inset 0 -1px #c4c6cc;
+            box-shadow: inset 0 -1px var(--td-component-stroke);
           }
 
           :deep(.t-input__inner) {
@@ -583,7 +583,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
           width: 16px;
           height: 22px;
           padding: 0;
-          color: #979ba5;
+          color: var(--td-text-color-placeholder);
           cursor: pointer;
           background: transparent;
           border: 0;
@@ -591,11 +591,11 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
 
         .bklog-icon {
           font-size: 16px;
-          color: #63656e;
+          color: var(--td-text-color-secondary);
           cursor: pointer;
 
           &:hover {
-            color: #3a84ff;
+            color: var(--td-text-color-link);
           }
         }
       }
@@ -603,7 +603,7 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
 
     .view-content {
       padding: 2px 15px 14px 15px;
-      background-color: #f5f7fa;
+      background-color: var(--td-bg-color-secondarycontainer);
 
       :deep(.vjs-tree) {
         /* stylelint-disable-next-line declaration-no-important */
@@ -635,19 +635,19 @@ import { SearchIcon } from 'tdesign-icons-vue-next';
     .vjs-tree-brackets,
     .vjs-key {
       /* stylelint-disable-next-line declaration-no-important */
-      color: #9d694c !important;
+      color: var(--td-warning-color-7) !important;
     }
 
     .vjs-value-string {
-      color: #357a94;
+      color: var(--td-brand-color-9);
     }
 
     .vjs-value-number {
-      color: #2caf5e;
+      color: var(--td-success-color-7);
     }
 
     .vjs-indent-unit.has-line {
-      border-left: 1px solid #bfcbd9;
+      border-left: 1px solid var(--td-component-stroke);
     }
   }
 </style>

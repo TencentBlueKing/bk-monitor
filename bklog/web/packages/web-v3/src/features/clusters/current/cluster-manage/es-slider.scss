@@ -268,7 +268,7 @@
   flex-shrink: 0;
   gap: 10px;
   padding: 8px 20px;
-  background: var(--bklog-surface-disabled, #fafbfd);
+  background: var(--bklog-standard-control-surface-disabled, #fafbfd);
 
   > .t-button + .t-button {
     margin-left: 0;

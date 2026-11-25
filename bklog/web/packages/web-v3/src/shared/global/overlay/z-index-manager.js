@@ -149,14 +149,18 @@ const publishLayerVariables = (win, layers = Z_INDEX_LAYERS) => {
 const installOverlayWatcher = (win, manager) => {
   if (!win.document?.body || win.__bk_zIndex_watcher) return;
   const seen = new WeakSet();
+  const ownsOverlay = el => {
+    const traceBuild = typeof __BKLOG_TRACE_EMBEDDED__ !== 'undefined' && __BKLOG_TRACE_EMBEDDED__;
+    return !(traceBuild || win.__IS_MONITOR_TRACE__) || el.closest('.monitor-trace-log, .bklog-text-tooltip') !== null;
+  };
   const assignPopup = (el) => {
-    if (seen.has(el) || el.style.zIndex) return;
+    if (!ownsOverlay(el) || seen.has(el) || el.style.zIndex) return;
     seen.add(el);
     const zIndex = manager.nextZIndex();
     win.document.documentElement.style.setProperty('--bklog-z-popup', String(zIndex));
   };
   const assignMessage = (el) => {
-    if (seen.has(el)) return;
+    if (!ownsOverlay(el) || seen.has(el)) return;
     seen.add(el);
     const zIndex = manager.nextMessageZIndex();
     el.style.zIndex = String(zIndex);

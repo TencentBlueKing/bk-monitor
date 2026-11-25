@@ -485,11 +485,11 @@ export default defineComponent({
       <TLoading
         class='operation-step2-custom-report-loading'
         data-testid='collection-custom-report-loading'
-        loading={loading.value}
+        loading={loading.value || submitLoading.value}
         indicator={renderCollectionFormSkeleton}
         showOverlay
         size='large'
-        zIndex={Z_INDEX_LAYERS.PAGE}
+        zIndex={Z_INDEX_LAYERS.PAGE_TOP}
       >
         <div class='operation-step2-custom-report'>
           {cardRender(cardConfig.value)}
@@ -507,7 +507,6 @@ export default defineComponent({
             <TButton
               class='width-88 mr-8'
               theme='primary'
-              loading={submitLoading.value}
               onClick={() => {
                 baseInfoRef.value
                   .validate()
@@ -525,7 +524,6 @@ export default defineComponent({
               <TButton
                 class='width-88 mr-8'
                 theme='primary'
-                loading={submitLoading.value}
                 onClick={() => {
                   handleSubmitSave({ action: 'back' });
                 }}

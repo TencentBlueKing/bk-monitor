@@ -61,7 +61,7 @@ export default defineComponent({
         <span class='dialog-title'>{t(props.title)}</span>
         {!props.targetFields.length ? (
           <div class='subtitle-list-main title-overflow'>
-            <div class='subtitle-main'>
+            <div class='subtitle-main subtitle-main--address'>
               <div class='title'>IP： </div>
               <div class='content title-overflow'>{props.paramsInfo.ip || props.paramsInfo.serverIp}</div>
             </div>

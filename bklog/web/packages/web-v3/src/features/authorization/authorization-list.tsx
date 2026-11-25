@@ -35,7 +35,7 @@ import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import BizMenuSelect from '@/shared/global/bk-space-choice/index';
-import { Checkbox, CheckboxGroup, Select, Option, Input, Popup, Table } from 'tdesign-vue-next';
+import { Checkbox, CheckboxGroup, Select, Option, Input, Popup, Skeleton, Table } from 'tdesign-vue-next';
 import { SearchIcon, SettingIcon } from 'tdesign-icons-vue-next';
 import { allocateOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
 import type { CheckboxGroupValue, FilterValue, PageInfo, PrimaryTableCol, SortInfo, TableSort } from 'tdesign-vue-next';
@@ -43,6 +43,7 @@ import dayjs from 'dayjs';
 
 import * as authorityMap from '../../shared/lib/authority-map';
 import EmptyStatus from '../../shared/ui/empty-status/index.vue';
+import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import AuthorizationDialog from './authorization-dialog';
 
 import './authorization-list.scss';
@@ -123,15 +124,15 @@ export const STATUS_LIST = [
   {
     id: 'available',
     name: $i18n.t('生效'),
-    color1: '#3FC06D',
-    color2: '#3FC06D29',
+    color1: 'var(--bklog-status-success)',
+    color2: 'var(--bklog-status-success-ring)',
     show: ['user', 'resource'],
   },
-  { id: 'success', name: $i18n.t('审批成功'), color1: '#3FC06D', color2: '#3FC06D29', show: ['approval'] },
-  { id: 'approval', name: $i18n.t('审批中'), color1: '#FF9C01', color2: '#FF9C0129', show: ['approval'] },
-  { id: 'expired', name: $i18n.t('过期'), color1: '#979BA5', color2: '#979BA529', show: ['user', 'resource'] },
-  { id: 'invalid', name: $i18n.t('失效'), color1: '#EA3636', color2: '#EA363629', show: ['user', 'resource'] },
-  { id: 'failed', name: $i18n.t('审批失败'), color1: '#EA3636', color2: '#EA363629', show: ['approval'] },
+  { id: 'success', name: $i18n.t('审批成功'), color1: 'var(--bklog-status-success)', color2: 'var(--bklog-status-success-ring)', show: ['approval'] },
+  { id: 'approval', name: $i18n.t('审批中'), color1: 'var(--bklog-status-warning-accent)', color2: 'var(--bklog-status-warning-ring)', show: ['approval'] },
+  { id: 'expired', name: $i18n.t('过期'), color1: 'var(--bklog-standard-control-border)', color2: 'var(--bklog-standard-control-border)', show: ['user', 'resource'] },
+  { id: 'invalid', name: $i18n.t('失效'), color1: 'var(--bklog-status-error)', color2: 'var(--bklog-status-error-ring)', show: ['user', 'resource'] },
+  { id: 'failed', name: $i18n.t('审批失败'), color1: 'var(--bklog-status-error)', color2: 'var(--bklog-status-error-ring)', show: ['approval'] },
 ];
 
 export const ACTION_MAP = {
@@ -893,12 +894,15 @@ export default class AuthorizationList extends tsc<object> {
       );
     }
     if (prop === TableColumnEnum.resources || prop === TableColumnEnum.resource_id) {
+      if (this.resourcesLoading) {
+        return <Skeleton animation='gradient' rowCol={[{ type: 'text', width: '70%' }]} />;
+      }
       const resourceList = this.resourceMaps[row.action_id] || [];
       const resourceName = (id: ResourceId | undefined) => resourceList.find(item => item.id === id || item.uid === id)?.text;
       if (prop === TableColumnEnum.resources) {
         const resources = row.resources;
         return (
-          <div v-loading={{ loading: this.resourcesLoading }}>
+          <div>
             {resources?.map((id, index) => index < 3 || row.isExpand ? (
               <div key={id} class='resource-item'>{resourceName(id)}</div>
             ) : undefined)}
@@ -911,9 +915,7 @@ export default class AuthorizationList extends tsc<object> {
         );
       }
       return (
-        <div v-loading={{ loading: this.resourcesLoading }}>
-          <div>{resourceName(row.resource_id)}</div>
-        </div>
+        <div>{resourceName(row.resource_id)}</div>
       );
     }
     if (prop === TableColumnEnum.action_id) {
@@ -957,7 +959,7 @@ export default class AuthorizationList extends tsc<object> {
   /**
    *
    * @param color1 状态点颜色
-   * @param color2 状态文字颜色
+   * @param color2 状态点外圈颜色
    * @returns 状态点
    */
   statusPoint(color1: string | undefined, color2: string | undefined) {
@@ -1189,21 +1191,21 @@ export default class AuthorizationList extends tsc<object> {
               </div>
             </div>
 
-            <div class='table-wrapper'>
+            <ManagementListLoading class='table-wrapper' loading={this.loading}>
               <Table
                 v-slots={{
                   empty: () => (
-                    <EmptyStatus
-                      emptyType={this.emptyStatusType}
-                      onOperation={this.emptyOperation}
-                    />
+                    <div class='bklog-table-empty-region'>
+                      {!this.loading && (
+                        <EmptyStatus emptyType={this.emptyStatusType} onOperation={this.emptyOperation} />
+                      )}
+                    </div>
                   ),
                 }}
                 key={this.angleType}
                 rowKey='rowKey'
                 columns={this.nativeColumns}
                 displayColumns={this.displayColumns}
-                loading={this.loading}
                 data={this.listData}
                 disableDataPage
                 filterValue={this.columnFilters}
@@ -1216,7 +1218,7 @@ export default class AuthorizationList extends tsc<object> {
                 onPageChange={this.handlePageChange}
                 onSortChange={this.handleSortChange}
               />
-            </div>
+            </ManagementListLoading>
           </div>
         </div>
 

@@ -29,14 +29,16 @@ export interface SceneEmptyViewInput {
   isSceneFilterEmpty: boolean;
   isFieldListFetched: boolean;
   isFieldListEmpty: boolean;
+  hasFieldRequestError: boolean;
   isSceneLoading: boolean;
 }
 
 export interface SceneEmptyView {
   showSceneEmptyTip: boolean;
   showFieldEmptyTip: boolean;
+  showFieldErrorTip: boolean;
   hideSearchResult: boolean;
-  sceneEmptyTipLoading: boolean;
+  showResultSkeleton: boolean;
 }
 
 export interface EmptySceneRouteActionInput {
@@ -46,13 +48,17 @@ export interface EmptySceneRouteActionInput {
 
 /** 场景化检索结果区空态：未过滤不转圈，已过滤才进入字段 loading / 未匹配 */
 export const resolveSceneEmptyView = (input: SceneEmptyViewInput): SceneEmptyView => {
-  const { isSceneMode, isSceneFilterEmpty, isFieldListFetched, isFieldListEmpty, isSceneLoading } = input;
+  const { isSceneMode, isSceneFilterEmpty, isFieldListFetched, isFieldListEmpty, hasFieldRequestError, isSceneLoading } = input;
+
+  const canShowFieldState = isSceneMode && !isSceneFilterEmpty && isFieldListFetched && !isSceneLoading;
+  const needsFields = !isFieldListFetched || isFieldListEmpty || hasFieldRequestError;
 
   return {
-    showSceneEmptyTip: isSceneMode && (isSceneFilterEmpty || !isFieldListFetched),
-    showFieldEmptyTip: isSceneMode && !isSceneFilterEmpty && isFieldListEmpty,
-    hideSearchResult: isSceneMode && (isSceneFilterEmpty || !isFieldListFetched || isFieldListEmpty),
-    sceneEmptyTipLoading: isSceneLoading && !isSceneFilterEmpty,
+    showSceneEmptyTip: isSceneMode && isSceneFilterEmpty,
+    showFieldEmptyTip: canShowFieldState && isFieldListEmpty && !hasFieldRequestError,
+    showFieldErrorTip: canShowFieldState && hasFieldRequestError,
+    hideSearchResult: isSceneMode && (isSceneFilterEmpty || needsFields),
+    showResultSkeleton: isSceneMode && !isSceneFilterEmpty && needsFields && isSceneLoading,
   };
 };
 

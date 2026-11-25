@@ -222,6 +222,7 @@ export default defineComponent({
                 <div class='rule-operate-main'>
                   <div class='operate-btns'>
                     <bk-dropdown-menu
+                      overlayInnerClassName='bklog-dropdown-popup'
                       v-slots={{
                         'dropdown-trigger': () => (
                           <div>

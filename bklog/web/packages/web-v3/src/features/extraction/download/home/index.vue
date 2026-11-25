@@ -26,7 +26,6 @@
 
 <template>
   <div
-    v-loading="{ loading: isLoading }"
     class="main-container"
     data-test-id="logExtraction_div_fromBox"
   >
@@ -52,149 +51,154 @@
       >
       </bk-input>
     </div>
-    <bk-table
-      class="king-table"
-      :data="taskList"
-      :pagination="pagination"
-      data-test-id="fromBox_table_tableBox"
-      @page-change="handlePageChange"
-      @page-limit-change="handlePageLimitChange"
-    >
-      <bk-table-column
-        native-cell-slot
-        :label="$t('文件来源主机')"
-        :render-header="$renderHeader"
-        min-width="140"
+    <management-list-loading :loading="isLoading">
+      <bk-table
+        class="king-table"
+        :data="taskList"
+        :pagination="pagination"
+        data-test-id="fromBox_table_tableBox"
+        @page-change="handlePageChange"
+        @page-limit-change="handlePageLimitChange"
       >
-        <template #default="{ row }">
-          <div class="table-ceil-container">
-            <span v-log-overflow-tips>{{ getShowIpList(row) }}</span>
-          </div>
-        </template>
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        :label="$t('文件')"
-        :render-header="$renderHeader"
-        min-width="240"
-      >
-        <template #default="{ row }">
-          <div class="table-ceil-container">
-            <span v-log-overflow-tips>{{ row.file_path.join('; ') }}</span>
-          </div>
-        </template>
-      </bk-table-column>
-      <bk-table-column
-        :label="$t('创建时间')"
-        :render-header="$renderHeader"
-        min-width="120"
-        prop="created_at"
-      >
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        :label="$t('备注')"
-        :render-header="$renderHeader"
-        min-width="120"
-      >
-        <template #default="{ row }">
-          <div class="table-ceil-container">
-            <span v-log-overflow-tips>{{ row.remark || '--' }}</span>
-          </div>
-        </template>
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        :label="$t('创建人')"
-        :render-header="$renderHeader"
-        min-width="100"
-        prop="created_by"
-      >
-        <template #default="{ row }">
-          <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
-        </template>
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        :label="$t('任务状态')"
-        :render-header="$renderHeader"
-        min-width="120"
-      >
-        <template #default="{ row }">
-          <div
-            :class="{
-              'task-status-warning': true,
-              'task-status-success': row.download_status === 'downloadable' || row.download_status === 'redownloadable',
-              'task-status-error': row.download_status === 'expired' || row.download_status === 'failed',
-            }"
-          >
-            <span
-              v-if="!notLoadingStatus.includes(row.download_status)"
-              class="bk-icon icon-refresh"
-            ></span>
-            <span>{{ row.download_status_display }}</span>
-            <span
-              v-if="row.download_status === 'failed'"
-              v-log-tooltip="{
-                disabled: !row.task_process_info,
-                content: row.task_process_info,
+        <bk-table-column
+          native-cell-slot
+          :label="$t('文件来源主机')"
+          :render-header="$renderHeader"
+          min-width="140"
+        >
+          <template #default="{ row }">
+            <div class="table-ceil-container">
+              <span v-log-overflow-tips>{{ getShowIpList(row) }}</span>
+            </div>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('文件')"
+          :render-header="$renderHeader"
+          min-width="240"
+        >
+          <template #default="{ row }">
+            <div class="table-ceil-container">
+              <span v-log-overflow-tips>{{ row.file_path.join('; ') }}</span>
+            </div>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          :label="$t('创建时间')"
+          :render-header="$renderHeader"
+          min-width="120"
+          prop="created_at"
+        >
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('备注')"
+          :render-header="$renderHeader"
+          min-width="120"
+        >
+          <template #default="{ row }">
+            <div class="table-ceil-container">
+              <span v-log-overflow-tips>{{ row.remark || '--' }}</span>
+            </div>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('创建人')"
+          :render-header="$renderHeader"
+          min-width="100"
+          prop="created_by"
+        >
+          <template #default="{ row }">
+            <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          :label="$t('任务状态')"
+          :render-header="$renderHeader"
+          min-width="120"
+        >
+          <template #default="{ row }">
+            <div
+              :class="{
+                'task-status-warning': true,
+                'task-status-success': row.download_status === 'downloadable' || row.download_status === 'redownloadable',
+                'task-status-error': row.download_status === 'expired' || row.download_status === 'failed',
               }"
-              class="bklog-icon bklog-info-fill"
+            >
+              <span
+                v-if="!notLoadingStatus.includes(row.download_status)"
+                class="bk-icon icon-refresh"
+              ></span>
+              <span>{{ row.download_status_display }}</span>
+              <span
+                v-if="row.download_status === 'failed'"
+                v-log-tooltip="{
+                  disabled: !row.task_process_info,
+                  content: row.task_process_info,
+                }"
+                class="bklog-icon bklog-info-fill"
+              />
+            </div>
+          </template>
+        </bk-table-column>
+        <bk-table-column
+          native-cell-slot
+          width="200"
+          :label="$t('操作')"
+          :render-header="$renderHeader"
+        >
+          <template #default="{ row }">
+            <div class="task-operation-container">
+              <span
+                class="task-operation"
+                @click="viewDetail(row)"
+                >{{ $t('详情') }}</span
+              >
+              <span
+                v-log-tooltip.top="{
+                  content: row.message,
+                  disabled: row.enable_clone,
+                  delay: 500,
+                }"
+                :class="['task-operation', !row.enable_clone && 'cannot-click']"
+                text
+                @click="cloneTask(row)"
+              >
+                {{ $t('克隆') }}
+              </span>
+              <span
+                v-if="row.download_status === 'downloadable'"
+                class="task-operation"
+                @click="downloadFile(row)"
+              >
+                {{ $t('下载') }}
+              </span>
+              <t-button
+                v-if="row.download_status === 'redownloadable'"
+                variant="text"
+                theme="primary"
+                :loading="retryingTasks.has(retryKey(row.task_id))"
+                :disabled="retryingTasks.has(retryKey(row.task_id))"
+                @click="reDownloadFile(row)"
+              >
+                {{ $t('重试') }}
+              </t-button>
+            </div>
+          </template>
+        </bk-table-column>
+        <template #empty>
+          <div v-if="!isLoading" class="bklog-table-empty-region">
+            <empty-status
+              :empty-type="emptyType"
+              @operation="handleOperation"
             />
           </div>
         </template>
-      </bk-table-column>
-      <bk-table-column
-        native-cell-slot
-        width="200"
-        :label="$t('操作')"
-        :render-header="$renderHeader"
-      >
-        <template #default="{ row }">
-          <div class="task-operation-container">
-            <span
-              class="task-operation"
-              @click="viewDetail(row)"
-              >{{ $t('详情') }}</span
-            >
-            <span
-              v-log-tooltip.top="{
-                content: row.message,
-                disabled: row.enable_clone,
-                delay: 500,
-              }"
-              :class="['task-operation', !row.enable_clone && 'cannot-click']"
-              text
-              @click="cloneTask(row)"
-            >
-              {{ $t('克隆') }}
-            </span>
-            <span
-              v-if="row.download_status === 'downloadable'"
-              class="task-operation"
-              @click="downloadFile(row)"
-            >
-              {{ $t('下载') }}
-            </span>
-            <span
-              v-if="row.download_status === 'redownloadable'"
-              class="task-operation"
-              @click="reDownloadFile(row)"
-            >
-              {{ $t('重试') }}
-            </span>
-          </div>
-        </template>
-      </bk-table-column>
-      <template #empty>
-        <div>
-          <empty-status
-            :empty-type="emptyType"
-            @operation="handleOperation"
-          />
-        </div>
-      </template>
-    </bk-table>
+      </bk-table>
+    </management-list-loading>
     <!-- 表格侧边栏 -->
     <bk-sideslider
       :is-show.sync="sideSlider.isShow"
@@ -252,6 +256,7 @@ import { ServicesInstance } from '@/platform/services';
 
   import { manageDraftCacheService } from '@/platform/persistence/index';
   import EmptyStatus from '@/shared/ui/empty-status/index';
+  import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
   import useUtils from '@/shared/composables/use-utils';
 
   import DownloadUrl from './download-url';
@@ -267,11 +272,14 @@ import { ServicesInstance } from '@/platform/services';
       TaskStatusDetail,
       TextFilterDetail,
       EmptyStatus,
+      ManagementListLoading,
     },
     data() {
       return {
         searchKeyword: '',
         isLoading: false,
+        listRequestId: 0,
+        retryingTasks: new Set(),
         // 列表数据
         taskList: [],
         pagination: {
@@ -297,9 +305,21 @@ import { ServicesInstance } from '@/platform/services';
       };
     },
     computed: {
+      bkBizId() {
+        return useApplicationStore().bkBizId;
+      },
       pollingList() {
         // 需要轮询状态的下载项
         return this.taskList.filter(item => !this.doneStatus.includes(item.download_status));
+      },
+    },
+    watch: {
+      bkBizId() {
+        this.pagination.current = 1;
+        this.pagination.count = 0;
+        this.taskList = [];
+        this.displayNameList = [];
+        this.initTaskList();
       },
     },
     created() {
@@ -309,19 +329,23 @@ import { ServicesInstance } from '@/platform/services';
       document.addEventListener('visibilitychange', this.handleVisibilityChange);
     },
     beforeUnmount() {
+      this.listRequestId += 1;
       clearTimeout(this.timeoutID);
       document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     },
     methods: {
       renderDrawerDetailSkeleton,
       async initTaskList() {
+        const requestId = ++this.listRequestId;
+        const bizId = this.bkBizId;
+        const isCurrent = () => requestId === this.listRequestId && bizId === this.bkBizId;
         try {
           clearTimeout(this.timeoutID);
           this.isLoading = true;
           this.emptyType = this.searchKeyword ? 'search-empty' : 'empty';
           const payload = {
             query: {
-              bk_biz_id: useApplicationStore().bkBizId,
+              bk_biz_id: bizId,
               page: this.pagination.current,
               pagesize: this.pagination.limit,
             },
@@ -330,12 +354,13 @@ import { ServicesInstance } from '@/platform/services';
             payload.query.keyword = this.searchKeyword;
           }
           const res = await ServicesInstance.extract.getTaskList(payload);
-          this.pagination.count = res.data.total;
+          if (!isCurrent()) return;
           // 获取请求displayName的 ipList参数列表
-          const allIpList = res.data.list.reduce((pre, cur) => {
+          const tasks = res.data.list ?? [];
+          const allIpList = tasks.reduce((pre, cur) => {
             if (!cur.enable_clone) return pre;
             pre.push(
-              ...cur.ip_list.map(item => {
+              ...(cur.ip_list ?? []).map(item => {
                 if (item?.bk_host_id) {
                   return {
                     host_id: item.bk_host_id,
@@ -349,32 +374,36 @@ import { ServicesInstance } from '@/platform/services';
             );
             return pre;
           }, []);
-          // 获取displayName
-          await this.queryDisplayName(allIpList);
+          this.displayNameList = [];
+          this.pagination.count = res.data.total;
           const { formatResponseListTimeZoneString } = useUtils();
-          this.taskList = formatResponseListTimeZoneString(res.data.list || [], {}, ['created_at', 'updated_at']);
+          this.taskList = formatResponseListTimeZoneString(tasks, {}, ['created_at', 'updated_at']);
           this.timeout = res.data.timeout || 10;
           this.pollingTaskStatus();
+          void this.queryDisplayName(allIpList, bizId).then(displayNames => {
+            if (isCurrent()) this.displayNameList = displayNames;
+          });
         } catch (e) {
           console.warn(e);
-          this.emptyType = '500';
+          if (isCurrent()) this.emptyType = '500';
         } finally {
-          this.isLoading = false;
+          if (isCurrent()) this.isLoading = false;
         }
       },
-      async queryDisplayName(hostList) {
+      async queryDisplayName(hostList, bizId) {
+        if (!hostList.length) return [];
         try {
           const res = await ServicesInstance.extract.getIpListDisplayName({
             data: {
               host_list: hostList,
             },
             params: {
-              bk_biz_id: useApplicationStore().bkBizId,
+              bk_biz_id: bizId,
             },
           });
-          this.displayNameList = res.data;
+          return res.data ?? [];
         } catch {
-          this.displayNameList = [];
+          return [];
         }
       },
       pollingTaskStatus() {
@@ -384,6 +413,7 @@ import { ServicesInstance } from '@/platform/services';
           return;
         }
 
+        const requestId = this.listRequestId;
         this.timeoutID = setTimeout(async () => {
           if (!this.pollingList.length) {
             return;
@@ -395,6 +425,7 @@ import { ServicesInstance } from '@/platform/services';
               },
             });
 
+            if (requestId !== this.listRequestId) return;
             res.data.forEach(newItem => {
               const taskItem = this.taskList.find(item => item.task_id === newItem.task_id);
               if (taskItem) {
@@ -406,7 +437,7 @@ import { ServicesInstance } from '@/platform/services';
           } catch (err) {
             console.warn(err);
           }
-          this.pollingTaskStatus();
+          if (requestId === this.listRequestId) this.pollingTaskStatus();
         }, this.timeout * 1000);
       },
       handleVisibilityChange() {
@@ -477,20 +508,25 @@ import { ServicesInstance } from '@/platform/services';
         const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${taskId}&bk_biz_id=${bkBizId}`;
         window.open(downloadUrl);
       },
-      // 重新下载
+      retryKey(taskId) {
+        return `${this.bkBizId}:${taskId}`;
+      },
       async reDownloadFile({ task_id }) {
+        const bizId = this.bkBizId;
+        const key = this.retryKey(task_id);
+        if (this.retryingTasks.has(key)) return;
+        this.retryingTasks.add(key);
         try {
-          this.isLoading = true;
           await ServicesInstance.extract.reDownloadFile({
-            data: {
-              task_id,
-              bk_biz_id: useApplicationStore().bkBizId,
-            },
+            data: { task_id, bk_biz_id: bizId },
           });
-          await this.initTaskList();
+          if (this.bkBizId === bizId && this.$route.name === 'extract-home') {
+            await this.initTaskList();
+          }
         } catch (e) {
           console.warn(e);
-          this.isLoading = false;
+        } finally {
+          this.retryingTasks.delete(key);
         }
       },
       // 列表的下载目标显示
@@ -517,7 +553,7 @@ import { ServicesInstance } from '@/platform/services';
                 const ipMatch = `${item.ip}_${item.bk_cloud_id}` === `${dItem.bk_host_innerip}_${dItem.bk_cloud_id}`;
                 if (item?.bk_host_id) return hostMatch || ipMatch;
                 return ipMatch;
-              })?.display_name || ''
+              })?.display_name || item.ip || ''
             );
           });
         }

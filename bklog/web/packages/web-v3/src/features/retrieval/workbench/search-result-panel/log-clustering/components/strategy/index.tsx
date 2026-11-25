@@ -25,6 +25,7 @@
  */
 
 
+import { renderDropdownListSkeleton } from '@/shared/ui/loading/list-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { MessagePlugin as TDesignMessage, Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
@@ -389,7 +390,6 @@ export default class Strategy extends tsc<StrategyProps> {
         </div>
         <bk-form
           ref='strategyFrom'
-          v-loading={{ loading: this.formLoading }}
           form-type='vertical'
           {...{
             ...{
@@ -471,6 +471,7 @@ export default class Strategy extends tsc<StrategyProps> {
           >
             <bk-select
               v-slots={{
+                empty: () => this.formLoading ? renderDropdownListSkeleton() : $i18n.t('暂无数据'),
                 extension: () => (
                   <div
                     class='groups-btn'

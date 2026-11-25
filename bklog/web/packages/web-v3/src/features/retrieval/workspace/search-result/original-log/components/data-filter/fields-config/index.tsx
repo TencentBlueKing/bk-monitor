@@ -33,7 +33,7 @@ import { Button as TButton } from 'tdesign-vue-next';
 
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { messageSuccess } from '@/shared/lib/message';
+import { messageError, messageSuccess } from '@/shared/lib/message';
 import useLocale from '@/shared/composables/use-locale';
 
 import VueDraggable from 'vuedraggable-vue3';
@@ -111,28 +111,43 @@ export default defineComponent({
       displayFieldNames.value.push(fieldName);
     };
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
+      if (confirmLoading.value) return;
+      const fields = [...displayFieldNames.value];
       confirmLoading.value = true;
-      store.userFieldConfigChange({
-          contextDisplayFields: displayFieldNames.value,
-        })
-        .then(() => {
-          messageSuccess(t('设置成功'));
-          cachedDisplayFieldNames = [...displayFieldNames.value];
-          emit('success', displayFieldNames.value);
-        })
-        .finally(() => {
-          confirmLoading.value = false;
-        });
+      try {
+        const response = await store.userFieldConfigChange({ contextDisplayFields: fields });
+        if (response.code !== 0) {
+          if (response.message) messageError(response.message);
+          return;
+        }
+        messageSuccess(t('设置成功'));
+        cachedDisplayFieldNames = fields;
+        emit('success', fields);
+      } catch {
+        // Request errors are presented by the shared HTTP client.
+      } finally {
+        confirmLoading.value = false;
+      }
+    };
+
+    const resetDraft = () => {
+      displayFieldNames.value = [...cachedDisplayFieldNames];
     };
 
     const handleCancel = () => {
-      displayFieldNames.value = [...cachedDisplayFieldNames];
+      if (confirmLoading.value) return;
+      resetDraft();
       emit('cancel');
     };
 
     expose({
       getDom: () => fieldConfigRef.value,
+      prepareOpen: () => {
+        if (confirmLoading.value) return false;
+        resetDraft();
+        return true;
+      },
     });
 
     return () => (
@@ -142,7 +157,7 @@ export default defineComponent({
           class='fields-config-tippy'
         >
           <div class='config-title'>{t('设置显示与排序')}</div>
-          <div class='field-list-container'>
+          <div class='field-list-container' inert={confirmLoading.value}>
             <div class='field-list'>
               <div class='list-title'>
                 <i18n path='显示字段（已选 {0} 条)'>
@@ -163,12 +178,14 @@ export default defineComponent({
                     <li key={index} class='list-item display-item'>
                       <span class='icon bklog-icon bklog-drag-dots'></span>
                       <div class='field_name'>{field}</div>
-                      <div
-                        class={['operate-button', disabledRemove.value && 'disabled']}
+                      <button
+                        type='button'
+                        class='operate-button'
+                        disabled={disabledRemove.value}
                         onClick={() => removeItem(index)}
                       >
                         {t('删除')}
-                      </div>
+                      </button>
                     </li>
                   ),
                 }}
@@ -183,12 +200,13 @@ export default defineComponent({
                     class='list-item rest-item'
                   >
                     <div class='field_name'>{field}</div>
-                    <div
+                    <button
+                      type='button'
                       class='operate-button'
                       onClick={() => addItem(field)}
                     >
                       {t('添加')}
-                    </div>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -205,6 +223,7 @@ export default defineComponent({
               {t('确定')}
             </TButton>
             <TButton theme="default"
+              disabled={confirmLoading.value}
               style='margin-right: 24px'
               size='small'
               onClick={handleCancel}

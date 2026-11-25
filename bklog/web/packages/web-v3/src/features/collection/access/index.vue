@@ -27,15 +27,17 @@
 
 <template>
   <section
-    v-loading="{ loading: basicLoading }"
     :class="['access-wrapper', itsmTicketIsApplying && 'iframe-container']"
   >
     <auth-container-page
       v-if="authPageInfo"
       :info="authPageInfo"
     ></auth-container-page>
+    <div v-else-if="basicLoading" role="status" :aria-label="$t('加载中')">
+      <access-form-skeleton />
+    </div>
     <div
-      v-else-if="!basicLoading && !isCleaning"
+      v-else-if="!isCleaning"
       class="access-container"
     >
       <section class="access-step-wrapper">
@@ -57,14 +59,14 @@
       </section>
       <section
         v-if="operateType"
-        v-loading="{ loading: containerLoading, zIndex: 10 }"
+        :aria-busy="containerLoading"
+        :inert="containerLoading"
         class="access-step-container"
       >
         <component
           :is="getCurrentComponent"
           ref="currentRef"
           :apply-data="applyData"
-          :container-loading.sync="containerLoading"
           :cur-step="curStep"
           :force-show-component.sync="forceShowComponent"
           :index-set-id="indexSetId"
@@ -80,8 +82,12 @@
           @reset-cur-collect-val="() => getDetail()"
           @set-assessment-item="v => (applyData = v)"
           @step-change="stepChange"
+          @update:container-loading="containerLoading = $event"
         ></component>
       </section>
+      <span class="access-submit-announcement" role="status">
+        {{ containerLoading ? $t('加载中') : '' }}
+      </span>
       <issuedSlider
         v-if="getCurrentComponent !== 'stepResult' && getCurrentComponent !== 'stepAdd'"
         :is-finish-create-step="isFinishCreateStep"
@@ -90,7 +96,7 @@
       ></issuedSlider>
     </div>
     <advance-clean-land
-      v-else-if="!basicLoading && isCleaning"
+      v-else
       back-router="collection-item"
     />
   </section>
@@ -99,6 +105,7 @@
 <script>
 import { mapState as mapPiniaState } from 'pinia';
 
+import { renderDrawerInlineFormSkeleton as AccessFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useCollectionStore } from '@/app/state/domains/collection-store';
 import { ServicesInstance } from '@/platform/services';
@@ -122,6 +129,7 @@ import { ServicesInstance } from '@/platform/services';
   export default {
     name: 'AccessSteps',
     components: {
+      AccessFormSkeleton,
       AuthContainerPage,
       stepAdd,
       stepField,
@@ -394,6 +402,7 @@ import { ServicesInstance } from '@/platform/services';
       },
       /** 步骤切换时触发该函数 */
       stepChangeBeforeFn() {
+        if (this.containerLoading) return false;
         /** 编辑状态切换步骤时 判断下是否修改过当前的值 */
         const isUpdateSubmitValue = this.$refs.currentRef?.getIsUpdateSubmitValue?.() || false;
         if (!isUpdateSubmitValue) {
@@ -438,6 +447,15 @@ import { ServicesInstance } from '@/platform/services';
   @use '@/shared/styles/conf' as *;
   .access-wrapper {
     padding: 20px 24px;
+  }
+
+  .access-submit-announcement {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .iframe-container {

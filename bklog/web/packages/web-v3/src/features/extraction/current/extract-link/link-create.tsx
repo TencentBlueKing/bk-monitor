@@ -35,6 +35,8 @@ import { Button as TButton, MessagePlugin } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { defineComponent, ref, computed, onMounted } from 'vue';
 
+import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 import ValidateUserSelector from '@/shared/ui/user-selector/index';
 import useLocale from '@/shared/composables/use-locale';
 import useRouter from '@/shared/composables/use-router';
@@ -153,6 +155,9 @@ export default defineComponent({
 
     // 提交表单
     const submitForm = async () => {
+      if (basicLoading.value || submitLoading.value) return;
+
+      submitLoading.value = true;
       try {
         let isError = false;
         const inputList = hostListRef.value?.getElementsByClassName('bk-form-input') || [];
@@ -172,7 +177,6 @@ export default defineComponent({
           return;
         }
 
-        submitLoading.value = true;
         let requestData = { ...formData.value };
         if (requestData.link_type === 'common') {
           const {
@@ -209,6 +213,7 @@ export default defineComponent({
         router.push({ name: 'extract-link-list', query: { spaceUid: store.spaceUid } });
       } catch (e) {
         console.warn(e);
+      } finally {
         submitLoading.value = false;
       }
     };
@@ -245,11 +250,16 @@ export default defineComponent({
     return () => (
       <div
         class='extract-link-create-container'
-        v-loading={{ loading: basicLoading.value }}
+        v-loading={{
+          loading: basicLoading.value,
+          indicator: renderDrawerFormSkeleton,
+          zIndex: Z_INDEX_LAYERS.PAGE_TOP,
+        }}
         data-test-id='extractLinkCreate_div_extractLinkCreateBox'
       >
         {/* 基础信息 */}
         <article
+          inert={submitLoading.value}
           class='article'
           data-test-id='extractLinkCreateBox_article_basicInformation'
         >
@@ -419,6 +429,7 @@ export default defineComponent({
 
         {/* 链路中转机 */}
         <article
+          inert={submitLoading.value}
           class='article'
           data-test-id='extractLinkCreateBox_article_linkTransfer'
         >
@@ -519,8 +530,9 @@ export default defineComponent({
         <TButton
           style='width: 86px'
           data-test-id='basicInformation_button_submitFrom'
-          loading={submitLoading.value}
           theme='primary'
+          disabled={basicLoading.value || submitLoading.value}
+          loading={submitLoading.value}
           onClick={submitForm}
         >
           {t('提交')}

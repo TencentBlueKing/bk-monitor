@@ -34,20 +34,20 @@
       <template #title><span /></template>
       <template #description>
         <div class="empty-text-content">
-          <p v-if="showText" class="empty-text">{{ typeText }}</p>
+          <p v-if="showText" class="empty-text">{{ description ?? typeText }}</p>
           <template v-if="slots.default">
-            <p class="empty-text"><slot /></p>
+            <div class="empty-text"><slot /></div>
           </template>
-          <template v-else>
+          <template v-else-if="showOperation">
             <SourceTranslation v-if="emptyType === 'search-empty'" class="operation-text" path="可以尝试{0}或{1}">
               <span style="margin: 0 3px">{{ t('调整关键词') }}</span>
-              <div style="margin-left: 3px" class="operation-btn" @click="handleOperation('clear-filter')">
+              <button type="button" class="operation-btn exception-clear" @click="handleOperation('clear-filter')">
                 {{ t('清空筛选条件') }}
-              </div>
+              </button>
             </SourceTranslation>
-            <span v-if="emptyType === '500'" class="operation-btn" @click="handleOperation('refresh')">
+            <button v-if="emptyType === '500'" type="button" class="operation-btn exception-refresh" @click="handleOperation('refresh')">
               {{ t('刷新') }}
-            </span>
+            </button>
           </template>
         </div>
       </template>
@@ -71,6 +71,7 @@ import login from '@/shared/assets/exception/login.svg';
 
 const props = withDefaults(defineProps<{
   emptyType?: string;
+  description?: string;
   scene?: string;
   showOperation?: boolean;
   showText?: boolean;
@@ -92,7 +93,9 @@ const handleOperation = (operation: EmptyStatusOperation) => emit('operation', o
 
 <style lang="scss">
   .empty-status-container {
-    padding: 20px 0;
+    min-width: 0;
+    max-width: 100%;
+    padding: var(--bklog-space-20) 0;
 
     .empty-status-body {
       display: flex;
@@ -102,7 +105,7 @@ const handleOperation = (operation: EmptyStatusOperation) => emit('operation', o
       text-align: center;
 
       .t-empty__image {
-        margin-bottom: 8px;
+        width: 100%;
       }
 
       .t-empty__title {
@@ -110,42 +113,95 @@ const handleOperation = (operation: EmptyStatusOperation) => emit('operation', o
       }
 
       .t-empty__description {
+        max-width: 100%;
         margin: 0;
+        overflow-wrap: anywhere;
       }
 
-      &.is-part .exception-image {
-        height: 100px;
+      &.is-part {
+        .exception-image {
+          width: var(--bklog-exception-image-part-width);
+          height: var(--bklog-exception-image-part-height);
+        }
+
+        .empty-text-content {
+          margin-top: var(--bklog-space-8);
+        }
+
+        .empty-text {
+          font-size: var(--bklog-font-action);
+          line-height: var(--bklog-line-height-action);
+        }
+
+        .operation-text,
+        .exception-refresh,
+        .empty-text + .empty-text {
+          font-size: var(--bklog-font-body);
+          line-height: var(--bklog-line-height-body);
+        }
       }
     }
 
     .exception-image {
-      height: 180px;
+      width: var(--bklog-exception-image-width);
+      max-width: 100%;
+      height: var(--bklog-exception-image-height);
+      object-fit: contain;
       user-select: none;
-
-      /* stylelint-disable-next-line property-no-unknown */
-      onselectstart: none;
     }
 
     .empty-text-content {
-      margin-top: 20px;
+      margin-top: var(--bklog-space-16);
     }
 
     .empty-text {
-      margin: 8px 0;
-      font-size: 14px;
-      line-height: 22px;
-      color: #63656e;
+      margin: 0;
+      color: var(--td-text-color-primary);
+      font-size: var(--bklog-space-20);
+      line-height: calc(var(--bklog-space-24) + var(--bklog-space-4));
     }
 
-    .operation-text {
-      font-size: 12px;
-      line-height: 20px;
-      color: #63656e;
+    .operation-text,
+    .exception-refresh,
+    .empty-text + .empty-text {
+      color: var(--td-text-color-secondary);
+      font-size: var(--bklog-font-action);
+      line-height: var(--bklog-line-height-action);
+    }
+
+    .empty-text + :is(.operation-text, .exception-refresh, .empty-text) {
+      margin-top: var(--bklog-space-8);
+    }
+
+    :is(.operation-text, .exception-refresh) {
+      display: inline-block;
     }
 
     .operation-btn {
-      color: #3a84ff;
+      max-width: 100%;
+      padding: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      color: var(--td-text-color-link);
+      background: transparent;
+      border: 0;
+      font-family: inherit;
       cursor: pointer;
+
+      &:hover {
+        color: var(--td-brand-color-hover);
+      }
+
+      &:focus-visible {
+        outline: var(--bklog-border-width) solid currentColor;
+        outline-offset: var(--bklog-space-2);
+      }
+    }
+
+    .exception-clear {
+      margin-inline-start: var(--bklog-space-4);
+      font-size: inherit;
+      line-height: inherit;
     }
   }
 </style>

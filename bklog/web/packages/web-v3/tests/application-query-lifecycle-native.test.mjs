@@ -34,6 +34,7 @@ const jobs = [],
   canceled = [],
   effects = [];
 const api = Object.assign((...args) => fieldsRequest(...args), { id: 'retrieve/getLogTableHead' });
+const unionMapping = Object.assign((...args) => fieldsRequest(...args), { id: 'unionSearch/unionMapping' });
 const fieldCache = {
   getFieldList: () => [{ field_name: 'log' }],
   getFieldNameIndex: () => ({ log: { field_name: 'log' } }),
@@ -58,7 +59,7 @@ const worker = {
 };
 const mod = loadTypeScript(new URL('../src/app/state/actions/retrieve-search-actions.js', import.meta.url), {
   '@/platform/services': {
-    ServicesInstance: { retrieve: { getLogTableHead: api, getSceneFields: api }, unionSearch: { unionMapping: api } },
+    ServicesInstance: { retrieve: { getLogTableHead: api, getSceneFields: api }, unionSearch: { unionMapping } },
   },
   axios: { isCancel: (e) => e?.code === 'ERR_CANCELED' },
   '@/shared/lib/util': { parseBigNumberList: (x) => x },
@@ -220,6 +221,27 @@ test('field failures preserve error notification state; canceled requests only r
   assert.equal(a.apiErrorInfo[api.id], undefined);
   assert.equal(a.indexFieldInfo.is_loading, false);
 });
+test('union field failure is scoped to its endpoint and an empty retry clears it', async () => {
+  const a = app();
+  a.indexItem.isUnionIndex = true;
+  fieldsRequest = async () => {
+    throw new Error('Synthetic union field failure');
+  };
+
+  await mod.requestIndexSetFieldInfoAction(a);
+  assert.match(a.apiErrorInfo[unionMapping.id].message, /Synthetic union field failure/);
+  assert.equal(a.apiErrorInfo[api.id], undefined);
+  assert.equal(a.indexFieldInfo.is_loading, false);
+
+  fieldsRequest = async () => ({ data: { fields: [] } });
+  const retry = mod.requestIndexSetFieldInfoAction(a);
+  assert.equal(a.apiErrorInfo[unionMapping.id], undefined);
+  assert.equal(a.indexFieldInfo.is_loading, true);
+  await retry;
+  assert.deepEqual(a.indexFieldInfo.fields, []);
+  assert.equal(a.indexFieldInfo.is_loading, false);
+});
+
 test('query cancellation, stale responses and request IDs remain scoped to the owning Pinia', async () => {
   const previousWindow = globalThis.window,
     previousDocument = globalThis.document;

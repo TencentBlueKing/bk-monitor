@@ -35,6 +35,7 @@ import { DEFAULT_TIME_RANGE } from './utils';
 import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
 
 import '@blueking/date-picker-js/style.css';
+import './time-range.scss';
 
 export type TimeRangeType = [string, string];
 type TimeRangeDisplayType = 'normal' | 'simplicity';

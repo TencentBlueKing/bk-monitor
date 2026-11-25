@@ -7,7 +7,11 @@ import { overlayRegistry } from '../../../shared/global/overlay/overlay-registry
 import 'tdesign-vue-next/es/dialog/style/index.css';
 import 'tdesign-vue-next/es/loading/style/index.css';
 export const bkInfoBox = createInfoService((props, source) => {
-  props = { ...props, zIndex: props.zIndex ?? overlayRegistry.nextZIndex() };
+  props = {
+    ...props,
+    dialogClassName: ['bklog-info-box', props.dialogClassName].filter(Boolean).join(' '),
+    zIndex: props.zIndex ?? overlayRegistry.nextZIndex(),
+  };
   if (source.icon || source.type === 'loading') {
     const body = props.body;
     return DialogPlugin({

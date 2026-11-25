@@ -6,6 +6,15 @@
   overflow: hidden;
   transition: height 0.2s ease;
 
+  &:focus-within {
+    outline: var(--bklog-border-width) solid var(--td-brand-color);
+    outline-offset: calc(-1 * var(--bklog-border-width));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+
   &.auto-height {
     min-height: 34px;
     max-height: 200px;
@@ -38,6 +47,8 @@
   }
 
   .cm-content {
+    color: var(--td-text-color-primary);
+    caret-color: var(--td-text-color-primary);
     padding: 6px 8px;
     line-height: 1.4;
     font-size: 12px;
@@ -54,7 +65,7 @@
     position: absolute;
     top: 6px;
     left: 8px;
-    color: #999;
+    color: var(--td-text-color-placeholder);
     font-style: italic;
     pointer-events: none;
     z-index: var(--bklog-z-base);
@@ -80,7 +91,7 @@
   .cm-placeholder {
     // 移除绝对定位，使用 CodeMirror 原生定位
     position: static;
-    color: #999 !important;
+    color: var(--td-text-color-placeholder) !important;
     font-style: italic !important;
     opacity: 0.8 !important;
     display: inline-block;
@@ -89,23 +100,25 @@
 
   // 搜索高亮样式
   .cm-searchMatch {
-    background-color: #ffeb3b;
-    color: #000;
+    background-color: var(--td-warning-color-light);
+    color: var(--td-text-color-primary);
   }
 
   .cm-searchMatch-selected {
-    background-color: #ff9800;
-    color: #fff;
+    background-color: var(--td-warning-color-light);
+    box-shadow: 0 0 0 var(--bklog-border-width) var(--td-warning-color);
+    color: var(--td-text-color-primary);
   }
 
   // 选中样式
-  .cm-selectionBackground {
-    background-color: #3a84ff22;
+  .cm-selectionBackground,
+  .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+    background-color: var(--td-brand-color-light);
   }
 
   // 光标样式
   .cm-cursor {
-    border-left-color: #3a84ff;
+    border-left-color: var(--td-text-color-primary);
   }
 
   // 确保行号和侧边栏完全隐藏
@@ -120,21 +133,5 @@
 
   .cm-foldGutter {
     display: none !important;
-  }
-
-  // 深色主题适配
-  &.dark-theme {
-    .cm-content {
-      background-color: #1e1e1e;
-      color: #d4d4d4;
-    }
-
-    .cm-cursor {
-      border-left-color: #ffffff;
-    }
-
-    .cm-selectionBackground {
-      background-color: #264f78;
-    }
   }
 }

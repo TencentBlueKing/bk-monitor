@@ -38,6 +38,7 @@ import useLocale from '@/shared/composables/use-locale';
 
 import RetrieveHelper from '../../../retrieve-helper';
 import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import { renderLogTableSkeleton } from '@/shared/ui/loading/list-skeleton';
 import './log-result-exception.scss';
 
 export default defineComponent({
@@ -78,16 +79,7 @@ export default defineComponent({
 
     const getExceptionRender = () => {
       if (props.type === 'loading') {
-        return (
-          <bk-exception
-            style='margin-top: 100px;'
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='search-empty'
-          >
-            {$t('检索中')}...
-          </bk-exception>
-        );
+        return <div class='bklog-result-loading' aria-busy='true'>{renderLogTableSkeleton()}</div>;
       }
 
       if (props.type === 'search-empty' || props.type === 'empty') {
@@ -122,12 +114,13 @@ export default defineComponent({
                   <br />
                   {$t('可能是因为分词导致的问题')}；
                   <br />
-                  <span
+                  <button
                     class='segment-span-tag'
+                    type='button'
                     onClick={openConfiguration}
                   >
                     {$t('点击设置自定义分词')}
-                  </span>
+                  </button>
                   <br />
                   <br />
                   {$t('将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。')}
@@ -153,52 +146,40 @@ export default defineComponent({
       }
 
       if (props.type === 'index-set-not-found') {
+        const indexName = props.message.replace(/^index-set-not-found:\((.*)\)/, '$1');
         return (
-          <bk-exception
-            style='margin-top: 100px;'
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='500'
-          >
-            <div style='text-align: left; color: #313238;'>
-              <div style='font-size: 14px; padding: 8px 0;'>{`找不到索引集“${props.message.replace(/^index-set-not-found:\((.*)\)/, '$1')}”的相关信息`}</div>
-              <div style='font-size: 12px; color: #4d4f56;'>
+          <div class='bklog-result-exception'>
+            <EmptyStatus emptyType='500' showText={false}>
+              <div class='bklog-result-exception__details'>
+                <div class='bklog-result-exception__title'>{`找不到索引集“${indexName}”的相关信息`}</div>
                 <div>您可以进行如下操作：</div>
-                <div style='padding: 8px 0;'>1. 点击左上角重新选择索引集</div>
-                <div>
-                  2. 请检查顶部 URL 中的ID 是否正确。
-                  <br />
-                  参考格式： https://domain.com/#/retrieve/<mark>82600?</mark>
-                </div>
+                <ol>
+                  <li>点击左上角重新选择索引集</li>
+                  <li>请检查顶部 URL 中的 ID 是否正确。</li>
+                </ol>
               </div>
-            </div>
-          </bk-exception>
+            </EmptyStatus>
+          </div>
         );
       }
 
       if (props.type === 'index-set-field-not-found') {
         return (
-          <div class='bklog-field-request-error'>
-            <EmptyStatus emptyType='500' scene='part' showText={false}>
-              <span>{$t('索引集字段列表查询失败，刷新页面尝试重新查询')}</span>
-              <button type='button' class='bklog-field-request-error__retry' onClick={() => window.location.reload()}>
-                {$t('刷新')}
-              </button>
-            </EmptyStatus>
+          <div class='bklog-result-exception'>
+            <EmptyStatus
+              emptyType='500'
+              description={$t('索引集字段列表查询失败，刷新页面尝试重新查询')}
+              onOperation={() => window.location.reload()}
+            />
           </div>
         );
       }
 
       if (props.type === 'error') {
         return (
-          <bk-exception
-            style='margin-top: 100px;'
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='search-empty'
-          >
-            {props.message}
-          </bk-exception>
+          <div class='bklog-result-exception'>
+            <EmptyStatus emptyType='500' showText={false}>{props.message}</EmptyStatus>
+          </div>
         );
       }
 

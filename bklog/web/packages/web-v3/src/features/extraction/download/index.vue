@@ -26,7 +26,6 @@
 
 <template>
   <div
-    v-loading="{ loading: isLoading }"
     class="log-extract-container"
   >
     <router-view></router-view>
@@ -38,30 +37,6 @@
 import { useApplicationStore } from '@/app/state/domains/application-store';
 export default {
     name: 'Extract',
-    data() {
-      return {
-        isRender: true,
-        isLoading: false,
-      };
-    },
-    computed: {
-      bkBizId() {
-        return useApplicationStore().bkBizId;
-      },
-    },
-    watch: {
-      // 切换业务销毁实例
-      bkBizId() {
-        this.isLoading = true;
-        this.isRender = false;
-        setTimeout(() => {
-          this.isRender = true;
-          if (this.$route.query.create) {
-            this.isLoading = false;
-          }
-        }, 400);
-      },
-    },
     mounted() {
       const bkBizId = useApplicationStore().bkBizId;
       const spaceUid = useApplicationStore().spaceUid;
@@ -82,9 +57,6 @@ export default {
             spaceUid: useApplicationStore().spaceUid,
           },
         });
-      },
-      handleLoading(bool) {
-        this.isLoading = bool;
       },
     },
   };

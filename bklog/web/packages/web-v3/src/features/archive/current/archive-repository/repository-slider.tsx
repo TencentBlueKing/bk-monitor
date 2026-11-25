@@ -25,6 +25,7 @@
  */
 
 
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { Alert as TAlert } from 'tdesign-vue-next';
@@ -99,7 +100,9 @@ export default defineComponent({
     const { t } = useLocale();
 
     const confirmLoading = ref(false); // 确认按钮加载状态
-    const sliderLoading = ref(false); // 侧滑内容加载状态
+    const sliderLoading = ref(false);
+    const clusterListFailed = ref(false);
+    let clusterListRequest = 0;
     const esClusterSource = ref(''); // ES集群来源
     const esClusterList = ref<any[]>([]); // ES集群列表
     const validateForm = ref<any>(null); // 表单验证引用
@@ -167,6 +170,10 @@ export default defineComponent({
 
     // 获取ES集群列表
     const getEsClusterList = async () => {
+      const request = ++clusterListRequest;
+      sliderLoading.value = true;
+      clusterListFailed.value = false;
+      esClusterList.value = [];
       try {
         const res = await ServicesInstance.source.getEsList({
           query: {
@@ -174,13 +181,21 @@ export default defineComponent({
             enable_archive: 1,
           },
         });
-        if (res.data) {
-          esClusterList.value = res.data;
+        if (request === clusterListRequest) {
+          esClusterList.value = res.data ?? [];
         }
-      } catch (error) {
-        console.warn('获取ES集群列表失败:', error);
+      } catch {
+        if (request === clusterListRequest) {
+          clusterListFailed.value = true;
+        }
+      } finally {
+        if (request === clusterListRequest) {
+          sliderLoading.value = false;
+        }
       }
     };
+
+    const hasNoClusters = computed(() => !isEdit.value && esClusterList.value.length === 0);
 
     // 集群变更处理
     const handleChangeCluster = (_value: string) => {
@@ -222,6 +237,8 @@ export default defineComponent({
 
     // 确认提交表单逻辑
     const handleConfirm = async () => {
+      if (sliderLoading.value || confirmLoading.value || !validateForm.value) return;
+      confirmLoading.value = true;
       try {
         // 验证表单
         await validateForm.value?.validate();
@@ -265,9 +282,6 @@ export default defineComponent({
         if (esConfig.type === 'cos') {
           paramsData.es_config.settings = { ...cosFormData };
         }
-
-        // 设置提交按钮为加载状态
-        confirmLoading.value = true;
 
         // 调用接口提交数据
         await url({
@@ -318,10 +332,12 @@ export default defineComponent({
           getEsClusterList();
           initSidebarFormData();
         } else {
-          // 清空表单数据
+          clusterListRequest += 1;
+          sliderLoading.value = false;
           initSidebarFormData();
         }
       },
+      { immediate: true },
     );
 
     // 渲染ES集群选项
@@ -593,10 +609,19 @@ export default defineComponent({
               <>
                 <div
                   class='repository-slider-content'
+                  aria-busy={sliderLoading.value}
                   v-loading={{ loading: sliderLoading.value, indicator: renderDrawerFormSkeleton }}
                 >
-                  {/* 加载完成后渲染表单 */}
-                  {!sliderLoading.value && (
+                  {!sliderLoading.value && (clusterListFailed.value || hasNoClusters.value) && (
+                    <div class='bklog-table-empty-region'>
+                      <EmptyStatus
+                        emptyType={clusterListFailed.value ? '500' : 'empty'}
+                        showOperation={clusterListFailed.value}
+                        onOperation={getEsClusterList}
+                      />
+                    </div>
+                  )}
+                  {!sliderLoading.value && !clusterListFailed.value && !hasNoClusters.value && (
                     <bk-form
                       ref={validateForm}
                       class='king-form bklog-form--drawer-compact'
@@ -677,6 +702,7 @@ export default defineComponent({
                           class='king-button mr10'
                           data-test-id='addNewStorehouse_button_submit'
                           loading={confirmLoading.value}
+                          disabled={confirmLoading.value}
                           theme='primary'
                           onClick={handleConfirm}
                         >
@@ -695,7 +721,7 @@ export default defineComponent({
               </>
             ),
           }}
-          width={676}
+          width='min(676px, 100vw)'
           is-show={props.showSlider}
           quick-close={true}
           show-mask={true}

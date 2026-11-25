@@ -689,11 +689,11 @@ export default defineComponent({
         {filterSwitcher.value && (
           <div class='log-filter-box'>
             {/* 过滤类型切换按钮组 */}
-            <div class='bk-button-group'>
+            <div class='bk-button-group' data-bklog-button-group='connected'>
               {btnGroupList.map((item) => (
                 <TButton
                   key={item.id}
-                  class={{ 'is-selected': activeFilterType.value === item.id }}
+                  aria-pressed={activeFilterType.value === item.id}
                   size='small'
                   theme='default'
                   onClick={() => switchFilterType(item.id as btnType)}

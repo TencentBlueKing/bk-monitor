@@ -1,3 +1,5 @@
+@use '@/shared/styles/theme/components/contracts' as bklogControls;
+
 /*提取任务表格页面*/
 .extract-task-list-container {
   display: flex;
@@ -182,19 +184,17 @@
         height: 16px;
 
         .status-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
+          @include bklogControls.execution-status-dot;
         }
 
         .status-success {
-          background: #cbf0da;
-          border: 1px solid #2caf5e;
+          background-color: var(--bklog-message-success-surface);
+          border-color: var(--bklog-status-success);
         }
 
         .status-failed {
-          background: #fdd;
-          border: 1px solid #ea3636;
+          background-color: var(--bklog-message-error-surface);
+          border-color: var(--bklog-status-error);
         }
       }
 
@@ -218,23 +218,23 @@
     padding: 14px 20px 10px;
     font-size: 15px;
     line-height: 40px;
-    color: #63656e;
+    color: var(--td-text-color-secondary);
 
     .icon-check-circle {
-      color: #2dcb56;
+      color: var(--td-success-color);
     }
 
     .icon-close-circle {
-      color: #ea3636;
+      color: var(--td-error-color);
     }
 
     .bk-icon {
-      margin-right: 3px;
+      margin-right: var(--bklog-space-4);
     }
 
     .t-alert {
       .icon-info {
-        margin-right: 8px;
+        margin-right: var(--bklog-space-8);
       }
     }
 
@@ -243,7 +243,7 @@
       align-items: center;
 
       .bk-icon {
-        margin-right: 6px;
+        margin-right: var(--bklog-space-8);
         font-size: 14px;
       }
 
@@ -253,36 +253,45 @@
         font-size: 16px;
         font-weight: 500;
         line-height: 20px;
-        color: #313238;
+        color: var(--td-text-color-primary);
         word-break: break-all;
       }
 
       &.mark {
         .bklog-icon {
-          margin-right: 4px;
+          margin-right: var(--bklog-space-4);
           font-size: 16px;
-          color: #ea3636;
+          color: var(--td-error-color);
         }
 
         .text {
-          color: #ea3636;
+          color: var(--td-error-color);
         }
       }
     }
 
     .list-box {
-      border-top: 1px solid #dcdee5;
+      border-top: var(--bklog-border-width) solid var(--td-component-stroke);
 
       .list-item {
         padding: 10px 0;
         line-height: 20px;
         word-break: break-all;
-        border-bottom: 1px solid #dcdee5;
+        border-bottom: var(--bklog-border-width) solid var(--td-component-stroke);
 
         &:hover {
-          background-color: #f0f1f5;
+          background-color: var(--td-bg-color-container-hover);
         }
       }
     }
   }
+}
+
+
+.extract-task-detail-state {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: var(--bklog-space-20);
+  text-align: center;
 }

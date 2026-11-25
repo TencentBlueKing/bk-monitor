@@ -87,7 +87,10 @@ export default defineComponent({
           content={t('大小写匹配')}
           placement='bottom-left'
         >
-          <span
+          <button
+            type='button'
+            aria-label={t('大小写匹配')}
+            aria-pressed={isCaseSensitive.value}
             class={[
               'bklog-g_components-match-mode-icon',
               'bklog-icon',
@@ -102,7 +105,10 @@ export default defineComponent({
           content={t('精确匹配')}
           placement='bottom-left'
         >
-          <span
+          <button
+            type='button'
+            aria-label={t('精确匹配')}
+            aria-pressed={isWordMatch.value}
             class={['bklog-g_components-match-mode-icon', 'bklog-icon', 'bklog-ab', { active: isWordMatch.value }]}
             onClick={toggleWordMatch}
           />
@@ -112,7 +118,10 @@ export default defineComponent({
           content={t('正则匹配')}
           placement='top'
         >
-          <span
+          <button
+            type='button'
+            aria-label={t('正则匹配')}
+            aria-pressed={isRegexMode.value}
             class={[
               'bklog-g_components-match-mode-icon',
               'bklog-icon',

@@ -1,3 +1,5 @@
+@use '@/shared/ui/loading/status-spinner' as *;
+
 .collect-issued-slider-main {
     width: 100%;
     height: 100%;
@@ -30,9 +32,17 @@
                margin-right: 8px;
             }
             .restart {
-                color: #3A84FF;
+                color: var(--bklog-brand-primary);
                 cursor: pointer;
-                padding: 0 4px;
+                padding-inline: var(--bklog-space-4);
+
+                &:hover {
+                    color: var(--bklog-brand-hover);
+                }
+
+                &:active {
+                    color: var(--bklog-brand-active);
+                }
             }
         }
         .collect-issued-slider-tab {
@@ -57,11 +67,9 @@
             display: inline-block;
             width: 14px;
             height: 14px;
-            background: url('@/shared/assets/images/loading.svg');
+            @include status-spinner();
             margin-right: 4px;
-            background-size: cover;
             vertical-align: middle;
-            animation: container-spin 2s linear infinite;
         }
 
         .item-circle {
@@ -147,8 +155,11 @@
         }
 
         .container-table-section {
+            display: grid;
+            gap: var(--bklog-space-12);
+            margin-block-start: var(--bklog-space-12);
+
             .container-table-item {
-                margin-top: 20px;
 
                 .container-table-title {
                     padding: 10px 23px;
@@ -201,13 +212,5 @@
             }
         }
 
-        @keyframes container-spin {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
     }
 }

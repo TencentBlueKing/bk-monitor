@@ -6,7 +6,7 @@
     top: 32px;
     width: 100%;
     height: 100%;
-    background-color: #fff;
+    background-color: var(--td-bg-color-container);
     opacity: 0.4;
     z-index: var(--bklog-z-message);
   }
@@ -14,7 +14,7 @@
   .operate-main {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--bklog-space-8);
 
     .preview-tip {
       display: flex;
@@ -22,22 +22,22 @@
       font-size: 14px;
 
       .check-icon {
-        color: #2caf5e;
+        color: var(--td-success-color);
       }
 
       .warn-icon {
-        color: #f59500;
+        color: var(--td-warning-color);
       }
 
       .error-icon {
-        color: #ea3636;
+        color: var(--td-error-color);
       }
 
       .tip-text {
         font-weight: 400;
         font-size: 12px;
-        color: #313238;
-        margin-left: 5px;
+        color: var(--td-text-color-primary);
+        margin-left: var(--bklog-space-4);
       }
     }
   }
@@ -60,9 +60,8 @@
       margin-top: 8px;
       min-height: 100px;
 
-      .empty-status {
-        margin-bottom: 56px;
-        margin-top: 40px;
+      &.has-rows {
+        border-bottom: var(--bklog-border-width) solid var(--td-component-stroke);
       }
 
       .row-data {
@@ -71,8 +70,8 @@
         min-height: 40px;
         font-weight: 400;
         font-size: 12px;
-        background: #f5f7fa;
-        border-top: solid 1px #dcdee5;
+        background: var(--td-bg-color-secondarycontainer);
+        border-top: var(--bklog-border-width) solid var(--td-component-stroke);
 
         .count-num {
           width: 36px;
@@ -84,7 +83,7 @@
 
         .log-content {
           flex: 1;
-          background: #fff;
+          background: var(--td-bg-color-container);
           padding: 9px 12px;
           line-height: 20px;
         }

@@ -1,5 +1,5 @@
 .validate-user-selector {
   .is-error.bk-user-selector {
-    border-color: #ff5656 !important;
+    border-color: var(--td-error-color) !important;
   }
 }

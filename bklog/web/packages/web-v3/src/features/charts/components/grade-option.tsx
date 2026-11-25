@@ -32,7 +32,6 @@ import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 
-import BklogLoading from '@/shared/ui/loading';
 import {
   Form,
   FormItem,
@@ -212,6 +211,7 @@ export default defineComponent({
     });
 
     const handleSaveGradeSettingClick = async (e: MouseEvent, isSave = true) => {
+      if (isLoading.value) return;
       if (!isSave) {
         gradeOptionForm.value = getDefaultGradeOption();
         formRef.value?.clearValidate();
@@ -219,13 +219,14 @@ export default defineComponent({
         return;
       }
 
-      if (isSave && !isLoading.value) {
+      if (isSave) {
         try {
           const result = await formRef.value?.validate();
           if (result !== true) return;
         } catch {
           return;
         }
+        if (isLoading.value) return;
         isLoading.value = true;
 
         ServicesInstance.retrieve.setIndexSetCustomConfig({
@@ -343,181 +344,179 @@ export default defineComponent({
     };
 
     return () => (
-      <BklogLoading
-        data-testid='grade-option-loading'
-        loading={isLoading.value}
-        size='mini'
-      >
+      <div class='grade-panel' data-testid='grade-option-loading' aria-busy={isLoading.value}>
         <div class='grade-title'>{$t('日志分级展示')}</div>
-        <div class='grade-row grade-switcher'>
-          <div class='grade-label'>{$t('分级展示')}</div>
-          <div class='grade-field-des'>
-            <Switch
-              theme='primary'
-              value={!gradeOptionForm.value.disabled}
-              onChange={v => {
-                handleGradeOptionFormChange('disabled', !v);
-                formRef.value?.clearValidate();
-              }}
-            />
-            <span class='bklog-icon bklog-info-fill' />
-            <span>{$t('指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段')}</span>
+        <div class='grade-content' inert={isLoading.value}>
+          <div class='grade-row grade-switcher'>
+            <div class='grade-label'>{$t('分级展示')}</div>
+            <div class='grade-field-des'>
+              <Switch
+                theme='primary'
+                value={!gradeOptionForm.value.disabled}
+                onChange={v => {
+                  handleGradeOptionFormChange('disabled', !v);
+                  formRef.value?.clearValidate();
+                }}
+              />
+              <span class='bklog-icon bklog-info-fill' aria-hidden='true' />
+              <span>{$t('指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段')}</span>
+            </div>
           </div>
-        </div>
-        <div class='grade-row'>
-          <div class={['grade-label', { required: !gradeOptionForm.value.disabled }]}>{$t('字段设置')}</div>
-          <Form
-            ref={formRef}
-            class='grade-field-setting'
-            labelAlign='top'
-            requiredMark={false}
-            data={gradeOptionForm.value}
-            rules={formRules}
-          >
-            <FormItem
-              class='grade-type-form-item'
-              name='type'
-              errorDisplayType='tooltips'
-              iconOffset={26}
+          <div class='grade-row'>
+            <div class={['grade-label', { required: !gradeOptionForm.value.disabled }]}>{$t('字段设置')}</div>
+            <Form
+              ref={formRef}
+              class='grade-field-setting'
+              labelAlign='top'
+              requiredMark={false}
+              data={gradeOptionForm.value}
+              rules={formRules}
             >
-              <Select
-                disabled={gradeOptionForm.value.disabled}
-                popupProps={{ overlayClassName: 'bklog-popover-stop' }}
-                value={gradeOptionForm.value.type}
-                filterable
-                onChange={handleTypeChange}
-              >
-                {gradeCategory.value.map(option => (
-                  <Option
-                    value={option.id}
-                    key={option.id}
-                    label={option.name}
-                  />
-                ))}
-              </Select>
-            </FormItem>
-            {gradeOptionForm.value.type === 'custom' && (
               <FormItem
-                class='grade-custom-field-form-item'
-                name='field'
+                class='grade-type-form-item'
+                name='type'
                 errorDisplayType='tooltips'
                 iconOffset={26}
               >
                 <Select
                   disabled={gradeOptionForm.value.disabled}
                   popupProps={{ overlayClassName: 'bklog-popover-stop' }}
-                  placeholder={$t('请选择字段')}
-                  value={gradeOptionForm.value.field}
+                  value={gradeOptionForm.value.type}
                   filterable
-                  onChange={val => handleSettingFieldChange(val)}
+                  onChange={handleTypeChange}
                 >
-                  {fieldList.value.map((option: { field_name: string|number|bigint|boolean|symbol|undefined; field_alias: any; }) => (
+                  {gradeCategory.value.map(option => (
                     <Option
-                      value={option.field_name}
-                      key={option.field_name}
-                      label={`${option.field_name}(${option.field_alias || option.field_name})`}
+                      value={option.id}
+                      key={option.id}
+                      label={option.name}
                     />
                   ))}
                 </Select>
               </FormItem>
-            )}
-          </Form>
-        </div>
-        <div class='grade-row'>
-          <div class='grade-label'>{$t('字段列表')}</div>
-          <div class='grade-table'>
-            <div class='grade-table-header'>
-              <div
-                style='width: 46px'
-                class='grade-table-col col-color'
-              >
-                {$t('颜色')}
-              </div>
-              <div
-                style='width: 240px'
-                class='grade-table-col'
-              >
-                {$t('字段定义')}
-              </div>
-              <div
-                style='width: 330px'
-                class='grade-table-col'
-              >
-                <RadioGroup
-                  value={gradeOptionForm.value.valueType}
-                  onChange={v => handleGradeOptionFormChange('valueType', v)}
+              {gradeOptionForm.value.type === 'custom' && (
+                <FormItem
+                  class='grade-custom-field-form-item'
+                  name='field'
+                  errorDisplayType='tooltips'
+                  iconOffset={26}
                 >
-                  <Radio
-                    disabled={gradeOptionForm.value.disabled || gradeOptionForm.value.type === 'normal'}
-                    value={GradeFieldValueType.VALUE}
+                  <Select
+                    disabled={gradeOptionForm.value.disabled}
+                    popupProps={{ overlayClassName: 'bklog-popover-stop' }}
+                    placeholder={$t('请选择字段')}
+                    value={gradeOptionForm.value.field}
+                    filterable
+                    onChange={val => handleSettingFieldChange(val)}
                   >
-                    {$t('快速选择')}
-                  </Radio>
-                  <Radio
-                    style='margin-left: 14px;'
-                    disabled={gradeOptionForm.value.disabled || gradeOptionForm.value.type === 'normal'}
-                    value={GradeFieldValueType.REGEXP}
-                  >
-                    {$t('正则表达式')}
-                  </Radio>
-                </RadioGroup>
-              </div>
-              <div
-                style='width: 60px'
-                class='grade-table-col'
-              >
-                {$t('启用')}
-              </div>
-            </div>
-            <div class='grade-table-body'>
-              {gradeOptionForm.value.settings.map((item, index) => (
-                <div
-                  key={item.id}
-                  class={['grade-table-row', { readonly: item.id === 'others' }]}
-                >
-                  <div
-                    style='width: 46px'
-                    class='grade-table-col col-color'
-                  >
-                    <span style={{ width: '16px', height: '16px', background: item.color, borderRadius: '1px' }} />
-                  </div>
-                  <div
-                    style='width: 240px'
-                    class='grade-table-col'
-                  >
-                    {item.id !== 'others' &&
-                    gradeOptionForm.value.type === 'custom' &&
-                    !gradeOptionForm.value.disabled ? (
-                      <Input
-                        value={item.name}
-                        onChange={v => handleSettingItemChange(index, 'name', v)}
+                    {fieldList.value.map((option: { field_name: string|number|bigint|boolean|symbol|undefined; field_alias: any; }) => (
+                      <Option
+                        value={option.field_name}
+                        key={option.field_name}
+                        label={`${option.field_name}(${option.field_alias || option.field_name})`}
                       />
-                    ) : (
-                      item.name
-                    )}
-                  </div>
-                  <div
-                    style='width: 330px'
-                    class='grade-table-col'
+                    ))}
+                  </Select>
+                </FormItem>
+              )}
+            </Form>
+          </div>
+          <div class='grade-row'>
+            <div class='grade-label'>{$t('字段列表')}</div>
+            <div class='grade-table'>
+              <div class='grade-table-header'>
+                <div
+                  style='width: 46px'
+                  class='grade-table-col col-color'
+                >
+                  {$t('颜色')}
+                </div>
+                <div
+                  style='width: 240px'
+                  class='grade-table-col'
+                >
+                  {$t('字段定义')}
+                </div>
+                <div
+                  style='width: 330px'
+                  class='grade-table-col'
+                >
+                  <RadioGroup
+                    value={gradeOptionForm.value.valueType}
+                    onChange={v => handleGradeOptionFormChange('valueType', v)}
                   >
-                    {fieldValueRender(item, index)}
-                  </div>
-                  {item.id !== 'others' && (
+                    <Radio
+                      disabled={gradeOptionForm.value.disabled || gradeOptionForm.value.type === 'normal'}
+                      value={GradeFieldValueType.VALUE}
+                    >
+                      {$t('快速选择')}
+                    </Radio>
+                    <Radio
+                      style='margin-left: 14px;'
+                      disabled={gradeOptionForm.value.disabled || gradeOptionForm.value.type === 'normal'}
+                      value={GradeFieldValueType.REGEXP}
+                    >
+                      {$t('正则表达式')}
+                    </Radio>
+                  </RadioGroup>
+                </div>
+                <div
+                  style='width: 60px'
+                  class='grade-table-col'
+                >
+                  {$t('启用')}
+                </div>
+              </div>
+              <div class='grade-table-body'>
+                {gradeOptionForm.value.settings.map((item, index) => (
+                  <div
+                    key={item.id}
+                    class={['grade-table-row', { readonly: item.id === 'others' }]}
+                  >
                     <div
-                      style='width: 60px'
+                      style='width: 46px'
+                      class='grade-table-col col-color'
+                    >
+                      <span style={{ width: '16px', height: '16px', background: item.color, borderRadius: '1px' }} />
+                    </div>
+                    <div
+                      style='width: 240px'
                       class='grade-table-col'
                     >
-                      <Switch
-                        disabled={gradeOptionForm.value.disabled}
-                        size='small'
-                        theme='primary'
-                        value={item.enable}
-                        onChange={v => handleSettingItemChange(index, 'enable', v)}
-                      />
+                      {item.id !== 'others' &&
+                      gradeOptionForm.value.type === 'custom' &&
+                      !gradeOptionForm.value.disabled ? (
+                        <Input
+                          value={item.name}
+                          onChange={v => handleSettingItemChange(index, 'name', v)}
+                        />
+                      ) : (
+                        item.name
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div
+                      style='width: 330px'
+                      class='grade-table-col'
+                    >
+                      {fieldValueRender(item, index)}
+                    </div>
+                    {item.id !== 'others' && (
+                      <div
+                        style='width: 60px'
+                        class='grade-table-col'
+                      >
+                        <Switch
+                          disabled={gradeOptionForm.value.disabled}
+                          size='small'
+                          theme='primary'
+                          value={item.enable}
+                          onChange={v => handleSettingItemChange(index, 'enable', v)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -525,18 +524,20 @@ export default defineComponent({
           <Button
             style='margin-right: 8px'
             theme='primary'
+            loading={isLoading.value}
             onClick={e => handleSaveGradeSettingClick(e, true)}
           >
             {$t('确定')}
           </Button>
           <Button
             theme='default'
+            disabled={isLoading.value}
             onClick={e => handleSaveGradeSettingClick(e, false)}
           >
             {$t('取消')}
           </Button>
         </div>
-      </BklogLoading>
+      </div>
     );
   },
 });

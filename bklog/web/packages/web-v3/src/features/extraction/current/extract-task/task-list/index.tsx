@@ -100,7 +100,8 @@ export default defineComponent({
     const sideSlider = ref({
       isLoading: false, // 侧边栏加载状态
       isShow: false, // 侧边栏显示状态
-      data: {} as any, // 侧边栏数据
+      data: null as any, // 侧边栏数据
+      hasError: false,
     });
     const notLoadingStatus = ref(['downloadable', 'redownloadable', 'expired', 'failed']); // 非加载中的状态列表
     const doneStatus = ref(['redownloadable', 'expired', 'failed']); // 已完成的状态列表
@@ -247,22 +248,31 @@ export default defineComponent({
       initTaskList();
     };
 
-    // 查看详情
-    const viewDetail = async (row: any) => {
+    let detailRequest = 0;
+    const detailTaskId = ref<string | number>();
+    const viewDetail = async (taskId: string | number) => {
+      const request = ++detailRequest;
+      detailTaskId.value = taskId;
+      sideSlider.value.isShow = true;
+      sideSlider.value.isLoading = true;
+      sideSlider.value.hasError = false;
+      sideSlider.value.data = null;
+
       try {
-        sideSlider.value.isShow = true;
-        sideSlider.value.isLoading = true;
-        sideSlider.value.data = {};
         const res = await ServicesInstance.extract.getTaskDetail({
-          params: {
-            id: row.task_id,
-          },
+          params: { id: taskId },
         });
-        sideSlider.value.data = res.data;
-      } catch (err) {
-        console.warn(err);
+        if (request === detailRequest) {
+          sideSlider.value.data = res.data;
+        }
+      } catch {
+        if (request === detailRequest) {
+          sideSlider.value.hasError = true;
+        }
       } finally {
-        sideSlider.value.isLoading = false;
+        if (request === detailRequest) {
+          sideSlider.value.isLoading = false;
+        }
       }
     };
 
@@ -386,6 +396,7 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      detailRequest += 1;
       clearTimeout(timeoutID.value);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     });
@@ -430,16 +441,18 @@ export default defineComponent({
           class='extract-task-table-container'
         >
           <bk-table
-          loading={isLoading.value}
+            loading={isLoading.value}
             class='king-table'
             max-height={tableMaxHeight.value}
             v-slots={{
               empty: () => (
-                <div>
-                  <EmptyStatus
-                    emptyType={emptyType.value}
-                    onOperation={handleOperation}
-                  />
+                <div class='bklog-table-empty-region'>
+                  {!isLoading.value && (
+                    <EmptyStatus
+                      emptyType={emptyType.value}
+                      onOperation={handleOperation}
+                    />
+                  )}
                 </div>
               ),
             }}
@@ -462,7 +475,7 @@ export default defineComponent({
                         class='authorized-target-count'
                         data-test-id='extraction_button_targetDetail'
                         type='button'
-                        onClick={() => viewDetail(row)}
+                        onClick={() => viewDetail(row.task_id)}
                       >
                         {row.ip_list?.length ?? 0}
                       </button>
@@ -591,7 +604,7 @@ export default defineComponent({
                   <div class='task-operation-container'>
                     <span
                       class='task-operation'
-                      onClick={() => viewDetail(row)}
+                      onClick={() => viewDetail(row.task_id)}
                     >
                       {t('详情')}
                     </span>
@@ -639,36 +652,53 @@ export default defineComponent({
               <>
                 <div
                   class='extract-task-detail-content'
+                  aria-busy={sideSlider.value.isLoading}
                   v-loading={{ loading: sideSlider.value.isLoading, indicator: renderDrawerDetailSkeleton }}
                 >
-                  <ListBox
-                    icon='bklog-icon bklog-info-fill'
-                    mark={true}
-                    title={sideSlider.value.data.task_process_info}
-                  />
-                  <TaskStatusDetail statusData={sideSlider.value.data.task_step_status} />
-                  <DownloadUrl taskId={sideSlider.value.data.task_id} />
-                  <ListBox
-                    icon='bk-icon icon-sitemap'
-                    list={sideSlider.value.data.preview_directory}
-                    title={t('文件路径')}
-                  />
-                  <ListBox
-                    icon='bk-icon icon-data'
-                    list={getDownloadTheTargetList(sideSlider.value.data)}
-                    title={t('文件来源主机')}
-                  />
-                  <ListBox
-                    icon='bk-icon icon-file'
-                    list={sideSlider.value.data.file_path}
-                    title={t('文件列表')}
-                  />
-                  <ListBox
-                    icon='bk-icon icon-clock'
-                    list={sideSlider.value.data.expiration_date}
-                    title={t('过期时间')}
-                  />
-                  {sideSlider.value.data.filter_type && <TextFilterDetail data={sideSlider.value.data} />}
+                  {!sideSlider.value.isLoading && (sideSlider.value.hasError || !sideSlider.value.data) && (
+                    <div class='extract-task-detail-state'>
+                      <EmptyStatus
+                        emptyType={sideSlider.value.hasError ? '500' : 'empty'}
+                        onOperation={() => {
+                          if (detailTaskId.value !== undefined) {
+                            void viewDetail(detailTaskId.value);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                  {sideSlider.value.data && (
+                    <>
+                      <ListBox
+                        icon='bklog-icon bklog-info-fill'
+                        mark={true}
+                        title={sideSlider.value.data.task_process_info}
+                      />
+                      <TaskStatusDetail statusData={sideSlider.value.data.task_step_status} />
+                      <DownloadUrl taskId={sideSlider.value.data.task_id} />
+                      <ListBox
+                        icon='bk-icon icon-sitemap'
+                        list={sideSlider.value.data.preview_directory}
+                        title={t('文件路径')}
+                      />
+                      <ListBox
+                        icon='bk-icon icon-data'
+                        list={getDownloadTheTargetList(sideSlider.value.data)}
+                        title={t('文件来源主机')}
+                      />
+                      <ListBox
+                        icon='bk-icon icon-file'
+                        list={sideSlider.value.data.file_path}
+                        title={t('文件列表')}
+                      />
+                      <ListBox
+                        icon='bk-icon icon-clock'
+                        list={sideSlider.value.data.expiration_date}
+                        title={t('过期时间')}
+                      />
+                      {sideSlider.value.data.filter_type && <TextFilterDetail data={sideSlider.value.data} />}
+                    </>
+                  )}
                 </div>
               </>
             ),
@@ -682,6 +712,9 @@ export default defineComponent({
           {...{
             'onUpdate:isShow': (val: boolean) => {
               sideSlider.value.isShow = val;
+              if (!val) {
+                detailRequest += 1;
+              }
             },
           }}
         ></bk-sideslider>

@@ -49,7 +49,8 @@ function handler(name, dependencies) {
   });
   return new Function(...Object.keys(dependencies), code)(...Object.values(dependencies));
 }
-async function fixture(validation, serviceError = false) {
+async function fixture(validation, serviceError = false, options = {}) {
+  const { quix, response } = options;
   const calls = [],
     loading = [],
     events = [];
@@ -80,12 +81,14 @@ async function fixture(validation, serviceError = false) {
     ruleTableRef: { value: { getRuleListBase64: () => 'fixture-base64' } },
     ServicesInstance: {
       retrieve: {
-        updateClusteringConfig: async (options) => {
-          calls.push(options);
+        updateClusteringConfig: async (requestOptions) => {
+          calls.push(requestOptions);
           if (serviceError) throw new Error('fixture failure');
+          return response;
         },
       },
     },
+    quix,
     NotifyPlugin: { info: (message) => events.push(message.title) },
     t: (text) => text,
     emit: (...args) => events.push(args),
@@ -156,5 +159,15 @@ test('clustering save failure restores loading without success or close events',
   const f = await fixture(true, true);
   assert.equal(f.calls.length, 1);
   assert.deepEqual(f.events, []);
+  assert.deepEqual(f.loading, [false]);
+});
+
+test('quix clustering closes without pending notification when backend returns null task id', async () => {
+  const f = await fixture(true, false, {
+    quix: { value: { phase: 'running', distance_threshold: '0.5', can_reopen: false, operation: null, bkfara: null } },
+    response: { data: [null] },
+  });
+  assert.equal(f.calls.length, 1);
+  assert.deepEqual(f.events, [['close']]);
   assert.deepEqual(f.loading, [false]);
 });

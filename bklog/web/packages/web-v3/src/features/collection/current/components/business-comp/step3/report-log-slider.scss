@@ -3,16 +3,13 @@
   .t-drawer__header-content { min-width: 0; width: 100%; padding-right: 24px; }
   .report-log-slider-header {
     display: flex; align-items: center; gap: 16px; width: 100%;
-    .title { flex: 1; font-size: 16px; font-weight: normal; color: #313238; }
+    .title { flex: 1; font-size: 16px; font-weight: normal; color: var(--td-text-color-primary); min-width: 0; overflow-wrap: anywhere; }
     .copy-btn { flex-shrink: 0; height: 32px; min-width: 64px; }
   }
-  .t-drawer__body { padding: 0; min-height: 0; background: var(--bklog-text-primary, #313238); }
+  .t-drawer__body { padding: 0; min-height: 0; background: var(--td-bg-color-container); }
   .json-text-style {
-    box-sizing: border-box; min-height: 100%; padding: 20px;
-    color: #c4c6cc; background: #313238; overflow-wrap: anywhere;
+    box-sizing: border-box; min-height: 100%; padding: var(--bklog-space-20);
+    color: var(--td-text-color-secondary); background: var(--td-bg-color-container); overflow-wrap: anywhere;
     .json-pagination-wrapper { max-height: none; }
-    .vjs-tree { color: #c4c6cc; font-size: 12px; line-height: 20px; }
-    .vjs-tree-node.is-highlight, .vjs-tree-node:hover { background: rgba(255, 255, 255, .12); }
   }
-  .report-log-empty { padding: 48px 0; text-align: center; color: #c4c6cc; }
 }

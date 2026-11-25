@@ -4,16 +4,37 @@ import {readFileSync,readdirSync,writeFileSync,existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {resolve,relative,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import postcss from 'postcss';
 const packageRoot=fileURLToPath(new URL('../',import.meta.url));
 const digest=content=>createHash('sha256').update(content).digest('hex');
 function walk(dir){return readdirSync(dir,{withFileTypes:true}).flatMap(entry=>entry.isDirectory()?walk(resolve(dir,entry.name)):[resolve(dir,entry.name)]).sort();}
 export function monitorBuildIdentity() {
   const sourceDigest=digest(walk(resolve(packageRoot,'src')).map(file=>relative(packageRoot,file)+'\0'+digest(readFileSync(file))).join('\n'));
-  const configs=['vite.config.ts','vite.application.config.mjs','vite.application-source.config.ts','vite.base.config.ts','vite.monitor.config.ts','tools/monitor-style-scope.mjs','tools/production-delivery.mjs','tools/production-paths.mjs','tools/runtime-environment.html','tools/native-sdk-vue.mjs','tools/legacy-static-entry.mjs','tools/verify-legacy-deployment.mjs','tools/verify-monitor-build.mjs','tools/compile-messages.mjs','project.inlang/settings.json','project.inlang/paraglide.config.mjs','package.json','pnpm-lock.yaml'];
+  const configs=['vite.config.ts','vite.application.config.mjs','vite.application-source.config.ts','vite.base.config.ts','vite.monitor.config.ts','tools/monitor-style-scope.mjs','tools/runtime-warning-patches.mjs','tools/production-delivery.mjs','tools/production-paths.mjs','tools/runtime-environment.html','tools/native-sdk-vue.mjs','tools/legacy-static-entry.mjs','tools/verify-legacy-deployment.mjs','tools/verify-monitor-build.mjs','tools/compile-messages.mjs','project.inlang/settings.json','project.inlang/paraglide.config.mjs','package.json','pnpm-lock.yaml'];
   const inputs=[...configs.map(file=>resolve(packageRoot,file)).filter(existsSync),...walk(resolve(packageRoot,'migration-runtime'))];
   const buildConfigDigest=digest(inputs.sort().map(file=>relative(packageRoot,file)+'\0'+digest(readFileSync(file))).join('\n'));
   return {sourceDigest,buildConfigDigest};
 }
+function verifyTraceOverlayScope(css) {
+  const overlays = [
+    ['.t-popup--animation-', '.bklog-text-tooltip'],
+    ['.t-drawer__content-wrapper', '.bklog-compat-drawer'],
+    ['.t-dialog-zoom__vue-', '.bklog-info-box'],
+  ];
+  postcss.parse(css).walkAtRules('media', media => {
+    if (!media.params.includes('prefers-reduced-motion')) return;
+    media.walkRules(rule => {
+      for (const selector of rule.selectors) {
+        const overlay = overlays.find(([prefix]) => selector.includes(prefix));
+        if (!overlay) continue;
+        if (!selector.includes('.monitor-trace-log') || !selector.includes(overlay[1])) {
+          throw new Error(`Trace reduced-motion rule is missing its overlay scope: ${overlay[0]}`);
+        }
+      }
+    });
+  });
+}
+
 export function verifyMonitorBuild(kind,output=resolve(packageRoot,'dist-monitor',kind)) {
   if(!['apm','trace'].includes(kind))throw new Error('Expected apm or trace');
   const entry=readFileSync(resolve(output,'main.js'),'utf8');
@@ -29,7 +50,10 @@ export function verifyMonitorBuild(kind,output=resolve(packageRoot,'dist-monitor
   }
   const assets=walk(output).filter(file=>file.endsWith('.js')&&file!==resolve(output,'main.js'));
   for(const worker of ['retrieve-search.worker','cluster-table.worker'])if(!assets.some(file=>file.includes(worker)))throw new Error(`Missing compiled worker: ${worker}`);
-  if(kind==='trace'&&!css.includes('.monitor-trace-log .t-'))throw new Error('Trace control CSS scope is absent');
+  if (kind === 'trace') {
+    if (!css.includes('.monitor-trace-log .t-')) throw new Error('Trace control CSS scope is absent');
+    verifyTraceOverlayScope(css);
+  }
   writeFileSync(resolve(output,'package.json'),JSON.stringify({name:`@blueking/monitor-${kind}-log`,private:true,type:'commonjs',main:'main.js'},null,2)+'\n');
   const identity=monitorBuildIdentity();
   const recordedIdentity=JSON.parse(readFileSync(resolve(output,'build-identity.json'),'utf8'));

@@ -382,6 +382,7 @@ export default defineComponent({
                 onRightIconClick={handleSearch}
               />
               <bk-dropdown-menu
+                overlayInnerClassName='bklog-dropdown-popup'
                 v-slots={{
                   'dropdown-trigger': () => (
                     <div>

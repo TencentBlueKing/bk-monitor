@@ -25,6 +25,7 @@
  */
 
 
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
 import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
@@ -70,7 +71,9 @@ export default defineComponent({
     const validateForm = ref<any>(null); // 表单验证引用
 
     const confirmLoading = ref(false); // 确认按钮加载状态
-    const sliderLoading = ref(false); // 侧滑内容加载状态
+    const sliderLoading = ref(false);
+    const initializationFailed = ref(false);
+    let initializationRequest = 0;
     const customRetentionDay = ref(''); // 自定义过期天数
     const collectorList = ref([
       { id: 'collector_config', name: t('采集项'), list: [] }, // 采集项列表
@@ -124,50 +127,43 @@ export default defineComponent({
     });
 
     // 获取采集项列表
-    const getCollectorList = async () => {
+    const getCollectorList = async (request: number) => {
       const query = {
         bk_biz_id: bkBizId.value,
         have_data_id: 1,
       };
 
-      try {
-        // 获取采集项配置列表
-        const collectorConfigRes = await ServicesInstance.collect.getAllCollectors({ query });
-        collectorList.value[0].list =
-          collectorConfigRes.data.map((item: any) => ({
-            id: item.collector_config_id,
-            name: item.collector_config_name,
-            ...item,
-          })) || [];
+      // 获取采集项配置列表
+      const collectorConfigRes = await ServicesInstance.collect.getAllCollectors({ query });
+      if (request !== initializationRequest) return;
+      collectorList.value[0].list =
+        collectorConfigRes.data.map((item: any) => ({
+          id: item.collector_config_id,
+          name: item.collector_config_name,
+          ...item,
+        })) || [];
 
-        // 获取采集插件列表
-        const collectorPluginRes = await ServicesInstance.collect.getCollectorPlugins({ query });
-        collectorList.value[1].list =
-          collectorPluginRes.data.map((item: any) => ({
-            id: item.collector_plugin_id,
-            name: item.collector_plugin_name,
-            ...item,
-          })) || [];
-      } catch (error) {
-        console.warn('获取采集项列表失败:', error);
-      }
+      // 获取采集插件列表
+      const collectorPluginRes = await ServicesInstance.collect.getCollectorPlugins({ query });
+      if (request !== initializationRequest) return;
+      collectorList.value[1].list =
+        collectorPluginRes.data.map((item: any) => ({
+          id: item.collector_plugin_id,
+          name: item.collector_plugin_name,
+          ...item,
+        })) || [];
     };
 
     // 获取归档仓库列表
-    const getRepoList = async () => {
-      try {
-        const res = await ServicesInstance.archive.getRepositoryList({
-          query: {
-            bk_biz_id: bkBizId.value,
-          },
-        });
-        const { data } = res;
-        repositoryOriginList.value = data || [];
-      } catch (error) {
-        console.warn('获取归档仓库列表失败:', error);
-      } finally {
-        sliderLoading.value = false;
-      }
+    const getRepoList = async (request: number) => {
+      const res = await ServicesInstance.archive.getRepositoryList({
+        query: {
+          bk_biz_id: bkBizId.value,
+        },
+      });
+      if (request !== initializationRequest) return;
+      const { data } = res;
+      repositoryOriginList.value = data || [];
     };
 
     // 采集项变更处理
@@ -189,7 +185,7 @@ export default defineComponent({
 
     // 更新天数列表
     const updateDaysList = () => {
-      const retentionDaysListData = [...globalsData.value.storage_duration_time].filter(item => {
+      const retentionDaysListData = [...(globalsData.value.storage_duration_time ?? [])].filter(item => {
         return item.id;
       });
       retentionDaysListData.push({
@@ -222,6 +218,8 @@ export default defineComponent({
 
     // 确认提交表单逻辑
     const handleConfirm = async () => {
+      if (sliderLoading.value || confirmLoading.value || !validateForm.value) return;
+      confirmLoading.value = true;
       try {
         // 验证表单
         await validateForm.value?.validate();
@@ -245,9 +243,6 @@ export default defineComponent({
           };
           params.archive_config_id = archiveConfigId;
         }
-
-        // 设置提交按钮为加载状态
-        confirmLoading.value = true;
 
         // 调用接口提交数据
         await url({
@@ -308,35 +303,51 @@ export default defineComponent({
       ));
     };
 
-    // 监听 showSlider 变化
+    const initializeSlider = async () => {
+      const request = ++initializationRequest;
+      sliderLoading.value = true;
+      initializationFailed.value = false;
+      try {
+        expandedCollectorGroups.value = collectorList.value.map(item => item.id);
+        await getCollectorList(request);
+        if (request !== initializationRequest) return;
+        await getRepoList(request);
+        if (request !== initializationRequest) return;
+        updateDaysList();
+
+        if (isEdit.value) {
+          const {
+            instance_id: instanceId,
+            target_snapshot_repository_name: targetSnapshotRepositoryName,
+            snapshot_days: snapshotDays,
+            instance_type: instanceType,
+          } = props.editArchive;
+
+          // 先设置采集类型和采集项
+          collectorType.value = instanceType;
+          formData.instance_id = instanceId;
+          formData.snapshot_days = snapshotDays;
+
+          // 等仓库选项刷新后再赋值仓库名称
+          await nextTick();
+          if (request !== initializationRequest) return;
+          formData.target_snapshot_repository_name = targetSnapshotRepositoryName;
+        }
+      } catch {
+        if (request === initializationRequest) initializationFailed.value = true;
+      } finally {
+        if (request === initializationRequest) sliderLoading.value = false;
+      }
+    };
+
     watch(
       () => props.showSlider,
-      async val => {
+      val => {
         if (val) {
-          expandedCollectorGroups.value = collectorList.value.map(item => item.id);
-          sliderLoading.value = isEdit.value;
-          await getCollectorList();
-          await getRepoList();
-          updateDaysList();
-
-          if (isEdit.value) {
-            const {
-              instance_id: instanceId,
-              target_snapshot_repository_name: targetSnapshotRepositoryName,
-              snapshot_days: snapshotDays,
-              instance_type: instanceType,
-            } = props.editArchive;
-
-            // 先设置采集类型和采集项
-            collectorType.value = instanceType;
-            formData.instance_id = instanceId;
-            formData.snapshot_days = snapshotDays;
-
-            // 等仓库选项刷新后再赋值仓库名称
-            await nextTick();
-            formData.target_snapshot_repository_name = targetSnapshotRepositoryName;
-          }
+          void initializeSlider();
         } else {
+          initializationRequest += 1;
+          sliderLoading.value = false;
           // 清空表单数据
           Object.assign(formData, {
             snapshot_days: '',
@@ -345,6 +356,7 @@ export default defineComponent({
           });
         }
       },
+      { immediate: true },
     );
 
     // 组件挂载时初始化验证规则
@@ -365,10 +377,16 @@ export default defineComponent({
               <>
                 <div
                   class='archive-slider-content'
+                  aria-busy={sliderLoading.value}
                   v-loading={{ loading: sliderLoading.value, indicator: renderDrawerFormSkeleton }}
                 >
                   {/* 加载完成后渲染表单 */}
-                  {!sliderLoading.value && (
+                  {!sliderLoading.value && initializationFailed.value && (
+                    <div class='bklog-table-empty-region'>
+                      <EmptyStatus emptyType='500' onOperation={initializeSlider} />
+                    </div>
+                  )}
+                  {!sliderLoading.value && !initializationFailed.value && (
                     <bk-form
                       ref={validateForm}
                       class='king-form'
@@ -445,7 +463,7 @@ export default defineComponent({
                         required
                       >
                         <bk-select
-                          style='width: 300px'
+                          style='width: min(300px, 100%)'
                           v-slots={{
                             trigger: () => <div class='bk-select-name'>{getDaysStr.value}</div>,
                             extension: () => (
@@ -477,6 +495,7 @@ export default defineComponent({
                           class='king-button mr10'
                           data-test-id='formContainer_button_handleSubmit'
                           loading={confirmLoading.value}
+                          disabled={confirmLoading.value}
                           theme='primary'
                           onClick={handleConfirm}
                         >
@@ -495,7 +514,7 @@ export default defineComponent({
               </>
             ),
           }}
-          width={676}
+          width='min(676px, 100vw)'
           is-show={props.showSlider}
           quick-close={true}
           show-mask={true}

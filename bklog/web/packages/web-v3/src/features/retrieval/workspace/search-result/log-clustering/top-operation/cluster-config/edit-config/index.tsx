@@ -25,15 +25,17 @@
  */
 
 
+import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { cloneReactiveData } from '@/shared/lib/clone-reactive-data';
 import { ServicesInstance } from '@/platform/services';
-import { defineComponent, onMounted, ref, computed, watch } from 'vue';
+import { inject, defineComponent, onMounted, ref, computed, watch } from 'vue';
 import TextHighlight from '@/shared/ui/text-highlight';
 
 import FilterRule from '@/features/collection/filter-rule/index';
 import RuleConfigOperate from '@/features/cleaning/rule-config/index';
 import RuleTable from '@/features/cleaning/rule-table/index';
+import { quixPage } from '../../../quix-page';
 import useLocale from '@/shared/composables/use-locale';
 
 import {
@@ -80,6 +82,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useApplicationStore();
+    const quix = inject(quixPage, undefined);
 
     const ruleConfigOperateRef = ref<any>(null);
     const ruleOperateRef = ref<any>();
@@ -246,7 +249,12 @@ export default defineComponent({
                 bk_biz_id,
               },
             })
-            .then(() => {
+            .then((res: unknown) => {
+              const response = res as IResponseData<(string | null)[]> | undefined;
+              if (quix?.value && response?.data?.[0] === null) {
+                emit('close');
+                return;
+              }
               NotifyPlugin.info({
                 title: t('保存待生效'),
                 content: t('该保存需要10分钟生效, 请耐心等待'),
@@ -276,7 +284,7 @@ export default defineComponent({
     });
 
     return () => (
-      <div class='setting-log-cluster' v-loading={{ loading: globalLoading.value }}>
+      <div class='setting-log-cluster' v-loading={{ loading: globalLoading.value, indicator: renderDrawerFormSkeleton }}>
         <div class='setting-form-main'>
           <TForm
             ref={formRef}

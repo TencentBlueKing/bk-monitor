@@ -4,18 +4,10 @@
   color: var(--bklog-text-secondary, #63656e);
 
   .t-dialog__header {
-    padding: 16px 24px 8px;
-    font-size: 20px;
-    font-weight: 400;
-    line-height: 29px;
-    color: var(--bklog-text-primary, #313238);
+    padding: var(--bklog-space-16) var(--bklog-space-24) var(--bklog-space-8);
   }
 
   .t-dialog__close {
-    top: 5px;
-    right: 5px;
-    width: 26px;
-    height: 26px;
     color: var(--bklog-text-placeholder, #979ba5);
   }
 

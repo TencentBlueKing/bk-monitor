@@ -91,12 +91,19 @@
   }
 }
 
+.scene-result-skeleton {
+  flex: 1;
+  margin: var(--bklog-space-8);
+  padding: var(--bklog-space-16);
+  background: var(--td-bg-color-container);
+}
+
 .scene-empty-tip {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #fff;
+  background-color: var(--td-bg-color-container);
   margin: 8px;
   padding: 40px 24px;
   text-align: center;
@@ -117,7 +124,7 @@
 
   &-title {
     line-height: normal;
-    color: #313238;
+    color: var(--td-text-color-primary);
     font-size: 22px;
     font-weight: 700;
     margin-bottom: 24px;
@@ -125,7 +132,7 @@
 
   &-desc {
     line-height: normal;
-    color: #313238;
+    color: var(--td-text-color-primary);
     font-size: 17px;
     margin-bottom: 24px;
   }

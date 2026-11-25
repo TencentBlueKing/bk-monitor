@@ -39,7 +39,7 @@
         @mouseenter="handleMouseEnter"
         @mouseleave="handleMouseLeave"
       >
-        <t-menu :value="activeManageNav.id || ''" :collapsed="!isExpand" :width="['260px', '60px']" theme="dark">
+        <t-menu :value="activeManageNav.id || ''" :collapsed="!isExpand" :width="['var(--bklog-manage-menu-width)', 'var(--bklog-manage-menu-width-collapsed)']" theme="dark">
           <template v-for="groupItem in menuList" :key="groupItem.id">
             <t-menu-group
               v-if="getGroupChildren(groupItem.children).length"
@@ -51,6 +51,8 @@
                   class="nav-item"
                   :data-test-id="`navBox_nav_${navItem.id}`"
                   :href="getRouteHref(navItem.id)"
+                  :aria-label="navItem.name"
+                  :aria-current="activeManageNav.id === navItem.id ? 'page' : undefined"
                   @click="handleMenuAnchorClick($event, navItem.id)"
                 >
                   <t-menu-item :value="navItem.id">
@@ -63,13 +65,19 @@
           </template>
         </t-menu>
         <div class="nav-slider-footer">
-          <div class="footer-icon is-left" @click.stop="handleFix">
+          <button
+            type="button"
+            class="footer-icon is-left"
+            :aria-label="$t('management_sidebar_pin')"
+            :aria-pressed="isFixed"
+            @click.stop="handleFix"
+          >
             <span class="footer-icon-svg" :style="{ transform: isFixed ? 'rotate(180deg)' : 'rotate(0deg)' }">
-              <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+              <svg aria-hidden="true" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
                 <path d="M31,13.5l-4.77,4.77,9.54,9.55H4v6.36H35.76l-9.53,9.55L31,48.5,48.47,31Zm22.65,0v35H60v-35Z" />
               </svg>
             </span>
-          </div>
+          </button>
         </div>
       </div>
     </aside>
@@ -398,6 +406,9 @@ export default {
 <style lang="scss" scoped>
 @use '../../../shared/styles/mixins/scroller.scss' as *;
 .bk-log-navigation {
+  --bklog-manage-menu-width: 240px;
+  --bklog-manage-menu-width-collapsed: 60px;
+
   display: flex;
   width: 100%;
   height: 100%;
@@ -408,42 +419,41 @@ export default {
 .manage-sidebar {
   position: relative;
   z-index: var(--bklog-z-nav-top);
-  flex: 0 0 60px;
-  width: 60px;
+  flex: 0 0 var(--bklog-manage-menu-width-collapsed);
+  width: var(--bklog-manage-menu-width-collapsed);
   min-width: 0;
   height: 100%;
   overflow: visible;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &.is-fixed {
-    flex-basis: 260px;
-    width: 260px;
+    flex-basis: var(--bklog-manage-menu-width);
+    width: var(--bklog-manage-menu-width);
   }
 }
 
 .manage-sidebar-slider {
   display: flex;
   flex-direction: column;
-  width: 60px;
+  width: var(--bklog-manage-menu-width-collapsed);
   height: 100%;
   overflow: hidden;
-  background: #2c354d;
+  background: var(--bklog-navigation-surface, #2c354d);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &.is-expanded {
-    width: 260px;
+    width: var(--bklog-manage-menu-width);
   }
 
   :deep(.t-default-menu) {
     flex: 1;
     min-height: 0;
     height: auto;
-    --td-gray-color-13: #2c354d;
+    --td-gray-color-13: var(--bklog-navigation-surface);
+    --td-font-white-2: var(--bklog-navigation-header-text);
     --td-gray-color-10: #3b4660;
   }
 
-  // V2 navigation metrics: list gutter 12px, group headings 40/48px,
-  // and 40px menu rows with 2px vertical space on each side.
   :deep(.t-default-menu .t-menu) {
     padding: 12px 0 4px;
     // V2 hides the navigation scrollbar while keeping wheel/trackpad scrolling.
@@ -457,22 +467,26 @@ export default {
   }
 
   :deep(.t-default-menu .t-menu-group__title) {
-    display: block;
-    padding: 26px 18px 6px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    min-height: var(--bklog-control-size-medium);
+    padding: 0 calc(var(--bklog-space-16) + var(--bklog-space-2));
     margin: 0;
-    font-size: var(--bklog-font-body, 12px);
+    font-size: var(--bklog-font-body);
     font-weight: 400;
-    line-height: var(--bklog-line-height-small, 16px);
-    color: #66748f;
+    line-height: var(--bklog-line-height-body);
+    color: var(--bklog-standard-control-border-hover);
     white-space: nowrap;
   }
 
-  :deep(.t-default-menu .t-menu-group:first-child .t-menu-group__title) {
-    padding-top: 18px;
+  &:not(.is-expanded) :deep(.t-default-menu .t-menu-group__title) {
+    justify-content: center;
+    padding-inline: 0;
   }
 
   :deep(.t-default-menu.t-is-collapsed .t-menu-group:first-child .t-menu-group__title) {
-    display: block;
+    display: flex;
   }
 
   :deep(.t-default-menu.t-is-collapsed .t-menu-group__title::after) {
@@ -502,17 +516,50 @@ export default {
     }
   }
 
+  &.is-expanded :deep(.t-default-menu .t-menu-group > .nav-item) {
+    padding: var(--bklog-space-4) var(--bklog-space-16);
+
+    .t-menu__item {
+      height: calc(var(--bklog-control-size-medium) + var(--bklog-space-4));
+      min-height: 0;
+      padding-inline: calc(var(--bklog-space-8) + var(--bklog-space-2));
+      border-radius: var(--bklog-standard-control-radius);
+
+      > i {
+        margin-inline: 0 var(--bklog-space-12);
+      }
+    }
+  }
+
   .nav-item {
     display: block;
     color: inherit;
     text-decoration: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--bklog-border-focus-light);
+      outline-offset: -2px;
+      border-radius: var(--bklog-standard-control-radius);
+    }
   }
 
   &:not(.is-expanded) {
-    :deep(.t-menu__item) {
+    :deep(.t-default-menu .t-menu .t-menu-group > .nav-item) {
+      padding: var(--bklog-space-4) var(--bklog-space-12);
+    }
+
+    :deep(.t-default-menu .t-menu .t-menu__item) {
       justify-content: center;
+      height: calc(var(--bklog-control-size-medium) + var(--bklog-space-4));
+      min-height: 0;
+      padding: 0;
       overflow: hidden;
       white-space: nowrap;
+      border-radius: var(--bklog-standard-control-radius);
+
+      > i {
+        margin-inline: 0;
+      }
     }
 
     :deep(.t-menu__content) {
@@ -523,24 +570,33 @@ export default {
 
 .nav-slider-footer {
   display: flex;
-  flex: 0 0 56px;
+  flex: 0 0 var(--bklog-navigation-header-height);
   align-items: center;
   justify-content: flex-start;
-  padding-left: 14px;
+  padding-inline-start: calc(var(--bklog-space-12) + var(--bklog-space-2));
 
   .footer-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    color: #96a2b9;
+    width: var(--bklog-control-size-medium);
+    height: var(--bklog-control-size-medium);
+    padding: 0;
+    color: var(--bklog-navigation-header-text);
+    background: transparent;
+    border: 0;
     border-radius: 100%;
     cursor: pointer;
 
-    &:hover {
-      color: #d3d9e4;
-      background: linear-gradient(270deg, #253047, #263247);
+    &:hover,
+    &:focus-visible {
+      color: var(--bklog-navigation-selector-text);
+      background: var(--bklog-navigation-selector-surface);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--bklog-border-focus-light);
+      outline-offset: -2px;
     }
   }
 
@@ -548,9 +604,9 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
-    font-size: 16px;
+    width: var(--bklog-space-20);
+    height: var(--bklog-space-20);
+    font-size: var(--bklog-space-20);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     svg {
@@ -558,6 +614,25 @@ export default {
       height: 1em;
       fill: currentcolor;
     }
+  }
+}
+
+.manage-sidebar-slider.is-expanded .nav-slider-footer {
+  padding-inline-start: calc(var(--bklog-space-16) + var(--bklog-space-2));
+}
+
+@media (max-width: 640px) {
+  .manage-sidebar.is-fixed {
+    flex-basis: var(--bklog-manage-menu-width-collapsed);
+    width: var(--bklog-manage-menu-width-collapsed);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manage-sidebar,
+  .manage-sidebar-slider,
+  .nav-slider-footer .footer-icon-svg {
+    transition: none;
   }
 }
 
@@ -572,10 +647,9 @@ export default {
   height: 100%;
 
   .manage-content {
-    // height: 100%;
     position: relative;
-    top: 48px;
-    height: calc(100% - 52px);
+    top: var(--bklog-navigation-header-height);
+    height: calc(100% - var(--bklog-navigation-header-height));
     overflow: auto;
 
     @include scroller($backgroundColor: #c4c6cc, $width: 4px);

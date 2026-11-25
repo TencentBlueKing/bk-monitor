@@ -78,7 +78,7 @@
 
 .standalone-related-log-page {
   height: 100%;
-  background: #f5f7fa;
+  background: var(--td-bg-color-page);
 
   .standalone-related-log-title {
     display: flex;
@@ -86,9 +86,9 @@
     height: 40px;
     padding: 0 16px;
     font-weight: 600;
-    color: #313238;
-    background: #fff;
-    border-bottom: 1px solid #dcdee5;
+    color: var(--td-text-color-primary);
+    background: var(--td-bg-color-container);
+    border-bottom: 1px solid var(--td-component-stroke);
   }
 
   .standalone-related-log-loading {
@@ -111,10 +111,10 @@
     width: 420px;
     padding: 28px 32px;
     text-align: center;
-    background: #fff;
-    border: 1px solid #dcdee5;
+    background: var(--td-bg-color-container);
+    border: 1px solid var(--td-component-stroke);
     border-radius: 4px;
-    box-shadow: 0 2px 8px 0 #19192914;
+    box-shadow: var(--td-shadow-1);
   }
 
   .standalone-related-log-loading-spinner {
@@ -132,7 +132,7 @@
     font-size: 16px;
     font-weight: 600;
     line-height: 24px;
-    color: #313238;
+    color: var(--td-text-color-primary);
   }
 
   .standalone-related-log-loading-text {
@@ -141,7 +141,7 @@
     overflow: hidden;
     font-size: 13px;
     line-height: 20px;
-    color: #63656e;
+    color: var(--td-text-color-secondary);
   }
 
   .standalone-related-log-loading-text-fade-enter-active,
@@ -158,7 +158,7 @@
   .standalone-related-log-loading-steps {
     padding: 12px 16px;
     text-align: left;
-    background: #f5f7fa;
+    background: var(--td-bg-color-secondarycontainer);
     border-radius: 4px;
   }
 
@@ -168,7 +168,7 @@
     min-height: 24px;
     font-size: 12px;
     line-height: 20px;
-    color: #63656e;
+    color: var(--td-text-color-secondary);
   }
 
   .standalone-related-log-loading-step-index {
@@ -179,13 +179,17 @@
     height: 16px;
     margin-right: 8px;
     font-size: 10px;
-    color: #3a84ff;
-    background: #e1ecff;
+    color: var(--td-text-color-link);
+    background: var(--td-brand-color-light);
     border-radius: 50%;
   }
 
   .standalone-related-log-resize {
     height: calc(100% - 40px);
+
+    .collapse-main {
+      z-index: calc(var(--bklog-z-local) + 1);
+    }
   }
 
   .standalone-related-log-content {
@@ -196,8 +200,8 @@
 
   .common-header-main {
     height: 42px;
-    background: #fff;
-    border: 1px solid #dcdee5;
+    background: var(--td-bg-color-container);
+    border: 1px solid var(--td-component-stroke);
     border-bottom: 0;
   }
 
@@ -207,12 +211,19 @@
     height: calc(100% - 42px);
     min-height: 0;
     padding: 12px;
-    background: #fff;
-    border: 1px solid #dcdee5;
+    background: var(--td-bg-color-container);
+    border: 1px solid var(--td-component-stroke);
   }
 
   .data-filter-wraper {
     flex: 0 0 auto;
+  }
+
+  .standalone-related-log-empty {
+    display: grid;
+    min-height: 100%;
+    padding: var(--bklog-space-16);
+    place-items: center;
   }
 
   .standalone-related-log-scroller {
@@ -220,8 +231,8 @@
     min-height: 0;
     margin-top: 12px;
     overflow: auto;
-    background: #fff;
-    border: 1px solid #dcdee5;
+    background: var(--td-bg-color-container);
+    border: 1px solid var(--td-component-stroke);
     outline: none;
   }
 }

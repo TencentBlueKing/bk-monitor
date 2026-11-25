@@ -9,10 +9,10 @@
     line-height: 32px;
     text-align: center;
     font-size: 12px;
-    color: #4d4f56;
-    background: #F5F7FA;
+    color: var(--td-text-color-primary);
+    background: var(--td-bg-color-container-hover);
     .total-box {
-        color: #E71818;
+        color: var(--td-error-color);
         font-weight: 700;
         padding: 0 4px;
     }

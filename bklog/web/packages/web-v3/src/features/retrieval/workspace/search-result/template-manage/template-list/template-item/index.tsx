@@ -156,6 +156,7 @@ export default defineComponent({
         <div class='item-title'>{props.data.template_name}</div>
         <div class='item-count'>{props.data.ruleList.length}</div>
         <bk-dropdown-menu
+          overlayInnerClassName='bklog-dropdown-popup'
           v-slots={{
             'dropdown-trigger': () => (
               <div>

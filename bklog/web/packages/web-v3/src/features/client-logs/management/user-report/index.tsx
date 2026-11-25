@@ -75,6 +75,7 @@ export default defineComponent({
 
     const searchKeyword = ref('');
     const isLoading = ref(false);
+    const hasListError = ref(false);
     const showUploadResult = ref(false);
     const uploadStatus = ref<UploadStatus>(UploadStatus.RUNNING);
     const uploadData = ref<{ file_name_list: string[]; openid_list: string[] } | null>(null);
@@ -316,6 +317,7 @@ export default defineComponent({
     // 获取用户上报数据
     const fetchUserReportData = async () => {
       isLoading.value = true;
+      hasListError.value = false;
       selectedFileNames.value = [];
       try {
         const params = {
@@ -348,6 +350,7 @@ export default defineComponent({
         // 获取列表数据后，检查是否需要轮询
         checkShouldPollFileStatus(formattedList);
       } catch (error) {
+        hasListError.value = true;
         console.error('获取用户上报数据失败:', error);
       } finally {
         isLoading.value = false;
@@ -610,6 +613,8 @@ export default defineComponent({
           total={tableData.value.total}
           keyword={searchKeyword.value}
           loading={isLoading.value}
+          hasListError={hasListError.value}
+          onRetry={fetchUserReportData}
           isAllowedDownload={props.isAllowedDownload}
           indexSetId={props.indexSetId}
           paginationConfig={props.paginationConfig}

@@ -31,6 +31,8 @@ import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/app/state/store.type.ts';
 import { debounce, isElement, isEqual, throttle } from 'lodash-es';
+import EmptyStatus from '@/shared/ui/empty-status/index.vue';
+import ChartSkeleton from '@/app/skeleton/chart-skeleton';
 import ClusteringLoader from '@/app/skeleton/clustering-loader.vue';
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/index.tsx';
@@ -515,9 +517,24 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   getExceptionRender() {
     if (this.isRequesting) {
+      const category = this.chartActiveType === GraphCategory.TABLE
+        ? GraphCategory.TABLE
+        : this.activeGraphCategory;
+      const indicators = {
+        [GraphCategory.LINE]: () => <ChartSkeleton type='line' />,
+        [GraphCategory.BAR]: () => <ChartSkeleton type='bar' />,
+        [GraphCategory.PIE]: () => <div class='graph-pie-placeholder' aria-hidden='true' />,
+        [GraphCategory.NUMBER]: () => <div class='graph-number-placeholder' aria-hidden='true' />,
+      };
       return (
-        <div style={this.exceptionStyle} class='bklog-chart-skeleton'>
-          <ClusteringLoader width-list={[120, 120, '']} loader-len={10} is-loading />
+        <div
+          style={this.exceptionStyle}
+          class={['bklog-chart-exception', 'bklog-chart-skeleton', { 'is-table': category === GraphCategory.TABLE }]}
+          role='status'
+          aria-label={this.$t('加载中')}
+        >
+          {indicators[category as keyof typeof indicators]?.() ??
+            <ClusteringLoader width-list={[120, 120, '']} loader-len={10} is-loading />}
         </div>
       );
     }
@@ -525,44 +542,50 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     const { showException, message, showQuery, tips = '' } = this.getExceptionMessage();
     if (showException) {
       return (
-        <bk-exception style={this.exceptionStyle} class='bklog-chart-exception' type='500'>
-          <div class='bk-exception-title'>{tips}</div>
-          <div class='bk-exception-title'>{message}</div>
-          {showQuery
-            ? [
-                <div key='description' class='bk-exception-description'>
-                  {this.$t('请重新发起查询')}
-                </div>,
-                <div key='footer' class='bk-exception-footer'>
-                  <TButton
-                    class='mr10'
-                    size='small'
-                    theme='primary'
-                    type='submit'
-                    onClick={this.handleEditorSearchClick}
-                  >
-                    {this.$t('查询')}
-                  </TButton>
-                  <TButton
-                    theme='default'
-                    variant='outline'
-                    class='mr10'
-                    size='small'
-                    onClick={() => {
-                      this.isSqlValueChanged = false;
-                    }}
-                  >
-                    {this.$t('我知道了')}
-                  </TButton>
-                </div>,
-              ]
-            : ''}
-        </bk-exception>
+        <div style={this.exceptionStyle} class='bklog-chart-exception'>
+          <EmptyStatus emptyType='500' showText={false}>
+            <div class='bk-exception-title'>{tips}</div>
+            <div class='bk-exception-title'>{message}</div>
+            {showQuery
+              ? [
+                  <div key='description' class='bk-exception-description'>
+                    {this.$t('请重新发起查询')}
+                  </div>,
+                  <div key='footer' class='bk-exception-footer'>
+                    <TButton
+                      class='mr10'
+                      size='small'
+                      theme='primary'
+                      type='submit'
+                      onClick={this.handleEditorSearchClick}
+                    >
+                      {this.$t('查询')}
+                    </TButton>
+                    <TButton
+                      theme='default'
+                      variant='outline'
+                      class='mr10'
+                      size='small'
+                      onClick={() => {
+                        this.isSqlValueChanged = false;
+                      }}
+                    >
+                      {this.$t('我知道了')}
+                    </TButton>
+                  </div>,
+                ]
+              : ''}
+          </EmptyStatus>
+        </div>
       );
     }
 
     if (!this.chartOptions.data?.list?.length) {
-      return <bk-exception style={this.exceptionStyle} class='bklog-chart-exception' scene='part' type='empty' />;
+      return (
+        <div style={this.exceptionStyle} class='bklog-chart-exception'>
+          <EmptyStatus />
+        </div>
+      );
     }
 
     return '';

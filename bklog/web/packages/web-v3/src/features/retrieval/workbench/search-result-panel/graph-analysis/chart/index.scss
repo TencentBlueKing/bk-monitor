@@ -16,7 +16,7 @@
     justify-content: space-between;
     width: 100%;
     padding: 8px 0;
-    background-color: #fff;
+    background-color: var(--td-bg-color-container);
 
     .top-pagination {
       display: flex;
@@ -49,7 +49,7 @@
     .title {
       font-family: MicrosoftYaHei;
       font-size: 16px;
-      color: #63656e;
+      color: var(--td-text-color-secondary);
     }
 
     .text-wrap {
@@ -59,13 +59,13 @@
       justify-content: center;
       margin-top: 14px;
       font-size: 14px;
-      color: #3a84ff;
+      color: var(--td-brand-color);
 
       .text {
         margin-bottom: 10px;
         font-family: MicrosoftYaHei;
         font-size: 12px;
-        color: #979ba5;
+        color: var(--td-text-color-placeholder);
       }
     }
   }
@@ -95,7 +95,7 @@
         .bklog-chart-number-value {
           padding: 20px 0;
           font-size: 40px;
-          color: #3a84ff;
+          color: var(--td-brand-color);
         }
       }
     }

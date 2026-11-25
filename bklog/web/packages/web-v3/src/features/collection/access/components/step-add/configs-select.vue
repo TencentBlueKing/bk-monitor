@@ -30,7 +30,7 @@
       v-for="(conItem, conIndex) of formData.configs"
       :key="conIndex"
       v-en-style="'width: 900px;'"
-      v-loading="{ loading: nameSpaceRequest, zIndex: 10 }"
+      v-loading="{ loading: nameSpaceRequest, zIndex: 10, indicator: renderDrawerInlineFormSkeleton }"
       class="config-box"
     >
       <div class="config-title">
@@ -207,6 +207,7 @@
             v-if="isShowAddScopeButton(conIndex)"
             style="margin-left: 12px"
             :disabled="!formData.bcs_cluster_id"
+            overlay-inner-class-name="bklog-dropdown-popup"
           >
             <template #dropdown-trigger>
               <div>
@@ -285,6 +286,8 @@ import { ServicesInstance } from '@/platform/services';
   import configViewDialog from './config-view-dialog';
   import ConfigLogSetEditItem from './config-log-set-edit-item';
 
+
+  import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 
   export default {
   emits: ["update:formData"],
@@ -370,6 +373,7 @@ import { ServicesInstance } from '@/platform/services';
       !this.typeList.length && this.getWorkLoadTypeList();
     },
     methods: {
+      renderDrawerInlineFormSkeleton,
       isShowContainerTips(configItem) {
         const { containerExclude, namespacesExclude } = configItem.noQuestParams;
         return [containerExclude, namespacesExclude].includes('!=');

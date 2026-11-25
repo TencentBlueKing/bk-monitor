@@ -51,141 +51,142 @@
       </div>
     </section>
     <section class="log-archive-table">
-      <bk-table
-        v-loading="{ loading: isTableLoading }"
-        class="archive-table"
-        :data="dataList"
-        :limit-list="pagination.limitList"
-        :pagination="pagination"
-        data-test-id="archiveList_section_tableList"
-        @filter-change="handleFilterChange"
-        @page-change="handlePageChange"
-        @page-limit-change="handleLimitChange"
-      >
-        <bk-table-column
-          native-cell-slot
-          width="30"
-          align="center"
-          type="expand"
+      <management-list-loading :loading="isTableLoading">
+        <bk-table
+          class="archive-table"
+          :data="dataList"
+          :limit-list="pagination.limitList"
+          :pagination="pagination"
+          data-test-id="archiveList_section_tableList"
+          @filter-change="handleFilterChange"
+          @page-change="handlePageChange"
+          @page-limit-change="handleLimitChange"
         >
-          <template #default="props">
-            <div class="state-table-wrapper">
-              <state-table :archive-config-id="props.row.archive_config_id" />
+          <bk-table-column
+            native-cell-slot
+            width="30"
+            align="center"
+            type="expand"
+          >
+            <template #default="props">
+              <div class="state-table-wrapper">
+                <state-table :archive-config-id="props.row.archive_config_id" />
+              </div>
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            width="100"
+            label="ID"
+          >
+            <template #default="props">
+              {{ props.row.archive_config_id }}
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('名称')"
+            :render-header="$renderHeader"
+          >
+            <template #default="props">
+              {{ props.row.instance_name }}
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('过期设置')"
+            :render-header="$renderHeader"
+          >
+            <template #default="props">
+              <!-- `${props.row.snapshot_days}天` -->
+              {{ getExpiredDays(props) }}
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('总大小')"
+            :render-header="$renderHeader"
+          >
+            <template #default="props">
+              {{ getFileSize(props.row.store_size) }}
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('索引数量')"
+            :render-header="$renderHeader"
+          >
+            <template #default="props">
+              {{ props.row.index_count }}
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            :label="$t('归档仓库')"
+            :render-header="$renderHeader"
+            prop="target_snapshot_repository_name"
+          >
+            <template #default="props">
+              {{ props.row.target_snapshot_repository_name }}
+            </template>
+          </bk-table-column>
+          <bk-table-column
+            native-cell-slot
+            width="200"
+            :label="$t('操作')"
+            :render-header="$renderHeader"
+          >
+            <template #default="props">
+              <div class="collect-table-operate">
+                <!-- 回溯 -->
+                <t-button :variant="(true) ? 'text' : ('base')"
+                  v-cursor="{
+                    active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                  }"
+                  class="mr10 king-button"
+                  theme="primary"
+
+                  @click.stop="operateHandler(props.row, 'restore')"
+                >
+                  {{ $t('回溯') }}
+                </t-button>
+                <!-- 编辑 -->
+                <t-button :variant="(true) ? 'text' : ('base')"
+                  v-cursor="{
+                    active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                  }"
+                  class="mr10 king-button"
+                  theme="primary"
+
+                  @click.stop="operateHandler(props.row, 'edit')"
+                >
+                  {{ $t('编辑') }}
+                </t-button>
+                <!-- 删除 -->
+                <t-button :variant="(true) ? 'text' : ('base')"
+                  v-cursor="{
+                    active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                  }"
+                  class="mr10 king-button"
+                  theme="primary"
+
+                  @click.stop="operateHandler(props.row, 'delete')"
+                >
+                  {{ $t('删除') }}
+                </t-button>
+              </div>
+            </template>
+          </bk-table-column>
+          <template #empty>
+            <div class="bklog-table-empty-region">
+              <empty-status
+                :empty-type="emptyType"
+                @operation="handleOperation"
+              />
             </div>
           </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          width="100"
-          label="ID"
-        >
-          <template #default="props">
-            {{ props.row.archive_config_id }}
-          </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          :label="$t('名称')"
-          :render-header="$renderHeader"
-        >
-          <template #default="props">
-            {{ props.row.instance_name }}
-          </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          :label="$t('过期设置')"
-          :render-header="$renderHeader"
-        >
-          <template #default="props">
-            <!-- `${props.row.snapshot_days}天` -->
-            {{ getExpiredDays(props) }}
-          </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          :label="$t('总大小')"
-          :render-header="$renderHeader"
-        >
-          <template #default="props">
-            {{ getFileSize(props.row.store_size) }}
-          </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          :label="$t('索引数量')"
-          :render-header="$renderHeader"
-        >
-          <template #default="props">
-            {{ props.row.index_count }}
-          </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          :label="$t('归档仓库')"
-          :render-header="$renderHeader"
-          prop="target_snapshot_repository_name"
-        >
-          <template #default="props">
-            {{ props.row.target_snapshot_repository_name }}
-          </template>
-        </bk-table-column>
-        <bk-table-column
-          native-cell-slot
-          width="200"
-          :label="$t('操作')"
-          :render-header="$renderHeader"
-        >
-          <template #default="props">
-            <div class="collect-table-operate">
-              <!-- 回溯 -->
-              <t-button :variant="(true) ? 'text' : ('base')"
-                v-cursor="{
-                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
-                }"
-                class="mr10 king-button"
-                theme="primary"
-
-                @click.stop="operateHandler(props.row, 'restore')"
-              >
-                {{ $t('回溯') }}
-              </t-button>
-              <!-- 编辑 -->
-              <t-button :variant="(true) ? 'text' : ('base')"
-                v-cursor="{
-                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
-                }"
-                class="mr10 king-button"
-                theme="primary"
-
-                @click.stop="operateHandler(props.row, 'edit')"
-              >
-                {{ $t('编辑') }}
-              </t-button>
-              <!-- 删除 -->
-              <t-button :variant="(true) ? 'text' : ('base')"
-                v-cursor="{
-                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
-                }"
-                class="mr10 king-button"
-                theme="primary"
-
-                @click.stop="operateHandler(props.row, 'delete')"
-              >
-                {{ $t('删除') }}
-              </t-button>
-            </div>
-          </template>
-        </bk-table-column>
-        <template #empty>
-          <div>
-            <empty-status
-              :empty-type="emptyType"
-              @operation="handleOperation"
-            />
-          </div>
-        </template>
-      </bk-table>
+        </bk-table>
+      </management-list-loading>
     </section>
     <!-- 新增/编辑归档 -->
     <archive-slider
@@ -205,6 +206,8 @@
 </template>
 
 <script>
+  import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
+
 import { mapState as mapPiniaState } from 'pinia';
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
@@ -223,6 +226,7 @@ import { ServicesInstance } from '@/platform/services';
   export default {
     name: 'ArchiveList',
     components: {
+      ManagementListLoading,
       StateTable,
       ArchiveSlider,
       RestoreSlider,

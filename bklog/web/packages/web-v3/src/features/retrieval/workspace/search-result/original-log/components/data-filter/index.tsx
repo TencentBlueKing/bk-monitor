@@ -87,15 +87,15 @@ export default defineComponent({
 
     const tipColorList = [
       {
-        color: '#E1ECFF',
+        status: 'located',
         name: t('默认定位'),
       },
       {
-        color: '#FAEEB1',
+        status: 'hit',
         name: t('上下文命中'),
       },
       {
-        color: '#CBF0DA',
+        status: 'new',
         name: t('新增'),
       },
     ];
@@ -195,6 +195,13 @@ export default defineComponent({
             trigger: 'manual',
             maxWidth: 380,
             theme: 'field-config-popover',
+            onShow: () => fieldConfigRef.value.prepareOpen(),
+            popperOptions: {
+              modifiers: [
+                { name: 'flip', options: { padding: 8 } },
+                { name: 'preventOverflow', options: { altAxis: true, padding: 8, tether: false } },
+              ],
+            },
             hideOnClick: false,
             interactive: true,
             arrow: true,
@@ -300,18 +307,23 @@ export default defineComponent({
           </div>
           {props.isRealTime && (
             <div class='realtime-control-main'>
-              <div
+              <button
+                type='button'
                 class='control-item play-pause'
+                aria-label={t('实时日志')}
+                aria-pressed={isPolling.value}
                 onClick={handleTogglePolling}
               >
-                {isPolling.value ? <log-icon type='zanting' /> : <log-icon type='bofang' />}
-              </div>
-              <div
+                <log-icon type={isPolling.value ? 'zanting' : 'bofang'} aria-hidden='true' />
+              </button>
+              <button
+                type='button'
                 class='control-item'
+                aria-label={t('复制')}
                 onClick={() => emit('copy')}
               >
-                <log-icon type='copy' />
-              </div>
+                <log-icon type='copy' aria-hidden='true' />
+              </button>
             </div>
           )}
         </div>
@@ -377,7 +389,7 @@ export default defineComponent({
                   class='color-item'
                 >
                   <div
-                    style={{ background: item.color }}
+                    style={{ background: `var(--bklog-${showType.value === 'code' ? 'code' : 'log'}-view-${item.status})` }}
                     class='rect'
                   ></div>
                   <div>{item.name}</div>
@@ -392,34 +404,34 @@ export default defineComponent({
               <span style='font-size:12px'>{t('定位到当前行')}</span>
             </TButton>
             <div class='log-display-type-main'>
-              <div
-                class={{
-                  'type-item': true,
-                  'is-selected': showType.value === 'log',
-                }}
+              <button
+                type='button'
+                class='type-item'
+                aria-pressed={showType.value === 'log'}
                 onClick={() => handleSelectShowType('log')}
               >
                 {t('日志')}
-              </div>
-              <div
-                class={{
-                  'type-item': true,
-                  'is-selected': showType.value === 'code',
-                }}
+              </button>
+              <button
+                type='button'
+                class='type-item'
+                aria-pressed={showType.value === 'code'}
                 onClick={() => handleSelectShowType('code')}
               >
                 {t('代码')}
-              </div>
+              </button>
             </div>
-            <div
+            <button
+              type='button'
+              aria-label={t('字段设置')}
               class='setting-main'
               onClick={handleOpenFieldsConfig}
             >
               <span
-                style='font-size: 16px'
+                aria-hidden='true'
                 class='icon bklog-icon bklog-set-icon'
               ></span>
-            </div>
+            </button>
           </div>
         </div>
         <FieldsConfig

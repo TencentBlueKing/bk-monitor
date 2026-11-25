@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-loading="{ loading: loading }"
+    v-loading="{ loading: loading, indicator: renderDrawerInlineFormSkeleton }"
     class="advance-clean-land"
   >
     <span class="bklog-icon bklog-shijian"></span>
@@ -51,6 +51,7 @@
 </template>
 
 <script>
+  import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { mapState as mapPiniaState } from 'pinia';
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
@@ -83,6 +84,7 @@ import { ServicesInstance } from '@/platform/services';
       }),
     },
     methods: {
+      renderDrawerInlineFormSkeleton,
       backToList() {
         this.$router.push({
           name: this.backRouter,

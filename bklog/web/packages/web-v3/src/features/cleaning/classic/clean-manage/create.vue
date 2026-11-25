@@ -26,7 +26,7 @@
 
 <template>
   <div
-    v-loading="{ loading: loading }"
+    v-loading="{ loading: loading, indicator: renderDrawerInlineFormSkeleton }"
     class="log-clean-create-container"
   >
     <article
@@ -59,6 +59,7 @@
 </template>
 
 <script>
+  import { renderDrawerInlineFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { mapState as mapPiniaState } from 'pinia';
 
   // import stepStorage from '@/features/collection/access/step-storage';
@@ -103,6 +104,7 @@ import advanceCleanLand from '@/features/collection/access/advance-clean-land';
       next();
     },
     methods: {
+      renderDrawerInlineFormSkeleton,
       changeSubmit(isSubmit) {
         this.isSubmit = isSubmit;
       },

@@ -44,75 +44,76 @@
     </div>
     <div
       v-show="isShowTable"
-      v-loading="{ loading: tableLoading }"
       class="cluster-main"
     >
-      <template v-if="tableList.length">
-        <bk-table
-          class="cluster-table"
-          :data="tableList"
-          :max-height="254"
-          @row-click="handleSelectCluster"
-        >
-          <bk-table-column
-            native-cell-slot
-            :label="$t('集群名')"
-            :render-header="$renderHeader"
-            min-width="240"
+      <template v-if="tableLoading || tableList.length">
+        <management-list-loading :loading="tableLoading">
+          <bk-table
+            class="cluster-table"
+            :data="tableList"
+            :max-height="254"
+            @row-click="handleSelectCluster"
           >
-            <template #default="{ row }">
-              <t-radio :checked="clusterSelect === row.storage_cluster_id">
-                <div
-                  v-log-overflow-tips
-                  class="overflow-tips"
-                >
-                  <span @click.stop>{{ row.storage_display_name }}</span>
+            <bk-table-column
+              native-cell-slot
+              :label="$t('集群名')"
+              :render-header="$renderHeader"
+              min-width="240"
+            >
+              <template #default="{ row }">
+                <t-radio :checked="clusterSelect === row.storage_cluster_id">
+                  <div
+                    v-log-overflow-tips
+                    class="overflow-tips"
+                  >
+                    <span @click.stop>{{ row.storage_display_name }}</span>
+                  </div>
+                </t-radio>
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              native-cell-slot
+              :label="$t('总量')"
+              :render-header="$renderHeader"
+              min-width="100"
+            >
+              <template #default="{ row }">
+                <span>{{ formatFileSize(row.storage_total) }}</span>
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              native-cell-slot
+              :label="$t('空闲率')"
+              :render-header="$renderHeader"
+              min-width="110"
+            >
+              <template #default="{ row }">
+                <div class="percent">
+                  <div class="percent-progress">
+                    <t-progress
+                      :percentage="Number(((getPercent(row)) * 100).toFixed(0))"
+                      :label="false"
+                      :color="'#2dcb56'"
+                    ></t-progress>
+                  </div>
+                  <span>{{ `${100 - row.storage_usage}%` }}</span>
                 </div>
-              </t-radio>
-            </template>
-          </bk-table-column>
-          <bk-table-column
-            native-cell-slot
-            :label="$t('总量')"
-            :render-header="$renderHeader"
-            min-width="100"
-          >
-            <template #default="{ row }">
-              <span>{{ formatFileSize(row.storage_total) }}</span>
-            </template>
-          </bk-table-column>
-          <bk-table-column
-            native-cell-slot
-            :label="$t('空闲率')"
-            :render-header="$renderHeader"
-            min-width="110"
-          >
-            <template #default="{ row }">
-              <div class="percent">
-                <div class="percent-progress">
-                  <t-progress
-                    :percentage="Number(((getPercent(row)) * 100).toFixed(0))"
-                    :label="false"
-                    :color="'#2dcb56'"
-                  ></t-progress>
-                </div>
-                <span>{{ `${100 - row.storage_usage}%` }}</span>
-              </div>
-            </template>
-          </bk-table-column>
-          <bk-table-column
-            :label="$t('索引数')"
-            :render-header="$renderHeader"
-            prop="index_count"
-          ></bk-table-column>
-          <bk-table-column
-            v-if="tableShowType"
-            :label="$t('业务数')"
-            :render-header="$renderHeader"
-            prop="biz_count"
-          >
-          </bk-table-column>
-        </bk-table>
+              </template>
+            </bk-table-column>
+            <bk-table-column
+              :label="$t('索引数')"
+              :render-header="$renderHeader"
+              prop="index_count"
+            ></bk-table-column>
+            <bk-table-column
+              v-if="tableShowType"
+              :label="$t('业务数')"
+              :render-header="$renderHeader"
+              prop="biz_count"
+            >
+            </bk-table-column>
+          </bk-table>
+        </management-list-loading>
         <div
           v-show="!!activeItem && !isDorisMode"
           class="cluster-illustrate"
@@ -137,7 +138,7 @@
       </template>
       <template v-else>
         <div class="noData-container">
-          <div slot="empty">
+          <div class="bklog-table-empty-region">
             <empty-status
               :show-text="false"
               empty-type="empty"
@@ -166,6 +167,7 @@
   </div>
 </template>
 <script>
+  import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import { mapState as mapPiniaState } from 'pinia';
 
 
@@ -179,6 +181,7 @@ import EmptyStatus from '@/shared/ui/empty-status/index';
   emits: ["update:is-change-select","update:isChangeSelect","update:storage-cluster-id","update:storageClusterId"],
 
     components: {
+      ManagementListLoading,
       EmptyStatus,
     },
     props: {

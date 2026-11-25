@@ -36,6 +36,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 
 
+import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 import MaskingField from './components/masking-field';
 
 import './index.scss';
@@ -112,7 +114,14 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
 
   render() {
     return (
-      <div class='filed-masking-container'>
+      <div
+        class='filed-masking-container'
+        v-loading={{
+          loading: this.submitLoading,
+          indicator: renderDrawerFormSkeleton,
+          zIndex: Z_INDEX_LAYERS.PAGE_TOP,
+        }}
+      >
         <div class='masking-field-box'>
           <MaskingField
             ref='maskingField'
@@ -124,7 +133,6 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
         </div>
         <div class='submit-content'>
           <Button
-            loading={this.submitLoading}
             theme='primary'
             onClick={() => this.submitSelectRule(true)}
           >

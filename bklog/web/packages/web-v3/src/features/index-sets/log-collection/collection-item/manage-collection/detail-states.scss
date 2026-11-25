@@ -1,0 +1,76 @@
+.collection-detail-chart-body {
+  position: relative;
+}
+
+.collection-detail-chart-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: var(--bklog-space-16);
+  text-align: center;
+
+  &.is-skeleton > * {
+    width: 100%;
+  }
+}
+
+.collection-detail-loading-panel {
+  position: relative;
+  min-height: calc(8 * var(--bklog-space-24));
+  padding: var(--bklog-space-20);
+}
+
+.collection-detail-trend-placeholder,
+:is(.access-manage-container .tab-content, .usage-details-container, .data-status-container) .charts-container.collection-detail-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--bklog-space-16);
+}
+
+:is(.access-manage-container .tab-content, .usage-details-container, .data-status-container) .charts-container.collection-detail-chart-grid > .chart-container {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+
+  .chart-header {
+    height: auto;
+    min-height: 50px;
+    flex-wrap: wrap;
+    gap: var(--bklog-space-4) var(--bklog-space-8);
+  }
+
+  .date-picker {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+}
+
+.collection-detail-usage-pie-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 168px;
+}
+
+.collection-detail-chart-state.is-skeleton > .usage-chart-pie-skeleton,
+.collection-detail-usage-pie-placeholder > .usage-chart-pie-skeleton {
+  width: min(100%, calc(4 * var(--bklog-space-24)));
+  aspect-ratio: 1;
+  background: conic-gradient(
+    var(--bklog-surface-subtle, var(--td-bg-color-component-hover)) 0 40%,
+    var(--bklog-standard-control-surface-disabled, var(--td-bg-color-secondarycontainer)) 40% 75%,
+    var(--bklog-panel-divider, var(--td-component-stroke)) 75%
+  );
+  border-radius: 50%;
+}
+
+.collection-detail-chart-heading-placeholder {
+  width: calc(4 * var(--bklog-space-24));
+}
+
+.collection-detail-section-heading-placeholder {
+  display: flex;
+  align-items: center;
+  min-height: var(--bklog-space-20);
+}

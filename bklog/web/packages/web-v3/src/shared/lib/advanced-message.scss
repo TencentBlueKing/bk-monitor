@@ -1,0 +1,293 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+/* bkui-vue Message 高级样式还原：几何与层级对齐 packages/message/src/message.less */
+.bklog-advanced-message-container {
+  position: fixed;
+  left: 50%;
+  max-inline-size: calc(100vw - 2 * var(--bklog-space-16));
+  transform: translateX(-50%);
+}
+
+.bklog-advanced-message-container .bk-message {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  padding: calc((var(--bklog-message-height) - var(--bklog-line-height-action)) / 2 - var(--bklog-border-width))
+    calc(var(--bklog-space-12) - var(--bklog-border-width));
+  font-size: var(--bklog-font-action, 14px);
+  line-height: var(--bklog-line-height-action, 22px);
+  color: var(--bklog-text-primary, #313238);
+  background: var(--bklog-surface, #fff);
+  border: 1px solid var(--bklog-border-control, #c4c6cc);
+  border-radius: var(--bklog-standard-control-radius, 4px);
+  box-shadow: var(--bklog-shadow-small, 0 2px 4px 0 rgb(0 0 0 / 10%));
+  animation: bklog-advanced-message-in 0.2s linear;
+
+  .bk-message-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: var(--bklog-line-height-action);
+    margin-inline-end: var(--bklog-space-8);
+    font-size: 18px;
+    color: var(--bklog-brand-primary, #3a84ff);
+
+    .bk-message-icon-svg {
+      font-size: 18px;
+    }
+  }
+
+  &.bk-message-success .bk-message-icon {
+    color: var(--bklog-status-success, #2dcb56);
+  }
+
+  &.bk-message-warning .bk-message-icon {
+    color: var(--bklog-status-warning, #ff9c01);
+  }
+
+  &.bk-message-error .bk-message-icon {
+    color: var(--bklog-status-error, #ea3636);
+  }
+
+  .bk-message-close {
+    font-size: 14px;
+    color: var(--bklog-text-disabled, #c4c6cc);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--bklog-text-placeholder, #979ba5);
+    }
+  }
+
+  .bk-message-content {
+    display: flex;
+    width: 100%;
+    word-break: break-all;
+
+    &.multi {
+      position: relative;
+      flex-direction: column;
+
+      .overview {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--bklog-space-12);
+
+        .left-content {
+          display: flex;
+          min-inline-size: 0;
+
+          .describe {
+            display: -webkit-box;
+            max-width: 560px;
+            max-height: 66px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+          }
+        }
+
+        .tools {
+          display: flex;
+          flex: none;
+          align-items: center;
+          gap: var(--bklog-space-12);
+
+          .tool {
+            display: flex;
+            align-items: center;
+            font-size: var(--bklog-font-action);
+            color: var(--bklog-brand-primary, #3a84ff);
+            cursor: pointer;
+
+            .message-action-text {
+              padding-left: 4px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            &.fix {
+              color: var(--bklog-text-placeholder, #979ba5);
+
+              &.fixed,
+              &:hover {
+                color: var(--bklog-brand-primary, #3a84ff);
+              }
+            }
+
+            &.close {
+              color: var(--bklog-text-disabled, #c4c6cc);
+            }
+          }
+        }
+      }
+
+      .message-detail {
+        position: relative;
+        margin-top: 10px;
+
+        .message-tree {
+          display: flex;
+          flex-direction: column;
+          max-height: 480px;
+          padding: 14px 32px;
+          overflow: auto;
+          background: var(--bklog-surface, #fff);
+          border: 1px solid var(--bklog-border-muted, #dcdee5);
+          border-radius: var(--bklog-radius-control, 2px);
+
+          .message-json {
+            margin: 0;
+            font-size: 12px;
+            line-height: 20px;
+            color: var(--bklog-text-primary, #313238);
+            white-space: pre-wrap;
+          }
+
+          .message-row {
+            display: inline-flex;
+            font-size: 14px;
+            line-height: 34px;
+            color: var(--bklog-text-primary, #313238);
+
+            label {
+              display: inline-block;
+              width: 94px;
+              min-width: 94px;
+              margin-right: 8px;
+              overflow: hidden;
+              color: var(--bklog-text-secondary, #63656e);
+              text-align: right;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+
+              &::after {
+                content: ':';
+              }
+            }
+
+            .copy-value {
+              padding-left: 4px;
+
+              &:hover {
+                cursor: pointer;
+                background: rgb(186 188 192 / 20%);
+                border-radius: var(--bklog-radius-control, 2px);
+              }
+            }
+          }
+        }
+
+        .message-copy {
+          position: absolute;
+          top: 0;
+          right: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          font-size: 18px;
+          color: var(--bklog-text-placeholder, #979ba5);
+          cursor: pointer;
+          background: var(--bklog-surface-hover, #f5f7fa);
+          border-radius: 0 2px 0 6px;
+
+          &:hover {
+            color: var(--bklog-brand-primary, #3a84ff);
+            background: var(--bklog-brand-tint-subtle, #f0f5ff);
+          }
+        }
+
+        .copy-status {
+          position: absolute;
+          top: -8px;
+          right: 32px;
+          padding: 2px 8px;
+          font-size: 12px;
+          line-height: 20px;
+          color: var(--bklog-text-secondary, #63656e);
+          background: var(--bklog-surface, #fff);
+          border: 1px solid var(--bklog-border-muted, #dcdee5);
+          box-shadow: var(--bklog-shadow-small, 0 2px 6px 0 rgb(0 0 0 / 10%));
+
+          &.success {
+            color: var(--bklog-status-success, #2dcb56);
+          }
+
+          &.error {
+            color: var(--bklog-status-error, #ea3636);
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .bklog-advanced-message-container .bk-message-content.multi .overview {
+    flex-direction: column;
+
+    .tools {
+      flex-wrap: wrap;
+      align-self: flex-end;
+    }
+  }
+}
+
+@keyframes bklog-advanced-message-in {
+  from {
+    margin-top: -50px;
+    opacity: 0;
+  }
+
+  to {
+    margin-top: 0;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bklog-advanced-message-container .bk-message {
+    animation: none;
+  }
+}
+
+:root:not([theme-mode='dark']) .bklog-advanced-message-container .bk-message {
+  color: var(--bklog-standard-control-text-hover);
+  border-color: transparent;
+  box-shadow: none;
+  background: var(--bklog-brand-tint, #e5edff);
+
+  &.bk-message-error { background: var(--bklog-message-error-surface, #ffebeb); }
+  &.bk-message-success { background: var(--bklog-message-success-surface, #e1f5f0); }
+  &.bk-message-warning { background: var(--bklog-message-warning-surface, #ffefd6); }
+}

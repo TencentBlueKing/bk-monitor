@@ -28,6 +28,7 @@
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { ServicesInstance } from '@/platform/services';
 
+import { clusteringFilterLabels } from '@/features/collection/filter-rule/operators';
 import { Component, Prop, Emit, Ref, ModelSync, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -67,8 +68,7 @@ export default class FilterRule extends tsc<IProps> {
 
   conditionList = [
     // 过滤条件对比
-    { id: '=', name: '=' },
-    { id: '!=', name: '!=' },
+    ...Object.entries(clusteringFilterLabels).map(([id, label]) => ({ id, name: $i18n.t(label) })),
     { id: 'LIKE', name: 'LIKE' },
     { id: 'NOT LIKE', name: 'NOT LIKE' },
   ];

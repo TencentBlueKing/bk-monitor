@@ -4,8 +4,8 @@
   min-width: 0;
   height: 100%;
   padding: 0;
-  background: #ffffff;
-  border-right: solid 1px #dcdee5;
+  background: var(--td-bg-color-container);
+  border-right: var(--bklog-border-width) solid var(--td-component-stroke);
 
   &:not(.is-close) {
     overflow: visible;
@@ -42,7 +42,7 @@
       padding: 0;
       font-size: 12px;
       line-height: 20px;
-      color: #313238;
+      color: var(--td-text-color-primary);
       cursor: pointer;
 
       .close-total {
@@ -63,7 +63,7 @@
       // &::after {
       //   position: absolute;
       //   right: 18px;
-      //   color: #dcdee5;
+      //   color: var(--td-component-stroke);
       //   content: '|';
       // }
     }
@@ -79,16 +79,16 @@
     width: 24px;
     height: 24px;
     font-size: 12px;
-    color: #4d4f56;
-    background: #ffffff;
-    border: 1px solid #f0f1f5;
+    color: var(--td-text-color-secondary);
+    background: var(--td-bg-color-container);
+    border: var(--bklog-border-width) solid var(--td-component-stroke);
     border-radius: 10px;
-    box-shadow: 0 1px 2px 0 #0000001a;
+    box-shadow: var(--td-shadow-1);
     transform: translate(-50%, -50%);
 
     .left-title {
       font-weight: 700;
-      color: #63656e;
+      color: var(--td-text-color-secondary);
 
       .left-title-setting {
         cursor: pointer;
@@ -107,12 +107,28 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      color: inherit;
       cursor: pointer;
+      background: transparent;
+      border: 0;
+      border-radius: inherit;
+
+      &:hover {
+        color: var(--td-text-color-link);
+      }
+
+      &:focus-visible {
+        outline: var(--bklog-border-width) solid var(--td-brand-color);
+        outline-offset: calc(-1 * var(--bklog-border-width));
+      }
 
       .bklog-collapse-small {
         display: inline-block;
         font-size: 24px;
-        color: #979ba5;
+        color: var(--td-text-color-placeholder);
         transform: rotateZ(-90deg);
       }
     }

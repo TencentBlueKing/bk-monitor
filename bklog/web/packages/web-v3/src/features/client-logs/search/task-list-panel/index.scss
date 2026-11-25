@@ -1,3 +1,5 @@
+@use '@/shared/styles/theme/components/contracts' as bklogControls;
+
 @import 'tippy.js/dist/tippy.css';
 .client-log-search-root .task-list-panel {
     display: flex;
@@ -109,6 +111,30 @@
         margin-top: 16px;
         overflow-y: auto;
 
+        .task-list-empty {
+            display: grid;
+            flex: 1;
+            place-items: center;
+            min-height: calc(6 * var(--bklog-space-24));
+            padding: var(--bklog-space-16);
+            text-align: center;
+        }
+
+        .task-list-skeleton {
+            display: grid;
+            gap: calc(var(--bklog-space-8) + var(--bklog-space-2));
+        }
+
+        .task-item-skeleton {
+            min-height: calc(3 * var(--bklog-space-20));
+            cursor: default;
+            pointer-events: none;
+
+            > * {
+                width: 100%;
+            }
+        }
+
         .task-list-loading {
             padding: 8px 0;
             font-size: 12px;
@@ -175,51 +201,37 @@
     .task-status {
         display: flex;
         flex-wrap: wrap;
-        gap: 0 4px;
+        gap: 0 var(--bklog-space-4);
         align-content: center;
         align-items: center;
         padding: 4px 6px;
-        font-size: 12px;
+        font-size: var(--bklog-font-body);
         font-weight: 500;
-        background: #E1F5F0;
+        background: var(--bklog-message-success-surface);
         border-radius: 999px;
 
         .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
+            @include bklogControls.execution-status-dot;
         }
 
         &.collected {
-            color: #21A380;
-            background-color: #E1F5F0;
-
-            .status-dot {
-                border: 1px solid #21A380;
-            }
+            color: var(--bklog-status-success);
+            background-color: var(--bklog-message-success-surface);
         }
 
         &.uncollected {
-            color: #8F9FBD;
-            background-color: #F0F4FA;
-
-            .status-dot {
-                border: 1px solid #8F9FBD;
-            }
+            color: var(--bklog-standard-control-border-hover);
+            background-color: var(--bklog-option-surface-hover);
         }
 
         &.collecting {
-            color: #3974FF;
-            background-color: #E5EDFF;
+            color: var(--bklog-brand-primary);
+            background-color: var(--bklog-brand-tint);
         }
 
         &.failed {
-            color: #E54040;
-            background-color: #FFEBEB;
-
-            .status-dot {
-                border: 1px solid #E54040;
-            }
+            color: var(--bklog-status-error);
+            background-color: var(--bklog-message-error-surface);
         }
     }
 

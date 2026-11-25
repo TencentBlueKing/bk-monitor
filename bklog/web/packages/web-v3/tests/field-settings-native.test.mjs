@@ -457,3 +457,76 @@ test('global alias-open event opens an untouched draft before the field Popup ha
   assert.equal(original.find(field => field.field_name === 'log').query_alias, 'message');
   assert.equal(calls.some(([name]) => name === 'save'), false);
 });
+
+test('context field settings retain the draft through failed saves and submit it on retry', async () => {
+  const requests = [];
+  const messages = [];
+  const events = [];
+  const savedFields = ['sample_primary'];
+  const { default: component } = loadTypeScript(
+    new URL('../src/features/retrieval/workspace/search-result/original-log/components/data-filter/fields-config/index.tsx', import.meta.url),
+    {
+      vue: Vue,
+      'tdesign-vue-next': { Button: 'test-button' },
+      'vuedraggable-vue3': {},
+      '@/platform/compat/vue3-component-model': { preserveVue3ComponentModel() {} },
+      '@/app/state/domains/application-store': {
+        useApplicationStore: () => ({
+          filteredFieldList: [...savedFields, 'sample_extra'].map(field_name => ({ field_name })),
+          userFieldConfigChange: ({ contextDisplayFields }) => {
+            const index = requests.push(contextDisplayFields);
+            if (index === 1) return Promise.resolve({ code: 1, message: 'Synthetic failure' });
+            if (index === 2) return Promise.reject(new Error('Synthetic transport failure'));
+            return Promise.resolve({ code: 0 });
+          },
+        }),
+      },
+      '@/app/state/domains/retrieve-store': {
+        useRetrieveStore: () => ({ $state: { catchFieldCustomConfig: {} } }),
+      },
+      '@/shared/composables/use-locale': () => ({ t: value => value }),
+      '@/shared/lib/message': { messageError: value => messages.push(value), messageSuccess: value => messages.push(value) },
+      './default-display-fields': { getDefaultDisplayFields: () => savedFields },
+    },
+    { jsx: 4, jsxImportSource: 'vue' },
+  );
+  const scope = Vue.effectScope();
+  try {
+    let exposed;
+    const render = scope.run(() => component.setup({}, {
+      emit: (...args) => events.push(args),
+      expose: value => { exposed = value; },
+    }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    events.length = 0;
+    const body = () => render().children[0].children;
+    const availableFields = () => {
+      const list = body().find(node => node.props?.class === 'field-list-container');
+      return list.children.find(node => node.children[1]?.type === 'ul').children[1].children;
+    };
+    const addField = () => availableFields()[0].children[1].props.onClick();
+    addField();
+    assert.equal(availableFields().length, 0);
+    assert.equal(exposed.prepareOpen(), true);
+    assert.equal(availableFields().length, 1);
+    addField();
+    const save = () => body().find(node => node.props?.class === 'config-buttons').children[0].props;
+    const first = save().onClick();
+    assert.equal(save().loading, true);
+    assert.equal(exposed.prepareOpen(), false);
+    await save().onClick();
+    await first;
+    assert.equal(save().loading, false);
+    await save().onClick();
+    assert.equal(save().loading, false);
+    assert.deepEqual(events, []);
+    await save().onClick();
+    assert.deepEqual(requests, Array.from({ length: 3 }, () => ['sample_primary', 'sample_extra']));
+    assert.deepEqual(events, [['success', ['sample_primary', 'sample_extra']]]);
+    assert.deepEqual(messages, ['Synthetic failure', '设置成功']);
+    assert.equal(exposed.prepareOpen(), true);
+    assert.equal(availableFields().length, 0);
+  } finally {
+    scope.stop();
+  }
+});
