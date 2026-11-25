@@ -52,7 +52,6 @@ _ALLOWED_FILES: frozenset[str] = frozenset(
 
 # 跳过的目录（与 bklog/.flake8 的 exclude 对齐 + 测试代码自身）
 _SKIP_PREFIXES: tuple[str, ...] = (
-    ".venv/",
     "blueapps/",
     "blueking/",
     "version_log/",
