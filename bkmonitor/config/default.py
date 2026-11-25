@@ -581,6 +581,9 @@ APM_CUSTOM_EVENT_REPORT_CONFIG = {}
 # 新建应用时，指定存储集群的路由规则
 APM_APP_STORAGE_ROUTES = []
 
+# 为拓扑发现父任务预留消费者时指定队列；未配置时沿用原周期队列。
+APM_TOPO_DISCOVERY_DISPATCH_QUEUE = os.getenv("APM_TOPO_DISCOVERY_DISPATCH_QUEUE", "")
+
 # 新建应用的刷新频率，每 2 分钟执行一次拓扑发现
 APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
 
