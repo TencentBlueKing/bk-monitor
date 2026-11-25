@@ -392,6 +392,67 @@ def test_fallback_discovers_sparse_service_without_inventing_root(
     assert not RootEndpoint.objects.exists()
 
 
+@pytest.mark.parametrize("initial_node", [False, True])
+def test_relation_resolves_node_metadata_after_scanning_page(initial_node, trace_discovery, mocker):
+    make_node("target", app_name="other", extra_data={"category": "unrelated"})
+    node = make_node("target", extra_data={"category": "other"}) if initial_node else None
+    discoverer = RelationDiscover(2, "app")
+    spans = [build_trace_span("target", "trace", f"span-{i}", "", "query", 100, 110) for i in range(3)]
+    for span, system in zip(spans, ["redis", "mysql", "redis"]):
+        span["attributes"] = {"db.system": system}
+    original = discoverer.find_relation_by_single_span
+
+    def observe(*args):
+        result = original(*args)
+        if args[2] is spans[0]:
+            if node is None:
+                make_node("target", extra_data={"kind": "service", "category": "rpc"})
+            else:
+                node.extra_data = {"kind": "service", "category": "rpc"}
+                node.save(update_fields=["extra_data"])
+        return result
+
+    mocker.patch.object(discoverer, "find_relation_by_single_span", side_effect=observe)
+    lookup = mocker.spy(TopoNode.objects, "filter")
+    discoverer.discover(spans, {})
+    lookup.assert_called_once_with(bk_biz_id=2, app_name="app", topo_key="target")
+    assert set(TopoRelation.objects.values_list("from_topo_key", "to_topo_key_category")) == {
+        ("target-redis", "rpc"),
+        ("target-mysql", "rpc"),
+    }
+
+    mocker.stop(lookup)
+    TopoNode.objects.filter(bk_biz_id=2, app_name="app", topo_key="target").delete()
+    discoverer.discover(spans[1:], discoverer.get_remain_data())
+    assert set(TopoRelation.objects.values_list("from_topo_key", "to_topo_key_category")) == {
+        ("target-redis", "rpc"),
+        ("target-mysql", "rpc"),
+        ("target-redis", "http"),
+        ("target-mysql", "http"),
+    }
+
+
+def test_async_and_single_span_relations_share_target_lookup(trace_discovery, mocker):
+    make_node("queue", extra_data={"kind": "service", "category": "rpc"})
+    producer = build_trace_span("queue", "mq", "producer", "", "send", 100, 105, SpanKind.SPAN_KIND_PRODUCER)
+    consumer = build_trace_span("queue", "mq", "consumer", "producer", "recv", 102, 110, SpanKind.SPAN_KIND_CONSUMER)
+    for span in [producer, consumer]:
+        span["attributes"] = {"messaging.system": "kafka", "messaging.destination": "jobs"}
+    lookup = mocker.spy(TopoNode.objects, "filter")
+    RelationDiscover(2, "app").discover([producer, consumer], {})
+    lookup.assert_called_once_with(bk_biz_id=2, app_name="app", topo_key="queue")
+    assert (
+        TopoRelation.objects.filter(
+            from_topo_key="queue-kafka",
+            to_topo_key="queue",
+            kind=TopoRelation.RELATION_KIND_ASYNC,
+            to_topo_key_kind="service",
+            to_topo_key_category="rpc",
+        ).count()
+        == 1
+    )
+
+
 def test_repeated_pages_preserve_all_discovery_objects_without_duplicate_creation(trace_discovery, mocker):
     from apm.core.discover.endpoint import EndpointDiscover
     from apm.core.discover.instance import InstanceDiscover
