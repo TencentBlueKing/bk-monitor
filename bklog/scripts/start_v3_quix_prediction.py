@@ -12,7 +12,7 @@ import os
 import sys
 
 
-def start_prediction(index_id: int) -> dict:
+def start_prediction(index_id: int, *, kafka_cluster_id: int | None = None) -> dict:
     from django.conf import settings
     from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 
@@ -22,6 +22,8 @@ def start_prediction(index_id: int) -> dict:
 
     if index_id < 1:
         raise ValueError("请指定原日志索引集的正整数 ID")
+    if kafka_cluster_id is not None and (type(kafka_cluster_id) is not int or not 0 < kafka_cluster_id < 2**63):
+        raise ValueError("请指定有效的 Kafka 集群编号")
     try:
         index = LogIndexSet.objects.get(index_set_id=index_id)
         # get_by_index_set_id 也会匹配派生的聚类索引，此处只使用 V3 原索引。
@@ -37,8 +39,12 @@ def start_prediction(index_id: int) -> dict:
     if not tenant or (settings.ENABLE_MULTI_TENANT_MODE and not index.space_uid):
         raise ValueError(f"索引 {index_id} 缺少所属空间的租户信息")
     source = {"index_id": str(index_id), "v3_source_scope": legacy.model_output_rt}
+    key = f"bklog-v3-predict-{index_id}"
+    if kafka_cluster_id is not None:
+        source["kafka_cluster_id"] = kafka_cluster_id
+        key = f"{key}-kafka-{kafka_cluster_id}"
     result = BkFaraApi.create_task(
-        {**source, "expected_tenant_id": tenant, "Idempotency-Key": f"bklog-v3-predict-{index_id}"},
+        {**source, "expected_tenant_id": tenant, "Idempotency-Key": key},
         request_cookies=False,
     )
     if not isinstance(result, dict):
@@ -53,12 +59,17 @@ def start_prediction(index_id: int) -> dict:
         or not result.get("task_id")
     ):
         raise ValueError(f"索引 {index_id} 未收到与原索引、租户和模型来源一致的启动回执")
+    if kafka_cluster_id is not None and (
+        type(result.get("kafka_cluster_id")) is not int or result["kafka_cluster_id"] != kafka_cluster_id
+    ):
+        raise ValueError(f"索引 {index_id} 未收到与指定集群 {kafka_cluster_id} 一致的启动回执")
     return result
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="仅启动指定原日志索引的 Quix 预测")
     parser.add_argument("--index-id", type=int, required=True, help="原日志索引集 ID")
+    parser.add_argument("--kafka-cluster-id", type=int, help="已登记的聚类 Kafka 集群编号")
     args = parser.parse_args(argv)
 
     import django
@@ -68,7 +79,7 @@ def main(argv=None) -> int:
     from apps.exceptions import ApiRequestError, ApiResultError
 
     try:
-        result = start_prediction(args.index_id)
+        result = start_prediction(args.index_id, kafka_cluster_id=args.kafka_cluster_id)
     except (ValueError, ApiRequestError, ApiResultError) as exc:
         print(str(exc), file=sys.stderr)
         return 1

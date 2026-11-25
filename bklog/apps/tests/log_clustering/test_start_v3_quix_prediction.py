@@ -125,3 +125,32 @@ class TestStartV3QuixPrediction(TestCase):
         with redirect_stderr(StringIO()), redirect_stdout(StringIO()):
             self.assertEqual(main(["--index-id", "42"]), 1)
         self.http.assert_called_once()
+
+    def test_explicit_kafka_cluster_is_bound_to_request_and_checked_in_receipt(self):
+        first = {"status": "WAITING_FOR_SYNC", "reason": "V3_PARAMETERS_NOT_IMPORTED"}
+        self.http.side_effect = [self.response(202, first), self.response(200, self.receipt)]
+
+        args = ["--index-id", "42", "--kafka-cluster-id", "99"]
+        with redirect_stdout(StringIO()) as waiting:
+            self.assertEqual(main(args), 75)
+        self.assertEqual(json.loads(waiting.getvalue())["kafka_cluster_id"], 99)
+        with redirect_stdout(StringIO()) as accepted:
+            self.assertEqual(main(args), 0)
+        self.assertEqual(json.loads(accepted.getvalue()), self.receipt)
+
+        self.assertEqual(self.http.call_count, 2)
+        for call in self.http.call_args_list:
+            self.assertEqual(json.loads(call.kwargs["data"])["kafka_cluster_id"], 99)
+            self.assertEqual(call.args[0].headers["Idempotency-Key"], "bklog-v3-predict-42-kafka-99")
+
+    def test_explicit_kafka_cluster_rejects_missing_or_mismatched_receipt(self):
+        for cluster in (None, 42, "99"):
+            with self.subTest(cluster=cluster), self.assertRaisesRegex(ValueError, "指定集群 99"):
+                self.http.return_value = self.response(200, {**self.receipt, "kafka_cluster_id": cluster})
+                start_prediction(42, kafka_cluster_id=99)
+
+    def test_invalid_kafka_cluster_is_not_submitted(self):
+        for cluster in (0, -1, True, "99"):
+            with self.subTest(cluster=cluster), self.assertRaisesRegex(ValueError, "Kafka 集群编号"):
+                start_prediction(42, kafka_cluster_id=cluster)
+        self.http.assert_not_called()
