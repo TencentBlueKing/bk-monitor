@@ -1081,5 +1081,4 @@ export default {
   已授权: 'Authorized',
   授权中: 'Authorizing',
   前往: 'Go',
-  下发请求已受理: 'The synchronization request has been accepted',
 };

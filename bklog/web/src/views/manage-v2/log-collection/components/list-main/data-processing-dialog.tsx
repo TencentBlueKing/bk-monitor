@@ -33,7 +33,6 @@ import {
   namespaceLabel,
   useNamespaceAuthorization,
 } from '../../hook/use-namespace-authorization';
-import { showMessage } from '../../utils';
 import './data-processing-dialog.scss';
 
 export default defineComponent({
@@ -86,7 +85,6 @@ export default defineComponent({
       const data = await state.authorize();
       if (!data) return;
       targetUrl.value = namespaceDataSourceUrl(window.BKBASE_V4_URL, data);
-      showMessage(t('下发请求已受理'));
     };
 
     const handleConfirm = () => {
