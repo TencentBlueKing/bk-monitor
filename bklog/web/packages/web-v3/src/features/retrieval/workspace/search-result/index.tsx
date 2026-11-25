@@ -26,6 +26,7 @@
 
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
+import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 import { computed, defineAsyncComponent, type ComputedRef, defineComponent, KeepAlive, onBeforeUnmount, ref, watch } from 'vue';
 
 import { debounce } from 'lodash-es';
@@ -125,6 +126,27 @@ export default defineComponent({
       }
     };
 
+    // 平台级索引集不进入日志聚类，带 tab=clustering 的链接落到原始日志
+    const isPlatformIndex = computed(() => {
+      const ids = (store.indexItem?.ids ?? []).map(id => `${id}`);
+      if (!ids.length) return false;
+      const items = useRetrieveStore().$state.flatIndexSetList ?? [];
+      return items.some(item => ids.includes(`${item.index_set_id}`) && item.is_platform_index);
+    });
+    const resolvedTab = computed(() =>
+      isPlatformIndex.value && activeTab.value === RouteQueryTab.CLUSTERING ? RouteQueryTab.ORIGIN : activeTab.value,
+    );
+
+    watch(
+      isPlatformIndex,
+      enabled => {
+        if (enabled && activeTab.value === RouteQueryTab.CLUSTERING) {
+          handleTabChange(RouteQueryTab.ORIGIN, false);
+        }
+      },
+      { immediate: true },
+    );
+
     const handleFavoriteChange = (item: { favorite_type: string; }) => {
       debounceUpdateTabValue(item.favorite_type === 'chart' ? 'graph_analysis' : 'origin');
     };
@@ -141,10 +163,10 @@ export default defineComponent({
     });
 
     const isGraphAnalysis = computed(
-      () => activeTab.value === RouteQueryTab.GRAPH_ANALYSIS || activeTab.value === RouteQueryTab.GRAPH_ANALYSIS_LEGACY,
+      () => resolvedTab.value === RouteQueryTab.GRAPH_ANALYSIS || resolvedTab.value === RouteQueryTab.GRAPH_ANALYSIS_LEGACY,
     );
-    const isGrep = computed(() => activeTab.value === RouteQueryTab.GREP);
-    const isClustering = computed(() => activeTab.value === RouteQueryTab.CLUSTERING);
+    const isGrep = computed(() => resolvedTab.value === RouteQueryTab.GREP);
+    const isClustering = computed(() => resolvedTab.value === RouteQueryTab.CLUSTERING);
     const isOrigin = computed(() => !isGraphAnalysis.value && !isGrep.value && !isClustering.value);
     const visitedTabs = ref<Record<string, boolean>>({
       [activeTab.value]: true,
@@ -156,7 +178,7 @@ export default defineComponent({
     return () => (
       <div class='v3-bklog-body'>
         <SearchResultTab
-          value={activeTab.value}
+          value={resolvedTab.value}
           onInput={handleTabChange}
         ></SearchResultTab>
         <div class='v3-result-tab-content'>
@@ -165,7 +187,7 @@ export default defineComponent({
             class={{ 'v3-tab-pane-active': isOrigin.value }}
           >
             <SearchResultPanel
-              activeTab={activeTab.value}
+              activeTab={resolvedTab.value}
               originOnly
               onUpdate:active-tab={handleTabChange}
             ></SearchResultPanel>

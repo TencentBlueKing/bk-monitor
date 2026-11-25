@@ -210,21 +210,30 @@
 
     .select-title {
       display: inline-block;
+      box-sizing: border-box;
+      height: var(--bklog-control-size-medium);
       background: #fafbfd;
       border: 1px solid #c4c6cc;
-      border-radius: 2px 0 0 2px;
+      border-radius: var(--bklog-standard-control-radius) 0 0 var(--bklog-standard-control-radius);
       color: #4d4f56;
       font-size: 12px;
       padding: 0 8px;
-      line-height: 30px;
+      line-height: calc(var(--bklog-control-size-medium) - 2px);
       min-width: 40px;
     }
 
     .select-box {
       flex: 1;
       min-width: 240px;
-      border-left: none;
-      border-radius: 0 2px 2px 0;
+      margin-inline-start: calc(-1 * var(--bklog-border-width));
+      border-radius: 0 var(--bklog-standard-control-radius) var(--bklog-standard-control-radius) 0;
+
+      .t-input,
+      .t-input:hover,
+      .t-input.t-is-focused,
+      .t-input.t-is-readonly {
+        border-radius: 0 var(--bklog-standard-control-radius) var(--bklog-standard-control-radius) 0;
+      }
     }
 
     .select-input {
@@ -241,11 +250,14 @@
       align-items: center;
 
       .select-title {
+        height: auto;
         padding: 0 8px 0 0;
+        line-height: var(--bklog-control-size-medium);
         color: #63656e;
         white-space: nowrap;
         background: transparent;
         border: none;
+        border-radius: 0;
       }
 
       .time-zone-select {

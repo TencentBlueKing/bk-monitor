@@ -30,16 +30,14 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
 
 
-import { Input as TInput } from 'tdesign-vue-next';
 import { Alert as TAlert } from 'tdesign-vue-next';
-import { Switch as TSwitch } from 'tdesign-vue-next';
 import { Button as TButton } from 'tdesign-vue-next';
+import { WordBreakerEditor, type WordBreakerConfirmPayload } from './field-list';
 import { ServicesInstance } from '@/platform/services';
-import { defineComponent, ref, computed, watch, onBeforeUnmount, onMounted, nextTick } from 'vue';
+import { defineComponent, ref, computed, watch, onBeforeUnmount } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
 
 import { isFieldTypeDisabled, judgeNumber } from '@/shared/lib/util';
-import tippy, { type Instance } from 'tippy.js';
 import TableComponent from '../../common-comp/table-component';
 import InfoTips from '../../common-comp/info-tips';
 import './clean-result-preview-dialog.scss';
@@ -125,18 +123,6 @@ type EditableFieldSnapshot = Pick<
 /** 数值字段类型（无调试值时按模板既定类型推断 verdict 使用） */
 const NUMERIC_FIELD_TYPES = ['int', 'long', 'double', 'float'];
 
-/** 分词设置选项（tippy 弹窗内使用） */
-const participleList = [
-  {
-    id: 'default',
-    name: '自然语言分词',
-  },
-  {
-    id: 'custom',
-    name: '自定义',
-  },
-];
-
 /**
  * @file 清洗结果预览弹窗
  */
@@ -219,18 +205,6 @@ export default defineComponent({
     const hasLoaded = ref(false);
     /** 当前表格数据来源：'debug' 调试结果 | 'template' 模板回填（无调试样例）| 'template-error' 模板回填（调试接口报错） */
     const previewMode = ref<'debug' | 'template' | 'template-error'>('debug');
-    /** tippy 实例列表（分词弹窗） */
-    let tippyInstances: Instance[] = [];
-    let menuInitTimer: ReturnType<typeof setTimeout> | null = null;
-    let isDestroyed = false;
-    /** 当前分词符弹窗选中的类型 */
-    const currentParticipleState = ref('default');
-    /** 分词符弹窗内的缓存数据 */
-    const cacheData = ref({
-      is_analyzed: false,
-      tokenize_on_chars: '',
-      is_case_sensitive: false,
-    });
     /** 当前选中的模板的 etl_fields（用于对比） */
     const templateFieldMap = computed(() => {
       const map = new Map<string, TemplateFieldItem>();
@@ -251,30 +225,8 @@ export default defineComponent({
       },
     );
 
-    // 表格数据或展示模式变化时，重新初始化 tippy 弹窗。
-    watch(
-      () => [tableData.value, previewMode.value],
-      () => {
-        nextTick(() => {
-          scheduleInitMenuPop(600);
-        });
-      },
-    );
-
-    onMounted(() => {
-      nextTick(() => {
-        scheduleInitMenuPop();
-      });
-    });
-
     onBeforeUnmount(() => {
       debugRequestId += 1;
-      isDestroyed = true;
-      if (menuInitTimer) {
-        clearTimeout(menuInitTimer);
-        menuInitTimer = null;
-      }
-      destroyTippyInstances();
       tableData.value = [];
       initialEditableFieldsSnapshot.value = '[]';
     });
@@ -407,204 +359,50 @@ export default defineComponent({
     /** 编辑字段类型 */
     const handleTypeChange = (row: PreviewFieldRow, value: string) => {
       row.field_type = value;
+      if (value !== 'string') {
+        row.is_analyzed = false;
+        row.is_case_sensitive = false;
+        row.tokenize_on_chars = '';
+      }
       if (row.errorType === 'TYPE_MISMATCH' && row.inferredType) {
         row.typeErr = value !== row.inferredType;
         row.status = row.typeErr ? 'error' : 'success';
       }
     };
 
-    /** 分词类型变更（tippy 弹窗内） */
-    const handleChangeParticipleState = (state: string) => {
-      currentParticipleState.value = state;
-      cacheData.value.tokenize_on_chars = state === 'custom' ? props.originalTextTokenizeOnChars : '';
+    const applyWordBreaker = (row: PreviewFieldRow, payload: WordBreakerConfirmPayload) => {
+      row.is_analyzed = payload.is_analyzed;
+      row.is_case_sensitive = payload.is_case_sensitive;
+      row.tokenize_on_chars = payload.tokenize_on_chars;
     };
 
-    /** 关闭分词符 tippy 弹窗 */
-    const handleWordBreakerCancelClick = () => {
-      tippyInstances.forEach(i => i?.hide());
-    };
-
-    /** 渲染分词设置列（点击通过 tippy 弹窗打开） */
+    /** 渲染分词设置列 */
     const renderWordBreaker = (row: PreviewFieldRow) => {
       return (
         <div class='word-breaker'>
-          <span
-            class='word-breaker-edit'
-            data-field-name={row.field_name}
+          <WordBreakerEditor
+            isAnalyzed={Boolean(row.is_analyzed)}
+            isCaseSensitive={Boolean(row.is_case_sensitive)}
+            originalTextTokenizeOnChars={props.originalTextTokenizeOnChars}
+            tokenizeOnChars={row.tokenize_on_chars || ''}
+            onConfirm={(payload: WordBreakerConfirmPayload) => applyWordBreaker(row, payload)}
           >
-            {row.is_analyzed ? (
-              <div class='analyzed-box'>
-                <div>{row.tokenize_on_chars || t('自然语言分词')}</div>
-                <div>
-                  {t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}
+            <span class='word-breaker-edit'>
+              {row.is_analyzed ? (
+                <div class='analyzed-box'>
+                  <div>{row.tokenize_on_chars || t('自然语言分词')}</div>
+                  <div>
+                    {t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <span>{t('不分词')}</span>
-            )}
-            <i class='select-angle bk-icon icon-angle-down' />
-          </span>
-          <div
-            style={{ display: 'none' }}
-            class='word-breaker-popover'
-          >
-            <div class='word-breaker-menu-content'>
-              <div class='menu-item'>
-                <span class='menu-item-label'>{t('分词')}</span>
-                <TSwitch
-
-                  value={cacheData.value.is_analyzed}
-                  onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
-                    cacheData.value.is_analyzed = value;
-                  })(value); }}
-                />
-              </div>
-              <div class='menu-item'>
-                <span class='menu-item-label'>{t('分词符')}</span>
-                <div class='bk-button-group' data-bklog-button-group='connected'>
-                  {participleList.map(option => (
-                    <TButton
-                      key={option.id}
-                      class='participle-btn'
-                      aria-pressed={currentParticipleState.value === option.id}
-                      disabled={!cacheData.value.is_analyzed}
-                      size='small'
-                      theme='default'
-                      onClick={() => handleChangeParticipleState(option.id)}
-                    >
-                      {t(option.name)}
-                    </TButton>
-                  ))}
-                </div>
-                {currentParticipleState.value === 'custom' && (
-                  <TInput
-                    class='custom-input'
-                    disabled={!cacheData.value.is_analyzed}
-                    value={cacheData.value.tokenize_on_chars}
-                    onChange={value => ((value: string) => {
-                      cacheData.value.tokenize_on_chars = value;
-                    })(String(value))}
-                  />
-                )}
-              </div>
-              <div class='menu-item'>
-                <span class='menu-item-label'>{t('大小写敏感')}</span>
-                <TSwitch
-                  disabled={!cacheData.value.is_analyzed}
-
-                  value={cacheData.value.is_case_sensitive}
-                  onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
-                    cacheData.value.is_case_sensitive = value;
-                  })(value); }}
-                />
-              </div>
-              <div class='menu-footer'>
-                <TButton
-                  size='small'
-                  theme='primary'
-                  onClick={() => {
-                    handleWordBreakerCancelClick();
-                    row.is_analyzed = cacheData.value.is_analyzed;
-                    row.tokenize_on_chars = cacheData.value.tokenize_on_chars;
-                    row.is_case_sensitive = cacheData.value.is_case_sensitive;
-                  }}
-                >
-                  {t('确定')}
-                </TButton>
-                <TButton theme="default"
-                  size='small'
-                  onClick={handleWordBreakerCancelClick}
-                >
-                  {t('取消')}
-                </TButton>
-              </div>
-            </div>
-          </div>
+              ) : (
+                <span>{t('不分词')}</span>
+              )}
+              <i class='select-angle bk-icon icon-angle-down' />
+            </span>
+          </WordBreakerEditor>
         </div>
       );
-    };
-
-    /** 初始化分词符 tippy 弹窗 */
-    const initMenuPop = () => {
-      if (isDestroyed) return;
-      destroyTippyInstances();
-
-      const targets = document.querySelectorAll('.preview-fields-table .t-table__body .word-breaker-edit');
-      if (!targets.length) return;
-
-      const instances = tippy(targets as unknown as HTMLElement[], {
-        trigger: 'click',
-        placement: 'top',
-        theme: 'light word-breaker-theme-popover',
-        interactive: true,
-        hideOnClick: true,
-        appendTo: () => document.body,
-        onShow(instance) {
-          const reference = instance.reference as HTMLElement;
-          reference.classList.add('is-hover');
-
-          const fieldName = reference.dataset.fieldName;
-          const currentRow = tableData.value.find(item => item.field_name === fieldName);
-
-          if (currentRow) {
-            cacheData.value = {
-              is_analyzed: currentRow.is_analyzed,
-              tokenize_on_chars: currentRow.tokenize_on_chars || '',
-              is_case_sensitive: currentRow.is_case_sensitive,
-            };
-            currentParticipleState.value = currentRow.tokenize_on_chars ? 'custom' : 'default';
-          }
-
-          const container = reference.nextElementSibling as HTMLElement | null;
-          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
-          if (contentNode) {
-            instance.setContent(contentNode);
-          }
-        },
-        onHide(instance) {
-          (instance.reference as HTMLElement).classList.remove('is-hover');
-        },
-        onHidden(instance) {
-          const reference = instance.reference as HTMLElement;
-          const container = reference.nextElementSibling as HTMLElement | null;
-          if (container) {
-            const tippyContentEl = instance.popper?.querySelector('.tippy-content');
-            const menuContent = tippyContentEl?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
-            if (menuContent && menuContent.parentElement !== container) {
-              container.appendChild(menuContent);
-            }
-          }
-          instance.setContent(document.createElement('div'));
-        },
-        content: document.createElement('div'),
-      });
-
-      tippyInstances = Array.isArray(instances) ? instances : [instances];
-    };
-
-    /** 延时初始化 tippy */
-    const scheduleInitMenuPop = (delay = 0) => {
-      if (menuInitTimer) {
-        clearTimeout(menuInitTimer);
-        menuInitTimer = null;
-      }
-      menuInitTimer = setTimeout(() => {
-        menuInitTimer = null;
-        initMenuPop();
-      }, delay);
-    };
-
-    /** 销毁所有 tippy 实例 */
-    const destroyTippyInstances = () => {
-      tippyInstances.forEach(i => {
-        try {
-          i.hide();
-          i.destroy();
-        } catch {
-          // Ignore errors from instances that have already been destroyed.
-        }
-      });
-      tippyInstances = [];
     };
 
     /** 格式化值用于显示 */
