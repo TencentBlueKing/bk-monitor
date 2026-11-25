@@ -34,6 +34,10 @@ declare global {
     timezone: string;
     MONITOR_URL: string;
     BK_LOGIN_URL: string;
+    ESB_DISABLED?: boolean;
+    BK_USER_WEB_API_URL: string;
+    BK_USER_WEB_TENANT_ID: string;
+    BK_PAAS_API_HOST: string;
     BK_LOG_ACCESS_GUIDE_URL?: string;
     BK_LOG_PERMISSION_GUIDE_URL?: string;
     BK_SHARED_RES_URL: string;
@@ -50,6 +54,7 @@ declare global {
     __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: boolean;
     bk_log_search_url: string;
     BKDATA_URL: string;
+    BKBASE_V4_URL: string;
     $t: (key: string, params?: Record<string, any>) => string;
     scheduler?: Scheduler;
     RUN_VER: string;

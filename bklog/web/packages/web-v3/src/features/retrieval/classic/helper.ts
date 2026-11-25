@@ -346,6 +346,9 @@ export const getEnvVariables = (isDev: boolean) => {
     'ES_STORAGE_CAPACITY',
     'TAM_AEGIS_KEY',
     'BK_LOGIN_URL',
+    'ESB_DISABLED',
+    'BK_USER_WEB_API_URL',
+    'BK_USER_WEB_TENANT_ID',
     'BK_DOC_DATA_URL',
     'BK_PLAT_HOST',
     'BK_ARCHIVE_DOC_URL',
@@ -397,7 +400,7 @@ export const getEnvVariables = (isDev: boolean) => {
 
       // 处理不同类型的值
       if (typeof value === 'string') {
-        return `window.${varName} = ${JSON.stringify(value)};`;
+        return `window.${varName} = ${JSON.stringify(value).replace(/</g, '\\u003c')};`;
       }
       if (typeof value === 'number' || typeof value === 'boolean') {
         return `window.${varName} = ${value};`;
