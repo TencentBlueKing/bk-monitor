@@ -128,7 +128,8 @@ class TestStartV3QuixPrediction(TestCase):
 
     def test_explicit_kafka_cluster_is_bound_to_request_and_checked_in_receipt(self):
         first = {"status": "WAITING_FOR_SYNC", "reason": "V3_PARAMETERS_NOT_IMPORTED"}
-        self.http.side_effect = [self.response(202, first), self.response(200, self.receipt)]
+        receipt = {**self.receipt, "kafka_rebound": True}
+        self.http.side_effect = [self.response(202, first), self.response(200, receipt)]
 
         args = ["--index-id", "42", "--kafka-cluster-id", "99"]
         with redirect_stdout(StringIO()) as waiting:
@@ -136,7 +137,7 @@ class TestStartV3QuixPrediction(TestCase):
         self.assertEqual(json.loads(waiting.getvalue())["kafka_cluster_id"], 99)
         with redirect_stdout(StringIO()) as accepted:
             self.assertEqual(main(args), 0)
-        self.assertEqual(json.loads(accepted.getvalue()), self.receipt)
+        self.assertEqual(json.loads(accepted.getvalue()), receipt)
 
         self.assertEqual(self.http.call_count, 2)
         for call in self.http.call_args_list:

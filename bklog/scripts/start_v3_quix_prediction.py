@@ -3,6 +3,7 @@
 从含 manage.py 的目录执行
     PYTHONPATH=. python /path/to/start_v3_quix_prediction.py --index-id 42
 
+指定 --kafka-cluster-id 可在接流前选择聚类集群。BKFara 会校验原任务状态及新旧 Topic。
 退出码 0 表示已收到启动回执，75 表示迁移材料尚未就绪，可用同一命令重试。
 """
 
@@ -69,7 +70,7 @@ def start_prediction(index_id: int, *, kafka_cluster_id: int | None = None) -> d
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="仅启动指定原日志索引的 Quix 预测")
     parser.add_argument("--index-id", type=int, required=True, help="原日志索引集 ID")
-    parser.add_argument("--kafka-cluster-id", type=int, help="已登记的聚类 Kafka 集群编号")
+    parser.add_argument("--kafka-cluster-id", type=int, help="接流前使用的已登记聚类 Kafka 集群编号")
     args = parser.parse_args(argv)
 
     import django
