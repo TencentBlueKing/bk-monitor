@@ -41,7 +41,7 @@ import ExploreFieldSetting from '../../../trace-explore/components/explore-field
 import StatisticsList from '../../../trace-explore/components/statistics-list/statistics-list';
 import ExploreConditionMenu from '../../../trace-explore/components/trace-explore-table/components/explore-condition-menu';
 import { type IStatisticsFieldItem, useFieldStatisticsPopover } from '../../composables/use-field-statistics-popover';
-import { RUM_EXPLORE_VIEW_CLASS, RumModeEnum } from '../../constants';
+import { type RumEllipsisModeType, RUM_EXPLORE_VIEW_CLASS, RumEllipsisModeEnum, RumModeEnum } from '../../constants';
 import { statisticsApi } from '../../services/rum-search';
 import { renderRumLoadingCell, RUM_TABLE_SKELETON_ROW_COUNT } from '../rum-explore-skeleton/rum-explore-skeleton';
 import { useCellConditionMenu } from './hooks/use-cell-condition-menu';
@@ -164,6 +164,11 @@ export default defineComponent({
     activeColKey: {
       type: String,
       default: '',
+    },
+    /** 单元格文本省略方式，默认 ...yz（开头省略） */
+    ellipsisMode: {
+      type: String as PropType<RumEllipsisModeType>,
+      default: RumEllipsisModeEnum.START,
     },
   },
   emits: {
@@ -528,6 +533,7 @@ export default defineComponent({
         />
         {this.activeFieldName && this.analysisPopoverTarget && this.analysisFields.length > 1 && (
           <Teleport to={this.analysisPopoverTarget}>
+            {/* biome-ignore lint/a11y/useSemanticElements: 字段分析为按钮切换组，不含表单语义 */}
             <div
               class='rum-analysis-fields'
               aria-label={this.t('字段分析')}

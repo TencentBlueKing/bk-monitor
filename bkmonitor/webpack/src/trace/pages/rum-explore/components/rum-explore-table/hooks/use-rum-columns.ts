@@ -25,7 +25,7 @@
  */
 import { computed } from 'vue';
 
-import { isRumFieldSortable, RUM_RECORD_ID_FIELD_MAP } from '../../../constants';
+import { type RumEllipsisModeType, isRumFieldSortable, RUM_RECORD_ID_FIELD_MAP } from '../../../constants';
 import { mapSortKeys, resolveColumnLayout } from '../column-builder/column-layout';
 import { buildRumColumnRenderer } from '../column-builder/column-renderer';
 
@@ -54,6 +54,8 @@ export const useRumColumns = (
   props: {
     /** 由视图配置和用户偏好合成的基础列。 */
     baseColumns: BaseTableColumn[];
+    /** 单元格文本省略方式。 */
+    ellipsisMode: RumEllipsisModeType;
     /** 决定行标识和字段操作的当前视角。 */
     mode: RumModeType;
     /** 请求使用的字段排序，降序字段带减号前缀。 */
@@ -68,7 +70,7 @@ export const useRumColumns = (
 
   const resolved = computed(() => {
     // 时间列格式化读取全局时区，切换时要重建表格列以触发单元格更新。
-    const { timezone, mode } = props;
+    const { timezone, mode, ellipsisMode } = props;
     const fields = getFields();
     const sortFields = new Map<string, string>();
     const columns = props.baseColumns.map(column => {
@@ -77,7 +79,11 @@ export const useRumColumns = (
       const sortField = layout.sortField;
       const sortable = layout.sections ? !!sortField && isRumFieldSortable(sortField) : column.sorter;
       if (sortable && sortField) sortFields.set(column.colKey, sortField.name);
-      return { ...column, ...buildRumColumnRenderer(column, field, layout, mode, actions), sorter: sortable };
+      return {
+        ...column,
+        ...buildRumColumnRenderer(column, field, layout, mode, actions, ellipsisMode),
+        sorter: sortable,
+      };
     });
 
     const sortColumns = new Map<string, string>();

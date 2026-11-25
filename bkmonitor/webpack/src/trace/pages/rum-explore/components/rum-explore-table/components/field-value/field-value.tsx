@@ -28,18 +28,22 @@ import type { VNodeChild } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
+import { isEllipsisActiveSingleLine } from '../../../../../../utils/dom-helper';
 import {
+  type RumEllipsisModeType,
   RUM_FULL_URL_FIELDS,
   RUM_HTTP_STATUS_CODE_MAP,
   RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
   RUM_VIEW_LOADING_TYPE_ICONS,
+  RumEllipsisModeEnum,
   RumHttpStatusCodeGroupEnum,
   SPAN_KIND_MAPS,
   SPAN_TYPE_FIELD,
   SPAN_TYPE_META,
 } from '../../../../constants';
 import { formatFieldValue } from '../../../../utils/array-field-formatter';
+import RumEllipsisText from '../../../ellipsis-text';
 import { hasFieldValue } from '../../column-builder/column-layout';
 import CountValue, { resolveCountField } from './count-value';
 import { canOpenRecordDetail, isSpanName, spanNameHover } from './detail-value';
@@ -113,6 +117,8 @@ export default defineComponent({
     mode: { type: String as PropType<RumModeType>, required: true },
     /** 字段需要的表格级交互。 */
     actions: { type: Object as PropType<FieldActions>, required: true },
+    /** 单元格文本省略方式，默认 ...yz（开头省略） */
+    ellipsisMode: { type: String as PropType<RumEllipsisModeType>, default: RumEllipsisModeEnum.START },
   },
   setup(props) {
     const { t } = useI18n();
@@ -126,8 +132,9 @@ export default defineComponent({
     /** 仅在当前复合成员被截断时展示完整内容。 */
     const handleTextEnter = (event: MouseEvent) => {
       const element = event.currentTarget as HTMLElement;
-      if (element.scrollWidth <= element.clientWidth) return;
-      props.actions.hoverPopoverTools.showPopover(event, element.textContent ?? '', {
+      const { content, isEllipsisActive } = isEllipsisActiveSingleLine(element);
+      if (!isEllipsisActive) return;
+      props.actions.hoverPopoverTools.showPopover(event, content, {
         theme: 'dark max-width-40vw text-wrap',
         placement: 'bottom',
         interactive: false,
@@ -157,15 +164,23 @@ export default defineComponent({
           }
         : {};
 
-    /** 保留完整文本供条件菜单和悬浮提示使用，完整 URL 从开头省略。 */
-    const renderText = (text: string) => (
-      <span
-        {...overflowEvents}
-        class={['rum-field-text', { 'rum-composite-url': fullUrl }]}
-      >
-        {fullUrl ? <bdi dir='ltr'>{text}</bdi> : text}
-      </span>
-    );
+    /** 保留完整文本供条件菜单和悬浮提示使用，省略方向由省略方式决定；徽标是短标签，不参与省略 */
+    const renderText = (text: string) =>
+      badge ? (
+        <span
+          {...overflowEvents}
+          class={['rum-field-text', 'rum-field-text--no-ellipsis', { 'rum-composite-url': fullUrl }]}
+        >
+          {text}
+        </span>
+      ) : (
+        <RumEllipsisText
+          {...overflowEvents}
+          class={['rum-field-text', { 'rum-composite-url': fullUrl }]}
+          mode={this.ellipsisMode}
+          text={text}
+        />
+      );
 
     if (badge && Array.isArray(value)) {
       return value.map((item, index) =>

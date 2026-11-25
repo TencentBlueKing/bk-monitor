@@ -1,3 +1,4 @@
+/* stylelint-disable selector-class-pattern */
 .rum-explore-table {
   .t-table__header th:has(.rum-composite-header) {
     padding-inline: 12px;
@@ -60,11 +61,10 @@
       text-decoration: underline;
     }
 
+    /* 省略方向由省略方式组件统一处理，这里只保留 URL 的等宽字体 */
     .rum-composite-url {
       font-family: Menlo, Monaco, Consolas, monospace;
       font-weight: 400;
-      text-align: start;
-      direction: rtl;
     }
 
     .rum-composite-badges,
@@ -78,7 +78,8 @@
 
     .rum-composite-badges {
       min-width: 0;
-      max-width: 65%;
+
+      // max-width: 65%;
       overflow: hidden;
 
       .rum-cell-badge {
@@ -88,13 +89,17 @@
         gap: 2px;
         height: 16px;
         padding: 0 3px;
-        font: 500 10px / 16px 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+        font:
+          500 10px / 16px 'PingFang SC',
+          'Microsoft YaHei',
+          Arial,
+          sans-serif;
         color: var(--rum-badge-color, var(--rum-badge-tint, #7b8ba8));
         background: color-mix(in srgb, var(--rum-badge-tint, #8f9fbd) var(--rum-badge-opacity), transparent);
         border-radius: 4px;
 
         &.rum-badge-mono {
-          font-family: 'Roboto Mono', 'Roboto-Mono', Menlo, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
+          font-family: 'Roboto Mono', Roboto-Mono, Menlo, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
         }
 
         &.rum-badge-resource {
@@ -161,10 +166,14 @@
       justify-content: center;
       height: 18px;
       padding: 0;
-      font: 500 9px / normal Roboto, 'Roboto-Medium', Arial, sans-serif;
+      font:
+        500 9px / normal Roboto,
+        Roboto-Medium,
+        Arial,
+        sans-serif;
       font-variation-settings: 'wdth' 100;
-      letter-spacing: -0.36px;
       color: #4681c5;
+      letter-spacing: -0.36px;
       cursor: default;
       background: #fff;
       border: 0;

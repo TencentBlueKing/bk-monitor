@@ -181,6 +181,7 @@ export default defineComponent({
   render() {
     return (
       <TrendChartPanel
+        v-slots={{ headerExtra: this.$slots.headerExtra }}
         customOptions={{
           formatterData: this.formatterData,
           series: this.customSeries,

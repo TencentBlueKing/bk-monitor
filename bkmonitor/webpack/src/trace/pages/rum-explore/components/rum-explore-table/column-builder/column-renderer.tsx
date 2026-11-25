@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import {
+  type RumEllipsisModeType,
   EVENTS_FIELD_PREFIX,
   RUM_FULL_URL_FIELDS,
   RumModeEnum,
@@ -53,6 +54,7 @@ import type { SlotReturnValue } from 'tdesign-vue-next';
  * @param layout 已解析的复合布局和分析字段
  * @param mode 当前检索视角
  * @param actions 表格传入的业务交互
+ * @param ellipsisMode 单元格文本省略方式
  * @returns 接入共享表格的列渲染属性
  */
 export const buildRumColumnRenderer = (
@@ -60,7 +62,8 @@ export const buildRumColumnRenderer = (
   field: IRumField | undefined,
   layout: ReturnType<typeof resolveColumnLayout>,
   mode: RumModeType,
-  actions: RumColumnActions
+  actions: RumColumnActions,
+  ellipsisMode: RumEllipsisModeType
 ): Pick<BaseTableColumn, 'align' | 'cellRenderer' | 'title'> => {
   const fieldName = column.colKey;
   const count = !!resolveCountField(mode, fieldName) && !layout.sections;
@@ -85,6 +88,7 @@ export const buildRumColumnRenderer = (
           <FieldValue
             actions={actions}
             context={{ field: member.field, fieldName: member.field.name, placement, row, rowId, value: member.value }}
+            ellipsisMode={ellipsisMode}
             mode={mode}
           />
         );
@@ -123,6 +127,7 @@ export const buildRumColumnRenderer = (
               <FieldValue
                 actions={actions}
                 context={{ field, fieldName, placement: 'column', row, rowId, value }}
+                ellipsisMode={ellipsisMode}
                 mode={mode}
               />
             ) : (

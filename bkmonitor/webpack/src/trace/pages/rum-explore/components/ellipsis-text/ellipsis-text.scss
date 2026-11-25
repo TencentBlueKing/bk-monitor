@@ -1,0 +1,17 @@
+.rum-ellipsis-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  /* 开头省略：direction: rtl 把省略号移到左侧；LRM 零宽字符避免纯数字 / 下划线文本被反向排列 */
+  &.is-start {
+    text-align: left;
+    direction: rtl;
+
+    &::before {
+      content: '\200e';
+    }
+  }
+}

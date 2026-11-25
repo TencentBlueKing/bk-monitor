@@ -96,6 +96,7 @@ export default defineComponent({
             </div>
           ))}
         </div>
+        {this.$slots.extra && <div class='filter-extra'>{this.$slots.extra()}</div>}
       </div>
     );
   },

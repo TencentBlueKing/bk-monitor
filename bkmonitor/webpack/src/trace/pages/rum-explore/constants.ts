@@ -108,6 +108,28 @@ export const RUM_VIEW_LOADING_TYPE_ICONS = {
 /** 「类型选择」中代表不限类型的值，非后端枚举 */
 export const ALL_SPAN_TYPE = '';
 
+/** 单元格文本省略方式 */
+export const RumEllipsisModeEnum = {
+  /** 末尾省略：ab... */
+  END: 'end',
+  /** 中间省略：a...z */
+  MIDDLE: 'middle',
+  /** 开头省略：...yz */
+  START: 'start',
+} as const;
+
+export type RumEllipsisModeType = (typeof RumEllipsisModeEnum)[keyof typeof RumEllipsisModeEnum];
+
+/**
+ * 省略方式选项。示意文案固定为 ab... / a...z / ...yz，不参与 i18n；
+ * 省略号单独渲染，便于按设计稿压缩点间距并贴住基线。
+ */
+export const RUM_ELLIPSIS_MODE_LIST: { prefix: string; suffix: string; value: RumEllipsisModeType }[] = [
+  { prefix: 'ab', suffix: '', value: RumEllipsisModeEnum.END },
+  { prefix: 'a', suffix: 'z', value: RumEllipsisModeEnum.MIDDLE },
+  { prefix: '', suffix: 'yz', value: RumEllipsisModeEnum.START },
+];
+
 /** span 类型对应的字段名，快捷筛选与按类型切列都基于它 */
 export const SPAN_TYPE_FIELD = 'attributes.span_type';
 

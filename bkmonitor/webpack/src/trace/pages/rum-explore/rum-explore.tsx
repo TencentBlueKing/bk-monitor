@@ -44,6 +44,7 @@ import FavoriteBox, { EditFavorite } from '../trace-explore/components/favorite-
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import RumDimensionPanel from './components/rum-dimension-panel';
+import RumEllipsisMode from './components/rum-ellipsis-mode';
 import RumEventsDrawer from './components/rum-events-drawer';
 import RumExploreHeader from './components/rum-explore-header';
 import RumExploreSkeleton from './components/rum-explore-skeleton/rum-explore-skeleton';
@@ -910,6 +911,13 @@ export default defineComponent({
     const { activeRowCtx, eventsDrawerCtx, favoriteCtx, queryCtx, spanTypeCtx, tableCtx, viewConfigCtx } = this;
     /** 抽屉的目标行：渲染期取一次快照，既决定是否挂载抽屉，也作为 row 传入 */
     const eventsRow = eventsDrawerCtx.row.value;
+    /** 省略方式控件：span 视角挂在类型筛选右侧，其他视角挂在趋势图汇聚周期右侧 */
+    const ellipsisModeNode = () => (
+      <RumEllipsisMode
+        value={queryCtx.ellipsisMode.value}
+        onChange={queryCtx.ellipsisModeChange}
+      />
+    );
 
     return (
       <div class='rum-explore'>
@@ -1039,6 +1047,7 @@ export default defineComponent({
                         />
                         {this.configLoading ? null : (
                           <RumTrendChart
+                            v-slots={{ headerExtra: this.isSpanMode ? undefined : ellipsisModeNode }}
                             commonParams={queryCtx.commonParams.value}
                             onDataZoomChange={this.handleTrendDataZoomChange}
                           />
@@ -1049,6 +1058,7 @@ export default defineComponent({
                             affixedTop: this.isSpanMode
                               ? () => (
                                   <RumSpanTypeFilter
+                                    v-slots={{ extra: ellipsisModeNode }}
                                     list={spanTypeCtx.chipList.value}
                                     loading={this.configLoading}
                                     value={spanTypeCtx.activeSpanType.value}
@@ -1073,6 +1083,7 @@ export default defineComponent({
                                   data={tableCtx.tableData.value}
                                   defaultFieldKeys={this.columnConfig.defaultDisplayFields.value}
                                   displayableFields={this.columnConfig.displayableFields.value}
+                                  ellipsisMode={queryCtx.ellipsisMode.value}
                                   emptyType={this.emptyType}
                                   fieldMap={this.columnConfig.fieldMap.value}
                                   fixedDisplayList={this.layoutPreset.leftFixedColumns}
