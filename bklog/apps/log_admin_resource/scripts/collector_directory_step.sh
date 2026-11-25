@@ -15,7 +15,7 @@ if ! stat -Lc "$format" / >/dev/null 2>&1; then
 fi
 fail_stat() {
     case "$1" in
-        *': No such file or directory') reason=source_path_not_found ;;
+        *': No such file or directory') reason=${2:-source_path_not_found} ;;
         *': Permission denied') reason=source_permission_denied ;;
         *': Not a directory') reason=source_not_directory ;;
         *) reason=source_stat_failed ;;
@@ -66,12 +66,23 @@ case "$operation" in
             head -c 65537 | base64
         ;;
     readlink)
-        before=$(stat -c '%d %i %f %s %Y %Z|%y|%z' -- "$path")
-        printf '%s\n' "$before"
-        # The empty record distinguishes a failed readlink from a short target.
-        { readlink -n -- "$path" && printf '\000'; } | base64
-        after=$(stat -c '%d %i %f %s %Y %Z|%y|%z' -- "$path")
-        [ "$before" = "$after" ] || exit 1
+        before=$(stat -c "%F|$format" -- "$path" 2>&1) || fail_stat "$before"
+        case "$before" in
+            'symbolic link|'*) ;;
+            *) printf 'ERROR source_not_symlink\n'; exit 0 ;;
+        esac
+        # A final marker preserves trailing newlines in the target during
+        # command substitution. The kernel disallows NUL in a link target.
+        target=$(readlink -n -- "$path" 2>/dev/null && printf '.') || target=''
+        after=$(stat -c "%F|$format" -- "$path" 2>&1) || fail_stat "$after" source_changed_during_readlink
+        if [ "$before" != "$after" ]; then
+            printf 'ERROR source_changed_during_readlink\n'
+        elif [ -z "$target" ]; then
+            printf 'ERROR source_readlink_failed\n'
+        else
+            printf '%s\n' "${before#*|}"
+            printf '%s\000' "${target%.}" | base64
+        fi
         ;;
     *) exit 64 ;;
 esac

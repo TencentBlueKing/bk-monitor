@@ -59,6 +59,9 @@ def decode_directory_step(output, policy, request):
             "source_permission_denied",
             "source_not_directory",
             "source_stat_failed",
+            "source_not_symlink",
+            "source_changed_during_readlink",
+            "source_readlink_failed",
         }:
             raise ValueError("invalid_stat_error")
         return {"error": error, "failed_path": path}

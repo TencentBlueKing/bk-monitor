@@ -1,8 +1,10 @@
 import base64
 import json
+import sys
 from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any
+from unittest import skipUnless
 from unittest.mock import MagicMock, call, patch
 
 from django.core.cache import caches
@@ -1092,6 +1094,73 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 os.chdir(previous)
 
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_readlink_errors_survive_task_detail(self, _identity):
+        import os
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+        from apps.log_admin_resource.k8s_tasks import _finish, _timed_probe
+
+        # Exercise the production shell and decoder with deterministic utility
+        # output. The second lstat observes a different inode after rotation.
+        utilities = """
+date() { echo 2026-01-02T03:04:05.123456Z; }
+stat() {
+    for file do :; done
+    case "$file" in
+        /) return 0 ;;
+        /logs/missing) echo 'stat: path: No such file or directory' >&2; return 1 ;;
+        /logs/regular) echo 'regular file|initial'; return ;;
+        /logs/rotated)
+            if [ -f "$marker" ]; then echo 'symbolic link|second'; else echo 'symbolic link|first'; fi ;;
+    esac
+}
+readlink() { printf 'old-target'; touch "$marker"; }
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            marker = str(Path(tmp) / "readlink-called")
+
+            def execute(_client, _candidate, command, script):
+                result = subprocess.run(
+                    command,
+                    input=utilities + script,
+                    env=dict(os.environ, marker=marker),
+                    text=True,
+                    capture_output=True,
+                    timeout=10,
+                    check=True,
+                )
+                return result.stdout, result.stderr, result.returncode
+
+            for name, error in (
+                ("missing", "source_path_not_found"),
+                ("regular", "source_not_symlink"),
+                ("rotated", "source_changed_during_readlink"),
+            ):
+                with self.subTest(name=name):
+                    step = {"operation": "readlink", "path": "/logs/" + name, "path_space": "collector"}
+                    record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+                        app_code="reader-a",
+                        bk_tenant_id="tenant-a",
+                        target={},
+                        request_options={"source_step": step},
+                        task_type=TASK_TYPE_K8S_INSPECTION,
+                    )
+                    with patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=execute):
+                        probe = inspect_source_step(None, candidate(), {"values": {}}, {}, [], 7, step, {})
+                    _finish(record["task_id"], record, {"source_path": _timed_probe(probe)}, "partial", None)
+                    ResourceInspectionTaskRecord.release_active(record)
+                    detail = get_k8s_inspection_detail({"task_id": record["task_id"]})
+                    self.assertEqual(detail["task_status"], "partial")
+                    row = detail["evidence"]["probes"]["source_path"]
+                    self.assertEqual((row["status"], row["code"]), ("failed", "source_step_incomplete"))
+                    self.assertEqual(row["evidence"]["error"], error)
+                    self.assertEqual(row["evidence"]["failed_path"], step["path"])
+                    self.assertNotIn("observation", row["evidence"])
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_readlink_paths_through_storage_and_followup_stat(self, _identity):
         import tempfile
         from pathlib import Path
@@ -2124,8 +2193,6 @@ class SourcePolicyTest(SimpleTestCase):
 
     def test_shell_stat_distinguishes_missing_file_and_unavailable_tool(self):
         import os
-        import shlex
-        import shutil
         import subprocess
         import tempfile
         from pathlib import Path
@@ -2137,24 +2204,24 @@ class SourcePolicyTest(SimpleTestCase):
             tools_dir = Path(tmp) / "tools"
             tools_dir.mkdir()
             stat_tool = tools_dir / "stat"
-            system_stat = shlex.quote(shutil.which("stat"))
             stat_tool.write_text(
-                "#!/bin/sh\n"
-                'for arg do if [ "$arg" = "$DENIED" ]; then echo "stat: path: Permission denied" >&2; exit 1; fi; done\n'
-                f'exec {system_stat} "$@"\n'
+                '#!/bin/sh\nfor file do :; done\ncase "$file" in /) exit 0 ;; esac\necho "stat: path: ${DIAGNOSTIC}" >&2; exit 1\n'
             )
+            clock = tools_dir / "date"
+            clock.write_text("#!/bin/sh\necho 2026-01-02T03:04:05.123456Z\n")
+            clock.chmod(0o755)
             stat_tool.chmod(0o755)
-            for search_path, expected in (
-                (os.environ["PATH"], "source_path_not_found"),
-                (tmp, "stat_tool_unavailable"),
-                (f"{tools_dir}:{os.environ['PATH']}", "source_permission_denied"),
+            for search_path, diagnostic, expected in (
+                (str(tools_dir), "No such file or directory", "source_path_not_found"),
+                (tmp, "", "stat_tool_unavailable"),
+                (str(tools_dir), "Permission denied", "source_permission_denied"),
             ):
 
                 def execute(_client, _candidate, command, script):
                     process = subprocess.run(
                         command,
                         input=script,
-                        env=dict(os.environ, PATH=search_path, DENIED=path),
+                        env=dict(os.environ, PATH=search_path, DIAGNOSTIC=diagnostic),
                         capture_output=True,
                         text=True,
                         check=True,
@@ -2169,6 +2236,7 @@ class SourcePolicyTest(SimpleTestCase):
                     result = inspect_source_step(None, candidate(), {"values": {}}, {}, [], 7, step, {})
                     self.assertEqual(result["evidence"]["error"], expected)
 
+    @skipUnless(sys.platform.startswith("linux"), "runs the Linux collector shell with GNU userspace")
     def test_source_step_executes_fixed_script_and_returns_path_metadata(self):
         import os
         import subprocess
