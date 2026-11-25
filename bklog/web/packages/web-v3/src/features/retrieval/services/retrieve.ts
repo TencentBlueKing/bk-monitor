@@ -57,6 +57,7 @@ export type IndexSetDataList = {
     tag_id: number;
   }[];
   is_favorite: boolean;
+  is_platform_index?: boolean;
   no_data_check_time: string;
   collector_scenario_id: number | null;
   permission: {
