@@ -351,6 +351,7 @@
       </div>
     </div>
     <collector-config-detail
+      v-if="side.data"
       :side-data="side.data"
       :side-show="side.show"
       @edit="handleToEdit"
