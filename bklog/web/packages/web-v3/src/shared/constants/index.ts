@@ -36,6 +36,8 @@ const _builtInInitHiddenList = [
   '__dist_05',
   '__dist_07',
   '__dist_09',
+  '__log_signature',
+  '__log_cluster_publish_revision',
   '__ipv6__',
   '__parse_failure',
   'time',

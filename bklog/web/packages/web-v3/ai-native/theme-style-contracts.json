@@ -2123,16 +2123,24 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-input__inner",
-        ".t-input__wrap"
+        ".t-form",
+        ".t-form__item",
+        ".t-form__label--top",
+        ".t-input",
+        ".t-input__prefix-icon",
+        ".t-is-focused"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 2,
-      "contextualDeclarations": 2,
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 5,
       "localVisualProperties": [
-        "font-size"
+        "border",
+        "border-radius",
+        "box-shadow",
+        "font-size",
+        "line-height"
       ],
-      "localVisualDeclarations": 1,
+      "localVisualDeclarations": 5,
       "pendingNormalization": 0
     },
     {
@@ -2160,15 +2168,27 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-input__wrap"
+        ".t-input",
+        ".t-input__inner",
+        ".t-input__suffix",
+        ".t-input__wrap",
+        ".t-popup__content",
+        ".t-select-input"
       ],
       "sharedContracts": [
         "filter-operator"
       ],
       "semanticDeclarations": 0,
-      "contextualDeclarations": 0,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "contextualDeclarations": 7,
+      "localVisualProperties": [
+        "background",
+        "border",
+        "border-radius",
+        "box-shadow",
+        "color",
+        "font"
+      ],
+      "localVisualDeclarations": 9,
       "pendingNormalization": 0
     },
     {
@@ -5053,13 +5073,17 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button"
+        ".t-button",
+        ".t-form__item",
+        ".t-form__label--top"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 0,
-      "contextualDeclarations": 1,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "semanticDeclarations": 1,
+      "contextualDeclarations": 6,
+      "localVisualProperties": [
+        "line-height"
+      ],
+      "localVisualDeclarations": 1,
       "pendingNormalization": 0
     },
     {
@@ -5467,13 +5491,22 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button"
+        ".t-button",
+        ".t-form__controls",
+        ".t-form__item",
+        ".t-form__label--top",
+        ".t-input-number",
+        ".t-popup__content",
+        ".t-select__dropdown-inner",
+        ".t-tips"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 0,
-      "contextualDeclarations": 1,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 12,
+      "localVisualProperties": [
+        "color"
+      ],
+      "localVisualDeclarations": 1,
       "pendingNormalization": 0
     },
     {

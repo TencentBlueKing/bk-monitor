@@ -268,7 +268,31 @@ export default defineComponent({
     /**
      * 切换语言（兼容跨域：通过 JSONP 调前端网关 API）
      */
-    function changeLanguage(value: string) {
+    async function changeLanguage(value: string) {
+      if ((window as any).ESB_DISABLED) {
+        try {
+          const root = String((window as any).BK_USER_WEB_API_URL ?? '')
+            .replace(/\/$/, '')
+            .replace(/^http:/i, location.protocol);
+          const response = await fetch(`${root}/api/v3/open-web/tenant/current-user/language/`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Bk-Tenant-Id': (window as any).BK_USER_WEB_TENANT_ID ?? state.bk_tenant_id ?? '',
+            },
+            body: JSON.stringify({ language: value }),
+          });
+          const result = await response.json();
+          if (!response.ok || result.result === false || (result.code != null && result.code !== 0)) {
+            throw new Error(result.message || response.statusText);
+          }
+        } catch (error) {
+          MessagePlugin.error({ content: error instanceof Error ? error.message : String(error) });
+          return;
+        }
+      }
+
       jsCookie.remove('blueking_language', { path: '' });
       jsCookie.set('blueking_language', value, {
         expires: 3600,
@@ -276,6 +300,10 @@ export default defineComponent({
           envConfig.value.bkDomain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, ''),
       });
 
+      if ((window as any).ESB_DISABLED) {
+        location.reload();
+        return;
+      }
       if (state.bk_tenant_id) {
         const url = join(
           (window as any).BK_PAAS_API_HOST,
