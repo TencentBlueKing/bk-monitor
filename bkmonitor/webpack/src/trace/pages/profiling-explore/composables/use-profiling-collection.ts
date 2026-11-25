@@ -156,7 +156,7 @@ export function useProfilingCollection(
       patch({ tab: 'results' });
       await refresh();
     } catch (e) {
-      if (!current.signal.aborted) Message({ theme: 'error', message: (e as Error)?.message || t('启用失败，请重试') });
+      if (!current.signal.aborted) Message({ theme: 'error', message: (e as Error)?.message || t('操作失败，请重试') });
     } finally {
       if (!current.signal.aborted) loading.value = false;
     }
