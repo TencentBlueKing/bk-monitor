@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import LockNotOwnedError, TimeoutError as RedisTimeoutError, WatchError
+from redis.lock import Lock
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.lock.service_lock import renewing_redis_lock
@@ -131,30 +132,27 @@ class ActionConfigCacheManager(CacheManager):
                 return False
 
         # 全量优先。已在读库的增量通过 WATCH 放弃旧快照，新到的增量留到下一轮补齐。
-        lock = cls.cache.lock(cls.FULL_REFRESH_LOCK, timeout=60, thread_local=False)
+        lock = cls.cache.lock(cls.FULL_REFRESH_LOCK, timeout=60, thread_local=False, lock_class=_FullRefreshLock)
         with renewing_redis_lock(lock, lock.timeout) as check_lease:
             if check_lease is None:
                 cls.logger.info("action config full refresh already running")
                 return False
-            first_window = int((datetime.now(tz=timezone.utc) - timedelta(minutes=5)).timestamp())
-            cls.cache.set(cls.LAST_REFRESH_KEY, first_window, nx=True)
             while True:
                 check_lease()
                 with cls.cache.pipeline() as pipeline:
                     pipeline.watch(cls.LAST_REFRESH_KEY)
-                    last_refresh = pipeline.get(cls.LAST_REFRESH_KEY)
                     pipeline.multi()
                     cls._queue_refresh(pipeline)
                     if not lock.owned():
                         raise LockNotOwnedError("action config full refresh lost its lock")
-                    # 全量不推进增量下界。原值写回能使过期持有者的待发布事务失效。
-                    pipeline.set(cls.LAST_REFRESH_KEY, last_refresh or first_window)
                     try:
                         pipeline.execute()
                         break
                     except WatchError as exc:
                         if isinstance(exc.__context__, (RedisConnectionError, RedisTimeoutError)):
                             raise
+                        if not lock.owned():
+                            raise LockNotOwnedError("action config full refresh lost its lock") from exc
                         # 并发发布改变了水位，下一轮重新读取配置并验证所有权。
         return True
 
@@ -225,6 +223,30 @@ class ActionConfigCacheManager(CacheManager):
             pipeline.delete(
                 cls.CACHE_KEY_TEMPLATE.format(cache_type=cls.CacheType.CONFIG_ID, cache_id=deleted_config_id)
             )
+
+
+class _FullRefreshLock(Lock):
+    def do_acquire(self, token) -> bool:
+        """取得租约时一并触碰水位，使上一任所有者尚未执行的发布事务失效。"""
+        cursor_key = ActionConfigCacheManager.LAST_REFRESH_KEY
+        with self.redis.pipeline() as pipeline:
+            while True:
+                try:
+                    pipeline.watch(self.name, cursor_key)
+                    owner, cursor = pipeline.mget(self.name, cursor_key)
+                    if owner is not None:
+                        return False
+                    if cursor is None:
+                        cursor = int((datetime.now(tz=timezone.utc) - timedelta(minutes=5)).timestamp())
+                    pipeline.multi()
+                    pipeline.set(self.name, token, px=int(self.timeout * 1000))
+                    pipeline.set(cursor_key, cursor)
+                    pipeline.execute()
+                    return True
+                except WatchError as exc:
+                    if isinstance(exc.__context__, (RedisConnectionError, RedisTimeoutError)):
+                        raise
+                    # 并发增量可能刚推进水位；重读后再尝试，不覆盖它的进度。
 
 
 def refresh_total():

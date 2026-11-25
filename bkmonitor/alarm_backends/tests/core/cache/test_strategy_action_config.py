@@ -66,8 +66,9 @@ def test_full_refresh_does_not_refresh_action_configs(monkeypatch):
 
 @pytest.fixture
 def cache(monkeypatch):
-    cache = fakeredis.FakeRedis()
+    cache = fakeredis.FakeRedis(server=fakeredis.FakeServer())
     monkeypatch.setattr(ActionConfigCacheManager, "cache", cache)
+    monkeypatch.setattr(StrategyCacheManager, "cache", cache)
     return cache
 
 
@@ -161,8 +162,12 @@ def test_full_refresh_defers_strategies_and_preserves_incremental_window(cache, 
     # fakeredis 无 Lua 扩展时不实现 redis-py 的原子释放脚本。
     monkeypatch.setattr(Lock, "do_release", lambda lock, token: cache.delete(lock.name))
 
+    competing_full = mock.Mock(side_effect=manager.refresh)
+
     def during_full(pipeline, since=None):
         assert since is None
+        competing_full.assert_not_called()
+        assert not competing_full()  # 未取得锁的全量不能作废持有者的发布事务。
         strategy_module.smart_refresh()
         strategy_refresh.assert_not_called()
         pipeline.set("config", "full")
@@ -194,3 +199,32 @@ def test_full_refresh_losing_lease_cannot_publish(cache, clock, monkeypatch):
     assert cache.get(manager.FULL_REFRESH_LOCK) == b"new-owner"
     assert cache.get("config") == b"new"
     assert int(cache.get(manager.LAST_REFRESH_KEY)) == start
+
+
+def test_full_refresh_takeover_after_ownership_check_invalidates_old_transaction(cache, clock, monkeypatch):
+    manager = ActionConfigCacheManager
+    cache.set(manager.LAST_REFRESH_KEY, 123)
+    cache.set("config", "published")
+    monkeypatch.setattr(manager, "_queue_refresh", lambda pipeline: pipeline.set("config", "obsolete"))
+    owned = Lock.owned
+
+    def takeover_after_check(lock):
+        result = owned(lock)
+        if result:
+            cache.delete(lock.name)  # 旧持有者在检查之后失去租约。
+            with monkeypatch.context() as replacement:
+                replacement.setattr(manager, "_queue_refresh", mock.Mock(side_effect=RuntimeError("read failed")))
+                with pytest.raises(RuntimeError, match="read failed"):
+                    manager.refresh()
+        return result
+
+    def release(lock, token):
+        if cache.get(lock.name) == token:
+            cache.delete(lock.name)
+
+    monkeypatch.setattr(Lock, "owned", takeover_after_check)
+    monkeypatch.setattr(Lock, "do_release", release)
+    with pytest.raises(LockNotOwnedError):
+        manager.refresh()
+    assert cache.get("config") == b"published"
+    assert int(cache.get(manager.LAST_REFRESH_KEY)) == 123
