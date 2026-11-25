@@ -80,3 +80,25 @@ test('scene results show the matching empty state only after the field request s
     });
   }
 });
+
+test('clustering tab renders skeleton immediately during initial status request and avoids hidden duplicate mount', () => {
+  const containerSource = readFileSync(
+    new URL('../src/features/retrieval/workspace/search-result/index.tsx', import.meta.url),
+    'utf8',
+  );
+  const panelSource = readFileSync(
+    new URL('../src/features/retrieval/workbench/search-result-panel/index.vue', import.meta.url),
+    'utf8',
+  );
+  const clusteringEntrySource = readFileSync(
+    new URL('../src/features/retrieval/workspace/search-result/log-clustering/index.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(containerSource, /<SearchResultPanel[\s\S]*?originOnly/);
+  assert.match(containerSource, /loader: \(\) => import\([\s\S]*?\.\/log-clustering\/index'\),[\s\S]*?suspensible: false/);
+  assert.match(panelSource, /v-else-if="!originOnly && activeTab === 'clustering'"/);
+  assert.match(clusteringEntrySource, /const isStatusLoading = ref\(true\)/);
+  assert.match(clusteringEntrySource, /globalLoading\.value \|\| \(exhibitAll\.value && isStatusLoading\.value\)/);
+  assert.doesNotMatch(clusteringEntrySource, /if \(!statusError\.value && !clusterStepData\.value\) return null/);
+});

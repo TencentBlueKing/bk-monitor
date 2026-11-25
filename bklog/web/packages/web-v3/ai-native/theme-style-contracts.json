@@ -1754,7 +1754,6 @@
         ".t-input",
         ".t-input--focused",
         ".t-input__inner",
-        ".t-is-checked",
         ".t-is-current",
         ".t-is-selected",
         ".t-pagination__number",
@@ -1762,10 +1761,7 @@
         ".t-pagination__total",
         ".t-popup",
         ".t-popup__content",
-        ".t-radio",
         ".t-radio-group",
-        ".t-radio__input",
-        ".t-radio__label",
         ".t-select-option",
         ".t-select__dropdown",
         ".t-select__list",
@@ -1785,8 +1781,8 @@
         ".t-tooltip__content"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 25,
-      "contextualDeclarations": 16,
+      "semanticDeclarations": 18,
+      "contextualDeclarations": 11,
       "localVisualProperties": [
         "background",
         "border",
@@ -1798,7 +1794,7 @@
         "font-weight",
         "line-height"
       ],
-      "localVisualDeclarations": 14,
+      "localVisualDeclarations": 13,
       "pendingNormalization": 0
     },
     {
@@ -2086,16 +2082,18 @@
       "componentClasses": [
         ".t-checkbox",
         ".t-checkbox__label",
-        ".t-input"
+        ".t-input",
+        ".t-table__body"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 2,
+      "semanticDeclarations": 4,
       "contextualDeclarations": 3,
       "localVisualProperties": [
+        "background",
         "border-radius",
         "line-height"
       ],
-      "localVisualDeclarations": 2,
+      "localVisualDeclarations": 3,
       "pendingNormalization": 0
     },
     {
@@ -3528,17 +3526,22 @@
       },
       "componentClasses": [
         ".t-button",
+        ".t-button__text",
+        ".t-icon",
         ".t-input",
         ".t-input-number",
-        ".t-input__wrap"
+        ".t-input-number__decrease",
+        ".t-input-number__increase",
+        ".t-input__wrap",
+        ".t-size-s"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 2,
-      "contextualDeclarations": 11,
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 21,
       "localVisualProperties": [
         "line-height"
       ],
-      "localVisualDeclarations": 1,
+      "localVisualDeclarations": 3,
       "pendingNormalization": 0
     },
     {
@@ -6077,13 +6080,17 @@
         ".t-pagination__pager",
         ".t-pagination__select",
         ".t-pagination__total",
+        ".t-popup__content",
         ".t-progress",
         ".t-progress--circle",
         ".t-progress--thin",
         ".t-progress__info",
+        ".t-radio",
         ".t-radio-button",
         ".t-radio-group",
         ".t-radio-group--filled",
+        ".t-radio__input",
+        ".t-radio__label",
         ".t-select",
         ".t-select__right-icon",
         ".t-select__wrap",
@@ -6145,7 +6152,10 @@
         ".t-table__expandable-icon-cell",
         ".t-table__expanded-row",
         ".t-table__filter-icon",
+        ".t-table__filter-pop-content",
+        ".t-table__filter-pop-content-inner",
         ".t-table__header",
+        ".t-table__list-filter-input--sticky",
         ".t-table__row--active",
         ".t-table__row--full",
         ".t-table__row--hover",
@@ -6204,8 +6214,8 @@
         ".t-tree__operations"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 402,
-      "contextualDeclarations": 458,
+      "semanticDeclarations": 416,
+      "contextualDeclarations": 476,
       "localVisualProperties": [
         "background",
         "background-color",
@@ -6532,10 +6542,10 @@
         ".t-tooltip--default"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 71,
-      "contextualDeclarations": 89,
+      "semanticDeclarations": 75,
+      "contextualDeclarations": 90,
       "localVisualProperties": [
-        "border-radius",
+        "background",
         "box-shadow",
         "font-weight"
       ],
@@ -6589,8 +6599,8 @@
         ".t-table__pagination"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 10,
-      "contextualDeclarations": 13,
+      "semanticDeclarations": 11,
+      "contextualDeclarations": 16,
       "localVisualProperties": [
         "background",
         "border",
@@ -6599,7 +6609,7 @@
         "font-weight",
         "line-height"
       ],
-      "localVisualDeclarations": 8,
+      "localVisualDeclarations": 9,
       "pendingNormalization": 0
     },
     {

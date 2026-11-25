@@ -2,8 +2,8 @@
 
 // Geometry stays on :root so a dark or density theme can override it without dropping the scale.
 :root {
-  --bklog-json-key-color: var(--td-success-color-7);
-  --bklog-json-value-color: var(--td-warning-color-7);
+  --bklog-json-key-color: #048a8c;
+  --bklog-json-value-color: #934c04;
   --bklog-json-action-color: var(--td-brand-color-9);
   --bklog-space-2: 2px;
   --bklog-space-4: 4px;
@@ -128,6 +128,7 @@
   --bklog-link-error-hover: #f55858;
   --bklog-link-error-active: #db2c2c;
   --bklog-text-inverse: #fff;
+  --bklog-retrieve-hover-text: #3a84ff;
   --bklog-border-hover: #979ba5;
   --bklog-text-strong: #4d4f56;
   --bklog-status-error-emphasis: #ff5656;
@@ -164,6 +165,6 @@
 }
 
 :root[theme-mode='dark'] {
-  --bklog-json-key-color: var(--td-success-color-8);
-  --bklog-json-value-color: var(--td-warning-color-8);
+  --bklog-json-key-color: #048a8c;
+  --bklog-json-value-color: #934c04;
 }

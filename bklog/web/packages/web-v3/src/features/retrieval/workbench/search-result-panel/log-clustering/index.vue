@@ -85,7 +85,7 @@
 
       <template v-if="exhibitAll">
         <clustering-loader
-          v-if="tableLoading"
+          v-if="tableLoading || clusterStepDataLoading"
           :width-list="smallLoaderWidthList"
           is-loading
         />
