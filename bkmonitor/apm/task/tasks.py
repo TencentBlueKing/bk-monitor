@@ -16,11 +16,13 @@ import time
 import traceback
 from typing import Any
 
+from celery import current_task
 from django.conf import settings
 from django.db.models import Q, Value
 from django.utils import timezone
 from opentelemetry.trace import get_current_span
 
+from alarm_backends.core.lock.service_lock import renewing_redis_lock
 from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
@@ -44,6 +46,7 @@ from apm.models import (
     ProfileDataSource,
     QpsConfig,
 )
+from apm.task import DISCOVERY_SCHEDULED_AT, TOPO_DISCOVER_TASK_NAME
 from apm.utils.report_event import EventReportHelper
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from bkmonitor.utils.user import get_user_display_name
@@ -96,54 +99,82 @@ def handler(self, bk_biz_id, app_name):
 
 
 def topo_discover_cron():
-    # 10分钟刷新一次
-    interval = 10
-    current_time = timezone.now()
-    interval_quick = settings.APM_APPLICATION_QUICK_REFRESH_INTERVAL
-    slug_quick = current_time.minute % interval_quick
-    slug = current_time.minute % interval
-    ebpf_application_ids = [e["application_id"] for e in EbpfApplicationConfig.objects.all().values("application_id")]
-    to_be_refreshed = list(
-        ApmApplication.objects.filter(Q(is_enabled=True) & ~Q(id__in=ebpf_application_ids)).values_list(
-            "bk_biz_id", "app_name", "id", "create_time"
-        )
+    started_at = timezone.now()
+    parent = current_task if current_task and current_task.name == TOPO_DISCOVER_TASK_NAME else None
+    headers = (parent.request.headers or {}) if parent else {}
+    scheduled_at = headers.get(DISCOVERY_SCHEDULED_AT, started_at.timestamp())
+    scheduled_time = datetime.datetime.fromtimestamp(scheduled_at, tz=started_at.tzinfo).replace(
+        second=0, microsecond=0
     )
-    for application in to_be_refreshed:
-        bk_biz_id, app_name, app_id, create_time = application
+    try:
+        _dispatch_discovery_round(scheduled_time, started_at)
+    except Exception as exc:
+        if parent and not parent.request.called_directly:
+            raise parent.retry(exc=exc, countdown=30, headers={**headers, DISCOVERY_SCHEDULED_AT: scheduled_at})
+        raise
+
+
+def _dispatch_discovery_round(scheduled_time: datetime.datetime, started_at: datetime.datetime) -> None:
+    interval_quick = settings.APM_APPLICATION_QUICK_REFRESH_INTERVAL
+    quick_age = datetime.timedelta(minutes=settings.APM_APPLICATION_QUICK_REFRESH_DELTA)
+    ebpf_application_ids = [e["application_id"] for e in EbpfApplicationConfig.objects.all().values("application_id")]
+    applications = ApmApplication.objects.filter(Q(is_enabled=True) & ~Q(id__in=ebpf_application_ids)).values_list(
+        "bk_biz_id", "app_name", "id", "create_time"
+    )
+    due = []
+    for bk_biz_id, app_name, app_id, create_time in applications:
         # 新应用仍保留快速发现频率，未命中本轮的应用不访问 Redis 锁。
-        is_quick: bool = (current_time - create_time) < datetime.timedelta(
-            minutes=settings.APM_APPLICATION_QUICK_REFRESH_DELTA
-        )
-        refresh_interval: int = interval_quick if is_quick else interval
-        if app_id % refresh_interval != (slug_quick if is_quick else slug):
+        if create_time > scheduled_time:
             continue
-        try:
-            apm_cache_handler = ApmCacheHandler()
-            with apm_cache_handler.distributed_lock("topo_discover", app_id=app_id):
+        is_quick = scheduled_time - create_time < quick_age
+        refresh_interval = interval_quick if is_quick else 10
+        if app_id % refresh_interval == scheduled_time.minute % refresh_interval:
+            due.append((bk_biz_id, app_name, app_id))
+    if not due:
+        return
+
+    round_minute = int(scheduled_time.timestamp() // 60)
+    key = f"apm.tasks.topo.discover.{settings.PLATFORM}.{settings.ENVIRONMENT}.{round_minute}"
+    client = ApmCacheHandler.get_redis_client()
+    lock = client.lock(f"{key}.lock", timeout=60, thread_local=False)
+    with renewing_redis_lock(lock, lock.timeout) as check_lease:
+        if check_lease is None:
+            raise LockError(msg=f"topology discovery round {round_minute} is being dispatched")
+        sent = {int(app_id) for app_id in client.smembers(key)}
+        skipped = 0
+        last_error = None
+        for bk_biz_id, app_name, app_id in due:
+            if app_id in sent:
+                skipped += 1
+                continue
+            check_lease()
+            try:
                 enqueued_at: float = time.time()
                 task = handler.apply_async(args=(bk_biz_id, app_name), headers={"discovery_enqueued_at": enqueued_at})
-                logger.info(
-                    "[trace_discovery] event=dispatched bk_biz_id=%s app_name=%s task_id=%s dispatch_delay_s=%.3f",
-                    bk_biz_id,
-                    app_name,
-                    task.id,
-                    enqueued_at - current_time.timestamp(),
+            except Exception as exc:
+                last_error = exc
+                logger.exception(
+                    "[trace_discovery] event=dispatch_failed bk_biz_id=%s app_name=%s", bk_biz_id, app_name
                 )
-        except LockError:
+                continue
+            # 与发布确认逐条对应，重试时只补本轮尚未派发的应用。TTL 覆盖父任务最长有效期。
+            with client.pipeline() as pipe:
+                pipe.sadd(key, app_id)
+                pipe.expire(key, 3600)
+                pipe.execute()
             logger.info(
-                "[trace_discovery] event=dispatch_skipped reason=locked bk_biz_id=%s app_name=%s",
+                "[trace_discovery] event=dispatched bk_biz_id=%s app_name=%s task_id=%s dispatch_delay_s=%.3f round=%s",
                 bk_biz_id,
                 app_name,
+                task.id,
+                enqueued_at - started_at.timestamp(),
+                round_minute,
             )
-            continue
-        except Exception:
-            logger.exception(
-                "[trace_discovery] event=dispatch_failed bk_biz_id=%s app_name=%s",
-                bk_biz_id,
-                app_name,
-            )
-            # 单个应用派发失败不能阻塞同轮其余应用
-            continue
+        logger.info(
+            "[trace_discovery] event=dispatch_round round=%s due=%s already_sent=%s", round_minute, len(due), skipped
+        )
+        if last_error:
+            raise last_error
 
 
 @app.task(ignore_result=True, queue="celery_cron")

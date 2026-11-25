@@ -1,11 +1,19 @@
 import datetime
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime as real_datetime
+from threading import Event
 from types import SimpleNamespace
 
 import fakeredis
 import pytest
+from celery.exceptions import Retry
+from celery.signals import before_task_publish
+from django.db import OperationalError
+from redis.lock import Lock
 
+from alarm_backends.service.scheduler.tasks import cron
 from apm.core.discover.base import TopoHandler
 from apm.constants import ApmCacheType
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
@@ -134,27 +142,156 @@ def test_discoverer_failure_is_not_logged_as_success(discovery, mocker, caplog):
     assert "event=discoverer_finished" not in caplog.text
 
 
-def test_cron_filters_before_lock_and_preserves_quick_interval(mocker, settings, caplog):
-    now = datetime.datetime(2026, 10, 26, 17, 0, tzinfo=datetime.UTC)
+@pytest.fixture
+def dispatch_round(mocker, settings):
+    now = real_datetime(2026, 10, 26, 17, 0, tzinfo=datetime.UTC)
     settings.APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
     settings.APM_APPLICATION_QUICK_REFRESH_DELTA = 30
-    mocker.patch.object(tasks.timezone, "now", return_value=now)
-    mocker.patch.object(tasks.time, "time", return_value=now.timestamp() + 5)
+    clock = mocker.patch.object(tasks.timezone, "now", return_value=now)
     mocker.patch.object(tasks.EbpfApplicationConfig.objects, "all").return_value.values.return_value = []
-    mocker.patch.object(tasks.ApmApplication.objects, "filter").return_value.values_list.return_value = [
-        (2, "old-due", 10, now - datetime.timedelta(hours=1)),
-        (2, "old-skip", 12, now - datetime.timedelta(hours=1)),
-        (2, "new-due", 22, now),
-        (2, "new-skip", 23, now),
-    ]
-    lock = mocker.patch.object(tasks.ApmCacheHandler, "distributed_lock")
-    dispatch = mocker.patch.object(tasks.handler, "apply_async")
+    apps = []
+    mocker.patch.object(tasks.ApmApplication.objects, "filter").return_value.values_list.return_value = apps
+    redis = fakeredis.FakeRedis()
+    mocker.patch.object(ApmCacheHandler, "get_redis_client", return_value=redis)
+
+    # fakeredis without its Lua extra lacks the compare-and-delete release script.
+    def release(lock, token):
+        assert lock.redis.get(lock.name) == token
+        lock.redis.delete(lock.name)
+
+    mocker.patch.object(Lock, "do_release", release)
+    mocker.patch.object(cron.metrics, "report_all")
+    send = mocker.patch.object(tasks.handler, "apply_async", return_value=SimpleNamespace(id="child"))
+    return SimpleNamespace(now=now, clock=clock, apps=apps, send=send)
+
+
+def run_round(scheduled_at):
+    cron.apm_task_tasks_topo_discover_cron.apply(
+        headers={"discovery_scheduled_at": scheduled_at.timestamp()}, throw=True
+    )
+
+
+def test_only_trace_discovery_parent_gets_schedule_header():
+    sender = cron.apm_task_tasks_topo_discover_cron.name
+    headers = {}
+    started = int(time.time())
+    before_task_publish.send(sender=sender, headers=headers)
+    assert started <= headers["discovery_scheduled_at"] <= time.time()
+    headers["discovery_scheduled_at"] = 123
+    before_task_publish.send(sender=sender, headers=headers)
+    assert headers["discovery_scheduled_at"] == 123
+    child_headers = {}
+    before_task_publish.send(sender=tasks.handler.name, headers=child_headers)
+    assert "discovery_scheduled_at" not in child_headers
+
+
+def test_cron_preserves_quick_interval_for_legacy_and_direct_calls(dispatch_round, mocker, caplog):
+    now = dispatch_round.now
+    dispatch_round.apps.extend(
+        [
+            (2, "old-due", 10, now - datetime.timedelta(hours=1)),
+            (2, "old-skip", 12, now - datetime.timedelta(hours=1)),
+            (2, "new-due", 22, now),
+            (2, "new-skip", 23, now),
+        ]
+    )
+    mocker.patch.object(tasks.time, "time", return_value=now.timestamp() + 5)
     with caplog.at_level(logging.INFO, logger="apm"):
+        cron.apm_task_tasks_topo_discover_cron.apply(throw=True)
+        assert dispatch_round.send.call_count == 2
         tasks.topo_discover_cron()
-    assert lock.call_args_list == [mocker.call("topo_discover", app_id=10), mocker.call("topo_discover", app_id=22)]
-    assert [call.kwargs["args"] for call in dispatch.call_args_list] == [(2, "old-due"), (2, "new-due")]
-    assert all("discovery_enqueued_at" in call.kwargs["headers"] for call in dispatch.call_args_list)
+    calls = dispatch_round.send.call_args_list
+    assert [call.kwargs["args"] for call in calls] == [(2, "old-due"), (2, "new-due")]
+    assert all(call.kwargs["headers"]["discovery_enqueued_at"] == now.timestamp() + 5 for call in calls)
     assert caplog.text.count("dispatch_delay_s=5.000") == 2
+
+
+def test_skipped_applications_do_not_access_redis(dispatch_round, mocker):
+    now = dispatch_round.now
+    dispatch_round.apps.extend([(2, "old", 12, now - datetime.timedelta(hours=1)), (2, "new", 23, now)])
+    redis = mocker.patch.object(ApmCacheHandler, "get_redis_client")
+    run_round(now)
+    redis.assert_not_called()
+    dispatch_round.send.assert_not_called()
+
+
+def test_delayed_parent_uses_original_slot_and_application_age(dispatch_round):
+    scheduled = dispatch_round.now + datetime.timedelta(minutes=2)
+    dispatch_round.clock.return_value = scheduled + datetime.timedelta(minutes=11)
+    dispatch_round.apps.extend(
+        [
+            (2, "old-due", 12, scheduled - datetime.timedelta(hours=1)),
+            (2, "quick-at-schedule", 20, scheduled - datetime.timedelta(minutes=29)),
+            (2, "created-later", 24, scheduled + datetime.timedelta(minutes=1)),
+            (2, "created-within-minute", 26, scheduled + datetime.timedelta(seconds=20)),
+            (2, "due-at-worker-start", 13, scheduled - datetime.timedelta(hours=1)),
+        ]
+    )
+    run_round(scheduled)
+    run_round(scheduled + datetime.timedelta(seconds=40))
+    assert [call.kwargs["args"] for call in dispatch_round.send.call_args_list] == [
+        (2, "old-due"),
+        (2, "quick-at-schedule"),
+    ]
+
+
+def test_registered_parent_reports_final_failure_after_retry_limit(dispatch_round):
+    task = cron.apm_task_tasks_topo_discover_cron
+    tasks.ApmApplication.objects.filter.side_effect = OperationalError("application catalog unavailable")
+    with pytest.raises(OperationalError, match="application catalog unavailable"):
+        task.apply(retries=task.max_retries, throw=True)
+    dispatch_round.send.assert_not_called()
+
+
+def test_application_query_failure_retries_original_minute(dispatch_round):
+    scheduled = dispatch_round.now
+    created = scheduled - datetime.timedelta(hours=1)
+    applications = [(2, "original-slot", 10, created), (2, "retry-slot", 12, created)]
+    tasks.ApmApplication.objects.filter.return_value.values_list.side_effect = [
+        OperationalError("application catalog unavailable"),
+        applications,
+    ]
+    dispatch_round.clock.return_value = scheduled + datetime.timedelta(minutes=1)
+    with pytest.raises(Retry) as retry:
+        run_round(scheduled)
+    dispatch_round.send.assert_not_called()
+    assert retry.value.sig.options["headers"]["discovery_scheduled_at"] == scheduled.timestamp()
+    dispatch_round.clock.return_value = scheduled + datetime.timedelta(minutes=2)
+    retry.value.sig.apply(throw=True)
+    assert [call.kwargs["args"] for call in dispatch_round.send.call_args_list] == [(2, "original-slot")]
+
+
+@pytest.mark.parametrize("minutes_apart, expected_sends", [(0, 1), (2, 2)])
+def test_overlapping_parent_rounds(dispatch_round, minutes_apart, expected_sends):
+    scheduled = dispatch_round.now
+    dispatch_round.apps.append((2, "quick", 10, scheduled - datetime.timedelta(minutes=1)))
+    entered, resume = Event(), Event()
+
+    def send(**kwargs):
+        if not entered.is_set():
+            entered.set()
+            if not resume.wait(timeout=5):
+                raise TimeoutError("overlapping parent did not finish")
+        return SimpleNamespace(id="child")
+
+    dispatch_round.send.side_effect = send
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(run_round, scheduled)
+        try:
+            assert entered.wait(timeout=5)
+            try:
+                run_round(scheduled + datetime.timedelta(minutes=minutes_apart))
+            except Retry as retry:
+                assert minutes_apart == 0
+                replay = retry.sig
+            else:
+                replay = None
+        finally:
+            resume.set()
+        first.result(timeout=5)
+    if replay is not None:
+        replay.apply(throw=True)
+    assert dispatch_round.send.call_count == expected_sends
 
 
 @pytest.mark.parametrize("result, status", [(True, "success"), (False, "partial"), (None, "partial")])
@@ -227,33 +364,29 @@ def test_invalid_datasource_logs_skipped_without_discovering(mocker, caplog):
     assert "status=skipped" in caplog.text
 
 
-def test_dispatch_failure_releases_real_lock_and_continues_next_application(mocker, settings, caplog):
-    now = real_datetime(2026, 10, 26, 17, 0, tzinfo=datetime.UTC)
-    settings.APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
-    settings.APM_APPLICATION_QUICK_REFRESH_DELTA = 30
-    mocker.patch.object(tasks.timezone, "now", return_value=now)
-    mocker.patch.object(tasks.EbpfApplicationConfig.objects, "all").return_value.values.return_value = []
-    mocker.patch.object(tasks.ApmApplication.objects, "filter").return_value.values_list.return_value = [
-        (2, "app", 10, now - datetime.timedelta(hours=1)),
-        (2, "next-app", 20, now - datetime.timedelta(hours=1)),
+def test_dispatch_failure_retries_original_minute_and_continues_next_application(dispatch_round, caplog):
+    now = dispatch_round.now
+    created = now - datetime.timedelta(hours=1)
+    dispatch_round.apps.extend([(2, "app", 10, created), (2, "next-app", 20, created)])
+    dispatch_round.send.side_effect = [
+        RuntimeError("broker unavailable"),
+        SimpleNamespace(id="healthy"),
+        SimpleNamespace(id="retried"),
     ]
-    client = fakeredis.FakeRedis(decode_responses=True)
-    mocker.patch.object(ApmCacheHandler, "get_redis_client", return_value=client)
-
-    def dispatch(**kwargs):
-        if kwargs["args"] == (2, "app"):
-            assert client.get("apm.tasks.topo.discover.10") is not None
-            raise RuntimeError("broker unavailable")
-        return SimpleNamespace(id="next-task")
-
-    apply_async = mocker.patch.object(tasks.handler, "apply_async", side_effect=dispatch)
-    with caplog.at_level(logging.INFO, logger="apm"):
-        tasks.topo_discover_cron()
-    assert client.get("apm.tasks.topo.discover.10") is None
-    assert client.get("apm.tasks.topo.discover.20") is None
-    assert [call.kwargs["args"] for call in apply_async.call_args_list] == [(2, "app"), (2, "next-app")]
+    with caplog.at_level(logging.INFO, logger="apm"), pytest.raises(Retry) as retry:
+        # Messages from older beat processes have no timestamp yet.
+        cron.apm_task_tasks_topo_discover_cron.apply(throw=True)
+    assert [call.kwargs["args"] for call in dispatch_round.send.call_args_list] == [(2, "app"), (2, "next-app")]
     assert "event=dispatch_failed bk_biz_id=2 app_name=app" in caplog.text
-    assert "event=dispatched bk_biz_id=2 app_name=next-app task_id=next-task" in caplog.text
+    assert "event=dispatched bk_biz_id=2 app_name=next-app task_id=healthy" in caplog.text
+    assert retry.value.sig.options["headers"]["discovery_scheduled_at"] == now.timestamp()
+    dispatch_round.clock.return_value = now + datetime.timedelta(minutes=1)
+    retry.value.sig.apply(throw=True)
+    assert [call.kwargs["args"] for call in dispatch_round.send.call_args_list] == [
+        (2, "app"),
+        (2, "next-app"),
+        (2, "app"),
+    ]
 
 
 @pytest.mark.parametrize("fail_scan, fail_flush", [(False, False), (True, False), (False, True), (True, True)])
