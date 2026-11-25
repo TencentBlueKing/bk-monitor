@@ -38,6 +38,7 @@ from apm_web.constants import (
     DefaultDimensionConfig,
     DefaultInstanceNameConfig,
     DefaultSamplerConfig,
+    SamplerTypeChoices,
     TraceMode,
 )
 from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
@@ -929,6 +930,14 @@ class Application(AbstractRecordModel):
         return {"apdex_config": apdex_list}
 
     def get_sampler_config(self):
+        if self.sampler_config["sampler_type"] == SamplerTypeChoices.EMPTY:
+            # 不采样等价于随机采样 100%；库里不存采样比例，下发 bk-collector 时显式转换
+            return {
+                "sampler_config": {
+                    "sampling_percentage": 100,
+                    "sampler_type": SamplerTypeChoices.RANDOM,
+                }
+            }
         return {
             "sampler_config": {
                 "sampling_percentage": self.sampler_config["sampler_percentage"],
