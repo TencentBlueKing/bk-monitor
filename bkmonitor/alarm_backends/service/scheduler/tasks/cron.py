@@ -96,7 +96,7 @@ queue_define = {
     "celery_long_task_cron": settings.LONG_TASK_CRONTAB,
 }
 
-for default_queue, crontab_tasks in queue_define.items():
+for queue, crontab_tasks in queue_define.items():
     for module_name, cron_expr, run_type in crontab_tasks:
         # 仅在进程启动注册 beat 任务时生效；修改配置后需重启调度进程
         if module_name in settings.EXCLUDE_WORKER_TASKS:
@@ -108,9 +108,6 @@ for default_queue, crontab_tasks in queue_define.items():
 
         func_name = str(module_name.replace(".", "_"))
         cron_list = cron_expr.split()
-        queue = default_queue
-        if module_name == TOPO_DISCOVER_CRON:
-            queue = settings.APM_TOPO_DISCOVERY_DISPATCH_QUEUE or default_queue
         func = _get_func(module_name, queue=queue)
         func.__name__ = func_name
         run_every = crontab(*cron_list)
