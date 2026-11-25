@@ -341,7 +341,9 @@ def reader_positions(pid, info):
                 if (again.st_dev, again.st_ino) != (identity.st_dev, identity.st_ino):
                     return None
                 flags = int(fields["flags"], 8)
-                if not flags & getattr(os, "O_PATH", 0o10000000) and flags & os.O_ACCMODE == os.O_RDONLY:
+                # Some collector Python 2 builds omit O_ACCMODE. Linux
+                # read-only descriptors have neither write access bit set.
+                if not flags & (getattr(os, "O_PATH", 0o10000000) | os.O_WRONLY | os.O_RDWR):
                     positions.append(int(fields["pos"]))
             except OSError as error:
                 if error.errno != errno.ENOENT:
