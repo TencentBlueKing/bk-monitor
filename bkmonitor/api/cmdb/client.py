@@ -47,7 +47,7 @@ class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
         """
         是否使用apigw
         """
-        return settings.ENABLE_MULTI_TENANT_MODE or settings.CMDB_USE_APIGW
+        return settings.ESB_DISABLED or settings.ENABLE_MULTI_TENANT_MODE or settings.CMDB_USE_APIGW
 
     @property
     def base_url(self):

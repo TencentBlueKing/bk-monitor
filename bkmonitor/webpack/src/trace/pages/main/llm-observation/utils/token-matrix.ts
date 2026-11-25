@@ -1,4 +1,4 @@
-import { formatTokenCount } from './helpers';
+import { formatCompactToken } from './helpers';
 
 import type { SpanLlmTokenMatrixNode } from '../../../../components/trace-view/typings';
 
@@ -116,7 +116,7 @@ export function formatMatrixPercent(value: number): string {
 /** 悬浮提示文案：`名称 ×次数  Token 数（百分比）`，无次数时省略 */
 export function formatMatrixTooltip(node: Pick<LlmMatrixViewNode, 'call_count' | 'name' | 'percent' | 'value'>): string {
   const count = node.call_count != null ? ` ×${node.call_count}` : '';
-  return `${node.name || ''}${count}  ${formatTokenCount(node.value || 0)}（${formatMatrixPercent(node.percent)}）`;
+  return `${node.name || ''}${count}  ${formatCompactToken(node.value || 0)}（${formatMatrixPercent(node.percent)}）`;
 }
 
 /** 布局权重：value 至少为 1，避免 0 值条目在 flex 布局中塌缩不可见 */

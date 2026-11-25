@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
 from types import SimpleNamespace
+from unittest import enterModuleContext
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
 
@@ -27,6 +28,11 @@ from apps.log_search.export.notification import (
 )
 from apps.log_search.export.scheduler import enqueue_notifications, finalize_export, pending_notifications
 from apps.log_search.models import LogIndexSet, Scenario, Space
+
+
+def setUpModule():
+    enterModuleContext(patch("apps.log_search.export.scheduler.app.send_task"))
+    enterModuleContext(patch("django_redis.cache.RedisCache.lock"))
 
 
 def make_job(**overrides):

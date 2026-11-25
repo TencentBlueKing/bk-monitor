@@ -124,17 +124,9 @@
 
 .llm-execution-search {
   flex: 1 1 0;
-  width: auto !important;
   min-width: 160px;
   max-width: 400px;
   overflow: hidden;
-  border-radius: 4px;
-
-  /* stylelint-disable-next-line selector-class-pattern */
-  .bk-input--suffix-icon {
-    font-size: $font-size-large;
-    color: #979ba5;
-  }
 }
 
 /* Figma Legend：10x10 色块 + 12px 文案，项间距 20，色块与文案间距 6 */

@@ -99,7 +99,7 @@ django-prometheus==2.1.0
 curlify==2.2.1
 
 # blueapps
-blueapps[opentelemetry]==4.16.rc1
+blueapps[opentelemetry]==4.16rc9
 # blueapps依赖
 whitenoise==5.0
 

@@ -31,7 +31,6 @@ import {
   rumFieldsTopK,
   rumGenerateQueryString,
   rumRecords,
-  rumTotal,
   rumViewConfig,
 } from 'monitor-api/modules/rum_query';
 import pinyin from 'tiny-pinyin';
@@ -159,12 +158,6 @@ export async function getRecordList(
 ): Promise<IRumSpanRecord[]> {
   const res = await rumRecords(params, { ...SILENT, ...requestConfig });
   return res?.list || [];
-}
-
-/** 查询检索结果总数，失败时回退 0，趋势区按 0 条展示 */
-export async function getTotal(params: IRumQueryParams, requestConfig?: RequestConfig): Promise<number> {
-  const res = await rumTotal(params, { ...SILENT, ...requestConfig }).catch(() => null);
-  return res?.total ?? 0;
 }
 
 /** 获取页面视图配置：字段全集、字段分组、默认列与默认排序 */

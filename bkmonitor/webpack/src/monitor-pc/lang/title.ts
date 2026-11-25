@@ -415,4 +415,7 @@ export default {
   '{0}月{1}日 {2}': '{0}/{1} {2}',
   '会话结束 · 总时长 {0}': 'Session End · Total Duration {0}',
   会话事件时间轴: 'Session Event Timeline',
+
+  // AIDev 嵌入 APM 权限等待页
+  暂未检测到访问权限: 'Access permission not detected yet',
 };

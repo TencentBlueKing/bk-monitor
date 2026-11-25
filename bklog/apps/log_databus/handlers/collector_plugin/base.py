@@ -117,6 +117,9 @@ class CollectorPluginHandler:
 
         return CollectorHandler.update_or_create_data_id(instance)
 
+    def _update_data_id(self, instance: CollectorConfig | CollectorPlugin) -> int:
+        return CollectorHandler.update_or_create_data_id(instance)
+
     @transaction.atomic()
     def _update_or_create(self, params: dict) -> bool:
         """
@@ -223,7 +226,7 @@ class CollectorPluginHandler:
 
             # DATA_ID
             if not is_allow_alone_data_id or is_create_public_data_id:
-                self.collector_plugin.bk_data_id = CollectorHandler.update_or_create_data_id(self.collector_plugin)
+                self.collector_plugin.bk_data_id = self._update_data_id(self.collector_plugin)
 
             is_create = False
 

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -31,6 +33,10 @@ from apps.log_admin_resource.k8s_inspection import (
     discover_inspection_targets,
     safe_spec_projection,
     expected_bklog_configs,
+    CLI_PATH_PLACEHOLDER,
+    cli_masks_source_path,
+    protect_source_paths,
+    require_source_read_access,
     target_identity,
 )
 from apps.log_admin_resource.k8s_cluster_context import ClusterInspectionContext, load_cluster_context
@@ -417,6 +423,17 @@ def _collect_bounded_pages(fetch_page) -> tuple[list[Any], bool]:
     return items, bool(continue_token)
 
 
+def _is_source_path(path: str) -> bool:
+    return (
+        path.startswith("/")
+        and len(path) <= 4096
+        and "//" not in path
+        and (path == "/" or not path.endswith("/"))
+        and not any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF for ch in path)
+        and not any(part in {".", ".."} for part in path.split("/"))
+    )
+
+
 def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     app_code, request_tenant_id = _request_identity()
     collector, identity = _inspection_context(params, request_tenant_id)
@@ -426,6 +443,34 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     groups, skipped_groups = _select_runnable_evidence_groups(requested_groups, identity)
     source = (params.get("source") or "").strip() or None
     include_source_sample = bool(params.get("include_source_sample", False))
+    source_step = params.get("source_step")
+    if source_step is not None:
+        if source_step["operation"] == "read" and "path_space" not in source_step:
+            raise ValidationError("read requires an explicit path_space matching the observed file")
+        default_space = "target" if "via" in source_step else "collector"
+        source_step = {"path_space": default_space, **source_step}
+        if not target or "collector" not in groups:
+            raise ValidationError("source_step requires a target and collector evidence")
+        if (source_step["path_space"] == "target" or source_step["operation"] == "read") and target[
+            "type"
+        ] != "pod_container":
+            raise ValidationError("target paths require a Pod/container target")
+        if source or include_source_sample:
+            raise ValidationError("source_step and legacy source sampling are mutually exclusive")
+        if source_step["path_space"] == "collector" and (source_step["operation"] == "read") != ("via" in source_step):
+            raise ValidationError("collector paths require via for read only")
+        require_source_read_access(app_code, source_step)
+        if "expect" in source_step:
+            kind = "file" if source_step["operation"] == "read" else "parent"
+            if not re.fullmatch(kind + "-[0-9a-f]{64}", source_step["expect"]) or source_step["path"] == "/":
+                raise ValidationError("use a file expectation for read or a listed parent expectation for metadata")
+        for path in [source_step["path"], source_step.get("via", "/")]:
+            if CLI_PATH_PLACEHOLDER in path:
+                raise ValidationError("client-redacted paths cannot be used for file observations")
+            if not _is_source_path(path):
+                raise ValidationError("source_step requires normalized absolute container paths")
+        if source_step["operation"] != "read" and ("offset" in source_step or "length" in source_step):
+            raise ValidationError("offset and length apply only to read")
     if include_source_sample and not source:
         raise ValidationError("include_source_sample requires an explicit source")
     if any(group != "control_plane" for group in groups) and not target:
@@ -459,6 +504,7 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
         "skipped_evidence_groups": skipped_groups,
         "collector_candidate_id": candidate_id,
         "source": source,
+        **({"source_step": source_step} if source_step is not None else {}),
         "include_source_sample": include_source_sample,
         "runtime_log_options": normalize_runtime_log_options(params.get("runtime_log_options")),
         "identity_warnings": identity.get("warnings") or [],
@@ -495,6 +541,114 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     return _start_response(current, reused=reused)
 
 
+def _publish_source_listing(row, step):
+    entries = row.get("entries")
+    if not isinstance(entries, list) or not all(isinstance(path, str) for path in entries):
+        return False
+    redacted = row.pop("redacted_entry_positions", None)
+    if redacted is not None and (
+        not isinstance(redacted, list) or not all(type(pos) is int and 1 <= pos <= len(entries) for pos in redacted)
+    ):
+        return False
+    row.setdefault("directory_identity_verified", False)  # Older probes resolved the directory twice.
+    guards = row.pop("entry_guards", None)
+    if guards is not None and (not isinstance(guards, list) or len(guards) != len(entries)):
+        return False
+    next_steps = []
+    usable, unavailable = [], []
+    for position, path in enumerate(entries, 1):
+        if not _is_source_path(path):
+            reason = "invalid_path"
+        elif cli_masks_source_path(path):
+            reason = "client_display_only"
+        elif redacted is None and "***" in path:
+            # Older Workers stored only the display text.
+            reason = "unverified_path"
+        elif redacted is not None and position in redacted:
+            reason = "redacted_path"
+        else:
+            usable.append(path)
+            if (
+                guards is not None
+                and row["directory_identity_verified"]
+                and "via" not in step.get("unavailable_paths", {})
+            ):
+                follow = {
+                    "operation": "stat",
+                    "path": path,
+                    "path_space": step["path_space"],
+                    "expect": guards[position - 1],
+                }
+                if "via" in step:
+                    follow["via"] = step["via"]
+                next_steps.append(follow)
+            continue
+        unavailable.append({"position": position, "reason": reason})
+    row["entries"] = usable
+    row["next_steps"] = next_steps
+    if unavailable:
+        row["unavailable_entries"] = unavailable
+    return True
+
+
+def _publish_source_step(step, probe):
+    """Return whether the Worker supplied evidence for the requested step."""
+    source = probe.get("evidence")
+    if not isinstance(source, dict) or source.get("request") != sanitize_json(step, redact_text=True):
+        return False
+    # The task record still has the original request, even for results from older Workers.
+    public_step = dict(step)
+    protect_source_paths(public_step)
+    source["request"] = sanitize_json(public_step, redact_text=True)
+    # Cached Workers may predate the client-side path checks.
+    protect_source_paths(source, legacy=source.pop("source_paths_checked", False) is not True)
+    # JSON clients may round a 64-bit inode. Convert only at the public
+    # boundary so both new and cached Worker samples retain their identity.
+    for key in ("observation", "first", "second"):
+        sample = source.get(key)
+        if isinstance(sample, dict):
+            if step.get("expect") and sample.get("verified_expectation") != step["expect"]:
+                return False  # A rolling-deployment Worker may have ignored the expectation.
+            if isinstance(sample.get("inode"), int):
+                sample["inode"] = str(sample["inode"])
+    if probe.get("status") == "failed":
+        return True
+    if probe.get("code") != "source_step_completed" or probe.get("status") != "success":
+        return False
+    row = source.get("observation") or {}
+    if not isinstance(row, dict):
+        return False
+    operation = step["operation"]
+    if operation == "stat":
+        if "second" in source and not source.get("first_identity_pinned") and source.get("activity") != "replaced":
+            source.update(activity="unverified", read_progress="unknown")
+            source.pop("unread_bytes", None)
+            source.pop("growth_bytes", None)
+        return "inode" in row or all("inode" in (source.get(key) or {}) for key in ("first", "second"))
+    if operation == "list":
+        return _publish_source_listing(row, public_step)
+    if operation == "readlink":
+        return isinstance(row.get("target"), str) or "target" in row.get("unavailable_paths", {})
+    chunks = row.pop("raw_hex_chunks", None)
+    if not isinstance(chunks, list):
+        return False
+    try:
+        data = bytes.fromhex("".join(chunks))
+    except (TypeError, ValueError):
+        return False
+    if len(data) != row.get("returned_bytes") or len(data) > step.get("length", 1024):
+        return False
+    # CLI evidence rendering can redact strings. A typed byte array remains
+    # lossless through rendering and persistence, including for binary logs.
+    row.setdefault("read_consistency", "unknown")  # Cached Worker result without a second fstat.
+    row["content_bytes"] = list(data)
+    try:
+        row.update(content=data.decode("utf-8"), content_encoding="utf-8")
+    except UnicodeDecodeError:
+        row.update(content=base64.b64encode(data).decode("ascii"), content_encoding="base64")
+    return True
+
+
 def get_k8s_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
     task_id = params["task_id"]
     app_code, tenant_id = _request_identity()
@@ -507,15 +661,41 @@ def get_k8s_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
     ):
         return _not_found_response(task_id)
 
+    step = (record.get("request_options") or {}).get("source_step")
+    require_source_read_access(app_code, step)
     record = ResourceInspectionTaskRecord.normalize_timeout(record)
     task_status = record.get("task_status")
     evidence = None
+    summaries = sanitize_json(record.get("probes") or {}, redact_text=True)
     error = sanitize_json(record.get("error"), redact_text=True) if record.get("error") else None
     if task_status not in ACTIVE_STATUSES and ResourceInspectionTaskRecord.result_expired(record):
         task_status = "expired"
         error = {"code": "task_expired", "message": "inspection evidence has expired", "retryable": False}
     elif task_status not in ACTIVE_STATUSES:
-        evidence = ResourceInspectionTaskRecord.load_result(task_id)
+        evidence = sanitize_json(
+            ResourceInspectionTaskRecord.load_result(task_id, source_read=(step or {}).get("operation") == "read"),
+            redact_text=True,
+        )
+        if step:
+            probes = (evidence or {}).get("probes") or {}
+            source = probes.get("source_path") or {}
+            if (source or task_status in {"success", "partial"}) and not _publish_source_step(step, source):
+                message = "the Worker result does not confirm the requested file operation"
+                missing = {"code": "source_step_unconfirmed", "message": message, "retryable": True}
+                summary = {
+                    "status": "failed",
+                    "code": missing["code"],
+                    "summary": message,
+                    "started_at": None,
+                    "finished_at": None,
+                    "duration_ms": 0,
+                }
+                summaries["source_path"] = summary
+                if evidence is not None:
+                    evidence.setdefault("probes", {})["source_path"] = {**summary, "evidence": None, "warnings": []}
+                    evidence.update(partial=True, error=evidence.get("error") or error or missing)
+                if task_status in {"success", "partial"}:
+                    task_status, error = "partial", error or (evidence or {}).get("error") or missing
 
     return {
         "task_id": task_id,
@@ -529,8 +709,8 @@ def get_k8s_inspection_detail(params: dict[str, Any]) -> dict[str, Any]:
         "finished_at": record.get("finished_at"),
         "heartbeat_at": record.get("heartbeat_at"),
         "result_expires_at": record.get("result_expires_at"),
-        "probes": sanitize_json(record.get("probes") or {}, redact_text=True),
-        "evidence": sanitize_json(evidence, redact_text=True) if evidence is not None else None,
+        "probes": summaries,
+        "evidence": evidence,
         "partial": task_status == "partial" or bool(isinstance(evidence, dict) and evidence.get("partial")),
         "error": error,
         "next_call": _next_call(task_id) if task_status in ACTIVE_STATUSES else None,
@@ -957,6 +1137,47 @@ FUNCTIONS = {
                     "items": {"type": "string", "enum": ["all", *EVIDENCE_GROUPS]},
                 },
                 "source": {"type": "string", "minLength": 1, "maxLength": 4096},
+                "source_step": {
+                    "type": "object",
+                    "description": (
+                        "List directories, inspect file activity or inspect links directly in the collector container. "
+                        "entries are live path names. Use next_steps to check the listed directory identity on follow-up. "
+                        "unavailable_entries identifies non-reusable UTF-8 entries by original one-based position "
+                        "and reason. A client-side redaction placeholder is also display-only. "
+                        "Non-UTF-8 names are reported separately as non_utf8_names_hex and cannot be used as paths. "
+                        "readlink.target is link text and may be relative. Follow it by using list or stat on the original path. "
+                        "Unavailable path fields are null with the reason in unavailable_paths. "
+                        "Use target space for business-container paths. Management allowlisted apps can read original "
+                        "bytes from target log directories. Read requires explicit path_space; pass the stat sample file_guard as expect. "
+                        "size_before_read and size_bytes bracket the read; read_consistency reports observed changes. content_bytes is the exact byte array. content is a display "
+                        "value (UTF-8 or base64) that clients may redact. inode is an exact decimal string."
+                    ),
+                    "properties": {
+                        "operation": {"type": "string", "enum": ["list", "readlink", "stat", "read"]},
+                        "path": {"type": "string", "minLength": 1, "maxLength": 4096},
+                        "path_space": {
+                            "type": "string",
+                            "enum": ["target", "collector"],
+                            "description": "Read requires explicit collector or target. Metadata defaults to collector, or target with via.",
+                        },
+                        "via": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 4096,
+                            "description": "For collector reads, supply the target log directory (e.g. /app/logs) containing the file. For target paths, use the logical directory whose resolved target contains path.",
+                        },
+                        "expect": {
+                            "type": "string",
+                            "minLength": 69,
+                            "maxLength": 71,
+                            "description": "Copy from a listed next_step, or pass file_guard from stat when reading the same file.",
+                        },
+                        "offset": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                        "length": {"type": "integer", "minimum": 1, "maximum": 4096},
+                    },
+                    "required": ["operation", "path"],
+                    "additionalProperties": False,
+                },
                 "include_source_sample": {"type": "boolean"},
                 "runtime_log_options": RUNTIME_LOG_OPTIONS_SCHEMA,
             },
@@ -965,6 +1186,19 @@ FUNCTIONS = {
         },
         "response_schema": START_RESPONSE_SCHEMA,
         "examples": [
+            {
+                "params": {
+                    "collector_config_id": 123,
+                    "target": {
+                        "type": "pod_container",
+                        "namespace": "demo",
+                        "pod_name": "app",
+                        "container_name": "app",
+                    },
+                    "evidence_groups": ["collector"],
+                    "source_step": {"operation": "list", "path": "/var/host/data/log"},
+                }
+            },
             {
                 "params": {
                     "bcs_cluster_id": "BCS-K8S-1",
