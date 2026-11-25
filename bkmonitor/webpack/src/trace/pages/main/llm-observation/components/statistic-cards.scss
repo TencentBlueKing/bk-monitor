@@ -10,9 +10,11 @@
 }
 
 .llm-statistic-cards-header {
+  box-sizing: border-box;
   gap: 0;
+  height: 48px;
   min-width: 0;
-  padding: 4px 16px;
+  padding: 0 16px;
   cursor: pointer;
   user-select: none;
   background: #f7f9fc;
@@ -67,7 +69,7 @@
   flex: 1;
   gap: 2px;
   min-width: 0;
-  padding: 4px 0;
+  padding: 0;
 
   @include flex-column;
 
@@ -97,6 +99,9 @@
   width: 100%;
   height: 100%;
   overflow-x: auto;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
 
   @include flex-align(stretch);
 }
@@ -108,7 +113,7 @@
   height: 100%;
 
   &:first-child {
-    border-right: 1px solid #c1cde5;
+    border-right: 1px solid #dde3f0;
   }
 }
 
@@ -116,7 +121,7 @@
   gap: 4px;
   min-width: 0;
   height: 100%;
-  padding: 8px;
+  padding: 4px;
 
   @include flex-column;
 }
@@ -133,19 +138,20 @@
 
 .llm-token-matrix-title {
   flex-shrink: 0;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  font-size: $font-size-base;
-  line-height: 20px;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
   white-space: nowrap;
 
   @include flex-align(center);
 
   &-name {
     flex-shrink: 0;
-    font-weight: 500;
+    font-weight: 400;
     color: #313238;
   }
 
@@ -156,13 +162,13 @@
 
   &-value {
     font-family: arial, sans-serif;
-    font-weight: 700;
+    font-weight: 400;
     color: #313238;
   }
 
   &-pct {
     font-family: arial, sans-serif;
-    font-weight: 700;
+    font-weight: 400;
     color: #3463b3;
   }
 }
@@ -186,13 +192,13 @@
 }
 
 .llm-token-matrix-container {
-  gap: 8px;
+  gap: 4px;
   min-width: max-content;
   min-height: 0;
-  padding: 8px;
+  padding: 4px;
   overflow: hidden;
   background: #fff;
-  border: 1px solid #c1cde5;
+  border: 1px solid #dde3f0;
   border-radius: 4px;
 
   @include flex-column;
@@ -203,14 +209,20 @@
   gap: 0;
   min-width: max-content;
   min-height: 0;
-  padding: 6px 8px 8px;
+  padding: 4px;
   overflow: hidden;
   border-radius: 4px;
 
   @include flex-column;
 }
 
-/* 色块交互：hover 加深底色、文本加下划线、手型光标，点击定位到时间流对应分区 */
+.llm-token-matrix-block,
+#apm .llm-token-matrix .llm-token-matrix-block {
+  // 下限取名称、数值中较长的一行，宽则同行，窄则数值换行
+  min-width: min-content;
+}
+
+/* Span 详情开启点击定位时才变色、出手型；Trace 详情保持默认光标 */
 .llm-token-matrix.is-interactive {
   .llm-token-matrix-block,
   .llm-token-matrix-tools {
@@ -218,7 +230,7 @@
     transition: filter 0.2s ease;
 
     &:hover {
-      filter: brightness(0.96);
+      filter: saturate(1.25) brightness(0.97);
 
       .llm-token-matrix-block-name {
         text-decoration: underline;
@@ -228,25 +240,33 @@
 }
 
 .llm-token-matrix-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 4px;
+  align-items: center;
   flex-shrink: 0;
   min-width: 0;
+  max-width: 100%;
+}
+
+.llm-token-matrix-block-name,
+.llm-token-matrix-block-meta {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .llm-token-matrix-block-name {
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 20px;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
   color: #4e5e7a;
-  white-space: nowrap;
 }
 
 .llm-token-matrix-block-meta {
   gap: 4px;
-  min-width: 0;
   font-size: 10px;
-  font-weight: 500;
-  line-height: 20px;
-  white-space: nowrap;
+  font-weight: 400;
+  line-height: 16px;
 
   @include flex-align(center);
 }
@@ -255,25 +275,51 @@
   color: #4e5e7a;
 }
 
-.llm-token-matrix-block-pct {
-  color: #8f9fbd;
+.llm-token-matrix-block-pct,
+.llm-token-matrix-tool-pct {
+  color: #3463b3;
 }
 
 .llm-token-matrix-tool-list {
   flex: 1;
-  gap: 2px;
+  gap: 4px;
+  align-self: flex-start;
+  width: max-content;
+  max-width: 100%;
   min-height: 0;
   margin-top: 4px;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
 
   @include flex-column;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 2px;
+  }
+
+  &:hover {
+    scrollbar-color: #c1cde5 transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background: #c1cde5;
+    }
+  }
 }
 
 .llm-token-matrix-tool {
   gap: 8px;
+  width: 100%;
   min-width: max-content;
-  padding: 0 4px;
+  padding: 2px 4px;
   font-size: 10px;
+  font-weight: 400;
   line-height: 16px;
   color: #4e5e7a;
   background: rgb(255 255 255 / 80%);
@@ -295,6 +341,7 @@
 
     .llm-token-matrix-tool-name {
       text-decoration: underline;
+      text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
     }
 
     &:hover {
