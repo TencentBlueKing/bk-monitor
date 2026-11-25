@@ -30,6 +30,7 @@ import { commonPageSizeGet } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
 import {
+  enableCollection,
   getCollectionMeta,
   getCollectionTasks,
   removeCollectionTask,
@@ -141,6 +142,23 @@ export function useProfilingCollection(
       if (!current.signal.aborted) Message({ theme: 'error', message: (e as Error)?.message || t('操作失败，请重试') });
     } finally {
       if (!current.signal.aborted) busy.value = undefined;
+    }
+  }
+
+  /** 启用主动采集：成功后刷新配置并落到 Profiling 结果列表 */
+  async function startActiveCollection() {
+    if (readonly || loading.value) return;
+    const current = actionController;
+    loading.value = true;
+    try {
+      await enableCollection(bizId.value, current.signal);
+      if (current.signal.aborted) return;
+      patch({ tab: 'results' });
+      await refresh();
+    } catch (e) {
+      if (!current.signal.aborted) Message({ theme: 'error', message: (e as Error)?.message || t('启用失败，请重试') });
+    } finally {
+      if (!current.signal.aborted) loading.value = false;
     }
   }
 
@@ -267,6 +285,7 @@ export function useProfilingCollection(
     executing,
     refresh,
     runAction,
+    startActiveCollection,
     openEditor,
     openHistory,
     changeHistory,

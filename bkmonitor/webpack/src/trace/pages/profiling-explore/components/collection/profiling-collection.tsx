@@ -150,7 +150,7 @@ export default defineComponent({
           <CollectionOnboarding
             disabled={c.readonly || c.loading.value}
             loading={c.loading.value}
-            onStart={() => c.openEditor()}
+            onStart={c.startActiveCollection}
           />
         ) : (
           <>
