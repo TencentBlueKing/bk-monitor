@@ -982,15 +982,14 @@ def create_bkbase_data_link(
         datalink_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=data_source.bk_tenant_id, bk_biz_id=bk_biz_id)
         from metadata.models.data_link.data_link_configs import ResultTableConfig
 
-        actual_rt = (
-            ResultTableConfig.objects.filter(
-                bk_tenant_id=data_source.bk_tenant_id,
-                namespace=namespace,
-                data_link_name=data_link_ins.data_link_name,
-            )
-            .exclude(data_type="graph")
-            .get()
-        )
+        rt_components = ResultTableConfig.objects.filter(
+            bk_tenant_id=data_source.bk_tenant_id,
+            namespace=namespace,
+            data_link_name=data_link_ins.data_link_name,
+        ).exclude(data_type="graph")
+        if data_link_strategy in {DataLink.BK_EXPORTER_TIME_SERIES, DataLink.BK_STANDARD_TIME_SERIES}:
+            rt_components = rt_components.filter(table_id=monitor_table_id)
+        actual_rt = rt_components.get()
         vm_result_table_id = actual_rt.bkbase_table_id or f"{datalink_biz_id.data_biz_id}_{actual_rt.name}"
         logger.error(
             "create_bkbase_data_link: BkBaseResultTable for data_link_name->[%s] not found after sync_metadata, "
