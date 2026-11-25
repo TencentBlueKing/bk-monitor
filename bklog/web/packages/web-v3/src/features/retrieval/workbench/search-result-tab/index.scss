@@ -30,10 +30,18 @@
 
   .btn-alert-dashboard,
   .btn-alert-policy {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--bklog-space-4);
     font-size: var(--bklog-font-body);
     line-height: var(--bklog-line-height-body);
     color: var(--bklog-text-strong);
     cursor: pointer;
+
+    .bklog-icon {
+      font-size: var(--bklog-space-16);
+      line-height: 1;
+    }
   }
 
   .btn-alert-dashboard {

@@ -210,7 +210,6 @@ import { ServicesInstance } from '@/platform/services';
       >
         <span
           class="bklog-icon bklog-yibiaopan"
-          style="font-size: 16px"
         />
         <span>{{ $t('添加到仪表盘') }}</span>
       </div>
@@ -221,7 +220,6 @@ import { ServicesInstance } from '@/platform/services';
       >
         <span
           class="bklog-icon bklog--celve"
-          style="font-size: 16px"
         />
         <span>{{ $t('添加告警策略') }}</span>
       </div>
