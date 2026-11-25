@@ -1619,6 +1619,8 @@
         ".t-input",
         ".t-input--focused",
         ".t-input__inner",
+        ".t-popup",
+        ".t-popup__content",
         ".t-table__body"
       ],
       "sharedContracts": [
@@ -1626,15 +1628,17 @@
         "compact-control"
       ],
       "semanticDeclarations": 1,
-      "contextualDeclarations": 11,
+      "contextualDeclarations": 28,
       "localVisualProperties": [
         "border",
         "border-radius",
         "box-shadow",
+        "color",
+        "font-size",
         "line-height"
       ],
-      "localVisualDeclarations": 4,
-      "pendingNormalization": 0
+      "localVisualDeclarations": 7,
+      "pendingNormalization": 2
     },
     {
       "file": "features/collection/current/components/business-comp/step3/field-list.scss",
@@ -1650,6 +1654,8 @@
         ".t-input--focused",
         ".t-input__inner",
         ".t-is-disabled",
+        ".t-popup",
+        ".t-popup__content",
         ".t-select__wrap",
         ".t-table__body",
         ".t-table__th-field_name",
@@ -1662,16 +1668,18 @@
         "compact-control"
       ],
       "semanticDeclarations": 6,
-      "contextualDeclarations": 13,
+      "contextualDeclarations": 31,
       "localVisualProperties": [
         "border",
         "border-color",
         "border-radius",
         "box-shadow",
+        "color",
+        "font-size",
         "line-height"
       ],
-      "localVisualDeclarations": 6,
-      "pendingNormalization": 0
+      "localVisualDeclarations": 9,
+      "pendingNormalization": 2
     },
     {
       "file": "features/collection/current/components/business-comp/step3/report-log-slider.scss",
@@ -1954,10 +1962,13 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-button"
+        ".t-button",
+        ".t-input",
+        ".t-is-focused",
+        ".t-is-readonly"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 0,
+      "semanticDeclarations": 1,
       "contextualDeclarations": 2,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,

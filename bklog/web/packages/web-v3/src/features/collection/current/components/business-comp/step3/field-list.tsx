@@ -23,30 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { useApplicationStore } from '@/app/state/domains/application-store';
-
-
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
 
 
 import { Input as TInput } from 'tdesign-vue-next';
 
-import { Switch as TSwitch, Checkbox as TCheckbox } from 'tdesign-vue-next';
+import { Switch as TSwitch, Checkbox as TCheckbox, Popup as TPopup } from 'tdesign-vue-next';
 
 import { Button as TButton } from 'tdesign-vue-next';
 
-import { defineComponent, ref, computed, onBeforeUnmount, onMounted, nextTick, type PropType, watch } from 'vue';
+import { defineComponent, ref, computed, type PropType } from 'vue';
 
 import useLocale from '@/shared/composables/use-locale';
 
 import { isFieldTypeDisabled } from '@/shared/lib/util';
-import tippy, { type Instance } from 'tippy.js';
 import InfoTips from '../../common-comp/info-tips';
 import TableComponent from '../../common-comp/table-component';
 
 import './field-list.scss';
-import 'tippy.js/dist/tippy.css';
-import 'tippy.js/themes/light.css';
 export type FieldItem = {
   field_index: number;
   field_name: string;
@@ -103,6 +97,183 @@ export type Props = {
 /**
  * @file 字段列表
  */
+export type WordBreakerConfirmPayload = {
+  is_analyzed: boolean;
+  is_case_sensitive: boolean;
+  tokenize_on_chars: string;
+  participleState: 'custom' | 'default';
+};
+
+/** 分词符弹层。状态放在独立组件里，避免表格单元格不重渲染时操作失效。 */
+export const WordBreakerEditor = defineComponent({
+  name: 'WordBreakerEditor',
+  props: {
+    isAnalyzed: {
+      type: Boolean,
+      default: false,
+    },
+    tokenizeOnChars: {
+      type: String,
+      default: '',
+    },
+    isCaseSensitive: {
+      type: Boolean,
+      default: false,
+    },
+    originalTextTokenizeOnChars: {
+      type: String,
+      default: '',
+    },
+  },
+  emits: ['confirm'],
+  setup(props, { emit, slots }) {
+    const { t } = useLocale();
+    const visible = ref(false);
+    const currentParticipleState = ref<'default' | 'custom'>('default');
+    const cacheData = ref({
+      is_analyzed: false,
+      tokenize_on_chars: '',
+      is_case_sensitive: false,
+    });
+    const participleList = [
+      { id: 'default' as const, name: t('自然语言分词') },
+      { id: 'custom' as const, name: t('自定义') },
+    ];
+    const syncFromRow = () => {
+      cacheData.value = {
+        is_analyzed: Boolean(props.isAnalyzed),
+        tokenize_on_chars: props.tokenizeOnChars || '',
+        is_case_sensitive: Boolean(props.isCaseSensitive),
+      };
+      currentParticipleState.value = props.tokenizeOnChars ? 'custom' : 'default';
+    };
+    const handleAnalyzedChange = (value: boolean) => {
+      cacheData.value.is_analyzed = value;
+      if (!value) {
+        cacheData.value.is_case_sensitive = false;
+        cacheData.value.tokenize_on_chars = '';
+        currentParticipleState.value = 'default';
+      }
+    };
+    const handleChangeParticipleState = (state: 'default' | 'custom') => {
+      currentParticipleState.value = state;
+      cacheData.value.tokenize_on_chars = state === 'custom' ? props.originalTextTokenizeOnChars : '';
+    };
+    const handleVisibleChange = (next: boolean) => {
+      if (next) {
+        syncFromRow();
+      }
+      visible.value = next;
+    };
+    const confirm = () => {
+      const analyzed = Boolean(cacheData.value.is_analyzed);
+      const isCustom = analyzed && currentParticipleState.value === 'custom';
+      const payload: WordBreakerConfirmPayload = {
+        is_analyzed: analyzed,
+        is_case_sensitive: analyzed ? Boolean(cacheData.value.is_case_sensitive) : false,
+        tokenize_on_chars: isCustom ? cacheData.value.tokenize_on_chars || '' : '',
+        participleState: isCustom ? 'custom' : 'default',
+      };
+      emit('confirm', payload);
+      visible.value = false;
+    };
+
+    return () => (
+      <TPopup
+        attach='body'
+        destroyOnClose
+        overlayClassName='word-breaker-theme-popover'
+        overlayInnerStyle={{ padding: 0 }}
+        placement='top'
+        showArrow
+        trigger='click'
+        visible={visible.value}
+        onVisibleChange={handleVisibleChange}
+        v-slots={{
+          content: () => (
+            <div
+              class='word-breaker-menu-content'
+              onClick={(event: MouseEvent) => event.stopPropagation()}
+            >
+              <div class='menu-item'>
+                <span class='menu-item-label'>{t('分词')}</span>
+                <TSwitch
+                  value={cacheData.value.is_analyzed}
+                  onChange={(value: unknown) => {
+                    if (typeof value === 'boolean') handleAnalyzedChange(value);
+                  }}
+                />
+              </div>
+              <div class='menu-item'>
+                <span class='menu-item-label'>{t('分词符')}</span>
+                <div class='bk-button-group' data-bklog-button-group='connected'>
+                  {participleList.map(option => (
+                    <TButton
+                      key={option.id}
+                      class='participle-btn'
+                      aria-pressed={currentParticipleState.value === option.id}
+                      data-test-id={`fieldExtractionBox_button_filterMethod${option.id}`}
+                      data-testid={`collection-clean-tokenize-${option.id}`}
+                      disabled={!cacheData.value.is_analyzed}
+                      size='small'
+                      theme='default'
+                      onClick={() => handleChangeParticipleState(option.id)}
+                    >
+                      {option.name}
+                    </TButton>
+                  ))}
+                </div>
+                {currentParticipleState.value === 'custom' && (
+                  <TInput
+                    class='custom-input'
+                    disabled={!cacheData.value.is_analyzed}
+                    value={cacheData.value.tokenize_on_chars}
+                    onChange={(value: unknown) => {
+                      cacheData.value.tokenize_on_chars = String(value ?? '');
+                    }}
+                  />
+                )}
+              </div>
+              <div class='menu-item'>
+                <span class='menu-item-label'>{t('大小写敏感')}</span>
+                <TSwitch
+                  disabled={!cacheData.value.is_analyzed}
+                  value={cacheData.value.is_case_sensitive}
+                  onChange={(value: unknown) => {
+                    if (typeof value === 'boolean') cacheData.value.is_case_sensitive = value;
+                  }}
+                />
+              </div>
+              <div class='menu-footer'>
+                <TButton
+                  data-testid='collection-clean-tokenize-confirm'
+                  size='small'
+                  theme='primary'
+                  onClick={confirm}
+                >
+                  {t('确定')}
+                </TButton>
+                <TButton
+                  theme='default'
+                  data-testid='collection-clean-tokenize-cancel'
+                  size='small'
+                  onClick={() => {
+                    visible.value = false;
+                  }}
+                >
+                  {t('取消')}
+                </TButton>
+              </div>
+            </div>
+          ),
+        }}
+      >
+        {slots.default?.()}
+      </TPopup>
+    );
+  },
+});
+
 export default defineComponent({
   name: 'FieldList',
   props: {
@@ -176,7 +347,6 @@ export default defineComponent({
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useApplicationStore();
     const REQUIRED_FIELD_MSG = t('必填项');
     const INVALID_FIELD_NAME_MSG = t('只能包含a - z、A - Z、0 - 9和_，且不能以_开头和结尾');
     const INVALID_ALIAS_NAME_MSG = t('重命名只能包含a - z、A - Z、0 - 9和_');
@@ -186,33 +356,11 @@ export default defineComponent({
 
     const typeKey = ref('visible');
     const showBuiltIn = ref(false);
-    let tippyInstances: Instance[] = [];
-    let menuInitTimer: ReturnType<typeof setTimeout> | null = null;
-    let isDestroyed = false;
     const formData = ref({ tableList: [] as FieldItem[] });
     // 获取全局数据
     const globalsData = computed(() => useGlobalsStore().globalsData);
     const isPreviewMode = computed(() => props.tableType === 'preview');
     const isAdd = computed(() => props.selectEtlConfig === 'bk_log_json');
-    const currentParticipleState = ref('default');
-    const cacheData = ref({
-      is_analyzed: false,
-      tokenize_on_chars: '',
-      is_case_sensitive: false,
-    });
-    // 分词选项列表
-    const participleList = [
-      {
-        id: 'default',
-        name: t('自然语言分词'),
-        placeholder: t('自然语言分词，按照日常语法习惯进行分词'),
-      },
-      {
-        id: 'custom',
-        name: t('自定义'),
-        placeholder: t('支持自定义分词符，可按需自行配置符号进行分词'),
-      },
-    ];
     /**
      * 可见字段
      */
@@ -256,20 +404,19 @@ export default defineComponent({
       return <span class={`source-box ${sourceInfo.class}`}>{sourceInfo.label}</span>;
     };
 
-    /**
-     * 分词类型变更
-     * @param state
-     */
-    const handleChangeParticipleState = (state: string) => {
-      currentParticipleState.value = state;
-      cacheData.value.tokenize_on_chars = state === 'custom' ? props.originalTextTokenizeOnChars : '';
-    };
-    /**
-     * 取消分词符popover
-     */
-    const handleWordBreakerCancelClick = () => {
-      // 关闭 tippy
-      tippyInstances.forEach(i => i?.hide());
+    /** 确定后把分词、分词符、大小写敏感写回字段 */
+    const confirmWordBreaker = (row: FieldItem, payload: WordBreakerConfirmPayload) => {
+      const targetRow = props.data.find(
+        item => item.field_index === row.field_index && item.field_name === row.field_name,
+      );
+      if (!targetRow) {
+        return;
+      }
+      const newList = updateList(props.data, targetRow, item => ({
+        ...item,
+        ...payload,
+      }));
+      emit('change', newList);
     };
     /**
      * 更新列表的内容
@@ -315,105 +462,25 @@ export default defineComponent({
 
         return (
           <div class='word-breaker'>
-            <span
-              class='word-breaker-edit'
-              aria-label={t('分词设置')}
-              data-field-index={row.field_index}
-              data-field-name={row.field_name}
-              data-testid='collection-clean-tokenize-trigger'
-              role='button'
+            <WordBreakerEditor
+              isAnalyzed={Boolean(row.is_analyzed)}
+              isCaseSensitive={Boolean(row.is_case_sensitive)}
+              originalTextTokenizeOnChars={props.originalTextTokenizeOnChars}
+              tokenizeOnChars={row.tokenize_on_chars || ''}
+              onConfirm={(payload: WordBreakerConfirmPayload) => confirmWordBreaker(row, payload)}
             >
-              {renderWordBreakerValue(row)}
-              <i class='select-angle bk-icon icon-angle-down' />
-            </span>
-            <div
-              style={{ display: 'none' }}
-              class='word-breaker-popover'
-            >
-              <div class='word-breaker-menu-content'>
-                <div class='menu-item'>
-                  <span class='menu-item-label'>{t('分词')}</span>
-                  <TSwitch
-                    // disabled={getCustomizeDisabled(props.row, 'analyzed')}
-
-                    value={cacheData.value.is_analyzed}
-                    onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
-                      cacheData.value.is_analyzed = value;
-                    })(value); }}
-                    // on-change={handelChangeAnalyzed}
-                  />
-                </div>
-                <div class='menu-item'>
-                  <span class='menu-item-label'>{t('分词符')}</span>
-                  <div class='bk-button-group' data-bklog-button-group='connected'>
-                    {participleList.map(option => (
-                      <TButton
-                        key={option.id}
-                        class='participle-btn'
-                        aria-pressed={currentParticipleState.value === option.id}
-                        data-test-id={`fieldExtractionBox_button_filterMethod${option.id}`}
-                        data-testid={`collection-clean-tokenize-${option.id}`}
-                        disabled={!cacheData.value.is_analyzed}
-                        size='small'
-                        onClick={() => handleChangeParticipleState(option.id)}
-                      >
-                        {option.name}
-                      </TButton>
-                    ))}
-                  </div>
-                  {currentParticipleState.value === 'custom' && (
-                    <TInput
-                      class='custom-input'
-                      disabled={!cacheData.value.is_analyzed}
-                      value={cacheData.value.tokenize_on_chars}
-                      onChange={value => ((value: string) => {
-                        cacheData.value.tokenize_on_chars = value;
-                      })(String(value))}
-                    />
-                  )}
-                </div>
-                <div class='menu-item'>
-                  <span class='menu-item-label'>{t('大小写敏感')}</span>
-                  <TSwitch
-                    disabled={!cacheData.value.is_analyzed}
-
-                    value={cacheData.value.is_case_sensitive}
-                    onChange={(value) => { if (typeof value === 'boolean') ((value: boolean) => {
-                      cacheData.value.is_case_sensitive = value;
-                    })(value); }}
-                  />
-                </div>
-                <div class='menu-footer'>
-                  <TButton
-                    data-row-index={row.field_index}
-                    data-row-name={row.field_name}
-                    data-testid='collection-clean-tokenize-confirm'
-                    size='small'
-                    theme='primary'
-                    onClick={() => {
-                      handleWordBreakerCancelClick();
-                      // 通过按钮的 data 属性重新找到行数据（确保使用的是最新数据）
-                      const targetRow = props.data.find(
-                        item => item.field_index === row.field_index && item.field_name === row.field_name,
-                      );
-                      if (targetRow) {
-                        const newList = updateList(props.data, targetRow, item => ({ ...item, ...cacheData.value }));
-                        emit('change', newList);
-                      }
-                    }}
-                  >
-                    {t('确定')}
-                  </TButton>
-                  <TButton theme="default"
-                    data-testid='collection-clean-tokenize-cancel'
-                    size='small'
-                    onClick={handleWordBreakerCancelClick}
-                  >
-                    {t('取消')}
-                  </TButton>
-                </div>
-              </div>
-            </div>
+              <span
+                class='word-breaker-edit'
+                aria-label={t('分词设置')}
+                data-field-index={row.field_index}
+                data-field-name={row.field_name}
+                data-testid='collection-clean-tokenize-trigger'
+                role='button'
+              >
+                {renderWordBreakerValue(row)}
+                <i class='select-angle bk-icon icon-angle-down' />
+              </span>
+            </WordBreakerEditor>
           </div>
         );
       }
@@ -448,147 +515,6 @@ export default defineComponent({
       }
       return <div class='disabled-work'>{t('暂无预览')}</div>;
     };
-    /**
-     * 渲染分词符的popover
-     * @returns
-     */
-    const initMenuPop = () => {
-      if (isDestroyed || props.isTemplateSource) {
-        return;
-      }
-      // 销毁旧实例，避免重复绑定
-      destroyTippyInstances();
-
-      const targets = document.querySelectorAll('.fields-table-box .t-table__body .word-breaker-edit');
-      if (!targets.length) {
-        return;
-      }
-
-      const instances = tippy(targets as unknown as HTMLElement[], {
-        trigger: 'click',
-        placement: 'top',
-        theme: 'light word-breaker-theme-popover',
-        interactive: true,
-        hideOnClick: true,
-        appendTo: () => document.body,
-        onShow(instance) {
-          const reference = instance.reference as HTMLElement;
-          reference.classList.add('is-hover');
-
-          // 通过 data 属性获取当前行的标识信息
-          const fieldIndex = reference.dataset.fieldIndex;
-          const fieldName = reference.dataset.fieldName;
-
-          // 根据标识找到对应的行数据
-          const currentRow = props.data.find(
-            item => String(item.field_index) === fieldIndex && item.field_name === fieldName,
-          );
-
-          // 如果有行数据，初始化 cacheData
-          if (currentRow) {
-            cacheData.value = {
-              is_analyzed: Boolean(currentRow.is_analyzed),
-              tokenize_on_chars: currentRow.tokenize_on_chars || '',
-              is_case_sensitive: Boolean(currentRow.is_case_sensitive),
-            };
-            currentParticipleState.value = currentRow.tokenize_on_chars ? 'custom' : 'default';
-          }
-
-          const container = reference.nextElementSibling as HTMLElement | null;
-          const contentNode = container?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
-          if (contentNode) {
-            instance.setContent(contentNode);
-          }
-        },
-        onHide(instance) {
-          (instance.reference as HTMLElement).classList.remove('is-hover');
-        },
-        onHidden(instance) {
-          const reference = instance.reference as HTMLElement;
-          const container = reference.nextElementSibling as HTMLElement | null;
-          if (container) {
-            const tippyContentEl = instance.popper?.querySelector('.tippy-content');
-            const menuContent = tippyContentEl?.querySelector('.word-breaker-menu-content') as HTMLElement | null;
-            if (menuContent && menuContent.parentElement !== container) {
-              container.appendChild(menuContent);
-            }
-          }
-          instance.setContent(document.createElement('div'));
-        },
-        content: document.createElement('div'),
-      });
-
-      // tippy 返回单个或数组，这里统一转为数组
-      tippyInstances = Array.isArray(instances) ? instances : [instances];
-    };
-
-    const scheduleInitMenuPop = (delay = 0) => {
-      if (menuInitTimer) {
-        clearTimeout(menuInitTimer);
-        menuInitTimer = null;
-      }
-      menuInitTimer = setTimeout(() => {
-        menuInitTimer = null;
-        initMenuPop();
-      }, delay);
-    };
-    /** 销毁所有tippy */
-    const destroyTippyInstances = () => {
-      // 需要遍历数组并执行销毁操作，forEach 更简洁
-      tippyInstances.forEach(i => {
-        try {
-          i.hide();
-          i.destroy();
-        } catch {
-          // 单个实例销毁失败不阻断其余实例清理
-        }
-      });
-      tippyInstances = [];
-    };
-    onMounted(() => {
-      nextTick(() => {
-        scheduleInitMenuPop();
-      });
-    });
-    onBeforeUnmount(() => {
-      isDestroyed = true;
-      if (menuInitTimer) {
-        clearTimeout(menuInitTimer);
-        menuInitTimer = null;
-      }
-      destroyTippyInstances();
-    });
-    watch(
-      () => props.loading,
-      (val: boolean) => {
-        if (!val && !props.isTemplateSource) {
-          scheduleInitMenuPop(1000);
-        }
-      },
-    );
-    watch(
-      () => [props.data.length, props.loading] as [number, boolean],
-      (newVal, oldVal) => {
-        const [newLen, loadingVal] = newVal;
-        const oldLen = oldVal?.[0];
-        if (!loadingVal && newLen !== oldLen && !props.isTemplateSource) {
-          scheduleInitMenuPop(1000);
-        }
-      },
-    );
-    watch(
-      () => props.isTemplateSource,
-      isTemplateSource => {
-        if (menuInitTimer) {
-          clearTimeout(menuInitTimer);
-          menuInitTimer = null;
-        }
-        destroyTippyInstances();
-        if (!isTemplateSource) {
-          nextTick(() => scheduleInitMenuPop());
-        }
-      },
-    );
     /**
      * 刷新值
      */
@@ -1182,13 +1108,19 @@ export default defineComponent({
               disabled={props.isTemplateSource || row.is_built_in}
               value={row.field_type}
               onChange={(value: string) => {
-                if (value === 'string') {
-                  scheduleInitMenuPop(1000);
-                }
+                const resetTokenize = value !== 'string';
                 const newList = updateList(props.data, row, item => ({
                   ...item,
                   field_type: value,
-                  typeErr: false, // 选择类型后清除错误状态
+                  typeErr: false,
+                  ...(resetTokenize
+                    ? {
+                        is_analyzed: false,
+                        is_case_sensitive: false,
+                        tokenize_on_chars: '',
+                        participleState: 'default' as const,
+                      }
+                    : {}),
                 }));
                 emit('change', newList);
               }}
