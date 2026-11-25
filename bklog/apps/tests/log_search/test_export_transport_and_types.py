@@ -5,6 +5,7 @@ import json
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import enterModuleContext
 from unittest.mock import Mock, patch
 
 import requests
@@ -20,6 +21,11 @@ from apps.log_search.export.query import apply_time_range, snapshot_time_fields
 from apps.log_search.export.worker import _write_rows
 from apps.log_search.models import LogIndexSet, Scenario, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
+
+
+def setUpModule():
+    enterModuleContext(patch("apps.log_search.export.scheduler.app.send_task"))
+    enterModuleContext(patch("django_redis.cache.RedisCache.lock"))
 
 
 class ScrollTransportTests(TestCase):
