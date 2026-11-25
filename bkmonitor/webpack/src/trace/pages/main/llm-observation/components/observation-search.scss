@@ -88,4 +88,16 @@
     line-height: 16px;
     color: #979ba5;
   }
+
+  &-clear {
+    flex-shrink: 0;
+    font-size: 14px;
+    line-height: 14px;
+    color: #c4c6cc;
+    cursor: pointer;
+
+    &:hover {
+      color: #979ba5;
+    }
+  }
 }

@@ -47,6 +47,11 @@ import './trace-block.scss';
 export default defineComponent({
   name: 'LlmTraceBlock',
   props: {
+    /** 当前切换到的搜索命中 spanId */
+    activeSearchSpanId: {
+      type: String,
+      default: '',
+    },
     expanded: {
       type: Boolean,
       default: false,
@@ -312,6 +317,7 @@ export default defineComponent({
                       expanded={props.expandedSpanIds.has(row.spanId)}
                       highlighted={props.highlightedSpanId === row.spanId}
                       row={row}
+                      searchActive={props.activeSearchSpanId === row.spanId}
                       onToggle-expand={spanId => emit('toggle-span', spanId)}
                       onView-detail={span => emit('view-detail', span)}
                     />

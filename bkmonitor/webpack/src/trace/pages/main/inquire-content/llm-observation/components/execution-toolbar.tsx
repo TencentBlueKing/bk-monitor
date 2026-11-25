@@ -26,8 +26,10 @@
 
 import { type PropType, defineComponent } from 'vue';
 
-import { Checkbox, Input, Radio } from 'bkui-vue';
+import { Checkbox, Radio } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
+
+import ObservationSearch from '../../../llm-observation/components/observation-search';
 
 import type { LlmTrendSeriesKey, LlmTrendVisible } from '../utils/trend-buckets';
 import type { LlmExecutionFilter } from '../utils/typings';
@@ -68,6 +70,15 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 页内搜索当前命中下标，从 0 起；展示为 n / total */
+    searchActiveIndex: {
+      type: Number,
+      default: 0,
+    },
+    searchMatchCount: {
+      type: Number,
+      default: 0,
+    },
     showSession: {
       type: Boolean,
       default: false,
@@ -78,6 +89,8 @@ export default defineComponent({
     },
   },
   emits: {
+    'search-next': () => true,
+    'search-prev': () => true,
     'update:filter': (_value: LlmExecutionFilter) => true,
     'update:keyword': (_value: string) => true,
     'update:showSession': (_value: boolean) => true,
@@ -189,18 +202,17 @@ export default defineComponent({
             </Radio.Group>
           </div>
           <div class='llm-execution-toolbar-right'>
-            <Input
-              class='llm-execution-search'
-              modelValue={props.keyword}
-              placeholder={t('搜索 名称、模型、Span ID')}
-              type='search'
-              clearable
-              show-clear-only-hover
-              onClear={() => handleKeywordChange('')}
-              onEnter={handleKeywordChange}
-              onSearch={() => handleKeywordChange(props.keyword)}
-              onUpdate:modelValue={handleKeywordChange}
-            />
+            <div class='llm-execution-search'>
+              <ObservationSearch
+                activeIndex={props.searchActiveIndex}
+                keyword={props.keyword}
+                matchCount={props.searchMatchCount}
+                placeholder={t('搜索 名称、模型、Span ID')}
+                onNext={() => emit('search-next')}
+                onPrev={() => emit('search-prev')}
+                onUpdate:keyword={handleKeywordChange}
+              />
+            </div>
             {renderTrendLegend()}
           </div>
         </div>

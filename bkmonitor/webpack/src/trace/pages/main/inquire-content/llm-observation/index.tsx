@@ -60,16 +60,19 @@ export default defineComponent({
     /** 趋势图序列可见性（图例「只看」） */
     const trendVisible = shallowRef<LlmTrendVisible>({ duration: true, token: true });
 
-    /** 当前展开 Trace 的完整 Span 树；手风琴同时只展开一条，取命中项即可 */
-    const activeFlow = computed(
-      () =>
-        props.observation.traceBlocks.value.find(block =>
-          props.observation.expandedTraceIds.value.has(block.traceId)
-        ) ?? null
+    /** 当前切换到的命中 spanId，供当前行醒目标记 */
+    const activeSearchSpanId = computed(
+      () => props.observation.searchMatchSpanIds.value[props.observation.searchActiveIndex.value] || ''
     );
 
     const handleViewDetail = (span: LlmSpanRowView) => {
       emit('showSpanDetail', span);
+    };
+
+    /** 矩阵工具叶子点击：把工具名填入执行线搜索框，交给页内搜索定位同名工具行 */
+    const handleToolSearch = (toolName: string) => {
+      if (!toolName) return;
+      props.observation.handleKeywordChange(toolName);
     };
 
     /** 图例点击：仅自己可见时恢复全部，否则只看该项 */
@@ -86,10 +89,11 @@ export default defineComponent({
     return {
       t,
       ...props.observation,
-      activeFlow,
       trendVisible,
+      activeSearchSpanId,
       handleTrendLegendToggle,
       handleViewDetail,
+      handleToolSearch,
     };
   },
   render() {
@@ -105,7 +109,7 @@ export default defineComponent({
               cards={this.stats}
               matrixLoading={this.ioLoading}
               nodes={this.tokenMatrixNodes}
-              onLocate-tool={this.locateToolByName}
+              onLocate-tool={this.handleToolSearch}
             />
             <div class='trace-llm-observation-timeline'>
               <ExecutionToolbar
@@ -113,29 +117,33 @@ export default defineComponent({
                 counts={this.kindCounts}
                 filter={this.filter}
                 keyword={this.keyword}
+                searchActiveIndex={this.searchActiveIndex}
+                searchMatchCount={this.searchMatchCount}
                 showSession={this.showSession}
                 trendVisible={this.trendVisible}
+                onSearch-next={() => this.handleSearchStep(1)}
+                onSearch-prev={() => this.handleSearchStep(-1)}
                 onUpdate:filter={this.handleFilterChange}
                 onUpdate:keyword={this.handleKeywordChange}
                 onUpdate:showSession={this.handleSessionChange}
                 onToggle-trend={this.handleTrendLegendToggle}
               />
-              {/* 耗时、总 Token 趋势图：仅当前展开的 Trace，排除 Agent Span */}
-              {this.activeFlow ? (
-                <TrendChart
-                  flow={this.activeFlow.flow}
-                  flowLoading={this.activeFlow.flowLoading}
-                  range={this.trendRange}
-                  visible={this.trendVisible}
-                  onLocate={spanId => this.locateSpan(this.activeFlow.traceId, spanId)}
-                  onSelect={this.handleTrendSelect}
-                  onView-detail={this.handleViewDetail}
-                />
-              ) : null}
+              {/* 耗时、总 Token 趋势图：按已点开的 Trace 累加合并，flow 懒加载到达后逐渐并入，排除 Agent Span */}
+              <TrendChart
+                flow={this.trendFlow}
+                filter={this.filter}
+                flowLoading={this.trendLoading}
+                range={this.trendRange}
+                visible={this.trendVisible}
+                onLocate={this.locateMergedSpan}
+                onSelect={this.handleTrendSelect}
+                onView-detail={this.handleViewDetail}
+              />
               <div class='trace-llm-observation-list'>
                 {this.traceBlocks.map(block => (
                   <TraceBlock
                     key={block.traceId}
+                    activeSearchSpanId={this.activeSearchSpanId}
                     expanded={this.expandedTraceIds.has(block.traceId)}
                     expandedSpanIds={this.expandedSpanIds}
                     flow={block.flow}

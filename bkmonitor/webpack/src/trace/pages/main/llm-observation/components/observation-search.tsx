@@ -22,6 +22,11 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    /** 输入框占位文案 */
+    placeholder: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
     'update:keyword': (_value: string) => true,
@@ -72,6 +77,12 @@ export default defineComponent({
 
     onBeforeUnmount(commitKeyword);
 
+    /** 清空输入：本地草稿置空并立即提交给父级，不走防抖 */
+    const handleClear = () => {
+      draftKeyword.value = '';
+      commitKeyword();
+    };
+
     /** Enter 下一条，Shift+Enter 上一条；与箭头按钮同一套循环翻页 */
     const handleKeydown = (event: KeyboardEvent) => {
       if (event.key !== 'Enter' || !hasDraft.value) return;
@@ -92,7 +103,7 @@ export default defineComponent({
           spellcheck={false}
           type='text'
           value={draftKeyword.value}
-          placeholder={t('搜索')}
+          placeholder={props.placeholder || t('搜索')}
           onInput={handleInput}
           onKeydown={handleKeydown}
         />
@@ -116,6 +127,12 @@ export default defineComponent({
             <span class='llm-observation-search-empty'>{t('无结果')}</span>
           ) : null}
           <i class='icon-monitor icon-mc-search llm-observation-search-icon' />
+          {hasDraft.value ? (
+            <i
+              class='icon-monitor icon-mc-close-fill llm-observation-search-clear'
+              onClick={handleClear}
+            />
+          ) : null}
         </div>
       </div>
     );

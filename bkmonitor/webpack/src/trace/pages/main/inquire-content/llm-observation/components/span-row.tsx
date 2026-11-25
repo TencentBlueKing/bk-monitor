@@ -71,6 +71,11 @@ export default defineComponent({
       type: Object as PropType<LlmSpanRowView>,
       required: true,
     },
+    /** 是否为当前切换到的搜索命中行 */
+    searchActive: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     'toggle-expand': (_spanId: string) => true,
@@ -174,7 +179,14 @@ export default defineComponent({
         <div
           id={`llm-span-${row.spanId}`}
           ref={setRowRef}
-          class={['llm-span-item', { 'is-highlighted': props.highlighted }]}
+          class={[
+            'llm-span-item',
+            {
+              'is-highlighted': props.highlighted,
+              'is-search-matching': row.isSearchMatch,
+              'is-search-active': props.searchActive,
+            },
+          ]}
         >
           <div
             class={['llm-span-row', { 'is-error': row.isError }]}
