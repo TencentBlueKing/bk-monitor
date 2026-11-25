@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | bk_app_code | string | 是 | 蓝鲸应用 ID |
 | bk_app_secret | string | 是 | 蓝鲸应用密钥 |
-| bk_username | string | 是 | 查询业务权限的用户名 |
+| bk_username | string | 否 | 查询业务权限的用户名；未提供用户身份时权限标记为 `false` |
 
 鉴权信息通过请求头 `X-Bkapi-Authorization` 传递，取值为上述字段构成的 JSON 字符串。
 
@@ -69,4 +69,5 @@
 ## 注意事项
 
 - 未传 `has_permission` 时，无权限项目仍会出现在列表中，其权限标记为 `false`；需要仅获取有权限的项目时，传入 `has_permission=true`。
+- 兼容仅携带应用凭据的调用：未提供用户身份时，返回全部项目，`project_manage` 和 `permission.view_business_v2` 均为 `false`；此时传入 `has_permission=true` 返回空列表。
 - 业务访问权限不表示采集项、索引集等资源的操作权限，具体操作仍需检查对应权限。

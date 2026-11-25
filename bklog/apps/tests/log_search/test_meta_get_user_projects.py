@@ -61,6 +61,22 @@ class MetaGetUserProjectsTest(SimpleTestCase):
         self.assertEqual([project["bk_biz_id"] for project in results], [2])
         self.assertTrue(results[0]["permission"][ActionEnum.VIEW_BUSINESS.id])
 
+    def test_missing_user_keeps_full_catalog_with_false_permissions_without_iam(self):
+        for username in [None, ""]:
+            with self.subTest(username=username):
+                results = MetaHandler.get_user_projects(username)
+
+                self.assertEqual([project["bk_biz_id"] for project in results], [2, 3])
+                self.assertTrue(all(not project["project_manage"] for project in results))
+                self.assertTrue(all(not project["permission"][ActionEnum.VIEW_BUSINESS.id] for project in results))
+
+        self.permission_cls.assert_not_called()
+
+    def test_missing_user_with_permission_filter_returns_empty_without_iam(self):
+        self.assertEqual(MetaHandler.get_user_projects("", has_permission=True), [])
+
+        self.permission_cls.assert_not_called()
+
     def test_no_permissions_produces_an_empty_filtered_list(self):
         self.permission_cls.return_value.filter_space_list_by_action.return_value = []
 
@@ -101,6 +117,19 @@ class MetaGetUserProjectsTest(SimpleTestCase):
                 {"bk_biz_id": 3, "bk_biz_name": "[3] 业务乙"},
             ],
         )
+
+    @patch("apps.log_search.views.meta_views.get_request_username", return_value="")
+    def test_projects_view_without_user_keeps_false_permission_markers(self, _username):
+        request = Request(APIRequestFactory().get("/api/v1/meta/projects/mine/"))
+        view = MetaViewSet()
+        view.request = request
+
+        response = view.list_projects_mine(request)
+
+        self.assertEqual([project["bk_biz_id"] for project in response.data], [2, 3])
+        self.assertTrue(all(not project["project_manage"] for project in response.data))
+        self.assertTrue(all(not project["permission"][ActionEnum.VIEW_BUSINESS.id] for project in response.data))
+        self.permission_cls.assert_not_called()
 
 
 class ProjectsMineViewTest(SimpleTestCase):
