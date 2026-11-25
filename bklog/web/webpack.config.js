@@ -54,6 +54,7 @@ const logPluginConfig = {
       window.LOGIN_SERVICE_URL = '\${LOGIN_SERVICE_URL}'
       window.MONITOR_URL = '\${MONITOR_URL}'
       window.BKDATA_URL = '\${BKDATA_URL}'
+      window.BKBASE_V4_URL = '\${BKBASE_V4_URL}'
       window.COLLECTOR_GUIDE_URL = '\${COLLECTOR_GUIDE_URL}'
       window.FEATURE_TOGGLE = \${FEATURE_TOGGLE | n}
       window.FEATURE_TOGGLE_WHITE_LIST = \${FEATURE_TOGGLE_WHITE_LIST | n}

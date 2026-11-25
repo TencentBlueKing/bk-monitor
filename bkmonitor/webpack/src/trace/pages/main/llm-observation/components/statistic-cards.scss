@@ -1,9 +1,6 @@
 @import '../../../../theme/theme';
 @import '../../../../theme/mixin';
 
-/** 块（父元素与内部子元素）默认最小宽度，过窄时子元素被裁切不展示 */
-$matrix-min-block-width: 32px;
-
 .llm-statistic-cards {
   flex-shrink: 0;
   overflow: hidden;
@@ -99,13 +96,15 @@ $matrix-min-block-width: 32px;
 .llm-token-matrix {
   width: 100%;
   height: 100%;
+  overflow-x: auto;
 
   @include flex-align(stretch);
 }
 
+/* 分栏：先按 token 比例分栏（行内 flex 权重），占比过低时以该列全文案宽度为下限 */
 .llm-token-matrix-side {
   flex: 1 0 0;
-  min-width: 0;
+  min-width: max-content;
   height: 100%;
 
   &:first-child {
@@ -152,9 +151,7 @@ $matrix-min-block-width: 32px;
 
   &-value,
   &-pct {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &-value {
@@ -179,7 +176,7 @@ $matrix-min-block-width: 32px;
 
   &.is-top {
     flex-shrink: 0;
-    height: 96px;
+    height: calc(96px * var(--llm-matrix-scale, 1));
   }
 
   &.is-fill {
@@ -190,7 +187,7 @@ $matrix-min-block-width: 32px;
 
 .llm-token-matrix-container {
   gap: 8px;
-  min-width: $matrix-min-block-width;
+  min-width: max-content;
   min-height: 0;
   padding: 8px;
   overflow: hidden;
@@ -204,13 +201,30 @@ $matrix-min-block-width: 32px;
 .llm-token-matrix-block,
 .llm-token-matrix-tools {
   gap: 0;
-  min-width: $matrix-min-block-width;
+  min-width: max-content;
   min-height: 0;
   padding: 6px 8px 8px;
   overflow: hidden;
   border-radius: 4px;
 
   @include flex-column;
+}
+
+/* 色块交互：hover 加深底色、文本加下划线、手型光标，点击定位到时间流对应分区 */
+.llm-token-matrix.is-interactive {
+  .llm-token-matrix-block,
+  .llm-token-matrix-tools {
+    cursor: pointer;
+    transition: filter 0.2s ease;
+
+    &:hover {
+      filter: brightness(0.96);
+
+      .llm-token-matrix-block-name {
+        text-decoration: underline;
+      }
+    }
+  }
 }
 
 .llm-token-matrix-block-head {
@@ -223,8 +237,7 @@ $matrix-min-block-width: 32px;
   font-weight: 500;
   line-height: 20px;
   color: #4e5e7a;
-
-  @include ellipsis;
+  white-space: nowrap;
 }
 
 .llm-token-matrix-block-meta {
@@ -258,7 +271,7 @@ $matrix-min-block-width: 32px;
 
 .llm-token-matrix-tool {
   gap: 8px;
-  min-width: $matrix-min-block-width;
+  min-width: max-content;
   padding: 0 4px;
   font-size: 10px;
   line-height: 16px;
@@ -269,9 +282,7 @@ $matrix-min-block-width: 32px;
   @include flex-align(center);
 
   &-name {
-    flex: 1;
-
-    @include ellipsis;
+    white-space: nowrap;
   }
 
   &-meta {
@@ -289,77 +300,6 @@ $matrix-min-block-width: 32px;
     &:hover {
       color: #3974ff;
     }
-  }
-}
-
-/* 块被压到最小宽度时折叠为省略号，内部子元素不展示；hover 面板内通过移除 is-collapsed 恢复 */
-.llm-token-matrix-block.is-collapsed,
-.llm-token-matrix-tools.is-collapsed,
-.llm-token-matrix-container.is-collapsed,
-.llm-token-matrix-tool.is-collapsed {
-  position: relative;
-
-  > * {
-    visibility: hidden;
-  }
-
-  &::after {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    font-size: 14px;
-    line-height: 1;
-    color: #4e5e7a;
-    content: '...';
-    transform: translate(-50%, -50%);
-  }
-}
-
-/* tippy 外壳清掉默认内边距，避免面板内部多出一层 padding */
-.llm-token-matrix-tippy .tippy-content {
-  padding: 0;
-}
-
-/* hover 放大面板：克隆真实块（含父元素与内部子元素）并解除折叠 / 裁切后完整展示 */
-.llm-token-matrix-panel {
-  width: max-content;
-  max-width: 80vw;
-  padding: 4px;
-  background: transparent;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
-
-  /* 面板最外层克隆的容器去掉边线，内部嵌套块不受影响 */
-  > .llm-token-matrix-container {
-    border: none;
-  }
-
-  .llm-token-matrix-block,
-  .llm-token-matrix-tools,
-  .llm-token-matrix-container,
-  .llm-token-matrix-row,
-  .llm-token-matrix-tool,
-  .llm-token-matrix-title {
-    flex: initial;
-    width: auto;
-    min-width: max-content;
-    max-width: none;
-    max-height: none;
-    overflow: visible;
-  }
-
-  .llm-token-matrix-tool-list {
-    max-height: none;
-    overflow: visible;
-  }
-
-  .llm-token-matrix-block-name,
-  .llm-token-matrix-title-name,
-  .llm-token-matrix-title-value,
-  .llm-token-matrix-title-pct,
-  .llm-token-matrix-tool .llm-token-matrix-tool-name {
-    overflow: visible;
-    text-overflow: clip;
-    white-space: nowrap;
   }
 }
 

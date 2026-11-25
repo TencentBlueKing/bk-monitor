@@ -210,7 +210,7 @@ def get_metric_id(data_source_label: str, data_type_label: str, query_config: di
     elif data_source == (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG):
         metric_id = str(query_config["index_set_id"])
     elif data_source == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
-        metric_id = f"{query_config['result_table_id']}.{query_config['custom_event_name'] or '__INDEX__'}"
+        metric_id = f"{query_config.get('result_table_id', '')}.{query_config.get('custom_event_name') or '__INDEX__'}"
     elif data_source in (
         (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
         (DataSourceLabel.BK_FTA, DataTypeLabel.ALERT),

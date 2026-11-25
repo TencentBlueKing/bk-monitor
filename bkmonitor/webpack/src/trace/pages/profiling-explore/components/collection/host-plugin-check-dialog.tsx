@@ -43,6 +43,7 @@ export default defineComponent({
     show: { type: Boolean, required: true },
     /** 版本校验不通过的主机分组 */
     groups: { type: Array as PropType<InvalidHostGroup[]>, required: true },
+    zIndex: { type: Number, required: true },
   },
   emits: {
     /** 校验不通过时点击「继续」，保留已选主机 */
@@ -69,6 +70,7 @@ export default defineComponent({
         headerAlign='center'
         isShow={this.show}
         quickClose={false}
+        zIndex={this.zIndex}
       >
         {{
           header: () => (

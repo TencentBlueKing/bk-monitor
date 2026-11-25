@@ -932,8 +932,8 @@ class DetailEventResource(EventPermissionResource, EventDimensionMixin):
                     DataSourceLabel.CUSTOM,
                     DataTypeLabel.EVENT,
                 ):
-                    # 自定义事件需要添加额外的过滤条件
-                    if query_config["custom_event_name"]:
+                    # 自定义事件需要添加额外的过滤条件（历史事件快照的配置可能缺失该字段）
+                    if query_config.get("custom_event_name"):
                         filter_dict["event_name"] = query_config["custom_event_name"]
                     query_config["metric_field"] = "_index"
                 elif (query_config["data_source_label"], query_config["data_type_label"]) == (

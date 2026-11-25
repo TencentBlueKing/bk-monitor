@@ -20,7 +20,10 @@ const code = [
   declarations(path.join(root, 'utils.js'), ['getUrlParam']),
   declarations(process.env.BUSINESS_ENTRY_TEST_SOURCE || path.join(root, 'index.ts'), [
     'isAlarmCenterRouteHash',
+    'isShareRouteHash',
     'parseBizId',
+    'rememberRecentBizId',
+    'resolveEntryBizId',
     'setGlobalBizId',
   ]),
 ].join('\n');
@@ -60,7 +63,7 @@ function setup({
     },
     exports
   );
-  return { window, location, storage, initialize: exports.setGlobalBizId };
+  return { window, location, storage, initialize: exports.setGlobalBizId, resolveEntryBizId: exports.resolveEntryBizId };
 }
 
 test('访问带业务参数的策略页后，裸域入口恢复最近业务并保留缓存', () => {
@@ -90,8 +93,14 @@ test('恢复最近业务时保留部署子路径和目标 hash', () => {
   assert.equal(entry.location.href, 'https://monitor.example.com/monitor/?bizId=202#/strategy-config');
 });
 
-test('已设置的默认业务仍优先于最近业务', () => {
-  const entry = setup({ defaultBizId: 101, backendBizId: 202 });
+test('没有地址栏业务时，最近业务优先于已设置的默认业务', () => {
+  const entry = setup({ defaultBizId: 101, backendBizId: 2, localBizId: '202' });
+  assert.equal(entry.initialize(), false);
+  assert.equal(entry.location.href, 'https://monitor.example.com/?bizId=202');
+});
+
+test('没有最近业务时，已设置的默认业务仍生效', () => {
+  const entry = setup({ defaultBizId: 101, backendBizId: 2, localBizId: null });
   assert.equal(entry.initialize(), false);
   assert.equal(entry.location.href, 'https://monitor.example.com/?bizId=101');
 });
@@ -163,10 +172,36 @@ for (const hash of ['#/trace/alarm-center/detail/alert-id', '#/share/example-tok
   });
 }
 
-test('无业务权限的微前端 token 入口保留显式业务', () => {
-  const entry = setup({ href: 'https://monitor.example.com/?bizId=303#/strategy-config', token: 'example-token' });
+test('分享子应用 token 入口保留显式业务', () => {
+  const href = 'https://monitor.example.com/?bizId=303#/strategy-config';
+  const entry = setup({ href, token: 'example-token' });
   assert.equal(entry.initialize(), 303);
+  assert.equal(entry.location.href, href);
   assert.equal(entry.window.bk_biz_id, 303);
+});
+
+test('已在无权限页时不再改写地址', () => {
+  const href = 'https://monitor.example.com/?bizId=303#/no-business';
+  const entry = setup({ href });
+  assert.equal(entry.initialize(), true);
+  assert.equal(entry.location.href, href);
+});
+
+test('演示业务缓存与后端回显相同时改用其他非演示业务', () => {
+  const entry = setup({
+    localBizId: '202',
+    backendBizId: 202,
+    spaces: [{ bk_biz_id: 101 }, { bk_biz_id: 202, is_demo: true }],
+  });
+  assert.equal(entry.initialize(), false);
+  assert.equal(entry.location.href, 'https://monitor.example.com/?bizId=101');
+});
+
+test('首页携带不在空间列表中的业务时进入无权限页', () => {
+  const entry = setup({ href: 'https://monitor.example.com/?bizId=303#/', localBizId: '202' });
+  assert.equal(entry.initialize(), true);
+  assert.equal(entry.location.href, 'https://monitor.example.com/?bizId=303#/no-business');
+  assert.equal(entry.storage.get('__biz_id__'), '202');
 });
 
 for (const [hash, expectedBizId] of [
@@ -187,4 +222,42 @@ test('空业务列表的微前端 token 入口不恢复旧缓存', () => {
   assert.equal(entry.initialize(), -1);
   assert.equal(entry.location.href, 'https://monitor.example.com/');
   assert.equal(entry.window.bk_biz_id, -1);
+});
+
+test('输入默认域名且后端落在 demo 时，恢复最近的非 demo 业务', () => {
+  const entry = setup({
+    href: 'https://monitor.example.com/#/',
+    localBizId: '202',
+    backendBizId: 2,
+    spaces: [
+      { bk_biz_id: 2, is_demo: true },
+      { bk_biz_id: 202 },
+    ],
+  });
+  assert.equal(entry.initialize(), false);
+  assert.equal(entry.location.href, 'https://monitor.example.com/?bizId=202#/');
+  assert.equal(entry.storage.get('__biz_id__'), '202');
+});
+
+test('裸域名启动请求使用最近业务', () => {
+  const entry = setup({ href: 'https://monitor.example.com/#/', localBizId: '202' });
+  assert.equal(entry.resolveEntryBizId(Number.NaN), 202);
+});
+
+test('地址栏显式业务优先于最近业务', () => {
+  const entry = setup({ localBizId: '202' });
+  assert.equal(entry.resolveEntryBizId(2), 2);
+  assert.equal(entry.resolveEntryBizId(-202), -202);
+});
+
+test('最近业务缓存无效时，启动请求不带业务', () => {
+  for (const localBizId of [null, '', 'invalid', '0', '-1']) {
+    const entry = setup({ localBizId });
+    assert.equal(entry.resolveEntryBizId(Number.NaN), undefined);
+  }
+});
+
+test('负数空间可以作为启动业务', () => {
+  const entry = setup({ localBizId: '-202' });
+  assert.equal(entry.resolveEntryBizId(Number.NaN), -202);
 });

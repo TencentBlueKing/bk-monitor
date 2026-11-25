@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import json
+
 from django.conf import settings
 
 """
@@ -29,7 +31,23 @@ from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user, biz_to_tenant_getter  # noqa
-from config.domains import ACCESS_APIGATEWAY_ROOT  # noqa
+from apps.utils import build_auth_args
+from apps.utils.local import get_request
+from config.domains import ACCESS_APIGATEWAY_ROOT
+
+
+class _NamespaceListAPI(DataAPI):
+    EXCLUDE_URL_KEYS = True
+    VERIFY_TLS = True
+
+    def _send(self, params, timeout, request_id, request_cookies, bk_tenant_id):
+        request = get_request()
+        auth = build_auth_args(request)
+        if ticket := request.COOKIES.get("bk_ticket"):
+            auth["bk_ticket"] = ticket
+        # 仅在发送时附加用户登录态，避免其进入查询串、缓存键和请求参数日志。
+        params = {**params, "X-Bkapi-Authorization": json.dumps(auth)}
+        return super()._send(params, timeout, request_id, request_cookies, bk_tenant_id)
 
 
 class _BkDataAccessApi:
@@ -47,6 +65,21 @@ class _BkDataAccessApi:
         )
 
     def __init__(self):
+        bk_data_gateway = getattr(settings, "BKDATA_APIGW", "") or (
+            settings.BK_API_URL_TMPL.format(api_name="bk-data").rstrip("/") + "/prod"
+        )
+        # 用户态网关使用 HTTPS，部署中已有的应用态根地址可能配置为 HTTP。
+        bk_data_gateway = bk_data_gateway.replace("http://", "https://", 1).rstrip("/")
+        self.list_namespaces = _NamespaceListAPI(
+            method="GET",
+            url=f"{bk_data_gateway}/v4/tenants/{{tenant}}/namespaces",
+            no_query_params=True,
+            use_implicit_user_auth=False,
+            url_keys=["tenant"],
+            header_keys=["X-Bkapi-Authorization"],
+            module=self.MODULE,
+            description=_("查询数据平台命名空间"),
+        )
         resource_path = (
             "tenants/{tenant}/namespaces/{namespace}/{kind}/{name}/"
             if settings.ENABLE_MULTI_TENANT_MODE
