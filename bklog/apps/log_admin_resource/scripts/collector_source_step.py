@@ -341,7 +341,9 @@ def reader_positions(pid, info):
                 if (again.st_dev, again.st_ino) != (identity.st_dev, identity.st_ino):
                     return None
                 flags = int(fields["flags"], 8)
-                if not flags & getattr(os, "O_PATH", 0o10000000) and flags & os.O_ACCMODE == os.O_RDONLY:
+                # Some collector Python 2 builds omit O_ACCMODE. Linux
+                # read-only descriptors have neither write access bit set.
+                if not flags & (getattr(os, "O_PATH", 0o10000000) | os.O_WRONLY | os.O_RDWR):
                     positions.append(int(fields["pos"]))
             except OSError as error:
                 if error.errno != errno.ENOENT:
@@ -363,7 +365,10 @@ def identity_guard(kind, policy, space, path, info):
 
 def check_identity(kind, policy, request, info):
     actual = identity_guard(kind, policy, request["path_space"], request["path"], info)
-    if actual != request["expect"]:
+    expected = request["expect"]
+    if kind == "parent" and "parent_guards" in policy:
+        expected = policy["parent_guards"]["ns" if hasattr(info, "st_mtime_ns") else "float"]
+    if actual != expected:
         raise ValueError("source_" + kind + "_identity_changed")
 
 

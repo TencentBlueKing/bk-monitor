@@ -1,8 +1,10 @@
 import base64
 import json
+import sys
 from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any
+from unittest import skipUnless
 from unittest.mock import MagicMock, call, patch
 
 from django.core.cache import caches
@@ -104,6 +106,33 @@ def resolved_identity(**overrides):
     }
     values.update(overrides)
     return values
+
+
+def directory_probe_output(step):
+    import base64
+    import os
+    from datetime import datetime, timezone
+
+    path = step["path"]
+    info = os.lstat(path) if step["operation"] == "readlink" else os.stat(path)
+
+    def date(ns):
+        seconds, fraction = divmod(ns, 10**9)
+        day = datetime.fromtimestamp(seconds, timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        return f"{day}.{fraction:09d} +0000"
+
+    header = (
+        "2026-01-02T03:04:05.123456Z ns\n"
+        f"{info.st_dev} {info.st_ino} {info.st_mode:x} {info.st_size} "
+        f"{info.st_mtime_ns // 10**9} {info.st_ctime_ns // 10**9}|{date(info.st_mtime_ns)}|{date(info.st_ctime_ns)}"
+    )
+    if step["operation"] == "stat":
+        return header + "\n"
+    if step["operation"] == "list":
+        payload = b"".join(b"./" + entry + bytes(1) for entry in os.listdir(os.fsencode(path)))
+    else:
+        payload = os.readlink(os.fsencode(path))
+    return header + "\n" + base64.b64encode(payload + bytes(1)).decode()
 
 
 def collector(**overrides):
@@ -1032,10 +1061,10 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 "collector_pod_uid": "collector",
                 "collector_container_id": "containerd://abc",
             }
-            payload = inspect_source(policy, step)
+            payload = directory_probe_output(step)
             with patch(
                 "apps.log_admin_resource.k8s_source_step.run_collector_script",
-                return_value=(json.dumps(payload), "", 0),
+                return_value=(payload, "", 0),
             ):
                 source = inspect_source_step(None, candidate(pod_uid="collector"), {"values": {}}, {}, [], 7, step, {})
             source = _timed_probe(source)
@@ -1065,6 +1094,73 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 os.chdir(previous)
 
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_readlink_errors_survive_task_detail(self, _identity):
+        import os
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+        from apps.log_admin_resource.k8s_tasks import _finish, _timed_probe
+
+        # Exercise the production shell and decoder with deterministic utility
+        # output. The second lstat observes a different inode after rotation.
+        utilities = """
+date() { echo 2026-01-02T03:04:05.123456Z; }
+stat() {
+    for file do :; done
+    case "$file" in
+        /) return 0 ;;
+        /logs/missing) echo 'stat: path: No such file or directory' >&2; return 1 ;;
+        /logs/regular) echo 'regular file|initial'; return ;;
+        /logs/rotated)
+            if [ -f "$marker" ]; then echo 'symbolic link|second'; else echo 'symbolic link|first'; fi ;;
+    esac
+}
+readlink() { printf 'old-target'; touch "$marker"; }
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            marker = str(Path(tmp) / "readlink-called")
+
+            def execute(_client, _candidate, command, script):
+                result = subprocess.run(
+                    command,
+                    input=utilities + script,
+                    env=dict(os.environ, marker=marker),
+                    text=True,
+                    capture_output=True,
+                    timeout=10,
+                    check=True,
+                )
+                return result.stdout, result.stderr, result.returncode
+
+            for name, error in (
+                ("missing", "source_path_not_found"),
+                ("regular", "source_not_symlink"),
+                ("rotated", "source_changed_during_readlink"),
+            ):
+                with self.subTest(name=name):
+                    step = {"operation": "readlink", "path": "/logs/" + name, "path_space": "collector"}
+                    record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+                        app_code="reader-a",
+                        bk_tenant_id="tenant-a",
+                        target={},
+                        request_options={"source_step": step},
+                        task_type=TASK_TYPE_K8S_INSPECTION,
+                    )
+                    with patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=execute):
+                        probe = inspect_source_step(None, candidate(), {"values": {}}, {}, [], 7, step, {})
+                    _finish(record["task_id"], record, {"source_path": _timed_probe(probe)}, "partial", None)
+                    ResourceInspectionTaskRecord.release_active(record)
+                    detail = get_k8s_inspection_detail({"task_id": record["task_id"]})
+                    self.assertEqual(detail["task_status"], "partial")
+                    row = detail["evidence"]["probes"]["source_path"]
+                    self.assertEqual((row["status"], row["code"]), ("failed", "source_step_incomplete"))
+                    self.assertEqual(row["evidence"]["error"], error)
+                    self.assertEqual(row["evidence"]["failed_path"], step["path"])
+                    self.assertNotIn("observation", row["evidence"])
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_readlink_paths_through_storage_and_followup_stat(self, _identity):
         import tempfile
         from pathlib import Path
@@ -1083,10 +1179,21 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 task_type=TASK_TYPE_K8S_INSPECTION,
             )
             task_id = record["task_id"]
-            payload = inspect_source({"interval": 0, "pid": 0}, step)
+            outputs = [(directory_probe_output(step), "", 0)]
+            if operation == "stat":
+                result = inspect_source(
+                    {
+                        "interval": 0,
+                        "pid": 0,
+                        "collector_pod_uid": "collector",
+                        "collector_container_id": candidate().collector_container_id,
+                    },
+                    step,
+                )
+                outputs.append((json.dumps(result), "", 0))
             with patch(
                 "apps.log_admin_resource.k8s_source_step.run_collector_script",
-                return_value=(json.dumps(payload), "", 0),
+                side_effect=outputs,
             ):
                 probe = inspect_source_step(None, candidate(pod_uid="collector"), {"values": {}}, {}, [], 7, step, {})
             _finish(task_id, record, {"source_path": _timed_probe(probe)}, "success", None)
@@ -1989,7 +2096,149 @@ class SourcePolicyTest(SimpleTestCase):
         self.assertEqual(source_directories({**target, "type": "node"}, [config]), {})
         self.assertEqual(source_directories(target, [{**config, "container_config_id": None}]), {None: {"/logs"}})
 
+    def test_shell_stat_guard_matches_reader_timestamp_precision(self):
+        from types import SimpleNamespace
+
+        from apps.log_admin_resource.collector_directory_evidence import decode_directory_step
+        from apps.log_admin_resource.scripts.collector_source_step import check_identity, identity_guard
+
+        step = {"path": "/app/log/test.log", "path_space": "collector", "operation": "stat"}
+        policy = {"collector_pod_uid": "collector", "collector_container_id": "container"}
+        seconds, fraction = 1730000000, 123456789
+        metadata = f"5 23 81a4 13 {seconds} {seconds}" + "|2024-10-27 03:33:20.123456789 +0000" * 2
+        for precision in ("float", "ns"):
+            with self.subTest(precision=precision):
+                listing = decode_directory_step(
+                    f"2026-01-02T03:04:05.123456Z {precision}\n{metadata}\nLi90ZXN0LmxvZwAA",
+                    policy,
+                    dict(step, operation="list", path="/app/log"),
+                )["observation"]
+                follow = dict(step, expect=listing["entry_guards"][0])
+                wire_stat = f"2026-01-02T03:04:05.123456Z ns\n{metadata}\n{metadata}\n"
+                result = decode_directory_step(wire_stat, policy, follow)
+                stamp = seconds + fraction / 10**9
+                info = SimpleNamespace(st_dev=5, st_ino=23, st_size=13, st_mtime=stamp, st_ctime=stamp)
+                if precision == "ns":
+                    info.st_mtime_ns = info.st_ctime_ns = seconds * 10**9 + fraction
+                # Old Workers use only the token supplied in the request.
+                old_list_guard = identity_guard("parent", policy, "collector", step["path"], info)
+                self.assertEqual(follow["expect"], old_list_guard)
+                check_identity("parent", policy, follow, info)
+                self.assertEqual(
+                    decode_directory_step(wire_stat, policy, dict(step, expect=old_list_guard))["observation"][
+                        "verified_expectation"
+                    ],
+                    old_list_guard,
+                )
+                bound_policy = dict(policy, parent_guards=result["parent_guards"])
+                check_identity("parent", bound_policy, follow, info)
+                exact = SimpleNamespace(**vars(info))
+                exact.st_mtime_ns = exact.st_ctime_ns = seconds * 10**9 + fraction
+                old_request = dict(step, expect=identity_guard("file", policy, "collector", step["path"], exact))
+                if precision == "float":
+                    with self.assertRaisesRegex(ValueError, "source_file_identity_changed"):
+                        check_identity("file", policy, old_request, info)
+                guard = identity_guard("file", bound_policy, "collector", step["path"], info)
+                read = dict(step, operation="read", expect=guard)
+                check_identity("file", policy, read, info)
+                info.st_ino += 1
+                with self.assertRaisesRegex(ValueError, "source_file_identity_changed"):
+                    check_identity("file", policy, read, info)
+                with self.assertRaisesRegex(ValueError, "source_parent_identity_changed"):
+                    check_identity("parent", bound_policy, follow, info)
+
+    def test_shell_stat_preserves_metadata_without_a_collector_python(self):
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+
+        path = Path(__file__).resolve()
+        step = {"operation": "stat", "path_space": "collector", "path": str(path)}
+        outputs = [(directory_probe_output(step), "", 0), ('{"error":"collector_python_unavailable"}', "", 0)]
+        with patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=outputs):
+            result = inspect_source_step(None, candidate(), {"values": {}}, {}, [], 7, step, {})
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["evidence"]["activity"], "unverified")
+        row = result["evidence"]["observation"]
+        self.assertEqual((row["inode"], row["size_bytes"]), (path.stat().st_ino, path.stat().st_size))
+        self.assertNotIn("file_guard", row)
+        from hashlib import sha256
+        from apps.log_admin_resource import k8s_source_step
+
+        helper = Path(k8s_source_step.__file__).with_name("scripts") / "collector_directory_step.sh"
+        self.assertEqual(result["probe_metadata"]["script_sha256"], sha256(helper.read_bytes()).hexdigest())
+        self.assertEqual(row["sampled_at"], "2026-01-02T03:04:05.123456Z")
+
+    def test_sensitive_metadata_path_is_absent_from_kubernetes_exec_url(self):
+        from urllib.parse import parse_qs, unquote, urlsplit
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+
+        path = "/logs/account=private-test-value"
+        step = {"operation": "stat", "path_space": "collector", "path": path}
+        client = SimpleNamespace(bcs=SimpleNamespace(api_instance_core_v1=k8s_client.CoreV1Api()))
+        with patch("kubernetes.stream.ws_client.WSClient") as websocket:
+            response = websocket.return_value
+            response.is_open.side_effect = [True, False, False, False]
+            response.peek_stdout.return_value = True
+            response.peek_stderr.return_value = False
+            response.read_stdout.return_value = "2026-01-02T03:04:05.123456Z ns\nERROR source_path_not_found\n"
+            response.returncode = 0
+            result = inspect_source_step(client, candidate(), {"values": {}}, {}, [], 7, step, {})
+        url = websocket.call_args.args[1]
+        self.assertEqual(parse_qs(urlsplit(url).query)["command"], ["/bin/sh", "-s"])
+        self.assertNotIn("private-test-value", unquote(url))
+        self.assertIn(path, response.write_stdin.call_args.args[0])
+        self.assertEqual(result["evidence"]["error"], "source_path_not_found")
+
+    def test_shell_stat_distinguishes_missing_file_and_unavailable_tool(self):
+        import os
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "missing.log")
+            tools_dir = Path(tmp) / "tools"
+            tools_dir.mkdir()
+            stat_tool = tools_dir / "stat"
+            stat_tool.write_text(
+                '#!/bin/sh\nfor file do :; done\ncase "$file" in /) exit 0 ;; esac\necho "stat: path: ${DIAGNOSTIC}" >&2; exit 1\n'
+            )
+            clock = tools_dir / "date"
+            clock.write_text("#!/bin/sh\necho 2026-01-02T03:04:05.123456Z\n")
+            clock.chmod(0o755)
+            stat_tool.chmod(0o755)
+            for search_path, diagnostic, expected in (
+                (str(tools_dir), "No such file or directory", "source_path_not_found"),
+                (tmp, "", "stat_tool_unavailable"),
+                (str(tools_dir), "Permission denied", "source_permission_denied"),
+            ):
+
+                def execute(_client, _candidate, command, script):
+                    process = subprocess.run(
+                        command,
+                        input=script,
+                        env=dict(os.environ, PATH=search_path, DIAGNOSTIC=diagnostic),
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    return process.stdout, process.stderr, process.returncode
+
+                with (
+                    self.subTest(expected=expected),
+                    patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=execute),
+                ):
+                    step = {"operation": "stat", "path_space": "collector", "path": path}
+                    result = inspect_source_step(None, candidate(), {"values": {}}, {}, [], 7, step, {})
+                    self.assertEqual(result["evidence"]["error"], expected)
+
+    @skipUnless(sys.platform.startswith("linux"), "runs the Linux collector shell with GNU userspace")
     def test_source_step_executes_fixed_script_and_returns_path_metadata(self):
+        import os
         import subprocess
         import tempfile
         from pathlib import Path
@@ -1998,11 +2247,22 @@ class SourcePolicyTest(SimpleTestCase):
 
         def execute(_client, _candidate, command, script):
             self.assertEqual(command, ["/bin/sh", "-s"])
-            result = subprocess.run(command, input=script, capture_output=True, text=True, timeout=15, check=True)
+            result = subprocess.run(
+                command,
+                input=script,
+                env=dict(os.environ, PATH=f"{root}:{os.environ['PATH']}"),
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=True,
+            )
             return result.stdout, result.stderr, result.returncode
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
+            clock = root / "date"
+            clock.write_text("#!/bin/sh\nprintf '%s\\n' 2010-01-02T03:04:05.123456Z\n")
+            clock.chmod(0o755)
             (root / "logs").symlink_to("/volume/demo")
             with (
                 patch("apps.log_admin_resource.k8s_source_step.source_policy") as policy,
@@ -2022,6 +2282,7 @@ class SourcePolicyTest(SimpleTestCase):
             self.assertNotIn("pod_uid", result["evidence"])
             self.assertEqual(result["status"], "success")
             observation = result["evidence"]["observation"]
+            self.assertEqual(observation["sampled_at"], "2010-01-02T03:04:05.123456Z")
             self.assertEqual(observation["target"], "/volume/demo")
             self.assertEqual(observation["inode"], (root / "logs").lstat().st_ino)
             self.assertEqual(result["probe_metadata"]["container"], COLLECTOR_CONTAINER_NAME)
@@ -2774,9 +3035,9 @@ class K8sInspectionWorkerTest(SimpleTestCase):
         target = {"type": "node", "node_name": "node-a"}
         step = {"operation": "stat", "path_space": "collector", "path": "/logs/missing"}
         for output, code in [
-            (('{"error":"missing","failed_path":"/logs/missing"}', "", 0), "source_step_incomplete"),
+            (("2026-01-02T03:04:05.123456Z ns\nERROR source_path_not_found\n", "", 0), "source_step_incomplete"),
             (FixedProbeError("source_directory_unknown", "missing directory mapping"), "source_directory_unknown"),
-            (('{"observation":{"inode":11}}', "", 0), "collector_identity_changed"),
+            ((directory_probe_output({"operation": "stat", "path": "/"}), "", 0), "collector_identity_changed"),
         ]:
             with self.subTest(code=code):
                 record = self._record(target=target, groups=["collector", "progress"])
