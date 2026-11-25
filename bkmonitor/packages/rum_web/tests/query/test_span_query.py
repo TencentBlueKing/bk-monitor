@@ -136,6 +136,20 @@ class TestApplyFieldSpec:
         spec = FieldSpec(field_name="x")
         assert "rating_config" not in apply_spec({}, spec)
 
+    def test_web_vitals_hover_written(self):
+        """Web Vitals 字段写入与详情一致的 hover，且每次返回独立副本。"""
+        first = apply_spec({}, FieldSpec(field_name="web_vitals.fcp"))
+        second = apply_spec({}, FieldSpec(field_name="FCP"))
+        assert first["hover"] == second["hover"]
+        assert first["hover"]["source"]["url"] == "https://web.dev/articles/fcp"
+        assert set(first["hover"]) == {"title", "description", "user_experience", "source"}
+        first["hover"]["title"] = "changed"
+        assert apply_spec({}, FieldSpec(field_name="web_vitals.fcp"))["hover"]["title"] != "changed"
+
+    def test_hover_not_written_for_other_fields(self):
+        """非 Web Vitals 字段不写入 hover。"""
+        assert "hover" not in apply_spec({}, FieldSpec(field_name="duration"))
+
     def test_returns_same_dict(self):
         """返回值与传入的 field_dict 是同一对象（原地修改）。"""
         d: dict[str, Any] = {}

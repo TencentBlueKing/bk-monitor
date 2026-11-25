@@ -27,6 +27,7 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.apm import OperatorGroupRelation
 from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension, FieldTypeEnum
 from rum_web.constants import RumQueryMode
+from rum_web.handlers.builder.hover import get_field_hover
 from rum_web.handlers.query.virtual import query_virtual_grouped_values, query_virtual_values
 from rum_web.virtual_fields import VirtualField, get_virtual_fields
 from semconv.constants import FieldDisplayType
@@ -375,6 +376,8 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
                 if config.value is not None:
                     item["value"] = config.value
                 field_dict["rating_config"].append(item)
+        if (hover := get_field_hover(spec.get_full_field_name())) is not None:
+            field_dict["hover"] = hover
         field_dict["is_agg"] = (
             field_dict.get("is_agg", False)
             and field_dict.get("field_type") in EnabledStatisticsDimension.values()

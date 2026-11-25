@@ -222,6 +222,17 @@ def test_list_response_returns_raw_values_and_virtual_strings(mocker, mode):
     assert result["virtual.viewport"] == "1440 x 900"
 
 
+@pytest.mark.parametrize("precomputed", [False, True])
+def test_view_config_web_vitals_use_short_alias_and_hover(precomputed):
+    fields = {field["field_name"]: field for field in view_config("view", precomputed)["fields"]}
+    for metric in ("lcp", "inp", "cls", "fcp", "ttfb"):
+        field = fields[f"web_vitals.{metric}"]
+        assert field["field_alias"] == metric.upper()
+        assert str(field["hover"]["title"]).startswith(f"{metric.upper()}（")
+        assert field["hover"]["source"]["url"] == f"https://web.dev/articles/{metric}"
+    assert "hover" not in fields["duration"]
+
+
 def test_view_config_includes_frontend_selection_rules():
     fields = {field["field_name"]: field for field in view_config("span")["fields"]}
     layout = fields["span_name"]["extra_config"]["composite"]

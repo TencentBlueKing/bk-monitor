@@ -266,6 +266,12 @@ VITAL_HOVERS: dict[str, Hover] = {
     ),
 }
 
+# Span 层级的 Web Vitals 是根级大写字段，View 层级位于 web_vitals 下。
+FIELD_HOVERS: dict[str, Hover] = {
+    **{metric.upper(): hover for metric, hover in VITAL_HOVERS.items()},
+    **{f"web_vitals.{metric}": hover for metric, hover in VITAL_HOVERS.items()},
+}
+
 RATING_HOVERS: dict[str, Hover] = {
     "good": _hover(_("良好"), _("指标处于推荐区间，通常代表用户体验良好。")),
     "needs_improvement": _hover(_("需改进"), _("指标处于中间区间，部分用户可能已经感受到性能问题。")),
@@ -279,6 +285,10 @@ def clone_hover(hover: Hover | None) -> Hover | None:
 
 def get_vital_hover(metric: str) -> Hover | None:
     return clone_hover(VITAL_HOVERS.get(metric.lower()))
+
+
+def get_field_hover(field_name: str) -> Hover | None:
+    return clone_hover(FIELD_HOVERS.get(field_name))
 
 
 def get_milestone_hover(milestone: str) -> Hover | None:
