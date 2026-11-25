@@ -3,7 +3,7 @@
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 
-  import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+  import { computed, defineAsyncComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 
   import { getCommonFilterAdditionWithValues } from '@/app/state/helper';
@@ -29,6 +29,7 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
 
   const props = defineProps({
     activeTab: { type: String, default: '' },
+    originOnly: { type: Boolean, default: false },
   });
   const emit = defineEmits(['update:active-tab', "update:activeTab"]);
 
@@ -41,9 +42,16 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
   // #endif
 
   // #if MONITOR_APP !== 'trace' && MONITOR_APP !== 'apm'
-  const LogClustering = defineAsyncComponent(
-    () => import(/* webpackChunkName: 'retrieve-v2-log-clustering' */ './log-clustering/index'),
-  );
+  import ClusteringLoader from '@/app/skeleton/clustering-loader.vue';
+  const LogClustering = defineAsyncComponent({
+    loader: () => import(/* webpackChunkName: 'retrieve-v2-log-clustering' */ './log-clustering/index'),
+    loadingComponent: {
+      name: 'EmbeddedClusteringSkeleton',
+      render: () => h(ClusteringLoader, { widthList: [150, 90, 90, ''], isLoading: true }),
+    },
+    delay: 0,
+    suspensible: false,
+  });
   // #else
   // #code const LogClustering = () => null;
   // #endif
@@ -335,7 +343,7 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
             :total-count="totalCount"
           />
           <LogClustering
-            v-else-if="activeTab === 'clustering'"
+            v-else-if="!originOnly && activeTab === 'clustering'"
             :active-tab="activeTab"
             :height="heightNum"
             :retrieve-params="retrieveParamsWithCommonAddition"

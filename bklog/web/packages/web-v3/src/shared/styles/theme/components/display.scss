@@ -1575,6 +1575,64 @@
   }
 }
 
+:root .t-popup__content.custom-filter-popup {
+  padding: 0;
+
+  .t-table__filter-pop-content,
+  .t-table__filter-pop-content-inner,
+  .t-radio-group,
+  &.t-table__list-filter-input--sticky .t-table__filter-pop-content .t-table__filter-pop-content-inner .t-radio-group {
+    margin: 0;
+    padding: 0;
+  }
+
+  .t-table__filter-pop-content-inner {
+    padding-block: var(--bklog-space-4);
+  }
+
+  .t-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .t-radio {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--bklog-control-size-medium);
+    min-height: var(--bklog-control-size-medium);
+    margin: 0;
+    padding: 0 var(--bklog-space-12);
+    border-radius: var(--bklog-radius-none);
+
+    > .t-radio__input {
+      display: none;
+    }
+
+    > .t-radio__label {
+      margin: 0;
+      padding: 0;
+      font-size: var(--bklog-font-body);
+      line-height: var(--bklog-line-height-body);
+      color: var(--bklog-text-secondary);
+    }
+
+    &:hover:not(.t-is-disabled) {
+      background-color: var(--bklog-option-surface-hover);
+    }
+
+    &.t-is-checked > .t-radio__label {
+      color: var(--bklog-brand-primary);
+    }
+
+    &.t-is-checked {
+      background-color: var(--bklog-brand-tint);
+    }
+  }
+}
+
 :root .t-table {
   .t-table__header :is(.t-table__sort-icon, .t-table__filter-icon) > svg {
     font-size: var(--bklog-space-12);
@@ -1609,6 +1667,7 @@
 :root:not([theme-mode='dark']) {
   .t-table {
     --td-component-border: var(--bklog-standard-control-border-disabled);
+    --td-bg-color-container: var(--bklog-surface);
     --td-bg-color-container-hover: var(--bklog-option-surface-hover);
     --td-bg-color-secondarycontainer-hover: var(--bklog-option-surface-hover);
   }
@@ -1637,12 +1696,22 @@
     --bklog-table-fixed-shadow-direction: to left;
   }
 
+  // A missing row key makes TDesign mark every row with t-table__row--hover. That class is not the body color.
   .t-table > .t-table__content > table > .t-table__body {
-    > tr:not(.t-table__row--active, .t-table__expanded-row, .t-table__row--full):is(
-      .t-table__row--hover,
-      .t-table--hoverable tr:hover
-    ) {
+    > tr:not(.t-table__row--active, .t-table__expanded-row, .t-table__row--full).t-table__row--hover:not(:hover) {
+      background-color: var(--bklog-surface);
+
+      > td {
+        background-color: var(--bklog-surface);
+      }
+    }
+
+    > tr:not(.t-table__row--active, .t-table__expanded-row, .t-table__row--full):hover {
       background-color: var(--bklog-option-surface-hover);
+
+      > td {
+        background-color: var(--bklog-option-surface-hover);
+      }
     }
   }
 

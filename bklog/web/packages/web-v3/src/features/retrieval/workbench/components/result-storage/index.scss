@@ -211,21 +211,37 @@
       }
     }
 
-    // V2 深度输入为 96×26。固定行高，勾选后不再把相邻选项撑开。
-    .json-depth-num.t-input-number {
+    // V2 深度输入为 96×26。全局小号步进按钮是 18px 并下移 4px，这里要贴齐 26px 行高并把图标居中。
+    .json-depth-num.t-input-number.t-size-s {
       width: 96px;
       height: 26px;
-
-      .t-button {
-        width: 26px;
-        min-width: 26px;
-        height: 26px;
-        padding: 0;
-      }
 
       .t-input__wrap,
       .t-input {
         height: 26px;
+      }
+
+      :is(.t-input-number__decrease, .t-input-number__increase) {
+        top: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        min-width: 26px;
+        height: 26px;
+        padding: 0;
+        line-height: 0;
+
+        .t-button__text,
+        .t-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: var(--bklog-space-16);
+          height: var(--bklog-space-16);
+          margin: 0;
+          line-height: 0;
+        }
       }
     }
   }

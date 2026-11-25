@@ -168,6 +168,8 @@ export interface LlmSpanRowView {
   ioLoading?: boolean;
   isError: boolean;
   isLast: boolean;
+  /** 自身命中页内搜索关键字，命中行高亮（不过滤） */
+  isSearchMatch: boolean;
   kind?: LlmSpanKind;
   /** 关系列竖线层级：根下子节点为 0，嵌套 Agent 展开后的子级递增 */
   lineGuideLevel: number;

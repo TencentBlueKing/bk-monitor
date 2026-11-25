@@ -108,40 +108,6 @@
     .t-table__cell--fixed-right-first::after {
       border-left: 2px solid rgba(163, 160, 160, 0.12);
     }
-    // 隐藏过滤弹窗中的 radio 按钮，并添加选中样式
-    .custom-filter-popup {
-      .t-table__filter-pop-content {
-        .t-radio {
-          padding: 1px 10px;
-          .t-radio__input {
-            display: none !important;
-          }
-          &:hover {
-            background-color: var(--bklog-brand-tint, #e1ecff);
-            .t-radio__label {
-              color: var(--bklog-brand-primary, #3a84ff);
-            }
-          }
-          .t-radio__label {
-            font-size: var(--bklog-font-body, 12px);
-            color: var(--bklog-text-secondary, #63656e);
-            margin-left: 0 !important;
-            cursor: pointer;
-            transition: all 0.2s;
-            border-radius: var(--bklog-radius-control, 2px);
-            
-          }
-          // 选中状态样式
-          &.t-is-checked {
-            background-color: var(--bklog-brand-tint, #e1ecff);
-            font-weight: 500;
-            .t-radio__label {
-              color: var(--bklog-brand-primary, #3a84ff);
-            }
-          }
-        }
-      }
-    }
     .t-table__pagination {
       display: flex;
       .t-pagination__total {

@@ -150,6 +150,20 @@ class _TransferApi:
     MODULE = _("Metadata元数据")
 
     def __init__(self):
+        self.list_data_source_namespaces = DataAPI(
+            method="GET",
+            url=f"{MONITOR_APIGATEWAY_ROOT_NEW}app/metadata/list_data_source_namespaces/",
+            module=self.MODULE,
+            description=_("查询数据源已登记的命名空间"),
+            use_implicit_user_auth=False,
+        )
+        self.apply_data_source = DataAPI(
+            method="POST",
+            url=f"{MONITOR_APIGATEWAY_ROOT_NEW}app/metadata/apply_data_source/",
+            module=self.MODULE,
+            description=_("下发数据源到目标命名空间"),
+            use_implicit_user_auth=False,
+        )
         self.create_data_id = DataAPI(
             method="POST",
             url=self._build_url("create_data_id/", "metadata_create_data_id/"),

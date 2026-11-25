@@ -695,7 +695,7 @@ class ActiveProfilingExecutionQueryHandler:
     def _build_lag_gap_overrides(self, params, gap_start):
         """落后区间内执行表已有的计划执行（通常只有最新一次及其前一个运行窗口内的），SaaS 只写进 MySQL 的信息：
         取消（采集端的 finished 还没上报）与改名，由 ES 查询覆盖到 Event 配出的行上；
-        执行表已有的执行才能取消、改名，没建行的执行不会有这些信息"""
+        执行表已有的执行才能取消、改名，没建行的执行不会有这些信息。执行行 id 也一并带上，没建行的执行没有 id"""
         executions = {
             execution.id: execution
             for execution in self._execution_queryset(params)
@@ -706,6 +706,7 @@ class ActiveProfilingExecutionQueryHandler:
             execution_id__in=list(executions), status="cancelled"
         ).values_list("execution_id", "bk_host_id", "finished_at", "cancelled_by")
         return {
+            "ids": {self._execution_key(execution): execution.id for execution in executions.values()},
             "task_names": {self._execution_key(execution): execution.task_name for execution in executions.values()},
             "hosts": {
                 # 与 Event 维度对应的主机执行键，同 _host_execution_key
@@ -876,8 +877,11 @@ class ActiveProfilingExecutionQueryHandler:
         return host.message
 
     def _build_execution_fields(self, execution):
-        """执行行的展示字段；立即执行不返回 task_id，与一期协议一致"""
-        fields = {"task_id": execution.task_id} if execution.schedule_type != "immediate" else {}
+        """执行行的展示字段；立即执行不返回 task_id，与一期协议一致。
+        id 是执行表的行 id，一次执行一个：同一计划的多次执行 task_id 相同、任务名也可能相同，靠它区分"""
+        fields = {"id": execution.id}
+        if execution.schedule_type != "immediate":
+            fields["task_id"] = execution.task_id
         status_summary = execution.status_summary
         if execution.scheduled_at < self.expire_before:
             # 同一执行的全部主机计划时间相同，成功类计数一起合并为 outdate

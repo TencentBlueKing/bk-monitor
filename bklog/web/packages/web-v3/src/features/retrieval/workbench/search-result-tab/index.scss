@@ -3,14 +3,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 8px;
-  margin: 0px 8px 0 0;
-  background: #f5f7fa;
-  border-radius: 2px 2px 0 0;
+  padding-top: var(--bklog-space-8);
+  margin: 0 var(--bklog-space-8) 0 0;
+  background: var(--bklog-surface-hover);
+  border-radius: var(--bklog-space-2) var(--bklog-space-2) 0 0;
 
   &>div>span {
     &:not(:last-child) {
-      margin-right: 8px;
+      margin-right: var(--bklog-space-8);
     }
   }
 
@@ -28,49 +28,42 @@
     }
   }
 
-  .btn-alert-dashboard {
-    // position: absolute;
-    // top: 0px;
-    // right: 100px;
-    // height: 42px;
-    font-size: 12px;
-    // line-height: 42px;
-    color: #4d4f56;
+  .btn-alert-dashboard,
+  .btn-alert-policy {
+    font-size: var(--bklog-font-body);
+    line-height: var(--bklog-line-height-body);
+    color: var(--bklog-text-strong);
     cursor: pointer;
-    margin-right: 17px;
   }
 
-  .btn-alert-policy {
-    // position: absolute;
-    // top: 0px;
-    // right: -2px;
-    // height: 42px;
-    font-size: 12px;
-    // line-height: 42px;
-    color: #4d4f56;
-    cursor: pointer;
+  .btn-alert-dashboard {
+    margin-right: 17px;
   }
 
   .retrieve-panel {
     position: relative;
-    display: inline-block;
-    height: 32px;
-    padding: 0 12px;
-    font-size: 13px;
-    line-height: 32px;
-    color: #313238;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--bklog-tab-height);
+    padding: 0 var(--bklog-space-16);
+    font-size: var(--bklog-font-body);
+    line-height: var(--bklog-line-height-body);
+    color: var(--bklog-text-primary);
     text-align: center;
     cursor: pointer;
-    background-color: #dcdee5;
-    border-top-left-radius: 4px;
-    /* 设置左上角圆角 */
-    border-top-right-radius: 4px;
-    /* 设置右上角圆角 */
+    background-color: var(--bklog-panel-divider);
+    border-start-start-radius: var(--bklog-panel-radius);
+    border-start-end-radius: var(--bklog-panel-radius);
+
+    &:hover:not(.active) {
+      color: #3a84ff;
+    }
 
     &.active {
       font-weight: 700;
-      color: #3a84ff;
-      background: #ffffff;
+      color: var(--bklog-brand-primary);
+      background: var(--bklog-surface);
     }
   }
 }

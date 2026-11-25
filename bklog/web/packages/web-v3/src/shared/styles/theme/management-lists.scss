@@ -79,12 +79,19 @@
 .v2-log-collection-table .log-collection-table {
   .t-table__header th,
   .t-pagination,
-  .t-pagination__total,
+  .t-pagination__total {
+    font-size: var(--bklog-font-action);
+    line-height: var(--bklog-line-height-action);
+  }
+
   .t-pagination__number,
   .t-pagination__btn-prev,
   .t-pagination__btn-next {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: var(--bklog-font-action);
-    line-height: var(--bklog-line-height-action);
+    line-height: 1;
   }
 
   .t-table__body tr {

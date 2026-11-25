@@ -50,6 +50,7 @@ class ActiveProfilingEventQueryHandler:
     - hosts：{主机执行键: {"finished_at": ..., "cancelled_by": ...}}，SaaS 受理的取消：采集端的 finished 还没上报时覆盖为 cancelled，
       取消人只有 SaaS 记录，finished 已上报为 cancelled 时也带上
     - task_names：{执行键: 任务名}，改名只改执行表
+    - ids：{执行键: 执行行 id}，执行表已建行的执行带上行 id，没建行的为 None
     覆盖后状态与任务名会变，这两项不下推 ES，在内存中按覆盖后的值筛选"""
 
     def __init__(self, bk_biz_id):
@@ -103,7 +104,11 @@ class ActiveProfilingEventQueryHandler:
     @staticmethod
     def _get_overrides(params):
         overrides = params.get("overrides") or {}
-        return {"hosts": overrides.get("hosts") or {}, "task_names": overrides.get("task_names") or {}}
+        return {
+            "hosts": overrides.get("hosts") or {},
+            "task_names": overrides.get("task_names") or {},
+            "ids": overrides.get("ids") or {},
+        }
 
     def _build_row_filter(self, params, statuses, get_status, get_task_name):
         """配对后在内存中筛选的条件：状态都在内存中筛；任务名有覆盖时不下推，也在内存中按覆盖后的名称包含匹配"""
@@ -125,12 +130,9 @@ class ActiveProfilingEventQueryHandler:
         if host["status"] == "cancelled":
             host["message"] = build_cancelled_message(override["cancelled_by"])
 
-    @staticmethod
-    def _override_task_name(key, dimensions, overrides):
-        schedule_type, scheduled_at, task_id = key[:3]
-        return overrides["task_names"].get(
-            (schedule_type, int(scheduled_at), int(task_id or 0)), dimensions["task_name"]
-        )
+    @classmethod
+    def _override_task_name(cls, key, dimensions, overrides):
+        return overrides["task_names"].get(cls._normalize_execution_key(key), dimensions["task_name"])
 
     def query_topk(self, params):
         """搜索框候选值，与两个列表一样按 scheduled_at 选取，按主机执行数倒序取前 limit 个，与 MySQL 查询同一口径"""
@@ -155,7 +157,10 @@ class ActiveProfilingEventQueryHandler:
         if not hosts:
             raise ValueError(_("执行记录不存在"))
 
-        detail = {"task_id": params["task_id"]} if "task_id" in params else {}
+        # 执行表查不到才回查 ES，没有执行行 id
+        detail = {"id": None}
+        if "task_id" in params:
+            detail["task_id"] = params["task_id"]
         detail.update(
             task_name=dimensions["task_name"],
             schedule_type=dimensions["schedule_type"],
@@ -351,7 +356,9 @@ class ActiveProfilingEventQueryHandler:
             # 先覆盖再汇总，执行状态与状态计数按覆盖后的主机计
             self._override_host(host, host_key, overrides)
             hosts.append(host)
-        row = {"task_id": int(task_id)} if task_id else {}
+        row = {"id": overrides["ids"].get(self._normalize_execution_key(key))}
+        if task_id:
+            row["task_id"] = int(task_id)
         row.update(
             task_name=self._override_task_name(key, dimensions, overrides),
             schedule_type=schedule_type,
@@ -574,6 +581,12 @@ class ActiveProfilingEventQueryHandler:
         if not events:
             return None
         schedule_type, scheduled_at, task_id = self._execution_key(events[0])
+        return schedule_type, int(scheduled_at), int(task_id or 0)
+
+    @staticmethod
+    def _normalize_execution_key(key):
+        """Event 维度都是字符串，转为与执行表一致的执行键；主机执行键取前三项"""
+        schedule_type, scheduled_at, task_id = key[:3]
         return schedule_type, int(scheduled_at), int(task_id or 0)
 
     @staticmethod

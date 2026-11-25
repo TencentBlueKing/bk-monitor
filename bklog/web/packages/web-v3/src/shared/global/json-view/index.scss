@@ -67,7 +67,7 @@
               &:hover,
               &.focus-text *,
               &:hover * {
-                color: var(--bklog-json-action-color);
+                color: var(--bklog-retrieve-hover-text, #3a84ff);
               }
             }
           }

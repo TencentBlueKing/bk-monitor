@@ -17,6 +17,7 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.constants import ETLProcessorChoices
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_plugin import CollectorPluginHandler
@@ -37,9 +38,16 @@ class BKBaseCollectorPluginHandler(CollectorPluginHandler):
         """
 
         metadata_bk_data_id = CollectorHandler.update_or_create_data_id(
-            self.collector_plugin, etl_processor=ETLProcessorChoices.TRANSFER.value
+            instance, etl_processor=ETLProcessorChoices.TRANSFER.value
         )
-        return CollectorHandler.update_or_create_data_id(self.collector_plugin, bk_data_id=metadata_bk_data_id)
+        if FeatureToggleObject.switch("log_v4_data_link", instance.get_bk_biz_id()):
+            return metadata_bk_data_id
+        return CollectorHandler.update_or_create_data_id(instance, bk_data_id=metadata_bk_data_id)
+
+    def _update_data_id(self, instance: CollectorConfig | CollectorPlugin) -> int:
+        if FeatureToggleObject.switch("log_v4_data_link", instance.get_bk_biz_id()):
+            return CollectorHandler.update_or_create_data_id(instance, etl_processor=ETLProcessorChoices.TRANSFER.value)
+        return super()._update_data_id(instance)
 
     def _create_metadata_result_table(self) -> None:
         """

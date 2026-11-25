@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.conf import settings
 from django.conf.urls import include
 from django.urls import re_path
 from rest_framework import routers
@@ -45,8 +46,9 @@ router.register(r"storage", storage_views.StorageViewSet, basename="databus_stor
 router.register(r"collectors", collector_views.CollectorViewSet, basename="collectors")
 router.register(r"collector_plugins", collector_plugin_views.CollectorPluginViewSet, basename="collector_plugins")
 router.register(r"data_link", link_views.DataLinkViewSet, basename="data_link")
-router.register(r"collect_itsm", itsm_views.ItsmViewSet, basename="collect_itsm")
-router.register(r"collect_itsm_cb", itsm_views.ItsmCallbackViewSet, basename="collect_itsm_cb")
+if not settings.ESB_DISABLED:
+    router.register(r"collect_itsm", itsm_views.ItsmViewSet, basename="collect_itsm")
+    router.register(r"collect_itsm_cb", itsm_views.ItsmCallbackViewSet, basename="collect_itsm_cb")
 router.register(r"clean_template", clean_views.CleanTemplateViewSet, basename="clean_template")
 router.register(r"clean", clean_views.CleanViewSet, basename="clean")
 router.register(r"grok", grok_views.GrokViewSet, basename="grok")

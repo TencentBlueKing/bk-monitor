@@ -232,25 +232,28 @@
 }
 
 :root :is(.t-tooltip, .bklog-text-tooltip)[data-popper-placement] .t-popup__arrow::before {
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: 0;
-  clip-path: var(--bklog-tooltip-arrow-clip);
-  transform: none;
+  content: none;
 }
 
 :root :is(.t-tooltip, .bklog-text-tooltip) {
+  // The tooltip fills the arrow box. Clip that box into a tip; the unclipped ::before was the square.
+  &[data-popper-placement] .t-popup__arrow {
+    background: inherit;
+    clip-path: var(--bklog-tooltip-arrow-clip);
+  }
+
   &[data-popper-placement^='top'] .t-popup__arrow {
     --bklog-tooltip-arrow-clip: polygon(0 0, 100% 0, 50% 100%);
 
     bottom: calc(-1 * var(--bklog-space-4));
+    width: calc(var(--bklog-space-8));
     height: var(--bklog-space-4);
   }
 
   &[data-popper-placement^='bottom'] .t-popup__arrow {
     --bklog-tooltip-arrow-clip: polygon(50% 0, 100% 100%, 0 100%);
 
+    width: calc(var(--bklog-space-8));
     height: var(--bklog-space-4);
   }
 
@@ -258,12 +261,14 @@
     --bklog-tooltip-arrow-clip: polygon(0 0, 100% 50%, 0 100%);
 
     width: var(--bklog-space-4);
+    height: calc(var(--bklog-space-8));
   }
 
   &[data-popper-placement^='right'] .t-popup__arrow {
     --bklog-tooltip-arrow-clip: polygon(100% 0, 100% 100%, 0 50%);
 
     width: var(--bklog-space-4);
+    height: calc(var(--bklog-space-8));
   }
 }
 

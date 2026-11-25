@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from urllib.parse import quote
+
 from django.conf import settings
 from rest_framework import serializers
 
@@ -24,7 +26,7 @@ class BkUserApiResource(APIResource):
         """
         是否使用apigw
         """
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.ESB_DISABLED or settings.ENABLE_MULTI_TENANT_MODE
 
     @property
     def base_url(self):
@@ -75,16 +77,87 @@ class ListTenantResource(BkUserApiResource):
         return result
 
 
+class LookupTenantUsersResource(BkUserApiResource):
+    """按账号批量查询用户。"""
+
+    action = "/api/v3/open/tenant/users/-/lookup/"
+    method = "GET"
+
+
 class GetAllUserResource(BkUserApiResource):
     """
     查询用户列表
     """
 
-    action = "/list_users/"
+    @property
+    def action(self):
+        return "/api/v3/open/tenant/users/" if settings.ESB_DISABLED else "/list_users/"
+
     method = "GET"
-    cache_type = CacheType.USER
+
+    @property
+    def cache_type(self):
+        # 网关结果与租户有关，旧 USER 缓存键没有租户维度。
+        return None if settings.ESB_DISABLED else CacheType.USER
+
+    def _search_users(self, keyword, page, page_size):
+        """租户 OpenAPI 仅支持分页，按旧选择器约定统计匹配总数并返回指定页。"""
+        offset = (page - 1) * page_size
+        keyword = keyword.casefold()
+        results = []
+        count = 0
+        upstream_page = 1
+        while True:
+            data = super().perform_request({"page": upstream_page, "page_size": 1000})
+            for user in data["results"]:
+                if any(
+                    keyword in (user.get(field) or "").casefold()
+                    for field in ("bk_username", "login_name", "full_name", "display_name")
+                ):
+                    if offset <= count < offset + page_size:
+                        results.append(user)
+                    count += 1
+            if not data["results"] or upstream_page * 1000 >= data["count"]:
+                return results, count
+            upstream_page += 1
 
     def perform_request(self, params):
+        if settings.ESB_DISABLED:
+            if "exact_lookups" in params:
+                accounts = list(dict.fromkeys(filter(None, params["exact_lookups"].split(","))))
+                users = []
+                lookup = LookupTenantUsersResource()
+                lookup.bk_tenant_id = self.bk_tenant_id
+                for start in range(0, len(accounts), 100):
+                    batch = accounts[start : start + 100]
+                    rows = lookup.request({"lookup_field": "bk_username", "lookups": ",".join(batch)})
+                    users.extend(rows)
+                    found = {user["bk_username"] for user in rows}
+                    missing = [account for account in batch if account not in found]
+                    if missing:
+                        users.extend(
+                            BatchLookupVirtualUserResource().request(
+                                bk_tenant_id=self._get_tenant_id(),
+                                lookup_field="bk_username",
+                                lookups=",".join(missing),
+                            )
+                        )
+                count = len(users)
+            elif keyword := params.get("fuzzy_lookups"):
+                users, count = self._search_users(
+                    keyword, max(1, int(params.get("page", 1))), max(1, int(params.get("page_size", 20)))
+                )
+            else:
+                page = super().perform_request({key: params[key] for key in ("page", "page_size") if key in params})
+                users, count = page["results"], page["count"]
+            return {
+                "count": count,
+                "results": [
+                    {"username": user["bk_username"], "display_name": user["display_name"], "logo": ""}
+                    for user in users
+                ],
+            }
+
         # 如果使用apigw，则直接返回空列表，这种情况下要求前端直接请求bk-user的接口获取用户展示信息
         if self.use_apigw():
             return {"count": 0, "results": []}
@@ -226,8 +299,9 @@ class ListProfileDepartmentsResource(BkUserApiResource):
         if not self.use_apigw():
             return super().perform_request(params)
 
+        username = params["id"]
         params = {
-            "bk_username": params["id"],
+            "bk_username": quote(username, safe="") if settings.ESB_DISABLED else username,
             "with_ancestors": params["with_family"],
         }
         result = super().perform_request(params)
@@ -276,6 +350,10 @@ class GetUserInfo(BkUserApiResource):
         fields = serializers.CharField(required=False, label="返回字段")
 
     def perform_request(self, validated_request_data):
+        if settings.ESB_DISABLED:
+            username = validated_request_data["id"]
+            user = super().perform_request({"bk_username": quote(username, safe="")})
+            return {**user, "username": user["bk_username"]}
         if self.use_apigw():
             # API Gateway 模式：转换参数格式
             params = {"bk_username": validated_request_data["id"]}

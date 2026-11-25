@@ -16,6 +16,13 @@ export interface TokenSpanStat {
 
 const FALLBACK_NAME = '--';
 
+/** 当前指标是否存在大于 0 的 Span，供面板按数据隐藏空 Tab */
+export function hasTokenMetricData(flow: LlmFlowSpan[], metric: TokenMetric): boolean {
+  return collectSpanList(flow)
+    .filter(span => resolveSpanKind(span) !== 'AGENT')
+    .some(span => (pickSpanTokenUsage(span)[metric] || 0) > 0);
+}
+
 /** 当前指标 > 0 的 Span，占比相对该类 Token 之和；再按 Top / Bottom 截断 */
 export function buildTokenSpanStats(flow: LlmFlowSpan[], metric: TokenMetric, rankMode: TokenRankMode): TokenSpanStat[] {
   const items = collectSpanList(flow)

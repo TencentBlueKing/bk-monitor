@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -34,13 +33,17 @@ else:
         "testing": "stag",
         "production": "prod",
     }.get(PAAS_V2_ENVIRONMENT)
-DJANGO_CONF_MODULE = "config.{env}".format(env=ENVIRONMENT)
+DJANGO_CONF_MODULE = f"config.{ENVIRONMENT}"
 
 try:
     _module = __import__(DJANGO_CONF_MODULE, globals(), locals(), ["*"])
 except ImportError as e:
-    raise ImportError("Could not import config '{}' (Is it on sys.path?): {}".format(DJANGO_CONF_MODULE, e))
+    raise ImportError(f"Could not import config '{DJANGO_CONF_MODULE}' (Is it on sys.path?): {e}")
 
 for _setting in dir(_module):
     if _setting == _setting.upper():
         locals()[_setting] = getattr(_module, _setting)
+
+# 旧 Chart 缺省 ESB 开关时，保持 rc1 按最终 Django 租户配置选择登录路由的行为。
+if not os.getenv("BKPAAS_ESB_ENABLED", "").strip():
+    os.environ["BKPAAS_MULTI_TENANT_MODE"] = "true" if globals().get("ENABLE_MULTI_TENANT_MODE") else "false"

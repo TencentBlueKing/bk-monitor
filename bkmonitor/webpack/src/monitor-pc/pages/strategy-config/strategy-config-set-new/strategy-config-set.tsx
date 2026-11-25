@@ -72,7 +72,7 @@ import {
   convertFormToPromql,
   convertPromqlToForm,
 } from '../strategy-config-common/promql-query/service';
-import { transformLogMetricId } from '../strategy-config-detail/utils';
+import { matchStrategyMetric, transformLogMetricId } from '../strategy-config-detail/utils';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } from './alarm-handling/alarm-handling';
 import AlarmHandlingList from './alarm-handling/alarm-handling-list-new';
@@ -152,10 +152,10 @@ const TIME_UNIT_IDS = ['ns', 'µs', 'ms', 's', 'm', 'h', 'd'];
 
 /** 编辑/克隆回填时的原始单位快照 */
 interface IOriginUnitSnapshot {
-  metricId: number | string;
-  queryUnit: string;
   /** 回填后检测规则下拉框展示的单位；空串表示当时没有展示单位 */
   displayUnit: string;
+  metricId: number | string;
+  queryUnit: string;
   /** key 为 `${level}|${type}`，同 key 多条规则按顺序存放 */
   ruleUnits: Record<string, string[]>;
 }
@@ -1375,24 +1375,21 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           custom_event_name,
           bkmonitor_strategy_id,
         }) => {
-          // strategy 存的 metric_id 可能与 get_metric_list 返回不一致（如 data_label 别名），
-          // 按 metric_id 查询有结果但精确匹配失败时，使用返回的第一条指标补齐 dimensions 等元信息
-          const curMetric = metricList?.find(set => set.metric_id === metric_id) ||
-            metricList?.[0] || {
-              data_source_label,
-              data_type_label,
-              metric_field,
-              metric_field_name: metric_field,
-              metric_id,
-              result_table_id,
-              data_label,
-              unit,
-              index_set_id,
-              query_string,
-              custom_event_name,
-              bkmonitor_strategy_id,
-              dimensions: [],
-            };
+          const curMetric = matchStrategyMetric(metricList, { metric_id, metric_field, data_label }) || {
+            data_source_label,
+            data_type_label,
+            metric_field,
+            metric_field_name: metric_field,
+            metric_id,
+            result_table_id,
+            data_label,
+            unit,
+            index_set_id,
+            query_string,
+            custom_event_name,
+            bkmonitor_strategy_id,
+            dimensions: [],
+          };
 
           this.dataMode =
             agg_method === 'REAL_TIME' || (data_type_label === 'event' && data_source_label === 'bk_monitor')
@@ -2570,9 +2567,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (requestId !== this.sourceConversionId) return;
     if (metricList.length) {
       this.metricData = targetRes.query_configs.map(item => {
-        // 与编辑回填一致：metric_id 精确匹配失败时回退到接口返回的第一条指标
-        const metricItem = metricList?.find(set => set.metric_id === item.metric_id) || metricList?.[0];
-        const resultTableIdList = (item.result_table_id || metricItem.result_table_id).split('.');
+        const metricItem = matchStrategyMetric(metricList, {
+          metric_id: item.metric_id,
+          metric_field: item.metric_field,
+          data_label: item.data_label,
+        });
+        const resultTableIdList = (item.result_table_id || metricItem?.result_table_id || '').split('.');
         const curMetric = metricItem || {
           data_source_label: metricList?.data_source_label || item.data_source_label,
           metric_field_name: item.metric_field,

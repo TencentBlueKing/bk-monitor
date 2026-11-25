@@ -63,6 +63,8 @@ export default defineComponent({
     let statusRequest = 0;
     const initializedIndex = ref('');
     const statusError = ref('');
+    const isStatusLoading = ref(true);
+    let groupFieldsTask: { key: string; promise: Promise<string[]> } | null = null;
     const loadingWidthList = {
       global: [''],
       notCompared: [150, 90, 90, ''],
@@ -135,6 +137,8 @@ export default defineComponent({
       isShowClusterStep.value = true;
       clusterStepData.value = null;
       statusError.value = '';
+      isStatusLoading.value = true;
+      groupFieldsTask = null;
       void clusterPolling();
     });
 
@@ -163,23 +167,37 @@ export default defineComponent({
       ) as Promise<IResponseData<ClusteringConfigStatus> & { message?: string }>;
     };
 
+    const fetchGroupFields = (id: string) => {
+      const key = `${id}:${collectorConfigId.value ?? ''}`;
+      if (groupFieldsTask?.key === key) {
+        return groupFieldsTask.promise;
+      }
+      const promise = ServicesInstance.logClustering
+        .getConfig(
+          {
+            params: { index_set_id: id },
+            data: { collector_config_id: collectorConfigId.value },
+          },
+          {
+            catchIsShowMessage: false,
+            globalError: false,
+          },
+        )
+        .then(res => res.data?.group_fields ?? [])
+        .catch(err => {
+          console.warn(err);
+          return [];
+        });
+      groupFieldsTask = { key, promise };
+      return promise;
+    };
+
     // 获取分组状态
-    const getInitGroupFields = async () => {
-      try {
-        if (clusterSwitch.value) {
-          const params = { index_set_id: indexSetId.value };
-          const data = { collector_config_id: collectorConfigId.value };
-          const res = await ServicesInstance.logClustering.getConfig({
-            params,
-            data,
-          });
-          return res.data.group_fields;
-        }
-        return [];
-      } catch (err) {
-        console.warn(err);
+    const getInitGroupFields = async (id: string) => {
+      if (!clusterSwitch.value) {
         return [];
       }
+      return fetchGroupFields(id);
     };
 
     const initTableOperator = async (id: string, seq: number) => {
@@ -228,7 +246,7 @@ export default defineComponent({
         selectGroupList: queryRequestData.group_by || [], // 未请求维度时 默认是所有字段的分组
       });
       // 这里判断是否有保存过所有人都显示一样的分组 如果有则直接显示相应的分组
-      const groupFields = await getInitGroupFields();
+      const groupFields = await getInitGroupFields(id);
       if (seq !== statusRequest || !isClusterActive.value || indexSetId.value !== id) return;
       if (groupFields?.length) {
         const selectGroupList = fingerOperateData.value.selectGroupList.filter(item => !groupFields.includes(item));
@@ -253,6 +271,12 @@ export default defineComponent({
       const seq = statusRequest;
       const id = indexSetId.value;
       if (!id || !isClusterActive.value) return;
+      if (initializedIndex.value !== id && !clusterStepData.value) {
+        isStatusLoading.value = true;
+        if (clusteringConfig.value?.is_active) {
+          void fetchGroupFields(id);
+        }
+      }
       try {
         const res = await getClusterConfigStatus();
         if (seq !== statusRequest) return;
@@ -261,6 +285,7 @@ export default defineComponent({
         if (String(res.code) === '36102005') {
           clusterStepData.value = null;
           isShowClusterStep.value = false;
+          isStatusLoading.value = false;
           return;
         }
         if (res.code !== 0) throw new Error(res.message || t('获取聚类状态失败'));
@@ -277,10 +302,16 @@ export default defineComponent({
         ) {
           filterGroupList();
           await initTableOperator(id, seq);
-          if (seq === statusRequest) initializedIndex.value = id;
+          if (seq === statusRequest) {
+            initializedIndex.value = id;
+            isStatusLoading.value = false;
+          }
+        } else {
+          isStatusLoading.value = false;
         }
       } catch (error) {
         if (seq !== statusRequest) return;
+        isStatusLoading.value = false;
         const transient =
           axios.isAxiosError(error) && !axios.isCancel(error) && (!error.response || error.response.status >= 500);
         if (!transient || !isShowClusterStep.value || !clusterStepData.value) {
@@ -348,6 +379,7 @@ export default defineComponent({
     };
 
     const handleClusterCreate = () => {
+      clusterStepData.value = null;
       void clusterPolling();
     };
 
@@ -387,9 +419,9 @@ export default defineComponent({
 
     return () => (
       <div class='log-cluster-table-container-main'>
-        {globalLoading.value ? (
+        {globalLoading.value || (exhibitAll.value && isStatusLoading.value) ? (
           <clustering-loader
-            width-list={loadingWidthList.global}
+            width-list={loadingWidthList.notCompared}
             is-loading
           />
         ) : (
@@ -414,7 +446,14 @@ export default defineComponent({
             {exhibitAll.value ? (
               (() => {
                 if (statusError.value || isShowClusterStep.value) {
-                  if (!statusError.value && !clusterStepData.value) return null;
+                  if (!statusError.value && !clusterStepData.value) {
+                    return (
+                      <clustering-loader
+                        width-list={loadingWidthList.notCompared}
+                        is-loading
+                      />
+                    );
+                  }
                   return (
                     <cluster-start-fail
                       cluster-step-data={clusterStepData.value}
@@ -436,7 +475,7 @@ export default defineComponent({
                 if (!isTableReady.value)
                   return (
                     <clustering-loader
-                      width-list={loadingWidthList.global}
+                      width-list={loadingWidthList.notCompared}
                       is-loading
                     />
                   );

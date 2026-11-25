@@ -19,12 +19,16 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import json
+import re
 import time
 
 import requests
+
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
+from django.views.decorators.http import require_GET
 from django.utils import translation
 from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
@@ -32,6 +36,7 @@ from rest_framework.response import Response
 
 from apps.api import BKLoginApi
 from apps.constants import ExternalPermissionActionEnum
+from apps.exceptions import ApiError, PermissionError
 from apps.generic import APIViewSet
 from apps.log_commons.cc import get_maintainers
 from apps.log_commons.exceptions import BaseCommonsException
@@ -304,6 +309,50 @@ class ExternalPermissionViewSet(APIViewSet):
         return Response(ExternalPermission.destroy(validated_request_data=data))
 
 
+@require_GET
+def list_users(request):
+    """为单租户的旧版选择器提供原账号和 JSONP 响应。"""
+    query = request.GET
+    callback = query.get("callback")
+    if request.headers.get("Sec-Fetch-Site") in {"cross-site", "same-site"}:
+        raise Http404
+    if callback and not re.fullmatch(r"[A-Za-z_$][A-Za-z0-9_$]*", callback):
+        return JsonResponse({"result": False, "message": "Invalid callback"}, status=400)
+    if "exact_lookups" in query:
+        accounts = list(dict.fromkeys(filter(None, query["exact_lookups"].split(","))))
+        users = []
+        for start in range(0, len(accounts), 100):
+            users.extend(
+                BKLoginApi.lookup_users(
+                    {"lookup_field": "bk_username", "lookups": ",".join(accounts[start : start + 100])}
+                )
+            )
+        count = len(users)
+    elif keyword := query.get("fuzzy_lookups"):
+        try:
+            size = max(1, int(query.get("page_size", 20)))
+            page = max(1, int(query.get("page", 1)))
+        except ValueError:
+            return JsonResponse({"result": False, "message": "Invalid pagination"}, status=400)
+        users, count = BKLoginApi.search_users(keyword, page, size)
+    else:
+        result = BKLoginApi.list_users({key: query[key] for key in ("page", "page_size") if key in query})
+        users, count = result["results"], result["count"]
+
+    data = {
+        "count": count,
+        "results": [
+            {"username": user["bk_username"], "display_name": user["display_name"], "logo": ""} for user in users
+        ],
+    }
+    result = {"result": True, "code": 0, "message": "", "data": data}
+    if callback:
+        response = HttpResponse(f"{callback}({json.dumps(result)})", content_type="application/javascript")
+        response["Cross-Origin-Resource-Policy"] = "same-origin"
+        return response
+    return JsonResponse(result)
+
+
 class FrontendEventViewSet(APIViewSet):
     @action(detail=False, methods=["POST"], url_path="report")
     def report(self, request):
@@ -318,16 +367,18 @@ class FrontendEventViewSet(APIViewSet):
         url = f"{host}/v2/push/"
 
         username = params["dimensions"]["user_name"]
-        info = BKLoginApi.list_department_profiles({"id": username, "with_family": True})
-        dept = info[0]
-        family = dept["family"]
         departments = []
-        for f in family:
-            departments.append(f["name"])
-        departments.append(dept["name"])
-        # 当前组织架构暂定层级5
-        while len(departments) < 5:
-            departments.append("")
+        if username:
+            try:
+                info = BKLoginApi.list_department_profiles({"id": username, "with_family": True})
+            except (ApiError, PermissionError):
+                if not settings.ESB_DISABLED:
+                    raise
+            else:
+                if info:
+                    department = info[0]
+                    departments = [item["name"] for item in department["family"]] + [department["name"]]
+                departments.extend([""] * (5 - len(departments)))
 
         for index, dept in enumerate(departments):
             params["dimensions"][f"department_{index}"] = dept

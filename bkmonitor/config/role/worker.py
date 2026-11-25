@@ -334,6 +334,7 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.config_refresh.manage_disable_es_storage", "*/30 * * * *", "global"),
     # BkBase V4 链路组件同步与状态自动兜底刷新，30min 一次
     ("metadata.task.refresh_data_link.refresh_data_link_status", "*/30 * * * *", "global"),
+    ("metadata.task.tasks.reconcile_doris_jobs", "* * * * *", "global"),
 ]
 
 # 排除特定的定时任务

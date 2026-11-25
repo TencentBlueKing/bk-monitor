@@ -51,7 +51,17 @@
 </template>
 
 <style scoped lang="scss">
-  @use '@/shared/ui/loading/shimmer' as *;
+  // Match the refresh bootstrap shell in index.html. Route switches must not use the brand-tinted shared shimmer.
+  @keyframes retrieve-page-shimmer {
+    0% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0 50%;
+    }
+  }
+
   .retrieve-page-skeleton {
     display: flex;
     box-sizing: border-box;
@@ -59,13 +69,13 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    background: var(--td-bg-color-page, #f5f7fa);
+    background: #f5f7fa;
   }
 
   .retrieve-page-skeleton__rail {
     flex: none;
     width: var(--skeleton-rail);
-    background: var(--td-bg-color-secondarycontainer, #ebeef5);
+    background: #f5f7fa;
   }
 
   .retrieve-page-skeleton__content {
@@ -83,7 +93,21 @@
   .retrieve-page-skeleton__side,
   .retrieve-page-skeleton__trend,
   .retrieve-page-skeleton__row {
-    @include loading-shimmer;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #eef1f6 25%, #e4e8ef 37%, #eef1f6 63%);
+    background-size: 400% 100%;
+    animation: retrieve-page-shimmer 1.4s ease infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .retrieve-page-skeleton__toolbar,
+    .retrieve-page-skeleton__search,
+    .retrieve-page-skeleton__side,
+    .retrieve-page-skeleton__trend,
+    .retrieve-page-skeleton__row {
+      background: #eef1f6;
+      animation: none;
+    }
   }
 
   .retrieve-page-skeleton__toolbar {
