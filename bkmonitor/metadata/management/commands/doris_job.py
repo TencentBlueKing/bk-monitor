@@ -52,14 +52,14 @@ class Command(BaseCommand):
                 cmd.add_argument("--page-size", type=int, default=20)
             if action == "adopt":
                 cmd.add_argument("--remote-id", required=True, type=int)
+                cmd.add_argument("--config", type=Path, help="含 sources 和 targets 的 JSON 文件；草稿已有关系时必填")
 
     def handle(self, *args, **options):
         action = options["action"]
         tenant = options["tenant"]
         jobs = DorisJobConfig.objects.filter(data_link__bk_tenant_id=tenant)
         job_id = options.get("id")
-        if action in ("preview", "save", "relations"):
-            config = json.loads(options["config"].read_text())
+        config = json.loads(options["config"].read_text()) if options.get("config") else None
         if action == "preview":
             result = render_configs(config)
         elif action == "save":
@@ -115,7 +115,10 @@ class Command(BaseCommand):
                     replace_relations(job, config["sources"], config["targets"])
             result = {"id": job_id}
         elif action == "adopt":
-            adopt_job(tenant, job_id, options["remote_id"])
+            try:
+                adopt_job(tenant, job_id, options["remote_id"], relations=config)
+            except ValueError as error:
+                raise CommandError(str(error)) from error
             result = {"id": job_id, "status": "ready"}
         else:
             job = request_action(tenant, job_id, action)

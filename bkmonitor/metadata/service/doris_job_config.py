@@ -108,10 +108,15 @@ def save_configs(tenant, link_name, config, job_id=None):
 
 
 @transaction.atomic(using=DATABASE_CONNECTION_NAME)
-def adopt_job(tenant, job_id, remote_id):
+def adopt_job(tenant, job_id, remote_id, *, relations=None):
+    """将远端定义与管理员确认的上下游在同一事务中接管。"""
     job = DorisJobConfig.objects.select_for_update().get(pk=job_id, data_link__bk_tenant_id=tenant)
     if job.remote_id is not None or job.reconcile_status not in ("draft", "failed"):
         raise ValueError("请选择未绑定的草稿或失败配置")
+    if relations is None and job.table_relations.exists():
+        raise ValueError("草稿已有上下游，请通过 --config 提供远端 SQL 对应的 sources 和 targets")
+    if relations is not None and not all(isinstance(relations.get(key), dict) for key in ("sources", "targets")):
+        raise ValueError("接管配置需要同时指定 sources 和 targets，无关联时使用空对象")
     with closing(connect(job)) as connection, connection.cursor() as cursor:
         remote = remote_job(cursor, job.name)
     if not remote or int(remote["Id"]) != remote_id:
@@ -119,6 +124,8 @@ def adopt_job(tenant, job_id, remote_id):
     schedule = re.fullmatch(r"EVERY (\d+) MINUTE(?: STARTS [\d: -]+)?", remote["RecurringStrategy"] or "", re.I)
     if remote["ExecuteType"] != "RECURRING" or not schedule:
         raise ValueError("仅支持无截止时间的周期分钟 INSERT")
+    if relations is not None:
+        replace_relations(job, relations["sources"], relations["targets"])
     job.interval_minutes = int(schedule[1])
     job.insert_sql = remote["ExecuteSql"]
     job.template_key = job.pending_action = job.status_reason = ""

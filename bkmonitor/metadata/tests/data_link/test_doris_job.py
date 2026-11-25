@@ -276,3 +276,78 @@ def test_retry_after_operator_confirms_unsent_action(job, fe):
     job.refresh_from_db()
     assert (job.reconcile_status, job.remote_id) == ("ready", 88)
     assert sum(call.args[0].startswith("CREATE JOB") for call in fe.execute.call_args_list) == 1
+
+
+@pytest.fixture
+def existing_job(mocker):
+    connection = MagicMock()
+    mocker.patch("metadata.service.doris_job_config.connect", return_value=connection)
+    remote = {
+        "Id": 77,
+        "ExecuteType": "RECURRING",
+        "RecurringStrategy": "EVERY 10 MINUTE",
+        "ExecuteSql": "INSERT INTO new_dst SELECT * FROM new_src",
+    }
+    connection.cursor.return_value.__enter__.return_value.fetchone.return_value = remote
+    return remote
+
+
+def test_adopt_replaces_topology_used_by_list_and_resume(job, existing_job, fe, tmp_path):
+    import json
+    from django.core.management import call_command
+
+    source = ResultTableConfig.objects.create(name="new_src", status="Ok", bk_tenant_id="system", bk_biz_id=2)
+    config = tmp_path / "relations.json"
+    config.write_text(
+        json.dumps(
+            {
+                "sources": {"input": {"kind": "ResultTable", "id": source.pk}},
+                "targets": {"output": {"database": "agg", "table": "new_dst"}},
+            }
+        )
+    )
+    args = ["doris_job", "--tenant", "system"]
+    call_command(*args, "adopt", "--id", str(job.pk), "--remote-id", "77", "--config", str(config))
+    job.refresh_from_db()
+    assert (job.remote_id, job.insert_sql, job.interval_minutes) == (77, existing_job["ExecuteSql"], 10)
+    old_source = ResultTableConfig.objects.get(name="src")
+    assert json.loads(call_command(*args, "list", "--result-table", str(old_source.pk))) == []
+    matches = json.loads(call_command(*args, "list", "--direction", "source", "--result-table", str(source.pk)))
+    assert [row["id"] for row in matches] == [job.pk]
+    request_action("system", job.pk, "resume")
+    fe.fetchone.side_effect = [{"Id": 77, "Status": "PAUSED"}, {"1": 1}]
+    reconcile_job(job.pk)
+    fe.execute.assert_any_call(
+        "SELECT 1 FROM information_schema.tables WHERE table_schema=%s AND table_name=%s", ("agg", "new_dst")
+    )
+    fe.execute.assert_called_with("RESUME JOB WHERE jobName=%s", (job.name,))
+
+
+def test_adopt_requires_confirmation_and_preserves_draft_on_invalid_relation(job, existing_job):
+    from metadata.service.doris_job_config import adopt_job
+
+    with pytest.raises(ValueError, match="草稿已有上下游"):
+        adopt_job("system", job.pk, 77)
+    with pytest.raises(ResultTableConfig.DoesNotExist):
+        adopt_job(
+            "system",
+            job.pk,
+            77,
+            relations={
+                "sources": {},
+                "targets": {"dst": {"kind": "ResultTable", "id": 99999}},
+            },
+        )
+    job.refresh_from_db()
+    assert (job.remote_id, job.reconcile_status, job.table_relations.count()) == (None, "draft", 2)
+    adopt_job("system", job.pk, 77, relations={"sources": {}, "targets": {}})
+    assert not job.table_relations.exists()
+
+
+def test_adopt_without_relations_remains_supported(job, existing_job):
+    from metadata.service.doris_job_config import adopt_job
+
+    job.table_relations.all().delete()
+    adopt_job("system", job.pk, 77)
+    job.refresh_from_db()
+    assert (job.remote_id, job.reconcile_status) == (77, "ready")
