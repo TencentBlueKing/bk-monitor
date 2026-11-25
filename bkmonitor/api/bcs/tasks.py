@@ -141,7 +141,9 @@ def delete_missing_resources(resource, sync_filter, seen_ids):
 @share_lock(identify="sync_bcs_cluster_to_db")
 def sync_bcs_cluster_to_db() -> list[BCSCluster]:
     """先提交各租户基础名录，再独立统计节点；失败租户不参与清理。"""
-    cluster_models, failures, tenant_inventories = [], [], []
+    cluster_models, failures = [], []
+    observed_clusters = set()
+    synced_cluster_ids_by_tenant = {}
     sync_fields = [
         "bk_tenant_id",
         "bk_biz_id",
@@ -161,6 +163,8 @@ def sync_bcs_cluster_to_db() -> list[BCSCluster]:
         tenant_id = tenant["id"]
         try:
             inventory = BCSCluster.load_list_from_api({"bk_tenant_id": tenant_id})
+            # 名录证明集群仍可见，即使后续校验、归属判断或写库失败，也不能丢失这份证据。
+            observed_clusters.update((model.bcs_cluster_id, model.unique_hash) for model in inventory)
             # 在写入前验证整份名录，跨批重复和既有歧义均不能触发尾删。
             cluster_ids = [model.bcs_cluster_id for model in inventory]
             if len(cluster_ids) != len(set(cluster_ids)):
@@ -169,19 +173,18 @@ def sync_bcs_cluster_to_db() -> list[BCSCluster]:
             models = [model for model in inventory if is_biz_in_tenant(model.bk_biz_id, tenant_id)]
             tenant_filter = {"bk_tenant_id": tenant_id}
             bulk_save_resources(BCSCluster, models, "unique_hash", sync_fields, tenant_filter, delete_missing=False)
-            tenant_inventories.append((tenant_id, {model.unique_hash: model.bcs_cluster_id for model in inventory}))
+            synced_cluster_ids_by_tenant[tenant_id] = {model.bcs_cluster_id for model in models}
             cluster_models.extend(models)
         except Exception as exc_info:
             failures.append(exc_info)
             logger.exception("sync_bcs_cluster_to_db tenant(%s) failed", tenant_id)
 
     # 全部基础名录提交后再清理；删除失败时保留 Cluster，供下轮重试。
-    synced_owners = {model.unique_hash: model.bk_tenant_id for model in cluster_models}
-    for tenant_id, inventory_ids in tenant_inventories:
-        # 归属未知或所属租户本轮未成功写入时，保留名录中的旧记录，供下轮纠正。
-        cluster_ids = {
-            cluster_id for key, cluster_id in inventory_ids.items() if synced_owners.get(key, tenant_id) == tenant_id
-        }
+    # 同一集群的不同业务观察不能相互抵销。未确认的观察按物理集群 ID 保护旧行及共用资源。
+    unconfirmed = observed_clusters.difference((model.bcs_cluster_id, model.unique_hash) for model in cluster_models)
+    unconfirmed_cluster_ids = {cluster_id for cluster_id, _ in unconfirmed}
+    for tenant_id, synced_cluster_ids in synced_cluster_ids_by_tenant.items():
+        cluster_ids = synced_cluster_ids | unconfirmed_cluster_ids
         try:
             with transaction.atomic(using=database):
                 stale_clusters = manager.filter(bk_tenant_id=tenant_id).exclude(bcs_cluster_id__in=cluster_ids)
