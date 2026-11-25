@@ -57,22 +57,15 @@ class _BkDataAccessApi:
     def use_apigw(self):
         return settings.USE_APIGW
 
-    def _build_url(self, new_path, old_path):
-        return (
-            f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v3/access/{new_path}"
-            if self.use_apigw
-            else f"{ACCESS_APIGATEWAY_ROOT}{old_path}"
-        )
+    def _build_url(self, new_path, old_path=None):
+        if old_path is not None and not self.use_apigw:
+            return f"{ACCESS_APIGATEWAY_ROOT}{old_path}"
+        return f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/{new_path}"
 
     def __init__(self):
-        bk_data_gateway = getattr(settings, "BKDATA_APIGW", "") or (
-            settings.BK_API_URL_TMPL.format(api_name="bk-data").rstrip("/") + "/prod"
-        )
-        # 用户态网关使用 HTTPS，部署中已有的应用态根地址可能配置为 HTTP。
-        bk_data_gateway = bk_data_gateway.replace("http://", "https://", 1).rstrip("/")
         self.list_namespaces = _NamespaceListAPI(
             method="GET",
-            url=f"{bk_data_gateway}/v4/tenants/{{tenant}}/namespaces",
+            url=self._build_url("v4/tenants/{tenant}/namespaces"),
             no_query_params=True,
             use_implicit_user_auth=False,
             url_keys=["tenant"],
@@ -87,7 +80,7 @@ class _BkDataAccessApi:
         )
         self.get_datalink_resource = DataAPI(
             method="GET",
-            url=f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v4/{resource_path}",
+            url=self._build_url(f"v4/{resource_path}"),
             module=self.MODULE,
             description="查询数据链路资源",
             before_request=add_esb_info_before_request_for_bkdata_user,
@@ -97,7 +90,7 @@ class _BkDataAccessApi:
         )
         self.list_raw_data = DataAPI(
             method="GET",
-            url=self._build_url("rawdata/", "rawdata/"),
+            url=self._build_url("v3/access/rawdata/", "rawdata/"),
             module=self.MODULE,
             description="源数据列表",
             before_request=add_esb_info_before_request_for_bkdata_user,
@@ -105,7 +98,7 @@ class _BkDataAccessApi:
         )
         self.get_deploy_summary = DataAPI(
             method="GET",
-            url=self._build_url("deploy_plan/{raw_data_id}/", "deploy_plan/{raw_data_id}/"),
+            url=self._build_url("v3/access/deploy_plan/{raw_data_id}/", "deploy_plan/{raw_data_id}/"),
             module=self.MODULE,
             description="查询部署计划",
             before_request=add_esb_info_before_request_for_bkdata_user,
@@ -116,7 +109,7 @@ class _BkDataAccessApi:
         )
         self.stop_collectorhub = DataAPI(
             method="POST",
-            url=self._build_url("collectorhub/{raw_data_id}/stop/", "collectorhub/{raw_data_id}/stop/"),
+            url=self._build_url("v3/access/collectorhub/{raw_data_id}/stop/", "collectorhub/{raw_data_id}/stop/"),
             module=self.MODULE,
             description="停止单个采集器",
             before_request=add_esb_info_before_request_for_bkdata_user,
@@ -125,7 +118,7 @@ class _BkDataAccessApi:
         )
         self.deploy_plan_post = DataAPI(
             method="POST",
-            url=self._build_url("deploy_plan/", "deploy_plan/"),
+            url=self._build_url("v3/access/deploy_plan/", "deploy_plan/"),
             module=self.MODULE,
             description="创建部署计划",
             before_request=add_esb_info_before_request_for_bkdata_user,
@@ -134,7 +127,7 @@ class _BkDataAccessApi:
         )
         self.deploy_plan_put = DataAPI(
             method="PUT",
-            url=self._build_url("deploy_plan/{raw_data_id}/", "deploy_plan/{raw_data_id}/"),
+            url=self._build_url("v3/access/deploy_plan/{raw_data_id}/", "deploy_plan/{raw_data_id}/"),
             module=self.MODULE,
             description="更新部署计划",
             before_request=add_esb_info_before_request_for_bkdata_user,

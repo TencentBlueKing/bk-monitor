@@ -153,14 +153,27 @@ class CollectorNamespaceTests(SimpleTestCase):
 
 
 class NamespaceListGatewayTests(SimpleTestCase):
-    @override_settings(BKDATA_APIGW="http://data.example.test/stage/")
-    def test_uses_deployment_gateway_and_stage_over_https(self):
-        api = bkdata_access._BkDataAccessApi().list_namespaces
-        self.assertEqual(
-            api.build_actual_url({"tenant": "example"}), "https://data.example.test/stage/v4/tenants/example/namespaces"
-        )
+    @override_settings(PAAS_API_HOST="https://gateway.example.test", ENVIRONMENT="prod", ENABLE_MULTI_TENANT_MODE=True)
+    def test_gateway_and_legacy_routes(self):
+        gateway = "https://gateway.example.test/api/bk-base/prod"
+        legacy = "https://legacy.example.test/v3/access/"
+        with mock.patch.object(bkdata_access, "ACCESS_APIGATEWAY_ROOT", legacy):
+            for use_apigw in (True, False):
+                with self.subTest(use_apigw=use_apigw), self.settings(USE_APIGW=use_apigw):
+                    api = bkdata_access._BkDataAccessApi()
+                    self.assertEqual(
+                        api.list_raw_data.url, f"{gateway}/v3/access/rawdata/" if use_apigw else f"{legacy}rawdata/"
+                    )
+                    self.assertEqual(
+                        api.list_namespaces.build_actual_url({"tenant": "default"}),
+                        f"{gateway}/v4/tenants/default/namespaces",
+                    )
+                    self.assertEqual(
+                        api.get_datalink_resource.url,
+                        f"{gateway}/v4/tenants/{{tenant}}/namespaces/{{namespace}}/{{kind}}/{{name}}/",
+                    )
 
-    @override_settings(BKDATA_APIGW="", BK_API_URL_TMPL="https://{api_name}.example.test/", OAUTH_COOKIES_PARAMS={})
+    @override_settings(PAAS_API_HOST="http://gateway.example.test", ENVIRONMENT="stage", OAUTH_COOKIES_PARAMS={})
     def test_login_ticket_only_sent_in_header(self):
         api = bkdata_access._BkDataAccessApi().list_namespaces
         with (
@@ -175,7 +188,7 @@ class NamespaceListGatewayTests(SimpleTestCase):
         self.assertEqual(json.loads(session.headers["X-Bkapi-Authorization"]), {"bk_ticket": "sample"})
         session.request.assert_called_once_with(
             method="GET",
-            url="https://bk-data.example.test/prod/v4/tenants/example/namespaces",
+            url="http://gateway.example.test/api/bk-base/stage/v4/tenants/example/namespaces",
             params={},
             verify=True,
             timeout=5,
