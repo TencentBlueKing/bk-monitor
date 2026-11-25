@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 import json
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 
 """
 Access 部署 + 采集模块
@@ -41,6 +42,8 @@ class _NamespaceListAPI(DataAPI):
     VERIFY_TLS = True
 
     def _send(self, params, timeout, request_id, request_cookies, bk_tenant_id):
+        if not self.url.startswith("https://"):
+            raise ImproperlyConfigured(_("查询命名空间需要通过 HTTPS 发送用户凭据，请检查 PAAS_API_HOST 配置。"))
         request = get_request()
         auth = build_auth_args(request)
         if ticket := request.COOKIES.get("bk_ticket"):
@@ -65,14 +68,10 @@ class _BkDataAccessApi:
         )
 
     def __init__(self):
-        bk_data_gateway = getattr(settings, "BKDATA_APIGW", "") or (
-            settings.BK_API_URL_TMPL.format(api_name="bk-data").rstrip("/") + "/prod"
-        )
-        # 用户态网关使用 HTTPS，部署中已有的应用态根地址可能配置为 HTTP。
-        bk_data_gateway = bk_data_gateway.replace("http://", "https://", 1).rstrip("/")
+        v4_gateway = f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v4"
         self.list_namespaces = _NamespaceListAPI(
             method="GET",
-            url=f"{bk_data_gateway}/v4/tenants/{{tenant}}/namespaces",
+            url=f"{v4_gateway}/tenants/{{tenant}}/namespaces",
             no_query_params=True,
             use_implicit_user_auth=False,
             url_keys=["tenant"],
@@ -87,7 +86,7 @@ class _BkDataAccessApi:
         )
         self.get_datalink_resource = DataAPI(
             method="GET",
-            url=f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v4/{resource_path}",
+            url=f"{v4_gateway}/{resource_path}",
             module=self.MODULE,
             description="查询数据链路资源",
             before_request=add_esb_info_before_request_for_bkdata_user,

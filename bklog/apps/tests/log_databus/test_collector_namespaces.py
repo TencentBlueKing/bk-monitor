@@ -4,6 +4,7 @@ import json
 from types import SimpleNamespace
 from unittest import mock
 
+from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase, override_settings
 from django.urls import resolve
 from rest_framework.test import APIRequestFactory
@@ -153,14 +154,15 @@ class CollectorNamespaceTests(SimpleTestCase):
 
 
 class NamespaceListGatewayTests(SimpleTestCase):
-    @override_settings(BKDATA_APIGW="http://data.example.test/stage/")
-    def test_uses_deployment_gateway_and_stage_over_https(self):
+    @override_settings(PAAS_API_HOST="http://gateway.example.test")
+    def test_refuses_to_send_credentials_over_http(self):
         api = bkdata_access._BkDataAccessApi().list_namespaces
-        self.assertEqual(
-            api.build_actual_url({"tenant": "example"}), "https://data.example.test/stage/v4/tenants/example/namespaces"
-        )
+        with mock.patch("apps.api.base.requests.session") as session_factory:
+            with self.assertRaisesMessage(ImproperlyConfigured, "HTTPS"):
+                api._send({"tenant": "example"}, 5, "req", True, "example")
+        session_factory.assert_not_called()
 
-    @override_settings(BKDATA_APIGW="", BK_API_URL_TMPL="https://{api_name}.example.test/", OAUTH_COOKIES_PARAMS={})
+    @override_settings(PAAS_API_HOST="https://gateway.example.test", ENVIRONMENT="stage", OAUTH_COOKIES_PARAMS={})
     def test_login_ticket_only_sent_in_header(self):
         api = bkdata_access._BkDataAccessApi().list_namespaces
         with (
@@ -175,7 +177,7 @@ class NamespaceListGatewayTests(SimpleTestCase):
         self.assertEqual(json.loads(session.headers["X-Bkapi-Authorization"]), {"bk_ticket": "sample"})
         session.request.assert_called_once_with(
             method="GET",
-            url="https://bk-data.example.test/prod/v4/tenants/example/namespaces",
+            url="https://gateway.example.test/api/bk-base/stage/v4/tenants/example/namespaces",
             params={},
             verify=True,
             timeout=5,
