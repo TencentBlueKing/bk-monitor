@@ -436,6 +436,7 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
           flex: 0 1 auto;
           width: 400px;
           min-width: 0;
+          border-radius: 0 var(--bklog-standard-control-radius) var(--bklog-standard-control-radius) 0;
         }
 
         :deep(.bklog-v3-tag-highlight .bklog-tag-choice-input) {
@@ -463,8 +464,7 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
           border-right: none;
           border-bottom: 1px solid var(--td-border-level-2-color);
           border-left: 1px solid var(--td-border-level-2-color);
-          border-top-left-radius: 2px;
-          border-bottom-left-radius: 2px;
+          border-radius: var(--bklog-standard-control-radius) 0 0 var(--bklog-standard-control-radius);
         }
       }
 
