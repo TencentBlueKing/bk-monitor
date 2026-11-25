@@ -128,8 +128,6 @@ export interface IRumRawField {
   field_name: string;
   field_type: DimensionType;
   field_unit?: string;
-  /** 后端为字段提供的表头悬浮信息。 */
-  hover?: IRumHoverInfo;
   is_agg: boolean;
   is_list: boolean;
   is_real: boolean;
@@ -139,9 +137,10 @@ export interface IRumRawField {
   supported_operations?: IRumFieldOperation[];
 }
 
-/** 字段扩展配置，目前仅下发 composite */
+/** 字段扩展配置：复合列布局与表头悬浮说明 */
 export interface IRumRawFieldExtraConfig {
   composite?: IRumCompositeConfig;
+  hover?: IRumHoverInfo;
 }
 
 /** view_config 接口返回的原始分组结构 */

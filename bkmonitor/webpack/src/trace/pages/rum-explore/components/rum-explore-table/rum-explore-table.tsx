@@ -23,17 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import {
-  type PropType,
-  computed,
-  defineComponent,
-  nextTick,
-  onBeforeUnmount,
-  shallowRef,
-  Teleport,
-  useTemplateRef,
-  watch,
-} from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onBeforeUnmount, useTemplateRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
@@ -213,32 +203,16 @@ export default defineComponent({
       return new Map(props.displayableFields.map(field => [field.name, field]));
     });
 
-    const {
-      activeFieldName,
-      selectField,
-      showPopover,
-      statisticsListRef,
-      destroyPopover,
-      openPopover,
-      selectPopoverField,
-      updatePopoverPosition,
-    } = useFieldStatisticsPopover();
+    const { selectField, showPopover, statisticsListRef, destroyPopover, openPopover, updatePopoverPosition } =
+      useFieldStatisticsPopover();
 
-    /** 当前表头分析入口可切换的成员字段。 */
-    const analysisFields = shallowRef<IRumField[]>([]);
-    /** 复合列分析选项挂载到共享统计浮层的内容容器。 */
-    const analysisPopoverTarget = computed(() => statisticsListRef.value?.$refs?.dimensionPopover as HTMLElement);
     /** 转成共享统计面板所需的字段形状。 */
     const toStatisticsField = (field: IRumField) =>
       ({ ...field, levelAlias: field.alias, levelName: field.name }) as unknown as IStatisticsFieldItem;
-    /** 更新分析候选并打开浮层，默认选中列布局决定的字段。 */
+    /** 打开分析浮层：初始分析字段置顶，其余候选由 StatisticsList 以字段 Tab 展示。 */
     const openFieldAnalysis = (trigger: Element, selection: FieldAnalysisSelection) => {
-      analysisFields.value = selection.candidates;
-      openPopover(trigger, toStatisticsField(selection.field));
-    };
-    /** 切换统计数据对应的字段，重复点击当前字段时复用已有结果。 */
-    const selectAnalysisField = (field: IRumField) => {
-      if (activeFieldName.value !== field.name) selectPopoverField(toStatisticsField(field));
+      const fields = [selection.field, ...selection.candidates.filter(field => field.name !== selection.field.name)];
+      openPopover(trigger, fields.map(toStatisticsField));
     };
     const {
       rowKey: tableRowKey,
@@ -381,15 +355,11 @@ export default defineComponent({
     return {
       t,
       activeConditionMenuTarget,
-      activeFieldName,
       activeRowKeys,
-      analysisFields,
-      analysisPopoverTarget,
       closeMenu,
       columns,
       displayFieldKeys,
       memberAnalysisMenu,
-      selectAnalysisField,
       selectField,
       showPopover,
       resolvedFieldMap: fieldMap,
@@ -531,27 +501,6 @@ export default defineComponent({
           onContentRendered={this.updatePopoverPosition}
           onShowMore={this.destroyPopover}
         />
-        {this.activeFieldName && this.analysisPopoverTarget && this.analysisFields.length > 1 && (
-          <Teleport to={this.analysisPopoverTarget}>
-            {/* biome-ignore lint/a11y/useSemanticElements: 字段分析为按钮切换组，不含表单语义 */}
-            <div
-              class='rum-analysis-fields'
-              aria-label={this.t('字段分析')}
-              role='group'
-            >
-              {this.analysisFields.map(field => (
-                <button
-                  key={field.name}
-                  aria-pressed={field.name === this.activeFieldName}
-                  type='button'
-                  onClick={() => this.selectAnalysisField(field)}
-                >
-                  {field.alias}
-                </button>
-              ))}
-            </div>
-          </Teleport>
-        )}
 
         <div style='display: none'>
           <ExploreConditionMenu

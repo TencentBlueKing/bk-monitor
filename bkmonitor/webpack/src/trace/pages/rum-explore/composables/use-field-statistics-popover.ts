@@ -31,6 +31,9 @@ import type StatisticsList from '../../trace-explore/components/statistics-list/
 import type { IDimensionFieldTreeItem } from '../../trace-explore/typing';
 import type { IRumField } from '../typings';
 
+/** 统计弹层字段入参：数组时由 StatisticsList 展示字段 Tab，首项为初始激活字段 */
+export type IStatisticsFieldInput = IStatisticsFieldItem | IStatisticsFieldItem[];
+
 /** 统计分析弹层展示的字段，RUM 检索的字段会额外携带 field_unit */
 export type IStatisticsFieldItem = {
   /** 是否耗时字段，由调用方按检索语义判定 */
@@ -49,7 +52,7 @@ export type IStatisticsFieldItem = {
 export const useFieldStatisticsPopover = (placement: Props['placement'] = 'right') => {
   const showPopover = shallowRef(false);
   const activeFieldName = shallowRef('');
-  const selectField = shallowRef<IStatisticsFieldItem>(null);
+  const selectField = shallowRef<IStatisticsFieldInput>(null);
   const popoverInstance = shallowRef<Instance | null>(null);
   const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
 
@@ -64,9 +67,22 @@ export const useFieldStatisticsPopover = (placement: Props['placement'] = 'right
     }
   };
 
-  /** 更新分析字段，需要时通过显隐周期重启统计请求。 */
-  const selectPopoverField = (field: IStatisticsFieldItem) => {
-    if (!field.is_dimensions) return;
+  /** 归一化字段：聚合结果可能混合 CLS 与耗时指标，不能把 vital 作为固定时间单位。 */
+  const normalizeField = (field: IStatisticsFieldItem): IStatisticsFieldItem => {
+    const normalizedField =
+      field.field_unit === 'vital' ? { ...field, field_unit: '', field_display_type: undefined } : field;
+    return {
+      ...normalizedField,
+      isDuration: normalizedField.field_display_type === 'duration' || normalizedField.field_unit === 'bytes',
+      isInteger: ['double', 'long', 'integer', 'float'].includes(normalizedField.type),
+    };
+  };
+
+  /** 更新分析字段，需要时通过显隐周期重启统计请求；数组时首项为初始激活字段。 */
+  const selectPopoverField = (field: IStatisticsFieldInput) => {
+    const fields = Array.isArray(field) ? field : [field];
+    const [initialField] = fields;
+    if (!initialField?.is_dimensions) return;
     const instance = popoverInstance.value;
     if (showPopover.value && instance) {
       // 统计组件通过显隐周期取消旧字段请求并加载新字段。
@@ -75,21 +91,16 @@ export const useFieldStatisticsPopover = (placement: Props['placement'] = 'right
         if (popoverInstance.value === instance) showPopover.value = true;
       });
     }
-    activeFieldName.value = field.name;
-    // 聚合结果可能混合 CLS 与耗时指标，不能把 vital 作为固定时间单位。
-    const normalizedField =
-      field.field_unit === 'vital' ? { ...field, field_unit: '', field_display_type: undefined } : field;
-    selectField.value = {
-      ...normalizedField,
-      isDuration: normalizedField.field_display_type === 'duration' || normalizedField.field_unit === 'bytes',
-      isInteger: ['double', 'long', 'integer', 'float'].includes(normalizedField.type),
-    };
+    activeFieldName.value = initialField.name;
+    const normalizedFields = fields.map(normalizeField);
+    selectField.value = Array.isArray(field) ? normalizedFields : normalizedFields[0];
   };
 
   /** 创建分析浮层，以点击位置为锚点并加载初始字段。 */
-  const openPopover = (trigger: Element, field: IStatisticsFieldItem) => {
+  const openPopover = (trigger: Element, field: IStatisticsFieldInput) => {
     destroyPopover();
-    if (!field.is_dimensions) return;
+    const [initialField] = Array.isArray(field) ? field : [field];
+    if (!initialField?.is_dimensions) return;
     const contentEl = statisticsListRef.value?.$refs?.dimensionPopover as HTMLDivElement | undefined;
     if (!contentEl) return;
     selectPopoverField(field);
