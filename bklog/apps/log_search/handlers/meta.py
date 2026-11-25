@@ -154,6 +154,8 @@ class MetaHandler(APIModel):
             permission = Permission(username=username, bk_tenant_id=bk_tenant_id)
             allowed_spaces = permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, bk_tenant_id)
             allowed_business_mapping = {space["bk_biz_id"] for space in allowed_spaces}
+        if has_permission and not allowed_business_mapping:
+            return []
         business_list = cls.get_projects()
 
         for project in business_list:

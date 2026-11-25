@@ -20,7 +20,7 @@ class MetaGetUserProjectsTest(SimpleTestCase):
             SimpleNamespace(project_id=12, project_name="业务乙", bk_biz_id=3, time_zone="UTC"),
         ]
         projects = patch("apps.log_search.handlers.meta.ProjectInfo.objects.all", return_value=self.projects)
-        projects.start()
+        self.project_query = projects.start()
         self.addCleanup(projects.stop)
         tenant = patch("apps.log_search.handlers.meta.get_request_tenant_id", return_value="tenant-1")
         tenant.start()
@@ -76,11 +76,35 @@ class MetaGetUserProjectsTest(SimpleTestCase):
         self.assertEqual(MetaHandler.get_user_projects("", has_permission=True), [])
 
         self.permission_cls.assert_not_called()
+        self.project_query.assert_not_called()
 
     def test_no_permissions_produces_an_empty_filtered_list(self):
         self.permission_cls.return_value.filter_space_list_by_action.return_value = []
 
         self.assertEqual(MetaHandler.get_user_projects("alice", has_permission=True), [])
+
+        self.project_query.assert_not_called()
+
+    def test_null_business_id_has_false_permissions_in_full_catalog(self):
+        self.projects.append(
+            SimpleNamespace(project_id=13, project_name="未关联业务", bk_biz_id=None, time_zone="Asia/Shanghai")
+        )
+
+        results = MetaHandler.get_user_projects("alice")
+
+        project = next(item for item in results if item["project_id"] == 13)
+        self.assertIsNone(project["bk_biz_id"])
+        self.assertFalse(project["project_manage"])
+        self.assertFalse(project["permission"][ActionEnum.VIEW_BUSINESS.id])
+
+    def test_null_business_id_is_excluded_by_permission_filter(self):
+        self.projects.append(
+            SimpleNamespace(project_id=13, project_name="未关联业务", bk_biz_id=None, time_zone="Asia/Shanghai")
+        )
+
+        results = MetaHandler.get_user_projects("alice", has_permission=True)
+
+        self.assertEqual([project["bk_biz_id"] for project in results], [2])
 
     def test_username_and_tenant_select_the_shared_space_permission_scope(self):
         for username, allowed_biz_id in [("alice", 2), ("bob", 3)]:
@@ -106,8 +130,12 @@ class MetaGetUserProjectsTest(SimpleTestCase):
         with self.assertRaises(IAMDependencyError):
             MetaHandler.get_user_projects("alice")
 
-    @patch("apps.log_search.views.bizs_views.get_request_username", return_value="alice")
-    def test_bizs_caller_keeps_its_legacy_catalog_and_fields(self, _username):
+    @patch("apps.utils.local.get_request", return_value=SimpleNamespace(user=SimpleNamespace(username="alice")))
+    def test_bizs_list_keeps_legacy_catalog_without_depending_on_iam(self, _request):
+        self.permission_cls.return_value.filter_space_list_by_action.side_effect = IAMDependencyError(
+            "timeout", provider="v4"
+        )
+
         response = BizsViewSet().list(Request(APIRequestFactory().get("/api/v1/bizs/")))
 
         self.assertEqual(
@@ -117,6 +145,7 @@ class MetaGetUserProjectsTest(SimpleTestCase):
                 {"bk_biz_id": 3, "bk_biz_name": "[3] 业务乙"},
             ],
         )
+        self.permission_cls.assert_not_called()
 
     @patch("apps.log_search.views.meta_views.get_request_username", return_value="")
     def test_projects_view_without_user_keeps_false_permission_markers(self, _username):
