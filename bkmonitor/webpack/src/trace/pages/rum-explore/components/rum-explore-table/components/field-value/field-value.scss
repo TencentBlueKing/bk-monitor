@@ -1,3 +1,4 @@
+/* stylelint-disable selector-class-pattern */
 .rum-explore-table {
   .rum-field-value {
     display: inline-flex;
@@ -22,6 +23,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* 徽标是短标签，不参与省略方式，避免出现省略号或裁切 */
+  .rum-field-text--no-ellipsis {
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .rum-link-text {

@@ -1,0 +1,69 @@
+.rum-ellipsis-mode {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  .mode-label {
+    flex-shrink: 0;
+    font-size: 12px;
+    line-height: 32px;
+    color: #49576b;
+  }
+
+  .mode-group {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 4px;
+    background: #f0f1f5;
+    border-radius: 4px;
+  }
+
+  .split-line {
+    width: 1px;
+    height: 10px;
+    background: #dde3f0;
+  }
+
+  .mode-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    font-family: ui-monospace;
+    font-size: 12px;
+    font-weight: 900;
+    color: #49576b;
+    cursor: pointer;
+    border-radius: 4px;
+
+    .mode-text {
+      letter-spacing: 0.1px;
+      white-space: nowrap;
+      scale: 0.7;
+    }
+
+    &:not(.active):hover {
+      color: #3a84ff;
+    }
+
+    &.active {
+      color: #3a84ff;
+      background: #fff;
+      box-shadow: 0 2px 4px 0 rgb(25 25 41 / 6%);
+    }
+  }
+
+  /* 省略号按设计稿缩小并收紧间距，视觉上贴住字符底部 */
+  .mode-dots {
+    position: relative;
+    top: 3px;
+    display: inline-block;
+    margin: 0 1px;
+    font-family: system-ui;
+    font-size: 12px;
+    font-weight: 900;
+  }
+}

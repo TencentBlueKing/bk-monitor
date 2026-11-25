@@ -36,7 +36,7 @@ import { mergeWhereList } from '../../../components/retrieval-filter/utils';
 import { intTimestampStr } from '../../../components/time-range/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
 import { tryURLDecode, tryURLDecodeParse } from '../../trace-explore/utils';
-import { RumModeEnum } from '../constants';
+import { type RumEllipsisModeType, RUM_ELLIPSIS_MODE_LIST, RumEllipsisModeEnum, RumModeEnum } from '../constants';
 import { generateQueryString } from '../services/rum-search';
 
 import type { IWhereItem } from '../../../components/retrieval-filter/typing';
@@ -76,6 +76,8 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   const queryString = shallowRef('');
   /** 是否展示常驻筛选入口，默认展开，用户收起后写入 URL 以便复现 */
   const showResidentBtn = shallowRef(true);
+  /** 单元格文本省略方式，只影响展示，默认 ...yz */
+  const ellipsisMode = shallowRef<RumEllipsisModeType>(RumEllipsisModeEnum.START);
   /** 从 URL 带入的收藏 id */
   const urlFavoriteId = shallowRef<null | number>(null);
 
@@ -129,6 +131,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
       commonWhere: encodeURIComponent(JSON.stringify(commonWhere.value)),
       queryString: encodeURIComponent(queryString.value),
       showResidentBtn: `${showResidentBtn.value}`,
+      ellipsisMode: ellipsisMode.value,
       // 记录用户意图而非当前生效值，避免把回落的 default_sort 固化成显式排序
       sortBy: encodeURIComponent(JSON.stringify(store.userSort)),
       ...pickDetailQuery(),
@@ -186,6 +189,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     } else {
       showResidentBtn.value = tryURLDecodeParse<boolean>(query.showResidentBtn, false);
     }
+    ellipsisMode.value = parseEllipsisMode(query.ellipsisMode);
     urlFavoriteId.value = query.favorite_id ? Number(query.favorite_id) : null;
   }
 
@@ -329,6 +333,12 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     setUrlParams();
   }
 
+  /** 省略方式只影响展示，不触发查询，同步到 URL 保持复现一致 */
+  function ellipsisModeChange(val: RumEllipsisModeType) {
+    ellipsisMode.value = val;
+    setUrlParams();
+  }
+
   /** 语句模式下检索内容变更：与 whereChange 对齐，实时触发查询 */
   function queryStringChange(val: string) {
     queryString.value = val;
@@ -338,6 +348,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   return {
     commonParams,
     commonWhere,
+    ellipsisMode,
     filterMode,
     queryString,
     showResidentBtn,
@@ -351,6 +362,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     initFromUrl,
     setUrlParams,
     copyWhere,
+    ellipsisModeChange,
     modeChange,
     generateQueryStringFn,
     whereChange,
@@ -380,4 +392,11 @@ function cloneResidentWhereItem(item: IWhereItem): IWhereItem {
     value: Array.isArray(item.value) ? [...item.value] : [],
     ...(item.options ? { options: { ...item.options } } : {}),
   };
+}
+
+/** URL 上的省略方式只接受已知枚举，非法值回退默认 ...yz */
+function parseEllipsisMode(value: string | undefined): RumEllipsisModeType {
+  return RUM_ELLIPSIS_MODE_LIST.some(item => item.value === value)
+    ? (value as RumEllipsisModeType)
+    : RumEllipsisModeEnum.START;
 }

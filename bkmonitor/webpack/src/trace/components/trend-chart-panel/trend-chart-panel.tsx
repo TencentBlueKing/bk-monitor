@@ -178,6 +178,7 @@ export default defineComponent({
                   label={this.t('汇聚周期')}
                   onChange={this.handleIntervalChange}
                 />
+                {this.$slots.headerExtra?.()}
               </div>
             ),
             default: () => (

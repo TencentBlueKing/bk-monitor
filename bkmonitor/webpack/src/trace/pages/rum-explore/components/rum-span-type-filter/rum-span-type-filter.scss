@@ -1,3 +1,4 @@
+/* stylelint-disable no-descending-specificity */
 .rum-span-type-filter {
   display: flex;
   gap: 8px;
@@ -21,6 +22,11 @@
     gap: 8px;
     align-items: center;
     min-width: 0;
+  }
+
+  /* 右侧插槽：chips 占满剩余空间后自然靠右 */
+  .filter-extra {
+    flex-shrink: 0;
   }
 
   .type-chip {

@@ -68,6 +68,9 @@ export function isEllipsisActiveMultiLine(element) {
   };
 }
 
+/** 省略文本组件的契约：根节点带 data-ellipsis-text，文本被截断时额外带 data-full-text */
+const ELLIPSIS_TEXT_SELECTOR = '[data-ellipsis-text]';
+
 /**
  * 检测单行文本是否显示省略号
  * @param {HTMLElement} element 要检测的容器元素
@@ -77,6 +80,17 @@ export function isEllipsisActiveSingleLine(element: HTMLElement): {
   content: string;
   isEllipsisActive: boolean;
 } {
+  // 省略由文本组件承担时外层不再溢出，改按组件状态判断（组件根节点可能就是要判断的元素）
+  const ellipsisText = pickEllipsisText(element);
+  if (ellipsisText) {
+    const range = document.createRange();
+    range.selectNodeContents(ellipsisText);
+    // 中间省略会截断 DOM 文本，完整内容由组件保留在 data-full-text
+    return {
+      content: ellipsisText.dataset.fullText ?? range.toString(),
+      isEllipsisActive: isEllipsisTextTruncated(ellipsisText),
+    };
+  }
   // 验证是否应用了必要样式
   const style = window.getComputedStyle(element);
   if (style.textOverflow !== 'ellipsis' || !['nowrap', 'pre'].includes(style.whiteSpace)) {
@@ -98,4 +112,23 @@ export function isEllipsisActiveSingleLine(element: HTMLElement): {
     // isEllipsisActive: range.scrollWidth > containerWidth || rangeWidth + horizontalPadding > containerWidth,
     isEllipsisActive: rangeWidth > containerWidth - horizontalPadding,
   };
+}
+
+/** 中间省略会截断 DOM 文本、截断后不再溢出，靠 data-full-text 标记；其余模式按文本真实宽度判断 */
+function isEllipsisTextTruncated(element: HTMLElement): boolean {
+  if (element.dataset.fullText) return true;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return range.getBoundingClientRect().width > element.clientWidth;
+}
+
+/**
+ * 根节点自身就是判断目标；容器内可能有多段省略文本（如复合单元格的多个成员），
+ * 优先取真正被省略的那段，避免用其它成员的文本判断
+ */
+function pickEllipsisText(element: HTMLElement): HTMLElement | undefined {
+  const candidates = element.matches(ELLIPSIS_TEXT_SELECTOR)
+    ? [element]
+    : Array.from(element.querySelectorAll<HTMLElement>(ELLIPSIS_TEXT_SELECTOR));
+  return candidates.find(isEllipsisTextTruncated) ?? candidates[0];
 }
