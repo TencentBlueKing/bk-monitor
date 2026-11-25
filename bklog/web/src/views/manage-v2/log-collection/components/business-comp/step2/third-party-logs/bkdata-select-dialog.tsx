@@ -182,12 +182,12 @@ export default defineComponent({
               searchable
               on-selected={handleChoose}
             >
-              {(collectionList.value || []).map(item => (
+              {(collectionList.value || []).map(({ result_table_id: id, result_table_name_alias: alias }) => (
                 <bk-option
-                  id={item.result_table_id}
-                  key={item.result_table_id}
-                  disabled={isSetDisabled(item.result_table_id)}
-                  name={item.result_table_name_alias}
+                  id={id}
+                  key={id}
+                  disabled={isSetDisabled(id)}
+                  name={alias && alias !== id ? `${alias} (${id})` : id}
                 />
               ))}
             </bk-select>
