@@ -94,13 +94,13 @@ from core.drf_resource.exceptions import CustomException
 from core.errors.alert import AIOpsMultiAnomlayDetectError, AlertNotFoundError
 from core.unit import load_unit
 from fta_web import constants
-from fta_web.alert.promql import prepare_alert_labels, select_alert_series
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.alert_log import AlertLogHandler
 from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.event import EventQueryHandler
 from fta_web.alert.handlers.translator import PluginTranslator
+from fta_web.alert.promql import get_alert_graph_filter
 from fta_web.alert.serializers import (
     ActionIDField,
     ActionSearchSerializer,
@@ -669,6 +669,7 @@ class AlertDetailResource(Resource):
         result["extend_info"] = resource.alert.alert_related_info(alerts=[alert]).get(alert_id, {})
         self.clean_graph_panel_where(graph_panel)
         result["graph_panel"] = graph_panel
+        result["hide_graph"] = get_alert_graph_filter(alert) is None
 
         topo_info = result["extend_info"].get("topo_info", "")
         result["relation_info"] = self.build_relation_info(topo_info, relation_info)
@@ -1447,6 +1448,9 @@ class AlertGraphQueryResource(ApiAuthResource):
 
     def perform_request(self, params: dict):
         alert = AlertDocument.get(params["id"])
+        promql_filter = get_alert_graph_filter(alert)
+        if promql_filter is None:
+            return {"series": [], "metrics": [], "trace_series": []}
         if not params.get("query_configs"):
             graph_query_config = AIOPSManager.get_graph_panel(alert, compare_function={})
             params.update(graph_query_config["targets"][0]["data"])
@@ -1492,24 +1496,23 @@ class AlertGraphQueryResource(ApiAuthResource):
         for q_config in params["query_configs"]:
             q_config["bk_biz_id"] = params["bk_biz_id"]
 
-        promql_labels = None
-        configs = params["query_configs"]
-        if query_config.get("data_source_label") == DataSourceLabel.PROMETHEUS and all(
-            config["data_source_label"] == DataSourceLabel.PROMETHEUS for config in configs
-        ):
-            if len(configs) == len(item["query_configs"]) == 1:
-                # 详情页回传的面板可能经过前端变量替换，保留告警触发时的原式（如 label_replace 的 $1）。
-                configs[0]["promql"] = query_config["promql"]
-            event = alert.event.to_dict()
-            origin_data = event.get("extra_info", {}).get("origin_alarm", {}).get("data", {})
-            promql_labels = prepare_alert_labels(
-                configs, origin_data, event.get("tags", []), query_config.get("agg_dimension", [])
-            )
+        if promql_filter:
+            # 以告警策略快照为准，旧面板可能经过前端变量替换。
+            configs = params["query_configs"]
+            if len(configs) != 1 or configs[0]["data_source_label"] != DataSourceLabel.PROMETHEUS:
+                return {"series": [], "metrics": [], "trace_series": []}
+            configs[0]["promql"] = query_config["promql"]
+            filters = configs[0].setdefault("filter_dict", {})
+            # 保留已有的独立查询约束，同时要求命中本条告警的维度。
+            if any(
+                key in filters and filters[key] is not None and str(filters[key]) != value
+                for key, value in promql_filter.items()
+            ):
+                return {"series": [], "metrics": [], "trace_series": []}
+            filters.update(promql_filter)
 
         logger.info("alert graph query params %s", dict(params))
         result = resource.grafana.graph_unify_query(params)
-        if promql_labels is not None:
-            result["series"] = select_alert_series(result["series"], *promql_labels)
 
         # 返回信息加上数据查询的时间范围
         result["date_range"] = [start_time, int(end_time)]

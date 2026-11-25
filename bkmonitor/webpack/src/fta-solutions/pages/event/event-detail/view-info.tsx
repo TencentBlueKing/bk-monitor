@@ -619,7 +619,7 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   render() {
     return (
       <div class={['event-detail-viewinfo', { displaynone: !this.show }]}>
-        {this.getSeriesViewComponent()}
+        {!this.detail.hide_graph && this.getSeriesViewComponent()}
         {this.getShowSourceLogData ? this.getSourceLogComponent() : undefined}
       </div>
     );

@@ -9,8 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 import promql_parser as promql
-from django.utils.translation import gettext as _
-from rest_framework.exceptions import ValidationError
+
+from bkmonitor.documents import AlertDocument
+from bkmonitor.models import NO_DATA_TAG_DIMENSION
+from constants.data_source import DataSourceLabel
 
 WINDOW_FUNCTIONS = {
     "rate",
@@ -40,7 +42,7 @@ def can_push_down_alert_labels(expression: str, labels: dict) -> bool:
     try:
         node = promql.parse(expression)
     except ValueError:
-        # 统一查询还支持标准 PromQL 以外的语法，交给原查询执行。
+        # 统一查询支持扩展语法，本地无法判定时不展示告警图。
         return False
 
     while True:
@@ -85,50 +87,23 @@ def can_push_down_alert_labels(expression: str, labels: dict) -> bool:
             return False
 
 
-def prepare_alert_labels(configs: list[dict], data: dict, tags: list, fallback_fields: list) -> tuple[dict, bool]:
-    """区分检测维度与请求原有的查询条件，兼容详情页回传的旧面板。"""
+def get_alert_graph_filter(alert: AlertDocument) -> dict[str, str] | None:
+    """返回 PromQL 的前置过滤条件。None 表示隐藏图表，其他数据源沿用原查询。"""
+    items = (alert.strategy or {}).get("items", [])
+    configs = items[0]["query_configs"] if items else []
+    if not any(config["data_source_label"] == DataSourceLabel.PROMETHEUS for config in configs):
+        return {}
+    if len(configs) != 1:
+        return None
+
+    event = alert.event.to_dict()
+    data = event.get("extra_info", {}).get("origin_alarm", {}).get("data", {})
     fields = data.get("dimension_fields")
-    keys = set(fallback_fields if fields is None else fields)
-    keys = {key for key in keys if not key.startswith("bk_task_index_") and key != "__NO_DATA_DIMENSION__"}
-    dimensions = data.get("dimensions", {})
-    values = {tag["key"]: tag["value"] for tag in tags if tag["key"] in keys}
-    values.update({key: dimensions[key] for key in keys & dimensions.keys() if dimensions[key] is not None})
-    labels = {key: str(value) for key, value in values.items() if value is not None}
-    complete = fields is not None and labels.keys() == keys and "__NO_DATA_DIMENSION__" not in fields
-
-    push_down = len(configs) == 1 and can_push_down_alert_labels(configs[0]["promql"], labels)
-    for config in configs:
-        filters = config.setdefault("filter_dict", {})
-        # 旧面板可能将原始 None 作为输入条件。它没有可用于匹配的标签值。
-        for key in keys & dimensions.keys():
-            if dimensions[key] is None and filters.get(key) is None:
-                filters.pop(key, None)
-        for key, value in labels.items():
-            if push_down:
-                filters.setdefault(key, value)
-            elif key in filters and str(filters[key]) == value:
-                del filters[key]
-    return labels, complete
-
-
-def select_alert_series(series: list[dict], labels: dict, complete: bool) -> list[dict]:
-    """按原始标签选曲线；当前和时间对比具有相同身份，保留各自的采样点。"""
-    expected = {key: value for key, value in labels.items() if value != ""}
-    selected = []
-    identity = None
-    for row in series:
-        dimensions = {
-            key: str(value)
-            for key, value in row["dimensions"].items()
-            if value not in (None, "") and not key.startswith("bk_task_index_")
-        }
-        if complete:
-            matches = dimensions == expected
-        else:
-            matches = all(dimensions.get(key, "") == value for key, value in labels.items())
-        if matches:
-            if identity is not None and identity != dimensions:
-                raise ValidationError(_("告警记录中的维度无法唯一匹配一条 PromQL 序列"))
-            identity = dimensions
-            selected.append(row)
-    return selected
+    if not fields or NO_DATA_TAG_DIMENSION in fields:
+        return None
+    values = {tag["key"]: tag["value"] for tag in event.get("tags", [])}
+    values.update({key: value for key, value in data.get("dimensions", {}).items() if value is not None})
+    labels = {key: values.get(key) for key in fields if not key.startswith("bk_task_index_")}
+    if not can_push_down_alert_labels(configs[0]["promql"], labels):
+        return None
+    return {key: str(value) for key, value in labels.items()}
