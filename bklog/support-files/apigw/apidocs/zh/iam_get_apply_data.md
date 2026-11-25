@@ -4,8 +4,6 @@
 
 ## 请求参数
 
-请求方式：`POST /iam/meta/get_apply_data/`，`Content-Type: application/json`。
-
 ### 鉴权头
 
 | 参数名称 | 参数类型 | 必须 | 参数说明 |
