@@ -116,6 +116,9 @@ const checkboxFilterMapByMode = {
 /** 维度列表转换tree结构 */
 export function convertToTree(data: IDimensionField[], leafNodeIsPrefix = true): IDimensionFieldTreeItem[] {
   const root: IDimensionFieldTreeItem[] = [];
+  /** 中间节点按完整路径索引：levelAlias 是展示文案，同层出现同名文案时会误合并或把子树挂到叶子上 */
+  const branchMap = new Map<string, IDimensionFieldTreeItem>();
+
   for (const item of data) {
     const parts = item.name.split('.');
     if (parts.length < 2) {
@@ -124,25 +127,29 @@ export function convertToTree(data: IDimensionField[], leafNodeIsPrefix = true):
     }
 
     let currentLevel = root;
+    let path = '';
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
-      let node = currentLevel.find(n => n.levelAlias === part);
+      path = path ? `${path}.${part}` : part;
+
+      // 末层节点只承载字段本身，不复用同路径的中间节点，避免字段被吞掉
+      if (i === parts.length - 1) {
+        currentLevel.push({
+          ...item,
+          levelAlias: item.alias !== item.name ? item.alias : leafNodeIsPrefix ? item.name : part,
+          levelName: leafNodeIsPrefix ? item.name : part,
+        });
+        break;
+      }
+
+      let node = branchMap.get(path);
       if (!node) {
-        // 若非末层节点，初始化
-        if (i < parts.length - 1) {
-          node = { ...item, type: 'object', levelAlias: part, levelName: part, name: part, alias: part, children: [] };
-        } else {
-          node = {
-            ...item,
-            levelAlias: item.alias !== item.name ? item.alias : leafNodeIsPrefix ? item.name : part,
-            levelName: leafNodeIsPrefix ? item.name : part,
-          };
-        }
+        node = { ...item, type: 'object', levelAlias: part, levelName: part, name: part, alias: part, children: [] };
+        branchMap.set(path, node);
         currentLevel.push(node);
       }
-      // 更新当前层级到子节点
-      if (node.children) currentLevel = node.children;
-      else currentLevel = []; // 末层节点无需children
+      if (!node.children) node.children = [];
+      currentLevel = node.children;
     }
   }
   for (const node of root) {
