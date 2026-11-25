@@ -192,7 +192,9 @@ export default defineComponent({
         >
           <span class='llm-token-matrix-tool-name'>{title}</span>
           <span class='llm-token-matrix-tool-meta'>
-            {formatCompactToken(node.value)} · {formatMatrixPercent(node.percent)}
+            {formatCompactToken(node.value)}
+            {' · '}
+            <span class='llm-token-matrix-tool-pct'>{formatMatrixPercent(node.percent)}</span>
           </span>
         </div>
       );
