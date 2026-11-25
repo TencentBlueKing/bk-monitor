@@ -368,11 +368,13 @@
   }
 }
 
-.tippy-box[data-theme~='word-breaker-theme-popover'] {
+.tippy-box[data-theme~='word-breaker-theme-popover'],
+.t-popup.word-breaker-theme-popover {
   max-width: 450px !important;
   min-width: 380px;
 
-  .tippy-content {
+  .tippy-content,
+  .t-popup__content {
     padding: 0;
   }
 
