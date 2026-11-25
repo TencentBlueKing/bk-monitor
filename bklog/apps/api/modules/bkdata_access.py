@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 import json
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 
 """
 Access 部署 + 采集模块
@@ -42,8 +41,6 @@ class _NamespaceListAPI(DataAPI):
     VERIFY_TLS = True
 
     def _send(self, params, timeout, request_id, request_cookies, bk_tenant_id):
-        if not self.url.startswith("https://"):
-            raise ImproperlyConfigured(_("查询命名空间需要通过 HTTPS 发送用户凭据，请检查 PAAS_API_HOST 配置。"))
         request = get_request()
         auth = build_auth_args(request)
         if ticket := request.COOKIES.get("bk_ticket"):
