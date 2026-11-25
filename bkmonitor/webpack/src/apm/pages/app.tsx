@@ -57,7 +57,7 @@ export default class App extends tsc<object> {
   private needCopyLink = false;
   private needBack = false;
   private needMenu = !window.__POWERED_BY_BK_WEWEB__;
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   @ProvideReactive('readonly') readonly: boolean = window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY;
   get navRouteList() {
     return this.$store.getters.navRouteList;
